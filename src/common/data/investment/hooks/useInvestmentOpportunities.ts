@@ -11,12 +11,16 @@ import type {
   BaseInvestmentDocument
 } from '../types';
 
-// Use the new query imports
+// Use the new query imports (import directly from the concrete file to avoid barrel re-exports and dynamic chunks)
 import {
   GET_INVESTMENT_OPPORTUNITIES,
   GET_INVESTMENT_OPPORTUNITY_BY_ID,
+  GET_INVESTMENT_TASKS_BY_OPPORTUNITY_ID,
+  GET_INVESTMENT_ACTIVITIES_BY_OPPORTUNITY_ID,
+  GET_INVESTMENT_NOTES_BY_OPPORTUNITY_ID,
+  GET_INVESTMENT_DOCUMENTS_BY_OPPORTUNITY_ID,
   type InvestmentOpportunityQueryVariables
-} from '../queries';
+} from '../queries/investmentOpportunityQueries';
 
 // Use the mapper function
 import { 
@@ -128,7 +132,6 @@ export const useGetInvestmentTasksByOpportunityId = (context: BusinessAppContext
   const graphqlClient = useGraphQLClient(context.accessToken);
   
   const fetchInvestmentTasksByOpportunityId = useCallback(async (opportunityId: string) => {
-    const { GET_INVESTMENT_TASKS_BY_OPPORTUNITY_ID } = await import('../queries');
     const query = GET_INVESTMENT_TASKS_BY_OPPORTUNITY_ID(opportunityId);
     
     try {
@@ -148,7 +151,6 @@ export const useGetInvestmentActivitiesByOpportunityId = (context: BusinessAppCo
   const graphqlClient = useGraphQLClient(context.accessToken);
   
   const fetchInvestmentActivitiesByOpportunityId = useCallback(async (opportunityId: string) => {
-    const { GET_INVESTMENT_ACTIVITIES_BY_OPPORTUNITY_ID } = await import('../queries');
     const query = GET_INVESTMENT_ACTIVITIES_BY_OPPORTUNITY_ID(opportunityId);
     
     try {
@@ -168,7 +170,6 @@ export const useGetInvestmentNotesByOpportunityId = (context: BusinessAppContext
   const graphqlClient = useGraphQLClient(context.accessToken);
   
   const fetchInvestmentNotesByOpportunityId = useCallback(async (opportunityId: string) => {
-    const { GET_INVESTMENT_NOTES_BY_OPPORTUNITY_ID } = await import('../queries');
     const query = GET_INVESTMENT_NOTES_BY_OPPORTUNITY_ID(opportunityId);
     
     try {
@@ -188,7 +189,6 @@ export const useGetInvestmentDocumentsByOpportunityId = (context: BusinessAppCon
   const graphqlClient = useGraphQLClient(context.accessToken);
   
   const fetchInvestmentDocumentsByOpportunityId = useCallback(async (opportunityId: string) => {
-    const { GET_INVESTMENT_DOCUMENTS_BY_OPPORTUNITY_ID } = await import('../queries');
     const query = GET_INVESTMENT_DOCUMENTS_BY_OPPORTUNITY_ID(opportunityId);
     
     try {

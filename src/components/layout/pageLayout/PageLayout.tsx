@@ -146,7 +146,7 @@ export const PageLayout: React.FC<Readonly<PageLayoutProps>> = ({
             {contentHeader}
           </div>
         )}
-        <div className="gba:flex-1 gba:min-h-0 gba:overflow-y-auto" data-testid="page-layout-content-container">{contentContainer}</div>
+        <div className="gba:flex-1 gba:min-h-0" data-testid="page-layout-content-container">{contentContainer}</div>
       </div>
     </div>
   );

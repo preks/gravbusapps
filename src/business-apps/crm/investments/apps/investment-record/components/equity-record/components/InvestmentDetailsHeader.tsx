@@ -14,7 +14,8 @@ import { EquityInvestmentRecord } from '../types';
 import { EquityInvestmentData } from '../hooks/useEquityRecordData';
 import { formatCurrency, formatPercentage, getStatusColor, formatDate } from '@/common/data/investment';
 import PlannedExitFlag from '../../shared/PlannedExitFlag';
-import { AiSummaryButton } from '../../shared/AiSummaryButton';
+import { AiSummaryButton } from '@/common/components/common-relations/record-sections/header-section/ai-summary-button';
+import { useInvestmentAiSummary } from '../../../hooks/useInvestmentAiSummary';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 
 interface InvestmentDetailsHeaderProps {
@@ -134,9 +135,14 @@ const InvestmentDetailsHeader: React.FC<InvestmentDetailsHeaderProps> = ({
               </div>
               {/* AI Summary Button */}
               {context && investmentId && (
-                <AiSummaryButton 
-                  investmentId={investmentId} 
-                  accessToken={context.accessToken} 
+                <AiSummaryButton
+                  config={{
+                    entityType: 'investment',
+                    loadingMessage: 'Generating AI Summary...',
+                    loadingSubtitle: 'Analyzing investment data and activities'
+                  }}
+                  summaryHook={useInvestmentAiSummary(investmentId, context.accessToken)}
+                  dataTestId={`investment-update-button-${investmentId}`}
                 />
               )}
             </div>

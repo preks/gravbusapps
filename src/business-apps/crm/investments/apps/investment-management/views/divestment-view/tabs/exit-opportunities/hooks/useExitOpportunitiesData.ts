@@ -60,7 +60,12 @@ export const useExitOpportunitiesData = (
     async (
       page: number,
       pageSize = 20,
-      additionalFilters?: any,
+      additionalFilters?: {
+        search?: string;
+        ownerEmployeeIds?: string[];
+        createdAfter?: string;
+        createdBefore?: string;
+      },
       overrideSortField?: string,
       overrideSortOrder?: "ASC" | "DESC" | ""
     ) => {
@@ -79,6 +84,9 @@ export const useExitOpportunitiesData = (
           offset: (page - 1) * pageSize,
           dealType: "DIVESTMENT_DEAL", // Filter for divestment opportunities using dealType
           search: additionalFilters?.search || params.search,
+          ownerEmployeeIds: additionalFilters?.ownerEmployeeIds,
+          createdAfter: additionalFilters?.createdAfter,
+          createdBefore: additionalFilters?.createdBefore,
         };
 
         // Add sorting

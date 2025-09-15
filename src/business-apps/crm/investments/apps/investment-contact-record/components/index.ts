@@ -18,5 +18,5 @@ export default {
   ContactPersonalInfo,
   ActivityTimeline,
   TasksSection,
-  ContactDocuments
+  ContactDocuments,
 }; 

@@ -208,8 +208,10 @@ export const TasksSection: React.FC<TasksSectionProps> = ({ opportunityId, conte
         borderRadius: '8px',
         border: '1px solid #f0f0f0',
         overflow: 'hidden',
-        marginBottom: '24px'
+        marginBottom: '24px',
+        height: 'fit-content'
       }}
+      data-testid="opportunity-tasks-section"
     >
       <div 
         style={{

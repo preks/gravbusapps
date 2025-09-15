@@ -1,8 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { PlusCircleOutlined, FileTextOutlined, CloseOutlined, EditOutlined, LoadingOutlined, CloudUploadOutlined, RobotOutlined } from '@ant-design/icons';
-import { List, Spin, Alert, Empty, message, Timeline, Typography, Modal, Button as AntButton } from 'antd';
-import { Clock, Calendar } from 'lucide-react';
-import { startProcess } from '@/common/utils/start-process';
+import { PlusCircleOutlined, FileTextOutlined, CloseOutlined, EditOutlined } from '@ant-design/icons';
+import { Spin, Alert, Empty, message, Timeline, Typography, Button as AntButton } from 'antd';
+// import { startProcess } from '@/common/utils/start-process';
 import { useProcessCompletion } from '@/common/hooks/useProcessCompletion';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 import { InvestmentNotesSection } from './InvestmentNotesSection';
@@ -10,21 +9,18 @@ import { useGetInvestmentActivitiesByInvestmentId } from '../../hooks/useInvestm
 import { useGetInvestmentTasksByInvestmentId } from '../../hooks/useInvestmentTasksByInvestmentId';
 import { useGetInvestmentById } from '@/common/data/investment';
 import { useGetInvestmentTasksByAccountId } from '@/common/data/investment/hooks/useInvestmentAccounts';
-import { useRestClient } from '@/common/network/rest/useRestClient';
-import { env } from '@/common/env/EnvUtils';
-import dayjs from 'dayjs';
+// import { useRestClient } from '@/common/network/rest/useRestClient';
+// import { env } from '@/common/env/EnvUtils';
 import { formatDate } from '@/common/data/investment';
-import { LanguageDropdown } from './LanguageDropdown';
-import { translateMultipleTexts } from '../../utils/translationService';
 import { useEmployeeData } from '@/business-apps/crm/common/hooks/useEmployeeData';
 
-import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient';
+// import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient';
 import { CheckCircleOutlined } from '@ant-design/icons';
 import type { InvestmentActivity, InvestmentTask } from '@/common/data/investment/types';
 import { AppAction } from '@/components/app-action';
 import { FlowContextName } from '@/common/types/FlowRegistryTypes';
 import { Button } from '@newwork/nw-design-system';
-import { ActivityDeletionPopup } from '@/common/components';
+import { ActivityDeletionPopup, DeleteConfirmationPopup } from '@/common/components';
 
 
 const { Text } = Typography;
@@ -55,9 +51,7 @@ export const InvestmentActivitiesSection: React.FC<InvestmentActivitiesSectionPr
   const [activities, setActivities] = useState<TranslatedActivity[]>([]);
   const [activitiesLoading, setActivitiesLoading] = useState(false);
   const [activitiesError, setActivitiesError] = useState<string | null>(null);
-  const [notesKey, setNotesKey] = useState(0);
-  const [selectedLanguage, setSelectedLanguage] = useState('Original');
-  const [translating, setTranslating] = useState(false);
+  const [notesKey] = useState(0);
   const [approvalTasks, setApprovalTasks] = useState<InvestmentTask[]>([]);
   const [approvalTasksLoading, setApprovalTasksLoading] = useState(false);
   const [approvalTasksError, setApprovalTasksError] = useState<string | null>(null);
@@ -65,13 +59,14 @@ export const InvestmentActivitiesSection: React.FC<InvestmentActivitiesSectionPr
 
   const originalActivitiesRef = useRef<InvestmentActivity[]>([]);
   const [deletePopup, setDeletePopup] = useState<{ open: boolean; activity?: InvestmentActivity }>({ open: false });
+  const [deleteApprovalPopup, setDeleteApprovalPopup] = useState<{ open: boolean; task?: InvestmentTask }>({ open: false });
 
   const { fetchInvestmentActivitiesByInvestmentId } = useGetInvestmentActivitiesByInvestmentId(context);
   const { fetchInvestmentTasksByInvestmentId } = useGetInvestmentTasksByInvestmentId(context);
   const { fetchInvestmentById } = useGetInvestmentById(context);
   const { fetchInvestmentTasksByAccountId } = useGetInvestmentTasksByAccountId(context);
-  const restClient = useRestClient(env('NEXT_PUBLIC_KOGITO_PROCESSES_ENDPOINT'));
-  const graphqlClient = useGraphQLClient(context.accessToken);
+  // const restClient = useRestClient(env('NEXT_PUBLIC_KOGITO_PROCESSES_ENDPOINT'));
+  // const graphqlClient = useGraphQLClient(context.accessToken);
 
 
   // Listen for process completion to refetch approval tasks
@@ -152,27 +147,7 @@ export const InvestmentActivitiesSection: React.FC<InvestmentActivitiesSectionPr
     }
   };
 
-  // Handler for Add Note button
-  const handleAddNote = () => {
-    if (!investmentId) {
-      message.error('Investment ID is required to create a note');
-      return;
-    }
-
-    try {
-      startProcess({
-        domain: 'investments',
-        processName: 'createInvestmentNote',
-        payload: {
-          investmentId: investmentId,
-        },
-        builderType: 'NATIVE_SCREEN',
-      });
-    } catch (error) {
-      console.error('Error starting note creation process:', error);
-      message.error('Failed to start note creation process');
-    }
-  };
+  // Note creation handled via AppAction; local handler removed
 
   // Request Approval now handled via AppAction Flow (context-driven)
 
@@ -223,7 +198,7 @@ export const InvestmentActivitiesSection: React.FC<InvestmentActivitiesSectionPr
               type="error"
               showIcon
               action={
-                <Button size="small" onClick={loadActivities}>
+                <Button size="sm" onClick={loadActivities}>
                   Retry
                 </Button>
               }
@@ -254,7 +229,12 @@ export const InvestmentActivitiesSection: React.FC<InvestmentActivitiesSectionPr
                     {activity.translatedTitle || activity.title || 'Untitled Activity'}
                   </h4>
                   <Text type="secondary" style={{ fontSize: '12px' }}>
-                    {formatActivityDate(activity.occurredAt)} • {getEmployeeDisplayName(activity.ownerEmployee?.id)}
+                    {formatActivityDate(activity.occurredAt)} • {
+                      activity.ownerEmployee?.displayName ||
+                      activity.ownerEmployee?.fullName ||
+                      activity.ownerDisplayName ||
+                      getEmployeeDisplayName(activity.ownerEmployee?.id || '')
+                    }
                   </Text>
                   {activity.description && (
                     <p style={{ margin: '8px 0 0 0', color: '#666' }}>
@@ -304,7 +284,7 @@ export const InvestmentActivitiesSection: React.FC<InvestmentActivitiesSectionPr
               type="error"
               showIcon
               action={
-                <Button size="small" onClick={loadApprovalTasks}>
+                <Button size="sm" onClick={loadApprovalTasks}>
                   Retry
                 </Button>
               }
@@ -313,7 +293,13 @@ export const InvestmentActivitiesSection: React.FC<InvestmentActivitiesSectionPr
           );
         }
 
-        if (approvalTasks.length === 0) {
+        // Filter to approvals only
+        const approvalOnly = approvalTasks.filter((task) => {
+          const typeVal: any = (task as any)?.taskType?.value || (task as any)?.taskType?.code || (task as any)?.taskTypeRef || '';
+          return String(typeVal).toLowerCase() === 'approval' || String(typeVal).toUpperCase().endsWith(':APPROVAL');
+        });
+
+        if (approvalOnly.length === 0) {
           return (
             <Empty
               description="No approval tasks found"
@@ -324,18 +310,35 @@ export const InvestmentActivitiesSection: React.FC<InvestmentActivitiesSectionPr
 
         return (
           <Timeline mode="left" style={{ marginTop: '16px' }}>
-            {approvalTasks.map((task) => (
+            {approvalOnly.map((task) => (
               <Timeline.Item
                 key={task.id}
                 dot={<CheckCircleOutlined />}
                 color="green"
               >
-                <div>
-                  <h4 style={{ margin: '0 0 4px 0', fontWeight: 'bold' }}>
-                    {task.name || 'Untitled Task'}
-                  </h4>
+                <div style={{ position: 'relative' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '4px' }}>
+                    <h4 style={{ margin: 0, fontWeight: 'bold' }}>
+                      {task.name || 'Untitled Task'}
+                    </h4>
+                    <AntButton
+                      type="text"
+                      icon={<CloseOutlined />}
+                      size="small"
+                      onClick={() => setDeleteApprovalPopup({ open: true, task })}
+                      data-testid={`delete-approval-task-button-${task.id}`}
+                      title="Delete Approval"
+                    />
+                  </div>
                   <Text type="secondary" style={{ fontSize: '12px' }}>
-                    Due: {formatDate(task.dueDate)} • Assigned: {getEmployeeDisplayName(task.assignedEmployee?.id)}
+                    Due: {formatDate(task.dueDate)} • Requester: {
+                      task.assignedEmployee?.displayName ||
+                      (task.assignedEmployee?.id ? getEmployeeDisplayName(task.assignedEmployee.id) : undefined) ||
+                      task.creatorEmployee?.displayName ||
+                      (task.creatorEmployee?.id ? getEmployeeDisplayName(task.creatorEmployee.id) : undefined) ||
+                      (task as any).createdBy ||
+                      'Unknown'
+                    }
                   </Text>
                   {task.description && (
                     <p style={{ margin: '8px 0 0 0', color: '#666' }}>
@@ -373,9 +376,7 @@ export const InvestmentActivitiesSection: React.FC<InvestmentActivitiesSectionPr
                 contextsArray={[FlowContextName.createInvestmentActivity]}
                 accessToken={context.accessToken}
                 externalContextData={{ 
-                  investmentId: investmentId,
-                  accountId: accountIdForInvestment,
-                  investmentData: { investmentAccount: { id: accountIdForInvestment } }
+                  investmentId: investmentId
                 }}
                 prefixDataTestId="add-activity"
                 emptyStateBehavior="hide"
@@ -390,23 +391,33 @@ export const InvestmentActivitiesSection: React.FC<InvestmentActivitiesSectionPr
               </AppAction>
             )}
             {activeTab === 'notes' && (
-              <Button
-                variant="default"
-                onClick={handleAddNote}
-                data-testid="add-note-button"
+              <AppAction
+                contextsArray={[FlowContextName.createInvestmentNote]}
+                accessToken={context.accessToken}
+                externalContextData={{
+                  investmentId: investmentId
+                }}
+                prefixDataTestId="add-note"
+                emptyStateBehavior="hide"
               >
-                <PlusCircleOutlined />
-                Add Note
-              </Button>
+                <Button
+                  variant="default"
+                  data-testid="add-note-button"
+                >
+                  <PlusCircleOutlined />
+                  Add Note
+                </Button>
+              </AppAction>
             )}
             {activeTab === 'approvals' && (
               <AppAction
                 contextsArray={[FlowContextName.investmentTaskCreate]}
                 accessToken={context.accessToken}
                 externalContextData={{
+                  // ensure additionalData paths are populated for payload builder
                   investmentId,
                   investment: investmentId,
-                  investmentTask: { investment: investmentId },
+                  investmentTask: { investment: investmentId, investmentId },
                   typeRef: 'InvestmentTaskType:v1:APPROVAL',
                 }}
                 prefixDataTestId="request-approval"
@@ -484,6 +495,36 @@ export const InvestmentActivitiesSection: React.FC<InvestmentActivitiesSectionPr
             message.error('Failed to delete activity');
           }}
           data-testid="investment-activity-deletion-popup"
+        />
+      ) : null}
+
+      {deleteApprovalPopup.open && deleteApprovalPopup.task ? (
+        <DeleteConfirmationPopup
+          isOpen={deleteApprovalPopup.open}
+          onClose={() => setDeleteApprovalPopup({ open: false })}
+          accessToken={context.accessToken}
+          itemTitle={deleteApprovalPopup.task!.name || 'Approval Task'}
+          itemType="task"
+          flowContextName={FlowContextName.investmentTaskDelete}
+          externalContextData={{
+            taskId: deleteApprovalPopup.task!.id,
+            investmentTask: {
+              id: deleteApprovalPopup.task!.id,
+              version: (deleteApprovalPopup.task as any).version,
+            },
+            investmentId,
+          }}
+          onFlowSuccess={() => {
+            const id = deleteApprovalPopup.task!.id;
+            setApprovalTasks(prev => prev.filter(t => t.id !== id));
+            setDeleteApprovalPopup({ open: false });
+            message.success('Approval task deleted successfully');
+          }}
+          onFlowError={() => {
+            setDeleteApprovalPopup({ open: false });
+            message.error('Failed to delete approval task');
+          }}
+          data-testid="investment-approval-deletion-popup"
         />
       ) : null}
 

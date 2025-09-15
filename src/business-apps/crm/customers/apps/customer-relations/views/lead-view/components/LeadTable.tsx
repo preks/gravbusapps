@@ -209,7 +209,7 @@ export const LeadTable: React.FC<LeadTableProps> = ({
         <div className="gba:overflow-x-auto">
           <Table
             data-testid={`${DATA_TEST_ID_PREFIX}-table`}
-            style={{ minWidth: "1200px" }}
+            className="gba:min-w-[1200px]"
           >
             <TableHeader>
               <TableRow className="gba:border-b gba:bg-gray-50">
@@ -530,7 +530,7 @@ export const LeadTable: React.FC<LeadTableProps> = ({
                       <Badge
                         variant={getLeadStatusBadgeVariant(record.leadStatus)}
                       >
-                        {record.leadStatus?.value || "-"}
+                        {record.leadStatus?.value || record.leadStatus?.code || "-"}
                       </Badge>
                     </TableCell>
                   )}

@@ -306,6 +306,25 @@ export const INVESTMENT_OPPORTUNITY = `
         ${INVESTMENT_CONTACT_REF}
       }
     }
+
+    # Stage conditions (embed current and historical statuses)
+    opportunityStageConditions: investmentOpportunityStageCondition(where: { isDeleted: { _eq: false } }, orderBy: [{ createdAt: DESC }]) {
+      id
+      completed
+      completedAt
+      deadlineAt
+      version
+      configSnapshot
+      completedByEmployee {
+        id
+        displayName
+        firstName
+        lastName
+      }
+      opportunityPipelineStageCondition {
+        ${CATALOG_ENTRY}
+      }
+    }
 `;
 
 export const INVESTMENT_TASK = `

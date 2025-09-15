@@ -2,9 +2,10 @@ import React, { useMemo, useState, useCallback } from 'react';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 import { Card, CardHeader, CardTitle, CardContent, Badge } from '@newwork/nw-design-system';
 import { InfoCircleOutlined, CheckCircleFilled, CloseCircleFilled, CalendarOutlined, ClockCircleOutlined, UserOutlined } from '@ant-design/icons';
-import { AppActionMenu } from '@/components/app-action-menu/AppActionMenu';
+import { AppAction } from '@/components/app-action/AppAction';
 import type { AppActionCommonProps } from '@/common/hooks/useAppActionData';
 import { getSalesPipelineStageBadgeVariant } from '@/common/utils/badgeUtils';
+import { FlowContextName } from '@/common/types/FlowRegistryTypes';
 
 interface ConditionSectionProps extends Partial<BusinessAppContextProps> {
   opportunity?: any;
@@ -40,15 +41,16 @@ const ConditionSection: React.FC<ConditionSectionProps> = ({ opportunity, stageC
   }, [stageConditionStatuses, handleConditionMouseLeave, conditionContextsArray]);
 
   const transformStageConditionStatusToUI = (statusData: any) => {
-    const config = statusData.configSnapshot || statusData.salesPipelineStageCondition?.objectValue || {};
+    const conditionEntry = statusData.opportunityPipelineStageCondition;
+    const config = statusData.configSnapshot || conditionEntry?.objectValue || {};
     // deadline configuration available if needed in future
     const getEmployeeName = (employee: any) => employee?.displayName || `${employee?.firstName || ''} ${employee?.lastName || ''}`.trim() || 'System';
     const approvedBy = getEmployeeName(statusData.completedByEmployee);
     const checkedType = config.check_type === 'MANUAL' ? 'User' : 'Automated';
     return {
-      id: statusData.salesPipelineStageCondition?.code || statusData.id,
+      id: conditionEntry?.code || statusData.id,
       stageConditionStatusId: statusData.id,
-      title: statusData.salesPipelineStageCondition?.value || 'Unknown Condition',
+      title: conditionEntry?.value || 'Unknown Condition',
       description: config.description || 'No description available',
       isCompleted: statusData.completed || false,
       generateTask: config.generate_task || config.generateTask || false,
@@ -59,13 +61,13 @@ const ConditionSection: React.FC<ConditionSectionProps> = ({ opportunity, stageC
     };
   };
 
-  const getCurrentStageConditions = (statuses: any[], currentStage: string) => {
-    const expectedStageId = `SalesPipelineStage:v1:${currentStage}`;
-    return statuses.filter(s => s.salesPipelineStageCondition?.parentEntryId === expectedStageId);
+  const getCurrentStageConditions = (statuses: any[], currentStageStageId?: string) => {
+    if (!currentStageStageId) return [];
+    return statuses.filter(s => s.opportunityPipelineStageCondition?.parentEntryId === currentStageStageId);
   };
 
   const currentStageConditionStatuses = (stageConditionStatuses && stageConditionStatuses.length > 0)
-    ? getCurrentStageConditions(stageConditionStatuses, opportunity?.salesPipelineStage?.code || '')
+    ? getCurrentStageConditions(stageConditionStatuses, opportunity?.opportunityPipelineStage?.id)
     : [];
   const stageConditions = currentStageConditionStatuses.map(transformStageConditionStatusToUI);
   const sortedStageConditions = [...stageConditions].sort((a, b) => (a.isCompleted === b.isCompleted ? 0 : a.isCompleted ? 1 : -1));
@@ -81,8 +83,8 @@ const ConditionSection: React.FC<ConditionSectionProps> = ({ opportunity, stageC
       <CardContent>
         <div className="gba:space-y-3">
           <div className="gba:flex gba:justify-center gba:p-3 gba:bg-gray-50 gba:rounded-lg gba:border gba:border-gray-200">
-            <Badge variant={getSalesPipelineStageBadgeVariant(opportunity?.salesPipelineStage)}>
-              {opportunity?.salesPipelineStage?.value || 'No Stage'}
+            <Badge variant={getSalesPipelineStageBadgeVariant(opportunity?.opportunityPipelineStage)}>
+              {opportunity?.opportunityPipelineStage?.value || 'No Stage'}
             </Badge>
           </div>
 
@@ -93,7 +95,7 @@ const ConditionSection: React.FC<ConditionSectionProps> = ({ opportunity, stageC
                   <div className="gba:mb-2">
                     <div className="gba:flex gba:items-center gba:gap-2">
                       <div className="gba:flex-shrink-0">
-                        <AppActionMenu
+                        <AppAction
                           data-testid={`stage-condition-status-icon-${condition.stageConditionStatusId}`}
                           contextsArray={conditionProps[condition.stageConditionStatusId]?.contextsArray}
                           externalContextData={conditionProps[condition.stageConditionStatusId]?.externalContextData}
@@ -101,11 +103,12 @@ const ConditionSection: React.FC<ConditionSectionProps> = ({ opportunity, stageC
                           accessToken={(context as BusinessAppContextProps).accessToken as string}
                           emptyStateBehavior="disable"
                           deferMainContextRequestsUntilClick={false}
-                          autoExecuteSingleAction
-                          onMouseEnter={conditionProps[condition.stageConditionStatusId]?.mouseHandlers.onMouseEnter}
-                          onMouseLeave={conditionProps[condition.stageConditionStatusId]?.mouseHandlers.onMouseLeave}
                         >
-                          <div className="gba:relative gba:inline-flex gba:items-center gba:justify-center gba:w-8 gba:h-8">
+                          <div 
+                            className="gba:relative gba:inline-flex gba:items-center gba:justify-center gba:w-8 gba:h-8 gba:cursor-pointer"
+                            onMouseEnter={conditionProps[condition.stageConditionStatusId]?.mouseHandlers.onMouseEnter}
+                            onMouseLeave={conditionProps[condition.stageConditionStatusId]?.mouseHandlers.onMouseLeave}
+                          >
                             {hoveredConditionId === condition.stageConditionStatusId ? (
                               condition.isCompleted ? (
                                 <CloseCircleFilled className="gba:text-2xl" style={{ color: '#f59e0b' }} />
@@ -120,7 +123,7 @@ const ConditionSection: React.FC<ConditionSectionProps> = ({ opportunity, stageC
                               )
                             )}
                           </div>
-                        </AppActionMenu>
+                        </AppAction>
                       </div>
                       <div className="gba:flex gba:items-center gba:gap-2 gba:flex-1 gba:min-w-0">
                         <h4 className="gba:text-sm gba:font-bold gba:text-gray-800">{condition.title}</h4>

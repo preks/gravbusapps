@@ -1,8 +1,8 @@
 // Investment Queries - Core investment entities and their specializations
 // Built using actual schema discovered via newwork-mcp
-import { CATALOG_ENTRY, AUDIT_FIELDS, EMPLOYEE } from '@/common/network/graphql/commonFragments';
+import { CATALOG_ENTRY, AUDIT_FIELDS } from '@/common/network/graphql/commonFragments';
 import { INVESTMENT } from './fragments/investmentFragments';
-import { INVESTMENT_OPPORTUNITY_REF, INVESTMENT_ACTIVITY, INVESTMENT_TASK, INVESTMENT_NOTE, INVESTMENT_DOCUMENT } from './fragments/investmentRelationFragments';
+import { INVESTMENT_ACTIVITY, INVESTMENT_TASK, INVESTMENT_NOTE, INVESTMENT_DOCUMENT } from './fragments/investmentRelationFragments';
 
 export interface InvestmentQueryVariables {
   ids?: string[];
@@ -10,16 +10,45 @@ export interface InvestmentQueryVariables {
   investmentTypeIds?: string[];
   investmentStatusIds?: string[];
   investmentGroupIds?: string[];
+  investmentPhaseIds?: string[];
+  investmentRiskLevelIds?: string[];
   currencyIds?: string[];
   ownerEmployeeIds?: string[];
   accountIds?: string[];
   opportunityIds?: string[];
+  // Creation date range (createdAt)
+  createdAfter?: string;
+  createdBefore?: string;
+  // Amount ranges
+  initialInvestmentMinAmount?: number;
+  initialInvestmentMaxAmount?: number;
+  marketValueMinAmount?: number;
+  marketValueMaxAmount?: number;
+  // Performance (percentage) range - applied client-side if provided
+  performanceMinPercent?: number;
+  performanceMaxPercent?: number;
   acquisitionDateFrom?: string;
   acquisitionDateTo?: string;
   exitDateFrom?: string;
   exitDateTo?: string;
   plannedExitDateFrom?: string;
   plannedExitDateTo?: string;
+  // Text filters
+  isinContains?: string;
+  fundManagerNameContains?: string;
+  // Catalog filters (phase already supported; risk level & currency already declared above)
+  // Numeric scalars
+  stakePercentageMin?: number;
+  stakePercentageMax?: number;
+  totalInvestmentMinAmount?: number;
+  totalInvestmentMaxAmount?: number;
+  debtFinancingMinAmount?: number;
+  debtFinancingMaxAmount?: number;
+  forecastedProfitMinAmount?: number;
+  forecastedProfitMaxAmount?: number;
+  // Liquid fund specialization filters
+  liquidFundBankAccountContains?: string;
+  liquidFundEarlyTermination?: boolean;
   limit?: number;
   offset?: number;
   orderBy?: Array<{
@@ -57,12 +86,46 @@ export const buildInvestmentWhereCondition = (variables: InvestmentQueryVariable
     whereClause += `, investmentGroup: { id: { _in: [${variables.investmentGroupIds.map(id => `"${id}"`).join(', ')}] } }`;
   }
 
+  if (variables.investmentPhaseIds?.length) {
+    whereClause += `, investmentPhase: { id: { _in: [${variables.investmentPhaseIds.map(id => `"${id}"`).join(', ')}] } }`;
+  }
+
+  if (variables.investmentRiskLevelIds?.length) {
+    whereClause += `, investmentRiskLevel: { id: { _in: [${variables.investmentRiskLevelIds.map(id => `"${id}"`).join(', ')}] } }`;
+  }
+
   if (variables.currencyIds?.length) {
     whereClause += `, currency: { id: { _in: [${variables.currencyIds.map(id => `"${id}"`).join(', ')}] } }`;
   }
 
+  // Text contains filters
+  if (variables.isinContains?.trim()) {
+    whereClause += `, isin: { _ilike: "%${variables.isinContains.trim()}%" }`;
+  }
+  if (variables.fundManagerNameContains?.trim()) {
+    whereClause += `, fundManagerName: { _ilike: "%${variables.fundManagerNameContains.trim()}%" }`;
+  }
+
+  // Phase (already supported earlier; keep guard only if variable exists)
+  if ((variables as any).investmentPhaseIds?.length) {
+    const ids = (variables as any).investmentPhaseIds as string[];
+    whereClause += `, investmentPhase: { id: { _in: [${ids.map(id => `"${id}"`).join(', ')}] } }`;
+  }
+
+  // Note: Investment entity doesn't have a direct 'country' field based on schema analysis
+
   if (variables.ownerEmployeeIds?.length) {
     whereClause += `, ownerEmployee: { id: { _in: [${variables.ownerEmployeeIds.map(id => `"${id}"`).join(', ')}] } }`;
+  }
+
+  // Creation date range
+  {
+    const createdParts: string[] = [];
+    if (variables.createdAfter) createdParts.push(`_gte: "${variables.createdAfter}"`);
+    if (variables.createdBefore) createdParts.push(`_lte: "${variables.createdBefore}"`);
+    if (createdParts.length) {
+      whereClause += `, createdAt: { ${createdParts.join(', ')} }`;
+    }
   }
 
   if (variables.accountIds?.length) {
@@ -73,28 +136,76 @@ export const buildInvestmentWhereCondition = (variables: InvestmentQueryVariable
     whereClause += `, investmentOpportunity: { id: { _in: [${variables.opportunityIds.map(id => `"${id}"`).join(', ')}] } }`;
   }
 
-  if (variables.acquisitionDateFrom) {
-    whereClause += `, acquisitionDate: { _gte: "${variables.acquisitionDateFrom}" }`;
+  // Numeric ranges
+  {
+    const parts: string[] = [];
+    if (typeof variables.initialInvestmentMinAmount === 'number') parts.push(`_gte: ${variables.initialInvestmentMinAmount}`);
+    if (typeof variables.initialInvestmentMaxAmount === 'number') parts.push(`_lte: ${variables.initialInvestmentMaxAmount}`);
+    if (parts.length) whereClause += `, initialInvestmentAmount: { ${parts.join(', ')} }`;
+  }
+  {
+    const parts: string[] = [];
+    if (typeof variables.marketValueMinAmount === 'number') parts.push(`_gte: ${variables.marketValueMinAmount}`);
+    if (typeof variables.marketValueMaxAmount === 'number') parts.push(`_lte: ${variables.marketValueMaxAmount}`);
+    if (parts.length) whereClause += `, investmentMarketValue: { ${parts.join(', ')} }`;
   }
 
-  if (variables.acquisitionDateTo) {
-    whereClause += `, acquisitionDate: { _lte: "${variables.acquisitionDateTo}" }`;
+  {
+    const acqParts: string[] = [];
+    if (variables.acquisitionDateFrom) acqParts.push(`_gte: "${variables.acquisitionDateFrom}"`);
+    if (variables.acquisitionDateTo) acqParts.push(`_lte: "${variables.acquisitionDateTo}"`);
+    if (acqParts.length) whereClause += `, acquisitionDate: { ${acqParts.join(', ')} }`;
   }
 
-  if (variables.exitDateFrom) {
-    whereClause += `, exitDate: { _gte: "${variables.exitDateFrom}" }`;
+  {
+    const exitParts: string[] = [];
+    if (variables.exitDateFrom) exitParts.push(`_gte: "${variables.exitDateFrom}"`);
+    if (variables.exitDateTo) exitParts.push(`_lte: "${variables.exitDateTo}"`);
+    if (exitParts.length) whereClause += `, exitDate: { ${exitParts.join(', ')} }`;
   }
 
-  if (variables.exitDateTo) {
-    whereClause += `, exitDate: { _lte: "${variables.exitDateTo}" }`;
+  {
+    const pexitParts: string[] = [];
+    if (variables.plannedExitDateFrom) pexitParts.push(`_gte: "${variables.plannedExitDateFrom}"`);
+    if (variables.plannedExitDateTo) pexitParts.push(`_lte: "${variables.plannedExitDateTo}"`);
+    if (pexitParts.length) whereClause += `, plannedExitDate: { ${pexitParts.join(', ')} }`;
   }
 
-  if (variables.plannedExitDateFrom) {
-    whereClause += `, plannedExitDate: { _gte: "${variables.plannedExitDateFrom}" }`;
+  // Stake percentage
+  {
+    const parts: string[] = [];
+    if (typeof variables.stakePercentageMin === 'number') parts.push(`_gte: ${variables.stakePercentageMin}`);
+    if (typeof variables.stakePercentageMax === 'number') parts.push(`_lte: ${variables.stakePercentageMax}`);
+    if (parts.length) whereClause += `, stakePercentage: { ${parts.join(', ')} }`;
   }
 
-  if (variables.plannedExitDateTo) {
-    whereClause += `, plannedExitDate: { _lte: "${variables.plannedExitDateTo}" }`;
+  // Totals / Debt / Forecasted Profit
+  {
+    const parts: string[] = [];
+    if (typeof variables.totalInvestmentMinAmount === 'number') parts.push(`_gte: ${variables.totalInvestmentMinAmount}`);
+    if (typeof variables.totalInvestmentMaxAmount === 'number') parts.push(`_lte: ${variables.totalInvestmentMaxAmount}`);
+    if (parts.length) whereClause += `, totalInvestmentAmount: { ${parts.join(', ')} }`;
+  }
+  {
+    const parts: string[] = [];
+    if (typeof variables.debtFinancingMinAmount === 'number') parts.push(`_gte: ${variables.debtFinancingMinAmount}`);
+    if (typeof variables.debtFinancingMaxAmount === 'number') parts.push(`_lte: ${variables.debtFinancingMaxAmount}`);
+    if (parts.length) whereClause += `, debtFinancingAmount: { ${parts.join(', ')} }`;
+  }
+  {
+    const parts: string[] = [];
+    if (typeof variables.forecastedProfitMinAmount === 'number') parts.push(`_gte: ${variables.forecastedProfitMinAmount}`);
+    if (typeof variables.forecastedProfitMaxAmount === 'number') parts.push(`_lte: ${variables.forecastedProfitMaxAmount}`);
+    if (parts.length) whereClause += `, forecastedProfitAmount: { ${parts.join(', ')} }`;
+  }
+
+  // Liquid fund nested filters
+  if (variables.liquidFundBankAccountContains?.trim()) {
+    whereClause += `, liquidFundInvestment: { bankAccountNumber: { _ilike: "%${variables.liquidFundBankAccountContains.trim()}%" } }`;
+  }
+  if (typeof variables.liquidFundEarlyTermination === 'boolean') {
+    const val = variables.liquidFundEarlyTermination ? 'true' : 'false';
+    whereClause += `, liquidFundInvestment: { earlyTerminationAllowed: { _eq: ${val} } }`;
   }
 
   whereClause += ' }';
@@ -107,9 +218,42 @@ export const GET_INVESTMENTS = (variables: InvestmentQueryVariables = {}): strin
   const offset = variables.offset || 0;
   const where = buildInvestmentWhereCondition(variables);
   
-  const orderByClause = variables.orderBy?.length 
-    ? `orderBy: [${variables.orderBy.map(o => `{ ${o.field}: ${o.direction} }`).join(', ')}]`
-    : 'orderBy: [{ createdAt: DESC }]';
+  // Build orderBy safely. Support nested fields using GraphQL syntax
+  // Allowed sort fields on Investment root or immediate nested objects with scalar values
+  const allowedSortFields = new Set<string>([
+    // Root scalars
+    'name', 'code', 'createdAt', 'updatedAt', 'acquisitionDate', 'plannedExitDate', 'exitDate',
+    'initialInvestmentAmount', 'totalInvestmentAmount', 'investmentMarketValue', 'stakePercentage',
+    'fundManagerName', 'loanInterestRate',
+    // Nested catalog value sorts
+    'investmentType', 'investmentStatus', 'investmentGroup'
+  ]);
+
+  // Build one orderBy entry string
+  const buildOrderByEntry = (field: string, direction: 'ASC_NULLS_LAST' | 'DESC_NULLS_LAST'): string | null => {
+    // Nested catalog value sorts
+    if (field === 'investmentType.value') return `{ investmentType: { value: ${direction} } }`;
+    if (field === 'investmentStatus.value') return `{ investmentStatus: { value: ${direction} } }`;
+    if (field === 'investmentGroup.value') return `{ investmentGroup: { value: ${direction} } }`;
+    // Nested owner display name
+    if (field === 'ownerEmployee.displayName') return `{ ownerEmployee: { displayName: ${direction} } }`;
+
+    // Direct root field
+    if (allowedSortFields.has(field)) return `{ ${field}: ${direction} }`;
+
+    // Unsupported field (e.g., computed performancePercentage)
+    return null;
+  };
+
+  const orderByEntries: string[] = [];
+  for (const ob of (variables.orderBy || [])) {
+    const entry = buildOrderByEntry(ob.field, ob.direction);
+    if (entry) orderByEntries.push(entry);
+  }
+
+  const orderByClause = orderByEntries.length
+    ? `orderBy: [${orderByEntries.join(', ')}]`
+    : 'orderBy: [{ createdAt: DESC_NULLS_LAST }]';
 
   return `
     query GetInvestments {
@@ -119,56 +263,99 @@ export const GET_INVESTMENTS = (variables: InvestmentQueryVariables = {}): strin
         ${orderByClause}
         ${where}
       ) {
-        ${INVESTMENT}  
+        # Core Investment fields (explicit to avoid fragment issues)
+        id
+        code
+        name
+        isin
+        acquisitionDate
+        planedExit
+        plannedExitDate
+        exitDate
+        initialInvestmentAmount
+        totalInvestmentAmount
+        investmentMarketValue
+        debtFinancingAmount
+        requiredCapitalAmount
+        forecastedRevenueAmount
+        forecastedProfitAmount
+        stakePercentage
+        loanRecipientName
+        loanAmount
+        loanOpenCommitmentAmount
+        loanInterestRate
+        loanStartDate
+        loanEndDate
+        loanInterestClaim
+        totalCommitmentAmount
+        totalDistributionAmount
+        fundManagerName
         
-        # Entity relationships
+        # Audit fields
+        createdAt
+        createdBy
+        updatedAt
+        updatedBy
+        isDeleted
+        recordState
+        activeFrom
+        activeTo
+        version
+
+        # Catalog relationships
+        investmentGroup {
+          ${CATALOG_ENTRY}
+        }
+        investmentType {
+          ${CATALOG_ENTRY}
+        }
+        investmentStakeType {
+          ${CATALOG_ENTRY}
+        }
+        investmentStatus {
+          ${CATALOG_ENTRY}
+        }
+        investmentRiskLevel {
+          ${CATALOG_ENTRY}
+        }
+        currency {
+          ${CATALOG_ENTRY}
+        }
+
+        # Employee relationship (simplified)
+        ownerEmployee {
+          id
+          code
+          firstName
+          lastName
+          displayName
+          fullName
+          picture
+          pictureThumbnail
+        }
+        
+        # Entity relationships (simplified)
         investmentAccount {
           id
           code
           name
           email
-          foundationDate
-          geographicPresence
-          companySize {
-            ${CATALOG_ENTRY}
-          }
-          accountAnnualRevenueBand {
-            ${CATALOG_ENTRY}
-          }
-          industryClass {
-            ${CATALOG_ENTRY}
-          }
-          investmentAccountContact {
-            contactType
-            contact {
-              id
-              firstName
-              lastName
-              fullName
-              email
-              phone
-              department
-              jobPosition
-              ${AUDIT_FIELDS}
-            }
-          }
         }
         investmentOpportunity {
-          ${INVESTMENT_OPPORTUNITY_REF}
+          id
+          name
+          code
         }
         
-        # Equity Investment specialization
+        # Investment specializations (simplified)
         equityInvestment {
           id
           foundationDate
           marketValue
           ebitdaAmount
           turnoverAmount
-          additionalProperties
-          ${AUDIT_FIELDS}
         }
         
-        # Real Estate Investment specialization
         realEstateInvestment {
           id
           buildingYear
@@ -176,21 +363,14 @@ export const GET_INVESTMENTS = (variables: InvestmentQueryVariables = {}): strin
           actualAnnualExpenses
           occupancyPercent
           locality
-          country {
-            ${CATALOG_ENTRY}
-          }
         }
         
-        # Liquid Fund Investment specialization
         liquidFundInvestment {
           id
           bankName
+          interestRate
           bankAccountNumber
           earlyTerminationAllowed
-          interestRate
-          investmentLiquidFundType {
-            ${CATALOG_ENTRY}
-          }
         }
       }
       

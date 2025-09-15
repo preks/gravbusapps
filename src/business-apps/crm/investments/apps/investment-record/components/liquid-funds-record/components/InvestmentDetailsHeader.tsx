@@ -6,7 +6,8 @@ import { formatCurrency, formatPercentage } from '@/common/data/investment';
 import PlannedExitFlag from '../../shared/PlannedExitFlag';
 import type { LiquidFundInvestmentData } from '../types';
 import type { BusinessAppContextProps } from '@/common/BusinessAppContext';
-import { AiSummaryButton } from '../../shared/AiSummaryButton';
+import { AiSummaryButton } from '@/common/components/common-relations/record-sections/header-section/ai-summary-button';
+import { useInvestmentAiSummary } from '../../../hooks/useInvestmentAiSummary';
 
 interface InvestmentDetailsHeaderProps {
   liquidFundData: LiquidFundInvestmentData | null;
@@ -52,9 +53,14 @@ const InvestmentDetailsHeader: React.FC<InvestmentDetailsHeaderProps> = ({ liqui
               </div>
               {/* AI Summary Button */}
               {context && investmentId && (
-                <AiSummaryButton 
-                  investmentId={investmentId} 
-                  accessToken={context.accessToken} 
+                <AiSummaryButton
+                  config={{
+                    entityType: 'investment',
+                    loadingMessage: 'Generating AI Summary...',
+                    loadingSubtitle: 'Analyzing investment data and activities'
+                  }}
+                  summaryHook={useInvestmentAiSummary(investmentId, context.accessToken)}
+                  dataTestId={`investment-update-button-${investmentId}`}
                 />
               )}
             </div>

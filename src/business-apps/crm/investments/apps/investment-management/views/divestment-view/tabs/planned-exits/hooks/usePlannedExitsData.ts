@@ -33,6 +33,21 @@ export interface UsePlannedExitsDataParams {
   sortDirection?: 'asc' | 'desc';
   limit?: number;
   offset?: number;
+  filters?: {
+    investmentGroupIds?: string[];
+    ownerEmployeeIds?: string[];
+    plannedExitDateFrom?: string;
+    plannedExitDateTo?: string;
+    createdAfter?: string;
+    createdBefore?: string;
+    investmentNameContains?: string;
+    initialInvestmentMinAmount?: number;
+    initialInvestmentMaxAmount?: number;
+    investmentMarketValueMinAmount?: number;
+    investmentMarketValueMaxAmount?: number;
+    stakePercentageMin?: number;
+    stakePercentageMax?: number;
+  };
 }
 
 export interface UsePlannedExitsDataReturn {
@@ -113,6 +128,48 @@ export const usePlannedExitsData = (params: UsePlannedExitsDataParams): UsePlann
         ];
       }
 
+      // Apply filters
+      const f = params.filters || {};
+      if (f.investmentGroupIds && f.investmentGroupIds.length) {
+        where.investmentGroup = { id: { _in: f.investmentGroupIds } };
+      }
+      if (f.ownerEmployeeIds && f.ownerEmployeeIds.length) {
+        where.ownerEmployee = { id: { _in: f.ownerEmployeeIds } };
+      }
+      if (f.plannedExitDateFrom) {
+        where.plannedExitDate = { ...(where.plannedExitDate || {}), _gte: f.plannedExitDateFrom };
+      }
+      if (f.plannedExitDateTo) {
+        where.plannedExitDate = { ...(where.plannedExitDate || {}), _lte: f.plannedExitDateTo };
+      }
+      if (f.createdAfter || f.createdBefore) {
+        const createdAny: any = {};
+        if (f.createdAfter) createdAny._gte = f.createdAfter;
+        if (f.createdBefore) createdAny._lte = f.createdBefore;
+        where.createdAt = createdAny;
+      }
+      if (f.investmentNameContains) {
+        where.name = { _ilike: `%${f.investmentNameContains}%` };
+      }
+      if (f.initialInvestmentMinAmount !== undefined || f.initialInvestmentMaxAmount !== undefined) {
+        const obj: any = {};
+        if (f.initialInvestmentMinAmount !== undefined) obj._gte = f.initialInvestmentMinAmount;
+        if (f.initialInvestmentMaxAmount !== undefined) obj._lte = f.initialInvestmentMaxAmount;
+        where.initialInvestmentAmount = obj;
+      }
+      if (f.investmentMarketValueMinAmount !== undefined || f.investmentMarketValueMaxAmount !== undefined) {
+        const obj: any = {};
+        if (f.investmentMarketValueMinAmount !== undefined) obj._gte = f.investmentMarketValueMinAmount;
+        if (f.investmentMarketValueMaxAmount !== undefined) obj._lte = f.investmentMarketValueMaxAmount;
+        where.investmentMarketValue = obj;
+      }
+      if (f.stakePercentageMin !== undefined || f.stakePercentageMax !== undefined) {
+        const obj: any = {};
+        if (f.stakePercentageMin !== undefined) obj._gte = f.stakePercentageMin;
+        if (f.stakePercentageMax !== undefined) obj._lte = f.stakePercentageMax;
+        where.stakePercentage = obj;
+      }
+
       // Build order by clause
       const orderBy: any[] = [];
       if (params.sortBy) {
@@ -160,7 +217,8 @@ export const usePlannedExitsData = (params: UsePlannedExitsDataParams): UsePlann
     params.sortBy,
     params.sortDirection,
     params.limit,
-    params.offset
+    params.offset,
+    JSON.stringify(params.filters)
   ]);
 
   useEffect(() => {

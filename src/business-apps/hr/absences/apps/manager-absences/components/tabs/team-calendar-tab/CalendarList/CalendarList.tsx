@@ -760,7 +760,7 @@ const CalendarList: React.FC<CalendarListProps> = (props) => {
           
           return (
         <CalendarTimeline<AbsenceTimelineItem, AbsenceTimelineEvent>
-          title={getTranslationFromI18nKeyAndLabel('absence_calendar_title', 'Team Absence Calendar')}
+          title={getTranslationFromI18nKeyAndLabel('lowcoder:absence_calendar.title', 'Team Absence Calendar')}
           items={timelineItems}
           events={july2025Events}
           itemLabel={getTranslationFromI18nKeyAndLabel('lowcoder:hr_absences.create_absence.employee', 'Employee')}
@@ -787,10 +787,10 @@ const CalendarList: React.FC<CalendarListProps> = (props) => {
 
   // Create status-based legend for CalendarTimeline (matching absence list colors)
   const statusLegend = [
-    { label: 'Approved', color: '#10b981' }, // success variant - green
-    { label: 'Pending', color: '#f59e0b' },  // warning variant - amber
-    { label: 'Rejected', color: '#ef4444' }, // destructive variant - red
-    { label: 'Cancelled', color: '#6b7280' } // secondary variant - gray
+    { label: getTranslationFromI18nKeyAndLabel('lowcoder:absence_calendar.approved', 'Approved'), color: '#10b981' }, // success variant - green
+    { label: getTranslationFromI18nKeyAndLabel('lowcoder:absence_calendar.pending', 'Pending'), color: '#f59e0b' },  // warning variant - amber
+    { label: getTranslationFromI18nKeyAndLabel('lowcoder:absence_calendar.rejected', 'Rejected'), color: '#ef4444' }, // destructive variant - red
+    { label: getTranslationFromI18nKeyAndLabel('lowcoder:absence_calendar.cancelled', 'Cancelled'), color: '#6b7280' } // secondary variant - gray
   ];
 
   return (

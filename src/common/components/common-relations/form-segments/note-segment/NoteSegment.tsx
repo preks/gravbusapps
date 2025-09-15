@@ -47,6 +47,8 @@ export interface NoteSegmentSchema {
   contact?: { id: string };
   opportunity?: { id: string };
   lead?: { id: string };
+  authorEmployee?: { id: string };
+  version?: number;
 }
 
 export const noteSegmentSchema = z.object({
