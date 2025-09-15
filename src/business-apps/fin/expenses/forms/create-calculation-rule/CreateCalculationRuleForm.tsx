@@ -12,9 +12,10 @@ import { getCurrentActiveUserLocale, getDateFormat, getTranslationFromI18nKeyAnd
 import { env } from '@/common/env/EnvUtils';
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient';
 import { BusinessAppContextProps } from '@/business-apps/types';
-import { ruleDataQuery, plansAndRequestsInRangeQuery } from './queries/CreateCalculationRuleQueries';
+import { ruleDataQuery, plansAndRequestsInRangeQuery, buildGetAffectedExpensesQuery } from './queries/CreateCalculationRuleQueries';
 import { transformCurrencies } from '@/business-apps/fin/expenses/forms/expense-item/utils/currencyUtils';
-import { Dialog, DialogContent, DialogHeader } from '@newwork/nw-design-system';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@newwork/nw-design-system';
+import AffectedExpensesTable from './components/AffectedExpensesTable';
 
 interface CreateCalculationRuleFormProps extends Pick<BusinessAppContextProps, 'accessToken'> {
   onCancel?: () => void;
@@ -115,6 +116,11 @@ const CreateCalculationRuleForm: React.FC<CreateCalculationRuleFormProps> = ({ a
   const [showConfirmModal, setShowConfirmModal] = useState(false);
   const [standardValidationFailed, setStandardValidationFailed] = useState(false);
   const [collidingDatesState, setCollidingDatesState] = useState<any[]>([]);
+  const [affectedRows, setAffectedRows] = useState<any[]>([]);
+  const [affectedSort, setAffectedSort] = useState<{ field: 'createdAt' | 'title' | 'requestType' | 'type'; order: 'asc' | 'desc' } | null>(null);
+  const [affectedPage, setAffectedPage] = useState(1);
+  const [affectedTotal, setAffectedTotal] = useState(0);
+  const [showAffectedModal, setShowAffectedModal] = useState(false);
 
   const flowIconUrl = useMemo(() => {
     const base = env('NEXT_PUBLIC_BASE_URL') || '';
@@ -255,6 +261,44 @@ const CreateCalculationRuleForm: React.FC<CreateCalculationRuleFormProps> = ({ a
     return matchingItems;
   };
 
+  // Server-paginated date validation to populate affected expenses modal
+  const runDateValidation = React.useCallback(
+    async (from: Date | null, to: Date | null, page: number = 1, order: 'ASC' | 'DESC' = 'ASC') => {
+      if (!from || !to) { setShowAffectedModal(false); setAffectedRows([]); setAffectedTotal(0); return; }
+      try {
+        const query = buildGetAffectedExpensesQuery();
+        const limit = 5; // page size
+        const offset = (page - 1) * limit;
+        const res = await graphqlClient.request<any>(query, {
+          from: from.toISOString(),
+          to: to.toISOString(),
+          limit,
+          offset,
+          orderDirection: order,
+        });
+        const plans = (res?.ExpensePlan || []).map((r: any) => ({ createdAt: (r?.createdAt || '').split('T')[0], title: r?.title, requestType: r?.requestType?.value, type: 'Plan' as const }));
+        const requests = (res?.ExpenseRequest || []).map((r: any) => ({ createdAt: (r?.createdAt || '').split('T')[0], title: r?.title, requestType: r?.requestType?.value, type: 'Request' as const }));
+        const items = (res?.ExpenseItem || []).map((r: any) => ({ createdAt: (r?.createdAt || '').split('T')[0], title: r?.title, requestType: null, type: 'Item' as const }));
+        // merge and sort by createdAt, then take the first pageSize records to enforce consistent 5/page
+        const merged = [...plans, ...requests, ...items].sort((a, b) => {
+          const cmp = new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
+          return order === 'ASC' ? cmp : -cmp;
+        });
+        const pageData = merged.slice(0, limit);
+        const total = (res?.ExpensePlanAggregate?.aggregate?.count || 0) + (res?.ExpenseRequestAggregate?.aggregate?.count || 0) + (res?.ExpenseItemAggregate?.aggregate?.count || 0);
+        setAffectedRows(pageData);
+        setAffectedTotal(total);
+        setAffectedPage(page);
+        setShowAffectedModal(total > 0);
+      } catch {
+        setShowAffectedModal(false);
+        setAffectedRows([]);
+        setAffectedTotal(0);
+      }
+    },
+    [graphqlClient]
+  );
+
   const handleStandardToggle = async (checked: boolean) => {
     dispatch({ type: 'SET_FIELD', field: 'isStandard', value: !!checked });
     setHasInteracted(true);
@@ -280,15 +324,21 @@ const CreateCalculationRuleForm: React.FC<CreateCalculationRuleFormProps> = ({ a
       });
       const plans = res?.ExpensePlan || [];
       const requests = res?.ExpenseRequest || [];
+      const items = res?.ExpenseItem || [];
       const standardPeriodsInRange = res?.StandardPeriodsInRange || [];
       const collidingDates = getCollidingDates(standardPeriodsInRange, currentFrom, currentTo);
       setCollidingDatesState(collidingDates);
       const allMatching = [
         ...getDatesWithinRange(plans, currentFrom, currentTo, 'Plan'),
         ...getDatesWithinRange(requests, currentFrom, currentTo, 'Request'),
+        ...getDatesWithinRange(items, currentFrom, currentTo, 'Item' as any),
       ].sort((a, b) => new Date(a.createdAt as string).getTime() - new Date(b.createdAt as string).getTime());
 
       if (allMatching.length > 0 || collidingDates.length > 0) {
+        setAffectedRows(allMatching);
+        setAffectedTotal(allMatching.length);
+        setAffectedPage(1);
+        setAffectedSort(null);
         setShowConfirmModal(true);
         setStandardValidationFailed(true)
       }
@@ -337,6 +387,44 @@ const CreateCalculationRuleForm: React.FC<CreateCalculationRuleFormProps> = ({ a
 
       {/* Scrollable content container */}
       <div  data-testid="ccr-scroll-container">
+
+      {/* Affected expenses modal */}
+      <Dialog open={showAffectedModal} onOpenChange={setShowAffectedModal}>
+        <DialogContent data-testid="ccr-affected-expenses-modal" onOpenAutoFocus={(e) => { e.preventDefault(); }} className="gba:max-w-[60vw] gba:w-[60vw]">
+          <DialogHeader>
+            <DialogTitle data-testid="ccr-affected-expenses-title">
+              {getTranslationFromI18nKeyAndLabel('lowcoder:expense_calculation_rule.expense_calculation_rule_modal.affected_expense_modal.affected_expenses_title', 'Affected Expenses')}
+            </DialogTitle>
+          </DialogHeader>
+          <AffectedExpensesTable
+            data={affectedRows}
+            page={affectedPage}
+            pageSize={5}
+            totalCount={affectedTotal}
+            onPageChange={async (p) => {
+              setAffectedPage(p);
+              await runDateValidation(formState.validFrom, formState.validTo, p, affectedSort?.order === 'asc' ? 'ASC' : 'DESC');
+            }}
+            sort={affectedSort}
+            onSortChange={async (next) => {
+              setAffectedSort(next);
+              await runDateValidation(formState.validFrom, formState.validTo, 1, next?.order === 'asc' ? 'ASC' : 'DESC');
+            }}
+            dataTestId="ccr-affected-expenses"
+          />
+          <div className="gba:flex gba:justify-center gba:mt-4">
+            <Button
+              variant="primary"
+              className="gba:min-w-[100px] gba:border-2 gba:text-base gba:font-semibold gba:px-4"
+              style={{ borderRadius: '22px', height: '40px' }}
+              data-testid="ccr-affected-expenses-back-button"
+              onClick={() => setShowAffectedModal(false)}
+            >
+              {getTranslationFromI18nKeyAndLabel('lowcoder:expense_calculation_rule.expense_calculation_rule_modal.affected_expense_modal.back_btn', 'Back')}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       {/* Rule Code */}
       <div className={`gba:mb-4`} data-testid="ccr-rule-code-container">
@@ -417,9 +505,11 @@ const CreateCalculationRuleForm: React.FC<CreateCalculationRuleFormProps> = ({ a
             name="ccrValidFrom"
             placeholder={getTranslationFromI18nKeyAndLabel('lowcoder:expense_calculation_rule.expense_calculation_rule_modal.valid_placeholder', 'Select Date')}
             data-testid="ccr-valid-from-input"
-            onChange={(field: any) => {
+            value={formState.validFrom as any}
+            onChange={async (field: any) => {
               const value = field?.value ? new Date(field.value) : null;
               dispatch({ type: 'SET_FIELD', field: 'validFrom', value });
+              await runDateValidation(value, formState.validTo, 1, affectedSort?.order === 'asc' ? 'ASC' : 'DESC');
             }}
             onBlur={() => dispatchTouched({ type: 'SET_TOUCHED', field: 'validFrom', value: true })}
             language={getCurrentActiveUserLocale().split("-")[0] as "en" | "de" | "ro" | undefined}
@@ -437,9 +527,11 @@ const CreateCalculationRuleForm: React.FC<CreateCalculationRuleFormProps> = ({ a
             name="ccrValidTo"
             placeholder={getTranslationFromI18nKeyAndLabel('lowcoder:expense_calculation_rule.expense_calculation_rule_modal.valid_placeholder', 'Select Date')}
             data-testid="ccr-valid-to-input"
-            onChange={(field: any) => {
+            value={formState.validTo as any}
+            onChange={async (field: any) => {
               const value = field?.value ? new Date(field.value) : null;
               dispatch({ type: 'SET_FIELD', field: 'validTo', value });
+              await runDateValidation(formState.validFrom, value, 1, affectedSort?.order === 'asc' ? 'ASC' : 'DESC');
             }}
             onBlur={() => dispatchTouched({ type: 'SET_TOUCHED', field: 'validTo', value: true })}
             language={getCurrentActiveUserLocale().split("-")[0] as "en" | "de" | "ro" | undefined}
@@ -644,7 +736,7 @@ const CreateCalculationRuleForm: React.FC<CreateCalculationRuleFormProps> = ({ a
       <Dialog open={showConfirmModal} onOpenChange={setShowConfirmModal}>
         <DialogContent data-testid="ccr-standard-confirm-modal" onOpenAutoFocus={(e) => { e.preventDefault(); }}>
           <DialogHeader>
-            <Typography.Title level={5} className="gba:m-0" data-testid="ccr-standard-confirm-title">
+            <DialogTitle data-testid="ccr-standard-confirm-title">
               {(() => {
                 const count = collidingDatesState?.length || 0;
                 if (count === 1) {
@@ -666,7 +758,7 @@ const CreateCalculationRuleForm: React.FC<CreateCalculationRuleFormProps> = ({ a
                   'This Expense Calculation Rule will now only be used through the Expense Calculation Rule Assignment!This Expense Calculation Rule will now only be used through the Expense Calculation Rule Assignment!'
                 );
               })()}
-            </Typography.Title>
+            </DialogTitle>
           </DialogHeader>
           <div className="gba:flex gba:flex-col gba:items-center gba:gap-6">
             <div data-testid="ccr-standard-confirm-message" className=" gba:font-medium">
