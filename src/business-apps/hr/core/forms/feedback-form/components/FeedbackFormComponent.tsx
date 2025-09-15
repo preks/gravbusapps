@@ -22,7 +22,7 @@ import {
 import { useFeedbackForm } from '../context/FeedbackFormContext';
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
 import { formatDataTestId } from '@/common/utils/formatDataTestId';
-import EmployeeSearchableSelect from '../../lead-form/components/EmployeeSearchableSelect';
+import EmployeeSearchableSelect from '../../../../../crm/common/forms/lead-form/components/EmployeeSearchableSelect';
 
 const prefixDataTestId = "FeedbackForm";
 
