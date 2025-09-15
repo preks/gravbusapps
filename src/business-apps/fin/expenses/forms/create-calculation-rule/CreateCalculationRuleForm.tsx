@@ -12,8 +12,9 @@ import { getCurrentActiveUserLocale, getDateFormat, getTranslationFromI18nKeyAnd
 import { env } from '@/common/env/EnvUtils';
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient';
 import { BusinessAppContextProps } from '@/business-apps/types';
-import { ruleDataQuery } from './queries/CreateCalculationRuleQueries';
+import { ruleDataQuery, plansAndRequestsInRangeQuery } from './queries/CreateCalculationRuleQueries';
 import { transformCurrencies } from '@/business-apps/fin/expenses/forms/expense-item/utils/currencyUtils';
+import { Dialog, DialogContent, DialogHeader } from '@newwork/nw-design-system';
 
 interface CreateCalculationRuleFormProps extends Pick<BusinessAppContextProps, 'accessToken'> {
   onCancel?: () => void;
@@ -111,6 +112,9 @@ const CreateCalculationRuleForm: React.FC<CreateCalculationRuleFormProps> = ({ a
   const [touched, dispatchTouched] = useReducer(touchedReducer, {} as TouchedState);
   const [formSubmitted, setFormSubmitted] = useState(false);
   const [hasInteracted, setHasInteracted] = useState(false);
+  const [showConfirmModal, setShowConfirmModal] = useState(false);
+  const [standardValidationFailed, setStandardValidationFailed] = useState(false);
+  const [collidingDatesState, setCollidingDatesState] = useState<any[]>([]);
 
   const flowIconUrl = useMemo(() => {
     const base = env('NEXT_PUBLIC_BASE_URL') || '';
@@ -119,7 +123,6 @@ const CreateCalculationRuleForm: React.FC<CreateCalculationRuleFormProps> = ({ a
 
   // Data sources
   const graphqlClient = useGraphQLClient(accessToken);
-  const [standardPeriods, setStandardPeriods] = useState<any[]>([]);
   const [calculationTypes, setCalculationTypes] = useState<any[]>([]);
   const [currencies, setCurrencies] = useState<any[]>([]);
   const [countries, setCountries] = useState<any[]>([]);
@@ -131,7 +134,6 @@ const CreateCalculationRuleForm: React.FC<CreateCalculationRuleFormProps> = ({ a
         const res = await graphqlClient.request(ruleDataQuery, {
           activeUserLocale: getCurrentActiveUserLocale(),
         });
-        setStandardPeriods(res?.StandardPeriods || []);
         setCalculationTypes(res?.CalculationTypes || []);
         setCurrencies(transformCurrencies(res?.Currencies || []));
         setCountries(res?.Countries || []);
@@ -184,8 +186,7 @@ const CreateCalculationRuleForm: React.FC<CreateCalculationRuleFormProps> = ({ a
       );
     }
 
-    // If standard is checked, show provided error on validTo
-    if (formState.isStandard) {
+    if (formState.isStandard && standardValidationFailed) {
       newErrors.validTo = getTranslationFromI18nKeyAndLabel(
         'lowcoder:expense_calculation_rule.expense_calculation_rule_modal.valid_to_custom_rule',
         'Standard already exists for this period'
@@ -193,7 +194,7 @@ const CreateCalculationRuleForm: React.FC<CreateCalculationRuleFormProps> = ({ a
     }
 
     dispatchErrors({ type: 'SET_ERRORS', payload: newErrors });
-  }, [formState.ruleCode, formState.ruleName, formState.calculationTypeId, formState.validFrom, formState.validTo, formState.isStandard, formState.currencyId, formState.countryRefId]);
+  }, [formState.ruleCode, formState.ruleName, formState.calculationTypeId, formState.validFrom, formState.validTo, formState.isStandard, formState.currencyId, formState.countryRefId, standardValidationFailed]);
 
   const hasErrors = Object.values(errors).some((msg) => !!msg);
 
@@ -214,6 +215,88 @@ const CreateCalculationRuleForm: React.FC<CreateCalculationRuleFormProps> = ({ a
   }, [countries]);
 
   const shouldShowError = (field: string) => Boolean(errors[field]) && ((Boolean(touched[field]) && hasInteracted) || formSubmitted);
+
+  const getCollidingDates = (data: any[], validFrom?: Date | null, validTo?: Date | null) => {
+    if (!validFrom || !validTo) return [] as any[];
+    const validFromDate = new Date(validFrom);
+    const validToDate = new Date(validTo);
+    const collidingItems: any[] = [];
+    data.forEach((item) => {
+      const itemFrom = new Date((item?.activeFrom || '').split('T')[0] || item?.activeFrom);
+      const itemTo = new Date((item?.activeTo || '').split('T')[0] || item?.activeTo);
+      if (itemFrom < validToDate && itemTo > validFromDate && item?.standard === true) {
+        const newItem = {
+          ...item,
+          name: item?.name,
+          code: item?.code,
+          activeFrom: (item?.activeFrom || '').split('T')[0],
+          activeTo: (item?.activeTo || '').split('T')[0],
+        };
+        collidingItems.push(newItem);
+      }
+    });
+    return collidingItems;
+  };
+
+  const getDatesWithinRange = (data: any[], validFrom: Date, validTo: Date, type: 'Plan' | 'Request') => {
+    const matchingItems: any[] = [];
+    data.forEach((item) => {
+      const createdAtDate = new Date(item.createdAt);
+      if (createdAtDate >= validFrom && createdAtDate <= validTo) {
+        const newItem = {
+          ...item,
+          type,
+          requestType: item?.requestType?.value,
+          createdAt: (item?.createdAt || '').split('T')[0],
+        };
+        matchingItems.push(newItem);
+      }
+    });
+    return matchingItems;
+  };
+
+  const handleStandardToggle = async (checked: boolean) => {
+    dispatch({ type: 'SET_FIELD', field: 'isStandard', value: !!checked });
+    setHasInteracted(true);
+    dispatchTouched({ type: 'SET_TOUCHED', field: 'isStandard', value: true });
+
+    if (!checked) {
+      setStandardValidationFailed(false);
+      return;
+    }
+
+    const currentFrom = formState.validFrom ?? null;
+    const currentTo = formState.validTo ?? null;
+    if (!currentFrom || !currentTo) {
+      setStandardValidationFailed(false);
+      return;
+    }
+
+    // Range-based check for plans and requests + standard collisions
+    try {
+      const res = await graphqlClient.request<any>(plansAndRequestsInRangeQuery, {
+        from: currentFrom.toISOString(),
+        to: currentTo.toISOString(),
+      });
+      const plans = res?.ExpensePlan || [];
+      const requests = res?.ExpenseRequest || [];
+      const standardPeriodsInRange = res?.StandardPeriodsInRange || [];
+      const collidingDates = getCollidingDates(standardPeriodsInRange, currentFrom, currentTo);
+      setCollidingDatesState(collidingDates);
+      const allMatching = [
+        ...getDatesWithinRange(plans, currentFrom, currentTo, 'Plan'),
+        ...getDatesWithinRange(requests, currentFrom, currentTo, 'Request'),
+      ].sort((a, b) => new Date(a.createdAt as string).getTime() - new Date(b.createdAt as string).getTime());
+
+      if (allMatching.length > 0 || collidingDates.length > 0) {
+        setShowConfirmModal(true);
+        setStandardValidationFailed(true)
+      }
+      else setStandardValidationFailed(false)
+    } catch {
+      // ignore range fetch errors
+    }
+  };
 
   const handleSubmitClick = () => {
     setHasInteracted(true);
@@ -384,10 +467,9 @@ const CreateCalculationRuleForm: React.FC<CreateCalculationRuleFormProps> = ({ a
             <Checkbox
               name="ccrStandard"
               data-testid="ccr-standard-checkbox"
+              value={formState.isStandard}
               onChange={(field: any) => {
-                dispatch({ type: 'SET_FIELD', field: 'isStandard', value: !!field?.value });
-                setHasInteracted(true);
-                dispatchTouched({ type: 'SET_TOUCHED', field: 'isStandard', value: true });
+                handleStandardToggle(!!field?.value);
               }}
             />
           </div>
@@ -557,6 +639,68 @@ const CreateCalculationRuleForm: React.FC<CreateCalculationRuleFormProps> = ({ a
 
 
       </div>
+
+      {/* Confirmation modal for standard validation */}
+      <Dialog open={showConfirmModal} onOpenChange={setShowConfirmModal}>
+        <DialogContent data-testid="ccr-standard-confirm-modal" onOpenAutoFocus={(e) => { e.preventDefault(); }}>
+          <DialogHeader>
+            <Typography.Title level={5} className="gba:m-0" data-testid="ccr-standard-confirm-title">
+              {(() => {
+                const count = collidingDatesState?.length || 0;
+                if (count === 1) {
+                  const entry = collidingDatesState[0] || {};
+                  const prefix = getTranslationFromI18nKeyAndLabel(
+                    'lowcoder:expense_calculation_rule.expense_calculation_rule_modal.checkbox_modal.checkbox_modal_text_first',
+                    'This will deselect the standard flag on rule: '
+                  );
+                  return `${prefix} ${entry.code || ''}-${entry.name || ''}`;
+                }
+                if (count > 1) {
+                  return getTranslationFromI18nKeyAndLabel(
+                    'lowcoder:expense_calculation_rule.expense_calculation_rule_modal.checkbox_modal.checkbox_modal_text_second',
+                    'This will deselect the standard flag on multiple rules'
+                  );
+                }
+                return getTranslationFromI18nKeyAndLabel(
+                  'lowcoder:expense_calculation_rule.expense_calculation_rule_modal.checkbox_modal.checkbox_modal_text_third',
+                  'This Expense Calculation Rule will now only be used through the Expense Calculation Rule Assignment!This Expense Calculation Rule will now only be used through the Expense Calculation Rule Assignment!'
+                );
+              })()}
+            </Typography.Title>
+          </DialogHeader>
+          <div className="gba:flex gba:flex-col gba:items-center gba:gap-6">
+            <div data-testid="ccr-standard-confirm-message" className=" gba:font-medium">
+              {getTranslationFromI18nKeyAndLabel('lowcoder:expense_calculation_rule.expense_calculation_rule_modal.checkbox_modal.do_you_want_to_continue', 'Do you want to continue?')}
+            </div>
+            <div className="gba:flex gba:gap-4">
+              <Button
+                variant="outline"
+                className="gba:min-w-[100px] gba:border-2 gba:text-base gba:font-semibold gba:px-4"
+                style={{ borderRadius: '22px', height: '40px' }}
+                data-testid="ccr-standard-confirm-no-button"
+                onClick={() => {
+                  setShowConfirmModal(false);
+                  dispatch({ type: 'SET_FIELD', field: 'isStandard', value: false });
+                  setStandardValidationFailed(false);
+                }}
+              >
+                {getTranslationFromI18nKeyAndLabel('lowcoder:expense_calculation_rule.expense_calculation_rule_modal.checkbox_modal.no_button', 'No')}
+              </Button>
+              <Button
+                variant="primary"
+                className="gba:min-w-[100px] gba:border-2 gba:text-base gba:font-semibold gba:px-4"
+                style={{ borderRadius: '22px', height: '40px' }}
+                data-testid="ccr-standard-confirm-yes-button"
+                onClick={() => {
+                  setShowConfirmModal(false);
+                }}
+              >
+                {getTranslationFromI18nKeyAndLabel('lowcoder:expense_calculation_rule.expense_calculation_rule_modal.checkbox_modal.yes_button', 'Yes')}
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       {/* Spacer to push actions to bottom */}
       <div className="gba:flex-grow" data-testid="ccr-spacer" />

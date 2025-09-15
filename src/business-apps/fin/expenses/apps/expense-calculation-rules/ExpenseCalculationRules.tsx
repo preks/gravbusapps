@@ -388,6 +388,7 @@ const ExpenseCalculationRules: React.FC<ExpenseCalculationRulesProps> = (props) 
             {/* Create Calculation Rule Modal */}
             <Dialog open={flowModalOpen} onOpenChange={setFlowModalOpen}>
             <DialogContent data-testid={`${PREFIX}-create-modal`} 
+            onOpenAutoFocus={(e) => { e.preventDefault(); }}
             className="gba:h-[100vh] gba:max-h-[100vh] gba:flex gba:flex-col gba:px-[40px] gba:w-[100%] gba:overflow-hidden">
               <DialogHeader />
                 <div className="gba:flex-1 gba:overflow-y-auto gba:pr-2">
