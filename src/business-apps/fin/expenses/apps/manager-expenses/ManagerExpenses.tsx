@@ -201,12 +201,11 @@ const ManagerExpenses: React.FC<ManagerExpensesProps> = (props) => {
           items: viewOptions.map((option) => ({
             value: option.key,
             label: option.label,
-            icon: option.icon,
           })),
         }}
         className="gba:min-h-screen"
       >
-        <div className="gba:h-full gba:overflow-auto">{renderTabContent()}</div>
+        {renderTabContent()}
       </PageLayout>
     </div>
   );
