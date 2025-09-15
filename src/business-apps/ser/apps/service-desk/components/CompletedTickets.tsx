@@ -2,7 +2,8 @@ import React, { useState, useMemo } from 'react';
 import { Calendar, Clock, CheckCircle, Search, XCircle, AlertCircle, PlayCircle, PauseCircle } from 'lucide-react';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
-import type { StepInstance, StepStatus } from 'packages/services-plus-core';
+import type { StepStatus } from 'packages/services-plus-core';
+import type { StepInstance } from '../../../types';
 import { formatRequestId } from '../../../utils';
 import { useCompletedTickets } from '../hooks/useCompletedTickets';
 import { EmployeeDisplayName } from './EmployeeDisplayName';
@@ -109,8 +110,7 @@ export const CompletedTickets: React.FC<CompletedTicketsProps> = ({
         const ticketAny = ticket as any;
         // Use the same logic as DeskQueue - check multiple possible sources for requestId
         const requestId = ticketAny.requestId || 
-                         ticketAny.workflowMeta?.rootWorkflowId || 
-                         ticketAny.workflowId || 
+                         ticket.flowId || 
                          ticket.id;
         return (
           <code 

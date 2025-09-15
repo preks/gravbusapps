@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import type { StepInstance } from 'packages/services-plus-core';
+import type { StepInstance } from '../../../types';
 import { createConductorWorkflowEngine } from '../../../services';
 
 export interface UseCompletedTicketsProps {

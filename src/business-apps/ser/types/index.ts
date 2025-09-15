@@ -72,13 +72,13 @@ export type StepInstance = {
   finishedAt?: string;
   comments: Comment[];
   requestId: string; // backlink
-  workflowId?: string; // workflow identifier
-  workflowMeta?: { // workflow metadata from custom-flow-engine
-    rootWorkflowId?: string; // main/parent workflow ID (for subflows)
-  };
   requesterId?: string; // who originally requested the parent flow (for Service Desk display)
   requesterName?: string; // name of the person who originally requested the parent flow
-  initiatedBy?: string; // UUID of the person who initiated the flow (raw from API)
+  
+  // Flow-related fields from custom-flow-engine API response
+  flowId?: string; // Main workflow instance ID
+  flowName?: string; // Human-readable workflow name
+  flowInitiatedBy?: string; // UUID of the person who initiated the flow
   
   // Additional rich data fields for detailed display
   description?: string;

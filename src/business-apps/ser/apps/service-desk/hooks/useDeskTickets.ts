@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
-import type { StepReceiver, StepInstance } from 'packages/services-plus-core';
+import type { StepReceiver } from 'packages/services-plus-core';
+import type { StepInstance } from '../../../types';
 import { createConductorWorkflowEngine } from '../../../services';
 
 export interface UseDeskTicketsProps {

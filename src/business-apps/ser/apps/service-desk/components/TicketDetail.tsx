@@ -10,7 +10,8 @@ import {
 } from 'lucide-react';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
-import type { StepReceiver, StepInstance, Comment, StepStatus, SubmittedRequest } from 'packages/services-plus-core';
+import type { StepReceiver, Comment, StepStatus, SubmittedRequest } from 'packages/services-plus-core';
+import type { StepInstance } from '../../../types';
 import { formatRequestId } from '../../../utils'; // ✅ Import utilities
 import { useTicketDetail } from '../hooks/useTicketDetail';
 import { useTicketActions } from '../hooks/useTicketActions';

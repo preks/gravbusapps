@@ -1,7 +1,7 @@
 import dayjs from 'dayjs';
 import weekday from 'dayjs/plugin/weekday';
 import localeData from 'dayjs/plugin/localeData';
-import type { StepInstance } from 'packages/services-plus-core';
+import type { StepInstance } from '../../../types';
 
 dayjs.extend(weekday);
 dayjs.extend(localeData);

@@ -1,7 +1,7 @@
 import React from 'react';
 import { Clock, CheckCircle, TrendingUp, BarChart3 } from 'lucide-react';
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
-import type { StepInstance } from 'packages/services-plus-core';
+import type { StepInstance } from '../../../types';
 import { calculateCompletedTicketsKPIs, type CompletedTicketsKPIData } from '../utils/completedTicketsKPIUtils';
 
 // Import nw-design-system components

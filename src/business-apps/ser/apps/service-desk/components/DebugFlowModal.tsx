@@ -3,7 +3,8 @@ import { Modal, Button, Spin, Alert, Typography, Tabs, Badge } from 'antd';
 import { Code, Database, Bug, X, Network } from 'lucide-react';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
-import type { StepInstance, SubmittedRequest } from 'packages/services-plus-core';
+import type { SubmittedRequest } from 'packages/services-plus-core';
+import type { StepInstance } from '../../../types';
 import { createConductorWorkflowEngine } from '../../../services';
 
 const { Text, Title } = Typography;

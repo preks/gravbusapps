@@ -910,7 +910,7 @@ export class ConductorWorkflowEngineAdapter implements WorkflowEngine {
         requestId: flowData.id || flowData.flowId,
         requesterId: flowData.initiatedBy || this.currentUserId,
         requesterName: this.extractRequesterName(flowData),
-        initiatedBy: flowData.initiatedBy, // Raw initiatedBy field from API
+        flowInitiatedBy: flowData.flowInitiatedBy || flowData.initiatedBy, // Flow initiator from API (try new field first, fallback to old)
         
         // Additional rich details for the UI
         description: step.message,
@@ -1122,13 +1122,10 @@ export class ConductorWorkflowEngineAdapter implements WorkflowEngine {
       updatedAt: taskData.updatedAt || taskData.scheduledAt, // ✅ ADD UPDATED TIMESTAMP
       finishedAt: taskData.completed ? new Date().toISOString() : undefined,
       comments: [],
-      requestId: taskData.flowId,
-      workflowMeta: taskData.workflowMeta ? { // Map workflowMeta from custom-flow-engine
-        rootWorkflowId: taskData.workflowMeta.rootWorkflowId
-      } : undefined,
+      requestId: taskData.flowId, // Use flowId as requestId
       requesterId: flowDetail?.initiatedBy || this.currentUserId, // Get from flow context
       requesterName: extractedRequesterName,
-      initiatedBy: flowDetail?.initiatedBy, // Raw initiatedBy field from API
+        flowInitiatedBy: flowDetail?.flowInitiatedBy || flowDetail?.initiatedBy, // Flow initiator from API (try new field first, fallback to old)
       message: taskData.message, // ✅ PRESERVE message from task data
       availableActions: taskData.availableActions || this.getDefaultAvailableActions(taskData),
       dueDate: taskData.dueDate,
@@ -1884,10 +1881,10 @@ export class ConductorWorkflowEngineAdapter implements WorkflowEngine {
       for (const task of tasks) {
         try {
           // Check if parent workflow still exists
-          const workflowId = task.workflowId || task.flowId;
-          if (workflowId) {
+          const flowId = task.flowId;
+          if (flowId) {
             // Try to get the parent workflow - if it doesn't exist, skip the task
-            const workflowResponse = await fetch(`${this.flowEngineBaseUrl}/api/flows/${workflowId}`, {
+            const workflowResponse = await fetch(`${this.flowEngineBaseUrl}/api/flows/${flowId}`, {
               method: 'GET',
               headers: {
                 'Content-Type': 'application/json',
@@ -1897,9 +1894,9 @@ export class ConductorWorkflowEngineAdapter implements WorkflowEngine {
             
             if (workflowResponse.ok) {
               validTasks.push(task);
-              console.log(`[ConductorAdapter] ✅ Task ${task.id} has valid parent workflow ${workflowId}`);
+              console.log(`[ConductorAdapter] ✅ Task ${task.id} has valid parent workflow ${flowId}`);
             } else {
-              console.warn(`[ConductorAdapter] ❌ Skipping orphaned task ${task.id} - parent workflow ${workflowId} not found (${workflowResponse.status})`);
+              console.warn(`[ConductorAdapter] ❌ Skipping orphaned task ${task.id} - parent workflow ${flowId} not found (${workflowResponse.status})`);
             }
           } else {
             console.warn(`[ConductorAdapter] ❌ Skipping task ${task.id} - no workflow ID`);
@@ -1980,12 +1977,9 @@ export class ConductorWorkflowEngineAdapter implements WorkflowEngine {
       name: task.title || 'Unnamed Task',
       status: this.mapCustomFlowEngineStatusToStepStatus(task.status),
       desk: desk,
-      requestId: task.workflowMeta?.rootWorkflowId || task.workflowId || 'unknown', // Add requestId field
-      workflowId: task.workflowId, // Add the workflowId from API response
-      workflowMeta: task.workflowMeta ? { // Map workflowMeta from custom-flow-engine
-        rootWorkflowId: task.workflowMeta.rootWorkflowId
-      } : undefined,
-      requesterId: task.workflowMeta?.initiatedBy || 'unknown', // Fix requesterId mapping
+      requestId: task.flowId || 'unknown', // Use flowId as requestId
+      requesterId: task.requesterId || 'unknown', // Use requesterId from API response
+      flowInitiatedBy: task.flowInitiatedBy, // Flow initiator from API
       requesterName: undefined,
       startedAt: task.scheduledAt || new Date().toISOString(),
       updatedAt: task.updatedAt,
@@ -2034,7 +2028,7 @@ export class ConductorWorkflowEngineAdapter implements WorkflowEngine {
   private async extractRealTasksForDesk(flowDetail: any, targetDesk: StepReceiver): Promise<StepInstance[]> {
     try {
       const tasks: StepInstance[] = [];
-      const flowId = flowDetail.flowId || flowDetail.id || flowDetail.workflowId;
+      const flowId = flowDetail.flowId || flowDetail.id;
       
       console.log(`[ConductorAdapter] Extracting REAL tasks from flow ${flowId} for desk: ${targetDesk}`);
       

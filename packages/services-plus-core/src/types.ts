@@ -105,15 +105,10 @@ export type StepInstance = {
   requestId: string; // backlink
   requesterId?: string; // who originally requested the parent flow (for Service Desk display)
   requesterName?: string; // name of the person who originally requested the parent flow
-  initiatedBy?: string; // UUID of the person who initiated the flow (raw from API)
   availableActions?: AvailableActions;
   dueDate?: string;
   escalatedAt?: string;
   message?: string; // Task message/description from API
-  workflowMeta?: { // Workflow metadata from custom-flow-engine
-    rootWorkflowId?: string;
-    initiatedBy?: string;
-  };
 };
 
 export type SubmittedRequest = {

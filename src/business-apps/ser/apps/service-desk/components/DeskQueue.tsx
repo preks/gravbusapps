@@ -3,7 +3,8 @@ import { Eye, User, MagnifyingGlass, Funnel, Calendar, Clock, Warning, UserPlus,
 import { Bug } from 'lucide-react';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
-import type { StepReceiver, StepInstance, TicketStatus, StepStatus } from 'packages/services-plus-core';
+import type { StepReceiver, TicketStatus, StepStatus } from 'packages/services-plus-core';
+import type { StepInstance } from '../../../types';
 import { formatRequestId } from '../../../utils'; // ✨ Import formatRequestId utility
 import { TicketDetail } from './TicketDetail';
 import { DebugFlowModal } from './DebugFlowModal';
@@ -128,7 +129,7 @@ export const DeskQueue: React.FC<DeskQueueProps> = ({
         id: ticket.id,
         name: ticket.name,
         requesterId: ticket.requesterId,
-        initiatedBy: ticket.initiatedBy,
+        flowInitiatedBy: ticket.flowInitiatedBy,
         requesterName: ticket.requesterName,
         hasRequesterName: !!(ticket.requesterName && ticket.requesterName.trim().length > 0)
       })));
@@ -349,8 +350,8 @@ export const DeskQueue: React.FC<DeskQueueProps> = ({
       width: 120,
       render: (requesterId: string, record: StepInstance) => {
         // Use EmployeeDisplayName to get user names from Employee table
-        // Prefer initiatedBy over requesterId for more accurate requester identification
-        const userId = record.initiatedBy || requesterId;
+        // Prefer flowInitiatedBy over requesterId for more accurate requester identification
+        const userId = record.flowInitiatedBy || requesterId;
         return (
           <EmployeeDisplayName
             userId={userId}

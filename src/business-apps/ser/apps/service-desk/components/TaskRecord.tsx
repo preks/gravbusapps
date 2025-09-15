@@ -206,8 +206,8 @@ export const TaskRecord: React.FC<TaskRecordProps> = ({
 
   // Load full request details for overview
   const loadFullRequest = async () => {
-    // Use rootWorkflowId for the main workflow request, fallback to workflowId for compatibility
-    const workflowId = ticket?.workflowMeta?.rootWorkflowId || ticket?.workflowId || ticket?.requestId;
+    // Use flowId for the main workflow request
+    const workflowId = ticket?.flowId || ticket?.requestId;
     if (!workflowId || !accessToken || !userInfo) return;
     
     try {
@@ -234,11 +234,11 @@ export const TaskRecord: React.FC<TaskRecordProps> = ({
 
   // Load request details when ticket is available
   useEffect(() => {
-    const workflowId = ticket?.workflowMeta?.rootWorkflowId || ticket?.workflowId || ticket?.requestId;
+    const workflowId = ticket?.flowId || ticket?.requestId;
     if (workflowId) {
       loadFullRequest();
     }
-  }, [ticket?.workflowMeta?.rootWorkflowId, ticket?.workflowId, ticket?.requestId]);
+  }, [ticket?.flowId, ticket?.requestId]);
 
   // Load available actions for the task
   const loadAvailableActions = async () => {
@@ -533,7 +533,7 @@ export const TaskRecord: React.FC<TaskRecordProps> = ({
 
       <PageLayout
         headerTitle={ticket.name || 'Untitled Task'}
-        headerDescription={`Request ID: ${formatRequestId(ticket.workflowMeta?.rootWorkflowId || ticket.workflowId || ticket.requestId)} • ${ticket.desk || 'Unknown Desk'} • Task ID: ${ticket.id}`}
+        headerDescription={`Request ID: ${formatRequestId(ticket.flowId || ticket.requestId)} • ${ticket.desk || 'Unknown Desk'} • Task ID: ${ticket.id}`}
         headerIcon={StatusIcon}
         variant="ext1"
         headerContent={
@@ -854,7 +854,6 @@ export const TaskRecord: React.FC<TaskRecordProps> = ({
                       />
                     ) : ticket.claimedByUserId ? (
                       <div className="gba:flex gba:items-center gba:gap-2">
-                        <Badge variant="secondary">Claimed</Badge>
                         <EmployeeDisplayName
                           userId={ticket.claimedByUserId}
                           accessToken={accessToken}
@@ -862,6 +861,7 @@ export const TaskRecord: React.FC<TaskRecordProps> = ({
                           fallback={ticket.claimedByUserName || "Claimed User"}
                           testId="task-claimed-by"
                         />
+                        <Badge variant="secondary">Claimed</Badge>
                       </div>
                     ) : (
                       <Badge variant="outline">Unassigned</Badge>
@@ -870,9 +870,9 @@ export const TaskRecord: React.FC<TaskRecordProps> = ({
                   {
                     key: 'requester',
                     label: 'Requested By',
-                    children: ticket.requesterId ? (
+                    children: ticket.flowInitiatedBy ? (
                       <EmployeeDisplayName
-                        userId={ticket.requesterId}
+                        userId={ticket.flowInitiatedBy}
                         accessToken={accessToken}
                         showIcon={true}
                         fallback={ticket.requesterName || "Unknown User"}
