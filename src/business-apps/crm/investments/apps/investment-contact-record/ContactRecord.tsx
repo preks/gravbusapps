@@ -206,7 +206,7 @@ interface InvestmentContactRecordProps extends BusinessAppContextProps {
   contactId?: string;
 }
 
-const InvestmentContactRecord: React.FC<InvestmentContactRecordProps> = ({
+const ContactRecord: React.FC<InvestmentContactRecordProps> = ({
   contactId: propContactId,
   ...props
 }) => {
@@ -248,4 +248,5 @@ const InvestmentContactRecord: React.FC<InvestmentContactRecordProps> = ({
   );
 };
 
-export default InvestmentContactRecord;
+export { ContactRecord };
+export default ContactRecord;

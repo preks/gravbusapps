@@ -2,6 +2,10 @@ import React from 'react'
 import { useTranslation } from 'react-i18next'
 import { PiUsers, PiFlowArrow, PiAddressBook, PiListChecks } from 'react-icons/pi'
 import { SettingsLayout } from '@/components/layout/settings-layout'
+// inline pipeline card rendering moved to PipelineDataPage
+import LeadDataPage from './pages/lead-data/LeadDataPage'
+import EngagementDataPage from './pages/engagement-data/EngagementDataPage'
+import PipelineDataPage from './pages/pipeline-data/PipelineDataPage'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 
 export interface CustomerSettingsProps extends BusinessAppContextProps {
@@ -9,7 +13,7 @@ export interface CustomerSettingsProps extends BusinessAppContextProps {
   prefixDataTestId?: string
 }
 
-const DATA_TEST_ID = 'CustomerSettings'
+// Removed unused DATA_TEST_ID
 
 const CustomerSettings: React.FC<CustomerSettingsProps> = ({ 
   className, 
@@ -17,6 +21,7 @@ const CustomerSettings: React.FC<CustomerSettingsProps> = ({
   ...context
 }) => {
   const { t } = useTranslation()
+  const [inlinePage, setInlinePage] = React.useState<{ key: string; tab?: string } | null>(null)
 
   const cards = [
     {
@@ -27,8 +32,7 @@ const CustomerSettings: React.FC<CustomerSettingsProps> = ({
       entries: [
         {
           label: t('crm.pipelines', 'Pipelines'),
-          basePath: '/platform/mdm/pipeline-data',
-          params: { sourceApp: 'CRM' }
+          onClick: () => setInlinePage({ key: 'pipeline' })
         }
       ]
     },
@@ -40,18 +44,15 @@ const CustomerSettings: React.FC<CustomerSettingsProps> = ({
       entries: [
         {
           label: t('crm.lead_ratings', 'Ratings'),
-          basePath: '/platform/mdm/lead-data',
-          params: { tab: 'ratings', sourceApp: 'CRM' }
+          onClick: () => setInlinePage({ key: 'lead', tab: 'ratings' })
         },
         {
           label: t('crm.lead_statuses', 'Statuses'),
-          basePath: '/platform/mdm/lead-data',
-          params: { tab: 'statuses', sourceApp: 'CRM' }
+          onClick: () => setInlinePage({ key: 'lead', tab: 'statuses' })
         },
         {
           label: t('crm.lead_sources', 'Sources'),
-          basePath: '/platform/mdm/lead-data',
-          params: { tab: 'sources', sourceApp: 'CRM' }
+          onClick: () => setInlinePage({ key: 'lead', tab: 'sources' })
         }
       ]
     },
@@ -63,27 +64,54 @@ const CustomerSettings: React.FC<CustomerSettingsProps> = ({
       entries: [
         {
           label: t('crm.activity_types', 'Activity Types'),
-          basePath: '/platform/mdm/engagement-data',
-          params: { tab: 'activity-types', sourceApp: 'CRM' }
+          onClick: () => setInlinePage({ key: 'engagement', tab: 'activity-types' })
         },
         {
           label: t('crm.task_types', 'Task Types'),
-          basePath: '/platform/mdm/engagement-data',
-          params: { tab: 'task-types', sourceApp: 'CRM' }
+          onClick: () => setInlinePage({ key: 'engagement', tab: 'task-types' })
         },
         {
           label: t('crm.task_priorities', 'Task Priorities'),
-          basePath: '/platform/mdm/engagement-data',
-          params: { tab: 'task-priorities', sourceApp: 'CRM' }
+          onClick: () => setInlinePage({ key: 'engagement', tab: 'task-priorities' })
         },
         {
           label: t('crm.task_statuses', 'Task Statuses'),
-          basePath: '/platform/mdm/engagement-data',
-          params: { tab: 'task-statuses', sourceApp: 'CRM' }
+          onClick: () => setInlinePage({ key: 'engagement', tab: 'task-statuses' })
         }
       ]
     }
   ]
+
+  if (inlinePage?.key === 'lead') {
+    return (
+      <LeadDataPage
+        {...context}
+        prefixDataTestId={`${prefixDataTestId || ''}-CustomerLeadSettings`}
+        initialTab={(inlinePage.tab as any) || 'ratings'}
+        onBack={() => setInlinePage(null)}
+      />
+    )
+  }
+
+  if (inlinePage?.key === 'engagement') {
+    return (
+      <EngagementDataPage
+        {...context}
+        prefixDataTestId={`${prefixDataTestId || ''}-CustomerEngagementSettings`}
+        onBack={() => setInlinePage(null)}
+      />
+    )
+  }
+
+  if (inlinePage?.key === 'pipeline') {
+    return (
+      <PipelineDataPage
+        {...context}
+        prefixDataTestId={`${prefixDataTestId || ''}-CustomerPipelineSettings`}
+        onBack={() => setInlinePage(null)}
+      />
+    )
+  }
 
   return (
     <SettingsLayout
@@ -104,3 +132,5 @@ const CustomerSettings: React.FC<CustomerSettingsProps> = ({
 
 export default CustomerSettings
 export { CustomerSettings } 
+
+// removed inlined hook bundle; moved to dedicated components to satisfy Rules of Hooks

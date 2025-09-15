@@ -1,29 +1,37 @@
 import React, { useState, useEffect, useMemo } from "react";
 import {
   Spinner,
-  Tabs,
-  TabsList,
-  TabsTrigger,
-  TabsContent,
   Button,
+  RecordLayout,
+  Badge,
 } from "@newwork/nw-design-system";
 import {
-  ArrowLeftOutlined,
   UserOutlined,
   FileOutlined,
+  DollarOutlined,
+  StarOutlined,
 } from "@ant-design/icons";
+import { LightbulbIcon } from '@phosphor-icons/react';
 import { BusinessAppContextProps } from "@/common/BusinessAppContext";
 import { navigateTo } from "@/common/utils/navigationUtils";
 import { useOpportunityData } from "./hooks/useOpportunityData";
-import { OpportunityHeader } from "./components/OpportunityHeader";
-import { OpportunityDetails } from "./components/OpportunityDetails";
+import { formatCurrency, extractCurrencyCode } from '@/business-apps/crm/common/utils/currencyUtils';
+import { useAiSummary } from './hooks/useAiSummary';
+import { AiSummaryButton } from "@/common/components/common-relations/record-sections/header-section/ai-summary-button";
+import { AppActionButton } from "@/components/app-action-button/AppActionButton";
+import ConditionSection from "@/common/components/common-relations/record-sections/condition-section/ConditionSection";
 import { InvestmentSection } from "../../components/record-sections/investment-section";
-import { ActivityTimeline } from "./components/ActivityTimeline";
-import { TasksSection } from "./components/TasksSection";
 import { OpportunityStageProgression } from "./components/OpportunityStageProgression";
-import { OpportunityDocuments } from "./components/OpportunityDocuments";
-import AccountSection from "@/common/components/common-relations/record-sections/account-section/AccountSection";
-import ContactSection from "@/common/components/common-relations/record-sections/contact-section/ContactSection";
+import { AccountSection } from "@/common/components/common-relations/record-sections/account-section";
+import { ContactSection } from "@/common/components/common-relations/record-sections/contact-section";
+import { ActivitySection } from "@/common/components/common-relations/record-sections/activity-section";
+import { NoteSection } from "@/common/components/common-relations/record-sections/note-section";
+import { TaskSection } from "@/common/components/common-relations/record-sections/task-section";
+import { ApprovalSection } from "@/common/components/common-relations/record-sections/approval-section";
+import { DocumentSection, type DocumentItem } from "@/common/components/common-relations/record-sections/document-section";
+import { useGetInvestmentActivities } from "@/common/data/investment/hooks/useInvestmentActivities";
+import { useGetInvestmentNotesByOpportunityId, useGetInvestmentTasksByOpportunityId, useGetInvestmentDocumentsByOpportunityId } from "@/common/data/investment/hooks/useInvestmentOpportunities";
+import { FlowContextName } from "@/common/types/FlowRegistryTypes";
 
 interface OpportunityRecordContentProps extends BusinessAppContextProps {
   opportunityId: string;
@@ -51,6 +59,155 @@ const InvestmentOpportunityRecordContent: React.FC<OpportunityRecordContentProps
     refetchOpportunityData,
   } = useOpportunityData(opportunityId, props.accessToken);
 
+  // AI Summary hook for HeaderSection
+  const aiSummaryHook = useAiSummary(opportunityId, props.accessToken);
+
+  // Activity data loading
+  const { fetchInvestmentActivities } = useGetInvestmentActivities(props);
+  const [activities, setActivities] = useState<any[]>([]);
+  const [activitiesLoading, setActivitiesLoading] = useState(false);
+  const [activitiesError, setActivitiesError] = useState<string | null>(null);
+
+  // Notes and Tasks data loading
+  const { fetchInvestmentNotesByOpportunityId } = useGetInvestmentNotesByOpportunityId(props);
+  const { fetchInvestmentTasksByOpportunityId } = useGetInvestmentTasksByOpportunityId(props);
+  const [notes, setNotes] = useState<any[]>([]);
+  const [tasks, setTasks] = useState<any[]>([]);
+  const [approvals, setApprovals] = useState<any[]>([]);
+
+  // Documents data loading
+  const { fetchInvestmentDocumentsByOpportunityId } = useGetInvestmentDocumentsByOpportunityId(props);
+  const [documents, setDocuments] = useState<DocumentItem[]>([]);
+  const [documentsLoading, setDocumentsLoading] = useState(false);
+  const [documentsError, setDocumentsError] = useState<string | null>(null);
+
+  const loadActivities = async () => {
+    if (!opportunityId) return;
+
+    setActivitiesLoading(true);
+    setActivitiesError(null);
+
+    try {
+      const result = await fetchInvestmentActivities({ opportunityId });
+      const sortedActivities = (result.InvestmentActivity || []).sort((a, b) => {
+        const dateA = new Date(a.occurredAt || a.createdAt).getTime();
+        const dateB = new Date(b.occurredAt || b.createdAt).getTime();
+        return dateB - dateA;
+      });
+      setActivities(sortedActivities);
+    } catch (err) {
+      setActivitiesError(err instanceof Error ? err.message : 'Failed to load activities');
+    } finally {
+      setActivitiesLoading(false);
+    }
+  };
+
+  const loadNotes = async () => {
+    if (!opportunityId) return;
+    try {
+      const result = await fetchInvestmentNotesByOpportunityId(opportunityId);
+      // Transform investment notes to match central NoteSection expected structure
+      const transformedNotes = (result || []).map(note => ({
+        id: note.id,
+        noteTitle: note.title || '',
+        noteText: note.text || '',
+        createdAt: note.createdAt,
+        createdBy: note.authorEmployee?.displayName || note.authorDisplayName || note.authorEmployee?.id || '', 
+        assigneeEmployee: note.authorEmployee ? {
+          id: note.authorEmployee.id,
+          displayName: note.authorEmployee.displayName || note.authorDisplayName || 
+                      `${note.authorEmployee.firstName || ''} ${note.authorEmployee.lastName || ''}`.trim()
+        } : undefined,
+        reminderAt: note.reminderDate
+      }));
+      setNotes(transformedNotes);
+    } catch (err) {
+      console.error('Failed to load notes:', err);
+    }
+  };
+
+  const loadTasksAndApprovals = async () => {
+    if (!opportunityId) return;
+    try {
+      const result = await fetchInvestmentTasksByOpportunityId(opportunityId);
+      const allTasks = result || [];
+      
+      // Separate regular tasks from approval tasks
+      const regularTasks = allTasks.filter(task => {
+        const taskTypeValue = task.taskType?.value || task.taskType?.code;
+        const isApprovalTask = taskTypeValue?.toLowerCase() === 'approval';
+        return !isApprovalTask;
+      });
+      
+      const approvalTasks = allTasks.filter(task => {
+        const taskTypeValue = task.taskType?.value || task.taskType?.code;
+        const isApprovalTask = taskTypeValue?.toLowerCase() === 'approval';
+        return isApprovalTask;
+      });
+
+      setTasks(regularTasks);
+      setApprovals(approvalTasks);
+    } catch (err) {
+      console.error('Failed to load tasks:', err);
+    }
+  };
+
+  const loadDocuments = async () => {
+    if (!opportunityId) return;
+
+    setDocumentsLoading(true);
+    setDocumentsError(null);
+
+    try {
+      const result = await fetchInvestmentDocumentsByOpportunityId(opportunityId);
+      
+      // Transform investment documents to DocumentItem format
+      const transformedDocuments: DocumentItem[] = (result || []).map(doc => ({
+        id: doc.id,
+        name: doc.name || null,
+        description: doc.description || null,
+        createdAt: doc.createdAt,
+        expirationDate: doc.expirationDate || null,
+        documentType: doc.documentType ? {
+          id: doc.documentType.id,
+          value: doc.documentType.value || '',
+          code: doc.documentType.code
+        } : null,
+        documentGroup: doc.documentGroup ? {
+          id: doc.documentGroup.id,
+          value: doc.documentGroup.value || '',
+          code: doc.documentGroup.code
+        } : null,
+        file: doc.file || null,
+        mimeType: doc.mimeType || null,
+        fileSize: doc.fileSize,
+        createdBy: doc.createdBy || null,
+        parentDocument: typeof doc.parentDocument === 'string' ? doc.parentDocument : doc.parentDocument?.id || null,
+        folder: doc.folder,
+        verified: doc.verified,
+        verificationDate: doc.verificationDate || null,
+        authenticated: doc.authenticated,
+        authenticationDate: doc.authenticationDate || null,
+        mandatory: doc.mandatory,
+        version: doc.version
+      }));
+
+      setDocuments(transformedDocuments);
+    } catch (err) {
+      setDocumentsError(err instanceof Error ? err.message : 'Failed to load documents');
+    } finally {
+      setDocumentsLoading(false);
+    }
+  };
+
+  // Load all data on mount and when opportunityId changes
+  useEffect(() => {
+    loadActivities();
+    loadNotes();
+    loadTasksAndApprovals();
+    loadDocuments();
+  }, [opportunityId]);
+
   // Listen for process completion events to refresh opportunity data (including stage condition updates)
   useEffect(() => {
     const handleProcessCompletion = (event: any) => {
@@ -61,6 +218,10 @@ const InvestmentOpportunityRecordContent: React.FC<OpportunityRecordContentProps
         if (event.detail?.resolution === "success") {
           console.log("InvestmentOpportunityRecord: Refreshing opportunity data after stage condition update...");
           refetchOpportunityData();
+          loadActivities();
+          loadNotes();
+          loadTasksAndApprovals();
+          loadDocuments();
           return;
         }
 
@@ -69,6 +230,10 @@ const InvestmentOpportunityRecordContent: React.FC<OpportunityRecordContentProps
         if (response?.detail?.resolution === "success" || response?.opportunityStageConditionStatus) {
           console.log("InvestmentOpportunityRecord: Refreshing opportunity data from response...");
           refetchOpportunityData();
+          loadActivities();
+          loadNotes();
+          loadTasksAndApprovals();
+          loadDocuments();
         }
       } catch (err) {
         console.error("Error handling process completion in InvestmentOpportunityRecord:", err);
@@ -125,167 +290,326 @@ const InvestmentOpportunityRecordContent: React.FC<OpportunityRecordContentProps
     );
   }
 
+  // Prepare RecordLayout data
+  const headerMeta = opportunity?.value ? (
+    <Badge variant="outline" className="gba:gap-1">
+      <DollarOutlined className="gba:w-4 gba:h-4" />
+      {formatCurrency(
+        opportunity.value, 
+        opportunity?.currency?.id || 'Currency:v1:EUR'
+      )}
+    </Badge>
+  ) : undefined;
+
+  const headerDetailGroups = [
+    {
+      id: 'opportunity-details',
+      items: [
+        {
+          label: 'Status',
+          value: opportunity.status,
+          icon: StarOutlined
+        },
+        {
+          label: 'Currency',
+          value: extractCurrencyCode(opportunity?.currency?.id || 'Currency:v1:EUR')
+        },
+        {
+          label: 'Estimated Amount',
+          value: opportunity.value ? 
+            formatCurrency(opportunity.value, opportunity.currency.id) : 
+            'Not set'
+        },
+        {
+          label: 'Owner',
+          value: opportunity.ownerEmployee ? 
+            `${opportunity.ownerEmployee.firstName} ${opportunity.ownerEmployee.lastName}` : 
+            'Not assigned',
+          icon: UserOutlined
+        }
+      ]
+    }
+  ];
+
+  const headerActions = (
+    <AiSummaryButton
+      config={{
+        entityType: 'opportunity',
+        loadingMessage: 'Generating AI Summary...',
+        loadingSubtitle: 'Analyzing opportunity data and activities'
+      }}
+      summaryHook={aiSummaryHook}
+      dataTestId={`opportunity-update-button-${opportunityId}`}
+    />
+  );
+
+  const headerActionButton = (
+    <AppActionButton
+      size="icon"
+      contextsArray={[FlowContextName.investmentOpportunityEntity]}
+      externalContextData={{ opportunityId }}
+      prefixDataTestId="opportunity-record-action"
+      emptyStateBehavior="hide"
+      deferMainContextRequestsUntilClick={false}
+      accessToken={props.accessToken}
+    />
+  );
+
+  const headerContent = !loadingStages &&
+    !stagesError &&
+    opportunityStages.length > 0 &&
+    opportunityData?.opportunityPipelineStage ? (
+      <OpportunityStageProgression
+        currentStage={opportunity?.stage || "Discovery"}
+        stages={opportunityStages}
+        opportunityId={opportunityId}
+        stageConditionStatuses={stageConditionStatuses || []}
+        accessToken={props.accessToken}
+      />
+    ) : loadingStages ? (
+      <div style={{ 
+        textAlign: "center", 
+        padding: "var(--nw-spacing-lg)" 
+      }}>
+        <Spinner size="sm" />
+        <span style={{ marginLeft: "var(--nw-spacing-sm)" }}>Loading pipeline stages...</span>
+      </div>
+    ) : stagesError ? (
+      <div style={{ 
+        textAlign: "center", 
+        padding: "var(--nw-spacing-lg)", 
+        color: "var(--nw-color-danger-500)" 
+      }}>
+        <p>Failed to load pipeline stages: {stagesError}</p>
+      </div>
+    ) : !opportunityData?.opportunityPipelineStage ? (
+      <div style={{ 
+        textAlign: "center", 
+        padding: "var(--nw-spacing-lg)", 
+        color: "var(--nw-color-text-secondary)" 
+      }}>
+        <p>No pipeline stage assigned to this opportunity</p>
+      </div>
+    ) : undefined;
+
+  const subViewsConfig = {
+    defaultValue: activeTab,
+    onValueChange: setActiveTab,
+    items: [
+      {
+        value: 'overview',
+        label: 'Overview',
+        icon: <UserOutlined className="gba:mr-2" />,
+        content: (
+          <>
+            {/* Left side: Main content - spans 8/11 on lg, 7/11 on md */}
+            <div className="gba:col-span-3 gba:sm:col-span-6 gba:md:col-span-9 gba:lg:col-span-9 gba:flex gba:flex-col gba:gap-6">
+              {/* Account and Contact info */}
+              <div className="gba:grid gba:grid-cols-3 gba:gap-6 gba:items-stretch">
+                <AccountSection 
+                  account={opportunityData?.account ? {
+                    id: opportunityData.account.id,
+                    name: opportunityData.account.name,
+                    email: opportunityData.account.email,
+                    phone: opportunityData.account.phone,
+                    website: opportunityData.account.website,
+                    legalForm: opportunityData.account.legalForm?.value || opportunityData.account.legalForm?.code,
+                    industry: opportunityData.account.industryClass?.value || opportunityData.account.industryClass?.code,
+                    size: opportunityData.account.companySize?.value || opportunityData.account.companySize?.code,
+                    revenue: opportunityData.account.accountAnnualRevenueBand?.value || opportunityData.account.accountAnnualRevenueBand?.code,
+                    numberOfEmployees: opportunityData.account.companySize,
+                    annualRevenue: opportunityData.account.accountAnnualRevenueBand,
+                    logoUrl: opportunityData.account.picture || opportunityData.account.pictureThumbnail,
+                    foundationDate: opportunityData.account.foundationDate,
+                    geographicPresence: opportunityData.account.geographicPresence,
+                  } : undefined}
+                  data-testid="opportunity-account-section"
+                  className="gba:h-full gba:flex"
+                  {...props}
+                />
+
+                <ContactSection 
+                  contacts={opportunityData?.investmentOpportunityContact?.map((ioc: any) => ioc.contact ? {
+                    id: ioc.contact.id,
+                    firstName: ioc.contact.firstName,
+                    lastName: ioc.contact.lastName,
+                    fullName: ioc.contact.fullName,
+                    email: ioc.contact.email,
+                    phone: ioc.contact.phone,
+                    jobTitle: ioc.contact.jobPosition,
+                    department: ioc.contact.department,
+                    picture: ioc.contact.picture || ioc.contact.pictureThumbnail,
+                    academicTitle: ioc.contact.academicTitle?.value || ioc.contact.academicTitle?.code,
+                    salutation: ioc.contact.salutation?.value || ioc.contact.salutation?.code,
+                  } : null).filter(Boolean)}
+                  data-testid="opportunity-contact-section"
+                  className="gba:h-full gba:flex"
+                  {...props}
+                />
+                <InvestmentSection 
+                  investmentData={opportunityData} 
+                  businessAppContext={props}
+                  isLoading={loading}
+                  error={error}
+                  className="gba:h-full"
+                />
+              </div>
+
+              {/* Stage conditions + Tasks/Approvals row */}
+              <div className="gba:grid gba:grid-cols-2 gba:gap-6">
+                <div>
+                  <ConditionSection
+                    opportunity={opportunityData}
+                    stageConditionStatuses={stageConditionStatuses || []}
+                    stageConditionActionProps={{
+                      contextsArray: [FlowContextName.investmentOpportunityConditionUpdate],
+                      externalContextData: undefined,
+                      prefixDataTestId: "stage-condition-status-icon",
+                    }}
+                    accessToken={props.accessToken}
+                    data-testid="opportunity-condition-section"
+                  />
+                </div>
+                <div className="gba:flex gba:flex-col gba:gap-6">
+                  <TaskSection
+                    opportunityId={opportunityId}
+                    tasks={tasks.map(task => ({
+                      id: task.id,
+                      title: task.name,
+                      due: task.dueDate,
+                      assignee: task.assignedEmployee?.displayName || task.assignedEmployee?.fullName,
+                      statusCode: task.taskStatus?.value?.toUpperCase() as any,
+                      assigneeEmployee: task.assignedEmployee
+                    }))}
+                    taskActionProps={{
+                      contextsArray: [FlowContextName.investmentTaskCreate],
+                      externalContextData: { opportunityId },
+                      prefixDataTestId: "opportunity-task"
+                    }}
+                    data-testid="opportunity-task-section"
+                    {...props}
+                  />
+                  <ApprovalSection
+                    opportunityId={opportunityId}
+                    approvals={approvals.map(approval => ({
+                      id: approval.id,
+                      title: approval.name,
+                      status: approval.taskStatus?.value,
+                      date: approval.createdAt,
+                      actor: approval.creatorEmployee?.displayName || approval.creatorEmployee?.fullName,
+                      actorEmployee: approval.creatorEmployee
+                    }))}
+                    approvalActionProps={{
+                      contextsArray: [FlowContextName.investmentTaskCreate],
+                      externalContextData: { opportunityId, typeRef: 'InvestmentTaskType:v1:APPROVAL' },
+                      prefixDataTestId: "opportunity-approval"
+                    }}
+                    data-testid="opportunity-approval-section"
+                    {...props}
+                  />
+                </div>
+              </div>
+
+              {/* Notes full width */}
+              <div>
+                <NoteSection
+                  opportunityId={opportunityId}
+                  notes={notes}
+                  noteActionProps={{
+                    contextsArray: [FlowContextName.createInvestmentNote],
+                    externalContextData: { opportunityId },
+                    prefixDataTestId: "opportunity-note"
+                  }}
+                  noteEntityActionProps={{
+                    contextsArray: [FlowContextName.investmentNoteEntity],
+                    externalContextData: { opportunityId },
+                    prefixDataTestId: "opportunity-note-entity"
+                  }}
+                  data-testid="opportunity-note-section"
+                  {...props}
+                />
+              </div>
+            </div>
+
+            {/* Right side: Activities - spans last 3/11 on lg, 4/11 on md */}
+            <div className="gba:col-span-1 gba:lg:col-start-10 gba:lg:col-end-13 gba:w-full gba:h-full gba:h-full">
+              <ActivitySection
+                opportunityId={opportunityId}
+                activities={activities}
+                activitiesLoading={activitiesLoading}
+                activitiesError={activitiesError}
+                onReloadActivities={loadActivities}
+                contextsArray={[FlowContextName.createInvestmentActivity]}
+                externalContextData={{ 
+                  opportunityId, 
+                  opportunity: opportunityId,
+                  investmentActivity: { opportunity: opportunityId }
+                }}
+                prefixDataTestId="add-activity"
+                showTranslation={true}
+                className="gba:h-full gba:h-full"
+                data-testid="opportunity-activity-section"
+                {...props}
+              />
+            </div>
+          </>
+        )
+      },
+      {
+        value: 'documents',
+        label: 'Documents',
+        icon: <FileOutlined className="gba:mr-2" />,
+        content: (
+          <div className="gba:col-span-12">
+            <DocumentSection
+              entityId={opportunityId}
+              entityType="opportunity"
+              documents={documents}
+              isLoading={documentsLoading}
+              error={documentsError}
+              onRefresh={loadDocuments}
+              createFolderActionProps={{
+                contextsArray: [FlowContextName.investmentDocumentCreate],
+                externalContextData: { 
+                  opportunityId,
+                  folder: true
+                },
+                prefixDataTestId: 'opportunity-document-create-folder'
+              }}
+              uploadActionProps={{
+                contextsArray: [FlowContextName.investmentDocumentCreate],
+                externalContextData: { 
+                  opportunityId
+                },
+                prefixDataTestId: 'opportunity-document-upload'
+              }}
+              data-testid="opportunity-document-section"
+              {...props}
+            />
+          </div>
+        )
+      }
+    ]
+  };
+
   return (
     <div
       className="gba:opportunity-details-container"
       data-testid="investment-opportunity-detail"
-      style={{ backgroundColor: "white", padding: "16px" }}
     >
-      <div className="gba:back-navigation" style={{ marginBottom: "16px" }}>
-        <button
-          onClick={onBack}
-          className="gba:flex gba:items-center gba:text-blue-500 gba:hover:text-blue-600"
-          data-testid="investment-opportunity-back-button"
-        >
-          <ArrowLeftOutlined className="gba:mr-2" />
-          <span>{getBackButtonText()}</span>
-        </button>
-      </div>
-
-      <OpportunityHeader opportunity={opportunity} opportunityId={opportunityId} accessToken={props.accessToken} />
-
-      {/* Stage Progression - Show filtered pipeline stages */}
-      {!loadingStages &&
-        !stagesError &&
-        opportunityStages.length > 0 &&
-        opportunityData?.opportunityPipelineStage && (
-          <OpportunityStageProgression
-            currentStage={opportunity?.stage || "Discovery"}
-            stages={opportunityStages}
-            opportunityId={opportunityId}
-            stageConditionStatuses={stageConditionStatuses || []}
-            accessToken={props.accessToken}
-          />
-        )}
-
-      {/* Show stages loading */}
-      {loadingStages && (
-        <div style={{ textAlign: "center", padding: "20px" }}>
-          <Spinner size="sm" />
-          <span style={{ marginLeft: "8px" }}>Loading pipeline stages...</span>
-        </div>
-      )}
-
-      {/* Show stages error */}
-      {stagesError && (
-        <div style={{ textAlign: "center", padding: "20px", color: "#ff4d4f" }}>
-          <p>Failed to load pipeline stages: {stagesError}</p>
-        </div>
-      )}
-
-      {/* Show info when no pipeline stage */}
-      {!opportunityData?.opportunityPipelineStage && !loadingStages && (
-        <div style={{ textAlign: "center", padding: "20px", color: "#8c8c8c" }}>
-          <p>No pipeline stage assigned to this opportunity</p>
-        </div>
-      )}
-
-      <div
-        className="gba:opportunity-details-content"
-        data-testid="investment-opportunity-details-content"
-      >
-        <Tabs
-          value={activeTab}
-          onValueChange={setActiveTab}
-          className="gba:w-full"
-        >
-          <TabsList className="gba:bg-white gba:border gba:mb-6">
-            <TabsTrigger value="overview" data-testid="investment-opportunity-overview-tab">
-              <UserOutlined className="gba:mr-2" />
-              Overview
-            </TabsTrigger>
-            <TabsTrigger value="documents" data-testid="investment-opportunity-documents-tab">
-              <FileOutlined className="gba:mr-2" />
-              Documents
-            </TabsTrigger>
-          </TabsList>
-
-          <TabsContent value="overview" data-testid="investment-opportunity-overview-content">
-            <div className="gba:flex gba:gap-6 gba:mb-6">
-              {/* Left side: Account and Contact info with equal heights */}
-              <div className="gba:flex-1 gba:grid gba:grid-cols-2 gba:gap-6 gba:items-stretch">
-                  <AccountSection 
-                    account={opportunityData?.account ? {
-                      id: opportunityData.account.id,
-                      name: opportunityData.account.name,
-                      email: opportunityData.account.email,
-                      phone: opportunityData.account.phone,
-                      website: opportunityData.account.website,
-                      legalForm: opportunityData.account.legalForm?.value || opportunityData.account.legalForm?.code,
-                      industry: opportunityData.account.industryClass?.value || opportunityData.account.industryClass?.code,
-                      size: opportunityData.account.companySize?.value || opportunityData.account.companySize?.code,
-                      revenue: opportunityData.account.accountAnnualRevenueBand?.value || opportunityData.account.accountAnnualRevenueBand?.code,
-                      numberOfEmployees: opportunityData.account.companySize,
-                      annualRevenue: opportunityData.account.accountAnnualRevenueBand,
-                      logoUrl: opportunityData.account.picture || opportunityData.account.pictureThumbnail,
-                      foundationDate: opportunityData.account.foundationDate,
-                      geographicPresence: opportunityData.account.geographicPresence,
-                    } : undefined}
-                    data-testid="opportunity-account-section"
-                    className="gba:h-full gba:flex"
-                    {...props}
-                  />
-
-                  <ContactSection 
-                    contacts={opportunityData?.investmentOpportunityContact?.map((ioc: any) => ioc.contact ? {
-                      id: ioc.contact.id,
-                      firstName: ioc.contact.firstName,
-                      lastName: ioc.contact.lastName,
-                      fullName: ioc.contact.fullName,
-                      email: ioc.contact.email,
-                      phone: ioc.contact.phone,
-                      jobTitle: ioc.contact.jobPosition,
-                      department: ioc.contact.department,
-                      picture: ioc.contact.picture || ioc.contact.pictureThumbnail,
-                      academicTitle: ioc.contact.academicTitle?.value || ioc.contact.academicTitle?.code,
-                      salutation: ioc.contact.salutation?.value || ioc.contact.salutation?.code,
-                    } : null).filter(Boolean)}
-                    data-testid="opportunity-contact-section"
-                    className="gba:h-full gba:flex"
-                    {...props}
-                  />
-              </div>
-
-              {/* Right side: Stage conditions (completely independent) */}
-              <div className="gba:flex-1">
-                <OpportunityDetails
-                  opportunityData={opportunityData}
-                  stageConditionStatuses={stageConditionStatuses || []}
-                  context={props}
-                />
-              </div>
-            </div>
-
-            {/* Investment Information */}
-            <div className="gba:mb-6">
-            <InvestmentSection 
-              investmentData={opportunityData} 
-              businessAppContext={props}
-              isLoading={loading}
-              error={error}
-            />
-            </div>
-
-            <div className="gba:grid gba:grid-cols-2 gba:gap-6">
-              <div>
-                <ActivityTimeline
-                  opportunityId={opportunityId}
-                  context={props}
-                />
-              </div>
-
-              <div>
-                <TasksSection opportunityId={opportunityId} context={props} />
-              </div>
-            </div>
-          </TabsContent>
-
-          <TabsContent value="documents" data-testid="investment-opportunity-documents-content">
-            <OpportunityDocuments opportunityId={opportunityId} context={props} />
-          </TabsContent>
-
-        </Tabs>
-      </div>
+      <RecordLayout
+        headerOrientation="horizontal"
+        headerIcon={LightbulbIcon}
+        headerCategory="OPPORTUNITY"
+        onBack={onBack}
+        headerTitle={opportunity.name}
+        headerMeta={headerMeta}
+        headerActions={headerActions}
+        headerActionButton={headerActionButton}
+        headerDetailGroups={headerDetailGroups}
+        headerContent={headerContent}
+        subViews={subViewsConfig}
+      />
     </div>
   );
 };
@@ -294,7 +618,7 @@ interface InvestmentOpportunityRecordProps extends BusinessAppContextProps {
   opportunityId?: string;
 }
 
-const InvestmentOpportunityRecord: React.FC<InvestmentOpportunityRecordProps> = ({
+const OpportunityRecord: React.FC<InvestmentOpportunityRecordProps> = ({
   opportunityId: propOpportunityId,
   ...props
 }) => {
@@ -342,4 +666,5 @@ const InvestmentOpportunityRecord: React.FC<InvestmentOpportunityRecordProps> = 
   );
 };
 
-export default InvestmentOpportunityRecord;
+export { OpportunityRecord, InvestmentOpportunityRecordContent };
+export default OpportunityRecord;

@@ -236,6 +236,10 @@ export const useOpportunityData = (opportunityId: string, accessToken: string) =
           }
         };
 
+        // Pull stage conditions directly from the opportunity payload
+        const sc = (rawOpportunityData as any)?.opportunityStageConditions || [];
+        setStageConditionStatuses(sc);
+
         setOpportunity(transformedOpportunity);
       } else {
         setError('Investment Opportunity not found');
@@ -274,62 +278,23 @@ export const useOpportunityData = (opportunityId: string, accessToken: string) =
   const fetchOpportunityStages = async () => {
     try {
       setLoadingStages(true);
-      // Try different catalog names that might exist
-      const catalogNames = [
-        'InvestmentOpportunityPipelineStage',
-      ];
-      
-      let stageData: ReferenceData[] = [];
-      
-      for (const catalogName of catalogNames) {
-        try {
-          const response = await catalogClient.getCatalogEntriesList(
-            { catalogIdentifier: catalogName, version: 'v1' },
-            { limit: 100, offset: 0, returnTotalRecords: true }
-          );
-          
-          if (response && response.data && response.data.length > 0) {
-            stageData = response.data.map((entry: any) => ({
-              id: entry.id,
-              code: entry.code,
-              value: entry.value,
-              alternativeCode: entry.alternativeCode,
-            }));
-            console.log(`Successfully fetched stages from catalog: ${catalogName}`);
-            break;
-          }
-        } catch (catalogErr) {
-          console.log(`Catalog ${catalogName} not found, trying next...`);
-          continue;
-        }
+      if (opportunityData?.opportunityPipeline?.childEntries?.length) {
+        const sorted = [...(opportunityData.opportunityPipeline.childEntries as any[])]
+          .sort((a: any, b: any) => (a?.displayOrder ?? 0) - (b?.displayOrder ?? 0));
+        const stageData: ReferenceData[] = sorted.map((entry: any) => ({
+          id: entry.id,
+          code: entry.code,
+          value: entry.value,
+          alternativeCode: entry.alternativeCode,
+        }));
+        setOpportunityStages(stageData);
+        return;
       }
-      
-      // If no catalog found, provide default stages
-      if (stageData.length === 0) {
-        console.log('No pipeline stage catalog found, using default stages');
-        stageData = [
-          { id: 'discovery', code: 'Discovery', value: 'Discovery', alternativeCode: '1' },
-          { id: 'qualification', code: 'Qualification', value: 'Qualification', alternativeCode: '2' },
-          { id: 'proposal', code: 'Proposal', value: 'Proposal', alternativeCode: '3' },
-          { id: 'negotiation', code: 'Negotiation', value: 'Negotiation', alternativeCode: '4' },
-          { id: 'closed-won', code: 'Closed Won', value: 'Closed Won', alternativeCode: '5' },
-          { id: 'closed-lost', code: 'Closed Lost', value: 'Closed Lost', alternativeCode: '6' }
-        ];
-      }
-      
-      setOpportunityStages(stageData);
+      setOpportunityStages([]);
     } catch (err) {
-      console.error('Error fetching investment opportunity stages:', err);
+      console.error('Error mapping investment opportunity pipeline stages:', err);
       setStagesError(err instanceof Error ? err.message : 'Failed to fetch stages');
-      // Set default stages on error
-      setOpportunityStages([
-        { id: 'discovery', code: 'Discovery', value: 'Discovery', alternativeCode: '1' },
-        { id: 'qualification', code: 'Qualification', value: 'Qualification', alternativeCode: '2' },
-        { id: 'proposal', code: 'Proposal', value: 'Proposal', alternativeCode: '3' },
-        { id: 'negotiation', code: 'Negotiation', value: 'Negotiation', alternativeCode: '4' },
-        { id: 'closed-won', code: 'Closed Won', value: 'Closed Won', alternativeCode: '5' },
-        { id: 'closed-lost', code: 'Closed Lost', value: 'Closed Lost', alternativeCode: '6' }
-      ]);
+      setOpportunityStages([]);
     } finally {
       setLoadingStages(false);
     }
@@ -339,9 +304,15 @@ export const useOpportunityData = (opportunityId: string, accessToken: string) =
     if (opportunityId && accessToken) {
       fetchOpportunityData();
       fetchOpportunityStatuses();
-      fetchOpportunityStages();
     }
   }, [opportunityId, accessToken]);
+
+  // Refresh stages once opportunityData is available (contains pipeline childEntries)
+  useEffect(() => {
+    if (opportunityData) {
+      fetchOpportunityStages();
+    }
+  }, [opportunityData]);
 
   const refetchOpportunityData = async () => {
     await fetchOpportunityData();

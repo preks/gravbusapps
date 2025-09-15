@@ -227,7 +227,8 @@ export interface BaseInvestmentOpportunity extends BaseEntity {
 
   // Catalog references
   currency?: CatalogEntry;
-  opportunityPipeline?: CatalogEntry;
+  // Pipeline with stages (GraphQL provides childEntries on catalog entry)
+  opportunityPipeline?: CatalogEntry & { childEntries?: CatalogEntry[] };
   opportunityPipelineStage?: CatalogEntry;
   // Some queries may expose this as `stage`
   stage?: CatalogEntry;
@@ -267,6 +268,9 @@ export interface BaseInvestmentOpportunity extends BaseEntity {
   sizeMeasurementUnit?: CatalogEntry;
   sizeMeasurementUnitRef?: string;
   currencyRef?: string;
+
+  // Stage conditions relationship (statuses per stage condition)
+  opportunityStageConditions?: BaseInvestmentOpportunityStageCondition[];
 }
 
 // investment_opportunity_contact table (used for standalone entities)

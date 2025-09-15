@@ -1,6 +1,7 @@
 // Investment Opportunity Queries - Complete queries using shared fragments
 import { INVESTMENT, INVESTMENT_REF } from './fragments/investmentFragments';
 import { INVESTMENT_OPPORTUNITY, INVESTMENT_ACCOUNT_REF, INVESTMENT_TASK, INVESTMENT_ACTIVITY, INVESTMENT_NOTE, INVESTMENT_DOCUMENT } from './fragments/investmentRelationFragments';
+import { CATALOG_ENTRY } from '@/common/network/graphql/commonFragments';
 
 export interface InvestmentOpportunityQueryVariables {
   ids?: string[];
@@ -189,6 +190,14 @@ export const GET_INVESTMENT_OPPORTUNITY_BY_ID = (id: string): string => {
         investment {
           ${INVESTMENT}
         }
+
+        # Include pipeline with stages for UI stage lists
+        opportunityPipeline {
+          ${CATALOG_ENTRY}
+          childEntries {
+            ${CATALOG_ENTRY}
+          }
+        }
       }
     }
   `;
@@ -341,6 +350,62 @@ export const GET_INVESTMENT_DOCUMENTS_BY_OPPORTUNITY_ID = (opportunityId: string
           id
           code
           name
+        }
+      }
+    }
+  `;
+};
+
+// Get Investment Opportunity Stage Condition by ID
+export const GET_INVESTMENT_OPPORTUNITY_STAGE_CONDITION_BY_ID = (id: string): string => {
+  return `
+    query GetInvestmentOpportunityStageConditionById {
+      InvestmentOpportunityStageConditionByPk(id: "${id}") {
+        id
+        completed
+        completedAt
+        deadlineAt
+        version
+        opportunityPipelineStageCondition {
+          id
+          value
+          code
+          parentEntryId
+        }
+        configSnapshot
+      }
+    }
+  `;
+};
+
+// Get all Investment Opportunity Stage Conditions for an Opportunity
+export const GET_INVESTMENT_OPPORTUNITY_STAGE_CONDITIONS_BY_OPPORTUNITY_ID = (opportunityId: string): string => {
+  return `
+    query GetInvestmentOpportunityStageConditionsByOpportunityId {
+      InvestmentOpportunityStageCondition(
+        where: {
+          opportunity: { id: { _eq: "${opportunityId}" } },
+          isDeleted: { _eq: false }
+        }
+        orderBy: [{ createdAt: DESC }]
+      ) {
+        id
+        completed
+        completedAt
+        deadlineAt
+        version
+        configSnapshot
+        completedByEmployee {
+          id
+          displayName
+          firstName
+          lastName
+        }
+        opportunityPipelineStageCondition {
+          id
+          value
+          code
+          parentEntryId
         }
       }
     }

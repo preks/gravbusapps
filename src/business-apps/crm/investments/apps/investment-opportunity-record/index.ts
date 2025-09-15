@@ -1,2 +1,3 @@
-export { default as InvestmentOpportunityRecord } from './OpportunityRecord';
-export { default } from './OpportunityRecord';
+import { OpportunityRecord } from './OpportunityRecord';
+export { OpportunityRecord };
+export default OpportunityRecord;

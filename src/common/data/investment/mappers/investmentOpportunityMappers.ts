@@ -1,6 +1,6 @@
 // Investment Opportunity Mappers - Transform base type to enhanced type with computed fields
 
-import { BaseInvestmentOpportunity, InvestmentOpportunity } from '../types';
+import { BaseInvestmentOpportunity, InvestmentOpportunity, InvestmentOpportunityStageCondition } from '../types';
 
 /**
  * Transform BaseInvestmentOpportunity (GraphQL response) to InvestmentOpportunity (enhanced with computed fields)
@@ -40,6 +40,9 @@ export function toInvestmentOpportunity(base: BaseInvestmentOpportunity): Invest
     investmentRoleLabel,
     investmentStakeTypeLabel,
     ownerDisplayName,
-    accountDisplayName
+    accountDisplayName,
+
+    // Pass through opportunityStageConditions as enhanced type (fields already compatible)
+    opportunityStageConditions: (base.opportunityStageConditions as unknown as InvestmentOpportunityStageCondition[]) || []
   };
 }

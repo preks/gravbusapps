@@ -1,10 +1,10 @@
-export { default as FeedbackFormComponent } from './FeedbackFormComponent';
-export { default as RequestFeedbackModal } from './RequestFeedbackModal';
+import FeedbackFormComponent from './FeedbackFormComponent';
+import RequestFeedbackModal from './RequestFeedbackModal';
+
+export { FeedbackFormComponent, RequestFeedbackModal };
 
 // Default export for wrapper compatibility
-const components = {
+export default {
   FeedbackFormComponent,
   RequestFeedbackModal,
 };
-
-export default components as unknown as any;

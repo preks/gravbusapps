@@ -78,6 +78,7 @@ export enum FlowContextName {
   createInvestmentOpportunity = "investmentOpportunityCreate",
   updateInvestmentOpportunity = "investmentOpportunityUpdate",
   investmentOpportunityStageTransition = "investmentOpportunityStageTransition",
+  investmentOpportunityConditionUpdate = "investmentOpportunityConditionUpdate",
 
 
   /// Investment Activities
