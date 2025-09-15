@@ -8,7 +8,7 @@ import { UserOutlined } from '@ant-design/icons';
 import { useFeedbackRequestForm } from '../context/FeedbackRequestFormContext';
 import { formatDataTestId } from '@/common/utils/formatDataTestId';
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
-import EmployeeSearchableSelect from '../../lead-form/components/EmployeeSearchableSelect';
+import EmployeeSearchableSelect from '../../../../../crm/common/forms/lead-form/components/EmployeeSearchableSelect';
 
 const prefixDataTestId = 'FeedbackRequestFormComponent';
 
