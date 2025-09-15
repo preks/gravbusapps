@@ -5,12 +5,13 @@ import { ArrowLeftOutlined } from '@ant-design/icons';
 import { LiquidFundRecordProps } from './types';
 import { useLiquidFundData } from './hooks/useLiquidFundData';
 import {
-  InvestmentDetailsHeader,
-  KeyMetrics,
-  LiquidFundDetails,
-  LiquidFundInvestmentReports
+  InvestmentDetailsHeader
 } from './components';
-import { CompanyInformation, ContactDetails, UploadReportButton, InvestmentHomeTab, InvestmentDocuments } from '../shared';
+import InvestmentReportsTab from '../shared/InvestmentReportsTab';
+// No more hardcoded catalog IDs - component decides what it needs
+import { CompanyInformation, ContactDetails, UploadReportButton, GenerateOnePagerButton, InvestmentHomeTab } from '../shared';
+import { DocumentSection, NoteSection } from '@/common/components/common-relations/record-sections';
+import { useInvestmentTileFields } from '../../hooks/useInvestmentTileFields';
 
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
 import { navigateTo } from '@/common/utils/navigationUtils';
@@ -19,6 +20,10 @@ const LiquidFundRecord: React.FC<LiquidFundRecordProps> = (props) => {
   const [activeTab, setActiveTab] = useState('home');
   const context = (props as unknown) as import('@/common/BusinessAppContext').BusinessAppContextProps;
   const { liquidFundData, isLoading, error } = useLiquidFundData(context, props.investmentId);
+
+  // Check if tile fields are configured for this investment type
+  const { processedTiles } = useInvestmentTileFields(context, liquidFundData?.investment);
+  const hasTileFields = processedTiles.length > 0;
 
   // If this is not a liquid fund investment, don't render anything
   if (error && error.includes('not a liquid fund investment')) {
@@ -106,11 +111,17 @@ const LiquidFundRecord: React.FC<LiquidFundRecordProps> = (props) => {
           </TabsContent>
 
           <TabsContent value="overview" className="gba:space-y-6" data-testid="overview-content">
-            {/* Key Metrics */}
-            <KeyMetrics liquidFundData={liquidFundData} />
+            {/* Generate One-Pager Action - only show if tile fields are configured */}
+            {hasTileFields && (
+              <div className="gba:flex gba:justify-end gba:mb-4">
+                <GenerateOnePagerButton
+                  investmentId={liquidFundData?.investment?.id}
+                  accessToken={context.accessToken}
+                />
+              </div>
+            )}
 
-            {/* Liquid Fund Details */}
-            <LiquidFundDetails liquidFundData={liquidFundData} />
+
 
             {/* Company Information and Contact Details */}
             <div className="gba:grid gba:gap-6 gba:grid-cols-1 gba:lg:grid-cols-2">
@@ -119,9 +130,18 @@ const LiquidFundRecord: React.FC<LiquidFundRecordProps> = (props) => {
             </div>
           </TabsContent>
           <TabsContent value="documents" className="gba:space-y-6" data-testid="documents-content">
-            <InvestmentDocuments
+            <DocumentSection
+              entityId={props.investmentId || ''}
+              entityType="investment"
+              accessToken={context.accessToken}
+              userInfo={context.userInfo}
+              data-testid="liquid-fund-investment-documents"
+            />
+            <NoteSection
               investmentId={props.investmentId || ''}
-              context={context}
+              accessToken={context.accessToken}
+              userInfo={context.userInfo}
+              data-testid="liquid-fund-investment-notes"
             />
           </TabsContent>
           <TabsContent value="reports" className="gba:space-y-6" data-testid="reports-content">
@@ -137,20 +157,17 @@ const LiquidFundRecord: React.FC<LiquidFundRecordProps> = (props) => {
               </div>
               <UploadReportButton
                 investmentId={liquidFundData?.investment?.id}
-                onUploadSuccess={(fileIds) => {
-                  console.log('Upload successful, file IDs:', fileIds);
-                  // Could trigger refresh of reports here if needed
-                }}
                 accessToken={context.accessToken}
-                userInfo={context.userInfo}
-                additionalData={context.additionalData}
               />
             </div>
 
-            {/* Existing Reports Display */}
-            {liquidFundData?.liquidFundInvestment?.id && (
-              <LiquidFundInvestmentReports
-                liquidFundInvestmentId={liquidFundData.liquidFundInvestment.id}
+            {/* Investment Reports Display - Using Unified Component with Liquid Fund Configuration */}
+            {liquidFundData?.investment?.id && (
+              <InvestmentReportsTab
+                investmentId={liquidFundData.investment.id}
+                investmentGroupIds={['InvestmentGroup:v1:LIQUID_FUND']}
+                specificInvestmentId={liquidFundData.liquidFundInvestment?.id}
+                investmentType="liquid_fund"
                 accessToken={context.accessToken}
                 userInfo={context.userInfo}
                 data-testid="liquid-fund-record-investment-reports"

@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Spin, Alert, Timeline, Typography, message, Modal, Input } from 'antd';
 import { Button } from '@newwork/nw-design-system';
-import { NoteDeletionPopup } from '@/common/components';
+import { NoteDeletePopup } from '@/common/components/common-relations/popups/note-delete-popup';
 import { PlusCircleOutlined, CloseOutlined, EditOutlined, UserOutlined } from '@ant-design/icons';
 import { AppAction } from '@/components/app-action/AppAction';
 import { FlowContextName } from '@/common/types/FlowRegistryTypes';
@@ -380,7 +380,7 @@ export const NotesSection: React.FC<NotesSectionProps> = ({ leadId, context, sho
       </Modal>
 
       {deletePopup.open && deletePopup.note && (
-        <NoteDeletionPopup
+        <NoteDeletePopup
           isOpen={deletePopup.open}
           onClose={() => setDeletePopup({ open: false })}
           accessToken={context.accessToken}

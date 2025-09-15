@@ -48,19 +48,31 @@ declare global {
       };
       getActiveUserLocale?: () => string;
       getCatalogValue?: (value: any) => string;
-      getDateFormat?: (format:string)=>string;
-      getTranslationFromI18nKeyAndLabel?: (key: string, defaultValue: string, translationVariables?: {}) => string;
-      formatDate?: (dateValue: Date | string | undefined, format?: string, customSpecificFormat?: string) => string | undefined;
+      getDateFormat?: (format: string) => string;
+      getTranslationFromI18nKeyAndLabel?: (
+        key: string,
+        defaultValue: string,
+        translationVariables?: {},
+      ) => string;
+      formatDate?: (
+        dateValue: Date | string | undefined,
+        format?: string,
+        customSpecificFormat?: string,
+      ) => string | undefined;
       i18n?: {
-        formatDate?: (dateValue: Date | string | undefined, format?: string, customSpecificFormat?: string | null) => string | undefined;
+        formatDate?: (
+          dateValue: Date | string | undefined,
+          format?: string,
+          customSpecificFormat?: string | null,
+        ) => string | undefined;
         selectedLocale?: string;
         t: (key: string, label?: string | {}) => string;
-        formatNumber?:(number:string,format:string)=>string;
+        formatNumber?: (number: number | string, format: string) => string;
         l10nResources?: {
-          dateTime:{
-            'fullDateTime.ISO':string
-          }
-        }
+          dateTime: {
+            "fullDateTime.ISO": string;
+          };
+        };
       };
       [key: string]: any;
     };

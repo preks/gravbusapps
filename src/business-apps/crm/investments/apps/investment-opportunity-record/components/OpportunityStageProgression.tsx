@@ -261,8 +261,8 @@ export const OpportunityStageProgression: React.FC<OpportunityStageProgressionPr
               externalContextData={stagePropsData?.externalContextData}
               accessToken={accessToken}
               prefixDataTestId={`opportunity-stage-action-${stage.code}`}
-              deferMainContextRequestsUntilClick={false}
-              emptyStateBehavior="disable"
+              deferMainContextRequestsUntilClick={true}
+              emptyStateBehavior="enable"
               autoExecuteSingleAction={true}
               style={stageStyle}
               onMouseEnter={stagePropsData?.mouseHandlers.onMouseEnter}

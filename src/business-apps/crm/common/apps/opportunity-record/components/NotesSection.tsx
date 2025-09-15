@@ -7,7 +7,7 @@ import { FlowContextName } from '@/common/types/FlowRegistryTypes';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 import { useGetCrmNotes, CrmNoteData } from '../queries/CrmNoteQueries';
 import { useRestClient } from '@/common/network/rest/useRestClient';
-import { NoteDeletionPopup } from '@/common/components';
+import { NoteDeletePopup } from '@/common/components/common-relations/popups/note-delete-popup';
 import { env } from '@/common/env/EnvUtils';
 import dayjs from 'dayjs';
 import { LanguageDropdown } from './LanguageDropdown';
@@ -300,7 +300,7 @@ export const NotesSection: React.FC<NotesSectionProps> = ({ opportunityId, conte
       </div>
 
       {deletePopup.open && deletePopup.note && (
-        <NoteDeletionPopup
+        <NoteDeletePopup
           isOpen={deletePopup.open}
           onClose={() => setDeletePopup({ open: false })}
           accessToken={context.accessToken}

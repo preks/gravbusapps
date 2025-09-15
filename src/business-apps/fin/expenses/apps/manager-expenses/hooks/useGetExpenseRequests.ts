@@ -176,7 +176,7 @@ export const useGetExpenseRequests = ({
         requestDate: request.requestDate,
         startDate: request.startDate,
         endDate: request.endDate,
-        amount: request.totalAmount ?? 0,
+        amount: request.totalAmount,
         currency: (() => {
           const extractedCurrency = request.currencyRef
             ? request.currencyRef.replace("Currency:v1:", "")
@@ -307,11 +307,63 @@ export const useGetExpenseRequests = ({
         } else {
         }
 
-        const variables = {
+        // Parse the sortBy parameter to create orderBy array
+        let orderBy: any[] | undefined = [{ requestDate: "DESC" }]; // Default sorting
+        if (effectiveSortBy && effectiveSortBy !== "none") {
+          const [field, order] = effectiveSortBy.split(":");
+          if (field && order) {
+            const orderDirection = order.toUpperCase() === "ASC" ? "ASC" : "DESC";
+
+            // Handle nested fields like 'employee.fullName'
+            if (field.includes(".")) {
+              const [parent, child] = field.split(".");
+              // Try different approaches for nested field sorting
+              if (parent === "employee" && child === "fullName") {
+                // Try sorting by firstName and lastName separately
+                orderBy = [
+                  { employee: { firstName: orderDirection } },
+                  { employee: { lastName: orderDirection } },
+                ];
+              } else {
+                orderBy = [{ [parent]: { [child]: orderDirection } }];
+              }
+            } else if (field === "amount") {
+              // The GraphQL server is receiving the correct sorting parameters
+              // but the sorting is still not working correctly. This suggests the issue
+              // is in the GraphQL server or database handling of the totalAmount field.
+              //
+              // Since the data is numeric but sorting isn't working, this appears to be
+              // a server-side issue with how the totalAmount field is handled for sorting.
+              orderBy = [{ totalAmount: orderDirection }];
+            } else if (field === "requestDate") {
+              orderBy = [{ requestDate: orderDirection }];
+            } else if (field === "status") {
+              orderBy = [{ status: orderDirection }];
+            } else if (field === "title") {
+              orderBy = [{ title: orderDirection }];
+            } else if (field === "startDate") {
+              orderBy = [{ startDate: orderDirection }];
+            } else if (field === "endDate") {
+              orderBy = [{ endDate: orderDirection }];
+            } else {
+              orderBy = [{ [field]: orderDirection }];
+            }
+          }
+        } else if (effectiveSortBy === "none") {
+          // No sorting - use natural order (no orderBy parameter)
+          orderBy = undefined;
+        }
+
+        const variables: any = {
           where: whereClause,
           limit: pageSize,
           offset,
         };
+
+        // Only include orderBy if it's defined
+        if (orderBy) {
+          variables.orderBy = orderBy;
+        }
 
         const response = await fetch(env("NEXT_PUBLIC_GRAPHQL_ENDPOINT_NEWWORK")!, {
           method: "POST",
@@ -332,6 +384,7 @@ export const useGetExpenseRequests = ({
         const result = await response.json();
 
         if (result.errors) {
+          console.error("GraphQL errors:", result.errors);
           throw new Error(result.errors.map((e: any) => e.message).join(", "));
         }
 

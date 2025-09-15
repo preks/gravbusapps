@@ -20,7 +20,8 @@ import type { InvestmentActivity, InvestmentTask } from '@/common/data/investmen
 import { AppAction } from '@/components/app-action';
 import { FlowContextName } from '@/common/types/FlowRegistryTypes';
 import { Button } from '@newwork/nw-design-system';
-import { ActivityDeletionPopup, DeleteConfirmationPopup } from '@/common/components';
+import { ActivityDeletePopup } from '@/common/components/common-relations/popups/activity-delete-popup';
+import { DeleteConfirmPopup } from '@/common/components/common-relations/popups/delete-confirm-popup';
 
 const { Text } = Typography;
 
@@ -634,7 +635,7 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({ leadId, cont
       )}
 
       {deletePopup.open && deletePopup.activity ? (
-        <ActivityDeletionPopup
+        <ActivityDeletePopup
           isOpen={deletePopup.open}
           onClose={() => setDeletePopup({ open: false })}
           accessToken={context.accessToken}
@@ -655,7 +656,7 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({ leadId, cont
       ) : null}
 
       {deleteApprovalPopup.open && deleteApprovalPopup.task ? (
-        <DeleteConfirmationPopup
+        <DeleteConfirmPopup
           isOpen={deleteApprovalPopup.open}
           onClose={() => setDeleteApprovalPopup({ open: false })}
           accessToken={context.accessToken}

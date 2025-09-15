@@ -13,7 +13,8 @@ import {
 } from "@newwork/nw-design-system";
 import { BusinessAppContextProps } from "@/common/BusinessAppContext";
 import { useGetInvestments } from "@/common/data/investment/hooks/useInvestments";
-import { formatCurrency, formatDate } from "@/common/data/investment";
+import { formatDate } from "@/common/data/investment";
+import { formatCurrencyParts } from '@/common/utils/numberFormatter';
 import type { Investment } from "@/common/data/investment/types/investmentTypes";
 import type { InvestmentQueryVariables } from "@/common/data/investment/queries/investmentQueries";
 import { DataContainer } from "@/components/layout/dataContainer/DataContainer";
@@ -83,6 +84,17 @@ const LiquidFundInvestmentsList: React.FC<LiquidFundInvestmentsListProps> = (con
           ))}
         </div>
       </TableHead>
+    );
+  };
+
+  const renderAmount = (amount: number | undefined, currency?: string) => {
+    if (typeof amount !== 'number') return <span className="gba:text-gray-400">-</span>;
+    const { number, symbol } = formatCurrencyParts(amount, { currency, minimumFractionDigits: 0, maximumFractionDigits: 2 });
+    return (
+      <div className="gba:w-full gba:flex gba:justify-end gba:items-baseline">
+        <span className="gba:text-sm gba:[font-variant-numeric:tabular-nums]">{number}</span>
+        <span className="gba:text-xs gba:text-gray-400 gba:inline-block gba:text-right gba:shrink-0 gba:w-[5ch]">{symbol}</span>
+      </div>
     );
   };
 
@@ -163,16 +175,22 @@ const LiquidFundInvestmentsList: React.FC<LiquidFundInvestmentsListProps> = (con
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const queryVariables: InvestmentQueryVariables = useMemo(() => ({
-    limit: pageSize,
-    offset: (currentPage - 1) * pageSize,
-    search: search.trim() || undefined,
-    // Use the safe orderBy mapper in the query; pass field as-is from headers
-    orderBy: sortField
-      ? [{ field: sortField, direction: sortOrder === 'ASC' ? 'ASC_NULLS_LAST' : 'DESC_NULLS_LAST' }]
-      : [{ field: 'createdAt', direction: 'DESC_NULLS_LAST' }],
-    ...getFilters(),
-  }), [currentPage, pageSize, search, sortField, sortOrder, getFilters]);
+  const queryVariables: InvestmentQueryVariables = useMemo(() => {
+    const filters = getFilters();
+    const v: InvestmentQueryVariables = {
+      limit: pageSize,
+      offset: (currentPage - 1) * pageSize,
+      search: search.trim() || undefined,
+      // Use the safe orderBy mapper in the query; pass field as-is from headers
+      orderBy: sortField
+        ? [{ field: sortField, direction: sortOrder === 'ASC' ? 'ASC_NULLS_LAST' : 'DESC_NULLS_LAST' }]
+        : [{ field: 'createdAt', direction: 'DESC_NULLS_LAST' }],
+      ...filters
+    };
+    // Always filter by liquid fund investment types
+    v.investmentGroupIds = ["InvestmentGroup:v1:LIQUID_FUND"];
+    return v;
+  }, [currentPage, pageSize, search, sortField, sortOrder, getFilters]);
 
   const loadData = useCallback(async () => {
     if (!accessToken) return;
@@ -262,11 +280,6 @@ const LiquidFundInvestmentsList: React.FC<LiquidFundInvestmentsListProps> = (con
       });
     };
   }, [loadData]);
-
-  const handleSearch = useCallback((value: string) => {
-    setSearchTerm(value);
-    setCurrentPage(1);
-  }, []);
 
   // Trigger reload when filters change
   useEffect(() => {
@@ -463,35 +476,38 @@ const LiquidFundInvestmentsList: React.FC<LiquidFundInvestmentsListProps> = (con
                     </TableCell>
                   )}
                   {visibleColumns.includes('initialInvestment') && (
-                    <TableCell>
-                      <span className="gba:font-medium gba:text-gray-700">{formatCurrency(inv.initialInvestmentAmount || 0)}</span>
+                    <TableCell className="gba:text-right">
+                      {renderAmount(inv.initialInvestmentAmount, inv.currency?.code)}
                     </TableCell>
                   )}
                   {visibleColumns.includes('marketValue') && (
-                    <TableCell>
-                      <span className="gba:font-semibold gba:text-gray-900">{formatCurrency(inv.investmentMarketValue || 0)}</span>
+                    <TableCell className="gba:text-right">
+                      {renderAmount(inv.investmentMarketValue, inv.currency?.code)}
                     </TableCell>
                   )}
                   {visibleColumns.includes('performance') && (
-                    <TableCell>
+                    <TableCell className="gba:text-right">
                       {(() => {
                         const initial = inv.initialInvestmentAmount || 0;
                         const market = inv.investmentMarketValue || 0;
                         const perfAmount = market - initial;
                         const perfPct = initial > 0 ? (perfAmount / initial) * 100 : 0;
+                        const isZero = (perfPct ?? 0) === 0;
+                        const isPositive = (perfPct ?? 0) > 0;
                         return (
-                          <div className="gba:flex gba:flex-col gba:items-start">
-                            <span className={`gba:font-semibold ${
-                              (perfPct ?? 0) === 0 ? 'gba:text-gray-500' : 
-                              (perfPct ?? 0) > 0 ? 'gba:text-green-600' : 'gba:text-red-600'
-                            }`}>
-                              {formatCurrency(perfAmount || 0)}
-                            </span>
-                            <span className={`gba:text-sm ${
-                              (perfPct ?? 0) === 0 ? 'gba:text-gray-400' : 
-                              (perfPct ?? 0) > 0 ? 'gba:text-green-500' : 'gba:text-red-500'
-                            }`}>
-                              ({(perfPct ?? 0) === 0 ? '' : (perfPct ?? 0) > 0 ? '+' : ''}{(perfPct ?? 0).toFixed(2)}%)
+                          <div className="gba:flex gba:flex-col gba:items-end">
+                            <div className="gba:w-full gba:flex gba:justify-end gba:items-baseline">
+                              {(() => { const { number, symbol } = formatCurrencyParts(Math.abs(perfAmount), { currency: inv.currency?.code, minimumFractionDigits: 0, maximumFractionDigits: 2 }); return (
+                                <>
+                                  <span className={`gba:text-sm gba:[font-variant-numeric:tabular-nums] ${isZero ? 'gba:text-gray-500' : isPositive ? 'gba:text-green-600' : 'gba:text-red-600'}`}>{number}</span>
+                                  <span className={`gba:text-xs gba:inline-block gba:text-right gba:shrink-0 gba:w-[5ch] ${isZero ? 'gba:text-gray-400' : isPositive ? 'gba:text-green-500' : 'gba:text-red-500'}`}>{symbol}</span>
+                                </>
+                              ); })()}
+                            </div>
+                            <span className={`${
+                              isZero ? 'gba:text-gray-400' : isPositive ? 'gba:text-green-500' : 'gba:text-red-500'
+                            } gba:text-sm`}>
+                              ({isZero ? '' : isPositive ? '+' : '-'}{Math.abs(perfPct).toFixed(2)}%)
                             </span>
                           </div>
                         );

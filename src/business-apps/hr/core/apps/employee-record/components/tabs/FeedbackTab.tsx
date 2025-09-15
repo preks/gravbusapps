@@ -12,7 +12,6 @@ import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
 import { BusinessAppContextProps, UserInfoProps } from '../../../../../../../common/BusinessAppContext';
 import { PiPencilSimple } from 'react-icons/pi';
 import { AppActionMenu } from '@/components/app-action-menu';
-import { RequestFeedbackModal } from '@/business-apps/crm/common/forms/feedback-form/components';
 
 interface FeedbackTabProps {
   employee: Employee;
@@ -208,7 +207,7 @@ const FeedbackTab: React.FC<FeedbackTabProps> = ({
         </div>
       </div>
       
-      {/* Request Feedback Modal */}
+      {/* Request Feedback Modal
       {isRequestModalOpen && accessToken && userInfo && (
         <RequestFeedbackModal
           isOpen={isRequestModalOpen}
@@ -219,7 +218,7 @@ const FeedbackTab: React.FC<FeedbackTabProps> = ({
             additionalData: {}
           }}
         />
-      )}
+      )} */}
       
       {/* Feedback Content */}
       <div className="gba:grid gba:grid-cols-1 gba:gap-6 gba:py-4">

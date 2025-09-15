@@ -29,7 +29,7 @@ import { useEmployeeSearch } from '@/common/data/employee/useEmployeeSearch';
 
 interface PlannedExitsProps extends BusinessAppContextProps {}
 
-const PlannedExits: React.FC<PlannedExitsProps> = ({ accessToken }) => {
+const PlannedExits: React.FC<PlannedExitsProps> = ({ accessToken, userInfo }) => {
   const [searchTerm, setSearchTerm] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize] = useState(20);
@@ -152,11 +152,8 @@ const PlannedExits: React.FC<PlannedExitsProps> = ({ accessToken }) => {
   useEffect(() => {
     const handleProcessCompletion = (event: any) => {
       try {
-        console.log('PlannedExits: Process completion event received:', event.type);
-        
         // Check for successful completion
         if (event.detail?.resolution === 'success') {
-          console.log('PlannedExits: Process completed successfully, refreshing planned exits data');
           refetch();
           return;
         }
@@ -164,18 +161,16 @@ const PlannedExits: React.FC<PlannedExitsProps> = ({ accessToken }) => {
         // Check for different event structures
         const response = event.detail?.response;
         if (response?.detail?.resolution === 'success' || response?.investment) {
-          console.log('PlannedExits: Investment data detected, refreshing planned exits list');
           refetch();
           return;
         }
         
         // Check for continue events with payload (investment updates)
         if (event.type === 'com.newwork.process.continue' && event.detail?.payload) {
-          console.log('PlannedExits: Continue event with payload detected, refreshing data');
           refetch();
         }
       } catch (err) {
-        console.error('Error handling process completion in PlannedExits:', err);
+        // Error handling process completion
       }
     };
 

@@ -23,7 +23,10 @@ import { Spin, Alert, DatePicker } from 'antd';
 import { CalendarIcon, FilterIcon, RotateCcwIcon, TrendingDownIcon, TrendingUpIcon, MinusIcon } from 'lucide-react';
 import dayjs from 'dayjs';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
-import { useGetLiquidFundInvestmentReports } from '../queries/LiquidFundInvestmentReportQueries';
+import { useGetInvestmentReports } from '@/common/data/investment/hooks/useInvestmentReports';
+import { AppActionButton } from '@/components/app-action-button/AppActionButton';
+import { FlowContextName } from '@/common/types/FlowRegistryTypes';
+import { formatNumberFunction, formatDate as formatDateFromUtils } from '@/common/utils/windowUtils';
 
 const { RangePicker } = DatePicker;
 
@@ -45,12 +48,12 @@ const LiquidFundInvestmentReports: React.FC<LiquidFundInvestmentReportsProps> = 
 	const [pageSize, setPageSize] = useState(20);
 	const [total, setTotal] = useState(0);
 	const [sortField, setSortField] = useState<string>('date');
-	const [sortOrder, setSortOrder] = useState<'ASC' | 'DESC' | ''>('DESC');
+	const [sortOrder, setSortOrder] = useState<'ASC_NULLS_LAST' | 'DESC_NULLS_LAST' | ''>('DESC_NULLS_LAST');
 	const [dateRange, setDateRange] = useState<[dayjs.Dayjs | null, dayjs.Dayjs | null] | null>(null);
 	const [timeFilter, setTimeFilter] = useState<string>('all');
 	const [isTransposed, setIsTransposed] = useState<boolean>(false);
 
-	const { fetchLiquidFundInvestmentReports } = useGetLiquidFundInvestmentReports({ accessToken, userInfo });
+	const { fetchLiquidFundInvestmentReports } = useGetInvestmentReports({ accessToken, userInfo });
 
 	const loadReports = useCallback(async () => {
 		if (!liquidFundInvestmentId) return;
@@ -58,10 +61,10 @@ const LiquidFundInvestmentReports: React.FC<LiquidFundInvestmentReportsProps> = 
 		setError(null);
 		try {
 			let variables: any = {
-				investmentIds: [liquidFundInvestmentId],
+				liquidFundInvestmentIds: [liquidFundInvestmentId],
 				limit: pageSize,
 				offset: (currentPage - 1) * pageSize,
-				orderBy: sortField && sortOrder ? [{ field: sortField, direction: sortOrder }] : [{ field: 'date', direction: 'DESC' }]
+				orderBy: sortField && sortOrder ? [{ field: sortField, direction: sortOrder }] : [{ field: 'date', direction: 'DESC_NULLS_LAST' }]
 			};
 			if (dateRange && dateRange[0] && dateRange[1]) {
 				variables.reportDateFrom = dateRange[0].format('YYYY-MM-DD');
@@ -96,10 +99,10 @@ const LiquidFundInvestmentReports: React.FC<LiquidFundInvestmentReportsProps> = 
 	const handleSort = (fieldName: string) => {
 		if (sortField !== fieldName) {
 			setSortField(fieldName);
-			setSortOrder('ASC');
+			setSortOrder('ASC_NULLS_LAST');
 		} else {
-			if (sortOrder === '') setSortOrder('ASC');
-			else if (sortOrder === 'ASC') setSortOrder('DESC');
+			if (sortOrder === '') setSortOrder('ASC_NULLS_LAST');
+			else if (sortOrder === 'ASC_NULLS_LAST') setSortOrder('DESC_NULLS_LAST');
 			else { setSortField(''); setSortOrder(''); }
 		}
 		setCurrentPage(1);
@@ -107,8 +110,8 @@ const LiquidFundInvestmentReports: React.FC<LiquidFundInvestmentReportsProps> = 
 
 	const getSortIcon = (fieldName: string) => {
 		if (sortField !== fieldName) return null;
-		if (sortOrder === 'ASC') return <TrendingUpIcon className="gba:h-4 gba:w-4 gba:ml-1" />;
-		if (sortOrder === 'DESC') return <TrendingDownIcon className="gba:h-4 gba:w-4 gba:ml-1" />;
+		if (sortOrder === 'ASC_NULLS_LAST') return <TrendingUpIcon className="gba:h-4 gba:w-4 gba:ml-1" />;
+		if (sortOrder === 'DESC_NULLS_LAST') return <TrendingDownIcon className="gba:h-4 gba:w-4 gba:ml-1" />;
 		return <MinusIcon className="gba:h-4 gba:w-4 gba:ml-1" />;
 	};
 
@@ -125,8 +128,36 @@ const LiquidFundInvestmentReports: React.FC<LiquidFundInvestmentReportsProps> = 
 		</TableHead>
 	);
 
-	const formatDate = (value?: string | null) => value ? dayjs(value).format('DD MMM YYYY') : 'N/A';
-	const formatPercent = (value?: number | null) => value === null || value === undefined ? 'N/A' : `${Number(value).toFixed(2)}%`;
+	// Use windowUtils formatting functions
+	const formatDate = (value?: string | null) => {
+		if (!value) return 'N/A';
+		try {
+			const formatted = formatDateFromUtils(value, 'date.short');
+			if (formatted && !formatted.includes('T')) {
+				return formatted;
+			}
+			// Fallback: format manually
+			const dateObj = new Date(value);
+			if (isNaN(dateObj.getTime())) return 'N/A';
+			return dateObj.toLocaleDateString('en-US', {
+				year: 'numeric',
+				month: 'short',
+				day: 'numeric'
+			});
+		} catch {
+			return 'N/A';
+		}
+	};
+	
+	const formatPercent = (value?: number | null) => {
+		if (value === null || value === undefined) return 'N/A';
+		return formatNumberFunction(value, '0.00%');
+	};
+	
+	const formatNumber = (value?: number | null) => {
+		if (value === null || value === undefined) return 'N/A';
+		return formatNumberFunction(value, '€ 0,0');
+	};
 
 	if (isLoading) {
 		return (
@@ -221,18 +252,31 @@ const LiquidFundInvestmentReports: React.FC<LiquidFundInvestmentReportsProps> = 
 								</TableHeader>
 								<TableBody>
 									{[
-										{ key: 'date', label: 'Report Date' },
-										{ key: 'maturityDate', label: 'Maturity Date' },
-										{ key: 'interestRate', label: 'Interest Rate', fmt: formatPercent },
-										{ key: 'bankName', label: 'Bank Name' },
-										{ key: 'bankAccountNumber', label: 'Bank Account Number' },
-										{ key: 'earlyTerminationAllowed', label: 'Early Termination', fmt: (v: any) => (v === true ? 'Yes' : v === false ? 'No' : 'N/A') }
+										{ key: 'fundType', label: 'Fund Type', path: 'liquidFundInvestment.investmentLiquidFundType.value' },
+										{ key: 'isin', label: 'ISIN Code', path: 'investment.isin' },
+										{ key: 'bankName', label: 'Bank', path: 'liquidFundInvestment.bankName' },
+										{ key: 'proprietorName', label: 'Proprietor Name', path: 'liquidFundInvestment.proprietorName' },
+										{ key: 'initialInvestmentAmount', label: 'Initial Investment', path: 'investment.initialInvestmentAmount', fmt: formatNumber },
+										{ key: 'totalInvestmentAmount', label: 'Total Investment', path: 'investment.totalInvestmentAmount', fmt: formatNumber },
+										{ key: 'marketValue', label: 'Market Value', path: 'investmentMarketValue', fmt: formatNumber },
+										{ key: 'currency', label: 'Currency', path: 'investment.currency.value' },
+										{ key: 'bankAccountNumber', label: 'Bank Account Number', path: 'liquidFundInvestment.bankAccountNumber' },
+										{ key: 'interestRate', label: 'Interest Rate', path: 'liquidFundInvestment.interestRate', fmt: formatPercent },
+										{ key: 'maturityDate', label: 'Maturity Date', path: 'liquidFundInvestment.maturityDate', fmt: formatDate },
+										{ key: 'acquisitionDate', label: 'Acquisition Date', path: 'investment.acquisitionDate', fmt: formatDate },
+										{ key: 'investmentStatus', label: 'Investment Status', path: 'investment.investmentStatus.value' }
 									].map((field) => (
 										<TableRow key={field.key as string} className="gba:border-b gba:hover:gba:bg-gray-50 gba:transition-colors">
 											<TableCell className="gba:py-4 gba:px-6 gba:font-medium gba:text-gray-900 gba:bg-gray-50">{field.label}</TableCell>
 											{[...reports].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()).map((report: any) => (
 												<TableCell key={`${field.key}-${report.id}`} className="gba:py-4 gba:px-6 gba:text-center">
-													<span className="gba:font-medium gba:text-gray-900">{field.fmt ? field.fmt(report[field.key as keyof any]) : (field.key === 'date' || field.key === 'maturityDate' ? formatDate(report[field.key as keyof any] as any) : (report[field.key as keyof any] ?? 'N/A'))}</span>
+													<span className="gba:font-medium gba:text-gray-900">{
+														field.fmt ? field.fmt(
+															field.path ? field.path.split('.').reduce((obj, key) => obj?.[key], report) : report[field.key as keyof any]
+														) : (
+															field.path ? field.path.split('.').reduce((obj, key) => obj?.[key], report) || '-' : (report[field.key as keyof any] ?? '-')
+														)
+													}</span>
 												</TableCell>
 											))}
 										</TableRow>
@@ -245,23 +289,57 @@ const LiquidFundInvestmentReports: React.FC<LiquidFundInvestmentReportsProps> = 
 							<Table data-testid={`${dataTestId}-table`}>
 								<TableHeader>
 									<TableRow className="gba:border-b gba:bg-gray-50">
+										<TableHead className="gba:w-[60px]" data-testid={`${dataTestId}-actions-header`}>
+											ACTIONS
+										</TableHead>
 										<SortableHeader field="date">Report Date</SortableHeader>
-										<SortableHeader field="maturityDate">Maturity Date</SortableHeader>
+										<SortableHeader field="fundType">Fund Type</SortableHeader>
+										<SortableHeader field="isin">ISIN Code</SortableHeader>
+										<SortableHeader field="bankName">Bank</SortableHeader>
+										<SortableHeader field="proprietorName">Proprietor Name</SortableHeader>
+										<SortableHeader field="initialInvestmentAmount">Initial Investment</SortableHeader>
+										<SortableHeader field="totalInvestmentAmount">Total Investment</SortableHeader>
+										<SortableHeader field="marketValue">Market Value</SortableHeader>
+										<SortableHeader field="currency">Currency</SortableHeader>
+										<SortableHeader field="bankAccountNumber">Bank Account Number</SortableHeader>
 										<SortableHeader field="interestRate">Interest Rate</SortableHeader>
-										<TableHead className="gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6">Bank Name</TableHead>
-										<TableHead className="gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6">Bank Account Number</TableHead>
-										<TableHead className="gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6">Early Termination</TableHead>
+										<SortableHeader field="maturityDate">Maturity Date</SortableHeader>
+										<SortableHeader field="acquisitionDate">Acquisition Date</SortableHeader>
+										<SortableHeader field="investmentStatus">Investment Status</SortableHeader>
 									</TableRow>
 								</TableHeader>
 								<TableBody>
 									{reports.map((report: any, index: number) => (
 										<TableRow key={report.id} className="gba:border-b gba:hover:gba:bg-gray-50 gba:transition-colors" data-testid={`${dataTestId}-row-${index + 1}`}>
+											<TableCell className="gba:py-4 gba:px-6">
+												<div className="gba:flex gba:justify-start gba:gap-2">
+													<AppActionButton
+														data-testid={`${dataTestId}-update-report-button-${report.id}`}
+														size="icon"
+														contextsArray={[FlowContextName.entityContext]}
+														externalContextData={{ entityId: report.id }}
+														prefixDataTestId={`${dataTestId}-update-report`}
+														accessToken={accessToken}
+														emptyStateBehavior="enable"
+														deferMainContextRequestsUntilClick
+														onClick={(e) => e.stopPropagation()}
+													/>
+												</div>
+											</TableCell>
 											<TableCell className="gba:py-4 gba:px-6"><span className="gba:font-medium gba:text-gray-900">{formatDate(report.date)}</span></TableCell>
-											<TableCell className="gba:py-4 gba:px-6"><span className="gba:font-medium gba:text-gray-900">{formatDate(report.maturityDate)}</span></TableCell>
-											<TableCell className="gba:py-4 gba:px-6"><span className="gba:font-medium gba:text-gray-900">{formatPercent(report.interestRate)}</span></TableCell>
-											<TableCell className="gba:py-4 gba:px-6"><span className="gba:text-sm gba:text-gray-600">{report.bankName || 'N/A'}</span></TableCell>
-											<TableCell className="gba:py-4 gba:px-6"><span className="gba:text-sm gba:text-gray-600">{report.bankAccountNumber || 'N/A'}</span></TableCell>
-											<TableCell className="gba:py-4 gba:px-6"><span className="gba:text-sm gba:text-gray-600">{report.earlyTerminationAllowed === true ? 'Yes' : report.earlyTerminationAllowed === false ? 'No' : 'N/A'}</span></TableCell>
+											<TableCell className="gba:py-4 gba:px-6"><span className="gba:font-medium gba:text-gray-900">{report.liquidFundInvestment?.investmentLiquidFundType?.value || '-'}</span></TableCell>
+											<TableCell className="gba:py-4 gba:px-6"><span className="gba:font-medium gba:text-gray-900">{report.investment?.isin || '-'}</span></TableCell>
+											<TableCell className="gba:py-4 gba:px-6"><span className="gba:font-medium gba:text-gray-900">{report.liquidFundInvestment?.bankName || '-'}</span></TableCell>
+											<TableCell className="gba:py-4 gba:px-6"><span className="gba:font-medium gba:text-gray-900">{report.liquidFundInvestment?.proprietorName || '-'}</span></TableCell>
+											<TableCell className="gba:py-4 gba:px-6"><span className="gba:font-medium gba:text-gray-900">{formatNumber(report.investment?.initialInvestmentAmount)}</span></TableCell>
+											<TableCell className="gba:py-4 gba:px-6"><span className="gba:font-medium gba:text-gray-900">{formatNumber(report.investment?.totalInvestmentAmount)}</span></TableCell>
+											<TableCell className="gba:py-4 gba:px-6"><span className="gba:font-medium gba:text-gray-900">{formatNumber(report.investmentMarketValue || report.investment?.investmentMarketValue)}</span></TableCell>
+											<TableCell className="gba:py-4 gba:px-6"><span className="gba:font-medium gba:text-gray-900">{report.investment?.currency?.value || report.investment?.currency?.code || '-'}</span></TableCell>
+											<TableCell className="gba:py-4 gba:px-6"><span className="gba:font-medium gba:text-gray-900">{report.liquidFundInvestment?.bankAccountNumber || '-'}</span></TableCell>
+											<TableCell className="gba:py-4 gba:px-6"><span className="gba:font-medium gba:text-gray-900">{formatPercent(report.liquidFundInvestment?.interestRate)}</span></TableCell>
+											<TableCell className="gba:py-4 gba:px-6"><span className="gba:font-medium gba:text-gray-900">{formatDate(report.liquidFundInvestment?.maturityDate)}</span></TableCell>
+											<TableCell className="gba:py-4 gba:px-6"><span className="gba:font-medium gba:text-gray-900">{formatDate(report.investment?.acquisitionDate)}</span></TableCell>
+											<TableCell className="gba:py-4 gba:px-6"><span className="gba:font-medium gba:text-gray-900">{report.investment?.investmentStatus?.value || '-'}</span></TableCell>
 										</TableRow>
 									))}
 								</TableBody>

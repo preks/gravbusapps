@@ -6,7 +6,8 @@ import { Clock, Calendar } from 'lucide-react';
 import { startProcess } from '@/common/utils/start-process';
 import { AppAction } from '@/components/app-action/AppAction';
 import { FlowContextName } from '@/common/types/FlowRegistryTypes';
-import { ActivityDeletionPopup, DeleteConfirmationPopup } from '@/common/components';
+import { ActivityDeletePopup } from '@/common/components/common-relations/popups/activity-delete-popup';
+import { DeleteConfirmPopup } from '@/common/components/common-relations/popups/delete-confirm-popup';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 import { useRestClient } from '@/common/network/rest/useRestClient';
 import { env } from '@/common/env/EnvUtils';
@@ -867,7 +868,7 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({ accountId, c
       )}
 
       {deletePopup?.open && deletePopup.activity ? (
-        <ActivityDeletionPopup
+        <ActivityDeletePopup
           isOpen={deletePopup.open}
           onClose={() => setDeletePopup({ open: false })}
           accessToken={context.accessToken}
@@ -887,7 +888,7 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({ accountId, c
       ) : null}
 
       {deleteApprovalPopup?.open && deleteApprovalPopup.task ? (
-        <DeleteConfirmationPopup
+        <DeleteConfirmPopup
           isOpen={deleteApprovalPopup.open}
           onClose={() => setDeleteApprovalPopup({ open: false })}
           accessToken={context.accessToken}

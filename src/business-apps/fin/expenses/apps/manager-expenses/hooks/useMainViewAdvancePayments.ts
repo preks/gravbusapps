@@ -105,9 +105,7 @@ export const useMainViewAdvancePayments = ({
   const { primaryCurrency } = useCurrencyStore();
   const currencyFilter = currentCurrencyFilter || primaryCurrency;
   // Get managerId from userInfo or use a fallback for development
-  const managerId =
-    userInfo?.employeeDetails?.employeeId ||
-    "00000000-0000-0000-0000-000000000000";
+  const managerId = userInfo?.employeeDetails?.employeeId || "00000000-0000-0000-0000-000000000000";
 
   // Log the managerId to help with debugging
 
@@ -121,15 +119,19 @@ export const useMainViewAdvancePayments = ({
   const currentPage = externalCurrentPage ?? internalCurrentPage;
   const [employeeFilter, setEmployeeFilter] = useState<string | null>(null);
 
-  // Add sorting state
+  // Add sorting state with three-state support
   const [sorting, setSorting] = useState<{
-    field: string;
-    order: "ASC" | "DESC";
-  }>(initialSorting);
+    field: string | null;
+    order: "ASC" | "DESC" | null;
+    lastField: string | null;
+  }>({
+    field: null,
+    order: null,
+    lastField: null,
+  });
   const [approving, setApproving] = useState<boolean>(false);
   const [rejecting, setRejecting] = useState<boolean>(false);
-  const [paymentStats, setPaymentStats] =
-    useState<AdvancePaymentStatistics | null>(null);
+  const [paymentStats, setPaymentStats] = useState<AdvancePaymentStatistics | null>(null);
   const [statsLoading, setStatsLoading] = useState<boolean>(false);
   const [statsError, setStatsError] = useState<Error | null>(null);
 
@@ -186,7 +188,21 @@ export const useMainViewAdvancePayments = ({
 
   // Helper function to build orderBy object for GraphQL query
   const buildOrderByClause = useCallback(() => {
-    // Handle nested fields like 'employee.fullName'
+    // If no sorting is applied, return undefined to use natural order
+    if (!sorting.field || !sorting.order) {
+      return undefined;
+    }
+
+    // Handle specific nested fields with proper GraphQL structure
+    if (sorting.field === "expensePlan.employee.fullName") {
+      // For employee fullName, sort by firstName and lastName separately
+      return [
+        { expensePlan: { employee: { firstName: sorting.order } } },
+        { expensePlan: { employee: { lastName: sorting.order } } },
+      ];
+    }
+
+    // Handle other nested fields like 'expensePlan.title', 'expensePlan.startDate', etc.
     if (sorting.field.includes(".")) {
       const [parentField, childField] = sorting.field.split(".");
       return { [parentField]: { [childField]: sorting.order } };
@@ -203,22 +219,22 @@ export const useMainViewAdvancePayments = ({
     searchTerm: "",
     currentStatusFilter: null as string[] | null,
     currencyFilter: "",
-    sorting: { field: "", order: "ASC" as "ASC" | "DESC" },
+    sorting: {
+      field: null as string | null,
+      order: null as "ASC" | "DESC" | null,
+      lastField: null as string | null,
+    },
   });
 
   const fetchPayments = useCallback(async () => {
     if (!accessToken) {
-      setError(
-        new Error("Access token not found. Cannot fetch advance payments.")
-      );
+      setError(new Error("Access token not found. Cannot fetch advance payments."));
       setLoading(false);
       return;
     }
 
     if (!managerId) {
-      setError(
-        new Error("Manager ID not found. Cannot fetch advance payments.")
-      );
+      setError(new Error("Manager ID not found. Cannot fetch advance payments."));
       setLoading(false);
       return;
     }
@@ -241,7 +257,8 @@ export const useMainViewAdvancePayments = ({
         JSON.stringify(currentParams.currentStatusFilter) &&
       lastFetchParams.current.currencyFilter === currentParams.currencyFilter &&
       lastFetchParams.current.sorting.field === currentParams.sorting.field &&
-      lastFetchParams.current.sorting.order === currentParams.sorting.order
+      lastFetchParams.current.sorting.order === currentParams.sorting.order &&
+      lastFetchParams.current.sorting.lastField === currentParams.sorting.lastField
     ) {
       return;
     }
@@ -257,26 +274,29 @@ export const useMainViewAdvancePayments = ({
       const whereClause = buildWhereClause();
       const orderByClause = buildOrderByClause();
 
-      const response = await fetch(
-        env("NEXT_PUBLIC_GRAPHQL_ENDPOINT_NEWWORK")!,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${accessToken}`,
-          },
-          body: JSON.stringify({
-            query: GET_MAIN_VIEW_ADVANCE_PAYMENTS,
-            variables: {
-              managerId,
-              limit: pageSize,
-              offset,
-              where: whereClause,
-              orderBy: orderByClause,
-            },
-          }),
-        }
-      );
+      const variables: any = {
+        managerId,
+        limit: pageSize,
+        offset,
+        where: whereClause,
+      };
+
+      // Only include orderBy if it's defined
+      if (orderByClause) {
+        variables.orderBy = orderByClause;
+      }
+
+      const response = await fetch(env("NEXT_PUBLIC_GRAPHQL_ENDPOINT_NEWWORK")!, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${accessToken}`,
+        },
+        body: JSON.stringify({
+          query: GET_MAIN_VIEW_ADVANCE_PAYMENTS,
+          variables,
+        }),
+      });
 
       const result = await response.json();
 
@@ -292,9 +312,7 @@ export const useMainViewAdvancePayments = ({
       // Map currency information from currencyRef fields
       filteredPayments = filteredPayments.map((payment) => ({
         ...payment,
-        currency: payment.currencyRef
-          ? payment.currencyRef.replace("Currency:v1:", "")
-          : "EUR",
+        currency: payment.currencyRef ? payment.currencyRef.replace("Currency:v1:", "") : "EUR",
         expensePlan: {
           ...payment.expensePlan,
           currency: payment.expensePlan.currencyRef
@@ -306,7 +324,7 @@ export const useMainViewAdvancePayments = ({
       // Filter by employee if specified
       if (employeeFilter) {
         filteredPayments = filteredPayments.filter(
-          (payment) => payment.expensePlan?.employee?.id === employeeFilter
+          (payment) => payment.expensePlan?.employee?.id === employeeFilter,
         );
       }
 
@@ -314,11 +332,7 @@ export const useMainViewAdvancePayments = ({
       setTotalCount(data.AdvancePaymentAggregate?.aggregate?.count || 0);
     } catch (err) {
       console.error("Error fetching advance payments:", err);
-      setError(
-        err instanceof Error
-          ? err
-          : new Error("Failed to fetch advance payments")
-      );
+      setError(err instanceof Error ? err : new Error("Failed to fetch advance payments"));
     } finally {
       setLoading(false);
     }
@@ -351,9 +365,7 @@ export const useMainViewAdvancePayments = ({
   }, [fetchPayments, currentCurrencyFilter]);
 
   // Track the last statistics fetch parameters to avoid redundant requests
-  const lastStatsFetchParams = useRef<{ currencyFilter: string | null } | null>(
-    null
-  );
+  const lastStatsFetchParams = useRef<{ currencyFilter: string | null } | null>(null);
   const statsDebounceTimer = useRef<NodeJS.Timeout | null>(null);
 
   const fetchPaymentStatistics = useCallback(async () => {
@@ -379,27 +391,22 @@ export const useMainViewAdvancePayments = ({
     setStatsError(null);
 
     try {
-      const currencyRefValue = currencyFilter
-        ? `Currency:v1:${currencyFilter}`
-        : null;
+      const currencyRefValue = currencyFilter ? `Currency:v1:${currencyFilter}` : null;
 
-      const response = await fetch(
-        env("NEXT_PUBLIC_GRAPHQL_ENDPOINT_NEWWORK")!,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${accessToken}`,
+      const response = await fetch(env("NEXT_PUBLIC_GRAPHQL_ENDPOINT_NEWWORK")!, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${accessToken}`,
+        },
+        body: JSON.stringify({
+          query: GET_MAIN_VIEW_ADVANCE_PAYMENT_STATISTICS,
+          variables: {
+            managerId,
+            currencyRef: currencyRefValue,
           },
-          body: JSON.stringify({
-            query: GET_MAIN_VIEW_ADVANCE_PAYMENT_STATISTICS,
-            variables: {
-              managerId,
-              currencyRef: currencyRefValue,
-            },
-          }),
-        }
-      );
+        }),
+      });
       const result = await response.json();
 
       if (result.errors) {
@@ -417,9 +424,7 @@ export const useMainViewAdvancePayments = ({
     } catch (err) {
       console.error("Error fetching advance payment statistics:", err);
       setStatsError(
-        err instanceof Error
-          ? err
-          : new Error("Failed to fetch advance payment statistics")
+        err instanceof Error ? err : new Error("Failed to fetch advance payment statistics"),
       );
     } finally {
       setStatsLoading(false);
@@ -449,22 +454,22 @@ export const useMainViewAdvancePayments = ({
     setInternalCurrentPage(page);
   };
 
-  // Add function to update sorting
+  // Add function to update sorting with three-state cycle
   const updateSorting = useCallback((field: string) => {
     setSorting((prevSorting) => {
-      // If clicking the same field, toggle the order
-      if (prevSorting.field === field) {
-        return {
-          field,
-          order: prevSorting.order === "ASC" ? "DESC" : "ASC",
-        };
+      // If clicking the same field, cycle through: ASC -> DESC -> Default (null)
+      if (prevSorting.lastField === field) {
+        if (prevSorting.order === "ASC") {
+          return { field, order: "DESC", lastField: field };
+        } else if (prevSorting.order === "DESC") {
+          return { field: null, order: null, lastField: null };
+        } else {
+          return { field, order: "ASC", lastField: field };
+        }
       }
 
-      // If clicking a new field, default to DESC order
-      return {
-        field,
-        order: "DESC",
-      };
+      // If clicking a new field, start with ASC
+      return { field, order: "ASC", lastField: field };
     });
 
     // Reset to first page when sorting changes
@@ -489,7 +494,7 @@ export const useMainViewAdvancePayments = ({
         setApproving(false);
       }
     },
-    [accessToken, managerId, fetchPayments, fetchPaymentStatistics]
+    [accessToken, managerId, fetchPayments, fetchPaymentStatistics],
   );
 
   const rejectPayment = useCallback(
@@ -510,7 +515,7 @@ export const useMainViewAdvancePayments = ({
         setRejecting(false);
       }
     },
-    [accessToken, managerId, fetchPayments, fetchPaymentStatistics]
+    [accessToken, managerId, fetchPayments, fetchPaymentStatistics],
   );
 
   return {

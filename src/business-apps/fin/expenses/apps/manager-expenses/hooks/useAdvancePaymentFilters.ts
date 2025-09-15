@@ -44,12 +44,6 @@ export const useAdvancePaymentFilters = ({
     isInitialized: storeInitialized,
   } = useCurrencyStore();
 
-  console.log("Filter hook - Currency store values:", {
-    primaryCurrency,
-    mostUsedCurrency,
-    storeInitialized,
-  });
-
   // Fetch dynamic currency data if accessToken and managerId are provided
   const {
     availableCurrencies: dynamicCurrencies,

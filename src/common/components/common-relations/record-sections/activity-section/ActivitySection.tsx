@@ -26,6 +26,7 @@ interface ActivitySectionProps extends BusinessAppContextProps {
   contactId?: string;
   opportunityId?: string;
   leadId?: string;
+  investmentId?: string;
   defaultTab?: 'activities' | 'notes' | 'approvals' | 'documents' | 'ai-summary';
   'data-testid'?: string;
   className?: string;
@@ -63,6 +64,7 @@ const ActivitySection: React.FC<ActivitySectionProps> = ({ defaultTab = 'activit
     contactId: (context as any).contactId,
     opportunityId: (context as any).opportunityId,
     leadId: (context as any).leadId,
+    investmentId: (context as any).investmentId,
   }), [context]);
 
   const loadActivities = () => (context as any).onReloadActivities?.();

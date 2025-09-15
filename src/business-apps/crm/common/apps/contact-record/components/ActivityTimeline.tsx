@@ -3,7 +3,7 @@ import { PlusCircleOutlined, UserOutlined, FileTextOutlined, CloseOutlined, Edit
 import { Button, List, Avatar, Spin, Alert, Empty, Tag, message, Timeline, Typography, Modal } from 'antd';
 import { AppAction } from '@/components/app-action/AppAction';
 import { FlowContextName } from '@/common/types/FlowRegistryTypes';
-import { ActivityDeletionPopup } from '@/common/components';
+import { ActivityDeletePopup } from '@/common/components/common-relations/popups/activity-delete-popup';
 import { Clock, Calendar } from 'lucide-react';
 import { startProcess } from '@/common/utils/start-process';
 import { useProcessCompletion } from '@/common/hooks/useProcessCompletion';
@@ -795,23 +795,14 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({ contactId, c
       )}
 
       {deletePopup.open && deletePopup.activity ? (
-        <ActivityDeletionPopup
+        <ActivityDeletePopup
           isOpen={deletePopup.open}
           onClose={() => setDeletePopup({ open: false })}
           accessToken={context.accessToken}
           activityId={deletePopup.activity!.id}
           activityVersion={deletePopup.activity!.version}
           activityTitle={deletePopup.activity!.title}
-          contactId={contactId}
           domain="crm"
-          onSuccess={() => {
-            setActivities(prev => prev.filter(a => a.id !== deletePopup.activity!.id));
-            originalActivitiesRef.current = originalActivitiesRef.current.filter(a => a.id !== deletePopup.activity!.id);
-            message.success('Activity deleted successfully');
-          }}
-          onError={() => {
-            message.error('Failed to delete activity');
-          }}
         />
       ) : null}
     </div>

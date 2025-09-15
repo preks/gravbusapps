@@ -58,13 +58,34 @@ export const AnalyticsTable: React.FC<AnalyticsTableProps> = ({
     sortOrder: 'ASC'
   });
 
-  const formatCurrency = (amount: number, currency: string = filters.currency || 'EUR'): string => {
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: currency,
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 2
-    }).format(amount);
+  // Currency helpers to match list style: number-only + narrow symbol right-aligned
+  const getCurrencySymbol = (currencyCode?: string): string => {
+    try {
+      const code = currencyCode || filters.currency || 'EUR';
+      const parts = new Intl.NumberFormat(undefined, {
+        style: 'currency',
+        currency: code,
+        currencyDisplay: 'narrowSymbol'
+      }).formatToParts(0);
+      return parts.find(p => p.type === 'currency')?.value || code;
+    } catch {
+      return '€';
+    }
+  };
+
+  const formatCurrencyNumberOnly = (amount: number, currency?: string): string => {
+    try {
+      const code = currency || filters.currency || 'EUR';
+      const parts = new Intl.NumberFormat(undefined, {
+        style: 'currency',
+        currency: code,
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2,
+      }).formatToParts(amount);
+      return parts.filter(p => p.type !== 'currency').map(p => p.value).join('');
+    } catch {
+      return new Intl.NumberFormat(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(amount);
+    }
   };
 
   const formatPerformance = (value: number): React.ReactNode => {
@@ -251,23 +272,65 @@ export const AnalyticsTable: React.FC<AnalyticsTableProps> = ({
                           </TableCell>
                         </>
                       )}
-                      <TableCell className="gba:text-right gba:font-mono gba:py-3 gba:px-4">
-                        {formatCurrency(row.openingBalance)}
+                      <TableCell className="gba:text-right gba:py-3 gba:px-4">
+                        <div className="gba:w-full gba:flex gba:justify-end gba:items-baseline">
+                          <span className="gba:text-sm gba:[font-variant-numeric:tabular-nums]">
+                            {formatCurrencyNumberOnly(row.openingBalance)}
+                          </span>
+                          <span className="gba:text-xs gba:text-gray-400 gba:inline-block gba:text-right gba:shrink-0 gba:w-[5ch]">
+                            {getCurrencySymbol(filters.currency)}
+                          </span>
+                        </div>
                       </TableCell>
-                      <TableCell className="gba:text-right gba:font-mono gba:py-3 gba:px-4">
-                        {formatCurrency(row.incoming)}
+                      <TableCell className="gba:text-right gba:py-3 gba:px-4">
+                        <div className="gba:w-full gba:flex gba:justify-end gba:items-baseline">
+                          <span className="gba:text-sm gba:[font-variant-numeric:tabular-nums]">
+                            {formatCurrencyNumberOnly(row.incoming)}
+                          </span>
+                          <span className="gba:text-xs gba:text-gray-400 gba:inline-block gba:text-right gba:shrink-0 gba:w-[5ch]">
+                            {getCurrencySymbol(filters.currency)}
+                          </span>
+                        </div>
                       </TableCell>
-                      <TableCell className="gba:text-right gba:font-mono gba:py-3 gba:px-4">
-                        {formatCurrency(row.outgoing)}
+                      <TableCell className="gba:text-right gba:py-3 gba:px-4">
+                        <div className="gba:w-full gba:flex gba:justify-end gba:items-baseline">
+                          <span className="gba:text-sm gba:[font-variant-numeric:tabular-nums]">
+                            {formatCurrencyNumberOnly(row.outgoing)}
+                          </span>
+                          <span className="gba:text-xs gba:text-gray-400 gba:inline-block gba:text-right gba:shrink-0 gba:w-[5ch]">
+                            {getCurrencySymbol(filters.currency)}
+                          </span>
+                        </div>
                       </TableCell>
-                      <TableCell className="gba:text-right gba:font-mono gba:py-3 gba:px-4">
-                        {formatCurrency(row.realizedGainsLosses)}
+                      <TableCell className="gba:text-right gba:py-3 gba:px-4">
+                        <div className="gba:w-full gba:flex gba:justify-end gba:items-baseline">
+                          <span className="gba:text-sm gba:[font-variant-numeric:tabular-nums]">
+                            {formatCurrencyNumberOnly(row.realizedGainsLosses)}
+                          </span>
+                          <span className="gba:text-xs gba:text-gray-400 gba:inline-block gba:text-right gba:shrink-0 gba:w-[5ch]">
+                            {getCurrencySymbol(filters.currency)}
+                          </span>
+                        </div>
                       </TableCell>
-                      <TableCell className="gba:text-right gba:font-mono gba:py-3 gba:px-4">
-                        {formatCurrency(row.unrealizedGainsLosses)}
+                      <TableCell className="gba:text-right gba:py-3 gba:px-4">
+                        <div className="gba:w-full gba:flex gba:justify-end gba:items-baseline">
+                          <span className="gba:text-sm gba:[font-variant-numeric:tabular-nums]">
+                            {formatCurrencyNumberOnly(row.unrealizedGainsLosses)}
+                          </span>
+                          <span className="gba:text-xs gba:text-gray-400 gba:inline-block gba:text-right gba:shrink-0 gba:w-[5ch]">
+                            {getCurrencySymbol(filters.currency)}
+                          </span>
+                        </div>
                       </TableCell>
-                      <TableCell className="gba:text-right gba:font-mono gba:font-medium gba:py-3 gba:px-4">
-                        {formatCurrency(row.closingBalance)}
+                      <TableCell className="gba:text-right gba:py-3 gba:px-4">
+                        <div className="gba:w-full gba:flex gba:justify-end gba:items-baseline">
+                          <span className="gba:text-sm gba:[font-variant-numeric:tabular-nums] gba:font-medium">
+                            {formatCurrencyNumberOnly(row.closingBalance)}
+                          </span>
+                          <span className="gba:text-xs gba:text-gray-400 gba:inline-block gba:text-right gba:shrink-0 gba:w-[5ch]">
+                            {getCurrencySymbol(filters.currency)}
+                          </span>
+                        </div>
                       </TableCell>
                       <TableCell className="gba:text-center gba:py-3 gba:px-4">
                         {formatPerformance(row.timeWeightedPerformance)}

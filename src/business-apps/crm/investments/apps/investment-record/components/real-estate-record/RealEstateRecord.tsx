@@ -8,10 +8,13 @@ import {
   ProjectDevelopmentDetailsHeader,
   OthersDetailsHeader,
   MezzanineLoansDetailsHeader,
-  RealEstateInvestmentReports,
   LiquidityForecast
 } from './components';
-import { CompanyInformation, ContactDetails, UploadReportButton, InvestmentHomeTab, InvestmentDocuments, InvestmentTileSection } from '../shared';
+import InvestmentReportsTab from '../shared/InvestmentReportsTab';
+// No more hardcoded catalog IDs - component decides what it needs
+import { CompanyInformation, ContactDetails, UploadReportButton, GenerateOnePagerButton, InvestmentHomeTab, InvestmentTileSection } from '../shared';
+import { DocumentSection, NoteSection } from '@/common/components/common-relations/record-sections';
+import { useInvestmentTileFields } from '../../hooks/useInvestmentTileFields';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
 import { navigateTo } from '@/common/utils/navigationUtils';
@@ -25,6 +28,10 @@ const RealEstateRecord: React.FC<RealEstateRecordComponentProps> = (props) => {
 
   // Fetch real GraphQL data using centralized structure
   const { realEstateData, isLoading, error } = useRealEstateRecordData(props, props.investmentId);
+
+  // Check if tile fields are configured for this investment type
+  const { processedTiles } = useInvestmentTileFields(props, realEstateData?.investment);
+  const hasTileFields = processedTiles.length > 0;
 
   // Determine which header component to render based on investment type
   const getHeaderComponent = () => {
@@ -174,15 +181,27 @@ const RealEstateRecord: React.FC<RealEstateRecordComponentProps> = (props) => {
           </TabsContent>
 
           <TabsContent value="overview" className="gba:space-y-6" data-testid="overview-content">
-            {/* Investment Tile Section */}
-            <InvestmentTileSection 
-              investment={realEstateData?.investment}
-              isLoading={isLoading}
-              accessToken={props.accessToken}
-              userInfo={props.userInfo}
-              additionalData={props.additionalData}
-              data-testid="real-estate-record-tiles"
-            />
+            {/* Generate One-Pager Action - only show if tile fields are configured */}
+            {hasTileFields && (
+              <div className="gba:flex gba:justify-end gba:mb-4">
+                <GenerateOnePagerButton
+                  investmentId={realEstateData?.investment?.id}
+                  accessToken={props.accessToken}
+                />
+              </div>
+            )}
+
+            {/* Investment Tile Section - only show if tile fields are configured */}
+            {hasTileFields && (
+              <InvestmentTileSection 
+                investment={realEstateData?.investment}
+                isLoading={isLoading}
+                accessToken={props.accessToken}
+                userInfo={props.userInfo}
+                additionalData={props.additionalData}
+                data-testid="real-estate-record-tiles"
+              />
+            )}
 
             {/* Liquidity Forecast 5 Years */}
             <LiquidityForecast 
@@ -203,9 +222,18 @@ const RealEstateRecord: React.FC<RealEstateRecordComponentProps> = (props) => {
             </div>
           </TabsContent>
           <TabsContent value="documents" className="gba:space-y-6" data-testid="documents-content">
-            <InvestmentDocuments
+            <DocumentSection
+              entityId={props.investmentId || ''}
+              entityType="investment"
+              accessToken={props.accessToken}
+              userInfo={props.userInfo}
+              data-testid="real-estate-investment-documents"
+            />
+            <NoteSection
               investmentId={props.investmentId || ''}
-              context={props}
+              accessToken={props.accessToken}
+              userInfo={props.userInfo}
+              data-testid="real-estate-investment-notes"
             />
           </TabsContent>
           <TabsContent value="reports" className="gba:space-y-6" data-testid="reports-content">
@@ -221,25 +249,53 @@ const RealEstateRecord: React.FC<RealEstateRecordComponentProps> = (props) => {
               </div>
               <UploadReportButton
                 investmentId={realEstateData?.investment?.id}
-                onUploadSuccess={(fileIds) => {
-                  console.log('Upload successful, file IDs:', fileIds);
-                  // Could trigger refresh of reports here if needed
-                }}
                 accessToken={props.accessToken}
-                userInfo={props.userInfo}
-                additionalData={props.additionalData}
               />
             </div>
 
-            {/* Existing Reports Display */}
-            {realEstateData?.realEstateInvestment?.id && (
-              <RealEstateInvestmentReports
-                realEstateInvestmentId={realEstateData.realEstateInvestment.id}
-                accessToken={props.accessToken}
-                userInfo={props.userInfo}
-                data-testid="real-estate-investment-reports"
-              />
-            )}
+            {/* Investment Reports Display - Using Unified Component with Dynamic Type Configuration */}
+            {realEstateData?.investment?.id && (() => {
+              // Determine investment type based on the same logic used for headers
+              const investment = realEstateData?.investment;
+              const typeCode = (investment?.investmentType?.code || '').toString().toUpperCase();
+              const typeName = (investment?.investmentType?.value || '').toString().toLowerCase();
+              const typeRef = (investment?.investmentTypeRef || '').toString().toUpperCase();
+
+              let investmentType = 'real_estate_general'; // Default
+
+              // Check for Mezzanine Loans
+              if (typeCode.includes('MEZZANINE') || 
+                  typeName.includes('mezzanine') || 
+                  typeRef.includes('MEZZANINE') ||
+                  typeName.includes('mezzanine loan')) {
+                investmentType = 'mezzanine_loans';
+              }
+              // Check for Project Development
+              else if (typeCode.includes('PROJECT_DEVELOPMENT') || 
+                       typeName.includes('project development') || 
+                       typeRef.includes('PROJECT_DEVELOPMENT')) {
+                investmentType = 'project_development';
+              }
+              // Check for Others
+              else if (typeCode.includes('OTHER') || 
+                       typeName.includes('other') || 
+                       typeRef.includes('OTHER') ||
+                       typeName.includes('others')) {
+                investmentType = 'others';
+              }
+
+              return (
+                <InvestmentReportsTab
+                  investmentId={realEstateData.investment.id}
+                  investmentGroupIds={['InvestmentGroup:v1:REAL_ESTATE']}
+                  specificInvestmentId={realEstateData.realEstateInvestment?.id}
+                  investmentType={investmentType}
+                  accessToken={props.accessToken}
+                  userInfo={props.userInfo}
+                  data-testid="real-estate-investment-reports"
+                />
+              );
+            })()}
           </TabsContent>
         </Tabs>
       </div>

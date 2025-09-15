@@ -1,6 +1,6 @@
 import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@newwork/nw-design-system';
-import { Building2, Calendar, DollarSign } from 'lucide-react';
+import { Building2, Calendar } from 'lucide-react';
 import { formatCurrency, formatDate } from '@/common/data/investment';
 import type { LiquidFundInvestmentData } from '../types';
 
@@ -106,54 +106,6 @@ const BankDepositsDetails: React.FC<BankDepositsDetailsProps> = ({ liquidFundDat
             </p>
           </div>
         </div>
-
-        {/* Performance Summary */}
-        {investment?.initialInvestmentAmount && investment?.investmentMarketValue && (
-          <div className="gba:mt-6 gba:pt-6 gba:border-t gba:border-gray-200">
-            <h3 className="gba:text-lg gba:font-medium gba:text-gray-900 gba:mb-4 gba:flex gba:items-center gba:gap-2">
-              <DollarSign className="gba:h-4 gba:w-4 gba:text-green-500" />
-              Performance Overview
-            </h3>
-            <div className="gba:grid gba:gap-4 gba:grid-cols-1 gba:md:grid-cols-3">
-              {(() => {
-                const performanceAmount = investment.investmentMarketValue - investment.initialInvestmentAmount;
-                const performancePercentage = investment.initialInvestmentAmount > 0 ? (performanceAmount / investment.initialInvestmentAmount) * 100 : 0;
-                const returnBackgroundColor = performancePercentage === 0 ? 'gba:bg-gray-50' : performancePercentage > 0 ? 'gba:bg-green-50' : 'gba:bg-red-50';
-                const returnTextColor = performancePercentage === 0 ? 'gba:text-gray-700' : performancePercentage > 0 ? 'gba:text-green-700' : 'gba:text-red-700';
-                const returnValueColor = performancePercentage === 0 ? 'gba:text-gray-900' : performancePercentage > 0 ? 'gba:text-green-900' : 'gba:text-red-900';
-                
-                return (
-                  <>
-                    <div className={`${returnBackgroundColor} gba:p-4 gba:rounded-lg`}>
-                      <h4 className={`gba:text-sm gba:font-medium ${returnTextColor} gba:mb-1`}>Total Return</h4>
-                      <p className={`gba:text-lg gba:font-bold ${returnValueColor}`} data-testid="bank-deposits-total-return">
-                        {formatCurrencyOrDash(performanceAmount, investment?.currency?.code)}
-                      </p>
-                    </div>
-                    <div className={`${returnBackgroundColor} gba:p-4 gba:rounded-lg`}>
-                      <h4 className={`gba:text-sm gba:font-medium ${returnTextColor} gba:mb-1`}>Return Percentage</h4>
-                      <p className={`gba:text-lg gba:font-bold ${returnValueColor}`} data-testid="bank-deposits-return-percentage">
-                        {investment.initialInvestmentAmount > 0 
-                          ? `${performancePercentage === 0 ? '' : performancePercentage > 0 ? '+' : ''}${performancePercentage.toFixed(2)}%`
-                          : '-'
-                        }
-                      </p>
-                    </div>
-                    <div className="gba:bg-purple-50 gba:p-4 gba:rounded-lg">
-                      <h4 className="gba:text-sm gba:font-medium gba:text-purple-700 gba:mb-1">Investment Multiple</h4>
-                      <p className="gba:text-lg gba:font-bold gba:text-purple-900" data-testid="bank-deposits-multiple">
-                        {investment.initialInvestmentAmount > 0 
-                          ? `${(investment.investmentMarketValue / investment.initialInvestmentAmount).toFixed(2)}x`
-                          : '-'
-                        }
-                      </p>
-                    </div>
-                  </>
-                );
-              })()}
-            </div>
-          </div>
-        )}
       </CardContent>
     </Card>
   );

@@ -7,6 +7,11 @@ import {
 } from '@newwork/nw-design-system';
 import { TrendingUp } from 'lucide-react';
 import { RealEstateInvestmentData } from '../hooks/useRealEstateRecordData';
+import { 
+  parseLiquidityForecast, 
+  formatLiquidityAmount,
+  LiquidityForecastData 
+} from '../types/liquidityForecastTypes';
 
 interface LiquidityForecastProps {
   realEstateData?: RealEstateInvestmentData | null;
@@ -40,27 +45,53 @@ const LiquidityForecast: React.FC<LiquidityForecastProps> = ({
     );
   }
 
-  // For now, this is hardcoded data as requested
-  // In the future, this could be pulled from realEstateData?.realEstateInvestment?.liquidityForecast
-  const forecastData = {
-    years: [2025, 2026, 2027, 2028, 2029],
-    balancedCashflowDate: '31.12.2029',
-    amounts: [
-      'xxx Mio.',
-      'xxx Mio.',
-      'xxx Mio.',
-      'xxx Mio.',
-      'xxx Mio.'
-    ],
-    balancedAmount: 'xxx Mio.'
-  };
+  // Check liquidity forecast data availability
+  React.useEffect(() => {
+    if (realEstateData?.realEstateInvestment) {
+      const hasLiquidityData = realEstateData.realEstateInvestment.liquidityForecast !== null;
+      // Track liquidity forecast data availability
+    }
+  }, [realEstateData]);
 
+  // Parse liquidity forecast data from real estate investment
+  const forecastData: LiquidityForecastData | null = parseLiquidityForecast(
+    realEstateData?.realEstateInvestment?.liquidityForecast
+  );
+
+  // Check if we have real liquidity forecast data vs placeholder data
+  const hasRealData = forecastData && forecastData.amounts.some(amount => 
+    typeof amount === 'number' || (typeof amount === 'string' && amount !== 'xxx Mio.')
+  );
+
+  // Get currency from investment data
+  const currencyCode = realEstateData?.investment?.currency?.code || 'EUR';
+
+  // If no real data, show empty state message
+  if (!hasRealData) {
+    return (
+      <Card data-testid={dataTestId}>
+        <CardHeader>
+        <CardTitle className="gba:flex gba:items-center gba:gap-2 gba:text-lg">
+          <TrendingUp className="gba:h-5 gba:w-5 gba:text-blue-600" />
+          Liquidity Forecast
+        </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="gba:text-center gba:py-8 gba:text-gray-500">
+            <p>No liquidity forecast data available</p>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  // Show real data in table format
   return (
     <Card data-testid={dataTestId}>
       <CardHeader>
         <CardTitle className="gba:flex gba:items-center gba:gap-2 gba:text-lg">
           <TrendingUp className="gba:h-5 gba:w-5 gba:text-blue-600" />
-          Liquidity Forecast 5 Years
+          Liquidity Forecast
         </CardTitle>
       </CardHeader>
       <CardContent>
@@ -71,7 +102,7 @@ const LiquidityForecast: React.FC<LiquidityForecastProps> = ({
                 <th className="gba:text-left gba:py-3 gba:px-4 gba:font-medium gba:text-gray-900">
                   Year
                 </th>
-                {forecastData.years.map((year) => (
+                {forecastData!.years.map((year) => (
                   <th 
                     key={year}
                     className="gba:text-center gba:py-3 gba:px-4 gba:font-medium gba:text-gray-900"
@@ -80,7 +111,7 @@ const LiquidityForecast: React.FC<LiquidityForecastProps> = ({
                   </th>
                 ))}
                 <th className="gba:text-center gba:py-3 gba:px-4 gba:font-medium gba:text-gray-900">
-                  Balanced Cashflow<br/>until {forecastData.balancedCashflowDate}
+                  Balanced Cashflow<br/>until {forecastData!.balancedCashflowDate}
                 </th>
               </tr>
             </thead>
@@ -89,16 +120,16 @@ const LiquidityForecast: React.FC<LiquidityForecastProps> = ({
                 <td className="gba:py-3 gba:px-4 gba:font-medium gba:text-gray-900">
                   Amount (Mio.)
                 </td>
-                {forecastData.amounts.map((amount, index) => (
+                {forecastData!.amounts.map((amount, index) => (
                   <td 
                     key={index}
                     className="gba:text-center gba:py-3 gba:px-4 gba:text-gray-700"
                   >
-                    {amount}
+                    {formatLiquidityAmount(amount, currencyCode)}
                   </td>
                 ))}
                 <td className="gba:text-center gba:py-3 gba:px-4 gba:text-gray-700 gba:font-medium">
-                  {forecastData.balancedAmount}
+                  {formatLiquidityAmount(forecastData!.balancedAmount, currencyCode)}
                 </td>
               </tr>
             </tbody>

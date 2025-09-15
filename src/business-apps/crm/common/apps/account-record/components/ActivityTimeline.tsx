@@ -3,13 +3,13 @@ import { PlusCircleOutlined, CloseOutlined, CheckCircleOutlined } from '@ant-des
 import { Button, Spin, Alert, Empty, Timeline, Typography, message } from 'antd';
 import { AppAction } from '@/components/app-action/AppAction';
 import { FlowContextName } from '@/common/types/FlowRegistryTypes';
-import { ActivityDeletionPopup } from '@/common/components';
+import { ActivityDeletePopup } from '@/common/components/common-relations/popups/activity-delete-popup';
 import { Clock, Calendar } from 'lucide-react';
 import { startProcess } from '@/common/utils/start-process';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 import { useRestClient } from '@/common/network/rest/useRestClient';
 import { env } from '@/common/env/EnvUtils';
-import DeleteConfirmationPopup from '@/common/components/popups/delete-confirmation-popup/DeleteConfirmationPopup';
+import { DeleteConfirmPopup } from '@/common/components/common-relations/popups/delete-confirm-popup';
 import dayjs from 'dayjs';
 import { useEmployeeData } from '@/business-apps/crm/common/hooks/useEmployeeData';
 // Import the GraphQL queries we created
@@ -795,28 +795,19 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({ accountId, c
       )}
 
       {deletePopup.open && deletePopup.activity ? (
-        <ActivityDeletionPopup
+        <ActivityDeletePopup
           isOpen={deletePopup.open}
           onClose={() => setDeletePopup({ open: false })}
           accessToken={context.accessToken}
           activityId={deletePopup.activity!.id}
           activityVersion={deletePopup.activity!.version}
           activityTitle={deletePopup.activity!.title}
-          accountId={accountId}
           domain="crm"
-          onSuccess={() => {
-            setActivities(prev => prev.filter(a => a.id !== deletePopup.activity!.id));
-            // originalActivitiesRef.current = originalActivitiesRef.current.filter(a => a.id !== deletePopup.activity!.id); // This line was not in the original file, so it's not added.
-            message.success('Activity deleted successfully');
-          }}
-          onError={() => {
-            message.error('Failed to delete activity');
-          }}
         />
       ) : null}
 
       {deleteApprovalPopup.open && deleteApprovalPopup.task ? (
-        <DeleteConfirmationPopup
+        <DeleteConfirmPopup
           isOpen={deleteApprovalPopup.open}
           onClose={() => setDeleteApprovalPopup({ open: false })}
           accessToken={context.accessToken}

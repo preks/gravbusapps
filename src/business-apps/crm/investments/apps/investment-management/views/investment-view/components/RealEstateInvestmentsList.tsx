@@ -21,7 +21,8 @@ import { AppActionButton } from "@/components/app-action-button/AppActionButton"
 import { FlowContextName } from "@/common/types/FlowRegistryTypes";
 import { Building2, Calendar, User, Target, ChevronUp, ChevronDown } from "lucide-react";
 import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils';
-import { formatCurrency, formatDate } from "@/common/data/investment";
+import { formatDate } from "@/common/data/investment";
+import { formatCurrencyParts } from '@/common/utils/numberFormatter';
 import { ColumnConfig } from "@/components/dataController";
 import { useInvestmentListController } from "../hooks/useInvestmentListController";
 import { useRealEstateInvestmentsFilters } from "../hooks/useRealEstateInvestmentsFilters";
@@ -268,10 +269,16 @@ const RealEstateInvestmentsList: React.FC<RealEstateInvestmentsListProps> = (con
     };
   }, [loadData]);
 
-  const handleSearch = useCallback((value: string) => {
-    setSearchTerm(value);
-    setCurrentPage(1);
-  }, []);
+  const renderAmount = (amount: number | undefined, currency?: string) => {
+    if (typeof amount !== 'number') return <span className="gba:text-gray-400">-</span>;
+    const { number, symbol } = formatCurrencyParts(amount, { currency, minimumFractionDigits: 0, maximumFractionDigits: 2 });
+    return (
+      <div className="gba:w-full gba:flex gba:justify-end gba:items-baseline">
+        <span className="gba:text-sm gba:[font-variant-numeric:tabular-nums]">{number}</span>
+        <span className="gba:text-xs gba:text-gray-400 gba:inline-block gba:text-right gba:shrink-0 gba:w-[5ch]">{symbol}</span>
+      </div>
+    );
+  };
 
   const handleSetFilter = useCallback((filters: string[]) => {
     // Clear all filters first, then add new ones
@@ -449,40 +456,37 @@ const RealEstateInvestmentsList: React.FC<RealEstateInvestmentsListProps> = (con
                     </TableCell>
                   )}
                   {visibleColumns.includes('initialInvestment') && (
-                    <TableCell>
-                      <span>{formatCurrency(investment.initialInvestmentAmount || 0)}</span>
-                    </TableCell>
+                    <TableCell className="gba:text-right">{renderAmount(investment.initialInvestmentAmount, investment.currency?.code)}</TableCell>
                   )}
                   {visibleColumns.includes('marketValue') && (
-                    <TableCell>
-                      <span>{formatCurrency(investment.investmentMarketValue || 0)}</span>
-                    </TableCell>
+                    <TableCell className="gba:text-right">{renderAmount(investment.investmentMarketValue, investment.currency?.code)}</TableCell>
                   )}
                   {visibleColumns.includes('performance') && (
-                    <TableCell>
+                    <TableCell className="gba:text-right">
                       {(() => {
                         const currentValue = investment.investmentMarketValue || 0;
                         const initialValue = investment.initialInvestmentAmount || 0;
                         const performanceAmount = currentValue - initialValue;
                         const performancePercentage = initialValue > 0 ? (performanceAmount / initialValue) * 100 : 0;
-                      
-                      return (
-                        <div className="gba:flex gba:flex-col gba:items-start">
-                          <span className={`gba:font-semibold ${
-                            performancePercentage === 0 ? 'gba:text-gray-500' : 
-                            performancePercentage > 0 ? 'gba:text-green-600' : 'gba:text-red-600'
-                          }`}>
-                            {formatCurrency(performanceAmount)}
-                          </span>
-                          <span className={`gba:text-sm ${
-                            performancePercentage === 0 ? 'gba:text-gray-400' : 
-                            performancePercentage > 0 ? 'gba:text-green-500' : 'gba:text-red-500'
-                          }`}>
-                            ({performancePercentage === 0 ? '' : performancePercentage > 0 ? '+' : ''}{performancePercentage.toFixed(2)}%)
-                          </span>
-                        </div>
-                      );
-                    })()}
+                        const isZero = performancePercentage === 0;
+                        const isPositive = performancePercentage > 0;
+
+                        return (
+                          <div className="gba:flex gba:flex-col gba:items-end">
+                            <div className="gba:w-full gba:flex gba:justify-end gba:items-baseline">
+                              {(() => { const { number, symbol } = formatCurrencyParts(Math.abs(performanceAmount), { currency: investment.currency?.code, minimumFractionDigits: 0, maximumFractionDigits: 2 }); return (
+                                <>
+                                  <span className={`gba:text-sm gba:[font-variant-numeric:tabular-nums] ${isZero ? 'gba:text-gray-500' : isPositive ? 'gba:text-green-600' : 'gba:text-red-600'}`}>{number}</span>
+                                  <span className={`gba:text-xs gba:inline-block gba:text-right gba:shrink-0 gba:w-[5ch] ${isZero ? 'gba:text-gray-400' : isPositive ? 'gba:text-green-500' : 'gba:text-red-500'}`}>{symbol}</span>
+                                </>
+                              ); })()}
+                            </div>
+                            <span className={`${isZero ? 'gba:text-gray-400' : isPositive ? 'gba:text-green-500' : 'gba:text-red-500'} gba:text-sm`}>
+                              ({isZero ? '' : isPositive ? '+' : '-'}{Math.abs(performancePercentage).toFixed(2)}%)
+                            </span>
+                          </div>
+                        );
+                      })()}
                     </TableCell>
                   )}
                   {visibleColumns.includes('acquisitionDate') && (

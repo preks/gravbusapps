@@ -17,7 +17,7 @@ import {
   SheetTitle,
 } from "@newwork/nw-design-system";
 import { Modal } from "antd";
-import { ArrowDownOutlined, ArrowUpOutlined } from "@ant-design/icons";
+import { PiArrowUp, PiArrowDown } from "react-icons/pi";
 import { BusinessAppContextProps } from "@/common/BusinessAppContext";
 import Pill from "@/components/pill/Pill";
 import { ExpensePlan, SortField } from "../../../hooks/useMainViewExpensePlans";
@@ -197,11 +197,11 @@ const ExpensePlansTable: React.FC<ExpensePlansTableProps> = (props) => {
   // Render sort indicator
   const renderSortIndicator = useCallback(
     (field: SortField) => {
-      if (sorting.field === field) {
+      if (sorting.lastField === field && sorting.order !== null) {
         return sorting.order === "ASC" ? (
-          <ArrowUpOutlined className="gba:ml-1 gba:text-blue-500" />
+          <PiArrowUp className="gba:inline gba:ml-1" size={12} />
         ) : (
-          <ArrowDownOutlined className="gba:ml-1 gba:text-blue-500" />
+          <PiArrowDown className="gba:inline gba:ml-1" size={12} />
         );
       }
       return null;

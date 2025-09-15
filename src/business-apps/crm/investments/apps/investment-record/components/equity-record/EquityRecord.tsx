@@ -5,11 +5,13 @@ import { ArrowLeftOutlined } from '@ant-design/icons';
 import { useEquityRecordData } from './hooks/useEquityRecordData';
 import {
   InvestmentDetailsHeader,
-  EquityInvestmentReports,
-  EquityHistoricalDataTable,
   InvestmentRounds
 } from './components';
-import { CompanyInformation, ContactDetails, UploadReportButton, InvestmentHomeTab, InvestmentDocuments, InvestmentTileSection } from '../shared';
+import InvestmentReportsTab from '../shared/InvestmentReportsTab';
+// No more hardcoded catalog IDs - component decides what it needs
+import { CompanyInformation, ContactDetails, UploadReportButton, GenerateOnePagerButton, InvestmentHomeTab, InvestmentTileSection } from '../shared';
+import { DocumentSection, NoteSection } from '@/common/components/common-relations/record-sections';
+import { useInvestmentTileFields } from '../../hooks/useInvestmentTileFields';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
 import { navigateTo } from '@/common/utils/navigationUtils';
@@ -24,6 +26,10 @@ const EquityRecord: React.FC<EquityRecordComponentProps> = (props) => {
 
   // Fetch real GraphQL data using centralized structure
   const { equityData, isLoading, error } = useEquityRecordData(props, props.investmentId);
+
+  // Check if tile fields are configured for this investment type
+  const { processedTiles } = useInvestmentTileFields(props, equityData?.investment);
+  const hasTileFields = processedTiles.length > 0;
 
   // Always render the component - no error blocking
 
@@ -114,15 +120,27 @@ const EquityRecord: React.FC<EquityRecordComponentProps> = (props) => {
           </TabsContent>
 
           <TabsContent value="overview" className="gba:space-y-6" data-testid="overview-content">
-            {/* Investment Tile Section */}
-            <InvestmentTileSection 
-              investment={equityData?.investment}
-              isLoading={isLoading}
-              accessToken={props.accessToken}
-              userInfo={props.userInfo}
-              additionalData={props.additionalData}
-              data-testid="equity-record-tiles"
-            />
+            {/* Generate One-Pager Action - only show if tile fields are configured */}
+            {hasTileFields && (
+              <div className="gba:flex gba:justify-end gba:mb-4">
+                <GenerateOnePagerButton
+                  investmentId={equityData?.investment?.id}
+                  accessToken={props.accessToken}
+                />
+              </div>
+            )}
+
+            {/* Investment Tile Section - only show if tile fields are configured */}
+            {hasTileFields && (
+              <InvestmentTileSection 
+                investment={equityData?.investment}
+                isLoading={isLoading}
+                accessToken={props.accessToken}
+                userInfo={props.userInfo}
+                additionalData={props.additionalData}
+                data-testid="equity-record-tiles"
+              />
+            )}
 
             {/* Investment Rounds Table */}
             <InvestmentRounds 
@@ -144,14 +162,23 @@ const EquityRecord: React.FC<EquityRecordComponentProps> = (props) => {
           </TabsContent>
 
           <TabsContent value="documents" className="gba:space-y-6" data-testid="documents-content">
-            <InvestmentDocuments
+            <DocumentSection
+              entityId={props.investmentId || ''}
+              entityType="investment"
+              accessToken={props.accessToken}
+              userInfo={props.userInfo}
+              data-testid="equity-investment-documents"
+            />
+            <NoteSection
               investmentId={props.investmentId || ''}
-              context={props}
+              accessToken={props.accessToken}
+              userInfo={props.userInfo}
+              data-testid="equity-investment-notes"
             />
           </TabsContent>
 
           <TabsContent value="reports" className="gba:space-y-6" data-testid="reports-content">
-            {/* Reports Header with Upload Button */}
+            {/* Reports Header with Action Buttons */}
             <div className="gba:flex gba:items-center gba:justify-between gba:mb-6">
               <div>
                 <h3 className="gba:text-lg gba:font-semibold gba:text-gray-900">
@@ -167,19 +194,13 @@ const EquityRecord: React.FC<EquityRecordComponentProps> = (props) => {
               />
             </div>
 
-            {/* Historical Data Table */}
-            {props.investmentId && (
-              <EquityHistoricalDataTable
-                {...props}
-                investmentId={props.investmentId}
-                equityInvestmentId={equityData?.equityInvestment?.id}
-              />
-            )}
-
-            {/* Existing Reports Display */}
-            {equityData?.equityInvestment?.id && (
-              <EquityInvestmentReports
-                equityInvestmentId={equityData.equityInvestment.id}
+            {/* Investment Reports Display - Using Unified Component with Equity Configuration */}
+            {equityData?.investment?.id && (
+              <InvestmentReportsTab
+                investmentId={equityData.investment.id}
+                investmentGroupIds={['InvestmentGroup:v1:EQUITY']}
+                specificInvestmentId={equityData.equityInvestment?.id}
+                investmentType="equity"
                 accessToken={props.accessToken}
                 userInfo={props.userInfo}
                 data-testid="equity-investment-reports"

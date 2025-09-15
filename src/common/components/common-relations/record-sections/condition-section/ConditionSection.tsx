@@ -1,8 +1,8 @@
-import React, { useMemo, useState, useCallback } from 'react';
+import React, { useMemo, useState, useCallback, memo } from 'react';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 import { Card, CardHeader, CardTitle, CardContent, Badge } from '@newwork/nw-design-system';
 import { InfoCircleOutlined, CheckCircleFilled, CloseCircleFilled, CalendarOutlined, ClockCircleOutlined, UserOutlined } from '@ant-design/icons';
-import { AppAction } from '@/components/app-action/AppAction';
+import { AppActionMenu } from '@/components/app-action-menu/AppActionMenu';
 import type { AppActionCommonProps } from '@/common/hooks/useAppActionData';
 import { getSalesPipelineStageBadgeVariant } from '@/common/utils/badgeUtils';
 import { FlowContextName } from '@/common/types/FlowRegistryTypes';
@@ -14,7 +14,7 @@ interface ConditionSectionProps extends Partial<BusinessAppContextProps> {
   stageConditionActionProps?: Omit<AppActionCommonProps, 'accessToken'>;
 }
 
-const ConditionSection: React.FC<ConditionSectionProps> = ({ opportunity, stageConditionStatuses = [], stageConditionActionProps, ...context }) => {
+const ConditionSection: React.FC<ConditionSectionProps> = memo(({ opportunity, stageConditionStatuses = [], stageConditionActionProps, ...context }) => {
   const [hoveredConditionId, setHoveredConditionId] = useState<string | null>(null);
 
   const handleConditionMouseLeave = useCallback(() => setHoveredConditionId(null), []);
@@ -95,20 +95,19 @@ const ConditionSection: React.FC<ConditionSectionProps> = ({ opportunity, stageC
                   <div className="gba:mb-2">
                     <div className="gba:flex gba:items-center gba:gap-2">
                       <div className="gba:flex-shrink-0">
-                        <AppAction
+                        <AppActionMenu
                           data-testid={`stage-condition-status-icon-${condition.stageConditionStatusId}`}
                           contextsArray={conditionProps[condition.stageConditionStatusId]?.contextsArray}
                           externalContextData={conditionProps[condition.stageConditionStatusId]?.externalContextData}
                           prefixDataTestId="stage-condition-status-icon"
                           accessToken={(context as BusinessAppContextProps).accessToken as string}
                           emptyStateBehavior="disable"
-                          deferMainContextRequestsUntilClick={false}
+                          deferMainContextRequestsUntilClick={true}
+                          autoExecuteSingleAction={true}
+                          onMouseEnter={conditionProps[condition.stageConditionStatusId]?.mouseHandlers.onMouseEnter}
+                          onMouseLeave={conditionProps[condition.stageConditionStatusId]?.mouseHandlers.onMouseLeave}
                         >
-                          <div 
-                            className="gba:relative gba:inline-flex gba:items-center gba:justify-center gba:w-8 gba:h-8 gba:cursor-pointer"
-                            onMouseEnter={conditionProps[condition.stageConditionStatusId]?.mouseHandlers.onMouseEnter}
-                            onMouseLeave={conditionProps[condition.stageConditionStatusId]?.mouseHandlers.onMouseLeave}
-                          >
+                          <div className="gba:relative gba:inline-flex gba:items-center gba:justify-center gba:w-8 gba:h-8 gba:cursor-pointer">
                             {hoveredConditionId === condition.stageConditionStatusId ? (
                               condition.isCompleted ? (
                                 <CloseCircleFilled className="gba:text-2xl" style={{ color: '#f59e0b' }} />
@@ -123,7 +122,7 @@ const ConditionSection: React.FC<ConditionSectionProps> = ({ opportunity, stageC
                               )
                             )}
                           </div>
-                        </AppAction>
+                        </AppActionMenu>
                       </div>
                       <div className="gba:flex gba:items-center gba:gap-2 gba:flex-1 gba:min-w-0">
                         <h4 className="gba:text-sm gba:font-bold gba:text-gray-800">{condition.title}</h4>
@@ -185,7 +184,9 @@ const ConditionSection: React.FC<ConditionSectionProps> = ({ opportunity, stageC
       </CardContent>
     </Card>
   );
-};
+});
+
+ConditionSection.displayName = 'ConditionSection';
 
 export default ConditionSection;
 
