@@ -244,6 +244,10 @@ export const GET_INVESTMENT_REPORTS = (variables: InvestmentReportQueryVariables
             id
             locality
             buildingYear
+            size
+            sizeMeasurementUnit {
+              ${CATALOG_ENTRY}
+            }
           }
         }
         

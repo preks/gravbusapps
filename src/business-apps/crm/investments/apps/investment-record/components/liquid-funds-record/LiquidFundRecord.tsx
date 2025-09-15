@@ -161,12 +161,13 @@ const LiquidFundRecord: React.FC<LiquidFundRecordProps> = (props) => {
               />
             </div>
 
-            {/* Investment Reports Display - Using Unified Component */}
+            {/* Investment Reports Display - Using Unified Component with Liquid Fund Configuration */}
             {liquidFundData?.investment?.id && (
               <InvestmentReportsTab
                 investmentId={liquidFundData.investment.id}
                 investmentGroupIds={['InvestmentGroup:v1:LIQUID_FUND']}
                 specificInvestmentId={liquidFundData.liquidFundInvestment?.id}
+                investmentType="liquid_fund"
                 accessToken={context.accessToken}
                 userInfo={context.userInfo}
                 data-testid="liquid-fund-record-investment-reports"

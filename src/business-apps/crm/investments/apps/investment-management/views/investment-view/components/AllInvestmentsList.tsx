@@ -141,6 +141,11 @@ const AllInvestmentsList: React.FC<AllInvestmentsListProps> = (context) => {
     );
   };
 
+  // Calculate visible columns from column configuration
+  const visibleColumns = useMemo(() => {
+    return columnConfig.filter(col => col.visible).map(col => col.id);
+  }, [columnConfig]);
+
   const handleColumnVisibilityChange = useCallback((columnId: string, visible: boolean) => {
     setColumnConfig(prev => 
       prev.map(col => col.id === columnId ? { ...col, visible } : col)

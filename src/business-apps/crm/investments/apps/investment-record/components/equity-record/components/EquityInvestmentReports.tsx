@@ -243,9 +243,16 @@ const EquityInvestmentReports: React.FC<EquityInvestmentReportsProps> = ({ equit
                       ACTIONS
                     </TableHead>
                     <SortableHeader field="date">Report Date</SortableHeader>
+                    <SortableHeader field="foundationDate">Foundation Date</SortableHeader>
+                    <SortableHeader field="acquisitionDate">Acquisition Date</SortableHeader>
+                    <SortableHeader field="initialInvestmentAmount">Initial Investment</SortableHeader>
+                    <SortableHeader field="totalInvestmentAmount">Total Investment Amount</SortableHeader>
                     <SortableHeader field="marketValue">Market Value</SortableHeader>
-                    <SortableHeader field="turnoverAmount">Turnover</SortableHeader>
-                    <SortableHeader field="ebitdaAmount">EBITDA</SortableHeader>
+                    <SortableHeader field="stakePercentage">Stake Percentage</SortableHeader>
+                    <SortableHeader field="turnoverAmount">Turnover Amount</SortableHeader>
+                    <SortableHeader field="ebitdaAmount">EBITDA Amount</SortableHeader>
+                    <SortableHeader field="investmentRole">Investment Role</SortableHeader>
+                    <SortableHeader field="ownerEmployee">Owner Employee</SortableHeader>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -267,9 +274,16 @@ const EquityInvestmentReports: React.FC<EquityInvestmentReportsProps> = ({ equit
                         </div>
                       </TableCell>
                       <TableCell className="gba:py-4 gba:px-6"><span className="gba:font-medium gba:text-gray-900">{formatDate(report.date)}</span></TableCell>
-                      <TableCell className="gba:py-4 gba:px-6"><span className="gba:font-medium gba:text-gray-900">{formatNumber(report.marketValue)}</span></TableCell>
-                      <TableCell className="gba:py-4 gba:px-6"><span className="gba:font-medium gba:text-gray-900">{formatNumber(report.turnoverAmount)}</span></TableCell>
-                      <TableCell className="gba:py-4 gba:px-6"><span className="gba:font-medium gba:text-gray-900">{formatNumber(report.ebitdaAmount)}</span></TableCell>
+                      <TableCell className="gba:py-4 gba:px-6"><span className="gba:font-medium gba:text-gray-900">{formatDate(report.equityInvestment?.foundationDate)}</span></TableCell>
+                      <TableCell className="gba:py-4 gba:px-6"><span className="gba:font-medium gba:text-gray-900">{formatDate(report.investment?.acquisitionDate)}</span></TableCell>
+                      <TableCell className="gba:py-4 gba:px-6"><span className="gba:font-medium gba:text-gray-900">{formatNumber(report.investment?.initialInvestmentAmount)}</span></TableCell>
+                      <TableCell className="gba:py-4 gba:px-6"><span className="gba:font-medium gba:text-gray-900">{formatNumber(report.investment?.totalInvestmentAmount)}</span></TableCell>
+                      <TableCell className="gba:py-4 gba:px-6"><span className="gba:font-medium gba:text-gray-900">{formatNumber(report.investmentMarketValue || report.equityInvestment?.marketValue)}</span></TableCell>
+                      <TableCell className="gba:py-4 gba:px-6"><span className="gba:font-medium gba:text-gray-900">{report.investment?.stakePercentage ? `${report.investment.stakePercentage.toFixed(1)}%` : '-'}</span></TableCell>
+                      <TableCell className="gba:py-4 gba:px-6"><span className="gba:font-medium gba:text-gray-900">{formatNumber(report.equityInvestment?.turnoverAmount)}</span></TableCell>
+                      <TableCell className="gba:py-4 gba:px-6"><span className="gba:font-medium gba:text-gray-900">{formatNumber(report.equityInvestment?.ebitdaAmount)}</span></TableCell>
+                      <TableCell className="gba:py-4 gba:px-6"><span className="gba:font-medium gba:text-gray-900">{report.investment?.investmentRole?.value || '-'}</span></TableCell>
+                      <TableCell className="gba:py-4 gba:px-6"><span className="gba:font-medium gba:text-gray-900">{report.investment?.ownerEmployee?.displayName || (report.investment?.ownerEmployee?.firstName && report.investment?.ownerEmployee?.lastName ? `${report.investment.ownerEmployee.firstName} ${report.investment.ownerEmployee.lastName}` : '-')}</span></TableCell>
                     </TableRow>
                   ))}
                 </TableBody>

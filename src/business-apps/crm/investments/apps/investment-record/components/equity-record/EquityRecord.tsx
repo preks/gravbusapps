@@ -194,12 +194,13 @@ const EquityRecord: React.FC<EquityRecordComponentProps> = (props) => {
               />
             </div>
 
-            {/* Investment Reports Display - Using Unified Component */}
+            {/* Investment Reports Display - Using Unified Component with Equity Configuration */}
             {equityData?.investment?.id && (
               <InvestmentReportsTab
                 investmentId={equityData.investment.id}
                 investmentGroupIds={['InvestmentGroup:v1:EQUITY']}
                 specificInvestmentId={equityData.equityInvestment?.id}
+                investmentType="equity"
                 accessToken={props.accessToken}
                 userInfo={props.userInfo}
                 data-testid="equity-investment-reports"

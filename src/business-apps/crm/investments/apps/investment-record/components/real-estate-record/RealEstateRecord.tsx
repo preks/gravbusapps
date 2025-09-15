@@ -253,17 +253,49 @@ const RealEstateRecord: React.FC<RealEstateRecordComponentProps> = (props) => {
               />
             </div>
 
-            {/* Investment Reports Display - Using Unified Component */}
-            {realEstateData?.investment?.id && (
-              <InvestmentReportsTab
-                investmentId={realEstateData.investment.id}
-                investmentGroupIds={['InvestmentGroup:v1:REAL_ESTATE']}
-                specificInvestmentId={realEstateData.realEstateInvestment?.id}
-                accessToken={props.accessToken}
-                userInfo={props.userInfo}
-                data-testid="real-estate-investment-reports"
-              />
-            )}
+            {/* Investment Reports Display - Using Unified Component with Dynamic Type Configuration */}
+            {realEstateData?.investment?.id && (() => {
+              // Determine investment type based on the same logic used for headers
+              const investment = realEstateData?.investment;
+              const typeCode = (investment?.investmentType?.code || '').toString().toUpperCase();
+              const typeName = (investment?.investmentType?.value || '').toString().toLowerCase();
+              const typeRef = (investment?.investmentTypeRef || '').toString().toUpperCase();
+
+              let investmentType = 'real_estate_general'; // Default
+
+              // Check for Mezzanine Loans
+              if (typeCode.includes('MEZZANINE') || 
+                  typeName.includes('mezzanine') || 
+                  typeRef.includes('MEZZANINE') ||
+                  typeName.includes('mezzanine loan')) {
+                investmentType = 'mezzanine_loans';
+              }
+              // Check for Project Development
+              else if (typeCode.includes('PROJECT_DEVELOPMENT') || 
+                       typeName.includes('project development') || 
+                       typeRef.includes('PROJECT_DEVELOPMENT')) {
+                investmentType = 'project_development';
+              }
+              // Check for Others
+              else if (typeCode.includes('OTHER') || 
+                       typeName.includes('other') || 
+                       typeRef.includes('OTHER') ||
+                       typeName.includes('others')) {
+                investmentType = 'others';
+              }
+
+              return (
+                <InvestmentReportsTab
+                  investmentId={realEstateData.investment.id}
+                  investmentGroupIds={['InvestmentGroup:v1:REAL_ESTATE']}
+                  specificInvestmentId={realEstateData.realEstateInvestment?.id}
+                  investmentType={investmentType}
+                  accessToken={props.accessToken}
+                  userInfo={props.userInfo}
+                  data-testid="real-estate-investment-reports"
+                />
+              );
+            })()}
           </TabsContent>
         </Tabs>
       </div>
