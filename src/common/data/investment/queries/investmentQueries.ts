@@ -634,6 +634,7 @@ export const GET_INVESTMENT_BY_ID = (id: string): string => {
           occupancyPercent
           locality
           addressLine
+          liquidityForecast
           ${AUDIT_FIELDS}
           country {
             ${CATALOG_ENTRY}

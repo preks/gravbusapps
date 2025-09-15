@@ -575,4 +575,7 @@ const buildTaskSegmentSchema = (options?: { requireAssignee?: boolean; requireEn
 
 export type TaskSegmentSchema = z.infer<ReturnType<typeof buildTaskSegmentSchema>>;
 
+// Default schema export for convenience
+export const taskSegmentSchema = buildTaskSegmentSchema();
+
 export const createTaskSegmentResolver = (options?: { requireAssignee?: boolean; requireEntity?: boolean; requireType?: boolean }) => zodResolver(buildTaskSegmentSchema(options));

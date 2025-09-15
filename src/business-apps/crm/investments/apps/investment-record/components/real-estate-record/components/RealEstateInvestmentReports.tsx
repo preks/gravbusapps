@@ -8,8 +8,9 @@ import { Spin, Alert, DatePicker } from 'antd';
 import { CalendarIcon, FilterIcon, RotateCcwIcon, TrendingDownIcon, TrendingUpIcon, MinusIcon } from 'lucide-react';
 import dayjs from 'dayjs';
 import type { BusinessAppContextProps } from '@/common/BusinessAppContext';
-import { GET_INVESTMENT_REPORTS } from '@/common/data/investment/queries/investmentReportQueries';
-import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient';
+import { useGetInvestmentReports } from '@/common/data/investment/hooks/useInvestmentReports';
+import { AppActionButton } from '@/components/app-action-button/AppActionButton';
+import { FlowContextName } from '@/common/types/FlowRegistryTypes';
 
 const { RangePicker } = DatePicker;
 
@@ -18,8 +19,8 @@ interface RealEstateInvestmentReportsProps extends BusinessAppContextProps {
   'data-testid'?: string;
 }
 
-const RealEstateInvestmentReports: React.FC<RealEstateInvestmentReportsProps> = ({ realEstateInvestmentId, accessToken, 'data-testid': dataTestId = 'real-estate-investment-reports' }) => {
-  const client = useGraphQLClient(accessToken);
+const RealEstateInvestmentReports: React.FC<RealEstateInvestmentReportsProps> = ({ realEstateInvestmentId, accessToken, userInfo, 'data-testid': dataTestId = 'real-estate-investment-reports' }) => {
+  const { fetchInvestmentReports } = useGetInvestmentReports({ accessToken, userInfo } as BusinessAppContextProps);
   const [reports, setReports] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -27,7 +28,7 @@ const RealEstateInvestmentReports: React.FC<RealEstateInvestmentReportsProps> = 
   const [pageSize, setPageSize] = useState(20);
   const [total, setTotal] = useState(0);
   const [sortField, setSortField] = useState<string>('date');
-  const [sortOrder, setSortOrder] = useState<'ASC' | 'DESC' | ''>('DESC');
+  const [sortOrder, setSortOrder] = useState<'ASC_NULLS_LAST' | 'DESC_NULLS_LAST' | ''>('DESC_NULLS_LAST');
   const [dateRange, setDateRange] = useState<[dayjs.Dayjs | null, dayjs.Dayjs | null] | null>(null);
   const [timeFilter, setTimeFilter] = useState<string>('all');
   const [isTransposed, setIsTransposed] = useState<boolean>(false);
@@ -37,28 +38,46 @@ const RealEstateInvestmentReports: React.FC<RealEstateInvestmentReportsProps> = 
     setIsLoading(true);
     setError(null);
     try {
-      // Query all real estate investment reports without investment ID filter
-      // since the relationship mapping is complex
-      const query = GET_INVESTMENT_REPORTS({
+      let variables: any = {
         limit: pageSize,
         offset: (currentPage - 1) * pageSize,
-        orderBy: sortField && sortOrder ? [{ field: sortField, direction: sortOrder }] : [{ field: 'date', direction: 'DESC' }],
-        reportDateFrom: dateRange?.[0]?.format('YYYY-MM-DD') || undefined,
-        reportDateTo: dateRange?.[1]?.format('YYYY-MM-DD') || undefined,
-        // Remove investment ID filter - load all and filter client-side
-      });
-      const res = await client.request<{ InvestmentReport: any[], InvestmentReportAggregate: { aggregate: { count: number } } }>(query);
+        orderBy: sortField && sortOrder ? [{ field: sortField, direction: sortOrder }] : [{ field: 'date', direction: 'DESC_NULLS_LAST' }]
+      };
       
-      // Extract real estate reports from the enhanced query response
-      const investmentReports = res.InvestmentReport || [];
+      if (dateRange && dateRange[0] && dateRange[1]) {
+        variables.reportDateFrom = dateRange[0].format('YYYY-MM-DD');
+        variables.reportDateTo = dateRange[1].format('YYYY-MM-DD');
+      } else if (timeFilter !== 'all') {
+        const now = dayjs();
+        let startDate: dayjs.Dayjs | null = null;
+        switch (timeFilter) {
+          case 'last7days': startDate = now.subtract(7, 'days'); break;
+          case 'last30days': startDate = now.subtract(30, 'days'); break;
+          case 'last3months': startDate = now.subtract(3, 'months'); break;
+          case 'last6months': startDate = now.subtract(6, 'months'); break;
+          case 'lastyear': startDate = now.subtract(1, 'year'); break;
+          default: startDate = null;
+        }
+        if (startDate) {
+          variables.reportDateFrom = startDate.format('YYYY-MM-DD');
+        }
+      }
+      
+      // Use the central investment reports hook
+      const response = await fetchInvestmentReports(variables);
+      
+      // Extract real estate reports from the central query response
+      const investmentReports = response.InvestmentReport || [];
       const realEstateReports: any[] = [];
       
       investmentReports.forEach(investmentReport => {
         const realEstateData = investmentReport.realEstateInvestmentReport || [];
-        // Filter by the specific real estate investment ID
-        const filteredRealEstateData = realEstateData.filter((report: any) => 
-          report.realEstateInvestment?.id === realEstateInvestmentId
-        );
+        // Filter by the specific real estate investment ID or main investment ID
+        const filteredRealEstateData = realEstateData.filter((report: any) => {
+          const reportRealEstateId = report.realEstateInvestment?.id;
+          const reportMainInvestmentId = report.realEstateInvestment?.investment?.id;
+          return reportRealEstateId === realEstateInvestmentId || reportMainInvestmentId === realEstateInvestmentId;
+        });
         realEstateReports.push(...filteredRealEstateData);
       });
       
@@ -69,17 +88,17 @@ const RealEstateInvestmentReports: React.FC<RealEstateInvestmentReportsProps> = 
     } finally {
       setIsLoading(false);
     }
-  }, [realEstateInvestmentId, pageSize, currentPage, sortField, sortOrder, dateRange]);
+  }, [realEstateInvestmentId, pageSize, currentPage, sortField, sortOrder, dateRange, timeFilter, fetchInvestmentReports]);
 
   useEffect(() => { loadReports(); }, [loadReports]);
 
   const handleSort = (fieldName: string) => {
     if (sortField !== fieldName) {
       setSortField(fieldName);
-      setSortOrder('ASC');
+      setSortOrder('ASC_NULLS_LAST');
     } else {
-      if (sortOrder === '') setSortOrder('ASC');
-      else if (sortOrder === 'ASC') setSortOrder('DESC');
+      if (sortOrder === '') setSortOrder('ASC_NULLS_LAST');
+      else if (sortOrder === 'ASC_NULLS_LAST') setSortOrder('DESC_NULLS_LAST');
       else { setSortField(''); setSortOrder(''); }
     }
     setCurrentPage(1);
@@ -87,8 +106,8 @@ const RealEstateInvestmentReports: React.FC<RealEstateInvestmentReportsProps> = 
 
   const getSortIcon = (fieldName: string) => {
     if (sortField !== fieldName) return null;
-    if (sortOrder === 'ASC') return <TrendingUpIcon className="gba:h-4 gba:w-4 gba:ml-1" />;
-    if (sortOrder === 'DESC') return <TrendingDownIcon className="gba:h-4 gba:w-4 gba:ml-1" />;
+    if (sortOrder === 'ASC_NULLS_LAST') return <TrendingUpIcon className="gba:h-4 gba:w-4 gba:ml-1" />;
+    if (sortOrder === 'DESC_NULLS_LAST') return <TrendingDownIcon className="gba:h-4 gba:w-4 gba:ml-1" />;
     return <MinusIcon className="gba:h-4 gba:w-4 gba:ml-1" />;
   };
 
@@ -202,7 +221,6 @@ const RealEstateInvestmentReports: React.FC<RealEstateInvestmentReportsProps> = 
                 </TableHeader>
                 <TableBody>
                   {[
-                    { key: 'date', label: 'Report Date' },
                     { key: 'annualNetColdRent', label: 'Annual Net Cold Rent', fmt: formatNumber },
                     { key: 'occupancyPercent', label: 'Occupancy Rate', fmt: formatPercent },
                     { key: 'actualAnnualExpenses', label: 'Actual Annual Expenses', fmt: formatNumber },
@@ -224,6 +242,9 @@ const RealEstateInvestmentReports: React.FC<RealEstateInvestmentReportsProps> = 
               <Table data-testid={`${dataTestId}-table`}>
                 <TableHeader>
                   <TableRow className="gba:border-b gba:bg-gray-50">
+                    <TableHead className="gba:w-[60px]" data-testid={`${dataTestId}-actions-header`}>
+                      ACTIONS
+                    </TableHead>
                     <SortableHeader field="date">Report Date</SortableHeader>
                     <SortableHeader field="annualNetColdRent">Annual Net Cold Rent</SortableHeader>
                     <SortableHeader field="occupancyPercent">Occupancy Rate</SortableHeader>
@@ -233,6 +254,21 @@ const RealEstateInvestmentReports: React.FC<RealEstateInvestmentReportsProps> = 
                 <TableBody>
                   {reports.map((report: any, index: number) => (
                     <TableRow key={report.id} className="gba:border-b gba:hover:gba:bg-gray-50 gba:transition-colors" data-testid={`${dataTestId}-row-${index + 1}`}>
+                      <TableCell className="gba:py-4 gba:px-6">
+                        <div className="gba:flex gba:justify-start gba:gap-2">
+                          <AppActionButton
+                            data-testid={`${dataTestId}-update-report-button-${report.id}`}
+                            size="icon"
+                            contextsArray={[FlowContextName.investmentReportEntity]}
+                            externalContextData={{ entityId: report.id }}
+                            prefixDataTestId={`${dataTestId}-update-report`}
+                            accessToken={accessToken}
+                            emptyStateBehavior="enable"
+                            deferMainContextRequestsUntilClick
+                            onClick={(e) => e.stopPropagation()}
+                          />
+                        </div>
+                      </TableCell>
                       <TableCell className="gba:py-4 gba:px-6"><span className="gba:font-medium gba:text-gray-900">{formatDate(report.date)}</span></TableCell>
                       <TableCell className="gba:py-4 gba:px-6"><span className="gba:font-medium gba:text-gray-900">{formatNumber(report.annualNetColdRent)}</span></TableCell>
                       <TableCell className="gba:py-4 gba:px-6"><span className="gba:font-medium gba:text-gray-900">{formatPercent(report.occupancyPercent)}</span></TableCell>

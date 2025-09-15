@@ -8,10 +8,13 @@ import {
   ProjectDevelopmentDetailsHeader,
   OthersDetailsHeader,
   MezzanineLoansDetailsHeader,
-  RealEstateInvestmentReports,
   LiquidityForecast
 } from './components';
-import { CompanyInformation, ContactDetails, UploadReportButton, InvestmentHomeTab, InvestmentDocuments, InvestmentTileSection } from '../shared';
+import InvestmentReportsTab from '../shared/InvestmentReportsTab';
+// No more hardcoded catalog IDs - component decides what it needs
+import { CompanyInformation, ContactDetails, UploadReportButton, GenerateOnePagerButton, InvestmentHomeTab, InvestmentTileSection } from '../shared';
+import { DocumentSection, NoteSection } from '@/common/components/common-relations/record-sections';
+import { useInvestmentTileFields } from '../../hooks/useInvestmentTileFields';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
 import { navigateTo } from '@/common/utils/navigationUtils';
@@ -25,6 +28,10 @@ const RealEstateRecord: React.FC<RealEstateRecordComponentProps> = (props) => {
 
   // Fetch real GraphQL data using centralized structure
   const { realEstateData, isLoading, error } = useRealEstateRecordData(props, props.investmentId);
+
+  // Check if tile fields are configured for this investment type
+  const { processedTiles } = useInvestmentTileFields(props, realEstateData?.investment);
+  const hasTileFields = processedTiles.length > 0;
 
   // Determine which header component to render based on investment type
   const getHeaderComponent = () => {
@@ -174,15 +181,27 @@ const RealEstateRecord: React.FC<RealEstateRecordComponentProps> = (props) => {
           </TabsContent>
 
           <TabsContent value="overview" className="gba:space-y-6" data-testid="overview-content">
-            {/* Investment Tile Section */}
-            <InvestmentTileSection 
-              investment={realEstateData?.investment}
-              isLoading={isLoading}
-              accessToken={props.accessToken}
-              userInfo={props.userInfo}
-              additionalData={props.additionalData}
-              data-testid="real-estate-record-tiles"
-            />
+            {/* Generate One-Pager Action - only show if tile fields are configured */}
+            {hasTileFields && (
+              <div className="gba:flex gba:justify-end gba:mb-4">
+                <GenerateOnePagerButton
+                  investmentId={realEstateData?.investment?.id}
+                  accessToken={props.accessToken}
+                />
+              </div>
+            )}
+
+            {/* Investment Tile Section - only show if tile fields are configured */}
+            {hasTileFields && (
+              <InvestmentTileSection 
+                investment={realEstateData?.investment}
+                isLoading={isLoading}
+                accessToken={props.accessToken}
+                userInfo={props.userInfo}
+                additionalData={props.additionalData}
+                data-testid="real-estate-record-tiles"
+              />
+            )}
 
             {/* Liquidity Forecast 5 Years */}
             <LiquidityForecast 
@@ -203,9 +222,18 @@ const RealEstateRecord: React.FC<RealEstateRecordComponentProps> = (props) => {
             </div>
           </TabsContent>
           <TabsContent value="documents" className="gba:space-y-6" data-testid="documents-content">
-            <InvestmentDocuments
+            <DocumentSection
+              entityId={props.investmentId || ''}
+              entityType="investment"
+              accessToken={props.accessToken}
+              userInfo={props.userInfo}
+              data-testid="real-estate-investment-documents"
+            />
+            <NoteSection
               investmentId={props.investmentId || ''}
-              context={props}
+              accessToken={props.accessToken}
+              userInfo={props.userInfo}
+              data-testid="real-estate-investment-notes"
             />
           </TabsContent>
           <TabsContent value="reports" className="gba:space-y-6" data-testid="reports-content">
@@ -221,20 +249,16 @@ const RealEstateRecord: React.FC<RealEstateRecordComponentProps> = (props) => {
               </div>
               <UploadReportButton
                 investmentId={realEstateData?.investment?.id}
-                onUploadSuccess={(fileIds) => {
-                  console.log('Upload successful, file IDs:', fileIds);
-                  // Could trigger refresh of reports here if needed
-                }}
                 accessToken={props.accessToken}
-                userInfo={props.userInfo}
-                additionalData={props.additionalData}
               />
             </div>
 
-            {/* Existing Reports Display */}
-            {realEstateData?.realEstateInvestment?.id && (
-              <RealEstateInvestmentReports
-                realEstateInvestmentId={realEstateData.realEstateInvestment.id}
+            {/* Investment Reports Display - Using Unified Component */}
+            {realEstateData?.investment?.id && (
+              <InvestmentReportsTab
+                investmentId={realEstateData.investment.id}
+                investmentGroupIds={['InvestmentGroup:v1:REAL_ESTATE']}
+                specificInvestmentId={realEstateData.realEstateInvestment?.id}
                 accessToken={props.accessToken}
                 userInfo={props.userInfo}
                 data-testid="real-estate-investment-reports"

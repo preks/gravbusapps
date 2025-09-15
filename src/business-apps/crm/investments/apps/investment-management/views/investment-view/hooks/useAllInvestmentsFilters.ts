@@ -113,7 +113,7 @@ export const useAllInvestmentsFilters = (context: BusinessAppContextProps) => {
     const loadCatalogs = async () => {
       if (!context.accessToken) return;
 
-      console.log('🔍 Loading investment catalogs...');
+      // Loading investment catalogs
       
       try {
         // Use the exact catalog data we got from MCP
@@ -165,16 +165,17 @@ export const useAllInvestmentsFilters = (context: BusinessAppContextProps) => {
         // Prefill with empty list; backend search will populate dynamically
         setEmployees([]);
 
-        console.log('✅ Loaded catalogs:', {
+        // Loaded catalogs successfully
+        const catalogStats = {
           groups: hardcodedGroups.length,
           types: hardcodedTypes.length, 
           statuses: hardcodedStatuses.length,
           employees: 0
-        });
+        };
 
         setFiltersInitialized(true);
       } catch (error) {
-        console.error('Error loading investment catalogs:', error);
+        // Error loading investment catalogs
         setFiltersInitialized(true); // Still allow the component to work
       }
     };
@@ -510,13 +511,13 @@ export const useAllInvestmentsFilters = (context: BusinessAppContextProps) => {
     // Performance filter intentionally omitted (no server-side field)
   ], [investmentGroups, investmentTypes, investmentStatuses, employees, selectedFilters, createdAfter, createdBefore, searchEmployees, employeeOptions, loadingEmployees, employeeError]);
 
-  // Debug logging
+  // Track filter groups
   useEffect(() => {
-    console.log('🔍 Filter groups updated:', {
+    const groupStats = {
       totalGroups: filterGroups.length,
       groupsWithFilters: filterGroups.filter(g => g.filters.length > 0).length,
       filterGroups: filterGroups.map(g => ({ id: g.id, title: g.title, filterCount: g.filters.length }))
-    });
+    };
   }, [filterGroups]);
 
   // Create filter label map for display

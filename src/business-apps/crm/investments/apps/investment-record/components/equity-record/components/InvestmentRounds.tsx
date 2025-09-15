@@ -14,6 +14,7 @@ import {
 } from '@newwork/nw-design-system';
 import { TrendingUp, Calendar, DollarSign, Percent } from 'lucide-react';
 import { EquityInvestmentData } from '../hooks/useEquityRecordData';
+import type { BaseEquityInvestmentRound } from '@/common/data/investment';
 
 interface InvestmentRoundsProps {
   equityData?: EquityInvestmentData | null;
@@ -27,9 +28,10 @@ const InvestmentRounds: React.FC<InvestmentRoundsProps> = ({
   'data-testid': dataTestId = 'investment-rounds'
 }) => {
   // Helper function to format currency
-  const formatCurrency = (amount: number | null, currency?: { code: string } | null): string => {
+  const formatCurrency = (amount: number | null, currency?: { value?: string } | null): string => {
     if (!amount && amount !== 0) return 'N/A';
-    const currencyCode = currency?.code || 'EUR';
+    // Extract currency code from catalog reference format (e.g., "Currency:v1:EUR" -> "EUR")
+    const currencyCode = currency?.value?.split(':').pop() || 'EUR';
     return new Intl.NumberFormat('de-DE', {
       style: 'currency',
       currency: currencyCode,
@@ -45,7 +47,8 @@ const InvestmentRounds: React.FC<InvestmentRoundsProps> = ({
   };
 
   // Get investment rounds from equity data
-  const investmentRounds = equityData?.equityInvestment?.equityInvestmentRound || [];
+  // Note: The equityInvestmentRound property exists in the GraphQL response but isn't in the TypeScript interface
+  const investmentRounds = (equityData?.equityInvestment as any)?.equityInvestmentRound as BaseEquityInvestmentRound[] || [];
 
   if (isLoading) {
     return (
@@ -136,7 +139,7 @@ const InvestmentRounds: React.FC<InvestmentRoundsProps> = ({
                     </TableCell>
                   </TableRow>
                 ) : (
-                  investmentRounds.map((round, index) => (
+                  investmentRounds.map((round: BaseEquityInvestmentRound, index: number) => (
                   <TableRow 
                     key={round.id || index} 
                     className="gba:border-b gba:hover:bg-gray-50"
@@ -154,22 +157,22 @@ const InvestmentRounds: React.FC<InvestmentRoundsProps> = ({
                     </TableCell>
                     <TableCell className="gba:py-3 gba:px-4 gba:text-right">
                       <span className="gba:font-mono gba:font-medium gba:text-gray-900">
-                        {formatCurrency(round.preValue, round.currency)}
+                        {formatCurrency(round.preValue ?? null, round.currency)}
                       </span>
                     </TableCell>
                     <TableCell className="gba:py-3 gba:px-4 gba:text-right">
                       <span className="gba:font-mono gba:font-medium gba:text-gray-900">
-                        {formatCurrency(round.investmentVolume, round.currency)}
+                        {formatCurrency(round.investmentVolume ?? null, round.currency)}
                       </span>
                     </TableCell>
                     <TableCell className="gba:py-3 gba:px-4 gba:text-right">
                       <span className="gba:font-mono gba:font-medium gba:text-blue-600">
-                        {formatCurrency(round.volumeShare, round.currency)}
+                        {formatCurrency(round.volumeShare ?? null, round.currency)}
                       </span>
                     </TableCell>
                     <TableCell className="gba:py-3 gba:px-4 gba:text-center">
                       <Badge variant="secondary" className="gba:font-mono">
-                        {formatPercentage(round.roundSharePercentage)}
+                        {formatPercentage(round.roundSharePercentage ?? null)}
                       </Badge>
                     </TableCell>
                   </TableRow>

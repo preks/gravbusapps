@@ -163,16 +163,22 @@ const LiquidFundInvestmentsList: React.FC<LiquidFundInvestmentsListProps> = (con
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const queryVariables: InvestmentQueryVariables = useMemo(() => ({
-    limit: pageSize,
-    offset: (currentPage - 1) * pageSize,
-    search: search.trim() || undefined,
-    // Use the safe orderBy mapper in the query; pass field as-is from headers
-    orderBy: sortField
-      ? [{ field: sortField, direction: sortOrder === 'ASC' ? 'ASC_NULLS_LAST' : 'DESC_NULLS_LAST' }]
-      : [{ field: 'createdAt', direction: 'DESC_NULLS_LAST' }],
-    ...getFilters(),
-  }), [currentPage, pageSize, search, sortField, sortOrder, getFilters]);
+  const queryVariables: InvestmentQueryVariables = useMemo(() => {
+    const filters = getFilters();
+    const v: InvestmentQueryVariables = {
+      limit: pageSize,
+      offset: (currentPage - 1) * pageSize,
+      search: search.trim() || undefined,
+      // Use the safe orderBy mapper in the query; pass field as-is from headers
+      orderBy: sortField
+        ? [{ field: sortField, direction: sortOrder === 'ASC' ? 'ASC_NULLS_LAST' : 'DESC_NULLS_LAST' }]
+        : [{ field: 'createdAt', direction: 'DESC_NULLS_LAST' }],
+      ...filters
+    };
+    // Always filter by liquid fund investment types
+    v.investmentGroupIds = ["InvestmentGroup:v1:LIQUID_FUND"];
+    return v;
+  }, [currentPage, pageSize, search, sortField, sortOrder, getFilters]);
 
   const loadData = useCallback(async () => {
     if (!accessToken) return;
@@ -263,10 +269,6 @@ const LiquidFundInvestmentsList: React.FC<LiquidFundInvestmentsListProps> = (con
     };
   }, [loadData]);
 
-  const handleSearch = useCallback((value: string) => {
-    setSearchTerm(value);
-    setCurrentPage(1);
-  }, []);
 
   // Trigger reload when filters change
   useEffect(() => {

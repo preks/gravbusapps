@@ -33,6 +33,25 @@ import { formatCurrency, formatDate } from "../../utils";
 import { useSalesData } from "./hooks/useSalesData";
 import { DateRangeFilter } from '@/business-apps/crm/customers/apps/customer-relations/views/lead-view/components/DateRangeFilter';
 import { useEmployeeSearch } from '@/common/data/employee/useEmployeeSearch';
+import { useGetInvestmentOpportunities } from '@/common/data/investment/hooks/useInvestmentOpportunities';
+import type { InvestmentOpportunity } from '@/common/data/investment/types';
+import type { InvestmentOpportunityQueryVariables } from '@/common/data/investment/queries/investmentOpportunityQueries';
+
+// Use InvestmentOpportunity directly but extend with display fields
+export interface SoldOpportunity extends InvestmentOpportunity {
+  displayValue?: string; // Override for "Sold" display
+}
+
+export interface SalesMetrics {
+  totalSold: number;
+  totalRevenue: number;
+  averageOpportunityValue: number;
+  totalSoldChange?: number;
+  totalRevenueChange?: number;
+  averageOpportunityValueChange?: number;
+  averageWinRate?: number;
+  winRateChange?: number;
+}
 
 interface SalesProps extends BusinessAppContextProps {}
 
@@ -77,7 +96,6 @@ const Sales: React.FC<SalesProps> = ({ accessToken, userInfo }) => {
     overrideSortOrder?: "ASC" | "DESC" | ""
   ) => {
     if (!accessToken) {
-      console.warn("No access token provided for sales data loading");
       return;
     }
 
@@ -203,7 +221,6 @@ const Sales: React.FC<SalesProps> = ({ accessToken, userInfo }) => {
       setError(
         err instanceof Error ? err : new Error("Failed to load sales data")
       );
-      console.error("Error loading sales data:", err);
     } finally {
       setLoading(false);
     }
@@ -246,11 +263,8 @@ const Sales: React.FC<SalesProps> = ({ accessToken, userInfo }) => {
   useEffect(() => {
     const handleProcessCompletion = (event: any) => {
       try {
-        console.log('Sales: Process completion event received:', event.type);
-        
         // Check for successful completion
         if (event.detail?.resolution === 'success') {
-          console.log('Sales: Process completed successfully, refreshing sales data');
           loadPage(currentPage, pageSize);
           return;
         }
@@ -260,18 +274,16 @@ const Sales: React.FC<SalesProps> = ({ accessToken, userInfo }) => {
         if (response?.detail?.resolution === 'success' || 
             response?.opportunity || 
             response?.investment) {
-          console.log('Sales: Opportunity/Investment data detected, refreshing sales list');
           loadPage(currentPage, pageSize);
           return;
         }
         
         // Check for continue events with payload
         if (event.type === 'com.newwork.process.continue' && event.detail?.payload) {
-          console.log('Sales: Continue event with payload detected, refreshing data');
           loadPage(currentPage, pageSize);
         }
       } catch (err) {
-        console.error('Error handling process completion in Sales:', err);
+        // Error handling process completion
       }
     };
 

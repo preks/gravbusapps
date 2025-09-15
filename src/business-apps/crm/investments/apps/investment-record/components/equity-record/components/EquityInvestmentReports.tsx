@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import {
   Table,
   TableBody,
@@ -23,7 +23,9 @@ import { Spin, Alert, DatePicker } from 'antd';
 import { CalendarIcon, FilterIcon, RotateCcwIcon, TrendingDownIcon, TrendingUpIcon, MinusIcon } from 'lucide-react';
 import dayjs from 'dayjs';
 import type { BusinessAppContextProps } from '@/common/BusinessAppContext';
-import { useGetEquityInvestmentReports } from '../queries/EquityInvestmentReportQueries';
+import { useGetInvestmentReports } from '@/common/data/investment/hooks/useInvestmentReports';
+import { AppActionButton } from '@/components/app-action-button/AppActionButton';
+import { FlowContextName } from '@/common/types/FlowRegistryTypes';
 
 const { RangePicker } = DatePicker;
 
@@ -37,15 +39,15 @@ const EquityInvestmentReports: React.FC<EquityInvestmentReportsProps> = ({ equit
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
-  const [pageSize, setPageSize] = useState(20);
+  const pageSize = 20;
   const [total, setTotal] = useState(0);
   const [sortField, setSortField] = useState<string>('date');
-  const [sortOrder, setSortOrder] = useState<'ASC' | 'DESC' | ''>('DESC');
+  const [sortOrder, setSortOrder] = useState<'ASC_NULLS_LAST' | 'DESC_NULLS_LAST' | ''>('DESC_NULLS_LAST');
   const [dateRange, setDateRange] = useState<[dayjs.Dayjs | null, dayjs.Dayjs | null] | null>(null);
   const [timeFilter, setTimeFilter] = useState<string>('all');
   const [isTransposed, setIsTransposed] = useState<boolean>(false);
 
-  const { fetchEquityInvestmentReports } = useGetEquityInvestmentReports({ accessToken, userInfo } as BusinessAppContextProps);
+  const { fetchEquityInvestmentReports } = useGetInvestmentReports({ accessToken, userInfo } as BusinessAppContextProps);
 
   const loadReports = useCallback(async () => {
     if (!equityInvestmentId) return;
@@ -53,10 +55,10 @@ const EquityInvestmentReports: React.FC<EquityInvestmentReportsProps> = ({ equit
     setError(null);
     try {
       let variables: any = {
-        investmentIds: [equityInvestmentId],
+        equityInvestmentIds: [equityInvestmentId],
         limit: pageSize,
         offset: (currentPage - 1) * pageSize,
-        orderBy: sortField && sortOrder ? [{ field: sortField, direction: sortOrder }] : [{ field: 'date', direction: 'DESC' }]
+        orderBy: sortField && sortOrder ? [{ field: sortField, direction: sortOrder }] : [{ field: 'date', direction: 'DESC_NULLS_LAST' }]
       };
       if (dateRange && dateRange[0] && dateRange[1]) {
         variables.reportDateFrom = dateRange[0].format('YYYY-MM-DD');
@@ -91,10 +93,10 @@ const EquityInvestmentReports: React.FC<EquityInvestmentReportsProps> = ({ equit
   const handleSort = (fieldName: string) => {
     if (sortField !== fieldName) {
       setSortField(fieldName);
-      setSortOrder('ASC');
+      setSortOrder('ASC_NULLS_LAST');
     } else {
-      if (sortOrder === '') setSortOrder('ASC');
-      else if (sortOrder === 'ASC') setSortOrder('DESC');
+      if (sortOrder === '') setSortOrder('ASC_NULLS_LAST');
+      else if (sortOrder === 'ASC_NULLS_LAST') setSortOrder('DESC_NULLS_LAST');
       else { setSortField(''); setSortOrder(''); }
     }
     setCurrentPage(1);
@@ -102,8 +104,8 @@ const EquityInvestmentReports: React.FC<EquityInvestmentReportsProps> = ({ equit
 
   const getSortIcon = (fieldName: string) => {
     if (sortField !== fieldName) return null;
-    if (sortOrder === 'ASC') return <TrendingUpIcon className="gba:h-4 gba:w-4 gba:ml-1" />;
-    if (sortOrder === 'DESC') return <TrendingDownIcon className="gba:h-4 gba:w-4 gba:ml-1" />;
+    if (sortOrder === 'ASC_NULLS_LAST') return <TrendingUpIcon className="gba:h-4 gba:w-4 gba:ml-1" />;
+    if (sortOrder === 'DESC_NULLS_LAST') return <TrendingDownIcon className="gba:h-4 gba:w-4 gba:ml-1" />;
     return <MinusIcon className="gba:h-4 gba:w-4 gba:ml-1" />;
   };
 
@@ -216,7 +218,6 @@ const EquityInvestmentReports: React.FC<EquityInvestmentReportsProps> = ({ equit
                 </TableHeader>
                 <TableBody>
                   {[ 
-                    { key: 'date', label: 'Report Date' },
                     { key: 'marketValue', label: 'Market Value', fmt: formatNumber },
                     { key: 'turnoverAmount', label: 'Turnover', fmt: formatNumber },
                     { key: 'ebitdaAmount', label: 'EBITDA', fmt: formatNumber },
@@ -238,6 +239,9 @@ const EquityInvestmentReports: React.FC<EquityInvestmentReportsProps> = ({ equit
               <Table data-testid={`${dataTestId}-table`}>
                 <TableHeader>
                   <TableRow className="gba:border-b gba:bg-gray-50">
+                    <TableHead className="gba:w-[60px]" data-testid={`${dataTestId}-actions-header`}>
+                      ACTIONS
+                    </TableHead>
                     <SortableHeader field="date">Report Date</SortableHeader>
                     <SortableHeader field="marketValue">Market Value</SortableHeader>
                     <SortableHeader field="turnoverAmount">Turnover</SortableHeader>
@@ -247,6 +251,21 @@ const EquityInvestmentReports: React.FC<EquityInvestmentReportsProps> = ({ equit
                 <TableBody>
                   {reports.map((report: any, index: number) => (
                     <TableRow key={report.id} className="gba:border-b gba:hover:gba:bg-gray-50 gba:transition-colors" data-testid={`${dataTestId}-row-${index + 1}`}>
+                      <TableCell className="gba:py-4 gba:px-6">
+                        <div className="gba:flex gba:justify-start gba:gap-2">
+                          <AppActionButton
+                            data-testid={`${dataTestId}-update-report-button-${report.id}`}
+                            size="icon"
+                            contextsArray={[FlowContextName.investmentReportEntity]}
+                            externalContextData={{ entityId: report.id }}
+                            prefixDataTestId={`${dataTestId}-update-report`}
+                            accessToken={accessToken}
+                            emptyStateBehavior="enable"
+                            deferMainContextRequestsUntilClick
+                            onClick={(e) => e.stopPropagation()}
+                          />
+                        </div>
+                      </TableCell>
                       <TableCell className="gba:py-4 gba:px-6"><span className="gba:font-medium gba:text-gray-900">{formatDate(report.date)}</span></TableCell>
                       <TableCell className="gba:py-4 gba:px-6"><span className="gba:font-medium gba:text-gray-900">{formatNumber(report.marketValue)}</span></TableCell>
                       <TableCell className="gba:py-4 gba:px-6"><span className="gba:font-medium gba:text-gray-900">{formatNumber(report.turnoverAmount)}</span></TableCell>

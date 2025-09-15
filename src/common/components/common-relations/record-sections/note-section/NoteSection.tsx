@@ -1,6 +1,6 @@
 import React from 'react';
 import { Button, Card, CardContent, CardHeader, CardTitle } from '@newwork/nw-design-system';
-import { UserOutlined, CalendarOutlined, PlusCircleOutlined, BellOutlined, MoreOutlined } from '@ant-design/icons';
+import { UserOutlined, CalendarOutlined, BellOutlined, MoreOutlined } from '@ant-design/icons';
 import { PlusCircleIcon } from '@phosphor-icons/react';
 import dayjs from 'dayjs';
 import { AppAction } from '@/components/app-action';
@@ -24,6 +24,7 @@ interface NoteSectionProps extends BusinessAppContextProps {
   contactId?: string;
   opportunityId?: string;
   leadId?: string;
+  investmentId?: string;
   demo?: boolean;
   notes?: NoteItem[];
   'data-testid'?: string;
@@ -31,11 +32,11 @@ interface NoteSectionProps extends BusinessAppContextProps {
   noteEntityActionProps?: Omit<AppActionCommonProps, 'accessToken'>;
 }
 
-const NoteSection: React.FC<NoteSectionProps> = ({ accessToken, accountId, contactId, opportunityId, leadId, notes: notesProp, noteActionProps, noteEntityActionProps }) => {
+const NoteSection: React.FC<NoteSectionProps> = ({ accessToken, accountId, contactId, opportunityId, leadId, investmentId, notes: notesProp, noteActionProps, noteEntityActionProps }) => {
   const notes = notesProp || [];
 
   const externalContextData = noteActionProps?.externalContextData
-    || (accountId ? { accountId } : contactId ? { contactId } : opportunityId ? { opportunityId } : leadId ? { leadId } : {});
+    || (accountId ? { accountId } : contactId ? { contactId } : opportunityId ? { opportunityId } : leadId ? { leadId } : investmentId ? { investmentId } : {});
 
   return (
     <Card data-testid="note-section">

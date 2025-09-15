@@ -23,7 +23,9 @@ import { Spin, Alert, DatePicker } from 'antd';
 import { CalendarIcon, FilterIcon, RotateCcwIcon, TrendingDownIcon, TrendingUpIcon, MinusIcon } from 'lucide-react';
 import dayjs from 'dayjs';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
-import { useGetLiquidFundInvestmentReports } from '../queries/LiquidFundInvestmentReportQueries';
+import { useGetInvestmentReports } from '@/common/data/investment/hooks/useInvestmentReports';
+import { AppActionButton } from '@/components/app-action-button/AppActionButton';
+import { FlowContextName } from '@/common/types/FlowRegistryTypes';
 
 const { RangePicker } = DatePicker;
 
@@ -45,12 +47,12 @@ const LiquidFundInvestmentReports: React.FC<LiquidFundInvestmentReportsProps> = 
 	const [pageSize, setPageSize] = useState(20);
 	const [total, setTotal] = useState(0);
 	const [sortField, setSortField] = useState<string>('date');
-	const [sortOrder, setSortOrder] = useState<'ASC' | 'DESC' | ''>('DESC');
+	const [sortOrder, setSortOrder] = useState<'ASC_NULLS_LAST' | 'DESC_NULLS_LAST' | ''>('DESC_NULLS_LAST');
 	const [dateRange, setDateRange] = useState<[dayjs.Dayjs | null, dayjs.Dayjs | null] | null>(null);
 	const [timeFilter, setTimeFilter] = useState<string>('all');
 	const [isTransposed, setIsTransposed] = useState<boolean>(false);
 
-	const { fetchLiquidFundInvestmentReports } = useGetLiquidFundInvestmentReports({ accessToken, userInfo });
+	const { fetchLiquidFundInvestmentReports } = useGetInvestmentReports({ accessToken, userInfo });
 
 	const loadReports = useCallback(async () => {
 		if (!liquidFundInvestmentId) return;
@@ -58,10 +60,10 @@ const LiquidFundInvestmentReports: React.FC<LiquidFundInvestmentReportsProps> = 
 		setError(null);
 		try {
 			let variables: any = {
-				investmentIds: [liquidFundInvestmentId],
+				liquidFundInvestmentIds: [liquidFundInvestmentId],
 				limit: pageSize,
 				offset: (currentPage - 1) * pageSize,
-				orderBy: sortField && sortOrder ? [{ field: sortField, direction: sortOrder }] : [{ field: 'date', direction: 'DESC' }]
+				orderBy: sortField && sortOrder ? [{ field: sortField, direction: sortOrder }] : [{ field: 'date', direction: 'DESC_NULLS_LAST' }]
 			};
 			if (dateRange && dateRange[0] && dateRange[1]) {
 				variables.reportDateFrom = dateRange[0].format('YYYY-MM-DD');
@@ -96,10 +98,10 @@ const LiquidFundInvestmentReports: React.FC<LiquidFundInvestmentReportsProps> = 
 	const handleSort = (fieldName: string) => {
 		if (sortField !== fieldName) {
 			setSortField(fieldName);
-			setSortOrder('ASC');
+			setSortOrder('ASC_NULLS_LAST');
 		} else {
-			if (sortOrder === '') setSortOrder('ASC');
-			else if (sortOrder === 'ASC') setSortOrder('DESC');
+			if (sortOrder === '') setSortOrder('ASC_NULLS_LAST');
+			else if (sortOrder === 'ASC_NULLS_LAST') setSortOrder('DESC_NULLS_LAST');
 			else { setSortField(''); setSortOrder(''); }
 		}
 		setCurrentPage(1);
@@ -107,8 +109,8 @@ const LiquidFundInvestmentReports: React.FC<LiquidFundInvestmentReportsProps> = 
 
 	const getSortIcon = (fieldName: string) => {
 		if (sortField !== fieldName) return null;
-		if (sortOrder === 'ASC') return <TrendingUpIcon className="gba:h-4 gba:w-4 gba:ml-1" />;
-		if (sortOrder === 'DESC') return <TrendingDownIcon className="gba:h-4 gba:w-4 gba:ml-1" />;
+		if (sortOrder === 'ASC_NULLS_LAST') return <TrendingUpIcon className="gba:h-4 gba:w-4 gba:ml-1" />;
+		if (sortOrder === 'DESC_NULLS_LAST') return <TrendingDownIcon className="gba:h-4 gba:w-4 gba:ml-1" />;
 		return <MinusIcon className="gba:h-4 gba:w-4 gba:ml-1" />;
 	};
 
@@ -221,7 +223,6 @@ const LiquidFundInvestmentReports: React.FC<LiquidFundInvestmentReportsProps> = 
 								</TableHeader>
 								<TableBody>
 									{[
-										{ key: 'date', label: 'Report Date' },
 										{ key: 'maturityDate', label: 'Maturity Date' },
 										{ key: 'interestRate', label: 'Interest Rate', fmt: formatPercent },
 										{ key: 'bankName', label: 'Bank Name' },
@@ -245,6 +246,9 @@ const LiquidFundInvestmentReports: React.FC<LiquidFundInvestmentReportsProps> = 
 							<Table data-testid={`${dataTestId}-table`}>
 								<TableHeader>
 									<TableRow className="gba:border-b gba:bg-gray-50">
+										<TableHead className="gba:w-[60px]" data-testid={`${dataTestId}-actions-header`}>
+											ACTIONS
+										</TableHead>
 										<SortableHeader field="date">Report Date</SortableHeader>
 										<SortableHeader field="maturityDate">Maturity Date</SortableHeader>
 										<SortableHeader field="interestRate">Interest Rate</SortableHeader>
@@ -256,6 +260,21 @@ const LiquidFundInvestmentReports: React.FC<LiquidFundInvestmentReportsProps> = 
 								<TableBody>
 									{reports.map((report: any, index: number) => (
 										<TableRow key={report.id} className="gba:border-b gba:hover:gba:bg-gray-50 gba:transition-colors" data-testid={`${dataTestId}-row-${index + 1}`}>
+											<TableCell className="gba:py-4 gba:px-6">
+												<div className="gba:flex gba:justify-start gba:gap-2">
+													<AppActionButton
+														data-testid={`${dataTestId}-update-report-button-${report.id}`}
+														size="icon"
+														contextsArray={[FlowContextName.entityContext]}
+														externalContextData={{ entityId: report.id }}
+														prefixDataTestId={`${dataTestId}-update-report`}
+														accessToken={accessToken}
+														emptyStateBehavior="enable"
+														deferMainContextRequestsUntilClick
+														onClick={(e) => e.stopPropagation()}
+													/>
+												</div>
+											</TableCell>
 											<TableCell className="gba:py-4 gba:px-6"><span className="gba:font-medium gba:text-gray-900">{formatDate(report.date)}</span></TableCell>
 											<TableCell className="gba:py-4 gba:px-6"><span className="gba:font-medium gba:text-gray-900">{formatDate(report.maturityDate)}</span></TableCell>
 											<TableCell className="gba:py-4 gba:px-6"><span className="gba:font-medium gba:text-gray-900">{formatPercent(report.interestRate)}</span></TableCell>

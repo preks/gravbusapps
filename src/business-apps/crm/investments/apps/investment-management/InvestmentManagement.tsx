@@ -186,7 +186,11 @@ export const InvestmentManagement: React.FC<InvestmentManagementProps> = (
       case "divestments":
         return (
           <div data-testid="divestment-view" className="gba:h-full gba:overflow-auto">
-            <DivestmentView {...context} />
+            <DivestmentView
+              accessToken={context.accessToken}
+              userInfo={context.userInfo}
+              additionalData={context.additionalData}
+            />
           </div>
         );
       default:

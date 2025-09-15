@@ -98,7 +98,6 @@ const ExitOpportunities: React.FC<ExitOpportunitiesProps> = ({
     overrideSortOrder?: "ASC" | "DESC" | ""
   ) => {
     if (!accessToken) {
-      console.warn("No access token provided for exit opportunities data loading");
       return;
     }
 
@@ -205,7 +204,6 @@ const ExitOpportunities: React.FC<ExitOpportunitiesProps> = ({
       setError(
         err instanceof Error ? err : new Error("Failed to load exit opportunities")
       );
-      console.error("Error loading exit opportunities:", err);
     } finally {
       setLoading(false);
     }
@@ -250,11 +248,8 @@ const ExitOpportunities: React.FC<ExitOpportunitiesProps> = ({
   useEffect(() => {
     const handleProcessCompletion = (event: any) => {
       try {
-        console.log('ExitOpportunities: Process completion event received:', event.type);
-        
         // Check for successful completion
         if (event.detail?.resolution === 'success') {
-          console.log('ExitOpportunities: Process completed successfully, refreshing exit opportunities data');
           loadPage(currentPage, pageSize);
           return;
         }
@@ -264,18 +259,16 @@ const ExitOpportunities: React.FC<ExitOpportunitiesProps> = ({
         if (response?.detail?.resolution === 'success' || 
             response?.opportunity || 
             response?.investment) {
-          console.log('ExitOpportunities: Opportunity/Investment data detected, refreshing exit opportunities list');
           loadPage(currentPage, pageSize);
           return;
         }
         
         // Check for continue events with payload
         if (event.type === 'com.newwork.process.continue' && event.detail?.payload) {
-          console.log('ExitOpportunities: Continue event with payload detected, refreshing data');
           loadPage(currentPage, pageSize);
         }
       } catch (err) {
-        console.error('Error handling process completion in ExitOpportunities:', err);
+        // Error handling process completion
       }
     };
 

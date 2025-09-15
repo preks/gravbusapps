@@ -465,24 +465,24 @@ const RealEstateInvestmentsList: React.FC<RealEstateInvestmentsListProps> = (con
                         const initialValue = investment.initialInvestmentAmount || 0;
                         const performanceAmount = currentValue - initialValue;
                         const performancePercentage = initialValue > 0 ? (performanceAmount / initialValue) * 100 : 0;
-                      
-                      return (
-                        <div className="gba:flex gba:flex-col gba:items-start">
-                          <span className={`gba:font-semibold ${
-                            performancePercentage === 0 ? 'gba:text-gray-500' : 
-                            performancePercentage > 0 ? 'gba:text-green-600' : 'gba:text-red-600'
-                          }`}>
-                            {formatCurrency(performanceAmount)}
-                          </span>
-                          <span className={`gba:text-sm ${
-                            performancePercentage === 0 ? 'gba:text-gray-400' : 
-                            performancePercentage > 0 ? 'gba:text-green-500' : 'gba:text-red-500'
-                          }`}>
-                            ({performancePercentage === 0 ? '' : performancePercentage > 0 ? '+' : ''}{performancePercentage.toFixed(2)}%)
-                          </span>
-                        </div>
-                      );
-                    })()}
+                        
+                        return (
+                          <div className="gba:flex gba:flex-col gba:items-start">
+                            <span className={`gba:font-semibold ${
+                              performancePercentage === 0 ? 'gba:text-gray-500' : 
+                              performancePercentage > 0 ? 'gba:text-green-600' : 'gba:text-red-600'
+                            }`}>
+                              {formatCurrency(performanceAmount)}
+                            </span>
+                            <span className={`gba:text-sm ${
+                              performancePercentage === 0 ? 'gba:text-gray-400' : 
+                              performancePercentage > 0 ? 'gba:text-green-500' : 'gba:text-red-500'
+                            }`}>
+                              ({performancePercentage === 0 ? '' : performancePercentage > 0 ? '+' : ''}{performancePercentage.toFixed(2)}%)
+                            </span>
+                          </div>
+                        );
+                      })()}
                     </TableCell>
                   )}
                   {visibleColumns.includes('acquisitionDate') && (

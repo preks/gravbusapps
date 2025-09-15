@@ -7,8 +7,6 @@ import {
   TableHeader,
   TableRow,
   Badge,
-  Spinner,
-  Alert,
   Button
 } from "@newwork/nw-design-system";
 import { PlusOutlined } from "@ant-design/icons";
@@ -33,7 +31,7 @@ export interface EquityInvestmentsListProps extends BusinessAppContextProps {
 }
 
 const EquityInvestmentsList: React.FC<EquityInvestmentsListProps> = (props) => {
-  const { accessToken, sourceApp } = props;
+  const { accessToken } = props;
 
   // Use the shared controller for URL sync and state management
   const {
@@ -44,8 +42,6 @@ const EquityInvestmentsList: React.FC<EquityInvestmentsListProps> = (props) => {
     sortOrder,
     initialLoadDone,
     setSearch,
-    handlePaginationChange,
-    handleSortingChange,
     updateURLParams
   } = useInvestmentListController();
 
@@ -68,16 +64,19 @@ const EquityInvestmentsList: React.FC<EquityInvestmentsListProps> = (props) => {
     { id: "type", label: "Type", visible: true },
     { id: "stage", label: "Stage", visible: true },
     { id: "initialInvestment", label: "Initial Investment", visible: true },
+    { id: "totalInvestment", label: "Total Investment", visible: true },
     { id: "marketValue", label: "Market Value", visible: true },
-    { id: "stakePercentage", label: "Stake", visible: true },
     { id: "performance", label: "Performance", visible: true },
+    { id: "stakeType", label: "Stake Type", visible: true },
+    { id: "stakePercentage", label: "Stake %", visible: true },
+    { id: "acquisitionDate", label: "Acquisition Date", visible: true },
+    { id: "plannedExit", label: "Planned Exit", visible: true },
+    { id: "ebitda", label: "EBITDA", visible: true },
     { id: "owner", label: "Owner", visible: true },
     { id: "status", label: "Status", visible: true },
     { id: "created", label: "Created", visible: true },
     // Optional columns specific to equity
-    { id: "acquisitionDate", label: "Acquisition Date", visible: false },
     { id: "exitDate", label: "Exit Date", visible: false },
-    { id: "totalInvestment", label: "Total Investment", visible: false },
     { id: "isin", label: "ISIN", visible: false },
     { id: "currency", label: "Currency", visible: false },
   ]);
@@ -119,31 +118,31 @@ const EquityInvestmentsList: React.FC<EquityInvestmentsListProps> = (props) => {
   // Data management
   const [investments, setInvestments] = useState<Investment[]>([]);
   const [totalCount, setTotalCount] = useState(0);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<Error | null>(null);
 
   const { fetchInvestments } = useGetInvestments(props);
 
-  const queryVariables: InvestmentQueryVariables = useMemo(() => ({
-    limit: pageSize,
-    offset: (currentPage - 1) * pageSize,
-    search: search.trim() || undefined,
-    orderBy: sortField ? [{ field: sortField, direction: sortOrder === 'ASC' ? 'ASC_NULLS_LAST' : 'DESC_NULLS_LAST' }] : [{ field: 'createdAt', direction: 'DESC_NULLS_LAST' }],
-    ...getFilters(),
-  }), [currentPage, pageSize, search, sortField, sortOrder, getFilters]);
+  const queryVariables: InvestmentQueryVariables = useMemo(() => {
+    const filters = getFilters();
+    const v: InvestmentQueryVariables = {
+      limit: pageSize,
+      offset: (currentPage - 1) * pageSize,
+      search: search.trim() || undefined,
+      orderBy: sortField ? [{ field: sortField, direction: sortOrder === 'ASC' ? 'ASC_NULLS_LAST' : 'DESC_NULLS_LAST' }] : [{ field: 'createdAt', direction: 'DESC_NULLS_LAST' }],
+      ...filters
+    };
+    // Always filter by equity investment types
+    v.investmentGroupIds = ["InvestmentGroup:v1:EQUITY"];
+    return v;
+  }, [currentPage, pageSize, search, sortField, sortOrder, getFilters]);
 
   const loadData = useCallback(async () => {
     if (!accessToken) return;
-    setIsLoading(true);
-    setError(null);
     try {
       const result = await fetchInvestments(queryVariables);
       setInvestments(result.Investment || []);
       setTotalCount(result.InvestmentAggregate?.aggregate?.count || 0);
     } catch (err) {
-      setError(err instanceof Error ? err : new Error("Unknown error occurred"));
-    } finally {
-      setIsLoading(false);
+      // Error loading investments
     }
   }, [accessToken, fetchInvestments, queryVariables]);
 
@@ -166,11 +165,8 @@ const EquityInvestmentsList: React.FC<EquityInvestmentsListProps> = (props) => {
   useEffect(() => {
     const handleProcessCompletion = (event: any) => {
       try {
-        console.log('EquityInvestmentsList: Process completion event received:', event.type);
-        
         // Check for successful completion
         if (event.detail?.resolution === 'success') {
-          console.log('EquityInvestmentsList: Process completed successfully, refreshing equity data');
           loadData();
           return;
         }
@@ -180,18 +176,16 @@ const EquityInvestmentsList: React.FC<EquityInvestmentsListProps> = (props) => {
         if (response?.detail?.resolution === 'success' || 
             response?.investment || 
             response?.equityInvestment) {
-          console.log('EquityInvestmentsList: Equity investment data detected, refreshing list');
           loadData();
           return;
         }
         
         // Check for continue events with payload (investment creation/update)
         if (event.type === 'com.newwork.process.continue' && event.detail?.payload) {
-          console.log('EquityInvestmentsList: Continue event with payload detected, refreshing data');
           loadData();
         }
       } catch (err) {
-        console.error('Error handling process completion in EquityInvestmentsList:', err);
+        // Error handling process completion
       }
     };
 
@@ -284,7 +278,7 @@ const EquityInvestmentsList: React.FC<EquityInvestmentsListProps> = (props) => {
 
   // Process completion hook for refreshing data
   useProcessCompletion({
-    onProcessComplete: () => {
+    onSuccess: () => {
       loadData();
     },
   });
@@ -343,9 +337,14 @@ const EquityInvestmentsList: React.FC<EquityInvestmentsListProps> = (props) => {
                 {visibleColumns.includes('type') && <TableHead>Type</TableHead>}
                 {visibleColumns.includes('stage') && <TableHead>Stage</TableHead>}
                 {visibleColumns.includes('initialInvestment') && <TableHead>Initial Investment</TableHead>}
+                {visibleColumns.includes('totalInvestment') && <TableHead>Total Investment</TableHead>}
                 {visibleColumns.includes('marketValue') && <TableHead>Market Value</TableHead>}
-                {visibleColumns.includes('stakePercentage') && <TableHead>Stake</TableHead>}
                 {visibleColumns.includes('performance') && <TableHead>Performance</TableHead>}
+                {visibleColumns.includes('stakeType') && <TableHead>Stake Type</TableHead>}
+                {visibleColumns.includes('stakePercentage') && <TableHead>Stake %</TableHead>}
+                {visibleColumns.includes('acquisitionDate') && <TableHead>Acquisition Date</TableHead>}
+                {visibleColumns.includes('plannedExit') && <TableHead>Planned Exit</TableHead>}
+                {visibleColumns.includes('ebitda') && <TableHead>EBITDA</TableHead>}
                 {visibleColumns.includes('owner') && <TableHead>Owner</TableHead>}
                 {visibleColumns.includes('status') && <TableHead>Status</TableHead>}
                 {visibleColumns.includes('created') && <TableHead>Created</TableHead>}
@@ -378,23 +377,23 @@ const EquityInvestmentsList: React.FC<EquityInvestmentsListProps> = (props) => {
                       <span>{formatCurrency(investment.initialInvestmentAmount || 0)}</span>
                     </TableCell>
                   )}
+                  {visibleColumns.includes('totalInvestment') && (
+                    <TableCell>
+                      <span>{formatCurrency(investment.totalInvestmentAmount || 0)}</span>
+                    </TableCell>
+                  )}
                   {visibleColumns.includes('marketValue') && (
                     <TableCell>
                       <span>{formatCurrency(investment.investmentMarketValue || 0)}</span>
-                    </TableCell>
-                  )}
-                  {visibleColumns.includes('stakePercentage') && (
-                    <TableCell>
-                      <span>{investment.stakePercentage ? `${investment.stakePercentage}%` : '-'}</span>
                     </TableCell>
                   )}
                   {visibleColumns.includes('performance') && (
                     <TableCell>
                       {(() => {
                         const currentValue = investment.investmentMarketValue || 0;
-                        const initialValue = investment.initialInvestmentAmount || 0;
-                        const performanceAmount = currentValue - initialValue;
-                        const performancePercentage = initialValue > 0 ? (performanceAmount / initialValue) * 100 : 0;
+                        const totalValue = investment.totalInvestmentAmount || 0;
+                        const performanceAmount = currentValue - totalValue;
+                        const performancePercentage = totalValue > 0 ? (performanceAmount / totalValue) * 100 : 0;
                         
                         return (
                           <div className="gba:flex gba:flex-col gba:items-start">
@@ -415,11 +414,53 @@ const EquityInvestmentsList: React.FC<EquityInvestmentsListProps> = (props) => {
                       })()}
                     </TableCell>
                   )}
+                  {visibleColumns.includes('stakeType') && (
+                    <TableCell>
+                      <Badge variant="outline">
+                        {investment.investmentStakeType?.value || "N/A"}
+                      </Badge>
+                    </TableCell>
+                  )}
+                  {visibleColumns.includes('stakePercentage') && (
+                    <TableCell>
+                      <div className="gba:flex gba:items-center gba:gap-2">
+                        <span>{investment.stakePercentage ? `${investment.stakePercentage}%` : "N/A"}</span>
+                      </div>
+                    </TableCell>
+                  )}
+                  {visibleColumns.includes('acquisitionDate') && (
+                    <TableCell>
+                      <div className="gba:flex gba:items-center gba:gap-2">
+                        <Calendar className="gba:w-4 gba:h-4 gba:text-gray-500" />
+                        <span>{investment.acquisitionDate ? formatDate(investment.acquisitionDate) : "N/A"}</span>
+                      </div>
+                    </TableCell>
+                  )}
+                  {visibleColumns.includes('plannedExit') && (
+                    <TableCell>
+                      <div className="gba:flex gba:items-center gba:gap-2">
+                        <Calendar className="gba:w-4 gba:h-4 gba:text-orange-500" />
+                        <span>{investment.plannedExitDate ? formatDate(investment.plannedExitDate) : "N/A"}</span>
+                      </div>
+                    </TableCell>
+                  )}
+                  {visibleColumns.includes('ebitda') && (
+                    <TableCell>
+                      <div className="gba:flex gba:items-center gba:gap-2">
+                        <span>N/A</span>
+                      </div>
+                    </TableCell>
+                  )}
                   {visibleColumns.includes('owner') && (
                     <TableCell>
                       <div className="gba:flex gba:items-center gba:gap-2">
                         <User className="gba:w-4 gba:h-4 gba:text-gray-600" />
-                        <span>{investment.ownerEmployee?.displayName || "N/A"}</span>
+                        <span>
+                          {investment.ownerEmployee?.displayName || 
+                           investment.ownerEmployee?.firstName && investment.ownerEmployee?.lastName
+                             ? `${investment.ownerEmployee.firstName} ${investment.ownerEmployee.lastName}`
+                             : "N/A"}
+                        </span>
                       </div>
                     </TableCell>
                   )}
