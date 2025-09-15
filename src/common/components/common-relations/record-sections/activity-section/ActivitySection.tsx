@@ -1,12 +1,26 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useState, useEffect, useRef } from 'react';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
-import { Button, Alert, Spinner, TimelineLayout } from '@newwork/nw-design-system';
-import { PlusCircleOutlined } from '@ant-design/icons';
-import { PhoneIcon, EnvelopeIcon, CalendarBlankIcon, UserIcon } from '@phosphor-icons/react';
+import { Button, Alert, Spinner, TimelineLayout, Select, SelectContent, SelectItem, SelectTrigger, SelectValue, Card, CardHeader, CardContent, CardTitle } from '@newwork/nw-design-system';
+import { PhoneIcon, EnvelopeIcon, CalendarBlankIcon, UserIcon, PlusCircleIcon } from '@phosphor-icons/react';
 import dayjs from 'dayjs';
 import { AppAction } from '@/components/app-action';
 import { buildPlatformUrl } from '@/common/utils/navigationUtils';
 import { FlowContextName } from '@/common/types/FlowRegistryTypes';
+import { LANGUAGES, Language, translateMultipleTexts } from './translationService';
+interface TranslatedActivity {
+  id: string;
+  title: string;
+  description: string;
+  translatedTitle?: string;
+  translatedDescription?: string;
+  isTranslating?: boolean;
+  occurredAt: string;
+  createdAt: string;
+  ownerEmployee?: any;
+  createdBy?: string;
+  activityType?: any;
+}
+
 interface ActivitySectionProps extends BusinessAppContextProps {
   accountId?: string;
   contactId?: string;
@@ -14,17 +28,35 @@ interface ActivitySectionProps extends BusinessAppContextProps {
   leadId?: string;
   defaultTab?: 'activities' | 'notes' | 'approvals' | 'documents' | 'ai-summary';
   'data-testid'?: string;
+  className?: string;
   activities?: any[];
   activitiesLoading?: boolean;
   activitiesError?: string | null;
   onReloadActivities?: () => void;
+  // Make AppAction configurable
+  contextsArray: FlowContextName[];
+  externalContextData?: Record<string, any>;
+  prefixDataTestId?: string;
+  // Translation features
+  showTranslation?: boolean;
 }
 
-const ActivitySection: React.FC<ActivitySectionProps> = ({ defaultTab = 'activities', ...context }) => {
-  const activities = (context as any).activities || [];
+const ActivitySection: React.FC<ActivitySectionProps> = ({ defaultTab = 'activities', showTranslation = false, className, ...context }) => {
+  const rawActivities = (context as any).activities || [];
   const activitiesLoading = (context as any).activitiesLoading || false;
   const activitiesError = (context as any).activitiesError || null;
-  // approvals handled in dedicated approval-section; kept here for future integration if needed
+  
+  // Translation state
+  const [selectedLanguage, setSelectedLanguage] = useState('Original');
+  const [translating, setTranslating] = useState(false);
+  const [translatedActivities, setTranslatedActivities] = useState<TranslatedActivity[]>([]);
+  const originalActivitiesRef = useRef<any[]>([]);
+
+  // Update original activities ref when raw activities change
+  useEffect(() => {
+    originalActivitiesRef.current = rawActivities;
+    setTranslatedActivities(rawActivities);
+  }, [rawActivities]);
 
   const entity = useMemo(() => ({
     accountId: (context as any).accountId,
@@ -34,62 +66,137 @@ const ActivitySection: React.FC<ActivitySectionProps> = ({ defaultTab = 'activit
   }), [context]);
 
   const loadActivities = () => (context as any).onReloadActivities?.();
-  // no approvals/notes here – they live in their own sections
+  
+  // Translation logic
+  useEffect(() => {
+    const translateActivities = async () => {
+      const originalActivities = originalActivitiesRef.current;
 
+      if (selectedLanguage === 'Original' || originalActivities.length === 0) {
+        setTranslatedActivities(originalActivities);
+        return;
+      }
+
+      setTranslating(true);
+
+      try {
+        const textsToTranslate: string[] = [];
+        const activityMapping: Array<{ activityIndex: number, titleIndex: number, descriptionIndex: number }> = [];
+
+        originalActivities.forEach((activity, activityIndex) => {
+          const titleIndex = textsToTranslate.length;
+          textsToTranslate.push(activity.title || '');
+
+          const descriptionIndex = textsToTranslate.length;
+          textsToTranslate.push(activity.description || '');
+
+          activityMapping.push({ activityIndex, titleIndex, descriptionIndex });
+        });
+
+        const translatedTexts = await translateMultipleTexts(textsToTranslate, selectedLanguage, context.accessToken);
+
+        const translated: TranslatedActivity[] = originalActivities.map((originalActivity, activityIndex) => {
+          const mapping = activityMapping[activityIndex];
+          return {
+            ...originalActivity,
+            translatedTitle: translatedTexts[mapping.titleIndex],
+            translatedDescription: translatedTexts[mapping.descriptionIndex],
+            isTranslating: false
+          };
+        });
+
+        setTranslatedActivities(translated);
+      } catch (err) {
+        console.error('Translation error:', err);
+        setTranslatedActivities(originalActivities);
+      } finally {
+        setTranslating(false);
+      }
+    };
+
+    if (showTranslation) {
+      translateActivities();
+    }
+  }, [selectedLanguage, context.accessToken, showTranslation]);
+
+  const handleLanguageChange = (languageCode: string) => {
+    setSelectedLanguage(languageCode);
+  };
+  
+  // no approvals/notes here – they live in their own sections
   const getEmployeeDisplayNameFromObject = (emp: any) => emp?.displayName || (emp?.firstName && emp?.lastName ? `${emp.firstName} ${emp.lastName}` : 'Unknown User');
 
   return (
-    <div data-testid={context['data-testid'] || 'activity-section'}>
-      {/* Header */}
-      <div
-        style={{
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-          padding: 'var(--nw-spacing-xl) var(--nw-spacing-xl) var(--nw-spacing-md) var(--nw-spacing-xl)'
-        }}
-      >
-        <div style={{ fontSize: '18px', fontWeight: 500 }}>Activities</div>
-        <AppAction
-          accessToken={context.accessToken}
-          contextsArray={[FlowContextName.investmentActivityEntity]}
-          externalContextData={{ ...entity }}
-          prefixDataTestId="activities"
-          emptyStateBehavior="enable"
-        >
-          <Button data-testid="add-activity-button">
-            <span className="gba:flex gba:items-center gba:gap-2"><PlusCircleOutlined /> Add Activity</span>
-          </Button>
-        </AppAction>
-      </div>
+    <Card data-testid={context['data-testid'] || 'activity-section'} className={className}>
+      <CardHeader className="gba:flex gba:flex-row gba:items-start gba:justify-between gba:gap-4 gba:px-4">
+        <div className="gba:flex gba:flex-col gba:gap-2 gba:min-w-0">
+          <CardTitle>Activities</CardTitle>
+          {showTranslation && (
+            <div className="gba:flex gba:items-center gba:gap-2 gba:flex-wrap">
+              <Select 
+                value={selectedLanguage} 
+                onValueChange={handleLanguageChange}
+                data-testid="language-dropdown"
+              >
+                <SelectTrigger size="sm" >
+                  <SelectValue placeholder="Select language" />
+                </SelectTrigger>
+                <SelectContent>
+                  {LANGUAGES.map((language: Language) => (
+                    <SelectItem key={language.code} value={language.code}>
+                      {language.flag} {language.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {translating && (
+                <Spinner size="sm" />
+              )}
+            </div>
+          )}
+        </div>
+        <div className="gba:flex gba:items-center gba:gap-3">
+          {showTranslation && (
+            null
+          )}
+          <AppAction
+            accessToken={context.accessToken}
+            contextsArray={context.contextsArray}
+            externalContextData={context.externalContextData || { ...entity }}
+            prefixDataTestId={context.prefixDataTestId || "activities"}
+          >
+          <Button data-testid="add-activity-button" size="icon"><PlusCircleIcon /></Button>
+          </AppAction>
+        </div>
+      </CardHeader>
 
-      {/* Content */}
-      <div style={{ padding: '0 var(--nw-spacing-xl) var(--nw-spacing-xl)' }}>
+      <CardContent>
         {activitiesLoading && (
-          <div style={{ textAlign: 'center', padding: 'var(--nw-spacing-2xl) 0' }}><Spinner /></div>
+          <div className="gba:text-center gba:py-8"><Spinner /></div>
         )}
         {activitiesError && (
-          <Alert variant="destructive" className="gba:mb-4">
-            <div className="gba:flex gba:items-center gba:justify-between">
-              <span>Error Loading Activities: {activitiesError}</span>
-              <Button onClick={loadActivities} variant="outline" size="sm">Retry</Button>
-            </div>
+          <Alert variant="destructive" className="gba:mb-4 gba:flex gba:items-center gba:justify-between">
+            <span>Error Loading Activities: {activitiesError}</span>
+            <Button onClick={loadActivities} variant="outline" size="sm">Retry</Button>
           </Alert>
         )}
-        {!activitiesLoading && !activitiesError && activities.length === 0 && (
-          <div style={{ textAlign: 'center', padding: 'var(--nw-spacing-2xl) 0', color: 'var(--nw-color-text-secondary)' }} data-testid="empty-activities">
+        {!activitiesLoading && !activitiesError && translatedActivities.length === 0 && (
+          <div className="gba:text-center gba:py-8 gba:text-gray-500" data-testid="empty-activities">
             No activities yet. Start by adding your first activity.
           </div>
         )}
-        {!activitiesLoading && !activitiesError && activities.length > 0 && (() => {
-          const items = activities.map((activity: any, index: number) => {
-            const title = activity.title || 'New Activity';
+        {!activitiesLoading && !activitiesError && translatedActivities.length > 0 && (() => {
+          const items = translatedActivities.map((activity: TranslatedActivity, index: number) => {
+            const title = (showTranslation && activity.translatedTitle) ? activity.translatedTitle : (activity.title || 'New Activity');
             const dateSource = activity.occurredAt || activity.createdAt;
             const occurred = dayjs(dateSource).isValid() ? dayjs(dateSource).format('MMM D, YYYY [at] h:mm A') : '';
             const ownerName = activity.ownerEmployee ? getEmployeeDisplayNameFromObject(activity.ownerEmployee) : (activity.createdBy || 'Unknown User');
             const ownerId = activity.ownerEmployee?.id;
             const activityTypeLabel = activity.activityType?.value || activity.activityType;
-            const description = [activityTypeLabel, activity.description].filter(Boolean).join('\n');
+            const description = [
+              activityTypeLabel, 
+              (showTranslation && activity.translatedDescription) ? activity.translatedDescription : activity.description
+            ].filter(Boolean).join('\n');
             
             // Determine icon based on activity type
             const getActivityIcon = (type: string) => {
@@ -126,12 +233,13 @@ const ActivitySection: React.FC<ActivitySectionProps> = ({ defaultTab = 'activit
               items={items}
               variant="default"
               orientation="vertical"
+              alignment="right"
               className="gba:w-full" 
             />
           );
         })()}
-      </div>
-    </div>
+      </CardContent>
+    </Card>
   );
 };
 

@@ -275,7 +275,7 @@ export const IDEStartScreen: React.FC<IDEStartScreenProps> = ({
     return (
         <div 
             data-testid="IDE-StartScreen"
-            className="gba:min-h-screen nw:bg-gradient-decorative-2"
+            className="gba:h-full nw:bg-gradient-decorative-2"
         >
             <PageLayout
                 variant="display"

@@ -447,6 +447,7 @@ export const StageConditionsModal: React.FC<StageConditionsModalProps> = ({
           alternativeCode: condition.alternativeCode,
           parentEntryId: `${cfg.stageCatalog}:${cfg.version}:${stage.code}`,
           additionalValue1: condition.rank.toString(), // Order stored here
+          displayOrder: condition.rank,
           objectValue: condition.objectValue as any, // Convert to JSONValue
           translations: []
         };
@@ -592,6 +593,7 @@ export const StageConditionsModal: React.FC<StageConditionsModalProps> = ({
           alternativeCode: 'CONDITION',
           parentEntryId: `${cfg.stageCatalog}:${cfg.version}:${stage.code}`,
           additionalValue1: values.rank.toString(),
+          displayOrder: values.rank,
           objectValue: {
             description: values.description,
             generateTask: values.generate_task,

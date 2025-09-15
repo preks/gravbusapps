@@ -126,7 +126,7 @@ const AccountCompanyInformation: React.FC<InlinedCompanyInformationProps> = ({
     <Card className={cardClassName}>
       <CardHeader className="gba:flex gba:items-center gba:justify-between">
 
-          <CardTitle className="gba:text-base">
+          <CardTitle>
             Account Information
             {hasMultiple && (
               <span className="gba:text-xs gba:opacity-60 gba:ml-2">

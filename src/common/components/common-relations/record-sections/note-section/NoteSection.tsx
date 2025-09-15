@@ -1,8 +1,10 @@
 import React from 'react';
-import { Button, Card, CardContent } from '@newwork/nw-design-system';
-import { EditOutlined, CloseOutlined, UserOutlined, CalendarOutlined, PlusCircleOutlined, BellOutlined } from '@ant-design/icons';
+import { Button, Card, CardContent, CardHeader, CardTitle } from '@newwork/nw-design-system';
+import { UserOutlined, CalendarOutlined, PlusCircleOutlined, BellOutlined, MoreOutlined } from '@ant-design/icons';
+import { PlusCircleIcon } from '@phosphor-icons/react';
 import dayjs from 'dayjs';
 import { AppAction } from '@/components/app-action';
+import { AppActionMenu } from '@/components/app-action-menu/AppActionMenu';
 import type { AppActionCommonProps } from '@/common/hooks/useAppActionData';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 import { buildPlatformUrl } from '@/common/utils/navigationUtils';
@@ -26,38 +28,19 @@ interface NoteSectionProps extends BusinessAppContextProps {
   notes?: NoteItem[];
   'data-testid'?: string;
   noteActionProps?: Omit<AppActionCommonProps, 'accessToken'>;
+  noteEntityActionProps?: Omit<AppActionCommonProps, 'accessToken'>;
 }
 
-const NoteSection: React.FC<NoteSectionProps> = ({ accessToken, accountId, contactId, opportunityId, leadId, notes: notesProp, noteActionProps }) => {
-  const defaultNotes: NoteItem[] = [
-    {
-      id: 'n1',
-      noteTitle: 'Kickoff completed',
-      noteText: 'Discussed scope and next steps with client',
-      createdAt: new Date().toISOString(),
-      createdBy: 'Daniel Vorberg',
-      assigneeEmployee: { id: 'emp_demo_1', displayName: 'Elena Petrova' },
-      reminderAt: new Date(Date.now() + 2 * 24 * 60 * 60 * 1000).toISOString(),
-    },
-    {
-      id: 'n2',
-      noteTitle: 'Follow-up scheduled',
-      noteText: 'Reminder set for Friday 10:00',
-      createdAt: new Date(Date.now() - 86400000).toISOString(),
-      createdBy: 'You',
-      assigneeEmployee: { id: 'emp_demo_2', displayName: 'Mike Krupskii' },
-      reminderAt: null,
-    },
-  ];
-  const notes = notesProp && notesProp.length ? notesProp : defaultNotes;
+const NoteSection: React.FC<NoteSectionProps> = ({ accessToken, accountId, contactId, opportunityId, leadId, notes: notesProp, noteActionProps, noteEntityActionProps }) => {
+  const notes = notesProp || [];
 
   const externalContextData = noteActionProps?.externalContextData
     || (accountId ? { accountId } : contactId ? { contactId } : opportunityId ? { opportunityId } : leadId ? { leadId } : {});
 
   return (
-    <div className="gba:notes-content" data-testid="note-section">
-      <div className="gba:flex gba:items-center gba:justify-between gba:px-6 gba:py-4">
-        <div className="gba:text-lg gba:font-medium">Notes</div>
+    <Card data-testid="note-section">
+      <CardHeader className="gba:flex gba:flex-row gba:items-center gba:justify-between gba:space-y-0">
+        <CardTitle>Notes</CardTitle>
         <AppAction
           accessToken={accessToken}
           contextsArray={noteActionProps?.contextsArray}
@@ -65,13 +48,18 @@ const NoteSection: React.FC<NoteSectionProps> = ({ accessToken, accountId, conta
           prefixDataTestId={noteActionProps?.prefixDataTestId || 'notes'}
           emptyStateBehavior={noteActionProps?.emptyStateBehavior || 'enable'}
         >
-          <Button data-testid="add-note-button"><span className="gba:flex gba:items-center gba:gap-2"><PlusCircleOutlined /> Add Note</span></Button>
+          <Button data-testid="add-note-button" size="icon"><PlusCircleIcon /></Button>
         </AppAction>
-      </div>
+      </CardHeader>
 
-      <div className="gba:px-6 gba:pb-6">
-        <div className="gba:flex gba:flex-col gba:space-y-4">
-          {notes.map((note: any) => (
+      <CardContent>
+        {notes.length === 0 ? (
+          <div className="gba:text-center gba:py-8 gba:text-gray-500">
+            <p>No notes available</p>
+          </div>
+        ) : (
+          <div className="gba:flex gba:flex-col gba:space-y-4">
+            {notes.map((note: any) => (
             <Card
               key={note.id}
               data-testid={`note-card-${note.id}`}
@@ -90,36 +78,28 @@ const NoteSection: React.FC<NoteSectionProps> = ({ accessToken, accountId, conta
                     )}
                   </div>
                   <div className="gba:flex gba:items-center gba:gap-3 gba:shrink-0">
-                    <AppAction
-                      accessToken={accessToken}
-                      contextsArray={noteActionProps?.contextsArray}
-                      externalContextData={{ ...externalContextData, noteId: note.id }}
-                      prefixDataTestId={noteActionProps?.prefixDataTestId ? `${noteActionProps?.prefixDataTestId}-edit` : 'notes-edit'}
-                      emptyStateBehavior={noteActionProps?.emptyStateBehavior || 'enable'}
-                    >
-                      <span
-                        aria-label="Edit note"
-                        data-testid={`edit-note-action-${note.id}`}
-                        className="gba:inline-flex gba:items-center gba:justify-center gba:cursor-pointer gba:p-1"
+                    {noteEntityActionProps ? (
+                      <AppActionMenu
+                        accessToken={accessToken}
+                        contextsArray={noteEntityActionProps.contextsArray}
+                        externalContextData={{ ...noteEntityActionProps.externalContextData, noteId: note.id }}
+                        prefixDataTestId={noteEntityActionProps.prefixDataTestId ? `${noteEntityActionProps.prefixDataTestId}-${note.id}` : `note-actions-${note.id}`}
+                        emptyStateBehavior={noteEntityActionProps.emptyStateBehavior || 'enable'}
+                        deferMainContextRequestsUntilClick={true}
+                        data-testid={`note-actions-menu-${note.id}`}
                       >
-                        <EditOutlined />
-                      </span>
-                    </AppAction>
-                    <AppAction
-                      accessToken={accessToken}
-                      contextsArray={noteActionProps?.contextsArray}
-                      externalContextData={{ ...externalContextData, noteId: note.id }}
-                      prefixDataTestId={noteActionProps?.prefixDataTestId ? `${noteActionProps?.prefixDataTestId}-delete` : 'notes-delete'}
-                      emptyStateBehavior={noteActionProps?.emptyStateBehavior || 'enable'}
-                    >
-                      <span
-                        aria-label="Delete note"
-                        data-testid={`delete-note-action-${note.id}`}
-                        className="gba:inline-flex gba:items-center gba:justify-center gba:cursor-pointer gba:p-1"
-                      >
-                        <CloseOutlined />
-                      </span>
-                    </AppAction>
+                        <span
+                          aria-label="Note actions"
+                          className="gba:inline-flex gba:items-center gba:justify-center gba:cursor-pointer gba:p-1 gba:rounded hover:gba:bg-gray-100"
+                          data-testid={`note-actions-trigger-${note.id}`}
+                        >
+                          <MoreOutlined className="gba:rotate-90" />
+                        </span>
+                      </AppActionMenu>
+                    ) : (
+                      // Fallback to legacy behavior if noteEntityActionProps not provided
+                      <span className="gba:text-gray-400 gba:text-sm">No actions available</span>
+                    )}
                   </div>
                 </div>
 
@@ -149,10 +129,11 @@ const NoteSection: React.FC<NoteSectionProps> = ({ accessToken, accountId, conta
                 </div>
               </CardContent>
             </Card>
-          ))}
-        </div>
-      </div>
-    </div>
+            ))}
+          </div>
+        )}
+      </CardContent>
+    </Card>
   );
 };
 

@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import { PageLayout } from '@newwork/nw-design-system';
 import { GaugeIcon, CalendarBlankIcon, ListBulletsIcon, ChartBarIcon } from '@phosphor-icons/react';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
@@ -12,9 +12,7 @@ import { StatisticsTab } from './components/tabs/statistics-tab';
 import { WorkLifeBalanceAnalysisPage } from './components/pages/WorkLifeBalanceAnalysisPage';
 import { TeamCoverageOptimizerPage } from './components/pages/TeamCoverageOptimizerPage';
 import { AbsenceListPage } from './components/pages/AbsenceListPage';
-import { MODULE_COLORS } from '@/common/constants/ui';
-
-const moduleColor = MODULE_COLORS.HR;
+import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
 
 export interface ManagerAbsencesProps extends BusinessAppContextProps {}
 
@@ -23,39 +21,70 @@ const ManagerAbsences: React.FC<ManagerAbsencesProps> = (props) => {
     {
       key: 'dashboard',
       icon: <GaugeIcon className="w-5 h-5" />,
-      label: 'Dashboard'
+      label: getTranslationFromI18nKeyAndLabel('lowcoder:absence_management_hub_manager.dashboard_btn','Dashboard')
     },
     {
       key: 'absence-list',
       icon: <ListBulletsIcon className="w-5 h-5" />,
-      label: 'Absence List'
+      label: getTranslationFromI18nKeyAndLabel('lowcoder:absence_management_hub_manager.absence_list','Absence List')
     },
     {
       key: 'team-calendar',
       icon: <CalendarBlankIcon className="w-5 h-5" />,
-      label: 'Team Calendar'
+      label: getTranslationFromI18nKeyAndLabel('lowcoder:absence_management_hub_manager.team_calendar','Team Calendar')
     },
     {
       key: 'statistics',
       icon: <ChartBarIcon className="w-5 h-5" />,
-      label: 'Statistics'
+      label: getTranslationFromI18nKeyAndLabel('lowcoder:absence_management_hub_manager.statistics','Statistics')
     },
     {
       key: 'reports',
       icon: <ChartBarIcon className="w-5 h-5" />,
-      label: 'Reports'
+      label: getTranslationFromI18nKeyAndLabel('lowcoder:absence_management_hub_manager.reports','Reports')
     }
   ];
 
   // State for current view/page
   const [currentView, setCurrentView] = useState<'tabs' | 'work-life-balance' | 'team-coverage' | 'absence-list-page'>('tabs');
-  // State for active tab within the tabs view
-  const [activeTab, setActiveTab] = useState<string>('dashboard');
+  // State for active tab within the tabs view (synced with URL ?tab=)
+  const getInitialTab = () => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const tabFromUrl = urlParams.get('tab');
+    const validTabs = ['dashboard', 'absence-list', 'team-calendar', 'statistics', 'reports'];
+    if (validTabs.includes(tabFromUrl ?? '')) {
+      return tabFromUrl as string;
+    }
+    // Ensure default is reflected in URL
+    const defaultTab = 'dashboard';
+    const url = new URL(window.location.href);
+    url.searchParams.set('tab', defaultTab);
+    window.history.replaceState({}, '', url.toString());
+    return defaultTab;
+  };
+
+  const [activeTab, setActiveTab] = useState<string>(getInitialTab);
   // State for absence list page pre-filter
   const [absenceListPreFilter, setAbsenceListPreFilter] = useState<any>(null);
 
   const handleTabChange = useCallback((tab: string) => {
     setActiveTab(tab);
+    const url = new URL(window.location.href);
+    url.searchParams.set('tab', tab);
+    window.history.pushState({}, '', url.toString());
+  }, []);
+
+  // Handle browser back/forward navigation to keep state in sync
+  useEffect(() => {
+    const handlePopState = () => {
+      const urlParams = new URLSearchParams(window.location.search);
+      const tabFromUrl = urlParams.get('tab');
+      const validTabs = ['dashboard', 'absence-list', 'team-calendar', 'statistics', 'reports'];
+      const newTab = validTabs.includes(tabFromUrl ?? '') ? (tabFromUrl as string) : 'dashboard';
+      setActiveTab(newTab);
+    };
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
   }, []);
 
   // Navigation handlers
@@ -152,8 +181,8 @@ const ManagerAbsences: React.FC<ManagerAbsencesProps> = (props) => {
     <div data-testid="manager-absences-container">
       <PageLayout
         headerIcon={CalendarBlankIcon}
-        headerTitle="Absence Management Hub (Manager)"
-        headerDescription="Manage team absences, track absence requests, and view team calendar"
+        headerTitle={getTranslationFromI18nKeyAndLabel('lowcoder:absence_management_hub_manager.absence_management_hub_manager_title','Absence Management Hub (Manager)')}
+        headerDescription={getTranslationFromI18nKeyAndLabel('lowcoder:absence_management_hub_manager.manager_description','Manage team absences, track absence requests, and view team calendar')}
         headerSubViews={{
           value: activeTab,
           onValueChange: handleTabChange,

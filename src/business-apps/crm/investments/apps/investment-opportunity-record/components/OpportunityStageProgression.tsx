@@ -96,19 +96,18 @@ const OpportunityStageTooltipContent: React.FC<{
 };
 
 // Transform real stage condition status data for stage progression display
-// Filter conditions based on parentEntryId matching the stage
-const getStageConditionsFromReal = (stageConditionStatuses: any[], stageName: string): StageCondition[] => {
-  // Build the expected stage ID from the stage name
-  const expectedStageId = `SalesPipelineStage:v1:${stageName}`;
-  
+// Filter conditions based on parentEntryId matching the stage (by stage ID)
+const getStageConditionsFromReal = (stageConditionStatuses: any[], stageId: string): StageCondition[] => {
   // Filter conditions that belong to this specific stage
   const stageSpecificConditions = stageConditionStatuses.filter(statusData => {
-    const parentEntryId = statusData.salesPipelineStageCondition?.parentEntryId;
-    return parentEntryId === expectedStageId;
+    const conditionEntry = statusData.opportunityPipelineStageCondition;
+    const parentEntryId = conditionEntry?.parentEntryId;
+    return parentEntryId === stageId;
   });
   
   return stageSpecificConditions.map(statusData => {
-    const config = statusData.configSnapshot || statusData.salesPipelineStageCondition?.objectValue || {};
+    const conditionEntry = statusData.opportunityPipelineStageCondition;
+    const config = statusData.configSnapshot || conditionEntry?.objectValue || {};
     const checkedType = config.check_type === 'MANUAL' ? 'User' : 'Automated';
     
     // Get employee name - prefer displayName, fallback to firstName + lastName
@@ -119,7 +118,7 @@ const getStageConditionsFromReal = (stageConditionStatuses: any[], stageName: st
     
     return {
       id: statusData.id,
-      title: statusData.salesPipelineStageCondition?.value || 'Unknown Condition',
+      title: conditionEntry?.value || 'Unknown Condition',
       isCompleted: statusData.completed || false,
       checkedType: checkedType as 'Automated' | 'User' | 'Manager' | 'Owner',
       completedBy: statusData.completedByEmployee ? getEmployeeName(statusData.completedByEmployee) : null
@@ -127,9 +126,9 @@ const getStageConditionsFromReal = (stageConditionStatuses: any[], stageName: st
   });
 };
 
-// Calculate completion percentage for a specific stage
-const getStageCompletionPercentage = (stageConditionStatuses: any[], stageName: string): number => {
-  const conditions = getStageConditionsFromReal(stageConditionStatuses, stageName);
+// Calculate completion percentage for a specific stage (by stage ID)
+const getStageCompletionPercentageById = (stageConditionStatuses: any[], stageId: string): number => {
+  const conditions = getStageConditionsFromReal(stageConditionStatuses, stageId);
   
   if (conditions.length === 0) {
     return 100; // No conditions = 100% completion (all conditions met)
@@ -188,7 +187,7 @@ export const OpportunityStageProgression: React.FC<OpportunityStageProgressionPr
 
   // Stable context arrays
   const emptyContextsArray = useMemo(() => [], []);
-  const transitionContextsArray = useMemo(() => [FlowContextName.transitionOpportunityStage], []);
+  const transitionContextsArray = useMemo(() => [FlowContextName.investmentOpportunityStageTransition], []);
   const stageStyle = useMemo(() => ({ flex: 1, display: 'flex' as const }), []);
 
   // Create stable props for all stages
@@ -225,19 +224,39 @@ export const OpportunityStageProgression: React.FC<OpportunityStageProgressionPr
   }
 
   return (
-    <div style={{ marginBottom: '24px' }}>
+    <div>
       <StageProgression
         stages={convertToStageFormat(stages)}
         currentStage={currentStage}
-        getStageCompletionPercentage={(stageCode) => getStageCompletionPercentage(stageConditionStatuses, stageCode)}
+        getStageCompletionPercentage={(stageCode) => {
+          const stage = convertToStageFormat(stages).find(s => s.code === stageCode);
+          const stageId = stage?.id || '';
+          return getStageCompletionPercentageById(stageConditionStatuses, stageId);
+        }}
         dataTestIdPrefix="opportunity-stage-progression"
-        onStageClick={() => {}} // Dummy function to enable pointer cursor
+        onStageClick={() => {}} // Dummy function to enable pointer cursor for non-current stages
       >
         {(stage, isCurrentStage, _isCompleted, stageElement) => {
           const stagePropsData = stageProps[stage.id];
+          // For the current stage, render a plain container (no action menu) to prevent any click interaction
+          if (isCurrentStage) {
+            return (
+              <div
+                key={`stage-${stage.id}-current`}
+                style={stageStyle}
+                onMouseEnter={stagePropsData?.mouseHandlers.onMouseEnter}
+                onMouseLeave={stagePropsData?.mouseHandlers.onMouseLeave}
+                data-testid={`opportunity-stage-action-menu-${stage.code}`}
+              >
+                {stageElement}
+              </div>
+            );
+          }
+
+          // For non-current stages, keep the action menu to allow transitions
           return (
             <AppActionMenu
-              key={`stage-${stage.id}-${isCurrentStage ? 'current' : 'not-current'}`}
+              key={`stage-${stage.id}-not-current`}
               contextsArray={stagePropsData?.contextsArray}
               externalContextData={stagePropsData?.externalContextData}
               accessToken={accessToken}
@@ -261,7 +280,7 @@ export const OpportunityStageProgression: React.FC<OpportunityStageProgressionPr
         const hoveredStage = convertToStageFormat(stages).find(s => s.id === hoveredStageId);
         if (!hoveredStage) return null;
 
-        const conditions = getStageConditionsFromReal(stageConditionStatuses, hoveredStage.code);
+        const conditions = getStageConditionsFromReal(stageConditionStatuses, hoveredStage.id);
         
         return (
           <div

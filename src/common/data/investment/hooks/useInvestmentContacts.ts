@@ -18,6 +18,14 @@ import {
   type InvestmentContactQueryVariables
 } from '../queries';
 
+// Import related-entity queries statically to avoid dynamic chunking
+import {
+  GET_INVESTMENT_TASKS_BY_CONTACT_ID,
+  GET_INVESTMENT_ACTIVITIES_BY_CONTACT_ID,
+  GET_INVESTMENT_NOTES_BY_CONTACT_ID,
+  GET_INVESTMENT_DOCUMENTS_BY_CONTACT_ID
+} from '../queries/investmentContactQueries';
+
 // Use the mapper function
 import { 
   toInvestmentContact,
@@ -128,7 +136,6 @@ export const useGetInvestmentTasksByContactId = (context: BusinessAppContextProp
   const graphqlClient = useGraphQLClient(context.accessToken);
   
   const fetchInvestmentTasksByContactId = useCallback(async (contactId: string) => {
-    const { GET_INVESTMENT_TASKS_BY_CONTACT_ID } = await import('../queries');
     const query = GET_INVESTMENT_TASKS_BY_CONTACT_ID(contactId);
     
     try {
@@ -148,7 +155,6 @@ export const useGetInvestmentActivitiesByContactId = (context: BusinessAppContex
   const graphqlClient = useGraphQLClient(context.accessToken);
   
   const fetchInvestmentActivitiesByContactId = useCallback(async (contactId: string) => {
-    const { GET_INVESTMENT_ACTIVITIES_BY_CONTACT_ID } = await import('../queries');
     const query = GET_INVESTMENT_ACTIVITIES_BY_CONTACT_ID(contactId);
     
     try {
@@ -168,7 +174,6 @@ export const useGetInvestmentNotesByContactId = (context: BusinessAppContextProp
   const graphqlClient = useGraphQLClient(context.accessToken);
   
   const fetchInvestmentNotesByContactId = useCallback(async (contactId: string) => {
-    const { GET_INVESTMENT_NOTES_BY_CONTACT_ID } = await import('../queries');
     const query = GET_INVESTMENT_NOTES_BY_CONTACT_ID(contactId);
     
     try {
@@ -188,7 +193,6 @@ export const useGetInvestmentDocumentsByContactId = (context: BusinessAppContext
   const graphqlClient = useGraphQLClient(context.accessToken);
   
   const fetchInvestmentDocumentsByContactId = useCallback(async (contactId: string) => {
-    const { GET_INVESTMENT_DOCUMENTS_BY_CONTACT_ID } = await import('../queries');
     const query = GET_INVESTMENT_DOCUMENTS_BY_CONTACT_ID(contactId);
     
     try {
