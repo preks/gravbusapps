@@ -1,5 +1,5 @@
 export const ruleDataQuery = `query ruleDataQuery($activeUserLocale: String!){
-  ExpenseRule(where: {isDeleted: {_eq: false}}) {
+  StandardPeriods: ExpenseRule(where: {isDeleted: {_eq: false}}) {
     id
     code
     name

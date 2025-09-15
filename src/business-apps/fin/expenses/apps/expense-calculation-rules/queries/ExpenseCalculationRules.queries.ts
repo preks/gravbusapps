@@ -40,6 +40,17 @@ export const GET_CALCULATION_TYPES = (): string => {
   `;
 };
 
+export const GET_EXPENSE_RULE_FLAGS = `
+query getRuleFlags($id: uuid!) {
+  ExpenseRuleFlag(where: { expenseRuleId: { _eq: $id }, isDeleted: { _eq: false } }) {
+      id
+      version
+      expenseRuleId
+      value
+      name
+  }
+}
+`;
 export const buildGetExpenseRulesQuery = (): string => {
   // where conditions are built via variables substituted inline in GraphQL by concatenating fragments
   return `

@@ -5,6 +5,7 @@ import { DataFilterGroup } from '@/components/data-filter/DataFilter';
 import { DataControllerProps } from '@/components/dataController/DataController';
 import { formatDate, getCatalogValue, getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
 import { env } from '@/common/env/EnvUtils';
+import { useGraphqlClient } from '@/common/network/graphql/useGraphQLClient';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow, Card, CardContent, Spinner, Alert, Button, Dialog, DialogContent, DialogHeader } from '@newwork/nw-design-system';
 import { useExpenseCalculationRules } from './hooks/useExpenseCalculationRules';
 import {
@@ -26,6 +27,7 @@ import { ListBulletsIcon, SortAscendingIcon, SortDescendingIcon, CaretLeftIcon, 
 import { EXPENSE_CALCULATION_RULES_FLOW_ACTIONS } from './constants/flowActions';
 import FlowActionsButton from './components/FlowActionsButton';
 import { CreateCalculationRuleForm } from '@/business-apps/fin/expenses/forms/create-calculation-rule';
+import { GET_EXPENSE_RULE_FLAGS } from './queries/ExpenseCalculationRules.queries';
 
 interface ExpenseCalculationRulesProps extends BusinessAppContextProps {}
 
@@ -66,8 +68,9 @@ const ExpenseCalculationRules: React.FC<ExpenseCalculationRulesProps> = (props) 
   }, [setPage, setPageSize]);
 
   const [flowModalOpen, setFlowModalOpen] = React.useState<boolean>(false);
+  const [selectedRow, setSelectedRow] = React.useState<any | null>(null);
   const openCalculationRuleModal = useCallback(() => setFlowModalOpen(true), []);
-
+  const graphqlClient = useGraphqlClient(props.accessToken);
   const handleHeaderSort = useCallback((field: string) => {
     let next: 'ASC' | 'DESC' | '' = 'ASC';
     if (sortField === field) {
@@ -82,6 +85,49 @@ const ExpenseCalculationRules: React.FC<ExpenseCalculationRulesProps> = (props) 
     const base = env('NEXT_PUBLIC_BASE_URL') || '';
     return `${base}/_next/static/media/lowcoder-icons/newwork/flow_min_20x20.svg`;
   }, []);
+
+  const buildRuleDetailsUrl = useCallback((row: any): string => {
+    const base = env('NEXT_PUBLIC_BASE_URL') || '';
+    const path = '/platform/landing_screen/srn_expenseCalculationRuleDetailsV2';
+
+    const params: [string, any][] = [
+      ['code', row?.code ?? ''],
+      ['name', row?.name ?? ''],
+      ['calculation', getCatalogValue(row?.calculationType) ?? ''],
+      ['activeFrom', row?.activeFrom ?? ''],
+      ['activeTo', row?.activeTo ?? ''],
+      ['standard', String(!!row?.standard)],
+      ['currency', row?.currency?.code ?? ''],
+      ['id', row?.id ?? ''],
+      ['version', String(row?.version ?? '')],
+      ['deductionLimit', String(!!row?.deductionLimit)],
+      ['taxesCode', row?.taxesCode ?? ''],
+      ['useLastCountry', String(!!row?.useLastCountry)],
+      ['nonpayableCode', row?.nonpayableCode ?? ''],
+      ['advancePaymentCode', row?.advancePaymentCode ?? ''],
+      ['ruleFlagId', JSON.stringify(row?.ruleFlagId ?? [])],
+      ['countryRef', row?.countryRef ?? ''],
+      ['useSingleCurrency', String(!!row?.useSingleCurrency)],
+    ];
+
+    const query = params
+      .map(([k, v]) => `${encodeURIComponent(k)}=${encodeURIComponent(String(v))}`)
+      .join('&');
+
+    return `${base}${path}?${query}`;
+  }, []);
+
+  const handleRowClick = useCallback(async (row: any) => {
+    try {
+      const res = await graphqlClient.request<any>(GET_EXPENSE_RULE_FLAGS, { id: row.id });
+      const flagIds = (res?.ExpenseRuleFlag || []).map((f:any) => f?.expenseRuleId);
+      const url = buildRuleDetailsUrl({ ...row, ruleFlagId: flagIds });
+      window.location.href = url;
+    } catch (_e) {
+      const url = buildRuleDetailsUrl({ ...row, ruleFlagId: [] });
+      window.location.href = url;
+    }
+  }, [graphqlClient, GET_EXPENSE_RULE_FLAGS, buildRuleDetailsUrl]);
 
   const columns = useMemo(() => ([
     { key: 'actions', title: '', width: '60px' },
@@ -209,14 +255,23 @@ const ExpenseCalculationRules: React.FC<ExpenseCalculationRulesProps> = (props) 
                         </TableRow>
                       ) : (
                         items.map((row) => (
-                          <TableRow key={row.id} data-testid={`${PREFIX}-row-${row.id}`}>
+                          <TableRow
+                            key={row.id}
+                            data-testid={`${PREFIX}-row-${row.id}`}
+                            className="gba:cursor-pointer"
+                            onClick={() => { handleRowClick(row as any); }}
+                          >
                             <TableCell className="gba:py-3 gba:px-3" data-testid={`${PREFIX}-cell-actions-${row.id}`}>
                               <Button
                                 variant="outline"
                                 size="icon"
                                 className="gba:w-8 gba:h-8 gba:rounded"
                                 data-testid={`${PREFIX}-actions-button-${row.id}`}
-                                onClick={() => setFlowModalOpen(true)}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setSelectedRow(row as any);
+                                  setFlowModalOpen(true);
+                                }}
                               >
                                 <img src={flowIconUrl} alt="Actions" className="gba:w-5 gba:h-5" />
                               </Button>
@@ -332,14 +387,17 @@ const ExpenseCalculationRules: React.FC<ExpenseCalculationRulesProps> = (props) 
 
             {/* Create Calculation Rule Modal */}
             <Dialog open={flowModalOpen} onOpenChange={setFlowModalOpen}>
-              <DialogContent data-testid={`${PREFIX}-create-modal`}>
-                <DialogHeader>
-                </DialogHeader>
-                <CreateCalculationRuleForm
-                  accessToken={props.accessToken}
-                  onCancel={() => setFlowModalOpen(false)}
-                  onCreate={() => setFlowModalOpen(false)}
-                />
+            <DialogContent data-testid={`${PREFIX}-create-modal`} 
+            className="gba:h-[100vh] gba:max-h-[100vh] gba:flex gba:flex-col gba:px-[40px] gba:w-[100%] gba:overflow-hidden">
+              <DialogHeader />
+                <div className="gba:flex-1 gba:overflow-y-auto gba:pr-2">
+                  <CreateCalculationRuleForm
+                    accessToken={props.accessToken}
+                    additionalData={{ nvi_navigationPayload: selectedRow || {} }}
+                    onCancel={() => setFlowModalOpen(false)}
+                    onCreate={() => setFlowModalOpen(false)}
+                  />
+                </div>
               </DialogContent>
             </Dialog>
           </div>
