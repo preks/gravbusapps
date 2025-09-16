@@ -134,7 +134,7 @@ export const useSharedFlowTemplates = (
         limit,
         offset: isLoadMore ? currentOffset : 0,
         onlyLatest: true,
-        includeDrafts: false
+        includeDrafts: true
       });
 
       console.log('🎭 [useSharedFlowTemplates] Service result:', result);

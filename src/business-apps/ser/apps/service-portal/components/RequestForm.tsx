@@ -14,6 +14,11 @@ import {
   Badge, 
   Spinner,
   Separator,
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
   type KpiCardData
 } from '@newwork/nw-design-system';
 import { ServiceRequestTemplate, WorkflowEngine, FlowTemplate, DynamicFormValues } from '../../../types';
@@ -29,7 +34,15 @@ import {
   CurrencyDollar,
   User,
   Building,
-  Star
+  Star,
+  Robot,
+  Brain,
+  Copy,
+  X,
+  ThumbsUp,
+  Lightbulb,
+  Target,
+  ShieldCheck
 } from '@phosphor-icons/react';
 import { ArrowLeftOutlined } from '@ant-design/icons';
 import { getCategoryById } from '../../../data';
@@ -239,6 +252,12 @@ export const RequestForm: React.FC<RequestFormProps> = ({
     requiresUsers: boolean;
   }>>([]);
   const [loadingAssignments, setLoadingAssignments] = useState(false);
+  
+  // AI Response Modal State
+  const [showAIResponse, setShowAIResponse] = useState(false);
+  const [aiResponse, setAIResponse] = useState<string>('');
+  const [aiLoading, setAILoading] = useState(false);
+  const [aiResponseType, setAIResponseType] = useState<'suggestion' | 'validation' | 'optimization'>('suggestion');
   
   // Determine if we're using a flow template or mock template
   const isFlowTemplate = !!flowTemplate;
@@ -580,6 +599,128 @@ export const RequestForm: React.FC<RequestFormProps> = ({
 
     return totalRequired > 0 ? Math.round((completedRequired / totalRequired) * 100) : (totalRequired === 0 ? 100 : 0);
   }, [isFlowTemplate, flowTemplate, formFieldsConfig, formData, stepsRequiringAssignment]);
+
+  // Handle AI button click - collect form data and simulate AI response
+  const handleAskAI = async () => {
+    console.log('🤖 [Ask AI for Quick Solution] Button clicked');
+    
+    // Start AI loading
+    setAILoading(true);
+    setShowAIResponse(true);
+    
+    // Prepare AI payload with form data
+    const aiPayload = {
+      timestamp: new Date().toISOString(),
+      templateInfo: {
+        type: isFlowTemplate ? 'flow-template' : 'mock-template',
+        id: isFlowTemplate ? flowTemplate?.id : (template as ServiceRequestTemplate)?.key,
+        name: isFlowTemplate ? flowTemplate?.name : (template as ServiceRequestTemplate)?.title,
+        description: currentTemplate?.description
+      },
+      formData: { ...formData },
+      formCompletion: {
+        percentage: completionPercentage,
+        totalFields: isFlowTemplate 
+          ? (flowTemplate?.formSchema?.length || 0)
+          : formFieldsConfig.length,
+        filledFields: Object.keys(formData).filter(key => formData[key] && formData[key] !== '').length
+      },
+      stepAssignments: formData.stepAssignments || {},
+      requiredAssignments: stepsRequiringAssignment.map(step => ({
+        stepId: step.stepId,
+        title: step.title,
+        assignmentMode: step.assignmentMode,
+        assignedTo: formData.stepAssignments?.[step.stepId] || (step.assignmentMode === 'ASSIGN' ? 'current-user' : 'unassigned')
+      })),
+      userContext: {
+        userId: contextProps.userInfo?.id,
+        employeeId: contextProps.userInfo?.employeeId,
+        fullName: contextProps.userInfo?.fullName,
+        email: contextProps.userInfo?.email
+      },
+      aiRequestContext: {
+        purpose: 'quick-solution-suggestion',
+        expectedResponse: 'AI should analyze the form data and suggest optimizations, missing fields, or quick solutions'
+      }
+    };
+
+    console.log('🤖 [Ask AI] Prepared payload for AI service:', aiPayload);
+    
+    // Simulate AI processing delay
+    await new Promise(resolve => setTimeout(resolve, 2000));
+    
+    // Generate mock AI response based on form completion
+    let mockResponse = '';
+    let responseType: 'suggestion' | 'validation' | 'optimization' = 'suggestion';
+    
+    if (completionPercentage < 50) {
+      responseType = 'validation';
+      mockResponse = `🔍 **Form Validation Analysis**
+
+I've analyzed your form and found several areas that need attention:
+
+**Missing Required Fields:**
+${isFlowTemplate && flowTemplate?.formSchema 
+  ? flowTemplate.formSchema.filter(f => f.required && !formData[f.name]).map(f => `• ${f.label}`).join('\n') || '• All required fields are completed ✅'
+  : formFieldsConfig.filter(f => f.required && !formData[f.field]).map(f => `• ${f.field.charAt(0).toUpperCase() + f.field.slice(1)}`).join('\n') || '• All required fields are completed ✅'
+}
+
+**Recommendations:**
+• Complete required fields first for faster processing
+• Add detailed business justification to speed up approval
+• Consider adding additional context in the comments section
+
+**Estimated Processing Time:** Once complete, your request should be processed in 2-3 business days.`;
+    } else if (completionPercentage >= 100) {
+      responseType = 'optimization';
+      mockResponse = `✨ **Smart Optimization Suggestions**
+
+Excellent! Your form is complete. Here are some AI-powered optimizations:
+
+**Priority Enhancement:**
+• Based on your request type, consider marking this as "High" priority if needed urgently
+• Current completion score: ${completionPercentage}% - Perfect! 🎯
+
+**Process Acceleration Tips:**
+• Your business justification looks good - this will help with faster approval
+• Consider reaching out to your manager proactively if this is time-sensitive
+• All step assignments are properly configured
+
+**Estimated Timeline:**
+• **Review Phase:** 1-2 business days
+• **Approval Phase:** 1-2 business days  
+• **Implementation:** 2-3 business days
+
+**Pro Tip:** 💡 Your request is well-structured and should move through the workflow smoothly!`;
+    } else {
+      responseType = 'suggestion';
+      mockResponse = `💡 **AI Quick Solution Suggestions**
+
+I've analyzed your partially completed form. Here's how to optimize it:
+
+**Quick Wins:**
+• Form completion: ${completionPercentage}% - You're making good progress! 
+• Consider adding more detail to speed up the approval process
+
+**Smart Suggestions:**
+• **Business Justification:** Add specific business impact or urgency details
+• **Additional Context:** Include any relevant background information
+• **Timeline Expectations:** Mention if you have specific deadlines
+
+**Next Steps:**
+1. Complete the remaining required fields
+2. Review your entries for completeness  
+3. Submit when you're satisfied with the details
+
+**AI Confidence:** High - Your request follows best practices! 🚀`;
+    }
+    
+    setAIResponse(mockResponse);
+    setAIResponseType(responseType);
+    setAILoading(false);
+    
+    console.log('🤖 [Ask AI] Generated response:', { responseType, completionPercentage });
+  };
 
     return (
     <div data-testid="request-form-container" style={{ backgroundColor: "white", padding: "16px" }}>
@@ -975,34 +1116,92 @@ export const RequestForm: React.FC<RequestFormProps> = ({
                 </div>
 
                 {/* Form Actions */}
-                <div className="gba:flex gba:gap-4 gba:pt-6">
-                  <Button 
-                    type="submit" 
-                    disabled={isLoading || completionPercentage < 100}
-                    className="gba:flex-1 gba:py-3"
-                    size="lg"
+                <div className="gba:flex gba:flex-col gba:gap-4 gba:pt-6">
+                  {/* AI Quick Solution Button */}
+                  <button
+                    type="button"
+                    onClick={handleAskAI}
+                    disabled={isLoading || aiLoading}
+                    className="gba:w-full gba:py-4 gba:px-6 gba:bg-gradient-to-r gba:from-purple-500 gba:via-violet-500 gba:to-blue-600 hover:gba:from-purple-600 hover:gba:via-violet-600 hover:gba:to-blue-700 gba:text-white gba:font-semibold gba:rounded-lg gba:border-0 gba:shadow-xl hover:gba:shadow-2xl gba:transition-all gba:duration-300 gba:ease-in-out hover:gba:scale-105 active:gba:scale-95 disabled:gba:opacity-50 disabled:gba:cursor-not-allowed disabled:hover:gba:scale-100 gba:relative gba:overflow-hidden gba:group"
+                    data-testid="ask-ai-button"
+                    style={{
+                      background: 'linear-gradient(135deg, #8b5cf6 0%, #7c3aed 25%, #6366f1 50%, #3b82f6 75%, #2563eb 100%)',
+                      backgroundSize: '200% 200%',
+                      animation: 'gradient-shift 3s ease infinite'
+                    }}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.backgroundPosition = '100% 0%';
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.backgroundPosition = '0% 0%';
+                    }}
                   >
-                    {isLoading ? (
-                      <>
-                        <Spinner size="sm" className="gba:mr-2" />
-                        Submitting Request...
-                      </>
-                    ) : (
-                      <>
-                        <CheckCircle className="gba:mr-2" size={16} />
-                        Submit Request
-                      </>
-                    )}
-                  </Button>
-                  <Button 
-                    type="button" 
-                    variant="outline" 
-                    onClick={onCancel}
-                    disabled={isLoading}
-                    className="gba:px-8"
-                  >
-                    Cancel
-                  </Button>
+                    {/* Shimmer overlay effect */}
+                    <div 
+                      className="gba:absolute gba:inset-0 gba:bg-gradient-to-r gba:from-transparent gba:via-white gba:to-transparent gba:opacity-30"
+                      style={{
+                        width: '30%',
+                        transform: 'translateX(-200%) skewX(-15deg)',
+                        animation: 'shimmer 2s ease-in-out infinite'
+                      }}
+                    ></div>
+                    
+                    {/* Content */}
+                    <div className="gba:relative gba:flex gba:items-center gba:justify-center gba:gap-3 gba:z-10">
+                      {aiLoading ? (
+                        <>
+                          <Spinner size="sm" className="gba:w-6 gba:h-6" />
+                          <span className="gba:text-lg gba:font-bold gba:tracking-wide gba:filter gba:drop-shadow-sm">AI is thinking...</span>
+                          <Brain className="gba:w-5 gba:h-5 gba:filter gba:drop-shadow-lg gba:animate-pulse" />
+                        </>
+                      ) : (
+                        <>
+                          <Robot className="gba:w-6 gba:h-6 gba:filter gba:drop-shadow-lg group-hover:gba:animate-bounce" />
+                          <span className="gba:text-lg gba:font-bold gba:tracking-wide gba:filter gba:drop-shadow-sm">Ask AI for quick solution</span>
+                          <Sparkle className="gba:w-5 gba:h-5 gba:filter gba:drop-shadow-lg gba:animate-pulse" />
+                        </>
+                      )}
+                    </div>
+                    
+                    {/* Glow effect */}
+                    <div className="gba:absolute gba:inset-0 gba:rounded-lg gba:opacity-0 group-hover:gba:opacity-100 gba:transition-opacity gba:duration-300" 
+                         style={{
+                           boxShadow: '0 0 30px rgba(139, 92, 246, 0.6), 0 0 60px rgba(139, 92, 246, 0.4)'
+                         }}>
+                    </div>
+                  </button>
+                  
+                  {/* Primary Actions */}
+                  <div className="gba:flex gba:gap-4">
+                    <Button 
+                      type="submit" 
+                      disabled={isLoading || completionPercentage < 100}
+                      className="gba:flex-1 gba:py-3"
+                      size="lg"
+                    >
+                      {isLoading ? (
+                        <>
+                          <Spinner size="sm" className="gba:mr-2" />
+                          Submitting Request...
+                        </>
+                      ) : (
+                        <>
+                          <CheckCircle className="gba:mr-2" size={16} />
+                          Submit Request
+                        </>
+                      )}
+                    </Button>
+                    <Button 
+                      type="button" 
+                      variant="outline" 
+                      onClick={onCancel}
+                      disabled={isLoading}
+                      className="gba:px-8"
+                      size="lg"
+                    >
+                      Cancel
+                    </Button>
+                  </div>
                 </div>
 
                 {/* Help Text */}
@@ -1186,6 +1385,124 @@ export const RequestForm: React.FC<RequestFormProps> = ({
           </div>
         </div>
       </PageLayout>
+
+      {/* AI Response Modal */}
+      <Dialog open={showAIResponse} onOpenChange={setShowAIResponse}>
+        <DialogContent className="gba:max-w-4xl gba:max-h-[80vh] gba:overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="gba:flex gba:items-center gba:gap-3 gba:text-2xl">
+              <div className="gba:p-2 gba:rounded-full gba:bg-gradient-to-r gba:from-purple-500 gba:to-blue-500">
+                <Brain className="gba:w-6 gba:h-6 gba:text-white" />
+              </div>
+              AI Assistant Response
+              {aiResponseType === 'validation' && <ShieldCheck className="gba:w-5 gba:h-5 gba:text-orange-500" />}
+              {aiResponseType === 'optimization' && <Target className="gba:w-5 gba:h-5 gba:text-green-500" />}
+              {aiResponseType === 'suggestion' && <Lightbulb className="gba:w-5 gba:h-5 gba:text-blue-500" />}
+            </DialogTitle>
+            <DialogDescription className="gba:text-gray-600">
+              AI-powered analysis of your service request form
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="gba:space-y-6 gba:py-4">
+            {/* Loading State */}
+            {aiLoading ? (
+              <div className="gba:flex gba:flex-col gba:items-center gba:justify-center gba:py-12 gba:space-y-4">
+                <div className="gba:relative">
+                  <div className="gba:w-16 gba:h-16 gba:border-4 gba:border-purple-200 gba:border-t-purple-500 gba:rounded-full gba:animate-spin"></div>
+                  <Brain className="gba:absolute gba:top-1/2 gba:left-1/2 gba:transform gba:-translate-x-1/2 gba:-translate-y-1/2 gba:w-6 gba:h-6 gba:text-purple-500" />
+                </div>
+                <div className="gba:text-center">
+                  <h3 className="gba:text-lg gba:font-semibold gba:text-gray-800">AI is analyzing your form...</h3>
+                  <p className="gba:text-sm gba:text-gray-600 gba:mt-2">
+                    Reviewing {Object.keys(formData).length} form fields and generating personalized suggestions
+                  </p>
+                </div>
+              </div>
+            ) : (
+              /* AI Response Content */
+              <div className="gba:space-y-6">
+                {/* Response Type Badge */}
+                <div className="gba:flex gba:items-center gba:gap-2">
+                  <Badge 
+                    variant="outline" 
+                    className={`gba:px-3 gba:py-1 gba:text-sm gba:font-medium ${
+                      aiResponseType === 'validation' 
+                        ? 'gba:bg-orange-50 gba:text-orange-700 gba:border-orange-200' 
+                        : aiResponseType === 'optimization'
+                        ? 'gba:bg-green-50 gba:text-green-700 gba:border-green-200'
+                        : 'gba:bg-blue-50 gba:text-blue-700 gba:border-blue-200'
+                    }`}
+                  >
+                    {aiResponseType === 'validation' && '🔍 Form Validation'}
+                    {aiResponseType === 'optimization' && '✨ Optimization'}
+                    {aiResponseType === 'suggestion' && '💡 Smart Suggestions'}
+                  </Badge>
+                  <Badge variant="outline" className="gba:text-xs gba:bg-gray-50">
+                    Form Completion: {completionPercentage}%
+                  </Badge>
+                </div>
+
+                {/* AI Response Text */}
+                <Card className="gba:p-6 gba:bg-gradient-to-br gba:from-gray-50 gba:to-white gba:border-l-4 gba:border-l-purple-500">
+                  <div className="gba:prose gba:prose-sm gba:max-w-none">
+                    <div className="gba:whitespace-pre-line gba:text-gray-800 gba:leading-relaxed">
+                      {aiResponse}
+                    </div>
+                  </div>
+                </Card>
+
+                {/* Action Buttons */}
+                <div className="gba:flex gba:gap-3 gba:pt-4 gba:border-t gba:border-gray-200">
+                  <Button
+                    onClick={() => {
+                      navigator.clipboard.writeText(aiResponse);
+                      // Could add a toast notification here
+                    }}
+                    variant="outline"
+                    className="gba:flex gba:items-center gba:gap-2"
+                  >
+                    <Copy className="gba:w-4 gba:h-4" />
+                    Copy Response
+                  </Button>
+                  
+                  <Button
+                    onClick={() => {
+                      // Could implement feedback functionality
+                      console.log('👍 AI Response feedback: Helpful');
+                    }}
+                    variant="outline"
+                    className="gba:flex gba:items-center gba:gap-2 gba:text-green-600 hover:gba:bg-green-50"
+                  >
+                    <ThumbsUp className="gba:w-4 gba:h-4" />
+                    Helpful
+                  </Button>
+
+                  <Button
+                    onClick={() => setShowAIResponse(false)}
+                    className="gba:ml-auto gba:bg-purple-500 hover:gba:bg-purple-600"
+                  >
+                    Got it, thanks!
+                  </Button>
+                </div>
+
+                {/* Pro Tip */}
+                <div className="gba:bg-blue-50 gba:border gba:border-blue-200 gba:rounded-lg gba:p-4">
+                  <div className="gba:flex gba:items-start gba:gap-3">
+                    <Lightbulb className="gba:w-5 gba:h-5 gba:text-blue-500 gba:mt-0.5 gba:flex-shrink-0" />
+                    <div>
+                      <h4 className="gba:font-semibold gba:text-blue-800 gba:text-sm">Pro Tip</h4>
+                      <p className="gba:text-blue-700 gba:text-sm gba:mt-1">
+                        You can ask the AI for help again after making changes to your form. The suggestions will be updated based on your progress!
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
