@@ -4,7 +4,7 @@ import { WidgetGroup, WidgetItem } from '@/components/widget-group';
 import { useGetAdvancePaymentStatistics } from '../../../hooks/useGetAdvancePaymentStatistics';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 import dayjs from 'dayjs';
-import { formatNumberFunction, getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
+import { getTranslationFromI18nKeyAndLabel, formatDate } from '@/common/utils/windowUtils';
 import { formatCurrencyDisplay } from '../../../utils';
 
 interface AdvancePaymentStatisticsProps extends BusinessAppContextProps {

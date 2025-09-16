@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { 
   Table, 
   TableHeader, 
@@ -26,7 +26,7 @@ import { getAdvancePaymentStatusDisplay, formatCurrencyDisplay } from '../../../
 import AdvancePaymentDetails from './AdvancePaymentDetails';
 import ExpensePlanDetails from '../expense-plans-tab/ExpensePlanDetails';
 import ExpenseRequestDetails from '../expense-requests-tab/ExpenseRequestDetails';
-import { formatNumberFunction, getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
+import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
 import { PiArrowUp, PiArrowDown } from 'react-icons/pi';
 import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils';
 
@@ -65,6 +65,8 @@ const AdvancePaymentsTable = React.forwardRef<HTMLDivElement, AdvancePaymentsTab
   // Pagination state
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(20);
+  // Preserve the page before search to restore after clearing
+  const savedPageBeforeSearchRef = useRef<number | null>(null);
 
   // Server-side sorting state - managed by parent component
   const [sortField, setSortField] = useState<string>('createdAt');
@@ -145,13 +147,28 @@ const AdvancePaymentsTable = React.forwardRef<HTMLDivElement, AdvancePaymentsTab
 
   // Create a memoized setSearch function to prevent re-renders
   const handleSearchChange = useCallback((value: string) => {
+    const trimmedNext = (value || '').trim();
+    const trimmedPrev = (searchText || '').trim();
     setSearchText(value);
-    
+
+    if (trimmedPrev === '' && trimmedNext !== '') {
+      // starting search → save current page and go to 1
+      savedPageBeforeSearchRef.current = currentPage;
+      setCurrentPage(1);
+    } else if (trimmedPrev !== '' && trimmedNext === '') {
+      // clearing search → restore saved page
+      setCurrentPage(savedPageBeforeSearchRef.current || 1);
+      savedPageBeforeSearchRef.current = null;
+    } else if (trimmedNext !== '') {
+      // stay on page 1 while refining search
+      setCurrentPage(1);
+    }
+
     // Notify parent component of search change
     if (props.onSearchChange) {
       props.onSearchChange(value);
     }
-  }, [props.onSearchChange]);
+  }, [props.onSearchChange, searchText, currentPage]);
 
   // Handle adding a new advance payment
   const handleAddAdvancePayment = useCallback(() => {

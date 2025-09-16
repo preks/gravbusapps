@@ -20,14 +20,13 @@ import {
   TooltipProvider,
   TooltipTrigger
 } from '@newwork/nw-design-system';
-import { FileImageOutlined, LoadingOutlined, FilePdfOutlined, FileWordOutlined, FileExcelOutlined, FileOutlined } from '@ant-design/icons';
+import { FileImageOutlined, FilePdfOutlined, FileWordOutlined, FileExcelOutlined, FileOutlined } from '@ant-design/icons';
 import { FileClient } from '@/common/network/files/FileClient';
 import { ExpenseItem, useGetExpenseItem } from '../../../hooks/useGetExpenseItems';
 import { getExpenseItemStatusDisplay } from '../../../utils';
-import { getTranslationFromI18nKeyAndLabel, getDateFormat, formatNumberFunction } from '@/common/utils/windowUtils';
+import { getTranslationFromI18nKeyAndLabel, formatDate } from '@/common/utils/windowUtils';
 import { formatCurrencyDisplay } from '../../../utils';
 import type { UploadFile } from 'antd/es/upload/interface';
-import dayjs from 'dayjs';
 
 // Utility function to truncate file names
 const truncateFileName = (fileName: string, maxLength: number = 15): string => {
@@ -458,7 +457,7 @@ export const ExpenseItemDetails: React.FC<ExpenseItemDetailsProps> = ({
                 <div className="gba:flex gba:items-center gba:space-x-2">
                   <span className="gba:text-sm gba:text-gray-700">
                     {getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.expense_date', 'Expense Date')}: {' '}
-                    {dayjs(displayItem.expenseDate).format(getDateFormat('date-long'))}
+                    {formatDate(displayItem.expenseDate, 'date.long')}
                   </span>
                 </div>
               )}
@@ -466,7 +465,7 @@ export const ExpenseItemDetails: React.FC<ExpenseItemDetailsProps> = ({
                 <div className="gba:flex gba:items-center gba:space-x-2">
                   <span className="gba:text-sm gba:text-gray-700">
                     {getTranslationFromI18nKeyAndLabel('lowcoder:expense_item_list.expense_table.invoice_date', 'Invoice Date')}: {' '}
-                    {dayjs(displayItem.invoiceDate).format(getDateFormat('date-long'))}
+                    {formatDate(displayItem.invoiceDate, 'date.long')}
                   </span>
                 </div>
               )}
