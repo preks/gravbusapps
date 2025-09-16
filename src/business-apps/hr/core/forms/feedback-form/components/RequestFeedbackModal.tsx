@@ -15,7 +15,7 @@ import { getCurrentActiveStructureId } from '@/common/utils/windowUtils';
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
 import { formatDataTestId } from '@/common/utils/formatDataTestId';
 import { dispatchProcessContinueEvent } from '@/common/utils/processEventUtils';
-import EmployeeSearchableSelect from '../../lead-form/components/EmployeeSearchableSelect';
+import EmployeeSearchableSelect from '@/business-apps/crm/common/forms/lead-form/components/EmployeeSearchableSelect';
 
 const prefixDataTestId = 'RequestFeedbackModal';
 
