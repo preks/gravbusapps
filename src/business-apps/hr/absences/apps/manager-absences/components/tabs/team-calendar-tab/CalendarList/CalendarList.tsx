@@ -1,11 +1,9 @@
 import React, { useMemo, useState, useEffect } from 'react';
 import { CalendarTimeline, TimelineItem, TimelineEvent } from '@newwork/gravity-ui-catalog';
-import { Typography, Spin, Alert } from 'antd';
+import { Alert, Spinner } from '@newwork/nw-design-system';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
-
-const { Text } = Typography;
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient';
 import { GET_ABSENCES_FOR_CALENDAR } from '../../../../queries/AbsenceQueries';
 
@@ -32,8 +30,6 @@ interface AbsenceTimelineItem extends TimelineItem {
 const CalendarList: React.FC<BusinessAppContextProps> = (props) => {
   const { accessToken, userInfo } = props;
   const supervisorId = userInfo?.employeeDetails?.employeeId;
-
-  const [calendarInitialDate] = useState<Date>(new Date());
 
   const [employees, setEmployees] = useState<any[]>([]);
   const [absences, setAbsences] = useState<any[]>([]);
@@ -146,22 +142,27 @@ const CalendarList: React.FC<BusinessAppContextProps> = (props) => {
     if (loading)
       return (
         <div className="gba:flex gba:justify-center gba:items-center gba:h-full">
-          <Spin size="large" />
+          <Spinner size="xl" />
         </div>
       );
 
     if (error) {
-      return <Alert message={error} type="error" showIcon />;
+      return (
+        <Alert variant="destructive">
+          <div className="gba:font-medium">Error Loading Data</div>
+          <div className="gba:text-sm gba:opacity-90">{error}</div>
+        </Alert>
+      );
     }
 
     if (timelineItems.length === 0 && timelineEvents.length === 0) {
       return (
-        <Text>
+        <div className="gba:text-center gba:py-8 gba:text-muted-foreground">
           {getTranslationFromI18nKeyAndLabel(
             'lowcoder:absence_calendar.no_absence_data_available',
             'No absence data available.',
           )}
-        </Text>
+        </div>
       );
     }
 
@@ -185,15 +186,13 @@ const CalendarList: React.FC<BusinessAppContextProps> = (props) => {
           'lowcoder:expense_request_table.employee_search_filter',
           'Search Employee...',
         )}
-        initialDate={calendarInitialDate}
+        initialDate={new Date()}
         initialViewRange={31}
         renderItemContent={(item) => (
           <div className="gba:p-2">
-            <Text strong>{item.name}</Text>
+            <div className="gba:font-semibold">{item.name}</div>
             {item.detail && (
-              <Text type="secondary" style={{ fontSize: '12px', display: 'block' }}>
-                {item.detail}
-              </Text>
+              <div className="gba:text-xs gba:block gba:text-muted-foreground">{item.detail}</div>
             )}
           </div>
         )}
