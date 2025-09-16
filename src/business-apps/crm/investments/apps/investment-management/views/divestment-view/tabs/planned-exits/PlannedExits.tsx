@@ -32,7 +32,7 @@ interface PlannedExitsProps extends BusinessAppContextProps {}
 const PlannedExits: React.FC<PlannedExitsProps> = ({ accessToken, userInfo }) => {
   const [searchTerm, setSearchTerm] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
-  const [pageSize] = useState(20);
+  const [pageSize, setPageSize] = useState(20);
   const [sortField, setSortField] = useState<string>("plannedExitDate");
   const [sortOrder, setSortOrder] = useState<"ASC" | "DESC">("ASC");
   const [selectedFilters, setSelectedFilters] = useState<string[]>([]);
@@ -92,6 +92,13 @@ const PlannedExits: React.FC<PlannedExitsProps> = ({ accessToken, userInfo }) =>
   const handleSetFilter = useCallback((filters: string[]) => {
     setSelectedFilters(filters);
     setCurrentPage(1);
+  }, []);
+
+  const handlePaginationChange = useCallback((page: number, newPageSize?: number) => {
+    setCurrentPage(page);
+    if (newPageSize) {
+      setPageSize(newPageSize);
+    }
   }, []);
 
   // Sorting handler
@@ -516,6 +523,64 @@ const PlannedExits: React.FC<PlannedExitsProps> = ({ accessToken, userInfo }) =>
                 ))}
               </TableBody>
             </Table>
+            
+            {/* Pagination */}
+            <div
+              className="gba:flex gba:items-center gba:justify-between gba:px-4 gba:py-4 gba:border-t"
+              data-testid="planned-exits-pagination"
+            >
+              <div
+                className="gba:text-sm gba:text-muted-foreground"
+                data-testid="planned-exits-pagination-info"
+              >
+                {`${(currentPage - 1) * pageSize + 1}-${Math.min(
+                  currentPage * pageSize,
+                  totalCount
+                )} of ${totalCount} planned exits`}
+              </div>
+              <div className="gba:flex gba:items-center gba:space-x-6 gba:lg:space-x-8">
+                <div className="gba:flex gba:items-center gba:space-x-2">
+                  <p className="gba:text-sm gba:font-medium">Rows per page</p>
+                  <select
+                    value={pageSize}
+                    onChange={(e) => handlePaginationChange(1, Number(e.target.value))}
+                    className="gba:h-8 gba:w-[70px] gba:rounded gba:border gba:border-input gba:px-3 gba:py-1 gba:text-sm"
+                    data-testid="planned-exits-page-size-select"
+                  >
+                    <option value={10}>10</option>
+                    <option value={20}>20</option>
+                    <option value={50}>50</option>
+                    <option value={100}>100</option>
+                  </select>
+                </div>
+                <div
+                  className="gba:flex gba:w-[100px] gba:items-center gba:justify-center gba:text-sm gba:font-medium"
+                  data-testid="planned-exits-page-info"
+                >
+                  Page {currentPage} of {Math.ceil(totalCount / pageSize)}
+                </div>
+                <div className="gba:flex gba:items-center gba:space-x-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => handlePaginationChange(currentPage - 1)}
+                    disabled={currentPage <= 1}
+                    data-testid="planned-exits-prev-page"
+                  >
+                    Previous
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => handlePaginationChange(currentPage + 1)}
+                    disabled={currentPage >= Math.ceil(totalCount / pageSize)}
+                    data-testid="planned-exits-next-page"
+                  >
+                    Next
+                  </Button>
+                </div>
+              </div>
+            </div>
           </div>
         }
       />

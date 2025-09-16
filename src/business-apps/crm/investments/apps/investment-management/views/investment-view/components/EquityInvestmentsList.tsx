@@ -35,6 +35,7 @@ const EquityInvestmentsList: React.FC<EquityInvestmentsListProps> = (props) => {
     sortOrder,
     initialLoadDone,
     setSearch,
+    handlePaginationChange,
     updateURLParams
   } = useInvestmentListController();
 
@@ -503,6 +504,64 @@ const EquityInvestmentsList: React.FC<EquityInvestmentsListProps> = (props) => {
               ))}
             </TableBody>
           </Table>
+          
+          {/* Pagination */}
+          <div
+            className="gba:flex gba:items-center gba:justify-between gba:px-4 gba:py-4 gba:border-t"
+            data-testid="equity-investments-pagination"
+          >
+            <div
+              className="gba:text-sm gba:text-muted-foreground"
+              data-testid="equity-investments-pagination-info"
+            >
+              {`${(currentPage - 1) * pageSize + 1}-${Math.min(
+                currentPage * pageSize,
+                totalCount
+              )} of ${totalCount} investments`}
+            </div>
+            <div className="gba:flex gba:items-center gba:space-x-6 gba:lg:space-x-8">
+              <div className="gba:flex gba:items-center gba:space-x-2">
+                <p className="gba:text-sm gba:font-medium">Rows per page</p>
+                <select
+                  value={pageSize}
+                  onChange={(e) => handlePaginationChange(1, Number(e.target.value))}
+                  className="gba:h-8 gba:w-[70px] gba:rounded gba:border gba:border-input gba:px-3 gba:py-1 gba:text-sm"
+                  data-testid="equity-investments-page-size-select"
+                >
+                  <option value={10}>10</option>
+                  <option value={20}>20</option>
+                  <option value={50}>50</option>
+                  <option value={100}>100</option>
+                </select>
+              </div>
+              <div
+                className="gba:flex gba:w-[100px] gba:items-center gba:justify-center gba:text-sm gba:font-medium"
+                data-testid="equity-investments-page-info"
+              >
+                Page {currentPage} of {Math.ceil(totalCount / pageSize)}
+              </div>
+              <div className="gba:flex gba:items-center gba:space-x-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => handlePaginationChange(currentPage - 1)}
+                  disabled={currentPage <= 1}
+                  data-testid="equity-investments-prev-page"
+                >
+                  Previous
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => handlePaginationChange(currentPage + 1)}
+                  disabled={currentPage >= Math.ceil(totalCount / pageSize)}
+                  data-testid="equity-investments-next-page"
+                >
+                  Next
+                </Button>
+              </div>
+            </div>
+          </div>
         </div>
       }
     />
