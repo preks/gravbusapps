@@ -1,8 +1,8 @@
-export { default as CampaignHeader } from './CampaignHeader';
-export { default as CampaignKPIs } from './CampaignKPIs';
-export { default as CampaignChart } from './CampaignChart';
-export { default as CampaignEntitiesTable } from './CampaignEntitiesTable';
-export { default as CampaignEntitiesSection } from './CampaignEntitiesSection';
+import CampaignHeader from './CampaignHeader';
+import CampaignKPIs from './CampaignKPIs';
+import CampaignChart from './CampaignChart';
+import CampaignEntitiesTable from './CampaignEntitiesTable';
+import CampaignEntitiesSection from './CampaignEntitiesSection';
 
 // Analytics Components
 export { 
@@ -11,3 +11,17 @@ export {
   CampaignRevenueAnalysis,
   CampaignTopPerformers
 } from './analytics';
+
+export { CampaignHeader };
+export { CampaignKPIs };
+export { CampaignChart };
+export { CampaignEntitiesTable };
+export { CampaignEntitiesSection };
+
+export default {
+  CampaignHeader,
+  CampaignKPIs,
+  CampaignChart,
+  CampaignEntitiesTable,
+  CampaignEntitiesSection,
+};
