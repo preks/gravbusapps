@@ -26,7 +26,7 @@ export interface CatalogFormData {
   identifier: string;
   validFrom?: string;
   validTo?: string;
-  defaultLocale?: 'en_US' | 'de_DE' | 'ro_RO';
+  defaultLocale?: 'en-US' | 'de-DE' | 'ro-RO';
   description?: string;
 }
 
@@ -65,13 +65,13 @@ export const CatalogDialog: React.FC<CatalogDialogProps> = ({
   const [form, setForm] = useState<CatalogFormData>({
     name: '',
     identifier: '',
-    defaultLocale: 'en_US',
+    defaultLocale: 'en-US',
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
     if (!open) {
-      setForm({ name: '', identifier: '', defaultLocale: 'en_US' });
+      setForm({ name: '', identifier: '', defaultLocale: 'en-US' });
       setIsSubmitting(false);
     }
   }, [open]);
@@ -195,9 +195,9 @@ export const CatalogDialog: React.FC<CatalogDialogProps> = ({
               onChange={(e) => handleChange('defaultLocale', e.target.value as any)}
               data-testid={`${dataTestId}-DefaultLocale`}
             >
-              <option value="en_US">en_US</option>
-              <option value="de_DE">de_DE</option>
-              <option value="ro_RO">ro_RO</option>
+              <option value="en-US">en-US</option>
+              <option value="de-DE">de-DE</option>
+              <option value="ro-RO">ro-RO</option>
             </select>
           </div>
 

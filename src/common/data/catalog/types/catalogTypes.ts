@@ -15,6 +15,18 @@ export interface AuditFields {
 // BASE CATALOG TYPES (Raw GraphQL Data)
 // =====================================================
 
+// Catalog entry translation interface for GraphQL fields (raw data from API)
+export interface CatalogEntryTranslation extends AuditFields {
+  id: string;
+  localeCode: string;
+  value: string;
+  additionalValue1: string;
+  additionalValue2: string;
+  additionalValue3: string;
+  objectValue?: any; // jsonb
+  catalogEntryId: string;
+}
+
 // Base catalog interface with GraphQL fields (raw data from API)
 export interface BaseCatalog extends AuditFields {
   id: string;
@@ -76,6 +88,9 @@ export interface BaseCatalogEntry extends AuditFields {
   parentEntryId?: string;
   parentEntry?: BaseCatalogEntry;
   childEntries?: BaseCatalogEntry[];
+  
+  // Translations
+  translations?: CatalogEntryTranslation[];
   
   // State fields
   isDeleted?: boolean;
