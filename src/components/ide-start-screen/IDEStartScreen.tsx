@@ -156,18 +156,6 @@ export const IDEStartScreen: React.FC<IDEStartScreenProps> = ({ businessApps, on
     }
   };
 
-  const getTypeColor = (type: "app" | "form" | "popup"): string => {
-    switch (type) {
-      case "app":
-        return "#1890ff"; // Blue
-      case "form":
-        return "#52c41a"; // Green
-      case "popup":
-        return "#fa8c16"; // Orange
-      default:
-        return "#1890ff";
-    }
-  };
 
   const getTypeLabel = (type: "app" | "form" | "popup"): string => {
     switch (type) {
@@ -179,6 +167,33 @@ export const IDEStartScreen: React.FC<IDEStartScreenProps> = ({ businessApps, on
         return "Popup";
       default:
         return "App";
+    }
+  };
+
+  // Tailwind token-based classes to replace inline color styles
+  const getTypeTextClass = (type: "app" | "form" | "popup"): string => {
+    switch (type) {
+      case "app":
+        return "gba:text-ext-1";
+      case "form":
+        return "gba:text-ext-2";
+      case "popup":
+        return "gba:text-ext-3";
+      default:
+        return "gba:text-primary";
+    }
+  };
+
+  const getTypeBadgeClasses = (type: "app" | "form" | "popup"): string => {
+    switch (type) {
+      case "app":
+        return "gba:bg-ext-1-secondary gba:text-ext-1-secondary-foreground";
+      case "form":
+        return "gba:bg-ext-2-secondary gba:text-ext-2-secondary-foreground";
+      case "popup":
+        return "gba:bg-ext-3-secondary gba:text-ext-3-secondary-foreground";
+      default:
+        return "gba:bg-primary-secondary gba:text-primary-secondary-foreground";
     }
   };
 
@@ -194,23 +209,15 @@ export const IDEStartScreen: React.FC<IDEStartScreenProps> = ({ businessApps, on
           e.stopPropagation();
         }
       }}
-      className="gba:flex gba:items-center gba:mb-1 gba:h-8 gba:w-full gba:text-left gba:justify-start gba:no-underline hover:gba:bg-gray-100 gba:text-gray-700 hover:gba:text-gray-900"
-      style={{
-        padding: "4px 8px",
-        borderRadius: "4px",
-        transition: "all 0.2s",
-        textDecoration: "none",
-        color: "inherit",
-      }}
+      className="gba:flex gba:items-center gba:mb-1 gba:h-8 gba:w-full gba:text-left gba:justify-start gba:no-underline hover:gba:bg-gray-100 gba:text-gray-700 hover:gba:text-gray-900 gba:px-2 gba:rounded gba:transition-colors gba:duration-200 gba:text-inherit"
     >
-      <span style={{ marginRight: "6px", fontSize: "14px", color: getTypeColor(app.type) }}>
+      <span className={`${getTypeTextClass(app.type)} gba:mr-2 gba:text-sm`}>
         {getTypeIcon(app.type)}
       </span>
       <span className="gba:text-xs gba:truncate gba:text-left gba:flex-grow">{app.name}</span>
       <Badge
         variant="secondary"
-        className="gba:ml-2 gba:text-xs"
-        style={{ backgroundColor: `${getTypeColor(app.type)}20`, color: getTypeColor(app.type) }}
+        className={`${getTypeBadgeClasses(app.type)} gba:ml-2 gba:text-xs`}
       >
         {getTypeLabel(app.type)}
       </Badge>
@@ -248,7 +255,7 @@ export const IDEStartScreen: React.FC<IDEStartScreenProps> = ({ businessApps, on
         {subModuleEntries.map(([subModule, apps]) => {
           const isExpanded = expandedSubModules.has(subModule);
           return (
-            <div key={subModule} className="gba:bg-gray-50 gba:rounded gba:mb-2">
+            <div key={subModule} className="gba:bg-secondary gba:rounded gba:mb-2">
               <Button
                 variant="ghost"
                 onClick={() => toggleSubModule(subModule)}
@@ -285,13 +292,13 @@ export const IDEStartScreen: React.FC<IDEStartScreenProps> = ({ businessApps, on
   }, [businessApps]);
 
   return (
-    <div data-testid="IDE-StartScreen" className="gba:h-full nw:bg-gradient-decorative-2">
+    <div data-testid="IDE-StartScreen" className="gba:min-h-full gba:bg-gradient-decorative-1">
       <PageLayout
         variant="display"
         headerIcon={<SquaresFour color="#000000" />}
         headerLabel="Business Applications"
         headerLabelClassName="gba:!text-black"
-        className="nw:will-change-auto gba:h-full gba:!bg-transparent gba:!shadow-none gba:!rounded-none"
+        className="gba:h-full gba:!bg-transparent gba:!shadow-none gba:!rounded-none"
         contentContainer={
           <div className="gba:p-6">
             {/* Examples Section */}
@@ -393,13 +400,7 @@ export const IDEStartScreen: React.FC<IDEStartScreenProps> = ({ businessApps, on
                   <Clock color="#000000" />
                   Recently Used
                 </h4>
-                <div
-                  className="gba:grid gba:gap-4"
-                  style={{
-                    gridTemplateColumns: "repeat(auto-fill, minmax(200px, 1fr))",
-                    display: "grid",
-                  }}
-                >
+                <div className="gba:grid gba:gap-4 gba:grid-cols-5">
                   {getRecentApps().map((app) => (
                     <Card
                       key={app.name}
@@ -419,7 +420,7 @@ export const IDEStartScreen: React.FC<IDEStartScreenProps> = ({ businessApps, on
                           className="gba:block gba:no-underline gba:text-inherit"
                         >
                           <div className="gba:flex gba:items-center gba:gap-2 gba:mb-2">
-                            <div style={{ color: getTypeColor(app.type), fontSize: "18px" }}>
+                            <div className={`${getTypeTextClass(app.type)} gba:text-lg`}>
                               {getTypeIcon(app.type)}
                             </div>
                             <div
@@ -429,7 +430,7 @@ export const IDEStartScreen: React.FC<IDEStartScreenProps> = ({ businessApps, on
                               {app.name}
                             </div>
                           </div>
-                          <div className="gba:text-xs gba:text-gray-500 gba:mb-2">
+                          <div className="gba:text-xs gba:text-secondary-foreground gba:mb-2">
                             {formatModuleName(app.module)}
                             {app.subModule && app.subModule !== "default" && (
                               <span> › {formatSubModuleName(app.subModule.split("/")[0])}</span>
@@ -437,11 +438,7 @@ export const IDEStartScreen: React.FC<IDEStartScreenProps> = ({ businessApps, on
                           </div>
                           <Badge
                             variant="secondary"
-                            className="gba:text-xs"
-                            style={{
-                              backgroundColor: `${getTypeColor(app.type)}20`,
-                              color: getTypeColor(app.type),
-                            }}
+                            className={`${getTypeBadgeClasses(app.type)} gba:text-xs`}
                           >
                             {getTypeLabel(app.type)}
                           </Badge>
@@ -461,18 +458,12 @@ export const IDEStartScreen: React.FC<IDEStartScreenProps> = ({ businessApps, on
               </h4>
               {Object.keys(groupedApps).length === 0 ? (
                 <div className="gba:py-12 gba:text-center">
-                  <div className="gba:text-gray-500 gba:text-lg">
+                  <div className="gba:text-secondary-foreground gba:text-lg">
                     No business applications found
                   </div>
                 </div>
               ) : (
-                <div
-                  className="gba:grid gba:gap-6"
-                  style={{
-                    gridTemplateColumns: "repeat(auto-fill, minmax(300px, 1fr))",
-                    display: "grid",
-                  }}
-                >
+                <div className="gba:grid gba:gap-6 gba:grid-cols-5">
                   {Object.entries(groupedApps).map(([module, subModules]) => {
                     const totalApps = Object.values(subModules).reduce(
                       (sum, apps) => sum + apps.length,
@@ -482,19 +473,9 @@ export const IDEStartScreen: React.FC<IDEStartScreenProps> = ({ businessApps, on
                     return (
                       <Card
                         key={module}
-                        className="gba:shadow-sm hover:gba:shadow-md gba:transition-shadow"
-                        style={{ height: "400px", display: "flex", flexDirection: "column" }}
+                        className="gba:shadow-sm hover:gba:shadow-md gba:transition-shadow gba:flex gba:flex-col gba:h-96"
                       >
-                        <CardContent
-                          className="gba:p-3"
-                          style={{
-                            flex: 1,
-                            display: "flex",
-                            flexDirection: "column",
-                            minHeight: 0,
-                            height: "100%",
-                          }}
-                        >
+                        <CardContent className="gba:p-3 gba:flex gba:flex-col gba:flex-1 gba:min-h-0 gba:h-full">
                           <div className="gba:flex gba:items-center gba:justify-between gba:mb-3">
                             <span className="gba:flex gba:items-center gba:gap-2 gba:font-semibold">
                               <AppWindow className="gba:text-blue-600" />
@@ -502,14 +483,7 @@ export const IDEStartScreen: React.FC<IDEStartScreenProps> = ({ businessApps, on
                             </span>
                             <Badge variant="secondary">{totalApps}</Badge>
                           </div>
-                          <div
-                            style={{
-                              flex: 1,
-                              overflowY: "auto",
-                              minHeight: 0,
-                              maxHeight: "100%",
-                            }}
-                          >
+                          <div className="gba:flex-1 gba:overflow-y-auto gba:min-h-0 gba:max-h-full">
                             {renderSubModuleContent(subModules)}
                           </div>
                         </CardContent>
