@@ -157,7 +157,7 @@ const ExpenseItemsTable: React.FC<ExpenseItemsTableProps> = React.memo((props) =
         return prev.filter(key => key !== itemId);
       }
     });
-  }, []);
+  }, [selectedRowKeys]);
 
   const handleSelectAll = useCallback((checked: boolean) => {
     if (checked) {
@@ -165,22 +165,24 @@ const ExpenseItemsTable: React.FC<ExpenseItemsTableProps> = React.memo((props) =
     } else {
       setSelectedRowKeys([]);
     }
-  }, [items]);
+  }, [selectedRowKeys, items]);
 
   const handleCloseDetails = useCallback(() => {
     setSelectedItem(null);
-    setSelectedRowKeys([]);
+    // setSelectedRowKeys([]);
     setIsSheetOpen(false);
   }, []);
-
   // Handlers for the top buttons
   const handleCreateExpenseRequest = useCallback(() => {
     if (!selectedRowKeys.length) return;
     const selectedItems = items?.filter((item: any) => selectedRowKeys.includes(item.id)) || [];
     
-    // Check if all items are in 'CREATED' status (draft)
-    const allDraft = selectedItems.every((item: any) => item.status === 'CREATED');
-    if (!allDraft) {
+    // Check if all items are in 'CREATED' status (normalize possible shapes)
+    const allCreated = selectedItems.every((item: any) => {
+      const rawStatus = ( item?.status ?? '').toString().toUpperCase();
+      return rawStatus === 'CREATED';
+    });
+    if (!allCreated) {
       const errorMessage = getTranslationFromI18nKeyAndLabel(
         'gba.expenseItems.createRequestDraftOnly',
         'An Expense Request can be started only with items in status DRAFT.'
@@ -366,16 +368,16 @@ const ExpenseItemsTable: React.FC<ExpenseItemsTableProps> = React.memo((props) =
           ...(selectedRowKeys.length > 0
             ? [
                 <Button
-                  key="create-expense-request"
+                  key={`create-expense-request-${selectedRowKeys.join('|')}`}
                   variant="default"
                   data-testid="create-expense-request-btn"
-                  onClick={handleCreateExpenseRequest}
+                  onClick={() => handleCreateExpenseRequest()}
                   className="gba:inline-flex gba:items-center gba:gap-2"
                 >
                   {getTranslationFromI18nKeyAndLabel('lowcoder:employee_list.flows_button.create_expense_request','Create Expense Request')} ({selectedRowKeys.length})
                 </Button>,
                 <Button
-                  key="delete-selection"
+                  key={`delete-selection-${selectedRowKeys.join('|')}`}
                   variant="destructive"
                   data-testid="delete-selection-btn"
                   onClick={() => handleDeleteSelection()}
