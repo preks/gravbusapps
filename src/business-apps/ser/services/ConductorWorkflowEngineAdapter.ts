@@ -448,49 +448,6 @@ export class ConductorWorkflowEngineAdapter implements WorkflowEngine {
     }
   }
 
-  /**
-   * Add a comment to a step
-   */
-  async comment(stepId: string, body: string): Promise<Comment> {
-    try {
-      console.log(`[ConductorAdapter] Adding comment to step: ${stepId}`);
-
-      const response = await fetch(`${this.flowEngineBaseUrl}/api/tasks/${stepId}/comments`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${this.accessToken}`,
-        },
-        body: JSON.stringify({
-          userId: this.currentUserId,
-          comment: body,
-          visibility: 'current_and_downstream'
-        }),
-      });
-
-      if (!response.ok) {
-        throw new Error(`Failed to add comment: ${response.status} ${response.statusText}`);
-      }
-
-      const result = await response.json();
-      
-      const comment: Comment = {
-        id: result.commentId || `comment-${Date.now()}`,
-        stepId: stepId,
-        authorId: this.currentUserId,
-        createdAt: new Date().toISOString(),
-        body: body,
-        visibility: 'current_and_downstream'
-      };
-
-      console.log(`[ConductorAdapter] Comment added successfully: ${comment.id}`);
-      return comment;
-
-    } catch (error) {
-      console.error(`[ConductorAdapter] Error adding comment to step ${stepId}:`, error);
-      throw new Error(`Failed to add comment: ${error instanceof Error ? error.message : 'Unknown error'}`);
-    }
-  }
 
   // =================================================================================
   // PRIVATE HELPER METHODS
@@ -1667,23 +1624,24 @@ export class ConductorWorkflowEngineAdapter implements WorkflowEngine {
   }
 
   /**
-   * Enhanced comment method with userId parameter
+   * Enhanced comment method with userId parameter and visibility support
    * NOTE: custom-flow-engine recreates tasks on comment, so task ID may change
    */
-  async comment(stepId: string, userId: string, body: string): Promise<Comment> {
+  async comment(stepId: string, userId: string, body: string, visibility?: string): Promise<Comment> {
     try {
-      console.log(`[ConductorAdapter] Adding comment to step: ${stepId} by user: ${userId}`);
+      console.log(`[ConductorAdapter] Adding comment to step: ${stepId} by user: ${userId} with visibility: ${visibility || 'default'}`);
       console.warn(`[ConductorAdapter] ⚠️ WARNING: Task ID may change after comment due to workflow recreation (same as CLAIM issue)`);
 
       const result = await this.makeRequest(`/api/tasks/${stepId}/comment`, {
         method: 'POST',
         body: JSON.stringify({
           userId,
-          comment: body
+          comment: body,
+          commentVisibility: visibility || 'EXTERNAL' // Default to EXTERNAL if not specified
         }),
       });
       
-      console.log(`[ConductorAdapter] ✅ Comment added to step ${stepId} - note that task may have new ID now`);
+      console.log(`[ConductorAdapter] ✅ Comment added to step ${stepId} with visibility ${visibility || 'EXTERNAL'} - note that task may have new ID now`);
       
       return {
         id: result.taskId || Date.now().toString(),
@@ -1691,7 +1649,7 @@ export class ConductorWorkflowEngineAdapter implements WorkflowEngine {
         authorId: userId,
         createdAt: new Date().toISOString(),
         body,
-        visibility: 'current_and_downstream',
+        visibility: visibility || 'EXTERNAL',
         action: 'COMMENT'
       };
 

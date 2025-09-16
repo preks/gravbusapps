@@ -16,6 +16,11 @@ import {
   Spinner,
   Timeline,
   TimelineItem,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
   type KpiCardData
 } from '@newwork/nw-design-system';
 
@@ -27,7 +32,7 @@ import {
   ArrowLeftIcon, UserIcon, ClockIcon, WarningIcon, CheckCircleIcon, 
   ChatCircleIcon, PaperPlaneRightIcon, UserCheckIcon, UserMinusIcon, 
   ArrowClockwiseIcon, TargetIcon, ClipboardIcon, InfoIcon, WarningCircleIcon,
-  TrendUpIcon, Link as LinkIcon
+  TrendUpIcon, Link as LinkIcon, EyeIcon, UsersIcon, LockIcon
 } from '@phosphor-icons/react';
 
 // Import types and hooks
@@ -41,6 +46,33 @@ import { DynamicFormGenerator } from '../../../components/DynamicFormGenerator';
 import { DynamicFormField, DynamicFormValues } from '../../../types/flowTemplate';
 
 const { Text } = Typography;
+
+// Comment visibility types and configuration
+export type CommentVisibility = 'INTERNAL_TASK' | 'INTERNAL_FLOW' | 'EXTERNAL';
+
+const COMMENT_VISIBILITY_CONFIG = {
+  INTERNAL_TASK: {
+    label: 'Task Only',
+    description: 'Only visible to users assigned to this specific task',
+    icon: LockIcon,
+    badgeVariant: 'destructive' as const,
+    color: 'gba:text-red-700 gba:bg-red-50 gba:border-red-200'
+  },
+  INTERNAL_FLOW: {
+    label: 'Flow Team',
+    description: 'Visible to users assigned to any task in this flow',
+    icon: UsersIcon,
+    badgeVariant: 'secondary' as const,
+    color: 'gba:text-blue-700 gba:bg-blue-50 gba:border-blue-200'
+  },
+  EXTERNAL: {
+    label: 'Public',
+    description: 'Visible to all users (public comment)',
+    icon: EyeIcon,
+    badgeVariant: 'outline' as const,
+    color: 'gba:text-green-700 gba:bg-green-50 gba:border-green-200'
+  }
+} as const;
 
 // Status configuration with Phosphor icons - updated for ALL original API status values
 const STATUS_CONFIG = {
@@ -82,11 +114,10 @@ export const TaskRecord: React.FC<TaskRecordProps> = ({
   onClose,
 }) => {
   const [newComment, setNewComment] = useState('');
+  const [commentVisibility, setCommentVisibility] = useState<CommentVisibility>('INTERNAL_TASK');
   const [isSubmittingComment, setIsSubmittingComment] = useState(false);
   const [fullRequest, setFullRequest] = useState<SubmittedRequest | null>(null);
   const [availableActions, setAvailableActions] = useState<any>(null);
-  const [flowComments, setFlowComments] = useState<any[]>([]);
-  const [isLoadingComments, setIsLoadingComments] = useState(false);
   const [taskFormData, setTaskFormData] = useState<DynamicFormValues>({});
   const [isSubmittingTaskForm, setIsSubmittingTaskForm] = useState(false);
 
@@ -258,59 +289,33 @@ export const TaskRecord: React.FC<TaskRecordProps> = ({
     }
   };
 
-  // ✅ UPDATED: Load task step comments using new endpoint
-  const loadFlowComments = async () => {
-    if (!ticket?.id || !accessToken || !userInfo) {
-      console.warn('⚠️ Missing required data for loading comments');
-      return;
+  // Get comments directly from ticket data (already included in tasks/task_id response)
+  const getTicketComments = () => {
+    if (!ticket?.comments) {
+      console.log('📝 [TaskRecord] No comments found in ticket data');
+      return [];
     }
     
-    setIsLoadingComments(true);
-    try {
-      console.log('🔍 Loading task step comments for taskId:', ticket.id);
-      
-      const workflowEngine = createConductorWorkflowEngine({ accessToken, userInfo });
-      
-      // ✅ NEW: Use task-specific comments endpoint instead of flow comments
-      // This gets ALL comments for this task step (including from recreated task instances)
-      let response: { comments: any[]; totalComments: number };
-      
-      // Check if the new method exists (TypeScript interface might not be updated yet)
-      if (typeof (workflowEngine as any).getTaskStepComments === 'function') {
-        response = await (workflowEngine as any).getTaskStepComments(ticket.id);
-      } else {
-        console.warn('⚠️ getTaskStepComments method not available, falling back to empty comments');
-        response = { comments: [], totalComments: 0 };
-      }
-      
-      const comments = response.comments || [];
-      console.log(`✅ Found ${comments.length} comments for task step ${ticket.id}`);
-      
-      // Transform comments to match expected format
-      const transformedComments = comments.map((comment: any) => ({
-        id: comment.taskId || `comment-${Date.now()}-${Math.random()}`,
-        body: comment.comment,
-        comment: comment.comment,
-        message: comment.comment,
-        authorName: comment.commentedBy,
-        authorId: comment.commentedBy,
-        userId: comment.commentedBy,
-        createdAt: comment.commentedAt,
-        timestamp: comment.commentedAt,
-        action: comment.action,
-        stepId: comment.stepIndex?.toString(),
-        stepTitle: comment.stepTitle,
-        taskId: comment.taskId
-      }));
-      
-      setFlowComments(transformedComments);
-      
-    } catch (error) {
-      console.error('❌ Failed to load task step comments:', error);
-      setFlowComments([]);
-    } finally {
-      setIsLoadingComments(false);
-    }
+    console.log(`📝 [TaskRecord] Found ${ticket.comments.length} comments in ticket data`);
+    
+    // Transform comments to consistent format based on actual API structure
+    return ticket.comments.map((comment: any) => ({
+      id: comment.actionId || comment.id || `comment-${Date.now()}-${Math.random()}`,
+      body: comment.comment, // Main comment text
+      comment: comment.comment, // Main comment text
+      message: comment.comment, // Main comment text
+      commentedBy: comment.commentedBy, // User UUID who made the comment
+      authorId: comment.commentedBy,
+      userId: comment.commentedBy,
+      createdAt: comment.commentedAt, // ISO timestamp
+      timestamp: comment.commentedAt,
+      visibility: comment.visibility || 'EXTERNAL', // Comment visibility (INTERNAL_TASK, INTERNAL_FLOW, EXTERNAL)
+      action: comment.action, // Action type (e.g., "COMMENT")
+      actionId: comment.actionId, // Unique action ID
+      stepId: comment.stepId,
+      stepTitle: comment.stepTitle,
+      taskId: comment.taskId
+    }));
   };
 
   // Load available actions when ticket is available
@@ -320,12 +325,7 @@ export const TaskRecord: React.FC<TaskRecordProps> = ({
     }
   }, [ticket?.id, ticket?.availableActions, accessToken, userInfo]);
 
-  // ✅ UPDATED: Load task step comments when ticket is available
-  useEffect(() => {
-    if (ticket?.id) {
-      loadFlowComments();
-    }
-  }, [ticket?.id, accessToken, userInfo]);
+  // Comments are now loaded directly from ticket data - no separate loading needed
 
   // Handle task actions
   const handleTaskAction = async (action: 'claim' | 'unclaim' | 'complete' | 'reject') => {
@@ -349,10 +349,9 @@ export const TaskRecord: React.FC<TaskRecordProps> = ({
           break;
       }
       
-      // ✅ Refresh available actions and comments after any action
-      console.log(`🔄 Refreshing available actions and comments after ${action} action`);
+      // ✅ Refresh available actions after any action (comments will be refreshed via refetch)
+      console.log(`🔄 Refreshing available actions after ${action} action`);
       await loadAvailableActions();
-      await loadFlowComments();
       
     } catch (error) {
       console.error(`Failed to ${action} task:`, error);
@@ -366,22 +365,22 @@ export const TaskRecord: React.FC<TaskRecordProps> = ({
     
     setIsSubmittingComment(true);
     try {
-      console.log(`[TaskRecord] Adding comment to task ${ticket.id}: "${newComment.trim()}"`);
+      console.log(`[TaskRecord] Adding comment to task ${ticket.id}: "${newComment.trim()}" with visibility: ${commentVisibility}`);
       console.warn(`[TaskRecord] ⚠️ WARNING: Task ID may change after comment due to workflow recreation (same issue as CLAIM)`);
       
-      // Use the addComment method from useTicketActions
-      await addComment(ticket.id, newComment.trim());
+      // Use the addComment method from useTicketActions with visibility
+      await addComment(ticket.id, newComment.trim(), commentVisibility);
       
       console.log(`[TaskRecord] ✅ Comment added successfully to task ${ticket.id} (task may have new ID now)`);
       message.success('Comment added successfully');
       setNewComment('');
+      setCommentVisibility('INTERNAL_TASK'); // Reset to default
       
       // NOTE: Task may have been recreated with new ID, so refetch may fail
       // The task detail will need to be refreshed from the queue to get the new ID
       try {
         await refetch();
-        // Also reload flow comments to show the new comment
-        await loadFlowComments();
+        // Comments will be updated automatically via refetch (included in task data)
       } catch (refetchError) {
         console.warn(`[TaskRecord] ⚠️ Could not refetch task ${ticket.id} - likely recreated with new ID:`, refetchError);
         message.warning('Comment added successfully, but task was recreated. Please refresh the queue to see the updated task.');
@@ -420,7 +419,7 @@ export const TaskRecord: React.FC<TaskRecordProps> = ({
       await refetch();
       await loadFullRequest();
       await loadAvailableActions();
-      await loadFlowComments();
+      // Comments will be updated automatically via refetch (included in task data)
       
     } catch (error) {
       console.error('Failed to complete task with form data:', error);
@@ -708,7 +707,7 @@ export const TaskRecord: React.FC<TaskRecordProps> = ({
               <CardHeader>
                 <CardTitle className="gba:flex gba:items-center gba:gap-3">
                   <CheckCircleIcon className="gba:w-5 gba:h-5" />
-                  Complete Task
+                  Complete Ticket
                   {getTaskFormFields().filter((f: any) => f.required).length > 0 && (
                     <Badge variant="secondary" className="gba:ml-2">
                       {getTaskFormFields().filter((f: any) => f.required).length} required
@@ -718,7 +717,7 @@ export const TaskRecord: React.FC<TaskRecordProps> = ({
               </CardHeader>
               <CardContent>
                 <p className="gba:text-sm gba:text-muted-foreground gba:mb-4">
-                  Fill out the required information to complete this task.
+                  Fill out the required information to complete this ticket.
                 </p>
                 
                 <DynamicFormGenerator
@@ -727,7 +726,7 @@ export const TaskRecord: React.FC<TaskRecordProps> = ({
                   onValuesChange={setTaskFormData}
                   onSubmit={handleTaskFormSubmit}
                   isSubmitting={isSubmittingTaskForm}
-                  submitButtonText="Complete Task"
+                  submitButtonText="Complete Ticket"
                   title="" // No title since we have card header
                   showCard={false} // Don't wrap in card since we're already in one
                 />
@@ -741,41 +740,44 @@ export const TaskRecord: React.FC<TaskRecordProps> = ({
               <CardTitle className="gba:flex gba:items-center gba:gap-3">
                 <ChatCircleIcon className="gba:w-5 gba:h-5" />
                 Comments & Activity
-                {flowComments?.length > 0 && (
-                  <Badge variant="secondary" className="gba:ml-2">
-                    {flowComments.length}
-                  </Badge>
-                )}
-                {isLoadingComments && (
-                  <Spinner className="gba:w-4 gba:h-4" />
-                )}
+                {(() => {
+                  const comments = getTicketComments();
+                  return comments.length > 0 && (
+                    <Badge variant="secondary" className="gba:ml-2">
+                      {comments.length}
+                    </Badge>
+                  );
+                })()}
               </CardTitle>
             </CardHeader>
             <CardContent>
               {/* Comments List */}
               <div className="gba:mb-6">
-                {isLoadingComments ? (
-                  <div className="gba:text-center gba:py-8 gba:text-muted-foreground">
-                    <Spinner className="gba:w-8 gba:h-8 gba:mx-auto gba:mb-2" />
-                    <p>Loading comments...</p>
-                  </div>
-                ) : flowComments && flowComments.length > 0 ? (
+                {(() => {
+                  const comments = getTicketComments();
+                  return comments.length > 0 ? (
                   <div className="gba:space-y-4 gba:max-h-80 gba:overflow-y-auto">
-                    {flowComments
+                    {comments
                       .sort((a, b) => {
                         const dateA = new Date(a.createdAt || a.timestamp);
                         const dateB = new Date(b.createdAt || b.timestamp);
                         return dateA.getTime() - dateB.getTime();
                       })
-                      .map((comment) => (
+                      .map((comment) => {
+                        // Get comment visibility (default to EXTERNAL if not specified)
+                        const visibility = comment.visibility || 'EXTERNAL';
+                        const visibilityConfig = COMMENT_VISIBILITY_CONFIG[visibility as CommentVisibility] || COMMENT_VISIBILITY_CONFIG.EXTERNAL;
+                        const VisibilityIcon = visibilityConfig.icon;
+                        
+                        return (
                       <div key={comment.id} className="gba:flex gba:gap-3 gba:p-4 gba:bg-muted/30 gba:rounded-lg">
-                                                  <Avatar className="gba:flex-shrink-0">
-                            <AvatarFallback>
-                              <UserIcon className="gba:w-4 gba:h-4" />
-                            </AvatarFallback>
-                          </Avatar>
+                        <Avatar className="gba:flex-shrink-0">
+                          <AvatarFallback>
+                            <UserIcon className="gba:w-4 gba:h-4" />
+                          </AvatarFallback>
+                        </Avatar>
                         <div className="gba:flex-1">
-                          <div className="gba:flex gba:items-center gba:gap-2 gba:mb-1">
+                          <div className="gba:flex gba:items-center gba:gap-2 gba:mb-1 gba:flex-wrap">
                             <span className="gba:text-sm gba:font-medium">
                               <EmployeeDisplayName
                                 userId={comment.commentedBy || comment.authorId || comment.userId}
@@ -788,35 +790,100 @@ export const TaskRecord: React.FC<TaskRecordProps> = ({
                             <span className="gba:text-xs gba:text-muted-foreground">
                               {new Date(comment.createdAt || comment.timestamp).toLocaleString()}
                             </span>
+                            {/* Comment Visibility Badge */}
+                            <Badge 
+                              variant={visibilityConfig.badgeVariant}
+                              className="gba:text-xs gba:gap-1"
+                              data-testid={`comment-visibility-${comment.id}`}
+                            >
+                              <VisibilityIcon className="gba:w-3 gba:h-3" />
+                              {visibilityConfig.label}
+                            </Badge>
                           </div>
                           <p className="gba:text-sm">{comment.body || comment.comment || comment.message}</p>
                         </div>
                       </div>
-                    ))}
+                        );
+                      })}
                   </div>
                 ) : (
                   <div className="gba:text-center gba:py-8 gba:text-muted-foreground">
                     <ChatCircleIcon className="gba:w-12 gba:h-12 gba:mx-auto gba:mb-2 gba:opacity-50" />
                     <p>No comments yet</p>
                   </div>
-                )}
+                );
+                })()}
               </div>
 
               {/* Add Comment Form */}
               <Separator className="gba:my-6" />
               <div className="gba:space-y-4">
                 <h4 className="gba:text-sm gba:font-semibold">Add Comment</h4>
+                
                 <Textarea
                   placeholder="Enter your comment..."
                   value={newComment}
                   onChange={(e) => setNewComment(e.target.value)}
                   rows={3}
+                  data-testid="comment-textarea"
                 />
-                <div className="gba:flex gba:justify-end">
+                
+                <div className="gba:flex gba:items-center gba:gap-3 gba:justify-between">
+                  {/* Comment Visibility Selector - Left Side */}
+                  <div className="gba:flex gba:items-center gba:gap-2 gba:flex-1">
+                    <label className="gba:text-xs gba:font-medium gba:text-muted-foreground gba:whitespace-nowrap">
+                      Visibility:
+                    </label>
+                    <Select 
+                      value={commentVisibility} 
+                      onValueChange={(value: CommentVisibility) => setCommentVisibility(value)}
+                      data-testid="comment-visibility-selector"
+                    >
+                      <SelectTrigger className="gba:w-40">
+                        <SelectValue>
+                          {(() => {
+                            const config = COMMENT_VISIBILITY_CONFIG[commentVisibility];
+                            const VisibilityIcon = config.icon;
+                            return (
+                              <div className="gba:flex gba:items-center gba:gap-2">
+                                <VisibilityIcon className="gba:w-4 gba:h-4" />
+                                <span>{config.label}</span>
+                              </div>
+                            );
+                          })()}
+                        </SelectValue>
+                      </SelectTrigger>
+                      <SelectContent>
+                        {Object.entries(COMMENT_VISIBILITY_CONFIG).map(([key, config]) => {
+                          const VisibilityIcon = config.icon;
+                          return (
+                            <SelectItem 
+                              key={key} 
+                              value={key}
+                              data-testid={`visibility-option-${key.toLowerCase()}`}
+                            >
+                              <div className="gba:flex gba:items-center gba:gap-2">
+                                <VisibilityIcon className="gba:w-4 gba:h-4" />
+                                <div className="gba:flex gba:flex-col">
+                                  <span className="gba:font-medium">{config.label}</span>
+                                  <span className="gba:text-xs gba:text-muted-foreground">
+                                    {config.description}
+                                  </span>
+                                </div>
+                              </div>
+                            </SelectItem>
+                          );
+                        })}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  
+                  {/* Submit Button - Right Side */}
                   <Button 
                     onClick={handleSubmitComment}
                     disabled={!newComment.trim() || isSubmittingComment || isActionLoading}
-                    className="gba:gap-2"
+                    className="gba:gap-2 gba:flex-shrink-0"
+                    data-testid="submit-comment-button"
                   >
                     <PaperPlaneRightIcon className="gba:w-4 gba:h-4" />
                     {isSubmittingComment ? 'Adding...' : 'Add Comment'}
@@ -934,11 +1001,11 @@ export const TaskRecord: React.FC<TaskRecordProps> = ({
                         <Button 
                           size="sm"
                           onClick={() => handleTaskAction('complete')}
-                          disabled={isActionLoading}
+                          disabled={isActionLoading || !ticket.claimedByUserId}
                           className="gba:gap-2 gba:bg-green-600 hover:gba:bg-green-700"
                         >
                           <CheckCircleIcon className="gba:w-4 gba:h-4" />
-                          Complete
+                          Complete Ticket
                         </Button>
                     )}
 

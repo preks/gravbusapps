@@ -17,7 +17,7 @@ export interface UseTicketActionsReturn {
   completeTicket: (stepId: string, payload?: any) => Promise<void>;
   rejectTicket: (stepId: string, reason: string) => Promise<void>;
   advanceTicket: (stepId: string, payload?: any) => Promise<void>;
-  addComment: (stepId: string, body: string) => Promise<Comment>;
+  addComment: (stepId: string, body: string, visibility?: string) => Promise<Comment>;
   isLoading: boolean;
   isPerformingAction: boolean;
 }
@@ -113,12 +113,12 @@ export const useTicketActions = ({
     });
   };
 
-  const addComment = async (stepId: string, body: string): Promise<Comment> => {
+  const addComment = async (stepId: string, body: string, visibility?: string): Promise<Comment> => {
     return handleAction('add comment', async () => {
       const workflowEngine = getEngine();
       const userId = userInfo?.id || 'current-user';
-      console.log(`🎯 [useTicketActions] *** ADDING COMMENT to: ${stepId} by user: ${userId} ***`);
-      return await workflowEngine.comment(stepId, userId, body);
+      console.log(`🎯 [useTicketActions] *** ADDING COMMENT to: ${stepId} by user: ${userId} with visibility: ${visibility || 'default'} ***`);
+      return await workflowEngine.comment(stepId, userId, body, visibility);
     });
   };
 

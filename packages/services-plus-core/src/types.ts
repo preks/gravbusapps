@@ -48,7 +48,7 @@ export type Comment = {
   authorName?: string;
   createdAt: string;
   body: string;
-  visibility: 'current_and_downstream';
+  visibility: string; // Comment visibility level (INTERNAL_TASK, INTERNAL_FLOW, EXTERNAL)
   action?: string; // Action that triggered this comment (COMMENT, COMPLETE, REJECT, etc.)
 };
 
