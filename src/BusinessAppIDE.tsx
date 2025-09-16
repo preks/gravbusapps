@@ -40,6 +40,11 @@ const modulePatterns = import.meta.glob("./business-apps/**/index.ts", {
   eager: false,
 });
 
+// Also load example entries from ./common/examples (apps, forms, popups)
+const examplePatterns = import.meta.glob("./common/examples/**/index.ts", {
+  eager: false,
+});
+
 const businessApps: BusinessAppInfo[] = [];
 
 // Build the businessApps array from index.ts files (matching getDynamicEntries logic)
@@ -126,6 +131,51 @@ for (const path in modulePatterns) {
       type: componentType,
     });
   }
+}
+
+// Build the businessApps array from example index.ts files under ./common/examples
+for (const path in examplePatterns) {
+  const pathParts = path.split("/");
+  // Example path: ./common/examples/forms/example-catalog-select-form/index.ts
+
+  // Determine type based on directory
+  let componentType: "app" | "form" | "popup" = "app";
+  if (pathParts.includes("forms")) {
+    componentType = "form";
+  } else if (pathParts.includes("popups")) {
+    componentType = "popup";
+  }
+
+  // Find index of "examples" segment
+  const examplesIndex = pathParts.indexOf("examples");
+  if (examplesIndex === -1) {
+    continue;
+  }
+
+  // appName is directory containing index.ts
+  const appName = pathParts[pathParts.length - 2];
+
+  // screenKey: examples/<relativeDir from examples root to dir containing index.ts>
+  const relativeDirParts = pathParts.slice(examplesIndex + 1, pathParts.length - 1);
+  const screenKey = `examples/${relativeDirParts.join("/")}`;
+
+  // display name from folder name
+  const displayName = appName
+    .split("-")
+    .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+    .join("");
+
+  // subModule for grouping inside examples (e.g., forms, apps, popups)
+  const subModule = relativeDirParts.length > 0 ? relativeDirParts[0] : undefined;
+
+  businessApps.push({
+    name: displayName,
+    path,
+    module: "examples",
+    subModule,
+    screenKey,
+    type: componentType,
+  });
 }
 
 const STORAGE_KEY_USER_INFO = "business-app-ide-user-info";
