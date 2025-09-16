@@ -698,6 +698,7 @@ const CreateCalculationRuleForm: React.FC<CreateCalculationRuleFormProps> = ({ a
             data-testid="ccr-name-input"
             autoFocus={false}
             value={formState.ruleName}
+            disabled={isUpdate}
             onChange={(field: any) => {
               dispatch({ type: 'SET_FIELD', field: 'ruleName', value: field?.value ?? '' });
             }}
@@ -723,6 +724,7 @@ const CreateCalculationRuleForm: React.FC<CreateCalculationRuleFormProps> = ({ a
             data-testid="ccr-calculation-select"
             data={calculationTypeOptions}
             value={formState.calculationTypeId || undefined}
+            disabled={isUpdate}
             onChange={(value: any) => {
               dispatch({ type: 'SET_FIELD', field: 'calculationTypeId', value: value?.value ?? null });
               setHasInteracted(true);
@@ -747,6 +749,7 @@ const CreateCalculationRuleForm: React.FC<CreateCalculationRuleFormProps> = ({ a
             placeholder={getTranslationFromI18nKeyAndLabel('lowcoder:expense_calculation_rule.expense_calculation_rule_modal.valid_placeholder', 'Select Date')}
             data-testid="ccr-valid-from-input"
             value={formState.validFrom as any}
+            disabled={isUpdate}
             onChange={async (field: any) => {
               const value = field?.value ? new Date(field.value) : null;
               dispatch({ type: 'SET_FIELD', field: 'validFrom', value });
@@ -801,16 +804,17 @@ const CreateCalculationRuleForm: React.FC<CreateCalculationRuleFormProps> = ({ a
       <div className={`gba:mb-4`} data-testid="ccr-standard-field-container">
         <div className={`gba:relative`}>
           <div
-            className="gba:flex gba:items-center gba:justify-between gba:w-full gba:h-[64px] gba:bg-[#F7F7F7] gba:px-4 gba:rounded"
+            className={`${isUpdate ? 'gba:bg-[#eeeff0] gba:cursor-not-allowed' : 'gba:bg-[#F7F7F7]'} gba:flex gba:items-center gba:justify-between gba:w-full gba:h-[64px] gba:px-4 gba:rounded`}
             data-testid="ccr-standard-field"
           >
-            <span className="gba:text-[#707070] gba:text-[12px] gba:font-medium" data-testid="ccr-standard-label">
+            <span className={`${isUpdate ? 'gba:text-[#b5b6b6]' : 'gba:text-[#707070]'} gba:text-[12px] gba:font-medium`} data-testid="ccr-standard-label">
               {getTranslationFromI18nKeyAndLabel('lowcoder:expense_calculation_rule.expense_calculation_rule_modal.standard_checkbox', 'Standard')}
             </span>
             <Checkbox
               name="ccrStandard"
               data-testid="ccr-standard-checkbox"
               value={formState.isStandard}
+              disabled={isUpdate}
               onChange={(field: any) => {
                 handleStandardToggle(!!field?.value);
               }}
@@ -830,6 +834,7 @@ const CreateCalculationRuleForm: React.FC<CreateCalculationRuleFormProps> = ({ a
             data-testid="ccr-country-select"
             data={countryOptions}
             value={formState.countryRefId || undefined}
+            disabled={isUpdate}
             onChange={(value: any) => {
               dispatch({ type: 'SET_FIELD', field: 'countryRefId', value: value?.value ?? null });
               setHasInteracted(true);
@@ -857,6 +862,7 @@ const CreateCalculationRuleForm: React.FC<CreateCalculationRuleFormProps> = ({ a
             data={currencyOptions}
             isDataSorted={false}
             value={formState.currencyId || undefined}
+            disabled={isUpdate}
             onChange={(value: any) => {
               dispatch({ type: 'SET_FIELD', field: 'currencyId', value: value?.value ?? null });
               setHasInteracted(true);
@@ -881,6 +887,7 @@ const CreateCalculationRuleForm: React.FC<CreateCalculationRuleFormProps> = ({ a
             placeholder={getTranslationFromI18nKeyAndLabel('lowcoder:expense_calculation_rule.expense_calculation_rule_modal.advance_payment_code_input_placeholder', 'Enter Advance Payment Code')}
             data-testid="ccr-advance-payment-code-input"
             value={formState.advancePaymentCode}
+            disabled={isUpdate}
             onChange={(field: any) => dispatch({ type: 'SET_FIELD', field: 'advancePaymentCode', value: field?.value ?? '' })}
             required={false}
           />
@@ -895,6 +902,7 @@ const CreateCalculationRuleForm: React.FC<CreateCalculationRuleFormProps> = ({ a
             placeholder={getTranslationFromI18nKeyAndLabel('lowcoder:expense_calculation_rule.expense_calculation_rule_modal.taxes_code_input_placeholder', 'Enter Taxes Code')}
             data-testid="ccr-taxes-code-input"
             value={formState.taxesCode}
+            disabled={isUpdate}
             onChange={(field: any) => dispatch({ type: 'SET_FIELD', field: 'taxesCode', value: field?.value ?? '' })}
             required={false}
           />
@@ -909,6 +917,7 @@ const CreateCalculationRuleForm: React.FC<CreateCalculationRuleFormProps> = ({ a
             placeholder={getTranslationFromI18nKeyAndLabel('lowcoder:expense_calculation_rule.expense_calculation_rule_modal.nonpayable_code_input_placeholder', 'Enter Non Payable Code')}
             data-testid="ccr-nonpayable-code-input"
             value={formState.nonPayableCode}
+            disabled={isUpdate}
             onChange={(field: any) => dispatch({ type: 'SET_FIELD', field: 'nonPayableCode', value: field?.value ?? '' })}
             required={false}
           />
@@ -918,14 +927,15 @@ const CreateCalculationRuleForm: React.FC<CreateCalculationRuleFormProps> = ({ a
       {/* Boolean flags */}
       <div className={`gba:mb-4`} data-testid="ccr-austrian-abroad-container">
         <div className={`gba:relative`}>
-          <div className="gba:flex gba:items-center gba:justify-between gba:w-full gba:h-[64px] gba:bg-[#F7F7F7] gba:px-4 gba:rounded">
-            <span className="gba:text-[#707070] gba:text-[12px] gba:font-medium">
+          <div className={`${isUpdate ? 'gba:bg-[#eeeff0] gba:cursor-not-allowed' : 'gba:bg-[#F7F7F7]'} gba:flex gba:items-center gba:justify-between gba:w-full gba:h-[64px] gba:px-4 gba:rounded`}>
+            <span className={`${isUpdate ? 'gba:text-[#b5b6b6]' : 'gba:text-[#707070]'} gba:text-[12px] gba:font-medium`}>
               {getTranslationFromI18nKeyAndLabel('lowcoder:expense_calculation_rule.expense_calculation_rule_modal.austrian_abroad', 'Austrian Abroad')}
             </span>
             <Checkbox
               name="ccr-austrian-abroad"
               data-testid="ccr-austrian-abroad-checkbox"
               value={formState.austrianAbroad}
+              disabled={isUpdate}
               onChange={(f: any) => {
                 const next = !!f?.value;
                 dispatch({ type: 'SET_FIELD', field: 'austrianAbroad', value: next });
@@ -939,14 +949,15 @@ const CreateCalculationRuleForm: React.FC<CreateCalculationRuleFormProps> = ({ a
 
       <div className={`gba:mb-4`} data-testid="ccr-romanian-calculation-container">
         <div className={`gba:relative`}>
-          <div className="gba:flex gba:items-center gba:justify-between gba:w-full gba:h-[64px] gba:bg-[#F7F7F7] gba:px-4 gba:rounded">
-            <span className="gba:text-[#707070] gba:text-[12px] gba:font-medium">
+          <div className={`${isUpdate ? 'gba:bg-[#eeeff0] gba:cursor-not-allowed' : 'gba:bg-[#F7F7F7]'} gba:flex gba:items-center gba:justify-between gba:w-full gba:h-[64px] gba:px-4 gba:rounded`}>
+            <span className={`${isUpdate ? 'gba:text-[#b5b6b6]' : 'gba:text-[#707070]'} gba:text-[12px] gba:font-medium`}>
               {getTranslationFromI18nKeyAndLabel('lowcoder:expense_calculation_rule.expense_calculation_rule_modal.romanian_calculation', 'Romanian Calculation')}
             </span>
             <Checkbox
               name="ccr-romanian-calculation"
               data-testid="ccr-romanian-calculation-checkbox"
               value={formState.romanianCalculation}
+              disabled={isUpdate}
               onChange={(f: any) => {
                 const next = !!f?.value;
                 dispatch({ type: 'SET_FIELD', field: 'romanianCalculation', value: next });
@@ -960,14 +971,15 @@ const CreateCalculationRuleForm: React.FC<CreateCalculationRuleFormProps> = ({ a
 
       <div className={`gba:mb-4`} data-testid="ccr-use-last-country-container">
         <div className={`gba:relative`}>
-          <div className="gba:flex gba:items-center gba:justify-between gba:w-full gba:h-[64px] gba:bg-[#F7F7F7] gba:px-4 gba:rounded">
-            <span className="gba:text-[#707070] gba:text-[12px] gba:font-medium">
+          <div className={`${isUpdate ? 'gba:bg-[#eeeff0] gba:cursor-not-allowed' : 'gba:bg-[#F7F7F7]'} gba:flex gba:items-center gba:justify-between gba:w-full gba:h-[64px] gba:px-4 gba:rounded`}>
+            <span className={`${isUpdate ? 'gba:text-[#b5b6b6]' : 'gba:text-[#707070]'} gba:text-[12px] gba:font-medium`}>
               {getTranslationFromI18nKeyAndLabel('lowcoder:expense_calculation_rule.expense_calculation_rule_modal.use_last_country', 'Use Last Country')}
             </span>
             <Checkbox
               name="ccr-use-last-country"
               data-testid="ccr-use-last-country-checkbox"
               value={formState.useLastCountry}
+              disabled={isUpdate}
               onChange={(f: any) => dispatch({ type: 'SET_FIELD', field: 'useLastCountry', value: !!f?.value })} />
           </div>
         </div>
@@ -975,14 +987,15 @@ const CreateCalculationRuleForm: React.FC<CreateCalculationRuleFormProps> = ({ a
 
       <div className={`gba:mb-4`} data-testid="ccr-deduction-limit-container">
         <div className={`gba:relative`}>
-          <div className="gba:flex gba:items-center gba:justify-between gba:w-full gba:h-[64px] gba:bg-[#F7F7F7] gba:px-4 gba:rounded">
-            <span className="gba:text-[#707070] gba:text-[12px] gba:font-medium">
+          <div className={`${isUpdate ? 'gba:bg-[#eeeff0] gba:cursor-not-allowed' : 'gba:bg-[#F7F7F7]'} gba:flex gba:items-center gba:justify-between gba:w-full gba:h-[64px] gba:px-4 gba:rounded`}>
+            <span className={`${isUpdate ? 'gba:text-[#b5b6b6]' : 'gba:text-[#707070]'} gba:text-[12px] gba:font-medium`}>
               {getTranslationFromI18nKeyAndLabel('lowcoder:expense_calculation_rule.expense_calculation_rule_modal.deduction_limit', 'Deduction Limit')}
             </span>
             <Checkbox
               name="ccr-deduction-limit"
               data-testid="ccr-deduction-limit-checkbox"
               value={formState.deductionLimit}
+              disabled={isUpdate}
               onChange={(f: any) => dispatch({ type: 'SET_FIELD', field: 'deductionLimit', value: !!f?.value })} />
           </div>
         </div>
@@ -990,14 +1003,15 @@ const CreateCalculationRuleForm: React.FC<CreateCalculationRuleFormProps> = ({ a
 
       <div className={`gba:mb-4`} data-testid="ccr-use-single-currency-container">
         <div className={`gba:relative`}>
-          <div className="gba:flex gba:items-center gba:justify-between gba:w-full gba:h-[64px] gba:bg-[#F7F7F7] gba:px-4 gba:rounded">
-            <span className="gba:text-[#707070] gba:text-[12px] gba:font-medium">
+          <div className={`${isUpdate ? 'gba:bg-[#eeeff0] gba:cursor-not-allowed' : 'gba:bg-[#F7F7F7]'} gba:flex gba:items-center gba:justify-between gba:w-full gba:h-[64px] gba:px-4 gba:rounded`}>
+            <span className={`${isUpdate ? 'gba:text-[#b5b6b6]' : 'gba:text-[#707070]'} gba:text-[12px] gba:font-medium`}>
               {getTranslationFromI18nKeyAndLabel('lowcoder:expense_calculation_rule.expense_calculation_rule_modal.use_single_currency', 'Use single currency')}
             </span>
             <Checkbox
               name="ccr-use-single-currency"
               data-testid="ccr-use-single-currency-checkbox"
               value={formState.useSingleCurrency}
+              disabled={isUpdate}
               onChange={(f: any) => dispatch({ type: 'SET_FIELD', field: 'useSingleCurrency', value: !!f?.value })} />
           </div>
         </div>

@@ -21,6 +21,7 @@ import {
 } from '@newwork/nw-design-system';
 import StandardIcon from './components/StandardIcon';
 import StandardFilter from './components/filters/StandardFilter';
+import { ICONS } from '@/business-apps/fin/expenses/utils/icons';
 import ValidityPeriodFilter from './components/filters/ValidityPeriodFilter';
 import CalculationFilter from './components/filters/CalculationFilter';
 import { ListBulletsIcon, SortAscendingIcon, SortDescendingIcon, CaretLeftIcon, CaretRightIcon } from '@phosphor-icons/react';
@@ -197,12 +198,30 @@ const ExpenseCalculationRules: React.FC<ExpenseCalculationRulesProps> = (props) 
       />
     ),
   } as any;
-
   return (
     <div data-testid={`${PREFIX}-app`} className="gba:p-6">
       <DataContainer
         dataControllerProps={dataControllerProps}
-        dataFilterProps={{ filterGroups }}
+        dataFilterProps={{ 
+          filterGroups,
+          children: (
+            <div className="gba:w-[100%] gba:mt-auto gba:pb-3" data-testid={`${PREFIX}-reset-filters-container`}>
+              <button
+                type="button"
+                className="gba:flex gba:items-center gba:gap-2 gba:w-[100%] gba:px-3 gba:py-2 gba:border gba:rounded gba:text-sm"
+                onClick={() => {
+                  setValidityRange(null as any, null as any);
+                  setSelectedCalculationCodes([]);
+                  setStandardSelection({ true: false, false: false });
+                }}
+                data-testid={`${PREFIX}-reset-filters-button`}
+              >
+                <img src={ICONS.DELETE_CIRCLE_ICON} alt="reset" className="gba:w-4 gba:h-4" />
+                {getTranslationFromI18nKeyAndLabel('lowcoder:expense_config_calculation_rule_list.expense_calculation_rule_filter.reset_filters_btn', 'Reset Filters')}
+              </button>
+            </div>
+          )
+        }}
         dataBody={(
           <div className="gba:pr-6 gba:overflow-hidden" data-testid={`${PREFIX}-body`}>
             <Card>
@@ -220,8 +239,8 @@ const ExpenseCalculationRules: React.FC<ExpenseCalculationRulesProps> = (props) 
                     </Alert>
                   </div>
                 )}
-                <div className="gba:overflow-x-auto gba:mt-4 gba:max-w-full">
-                  <Table data-testid={`${PREFIX}-table`} className="gba:min-w-[1100px] gba:w-full">
+                <div className="gba:overflow-x-auto gba:mt-4 gba:max-w-[100%]">
+                  <Table data-testid={`${PREFIX}-table`} className="gba:min-w-[1100px] gba:w-[100%]">
                     <TableHeader>
                       <TableRow className="gba:border-b gba:bg-gray-50">
                         {columns.map((col) => (
@@ -414,7 +433,7 @@ const ExpenseCalculationRules: React.FC<ExpenseCalculationRulesProps> = (props) 
                     accessToken={props.accessToken}
                     additionalData={{ nvi_navigationPayload: selectedRow ? { ...selectedRow } : {} }}
                     onCancel={() => setFlowModalOpen(false)}
-                    onCreate={() => setFlowModalOpen(false)}
+                    onCreate={() => { setFlowModalOpen(false); reload(); }}
                   />
                 </div>
               </DialogContent>

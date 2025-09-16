@@ -65,7 +65,7 @@ export const useExpenseCalculationRules = (
   const [sortOrder, setSortOrder] = useState<'ASC' | 'DESC' | ''>('');
   const [validityFrom, setValidityFrom] = useState<string | null>(null);
   const [validityTo, setValidityTo] = useState<string | null>(null);
-  const [standard, setStandard] = useState<boolean | null>(null);
+  const [standard, setStandard] = useState<boolean | null>(false);
   const [selectedCalculationCodes, setSelectedCalculationCodes] = useState<string[]>([]);
   const [selectedCurrencyCodes, setSelectedCurrencyCodes] = useState<string[]>([]);
 
@@ -75,7 +75,7 @@ export const useExpenseCalculationRules = (
     if (!sortField || !sortOrder) return undefined;
     const dir = sortOrder === 'ASC' ? 'ASC_NULLS_LAST' : 'DESC_NULLS_LAST';
     if (sortField === 'calculation') {
-      return [{ calculationTypeRef: dir } as any];
+      return [{ calculationType: { code: dir } } as any];
     }
     if (sortField === 'currency') {
       return [{ currency: { code: dir } } as any];
@@ -103,7 +103,7 @@ export const useExpenseCalculationRules = (
       where.activeTo = { _lte: validityTo };
     }
     if (selectedCalculationCodes?.length) {
-      where.calculationTypeRef = { code: { _in: selectedCalculationCodes } } as any;
+      where.calculationType = { code: { _in: selectedCalculationCodes } } as any;
     }
     if (selectedCurrencyCodes?.length) {
       where.currency = { code: { _in: selectedCurrencyCodes } } as any;

@@ -54,7 +54,7 @@ query getRuleFlags($id: uuid!) {
 export const buildGetExpenseRulesQuery = (): string => {
   // where conditions are built via variables substituted inline in GraphQL by concatenating fragments
   return `
-  query getExpenseRules($orderBy: [ExpenseRuleOrderBy!], $limit: Int, $offset: Int, $where: ExpenseRuleBoolExp, $activeUserLocale: String!) {
+  query getExpenseRules($orderBy: [ExpenseRuleOrderBy!] = [{ createdAt: DESC }], $limit: Int, $offset: Int, $where: ExpenseRuleBoolExp, $activeUserLocale: String!) {
     ExpenseRule(orderBy: $orderBy, limit: $limit, offset: $offset, where: $where) {
       id
       version
