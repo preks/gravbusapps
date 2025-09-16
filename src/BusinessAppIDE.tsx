@@ -19,10 +19,14 @@ import {
   SelectItem,
   SelectTrigger,
   SelectValue,
+  SidebarProvider,
+  SidebarInset,
+  SidebarTrigger,
+  Separator,
 } from "@newwork/nw-design-system";
 import { toast } from "sonner";
-import { Gear, X, Info } from "@phosphor-icons/react";
-import { IdeMainMenu, BusinessAppInfo } from "@/components/ide-main-menu";
+import { Gear, Info } from "@phosphor-icons/react";
+import { IDEMainMenu, BusinessAppInfo } from "@/components/ide-main-menu";
 import { IDERenderer } from "@/components/ide-renderer";
 import { UserInfoProps } from "./common/BusinessAppContext";
 import ProcessEventListener, {
@@ -37,6 +41,11 @@ import { useRewrapAntDStylesLive } from "./common/hooks/useRewrapAntDStylesLive"
 
 // Get available modules without eagerly loading them
 const modulePatterns = import.meta.glob("./business-apps/**/index.ts", {
+  eager: false,
+});
+
+// Also load example entries from ./common/examples (apps, forms, popups)
+const examplePatterns = import.meta.glob("./common/examples/**/index.ts", {
   eager: false,
 });
 
@@ -126,6 +135,51 @@ for (const path in modulePatterns) {
       type: componentType,
     });
   }
+}
+
+// Build the businessApps array from example index.ts files under ./common/examples
+for (const path in examplePatterns) {
+  const pathParts = path.split("/");
+  // Example path: ./common/examples/forms/example-catalog-select-form/index.ts
+
+  // Determine type based on directory
+  let componentType: "app" | "form" | "popup" = "app";
+  if (pathParts.includes("forms")) {
+    componentType = "form";
+  } else if (pathParts.includes("popups")) {
+    componentType = "popup";
+  }
+
+  // Find index of "examples" segment
+  const examplesIndex = pathParts.indexOf("examples");
+  if (examplesIndex === -1) {
+    continue;
+  }
+
+  // appName is directory containing index.ts
+  const appName = pathParts[pathParts.length - 2];
+
+  // screenKey: examples/<relativeDir from examples root to dir containing index.ts>
+  const relativeDirParts = pathParts.slice(examplesIndex + 1, pathParts.length - 1);
+  const screenKey = `examples/${relativeDirParts.join("/")}`;
+
+  // display name from folder name
+  const displayName = appName
+    .split("-")
+    .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+    .join("");
+
+  // subModule for grouping inside examples (e.g., forms, apps, popups)
+  const subModule = relativeDirParts.length > 0 ? relativeDirParts[0] : undefined;
+
+  businessApps.push({
+    name: displayName,
+    path,
+    module: "examples",
+    subModule,
+    screenKey,
+    type: componentType,
+  });
 }
 
 const STORAGE_KEY_USER_INFO = "business-app-ide-user-info";
@@ -502,173 +556,138 @@ export function BusinessAppIDE(props: Readonly<BusinessAppIDEProps>) {
             <ProcessEventListener onLocalDevEvent={handleProcessLocalDevEvent} />
             <FeatureHubProvider userId={parsedUserInfo()?.id ?? ""} />
 
-            {/* Full-width Header */}
-            <header className="gba:bg-white gba:px-4 gba:grid gba:grid-cols-3 gba:items-center gba:h-12 gba:shadow-sm gba:border-b gba:border-gray-200 gba:fixed gba:top-0 gba:left-0 gba:right-0 gba:z-50">
-              {/* Left section: Package Info */}
-              <div className="gba:flex gba:items-center gba:flex-nowrap gba:justify-start">
-                <div className="gba:flex gba:items-center gba:gap-3">
-                  <div className="gba:flex gba:items-center">
-                    <div className="gba:py-[12px]">
-                      <a
-                        href="#"
-                        onClick={(e) => {
-                          e.preventDefault();
-                          goToStartScreen();
-                        }}
-                      >
-                        <img
-                          src={HeaderLogo}
-                          alt="Business Apps IDE"
-                          width="120"
-                          height="14"
-                          className="gba:w-[120px] gba:h-[14px]"
-                        />
-                      </a>
-                    </div>
-                  </div>
-                  <span className="gba:text-xs gba:text-[#666]">v{packageVersion}</span>
-                </div>
-              </div>
-
-              {/* Center section: Search Placeholder - Perfectly centered */}
-              <div className="gba:flex gba:items-center gba:justify-center">
-                <button
-                  className="gba:w-[219px] gba:h-8 gba:flex gba:items-center gba:justify-center gba:rounded-full gba:bg-[#EFEFEF] gba:outline-none"
-                  data-testid="GlobalSearchButton-Button"
-                >
-                  <div className="gba:w-[418px] gba:h-[26px] gba:flex gba:items-center gba:justify-center gba:rounded-full gba:bg-[#EFEFEF]">
-                    <div
-                      className="gba:text-sm gba:text-[#999999]"
-                      data-testid="GlobalSearchButton-Text"
+            {/* Sidebar + Inset layout */}
+            <SidebarProvider open={!collapsed} onOpenChange={(open) => setCollapsed(!open)}>
+              <IDEMainMenu
+                businessApps={businessApps}
+                selectedApp={selectedApp}
+                openKeys={openKeys}
+                onOpenChange={handleOpenChange}
+                onAppSelect={handleAppSelect}
+              />
+              <SidebarInset>
+                {/* Header inside inset, responsive to collapsed state */}
+                <header className="gba:flex gba:h-12 gba:shrink-0 gba:items-center gba:gap-2 gba:transition-[width,height] gba:ease-linear">
+                  <div className="gba:flex gba:items-center gba:gap-2 gba:px-4">
+                    <SidebarTrigger className="gba:-ml-1" />
+                    <Separator orientation="vertical" className="gba:mr-2" />
+                    <a
+                      href="#"
+                      onClick={(e) => {
+                        e.preventDefault();
+                        goToStartScreen();
+                      }}
+                      className="gba:flex gba:items-center gba:gap-2"
                     >
-                      Search in NEWWORK
+                      <img
+                        src={HeaderLogo}
+                        alt="Business Apps IDE"
+                        width="120"
+                        height="14"
+                        className="gba:w-[120px] gba:h-[14px]"
+                      />
+                      <span className="gba:text-xs gba:text-[#666]">v{packageVersion}</span>
+                    </a>
+                  </div>
+
+                  <div className="gba:flex gba:flex-1 gba:items-center gba:justify-center">
+                    <div className="gba:w-[250px] gba:h-[26px] gba:flex gba:items-center gba:justify-center gba:rounded-full gba:bg-input">
+                      <div
+                        className="gba:text-sm gba:text-input-foreground"
+                        data-testid="GlobalSearchButton-Text"
+                      >
+                        Search in NEWWORK
+                      </div>
                     </div>
                   </div>
-                </button>
-              </div>
 
-              {/* Right section: Last Published Date and Settings Button */}
-              <div className="gba:flex gba:items-center gba:justify-end gba:gap-4">
-                {/* Theme & Density controls */}
-                <div className="gba:flex gba:items-center gba:gap-2">
-                  <ThemeSwitch data-testid="BusinessAppIDE-theme-switch" />
-                  <Select
-                    value={density}
-                    onValueChange={(v) => setDensity(v as "default" | "compact" | "comfortable")}
-                  >
-                    <SelectTrigger data-testid="BusinessAppIDE-density-select" aria-label="Density">
-                      <SelectValue placeholder="Density" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="default" data-testid="BusinessAppIDE-density-default">
-                        Default
-                      </SelectItem>
-                      <SelectItem value="compact" data-testid="BusinessAppIDE-density-compact">
-                        Compact
-                      </SelectItem>
-                      <SelectItem
-                        value="comfortable"
-                        data-testid="BusinessAppIDE-density-comfortable"
+                  <div className="gba:flex gba:items-center gba:justify-end gba:gap-4 gba:pr-4">
+                    <div className="gba:flex gba:items-center gba:gap-2">
+                      <ThemeSwitch data-testid="BusinessAppIDE-theme-switch" />
+                      <Select
+                        value={density}
+                        onValueChange={(v) =>
+                          setDensity(v as "default" | "compact" | "comfortable")
+                        }
                       >
-                        Comfortable
-                      </SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                {lastPublishedDate && (
-                  <div
-                    className="gba:flex gba:items-center gba:text-sm gba:text-gray-600"
-                    data-testid="LastPublishedDate"
-                  >
-                    <span className="gba:text-secondary">Last Published: {lastPublishedDate}</span>
-                  </div>
-                )}
-                <TooltipProvider>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => setSettingsModalVisible(true)}
-                      >
-                        <Gear size={16} />
-                      </Button>
-                    </TooltipTrigger>
-                    <TooltipContent>Settings</TooltipContent>
-                  </Tooltip>
-                </TooltipProvider>
-                <TooltipProvider>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => setPerformanceModalVisible(true)}
-                      >
-                        <Info size={16} />
-                      </Button>
-                    </TooltipTrigger>
-                    <TooltipContent>Performance Metrics</TooltipContent>
-                  </Tooltip>
-                </TooltipProvider>
-              </div>
-            </header>
-
-            {/* Layout with Sidebar and Content below header */}
-            <div className="gba:flex gba:flex-1 gba:pt-12 gba:min-h-0">
-              <aside
-                className={`gba:bg-white gba:fixed gba:left-0 gba:top-12 gba:bottom-0 gba:shadow-lg gba:overflow-hidden gba:z-50 gba:transition-all gba:duration-200 gba:flex gba:flex-col ${
-                  collapsed ? "gba:w-17" : "gba:w-66"
-                }`}
-              >
-                <div className="gba:flex-1 gba:overflow-y-auto">
-                  <IdeMainMenu
-                    businessApps={businessApps}
-                    selectedApp={selectedApp}
-                    collapsed={collapsed}
-                    openKeys={openKeys}
-                    onAppSelect={handleAppSelect}
-                    onOpenChange={handleOpenChange}
-                  />
-                </div>
-
-                <div className="gba:border-t gba:border-gray-200 gba:p-2 gba:flex gba:justify-center gba:bg-white gba:h-14 gba:z-10 gba:shadow-lg">
-                  <TooltipProvider>
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => setCollapsed(!collapsed)}
-                          className="gba:w-full gba:h-10"
+                        <SelectTrigger
+                          data-testid="BusinessAppIDE-density-select"
+                          aria-label="Density"
                         >
-                          {collapsed ? <Gear size={16} /> : <X size={16} />}
-                        </Button>
-                      </TooltipTrigger>
-                      <TooltipContent>{collapsed ? "Expand Menu" : "Collapse Menu"}</TooltipContent>
-                    </Tooltip>
-                  </TooltipProvider>
-                </div>
-              </aside>
+                          <SelectValue placeholder="Density" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="default" data-testid="BusinessAppIDE-density-default">
+                            Default
+                          </SelectItem>
+                          <SelectItem value="compact" data-testid="BusinessAppIDE-density-compact">
+                            Compact
+                          </SelectItem>
+                          <SelectItem
+                            value="comfortable"
+                            data-testid="BusinessAppIDE-density-comfortable"
+                          >
+                            Comfortable
+                          </SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    {lastPublishedDate && (
+                      <div
+                        className="gba:flex gba:items-center gba:text-sm"
+                        data-testid="LastPublishedDate"
+                      >
+                        <span className="gba:text-secondary-foreground">
+                          Last Published: {lastPublishedDate}
+                        </span>
+                      </div>
+                    )}
+                    <TooltipProvider>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => setSettingsModalVisible(true)}
+                          >
+                            <Gear size={16} />
+                          </Button>
+                        </TooltipTrigger>
+                        <TooltipContent>Settings</TooltipContent>
+                      </Tooltip>
+                    </TooltipProvider>
+                    <TooltipProvider>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => setPerformanceModalVisible(true)}
+                          >
+                            <Info size={16} />
+                          </Button>
+                        </TooltipTrigger>
+                        <TooltipContent>Performance Metrics</TooltipContent>
+                      </Tooltip>
+                    </TooltipProvider>
+                  </div>
+                </header>
 
-              <main
-                className={`gba:flex-1 gba:bg-white gba:min-h-0 gba:overflow-auto gba:transition-all gba:duration-200 ${
-                  collapsed ? "gba:ml-17" : "gba:ml-66"
-                }`}
-              >
-                {!selectedApp ? (
-                  <IDEStartScreen businessApps={businessApps} onAppSelect={handleAppSelect} />
-                ) : (
-                  <IDERenderer
-                    selectedApp={selectedApp}
-                    userInfo={parsedUserInfo()}
-                    accessToken={accessToken ?? undefined}
-                    additionalData={parsedAdditionalData()}
-                    onAppSelect={setSelectedApp}
-                  />
-                )}
-              </main>
-            </div>
+                <div className="gba:flex-1 gba:min-h-0 gba:overflow-y-auto gba:bg-background gba:rounded-xl">
+                  {!selectedApp ? (
+                    <IDEStartScreen businessApps={businessApps} onAppSelect={handleAppSelect} />
+                  ) : (
+                    <IDERenderer
+                      selectedApp={selectedApp}
+                      userInfo={parsedUserInfo()}
+                      accessToken={accessToken ?? undefined}
+                      additionalData={parsedAdditionalData()}
+                      onAppSelect={setSelectedApp}
+                    />
+                  )}
+                </div>
+              </SidebarInset>
+            </SidebarProvider>
 
             <Dialog open={settingsModalVisible} onOpenChange={setSettingsModalVisible}>
               <DialogContent className="gba:max-w-[700px] gba:max-h-[90vh] gba:overflow-y-auto">

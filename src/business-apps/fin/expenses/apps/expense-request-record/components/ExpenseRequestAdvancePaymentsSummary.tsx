@@ -22,7 +22,7 @@ const ExpenseRequestAdvancePaymentsSummary: React.FC<ExpenseRequestAdvancePaymen
       <Table.Summary.Row>
         <Table.Summary.Cell index={0}>
           <Text strong>
-            {getTranslationFromI18nKeyAndLabel('expense.plan.advance.payments.total', 'Total')}
+            {getTranslationFromI18nKeyAndLabel('lowcoder:initiate_advance_payment.total', 'Total')}
           </Text>
         </Table.Summary.Cell>
         <Table.Summary.Cell index={1} align="right">

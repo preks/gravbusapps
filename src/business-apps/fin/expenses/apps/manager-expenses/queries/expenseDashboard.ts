@@ -88,6 +88,8 @@ query GetExpenseDashboardByManager($managerId: uuid!, $startDate: timestamp, $ye
     requestDate
     employee {
       fullName
+      firstName
+      lastName  
     }
   }
 
