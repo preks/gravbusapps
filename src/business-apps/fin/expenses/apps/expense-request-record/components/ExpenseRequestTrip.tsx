@@ -5,7 +5,6 @@ import type { ColumnsType } from 'antd/es/table';
 import { ExpenseRequestTripType } from '../types/expenseRequestRecord.types';
 import { getTranslationFromI18nKeyAndLabel, formatDate } from '@/common/utils/windowUtils';
 import { PiMapPin, PiArrowRight, PiArrowLeft, PiMapTrifold, PiFlag, PiTable, PiChartLine } from 'react-icons/pi';
-import dayjs from 'dayjs';
 
 interface ExpenseRequestTripProps {
   expenseRequestTrips: ExpenseRequestTripType[];
@@ -94,7 +93,7 @@ const ExpenseRequestTrip: React.FC<ExpenseRequestTripProps> = ({ expenseRequestT
           {formatDate(date, 'date.short')}, {formatDate(date, 'time.short')}
         </>
       ),
-      sorter: (a, b) => dayjs(a.tripDateTime).unix() - dayjs(b.tripDateTime).unix(),
+      sorter: (a, b) => new Date(a.tripDateTime).getTime() - new Date(b.tripDateTime).getTime(),
     },
     {
       title: getTranslationFromI18nKeyAndLabel('lowcoder:expense_request_overview.trip_list.trip_list_title', 'Direction'),

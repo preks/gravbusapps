@@ -84,9 +84,6 @@ export const getExpenseRequestRecordQuery = `
             value
           }
         }
-        currency {
-          code
-        }
         expenseDate
         totalAmount
         reimbursableAmount

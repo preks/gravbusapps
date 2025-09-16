@@ -5,7 +5,6 @@ import type { ColumnsType } from 'antd/es/table';
 import { ExpenseRequestTrip } from '../types/expensePlanRecord.types';
 import { getTranslationFromI18nKeyAndLabel, formatDate } from '@/common/utils/windowUtils';
 import { PiMapPin, PiArrowRight, PiArrowLeft, PiMapTrifold, PiFlag, PiTable, PiChartLine } from 'react-icons/pi';
-import dayjs from 'dayjs';
 
 interface ExpensePlanTripProps {
   expenseRequestTrips: ExpenseRequestTrip[];
@@ -94,7 +93,7 @@ const ExpensePlanTrip: React.FC<ExpensePlanTripProps> = ({ expenseRequestTrips }
           {formatDate(date, 'date.short')}, {formatDate(date, 'time.short')}
         </>
       ),
-      sorter: (a, b) => dayjs(a.tripDateTime).unix() - dayjs(b.tripDateTime).unix(),
+      sorter: (a, b) => new Date(a.tripDateTime).getTime() - new Date(b.tripDateTime).getTime(),
     },
     {
       title: getTranslationFromI18nKeyAndLabel('lowcoder:expense_request_overview.trip_list.trip_list_title', 'Direction'),
@@ -126,7 +125,7 @@ const ExpensePlanTrip: React.FC<ExpensePlanTripProps> = ({ expenseRequestTrips }
         { text: getTranslationFromI18nKeyAndLabel('lowcoder:create_expense_request.add_request_trip_details.transformer_rule', 'Start Point'), value: 'START_POINT' },
         { text: getTranslationFromI18nKeyAndLabel('lowcoder:expense_request_overview.trip_list.location_title.end_location', 'End Point'), value: 'END_POINT' },
         { text: getTranslationFromI18nKeyAndLabel('lowcoder:expense_request_overview.trip_list.location_title.destination', 'Destination'), value: 'DESTINATION_POINT' },
-        { text: getTranslationFromI18nKeyAndLabel('lowcoder:expense_records.request.region_arrival', 'Region Arrival', 'Region Arrival'), value: 'REGION_ARRIVAL' },
+        { text: getTranslationFromI18nKeyAndLabel('lowcoder:expense_records.request.region_arrival', 'Region Arrival'), value: 'REGION_ARRIVAL' },
       ],
       onFilter: (value, record) => record.pointType === value,
     },

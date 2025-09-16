@@ -3,10 +3,9 @@ import { Table } from 'antd';
 import { Card, CardHeader, CardTitle, CardContent, Badge } from '@newwork/nw-design-system';
 import type { ColumnsType } from 'antd/es/table';
 import { ExpenseAllowance } from '../types/expensePlanRecord.types';
-import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
+import { getTranslationFromI18nKeyAndLabel, formatDate } from '@/common/utils/windowUtils';
 import { formatCurrencyDisplay } from '../utils/currency';
 import { CheckOutlined, CloseOutlined } from '@ant-design/icons';
-import dayjs from 'dayjs';
 
 interface ExpensePlanAllowancesProps {
   expenseAllowances: ExpenseAllowance[];
@@ -17,10 +16,8 @@ interface ExpensePlanAllowancesProps {
 const ExpensePlanAllowances: React.FC<ExpensePlanAllowancesProps> = ({ expenseAllowances, currencyCode }) => {
   
   
-  // Format date helper function
-  const formatDate = (dateString: string) => {
-    return dayjs(dateString).format('YYYY-MM-DD');
-  };
+  // Use shared platform date formatter
+  const formatDateDisplay = (dateString: string) => formatDate(dateString, 'date.short');
 
   // Format amount helper function
   const formatAmount = (amount: number) => formatCurrencyDisplay(amount, currencyCode);
@@ -34,11 +31,11 @@ const ExpensePlanAllowances: React.FC<ExpensePlanAllowancesProps> = ({ expenseAl
 
   const columns: ColumnsType<ExpenseAllowance> = [
     {
-      title: getTranslationFromI18nKeyAndLabel('lowcoder: expense_request_list.expense_plan_table.date', 'Date'),
+      title: getTranslationFromI18nKeyAndLabel('lowcoder:expense_request_list.expense_plan_table.date', 'Date'),
       dataIndex: 'allowanceDate',
       key: 'allowanceDate',
-      render: (date: string) => formatDate(date),
-      sorter: (a, b) => dayjs(a.allowanceDate).unix() - dayjs(b.allowanceDate).unix(),
+      render: (date: string) => formatDateDisplay(date),
+      sorter: (a, b) => new Date(a.allowanceDate).getTime() - new Date(b.allowanceDate).getTime(),
     },
     {
       title: getTranslationFromI18nKeyAndLabel('lowcoder:expense_records.plan.travel_region', 'Travel Region'),

@@ -87,7 +87,6 @@ const ExpenseRequestItems: React.FC<ExpenseRequestItemsProps> = ({ expenseReques
         const isAllowance = record?.expenseGroup?.value === 'Allowances';
         const onePositionItem = record?.expensePosition?.length === 1;
         const isMultipositionItem = record?.expensePosition?.length > 1;
-        // eslint-disable-next-line no-console
         if (isAllowance || onePositionItem) {
           const labelText = isAllowance
             ? getTranslationFromI18nKeyAndLabel('lowcoder:create_expense_type_item.allowance', 'Allowance')
