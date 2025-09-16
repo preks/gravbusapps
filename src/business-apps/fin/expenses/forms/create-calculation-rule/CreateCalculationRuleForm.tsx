@@ -9,10 +9,11 @@ import {
   Checkbox,
 } from "@newwork/gravity-ui-catalog";
 import { getCurrentActiveUserLocale, getDateFormat, getTranslationFromI18nKeyAndLabel, getCatalogValue } from "@/common/utils/windowUtils";
-import { env } from '@/common/env/EnvUtils';
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient';
+import { env } from '@/common/env/EnvUtils';
 import { BusinessAppContextProps } from '@/business-apps/types';
-import { ruleDataQuery, plansAndRequestsInRangeQuery, buildGetAffectedExpensesQuery } from './queries/CreateCalculationRuleQueries';
+import { ruleDataQuery, plansAndRequestsInRangeQuery, buildGetAffectedExpensesQuery, getLastCalculationRule, getExpenseRuleFlagById, getCalculationRule, getExpenseRuleAggregateByCode } from './queries/CreateCalculationRuleQueries';
+import { useRestClient } from '@/common/network/rest/useRestClient';
 import { transformCurrencies } from '@/business-apps/fin/expenses/forms/expense-item/utils/currencyUtils';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@newwork/nw-design-system';
 import AffectedExpensesTable from './components/AffectedExpensesTable';
@@ -121,14 +122,24 @@ const CreateCalculationRuleForm: React.FC<CreateCalculationRuleFormProps> = ({ a
   const [affectedPage, setAffectedPage] = useState(1);
   const [affectedTotal, setAffectedTotal] = useState(0);
   const [showAffectedModal, setShowAffectedModal] = useState(false);
+  const [lastRuleId, setLastRuleId] = useState<string | null>(null);
+  const [existingFlag, setExistingFlag] = useState<any | null>(null);
+  const [prefilledRule, setPrefilledRule] = useState<any | null>(null);
+  const [codeDuplicate, setCodeDuplicate] = useState<boolean>(false);
+  const initialSnapshotRef = React.useRef<any | null>(null);
+  const [flagsLoaded, setFlagsLoaded] = useState<boolean>(false);
+
+  const navigationPayload = (_navigationPayload as any)?.nvi_navigationPayload || null;
+  const isUpdate = !!navigationPayload?.id;
 
   const flowIconUrl = useMemo(() => {
-    const base = env('NEXT_PUBLIC_BASE_URL') || '';
+    const base = (env && typeof env === 'function') ? (env('NEXT_PUBLIC_BASE_URL') || '') : '';
     return `${base}/_next/static/media/lowcoder-icons/newwork/flow_min_20x20.svg`;
   }, []);
 
   // Data sources
   const graphqlClient = useGraphQLClient(accessToken);
+  const restClient = useRestClient((env && typeof env === 'function') ? env('NEXT_PUBLIC_KOGITO_PROCESSES_ENDPOINT') : undefined);
   const [calculationTypes, setCalculationTypes] = useState<any[]>([]);
   const [currencies, setCurrencies] = useState<any[]>([]);
   const [countries, setCountries] = useState<any[]>([]);
@@ -150,6 +161,78 @@ const CreateCalculationRuleForm: React.FC<CreateCalculationRuleFormProps> = ({ a
     fetchRuleData();
   }, [accessToken, graphqlClient]);
 
+  // On modal mount: fetch last rule and then its flag (or flag by navigation id)
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const lastRule = await graphqlClient.request<any>(getLastCalculationRule);
+        const candidateId = navigationPayload?.id || lastRule?.ExpenseRule?.[0]?.id || null;
+        if (cancelled) return;
+        setLastRuleId(candidateId);
+        if (candidateId) {
+          const flagsRes = await graphqlClient.request<any>(getExpenseRuleFlagById, { id: candidateId });
+          if (cancelled) return;
+          const flag = flagsRes?.ExpenseRuleFlag?.[0] || null;
+          setExistingFlag(flag);
+          // Prefill mutally exclusive flags
+          const austrian = flag && flag.name === 'Austrian Abroad' && flag.value === 'true';
+          const romanian = flag && flag.name === 'Romanian Calculation' && flag.value === 'true';
+          if (austrian || romanian) {
+            dispatch({ type: 'SET_FIELD', field: 'austrianAbroad', value: !!austrian });
+            dispatch({ type: 'SET_FIELD', field: 'romanianCalculation', value: !!romanian });
+          }
+          setFlagsLoaded(true);
+        } else {
+          setExistingFlag(null);
+          setFlagsLoaded(true);
+        }
+      } catch {
+        if (!cancelled) {
+          setLastRuleId(null);
+          setExistingFlag(null);
+        }
+        setFlagsLoaded(true);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [graphqlClient, navigationPayload?.id]);
+
+  // Update mode: prefill form fields from server
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      if (!isUpdate || !navigationPayload?.id) return;
+      try {
+        const res = await graphqlClient.request<any>(getCalculationRule, { calculationId: navigationPayload.id });
+        if (cancelled) return;
+        const rule = res?.ExpenseRule?.[0] || null;
+        if (!rule) return;
+        setPrefilledRule(rule);
+        const hydrated: Partial<FormState> = {
+          ruleCode: rule.code || '',
+          ruleName: rule.name || '',
+          calculationTypeId: rule.calculationTypeRef || null,
+          validFrom: rule.activeFrom ? new Date(rule.activeFrom) : new Date(),
+          validTo: rule.activeTo ? new Date(rule.activeTo) : new Date('9999-12-31'),
+          isStandard: !!rule.standard,
+          currencyId: rule.currencyRef || rule.currency?.id || null,
+          advancePaymentCode: rule.advancePaymentCode || '',
+          taxesCode: rule.taxesCode || '',
+          nonPayableCode: rule.nonpayableCode || '',
+          useLastCountry: !!rule.useLastCountry,
+          deductionLimit: !!rule.deductionLimit,
+          useSingleCurrency: !!rule.useSingleCurrency,
+          countryRefId: rule.countryRef || null,
+        };
+        dispatch({ type: 'HYDRATE', payload: hydrated });
+      } catch {
+        // ignore
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [isUpdate, navigationPayload?.id, graphqlClient]);
+
   // Validation (required rules and conditional)
   useEffect(() => {
     const newErrors: ErrorsState = {};
@@ -162,12 +245,29 @@ const CreateCalculationRuleForm: React.FC<CreateCalculationRuleFormProps> = ({ a
         'lowcoder:expense_calculation_rule.expense_calculation_rule_modal.is_code_unique_first',
         "The 'Rule Code' field is required."
       );
+    } else if (codeDuplicate) {
+      newErrors.code = getTranslationFromI18nKeyAndLabel(
+        'lowcoder:expense_calculation_rule.expense_calculation_rule_modal.is_code_unique_second',
+        'This code already exists'
+      );
     }
 
     if (!trimmedName) {
       newErrors.name = getTranslationFromI18nKeyAndLabel(
         'lowcoder:expense_calculation_rule.expense_calculation_rule_modal.current_rule_name_custom_rule',
         "The 'Rule Name' field is required"
+      );
+    }
+    if (!formState.validFrom) {
+      newErrors.validFrom = getTranslationFromI18nKeyAndLabel(
+        'lowcoder:expense_calculation_rule.expense_calculation_rule_modal.is_valid_from_unique_first',
+        "The 'Valid From' field is required."
+      );
+    }
+    if (!formState.validTo) {
+      newErrors.validTo = getTranslationFromI18nKeyAndLabel(
+        'lowcoder:expense_calculation_rule.expense_calculation_rule_modal.is_valid_to_unique_first',
+        "The 'The 'Valid To' field is required."
       );
     }
 
@@ -200,9 +300,63 @@ const CreateCalculationRuleForm: React.FC<CreateCalculationRuleFormProps> = ({ a
     }
 
     dispatchErrors({ type: 'SET_ERRORS', payload: newErrors });
-  }, [formState.ruleCode, formState.ruleName, formState.calculationTypeId, formState.validFrom, formState.validTo, formState.isStandard, formState.currencyId, formState.countryRefId, standardValidationFailed]);
+  }, [formState.ruleCode, formState.ruleName, formState.calculationTypeId, formState.validFrom, formState.validTo, formState.isStandard, formState.currencyId, formState.countryRefId, standardValidationFailed, codeDuplicate]);
+
+  // Code uniqueness check
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      const code = (formState.ruleCode || '').trim();
+      if (!code) { setCodeDuplicate(false); return; }
+      try {
+        const res = await graphqlClient.request<any>(getExpenseRuleAggregateByCode, {
+          codeValue: code,
+          ruleId: isUpdate ? navigationPayload?.id : null,
+        });
+        if (cancelled) return;
+        const count = res?.ExpenseRuleAggregate?.aggregate?.count || 0;
+        setCodeDuplicate(count > 0);
+      } catch {
+        if (!cancelled) setCodeDuplicate(false);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [formState.ruleCode, graphqlClient, isUpdate, navigationPayload?.id]);
 
   const hasErrors = Object.values(errors).some((msg) => !!msg);
+  const currentSnapshot = useMemo(() => ({
+    ruleCode: (formState.ruleCode || '').trim(),
+    ruleName: (formState.ruleName || '').trim(),
+    calculationTypeId: formState.calculationTypeId || null,
+    validFrom: formState.validFrom ? formState.validFrom.toISOString().slice(0,10) : null,
+    validTo: formState.validTo ? formState.validTo.toISOString().slice(0,10) : null,
+    isStandard: !!formState.isStandard,
+    currencyId: formState.currencyId || null,
+    advancePaymentCode: formState.advancePaymentCode || '',
+    taxesCode: formState.taxesCode || '',
+    nonPayableCode: formState.nonPayableCode || '',
+    austrianAbroad: !!formState.austrianAbroad,
+    romanianCalculation: !!formState.romanianCalculation,
+    useLastCountry: !!formState.useLastCountry,
+    deductionLimit: !!formState.deductionLimit,
+    useSingleCurrency: !!formState.useSingleCurrency,
+    countryRefId: formState.countryRefId || null,
+  }), [formState]);
+  const noInitialValuesChanged = useMemo(() => {
+    if (!isUpdate || !initialSnapshotRef.current) return true;
+    try {
+      return JSON.stringify(currentSnapshot) === JSON.stringify(initialSnapshotRef.current);
+    } catch { return true; }
+  }, [currentSnapshot, isUpdate]);
+
+  // Capture initial snapshot after hydration and flag prefill are done
+  useEffect(() => {
+    if (!isUpdate) return;
+    if (initialSnapshotRef.current) return;
+    if (!prefilledRule) return;
+    if (!flagsLoaded) return;
+    initialSnapshotRef.current = { ...currentSnapshot };
+  }, [isUpdate, prefilledRule, flagsLoaded, currentSnapshot]);
 
   // Helpers for mapping data
   const calculationTypeOptions = useMemo(() => {
@@ -351,9 +505,90 @@ const CreateCalculationRuleForm: React.FC<CreateCalculationRuleFormProps> = ({ a
   const handleSubmitClick = () => {
     setHasInteracted(true);
     setFormSubmitted(true);
-    if (!hasErrors && onCreate) {
-      onCreate();
-    }
+    if (hasErrors) return;
+    if (isUpdate && noInitialValuesChanged) return;
+    (async () => {
+      try {
+        // 1) Determine candidate id/version for update
+        const candidateId = navigationPayload?.id || lastRuleId;
+        const candidateVersion = navigationPayload?.version || prefilledRule?.version || 0;
+
+        // 2) Save ExpenseRule (INSERT/UPDATE)
+        const basePayload = {
+          code: isUpdate ? (navigationPayload?.code ?? formState.ruleCode) : formState.ruleCode,
+          name: formState.ruleName,
+          calculationTypeRef: formState.calculationTypeId,
+          standard: !!formState.isStandard,
+          activeFrom: formState.validFrom ? `${formState.validFrom.toISOString().slice(0,10)}T00:00:00.000Z` : null,
+          activeTo: formState.validTo ? `${formState.validTo.toISOString().slice(0,10)}T00:00:00.000Z` : null,
+          currencyRef: formState.currencyId,
+          advancePaymentCode: formState.advancePaymentCode,
+          taxesCode: formState.taxesCode,
+          nonpayableCode: formState.nonPayableCode,
+          useLastCountry: !!formState.useLastCountry,
+          deductionLimit: !!formState.deductionLimit,
+          useSingleCurrency: !!formState.useSingleCurrency,
+          countryRef: formState.countryRefId,
+        } as any;
+        const payload = isUpdate ? {
+          expenseRule: { id: candidateId, version: candidateVersion, ...basePayload },
+          changeMode: 'UPDATE' as const,
+        } : {
+          expenseRule: basePayload,
+          changeMode: 'INSERT' as const,
+        };
+        await restClient.post('/processes/employee-expense/saveExpenseRule', payload);
+
+        // 3) If we had collisions, update previous standard=false
+        const toModify = collidingDatesState || [];
+        if (Array.isArray(toModify) && toModify.length) {
+          await Promise.all(
+            toModify.map((calculationRule: any) => {
+              const calculationRuleToModify = {
+                expenseRule: {
+                  id: calculationRule.id,
+                  version: calculationRule.version,
+                  standard: false,
+                },
+                changeMode: 'UPDATE',
+              };
+              return restClient.post('/processes/employee-expense/saveExpenseRule', calculationRuleToModify);
+            })
+          );
+        }
+
+        // 4) Save ExpenseRuleFlag (INSERT/UPDATE)
+        const isAustrianAbroad = !!formState.austrianAbroad;
+        const isRomanianCalculation = !!formState.romanianCalculation;
+        const flagCode = isRomanianCalculation ? 'romanianCalculation' : 'austrianAbroad';
+        const flagName = isRomanianCalculation ? 'Romanian Calculation' : 'Austrian Abroad';
+        const flagValue = (isAustrianAbroad || isRomanianCalculation) ? 'true' : 'false';
+        const flagPayload = existingFlag ? {
+          expenseRuleFlag: {
+            id: existingFlag.id,
+            version: existingFlag.version,
+            expenseRule: existingFlag.expenseRuleId,
+            code: flagCode,
+            name: flagName,
+            value: flagValue,
+          },
+          changeMode: 'UPDATE'
+        } : {
+          expenseRuleFlag: {
+            expenseRule: candidateId,
+            code: flagCode,
+            name: flagName,
+            value: flagValue,
+          },
+          changeMode: 'INSERT'
+        };
+        await restClient.post('/processes/employee-expense/saveExpenseRuleFlag', flagPayload);
+
+        onCreate?.();
+      } catch (e) {
+        // keep minimal handling for now
+      }
+    })();
   };
 
   return (
@@ -378,7 +613,9 @@ const CreateCalculationRuleForm: React.FC<CreateCalculationRuleFormProps> = ({ a
               data-testid="ccr-title-icon"
             />
             <Typography.Title level={4} className="gba:mb-0 gba:m-0 gba:font-primary" data-testid="expense-plan-item-header-title">
-              {getTranslationFromI18nKeyAndLabel('lowcoder:expense_calculation_rule.expense_calculation_rule_modal.header_title', 'Create Calculation Rule')}
+              {isUpdate
+                ? getTranslationFromI18nKeyAndLabel('lowcoder:expense_calculation_rule.expense_calculation_rule_modal.header_title_update', 'Update Calculation Rule')
+                : getTranslationFromI18nKeyAndLabel('lowcoder:expense_calculation_rule.expense_calculation_rule_modal.header_title', 'Create Calculation Rule')}
             </Typography.Title>
           </div>
         </div>
@@ -435,11 +672,13 @@ const CreateCalculationRuleForm: React.FC<CreateCalculationRuleFormProps> = ({ a
             placeholder={getTranslationFromI18nKeyAndLabel('lowcoder:expense_calculation_rule.expense_calculation_rule_modal.current_rule_code_placeholder', 'Enter Rule Code')}
             data-testid="ccr-code-input"
             autoFocus={false}
+            value={formState.ruleCode}
+            disabled={isUpdate}
             onChange={(field: any) => {
               dispatch({ type: 'SET_FIELD', field: 'ruleCode', value: field?.value ?? '' });
             }}
             onBlur={() => dispatchTouched({ type: 'SET_TOUCHED', field: 'code', value: true })}
-            required={false}
+            required
           />
           {shouldShowError('code') && (
             <div className="gba:mt-1 gba:pl-1 gba:text-[14px]" style={{ color: '#ff4d4f' }} data-testid="ccr-code-error">
@@ -458,11 +697,12 @@ const CreateCalculationRuleForm: React.FC<CreateCalculationRuleFormProps> = ({ a
             placeholder={getTranslationFromI18nKeyAndLabel('lowcoder:expense_calculation_rule.expense_calculation_rule_modal.current_rule_name_placeholder', 'Enter Rule Name')}
             data-testid="ccr-name-input"
             autoFocus={false}
+            value={formState.ruleName}
             onChange={(field: any) => {
               dispatch({ type: 'SET_FIELD', field: 'ruleName', value: field?.value ?? '' });
             }}
             onBlur={() => dispatchTouched({ type: 'SET_TOUCHED', field: 'name', value: true })}
-            required={false}
+            required
           />
           {shouldShowError('name') && (
             <div className="gba:mt-1 gba:pl-1 gba:text-[14px]" style={{ color: '#ff4d4f' }} data-testid="ccr-name-error">
@@ -482,12 +722,13 @@ const CreateCalculationRuleForm: React.FC<CreateCalculationRuleFormProps> = ({ a
             placeholder={getTranslationFromI18nKeyAndLabel('lowcoder:expense_calculation_rule.expense_calculation_rule_modal.current_rule_period_placeholder', 'Select Rule Calculation')}
             data-testid="ccr-calculation-select"
             data={calculationTypeOptions}
+            value={formState.calculationTypeId || undefined}
             onChange={(value: any) => {
               dispatch({ type: 'SET_FIELD', field: 'calculationTypeId', value: value?.value ?? null });
               setHasInteracted(true);
               dispatchTouched({ type: 'SET_TOUCHED', field: 'calculationType', value: true });
             }}
-            required={false}
+            required
           />
           {shouldShowError('calculationType') && (
             <div className="gba:mt-1 gba:pl-1 gba:text-[14px]" style={{ color: '#ff4d4f' }} data-testid="ccr-calculation-error">
@@ -514,8 +755,13 @@ const CreateCalculationRuleForm: React.FC<CreateCalculationRuleFormProps> = ({ a
             onBlur={() => dispatchTouched({ type: 'SET_TOUCHED', field: 'validFrom', value: true })}
             language={getCurrentActiveUserLocale().split("-")[0] as "en" | "de" | "ro" | undefined}
             format={getDateFormat('date.long')}
-            required={false}
+            required
           />
+          {shouldShowError('validFrom') && (
+            <div className="gba:mt-1 gba:pl-1 gba:text-[14px]" style={{ color: '#ff4d4f' }} data-testid="ccr-valid-from-error">
+              {errors.validFrom}
+            </div>
+          )}
         </div>
       </div>
 
@@ -536,8 +782,13 @@ const CreateCalculationRuleForm: React.FC<CreateCalculationRuleFormProps> = ({ a
             onBlur={() => dispatchTouched({ type: 'SET_TOUCHED', field: 'validTo', value: true })}
             language={getCurrentActiveUserLocale().split("-")[0] as "en" | "de" | "ro" | undefined}
             format={getDateFormat('date.long')}
-            required={false}
+            required
           />
+          {shouldShowError('validTo') && (
+            <div className="gba:mt-1 gba:pl-1 gba:text-[14px]" style={{ color: '#ff4d4f' }} data-testid="ccr-valid-to-error">
+              {errors.validTo}
+            </div>
+          )}
           {shouldShowError('validTo') && (
             <div className="gba:mt-1 gba:pl-1 gba:text-[14px]" style={{ color: '#ff4d4f' }} data-testid="ccr-valid-to-error">
               {errors.validTo}
@@ -578,12 +829,13 @@ const CreateCalculationRuleForm: React.FC<CreateCalculationRuleFormProps> = ({ a
             placeholder={getTranslationFromI18nKeyAndLabel('lowcoder:expense_calculation_rule.expense_calculation_rule_modal.country_ref_select_placeholder', 'Select Country')}
             data-testid="ccr-country-select"
             data={countryOptions}
+            value={formState.countryRefId || undefined}
             onChange={(value: any) => {
               dispatch({ type: 'SET_FIELD', field: 'countryRefId', value: value?.value ?? null });
               setHasInteracted(true);
               dispatchTouched({ type: 'SET_TOUCHED', field: 'countryRefId', value: true });
             }}
-            required={false}
+            required
           />
           {shouldShowError('countryRefId') && (
             <div className="gba:mt-1 gba:pl-1 gba:text-[14px]" style={{ color: '#ff4d4f' }} data-testid="ccr-country-error">
@@ -603,12 +855,14 @@ const CreateCalculationRuleForm: React.FC<CreateCalculationRuleFormProps> = ({ a
             placeholder={getTranslationFromI18nKeyAndLabel('lowcoder:expense_calculation_rule.expense_calculation_rule_modal.currency_placeholder', 'Select Currency')}
             data-testid="ccr-currency-select"
             data={currencyOptions}
+            isDataSorted={false}
+            value={formState.currencyId || undefined}
             onChange={(value: any) => {
               dispatch({ type: 'SET_FIELD', field: 'currencyId', value: value?.value ?? null });
               setHasInteracted(true);
               dispatchTouched({ type: 'SET_TOUCHED', field: 'currencyId', value: true });
             }}
-            required={false}
+            required
           />
           {shouldShowError('currencyId') && (
             <div className="gba:mt-1 gba:pl-1 gba:text-[14px]" style={{ color: '#ff4d4f' }} data-testid="ccr-currency-error">
@@ -626,6 +880,7 @@ const CreateCalculationRuleForm: React.FC<CreateCalculationRuleFormProps> = ({ a
             name="ccrAdvancePaymentCode"
             placeholder={getTranslationFromI18nKeyAndLabel('lowcoder:expense_calculation_rule.expense_calculation_rule_modal.advance_payment_code_input_placeholder', 'Enter Advance Payment Code')}
             data-testid="ccr-advance-payment-code-input"
+            value={formState.advancePaymentCode}
             onChange={(field: any) => dispatch({ type: 'SET_FIELD', field: 'advancePaymentCode', value: field?.value ?? '' })}
             required={false}
           />
@@ -639,6 +894,7 @@ const CreateCalculationRuleForm: React.FC<CreateCalculationRuleFormProps> = ({ a
             name="ccrTaxesCode"
             placeholder={getTranslationFromI18nKeyAndLabel('lowcoder:expense_calculation_rule.expense_calculation_rule_modal.taxes_code_input_placeholder', 'Enter Taxes Code')}
             data-testid="ccr-taxes-code-input"
+            value={formState.taxesCode}
             onChange={(field: any) => dispatch({ type: 'SET_FIELD', field: 'taxesCode', value: field?.value ?? '' })}
             required={false}
           />
@@ -652,6 +908,7 @@ const CreateCalculationRuleForm: React.FC<CreateCalculationRuleFormProps> = ({ a
             name="ccrNonPayableCode"
             placeholder={getTranslationFromI18nKeyAndLabel('lowcoder:expense_calculation_rule.expense_calculation_rule_modal.nonpayable_code_input_placeholder', 'Enter Non Payable Code')}
             data-testid="ccr-nonpayable-code-input"
+            value={formState.nonPayableCode}
             onChange={(field: any) => dispatch({ type: 'SET_FIELD', field: 'nonPayableCode', value: field?.value ?? '' })}
             required={false}
           />
@@ -668,7 +925,14 @@ const CreateCalculationRuleForm: React.FC<CreateCalculationRuleFormProps> = ({ a
             <Checkbox
               name="ccr-austrian-abroad"
               data-testid="ccr-austrian-abroad-checkbox"
-              onChange={(f: any) => dispatch({ type: 'SET_FIELD', field: 'austrianAbroad', value: !!f?.value })} />
+              value={formState.austrianAbroad}
+              onChange={(f: any) => {
+                const next = !!f?.value;
+                dispatch({ type: 'SET_FIELD', field: 'austrianAbroad', value: next });
+                if (next) {
+                  dispatch({ type: 'SET_FIELD', field: 'romanianCalculation', value: false });
+                }
+              }} />
           </div>
         </div>
       </div>
@@ -682,7 +946,14 @@ const CreateCalculationRuleForm: React.FC<CreateCalculationRuleFormProps> = ({ a
             <Checkbox
               name="ccr-romanian-calculation"
               data-testid="ccr-romanian-calculation-checkbox"
-              onChange={(f: any) => dispatch({ type: 'SET_FIELD', field: 'romanianCalculation', value: !!f?.value })} />
+              value={formState.romanianCalculation}
+              onChange={(f: any) => {
+                const next = !!f?.value;
+                dispatch({ type: 'SET_FIELD', field: 'romanianCalculation', value: next });
+                if (next) {
+                  dispatch({ type: 'SET_FIELD', field: 'austrianAbroad', value: false });
+                }
+              }} />
           </div>
         </div>
       </div>
@@ -696,6 +967,7 @@ const CreateCalculationRuleForm: React.FC<CreateCalculationRuleFormProps> = ({ a
             <Checkbox
               name="ccr-use-last-country"
               data-testid="ccr-use-last-country-checkbox"
+              value={formState.useLastCountry}
               onChange={(f: any) => dispatch({ type: 'SET_FIELD', field: 'useLastCountry', value: !!f?.value })} />
           </div>
         </div>
@@ -710,6 +982,7 @@ const CreateCalculationRuleForm: React.FC<CreateCalculationRuleFormProps> = ({ a
             <Checkbox
               name="ccr-deduction-limit"
               data-testid="ccr-deduction-limit-checkbox"
+              value={formState.deductionLimit}
               onChange={(f: any) => dispatch({ type: 'SET_FIELD', field: 'deductionLimit', value: !!f?.value })} />
           </div>
         </div>
@@ -724,6 +997,7 @@ const CreateCalculationRuleForm: React.FC<CreateCalculationRuleFormProps> = ({ a
             <Checkbox
               name="ccr-use-single-currency"
               data-testid="ccr-use-single-currency-checkbox"
+              value={formState.useSingleCurrency}
               onChange={(f: any) => dispatch({ type: 'SET_FIELD', field: 'useSingleCurrency', value: !!f?.value })} />
           </div>
         </div>
@@ -818,12 +1092,14 @@ const CreateCalculationRuleForm: React.FC<CreateCalculationRuleFormProps> = ({ a
         <Button
           variant="primary"
           onClick={handleSubmitClick}
-          disabled={hasErrors}
+          disabled={hasErrors || (isUpdate && noInitialValuesChanged)}
           className="gba:min-w-[100px] gba:border-2 gba:text-base gba:font-semibold gba:px-4"
           style={{ borderRadius: '22px', width: 'auto', height: '40px' }}
           data-testid="ccr-create-button"
         >
-          {getTranslationFromI18nKeyAndLabel('lowcoder:expense_calculation_rule.expense_calculation_rule_modal.btn_save', 'Save')}
+          {isUpdate
+            ? getTranslationFromI18nKeyAndLabel('lowcoder:expense_calculation_rule.expense_calculation_rule_modal.btn_update', 'Update')
+            : getTranslationFromI18nKeyAndLabel('lowcoder:expense_calculation_rule.expense_calculation_rule_modal.btn_save', 'Save')}
         </Button>
       </div>
     </div>

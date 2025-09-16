@@ -154,3 +154,45 @@ export const getExpenseRuleFlagById=`query myQuery($id: uuid!){
   }
 }
 `
+export const getCalculationRule =`query myQuery($calculationId: uuid = null) {
+  ExpenseRule(
+    where: {
+      isDeleted: {_eq: false},
+      _or: [
+        { id: { _eq: $calculationId } }
+        { id: { _isNull: true } }
+      ]
+    }
+  ) {
+    id
+    version
+    name
+    code
+    calculationTypeRef
+    standard
+    activeFrom
+    activeTo
+    currency {
+      id
+      code
+    }
+    currencyRef
+    deductionLimit
+    taxesCode
+    useLastCountry
+    nonpayableCode
+    advancePaymentCode
+    countryRef
+    useSingleCurrency
+  }
+}
+`
+
+export const getExpenseRuleAggregateByCode=`query ExpenseRuleAggregateByCode($codeValue: String, $ruleId: uuid) {
+  ExpenseRuleAggregate(where: {isDeleted: {_eq: false}, _or: [{code: {_eq: $codeValue}}, {id: {_isNull: true}}], id: {_neq: $ruleId}}) {
+    aggregate {
+      count
+    }
+  }
+}
+`

@@ -6,7 +6,7 @@ import { DataControllerProps } from '@/components/dataController/DataController'
 import { formatDate, getCatalogValue, getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
 import { env } from '@/common/env/EnvUtils';
 import { useGraphqlClient } from '@/common/network/graphql/useGraphQLClient';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow, Card, CardContent, Spinner, Alert, Button, Dialog, DialogContent, DialogHeader } from '@newwork/nw-design-system';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow, Card, CardContent, Spinner, Alert, Button, Dialog, DialogContent, DialogHeader, DialogTitle, Popover, PopoverTrigger, PopoverContent } from '@newwork/nw-design-system';
 import { useExpenseCalculationRules } from './hooks/useExpenseCalculationRules';
 import {
   Pagination,
@@ -27,7 +27,8 @@ import { ListBulletsIcon, SortAscendingIcon, SortDescendingIcon, CaretLeftIcon, 
 import { EXPENSE_CALCULATION_RULES_FLOW_ACTIONS } from './constants/flowActions';
 import FlowActionsButton from './components/FlowActionsButton';
 import { CreateCalculationRuleForm } from '@/business-apps/fin/expenses/forms/create-calculation-rule';
-import { GET_EXPENSE_RULE_FLAGS } from './queries/ExpenseCalculationRules.queries';
+import { GET_EXPENSE_RULE_FLAGS, getExpensesWithRulePk } from './queries/ExpenseCalculationRules.queries';
+import { useRestClient } from '@/common/network/rest/useRestClient';
 
 interface ExpenseCalculationRulesProps extends BusinessAppContextProps {}
 
@@ -69,8 +70,11 @@ const ExpenseCalculationRules: React.FC<ExpenseCalculationRulesProps> = (props) 
 
   const [flowModalOpen, setFlowModalOpen] = React.useState<boolean>(false);
   const [selectedRow, setSelectedRow] = React.useState<any | null>(null);
+  const [deleteOpen, setDeleteOpen] = React.useState<boolean>(false);
+  const [deleteBlocked, setDeleteBlocked] = React.useState<boolean>(false);
   const openCalculationRuleModal = useCallback(() => setFlowModalOpen(true), []);
   const graphqlClient = useGraphqlClient(props.accessToken);
+  const restClient = useRestClient(env('NEXT_PUBLIC_KOGITO_PROCESSES_ENDPOINT'));
   const handleHeaderSort = useCallback((field: string) => {
     let next: 'ASC' | 'DESC' | '' = 'ASC';
     if (sortField === field) {
@@ -254,37 +258,50 @@ const ExpenseCalculationRules: React.FC<ExpenseCalculationRulesProps> = (props) 
                           </TableCell>
                         </TableRow>
                       ) : (
-                        items.map((row) => (
+                        items.map((row,index) => (
                           <TableRow
                             key={row.id}
-                            data-testid={`${PREFIX}-row-${row.id}`}
+                            data-testid={`${PREFIX}-row-${index}`}
                             className="gba:cursor-pointer"
                             onClick={() => { handleRowClick(row as any); }}
                           >
-                            <TableCell className="gba:py-3 gba:px-3" data-testid={`${PREFIX}-cell-actions-${row.id}`}>
-                              <Button
-                                variant="outline"
-                                size="icon"
-                                className="gba:w-8 gba:h-8 gba:rounded"
-                                data-testid={`${PREFIX}-actions-button-${row.id}`}
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  setSelectedRow(row as any);
-                                  setFlowModalOpen(true);
-                                }}
-                              >
-                                <img src={flowIconUrl} alt="Actions" className="gba:w-5 gba:h-5" />
-                              </Button>
+                            <TableCell className="gba:py-3 gba:px-3" data-testid={`${PREFIX}-cell-actions-${index}`}>
+                            <Popover>
+                              <PopoverTrigger asChild>
+                                <Button variant="outline" size="icon" className="gba:w-8 gba:h-8 gba:rounded" data-testid={`${PREFIX}-actions-button-${index}`} onClick={(e) => e.stopPropagation()}>
+                                  <img src={flowIconUrl} alt="Actions" className="gba:w-5 gba:h-5" />
+                                </Button>
+                              </PopoverTrigger>
+                                <PopoverContent align="start" className="gba:p-0 gba:w-auto" onClick={(e) => e.stopPropagation()}>
+                                  <div className="gba:flex gba:flex-col">
+                                    <button className="gba:px-4 gba:py-2 gba:text-left gba:text-[#000000] gba:text-[14px]" data-testid={`${PREFIX}-action-edit-${index}`} onClick={(e) => { e.stopPropagation(); setSelectedRow(row as any); setFlowModalOpen(true); }}>{getTranslationFromI18nKeyAndLabel('lowcoder:expense_calculation_rule.expense_table.edit', 'Edit')}</button>
+                                    <button className="gba:px-4 gba:py-2 gba:text-left gba:text-[#000000] gba:text-[14px]" data-testid={`${PREFIX}-action-delete-${index}`} onClick={async (e) => {
+                                      e.stopPropagation();
+                                      setSelectedRow(row as any);
+                                      try {
+                                        const res = await graphqlClient.request<any>(getExpensesWithRulePk, { ruleId: row.id });
+                                        const c1 = res?.ExpenseItemAggregate?.aggregate?.count || 0;
+                                        const c2 = res?.ExpenseRequestAggregate?.aggregate?.count || 0;
+                                        const c3 = res?.ExpensePlanAggregate?.aggregate?.count || 0;
+                                        setDeleteBlocked((c1 + c2 + c3) > 0);
+                                      } catch {
+                                        setDeleteBlocked(true);
+                                      }
+                                      setDeleteOpen(true);
+                                    }}>{getTranslationFromI18nKeyAndLabel('lowcoder:expense_calculation_rule.expense_table.delete', 'Delete')}</button>
+                                  </div>
+                                </PopoverContent>
+                            </Popover>
                             </TableCell>
-                            <TableCell className="gba:py-3 gba:px-6" data-testid={`${PREFIX}-cell-code-${row.id}`}>{row.code || getTranslationFromI18nKeyAndLabel('lowcoder:advance_payment_table.not_available', 'N/A')}</TableCell>
-                            <TableCell className="gba:py-3 gba:px-6" data-testid={`${PREFIX}-cell-name-${row.id}`}>{row.name || getTranslationFromI18nKeyAndLabel('lowcoder:advance_payment_table.not_available', 'N/A')}</TableCell>
-                            <TableCell className="gba:py-3 gba:px-6" data-testid={`${PREFIX}-cell-calculation-${row.id}`}>{getCatalogValue(row.calculationType) || getTranslationFromI18nKeyAndLabel('lowcoder:advance_payment_table.not_available', 'N/A')}</TableCell>
-                            <TableCell className="gba:py-3 gba:px-6" data-testid={`${PREFIX}-cell-from-${row.id}`}>{formatDate(row.activeFrom || '','date.long') || getTranslationFromI18nKeyAndLabel('lowcoder:advance_payment_table.not_available', 'N/A')}</TableCell>
-                            <TableCell className="gba:py-3 gba:px-6" data-testid={`${PREFIX}-cell-to-${row.id}`}>{formatDate(row.activeTo || '','date.long') || getTranslationFromI18nKeyAndLabel('lowcoder:advance_payment_table.not_available', 'N/A')}</TableCell>
-                            <TableCell className="gba:py-3 gba:px-6" data-testid={`${PREFIX}-cell-standard-${row.id}`}>
-                              <StandardIcon value={row.standard ?? false} data-testid={`${PREFIX}-standard-icon-${row.id}`} />
+                            <TableCell className="gba:py-3 gba:px-6" data-testid={`${PREFIX}-cell-code-${index}`}>{row.code || getTranslationFromI18nKeyAndLabel('lowcoder:advance_payment_table.not_available', 'N/A')}</TableCell>
+                            <TableCell className="gba:py-3 gba:px-6" data-testid={`${PREFIX}-cell-name-${index}`}>{row.name || getTranslationFromI18nKeyAndLabel('lowcoder:advance_payment_table.not_available', 'N/A')}</TableCell>
+                            <TableCell className="gba:py-3 gba:px-6" data-testid={`${PREFIX}-cell-calculation-${index}`}>{getCatalogValue(row.calculationType) || getTranslationFromI18nKeyAndLabel('lowcoder:advance_payment_table.not_available', 'N/A')}</TableCell>
+                            <TableCell className="gba:py-3 gba:px-6" data-testid={`${PREFIX}-cell-from-${index}`}>{formatDate(row.activeFrom || '','date.long') || getTranslationFromI18nKeyAndLabel('lowcoder:advance_payment_table.not_available', 'N/A')}</TableCell>
+                            <TableCell className="gba:py-3 gba:px-6" data-testid={`${PREFIX}-cell-to-${index}`}>{formatDate(row.activeTo || '','date.long') || getTranslationFromI18nKeyAndLabel('lowcoder:advance_payment_table.not_available', 'N/A')}</TableCell>
+                            <TableCell className="gba:py-3 gba:px-6" data-testid={`${PREFIX}-cell-standard-${index}`}>
+                              <StandardIcon value={row.standard ?? false} data-testid={`${PREFIX}-standard-icon-${index}`} />
                             </TableCell>
-                            <TableCell className="gba:py-3 gba:px-6" data-testid={`${PREFIX}-cell-currency-${row.id}`}>{row?.currency?.code || getTranslationFromI18nKeyAndLabel('lowcoder:advance_payment_table.not_available', 'N/A')}</TableCell>
+                            <TableCell className="gba:py-3 gba:px-6" data-testid={`${PREFIX}-cell-currency-${index}`}>{row?.currency?.code || getTranslationFromI18nKeyAndLabel('lowcoder:advance_payment_table.not_available', 'N/A')}</TableCell>
                           </TableRow>
                         ))
                       )}
@@ -386,18 +403,52 @@ const ExpenseCalculationRules: React.FC<ExpenseCalculationRulesProps> = (props) 
             </Card>
 
             {/* Create Calculation Rule Modal */}
-            <Dialog open={flowModalOpen} onOpenChange={setFlowModalOpen}>
+            <Dialog open={flowModalOpen} onOpenChange={(open) => { setFlowModalOpen(open); if (!open) setSelectedRow(null); }}>
             <DialogContent data-testid={`${PREFIX}-create-modal`} 
             onOpenAutoFocus={(e) => { e.preventDefault(); }}
             className="gba:h-[100vh] gba:max-h-[100vh] gba:flex gba:flex-col gba:px-[40px] gba:w-[100%] gba:overflow-hidden">
               <DialogHeader />
+              <DialogTitle className="gba:hidden">Create Calculation Rule</DialogTitle>
                 <div className="gba:flex-1 gba:overflow-y-auto gba:pr-2">
                   <CreateCalculationRuleForm
                     accessToken={props.accessToken}
-                    additionalData={{ nvi_navigationPayload: selectedRow || {} }}
+                    additionalData={{ nvi_navigationPayload: selectedRow ? { ...selectedRow } : {} }}
                     onCancel={() => setFlowModalOpen(false)}
                     onCreate={() => setFlowModalOpen(false)}
                   />
+                </div>
+              </DialogContent>
+            </Dialog>
+
+            {/* Delete Calculation Rule Modal */}
+            <Dialog open={deleteOpen} onOpenChange={setDeleteOpen}>
+              <DialogContent data-testid={`${PREFIX}-delete-modal`} className="gba:max-w-[420px]">
+                <DialogHeader>
+                  <DialogTitle>{getTranslationFromI18nKeyAndLabel('lowcoder:expense_calculation_rule.expense_calculation_rule_modal.delete_title','Delete Calculation Rule')}</DialogTitle>
+                </DialogHeader>
+                <div className="gba:py-2 gba:text-[14px]">
+                  {deleteBlocked
+                    ? getTranslationFromI18nKeyAndLabel('lowcoder:expense_calculation_rule.expense_calculation_rule_modal.delete_blocked_message',"This rule is already used in an expense. It cannot be deleted. Please update the 'Valid To' field.")
+                    : getTranslationFromI18nKeyAndLabel('lowcoder:expense_calculation_rule.expense_calculation_rule_modal.delete_message','Are you sure you want to delete the rule?')}
+                </div>
+                <div className="gba:flex gba:justify-end gba:gap-3 gba:mt-4">
+                  {deleteBlocked ? (
+                    <Button variant="default" onClick={() => setDeleteOpen(false)} data-testid={`${PREFIX}-delete-confirm`}>{getTranslationFromI18nKeyAndLabel('lowcoder:expense_config_calculation_rule_list:ok','OK')}</Button>
+                  ) : (
+                    <>
+                      <Button variant="outline" onClick={() => setDeleteOpen(false)} data-testid={`${PREFIX}-delete-no`}>{getTranslationFromI18nKeyAndLabel('lowcoder:expense_calculation_rule.expense_calculation_rule_modal.checkbox_modal.no_button', 'No')}</Button>
+                      <Button variant="destructive" data-testid={`${PREFIX}-delete-yes`} onClick={async () => {
+                        try {
+                          if (!selectedRow) return;
+                          await restClient.delete('/processes/employee-expense/saveExpenseRule', { params: { id: selectedRow.id } });
+                          setDeleteOpen(false);
+                          reload();
+                        } catch {
+                          setDeleteOpen(false);
+                        }
+                      }}>{getTranslationFromI18nKeyAndLabel('lowcoder:expense_calculation_rule.expense_calculation_rule_modal.checkbox_modal.yes_button', 'Yes')}</Button>
+                    </>
+                  )}
                 </div>
               </DialogContent>
             </Dialog>

@@ -98,6 +98,25 @@ export const buildGetExpenseRulesQuery = (): string => {
   `;
 };
 
+export const getExpensesWithRulePk=`query ExpenseRuleAggregateByCode($ruleId: uuid) {
+  ExpenseItemAggregate(where: {expenseRuleId: {_eq: $ruleId}}) {
+    aggregate {
+      count
+    }
+  }
+  ExpenseRequestAggregate(where: {expenseRuleId: {_eq: $ruleId}}) {
+    aggregate {
+      count
+    }
+  }
+  ExpensePlanAggregate(where: {expenseRuleId: {_eq: $ruleId}}){
+    aggregate {
+      count
+    }
+  }
+}
+`
+
 export interface ExpenseRuleRecord {
   id: string;
   version?: string;
