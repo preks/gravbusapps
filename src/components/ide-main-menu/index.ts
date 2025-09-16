@@ -1,3 +1,3 @@
-export { IDEMainMenu as default, IDEMainMenu } from "./IDEMainMenu";
-export type { BusinessAppInfo } from "./IDEMainMenu";
+export { IDEMainMenu as default, IDEMainMenu } from "./IDEMenu";
+export type { BusinessAppInfo } from "./IDEMenu";
 
