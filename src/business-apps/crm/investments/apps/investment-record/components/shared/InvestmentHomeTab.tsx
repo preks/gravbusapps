@@ -5,6 +5,7 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from '@newwork/nw-design-sys
 import { useGetInvestmentTasksByInvestmentId } from '../../hooks/useInvestmentTasksByInvestmentId';
 import { useGetInvestmentActivitiesByInvestmentId } from '../../hooks/useInvestmentActivitiesByInvestmentId';
 import { FlowContextName } from '@/common/types/FlowRegistryTypes';
+import { ChartLine, PencilSimple, CheckCircle } from '@phosphor-icons/react';
 
 interface InvestmentHomeTabProps extends BusinessAppContextProps {
   investmentId: string;
@@ -80,13 +81,13 @@ export const InvestmentHomeTab: React.FC<InvestmentHomeTabProps> = ({
 
   return (
     <div data-testid="investment-home-tab">
-      {/* Two-column layout: Activity & Information on left, Tasks on right */}
+      {/* Two-column layout: Activity Timeline on left, Tasks on right */}
       <div className="gba:grid gba:grid-cols-2 gba:gap-6">
         
-        {/* Left Column: Activity & Information with tabs */}
+        {/* Left Column: Activity Timeline with tabs */}
         <div className="gba:bg-white gba:rounded-lg gba:border gba:shadow-sm">
           <div className="gba:p-4 gba:border-b">
-            <h3 className="gba:text-lg gba:font-semibold">Activity & Information</h3>
+            <h3 className="gba:text-lg gba:font-semibold">Activity Timeline</h3>
           </div>
           
           <Tabs defaultValue="activities" className="gba:w-full">
@@ -95,19 +96,28 @@ export const InvestmentHomeTab: React.FC<InvestmentHomeTabProps> = ({
                 value="activities" 
                 className="gba:border-b-2 gba:border-transparent gba:rounded-none data-[state=active]:gba:border-blue-500 data-[state=active]:gba:bg-transparent"
               >
-                📋 Activities
+                <div className="gba:flex gba:items-center gba:gap-2">
+                  <ChartLine className="gba:w-4 gba:h-4" />
+                  Activities
+                </div>
               </TabsTrigger>
               <TabsTrigger 
                 value="notes"
                 className="gba:border-b-2 gba:border-transparent gba:rounded-none data-[state=active]:gba:border-blue-500 data-[state=active]:gba:bg-transparent"
               >
-                ✏️ Notes
+                <div className="gba:flex gba:items-center gba:gap-2">
+                  <PencilSimple className="gba:w-4 gba:h-4" />
+                  Notes
+                </div>
               </TabsTrigger>
               <TabsTrigger 
                 value="approvals"
                 className="gba:border-b-2 gba:border-transparent gba:rounded-none data-[state=active]:gba:border-blue-500 data-[state=active]:gba:bg-transparent"
               >
-                ✓ Approvals
+                <div className="gba:flex gba:items-center gba:gap-2">
+                  <CheckCircle className="gba:w-4 gba:h-4" />
+                  Approvals
+                </div>
               </TabsTrigger>
             </TabsList>
             
@@ -120,6 +130,9 @@ export const InvestmentHomeTab: React.FC<InvestmentHomeTabProps> = ({
                 activitiesLoading={activitiesLoading}
                 activitiesError={activitiesError}
                 onReloadActivities={loadActivities}
+                contextsArray={[FlowContextName.createInvestmentActivity]}
+                externalContextData={{ investmentId }}
+                prefixDataTestId="investment-activity"
                 data-testid="investment-activities-section"
               />
             </TabsContent>
@@ -141,11 +154,9 @@ export const InvestmentHomeTab: React.FC<InvestmentHomeTabProps> = ({
             
             <TabsContent value="approvals" className="gba:p-4">
               <ApprovalSection
-                investmentId={investmentId}
                 accessToken={context.accessToken}
                 userInfo={context.userInfo}
-                demo={false}
-                demoApprovals={approvals.map(approval => ({
+                approvals={approvals.map(approval => ({
                   id: approval.id,
                   title: approval.title || approval.name || 'Approval Task',
                   status: approval.status || approval.taskStatus?.value || approval.taskStatus?.code || 'pending',
@@ -177,11 +188,9 @@ export const InvestmentHomeTab: React.FC<InvestmentHomeTabProps> = ({
           
           <div className="gba:p-4">
             <TaskSection
-              investmentId={investmentId}
               accessToken={context.accessToken}
               userInfo={context.userInfo}
-              demo={false}
-              demoTasks={tasks.map(task => ({
+              tasks={tasks.map(task => ({
                 id: task.id || task.title,
                 title: task.title || task.name || 'Untitled Task',
                 due: task.dueDate || task.due,

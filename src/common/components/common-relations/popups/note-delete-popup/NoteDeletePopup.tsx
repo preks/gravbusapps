@@ -1,6 +1,6 @@
 import React from 'react';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
-import { DeleteConfirmPopup } from '../delete-confirm-popup';
+import { DeleteConfirmPopup } from '@/common/components/common-relations/popups/delete-confirm-popup';
 import { FlowContextName } from '@/common/types/FlowRegistryTypes';
 
 export interface NoteDeletePopupProps extends BusinessAppContextProps {

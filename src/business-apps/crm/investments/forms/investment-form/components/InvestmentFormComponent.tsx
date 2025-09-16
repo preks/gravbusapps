@@ -19,6 +19,22 @@ import { buildInvestmentPayload } from '@/common/data/investment';
 
 const prefixDataTestId = 'InvestmentForm';
 
+// Helper function to extract field name from property path, matching schema logic
+const getFormFieldName = (property: string): string => {
+  const parts = property.split('.');
+  
+  // Handle additionalProperties fields with special naming
+  if (parts.includes('additionalProperties') && parts.length >= 3) {
+    const additionalPropsIndex = parts.indexOf('additionalProperties');
+    // Create flattened name: additionalProperties_fieldName
+    const fieldName = parts.slice(additionalPropsIndex + 1).join('_');
+    return `additionalProperties_${fieldName}`;
+  }
+  
+  // Default behavior for regular fields
+  return parts.pop() || property;
+};
+
 // Generic helper function to map investment data to form fields based on property paths
 const mapInvestmentDataToFormFields = (rawInvestment: any, fieldsDef: any): Record<string, any> => {
   const dynamicDefaults: Record<string, any> = {};
@@ -26,7 +42,7 @@ const mapInvestmentDataToFormFields = (rawInvestment: any, fieldsDef: any): Reco
   if (fieldsDef?.formFields?.length) {
     for (const group of fieldsDef.formFields) {
       for (const field of group.fields) {
-        const fieldName = field.property.split('.').pop() || field.property;
+        const fieldName = getFormFieldName(field.property);
         const value = getValueByPath(rawInvestment, field.property);
         
         if (value !== undefined && value !== null) {
@@ -65,17 +81,37 @@ const formatDateForInput = (dateValue: any): string => {
 
 // Generic helper to resolve values from object using dot notation paths
 const getValueByPath = (obj: any, path: string): any => {
-  return path.split('.').reduce((current, key) => {
+  const parts = path.split('.');
+  
+  return parts.reduce((current, key, index) => {
     if (current && typeof current === 'object') {
       // Handle array access (e.g., realEstateInvestment[0].buildingYear)
       if (Array.isArray(current)) {
         return current[0]?.[key];
       }
+      
+      // Special handling for additionalProperties - parse JSON if it's a string
+      if (key === 'additionalProperties' && typeof current[key] === 'string') {
+        try {
+          const parsed = JSON.parse(current[key]);
+          // If this is the last key in the path, return the whole parsed object
+          // Otherwise, continue navigation through the parsed object
+          if (index === parts.length - 1) {
+            return parsed;
+          }
+          return parsed;
+        } catch (error) {
+          console.warn('Failed to parse additionalProperties JSON:', current[key], error);
+          return undefined;
+        }
+      }
+      
       // Special handling: if requesting a relationship object but we need the ID for form field
       if (key === 'loanRecipientInvestmentAccount' && current[key]?.id) {
         // Return the ID of the related object for form compatibility
         return current[key].id;
       }
+      
       return current[key];
     }
     return undefined;
@@ -317,6 +353,12 @@ export const InvestmentFormComponent: React.FC = () => {
     // This allows user input to persist when investment type changes
   });
 
+  // Reset form when formValues change (e.g., after loading investment data)
+  useEffect(() => {
+    form.reset(formValues);
+  }, [formValues, form]);
+
+
   // Show loading spinner
   if (isLoadingInvestment) {
   return (
@@ -369,42 +411,41 @@ export const InvestmentFormComponent: React.FC = () => {
   // Show main form step  
   return (
       <AppActionForm
-      form={form} 
+        form={form} 
         processType={isUpdate ? 'update' : 'create'}
-      onSubmit={async (formData) => {
-        console.log('Form submitted:', formData);
-        console.log('Current formValues state:', formValues);
-        
-        // Ensure investmentGroupRef is properly set from formValues state
-        // If we only have the group code, convert it to full reference format
-        let groupRef = formValues.investmentGroupRef;
-        if (!groupRef && formValues.group) {
-          // Convert group code to full reference format
-          groupRef = `InvestmentGroup:v1:${formValues.group}`;
-        }
-        
-        const formDataWithGroupRef = {
-          ...formData,
-          investmentGroupRef: groupRef,
-          group: formValues.group
-        };
-        
-        console.log('Form data with group ref:', formDataWithGroupRef);
-        
+        onSubmit={async (formData) => {
+          // Check form validity before proceeding
+          const isFormValid = await form.trigger(); // Trigger validation
+          if (!isFormValid) {
+            throw new Error('Please fill in all required fields');
+          }
+          
+          // Ensure investmentGroupRef is properly set from formValues state
+          // If we only have the group code, convert it to full reference format
+          let groupRef = formValues.investmentGroupRef;
+          if (!groupRef && formValues.group) {
+            // Convert group code to full reference format
+            groupRef = `InvestmentGroup:v1:${formValues.group}`;
+          }
+          
+          const formDataWithGroupRef = {
+            ...formData,
+            investmentGroupRef: groupRef,
+            group: formValues.group
+          };
+          
         // Use central investment payload builder
         const payload = buildInvestmentPayload(formDataWithGroupRef, businessAppContext, { 
           isUpdate, 
           rawInvestmentData 
         });
-        console.log('Built investment payload:', payload);
         
         // TODO: Send payload to API
-        return payload;
-      }}
-        formData={formValues}
+          return payload;
+        }}
         businessAppContext={businessAppContext}
-      data-testid={`${prefixDataTestId}-form`}
-    >
+        data-testid={`${prefixDataTestId}-form`}
+      >
       <div data-testid={`${prefixDataTestId}-content`} className="gba:space-y-6">
         
         {/* Group Display Header (if group is selected) */}

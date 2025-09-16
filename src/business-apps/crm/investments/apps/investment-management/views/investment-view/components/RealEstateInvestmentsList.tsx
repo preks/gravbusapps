@@ -11,6 +11,7 @@ import {
   Alert,
   Button
 } from "@newwork/nw-design-system";
+import { PlusOutlined } from "@ant-design/icons";
 import { BusinessAppContextProps } from "@/common/BusinessAppContext";
 import { useGetInvestments } from "@/common/data/investment/hooks/useInvestments";
 import type { Investment } from "@/common/data/investment/types";
@@ -73,6 +74,7 @@ const RealEstateInvestmentsList: React.FC<RealEstateInvestmentsListProps> = (con
     sortOrder,
     setSearch,
     handleSortingChange,
+    handlePaginationChange,
   } = useInvestmentListController();
 
   // Use centralized filters hook
@@ -340,15 +342,15 @@ const RealEstateInvestmentsList: React.FC<RealEstateInvestmentsListProps> = (con
             data-testid="real-estate-investments-add-action"
             emptyStateBehavior="hide"
           >
-            <button
-              className="gba:flex gba:flex-row gba:justify-center gba:items-center gba:px-3 gba:py-0 gba:h-8 gba:rounded gba:gap-1"
-              data-testid="real-estate-investments-add-action"
-              type="button"
+            <Button
+              variant="default"
+              size="sm"
+              className="gba:flex gba:items-center gba:gap-2"
+              data-testid="real-estate-investments-add-button"
             >
-              <span className="gba:h-4 gba:font-normal gba:text-sm gba:leading-4 gba:flex gba:items-center gba:text-black gba:flex-none order-1 gba:grow-0">
-                Add
-              </span>
-            </button>
+              <PlusOutlined />
+              Add Real Estate
+            </Button>
           </AppAction>
         ),
         columnVisibility: {
@@ -583,6 +585,64 @@ const RealEstateInvestmentsList: React.FC<RealEstateInvestmentsListProps> = (con
               ))}
             </TableBody>
           </Table>
+          
+          {/* Pagination */}
+          <div
+            className="gba:flex gba:items-center gba:justify-between gba:px-4 gba:py-4 gba:border-t"
+            data-testid="real-estate-investments-pagination"
+          >
+            <div
+              className="gba:text-sm gba:text-muted-foreground"
+              data-testid="real-estate-investments-pagination-info"
+            >
+              {`${(currentPage - 1) * pageSize + 1}-${Math.min(
+                currentPage * pageSize,
+                totalCount
+              )} of ${totalCount} investments`}
+            </div>
+            <div className="gba:flex gba:items-center gba:space-x-6 gba:lg:space-x-8">
+              <div className="gba:flex gba:items-center gba:space-x-2">
+                <p className="gba:text-sm gba:font-medium">Rows per page</p>
+                <select
+                  value={pageSize}
+                  onChange={(e) => handlePaginationChange(1, Number(e.target.value))}
+                  className="gba:h-8 gba:w-[70px] gba:rounded gba:border gba:border-input gba:px-3 gba:py-1 gba:text-sm"
+                  data-testid="real-estate-investments-page-size-select"
+                >
+                  <option value={10}>10</option>
+                  <option value={20}>20</option>
+                  <option value={50}>50</option>
+                  <option value={100}>100</option>
+                </select>
+              </div>
+              <div
+                className="gba:flex gba:w-[100px] gba:items-center gba:justify-center gba:text-sm gba:font-medium"
+                data-testid="real-estate-investments-page-info"
+              >
+                Page {currentPage} of {Math.ceil(totalCount / pageSize)}
+              </div>
+              <div className="gba:flex gba:items-center gba:space-x-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => handlePaginationChange(currentPage - 1)}
+                  disabled={currentPage <= 1}
+                  data-testid="real-estate-investments-prev-page"
+                >
+                  Previous
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => handlePaginationChange(currentPage + 1)}
+                  disabled={currentPage >= Math.ceil(totalCount / pageSize)}
+                  data-testid="real-estate-investments-next-page"
+                >
+                  Next
+                </Button>
+              </div>
+            </div>
+          </div>
         </div>
       }
     />
