@@ -118,16 +118,18 @@ const AllInvestmentsList: React.FC<AllInvestmentsListProps> = (context) => {
 
   // Column configuration for visibility
   const [columnConfig, setColumnConfig] = useState<ColumnConfig[]>([
-    { id: "actions", label: "Actions", visible: true, disabled: true },
     { id: "investment", label: "Investment", visible: true },
     { id: "group", label: "Group", visible: true },
     { id: "type", label: "Type", visible: true },
     { id: "initialInvestment", label: "Initial Investment", visible: true },
+    { id: "totalInvestment", label: "Total Investment", visible: true },
     { id: "marketValue", label: "Market Value", visible: true },
     { id: "performance", label: "Performance", visible: true },
     { id: "owner", label: "Owner", visible: true },
     { id: "status", label: "Status", visible: true },
     { id: "created", label: "Created", visible: true },
+    // Actions column must be LAST
+    { id: "actions", label: "Actions", visible: true, disabled: true },
   ]);
   // Currency helpers to match IRM Opportunity list (number-only + narrow symbol)
   const renderAmount = (amount: number | undefined, currencyCode?: string) => {
@@ -396,16 +398,39 @@ const AllInvestmentsList: React.FC<AllInvestmentsListProps> = (context) => {
           <Table>
             <TableHeader>
               <TableRow>
-                <SortableTableHead field="name" currentSortField={sortField} currentSortOrder={sortOrder} onSort={handleSortingChange}>Investment</SortableTableHead>
-                <TableHead>Group</TableHead>
-                <TableHead>Type</TableHead>
-                <TableHead>Initial Investment</TableHead>
-                <TableHead>Market Value</TableHead>
-                <TableHead>Performance</TableHead>
-                <TableHead>Owner</TableHead>
-                <TableHead>Status</TableHead>
-                <SortableTableHead field="createdAt" currentSortField={sortField} currentSortOrder={sortOrder} onSort={handleSortingChange}>Created</SortableTableHead>
-                <TableHead className="gba:w-[60px]">Actions</TableHead>
+                {visibleColumns.includes('investment') && (
+                  <SortableTableHead field="name" currentSortField={sortField} currentSortOrder={sortOrder} onSort={handleSortingChange}>Investment</SortableTableHead>
+                )}
+                {visibleColumns.includes('group') && (
+                  <TableHead>Group</TableHead>
+                )}
+                {visibleColumns.includes('type') && (
+                  <TableHead>Type</TableHead>
+                )}
+                {visibleColumns.includes('initialInvestment') && (
+                  <SortableTableHead field="initialInvestmentAmount" currentSortField={sortField} currentSortOrder={sortOrder} onSort={handleSortingChange}>Initial Investment</SortableTableHead>
+                )}
+                {visibleColumns.includes('totalInvestment') && (
+                  <SortableTableHead field="totalInvestmentAmount" currentSortField={sortField} currentSortOrder={sortOrder} onSort={handleSortingChange}>Total Investment</SortableTableHead>
+                )}
+                {visibleColumns.includes('marketValue') && (
+                  <SortableTableHead field="investmentMarketValue" currentSortField={sortField} currentSortOrder={sortOrder} onSort={handleSortingChange}>Market Value</SortableTableHead>
+                )}
+                {visibleColumns.includes('performance') && (
+                  <TableHead>Performance</TableHead>
+                )}
+                {visibleColumns.includes('owner') && (
+                  <SortableTableHead field="ownerEmployee.displayName" currentSortField={sortField} currentSortOrder={sortOrder} onSort={handleSortingChange}>Owner</SortableTableHead>
+                )}
+                {visibleColumns.includes('status') && (
+                  <SortableTableHead field="investmentStatus.value" currentSortField={sortField} currentSortOrder={sortOrder} onSort={handleSortingChange}>Status</SortableTableHead>
+                )}
+                {visibleColumns.includes('created') && (
+                  <SortableTableHead field="createdAt" currentSortField={sortField} currentSortOrder={sortOrder} onSort={handleSortingChange}>Created</SortableTableHead>
+                )}
+                {visibleColumns.includes('actions') && (
+                  <TableHead className="gba:w-[60px]">Actions</TableHead>
+                )}
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -434,6 +459,11 @@ const AllInvestmentsList: React.FC<AllInvestmentsListProps> = (context) => {
                       {renderAmount(investment.initialInvestmentAmount, investment.currency?.code)}
                     </TableCell>
                   )}
+                  {visibleColumns.includes('totalInvestment') && (
+                    <TableCell className="gba:text-right">
+                      {renderAmount(investment.totalInvestmentAmount, investment.currency?.code)}
+                    </TableCell>
+                  )}
                   {visibleColumns.includes('marketValue') && (
                     <TableCell className="gba:text-right">
                       {renderAmount(investment.investmentMarketValue, investment.currency?.code)}
@@ -443,9 +473,9 @@ const AllInvestmentsList: React.FC<AllInvestmentsListProps> = (context) => {
                     <TableCell className="gba:text-right">
                       {(() => {
                         const currentValue = investment.investmentMarketValue || 0;
-                        const initialValue = investment.initialInvestmentAmount || 0;
-                        const performanceAmount = currentValue - initialValue;
-                        const performancePercentage = initialValue > 0 ? (performanceAmount / initialValue) * 100 : 0;
+                        const totalValue = investment.totalInvestmentAmount || 0;
+                        const performanceAmount = currentValue - totalValue;
+                        const performancePercentage = totalValue > 0 ? (performanceAmount / totalValue) * 100 : 0;
                         const isZero = performancePercentage === 0;
                         const isPositive = performancePercentage > 0;
 
@@ -560,11 +590,6 @@ const AllInvestmentsList: React.FC<AllInvestmentsListProps> = (context) => {
                       <span className="gba:text-sm">
                         {investment.stakePercentage ? `${investment.stakePercentage}%` : '-'}
                       </span>
-                    </TableCell>
-                  )}
-                  {visibleColumns.includes('totalInvestment') && (
-                    <TableCell className="gba:text-right">
-                      {renderAmount(investment.totalInvestmentAmount, investment.currency?.code)}
                     </TableCell>
                   )}
                   {visibleColumns.includes('debtFinancing') && (

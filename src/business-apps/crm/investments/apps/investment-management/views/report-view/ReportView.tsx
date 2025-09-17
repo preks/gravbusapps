@@ -74,6 +74,7 @@ export const ReportView: React.FC<ReportViewProps> = ({
                 <Button
                   className="gba:flex gba:items-center gba:gap-2"
                   data-testid="upload-document-button"
+                  variant="ai"
                 >
                   <Upload className="gba:h-4 gba:w-4" />
                   {getTranslationFromI18nKeyAndLabel('investment.reports.uploadDocument', 'Upload Report')}
