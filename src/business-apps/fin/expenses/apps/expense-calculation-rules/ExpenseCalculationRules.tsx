@@ -6,7 +6,7 @@ import { DataControllerProps } from '@/components/dataController/DataController'
 import { formatDate, getCatalogValue, getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
 import { env } from '@/common/env/EnvUtils';
 import { useGraphqlClient } from '@/common/network/graphql/useGraphQLClient';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow, Card, CardContent, Spinner, Alert, Button, Dialog, DialogContent, DialogHeader, DialogTitle, Popover, PopoverTrigger, PopoverContent } from '@newwork/nw-design-system';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow, Card, CardContent, Spinner, Alert, Button, Popover, PopoverTrigger, PopoverContent } from '@newwork/nw-design-system';
 import { useExpenseCalculationRules } from './hooks/useExpenseCalculationRules';
 import {
   Pagination,
@@ -27,7 +27,8 @@ import CalculationFilter from './components/filters/CalculationFilter';
 import { ListBulletsIcon, SortAscendingIcon, SortDescendingIcon, CaretLeftIcon, CaretRightIcon } from '@phosphor-icons/react';
 import { EXPENSE_CALCULATION_RULES_FLOW_ACTIONS } from './constants/flowActions';
 import FlowActionsButton from './components/FlowActionsButton';
-import { CreateCalculationRuleForm } from '@/business-apps/fin/expenses/forms/create-calculation-rule';
+import CreateRuleDialog from './components/CreateRuleDialog';
+import DeleteRuleDialog from './components/DeleteRuleDialog';
 import { GET_EXPENSE_RULE_FLAGS, getExpensesWithRulePk } from './queries/ExpenseCalculationRules.queries';
 import { useRestClient } from '@/common/network/rest/useRestClient';
 
@@ -60,9 +61,6 @@ const ExpenseCalculationRules: React.FC<ExpenseCalculationRulesProps> = (props) 
     standard,
     selectedCalculationCodes,
   } = useExpenseCalculationRules(props);
-
-  // use hook as single source of truth for search; controller will update it directly
-
 
   const handleEnhancedTableChange = useCallback((pagination: { current: number; pageSize: number; }, _filters?: any, _sorter?: any) => {
     setPage(pagination.current);
@@ -422,62 +420,47 @@ const ExpenseCalculationRules: React.FC<ExpenseCalculationRulesProps> = (props) 
             </Card>
 
             {/* Create Calculation Rule Modal */}
-            <Dialog open={flowModalOpen} onOpenChange={(open) => { setFlowModalOpen(open); if (!open) setSelectedRow(null); }}>
-            <DialogContent data-testid={`${PREFIX}-create-modal`} 
-            onOpenAutoFocus={(e) => { e.preventDefault(); }}
-            className="gba:h-[100vh] gba:max-h-[100vh] gba:flex gba:flex-col gba:px-[40px] gba:w-[100%] gba:overflow-hidden">
-              <DialogHeader />
-              <DialogTitle className="gba:hidden">Create Calculation Rule</DialogTitle>
-                <div className="gba:flex-1 gba:overflow-y-auto gba:pr-2">
-                  <CreateCalculationRuleForm
-                    accessToken={props.accessToken}
-                    additionalData={{ nvi_navigationPayload: selectedRow ? { ...selectedRow } : {} }}
-                    onCancel={() => setFlowModalOpen(false)}
-                    onCreate={() => { setFlowModalOpen(false); reload(); }}
-                  />
-                </div>
-              </DialogContent>
-            </Dialog>
+            <CreateRuleDialog
+              open={flowModalOpen}
+              onOpenChange={(open) => {
+                setFlowModalOpen(open);
+                if (!open) {
+                  setTimeout(() => setSelectedRow(null), 250);
+                }
+              }}
+              accessToken={props.accessToken}
+              additionalData={{ nvi_navigationPayload: selectedRow ? { ...selectedRow } : {} }}
+              onCreated={reload}
+            />
 
             {/* Delete Calculation Rule Modal */}
-            <Dialog open={deleteOpen} onOpenChange={setDeleteOpen}>
-              <DialogContent data-testid={`${PREFIX}-delete-modal`} className="gba:max-w-[420px]">
-                <DialogHeader>
-                  <DialogTitle>{getTranslationFromI18nKeyAndLabel('lowcoder:expense_calculation_rule.expense_calculation_rule_modal.delete_title','Delete Calculation Rule')}</DialogTitle>
-                </DialogHeader>
-                <div className="gba:py-2 gba:text-[14px]">
-                  {deleteBlocked
-                    ? getTranslationFromI18nKeyAndLabel('lowcoder:expense_calculation_rule.expense_calculation_rule_modal.delete_blocked_message',"This rule is already used in an expense. It cannot be deleted. Please update the 'Valid To' field.")
-                    : getTranslationFromI18nKeyAndLabel('lowcoder:expense_calculation_rule.expense_calculation_rule_modal.delete_message','Are you sure you want to delete the rule?')}
-                </div>
-                <div className="gba:flex gba:justify-end gba:gap-3 gba:mt-4">
-                  {deleteBlocked ? (
-                    <Button variant="default" onClick={() => setDeleteOpen(false)} data-testid={`${PREFIX}-delete-confirm`}>{getTranslationFromI18nKeyAndLabel('lowcoder:expense_config_calculation_rule_list:ok','OK')}</Button>
-                  ) : (
-                    <>
-                      <Button variant="outline" onClick={() => setDeleteOpen(false)} data-testid={`${PREFIX}-delete-no`}>{getTranslationFromI18nKeyAndLabel('lowcoder:expense_calculation_rule.expense_calculation_rule_modal.checkbox_modal.no_button', 'No')}</Button>
-                      <Button variant="destructive" data-testid={`${PREFIX}-delete-yes`} onClick={async () => {
-                        try {
-                          if (!selectedRow) return;
-                          await restClient.delete('/employee-expense/saveExpenseRule', {
-                            params: { id: selectedRow.id },
-                            headers: {
-                              Authorization: `Bearer ${props.accessToken}`,
-                              Accept: 'application/json',
-                              'Content-Type': 'application/json',
-                            },
-                          });
-                          setDeleteOpen(false);
-                          reload();
-                        } catch {
-                          setDeleteOpen(false);
-                        }
-                      }}>{getTranslationFromI18nKeyAndLabel('lowcoder:expense_calculation_rule.expense_calculation_rule_modal.checkbox_modal.yes_button', 'Yes')}</Button>
-                    </>
-                  )}
-                </div>
-              </DialogContent>
-            </Dialog>
+            <DeleteRuleDialog
+              open={deleteOpen}
+              onOpenChange={setDeleteOpen}
+              blocked={deleteBlocked}
+              onConfirm={async () => {
+                try {
+                  if (!selectedRow) return;
+                  await restClient.post('/employee-expense/saveExpenseRule', {
+                    expenseRule: {
+                      id: selectedRow.id,
+                      version: selectedRow.version
+                    },
+                    changeMode: 'DELETE',
+                  }, {
+                    headers: {
+                      Authorization: `Bearer ${props.accessToken}`,
+                      Accept: 'application/json',
+                      'Content-Type': 'application/json',
+                    },
+                  });
+                  setDeleteOpen(false);
+                  reload();
+                } catch {
+                  setDeleteOpen(false);
+                }
+              }}
+            />
           </div>
         )}
       />

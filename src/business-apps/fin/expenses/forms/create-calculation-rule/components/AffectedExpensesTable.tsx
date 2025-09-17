@@ -42,9 +42,9 @@ const AffectedExpensesTable: React.FC<AffectedExpensesTableProps> = ({
   const currentPage = Math.min(page, totalPages);
 
   return (
-    <Card className="gba:w-full">
-      <CardContent className="gba:p-0 gba:w-full">
-        <Table data-testid={`${dataTestId}-table`} className="gba:w-full">
+    <Card className="gba:w-[100%]">
+      <CardContent className="gba:p-0 gba:w-[100%]">
+        <Table data-testid={`${dataTestId}-table`} className="gba:w-[100%]">
           <TableHeader>
             <TableRow>
               {columns.map(col => (
