@@ -56,7 +56,7 @@ export interface TaskSegmentProps {
   entities?: Array<{
     id: string;
     name: string;
-    type: "account" | "contact" | "opportunity" | "lead";
+    type: "account" | "contact" | "opportunity" | "lead" | "investment";
     subtitle?: string;
   }>;
   entitiesLoading?: boolean;
@@ -505,6 +505,7 @@ const TaskSegment: React.FC<TaskSegmentProps> = ({
                     form.setValue("contact", undefined);
                     form.setValue("opportunity", undefined);
                     form.setValue("lead", undefined);
+                    form.setValue("investment", undefined);
                     if (e) {
                       form.setValue(e.type, { id: e.id });
                     }

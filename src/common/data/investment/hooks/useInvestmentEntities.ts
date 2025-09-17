@@ -1,9 +1,10 @@
 import { useCallback, useRef, useState } from 'react';
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
+import { CATALOG_ENTRY_REF } from '@/common/data/catalog/queries/catalogFragments';
 import type { EntityOption } from '@/common/components/common-relations/form-segments';
 
-// GraphQL query for relation entities (accounts, contacts, opportunities, leads)
+// GraphQL query for relation entities (accounts, contacts, opportunities, leads, investments)
 const GET_INVESTMENT_RELATION_ENTITIES_QUERY = `
   query GetInvestmentRelationEntities($searchPattern: String!, $limit: Int, $offset: Int) {
     InvestmentAccount(
@@ -106,6 +107,27 @@ const GET_INVESTMENT_RELATION_ENTITIES_QUERY = `
       companyName
       email
     }
+    
+    Investment(
+      limit: $limit
+      offset: $offset
+      where: {
+        _or: [
+          { name: { _ilike: $searchPattern } }
+          { code: { _ilike: $searchPattern } }
+        ]
+      }
+      orderBy: { name: ASC }
+    ) {
+      id
+      code
+      name
+      totalInvestmentAmount
+      investmentMarketValue
+      currency {
+        ${CATALOG_ENTRY_REF}
+      }
+    }
   }
 `;
 
@@ -141,6 +163,19 @@ interface InvestmentEntitiesResponse {
     companyName?: string;
     email?: string;
   }>;
+  Investment: Array<{
+    id: string;
+    code?: string;
+    name?: string;
+    totalInvestmentAmount?: number;
+    investmentMarketValue?: number;
+    currency?: {
+      id?: string;
+      code?: string;
+      value?: string;
+      displayName?: string;
+    };
+  }>;
 }
 
 export const useInvestmentEntities = (context: BusinessAppContextProps) => {
@@ -173,6 +208,8 @@ export const useInvestmentEntities = (context: BusinessAppContextProps) => {
       );
       inFlightRef.current = { key, promise };
       const result = await promise;
+      
+      console.log('🔍 Investment entities search result:', result);
 
       const nextEntities: EntityOption[] = [];
 
@@ -218,6 +255,24 @@ export const useInvestmentEntities = (context: BusinessAppContextProps) => {
         });
       });
 
+      console.log('💰 Raw Investment data:', result.Investment);
+      (result.Investment || []).forEach((investment) => {
+        const currencyValue = investment.currency?.value ? ` (${investment.currency.value})` : '';
+        // Use totalInvestmentAmount or investmentMarketValue for display
+        const value = investment.totalInvestmentAmount || investment.investmentMarketValue;
+        const totalValueText = value 
+          ? `${value.toLocaleString()}${currencyValue}`
+          : '';
+        const investmentEntity = {
+          id: investment.id,
+          name: investment.name || investment.code || 'Investment',
+          type: 'investment',
+          subtitle: totalValueText || investment.code,
+        };
+        console.log('💰 Adding investment entity:', investmentEntity);
+        nextEntities.push(investmentEntity);
+      });
+
       // Merge previous (when appending) + current page with pinned
       setEntities((prev) => {
         const map = new Map<string, EntityOption>();
@@ -238,6 +293,7 @@ export const useInvestmentEntities = (context: BusinessAppContextProps) => {
         (result.InvestmentContact || []).length,
         (result.InvestmentOpportunity || []).length,
         (result.InvestmentLead || []).length,
+        (result.Investment || []).length,
       ];
       const nextHasMore = lengths.some((len) => len === PAGE_SIZE);
       setHasMore(nextHasMore);
@@ -269,7 +325,7 @@ export const useInvestmentEntities = (context: BusinessAppContextProps) => {
   }, [fetchPage, hasMore, loading, offset, PAGE_SIZE, searchTerm]);
 
   // Hydrate and pin by id + type so selected item always appears with full info
-  const hydrateEntityById = useCallback(async (type: 'account' | 'contact' | 'opportunity' | 'lead', id: string): Promise<EntityOption | undefined> => {
+  const hydrateEntityById = useCallback(async (type: 'account' | 'contact' | 'opportunity' | 'lead' | 'investment', id: string): Promise<EntityOption | undefined> => {
     if (!id) return undefined;
     if (pinnedRef.current.has(id)) return pinnedRef.current.get(id);
     const buildQuery = () => {
@@ -289,6 +345,12 @@ export const useInvestmentEntities = (context: BusinessAppContextProps) => {
         return {
           query: `query GetOpportunityById($id: uuid!) { InvestmentOpportunity(where: { id: { _eq: $id } }) { id name code dealType } }`,
           key: 'InvestmentOpportunity',
+        } as const;
+      }
+      if (type === 'investment') {
+        return {
+          query: `query GetInvestmentById($id: uuid!) { Investment(where: { id: { _eq: $id } }) { id name code totalInvestmentAmount investmentMarketValue currency { ${CATALOG_ENTRY_REF} } } }`,
+          key: 'Investment',
         } as const;
       }
       return {
@@ -311,6 +373,14 @@ export const useInvestmentEntities = (context: BusinessAppContextProps) => {
         }
         if (type === 'opportunity') {
           return { id: row.id, name: row.name || row.code || 'Opportunity', type: 'opportunity', subtitle: row.dealType };
+        }
+        if (type === 'investment') {
+          const currencyValue = row.currency?.value ? ` (${row.currency.value})` : '';
+          const value = row.totalInvestmentAmount || row.investmentMarketValue;
+          const totalValueText = value 
+            ? `${value.toLocaleString()}${currencyValue}`
+            : '';
+          return { id: row.id, name: row.name || row.code || 'Investment', type: 'investment', subtitle: totalValueText || row.code };
         }
         const leadName = `${row.firstName || ''} ${row.lastName || ''}`.trim() || row.companyName || row.code || 'Lead';
         return { id: row.id, name: leadName, type: 'lead', subtitle: row.companyName && leadName !== row.companyName ? row.companyName : row.email };

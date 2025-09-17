@@ -39,7 +39,6 @@ const InvestmentTaskForm: React.FC<InvestmentTaskFormProps> = ({ accessToken, us
     ...initialFormData,
     assignedEmployeeId: userInfo?.employeeDetails?.employeeId || '',
   });
-  const [attachedFiles, setAttachedFiles] = useState<File[]>([]);
   const { entities, loading: entitiesLoading, error: entitiesError, searchEntities, hasMore: entitiesHasMore, loadMore: loadMoreEntities, hydrateEntityById } = useInvestmentEntities({ accessToken, additionalData });
   const { employees, search: searchEmployees, loading: employeesLoading, hasMore: employeesHasMore, loadMore: loadMoreEmployees, hydrateById } = useEmployeeSearch(accessToken);
   const [assigneePrefill, setAssigneePrefill] = useState<Array<{ id: string; displayName: string; userId?: string; pictureThumbnail?: string; organizationalUnitName?: string; jobPositionName?: string }>>([]);
@@ -64,7 +63,6 @@ const InvestmentTaskForm: React.FC<InvestmentTaskFormProps> = ({ accessToken, us
   const contactId = platformParams.contactId;
   const opportunityId = platformParams.opportunityId;
   const leadId = platformParams.leadId;
-  const hasEntityFromContext = Boolean(accountId || contactId || opportunityId || leadId);
   // Load existing task when taskId is provided via additionalData
   React.useEffect(() => {
     const taskId = platformParams.taskId as string | undefined;
@@ -216,6 +214,14 @@ const InvestmentTaskForm: React.FC<InvestmentTaskFormProps> = ({ accessToken, us
     searchEntities(q);
   }, [searchEntities]);
 
+  // Trigger initial search to load some default entities
+  React.useEffect(() => {
+    if (accessToken && !platformParams.taskId) {
+      // Only trigger initial search in create mode
+      searchEntities('');
+    }
+  }, [accessToken, platformParams.taskId, searchEntities]);
+
   // Detect approval mode from additionalData.typeRef
   const isApprovalMode = React.useMemo(() => {
     const t = (additionalData as any)?.typeRef || (additionalData as any)?.psi_taskPayload?.psi_initialParameters?.typeRef;
@@ -247,7 +253,7 @@ const InvestmentTaskForm: React.FC<InvestmentTaskFormProps> = ({ accessToken, us
         assigneeLabel={getTranslationFromI18nKeyAndLabel('crm:salesTask.assignedTo', 'Assigned To')}
         entityLabel={getTranslationFromI18nKeyAndLabel('crm:salesTask.relatedEntity', 'Related Entity')}
         uploadFileLabel={getTranslationFromI18nKeyAndLabel('crm:salesTask.uploadFile', 'Attach Documents')}
-        onFilesChange={(files) => setAttachedFiles(files)}
+        onFilesChange={() => {/* File upload handling */}}
         timingTypeLabel={getTranslationFromI18nKeyAndLabel('crm:salesTask.timingType', 'Timing Type')}
         // catalogs
         accessToken={accessToken}
@@ -255,8 +261,8 @@ const InvestmentTaskForm: React.FC<InvestmentTaskFormProps> = ({ accessToken, us
         priorityCatalog={{ identifier: TASK_PRIORITY_CATALOG, version: 'v1' }}
         statusCatalog={{ identifier: TASK_STATUS_CATALOG, version: 'v1' }}
         // entity search
-        // Show Assigned To per IRM requirements; keep entity selection hidden
-        showEntitySelection={false}
+        // Show entity selection for investment-relations page tasks
+        showEntitySelection={true}
         showAssigneeSelection={true}
         entities={entities}
         entitiesLoading={entitiesLoading}
