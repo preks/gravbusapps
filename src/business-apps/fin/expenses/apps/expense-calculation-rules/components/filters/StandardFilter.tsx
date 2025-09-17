@@ -16,7 +16,7 @@ const StandardFilter: React.FC<StandardFilterProps> = ({ value, onChange, 'data-
   };
 
   return (
-    <div className="gba:flex gba:flex-col gba:gap-3 gba:mt-2" data-testid={dataTestId || 'standard-filter'}>
+    <div className="gba:flex gba:flex-col gba:gap-3 gba:py-3" data-testid={dataTestId || 'standard-filter'}>
       <div className="gba:flex gba:items-center gba:gap-4">
         <Checkbox checked={value.true} onCheckedChange={handleChange('true')} data-testid={(dataTestId || 'standard-filter') + '-true'} />
         <span className="gba:text-sm">{getTranslationFromI18nKeyAndLabel('lowcoder:expense_config_calculation_rule_list.expense_calculation_rule_filter.true_label', 'True')}</span>

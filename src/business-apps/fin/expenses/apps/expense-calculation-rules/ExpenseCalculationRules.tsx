@@ -459,7 +459,14 @@ const ExpenseCalculationRules: React.FC<ExpenseCalculationRulesProps> = (props) 
                       <Button variant="destructive" data-testid={`${PREFIX}-delete-yes`} onClick={async () => {
                         try {
                           if (!selectedRow) return;
-                          await restClient.delete('/processes/employee-expense/saveExpenseRule', { params: { id: selectedRow.id } });
+                          await restClient.delete('/employee-expense/saveExpenseRule', {
+                            params: { id: selectedRow.id },
+                            headers: {
+                              Authorization: `Bearer ${props.accessToken}`,
+                              Accept: 'application/json',
+                              'Content-Type': 'application/json',
+                            },
+                          });
                           setDeleteOpen(false);
                           reload();
                         } catch {

@@ -70,6 +70,7 @@ export const useExpenseCalculationRules = (
   const [selectedCurrencyCodes, setSelectedCurrencyCodes] = useState<string[]>([]);
 
   const [calculationTypes, setCalculationTypes] = useState<CalculationTypeOption[]>([]);
+  const [refreshTick, setRefreshTick] = useState<number>(0);
 
   const orderBy = useMemo(() => {
     if (!sortField || !sortOrder) return undefined;
@@ -161,7 +162,7 @@ export const useExpenseCalculationRules = (
       }
     })();
     return () => { cancelled = true; };
-  }, [context.accessToken, buildWhere, currentPage, pageSize, orderBy, fetchExpenseRules]);
+  }, [context.accessToken, buildWhere, currentPage, pageSize, orderBy, fetchExpenseRules, refreshTick]);
 
   // no standalone setSort helper; use inline setter in return to avoid extra re-creations
 
@@ -172,8 +173,7 @@ export const useExpenseCalculationRules = (
     error,
     calculationTypes,
     reload: () => {
-      // trigger by flipping a harmless dependency: just set page to same value to re-run effect
-      setCurrentPage((p) => p);
+      setRefreshTick((t) => t + 1);
     },
     setPage: setCurrentPage,
     setPageSize,

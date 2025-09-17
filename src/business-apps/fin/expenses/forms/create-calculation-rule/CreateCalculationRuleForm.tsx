@@ -537,7 +537,13 @@ const CreateCalculationRuleForm: React.FC<CreateCalculationRuleFormProps> = ({ a
           expenseRule: basePayload,
           changeMode: 'INSERT' as const,
         };
-        await restClient.post('/processes/employee-expense/saveExpenseRule', payload);
+        await restClient.post('/employee-expense/saveExpenseRule', payload, {
+          headers: {
+            Authorization: `Bearer ${accessToken}`,
+            Accept: 'application/json',
+            'Content-Type': 'application/json',
+          },
+        });
 
         // 3) If we had collisions, update previous standard=false
         const toModify = collidingDatesState || [];
@@ -552,7 +558,13 @@ const CreateCalculationRuleForm: React.FC<CreateCalculationRuleFormProps> = ({ a
                 },
                 changeMode: 'UPDATE',
               };
-              return restClient.post('/processes/employee-expense/saveExpenseRule', calculationRuleToModify);
+              return restClient.post('/employee-expense/saveExpenseRule', calculationRuleToModify, {
+                headers: {
+                  Authorization: `Bearer ${accessToken}`,
+                  Accept: 'application/json',
+                  'Content-Type': 'application/json',
+                },
+              });
             })
           );
         }
@@ -582,7 +594,13 @@ const CreateCalculationRuleForm: React.FC<CreateCalculationRuleFormProps> = ({ a
           },
           changeMode: 'INSERT'
         };
-        await restClient.post('/processes/employee-expense/saveExpenseRuleFlag', flagPayload);
+        await restClient.post('/employee-expense/saveExpenseRuleFlag', flagPayload, {
+          headers: {
+            Authorization: `Bearer ${accessToken}`,
+            Accept: 'application/json',
+            'Content-Type': 'application/json',
+          },
+        });
 
         onCreate?.();
       } catch (e) {
@@ -801,7 +819,7 @@ const CreateCalculationRuleForm: React.FC<CreateCalculationRuleFormProps> = ({ a
       </div>
 
       {/* Standard (re-added between Valid To and Currency) */}
-      <div className={`gba:mb-4`} data-testid="ccr-standard-field-container">
+      <div className={`gba:mb-4 gba:hidden`} data-testid="ccr-standard-field-container">
         <div className={`gba:relative`}>
           <div
             className={`${isUpdate ? 'gba:bg-[#eeeff0] gba:cursor-not-allowed' : 'gba:bg-[#F7F7F7]'} gba:flex gba:items-center gba:justify-between gba:w-full gba:h-[64px] gba:px-4 gba:rounded`}

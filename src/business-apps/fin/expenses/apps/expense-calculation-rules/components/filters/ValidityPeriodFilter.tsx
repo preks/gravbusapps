@@ -19,7 +19,7 @@ const ValidityPeriodFilter: React.FC<ValidityPeriodFilterProps> = ({ from, to, o
   const [open, setOpen] = React.useState(false);
 
   return (
-    <div className="gba:flex gba:flex-col gba:gap-2 gba:mt-2" data-testid={dataTestId || 'validity-period-filter'}>
+    <div className="gba:flex gba:flex-col gba:gap-2 gba:py-3" data-testid={dataTestId || 'validity-period-filter'}>
       <Popover open={open} onOpenChange={setOpen}>
         <PopoverTrigger asChild>
           <Button variant="outline"  data-testid={(dataTestId || 'validity-period-filter') + '-trigger'} className="gba:whitespace-normal gba:p-5">

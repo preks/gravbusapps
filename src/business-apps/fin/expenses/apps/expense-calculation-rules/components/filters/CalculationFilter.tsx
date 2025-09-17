@@ -17,7 +17,7 @@ const CalculationFilter: React.FC<CalculationFilterProps> = ({ options, selected
   };
 
   return (
-    <div className="gba:flex gba:flex-col gba:gap-3 gba:mt-2" data-testid={dataTestId || 'calculation-filter'}>
+    <div className="gba:flex gba:flex-col gba:gap-3 gba:py-3" data-testid={dataTestId || 'calculation-filter'}>
       {options.map((o) => (
         <label key={o.id} className="gba:flex gba:items-center gba:gap-2">
           <Checkbox checked={selectedCodes.includes(o.code)} onCheckedChange={toggle(o.code)} data-testid={(dataTestId || 'calculation-filter') + '-' + o.code} />
