@@ -7,7 +7,7 @@ import { useRequestAdvancePaymentData } from './hooks/useRequestAdvancePaymentDa
 import { formatCurrencyRef } from './utils/currencyUtils';
 import { validateForm } from './utils/validationUtils';
 import { FormData, FormValidationState, FormSubmissionState } from './types/FormTypes';
-import { extractExpensePlanIdFromAdditionalData, devLog } from './utils/additionalDataUtils';
+import { extractExpensePlanIdFromAdditionalData } from './utils/additionalDataUtils';
 
 // Components
 import Header from './components/Header';
@@ -80,7 +80,6 @@ const RequestAdvancePayment: React.FC<RequestAdvancePaymentProps> = ({
     if (existing) {
       setFormData(prev => ({ ...prev, expensePlanId: existing.id }));
       fetchExpensePlanDetails(existing.id);
-      devLog('RequestAdvancePayment preselected plan id:', existing.id);
     }
   }, [expensePlanId, additionalData, expensePlans, formData.expensePlanId, fetchExpensePlanDetails]);
 
