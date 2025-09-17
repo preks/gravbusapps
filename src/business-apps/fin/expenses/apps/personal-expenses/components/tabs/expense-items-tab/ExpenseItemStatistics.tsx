@@ -4,7 +4,6 @@ import React, { useMemo, useCallback } from 'react';
 import { WidgetGroup, WidgetItem } from '@/components/widget-group';
 import { EuroOutlined, WalletOutlined } from '@ant-design/icons';
 import dayjs from 'dayjs';
-import { formatDate } from '@/common/utils/windowUtils';
 
 interface ExpenseItemStatisticsProps {
   items: any[];
@@ -47,14 +46,7 @@ const ExpenseItemStatistics: React.FC<ExpenseItemStatisticsProps> = ({
   // Use backend aggregate for pending reimbursement total
   const pendingReimbursement = pendingReimbursementTotal ?? 0;
   
-  const missingReceipts = useMemo(() => items?.filter(item => !item.expenseItemFile || item.expenseItemFile.length === 0).length ?? 0, [items]);
-
-  // Get unique categories/types for the counter
-  const categoriesCount = useMemo(() => {
-    const uniqueCategories = new Set(items?.map(item => item.expenseClass?.value));
-    return uniqueCategories.size;
-  }, [items]);
-
+  
   // Pending item count from API
   const pendingItemCount = pendingItemCountFromApi ?? 0;
 
@@ -71,7 +63,6 @@ const ExpenseItemStatistics: React.FC<ExpenseItemStatisticsProps> = ({
 
   // Generate trend data for total expenses
   const totalExpensesTrend = useMemo(() => {
-    const previousMonthName = dayjs().subtract(1, 'month').format('MMMM');
     const current = totalExpenses ?? 0;
     const previous = previousMonthTotalExpenses ?? 0;
 
@@ -185,25 +176,7 @@ const ExpenseItemStatistics: React.FC<ExpenseItemStatisticsProps> = ({
       active: activeWidgetKey === 'pending-reimbursement',
       onClick: () => handleWidgetClick('pending-reimbursement')
     },
-    // {
-    //   key: 'missing-receipts',
-    //   title: 'Missing Receipts',
-    //   value: missingReceipts,
-    //   prefix: <FileExclamationOutlined />,
-    //   color: isNoReceiptFilterActive ? '#1890ff' : '#faad14',
-    //   span: { xs: 24, sm: 12, md: 8, lg: 8 },
-    //   description: isNoReceiptFilterActive ? 'Filter active' : 'Action required',
-    //   onClick: onMissingReceiptsClick
-    // },
-    // {
-    //   key: 'categories-used',
-    //   title: 'Categories Used',
-    //   value: categoriesCount,
-    //   prefix: <AppstoreOutlined />,
-    //   color: '#722ed1',
-    //   span: { xs: 24, sm: 12, md: 8, lg: 8 },
-    //   description: 'Across all expenses'
-    // }
+   
   ], [currentMonthName, totalExpenses, previousMonthTotalExpenses, pendingReimbursement, pendingItemCount, activeWidgetKey, totalExpensesTrend, pendingReimbursementTrend, handleWidgetClick, previousMonthPendingReimbursementTotal]);
 
   return (

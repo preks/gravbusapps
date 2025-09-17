@@ -10,7 +10,7 @@ import { useGetExpenseRequests, ExpenseRequest } from '../../../hooks/useGetExpe
 import ExpenseItemDetails from '../expense-items-tab/ExpenseItemDetails';
 import ExpensePlanDetails from '../expense-plans-tab/ExpensePlanDetails';
 import ExpenseRequestDetails from '../expense-requests-tab/ExpenseRequestDetails';
-import { getTranslationFromI18nKeyAndLabel, formatDate } from '@/common/utils/windowUtils';
+import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
 import { formatCurrencyDisplay } from '../../../utils';
 
 interface CalendarExpenseItem {
@@ -361,8 +361,8 @@ const ExpenseCalendarTab: React.FC<BusinessAppContextProps> = (props) => {
           onSelect={onSelect}
           dateCellRender={dateCellRender}
           headerRender={({ value, onChange }) => {
-            const currentMonth = formatDate(value.toDate(), 'date.short', 'MMMM') || value.format('MMMM');
-            const currentYear = formatDate(value.toDate(), 'date.short', 'YYYY') || value.format('YYYY');
+            const currentMonth = value.format('MMMM');
+            const currentYear = value.format('YYYY');
             return (
               <div style={{ padding: '8px 12px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #f0f0f0' }}>
                 <Typography.Title level={4} style={{ margin: 0 }}>{`${currentMonth} ${currentYear}`}</Typography.Title>

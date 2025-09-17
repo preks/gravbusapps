@@ -32,14 +32,5 @@ export const extractExpensePlanIdFromAdditionalData = (
   return undefined;
 };
 
-/**
- * Development-only safe logger to avoid noisy logs in production builds.
- */
-export const devLog = (...args: unknown[]) => {
-  if (typeof process !== 'undefined' && process.env && process.env.NODE_ENV !== 'production') {
-    // eslint-disable-next-line no-console
-    console.log(...args);
-  }
-};
 
 
