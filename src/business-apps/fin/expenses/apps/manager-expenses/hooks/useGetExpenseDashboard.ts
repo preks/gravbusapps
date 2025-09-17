@@ -114,11 +114,6 @@ export const useGetExpenseDashboard = (
     setError(null);
 
     try {
-      console.log("Fetching dashboard data with:", {
-        managerId,
-        accessToken: !!accessToken,
-      });
-
       if (!graphQLClient) {
         throw new Error("GraphQL client not initialized");
       }
@@ -183,7 +178,7 @@ export const useGetExpenseDashboard = (
           requestDate: request.requestDate
             ? new Date(request.requestDate).toISOString().split("T")[0]
             : "N/A",
-          employeeName: request.employee?.fullName ?? "Unknown Employee",
+          employeeName: request.employee?.firstName + " " + request.employee?.lastName,
         })),
         // Using hardcoded values for team budget (TeamBudget query commented out)
         teamBudget: {

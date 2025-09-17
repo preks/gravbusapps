@@ -9,6 +9,17 @@ export interface InvestmentReportQueryVariables {
   reportDateTo?: string;
   reportScope?: string;
   currencyIds?: string[];
+  
+  // Investment specialization filters
+  equityInvestmentIds?: string[];
+  realEstateInvestmentIds?: string[];
+  liquidFundInvestmentIds?: string[];
+  
+  // Report type filters
+  includeEquityReports?: boolean;
+  includeRealEstateReports?: boolean;
+  includeLiquidFundReports?: boolean;
+  
   limit?: number;
   offset?: number;
   orderBy?: Array<{
@@ -233,6 +244,10 @@ export const GET_INVESTMENT_REPORTS = (variables: InvestmentReportQueryVariables
             id
             locality
             buildingYear
+            size
+            sizeMeasurementUnit {
+              ${CATALOG_ENTRY}
+            }
           }
         }
         

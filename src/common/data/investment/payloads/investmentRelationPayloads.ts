@@ -16,23 +16,24 @@ export const buildActivityPayload = (
     if (activity.opportunity) refs.opportunity = activity.opportunity.id;
     if (activity.lead) refs.lead = activity.lead.id;
     
-    // Always include parent investment when provided via additionalData
-    const investmentId = (businessAppContext as any)?.additionalData?.investmentId;
+    // Always include parent investment when provided via additional/external context
+    const additional: any = (businessAppContext as any)?.additionalData || {};
+    const external: any = additional.externalContextData || {};
+    const investmentId =
+      external.investmentId ||
+      external.investment?.id ||
+      external.investment ||
+      additional.investmentId ||
+      additional.investment?.id ||
+      additional.investment;
     if (investmentId) {
       refs.investment = investmentId;
-      console.log('🔍 Activity Payload Debug - Investment ID found:', investmentId);
-      
-      // CRITICAL: Include the investment's account to satisfy backend validation
-      // Backend validation expects at least one traditional parent reference
-      const accountId = (businessAppContext as any)?.additionalData?.accountId;
+      // Also include the investment's account if available and not already set
+      const accountId = additional.accountId || external.accountId || external.account?.id || additional.account?.id;
       if (accountId && !refs.account) {
         refs.account = accountId;
-        console.log('🔍 Activity Payload Debug - Also adding investment account:', accountId);
       }
-    } else {
-      console.log('⚠️ Activity Payload Debug - No investment ID in additionalData:', businessAppContext?.additionalData);
     }
-    console.log('🔍 Activity Payload Debug - Final refs:', refs);
     return refs;
   };
 
@@ -69,7 +70,6 @@ export const buildActivityPayload = (
     investmentActivity: payloadBody,
   };
 
-  console.log('🔍 Activity Payload Debug - Final payload being sent:', JSON.stringify(finalPayload, null, 2));
   return finalPayload;
 };
 
@@ -115,8 +115,28 @@ export const buildInvestmentTaskPayload = (
     if (task.opportunity) refs.opportunity = task.opportunity.id;
     if (task.lead) refs.lead = task.lead.id;
     // Always include parent investment when provided via additionalData
-    const investmentId = (businessAppContext as any)?.additionalData?.investmentId;
+    const additional: any = (businessAppContext as any)?.additionalData || {};
+    const external: any = additional.externalContextData || {};
+    const investmentId =
+      // Primary: AppAction externalContextData (most common)
+      external.investmentId ||
+      external.investment?.id ||
+      external.investment ||
+      external.investmentTask?.investment ||
+      external.investmentTask?.investmentId ||
+      // Fallback: direct additionalData
+      additional.investmentId ||
+      additional.investment?.id ||
+      additional.investment ||
+      additional.investmentTask?.investment ||
+      additional.investmentTask?.investmentId;
     if (investmentId) refs.investment = investmentId;
+    console.log('🔍 Task Payload Debug - Investment search:', {
+      externalContextData: external,
+      additionalData: additional,
+      foundInvestmentId: investmentId,
+      finalRefs: refs
+    });
     return refs;
   };
 
@@ -133,8 +153,8 @@ export const buildInvestmentTaskPayload = (
     templateStartDate: task.templateStartDate ? toISOFormat(task.templateStartDate) : undefined,
     startDate: task.startDate ? toISOFormat(task.startDate) : undefined,
     endDate: task.endDate ? toISOFormat(task.endDate) : undefined,
-    assignedEmployee: task.assignedEmployeeId || undefined,
-    assignedUserId: task.assignedUserId || undefined,
+    assignedEmployee: task.assignedEmployeeId || businessAppContext.userInfo?.employeeDetails?.employeeId || undefined,
+    assignedUserId: task.assignedUserId || businessAppContext.userInfo?.id || undefined,
     ...getEntityRef(),
   };
 
@@ -168,28 +188,56 @@ export const buildInvestmentTaskPayload = (
 export const buildInvestmentNotePayload = (
   note: NoteSegmentSchema,
   businessAppContext: BusinessAppContextProps,
-  additionalData?: { accountId?: string; contactId?: string; opportunityId?: string; leadId?: string; investmentId?: string },
   options: { isUpdate?: boolean } = {}
 ) => {
+  // Helper to build entity references (same pattern as activity)
   const getEntityRef = () => {
-    if (note.account) return { account: note.account.id };
-    if (note.contact) return { contact: note.contact.id };
-    if (note.opportunity) return { opportunity: note.opportunity.id };
-    if (note.lead) return { lead: note.lead.id };
-    // Fallback to additionalData if provided
-    if (additionalData?.accountId) return { account: additionalData.accountId };
-    if (additionalData?.contactId) return { contact: additionalData.contactId };
-    if (additionalData?.opportunityId) return { opportunity: additionalData.opportunityId };
-    if (additionalData?.leadId) return { lead: additionalData.leadId };
-    if (additionalData?.investmentId) return { investment: additionalData.investmentId };
-    return {} as Record<string, any>;
+    const refs: Record<string, any> = {};
+    if (note.account) refs.account = note.account.id;
+    if (note.contact) refs.contact = note.contact.id;
+    if (note.opportunity) refs.opportunity = note.opportunity.id;
+    if (note.lead) refs.lead = note.lead.id;
+    
+    // Always include parent investment when provided via additionalData
+    const investmentId = (businessAppContext as any)?.additionalData?.investmentId;
+    if (investmentId) {
+      refs.investment = investmentId;
+      console.log('🔍 Note Payload Debug - Investment ID found:', investmentId);
+      
+      // CRITICAL: Include the investment's account to satisfy backend validation
+      // Backend validation expects at least one traditional parent reference
+      const accountId = (businessAppContext as any)?.additionalData?.accountId;
+      if (accountId && !refs.account) {
+        refs.account = accountId;
+        console.log('🔍 Note Payload Debug - Also adding investment account:', accountId);
+      }
+    } else {
+      console.log('⚠️ Note Payload Debug - No investment ID in additionalData:', businessAppContext?.additionalData);
+    }
+    console.log('🔍 Note Payload Debug - Final refs:', refs);
+    return refs;
+  };
+
+  // Get author employee ID from business app context (same pattern as activity)
+  const getAuthorEmployee = () => {
+    if (note.authorEmployee?.id) {
+      return note.authorEmployee.id;
+    }
+    
+    // Fallback to current user's employee ID from context
+    if (businessAppContext.userInfo?.employeeDetails?.employeeId) {
+      return businessAppContext.userInfo.employeeDetails.employeeId;
+    }
+    
+    console.warn('No author employee ID found in note data or business context');
+    return undefined;
   };
 
   const payloadBody: any = {
     title: note.title,
     text: note.text,
     reminderDate: note.reminderDate ? toISOFormat(note.reminderDate) : null,
-    authorEmployee: businessAppContext.userInfo?.employeeDetails?.employeeId,
+    authorEmployee: getAuthorEmployee(),
     ...getEntityRef(),
   };
 
@@ -198,7 +246,12 @@ export const buildInvestmentNotePayload = (
     const noteId = (businessAppContext as any)?.additionalData?.noteId;
     if (noteId) {
       payloadBody.id = noteId;
-      // Note: version is typically handled by the backend, but can be added if needed
+      
+      // Include version if available (same pattern as activity)
+      const version = (businessAppContext as any)?.additionalData?.noteVersion || note.version;
+      if (version !== undefined) {
+        payloadBody.version = version;
+      }
     }
   }
 

@@ -93,6 +93,9 @@ export interface LocationData {
     expenseRequestItems?: {
       expenseItems: ExpenseItemData[] | any[];
     };
+    travelBreakdownWrapper?: {
+      travelBreakdowns: any[];
+    };
   }
 
 export interface TripScreenProps extends BusinessAppContextProps {

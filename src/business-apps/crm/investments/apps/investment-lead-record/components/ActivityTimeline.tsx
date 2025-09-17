@@ -14,14 +14,14 @@ import dayjs from 'dayjs';
 import { LanguageDropdown } from './LanguageDropdown';
 import { translateMultipleTexts } from '../utils/translationService';
 import { useEmployeeData } from '@/business-apps/crm/common/hooks/useEmployeeData';
-import { useAiSummary } from '../hooks/useAiSummary';
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient';
 import { CheckCircleOutlined } from '@ant-design/icons';
 import type { InvestmentActivity, InvestmentTask } from '@/common/data/investment/types';
 import { AppAction } from '@/components/app-action';
 import { FlowContextName } from '@/common/types/FlowRegistryTypes';
 import { Button } from '@newwork/nw-design-system';
-import { ActivityDeletionPopup, DeleteConfirmationPopup } from '@/common/components';
+import { ActivityDeletePopup } from '@/common/components/common-relations/popups/activity-delete-popup';
+import { DeleteConfirmPopup } from '@/common/components/common-relations/popups/delete-confirm-popup';
 
 const { Text } = Typography;
 
@@ -38,16 +38,16 @@ interface TranslatedActivity extends InvestmentActivity {
 
 export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({ leadId, context }) => {
   // Read initial tab from URL parameters
-  const getInitialTab = (): 'activities' | 'notes' | 'approvals' | 'ai-summary' => {
+  const getInitialTab = (): 'activities' | 'notes' | 'approvals' => {
     const urlParams = new URLSearchParams(window.location.search);
     const tabParam = urlParams.get('tab');
-    if (tabParam === 'activities' || tabParam === 'notes' || tabParam === 'approvals' || tabParam === 'ai-summary') {
-      return tabParam as 'activities' | 'notes' | 'approvals' | 'ai-summary';
+    if (tabParam === 'activities' || tabParam === 'notes' || tabParam === 'approvals') {
+      return tabParam as 'activities' | 'notes' | 'approvals';
     }
     return 'activities';
   };
 
-  const [activeTab, setActiveTab] = useState<'activities' | 'notes' | 'approvals' | 'ai-summary'>(getInitialTab);
+  const [activeTab, setActiveTab] = useState<'activities' | 'notes' | 'approvals'>(getInitialTab);
   const [activities, setActivities] = useState<TranslatedActivity[]>([]);
   const [activitiesLoading, setActivitiesLoading] = useState(false);
   const [activitiesError, setActivitiesError] = useState<string | null>(null);
@@ -63,7 +63,6 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({ leadId, cont
   const { fetchInvestmentTasksByLeadId } = useGetInvestmentTasksByLeadId(context);
   const restClient = useRestClient(env('NEXT_PUBLIC_KOGITO_PROCESSES_ENDPOINT'));
   const graphqlClient = useGraphQLClient(context.accessToken);
-  const { generateSummary, state: aiSummaryState } = useAiSummary(leadId || '', context.accessToken);
   const [deletePopup, setDeletePopup] = useState<{ open: boolean; activity?: InvestmentActivity }>({ open: false });
   const [deleteApprovalPopup, setDeleteApprovalPopup] = useState<{ open: boolean; task?: InvestmentTask }>({ open: false });
 
@@ -82,7 +81,7 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({ leadId, cont
   });
 
   // Function to update tab and URL
-  const updateActiveTab = (newTab: 'activities' | 'notes' | 'approvals' | 'ai-summary') => {
+  const updateActiveTab = (newTab: 'activities' | 'notes' | 'approvals') => {
     setActiveTab(newTab);
 
     // Update URL parameter
@@ -219,7 +218,7 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({ leadId, cont
 
   // Request approval handled by AppAction component
 
-  const handleTabChange = (newTab: 'activities' | 'notes' | 'approvals' | 'ai-summary') => {
+  const handleTabChange = (newTab: 'activities' | 'notes' | 'approvals') => {
     updateActiveTab(newTab);
   };
 
@@ -230,7 +229,8 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({ leadId, cont
         borderRadius: '8px',
         border: '1px solid #f0f0f0',
         overflow: 'hidden',
-        marginBottom: '24px'
+        marginBottom: '24px',
+        height: 'fit-content'
       }}
     >
       {/* Tab Navigation */}
@@ -288,22 +288,6 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({ leadId, cont
             onClick={() => updateActiveTab('approvals')}
           >
             Approvals
-          </div>
-          <div
-            className={`gba:activity-tab${activeTab === 'ai-summary' ? '-active' : ''}`}
-            data-testid="ai-summary-tab"
-            style={{
-              padding: '12px 24px',
-              fontWeight: '500',
-              color: activeTab === 'ai-summary' ? '#1890ff' : '#8c8c8c',
-              backgroundColor: activeTab === 'ai-summary' ? 'white' : 'transparent',
-              flex: 1,
-              textAlign: 'center',
-              cursor: 'pointer'
-            }}
-            onClick={() => updateActiveTab('ai-summary')}
-          >
-            AI Summary
           </div>
         </div>
       </div>
@@ -650,85 +634,8 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({ leadId, cont
         </div>
       )}
 
-      {/* AI Summary Tab Content */}
-      {activeTab === 'ai-summary' && (
-        <div>
-          <div
-            style={{
-              display: 'flex',
-              justifyContent: 'space-between',
-              alignItems: 'center',
-              padding: '16px 24px'
-            }}
-          >
-            <div
-              className="gba:ai-summary-title"
-              style={{ fontSize: '18px', fontWeight: '500' }}
-            >
-              AI Summary
-            </div>
-            <Button
-              variant="default"
-              onClick={() => generateSummary()}
-              disabled={aiSummaryState?.type === 'loading'}
-              data-testid="generate-summary-button"
-            >
-              <RobotOutlined />
-              Generate Summary
-            </Button>
-          </div>
-          <div style={{ padding: '0 24px 24px' }}>
-            {aiSummaryState?.type === 'loading' && (
-              <div style={{ textAlign: 'center', padding: '40px 0' }}>
-                <Spin size="large" />
-                <div style={{ marginTop: '16px', color: '#8c8c8c' }}>
-                  Generating AI summary...
-                </div>
-              </div>
-            )}
-
-                         {aiSummaryState?.type === 'error' && (
-               <Alert
-                 message="Error Generating Summary"
-                 description="Failed to generate summary. Please try again."
-                 type="error"
-                 showIcon
-                 style={{ marginBottom: '16px' }}
-                 action={
-                   <Button size="sm" onClick={() => generateSummary()}>
-                     Retry
-                   </Button>
-                 }
-               />
-             )}
-
-             {aiSummaryState?.type === 'success' && aiSummaryState.content?.summary && (
-               <div style={{ backgroundColor: '#f8f9fa', padding: '16px', borderRadius: '8px' }}>
-                 <Text strong style={{ display: 'block', marginBottom: '8px' }}>
-                   Summary
-                 </Text>
-                 <div style={{ whiteSpace: 'pre-wrap' }}>
-                   {aiSummaryState.content.summary}
-                 </div>
-               </div>
-             )}
-
-             {(!aiSummaryState || (aiSummaryState.type !== 'loading' && aiSummaryState.type !== 'success' && aiSummaryState.type !== 'error')) && (
-               <Empty
-                 description="No AI summary yet"
-                 style={{ padding: '40px 0' }}
-                 data-testid="empty-ai-summary"
-               >
-                 <div style={{ fontSize: '14px', color: '#8c8c8c' }}>
-                   Generate an AI summary to get insights about this lead
-                 </div>
-               </Empty>
-             )}
-          </div>
-        </div>
-      )}
       {deletePopup.open && deletePopup.activity ? (
-        <ActivityDeletionPopup
+        <ActivityDeletePopup
           isOpen={deletePopup.open}
           onClose={() => setDeletePopup({ open: false })}
           accessToken={context.accessToken}
@@ -749,7 +656,7 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({ leadId, cont
       ) : null}
 
       {deleteApprovalPopup.open && deleteApprovalPopup.task ? (
-        <DeleteConfirmationPopup
+        <DeleteConfirmPopup
           isOpen={deleteApprovalPopup.open}
           onClose={() => setDeleteApprovalPopup({ open: false })}
           accessToken={context.accessToken}

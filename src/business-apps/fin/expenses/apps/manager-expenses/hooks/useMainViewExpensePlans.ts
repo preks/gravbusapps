@@ -106,8 +106,9 @@ export type SortField =
 export type SortOrder = "ASC" | "DESC";
 
 export interface SortConfig {
-  field: SortField;
-  order: SortOrder;
+  field: SortField | null;
+  order: SortOrder | null;
+  lastField: SortField | null;
 }
 
 interface UseMainViewExpensePlansProps extends Partial<BusinessAppContextProps> {
@@ -127,7 +128,7 @@ export const useMainViewExpensePlans = ({
   currentStatusFilter,
   currentCurrencyFilter,
   statisticsOnly = false,
-  sortConfig = { field: "createdAt", order: "DESC" },
+  sortConfig = { field: null, order: null, lastField: null },
 }: UseMainViewExpensePlansProps) => {
   const hookId = useMemo(() => Math.random().toString(36).substring(7), []);
 
@@ -139,7 +140,11 @@ export const useMainViewExpensePlans = ({
   const [plans, setPlans] = useState<ExpensePlan[]>([]);
   const [totalCount, setTotalCount] = useState<number>(0);
   const [currentPage, setCurrentPage] = useState<number>(1);
-  const [sorting, setSorting] = useState<SortConfig>(sortConfig);
+  const [sorting, setSorting] = useState<SortConfig>({
+    field: null,
+    order: null,
+    lastField: null,
+  });
   const [employeeFilter, setEmployeeFilter] = useState<string | null>(null);
   const [approving, setApproving] = useState<boolean>(false);
   const [rejecting, setRejecting] = useState<boolean>(false);
@@ -242,23 +247,45 @@ export const useMainViewExpensePlans = ({
           ];
         }
 
-        // Build the orderBy configuration based on the sort field and order
-        const orderBy: Record<string, any>[] = [];
-
-        // Handle nested fields like 'employee.fullName'
-        if (activeSortConfig.field.includes(".")) {
-          const [parent, child] = activeSortConfig.field.split(".");
-          orderBy.push({ [parent]: { [child]: activeSortConfig.order } });
-        } else {
-          orderBy.push({ [activeSortConfig.field]: activeSortConfig.order });
+        // Add status filtering to server-side query
+        if (activeFilter && activeFilter.length > 0) {
+          whereClause.status = { _in: activeFilter };
         }
 
-        const variables = {
+        // Build the orderBy configuration based on the sort field and order
+        let orderBy: Record<string, any>[] | undefined = undefined;
+
+        // Only add orderBy if sorting is active
+        if (activeSortConfig.field && activeSortConfig.order) {
+          orderBy = [];
+
+          // Handle specific nested fields with proper GraphQL structure
+          if (activeSortConfig.field === "employee.fullName") {
+            // For employee fullName, sort by firstName and lastName separately
+            orderBy = [
+              { employee: { firstName: activeSortConfig.order } },
+              { employee: { lastName: activeSortConfig.order } },
+            ];
+          } else if (activeSortConfig.field.includes(".")) {
+            // Handle other nested fields
+            const [parent, child] = activeSortConfig.field.split(".");
+            orderBy = [{ [parent]: { [child]: activeSortConfig.order } }];
+          } else {
+            // Handle regular fields
+            orderBy = [{ [activeSortConfig.field]: activeSortConfig.order }];
+          }
+        }
+
+        const variables: any = {
           where: whereClause,
           limit: pageSize,
           offset,
-          orderBy,
         };
+
+        // Only include orderBy if it's defined
+        if (orderBy) {
+          variables.orderBy = orderBy;
+        }
 
         const response = await fetch(env("NEXT_PUBLIC_GRAPHQL_ENDPOINT_NEWWORK")!, {
           method: "POST",
@@ -280,30 +307,22 @@ export const useMainViewExpensePlans = ({
 
         const data = result.data as ExpensePlanResponse;
 
-        let filteredPlans = data.ExpensePlan;
+        let plans = data.ExpensePlan;
 
         // Map currency information from currencyRef field (for display purposes)
-        filteredPlans = filteredPlans.map((plan) => ({
+        plans = plans.map((plan) => ({
           ...plan,
           currency: plan.currencyRef ? plan.currencyRef.replace("Currency:v1:", "") : "EUR",
         }));
 
-        // Apply status filtering client-side
-        if (activeFilter && activeFilter.length > 0) {
-          const beforeFilterCount = filteredPlans.length;
-          filteredPlans = filteredPlans.filter((plan) => activeFilter.includes(plan.status));
-          const afterFilterCount = filteredPlans.length;
-        } else {
-        }
-
-        // Filter by employee if specified
+        // Filter by employee if specified (this is still client-side as it's a specific filter)
         if (employeeFilter) {
-          filteredPlans = filteredPlans.filter((plan) => plan.employee?.id === employeeFilter);
+          plans = plans.filter((plan) => plan.employee?.id === employeeFilter);
         }
 
-        setPlans(filteredPlans || []);
-        // Use filtered count for total count since we're doing client-side filtering
-        setTotalCount(filteredPlans?.length || 0);
+        setPlans(plans || []);
+        // Use server response count for total count since filtering is now server-side
+        setTotalCount(data.ExpensePlanAggregate?.aggregate?.count || 0);
       } catch (err) {
         console.error("Error fetching expense plans:", err);
         setError(err instanceof Error ? err : new Error("Failed to fetch expense plans"));
@@ -417,8 +436,6 @@ export const useMainViewExpensePlans = ({
 
   // Effect to debounce statistics fetch
   useEffect(() => {
-    const timestamp = new Date().getTime();
-
     // Clear any existing timer
     if (statsDebounceTimer.current) {
       clearTimeout(statsDebounceTimer.current);
@@ -544,21 +561,22 @@ export const useMainViewExpensePlans = ({
     ],
   );
 
-  // Function to update sorting configuration
+  // Function to update sorting configuration with three-state cycle
   const updateSorting = useCallback((field: SortField) => {
     setSorting((prevSorting) => {
-      // If clicking on the same field, toggle the order
-      if (prevSorting.field === field) {
-        return {
-          field,
-          order: prevSorting.order === "ASC" ? "DESC" : "ASC",
-        };
+      // If clicking the same field, cycle through: ASC -> DESC -> Default (null)
+      if (prevSorting.lastField === field) {
+        if (prevSorting.order === "ASC") {
+          return { field, order: "DESC", lastField: field };
+        } else if (prevSorting.order === "DESC") {
+          return { field: null, order: null, lastField: null };
+        } else {
+          return { field, order: "ASC", lastField: field };
+        }
       }
-      // If clicking on a new field, default to DESC order
-      return {
-        field,
-        order: "DESC",
-      };
+
+      // If clicking a new field, start with ASC
+      return { field, order: "ASC", lastField: field };
     });
     // Reset to first page when sorting changes
     setCurrentPage(1);

@@ -16,7 +16,7 @@ import {
   SheetHeader,
   SheetTitle,
 } from "@newwork/nw-design-system";
-import { ArrowDownOutlined, ArrowUpOutlined } from "@ant-design/icons";
+import { PiArrowUp, PiArrowDown } from "react-icons/pi";
 import { AppActionButton } from "@/components/app-action-button/AppActionButton";
 import { BusinessAppContextProps } from "@/common/BusinessAppContext";
 import { DataContainer } from "@/components/layout/dataContainer/DataContainer";
@@ -140,8 +140,13 @@ const AdvancePaymentsTable: React.FC<AdvancePaymentsTableProps> = (props) => {
                         "Expense Plan",
                       )}
                     </span>
-                    {sorting.field === "expensePlan.title" &&
-                      (sorting.order === "ASC" ? <ArrowUpOutlined /> : <ArrowDownOutlined />)}
+                    {sorting.lastField === "expensePlan.title" &&
+                      sorting.order !== null &&
+                      (sorting.order === "ASC" ? (
+                        <PiArrowUp className="gba:inline gba:ml-1" size={12} />
+                      ) : (
+                        <PiArrowDown className="gba:inline gba:ml-1" size={12} />
+                      ))}
                   </div>
                 </TableHead>
                 <TableHead
@@ -156,8 +161,13 @@ const AdvancePaymentsTable: React.FC<AdvancePaymentsTableProps> = (props) => {
                         "Start Date",
                       )}
                     </span>
-                    {sorting.field === "expensePlan.startDate" &&
-                      (sorting.order === "ASC" ? <ArrowUpOutlined /> : <ArrowDownOutlined />)}
+                    {sorting.lastField === "expensePlan.startDate" &&
+                      sorting.order !== null &&
+                      (sorting.order === "ASC" ? (
+                        <PiArrowUp className="gba:inline gba:ml-1" size={12} />
+                      ) : (
+                        <PiArrowDown className="gba:inline gba:ml-1" size={12} />
+                      ))}
                   </div>
                 </TableHead>
                 <TableHead
@@ -172,8 +182,13 @@ const AdvancePaymentsTable: React.FC<AdvancePaymentsTableProps> = (props) => {
                         "End Date",
                       )}
                     </span>
-                    {sorting.field === "expensePlan.endDate" &&
-                      (sorting.order === "ASC" ? <ArrowUpOutlined /> : <ArrowDownOutlined />)}
+                    {sorting.lastField === "expensePlan.endDate" &&
+                      sorting.order !== null &&
+                      (sorting.order === "ASC" ? (
+                        <PiArrowUp className="gba:inline gba:ml-1" size={12} />
+                      ) : (
+                        <PiArrowDown className="gba:inline gba:ml-1" size={12} />
+                      ))}
                   </div>
                 </TableHead>
                 <TableHead
@@ -188,8 +203,13 @@ const AdvancePaymentsTable: React.FC<AdvancePaymentsTableProps> = (props) => {
                         "Employee",
                       )}
                     </span>
-                    {sorting.field === "expensePlan.employee.fullName" &&
-                      (sorting.order === "ASC" ? <ArrowUpOutlined /> : <ArrowDownOutlined />)}
+                    {sorting.lastField === "expensePlan.employee.fullName" &&
+                      sorting.order !== null &&
+                      (sorting.order === "ASC" ? (
+                        <PiArrowUp className="gba:inline gba:ml-1" size={12} />
+                      ) : (
+                        <PiArrowDown className="gba:inline gba:ml-1" size={12} />
+                      ))}
                   </div>
                 </TableHead>
                 <TableHead
@@ -204,8 +224,13 @@ const AdvancePaymentsTable: React.FC<AdvancePaymentsTableProps> = (props) => {
                         "Creation Date",
                       )}
                     </span>
-                    {sorting.field === "createdAt" &&
-                      (sorting.order === "ASC" ? <ArrowUpOutlined /> : <ArrowDownOutlined />)}
+                    {sorting.lastField === "createdAt" &&
+                      sorting.order !== null &&
+                      (sorting.order === "ASC" ? (
+                        <PiArrowUp className="gba:inline gba:ml-1" size={12} />
+                      ) : (
+                        <PiArrowDown className="gba:inline gba:ml-1" size={12} />
+                      ))}
                   </div>
                 </TableHead>
                 <TableHead
@@ -217,8 +242,13 @@ const AdvancePaymentsTable: React.FC<AdvancePaymentsTableProps> = (props) => {
                     <span>
                       {getTranslationFromI18nKeyAndLabel("lowcoder:sales_hub.amount", "Amount")}
                     </span>
-                    {sorting.field === "amount" &&
-                      (sorting.order === "ASC" ? <ArrowUpOutlined /> : <ArrowDownOutlined />)}
+                    {sorting.lastField === "amount" &&
+                      sorting.order !== null &&
+                      (sorting.order === "ASC" ? (
+                        <PiArrowUp className="gba:inline gba:ml-1" size={12} />
+                      ) : (
+                        <PiArrowDown className="gba:inline gba:ml-1" size={12} />
+                      ))}
                   </div>
                 </TableHead>
                 <TableHead
@@ -229,12 +259,17 @@ const AdvancePaymentsTable: React.FC<AdvancePaymentsTableProps> = (props) => {
                   <div className="gba:flex gba:items-center gba:gap-1">
                     <span>
                       {getTranslationFromI18nKeyAndLabel(
-                        "lowcoder:manager_expense_request_list.expense_table.status",
+                        "lowcoder:expense_item_list.expense_table.status",
                         "Status",
                       )}
                     </span>
-                    {sorting.field === "status" &&
-                      (sorting.order === "ASC" ? <ArrowUpOutlined /> : <ArrowDownOutlined />)}
+                    {sorting.lastField === "status" &&
+                      sorting.order !== null &&
+                      (sorting.order === "ASC" ? (
+                        <PiArrowUp className="gba:inline gba:ml-1" size={12} />
+                      ) : (
+                        <PiArrowDown className="gba:inline gba:ml-1" size={12} />
+                      ))}
                   </div>
                 </TableHead>
               </TableRow>
@@ -410,7 +445,13 @@ const AdvancePaymentsTable: React.FC<AdvancePaymentsTableProps> = (props) => {
             </div>
             <div className="gba:flex gba:items-center gba:space-x-6 gba:lg:space-x-8">
               <div className="gba:flex gba:items-center gba:space-x-2">
-                <p className="gba:text-sm gba:font-medium">Rows per page</p>
+                <p className="gba:text-sm gba:font-medium">
+                  {" "}
+                  {getTranslationFromI18nKeyAndLabel(
+                    "lowcoder:personal_expenses.rows_per_page",
+                    "Rows per page",
+                  )}
+                </p>
                 <select
                   value={pageSize}
                   onChange={(e) => handlePageSizeChange(Number(e.target.value))}
@@ -427,7 +468,10 @@ const AdvancePaymentsTable: React.FC<AdvancePaymentsTableProps> = (props) => {
                 className="gba:flex gba:w-[100px] gba:items-center gba:justify-center gba:text-sm gba:font-medium"
                 data-testid="advance-payments-page-info"
               >
-                Page {currentPage} of {Math.ceil(totalCount / pageSize)}
+                {getTranslationFromI18nKeyAndLabel("lowcoder:personal_expenses.page", "Page")}{" "}
+                {currentPage}{" "}
+                {getTranslationFromI18nKeyAndLabel("lowcoder:personal_expenses.of", "of")}{" "}
+                {Math.ceil(totalCount / pageSize)}
               </div>
               <div className="gba:flex gba:items-center gba:space-x-2">
                 <Button

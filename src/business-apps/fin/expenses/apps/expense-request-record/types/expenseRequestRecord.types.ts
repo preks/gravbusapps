@@ -16,6 +16,14 @@ export interface ExpenseRequestItem {
   expenseClass: {
     value: string;
   };
+  expensePosition: Array<{
+    expenseGroup: {
+      value: string;
+    };
+  }>;
+  currency: {
+    code: string;
+  };
   expenseDate: string;
   totalAmount: number;
   reimbursableAmount: number;
@@ -71,6 +79,12 @@ export interface ExpenseRequestComment {
   comment: string;
   commentDate: string;
   commentType: string;
+  authorEmployee: {
+    fullName: string;
+    firstName: string;
+    lastName: string;
+    pictureThumbnail: string;
+  };
 }
 
 export interface ExpensePlan {

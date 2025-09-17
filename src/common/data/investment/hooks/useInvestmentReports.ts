@@ -32,6 +32,12 @@ import {
   toInvestmentReport
 } from '../mappers';
 
+// =============================================================================
+// SIMPLE INVESTMENT REPORT INTERFACE - DYNAMIC FILTERING
+// =============================================================================
+
+// Note: Using InvestmentReportQueryVariables directly - let the component decide what it needs
+
 // Note: Query variables are now imported from queries module
 
 // Response interfaces  
@@ -111,12 +117,13 @@ export interface LiquidFundInvestmentReportQueryResponse {
 // INVESTMENT REPORT HOOKS
 // =============================================================================
 
-// Hook for getting investment reports
+// Simple hook for getting investment reports - just Investment + InvestmentReport
 export const useGetInvestmentReports = (context: BusinessAppContextProps) => {
   const graphqlClient = useGraphQLClient(context.accessToken);
   
-  const fetchInvestmentReports = useCallback(async (variables: InvestmentReportQueryVariables = {}) => {
-    const query = GET_INVESTMENT_REPORTS(variables);
+  // Simple fetcher - no complex logic, just pass through the parameters
+  const fetchInvestmentReports = useCallback(async (params: InvestmentReportQueryVariables = {}) => {
+    const query = GET_INVESTMENT_REPORTS(params);
     
     try {
       const result = await graphqlClient.request<InvestmentReportQueryResponse>(query);
@@ -248,6 +255,6 @@ export const useGetRealEstateInvestmentRentalUnits = (context: BusinessAppContex
   }, [graphqlClient]);
 
   return { fetchRealEstateInvestmentRentalUnits };
-};
+};// NOTE: useGetLiquidFundInvestmentReports removed - use useGetInvestmentReports instead
 
-// NOTE: useGetLiquidFundInvestmentReports removed - use useGetInvestmentReports instead
+

@@ -1,20 +1,26 @@
-import React, { useState } from 'react';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@newwork/nw-design-system';
-import { Home, Folder, FileText, BarChart3 } from 'lucide-react';
-import { ArrowLeftOutlined } from '@ant-design/icons';
+import React, { useState, useMemo } from 'react';
+import { RecordLayout, Badge, Spinner } from '@newwork/nw-design-system';
+import { Home, Folder, FileText, BarChart3, Building, TrendingUp } from 'lucide-react';
+import { 
+  UserOutlined,
+  CalendarOutlined,
+  DollarOutlined
+} from '@ant-design/icons';
 import { useRealEstateRecordData } from './hooks/useRealEstateRecordData';
 import {
-  InvestmentDetailsHeader,
-  ProjectDevelopmentDetailsHeader,
-  OthersDetailsHeader,
-  MezzanineLoansDetailsHeader,
-  RealEstateInvestmentReports,
   LiquidityForecast
 } from './components';
-import { CompanyInformation, ContactDetails, UploadReportButton, InvestmentHomeTab, InvestmentDocuments, InvestmentTileSection } from '../shared';
+import InvestmentReportsTab from '../shared/InvestmentReportsTab';
+// No more hardcoded catalog IDs - component decides what it needs
+import { CompanyInformation, ContactDetails, UploadReportButton, GenerateOnePagerButton, InvestmentHomeTab, InvestmentTileSection } from '../shared';
+import { useInvestmentTileFields } from '../../hooks/useInvestmentTileFields';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
 import { navigateTo } from '@/common/utils/navigationUtils';
+import { AppActionButton } from '@/components/app-action-button/AppActionButton';
+import { AiSummaryButton } from '@/common/components/common-relations/record-sections/header-section/ai-summary-button';
+import { useInvestmentAiSummary } from '../../hooks/useInvestmentAiSummary';
+import { FlowContextName } from '@/common/types/FlowRegistryTypes';
 
 interface RealEstateRecordComponentProps extends BusinessAppContextProps {
   investmentId?: string;
@@ -26,69 +32,23 @@ const RealEstateRecord: React.FC<RealEstateRecordComponentProps> = (props) => {
   // Fetch real GraphQL data using centralized structure
   const { realEstateData, isLoading, error } = useRealEstateRecordData(props, props.investmentId);
 
-  // Determine which header component to render based on investment type
-  const getHeaderComponent = () => {
-    const investment = realEstateData?.investment;
-    const typeCode = (investment?.investmentType?.code || '').toString().toUpperCase();
-    const typeName = (investment?.investmentType?.value || '').toString().toLowerCase();
-    const typeRef = (investment?.investmentTypeRef || '').toString().toUpperCase();
+  // Check if tile fields are configured for this investment type
+  const { processedTiles } = useInvestmentTileFields(props, realEstateData?.investment);
+  const hasTileFields = processedTiles.length > 0;
 
-    // Check for Mezzanine Loans - try multiple possible values
-    if (typeCode.includes('MEZZANINE') || 
-        typeName.includes('mezzanine') || 
-        typeRef.includes('MEZZANINE') ||
-        typeName.includes('mezzanine loan')) {
-      return (
-        <MezzanineLoansDetailsHeader 
-          realEstateData={realEstateData}
-          isLoading={isLoading}
-          error={error}
-          context={props}
-          investmentId={props.investmentId}
-        />
-      );
-    }
-    
-    // Check for Project Development
-    if (typeCode.includes('PROJECT_DEVELOPMENT') || 
-        typeName.includes('project development') || 
-        typeRef.includes('PROJECT_DEVELOPMENT')) {
-      return (
-        <ProjectDevelopmentDetailsHeader 
-          realEstateData={realEstateData}
-          isLoading={isLoading}
-          error={error}
-          context={props}
-          investmentId={props.investmentId}
-        />
-      );
-    }
-    
-    // Check for Others
-    if (typeCode.includes('OTHERS') || 
-        typeName.includes('others') || 
-        typeRef.includes('OTHERS')) {
-      return (
-        <OthersDetailsHeader 
-          realEstateData={realEstateData}
-          isLoading={isLoading}
-          error={error}
-          context={props}
-          investmentId={props.investmentId}
-        />
-      );
-    }
-    
-    // Default to Existing Properties header
-    return (
-      <InvestmentDetailsHeader 
-        realEstateData={realEstateData}
-        isLoading={isLoading}
-        error={error}
-        context={props}
-        investmentId={props.investmentId}
-      />
-    );
+  // AI Summary hook for HeaderSection
+  const aiSummaryHook = useInvestmentAiSummary(props.investmentId || '', props.accessToken);
+
+  // Helper function to format currency values
+  const formatCurrencyValue = (amount: number, currency: any): string => {
+    if (!amount || !currency) return '-';
+    const currencyCode = typeof currency === 'string' ? currency.split(':').pop() || 'EUR' : 'EUR';
+    return new Intl.NumberFormat('en-US', {
+      style: 'currency',
+      currency: currencyCode,
+      notation: 'compact',
+      maximumFractionDigits: 1
+    }).format(amount);
   };
 
   // Always render the component - no error blocking
@@ -127,62 +87,175 @@ const RealEstateRecord: React.FC<RealEstateRecordComponentProps> = (props) => {
     return 'Back to Investments';
   };
 
-  return (
-    <div className="gba:bg-gray-50 gba:min-h-screen" style={{ backgroundColor: 'white', padding: '16px' }}>
-      {/* Back navigation */}
-      <div className="gba:back-navigation" style={{ marginBottom: '16px' }}>
-        <button
-          onClick={handleBackToInvestments}
-          className="gba:flex gba:items-center gba:text-blue-500 gba:hover:text-blue-600"
-          data-testid="back-to-investments-button"
-        >
-          <ArrowLeftOutlined className="gba:mr-2" />
-          <span>{getBackButtonText()}</span>
-        </button>
+  // Memoize header meta badge with investment type and status
+  const headerMeta = useMemo(() => {
+    if (!realEstateData?.investment) return null;
+
+    const investment = realEstateData.investment;
+    const realEstate = realEstateData.realEstateInvestment;
+    
+    return (
+      <div className="gba:flex gba:gap-2">
+        <Badge variant="secondary" className="gba:bg-green-100 gba:text-green-800">
+          {investment.investmentType?.value || 'Real Estate'}
+        </Badge>
+        {investment.investmentStatus && (
+          <Badge 
+            variant={investment.investmentStatus.value === 'Active' ? 'default' : 'secondary'}
+            className={investment.investmentStatus.value === 'Active' ? 'gba:bg-blue-100 gba:text-blue-800' : 'gba:bg-gray-100 gba:text-gray-800'}
+          >
+            {investment.investmentStatus.value}
+          </Badge>
+        )}
+        {realEstate?.propertyType && (
+          <Badge variant="outline" className="gba:border-orange-200 gba:text-orange-800">
+            {realEstate.propertyType.value}
+          </Badge>
+        )}
       </div>
+    );
+  }, [realEstateData?.investment, realEstateData?.realEstateInvestment]);
 
-      {/* Dynamic Investment Details Header Card - Changes based on investment type */}
-      {getHeaderComponent()}
+  // Memoize header detail groups with investment fields
+  const headerDetailGroups = useMemo(() => {
+    if (!realEstateData?.investment) return [];
 
-      {/* Main Content */}
-      <div className="gba:p-6">
-        <Tabs value={activeTab} onValueChange={setActiveTab}>
-          <TabsList className="gba:bg-white gba:border">
-            <TabsTrigger value="home" data-testid="home-tab">
-              <Home className="gba:h-4 gba:w-4 gba:mr-2" />
-              {getTranslationFromI18nKeyAndLabel('crm.investments.tabs.home', 'Home')}
-            </TabsTrigger>
-            <TabsTrigger value="overview" data-testid="overview-tab">
-              <BarChart3 className="gba:h-4 gba:w-4 gba:mr-2" />
-              {getTranslationFromI18nKeyAndLabel('crm.investments.tabs.overview', 'Overview')}
-            </TabsTrigger>
-            <TabsTrigger value="documents" data-testid="documents-tab">
-              <Folder className="gba:h-4 gba:w-4 gba:mr-2" />
-              {getTranslationFromI18nKeyAndLabel('crm.investments.tabs.documents', 'Documents')}
-            </TabsTrigger>
-            <TabsTrigger value="reports" data-testid="reports-tab">
-              <FileText className="gba:h-4 gba:w-4 gba:mr-2" />
-              {getTranslationFromI18nKeyAndLabel('crm.investments.tabs.reports', 'Reports')}
-            </TabsTrigger>
-          </TabsList>
+    const investment = realEstateData.investment;
+    const realEstate = realEstateData.realEstateInvestment;
 
-          <TabsContent value="home" className="gba:space-y-6" data-testid="home-content">
+    return [
+      {
+        id: 'investment-financial',
+        items: [
+          {
+            label: 'Initial Investment',
+            value: investment.initialInvestmentAmount 
+              ? formatCurrencyValue(investment.initialInvestmentAmount, investment.currency) 
+              : '-',
+            icon: DollarOutlined
+          },
+          {
+            label: 'Total Investment',
+            value: investment.totalInvestmentAmount 
+              ? formatCurrencyValue(investment.totalInvestmentAmount, investment.currency) 
+              : '-',
+            icon: DollarOutlined
+          },
+          {
+            label: 'Current Value',
+            value: investment.investmentMarketValue
+              ? formatCurrencyValue(investment.investmentMarketValue, investment.currency) 
+              : '-',
+            icon: TrendingUp
+          }
+        ]
+      },
+      {
+        id: 'investment-dates',
+        items: [
+          {
+            label: 'Creation Date',
+            value: investment.createdAt
+              ? new Date(investment.createdAt).toLocaleDateString() 
+              : '-',
+            icon: CalendarOutlined
+          },
+          {
+            label: 'Acquisition Date',
+            value: investment.acquisitionDate 
+              ? new Date(investment.acquisitionDate).toLocaleDateString() 
+              : '-',
+            icon: CalendarOutlined
+          }
+        ]
+      },
+      {
+        id: 'investment-details',
+        items: [
+          {
+            label: 'Investment Group',
+            value: investment.investmentGroup?.value || '-',
+            icon: UserOutlined
+          },
+          {
+            label: 'Property Type',
+            value: realEstate?.propertyType?.value || investment.investmentType?.value || '-',
+            icon: Building
+          }
+        ]
+      }
+    ];
+  }, [realEstateData?.investment, realEstateData?.realEstateInvestment]);
+
+  // Memoize header actions with AI Summary Button
+  const headerActions = useMemo(() => (
+    <AiSummaryButton
+      config={{
+        entityType: 'investment',
+        loadingMessage: 'Generating AI Summary...',
+        loadingSubtitle: 'Analyzing real estate investment data and activities'
+      }}
+      summaryHook={aiSummaryHook}
+      dataTestId={`real-estate-update-button-${props.investmentId}`}
+    />
+  ), [aiSummaryHook, props.investmentId]);
+
+  // Memoize header action button with InvestmentEntity flow context
+  const headerActionButton = useMemo(() => (
+    <AppActionButton
+      size="icon"
+      contextsArray={[FlowContextName.investmentEntity]}
+      externalContextData={{ investmentId: props.investmentId }}
+      prefixDataTestId="real-estate-record-action"
+      emptyStateBehavior="hide"
+      deferMainContextRequestsUntilClick={false}
+      accessToken={props.accessToken}
+    />
+  ), [props.investmentId, props.accessToken]);
+
+  // Memoize subViews configuration for RecordLayout
+  const subViewsConfig = useMemo(() => ({
+    defaultValue: activeTab,
+    onValueChange: setActiveTab,
+    items: [
+      {
+        value: 'home',
+        label: getTranslationFromI18nKeyAndLabel('crm.investments.tabs.home', 'Home'),
+        icon: <Home className="gba:h-4 gba:w-4 gba:mr-2" />,
+        content: (
+          <div className="gba:col-span-12">
             <InvestmentHomeTab
               investmentId={props.investmentId || ''}
               {...props}
             />
-          </TabsContent>
+          </div>
+        )
+      },
+      {
+        value: 'overview',
+        label: getTranslationFromI18nKeyAndLabel('crm.investments.tabs.overview', 'Overview'),
+        icon: <BarChart3 className="gba:h-4 gba:w-4 gba:mr-2" />,
+        content: (
+          <div className="gba:col-span-12 gba:space-y-6">
+            {/* Generate One-Pager Action */}
+            <div className="gba:flex gba:justify-end gba:mb-4">
+              <GenerateOnePagerButton
+                investmentId={realEstateData?.investment?.id}
+                accessToken={props.accessToken}
+              />
+            </div>
 
-          <TabsContent value="overview" className="gba:space-y-6" data-testid="overview-content">
-            {/* Investment Tile Section */}
-            <InvestmentTileSection 
-              investment={realEstateData?.investment}
-              isLoading={isLoading}
-              accessToken={props.accessToken}
-              userInfo={props.userInfo}
-              additionalData={props.additionalData}
-              data-testid="real-estate-record-tiles"
-            />
+            {/* Investment Tile Section - only show if tile fields are configured */}
+            {hasTileFields && (
+              <InvestmentTileSection 
+                investment={realEstateData?.investment}
+                isLoading={isLoading}
+                accessToken={props.accessToken}
+                userInfo={props.userInfo}
+                additionalData={props.additionalData}
+                data-testid="real-estate-record-tiles"
+              />
+            )}
 
             {/* Liquidity Forecast 5 Years */}
             <LiquidityForecast 
@@ -201,14 +274,33 @@ const RealEstateRecord: React.FC<RealEstateRecordComponentProps> = (props) => {
                 isLoading={isLoading}
               />
             </div>
-          </TabsContent>
-          <TabsContent value="documents" className="gba:space-y-6" data-testid="documents-content">
-            <InvestmentDocuments
-              investmentId={props.investmentId || ''}
-              context={props}
-            />
-          </TabsContent>
-          <TabsContent value="reports" className="gba:space-y-6" data-testid="reports-content">
+          </div>
+        )
+      },
+      {
+        value: 'documents',
+        label: getTranslationFromI18nKeyAndLabel('crm.investments.tabs.documents', 'Documents'),
+        icon: <Folder className="gba:h-4 gba:w-4 gba:mr-2" />,
+        content: (
+          <div className="gba:col-span-12 gba:p-8 gba:text-center">
+            <div className="gba:max-w-md gba:mx-auto">
+              <Folder className="gba:h-16 gba:w-16 gba:mx-auto gba:text-gray-300 gba:mb-4" />
+              <h3 className="gba:text-lg gba:font-medium gba:text-gray-900 gba:mb-2">
+                Documents Coming Soon
+              </h3>
+              <p className="gba:text-gray-500">
+                Document management features will be implemented in a future update.
+              </p>
+            </div>
+          </div>
+        )
+      },
+      {
+        value: 'reports',
+        label: getTranslationFromI18nKeyAndLabel('crm.investments.tabs.reports', 'Reports'),
+        icon: <FileText className="gba:h-4 gba:w-4 gba:mr-2" />,
+        content: (
+          <div className="gba:col-span-12 gba:space-y-6">
             {/* Reports Header with Upload Button */}
             <div className="gba:flex gba:items-center gba:justify-between gba:mb-6">
               <div>
@@ -221,28 +313,107 @@ const RealEstateRecord: React.FC<RealEstateRecordComponentProps> = (props) => {
               </div>
               <UploadReportButton
                 investmentId={realEstateData?.investment?.id}
-                onUploadSuccess={(fileIds) => {
-                  console.log('Upload successful, file IDs:', fileIds);
-                  // Could trigger refresh of reports here if needed
-                }}
                 accessToken={props.accessToken}
-                userInfo={props.userInfo}
-                additionalData={props.additionalData}
               />
             </div>
 
-            {/* Existing Reports Display */}
-            {realEstateData?.realEstateInvestment?.id && (
-              <RealEstateInvestmentReports
-                realEstateInvestmentId={realEstateData.realEstateInvestment.id}
-                accessToken={props.accessToken}
-                userInfo={props.userInfo}
-                data-testid="real-estate-investment-reports"
-              />
-            )}
-          </TabsContent>
-        </Tabs>
+            {/* Investment Reports Display - Using Unified Component with Dynamic Type Configuration */}
+            {realEstateData?.investment?.id && (() => {
+              // Determine investment type based on the same logic used for headers
+              const investment = realEstateData?.investment;
+              const typeCode = (investment?.investmentType?.code || '').toString().toUpperCase();
+              const typeName = (investment?.investmentType?.value || '').toString().toLowerCase();
+              const typeRef = (investment?.investmentTypeRef || '').toString().toUpperCase();
+
+              let investmentType = 'real_estate_general'; // Default
+
+              // Check for Mezzanine Loans
+              if (typeCode.includes('MEZZANINE') || 
+                  typeName.includes('mezzanine') || 
+                  typeRef.includes('MEZZANINE') ||
+                  typeName.includes('mezzanine loan')) {
+                investmentType = 'mezzanine_loans';
+              }
+              // Check for Project Development
+              else if (typeCode.includes('PROJECT_DEVELOPMENT') || 
+                       typeName.includes('project development') || 
+                       typeRef.includes('PROJECT_DEVELOPMENT')) {
+                investmentType = 'project_development';
+              }
+              // Check for Others
+              else if (typeCode.includes('OTHER') || 
+                       typeName.includes('other') || 
+                       typeRef.includes('OTHER') ||
+                       typeName.includes('others')) {
+                investmentType = 'others';
+              }
+
+              return (
+                <InvestmentReportsTab
+                  investmentId={realEstateData.investment.id}
+                  investmentGroupIds={['InvestmentGroup:v1:REAL_ESTATE']}
+                  specificInvestmentId={realEstateData.realEstateInvestment?.id}
+                  investmentType={investmentType}
+                  accessToken={props.accessToken}
+                  userInfo={props.userInfo}
+                  data-testid="real-estate-investment-reports"
+                />
+              );
+            })()}
+          </div>
+        )
+      }
+    ]
+  }), [activeTab, setActiveTab, props, realEstateData, isLoading, hasTileFields]);
+
+  // Show loading state during data fetch
+  if (isLoading) {
+    return (
+      <div className="gba:flex gba:justify-center gba:items-center gba:min-h-screen">
+        <Spinner size="lg" />
       </div>
+    );
+  }
+
+  // Show error state or back navigation if no data
+  if (error || !realEstateData?.investment) {
+    return (
+      <div className="gba:p-8 gba:text-center">
+        <div className="gba:mb-4">
+          <button
+            onClick={handleBackToInvestments}
+            className="gba:flex gba:items-center gba:text-blue-500 gba:hover:text-blue-600 gba:mx-auto"
+            data-testid="back-to-investments-button"
+          >
+            <span className="gba:mr-2">←</span>
+            Back to Investments
+          </button>
+      </div>
+      </div>
+    );
+  }
+
+  return (
+    <div
+      className="gba:investment-details-container"
+      data-testid="real-estate-record"
+    >
+      <RecordLayout
+        headerOrientation="horizontal"
+        headerIcon={Building}
+        headerCategory="REAL ESTATE INVESTMENT"
+        onBack={handleBackToInvestments}
+        headerTitle={
+          realEstateData?.investment?.investmentAccount?.name ||
+          realEstateData?.investment?.name ||
+          'Investment Details'
+        }
+        headerMeta={headerMeta}
+        headerActions={headerActions}
+        headerActionButton={headerActionButton}
+        headerDetailGroups={headerDetailGroups}
+        subViews={subViewsConfig}
+      />
     </div>
   );
 };

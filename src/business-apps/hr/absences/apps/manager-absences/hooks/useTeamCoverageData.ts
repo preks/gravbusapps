@@ -229,10 +229,10 @@ export const useTeamCoverageData = (context: BusinessAppContextProps): UseTeamCo
           const isAbsent = absentEmployeeIds.has(employee.id);
           
           employee.employeePosition?.employeeCapabilities?.forEach((capabilityData: any) => {
-            const capabilityId = capabilityData.capability.id;
-            const capabilityName = capabilityData.capability.name;
+            const capabilityId = capabilityData?.capability?.id;
+            const capabilityName = capabilityData?.capability?.name;
             
-            if (!capabilityMap.has(capabilityId)) {
+            if (capabilityMap && !capabilityMap.has(capabilityId)) {
               capabilityMap.set(capabilityId, {
                 capabilityId,
                 capabilityName,
@@ -289,14 +289,14 @@ export const useTeamCoverageData = (context: BusinessAppContextProps): UseTeamCo
           
           // Calculate impact on capabilities
           const affectedCapabilities = employee.employeePosition?.employeeCapabilities?.map((capabilityData: any) => {
-            const capabilityId = capabilityData.capability.id;
-            const capabilityName = capabilityData.capability.name;
+            const capabilityId = capabilityData?.capability?.id;
+            const capabilityName = capabilityData?.capability?.name;
             const currentCapability = capabilities.find(cap => cap.capabilityId === capabilityId);
             
             if (!currentCapability) {
               return {
-                capabilityId,
-                capabilityName,
+                capabilityId: capabilityId ?? 'unknown',
+                capabilityName: capabilityName ?? 'Unknown',
                 newCoverage: 0,
                 newRisk: 'high' as const,
                 impactDescription: 'No current coverage for this capability'

@@ -26,6 +26,12 @@
 @import "tailwindcss" prefix(gba);
 @import "tw-animate-css";
 
+@import "@newwork/nw-design-system/core";
+@import "@newwork/nw-design-system/layout";
+@import "@newwork/nw-design-system/colors";
+@import "@newwork/nw-design-system/effects";
+@import "@newwork/nw-design-system/spacing";
+
 @import "./business-apps/hr/absences/apps/personal-absences/components/absence-calendar/styles/AbsenceCalendar.css" layer(legacy-unlayered-override);
 
 
@@ -45,6 +51,10 @@
   /* Global smooth scrolling for better tab transitions */
   html {
     scroll-behavior: smooth;
+  }
+  html, body, #root {
+    height: 100%;
+    overflow: hidden;
   }
   button:not(:disabled),
   [role="button"]:not(:disabled) {
@@ -252,4 +262,18 @@
   .gba\:flow-wizard-dialog .ant-modal-body::-webkit-scrollbar-thumb:hover {
     background: #a8a8a8;
   }
+}
+
+/* Widget Group Cursor Handling */
+.widget-group-cards {
+  cursor: default;
+}
+
+/* Make individual cards clickable only when they have onClick handlers */
+.widget-group-cards [data-widget-key] {
+  cursor: default;
+}
+
+.widget-group-cards [data-widget-key].clickable {
+  cursor: pointer !important;
 }

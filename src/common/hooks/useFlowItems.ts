@@ -95,12 +95,14 @@ const mapFlowItemsToActionOptions = (
     return name.trim();
   };
 
-  // Prefer only screen-based flows for button execution; skip raw service/API flows
+  // Prefer screen-based flows but allow ACTION flows (even EXECUTE) so destructive actions like delete work
   let allowed = flowItems.filter((fi) => {
     const type = (fi.builderType || '').toUpperCase();
     const flowType = (fi.flowType || '').toUpperCase();
-    // Always allow NAVIGATION/REPORT; for ACTION allow only UI builders
     if (flowType === 'NAVIGATION' || flowType === 'REPORT') return true;
+    // Allow all ACTION flows (SCREEN/FORM/NATIVE_SCREEN/LOWCODER/EXECUTE)
+    if (flowType === 'ACTION') return true;
+    // Fallback: keep known UI builders
     return type === 'LOWCODER' || type === 'NATIVE_SCREEN' || type === 'SCREEN' || type === 'FORM';
   });
 

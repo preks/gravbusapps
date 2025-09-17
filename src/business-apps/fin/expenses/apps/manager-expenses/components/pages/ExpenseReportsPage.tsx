@@ -149,6 +149,13 @@ const ExpenseReportsPage: React.FC<ExpenseReportsPageProps> = ({
             ),
           },
           {
+            key: "status",
+            title: getTranslationFromI18nKeyAndLabel(
+              "lowcoder:expense_request_list.expense_plan_table.status",
+              "Status",
+            ),
+          },
+          {
             key: "employeeName",
             title: getTranslationFromI18nKeyAndLabel(
               "lowcoder:hr_absences.create_absence.employee",
@@ -344,7 +351,7 @@ const ExpenseReportsPage: React.FC<ExpenseReportsPageProps> = ({
           "lowcoder:team_expenses_page.dashboard_tab.expense_reports_subheader",
           "Generate and download comprehensive expense reports across different categories and time periods",
         )}
-        headerIcon={<PiFileText />}
+        headerIcon={PiFileText}
         className="gba:min-h-screen"
       >
         <div className="gba:px-6 gba:h-full gba:flex gba:gap-6" data-testid="expense-reports-page">

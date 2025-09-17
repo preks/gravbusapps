@@ -1,4 +1,4 @@
-import React, { useMemo } from "react";
+import React, { useMemo, useEffect } from "react";
 import { BusinessAppContextProps } from "@/common/BusinessAppContext";
 import { useGetExpenseRequests } from "../../../hooks/useGetExpenseRequests";
 import { useExpenseRequestFilters } from "../../../hooks/useExpenseRequestFilters";
@@ -15,7 +15,7 @@ const ExpenseRequestsTab: React.FC<ExpenseRequestsTabProps> = (props) => {
       accessToken: props.accessToken,
       userInfo: props.userInfo,
     }),
-    [props.accessToken, props.userInfo]
+    [props.accessToken, props.userInfo],
   );
 
   const managerId = props.userInfo?.employeeDetails?.employeeId || "";
@@ -36,16 +36,12 @@ const ExpenseRequestsTab: React.FC<ExpenseRequestsTabProps> = (props) => {
     userInfo: props.userInfo,
   });
 
-  const {
-    requestStats,
-    requestStatsLoading,
-    requestStatsError,
-    fetchRequestStatistics,
-  } = useGetExpenseRequests({
-    ...contextProps,
-    currentCurrencyFilter: primaryCurrency,
-    statisticsOnly: true,
-  });
+  const { requestStats, requestStatsLoading, requestStatsError, fetchRequestStatistics } =
+    useGetExpenseRequests({
+      ...contextProps,
+      currentCurrencyFilter: primaryCurrency,
+      statisticsOnly: true,
+    });
 
   const {
     requests: expenseRequests,
@@ -61,6 +57,12 @@ const ExpenseRequestsTab: React.FC<ExpenseRequestsTabProps> = (props) => {
     currentCurrencyFilter: primaryCurrency,
     statisticsOnly: false,
   });
+
+  useEffect(() => {
+    if (props.accessToken) {
+      fetchRequests("", 1, 10, "requestDate:desc", selectedFilters, undefined, primaryCurrency);
+    }
+  }, [props.accessToken, fetchRequests, selectedFilters, primaryCurrency]);
 
   return (
     <div className="gba:h-full gba:flex gba:flex-col">
@@ -94,6 +96,7 @@ const ExpenseRequestsTab: React.FC<ExpenseRequestsTabProps> = (props) => {
             addFilter={addFilter}
             removeFilter={removeFilter}
             handleDataFilterChange={handleDataFilterChange}
+            primaryCurrency={primaryCurrency}
           />
         </div>
       </div>

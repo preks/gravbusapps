@@ -78,6 +78,7 @@ export enum FlowContextName {
   createInvestmentOpportunity = "investmentOpportunityCreate",
   updateInvestmentOpportunity = "investmentOpportunityUpdate",
   investmentOpportunityStageTransition = "investmentOpportunityStageTransition",
+  investmentOpportunityConditionUpdate = "investmentOpportunityConditionUpdate",
 
 
   /// Investment Activities
@@ -95,6 +96,7 @@ export enum FlowContextName {
   /// Investment Notes
 
   investmentNoteEntity = "investmentNoteEntity",
+  createInvestmentNote = "investmentNoteCreate",
   investmentNoteDelete = "investmentNoteDelete",
   
   /// Investment Documents
@@ -116,6 +118,7 @@ export enum FlowContextName {
   /// Investment Reports
   investmentReportUpload = "investmentReportUpload",
   investmentReportEntity = "investmentReportEntity", // Integrate
+  investmentReportGenerate = "investmentReportGenerate",
 
 
 

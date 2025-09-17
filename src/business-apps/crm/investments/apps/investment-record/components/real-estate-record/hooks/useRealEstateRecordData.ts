@@ -29,7 +29,6 @@ export const useRealEstateRecordData = (context: BusinessAppContextProps, invest
 
       if (!result.investment) {
         const errorMsg = `No investment found for ID: ${investmentId}`;
-        console.warn(errorMsg);
         setError(errorMsg);
         return;
       }
@@ -63,18 +62,14 @@ export const useRealEstateRecordData = (context: BusinessAppContextProps, invest
   useEffect(() => {
     const handleProcessCompletion = (event: any) => {
       try {
-        console.log('RealEstateRecordData: Process completion event received:', event.type, event.detail);
-        
         // Skip immediate form submission events from AppActionForm to avoid double refresh
         if (event.type === 'com.newwork.process.continue' && 
             event.detail?.event === 'pse_submit') {
-          console.log('RealEstateRecordData: Skipping immediate form submission event to avoid double refresh');
           return;
         }
         
         // Check for successful completion from backend
         if (event.detail?.resolution === 'success') {
-          console.log('RealEstateRecordData: Backend process completed successfully, refreshing real estate investment data');
           fetchRealEstateData();
           return;
         }
@@ -84,7 +79,6 @@ export const useRealEstateRecordData = (context: BusinessAppContextProps, invest
         if (response?.detail?.resolution === 'success' || 
             response?.investment || 
             response?.realEstateInvestment) {
-          console.log('RealEstateRecordData: Real estate investment data detected from backend, refreshing record');
           fetchRealEstateData();
           return;
         }
@@ -93,11 +87,10 @@ export const useRealEstateRecordData = (context: BusinessAppContextProps, invest
         if (event.type === 'com.newwork.process.continue' && 
             event.detail?.payload && 
             event.detail?.event !== 'pse_submit') {
-          console.log('RealEstateRecordData: Backend continue event with payload detected, refreshing data');
           fetchRealEstateData();
         }
       } catch (err) {
-        console.error('Error handling process completion in RealEstateRecordData:', err);
+        // Error handling process completion
       }
     };
 

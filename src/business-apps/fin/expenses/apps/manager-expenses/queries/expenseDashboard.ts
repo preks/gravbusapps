@@ -88,6 +88,8 @@ query GetExpenseDashboardByManager($managerId: uuid!, $startDate: timestamp, $ye
     requestDate
     employee {
       fullName
+      firstName
+      lastName  
     }
   }
 
@@ -131,5 +133,33 @@ query GetExpenseDashboardByManager($managerId: uuid!, $startDate: timestamp, $ye
     requestDate
     totalAmount
   }
-}
+  }
+`;
+
+// GraphQL query for fetching all team employees under a manager
+export const GET_ALL_TEAM_EMPLOYEES = `
+  query GetAllTeamEmployees($managerId: uuid!, $activeStructure: uuid!) {
+    Employee(
+      where: {
+        isDeleted: {_eq: false}
+        employeePosition: {
+          structureId: {_eq: $activeStructure}
+          supervisorEmployeeId: {_eq: $managerId}
+        }
+      }
+      orderBy: {firstName: ASC, lastName: ASC}
+    ) {
+      id
+      userId
+      firstName
+      lastName
+      fullName
+      displayName
+      employeePosition {
+        organizationalUnit {
+          name
+        }
+      }
+    }
+  }
 `;

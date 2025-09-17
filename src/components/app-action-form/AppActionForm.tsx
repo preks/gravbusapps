@@ -41,6 +41,8 @@ export interface AppActionFormProps {
   wizardSteps?: WizardStep<any>[];
   showStepIndicator?: boolean;
   allowStepJumping?: boolean;
+  // Pre-submission handler (e.g., for file uploads)
+  handlePreSubmit?: (formData: any) => Promise<any>;
 }
 
 const getSuccessMessage = (processType: string): string => {
@@ -193,6 +195,7 @@ export const AppActionForm: React.FC<AppActionFormProps> = ({
   wizardSteps,
   showStepIndicator = true,
   allowStepJumping = false,
+  handlePreSubmit,
 }) => {
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState<ProcessMessage | null>(null);
@@ -214,7 +217,14 @@ export const AppActionForm: React.FC<AppActionFormProps> = ({
           return;
         }
       }
-      const result = await onSubmit(dataForValidation);
+
+      // Pre-submission processing (e.g., file upload)
+      let enhancedData = dataForValidation;
+      if (handlePreSubmit) {
+        enhancedData = await handlePreSubmit(dataForValidation);
+      }
+
+      const result = await onSubmit(enhancedData);
       // Success messages are no longer displayed in the form
       // They should be handled by the calling component or shown via other means
       dispatchProcessContinueEvent(submitEventType, result);
@@ -227,7 +237,7 @@ export const AppActionForm: React.FC<AppActionFormProps> = ({
     } finally {
       setLoading(false);
     }
-  }, [processType, submitEventType, onSubmit, validateForm, onSuccess, formData]);
+  }, [processType, submitEventType, onSubmit, validateForm, onSuccess, formData, handlePreSubmit]);
 
   const handleCancel = useCallback(() => {
     dispatchProcessContinueEvent(cancelEventType, {});

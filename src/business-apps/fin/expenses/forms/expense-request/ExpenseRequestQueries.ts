@@ -110,7 +110,6 @@ export const getStructureCostCenterQuery = `
       id
       name
       structureId
-      validFrom
       validTo
     }
   }

@@ -16,8 +16,20 @@ const baseInvestmentSchema = z.object({
 });
 
 // Helper function to extract field name from property path (e.g., "realEstateInvestment.totalCost" -> "totalCost")
+// For additionalProperties, we flatten the path: "investment.additionalProperties.openingBalance" -> "additionalProperties_openingBalance"
 const getPropertyName = (property: string): string => {
-  return property.split('.').pop() || property;
+  const parts = property.split('.');
+  
+  // Handle additionalProperties fields with special naming
+  if (parts.includes('additionalProperties') && parts.length >= 3) {
+    const additionalPropsIndex = parts.indexOf('additionalProperties');
+    // Create flattened name: additionalProperties_fieldName
+    const fieldName = parts.slice(additionalPropsIndex + 1).join('_');
+    return `additionalProperties_${fieldName}`;
+  }
+  
+  // Default behavior for regular fields
+  return parts.pop() || property;
 };
 
 /**
@@ -50,6 +62,26 @@ export const createDynamicInvestmentSchema = (formFieldsDefinition?: FormFieldsD
                 z.number({ message: errorMessage }).min(0, `${field.label} must be positive`)
               );
               break;
+            case 'PERCENTAGE':
+              dynamicFields[fieldName] = z.preprocess(
+                (val) => {
+                  if (val === null || val === undefined || val === '') return undefined;
+                  const num = Number(val);
+                  return isNaN(num) ? undefined : num;
+                },
+                z.number({ message: errorMessage }).min(0, `${field.label} must be at least 0%`).max(100, `${field.label} must be at most 100%`)
+              );
+              break;
+            case 'NUMBER':
+              dynamicFields[fieldName] = z.preprocess(
+                (val) => {
+                  if (val === null || val === undefined || val === '') return undefined;
+                  const num = Number(val);
+                  return isNaN(num) ? undefined : num;
+                },
+                z.number({ message: errorMessage })
+              );
+              break;
             case 'DATE':
             case 'DATETIME':
               dynamicFields[fieldName] = z.string().min(1, errorMessage);
@@ -78,6 +110,26 @@ export const createDynamicInvestmentSchema = (formFieldsDefinition?: FormFieldsD
                   return isNaN(num) ? undefined : num;
                 },
                 z.number().min(0, `${field.label} must be positive`).optional()
+              );
+              break;
+            case 'PERCENTAGE':
+              dynamicFields[fieldName] = z.preprocess(
+                (val) => {
+                  if (val === null || val === undefined || val === '') return undefined;
+                  const num = Number(val);
+                  return isNaN(num) ? undefined : num;
+                },
+                z.number().min(0, `${field.label} must be at least 0%`).max(100, `${field.label} must be at most 100%`).optional()
+              );
+              break;
+            case 'NUMBER':
+              dynamicFields[fieldName] = z.preprocess(
+                (val) => {
+                  if (val === null || val === undefined || val === '') return undefined;
+                  const num = Number(val);
+                  return isNaN(num) ? undefined : num;
+                },
+                z.number().optional()
               );
               break;
             case 'DATE':

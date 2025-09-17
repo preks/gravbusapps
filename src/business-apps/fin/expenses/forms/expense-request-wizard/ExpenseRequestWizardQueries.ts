@@ -106,7 +106,6 @@ query MyQuery($expenseId: uuid!, $activeUserLocale: String, $employeeId: uuid!) 
     project{
       id
       validTo
-      validFrom
       name
     }
     costCenterId
@@ -330,6 +329,21 @@ query MyQuery($expenseId: uuid!, $activeUserLocale: String, $employeeId: uuid!) 
     type
     locality
     addressLine
+  }
+     TravelBreakdown(where: {expenseRequestId: {_eq: $expenseId}, isDeleted: {_eq: false}, employeeId: {_eq: $employeeId}}) {
+    id
+    version
+    breakfast
+    lunch
+    dinner
+    overnight
+    expenseDate
+    travelRegionRef
+    projectId
+    expenseRuleId
+    expensePlanId
+    costCenterId
+    expenseRequestId
   }
     }`
 
@@ -680,7 +694,6 @@ export const getUserProjects =`query MyQuery($structureIdArray: [uuid!]) {
     id
     name
     structureId
-    validFrom
     validTo
   }
 }

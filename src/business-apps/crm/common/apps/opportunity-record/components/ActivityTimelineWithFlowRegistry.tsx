@@ -2,14 +2,14 @@
  * EXAMPLE IMPLEMENTATION: CRM Opportunity ActivityTimeline with Flow Registry Delete
  * 
  * This demonstrates how to migrate the existing ActivityTimeline component
- * to use the new universal DeleteConfirmationPopup with Flow Registry.
+ * to use the new universal DeleteConfirmPopup with Flow Registry.
  */
 
 import React, { useState, useEffect } from 'react';
 import { Button, message, Timeline, Typography } from 'antd';
 import { EditOutlined, CloseOutlined } from '@ant-design/icons';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
-import { DeleteConfirmationPopup, useDeleteConfirmation } from '@/common/components/popups/delete-confirmation-popup';
+import { DeleteConfirmPopup, useDeleteConfirm } from '@/common/components/common-relations/popups/delete-confirm-popup';
 import { FlowContextName } from '@/common/types/FlowRegistryTypes';
 import { AppAction } from '@/components/app-action/AppAction';
 
@@ -43,10 +43,10 @@ export const ActivityTimelineWithFlowRegistry: React.FC<ActivityTimelineProps> =
     isOpen,
     isLoading,
     config,
-    showDeleteConfirmation,
-    closeDeleteConfirmation,
-    handleDeleteConfirmation,
-  } = useDeleteConfirmation();
+    showDeleteConfirm,
+    closeDeleteConfirm,
+    handleDeleteConfirm,
+  } = useDeleteConfirm();
 
   // Load activities (placeholder - replace with actual data loading)
   useEffect(() => {
@@ -69,7 +69,7 @@ export const ActivityTimelineWithFlowRegistry: React.FC<ActivityTimelineProps> =
 
   // ✅ NEW: Flow Registry-based delete handler
   const handleDeleteActivity = (activity: SalesActivityData) => {
-    showDeleteConfirmation({
+    showDeleteConfirm({
       itemTitle: activity.title,
       itemType: 'activity',
       accessToken: context.accessToken,
@@ -201,14 +201,14 @@ export const ActivityTimelineWithFlowRegistry: React.FC<ActivityTimelineProps> =
 
       {/* ✅ NEW: Universal Delete Confirmation Popup with Flow Registry */}
       {config && (
-        <DeleteConfirmationPopup
+        <DeleteConfirmPopup
           isOpen={isOpen}
-          onClose={closeDeleteConfirmation}
+          onClose={closeDeleteConfirm}
           // Flow Registry mode will automatically use these props from config:
           // accessToken, flowContextName, externalContextData, onFlowSuccess, onFlowError
           // Legacy mode fallback:
           isLoading={isLoading}
-          onConfirm={handleDeleteConfirmation}
+          onConfirm={handleDeleteConfirm}
           {...config}
         />
       )}
@@ -221,7 +221,7 @@ export default ActivityTimelineWithFlowRegistry;
 /**
  * KEY CHANGES FROM ORIGINAL:
  * 
- * 1. ✅ **Removed Modal.confirm**: Replaced with showDeleteConfirmation()
+ * 1. ✅ **Removed Modal.confirm**: Replaced with showDeleteConfirm()
  * 2. ✅ **Removed REST Client**: No more direct API calls  
  * 3. ✅ **Added Flow Registry**: Uses FlowContextName.customerActivityEntity
  * 4. ✅ **Added Access Token**: Passed from BusinessAppContextProps

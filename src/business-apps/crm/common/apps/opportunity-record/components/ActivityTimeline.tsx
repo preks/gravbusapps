@@ -16,7 +16,7 @@ import { useAiSummary } from '../hooks/useAiSummary';
 import { useSalesManagerEmployees } from '../hooks/useSalesManagerEmployees';
 import { useGetSalesTasks, SalesTaskData } from '../queries/OpportunityTaskQueries';
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient';
-import { ActivityDeletionPopup } from '@/common/components';
+import { ActivityDeletePopup } from '@/common/components/common-relations/popups/activity-delete-popup';
 import { AppAction } from '@/components/app-action/AppAction';
 import { FlowContextName } from '@/common/types/FlowRegistryTypes';
 
@@ -951,7 +951,7 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({ opportunityI
       )}
     </div>
     {deletePopup.open && deletePopup.activity ? (
-      <ActivityDeletionPopup
+      <ActivityDeletePopup
         isOpen={deletePopup.open}
         onClose={() => setDeletePopup({ open: false })}
         accessToken={context.accessToken}

@@ -4,7 +4,6 @@ import { FileText } from 'lucide-react';
 import type { EquityInvestmentData } from '../hooks/useEquityRecordData';
 import type { BusinessAppContextProps } from '@/common/BusinessAppContext';
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
-import EquityHistoricalDataTable from './EquityHistoricalDataTable';
 
 interface EquityReportsProps {
   equityData?: EquityInvestmentData | null;
@@ -39,15 +38,6 @@ const EquityReports: React.FC<EquityReportsProps> = ({ equityData, isLoading, co
 
   return (
     <div className="gba:space-y-6" data-testid="equity-reports-container">
-      {/* Historical Data Table */}
-      {context && investmentId && (
-        <EquityHistoricalDataTable
-          {...context}
-          investmentId={investmentId}
-          equityInvestmentId={equityData?.equityInvestment?.id}
-        />
-      )}
-      
       {/* Original Reports Card - kept for future enhancements */}
       <Card data-testid="equity-reports-card">
         <CardHeader>

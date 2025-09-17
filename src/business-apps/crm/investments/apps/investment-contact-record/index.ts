@@ -1,2 +1,2 @@
-export { default as InvestmentContactRecord } from './ContactRecord';
+export { ContactRecord } from './ContactRecord';
 export { default } from './ContactRecord';
