@@ -50,6 +50,7 @@ import { getCategoryIcon } from '../../../utils/iconMapping';
 import { useRealEmployeeData, getEmployeeOptions, getJobPositionOptions, getDepartmentOptions } from '../hooks/useRealEmployeeData';
 import { useEmploymentTypeCatalog } from '../hooks/useEmploymentTypeCatalog';
 import { DynamicFormGenerator } from '../../../components/DynamicFormGenerator';
+import { flowbotClient } from '@/common/network/flowbot';
 
 export interface RequestFormProps extends BusinessAppContextProps {
   template?: ServiceRequestTemplate;
@@ -600,126 +601,137 @@ export const RequestForm: React.FC<RequestFormProps> = ({
     return totalRequired > 0 ? Math.round((completedRequired / totalRequired) * 100) : (totalRequired === 0 ? 100 : 0);
   }, [isFlowTemplate, flowTemplate, formFieldsConfig, formData, stepsRequiringAssignment]);
 
-  // Handle AI button click - collect form data and simulate AI response
+  // Handle AI button click - collect form data and call real AI API
   const handleAskAI = async () => {
     console.log('🤖 [Ask AI for Quick Solution] Button clicked');
     
     // Start AI loading
     setAILoading(true);
     setShowAIResponse(true);
+    setError(null);
     
-    // Prepare AI payload with form data
-    const aiPayload = {
-      timestamp: new Date().toISOString(),
-      templateInfo: {
-        type: isFlowTemplate ? 'flow-template' : 'mock-template',
-        id: isFlowTemplate ? flowTemplate?.id : (template as ServiceRequestTemplate)?.key,
-        name: isFlowTemplate ? flowTemplate?.name : (template as ServiceRequestTemplate)?.title,
-        description: currentTemplate?.description
-      },
-      formData: { ...formData },
-      formCompletion: {
-        percentage: completionPercentage,
-        totalFields: isFlowTemplate 
-          ? (flowTemplate?.formSchema?.length || 0)
-          : formFieldsConfig.length,
-        filledFields: Object.keys(formData).filter(key => formData[key] && formData[key] !== '').length
-      },
-      stepAssignments: formData.stepAssignments || {},
-      requiredAssignments: stepsRequiringAssignment.map(step => ({
-        stepId: step.stepId,
-        title: step.title,
-        assignmentMode: step.assignmentMode,
-        assignedTo: formData.stepAssignments?.[step.stepId] || (step.assignmentMode === 'ASSIGN' ? 'current-user' : 'unassigned')
-      })),
-      userContext: {
-        userId: contextProps.userInfo?.id,
-        employeeId: contextProps.userInfo?.employeeId,
-        fullName: contextProps.userInfo?.fullName,
-        email: contextProps.userInfo?.email
-      },
-      aiRequestContext: {
-        purpose: 'quick-solution-suggestion',
-        expectedResponse: 'AI should analyze the form data and suggest optimizations, missing fields, or quick solutions'
+    try {
+      // Set access token for the API call
+      if (contextProps.accessToken) {
+        flowbotClient.setAccessToken(contextProps.accessToken);
       }
-    };
+      
+      // Prepare AI payload with form data for the ticket_data structure
+      const ticketData = {
+        timestamp: new Date().toISOString(),
+        templateInfo: {
+          type: isFlowTemplate ? 'flow-template' : 'mock-template',
+          id: isFlowTemplate ? flowTemplate?.id : (template as ServiceRequestTemplate)?.key,
+          name: isFlowTemplate ? flowTemplate?.name : (template as ServiceRequestTemplate)?.title,
+          description: currentTemplate?.description
+        },
+        formData: { ...formData },
+        formCompletion: {
+          percentage: completionPercentage,
+          totalFields: isFlowTemplate 
+            ? (flowTemplate?.formSchema?.length || 0)
+            : formFieldsConfig.length,
+          filledFields: Object.keys(formData).filter(key => formData[key] && formData[key] !== '').length
+        },
+        stepAssignments: formData.stepAssignments || {},
+        requiredAssignments: stepsRequiringAssignment.map(step => ({
+          stepId: step.stepId,
+          title: step.title,
+          assignmentMode: step.assignmentMode,
+          assignedTo: formData.stepAssignments?.[step.stepId] || (step.assignmentMode === 'ASSIGN' ? 'current-user' : 'unassigned')
+        })),
+        userContext: {
+          userId: contextProps.userInfo?.id,
+          employeeId: contextProps.userInfo?.employeeId,
+          fullName: contextProps.userInfo?.fullName,
+          email: contextProps.userInfo?.email
+        },
+        aiRequestContext: {
+          purpose: 'quick-solution-suggestion',
+          expectedResponse: 'AI should analyze the form data and suggest optimizations, missing fields, or quick solutions'
+        }
+      };
 
-    console.log('🤖 [Ask AI] Prepared payload for AI service:', aiPayload);
-    
-    // Simulate AI processing delay
-    await new Promise(resolve => setTimeout(resolve, 2000));
-    
-    // Generate mock AI response based on form completion
-    let mockResponse = '';
-    let responseType: 'suggestion' | 'validation' | 'optimization' = 'suggestion';
-    
-    if (completionPercentage < 50) {
-      responseType = 'validation';
-      mockResponse = `🔍 **Form Validation Analysis**
+      console.log('🤖 [Ask AI] Prepared payload for AI service:', ticketData);
+      
+      // Call the real AI API
+      const response = await flowbotClient.getQuickTipsForTicket(ticketData);
+      
+      console.log('🤖 [Ask AI] API Response:', response);
+      
+      // Process the response and determine type based on content
+      let responseText = '';
+      let responseType: 'suggestion' | 'validation' | 'optimization' = 'suggestion';
+      
+      // Extract text from response - prioritize "quick_tips" field
+      if (response && typeof response === 'object' && 'quick_tips' in response) {
+        responseText = response.quick_tips as string;
+      } else if (typeof response === 'string') {
+        responseText = response;
+      } else if (response.suggestions) {
+        responseText = response.suggestions;
+      } else if (response.analysis) {
+        responseText = response.analysis;
+      } else if (response.recommendations && Array.isArray(response.recommendations)) {
+        responseText = response.recommendations.join('\n\n');
+      } else {
+        // Fallback: stringify the entire response
+        responseText = JSON.stringify(response, null, 2);
+      }
+      
+      // Determine response type based on content or form completion
+      if (completionPercentage < 50) {
+        responseType = 'validation';
+      } else if (completionPercentage >= 100) {
+        responseType = 'optimization';
+      } else {
+        responseType = 'suggestion';
+      }
+      
+      setAIResponse(responseText || 'AI analysis completed. No specific recommendations at this time.');
+      setAIResponseType(responseType);
+      
+      console.log('🤖 [Ask AI] Processed response:', { responseType, completionPercentage, responseLength: responseText.length });
+      
+    } catch (err) {
+      console.error('🤖 [Ask AI] API Error:', err);
+      
+      // Fallback to informative error message
+      const errorMessage = err instanceof Error ? err.message : 'Unknown error occurred';
+      setAIResponse(`❌ **AI Service Temporarily Unavailable**
 
-I've analyzed your form and found several areas that need attention:
+We're unable to connect to the AI service right now. This might be due to:
 
-**Missing Required Fields:**
-${isFlowTemplate && flowTemplate?.formSchema 
-  ? flowTemplate.formSchema.filter(f => f.required && !formData[f.name]).map(f => `• ${f.label}`).join('\n') || '• All required fields are completed ✅'
-  : formFieldsConfig.filter(f => f.required && !formData[f.field]).map(f => `• ${f.field.charAt(0).toUpperCase() + f.field.slice(1)}`).join('\n') || '• All required fields are completed ✅'
-}
+• Network connectivity issues
+• Service maintenance
+• Authentication problems
 
-**Recommendations:**
-• Complete required fields first for faster processing
+**Manual Suggestions:**
+• Form completion: ${completionPercentage}%
+• ${completionPercentage < 100 ? 'Complete all required fields before submitting' : 'Your form appears complete and ready for submission'}
 • Add detailed business justification to speed up approval
-• Consider adding additional context in the comments section
+• Include any relevant deadlines or urgency information
 
-**Estimated Processing Time:** Once complete, your request should be processed in 2-3 business days.`;
-    } else if (completionPercentage >= 100) {
-      responseType = 'optimization';
-      mockResponse = `✨ **Smart Optimization Suggestions**
+**Error Details:** ${errorMessage}
 
-Excellent! Your form is complete. Here are some AI-powered optimizations:
-
-**Priority Enhancement:**
-• Based on your request type, consider marking this as "High" priority if needed urgently
-• Current completion score: ${completionPercentage}% - Perfect! 🎯
-
-**Process Acceleration Tips:**
-• Your business justification looks good - this will help with faster approval
-• Consider reaching out to your manager proactively if this is time-sensitive
-• All step assignments are properly configured
-
-**Estimated Timeline:**
-• **Review Phase:** 1-2 business days
-• **Approval Phase:** 1-2 business days  
-• **Implementation:** 2-3 business days
-
-**Pro Tip:** 💡 Your request is well-structured and should move through the workflow smoothly!`;
-    } else {
-      responseType = 'suggestion';
-      mockResponse = `💡 **AI Quick Solution Suggestions**
-
-I've analyzed your partially completed form. Here's how to optimize it:
-
-**Quick Wins:**
-• Form completion: ${completionPercentage}% - You're making good progress! 
-• Consider adding more detail to speed up the approval process
-
-**Smart Suggestions:**
-• **Business Justification:** Add specific business impact or urgency details
-• **Additional Context:** Include any relevant background information
-• **Timeline Expectations:** Mention if you have specific deadlines
-
-**Next Steps:**
-1. Complete the remaining required fields
-2. Review your entries for completeness  
-3. Submit when you're satisfied with the details
-
-**AI Confidence:** High - Your request follows best practices! 🚀`;
+Please try again in a few moments, or proceed with submitting your request.`);
+      setAIResponseType('validation');
+      
+      // Also set the error state for debugging
+      setError({
+        message: `AI Service Error: ${errorMessage}`,
+        payload: {
+          apiCall: {
+            endpoint: 'POST /flowbot/services/quick-tips-for-ticket/',
+            baseUrl: 'https://newwork-dev.newwork.com/flowbot'
+          },
+          error: errorMessage,
+          ticketData
+        }
+      });
+    } finally {
+      setAILoading(false);
     }
-    
-    setAIResponse(mockResponse);
-    setAIResponseType(responseType);
-    setAILoading(false);
-    
-    console.log('🤖 [Ask AI] Generated response:', { responseType, completionPercentage });
   };
 
     return (
