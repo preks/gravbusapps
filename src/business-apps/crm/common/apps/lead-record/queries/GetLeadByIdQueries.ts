@@ -44,7 +44,20 @@ export interface GetLeadByIdResponse {
     companyWebsite: string;
     companyEmail: string;
     companyPhone: string;
-    addressLine: string;
+    addresses?: Array<{
+      addressLine?: any;
+      city?: string;
+      country?: {
+        id: string;
+        value: string;
+        code: string;
+      };
+      region?: {
+        id: string;
+        value: string;
+        code: string;
+      };
+    }>;
     numberOfEmployees?: {
       id: string;
       value: string;
@@ -102,7 +115,20 @@ export const GET_LEAD_BY_ID = `
       companyWebsite
       companyEmail
       companyPhone
-      addressLine
+      addresses {
+        addressLine
+        city
+        country {
+          id
+          value
+          code
+        }
+        region {
+          id
+          value
+          code
+        }
+      }
       numberOfEmployees {
         id
         value

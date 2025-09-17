@@ -19,17 +19,23 @@ export const GET_LEADS_QUERY = `
       companyWebsite
       conversionDate
       createdAt
-      countryRef
-      regionRef
-      region {
-        id
-        code
-        value
-        additionalValue1
+      addresses {
+        addressLine
+        city
+        postalCode
+        country {
+          id
+          code
+          value
+        }
+        region {
+          id
+          code
+          value
+          additionalValue1
+        }
+        addressType
       }
-      city
-      addressLine
-      postalCode
       industry {
         id
         code
@@ -40,11 +46,6 @@ export const GET_LEADS_QUERY = `
         firstName
         lastName
         pictureUrl
-      }
-      country {
-        id
-        code
-        value
       }
       leadSource {
         id
