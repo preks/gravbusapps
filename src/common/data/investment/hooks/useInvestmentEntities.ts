@@ -2,7 +2,7 @@ import { useCallback, useRef, useState } from 'react';
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 import { CATALOG_ENTRY_REF } from '@/common/data/catalog/queries/catalogFragments';
-import type { EntityOption } from '@/common/components/common-relations/form-segments';
+import type { EntityOption } from '@/common/components/common-relations/form-segments/activity-segment/ActivitySegment';
 
 // GraphQL query for relation entities (accounts, contacts, opportunities, leads, investments)
 const GET_INVESTMENT_RELATION_ENTITIES_QUERY = `

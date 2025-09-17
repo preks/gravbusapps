@@ -2,7 +2,8 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
-import { ActivitySegment, Activity, validateActivityData, createActivitySegmentResolver } from '@/common/components/common-relations/form-segments';
+import ActivitySegment, { Activity, createActivitySegmentResolver } from '@/common/components/common-relations/form-segments/activity-segment/ActivitySegment';
+import { validateActivityData } from '@/common/components/common-relations/form-segments/activity-segment/utils';
 import { buildActivityPayload } from '@/common/data/investment/payloads';
 import { useGetInvestmentActivityById, useInvestmentEntities } from '@/common/data/investment/hooks';
 import { useEmployeeSearch } from '@/common/data/employee/useEmployeeSearch';

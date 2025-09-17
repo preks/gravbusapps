@@ -1,14 +1,14 @@
 import React, { useCallback, useState } from 'react';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
-import { TaskSegment, TaskSegmentSchema } from '@/common/components/common-relations/form-segments';
+import TaskSegment, { TaskSegmentSchema } from '@/common/components/common-relations/form-segments/task-segment/TaskSegment';
 import { AppActionForm } from '@/components/app-action-form';
 import { buildInvestmentTaskPayload } from '@/common/data/investment/payloads';
 import type { InvestmentTaskFormData } from '@/common/data/investment/payloads/investmentRelationPayloads';
 import { useInvestmentEntities, useInvestmentTasks } from '@/common/data/investment/hooks';
 import { useEmployeeSearch } from '@/common/data/employee/useEmployeeSearch';
 import { useForm } from 'react-hook-form';
-import { createTaskSegmentResolver } from '@/common/components/common-relations/form-segments';
+import { createTaskSegmentResolver } from '@/common/components/common-relations/form-segments/task-segment/TaskSegment';
 
 type TaskFormData = TaskSegmentSchema & { id?: string; version?: number; code?: string };
 

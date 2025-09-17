@@ -1,7 +1,7 @@
-import { Activity } from '@/common/components/common-relations/form-segments';
+import { Activity } from '@/common/components/common-relations/form-segments/activity-segment/ActivitySegment';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 import { toISOFormat } from '@/common/utils/dateFormatter';
-import type { NoteSegmentSchema } from '@/common/components/common-relations/form-segments';
+import type { NoteSegmentSchema } from '@/common/components/common-relations/form-segments/note-segment/NoteSegment';
 
 export const buildActivityPayload = (
   activity: Activity,
