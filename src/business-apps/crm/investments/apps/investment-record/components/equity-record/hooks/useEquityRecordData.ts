@@ -1,11 +1,12 @@
 import { useState, useEffect, useCallback } from 'react';
-import { useGetInvestmentById } from '@/common/data/investment';
+import { useGetInvestmentById, useGetInvestmentDocumentsByInvestmentId } from '@/common/data/investment';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
-import type { Investment, EquityInvestment } from '@/common/data/investment';
+import type { Investment, EquityInvestment, InvestmentDocument } from '@/common/data/investment';
 
 export interface EquityInvestmentData {
   investment: Investment;
   equityInvestment?: EquityInvestment;
+  documents: InvestmentDocument[];
 }
 
 export const useEquityRecordData = (context: BusinessAppContextProps, investmentId?: string) => {
@@ -14,6 +15,7 @@ export const useEquityRecordData = (context: BusinessAppContextProps, investment
   const [error, setError] = useState<string | null>(null);
 
   const { fetchInvestmentById } = useGetInvestmentById(context);
+  const { fetchInvestmentDocumentsByInvestmentId } = useGetInvestmentDocumentsByInvestmentId(context);
 
   const fetchEquityData = useCallback(async () => {
     if (!investmentId || !context.accessToken) {
@@ -25,9 +27,13 @@ export const useEquityRecordData = (context: BusinessAppContextProps, investment
     setError(null);
 
     try {
-      const result = await fetchInvestmentById(investmentId);
+      // Fetch investment data and documents in parallel
+      const [investmentResult, documentsResult] = await Promise.all([
+        fetchInvestmentById(investmentId),
+        fetchInvestmentDocumentsByInvestmentId(investmentId)
+      ]);
 
-      if (!result.investment) {
+      if (!investmentResult.investment) {
         const errorMsg = `No investment found for ID: ${investmentId}`;
         console.warn(errorMsg);
         setError(errorMsg);
@@ -35,15 +41,16 @@ export const useEquityRecordData = (context: BusinessAppContextProps, investment
       }
 
       // Check if this investment has equity-specific data (array format)
-      const equityInvestmentArray = (result.investment as any).equityInvestment;
+      const equityInvestmentArray = (investmentResult.investment as any).equityInvestment;
       const hasEquityData = equityInvestmentArray && 
                            Array.isArray(equityInvestmentArray) && 
                            equityInvestmentArray.length > 0;
 
       // Always create the equity data structure, even without equity-specific data
       const equityInvestmentData: EquityInvestmentData = {
-        investment: result.investment,
-        equityInvestment: hasEquityData ? equityInvestmentArray[0] : undefined
+        investment: investmentResult.investment,
+        equityInvestment: hasEquityData ? equityInvestmentArray[0] : undefined,
+        documents: documentsResult || []
       };
 
       setEquityData(equityInvestmentData);
@@ -55,7 +62,7 @@ export const useEquityRecordData = (context: BusinessAppContextProps, investment
     } finally {
       setIsLoading(false);
     }
-  }, [investmentId, context.accessToken, fetchInvestmentById]);
+  }, [investmentId, context.accessToken, fetchInvestmentById, fetchInvestmentDocumentsByInvestmentId]);
 
   useEffect(() => {
     fetchEquityData();

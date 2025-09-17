@@ -10,7 +10,9 @@ import type {
   BaseRealEstateInvestment,
   RealEstateInvestment,
   BaseLiquidFundInvestment,
-  LiquidFundInvestment
+  LiquidFundInvestment,
+  BaseInvestmentDocument,
+  InvestmentDocument
 } from '../types';
 
 // Interface for investment by ID data
@@ -22,6 +24,7 @@ export interface InvestmentByIdData {
 import {
   GET_INVESTMENTS,
   GET_INVESTMENT_BY_ID,
+  GET_INVESTMENT_DOCUMENTS_BY_INVESTMENT_ID,
   type InvestmentQueryVariables
 } from '../queries';
 
@@ -30,7 +33,8 @@ import {
   toInvestment,
   toEquityInvestment,
   toRealEstateInvestment,
-  toLiquidFundInvestment
+  toLiquidFundInvestment,
+  toInvestmentDocument
 } from '../mappers';
 
 // Note: InvestmentQueryVariables is imported from queries
@@ -129,4 +133,28 @@ export const useSearchInvestments = (context: BusinessAppContextProps) => {
   }, [graphqlClient]);
 
   return { searchInvestments };
+};
+
+// =====================================================
+// INVESTMENT DOCUMENT HOOKS
+// =====================================================
+
+// Hook for getting investment documents by investment ID
+export const useGetInvestmentDocumentsByInvestmentId = (context: BusinessAppContextProps) => {
+  const graphqlClient = useGraphQLClient(context.accessToken);
+  
+  const fetchInvestmentDocumentsByInvestmentId = useCallback(async (investmentId: string) => {
+    const query = GET_INVESTMENT_DOCUMENTS_BY_INVESTMENT_ID(investmentId);
+    
+    try {
+      const result = await graphqlClient.request<{ InvestmentDocument: BaseInvestmentDocument[] }>(query);
+      // Transform base types to enhanced types using mapper
+      return result.InvestmentDocument.map(toInvestmentDocument);
+    } catch (error) {
+      console.error('Error fetching investment documents by investment ID:', error);
+      throw error;
+    }
+  }, [graphqlClient]);
+
+  return { fetchInvestmentDocumentsByInvestmentId };
 };

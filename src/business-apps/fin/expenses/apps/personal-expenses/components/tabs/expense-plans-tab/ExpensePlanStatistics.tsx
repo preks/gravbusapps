@@ -1,4 +1,4 @@
-import { formatNumberFunction, getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
+import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
 import React, { useMemo, useCallback } from 'react';
 import dayjs from 'dayjs';
 import { 

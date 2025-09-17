@@ -43,6 +43,8 @@ export interface UsePlannedExitsDataParams {
     investmentNameContains?: string;
     initialInvestmentMinAmount?: number;
     initialInvestmentMaxAmount?: number;
+    totalInvestmentMinAmount?: number;
+    totalInvestmentMaxAmount?: number;
     investmentMarketValueMinAmount?: number;
     investmentMarketValueMaxAmount?: number;
     stakePercentageMin?: number;
@@ -156,6 +158,12 @@ export const usePlannedExitsData = (params: UsePlannedExitsDataParams): UsePlann
         if (f.initialInvestmentMinAmount !== undefined) obj._gte = f.initialInvestmentMinAmount;
         if (f.initialInvestmentMaxAmount !== undefined) obj._lte = f.initialInvestmentMaxAmount;
         where.initialInvestmentAmount = obj;
+      }
+      if (f.totalInvestmentMinAmount !== undefined || f.totalInvestmentMaxAmount !== undefined) {
+        const obj: any = {};
+        if (f.totalInvestmentMinAmount !== undefined) obj._gte = f.totalInvestmentMinAmount;
+        if (f.totalInvestmentMaxAmount !== undefined) obj._lte = f.totalInvestmentMaxAmount;
+        where.totalInvestmentAmount = obj;
       }
       if (f.investmentMarketValueMinAmount !== undefined || f.investmentMarketValueMaxAmount !== undefined) {
         const obj: any = {};

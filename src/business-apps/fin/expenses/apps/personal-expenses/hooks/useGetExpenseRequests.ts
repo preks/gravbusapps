@@ -73,7 +73,6 @@ export const useGetExpenseRequests = (context?: BusinessAppContextProps): Expens
     setIsLoading(true);
     setError(null);
     
-    console.log('ExpenseRequests: fetchItems called with filters:', filters, 'sortField:', sortField, 'sortOrder:', sortOrder);
     const employeeId = context?.userInfo?.employeeDetails?.employeeId;
     const accessToken = context?.accessToken;
 
@@ -138,10 +137,6 @@ export const useGetExpenseRequests = (context?: BusinessAppContextProps): Expens
         variables.orderBy = [{ requestDate: 'DESC' }];
       }
       
-      // Log the complete where clause for debugging
-      console.log('ExpenseRequests: Final whereClause:', JSON.stringify(whereClause, null, 2));
-      console.log('ExpenseRequests: GraphQL request sent with variables:', variables);
-      
       // Start a performance measurement to track request time
       const requestStartTime = performance.now();
       
@@ -160,9 +155,6 @@ export const useGetExpenseRequests = (context?: BusinessAppContextProps): Expens
       
       // Get the items - server-side filtering is now applied via GraphQL
       let fetchedItems = data?.ExpenseRequest ?? [];
-      
-      // Log the result for debugging
-      console.log(`Found ${fetchedItems.length} expense requests matching filters`);
       
       // Update state with the fetched data
       setTotalCount(count);

@@ -252,9 +252,7 @@ const ExpenseCalendarTab: React.FC<BusinessAppContextProps> = (props) => {
     }
   }, [rawExpenseRequests]);
 
-  const onSelect = (date: Dayjs, info: { source: 'year' | 'month' | 'date' | 'customize' }) => {
-    console.log('[onSelect]', 'Selected date:', date.format('YYYY-MM-DD'), 'Source:', info.source);
-  };
+
 
   const dateCellRender = (value: Dayjs) => {
     const allAvailableItems = [

@@ -58,25 +58,28 @@ export const useLiquidFundAnalyticsIntegration = ({
       const investment = investmentReport.investment;
       const liquidFundInvestment = liquidFundReport.liquidFundInvestment;
       
-      // Get proprietor name from investment account
+      // FIXED: Get proprietor name and investment name properly
       const proprietorName = liquidFundInvestment?.investment?.investmentAccount?.name || 
                            investment?.investmentAccount?.name || 
                            'Unknown Proprietor';
       
-      // Use available data for financial calculations (simplified for liquid funds)
-      const openingBalance = 1000000; // Default opening balance for liquid funds
-      const interestAmount = (liquidFundReport.interestRate || 0) * openingBalance / 100;
-      const closingBalance = openingBalance + interestAmount;
-      const incoming = interestAmount;
-      const outgoing = 0;
-      const realizedGainsLosses = interestAmount;
-      const unrealizedGainsLosses = 0;
-      const timeWeightedPerformance = liquidFundReport.interestRate || 0;
+      // FIXED: Use investment name as the primary identifier
+      const investmentName = liquidFundInvestment?.investment?.name || 
+                           investment?.name || 
+                           proprietorName ||
+                           'Unknown Investment';
+      
+      // Use available data for financial calculations (using actual report data when available)
+      const openingBalance = liquidFundReport.openingBalance || investment?.initialInvestmentAmount || 1000000;
+      const closingBalance = liquidFundReport.closingBalance || investment?.investmentMarketValue || openingBalance;
+      const incoming = liquidFundReport.incoming || 0;
+      const outgoing = liquidFundReport.outgoing || 0;
+      const realizedGainsLosses = liquidFundReport.realizedGainsLosses || 0;
+      const unrealizedGainsLosses = liquidFundReport.unrealizedGainsLosses || 0;
+      const timeWeightedPerformance = liquidFundReport.timeWeightedPerformance || liquidFundReport.interestRate || 0;
 
-      // Create cash bank identifier using actual bank info
-      const cashBankIdentifier = liquidFundReport.bankAccountNumber || 
-        `${proprietorName} - ${liquidFundReport.bankName}` ||
-        `LiquidFund ${liquidFundReport.id.substring(0, 8)}`;
+      // Create cash bank identifier using investment name and bank info
+      const cashBankIdentifier = `${investmentName} - ${liquidFundReport.bankName || 'Unknown Bank'}`;
 
       return {
         id: liquidFundReport.id,
@@ -88,9 +91,9 @@ export const useLiquidFundAnalyticsIntegration = ({
         interestRate: liquidFundReport.interestRate || liquidFundInvestment?.interestRate,
         // Investment navigation fields
         investmentId: liquidFundInvestment?.investment?.id || investment?.id,
-        investmentName: liquidFundInvestment?.investment?.name || investment?.name || 'Unknown Investment',
-        // Tab 3 specific fields
-        depositName: liquidFundInvestment?.investment?.name || investment?.name || 'N/A',
+        investmentName: investmentName,
+        // Tab 3 specific fields  
+        depositName: investmentName,
         isin: liquidFundInvestment?.investment?.code || investment?.code,
         stocksQuantity: undefined,
         openingBalance,
@@ -146,73 +149,51 @@ export const useLiquidFundAnalyticsIntegration = ({
     return fieldMapping[field] || 'createdAt';
   }, []);
 
-  // Load analytics data
+  // Load analytics data - FIXED: Query all liquid fund investments and get latest reports
   const loadLiquidFundAnalyticsData = useCallback(async () => {
     if (!accessToken) return;
 
     setState(prev => ({ ...prev, isLoading: true, error: null }));
 
     try {
-      // Calculate pagination
-      const offset = (currentPage - 1) * pageSize;
-      
-      // Map sort field to valid LiquidFundInvestment field
-      const mappedSortField = mapSortFieldToLiquidFundField(sortBy);
-      
-      // Build where clause
-      let where: any = {
-        isDeleted: { _eq: false }
-      };
-
-      // Add investment type filter (liquid fund specific filtering)
-      if (filters.investmentType) {
-        const investmentTypes = filters.investmentType.split(',').map(type => type.trim());
-        
-        if (investmentTypes.length === 1) {
-          // Single investment type filter on related investment
-          where.investment = {
-            investmentType: {
-              value: { _ilike: `%${investmentTypes[0]}%` }
-            }
-          };
-        } else {
-          // Multiple investment types
-          where.investment = {
-            investmentType: {
-              value: { _in: investmentTypes }
-            }
-          };
-        }
-      }
-
-      // Note: Liquid Fund reports are queried via central data source
-
-      // Use enhanced investment reports query
-      // LOAD ALL DATA - Don't filter by dates to show data immediately
+      // FIXED: Query all investment reports and filter for liquid fund investments
+      // Get latest reports within the selected date range
       const filterParams = {
-        // Remove date filters to load all data immediately
-        // reportDateFrom: filters.startDate,
-        // reportDateTo: filters.endDate, 
-        investmentIds: filters.investmentType ? [] : undefined, // Can filter by specific investments later
-        limit: pageSize,
-        offset,
+        reportDateFrom: filters.startDate,
+        reportDateTo: filters.endDate,
+        // Get all liquid fund investments by querying investment groups
+        liquidFundInvestmentIds: [], // Empty array means get all liquid fund investments
+        limit: 1000, // Large limit to get all data for aggregation
+        offset: 0,
         orderBy: [{
-          field: 'date', // Sort by report date instead of investment-specific fields
-          direction: sortOrder
-        }] as Array<{ field: string; direction: 'ASC' | 'DESC' }>
+          field: 'date', 
+          direction: 'DESC' as const // Get latest reports first
+        }]
       };
 
-      console.log('LiquidFund Enhanced Query Parameters:', filterParams);
+      console.log('LiquidFund Reports Query Parameters:', filterParams);
 
       const response = await fetchInvestmentReports(filterParams);
-      console.log('LiquidFund Enhanced Response:', response);
+      console.log('LiquidFund Reports Response:', response);
 
-      // Enhanced query returns: { InvestmentReport: [...], InvestmentReportAggregate: {...} }
       const investmentReports = response.InvestmentReport || [];
       
-      // Extract all liquid fund reports from the investment reports relationships
-      const allAnalyticsData: AnalyticsRowData[] = [];
+      // FIXED: Group by investment ID and get the latest report for each investment
+      const latestReportsByInvestment = new Map<string, any>();
+      
       investmentReports.forEach(investmentReport => {
+        const investmentId = investmentReport.investment?.id;
+        if (investmentId && investmentReport.liquidFundInvestmentReport?.length > 0) {
+          // Only keep the latest report for each investment (since we sorted by date DESC)
+          if (!latestReportsByInvestment.has(investmentId)) {
+            latestReportsByInvestment.set(investmentId, investmentReport);
+          }
+        }
+      });
+      
+      // Transform latest reports to analytics data
+      const allAnalyticsData: AnalyticsRowData[] = [];
+      latestReportsByInvestment.forEach(investmentReport => {
         const liquidFundData = transformLiquidFundToAnalyticsRow(investmentReport, filters.currency || 'EUR');
         allAnalyticsData.push(...liquidFundData);
       });
@@ -220,18 +201,19 @@ export const useLiquidFundAnalyticsIntegration = ({
       // Filter by investment type if specified
       const filteredData = filters.investmentType && filters.investmentType !== 'all'
         ? allAnalyticsData.filter(item => {
-            return item.investmentType?.toLowerCase().includes(filters.investmentType!.toLowerCase()) ||
-                   item.depositName?.toLowerCase().includes(filters.investmentType!.toLowerCase());
+            const typeMatches = item.investmentType?.toLowerCase().includes(filters.investmentType!.toLowerCase());
+            const nameMatches = item.depositName?.toLowerCase().includes(filters.investmentType!.toLowerCase());
+            return typeMatches || nameMatches;
           })
         : allAnalyticsData;
       
-      // Apply pagination to filtered results (since we're doing client-side filtering)
+      // Apply pagination to filtered results
       const startIndex = (currentPage - 1) * pageSize;
       const endIndex = startIndex + pageSize;
       const paginatedData = filteredData.slice(startIndex, endIndex);
 
-      // Calculate totals
-      const totals = calculateTotals(paginatedData);
+      // Calculate totals from all filtered data (not just paginated)
+      const totals = calculateTotals(filteredData);
 
       setState(prev => ({
         ...prev,
@@ -266,8 +248,6 @@ export const useLiquidFundAnalyticsIntegration = ({
     filters,
     currentPage,
     pageSize,
-    sortBy,
-    sortOrder,
     transformLiquidFundToAnalyticsRow,
     calculateTotals
   ]);

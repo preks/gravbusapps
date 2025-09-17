@@ -7,6 +7,7 @@ import { useRequestAdvancePaymentData } from './hooks/useRequestAdvancePaymentDa
 import { formatCurrencyRef } from './utils/currencyUtils';
 import { validateForm } from './utils/validationUtils';
 import { FormData, FormValidationState, FormSubmissionState } from './types/FormTypes';
+import { extractExpensePlanIdFromAdditionalData, devLog } from './utils/additionalDataUtils';
 
 // Components
 import Header from './components/Header';
@@ -17,6 +18,7 @@ import CostCenterSelect from './components/CostCenterSelect';
 import PaymentMethodSelect from './components/PaymentMethodSelect';
 import NotesField from './components/NotesField';
 import ActionsBar from './components/ActionsBar';
+
 
 interface RequestAdvancePaymentProps extends BusinessAppContextProps {
   expensePlanId?: string;
@@ -40,7 +42,7 @@ const RequestAdvancePayment: React.FC<RequestAdvancePaymentProps> = ({
     paymentMethod: '',
     notes: ''
   });
-  
+ 
   const [validationState, setValidationState] = useState<FormValidationState>({
     isValid: false,
     errors: [],
@@ -66,15 +68,21 @@ const RequestAdvancePayment: React.FC<RequestAdvancePaymentProps> = ({
     additionalData
   });
 
-  // Initialize when a preselected expense plan exists; fetch details and set plan id
+  // Consolidated selection: prefer explicit prop, then extract from additionalData
   useEffect(() => {
-    if (!expensePlanId || expensePlans.length === 0) return;
-    const existing = expensePlans.find(p => p.id === expensePlanId);
+    if (formData.expensePlanId) return; // already selected
+    if (!expensePlans || expensePlans.length === 0) return;
+
+    const incomingPlanId = expensePlanId || extractExpensePlanIdFromAdditionalData(additionalData);
+    if (!incomingPlanId) return;
+
+    const existing = expensePlans.find(p => p.id === incomingPlanId);
     if (existing) {
       setFormData(prev => ({ ...prev, expensePlanId: existing.id }));
       fetchExpensePlanDetails(existing.id);
+      devLog('RequestAdvancePayment preselected plan id:', existing.id);
     }
-  }, [expensePlanId, expensePlans, fetchExpensePlanDetails]);
+  }, [expensePlanId, additionalData, expensePlans, formData.expensePlanId, fetchExpensePlanDetails]);
 
   // Keep currency and cost center in sync with the selected plan (after details load too)
   useEffect(() => {
@@ -186,7 +194,7 @@ const RequestAdvancePayment: React.FC<RequestAdvancePaymentProps> = ({
 
   const isSubmitDisabled = !formData.expensePlanId || !formData.amount || 
     !formData.currency || !formData.costCenter || !formData.paymentMethod;
-
+    
   return (
     <div className="gba:max-w-2xl gba:mx-auto gba:bg-white gba:p-6" data-testid="request-advance-payment-container">
       <Header />
@@ -201,7 +209,7 @@ const RequestAdvancePayment: React.FC<RequestAdvancePaymentProps> = ({
           </Alert>
         )}
 
-                <ExpensePlanSelect
+        <ExpensePlanSelect
           plans={expensePlans}
           value={formData.expensePlanId}
           onChange={handleExpensePlanChange}
