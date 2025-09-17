@@ -1,9 +1,9 @@
 import React from 'react';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 import { useAbsenceKPIData } from '../../../hooks/useAbsenceKPIData';
-import { useAbsenceColors } from '../../../utils/absenceColors';
 import { AbsenceTrendsChart } from '../../KPISection/AbsenceTrendsChart';
 import { AbsenceFilters } from '../../../types';
+import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
 
 export interface AbsenceTrendsSectionProps extends BusinessAppContextProps {}
 
@@ -15,18 +15,20 @@ export const AbsenceTrendsSection: React.FC<AbsenceTrendsSectionProps> = (props)
     groups: [],
     employees: [],
     startDate: undefined,
-    endDate: undefined
+    endDate: undefined,
   };
 
   const { data, loading: dataLoading, error: dataError } = useAbsenceKPIData(props, filters);
-  const { colorMap, displayItems, loading: colorsLoading, error: colorsError, getColorForAbsence } = useAbsenceColors(props);
 
-  const loading = dataLoading || colorsLoading;
-  const error = dataError || colorsError;
+  const loading = dataLoading;
+  const error = dataError;
 
   if (!props.userInfo?.employeeDetails?.employeeId) {
     return (
-      <div className="gba:p-6 gba:text-center gba:text-red-600" data-testid="absence-trends-error-no-employee">
+      <div
+        className="gba:p-6 gba:text-center gba:text-red-600"
+        data-testid="absence-trends-error-no-employee"
+      >
         Error: Employee ID not found. Please check your user profile.
       </div>
     );
@@ -56,8 +58,6 @@ export const AbsenceTrendsSection: React.FC<AbsenceTrendsSectionProps> = (props)
     );
   }
 
-  // Get unique groups for chart colors from bar chart data - maintain order
-  const groupOrder = ['Vacation', 'Sick Leave', 'Special Leave', 'Work Leave'];
   const allUniqueGroups = new Set<string>();
   data.barChartData.forEach((monthData: { [key: string]: string | number }) => {
     Object.keys(monthData).forEach((key) => {
@@ -67,44 +67,24 @@ export const AbsenceTrendsSection: React.FC<AbsenceTrendsSectionProps> = (props)
     });
   });
 
-  // Sort groups according to desired order
-  const uniqueGroups = Array.from(allUniqueGroups).sort((a, b) => {
-    const aIndex = groupOrder.findIndex(orderGroup => 
-      a.toLowerCase().includes(orderGroup.toLowerCase())
-    );
-    const bIndex = groupOrder.findIndex(orderGroup => 
-      b.toLowerCase().includes(orderGroup.toLowerCase())
-    );
-    
-    // If both found, sort by index; if not found, put at end
-    if (aIndex === -1 && bIndex === -1) return a.localeCompare(b);
-    if (aIndex === -1) return 1;
-    if (bIndex === -1) return -1;
-    return aIndex - bIndex;
-  });
-
-  // Create group colors mapping using catalog colors
-  const groupColors: { [key: string]: string } = {};
-  uniqueGroups.forEach((group) => {
-    const color = getColorForAbsence(group);
-    if (color) {
-      groupColors[group] = color;
-    }
-  });
+  const uniqueGroups = Array.from(allUniqueGroups).sort((a, b) => a.localeCompare(b));
 
   return (
     <section className="gba:mb-6" data-testid="absence-trends-section">
       <h3 className="gba:text-lg gba:font-bold gba:mb-4" data-testid="absence-trends-section-title">
-        Absence Trends
+        {getTranslationFromI18nKeyAndLabel(
+          'lowcoder:absence_management_hub_manager.absence_trends',
+          'Absence Trends',
+        )}
       </h3>
       <div className="gba:grid gba:grid-cols-1">
         <AbsenceTrendsChart
           barChartData={data.barChartData}
           totalAbsenceDays={data.totalAbsenceDays}
           uniqueGroups={uniqueGroups}
-          groupColors={groupColors}
+          groupColors={data.groupColors}
         />
       </div>
     </section>
   );
-}; 
+};
