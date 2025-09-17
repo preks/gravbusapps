@@ -1,4 +1,5 @@
 import dayjs from 'dayjs';
+import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
 
 export const getMonthlyUsage = (absences: any[], year: number): number[] => {
   const monthlyCounts = new Array(12).fill(0);
@@ -39,7 +40,21 @@ export const generateYearOverYearChartData = (
   const currentYearMonthly = getMonthlyUsage(yearOverYearRawData, currentYear);
   const previousYearMonthly = getMonthlyUsage(yearOverYearRawData, previousYear);
 
-  const months = [
+  const monthKeys = [
+    'lowcoder:absence_report.employee_table.january',
+    'lowcoder:absence_report.employee_table.february',
+    'lowcoder:absence_report.employee_table.march',
+    'lowcoder:absence_report.employee_table.april',
+    'lowcoder:absence_report.employee_table.may',
+    'lowcoder:absence_report.employee_table.june',
+    'lowcoder:absence_report.employee_table.july',
+    'lowcoder:absence_report.employee_table.august',
+    'lowcoder:absence_report.employee_table.september',
+    'lowcoder:absence_report.employee_table.october',
+    'lowcoder:absence_report.employee_table.november',
+    'lowcoder:absence_report.employee_table.december',
+  ];
+  const monthNames = [
     'Jan',
     'Feb',
     'Mar',
@@ -54,7 +69,11 @@ export const generateYearOverYearChartData = (
     'Dec',
   ];
 
-  return months.map((month, index) => ({
+  const translatedMonths = monthKeys.map((key, index) =>
+    getTranslationFromI18nKeyAndLabel(key, monthNames[index]),
+  );
+
+  return translatedMonths.map((month, index) => ({
     month,
     [previousYear]: previousYearMonthly[index],
     [currentYear]: currentYearMonthly[index],

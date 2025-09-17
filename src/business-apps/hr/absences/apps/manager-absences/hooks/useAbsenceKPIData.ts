@@ -2,7 +2,10 @@ import { useState, useEffect, useCallback } from 'react';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient';
 import { AbsenceFilters } from '../types';
-import { getCurrentActiveUserLocale } from '@/common/utils/windowUtils';
+import {
+  getCurrentActiveUserLocale,
+  getTranslationFromI18nKeyAndLabel,
+} from '@/common/utils/windowUtils';
 
 const GET_EMPLOYEE_ABSENCES_FOR_KPI = `
   query GetEmployeeAbsencesForKPI($supervisorId: uuid!) {
@@ -130,6 +133,21 @@ export const useAbsenceKPIData = (context: BusinessAppContextProps, _filters?: A
   const graphQLClient = useGraphQLClient(accessToken);
 
   const getMonthName = (date: string): string => {
+    const monthIndex = new Date(date).getMonth();
+    const monthKeys = [
+      'lowcoder:absence_report.employee_table.january',
+      'lowcoder:absence_report.employee_table.february',
+      'lowcoder:absence_report.employee_table.march',
+      'lowcoder:absence_report.employee_table.april',
+      'lowcoder:absence_report.employee_table.may',
+      'lowcoder:absence_report.employee_table.june',
+      'lowcoder:absence_report.employee_table.july',
+      'lowcoder:absence_report.employee_table.august',
+      'lowcoder:absence_report.employee_table.september',
+      'lowcoder:absence_report.employee_table.october',
+      'lowcoder:absence_report.employee_table.november',
+      'lowcoder:absence_report.employee_table.december',
+    ];
     const monthNames = [
       'January',
       'February',
@@ -144,7 +162,7 @@ export const useAbsenceKPIData = (context: BusinessAppContextProps, _filters?: A
       'November',
       'December',
     ];
-    return monthNames[new Date(date).getMonth()];
+    return getTranslationFromI18nKeyAndLabel(monthKeys[monthIndex], monthNames[monthIndex]);
   };
 
   const getTranslatedName = (
@@ -186,6 +204,20 @@ export const useAbsenceKPIData = (context: BusinessAppContextProps, _filters?: A
       organizedAbsences[month][type] += 1;
     });
 
+    const monthKeys = [
+      'lowcoder:absence_report.employee_table.january',
+      'lowcoder:absence_report.employee_table.february',
+      'lowcoder:absence_report.employee_table.march',
+      'lowcoder:absence_report.employee_table.april',
+      'lowcoder:absence_report.employee_table.may',
+      'lowcoder:absence_report.employee_table.june',
+      'lowcoder:absence_report.employee_table.july',
+      'lowcoder:absence_report.employee_table.august',
+      'lowcoder:absence_report.employee_table.september',
+      'lowcoder:absence_report.employee_table.october',
+      'lowcoder:absence_report.employee_table.november',
+      'lowcoder:absence_report.employee_table.december',
+    ];
     const monthNames = [
       'January',
       'February',
@@ -200,6 +232,9 @@ export const useAbsenceKPIData = (context: BusinessAppContextProps, _filters?: A
       'November',
       'December',
     ];
+    const translatedMonthNames = monthKeys.map((key, index) =>
+      getTranslationFromI18nKeyAndLabel(key, monthNames[index]),
+    );
 
     const allGroupsInData = new Set<string>();
     Object.values(organizedAbsences).forEach((monthData) => {
@@ -208,7 +243,7 @@ export const useAbsenceKPIData = (context: BusinessAppContextProps, _filters?: A
 
     const sortedGroups = Array.from(allGroupsInData).sort((a, b) => a.localeCompare(b));
 
-    const barChartData = monthNames.map((month) => {
+    const barChartData = translatedMonthNames.map((month) => {
       const monthData: any = { month };
       sortedGroups.forEach((group) => {
         monthData[group] = organizedAbsences[month]?.[group] || 0;

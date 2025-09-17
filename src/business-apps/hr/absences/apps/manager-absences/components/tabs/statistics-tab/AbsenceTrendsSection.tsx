@@ -73,7 +73,7 @@ export const AbsenceTrendsSection: React.FC<AbsenceTrendsSectionProps> = (props)
     <section className="gba:mb-6" data-testid="absence-trends-section">
       <h3 className="gba:text-lg gba:font-bold gba:mb-4" data-testid="absence-trends-section-title">
         {getTranslationFromI18nKeyAndLabel(
-          'lowcoder:absence_management_hub_manager.absence_trends',
+          'lowcoder:absence_management_hub_backoffice.absence_trends',
           'Absence Trends',
         )}
       </h3>
