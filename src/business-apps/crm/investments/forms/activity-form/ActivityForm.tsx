@@ -74,7 +74,7 @@ const ActivityForm: React.FC<ActivityFormProps> = ({
     setAssigneePrefill([{ id: employeeId, displayName }]);
     // Hydrate employee details for better display
     hydrateById(employeeId);
-  }, [isUpdateMode, userInfo, hydrateById]);
+  }, [isUpdateMode, userInfo?.employeeDetails?.employeeId, userInfo?.employeeDetails?.firstName, userInfo?.employeeDetails?.lastName, userInfo?.userName, hydrateById]);
 
   // Merge prefilled assignee with live search results
   const mergedAssignees = useMemo(() => {
@@ -151,9 +151,6 @@ const ActivityForm: React.FC<ActivityFormProps> = ({
 
   // Form submission handler - business logic only
   const handleSubmit = useCallback(async (formData: Activity) => {
-    console.log('🚀 Form submission data:', formData);
-    console.log('🎯 Specific ownerEmployeeId:', (formData as any)?.ownerEmployeeId);
-    
     const payload = buildActivityPayload(formData, { accessToken, userInfo, additionalData } as any, {
       isUpdate: isUpdateMode,
     });

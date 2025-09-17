@@ -25,6 +25,10 @@ import { DeleteConfirmPopup } from '@/common/components/common-relations/popups/
 
 const { Text } = Typography;
 
+const hasEmployeeName = (ownerEmployee: any): ownerEmployee is { firstName?: string; lastName?: string } => {
+  return ownerEmployee && typeof ownerEmployee === 'object';
+};
+
 interface ActivityTimelineProps {
   leadId?: string;
   context: BusinessAppContextProps;
@@ -376,7 +380,7 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({ leadId, cont
                       </div>
                       <div>
                         <Text type="secondary">
-                          {dayjs(activity.createdAt).format('MMM D, YYYY [at] h:mm A')} - {(activity.ownerEmployee?.displayName || activity.ownerEmployee?.fullName || `${(activity as any).ownerEmployee?.firstName || ''} ${(activity as any).ownerEmployee?.lastName || ''}`.trim() || getEmployeeDisplayNameFromObject(activity.createdBy))}
+                          {dayjs(activity.createdAt).format('MMM D, YYYY [at] h:mm A')} - {(activity.ownerEmployee?.displayName || activity.ownerEmployee?.fullName || (hasEmployeeName(activity.ownerEmployee) ? `${activity.ownerEmployee.firstName || ''} ${activity.ownerEmployee.lastName || ''}`.trim() : '') || getEmployeeDisplayNameFromObject(activity.createdBy))}
                         </Text>
                       </div>
                       {getActivityTypeValue(activity.activityType) && (
