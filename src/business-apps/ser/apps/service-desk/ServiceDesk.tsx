@@ -11,7 +11,13 @@ import { TaskRecord } from './components/TaskRecord';
 import { useUserCapabilities } from './hooks/useUserCapabilities';
 import { ServiceDeskDiagnostic } from './components/ServiceDeskDiagnostic';
 import { PageLayout } from '@newwork/nw-design-system';
-import { Headset as HeadsetIcon } from '@phosphor-icons/react';
+import { 
+  HeadsetIcon,
+  ChartBarIcon,
+  TicketIcon,
+  FileTextIcon,
+  HouseIcon
+} from '@phosphor-icons/react';
 
 // UI Components
 import { Alert, Spin, Button } from 'antd';
@@ -436,28 +442,32 @@ const ServiceDesk: React.FC<ServiceDeskProps> = ({
               label: getTranslationFromI18nKeyAndLabel(
                 'services.desk.submenu.dashboard',
                 'Dashboard'
-              )
+              ),
+              icon: <HouseIcon size={16} />
             },
             { 
               value: 'tickets', 
               label: getTranslationFromI18nKeyAndLabel(
                 'services.desk.submenu.tickets',
                 'Tickets'
-              )
+              ),
+              icon: <TicketIcon size={16} />
             },
             { 
               value: 'templates', 
               label: getTranslationFromI18nKeyAndLabel(
                 'services.desk.submenu.templates',
                 'Templates'
-              )
+              ),
+              icon: <FileTextIcon size={16} />
             },
             { 
               value: 'analytics', 
               label: getTranslationFromI18nKeyAndLabel(
                 'services.desk.submenu.analytics',
                 'Analytics'
-              )
+              ),
+              icon: <ChartBarIcon size={16} />
             },
           ],
           onValueChange: handleSubViewChange,
