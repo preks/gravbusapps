@@ -4,11 +4,10 @@ import ExpensePlansTable from './ExpensePlansTable';
 import { useGetExpensePlans } from '../../../hooks/useGetExpensePlans';
 import { useGetExpensePlanStatistics } from '../../../hooks/useGetExpensePlanStatistics';
 import { useExpensePlanFilters } from '../../../hooks/useExpensePlanFilters';
-import { useExpensePlanWidgetFilters, getActiveWidgetFromFilters } from '../../../hooks/useExpensePlanWidgetFilters';
+import {  getActiveWidgetFromFilters } from '../../../hooks/useExpensePlanWidgetFilters';
 import ExpensePlanStatistics from './ExpensePlanStatistics';
 import dayjs from 'dayjs';
 import { ExpenseStatus } from '../../../utils';
-import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
 
 interface ExpensePlansTabProps extends BusinessAppContextProps {
   onContentHeaderChange?: (header: ReactNode) => void;
@@ -223,7 +222,7 @@ const ExpensePlansTab: React.FC<ExpensePlansTabProps> = (props) => {
   useEffect(() => {
     const handleProcessCompletion = (event: any) => {
       try {
-        console.log('ExpensePlansTab: Process completion event received:', event.type, event.detail);
+  
         if (event.detail?.resolution === 'success') {
           console.log('ExpensePlansTab: Refreshing data after successful process completion');
           

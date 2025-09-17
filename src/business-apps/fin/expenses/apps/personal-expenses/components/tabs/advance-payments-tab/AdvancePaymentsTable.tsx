@@ -119,10 +119,7 @@ const AdvancePaymentsTable = React.forwardRef<HTMLDivElement, AdvancePaymentsTab
         fetchParams.sortOrder
       );
     } else {
-      console.warn('Cannot fetch advance payments: Missing accessToken or employeeId', {
-        hasAccessToken: !!contextProps.accessToken,
-        hasEmployeeId: !!contextProps.userInfo?.employeeDetails?.employeeId
-      });
+      console.warn('Cannot fetch advance payments: Missing accessToken or employeeId');
     }
   }, [contextProps.accessToken, contextProps.userInfo?.employeeDetails?.employeeId, fetchItems, fetchParams]);
 

@@ -128,7 +128,6 @@ export const ExpenseItemDetails: React.FC<ExpenseItemDetailsProps> = ({
   
   // Fetch file attachments for an expense item
   const fetchFileAttachments = useCallback(async (item: ExpenseItem) => {
-    console.log('Fetching file attachments for item:', item.id, 'Files:', item?.expenseItemFile);
     
     if (!item?.expenseItemFile || item.expenseItemFile.length === 0) {
       console.log('No expense item files found');
@@ -160,7 +159,7 @@ export const ExpenseItemDetails: React.FC<ExpenseItemDetailsProps> = ({
       
       for (const fileInfo of item.expenseItemFile) {
         try {
-          console.log('Processing file info:', fileInfo);
+         
           
           // Extract file ID from fileUrl if available, otherwise use id
           let fileId = fileInfo.id;
@@ -173,7 +172,7 @@ export const ExpenseItemDetails: React.FC<ExpenseItemDetailsProps> = ({
             }
           }
           
-          console.log('Using file ID:', fileId);
+        
           
           // Use the fileId as the file identifier
           const pathParams = {
@@ -203,7 +202,6 @@ export const ExpenseItemDetails: React.FC<ExpenseItemDetailsProps> = ({
           }
           
           if (fileBlob && isMounted.current) {
-            console.log('File blob retrieved successfully:', fileBlob.size, 'bytes, type:', fileBlob.type);
             
             // Create object URL for the blob
             const downloadUrl = URL.createObjectURL(fileBlob);
@@ -218,7 +216,6 @@ export const ExpenseItemDetails: React.FC<ExpenseItemDetailsProps> = ({
               type: fileBlob.type || 'application/octet-stream'
             };
             
-            console.log('Created upload file:', uploadFile);
             processedFiles.push(uploadFile);
           }
         } catch (fileError) {
@@ -269,7 +266,6 @@ export const ExpenseItemDetails: React.FC<ExpenseItemDetailsProps> = ({
 
   // Render attachment preview
   const renderAttachmentPreview = useCallback(() => {
-    console.log('Rendering attachment preview - fileLoading:', fileLoading, 'fileList:', fileList);
     
     if (fileLoading) {
       return (
