@@ -96,8 +96,8 @@ export const AbsenceDistributionChart: React.FC<AbsenceDistributionChartProps> =
               fontSize={14}
               fontWeight="bold"
             >
-              {pieChartData.map((entry, index) => (
-                <Cell key={`cell-${index}`} fill={groupColors[entry.name] || undefined} />
+              {pieChartData.map((entry) => (
+                <Cell key={`cell-${entry.name}`} fill={groupColors[entry.name] || undefined} />
               ))}
             </Pie>
             <RechartsTooltip
@@ -160,8 +160,8 @@ export const AbsenceDistributionChart: React.FC<AbsenceDistributionChartProps> =
           </PieChart>
         </ResponsiveContainer>
         <div className="gba:flex gba:flex-wrap gba:justify-center gba:gap-4 gba:mt-4">
-          {pieChartData.map((entry, index) => (
-            <div key={index} className="gba:flex gba:items-center gba:gap-2">
+          {pieChartData.map((entry) => (
+            <div key={entry.name} className="gba:flex gba:items-center gba:gap-2">
               <div
                 className="gba:w-3 gba:h-3 gba:rounded-sm"
                 style={{ backgroundColor: groupColors[entry.name] || undefined }}

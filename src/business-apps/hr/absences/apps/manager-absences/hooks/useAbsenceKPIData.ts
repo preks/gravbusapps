@@ -4,7 +4,6 @@ import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient';
 import { AbsenceFilters } from '../types';
 import { getCurrentActiveUserLocale } from '@/common/utils/windowUtils';
 
-// Working GraphQL query for KPI data (using supervisor pattern)
 const GET_EMPLOYEE_ABSENCES_FOR_KPI = `
   query GetEmployeeAbsencesForKPI($supervisorId: uuid!) {
     EmployeeAbsence(
@@ -148,7 +147,6 @@ export const useAbsenceKPIData = (context: BusinessAppContextProps, _filters?: A
     return monthNames[new Date(date).getMonth()];
   };
 
-  // Helper function to get translated name from translations array
   const getTranslatedName = (
     translations: { localeCode: string; value: string }[],
     currentLocale: string,
@@ -160,12 +158,14 @@ export const useAbsenceKPIData = (context: BusinessAppContextProps, _filters?: A
   };
 
   const processData = useCallback((absences: EmployeeAbsence[], currentLocale: string): KPIData => {
-    // Enrich absences with translated group names and colors
     const enrichedAbsences = absences.map((absence) => {
-      const groupObjectValue = absence.type.parentEntry.objectValue as any;
+      const groupObjectValue = absence.type.parentEntry.objectValue;
       const rawColor = groupObjectValue?.color;
-      // Add # prefix if the color doesn't already have it
-      const color = rawColor ? (rawColor.startsWith('#') ? rawColor : `#${rawColor}`) : '#8884d8';
+
+      let color = '#8884d8';
+      if (rawColor) {
+        color = rawColor.startsWith('#') ? rawColor : `#${rawColor}`;
+      }
 
       return {
         ...absence,
@@ -177,7 +177,6 @@ export const useAbsenceKPIData = (context: BusinessAppContextProps, _filters?: A
       };
     });
 
-    // Organize by month and type
     const organizedAbsences: { [month: string]: { [type: string]: number } } = {};
     enrichedAbsences.forEach((absence) => {
       const month = getMonthName(absence.startDate);
@@ -187,7 +186,6 @@ export const useAbsenceKPIData = (context: BusinessAppContextProps, _filters?: A
       organizedAbsences[month][type] += 1;
     });
 
-    // All months in order
     const monthNames = [
       'January',
       'February',
@@ -203,39 +201,32 @@ export const useAbsenceKPIData = (context: BusinessAppContextProps, _filters?: A
       'December',
     ];
 
-    // Get all unique groups that appear in the data
     const allGroupsInData = new Set<string>();
     Object.values(organizedAbsences).forEach((monthData) => {
       Object.keys(monthData).forEach((group) => allGroupsInData.add(group));
     });
 
-    // Sort groups alphabetically (since we're using translated names)
     const sortedGroups = Array.from(allGroupsInData).sort((a, b) => a.localeCompare(b));
 
-    // Create bar chart data for ALL months with groups in the correct order
     const barChartData = monthNames.map((month) => {
       const monthData: any = { month };
-      // Add groups in the desired order
       sortedGroups.forEach((group) => {
         monthData[group] = organizedAbsences[month]?.[group] || 0;
       });
       return monthData;
     });
 
-    // Calculate total absence days
     const totalAbsenceDays = enrichedAbsences.reduce(
       (total, absence) => total + (absence.calendarDays || 0),
       0,
     );
 
-    // Filter absences for current year only (for pie chart)
     const currentYear = new Date().getFullYear();
     const currentYearAbsences = enrichedAbsences.filter((absence) => {
       const absenceYear = new Date(absence.startDate).getFullYear();
       return absenceYear === currentYear;
     });
 
-    // Create pie chart data with current year absences only
     const groupTotals: { [key: string]: number } = {};
     const groupColors: { [key: string]: string } = {};
     currentYearAbsences.forEach((absence) => {
@@ -247,13 +238,11 @@ export const useAbsenceKPIData = (context: BusinessAppContextProps, _filters?: A
       groupColors[groupName] = color;
     });
 
-    // Calculate current year total for vacation share
     const currentYearTotalDays = currentYearAbsences.reduce(
       (total, absence) => total + (absence.calendarDays || 0),
       0,
     );
 
-    // Sort pie chart data alphabetically (since we're using translated names)
     const sortedPieEntries = Object.entries(groupTotals).sort(([a], [b]) => a.localeCompare(b));
 
     const pieChartData = sortedPieEntries.map(([name, value]) => ({
@@ -262,7 +251,6 @@ export const useAbsenceKPIData = (context: BusinessAppContextProps, _filters?: A
       color: groupColors[name] || '#8884d8',
     }));
 
-    // Calculate top absentees - exclude work leave
     const employeeAbsences: {
       [key: string]: {
         employee: EmployeeAbsence['employee'];
@@ -272,7 +260,6 @@ export const useAbsenceKPIData = (context: BusinessAppContextProps, _filters?: A
       };
     } = {};
     enrichedAbsences.forEach((absence) => {
-      // Skip work leave absences
       const groupName = absence.type.groupName || '';
       if (groupName.toLowerCase().includes('work leave')) {
         return;
@@ -296,7 +283,6 @@ export const useAbsenceKPIData = (context: BusinessAppContextProps, _filters?: A
       .sort((a, b) => b.totalDays - a.totalDays)
       .slice(0, 5);
 
-    // Transform to match TopAbsenteesList interface
     const topAbsentees = topAbsenteesRaw.map((emp, index) => ({
       name: `${emp.employee.firstName} ${emp.employee.lastName}`,
       department: emp.employee.employeePosition.organizationalUnit.name,
@@ -307,8 +293,6 @@ export const useAbsenceKPIData = (context: BusinessAppContextProps, _filters?: A
 
     const maxAbsenceDays = Math.max(...topAbsentees.map((ta) => ta.total), 0);
 
-    // Calculate vacation share for current year
-    // Find the vacation group by looking for it in the translated names
     const vacationGroupName = Object.keys(groupTotals).find(
       (groupName) =>
         groupName.toLowerCase().includes('vacation') ||
@@ -323,7 +307,6 @@ export const useAbsenceKPIData = (context: BusinessAppContextProps, _filters?: A
     const vacationShare =
       currentYearTotalDays > 0 ? (vacationDays / currentYearTotalDays) * 100 : 0;
 
-    // Department data
     const departmentTotals: { [key: string]: EmployeeAbsence[] } = {};
     enrichedAbsences.forEach((absence) => {
       const department = absence.employee.employeePosition.organizationalUnit.name;
@@ -363,14 +346,12 @@ export const useAbsenceKPIData = (context: BusinessAppContextProps, _filters?: A
     setError(null);
 
     try {
-      // Fetch absence data using working query
       const result = await graphQLClient.request<{
         EmployeeAbsence: EmployeeAbsence[];
       }>(GET_EMPLOYEE_ABSENCES_FOR_KPI, {
         supervisorId: userInfo.employeeDetails.employeeId,
       });
 
-      // Process the data with current locale
       const processedData = processData(result.EmployeeAbsence, currentLocale);
       setData(processedData);
     } catch (err) {
@@ -381,7 +362,6 @@ export const useAbsenceKPIData = (context: BusinessAppContextProps, _filters?: A
     }
   }, [userInfo?.employeeDetails?.employeeId, graphQLClient, processData, currentLocale]);
 
-  // Detect locale changes and update state
   useEffect(() => {
     const checkLocale = () => {
       const newLocale = getCurrentActiveUserLocale() ?? 'en-US';
@@ -390,10 +370,8 @@ export const useAbsenceKPIData = (context: BusinessAppContextProps, _filters?: A
       }
     };
 
-    // Check immediately
     checkLocale();
 
-    // Set up interval to check for locale changes
     const interval = setInterval(checkLocale, 1000);
 
     return () => clearInterval(interval);

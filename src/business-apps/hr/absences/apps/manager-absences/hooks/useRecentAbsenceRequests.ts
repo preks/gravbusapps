@@ -38,7 +38,7 @@ interface UseRecentAbsenceRequestsReturn {
   totalCount: number;
   loading: boolean;
   error: string | null;
-  refetch: () => void;
+  refetch: () => Promise<void>;
 }
 
 const GET_RECENT_ABSENCE_REQUESTS = `
@@ -97,7 +97,9 @@ const GET_RECENT_ABSENCE_REQUESTS = `
   }
 `;
 
-export const useRecentAbsenceRequests = (context: BusinessAppContextProps): UseRecentAbsenceRequestsReturn => {
+export const useRecentAbsenceRequests = (
+  context: BusinessAppContextProps,
+): UseRecentAbsenceRequestsReturn => {
   const [recentRequests, setRecentRequests] = useState<RecentAbsenceRequest[]>([]);
   const [totalCount, setTotalCount] = useState<number>(0);
   const [loading, setLoading] = useState(true);
@@ -116,30 +118,27 @@ export const useRecentAbsenceRequests = (context: BusinessAppContextProps): UseR
 
     setLoading(true);
     setError(null);
-    
+
     try {
       // Get current month start and end dates
       const now = dayjs();
       const startOfMonth = now.startOf('month').format('YYYY-MM-DD') + ' 00:00:00+00';
       const endOfMonth = now.endOf('month').format('YYYY-MM-DD') + ' 23:59:59+00';
-      
+
       // Fetch recent absence requests (all statuses for current month)
-      const result = await graphqlClient.request<{ 
+      const result = await graphqlClient.request<{
         EmployeeAbsence: RecentAbsenceRequest[];
         EmployeeAbsenceAggregate: { aggregate: { count: number } };
-      }>(
-        GET_RECENT_ABSENCE_REQUESTS,
-        { 
-          supervisorId,
-          startDate: startOfMonth,
-          endDate: endOfMonth
-        }
-      );
+      }>(GET_RECENT_ABSENCE_REQUESTS, {
+        supervisorId,
+        startDate: startOfMonth,
+        endDate: endOfMonth,
+      });
 
       // Fetch absence groups for data enhancement
       const catalogData = await catalogClient.getCatalogEntriesList({
         catalogIdentifier: 'AbsenceGroup',
-        version: 'v1'
+        version: 'v1',
       });
 
       const groupsMap: Record<string, string> = {};
@@ -148,14 +147,14 @@ export const useRecentAbsenceRequests = (context: BusinessAppContextProps): UseR
       });
 
       // Enhance absence data with group names
-      const enhancedRequests = result.EmployeeAbsence.map(absence => ({
+      const enhancedRequests = result.EmployeeAbsence.map((absence) => ({
         ...absence,
         type: {
           ...absence.type,
-          groupName: groupsMap[absence.type.parentEntryId] || "Unknown",
+          groupName: groupsMap[absence.type.parentEntryId] || 'Unknown',
         },
       }));
-      
+
       setRecentRequests(enhancedRequests);
       setTotalCount(result.EmployeeAbsenceAggregate?.aggregate?.count || 0);
     } catch (err) {
@@ -175,6 +174,6 @@ export const useRecentAbsenceRequests = (context: BusinessAppContextProps): UseR
     totalCount,
     loading,
     error,
-    refetch: fetchRecentRequests
+    refetch: fetchRecentRequests,
   };
-}; 
+};

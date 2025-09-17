@@ -92,8 +92,7 @@ export const AbsenceTrendsChart: React.FC<AbsenceTrendsChartProps> = ({
                         <div style={{ fontWeight: 600, marginBottom: 6 }}>{label}</div>
                         {allTypes.map((type) => {
                           const entry = payload?.find((p) => p.dataKey === type);
-                          const value =
-                            entry?.value != null && entry.value !== undefined ? entry.value : 0;
+                          const value = entry?.value ?? 0;
                           const color = groupColors[type] || undefined;
 
                           return (

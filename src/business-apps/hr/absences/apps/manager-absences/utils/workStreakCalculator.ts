@@ -1,12 +1,8 @@
 import dayjs from 'dayjs';
 
-/**
- * Calculates work streaks for employees based on their absence data
- */
 export const calculateWorkStreaks = (absencesForStreak: any[]): number[] => {
   const employeeAbsences: { [key: string]: any[] } = {};
 
-  // Group absences by employee
   absencesForStreak.forEach((absence) => {
     const employeeId = absence.employee.id;
     if (!employeeAbsences[employeeId]) {
@@ -20,9 +16,8 @@ export const calculateWorkStreaks = (absencesForStreak: any[]): number[] => {
   const yearStart = dayjs().startOf('year');
 
   Object.keys(employeeAbsences).forEach((employeeId) => {
-    const employeeAbsenceList = employeeAbsences[employeeId].sort((a, b) =>
-      dayjs(a.startDate).diff(dayjs(b.startDate)),
-    );
+    const employeeAbsenceList = [...employeeAbsences[employeeId]];
+    employeeAbsenceList.sort((a, b) => dayjs(a.startDate).diff(dayjs(b.startDate)));
 
     let currentStreak = 0;
     let lastAbsenceEnd = yearStart;
@@ -52,9 +47,6 @@ export const calculateWorkStreaks = (absencesForStreak: any[]): number[] => {
   return workStreaks;
 };
 
-/**
- * Calculates the average work streak from an array of work streaks
- */
 export const calculateAverageWorkStreak = (workStreaks: number[]): string => {
   if (workStreaks.length === 0) return '0.0';
 

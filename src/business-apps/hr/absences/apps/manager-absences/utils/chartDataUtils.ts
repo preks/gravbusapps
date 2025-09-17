@@ -1,8 +1,5 @@
 import dayjs from 'dayjs';
 
-/**
- * Generates monthly usage data for a given year from absence data
- */
 export const getMonthlyUsage = (absences: any[], year: number): number[] => {
   const monthlyCounts = new Array(12).fill(0);
 
@@ -34,9 +31,6 @@ export const getMonthlyUsage = (absences: any[], year: number): number[] => {
   return monthlyCounts;
 };
 
-/**
- * Generates year-over-year chart data for absence statistics
- */
 export const generateYearOverYearChartData = (
   yearOverYearRawData: any[],
   currentYear: number,

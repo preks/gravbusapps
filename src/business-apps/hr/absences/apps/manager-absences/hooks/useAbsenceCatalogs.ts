@@ -23,7 +23,7 @@ export interface UseAbsenceCatalogsReturn {
   absenceGroups: AbsenceGroupOption[];
   isLoading: boolean;
   error: string | null;
-  refetch: () => void;
+  refetch: () => Promise<void>;
 }
 
 export const useAbsenceCatalogs = (context: BusinessAppContextProps): UseAbsenceCatalogsReturn => {
