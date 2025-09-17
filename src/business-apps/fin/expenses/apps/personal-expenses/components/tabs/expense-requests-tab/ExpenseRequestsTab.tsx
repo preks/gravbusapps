@@ -8,7 +8,6 @@ import { useExpenseRequestFilters } from '../../../hooks/useExpenseRequestFilter
 import { message } from 'antd';
 import dayjs from 'dayjs';
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
-import { ExpenseRequestStatus } from '../../../hooks/useExpenseRequestFilters';
 
 export interface ExpenseRequestsTabProps extends BusinessAppContextProps {
   onContentHeaderChange?: (header: ReactNode) => void;
@@ -244,7 +243,7 @@ const ExpenseRequestsTab: React.FC<ExpenseRequestsTabProps> = (props) => {
       return;
     }
     
-    console.log('Starting add expense request process for employeeId:', employeeId);
+  
     startProcess({
       domain: 'employee-expense',
       processName: 'changeExpenseRequest',

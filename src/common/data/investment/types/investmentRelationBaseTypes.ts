@@ -355,6 +355,7 @@ export interface BaseInvestmentDocument extends BaseEntity {
   name?: string;
   description?: string;
   file?: string;
+  fileInfo?: any; // JSONB field containing file metadata
   fileSize?: number;
   mimeType?: string;
   verified?: boolean;
@@ -363,6 +364,7 @@ export interface BaseInvestmentDocument extends BaseEntity {
   authenticationDate?: string; // ISO date string
   mandatory?: boolean;
   expirationDate?: string; // ISO date string
+  version?: number;
   
   // Catalog references
   documentGroup?: CatalogEntry;
@@ -376,6 +378,7 @@ export interface BaseInvestmentDocument extends BaseEntity {
   contact?: InvestmentContactRef;
   opportunity?: InvestmentOpportunityRef;
   lead?: InvestmentLeadRef;
+  investment?: InvestmentRef; // Add investment relationship
 }
 
 // investment_activity table

@@ -53,7 +53,6 @@ const EquityInvestmentsList: React.FC<EquityInvestmentsListProps> = (props) => {
 
   // Define available columns with default visibility for equity investments
   const [columnConfig, setColumnConfig] = useState<ColumnConfig[]>(() => [
-    { id: "actions", label: "Actions", visible: true, disabled: true },
     { id: "investment", label: "Investment", visible: true },
     { id: "type", label: "Type", visible: true },
     { id: "stage", label: "Stage", visible: true },
@@ -73,6 +72,8 @@ const EquityInvestmentsList: React.FC<EquityInvestmentsListProps> = (props) => {
     { id: "exitDate", label: "Exit Date", visible: false },
     { id: "isin", label: "ISIN", visible: false },
     { id: "currency", label: "Currency", visible: false },
+    // Actions column must be LAST
+    { id: "actions", label: "Actions", visible: true, disabled: true },
   ]);
 
   // Get visible columns for passing to table
@@ -374,9 +375,14 @@ const EquityInvestmentsList: React.FC<EquityInvestmentsListProps> = (props) => {
                     }</TableCell>
                   )}
                   {visibleColumns.includes('totalInvestment') && (
-                    <TableCell>
-                      <span>{formatCurrency(investment.totalInvestmentAmount || 0)}</span>
-                    </TableCell>
+                    <TableCell className="gba:text-right">{
+                      (() => { const { number, symbol } = formatCurrencyParts(investment.totalInvestmentAmount || 0, { currency: investment.currency?.code, minimumFractionDigits: 0, maximumFractionDigits: 2 }); return (
+                        <>
+                          <span className="gba:text-sm gba:[font-variant-numeric:tabular-nums]">{number}</span>
+                          <span className="gba:text-xs gba:text-gray-400 gba:inline-block gba:text-right gba:shrink-0 gba:w-[5ch]">{symbol}</span>
+                        </>
+                      ); })()
+                    }</TableCell>
                   )}
                   {visibleColumns.includes('marketValue') && (
                     <TableCell className="gba:text-right">{
@@ -392,9 +398,9 @@ const EquityInvestmentsList: React.FC<EquityInvestmentsListProps> = (props) => {
                     <TableCell className="gba:text-right">
                       {(() => {
                         const currentValue = investment.investmentMarketValue || 0;
-                        const initialValue = investment.initialInvestmentAmount || 0;
-                        const performanceAmount = currentValue - initialValue;
-                        const performancePercentage = initialValue > 0 ? (performanceAmount / initialValue) * 100 : 0;
+                        const totalValue = investment.totalInvestmentAmount || 0;
+                        const performanceAmount = currentValue - totalValue;
+                        const performancePercentage = totalValue > 0 ? (performanceAmount / totalValue) * 100 : 0;
                         const isZero = performancePercentage === 0;
                         const isPositive = performancePercentage > 0;
 

@@ -1,11 +1,12 @@
 import { useState, useEffect, useCallback } from 'react';
-import { useGetInvestmentById } from '@/common/data/investment';
+import { useGetInvestmentById, useGetInvestmentDocumentsByInvestmentId } from '@/common/data/investment';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
-import type { Investment, LiquidFundInvestment } from '@/common/data/investment';
+import type { Investment, LiquidFundInvestment, InvestmentDocument } from '@/common/data/investment';
 
 export interface LiquidFundInvestmentData {
   investment: Investment;
   liquidFundInvestment?: LiquidFundInvestment;
+  documents: InvestmentDocument[];
 }
 
 export const useLiquidFundData = (context: BusinessAppContextProps, investmentId?: string) => {
@@ -14,6 +15,7 @@ export const useLiquidFundData = (context: BusinessAppContextProps, investmentId
   const [error, setError] = useState<string | null>(null);
 
   const { fetchInvestmentById } = useGetInvestmentById(context);
+  const { fetchInvestmentDocumentsByInvestmentId } = useGetInvestmentDocumentsByInvestmentId(context);
 
   const fetchLiquidFundData = useCallback(async () => {
     if (!investmentId || !context.accessToken) {
@@ -25,15 +27,19 @@ export const useLiquidFundData = (context: BusinessAppContextProps, investmentId
     setError(null);
 
     try {
-      const result = await fetchInvestmentById(investmentId);
+      // Fetch investment data and documents in parallel
+      const [investmentResult, documentsResult] = await Promise.all([
+        fetchInvestmentById(investmentId),
+        fetchInvestmentDocumentsByInvestmentId(investmentId)
+      ]);
 
-      if (!result.investment) {
+      if (!investmentResult.investment) {
         const errorMsg = `No investment found for ID: ${investmentId}`;
         setError(errorMsg);
         return;
       }
 
-      const rawLiquidFund = (result.investment as any)?.liquidFundInvestment;
+      const rawLiquidFund = (investmentResult.investment as any)?.liquidFundInvestment;
       const normalizedLiquidFund = Array.isArray(rawLiquidFund) ? (rawLiquidFund[0] || undefined) : rawLiquidFund;
 
       const hasLiquidFundData = !!normalizedLiquidFund;
@@ -44,8 +50,9 @@ export const useLiquidFundData = (context: BusinessAppContextProps, investmentId
       }
 
       const liquidFundInvestmentData: LiquidFundInvestmentData = {
-        investment: result.investment,
-        liquidFundInvestment: normalizedLiquidFund
+        investment: investmentResult.investment,
+        liquidFundInvestment: normalizedLiquidFund,
+        documents: documentsResult || []
       };
 
       setLiquidFundData(liquidFundInvestmentData);
@@ -55,7 +62,7 @@ export const useLiquidFundData = (context: BusinessAppContextProps, investmentId
     } finally {
       setIsLoading(false);
     }
-  }, [investmentId, context.accessToken, fetchInvestmentById]);
+  }, [investmentId, context.accessToken, fetchInvestmentById, fetchInvestmentDocumentsByInvestmentId]);
 
   useEffect(() => {
     fetchLiquidFundData();

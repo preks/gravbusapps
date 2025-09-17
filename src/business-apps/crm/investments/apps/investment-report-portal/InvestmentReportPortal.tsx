@@ -189,7 +189,7 @@ export const InvestmentReportPortal: React.FC<InvestmentReportPortalProps> = ({
               <Button
                 data-testid={formatDataTestId(prefixDataTestId, 'CreateButton')}
                 onClick={handleCreateReport}
-                variant="outline"
+                variant="ai"
                 style={{ 
                   display: 'flex', 
                   alignItems: 'center', 

@@ -8,7 +8,7 @@ import {
 import { WidgetGroup, WidgetItem } from '@/components/widget-group';
 import { useGetExpenseRequestStatistics } from '../../../hooks/useGetExpenseRequestStatistics';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
-import { getTranslationFromI18nKeyAndLabel, formatNumberFunction } from '@/common/utils/windowUtils';
+import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
 import { formatCurrencyDisplay } from '../../../utils';
 
 interface ExpenseRequestStatisticsProps extends BusinessAppContextProps {

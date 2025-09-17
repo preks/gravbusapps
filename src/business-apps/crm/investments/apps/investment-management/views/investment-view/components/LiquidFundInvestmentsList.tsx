@@ -102,12 +102,12 @@ const LiquidFundInvestmentsList: React.FC<LiquidFundInvestmentsListProps> = (con
 
   // Define available columns with default visibility
   const [columnConfig, setColumnConfig] = useState<ColumnConfig[]>(() => [
-    { id: "actions", label: "Actions", visible: true, disabled: true },
     { id: "investment", label: "Investment", visible: true },
     { id: "fundType", label: "Fund Type", visible: true },
     { id: "bankName", label: "Bank", visible: true },
     { id: "interestRate", label: "Interest Rate", visible: true },
     { id: "initialInvestment", label: "Initial Investment", visible: true },
+    { id: "totalInvestment", label: "Total Investment", visible: true },
     { id: "marketValue", label: "Market Value", visible: true },
     { id: "performance", label: "Performance", visible: true },
     { id: "owner", label: "Owner", visible: true },
@@ -116,6 +116,8 @@ const LiquidFundInvestmentsList: React.FC<LiquidFundInvestmentsListProps> = (con
     // Optional columns
     { id: "accountNumber", label: "Account Number", visible: false },
     { id: "earlyTermination", label: "Early Termination", visible: false },
+    // Actions column must be LAST
+    { id: "actions", label: "Actions", visible: true, disabled: true },
   ]);
 
   // Get visible columns for passing to table
@@ -431,6 +433,9 @@ const LiquidFundInvestmentsList: React.FC<LiquidFundInvestmentsListProps> = (con
                 {visibleColumns.includes('initialInvestment') && (
                   <SortableTableHead field="initialInvestmentAmount" currentSortField={sortField} currentSortOrder={sortOrder} onSort={handleSortingChange}>Initial Investment</SortableTableHead>
                 )}
+                {visibleColumns.includes('totalInvestment') && (
+                  <SortableTableHead field="totalInvestmentAmount" currentSortField={sortField} currentSortOrder={sortOrder} onSort={handleSortingChange}>Total Investment</SortableTableHead>
+                )}
                 {visibleColumns.includes('marketValue') && (
                   <SortableTableHead field="investmentMarketValue" currentSortField={sortField} currentSortOrder={sortOrder} onSort={handleSortingChange}>Market Value</SortableTableHead>
                 )}
@@ -482,6 +487,11 @@ const LiquidFundInvestmentsList: React.FC<LiquidFundInvestmentsListProps> = (con
                       {renderAmount(inv.initialInvestmentAmount, inv.currency?.code)}
                     </TableCell>
                   )}
+                  {visibleColumns.includes('totalInvestment') && (
+                    <TableCell className="gba:text-right">
+                      {renderAmount(inv.totalInvestmentAmount, inv.currency?.code)}
+                    </TableCell>
+                  )}
                   {visibleColumns.includes('marketValue') && (
                     <TableCell className="gba:text-right">
                       {renderAmount(inv.investmentMarketValue, inv.currency?.code)}
@@ -490,10 +500,10 @@ const LiquidFundInvestmentsList: React.FC<LiquidFundInvestmentsListProps> = (con
                   {visibleColumns.includes('performance') && (
                     <TableCell className="gba:text-right">
                       {(() => {
-                        const initial = inv.initialInvestmentAmount || 0;
+                        const total = inv.totalInvestmentAmount || 0;
                         const market = inv.investmentMarketValue || 0;
-                        const perfAmount = market - initial;
-                        const perfPct = initial > 0 ? (perfAmount / initial) * 100 : 0;
+                        const perfAmount = market - total;
+                        const perfPct = total > 0 ? (perfAmount / total) * 100 : 0;
                         const isZero = (perfPct ?? 0) === 0;
                         const isPositive = (perfPct ?? 0) > 0;
                         return (
