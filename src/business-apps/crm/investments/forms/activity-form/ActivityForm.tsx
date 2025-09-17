@@ -1,10 +1,11 @@
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
 import { ActivitySegment, Activity, validateActivityData, createActivitySegmentResolver } from '@/common/components/common-relations/form-segments';
 import { buildActivityPayload } from '@/common/data/investment/payloads';
 import { useGetInvestmentActivityById, useInvestmentEntities } from '@/common/data/investment/hooks';
+import { useEmployeeSearch } from '@/common/data/employee/useEmployeeSearch';
 import { AppActionForm } from '@/components/app-action-form';
 import { useForm } from 'react-hook-form';
 
@@ -32,7 +33,10 @@ const ActivityForm: React.FC<ActivityFormProps> = ({
   onSuccess, 
   onCancel 
 }) => {
-  const [formData, setFormData] = useState<Activity>(initialFormData);
+  const [formData, setFormData] = useState<Activity>({
+    ...initialFormData,
+    ownerEmployee: userInfo?.employeeDetails?.employeeId ? { id: userInfo.employeeDetails.employeeId } : undefined
+  });
 
   // Check if we're in update mode
   const activityId = additionalData?.activityId;
@@ -53,7 +57,38 @@ const ActivityForm: React.FC<ActivityFormProps> = ({
   // Entity search hook (controlled search/path)
   const { entities, loading: entitiesLoading, searchEntities, hasMore: entitiesHasMore, loadMore: loadMoreEntities, hydrateEntityById } = useInvestmentEntities({ accessToken, additionalData });
 
-  // no-op placeholder removed; keep direct state updates where needed
+  // Employee search hook for assignee selection
+  const { employees, search: searchEmployees, loading: employeesLoading, hasMore: employeesHasMore, loadMore: loadMoreEmployees, hydrateById } = useEmployeeSearch(accessToken);
+  const [assigneePrefill, setAssigneePrefill] = useState<Array<{ id: string; displayName: string; userId?: string; pictureThumbnail?: string; organizationalUnitName?: string; jobPositionName?: string }>>([]);
+
+  // Prefill current user as default assignee in create mode
+  useEffect(() => {
+    if (isUpdateMode) return; // Only for create mode
+    const employeeId = userInfo?.employeeDetails?.employeeId;
+    if (!employeeId) return;
+    
+    const displayName = `${userInfo?.employeeDetails?.firstName || ''} ${userInfo?.employeeDetails?.lastName || ''}`.trim() || 
+                       userInfo?.userName || 'Current User';
+    
+    setAssigneePrefill([{ id: employeeId, displayName }]);
+    // Hydrate employee details for better display
+    hydrateById(employeeId);
+  }, [isUpdateMode, userInfo, hydrateById]);
+
+  // Merge prefilled assignee with live search results
+  const mergedAssignees = useMemo(() => {
+    const map = new Map<string, { id: string; displayName: string; userId?: string; pictureThumbnail?: string; organizationalUnitName?: string; jobPositionName?: string }>();
+    assigneePrefill.forEach((o) => map.set(o.id, o));
+    employees.forEach((e) => map.set(e.id, {
+      id: e.id,
+      displayName: e.displayName,
+      userId: e.userId,
+      pictureThumbnail: (e as any).pictureThumbnail,
+      organizationalUnitName: (e as any).organizationalUnitName,
+      jobPositionName: (e as any).jobPositionName,
+    }));
+    return Array.from(map.values());
+  }, [assigneePrefill, employees]);
 
   // Load existing activity if in update mode
   useEffect(() => {
@@ -115,6 +150,9 @@ const ActivityForm: React.FC<ActivityFormProps> = ({
 
   // Form submission handler - business logic only
   const handleSubmit = useCallback(async (formData: Activity) => {
+    console.log('🚀 Form submission data:', formData);
+    console.log('🎯 Specific ownerEmployeeId:', (formData as any)?.ownerEmployeeId);
+    
     const payload = buildActivityPayload(formData, { accessToken, userInfo, additionalData } as any, {
       isUpdate: isUpdateMode,
     });
@@ -131,12 +169,22 @@ const ActivityForm: React.FC<ActivityFormProps> = ({
   // RHF + Zod resolver provided to AppActionForm
   const form = useForm<any>({
     resolver: createActivitySegmentResolver(),
-    defaultValues: formData,
+    defaultValues: {
+      ...formData,
+      ownerEmployeeId: userInfo?.employeeDetails?.employeeId || ''
+    },
     mode: 'onChange',
   });
 
+  // Only reset form data when formData changes, not when user ID changes
+  // This preserves user selections in the form
   useEffect(() => {
-    form.reset(formData as any);
+    form.reset({
+      ...formData,
+      // Only set ownerEmployeeId if it's not already set (preserve user selections)
+      ...(formData.ownerEmployee?.id ? { ownerEmployeeId: formData.ownerEmployee.id } : 
+          !form.getValues('ownerEmployeeId') ? { ownerEmployeeId: userInfo?.employeeDetails?.employeeId || '' } : {})
+    } as any);
   }, [formData]);
 
   return (
@@ -165,7 +213,12 @@ const ActivityForm: React.FC<ActivityFormProps> = ({
         onEntityLoadMore={loadMoreEntities}
         onEntitySearch={handleEntitySearch}
         showEntitySelection={shouldShowEntitySelection}
-        showOwnerSelection={false}
+        showOwnerSelection={true}
+        assignees={mergedAssignees}
+        assigneesLoading={employeesLoading}
+        onAssigneeSearch={searchEmployees}
+        assigneesHasMore={employeesHasMore}
+        onAssigneeLoadMore={loadMoreEmployees}
         initialEntityFromContext={{ accountId, contactId, opportunityId, leadId }}
         titleLabel={getTranslationFromI18nKeyAndLabel('crm:salesActivity.title', 'Title')}
         typeLabel={getTranslationFromI18nKeyAndLabel('crm:salesActivity.type', 'Type')}

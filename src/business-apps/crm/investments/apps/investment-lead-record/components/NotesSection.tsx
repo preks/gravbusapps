@@ -2,10 +2,10 @@ import React, { useState, useEffect } from 'react';
 import { Spin, Alert, Timeline, Typography, message, Modal, Input } from 'antd';
 import { Button } from '@newwork/nw-design-system';
 import { NoteDeletePopup } from '@/common/components/common-relations/popups/note-delete-popup';
-import { PlusCircleOutlined, CloseOutlined, EditOutlined, UserOutlined } from '@ant-design/icons';
+import { PlusCircleOutlined, CloseOutlined, UserOutlined } from '@ant-design/icons';
 import { AppAction } from '@/components/app-action/AppAction';
 import { FlowContextName } from '@/common/types/FlowRegistryTypes';
-import { startProcess } from '@/common/utils/start-process';
+// import { startProcess } from '@/common/utils/start-process';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 import { useRestClient } from '@/common/network/rest/useRestClient';
 import { env } from '@/common/env/EnvUtils';
@@ -30,11 +30,11 @@ export const NotesSection: React.FC<NotesSectionProps> = ({ leadId, context, sho
   const [notes, setNotes] = useState<SimpleNoteData[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
   const [isModalVisible, setIsModalVisible] = useState(false);
   const [editingNote, setEditingNote] = useState<SimpleNoteData | null>(null);
   const [noteTitle, setNoteTitle] = useState('');
   const [noteText, setNoteText] = useState('');
-  const [saving, setSaving] = useState(false);
   
   const restClient = useRestClient(env('NEXT_PUBLIC_KOGITO_PROCESSES_ENDPOINT'));
   // const { getEmployeeDisplayName } = useEmployeeData(context.accessToken);
@@ -149,12 +149,6 @@ export const NotesSection: React.FC<NotesSectionProps> = ({ leadId, context, sho
   //   setIsModalVisible(true);
   // };
 
-  const handleEditNote = (note: SimpleNoteData) => {
-    setEditingNote(note);
-    setNoteTitle(note.title || '');
-    setNoteText(note.text || '');
-    setIsModalVisible(true);
-  };
 
   const handleSaveNote = async () => {
     if (!noteTitle.trim() || !noteText.trim()) {
@@ -228,7 +222,7 @@ export const NotesSection: React.FC<NotesSectionProps> = ({ leadId, context, sho
         showIcon
         className="gba:mb-4"
         action={
-          <Button size="small" onClick={loadNotes}>
+          <Button size="sm" onClick={loadNotes}>
             Retry
           </Button>
         }
@@ -248,31 +242,20 @@ export const NotesSection: React.FC<NotesSectionProps> = ({ leadId, context, sho
             </p>
           </div>
           <AppAction
-            contextsArray={[FlowContextName.investmentNoteEntity]}
+            contextsArray={[FlowContextName.createInvestmentNote]}
             externalContextData={{
               leadId,
               lead: leadId,
               investmentNote: { lead: leadId }
             }}
-            staticFlowData={leadId ? [{
-              key: 'create-investment-note-fallback',
-              label: 'Add Note',
-              onClick: () => startProcess({
-                domain: 'investments',
-                processName: 'createInvestmentNote',
-                payload: { leadId },
-                builderType: 'NATIVE_SCREEN'
-              })
-            }] : []}
+            staticFlowData={[]}
             prefixDataTestId="add-note"
             accessToken={context.accessToken}
             emptyStateBehavior="enable"
             deferMainContextRequestsUntilClick
           >
-            <Button
-              variant="default"
-              icon={<PlusCircleOutlined />}
-            >
+            <Button variant="default">
+              <PlusCircleOutlined />
               Add Note
             </Button>
           </AppAction>
@@ -316,20 +299,12 @@ export const NotesSection: React.FC<NotesSectionProps> = ({ leadId, context, sho
                   
                   <div className="gba:flex gba:gap-2 gba:ml-4">
                     <Button
-                      size="small"
-                      icon={<EditOutlined />}
-                      onClick={() => handleEditNote(note)}
-                      className="gba:text-blue-600 gba:border-blue-600 gba:hover:text-blue-700 gba:hover:border-blue-700"
-                    >
-                      Edit
-                    </Button>
-                    <Button
-                      size="small"
-                      danger
-                      icon={<CloseOutlined />}
+                      size="icon"
+                      variant="ghost"
                       onClick={() => handleDeleteNote(note)}
+                      data-testid={`delete-note-${note.id}`}
                     >
-                      Delete
+                      <CloseOutlined />
                     </Button>
                   </div>
                 </div>

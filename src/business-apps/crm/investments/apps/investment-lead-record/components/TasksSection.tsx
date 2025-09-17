@@ -1,18 +1,19 @@
 import React, { useState, useEffect } from 'react';
-import { Spin, Alert, Timeline, Typography, message, Modal, Tag } from 'antd';
+import { Spin, Alert, Timeline, Typography, message, Tag } from 'antd';
 import { Button } from '@newwork/nw-design-system';
-import { PlusCircleOutlined, CloseOutlined, EditOutlined, UserOutlined } from '@ant-design/icons';
+import { PlusCircleOutlined, CloseOutlined, UserOutlined } from '@ant-design/icons';
 import { Clock, Calendar } from 'lucide-react';
-import { startProcess } from '@/common/utils/start-process';
+// import { startProcess } from '@/common/utils/start-process';
 import { AppAction } from '@/components/app-action';
 import { FlowContextName } from '@/common/types/FlowRegistryTypes';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
-import { useRestClient } from '@/common/network/rest/useRestClient';
-import { env } from '@/common/env/EnvUtils';
+// import { useRestClient } from '@/common/network/rest/useRestClient';
+// import { env } from '@/common/env/EnvUtils';
 import dayjs from 'dayjs';
-import { useEmployeeData } from '@/business-apps/crm/common/hooks/useEmployeeData';
+// import { useEmployeeData } from '@/business-apps/crm/common/hooks/useEmployeeData';
 import { useGetInvestmentTasksByLeadId } from '@/common/data/investment/hooks/useInvestmentLeads';
 import type { InvestmentTask } from '@/common/data/investment/types';
+import { DeleteConfirmPopup } from '@/common/components/common-relations/popups/delete-confirm-popup';
 
 const { Text } = Typography;
 
@@ -28,9 +29,8 @@ export const TasksSection: React.FC<TasksSectionProps> = ({ leadId, context }) =
   const [tasks, setTasks] = useState<SimpleTaskData[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const restClient = useRestClient(env('NEXT_PUBLIC_KOGITO_PROCESSES_ENDPOINT'));
-  const { getEmployeeDisplayName } = useEmployeeData(context.accessToken);
   const { fetchInvestmentTasksByLeadId } = useGetInvestmentTasksByLeadId(context);
+  const [deleteTaskPopup, setDeleteTaskPopup] = useState<{ open: boolean; task?: SimpleTaskData }>({ open: false });
 
   // Helper function to get timing type icon
   const getTimingTypeIcon = (taskTiming?: string) => {
@@ -48,6 +48,13 @@ export const TasksSection: React.FC<TasksSectionProps> = ({ leadId, context }) =
     }
   };
 
+  const isApprovalTask = (task: SimpleTaskData): boolean => {
+    const typeVal = (task as any)?.taskType?.code || (task as any)?.taskType?.value || (task as any)?.typeRef;
+    if (!typeVal) return false;
+    const val = String(typeVal);
+    return val.toLowerCase() === 'approval' || val.toUpperCase().endsWith(':APPROVAL');
+  };
+
   const loadTasks = async () => {
     if (!leadId) return;
     
@@ -56,7 +63,8 @@ export const TasksSection: React.FC<TasksSectionProps> = ({ leadId, context }) =
     
     try {
       const tasksData = await fetchInvestmentTasksByLeadId(leadId);
-      setTasks(tasksData);
+      const nonApprovalTasks = tasksData.filter(t => !isApprovalTask(t));
+      setTasks(nonApprovalTasks);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load tasks');
     } finally {
@@ -155,44 +163,9 @@ export const TasksSection: React.FC<TasksSectionProps> = ({ leadId, context }) =
 
   // Add task handled by AppAction component
 
-  const handleUpdateTask = (task: SimpleTaskData) => {
-    startProcess({
-      domain: 'investments', // Updated from 'customer-relations'
-      processName: 'createInvestmentTask', // Updated naming
-      payload: {
-        leadId: leadId,
-        typeRef: task.taskType?.code || 'InvestmentTaskType:v1:GENERAL', // Updated from 'SalesTaskType:v1:GENERAL'
-        taskData: task // Pass existing task data for update mode
-      },
-      builderType: 'NATIVE_SCREEN',
-    });
-  };
 
   const handleDeleteTask = (task: SimpleTaskData) => {
-    Modal.confirm({
-      title: 'Confirm Deletion',
-      content: `Are you sure you want to delete the task "${task.name || 'Untitled Task'}"?`,
-      okText: 'Delete',
-      okType: 'danger',
-      cancelText: 'Cancel',
-      onOk: async () => {
-        try {
-          await restClient.post('/investments/saveInvestmentTask', { // Updated from '/customer-relations/saveSalesTask'
-            changeMode: "DELETE",
-            investmentTask: { // Updated from 'salesTask'
-              id: task.id,
-              version: task.version || 1,
-            }
-          });
-          
-          message.success('Task deleted successfully');
-          loadTasks(); // Refresh the list
-        } catch (err) {
-          console.error('Error deleting task:', err);
-          message.error('Failed to delete task');
-        }
-      }
-    });
+    setDeleteTaskPopup({ open: true, task });
   };
 
   const getPriorityColor = (priority?: any) => {
@@ -290,16 +263,7 @@ export const TasksSection: React.FC<TasksSectionProps> = ({ leadId, context }) =
             lead: leadId,
             investmentTask: { lead: leadId }
           }}
-          staticFlowData={leadId ? [{
-            key: 'create-investment-task-fallback',
-            label: 'Add Task',
-            onClick: () => startProcess({
-              domain: 'investments',
-              processName: 'createInvestmentTask',
-              payload: { leadId },
-              builderType: 'NATIVE_SCREEN'
-            })
-          }] : []}
+          staticFlowData={[]}
           prefixDataTestId="add-task"
           accessToken={context.accessToken}
           emptyStateBehavior="enable"
@@ -374,21 +338,12 @@ export const TasksSection: React.FC<TasksSectionProps> = ({ leadId, context }) =
                     
                     <div className="gba:flex gba:gap-2 gba:ml-4">
                       <Button
-                        size="sm"
+                        size="icon"
                         variant="ghost"
-                        onClick={() => handleUpdateTask(task)}
-                        className="gba:text-blue-600 gba:hover:text-blue-700"
-                      >
-                        <EditOutlined />
-                        Edit
-                      </Button>
-                      <Button
-                        size="sm"
-                        variant="destructive"
                         onClick={() => handleDeleteTask(task)}
+                        data-testid={`delete-task-${task.id}`}
                       >
                         <CloseOutlined />
-                        Delete
                       </Button>
                     </div>
                   </div>
@@ -398,6 +353,36 @@ export const TasksSection: React.FC<TasksSectionProps> = ({ leadId, context }) =
           </Timeline>
         )}
       </div>
+      {deleteTaskPopup.open && deleteTaskPopup.task ? (
+        <DeleteConfirmPopup
+          isOpen={deleteTaskPopup.open}
+          onClose={() => setDeleteTaskPopup({ open: false })}
+          accessToken={context.accessToken}
+          itemTitle={deleteTaskPopup.task?.name ? String(deleteTaskPopup.task.name) : 'Task'}
+          itemType="task"
+          flowContextName={FlowContextName.investmentTaskDelete}
+          externalContextData={{
+            taskId: deleteTaskPopup.task!.id,
+            investmentTask: {
+              id: deleteTaskPopup.task!.id,
+              version: deleteTaskPopup.task!.version,
+            },
+            leadId,
+          }}
+          onFlowSuccess={() => {
+            const id = deleteTaskPopup.task!.id;
+            setTasks(prev => prev.filter(t => t.id !== id));
+            setDeleteTaskPopup({ open: false });
+            message.success('Task deleted successfully');
+          }}
+          onFlowError={() => {
+            setDeleteTaskPopup({ open: false });
+            message.error('Failed to delete task');
+          }}
+          data-testid={`delete-task-popup`}
+        />
+      ) : null}
+
     </div>
   );
 }; 

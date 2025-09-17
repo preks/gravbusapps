@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Spin, Alert, Timeline, Typography, message, Modal } from 'antd';
+import { Spin, Alert, Timeline, Typography, message } from 'antd';
 import { Button } from '@newwork/nw-design-system';
 import { PlusCircleOutlined, CloseOutlined } from '@ant-design/icons';
 import { AppAction } from '@/components/app-action';
@@ -7,10 +7,11 @@ import { FlowContextName } from '@/common/types/FlowRegistryTypes';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 import { useGetInvestmentTasksByOpportunityId } from '@/common/data/investment/hooks/useInvestmentOpportunities';
 import { InvestmentTask } from '@/common/data/investment/types';
-import { useRestClient } from '@/common/network/rest/useRestClient';
-import { env } from '@/common/env/EnvUtils';
+// import { useRestClient } from '@/common/network/rest/useRestClient';
+// import { env } from '@/common/env/EnvUtils';
 import dayjs from 'dayjs';
-import { useEmployeeData } from '@/business-apps/crm/common/hooks/useEmployeeData';
+// import { useEmployeeData } from '@/business-apps/crm/common/hooks/useEmployeeData';
+import { DeleteConfirmPopup } from '@/common/components/common-relations/popups/delete-confirm-popup';
 
 const { Text } = Typography;
 
@@ -24,8 +25,9 @@ export const TasksSection: React.FC<TasksSectionProps> = ({ opportunityId, conte
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const { fetchInvestmentTasksByOpportunityId } = useGetInvestmentTasksByOpportunityId(context);
-  const restClient = useRestClient(env('NEXT_PUBLIC_KOGITO_PROCESSES_ENDPOINT'));
-  const { getEmployeeDisplayName } = useEmployeeData(context.accessToken);
+  // const restClient = useRestClient(env('NEXT_PUBLIC_KOGITO_PROCESSES_ENDPOINT'));
+  // const { getEmployeeDisplayName } = useEmployeeData(context.accessToken);
+  const [deleteTaskPopup, setDeleteTaskPopup] = useState<{ open: boolean; task?: InvestmentTask }>({ open: false });
 
   const loadTasks = async () => {
     if (!opportunityId) return;
@@ -146,36 +148,7 @@ export const TasksSection: React.FC<TasksSectionProps> = ({ opportunityId, conte
   // Add task handled via AppAction below
 
   const handleDeleteTask = (task: InvestmentTask) => {
-    Modal.confirm({
-      title: 'Confirm Deletion',
-      content: `Are you sure you want to delete the task "${task.name || 'Untitled Task'}"?`,
-      okText: 'Delete',
-      okType: 'danger',
-      cancelText: 'Cancel',
-      onOk: async () => {
-        try {
-          await restClient.post('/investments/saveInvestmentTask', {
-            changeMode: "DELETE",
-            investmentTask: {
-              id: task.id,
-              version: task.version,
-              opportunity: opportunityId
-            }
-          }, {
-            headers: { Authorization: `Bearer ${context.accessToken}` }
-          });
-          
-          // Remove the task from the local state
-          setTasks(prevTasks => 
-            prevTasks.filter(t => t.id !== task.id)
-          );
-          message.success('Task deleted successfully');
-        } catch (error) {
-          console.error('Error deleting task:', error);
-          message.error('Failed to delete task');
-        }
-      },
-    });
+    setDeleteTaskPopup({ open: true, task });
   };
 
   const getPriorityColor = (priority: string) => {
@@ -328,6 +301,37 @@ export const TasksSection: React.FC<TasksSectionProps> = ({ opportunityId, conte
           </div>
         )}
       </div>
+
+      {deleteTaskPopup.open && deleteTaskPopup.task ? (
+        <DeleteConfirmPopup
+          isOpen={deleteTaskPopup.open}
+          onClose={() => setDeleteTaskPopup({ open: false })}
+          accessToken={context.accessToken}
+          itemTitle={deleteTaskPopup.task?.name ? String(deleteTaskPopup.task.name) : 'Task'}
+          itemType="task"
+          flowContextName={FlowContextName.investmentTaskDelete}
+          externalContextData={{
+            taskId: deleteTaskPopup.task!.id,
+            investmentTask: {
+              id: deleteTaskPopup.task!.id,
+              version: deleteTaskPopup.task!.version,
+            },
+            opportunityId,
+          }}
+          onFlowSuccess={() => {
+            const id = deleteTaskPopup.task!.id;
+            setTasks(prev => prev.filter(t => t.id !== id));
+            setDeleteTaskPopup({ open: false });
+            message.success('Task deleted successfully');
+          }}
+          onFlowError={() => {
+            setDeleteTaskPopup({ open: false });
+            message.error('Failed to delete task');
+          }}
+          data-testid={`delete-task-popup`}
+        />
+      ) : null}
+
     </div>
   );
 }; 

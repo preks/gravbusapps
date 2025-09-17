@@ -41,12 +41,26 @@ export const buildActivityPayload = (
 
   // Get owner employee ID from business app context
   const getOwnerEmployee = () => {
+    console.log('🔍 Activity payload debug:', {
+      'activity.ownerEmployee': activity.ownerEmployee,
+      'activity.ownerEmployeeId': (activity as any)?.ownerEmployeeId,
+      'fallbackUserId': businessAppContext.userInfo?.employeeDetails?.employeeId
+    });
+    
     if (activity.ownerEmployee?.id) {
+      console.log('✅ Using activity.ownerEmployee.id:', activity.ownerEmployee.id);
       return activity.ownerEmployee.id;
+    }
+    // Also support flat field from UI segment
+    const ownerId = (activity as any)?.ownerEmployeeId;
+    if (ownerId) {
+      console.log('✅ Using activity.ownerEmployeeId:', ownerId);
+      return ownerId;
     }
     
     // Fallback to current user's employee ID from context
     if (businessAppContext.userInfo?.employeeDetails?.employeeId) {
+      console.log('⚠️ Falling back to current user:', businessAppContext.userInfo.employeeDetails.employeeId);
       return businessAppContext.userInfo.employeeDetails.employeeId;
     }
     
@@ -197,24 +211,46 @@ export const buildInvestmentNotePayload = (
     if (note.contact) refs.contact = note.contact.id;
     if (note.opportunity) refs.opportunity = note.opportunity.id;
     if (note.lead) refs.lead = note.lead.id;
-    
-    // Always include parent investment when provided via additionalData
-    const investmentId = (businessAppContext as any)?.additionalData?.investmentId;
+
+    // Always include parent investment when provided via additionalData or externalContextData
+    const additional: any = (businessAppContext as any)?.additionalData || {};
+    const external: any = additional.externalContextData || {};
+
+    const investmentId =
+      external.investmentId ||
+      external.investment?.id ||
+      external.investment ||
+      additional.investmentId ||
+      additional.investment?.id ||
+      additional.investment;
+
     if (investmentId) {
       refs.investment = investmentId;
-      console.log('🔍 Note Payload Debug - Investment ID found:', investmentId);
-      
-      // CRITICAL: Include the investment's account to satisfy backend validation
-      // Backend validation expects at least one traditional parent reference
-      const accountId = (businessAppContext as any)?.additionalData?.accountId;
+
+      // Include the investment's account to satisfy backend validation when available
+      const accountId =
+        additional.accountId ||
+        additional.account?.id ||
+        external.accountId ||
+        external.account?.id;
       if (accountId && !refs.account) {
         refs.account = accountId;
-        console.log('🔍 Note Payload Debug - Also adding investment account:', accountId);
       }
-    } else {
-      console.log('⚠️ Note Payload Debug - No investment ID in additionalData:', businessAppContext?.additionalData);
     }
-    console.log('🔍 Note Payload Debug - Final refs:', refs);
+
+    // If related entity was not set via NoteSegment, try to infer from additional/external context
+    if (!refs.account && (additional.accountId || additional.account?.id || external.accountId || external.account?.id)) {
+      refs.account = additional.accountId || additional.account?.id || external.accountId || external.account?.id;
+    }
+    if (!refs.contact && (additional.contactId || additional.contact?.id || external.contactId || external.contact?.id)) {
+      refs.contact = additional.contactId || additional.contact?.id || external.contactId || external.contact?.id;
+    }
+    if (!refs.opportunity && (additional.opportunityId || additional.opportunity?.id || external.opportunityId || external.opportunity?.id)) {
+      refs.opportunity = additional.opportunityId || additional.opportunity?.id || external.opportunityId || external.opportunity?.id;
+    }
+    if (!refs.lead && (additional.leadId || additional.lead?.id || external.leadId || external.lead?.id)) {
+      refs.lead = additional.leadId || additional.lead?.id || external.leadId || external.lead?.id;
+    }
     return refs;
   };
 

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { PlusCircleOutlined, FileTextOutlined, CloseOutlined, EditOutlined, CloudUploadOutlined, CheckCircleOutlined } from '@ant-design/icons';
-import { Spin, Alert, Empty, Timeline, Typography, Modal, message } from 'antd';
+import { PlusCircleOutlined, CheckCircleOutlined, CloseOutlined } from '@ant-design/icons';
+import { Spin, Alert, Empty, Timeline, Typography, message } from 'antd';
 import { Button } from '@newwork/nw-design-system';
 import { Clock, Calendar } from 'lucide-react';
 import { startProcess } from '@/common/utils/start-process';
@@ -9,19 +9,17 @@ import { FlowContextName } from '@/common/types/FlowRegistryTypes';
 import { ActivityDeletePopup } from '@/common/components/common-relations/popups/activity-delete-popup';
 import { DeleteConfirmPopup } from '@/common/components/common-relations/popups/delete-confirm-popup';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
-import { useRestClient } from '@/common/network/rest/useRestClient';
-import { env } from '@/common/env/EnvUtils';
+// import { useRestClient } from '@/common/network/rest/useRestClient';
+// import { env } from '@/common/env/EnvUtils';
 import dayjs from 'dayjs';
-import { useGetInvestmentActivitiesByAccountId, useGetInvestmentDocumentsByAccountId, useGetInvestmentTasksByAccountId } from '@/common/data/investment/hooks/useInvestmentAccounts';
-import type { InvestmentActivity, InvestmentDocument, InvestmentTask } from '@/common/data/investment/types';
+import { useGetInvestmentActivitiesByAccountId, useGetInvestmentTasksByAccountId } from '@/common/data/investment/hooks/useInvestmentAccounts';
+import type { InvestmentActivity, InvestmentTask } from '@/common/data/investment/types';
 import { NotesSection } from './NotesSection';
 
 const { Text } = Typography;
 
 // Use Investment types for consistency
 type SalesActivityData = InvestmentActivity;
-type CrmDocumentData = InvestmentDocument;
-type SalesTaskData = InvestmentTask;
 
 interface ActivityTimelineProps {
   accountId?: string;
@@ -34,9 +32,10 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({ accountId, c
   const [activities, setActivities] = useState<SalesActivityData[]>([]);
   const [activitiesLoading, setActivitiesLoading] = useState(false);
   const [activitiesError, setActivitiesError] = useState<string | null>(null);
-  const [documents, setDocuments] = useState<CrmDocumentData[]>([]);
-  const [documentsLoading, setDocumentsLoading] = useState(false);
-  const [documentsError, setDocumentsError] = useState<string | null>(null);
+  // Documents are not shown in this view currently
+  // const [documents, setDocuments] = useState<CrmDocumentData[]>([]);
+  // const [documentsLoading, setDocumentsLoading] = useState(false);
+  // const [documentsError, setDocumentsError] = useState<string | null>(null);
   const [notesKey, setNotesKey] = useState(0);
   
   // Approval tasks state
@@ -44,13 +43,13 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({ accountId, c
   const [approvalTasksLoading, setApprovalTasksLoading] = useState(false);
   const [approvalTasksError, setApprovalTasksError] = useState<string | null>(null);
 
-  const restClient = useRestClient(env('NEXT_PUBLIC_KOGITO_PROCESSES_ENDPOINT'));
+  // const restClient = useRestClient(env('NEXT_PUBLIC_KOGITO_PROCESSES_ENDPOINT'));
   const [deletePopup, setDeletePopup] = useState<{ open: boolean; activity?: SalesActivityData }>({ open: false });
   const [deleteApprovalPopup, setDeleteApprovalPopup] = useState<{ open: boolean; task?: InvestmentTask }>({ open: false });
   
   // Use the centralized investment data hooks
   const { fetchInvestmentActivitiesByAccountId } = useGetInvestmentActivitiesByAccountId(context);
-  const { fetchInvestmentDocumentsByAccountId } = useGetInvestmentDocumentsByAccountId(context);
+  // const { fetchInvestmentDocumentsByAccountId } = useGetInvestmentDocumentsByAccountId(context);
   const { fetchInvestmentTasksByAccountId } = useGetInvestmentTasksByAccountId(context);
 
   const loadActivities = async () => {
@@ -76,19 +75,7 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({ accountId, c
   };
 
   const loadDocuments = async () => {
-    if (!accountId) return;
-    
-    setDocumentsLoading(true);
-    setDocumentsError(null);
-    
-    try {
-      const documents = await fetchInvestmentDocumentsByAccountId(accountId);
-      setDocuments(documents);
-    } catch (err) {
-      setDocumentsError(err instanceof Error ? err.message : 'Failed to load documents');
-    } finally {
-      setDocumentsLoading(false);
-    }
+    // documents not used in this view
   };
 
   const loadApprovalTasks = async () => {
@@ -126,20 +113,7 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({ accountId, c
     }
   };
 
-  const handleRequestApproval = () => {
-    if (accountId) {
-      // Pre-fill task with approval type, let user select from managers
-      startProcess({
-        domain: 'investments',
-        processName: 'createInvestmentTask',
-        payload: {
-          accountId,
-          typeRef: 'InvestmentTaskType:v1:APPROVAL', // Correct catalog format
-        },
-        builderType: 'NATIVE_SCREEN',
-      });
-    }
-  };
+  // request approval handled by AppAction
 
   const getPriorityColor = (priority: string) => {
     switch (priority?.toLowerCase()) {
@@ -155,10 +129,7 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({ accountId, c
     return priority?.value || 'Medium';
   };
 
-  const getTypeValue = (type: any): string => {
-    if (typeof type === 'string') return type;
-    return type?.value || 'Approval';
-  };
+  // no-op
 
   // Helper function to get timing type icon
   const getTimingTypeIcon = (timingType?: string) => {
@@ -176,50 +147,9 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({ accountId, c
     }
   };
 
-  const handleUpdateTask = (task: any) => {
-    startProcess({
-      domain: 'investments',
-      processName: 'saveInvestmentTask',
-      payload: {
-        accountId: accountId,
-        typeRef: task.typeRef || 'InvestmentTaskType:v1:APPROVAL',
-        taskData: task // Pass existing task data for update mode
-      },
-      builderType: 'NATIVE_SCREEN',
-    });
-  };
+  // update handled by flows elsewhere
 
-  const handleDeleteApprovalTask = (task: any) => {
-    Modal.confirm({
-      title: 'Confirm Deletion',
-      content: `Are you sure you want to delete the approval task "${task.name || 'Untitled Task'}"?`,
-      okText: 'Delete',
-      okType: 'danger',
-      cancelText: 'Cancel',
-      onOk: async () => {
-        try {
-          await restClient.post('/investments/saveInvestmentTask', {
-            changeMode: "DELETE",
-            investmentTask: {
-              id: task.id,
-              version: task.version,
-              account: accountId
-            }
-          }, {
-            headers: { Authorization: `Bearer ${context.accessToken}` }
-          });
-          
-          // Remove the task from local state
-          setApprovalTasks(prevTasks => prevTasks.filter(t => t.id !== task.id));
-          
-          message.success('Approval task deleted successfully');
-        } catch (error) {
-          console.error('Error deleting approval task:', error);
-          message.error('Failed to delete approval task');
-        }
-      },
-    });
-  };
+  // deletion uses DeleteConfirmPopup
 
   useEffect(() => {
     if (activeTab === 'activities') {
@@ -390,73 +320,9 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({ accountId, c
 
   // Activity and document actions handled by AppAction components
 
-  const handleDeleteDocument = (document: CrmDocumentData) => {
-    Modal.confirm({
-      title: 'Confirm Deletion',
-      content: `Are you sure you want to delete the document "${document.name}"?`,
-      okText: 'Delete',
-      okType: 'danger',
-      cancelText: 'Cancel',
-      onOk: async () => {
-        try {
-          await restClient.post('/investments/saveInvestmentDocument', {
-            changeMode: "DELETE",
-            investmentDocument: {
-              id: document.id,
-              version: document.version,
-              account: accountId
-            }
-          }, {
-            headers: { Authorization: `Bearer ${context.accessToken}` }
-          });
-          
-          // Remove the document from local state
-          setDocuments(prevDocuments => 
-            prevDocuments.filter(d => d.id !== document.id)
-          );
-          
-          message.success('Document deleted successfully');
-        } catch (error) {
-          console.error('Error deleting document:', error);
-          message.error('Failed to delete document');
-        }
-      },
-    });
-  };
+  // document deletion not used here
 
-  const handleDeleteActivity = (activity: SalesActivityData) => {
-    Modal.confirm({
-      title: 'Confirm Deletion',
-      content: `Are you sure you want to delete the activity "${activity.title}"?`,
-      okText: 'Delete',
-      okType: 'danger',
-      cancelText: 'Cancel',
-      onOk: async () => {
-        try {
-          await restClient.post('/investments/saveInvestmentActivity', {
-            changeMode: 'DELETE',
-            investmentActivity: {
-              id: activity.id,
-              version: activity.version,
-              account: accountId
-            }
-          }, {
-            headers: { Authorization: `Bearer ${context.accessToken}` }
-          });
-          
-          // Remove the activity from the local state
-          setActivities(prevActivities => 
-            prevActivities.filter(act => act.id !== activity.id)
-          );
-          
-          message.success('Activity deleted successfully');
-        } catch (error) {
-          console.error('Error deleting activity:', error);
-          message.error('Failed to delete activity');
-        }
-      },
-    });
-  };
+  // activity deletion uses ActivityDeletePopup only
 
   const getActivityTypeValue = (activityType: any): string => {
     if (!activityType) return '';
@@ -590,7 +456,7 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({ accountId, c
                 showIcon
                 style={{ marginBottom: '16px' }}
                 action={
-                  <Button size="small" onClick={loadActivities}>
+                  <Button size="sm" onClick={loadActivities}>
                     Retry
                   </Button>
                 }
@@ -647,7 +513,7 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({ accountId, c
                       </div>
                       <div>
                         <Text type="secondary">
-                          {dayjs(activity.createdAt).format('MMM D, YYYY [at] h:mm A')} - {activity.ownerDisplayName || 'Unknown'}
+                          {dayjs(activity.createdAt).format('MMM D, YYYY [at] h:mm A')} - {(activity.ownerDisplayName || activity.ownerEmployee?.displayName || activity.ownerEmployee?.fullName || `${(activity as any).ownerEmployee?.firstName || ''} ${(activity as any).ownerEmployee?.lastName || ''}`.trim() || activity.createdBy || 'Unknown')}
                         </Text>
                       </div>
                       {getActivityTypeValue(activity.activityType) && (
@@ -670,9 +536,8 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({ accountId, c
                         </div>
                       )}
                       <Button 
-                        type="text" 
-                        icon={<CloseOutlined />} 
-                        size="small"
+                        variant="ghost" 
+                        size="icon"
                         style={{ 
                           position: 'absolute', 
                           right: 0, 
@@ -682,7 +547,9 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({ accountId, c
                         }}
                         onClick={() => setDeletePopup({ open: true, activity })}
                         data-testid={`delete-activity-${activity.id}`}
-                      />
+                      >
+                        <CloseOutlined />
+                      </Button>
                     </div>
                   </Timeline.Item>
                 ))}
@@ -752,7 +619,7 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({ accountId, c
                 type="error"
                 showIcon
                 action={
-                  <Button size="small" onClick={loadApprovalTasks}>
+                  <Button size="sm" onClick={loadApprovalTasks}>
                     Retry
                   </Button>
                 }
@@ -839,24 +706,16 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({ accountId, c
                         </div>
                       </div>
                       <div style={{ position: 'absolute', right: 0, top: 0, display: 'flex', gap: '4px' }}>
-                        <Button
-                          type="text"
-                          icon={<EditOutlined />}
-                          size="small"
-                          style={{ padding: '4px', lineHeight: 1 }}
-                          onClick={() => handleUpdateTask(task)}
-                          data-testid={`update-task-${task.id}`}
-                          title="Update Task"
-                        />
                         <Button 
-                          type="text" 
-                          icon={<CloseOutlined />} 
-                          size="small"
+                          variant="ghost"
+                          size="icon"
                           style={{ padding: '4px', lineHeight: 1 }}
                           onClick={() => setDeleteApprovalPopup({ open: true, task })}
                           data-testid={`delete-approval-task-${task.id}`}
                           title="Delete Task"
-                        />
+                        >
+                          <CloseOutlined />
+                        </Button>
                       </div>
                     </div>
                   </Timeline.Item>

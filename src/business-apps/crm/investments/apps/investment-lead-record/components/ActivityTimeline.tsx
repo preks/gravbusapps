@@ -1,20 +1,20 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { PlusCircleOutlined, FileTextOutlined, CloseOutlined, EditOutlined, LoadingOutlined, CloudUploadOutlined, RobotOutlined } from '@ant-design/icons';
-import { List, Spin, Alert, Empty, message, Timeline, Typography, Modal } from 'antd';
+import { PlusCircleOutlined, CloseOutlined, LoadingOutlined } from '@ant-design/icons';
+import { Spin, Alert, Empty, message, Timeline, Typography } from 'antd';
 import { Clock, Calendar } from 'lucide-react';
-import { startProcess } from '@/common/utils/start-process';
+// import { startProcess } from '@/common/utils/start-process';
 import { useProcessCompletion } from '@/common/hooks/useProcessCompletion';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 import { NotesSection } from './NotesSection';
 import { useGetInvestmentActivitiesByLeadId } from '@/common/data/investment/hooks/useInvestmentLeads';
 import { useGetInvestmentTasksByLeadId } from '@/common/data/investment/hooks/useInvestmentLeads';
-import { useRestClient } from '@/common/network/rest/useRestClient';
-import { env } from '@/common/env/EnvUtils';
+// import { useRestClient } from '@/common/network/rest/useRestClient';
+// import { env } from '@/common/env/EnvUtils';
 import dayjs from 'dayjs';
 import { LanguageDropdown } from './LanguageDropdown';
-import { translateMultipleTexts } from '../utils/translationService';
-import { useEmployeeData } from '@/business-apps/crm/common/hooks/useEmployeeData';
-import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient';
+// import { translateMultipleTexts } from '../utils/translationService';
+// import { useEmployeeData } from '@/business-apps/crm/common/hooks/useEmployeeData';
+// import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient';
 import { CheckCircleOutlined } from '@ant-design/icons';
 import type { InvestmentActivity, InvestmentTask } from '@/common/data/investment/types';
 import { AppAction } from '@/components/app-action';
@@ -51,9 +51,9 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({ leadId, cont
   const [activities, setActivities] = useState<TranslatedActivity[]>([]);
   const [activitiesLoading, setActivitiesLoading] = useState(false);
   const [activitiesError, setActivitiesError] = useState<string | null>(null);
-  const [notesKey, setNotesKey] = useState(0);
+  const [notesKey, _setNotesKey] = useState(0);
   const [selectedLanguage, setSelectedLanguage] = useState('Original');
-  const [translating, setTranslating] = useState(false);
+  const [translating, _setTranslating] = useState(false);
   const [approvalTasks, setApprovalTasks] = useState<InvestmentTask[]>([]);
   const [approvalTasksLoading, setApprovalTasksLoading] = useState(false);
   const [approvalTasksError, setApprovalTasksError] = useState<string | null>(null);
@@ -61,8 +61,6 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({ leadId, cont
 
   const { fetchInvestmentActivitiesByLeadId } = useGetInvestmentActivitiesByLeadId(context);
   const { fetchInvestmentTasksByLeadId } = useGetInvestmentTasksByLeadId(context);
-  const restClient = useRestClient(env('NEXT_PUBLIC_KOGITO_PROCESSES_ENDPOINT'));
-  const graphqlClient = useGraphQLClient(context.accessToken);
   const [deletePopup, setDeletePopup] = useState<{ open: boolean; activity?: InvestmentActivity }>({ open: false });
   const [deleteApprovalPopup, setDeleteApprovalPopup] = useState<{ open: boolean; task?: InvestmentTask }>({ open: false });
 
@@ -121,7 +119,8 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({ leadId, cont
 
     try {
       const tasksData = await fetchInvestmentTasksByLeadId(leadId);
-      setApprovalTasks(tasksData);
+      const approvalsOnly = tasksData.filter(isApprovalTask);
+      setApprovalTasks(approvalsOnly);
     } catch (error) {
       console.error('Error loading approval tasks:', error);
       setApprovalTasksError(error instanceof Error ? error.message : 'Failed to load approval tasks');
@@ -177,22 +176,7 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({ leadId, cont
     return '';
   };
 
-  const handleUpdateTask = (task: InvestmentTask) => {
-    startProcess({
-      domain: 'investments',
-      processName: 'createInvestmentTask',
-      payload: {
-        leadId: leadId,
-        typeRef: task.taskType?.id || 'InvestmentTaskType:v1:APPROVAL',
-        taskData: task // Pass existing task data for update mode
-      },
-      builderType: 'NATIVE_SCREEN',
-    });
-  };
 
-  const handleDeleteTask = (task: InvestmentTask) => {
-    setDeleteApprovalPopup({ open: true, task });
-  };
 
   const getEmployeeDisplayNameFromObject = (employee: any): string => {
     if (!employee) return 'Unknown User';
@@ -218,8 +202,12 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({ leadId, cont
 
   // Request approval handled by AppAction component
 
-  const handleTabChange = (newTab: 'activities' | 'notes' | 'approvals') => {
-    updateActiveTab(newTab);
+  // Helper: identify approval tasks by type reference or code/value
+  const isApprovalTask = (task: InvestmentTask): boolean => {
+    const typeVal = (task as any)?.taskType?.code || (task as any)?.taskType?.value || (task as any)?.typeRef;
+    if (!typeVal) return false;
+    const val = String(typeVal);
+    return val.toLowerCase() === 'approval' || val.toUpperCase().endsWith(':APPROVAL');
   };
 
   return (
@@ -388,7 +376,7 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({ leadId, cont
                       </div>
                       <div>
                         <Text type="secondary">
-                          {dayjs(activity.createdAt).format('MMM D, YYYY [at] h:mm A')} - {getEmployeeDisplayNameFromObject(activity.createdBy)}
+                          {dayjs(activity.createdAt).format('MMM D, YYYY [at] h:mm A')} - {(activity.ownerEmployee?.displayName || activity.ownerEmployee?.fullName || `${(activity as any).ownerEmployee?.firstName || ''} ${(activity as any).ownerEmployee?.lastName || ''}`.trim() || getEmployeeDisplayNameFromObject(activity.createdBy))}
                         </Text>
                       </div>
                       {getActivityTypeValue(activity.activityType) && (
@@ -409,26 +397,11 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({ leadId, cont
                         <div>{activity.translatedDescription || activity.description}</div>
                       </div>
                       <div style={{ position: 'absolute', top: '0', right: '0' }}>
-                        <AppAction
-                          contextsArray={[FlowContextName.investmentActivityEntity]}
-                          externalContextData={{ leadId, activityId: activity.id }}
-                          prefixDataTestId={`edit-activity-${activity.id}`}
-                          accessToken={context.accessToken}
-                          emptyStateBehavior="enable"
-                          deferMainContextRequestsUntilClick
-                        >
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            style={{ marginRight: '4px' }}
-                          >
-                            <EditOutlined />
-                          </Button>
-                        </AppAction>
                         <Button
                           variant="ghost"
-                          size="sm"
+                          size="icon"
                           onClick={() => handleDeleteActivity(activity)}
+                          data-testid={`delete-activity-${activity.id}`}
                         >
                           <CloseOutlined />
                         </Button>
@@ -460,22 +433,13 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({ leadId, cont
               Notes
             </div>
             <AppAction
-              contextsArray={[FlowContextName.investmentNoteEntity]}
+              contextsArray={[FlowContextName.createInvestmentNote]}
               externalContextData={{
                 leadId,
                 lead: leadId,
                 investmentNote: { lead: leadId }
               }}
-              staticFlowData={leadId ? [{
-                key: 'create-investment-note-fallback',
-                label: 'Add Note',
-                onClick: () => startProcess({
-                  domain: 'investments',
-                  processName: 'createInvestmentNote',
-                  payload: { leadId },
-                  builderType: 'NATIVE_SCREEN'
-                })
-              }] : []}
+              staticFlowData={[]}
               prefixDataTestId="add-note"
               accessToken={context.accessToken}
               emptyStateBehavior="enable"
@@ -523,21 +487,10 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({ leadId, cont
               externalContextData={{ 
                 leadId,
                 lead: leadId,
+                typeRef: 'InvestmentTaskType:v1:APPROVAL',
                 investmentTask: { lead: leadId, type: 'InvestmentTaskType:v1:APPROVAL' }
               }}
-              staticFlowData={leadId ? [{
-                key: 'create-investment-approval-fallback',
-                label: 'Request Approval',
-                onClick: () => startProcess({
-                  domain: 'investments',
-                  processName: 'createInvestmentTask',
-                  payload: {
-                    leadId,
-                    typeRef: 'InvestmentTaskType:v1:APPROVAL',
-                  },
-                  builderType: 'NATIVE_SCREEN'
-                })
-              }] : []}
+              staticFlowData={[]}
               prefixDataTestId="request-approval"
               accessToken={context.accessToken}
               emptyStateBehavior="enable"
@@ -609,18 +562,12 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({ leadId, cont
                         <div>{task.description}</div>
                       </div>
                       <div style={{ position: 'absolute', top: '0', right: '0' }}>
+                        {/* Edit is not supported in CRM IRM timeline; removing stray handler */}
                         <Button
                           variant="ghost"
-                          size="sm"
-                          onClick={() => handleUpdateTask(task)}
-                          style={{ marginRight: '4px' }}
-                        >
-                          <EditOutlined />
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="sm"
+                          size="icon"
                           onClick={() => setDeleteApprovalPopup({ open: true, task })}
+                          data-testid={`delete-approval-task-${task.id}`}
                         >
                           <CloseOutlined />
                         </Button>

@@ -39,6 +39,7 @@ const InvestmentTaskForm: React.FC<InvestmentTaskFormProps> = ({ accessToken, us
     ...initialFormData,
     assignedEmployeeId: userInfo?.employeeDetails?.employeeId || '',
   });
+  const [attachedFiles, setAttachedFiles] = useState<File[]>([]);
   const { entities, loading: entitiesLoading, error: entitiesError, searchEntities, hasMore: entitiesHasMore, loadMore: loadMoreEntities, hydrateEntityById } = useInvestmentEntities({ accessToken, additionalData });
   const { employees, search: searchEmployees, loading: employeesLoading, hasMore: employeesHasMore, loadMore: loadMoreEmployees, hydrateById } = useEmployeeSearch(accessToken);
   const [assigneePrefill, setAssigneePrefill] = useState<Array<{ id: string; displayName: string; userId?: string; pictureThumbnail?: string; organizationalUnitName?: string; jobPositionName?: string }>>([]);
@@ -235,7 +236,9 @@ const InvestmentTaskForm: React.FC<InvestmentTaskFormProps> = ({ accessToken, us
     >
       <TaskSegment
         // labels
-        titleLabel={getTranslationFromI18nKeyAndLabel('crm:salesTask.title', 'Title')}
+        titleLabel={isApprovalMode 
+          ? getTranslationFromI18nKeyAndLabel('crm:salesTask.title', 'Approval Name')
+          : getTranslationFromI18nKeyAndLabel('crm:salesTask.title', 'Task Name')}
         descriptionLabel={getTranslationFromI18nKeyAndLabel('crm:salesTask.description', 'Description')}
         deadlineLabel={getTranslationFromI18nKeyAndLabel('crm:salesTask.deadline', 'Deadline')}
         typeLabel={getTranslationFromI18nKeyAndLabel('crm:salesTask.type', 'Type')}
@@ -243,7 +246,8 @@ const InvestmentTaskForm: React.FC<InvestmentTaskFormProps> = ({ accessToken, us
         statusLabel={getTranslationFromI18nKeyAndLabel('crm:salesTask.status', 'Status')}
         assigneeLabel={getTranslationFromI18nKeyAndLabel('crm:salesTask.assignedTo', 'Assigned To')}
         entityLabel={getTranslationFromI18nKeyAndLabel('crm:salesTask.relatedEntity', 'Related Entity')}
-        uploadFileLabel={getTranslationFromI18nKeyAndLabel('crm:salesTask.uploadFile', 'Upload File')}
+        uploadFileLabel={getTranslationFromI18nKeyAndLabel('crm:salesTask.uploadFile', 'Attach Documents')}
+        onFilesChange={(files) => setAttachedFiles(files)}
         timingTypeLabel={getTranslationFromI18nKeyAndLabel('crm:salesTask.timingType', 'Timing Type')}
         // catalogs
         accessToken={accessToken}
@@ -251,9 +255,9 @@ const InvestmentTaskForm: React.FC<InvestmentTaskFormProps> = ({ accessToken, us
         priorityCatalog={{ identifier: TASK_PRIORITY_CATALOG, version: 'v1' }}
         statusCatalog={{ identifier: TASK_STATUS_CATALOG, version: 'v1' }}
         // entity search
-        // In investment context we always hide both Assigned To and Related Entity
+        // Show Assigned To per IRM requirements; keep entity selection hidden
         showEntitySelection={false}
-        showAssigneeSelection={false}
+        showAssigneeSelection={true}
         entities={entities}
         entitiesLoading={entitiesLoading}
         entitiesError={Boolean(entitiesError)}

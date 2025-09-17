@@ -1,9 +1,12 @@
 import React, { useMemo, useState, useEffect, useRef } from 'react';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 import { Button, Alert, Spinner, TimelineLayout, Select, SelectContent, SelectItem, SelectTrigger, SelectValue, Card, CardHeader, CardContent, CardTitle } from '@newwork/nw-design-system';
-import { PhoneIcon, EnvelopeIcon, CalendarBlankIcon, UserIcon, PlusCircleIcon } from '@phosphor-icons/react';
+import { PhoneIcon, EnvelopeIcon, CalendarBlankIcon, UserIcon, PlusCircleIcon, DotsThreeVerticalIcon } from '@phosphor-icons/react';
+import { MoreOutlined } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import { AppAction } from '@/components/app-action';
+import { AppActionMenu } from '@/components/app-action-menu/AppActionMenu';
+import type { AppActionCommonProps } from '@/common/hooks/useAppActionData';
 import { buildPlatformUrl } from '@/common/utils/navigationUtils';
 import { FlowContextName } from '@/common/types/FlowRegistryTypes';
 import { LANGUAGES, Language, translateMultipleTexts } from './translationService';
@@ -38,6 +41,7 @@ interface ActivitySectionProps extends BusinessAppContextProps {
   contextsArray: FlowContextName[];
   externalContextData?: Record<string, any>;
   prefixDataTestId?: string;
+  activityEntityActionProps?: Omit<AppActionCommonProps, 'accessToken'>;
   // Translation features
   showTranslation?: boolean;
 }
@@ -126,7 +130,22 @@ const ActivitySection: React.FC<ActivitySectionProps> = ({ defaultTab = 'activit
   };
   
   // no approvals/notes here – they live in their own sections
-  const getEmployeeDisplayNameFromObject = (emp: any) => emp?.displayName || (emp?.firstName && emp?.lastName ? `${emp.firstName} ${emp.lastName}` : 'Unknown User');
+  const getEmployeeDisplayNameFromObject = (emp: any, context?: any) => {
+    // If emp is an object with display properties
+    if (emp && typeof emp === 'object') {
+      return emp?.displayName || (emp?.firstName && emp?.lastName ? `${emp.firstName} ${emp.lastName}` : 'Unknown User');
+    }
+    
+    // If emp is just a string ID, check if it matches current user
+    if (emp && typeof emp === 'string' && context?.userInfo?.employeeDetails?.employeeId === emp) {
+      const userInfo = context.userInfo.employeeDetails;
+      return userInfo?.displayName || 
+             (userInfo?.firstName && userInfo?.lastName ? `${userInfo.firstName} ${userInfo.lastName}` : 'Unknown User');
+    }
+    
+    // Fallback for unknown users
+    return 'Unknown User';
+  };
 
   return (
     <Card data-testid={context['data-testid'] || 'activity-section'} className={className}>
@@ -192,8 +211,8 @@ const ActivitySection: React.FC<ActivitySectionProps> = ({ defaultTab = 'activit
             const title = (showTranslation && activity.translatedTitle) ? activity.translatedTitle : (activity.title || 'New Activity');
             const dateSource = activity.occurredAt || activity.createdAt;
             const occurred = dayjs(dateSource).isValid() ? dayjs(dateSource).format('MMM D, YYYY [at] h:mm A') : '';
-            const ownerName = activity.ownerEmployee ? getEmployeeDisplayNameFromObject(activity.ownerEmployee) : (activity.createdBy || 'Unknown User');
-            const ownerId = activity.ownerEmployee?.id;
+            const ownerName = getEmployeeDisplayNameFromObject(activity.ownerEmployee, context);
+            const ownerId = typeof activity.ownerEmployee === 'string' ? activity.ownerEmployee : activity.ownerEmployee?.id;
             const activityTypeLabel = activity.activityType?.value || activity.activityType;
             const description = [
               activityTypeLabel, 
@@ -209,6 +228,27 @@ const ActivitySection: React.FC<ActivitySectionProps> = ({ defaultTab = 'activit
               return UserIcon; // Default icon
             };
             
+            // Create actions for this activity if activityEntityActionProps is provided
+            const activityActions = (context as any).activityEntityActionProps ? (
+              <AppActionMenu
+                accessToken={context.accessToken}
+                contextsArray={(context as any).activityEntityActionProps.contextsArray}
+                externalContextData={{ ...(context as any).activityEntityActionProps.externalContextData, activityId: activity.id }}
+                prefixDataTestId={(context as any).activityEntityActionProps.prefixDataTestId ? `${(context as any).activityEntityActionProps.prefixDataTestId}-${activity.id}` : `activity-actions-${activity.id}`}
+                emptyStateBehavior={(context as any).activityEntityActionProps.emptyStateBehavior || 'enable'}
+                deferMainContextRequestsUntilClick={true}
+                data-testid={`activity-actions-menu-${activity.id}`}
+              >
+                <span
+                  aria-label="Activity actions"
+                  className="gba:inline-flex gba:items-center gba:justify-center gba:cursor-pointer gba:p-1 gba:rounded hover:gba:bg-gray-100"
+                  data-testid={`activity-actions-trigger-${activity.id}`}
+                >
+                  <MoreOutlined className="gba:rotate-90" />
+                </span>
+              </AppActionMenu>
+            ) : null;
+
             return {
               id: index,
               date: occurred,
@@ -228,6 +268,7 @@ const ActivitySection: React.FC<ActivitySectionProps> = ({ defaultTab = 'activit
                 : undefined,
               description,
               icon: getActivityIcon(activityTypeLabel),
+              actions: activityActions,
             } as any;
           });
           return (

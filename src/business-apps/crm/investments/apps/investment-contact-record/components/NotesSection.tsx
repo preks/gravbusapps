@@ -3,7 +3,7 @@ import { PlusCircleOutlined, CloseOutlined, LoadingOutlined } from '@ant-design/
 import { Spin, Alert, Empty, Timeline, Typography, message } from 'antd';
 import { Button } from '@newwork/nw-design-system';
 import { NoteDeletePopup } from '@/common/components/common-relations/popups/note-delete-popup';
-import { startProcess } from '@/common/utils/start-process';
+// import { startProcess } from '@/common/utils/start-process';
 import { AppAction } from '@/components/app-action/AppAction';
 import { FlowContextName } from '@/common/types/FlowRegistryTypes';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
@@ -83,10 +83,10 @@ export const NotesSection: React.FC<NotesSectionProps> = ({ contactId, context }
         
         originalNotes.forEach((note, noteIndex) => {
           const titleIndex = textsToTranslate.length;
-          textsToTranslate.push(note.noteTitle);
+          textsToTranslate.push(note.title);
           
           const textIndex = textsToTranslate.length;
-          textsToTranslate.push(note.noteText);
+          textsToTranslate.push(note.text);
           
           noteMapping.push({ noteIndex, titleIndex, textIndex });
         });
@@ -191,22 +191,13 @@ export const NotesSection: React.FC<NotesSectionProps> = ({ contactId, context }
           )}
         </div>
         <AppAction
-          contextsArray={[FlowContextName.investmentNoteEntity]}
+          contextsArray={[FlowContextName.createInvestmentNote]}
           externalContextData={{
             contactId,
             contact: contactId,
             investmentNote: { contact: contactId }
           }}
-          staticFlowData={contactId ? [{
-            key: 'create-investment-note-fallback',
-            label: 'Add Note',
-            onClick: () => startProcess({
-              domain: 'investments',
-              processName: 'createInvestmentNote',
-              payload: { contactId },
-              builderType: 'NATIVE_SCREEN'
-            })
-          }] : []}
+          staticFlowData={[]}
           prefixDataTestId="add-note"
           accessToken={context.accessToken}
           emptyStateBehavior="enable"
@@ -263,7 +254,7 @@ export const NotesSection: React.FC<NotesSectionProps> = ({ contactId, context }
                 <div style={{ position: 'relative' }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                     <Text strong>
-                      {note.translatedTitle || note.noteTitle}
+                      {note.translatedTitle || note.title}
                     </Text>
                   </div>
                   <div>
@@ -272,7 +263,7 @@ export const NotesSection: React.FC<NotesSectionProps> = ({ contactId, context }
                     </Text>
                   </div>
                   <div style={{ marginTop: '4px' }}>
-                    <div>{note.translatedText || note.noteText}</div>
+                    <div>{note.translatedText || note.text}</div>
                   </div>
                   <Button 
                     variant="ghost" 
@@ -303,7 +294,7 @@ export const NotesSection: React.FC<NotesSectionProps> = ({ contactId, context }
           accessToken={context.accessToken}
           noteId={deletePopup.note.id}
           noteVersion={deletePopup.note.version}
-          noteTitle={deletePopup.note.noteTitle}
+          noteTitle={deletePopup.note.title || 'Untitled Note'}
           domain="investments"
           onSuccess={() => {
             const id = deletePopup.note!.id;

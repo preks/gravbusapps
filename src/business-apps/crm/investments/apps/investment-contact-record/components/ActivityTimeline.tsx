@@ -1,21 +1,22 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { PlusCircleOutlined, CloseOutlined, LoadingOutlined, CheckCircleOutlined } from '@ant-design/icons';
-import { Spin, Alert, Empty, message, Timeline, Typography, Modal } from 'antd';
+import { Spin, Alert, Empty, message, Timeline, Typography } from 'antd';
 import { Button } from '@newwork/nw-design-system';
 import { AppAction } from '@/components/app-action/AppAction';
 import { FlowContextName } from '@/common/types/FlowRegistryTypes';
 import { ActivityDeletePopup } from '@/common/components/common-relations/popups/activity-delete-popup';
 // import { Clock, Calendar } from 'lucide-react'; // Unused import
-import { startProcess } from '@/common/utils/start-process';
+// import { startProcess } from '@/common/utils/start-process';
 import { useProcessCompletion } from '@/common/hooks/useProcessCompletion';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 import { NotesSection } from './NotesSection';
 import { useGetInvestmentActivitiesByContactId, useGetInvestmentTasksByContactId } from '@/common/data/investment/hooks/useInvestmentContacts';
 import type { InvestmentActivity, InvestmentTask } from '@/common/data/investment/types';
 import { useEmployeeData } from '@/business-apps/crm/common/hooks/useEmployeeData';
-import { useRestClient } from '@/common/network/rest/useRestClient';
-// import { useFileClient } from '@/common/network/files/useFileClient'; // Unused import
-import { env } from '@/common/env/EnvUtils';
+// import { useRestClient } from '@/common/network/rest/useRestClient';
+// import { env } from '@/common/env/EnvUtils';
+import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient';
+import { DeleteConfirmPopup } from '@/common/components/common-relations/popups/delete-confirm-popup';
 import dayjs from 'dayjs';
 import { LanguageDropdown } from './LanguageDropdown';
 import { translateMultipleTexts } from '../utils/translationService';
@@ -34,11 +35,6 @@ interface TranslatedActivity extends InvestmentActivity {
   isTranslating?: boolean;
 }
 
-const getEmployeeDisplayNameFromObject = (employee: any): string => {
-  if (!employee) return 'Unknown User';
-  if (typeof employee === 'string') return employee;
-  return employee.displayName || employee.fullName || `${employee.firstName || ''} ${employee.lastName || ''}`.trim() || employee.id || 'Unknown User';
-};
 
 export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({ contactId, context }) => {
   // Read initial tab from URL parameters
@@ -66,7 +62,8 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({ contactId, c
   const { fetchInvestmentActivitiesByContactId } = useGetInvestmentActivitiesByContactId(context);
   const { fetchInvestmentTasksByContactId } = useGetInvestmentTasksByContactId(context);
   const { getEmployeeDisplayName } = useEmployeeData(context.accessToken);
-  const restClient = useRestClient(env('NEXT_PUBLIC_KOGITO_PROCESSES_ENDPOINT'));
+  const graphqlClient = useGraphQLClient(context.accessToken);
+  const [deleteApprovalPopup, setDeleteApprovalPopup] = useState<{ open: boolean; task?: InvestmentTask }>({ open: false });
   // const { salesManagers } = useSalesManagerEmployees(context.accessToken);
 
   // Listen for process completion to refetch approval tasks
@@ -116,7 +113,7 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({ contactId, c
                 }
               `;
               
-              const employeeResult = await graphqlClient.request(employeeQuery, { userId: activity.createdBy });
+              const employeeResult = await graphqlClient.request(employeeQuery, { userId: activity.createdBy as string });
               const employee = employeeResult?.Employee?.[0];
               if (employee) {
                 return { ...activity, ownerEmployee: employee };
@@ -159,15 +156,15 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({ contactId, c
         
         originalActivities.forEach((activity, activityIndex) => {
           const titleIndex = textsToTranslate.length;
-          textsToTranslate.push(activity.title);
+          textsToTranslate.push(activity.title || '');
           
           const descriptionIndex = textsToTranslate.length;
-          textsToTranslate.push(activity.description);
+          textsToTranslate.push(activity.description || '');
           
           activityMapping.push({ activityIndex, titleIndex, descriptionIndex });
         });
 
-        const translatedTexts = await translateMultipleTexts(textsToTranslate, selectedLanguage, context.accessToken);
+        const translatedTexts = await translateMultipleTexts(textsToTranslate, selectedLanguage, context.accessToken!);
         
         const translatedActivities: TranslatedActivity[] = originalActivities.map((originalActivity, activityIndex) => {
           const mapping = activityMapping[activityIndex];
@@ -203,27 +200,12 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({ contactId, c
     try {
       const result = await fetchInvestmentTasksByContactId(contactId);
       
-      // Filter for approval tasks only - check both possible field structures
-      let approvalTasks = (result || []).filter(task => {
-        // Check both type.value (catalog reference) and direct typeRef fields
-        const taskTypeValue = task.type?.value;
-        const typeRef = task.typeRef;
-        
-        return (
-          // Check type.value field (catalog reference)
-          (taskTypeValue && taskTypeValue.toLowerCase() === 'approval') ||
-          // Check direct typeRef field for various formats
-          (typeRef && (
-            typeRef.toLowerCase() === 'approval' ||
-            typeRef === 'InvestmentTaskType:v1:APPROVAL' ||
-            typeRef === 'InvestmentTaskType:v1:APPROVAL'
-          ))
-        );
-      });
+      // Filter for approval tasks only using helper
+      const approvalsOnly = (result || []).filter(isApprovalTask);
 
       // Fetch creator employee information for tasks where creatorEmployee is null
       const enhancedTasks = await Promise.all(
-        approvalTasks.map(async (task) => {
+        approvalsOnly.map(async (task) => {
           if (!task.creatorEmployee && task.createdBy) {
             try {
               // Look up employee by userId
@@ -239,7 +221,7 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({ contactId, c
                 }
               `;
               
-              const employeeResult = await graphqlClient.request(employeeQuery, { userId: task.createdBy });
+              const employeeResult = await graphqlClient.request(employeeQuery, { userId: task.createdBy as string });
               const employee = employeeResult?.Employee?.[0];
               if (employee) {
                 return { ...task, creatorEmployee: employee };
@@ -260,10 +242,13 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({ contactId, c
     }
   };
 
-  const getEmployeeDisplayNameFromObject = (employee: any): string => {
-    if (!employee) return 'Unknown User';
-    if (typeof employee === 'string') return getEmployeeDisplayName(employee);
-    return employee.displayName || employee.fullName || `${employee.firstName || ''} ${employee.lastName || ''}`.trim() || employee.id || 'Unknown User';
+
+  // Helper: identify approval tasks by type reference or code/value
+  const isApprovalTask = (task: InvestmentTask): boolean => {
+    const typeVal = (task as any)?.taskType?.code || (task as any)?.taskType?.value || (task as any)?.typeRef;
+    if (!typeVal) return false;
+    const val = String(typeVal);
+    return val.toLowerCase() === 'approval' || val.toUpperCase().endsWith(':APPROVAL');
   };
 
   const refreshNotes = () => {
@@ -386,34 +371,6 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({ contactId, c
     return '';
   };
 
-  const handleDeleteTask = (task: InvestmentTask) => {
-    Modal.confirm({
-      title: 'Confirm Deletion',
-      content: `Are you sure you want to delete the approval task "${task.name}"?`,
-      okText: 'Delete',
-      okType: 'danger',
-      cancelText: 'Cancel',
-      onOk: async () => {
-        try {
-          await restClient.post('/investments/saveInvestmentTask', {
-            changeMode: "DELETE",
-            investmentTask: {
-              id: task.id,
-              version: task.version,
-              contactId: contactId
-            }
-          }, {
-            headers: { Authorization: `Bearer ${context.accessToken}` }
-          });
-          setApprovalTasks(prevTasks => prevTasks.filter(t => t.id !== task.id));
-          message.success('Approval task deleted successfully');
-        } catch (error) {
-          console.error('Error deleting approval task:', error);
-          message.error('Failed to delete approval task');
-        }
-      },
-    });
-  };
 
   return (
     <div 
@@ -580,9 +537,7 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({ contactId, c
                       </div>
                       <div>
                         <Text type="secondary">
-                          {dayjs(activity.occurredAt || activity.createdAt).format('MMM D, YYYY [at] h:mm A')} - {activity.ownerEmployee 
-                            ? getEmployeeDisplayNameFromObject(activity.ownerEmployee) 
-                            : activity.createdBy || 'Unknown User'}
+                          {dayjs(activity.occurredAt || activity.createdAt).format('MMM D, YYYY [at] h:mm A')} - {activity.ownerEmployee?.displayName || getEmployeeDisplayName(activity.ownerEmployee?.id || activity.createdBy) || 'Unknown User'}
                         </Text>
                       </div>
                       {getActivityTypeValue(activity.activityType) && (
@@ -733,15 +688,15 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({ contactId, c
                           </span>
                           <span
                             style={{
-                              background: task.priority?.value === 'High' ? '#fff2e8' : task.priority?.value === 'Medium' ? '#f6ffed' : '#f0f0f0',
-                              color: task.priority?.value === 'High' ? '#fa8c16' : task.priority?.value === 'Medium' ? '#52c41a' : '#8c8c8c',
+                              background: task.taskPriority?.value === 'High' ? '#fff2e8' : task.taskPriority?.value === 'Medium' ? '#f6ffed' : '#f0f0f0',
+                              color: task.taskPriority?.value === 'High' ? '#fa8c16' : task.taskPriority?.value === 'Medium' ? '#52c41a' : '#8c8c8c',
                               padding: '2px 6px',
                               borderRadius: '4px',
                               fontSize: '12px',
                               fontWeight: '500'
                             }}
                           >
-                            {task.priority?.value || 'Normal'}
+                            {task.taskPriority?.value || 'Normal'}
                           </span>
                         </div>
                       </div>
@@ -749,15 +704,13 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({ contactId, c
                         <Text type="secondary">
                           {dayjs(task.createdAt).format('MMM D, YYYY [at] h:mm A')}
                           {' - '}
-                          Created by {task.creatorEmployee 
-                            ? getEmployeeDisplayNameFromObject(task.creatorEmployee) 
-                            : task.createdBy || 'Unknown User'}
+                          Created by {task.creatorEmployee?.displayName || getEmployeeDisplayName(task.creatorEmployee?.id || task.createdBy) || 'Unknown User'}
                         </Text>
                       </div>
                       {task.assignedEmployee && (
                         <div style={{ marginBottom: '4px' }}>
                           <Text type="secondary">
-                            Assigned to: {getEmployeeDisplayNameFromObject(task.assignedEmployee)}
+                            Assigned to: {task.assignedEmployee?.displayName || getEmployeeDisplayName(task.assignedEmployee?.id) || 'Unknown User'}
                           </Text>
                         </div>
                       )}
@@ -774,15 +727,15 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({ contactId, c
                         </div>
                       )}
                     </div>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      style={{ position: 'absolute', right: 0, top: 0, padding: '4px', lineHeight: 1 }}
-                      onClick={() => handleDeleteTask(task)}
-                      data-testid={`delete-approval-task-${task.id}`}
-                    >
-                      <CloseOutlined />
-                    </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        style={{ position: 'absolute', right: 0, top: 0, padding: '4px', lineHeight: 1 }}
+                        onClick={() => setDeleteApprovalPopup({ open: true, task })}
+                        data-testid={`delete-approval-task-${task.id}`}
+                      >
+                        <CloseOutlined />
+                      </Button>
                   </Timeline.Item>
                 ))}
               </Timeline>
@@ -797,7 +750,7 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({ contactId, c
           accessToken={context.accessToken}
           activityId={deletePopup.activity!.id}
           activityVersion={deletePopup.activity!.version}
-          activityTitle={deletePopup.activity!.title}
+          activityTitle={deletePopup.activity!.title || 'Activity'}
           contactId={contactId}
           domain="investments"
           onSuccess={() => {
@@ -808,6 +761,36 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({ contactId, c
           onError={() => {
             message.error('Failed to delete activity');
           }}
+        />
+      ) : null}
+
+      {deleteApprovalPopup?.open && deleteApprovalPopup.task ? (
+        <DeleteConfirmPopup
+          isOpen={deleteApprovalPopup.open}
+          onClose={() => setDeleteApprovalPopup({ open: false })}
+          accessToken={context.accessToken}
+          itemTitle={deleteApprovalPopup.task?.name ? String(deleteApprovalPopup.task.name) : 'Approval Task'}
+          itemType="task"
+          flowContextName={FlowContextName.investmentTaskDelete}
+          externalContextData={{
+            taskId: deleteApprovalPopup.task!.id,
+            investmentTask: {
+              id: deleteApprovalPopup.task!.id,
+              version: deleteApprovalPopup.task!.version,
+            },
+            contactId,
+          }}
+          onFlowSuccess={() => {
+            const id = deleteApprovalPopup.task!.id;
+            setApprovalTasks(prev => prev.filter(t => t.id !== id));
+            setDeleteApprovalPopup({ open: false });
+            message.success('Approval task deleted successfully');
+          }}
+          onFlowError={() => {
+            setDeleteApprovalPopup({ open: false });
+            message.error('Failed to delete approval task');
+          }}
+          data-testid={`delete-approval-task-popup`}
         />
       ) : null}
 

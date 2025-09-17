@@ -216,7 +216,14 @@ const InvestmentOpportunityRecordContent: React.FC<OpportunityRecordContentProps
   }, [refetchOpportunityData]);
 
   useProcessCompletion({
-    onSuccess: refreshOnProcessCompletion
+    onSuccess: () => {
+      console.log("InvestmentOpportunityRecord: Refreshing all data after process completion...");
+      refetchOpportunityData();
+      loadActivities();
+      loadNotes();
+      loadTasksAndApprovals();
+      loadDocuments();
+    }
   });
 
   // Memoize stage condition action props to prevent recreation
@@ -262,6 +269,24 @@ const InvestmentOpportunityRecordContent: React.FC<OpportunityRecordContentProps
     contextsArray: [FlowContextName.investmentNoteEntity],
     externalContextData: { opportunityId },
     prefixDataTestId: "opportunity-note-entity"
+  }), [opportunityId]);
+
+  const taskEntityActionProps = useMemo(() => ({
+    contextsArray: [FlowContextName.investmentTaskEntity],
+    externalContextData: { opportunityId },
+    prefixDataTestId: "opportunity-task-entity"
+  }), [opportunityId]);
+
+  const approvalEntityActionProps = useMemo(() => ({
+    contextsArray: [FlowContextName.investmentTaskEntity],
+    externalContextData: { opportunityId },
+    prefixDataTestId: "opportunity-approval-entity"
+  }), [opportunityId]);
+
+  const activityEntityActionProps = useMemo(() => ({
+    contextsArray: [FlowContextName.investmentActivityEntity],
+    externalContextData: { opportunityId },
+    prefixDataTestId: "opportunity-activity-entity"
   }), [opportunityId]);
 
   const documentCreateFolderActionProps = useMemo(() => ({
@@ -492,6 +517,7 @@ const InvestmentOpportunityRecordContent: React.FC<OpportunityRecordContentProps
                       assigneeEmployee: task.assignedEmployee
                     }))}
                     taskActionProps={taskActionProps}
+                    taskEntityActionProps={taskEntityActionProps}
                     data-testid="opportunity-task-section"
                     {...props}
                   />
@@ -506,6 +532,7 @@ const InvestmentOpportunityRecordContent: React.FC<OpportunityRecordContentProps
                       actorEmployee: approval.creatorEmployee
                     }))}
                     approvalActionProps={approvalActionProps}
+                    approvalEntityActionProps={approvalEntityActionProps}
                     data-testid="opportunity-approval-section"
                     {...props}
                   />
@@ -534,6 +561,7 @@ const InvestmentOpportunityRecordContent: React.FC<OpportunityRecordContentProps
                 activitiesError={activitiesError}
                 onReloadActivities={loadActivities}
                 {...activityActionProps}
+                activityEntityActionProps={activityEntityActionProps}
                 showTranslation={true}
                 className="gba:h-full gba:h-full"
                 data-testid="opportunity-activity-section"
