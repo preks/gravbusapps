@@ -152,7 +152,6 @@ export const TaskRecord: React.FC<TaskRecordProps> = ({
       message.success('Task action completed successfully');
       
       // Suggest user to refresh the queue to see updated tasks
-      console.log(`[TaskRecord] ℹ️ Task action completed - desk queue should be refreshed to see updated task IDs`);
     }
   });
 
@@ -173,7 +172,7 @@ export const TaskRecord: React.FC<TaskRecordProps> = ({
     return [
       {
         id: 'task-status',
-        title: 'Task Status',
+        title: 'Ticket Status',
         value: ticket.status, // Show raw status instead of transformed label
         icon: <StatusIcon className="gba:w-5 gba:h-5" />,
         trend: {
@@ -209,7 +208,7 @@ export const TaskRecord: React.FC<TaskRecordProps> = ({
       },
       {
         id: 'task-age',
-        title: 'Task Age',
+        title: 'Ticket Age',
         value: ageDisplay,
         icon: <ClockIcon className="gba:w-5 gba:h-5" />,
         trend: {
@@ -245,17 +244,6 @@ export const TaskRecord: React.FC<TaskRecordProps> = ({
       const workflowEngine = createConductorWorkflowEngine({ accessToken, userInfo });
       const requestDetails = await workflowEngine.getRequest(workflowId);
       
-      // 🔍 DEBUG: Log the full request data to see what we're getting
-      console.log('[TaskRecord] 🔍 Full request data loaded:', {
-        id: requestDetails?.id,
-        titleSnapshot: requestDetails?.titleSnapshot,
-        status: requestDetails?.status,
-        stepsCount: requestDetails?.steps?.length,
-        originalStepsCount: (requestDetails as any)?.originalSteps?.length,
-        steps: requestDetails?.steps,
-        originalSteps: (requestDetails as any)?.originalSteps,
-        fullRequest: requestDetails
-      });
       
       setFullRequest(requestDetails);
     } catch (error) {
@@ -275,16 +263,11 @@ export const TaskRecord: React.FC<TaskRecordProps> = ({
   const loadAvailableActions = async () => {
     if (!ticket?.id) return;
     
-    console.log('🔍 Loading available actions for task:', ticket.id);
-    console.log('🔍 Full ticket data:', ticket);
-    console.log('🔍 ticket.availableActions:', ticket.availableActions);
     
     // Use the availableActions from the ticket data (now preserved by the adapter)
     if (ticket.availableActions) {
-      console.log('✅ Using availableActions from ticket data:', ticket.availableActions);
       setAvailableActions(ticket.availableActions);
     } else {
-      console.log('⚠️ No availableActions in ticket data');
       setAvailableActions(null);
     }
   };
@@ -292,11 +275,8 @@ export const TaskRecord: React.FC<TaskRecordProps> = ({
   // Get comments directly from ticket data (already included in tasks/task_id response)
   const getTicketComments = () => {
     if (!ticket?.comments) {
-      console.log('📝 [TaskRecord] No comments found in ticket data');
       return [];
     }
-    
-    console.log(`📝 [TaskRecord] Found ${ticket.comments.length} comments in ticket data`);
     
     // Transform comments to consistent format based on actual API structure
     return ticket.comments.map((comment: any) => ({
@@ -334,8 +314,7 @@ export const TaskRecord: React.FC<TaskRecordProps> = ({
     try {
       switch (action) {
         case 'claim':
-          // Warn about potential task ID change
-          console.warn(`[TaskRecord] ⚠️ Claiming task ${ticket.id} - task ID may change due to workflow recreation`);
+          // Warn about potential ticket ID change
           await claimTicket(ticket.id);
           break;
         case 'unclaim':
@@ -350,7 +329,6 @@ export const TaskRecord: React.FC<TaskRecordProps> = ({
       }
       
       // ✅ Refresh available actions after any action (comments will be refreshed via refetch)
-      console.log(`🔄 Refreshing available actions after ${action} action`);
       await loadAvailableActions();
       
     } catch (error) {
@@ -365,29 +343,23 @@ export const TaskRecord: React.FC<TaskRecordProps> = ({
     
     setIsSubmittingComment(true);
     try {
-      console.log(`[TaskRecord] Adding comment to task ${ticket.id}: "${newComment.trim()}" with visibility: ${commentVisibility}`);
-      console.warn(`[TaskRecord] ⚠️ WARNING: Task ID may change after comment due to workflow recreation (same issue as CLAIM)`);
       
       // Use the addComment method from useTicketActions with visibility
       await addComment(ticket.id, newComment.trim(), commentVisibility);
-      
-      console.log(`[TaskRecord] ✅ Comment added successfully to task ${ticket.id} (task may have new ID now)`);
       message.success('Comment added successfully');
       setNewComment('');
       setCommentVisibility('INTERNAL_TASK'); // Reset to default
       
-      // NOTE: Task may have been recreated with new ID, so refetch may fail
-      // The task detail will need to be refreshed from the queue to get the new ID
+      // NOTE: Ticket may have been recreated with new ID, so refetch may fail
+      // The ticket detail will need to be refreshed from the queue to get the new ID
       try {
         await refetch();
-        // Comments will be updated automatically via refetch (included in task data)
+        // Comments will be updated automatically via refetch (included in ticket data)
       } catch (refetchError) {
-        console.warn(`[TaskRecord] ⚠️ Could not refetch task ${ticket.id} - likely recreated with new ID:`, refetchError);
-        message.warning('Comment added successfully, but task was recreated. Please refresh the queue to see the updated task.');
+        message.warning('Comment added successfully, but ticket was recreated. Please refresh the queue to see the updated ticket.');
         
-        // Close the task detail since the ID is now invalid
+        // Close the ticket detail since the ID is now invalid
         if (onClose) {
-          console.log(`[TaskRecord] Closing task detail due to task recreation`);
           onClose();
         }
       }
@@ -405,25 +377,22 @@ export const TaskRecord: React.FC<TaskRecordProps> = ({
     
     setIsSubmittingTaskForm(true);
     try {
-      console.log(`[TaskRecord] Submitting task form for task ${ticket.id}:`, formData);
       
       const workflowEngine = createConductorWorkflowEngine({ accessToken, userInfo });
       
-      // Complete the task with form data
+      // Complete the ticket with form data
       await (workflowEngine as any).completeTask(ticket.id, formData);
+      message.success('Ticket completed successfully');
       
-      console.log(`[TaskRecord] ✅ Task ${ticket.id} completed with form data successfully`);
-      message.success('Task completed successfully');
-      
-      // Refresh task data
+      // Refresh ticket data
       await refetch();
       await loadFullRequest();
       await loadAvailableActions();
-      // Comments will be updated automatically via refetch (included in task data)
+      // Comments will be updated automatically via refetch (included in ticket data)
       
     } catch (error) {
-      console.error('Failed to complete task with form data:', error);
-      message.error(`Failed to complete task: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      console.error('Failed to complete ticket with form data:', error);
+      message.error(`Failed to complete ticket: ${error instanceof Error ? error.message : 'Unknown error'}`);
     } finally {
       setIsSubmittingTaskForm(false);
     }
@@ -463,17 +432,6 @@ export const TaskRecord: React.FC<TaskRecordProps> = ({
       taskFormFields = inputFields;
     }
     
-    console.log('🔍 [TaskRecord] Task form detection:', {
-      hasTicket: !!ticket,
-      ticketId: ticket?.id,
-      hasForm: !!formFields,
-      formLength: formFields?.length || 0,
-      hasInputs: !!inputFields,
-      inputsLength: inputFields?.length || 0,
-      selectedFieldsLength: taskFormFields?.length || 0,
-      usingForm: taskFormFields === formFields,
-      usingInputs: taskFormFields === inputFields
-    });
     
     return taskFormFields || [];
   };
@@ -541,23 +499,23 @@ export const TaskRecord: React.FC<TaskRecordProps> = ({
           </Badge>
         }
         kpiCardsData={kpiCards}
-        sectionTitle="Task Information"
-        sectionDescription="Complete details and activity for this task"
+        sectionTitle="Ticket Information"
+        sectionDescription="Complete details and activity for this ticket"
       >
       {/* Main Content Grid */}
       <div className="gba:grid gba:grid-cols-1 gba:lg:grid-cols-2 gba:gap-6">
         {/* Left Column - Primary Information */}
         <div className="gba:space-y-6">
-          {/* Task Details Card */}
+          {/* Ticket Details Card */}
           <Card>
             <CardHeader>
               <CardTitle className="gba:flex gba:items-center gba:gap-3">
                 <InfoIcon className="gba:w-5 gba:h-5" />
-                Task Details
+                Ticket Details
               </CardTitle>
             </CardHeader>
             <CardContent>
-              {/* Task Message/Description */}
+              {/* Ticket Message/Description */}
               {ticket.message && (
                 <div className="gba:mb-6 gba:space-y-3">
                   <div className="gba:flex gba:items-center gba:gap-2">
@@ -572,7 +530,7 @@ export const TaskRecord: React.FC<TaskRecordProps> = ({
                 </div>
               )}
 
-              {/* Task Links - Show related links if available */}
+              {/* Ticket Links - Show related links if available */}
               {(ticket as any).links && (ticket as any).links.length > 0 && (
                 <div className="gba:mb-6 gba:space-y-3">
                   <div className="gba:flex gba:items-center gba:gap-2">
@@ -685,25 +643,17 @@ export const TaskRecord: React.FC<TaskRecordProps> = ({
           </Card>
 
 
-          {/* Task Form Card - Show dynamic form if task has form fields and is not completed */}
+          {/* Ticket Form Card - Show dynamic form if ticket has form fields and is not completed */}
           {(() => {
             const hasFormFields = getTaskFormFields().length > 0;
-            const isTaskCompleted = ticket?.status === 'COMPLETED' || ticket?.status === 'DONE' || ticket?.status === 'SKIPPED' || 
+            const isTicketCompleted = ticket?.status === 'COMPLETED' || ticket?.status === 'DONE' || ticket?.status === 'SKIPPED' || 
                                      ticket?.status === 'REJECTED' || ticket?.status === 'CANCELLED' || ticket?.status === 'CANCELED';
-            const shouldShowForm = hasFormFields && !isTaskCompleted;
+            const shouldShowForm = hasFormFields && !isTicketCompleted;
             
-            console.log('🔍 [TaskRecord] Task form card visibility check:', {
-              hasFormFields,
-              isTaskCompleted,
-              taskStatus: ticket?.status,
-              shouldShowForm,
-              formFields: getTaskFormFields(),
-              ticket: ticket
-            });
             
             return shouldShowForm;
           })() && (
-            <Card data-testid="task-form-card">
+            <Card data-testid="ticket-form-card">
               <CardHeader>
                 <CardTitle className="gba:flex gba:items-center gba:gap-3">
                   <CheckCircleIcon className="gba:w-5 gba:h-5" />
@@ -955,18 +905,6 @@ export const TaskRecord: React.FC<TaskRecordProps> = ({
               {/* Quick Actions */}
               <Separator className="gba:my-4" />
               <div className="gba:flex gba:flex-wrap gba:gap-2">
-                {/* 🔍 DEBUG: Log button visibility logic */}
-                {(() => {
-                  console.log('🔍 Button visibility debug:', {
-                    ticketStatus: ticket.status,
-                    availableActions: availableActions,
-                    canClaim: availableActions?.canClaim,
-                    canComplete: availableActions?.canComplete,
-                    canUnclaim: availableActions?.canUnclaim,
-                    canReject: availableActions?.canReject
-                  });
-                  return null;
-                })()}
                 
                 {!(ticket.status === 'COMPLETED' || ticket.status === 'DONE' || ticket.status === 'SKIPPED' || 
                    ticket.status === 'REJECTED' || ticket.status === 'CANCELLED' || ticket.status === 'CANCELED') && (
@@ -980,7 +918,7 @@ export const TaskRecord: React.FC<TaskRecordProps> = ({
                           className="gba:gap-2"
                         >
                           <UserCheckIcon className="gba:w-4 gba:h-4" />
-                          Claim Task
+                          Claim Ticket
                         </Button>
                     )}
 
@@ -1148,16 +1086,6 @@ export const TaskRecord: React.FC<TaskRecordProps> = ({
                     const isInProgress = step.status === 'IN_PROGRESS';
                     const stepNumber = (step.stepIndex ?? index) + 1;
                     
-                    // 🔍 DEBUG: Log step data to see what's available
-                    console.log(`[TaskRecord] Step ${stepNumber} data:`, {
-                      stepIndex: step.stepIndex,
-                      title: step.title,
-                      name: step.name,
-                      displayTitle: step.name || step.title || `Step ${stepNumber}`,
-                      status: step.status,
-                      type: step.type,
-                      fullStep: step
-                    });
                     
                     // Map status to timeline status
                     const timelineStatus = isCompleted ? 'completed' : isInProgress ? 'in-progress' : 'pending';

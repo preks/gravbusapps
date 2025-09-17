@@ -3,16 +3,18 @@ import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
 import { useFeature } from '@/common/hooks/useFeature';
 import type { StepReceiver } from 'packages/services-plus-core';
-import { DeskQueue } from './components/DeskQueue';
+import { Dashboard } from './components/Dashboard';
+import { Tickets } from './components/Tickets';
 import { TemplatesTab } from './components/TemplatesTab';
+import { Analytics } from './components/Analytics';
 import { TaskRecord } from './components/TaskRecord';
-import { CompletedTickets } from './components/CompletedTickets';
 import { useUserCapabilities } from './hooks/useUserCapabilities';
 import { ServiceDeskDiagnostic } from './components/ServiceDeskDiagnostic';
+import { PageLayout } from '@newwork/nw-design-system';
+import { Headset as HeadsetIcon } from '@phosphor-icons/react';
 
-// UI Components - TODO: Replace with @newwork/nw-design-system when available
-import { Tabs, Alert, Spin, Button } from 'antd';
-import { Badge } from 'antd';
+// UI Components
+import { Alert, Spin, Button } from 'antd';
 
 /**
  * ServiceDesk component for managing service requests across different desks
@@ -23,16 +25,24 @@ export interface ServiceDeskProps extends BusinessAppContextProps {
   ticketId?: string;
 }
 
-// Parse URL parameters for deskKey and ticketId
+// Parse URL parameters for subview, ticketTab and ticketId
 const parseUrlParams = () => {
   const path = window.location.pathname;
-  // Match patterns like /desk/IT or /desk/IT/task/123
-  const deskMatch = path.match(/\/desk\/([^\/]+)/);
-  const taskMatch = path.match(/\/desk\/[^\/]+\/task\/([^\/]+)/);
+  const searchParams = new URLSearchParams(window.location.search);
+  
+  // Match task patterns: /task/123
+  const taskMatch = path.match(/\/task\/([^\/]+)/);
+  
+  // Get subview from URL parameter (e.g., ?subview=tickets)
+  const subviewFromUrl = searchParams.get('subview') || 'dashboard';
+  
+  // Get ticket tab from URL parameter (e.g., ?tab=IT or ?tab=completed)
+  const ticketTabFromUrl = searchParams.get('tab') || null;
   
   return {
-    deskKeyFromUrl: deskMatch ? deskMatch[1] : null,
+    subviewFromUrl,
     ticketIdFromUrl: taskMatch ? taskMatch[1] : null,
+    ticketTabFromUrl,
   };
 };
 
@@ -43,18 +53,31 @@ const ServiceDesk: React.FC<ServiceDeskProps> = ({
   ticketId,
 }) => {
 
-  const { deskKeyFromUrl, ticketIdFromUrl } = parseUrlParams();
-  const resolvedDeskKey = deskKey || deskKeyFromUrl || '';
+  const { subviewFromUrl, ticketIdFromUrl, ticketTabFromUrl } = parseUrlParams();
+  
+  // Use tab parameter or component prop for desk key
+  const resolvedDeskKey = deskKey || ticketTabFromUrl || '';
   const resolvedTicketId = ticketId || ticketIdFromUrl || null;
 
   // Feature flag guard - default to enabled for development
   const servicesFeature = useFeature<boolean>('SERVICES_PLUS_ENABLED');
   const isServicesEnabled = servicesFeature !== false; // true if undefined (development) or true
   
-  // Tab state management with URL parameter support
-  const [activeTab, setActiveTab] = useState<string>(resolvedDeskKey);
+  // Submenu and tab state management with URL parameter support
+  const [activeSubView, setActiveSubView] = useState<string>(subviewFromUrl);
+  const [activeTab, setActiveTab] = useState<string>(() => {
+    // Prioritize ticketTabFromUrl, then resolvedDeskKey
+    if (ticketTabFromUrl) {
+      return ticketTabFromUrl;
+    }
+    if (resolvedDeskKey) {
+      return resolvedDeskKey;
+    }
+    return '';
+  });
   const [showDiagnostic, setShowDiagnostic] = useState(false);
   const [selectedTaskId, setSelectedTaskId] = useState<string | null>(resolvedTicketId);
+  const [lastTicketsTab, setLastTicketsTab] = useState<string>(''); // Remember last selected tab in Tickets subview
   
   // Get user capabilities to determine available desks
   const { capabilities, isLoading: capabilitiesLoading, error: capabilitiesError } = useUserCapabilities({
@@ -62,30 +85,56 @@ const ServiceDesk: React.FC<ServiceDeskProps> = ({
     userInfo,
   });
 
-  // Update tab and task from URL parameters
+  // Update task from URL parameters and ensure URL parameters are set
   useEffect(() => {
-    if (resolvedDeskKey) {
-      setActiveTab(resolvedDeskKey);
-    }
     if (resolvedTicketId) {
       setSelectedTaskId(resolvedTicketId);
     }
     
-    // Ensure app parameter is set on component load
+    // Initialize lastTicketsTab if we're starting on tickets subview with an active tab
+    if (activeSubView === 'tickets' && activeTab && !lastTicketsTab) {
+      setLastTicketsTab(activeTab);
+    }
+    
+    // Ensure app, subview and tab parameters are set on component load
     const url = new URL(window.location.href);
+    let urlChanged = false;
+    
     if (!url.searchParams.has('app')) {
       url.searchParams.set('app', 'ServiceDesk');
+      urlChanged = true;
+    }
+    
+    if (!url.searchParams.has('subview')) {
+      url.searchParams.set('subview', activeSubView);
+      urlChanged = true;
+    }
+    
+    // Set tab parameter if we're on tickets subview and have an active tab
+    if (activeSubView === 'tickets' && activeTab && !url.searchParams.has('tab')) {
+      url.searchParams.set('tab', activeTab);
+      urlChanged = true;
+    }
+    
+    if (urlChanged) {
       window.history.replaceState({}, '', url.toString());
     }
-  }, [resolvedDeskKey, resolvedTicketId]);
+  }, [resolvedTicketId, activeSubView, activeTab, lastTicketsTab]);
+
 
   // Handle browser navigation (back/forward/refresh)
   useEffect(() => {
     const handlePopState = () => {
-      const { deskKeyFromUrl, ticketIdFromUrl } = parseUrlParams();
-      if (deskKeyFromUrl) {
-        setActiveTab(deskKeyFromUrl);
+      const { subviewFromUrl, ticketIdFromUrl, ticketTabFromUrl } = parseUrlParams();
+      
+      // Update subview from URL
+      setActiveSubView(subviewFromUrl);
+      
+      // Update active tab from tab parameter
+      if (ticketTabFromUrl) {
+        setActiveTab(ticketTabFromUrl);
       }
+      
       if (ticketIdFromUrl) {
         setSelectedTaskId(ticketIdFromUrl);
       } else {
@@ -104,36 +153,84 @@ const ServiceDesk: React.FC<ServiceDeskProps> = ({
     return () => window.removeEventListener('popstate', handlePopState);
   }, []);
 
-  // Helper function to build URL with app parameter preserved
-  const buildUrlWithApp = (path: string) => {
+  // Helper function to build URL with app, subview and tab parameters preserved
+  const buildUrlWithApp = (path: string, subview?: string, tab?: string) => {
     const url = new URL(window.location.href);
     url.pathname = path;
     // Preserve the app parameter if it exists
     if (!url.searchParams.has('app')) {
       url.searchParams.set('app', 'ServiceDesk');
     }
+    // Set subview parameter if provided
+    if (subview) {
+      url.searchParams.set('subview', subview);
+    }
+    // Set tab parameter if provided
+    if (tab) {
+      url.searchParams.set('tab', tab);
+    }
     return url.toString();
   };
 
-  // Update URL when tab changes
-  const handleTabChange = (key: string) => {
-    setActiveTab(key);
-    setSelectedTaskId(null); // Clear task selection when switching tabs
-    const newUrl = buildUrlWithApp(`/desk/${key}`);
+  // Handle submenu change
+  const handleSubViewChange = (subView: string) => {
+    setActiveSubView(subView);
+    setSelectedTaskId(null); // Clear task selection when switching subviews
+    
+    let tabToSet = '';
+    
+    // When switching to tickets, use last remembered tab or default to first available
+    if (subView === 'tickets' && capabilities && capabilities.length > 0) {
+      // Use last remembered tab if it exists and is valid (either a capability desk or 'completed')
+      const isValidCapabilityTab = lastTicketsTab && capabilities.some(cap => cap.desk === lastTicketsTab);
+      const isCompletedTab = lastTicketsTab === 'completed';
+      const validLastTab = isValidCapabilityTab || isCompletedTab;
+      
+      tabToSet = validLastTab ? lastTicketsTab : capabilities[0].desk;
+      setActiveTab(tabToSet);
+    }
+    
+    // Update URL to reflect current subview and tab
+    const currentPath = window.location.pathname;
+    const newUrl = buildUrlWithApp(currentPath, subView, tabToSet || undefined);
     window.history.pushState({}, '', newUrl);
   };
 
+  // Handle ticket tab change (IT, HR, Completed, etc.)
+  const handleTicketTabChange = (tabKey: string) => {
+    console.log('🔍 [ServiceDesk] handleTicketTabChange called:', { tabKey, previousActiveTab: activeTab });
+    setActiveTab(tabKey);
+    setLastTicketsTab(tabKey); // Remember this tab for when user returns to Tickets subview
+    setSelectedTaskId(null); // Clear task selection when switching tabs
+    
+    // Always use root path and rely on tab parameter for consistency
+    // This avoids conflicts between path-based and parameter-based tab selection
+    const newPath = '/';
+    const newUrl = buildUrlWithApp(newPath, activeSubView, tabKey);
+    console.log('🔍 [ServiceDesk] Tab change URL:', newUrl);
+    window.history.pushState({}, '', newUrl);
+  };
+
+
   // Handle task selection
-  const handleTaskSelect = (taskId: string, deskKey: string) => {
+  const handleTaskSelect = (taskId: string, _deskKey: string) => {
+    console.log('🔍 [ServiceDesk] handleTaskSelect called:', { taskId, _deskKey, activeTab, activeSubView });
     setSelectedTaskId(taskId);
-    const newUrl = buildUrlWithApp(`/desk/${deskKey}/task/${taskId}`);
+    // Use new URL format with tab parameter instead of path-based desk
+    const newUrl = buildUrlWithApp(`/task/${taskId}`, activeSubView, activeTab);
+    console.log('🔍 [ServiceDesk] Task select URL:', newUrl);
     window.history.pushState({}, '', newUrl);
   };
 
   // Handle closing task detail
   const handleTaskClose = () => {
+    console.log('🔍 [ServiceDesk] handleTaskClose called:', { activeTab, activeSubView });
     setSelectedTaskId(null);
-    const newUrl = buildUrlWithApp(`/desk/${activeTab}`);
+    
+    // Always use root path and rely on tab parameter for consistency
+    const newPath = '/';
+    const newUrl = buildUrlWithApp(newPath, activeSubView, activeTab);
+    console.log('🔍 [ServiceDesk] Task close URL:', newUrl);
     window.history.pushState({}, '', newUrl);
   };
 
@@ -273,123 +370,102 @@ const ServiceDesk: React.FC<ServiceDeskProps> = ({
     );
   }
 
-  return (
-    <div data-testid="service-desk-container" className="gba:p-6 gba:h-full gba:flex gba:flex-col">
-      <div className="gba:mb-6 gba:flex-shrink-0">
-        <h1 className="gba:text-2xl gba:font-semibold gba:mb-1">
-          {getTranslationFromI18nKeyAndLabel(
-            'services.desk.title',
-            'Service Desk'
-          )}
-        </h1>
-        <p className="gba:text-gray-500">
-          {getTranslationFromI18nKeyAndLabel(
-            'services.desk.description',
-            'Manage service requests and tickets across different departments'
-          )}
-        </p>
-      </div>
+  // Render content based on active submenu
+  const renderSubViewContent = () => {
+    switch (activeSubView) {
+      case 'dashboard':
+        return (
+          <Dashboard
+            accessToken={accessToken}
+            userInfo={userInfo}
+          />
+        );
+      case 'tickets':
+        return (
+          <Tickets
+            deskKey={activeTab}
+            ticketId={ticketId}
+            accessToken={accessToken}
+            userInfo={userInfo}
+            onTaskSelect={handleTaskSelect}
+            onTabChange={handleTicketTabChange}
+          />
+        );
+      case 'templates':
+        return (
+          <TemplatesTab
+            accessToken={accessToken}
+            userInfo={userInfo}
+          />
+        );
+      case 'analytics':
+        return (
+          <Analytics
+            accessToken={accessToken}
+            userInfo={userInfo}
+          />
+        );
+      default:
+        return (
+          <Dashboard
+            accessToken={accessToken}
+            userInfo={userInfo}
+          />
+        );
+    }
+  };
 
-      <Tabs
-        activeKey={activeTab}
-        onChange={handleTabChange}
-        data-testid="service-desk-tabs"
-        className="gba:w-full gba:flex-1 gba:flex gba:flex-col [&_.ant-tabs-content-holder]:gba:flex-1 [&_.ant-tabs-tabpane]:gba:h-full"
-        items={[
-          // Regular desk tabs
-          ...capabilities.map(({ desk, name, ticketCount }) => ({
-            key: desk,
-            label: (
-              <span 
-                data-testid={`desk-tab-${desk.toLowerCase()}`}
-                className="gba:flex gba:items-center gba:gap-2"
-              >
-                <span>
-                  {getTranslationFromI18nKeyAndLabel(
-                    `services.desk.${desk.toLowerCase()}.name`,
-                    name
-                  )}
-                </span>
-                {ticketCount > 0 && (
-                  <Badge 
-                    count={ticketCount} 
-                    size="small"
-                    className="gba:ml-1" 
-                  />
-                )}
-              </span>
-            ),
-            children: (
-              <div className="gba:h-full">
-                <DeskQueue
-                  deskKey={desk}
-                  ticketId={ticketId}
-                  accessToken={accessToken}
-                  userInfo={userInfo}
-                  onTaskSelect={handleTaskSelect}
-                />
-              </div>
-            ),
-          })),
-          // Completed Tickets tab
-          {
-            key: 'completed',
-            label: (
-              <span 
-                data-testid="desk-tab-completed"
-                className="gba:flex gba:items-center gba:gap-2"
-              >
-                <span>
-                  {getTranslationFromI18nKeyAndLabel(
-                    'services.desk.completed.name',
-                    'Completed Tickets'
-                  )}
-                </span>
-              </span>
-            ),
-            children: (
-              <div className="gba:h-full">
-                <CompletedTickets
-                  accessToken={accessToken}
-                  userInfo={userInfo}
-                  onTaskSelect={handleTaskSelect}
-                />
-              </div>
-            ),
-          },
-          // Templates tab for development
-          {
-            key: 'templates',
-            label: (
-              <span 
-                data-testid="desk-tab-templates"
-                className="gba:flex gba:items-center gba:gap-2"
-              >
-                <span>
-                  {getTranslationFromI18nKeyAndLabel(
-                    'services.desk.templates.name',
-                    'Templates'
-                  )}
-                </span>
-                <Badge 
-                  count="DEV" 
-                  style={{ backgroundColor: '#52c41a' }}
-                  size="small"
-                  className="gba:ml-1" 
-                />
-              </span>
-            ),
-            children: (
-              <div className="gba:h-full">
-                <TemplatesTab
-                  accessToken={accessToken}
-                  userInfo={userInfo}
-                />
-              </div>
-            ),
-          }
-        ]}
-      />
+  return (
+    <div data-testid="service-desk-container" className="gba:h-full">
+      <PageLayout
+        headerTitle={getTranslationFromI18nKeyAndLabel(
+          'services.desk.title',
+          'Service Desk'
+        )}
+        headerDescription={getTranslationFromI18nKeyAndLabel(
+          'services.desk.description',
+          'Manage service requests and tickets across different departments'
+        )}
+        headerIcon={HeadsetIcon}
+        variant="ext2"
+        headerSubViews={{
+          value: activeSubView,
+          items: [
+            { 
+              value: 'dashboard', 
+              label: getTranslationFromI18nKeyAndLabel(
+                'services.desk.submenu.dashboard',
+                'Dashboard'
+              )
+            },
+            { 
+              value: 'tickets', 
+              label: getTranslationFromI18nKeyAndLabel(
+                'services.desk.submenu.tickets',
+                'Tickets'
+              )
+            },
+            { 
+              value: 'templates', 
+              label: getTranslationFromI18nKeyAndLabel(
+                'services.desk.submenu.templates',
+                'Templates'
+              )
+            },
+            { 
+              value: 'analytics', 
+              label: getTranslationFromI18nKeyAndLabel(
+                'services.desk.submenu.analytics',
+                'Analytics'
+              )
+            },
+          ],
+          onValueChange: handleSubViewChange,
+        }}
+        className="gba:h-full"
+      >
+        {renderSubViewContent()}
+      </PageLayout>
     </div>
   );
 };

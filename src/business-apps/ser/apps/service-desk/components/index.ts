@@ -7,6 +7,9 @@ export { CompletedTickets } from './CompletedTickets';
 export { CompletedTicketsKPICards } from './CompletedTicketsKPICards';
 export { TemplatesTab } from './TemplatesTab';
 export { ServiceDeskDiagnostic } from './ServiceDeskDiagnostic';
+export { Dashboard } from './Dashboard';
+export { Tickets } from './Tickets';
+export { Analytics } from './Analytics';
 
 // Export types
 export type { CompletedTicketsProps } from './CompletedTickets';
