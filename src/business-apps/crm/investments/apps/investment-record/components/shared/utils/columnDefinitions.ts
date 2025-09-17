@@ -206,12 +206,6 @@ export const createInvestmentReportColumns = (
           title: 'Investment Role',
           sortable: true,
           render: (record: any) => React.createElement('span', null, record.investment?.investmentRole?.value || '-'),
-        },
-        {
-          key: 'ownerEmployee',
-          title: 'Owner Employee',
-          sortable: true,
-          render: (record: any) => React.createElement('span', null, record.investment?.ownerEmployee?.displayName || '-'),
         }
       );
       break;

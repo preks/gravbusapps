@@ -22,6 +22,7 @@ import { AppActionButton } from '@/components/app-action-button/AppActionButton'
 import { AiSummaryButton } from '@/common/components/common-relations/record-sections/header-section/ai-summary-button';
 import { useInvestmentAiSummary } from '../../hooks/useInvestmentAiSummary';
 import { FlowContextName } from '@/common/types/FlowRegistryTypes';
+import DocumentSection from '@/common/components/common-relations/record-sections/document-section/DocumentSection';
 
 
 interface EquityRecordComponentProps extends BusinessAppContextProps {
@@ -108,28 +109,28 @@ const EquityRecord: React.FC<EquityRecordComponentProps> = (props) => {
         id: 'investment-financial',
         items: [
           {
-            label: 'Initial Investment',
+            label: getTranslationFromI18nKeyAndLabel('crm.investments.fields.initial.investment', 'Initial Investment'),
             value: investment.initialInvestmentAmount 
               ? formatCurrencyValue(investment.initialInvestmentAmount, investment.currency) 
               : '-',
             icon: DollarOutlined
           },
           {
-            label: 'Total Investment',
+            label: getTranslationFromI18nKeyAndLabel('crm.investments.fields.total.investment', 'Total Investment'),
             value: investment.totalInvestmentAmount 
               ? formatCurrencyValue(investment.totalInvestmentAmount, investment.currency) 
               : '-',
             icon: DollarOutlined
           },
           {
-            label: 'Market Value',
+            label: getTranslationFromI18nKeyAndLabel('crm.investments.fields.market.value', 'Market Value'),
             value: investment.investmentMarketValue 
               ? formatCurrencyValue(investment.investmentMarketValue, investment.currency) 
               : '-',
             icon: TrendingUp
           },
           {
-            label: 'Stake Percentage',
+            label: getTranslationFromI18nKeyAndLabel('crm.investments.fields.stake.percentage', 'Stake Percentage'),
             value: investment.stakePercentage !== null && investment.stakePercentage !== undefined 
               ? `${investment.stakePercentage.toFixed(1)}%` 
               : '-',
@@ -141,12 +142,12 @@ const EquityRecord: React.FC<EquityRecordComponentProps> = (props) => {
         id: 'investment-dates',
         items: [
           {
-            label: 'Foundation Date',
+            label: getTranslationFromI18nKeyAndLabel('crm.investments.fields.foundation.date', 'Foundation Date'),
             value: equityInvestment?.foundationDate ? formatDate(equityInvestment.foundationDate) : '-',
             icon: CalendarOutlined
           },
           {
-            label: 'Acquisition Date',
+            label: getTranslationFromI18nKeyAndLabel('crm.investments.fields.acquisition.date', 'Acquisition Date'),
             value: investment.acquisitionDate ? formatDate(investment.acquisitionDate) : '-',
             icon: CalendarOutlined
           }
@@ -156,14 +157,14 @@ const EquityRecord: React.FC<EquityRecordComponentProps> = (props) => {
         id: 'investment-performance',
         items: [
           {
-            label: 'Turnover Amount',
+            label: getTranslationFromI18nKeyAndLabel('crm.investments.fields.turnover.amount', 'Turnover Amount'),
             value: equityInvestment?.turnoverAmount 
               ? formatCurrencyValue(equityInvestment.turnoverAmount, investment.currency) 
               : '-',
             icon: TrendingUp
           },
           {
-            label: 'EBITDA Amount',
+            label: getTranslationFromI18nKeyAndLabel('crm.investments.fields.ebitda.amount', 'EBITDA Amount'),
             value: equityInvestment?.ebitdaAmount 
               ? formatCurrencyValue(equityInvestment.ebitdaAmount, investment.currency) 
               : '-',
@@ -175,12 +176,12 @@ const EquityRecord: React.FC<EquityRecordComponentProps> = (props) => {
         id: 'investment-management',
         items: [
           {
-            label: 'Investment Group',
+            label: getTranslationFromI18nKeyAndLabel('crm.investments.fields.investment.group', 'Investment Group'),
             value: investment.investmentGroup?.value || '-',
             icon: UserOutlined
           },
           {
-            label: 'Owner Employee',
+            label: getTranslationFromI18nKeyAndLabel('crm.investments.fields.owner.employee', 'Owner Employee'),
             value: investment.ownerEmployee?.displayName || 
                    (investment.ownerEmployee?.firstName && investment.ownerEmployee?.lastName 
                      ? `${investment.ownerEmployee.firstName} ${investment.ownerEmployee.lastName}` 
@@ -197,8 +198,8 @@ const EquityRecord: React.FC<EquityRecordComponentProps> = (props) => {
     <AiSummaryButton
       config={{
         entityType: 'investment',
-        loadingMessage: 'Generating AI Summary...',
-        loadingSubtitle: 'Analyzing investment data and activities'
+        loadingMessage: getTranslationFromI18nKeyAndLabel('crm.investments.ai.summary.loading', 'Generating AI Summary...'),
+        loadingSubtitle: getTranslationFromI18nKeyAndLabel('crm.investments.ai.summary.subtitle', 'Analyzing investment data and activities')
       }}
       summaryHook={aiSummaryHook}
       dataTestId={`investment-update-button-${props.investmentId}`}
@@ -287,16 +288,60 @@ const EquityRecord: React.FC<EquityRecordComponentProps> = (props) => {
         label: getTranslationFromI18nKeyAndLabel('crm.investments.tabs.documents', 'Documents'),
         icon: <Folder className="gba:h-4 gba:w-4 gba:mr-2" />,
         content: (
-          <div className="gba:col-span-12 gba:p-8 gba:text-center">
-            <div className="gba:max-w-md gba:mx-auto">
-              <Folder className="gba:h-16 gba:w-16 gba:mx-auto gba:text-gray-300 gba:mb-4" />
-              <h3 className="gba:text-lg gba:font-medium gba:text-gray-900 gba:mb-2">
-                Documents Coming Soon
-              </h3>
-              <p className="gba:text-gray-500">
-                Document management features will be implemented in a future update.
-              </p>
-            </div>
+          <div className="gba:col-span-12">
+            <DocumentSection
+              entityId={props.investmentId || ''}
+              documents={equityData?.documents?.map(doc => ({
+                id: doc.id,
+                name: doc.name,
+                description: doc.description,
+                createdAt: doc.createdAt || new Date().toISOString(),
+                expirationDate: doc.expirationDate,
+                documentType: doc.documentType ? {
+                  id: doc.documentType.id,
+                  value: doc.documentType.value,
+                  code: doc.documentType.code
+                } : null,
+                documentGroup: doc.documentGroup ? {
+                  id: doc.documentGroup.id,
+                  value: doc.documentGroup.value,
+                  code: doc.documentGroup.code
+                } : null,
+                file: doc.file,
+                mimeType: doc.mimeType,
+                fileSize: doc.fileSize,
+                createdBy: doc.createdBy?.toString(),
+                parentDocument: doc.parentDocument?.id,
+                folder: doc.folder,
+                verified: doc.verified,
+                verificationDate: doc.verificationDate,
+                authenticated: doc.authenticated,
+                authenticationDate: doc.authenticationDate,
+                mandatory: doc.mandatory,
+                version: doc.version
+              })) || []}
+              isLoading={isLoading}
+              error={error}
+              onRefresh={() => {
+                // Refresh the equity data which includes documents
+                window.location.reload();
+              }}
+              uploadActionProps={{
+                contextsArray: [FlowContextName.investmentDocumentCreate],
+                externalContextData: { investmentId: props.investmentId },
+                prefixDataTestId: 'equity-investment-document'
+              }}
+              createFolderActionProps={{
+                contextsArray: [FlowContextName.investmentDocumentCreate],
+                externalContextData: { 
+                  investmentId: props.investmentId,
+                  createFolder: true 
+                },
+                prefixDataTestId: 'equity-investment-folder'
+              }}
+              accessToken={props.accessToken}
+              data-testid="equity-investment-documents"
+            />
           </div>
         )
       },
@@ -354,12 +399,12 @@ const EquityRecord: React.FC<EquityRecordComponentProps> = (props) => {
     return (
       <div className="gba:flex gba:items-center gba:justify-center gba:min-h-screen">
         <div className="gba:text-center">
-          <p className="gba:text-red-500 gba:text-lg">{error || 'Investment not found'}</p>
+          <p className="gba:text-red-500 gba:text-lg">{error || getTranslationFromI18nKeyAndLabel('crm.investments.error.not.found', 'Investment not found')}</p>
           <button
             onClick={handleBackToInvestments}
             className="gba:mt-4 gba:px-4 gba:py-2 gba:bg-blue-500 gba:text-white gba:rounded gba:hover:bg-blue-600"
           >
-            Back to Investments
+            {getTranslationFromI18nKeyAndLabel('crm.investments.navigation.back', 'Back to Investments')}
           </button>
       </div>
       </div>
@@ -374,12 +419,12 @@ const EquityRecord: React.FC<EquityRecordComponentProps> = (props) => {
       <RecordLayout
         headerOrientation="horizontal"
         headerIcon={Building2}
-        headerCategory="EQUITY INVESTMENT"
+        headerCategory={getTranslationFromI18nKeyAndLabel('crm.investments.equity.category', 'EQUITY INVESTMENT')}
         onBack={handleBackToInvestments}
         headerTitle={
           equityData?.investment?.investmentAccount?.name ||
           equityData?.investment?.name ||
-          'Investment Details'
+          getTranslationFromI18nKeyAndLabel('crm.investments.details.fallback', 'Investment Details')
         }
         headerMeta={headerMeta}
         headerActions={headerActions}

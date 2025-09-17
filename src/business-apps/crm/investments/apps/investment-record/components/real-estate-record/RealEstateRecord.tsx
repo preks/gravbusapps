@@ -21,6 +21,7 @@ import { AppActionButton } from '@/components/app-action-button/AppActionButton'
 import { AiSummaryButton } from '@/common/components/common-relations/record-sections/header-section/ai-summary-button';
 import { useInvestmentAiSummary } from '../../hooks/useInvestmentAiSummary';
 import { FlowContextName } from '@/common/types/FlowRegistryTypes';
+import DocumentSection from '@/common/components/common-relations/record-sections/document-section/DocumentSection';
 
 interface RealEstateRecordComponentProps extends BusinessAppContextProps {
   investmentId?: string;
@@ -282,16 +283,60 @@ const RealEstateRecord: React.FC<RealEstateRecordComponentProps> = (props) => {
         label: getTranslationFromI18nKeyAndLabel('crm.investments.tabs.documents', 'Documents'),
         icon: <Folder className="gba:h-4 gba:w-4 gba:mr-2" />,
         content: (
-          <div className="gba:col-span-12 gba:p-8 gba:text-center">
-            <div className="gba:max-w-md gba:mx-auto">
-              <Folder className="gba:h-16 gba:w-16 gba:mx-auto gba:text-gray-300 gba:mb-4" />
-              <h3 className="gba:text-lg gba:font-medium gba:text-gray-900 gba:mb-2">
-                Documents Coming Soon
-              </h3>
-              <p className="gba:text-gray-500">
-                Document management features will be implemented in a future update.
-              </p>
-            </div>
+          <div className="gba:col-span-12">
+            <DocumentSection
+              entityId={props.investmentId || ''}
+              documents={realEstateData?.documents?.map(doc => ({
+                id: doc.id,
+                name: doc.name,
+                description: doc.description,
+                createdAt: doc.createdAt || new Date().toISOString(),
+                expirationDate: doc.expirationDate,
+                documentType: doc.documentType ? {
+                  id: doc.documentType.id,
+                  value: doc.documentType.value,
+                  code: doc.documentType.code
+                } : null,
+                documentGroup: doc.documentGroup ? {
+                  id: doc.documentGroup.id,
+                  value: doc.documentGroup.value,
+                  code: doc.documentGroup.code
+                } : null,
+                file: doc.file,
+                mimeType: doc.mimeType,
+                fileSize: doc.fileSize,
+                createdBy: doc.createdBy?.toString(),
+                parentDocument: doc.parentDocument?.id,
+                folder: doc.folder,
+                verified: doc.verified,
+                verificationDate: doc.verificationDate,
+                authenticated: doc.authenticated,
+                authenticationDate: doc.authenticationDate,
+                mandatory: doc.mandatory,
+                version: doc.version
+              })) || []}
+              isLoading={isLoading}
+              error={error}
+              onRefresh={() => {
+                // Refresh the real estate data which includes documents
+                window.location.reload();
+              }}
+              uploadActionProps={{
+                contextsArray: [FlowContextName.investmentDocumentCreate],
+                externalContextData: { investmentId: props.investmentId },
+                prefixDataTestId: 'real-estate-investment-document'
+              }}
+              createFolderActionProps={{
+                contextsArray: [FlowContextName.investmentDocumentCreate],
+                externalContextData: { 
+                  investmentId: props.investmentId,
+                  createFolder: true 
+                },
+                prefixDataTestId: 'real-estate-investment-folder'
+              }}
+              accessToken={props.accessToken}
+              data-testid="real-estate-investment-documents"
+            />
           </div>
         )
       },

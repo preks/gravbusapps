@@ -55,35 +55,68 @@ export const EquityReport: React.FC<EquityReportProps> = ({
     }
   }, [effectiveInvestmentTypes, activeSubTab]);
 
-  // Filter states - Updated to 2024 where actual equity data exists
-  const [startDate, setStartDate] = useState<dayjs.Dayjs | null>(
-    dayjs('2024-01-01') // January 1st, 2024 (where actual equity data exists)
-  );
-  const [endDate, setEndDate] = useState<dayjs.Dayjs | null>(
-    dayjs('2024-12-31') // December 31st, 2024
-  );
+  // FIXED: Filter states - Use same pattern as individual investment record reports
+  const [timeFilter, setTimeFilter] = useState<string>('all');
+  const [dateRange, setDateRange] = useState<[dayjs.Dayjs | null, dayjs.Dayjs | null] | null>(null);
   const [selectedCurrency, setSelectedCurrency] = useState<string>('EUR');
   const [selectedFundManager, setSelectedFundManager] = useState<string>('');
-  
-  // Applied filters state (only updates when Apply button is clicked)
-  const [appliedStartDate, setAppliedStartDate] = useState<dayjs.Dayjs | null>(null);
-  const [appliedEndDate, setAppliedEndDate] = useState<dayjs.Dayjs | null>(null);
-  const [appliedCurrency, setAppliedCurrency] = useState<string>('EUR');
-  const [appliedFundManager, setAppliedFundManager] = useState<string>('');
 
   // Available currencies and fund managers
   const availableCurrencies = ['EUR', 'USD', 'GBP', 'CHF'];
   const availableFundManagers = ['All', 'Centauri Partners', 'Ionis Capital'];
 
-  // Create stable date strings from APPLIED filters (not current filter state)
-  const startDateString = useMemo(() => 
-    appliedStartDate?.format('YYYY-MM-DD') || '2024-01-01',
-    [appliedStartDate?.valueOf()]
-  );
-  const endDateString = useMemo(() => 
-    appliedEndDate?.format('YYYY-MM-DD') || '2024-12-31',
-    [appliedEndDate?.valueOf()]
-  );
+  // FIXED: Calculate date strings using same logic as individual investment record reports
+  const { startDateString, endDateString } = useMemo(() => {
+    if (dateRange && dateRange[0] && dateRange[1]) {
+      return {
+        startDateString: dateRange[0].format('YYYY-MM-DD'),
+        endDateString: dateRange[1].format('YYYY-MM-DD')
+      };
+    } else if (timeFilter !== 'all') {
+      const now = dayjs();
+      let calculatedStartDate: dayjs.Dayjs | null = null;
+      switch (timeFilter) {
+        case 'last7days': calculatedStartDate = now.subtract(7, 'days'); break;
+        case 'last30days': calculatedStartDate = now.subtract(30, 'days'); break;
+        case 'last3months': calculatedStartDate = now.subtract(3, 'months'); break;
+        case 'last6months': calculatedStartDate = now.subtract(6, 'months'); break;
+        case 'lastyear': calculatedStartDate = now.subtract(1, 'year'); break;
+        default: calculatedStartDate = null;
+      }
+      if (calculatedStartDate) {
+        return {
+          startDateString: calculatedStartDate.format('YYYY-MM-DD'),
+          endDateString: now.format('YYYY-MM-DD')
+        };
+      }
+    }
+    
+    // Default to show recent data if no filter is set
+    return {
+      startDateString: dayjs().subtract(1, 'year').format('YYYY-MM-DD'),
+      endDateString: dayjs().format('YYYY-MM-DD')
+    };
+  }, [dateRange, timeFilter]);
+
+  // FIXED: Filter change handlers matching record reports pattern
+  const handleTimeFilterChange = (value: string) => {
+    setTimeFilter(value);
+    if (value !== 'all') {
+      setDateRange(null); // Clear date range when using time filter
+    }
+  };
+
+  const handleDateRangeChange = (dates: [dayjs.Dayjs | null, dayjs.Dayjs | null] | null) => {
+    setDateRange(dates);
+    if (dates && dates[0] && dates[1]) {
+      setTimeFilter('all'); // Clear time filter when using date range
+    }
+  };
+
+  const handleClearFilters = () => {
+    setTimeFilter('all');
+    setDateRange(null);
+  };
 
   // Find the selected investment type from catalog
   const selectedInvestmentType = useMemo(() => {
@@ -96,41 +129,15 @@ export const EquityReport: React.FC<EquityReportProps> = ({
     const filters = {
       startDate: startDateString,
       endDate: endDateString,
-      currency: appliedCurrency,
+      currency: selectedCurrency,
       investmentType: selectedInvestmentType?.code || undefined,
-      fundManagerName: appliedFundManager && appliedFundManager !== 'All' ? appliedFundManager : undefined
+      fundManagerName: selectedFundManager && selectedFundManager !== 'All' ? selectedFundManager : undefined
     };
 
     return filters;
-  }, [startDateString, endDateString, appliedCurrency, appliedFundManager, selectedInvestmentType, activeSubTab]);
+  }, [startDateString, endDateString, selectedCurrency, selectedFundManager, selectedInvestmentType, activeSubTab]);
 
 
-
-  // Apply filters handler
-  const handleApplyFilters = () => {
-    setAppliedStartDate(startDate);
-    setAppliedEndDate(endDate);
-    setAppliedCurrency(selectedCurrency);
-    setAppliedFundManager(selectedFundManager);
-  };
-
-
-
-  const handleStartDateChange = (date: dayjs.Dayjs | null) => {
-    setStartDate(date);
-  };
-
-  const handleEndDateChange = (date: dayjs.Dayjs | null) => {
-    setEndDate(date);
-  };
-
-  const handleCurrencyChange = (currency: string) => {
-    setSelectedCurrency(currency);
-  };
-
-  const handleFundManagerChange = (fundManager: string) => {
-    setSelectedFundManager(fundManager);
-  };
 
   // Show loading state while investment types are being fetched
   const showLoadingWarning = typesLoading && !typesError;
@@ -175,30 +182,36 @@ export const EquityReport: React.FC<EquityReportProps> = ({
         <CardContent>
           <div className="gba:flex gba:flex-wrap gba:items-center gba:gap-4 gba:mb-4">
             <div className="gba:flex gba:items-center gba:gap-2">
-              <label className="gba:text-sm gba:font-medium">Start Date:</label>
-              <DatePicker
-                value={startDate}
-                onChange={handleStartDateChange}
-                format="DD/MM/YYYY"
-                placeholder="Start Date"
-                allowClear={false}
-              />
+              <label className="gba:text-sm gba:font-medium">Time Period:</label>
+              <Select value={timeFilter} onValueChange={handleTimeFilterChange}>
+                <SelectTrigger className="gba:w-[150px]">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Time</SelectItem>
+                  <SelectItem value="last7days">Last 7 Days</SelectItem>
+                  <SelectItem value="last30days">Last 30 Days</SelectItem>
+                  <SelectItem value="last3months">Last 3 Months</SelectItem>
+                  <SelectItem value="last6months">Last 6 Months</SelectItem>
+                  <SelectItem value="lastyear">Last Year</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
             
             <div className="gba:flex gba:items-center gba:gap-2">
-              <label className="gba:text-sm gba:font-medium">End Date:</label>
-              <DatePicker
-                value={endDate}
-                onChange={handleEndDateChange}
+              <label className="gba:text-sm gba:font-medium">Date Range:</label>
+              <DatePicker.RangePicker
+                value={dateRange}
+                onChange={handleDateRangeChange}
                 format="DD/MM/YYYY"
-                placeholder="End Date"
-                allowClear={false}
+                placeholder={['Start Date', 'End Date']}
+                allowClear={true}
               />
             </div>
             
             <div className="gba:flex gba:items-center gba:gap-2">
               <label className="gba:text-sm gba:font-medium">Currency:</label>
-              <Select value={selectedCurrency} onValueChange={handleCurrencyChange}>
+              <Select value={selectedCurrency} onValueChange={setSelectedCurrency}>
                 <SelectTrigger className="gba:w-[120px]">
                   <SelectValue />
                 </SelectTrigger>
@@ -214,7 +227,7 @@ export const EquityReport: React.FC<EquityReportProps> = ({
             
             <div className="gba:flex gba:items-center gba:gap-2">
               <label className="gba:text-sm gba:font-medium">Fund Manager:</label>
-              <Select value={selectedFundManager} onValueChange={handleFundManagerChange}>
+              <Select value={selectedFundManager} onValueChange={setSelectedFundManager}>
                 <SelectTrigger className="gba:w-[200px]">
                   <SelectValue placeholder="All Fund Managers" />
                 </SelectTrigger>
@@ -227,16 +240,14 @@ export const EquityReport: React.FC<EquityReportProps> = ({
                 </SelectContent>
               </Select>
             </div>
-          </div>
-          
-          {/* Apply Filter Button - main button style */}
-          <div className="gba:flex gba:justify-end gba:gap-2">
+            
             <Button 
-              onClick={handleApplyFilters}
-              className="gba:bg-black hover:gba:bg-gray-800 gba:text-white gba:border-black"
-              data-testid={`${dataTestId}-apply-filters`}
+              onClick={handleClearFilters}
+              variant="outline"
+              className="gba:ml-auto"
+              data-testid={`${dataTestId}-clear-filters`}
             >
-              Apply Filter
+              Clear Filters
             </Button>
           </div>
         </CardContent>
