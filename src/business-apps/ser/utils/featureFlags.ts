@@ -9,7 +9,7 @@ import { env } from '@/common/env/EnvUtils';
  * Based on SERVICES_PLUS_ENABLED environment variable
  */
 export const isServicesPlusEnabled = (): boolean => {
-  const enabled = env('SERVICES_PLUS_ENABLED');
+  const enabled = env('SERVICES_PLUS_ENABLED') || 'false';
   return enabled === 'true' || enabled === '1';
 };
 
