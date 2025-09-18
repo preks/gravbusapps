@@ -2,8 +2,8 @@ import React, { useState, useEffect, useCallback } from "react";
 import {
   TrendingDown,
   DollarSign,
-  Building2,
   TrendingUp,
+  BarChart3,
 } from "lucide-react";
 import { getTranslationFromI18nKeyAndLabel } from "@/common/utils/windowUtils";
 import { WidgetGroup, WidgetItem } from "@/components/widget-group";
@@ -14,12 +14,12 @@ interface PlannedExitsMetrics {
   totalCount: number;
   totalMarketValue: number;
   totalInvestmentValue: number;
-  averageStakePercentage: number;
+  averagePerformance: number;
   // Period-over-period changes
   countChange: number;
   marketValueChange: number;
   investmentValueChange: number;
-  stakeChange: number;
+  performanceChange: number;
 }
 
 interface PlannedExitsMetricsProps {
@@ -73,11 +73,16 @@ const PlannedExitsMetrics: React.FC<PlannedExitsMetricsProps> = ({ context }) =>
           (sum: number, inv: any) => sum + (inv.totalInvestmentAmount || 0), 
           0
         );
-        const averageStakePercentage = totalCount > 0 
-          ? filteredInvestments.reduce((sum: number, inv: any) => sum + (inv.stakePercentage || 0), 0) / totalCount
+        const averagePerformance = totalCount > 0 
+          ? filteredInvestments.reduce((sum: number, inv: any) => {
+              const currentValue = inv.investmentMarketValue || 0;
+              const totalInvestmentValue = inv.totalInvestmentAmount || 0;
+              const performancePercentage = totalInvestmentValue > 0 ? ((currentValue - totalInvestmentValue) / totalInvestmentValue) * 100 : 0;
+              return sum + performancePercentage;
+            }, 0) / totalCount
           : 0;
 
-        return { totalCount, totalMarketValue, totalInvestmentValue, averageStakePercentage };
+        return { totalCount, totalMarketValue, totalInvestmentValue, averagePerformance };
       };
 
       // Calculate current and historical metrics
@@ -93,14 +98,14 @@ const PlannedExitsMetrics: React.FC<PlannedExitsMetricsProps> = ({ context }) =>
       const countChange = calculatePercentageChange(current.totalCount, historical.totalCount);
       const marketValueChange = calculatePercentageChange(current.totalMarketValue, historical.totalMarketValue);
       const investmentValueChange = calculatePercentageChange(current.totalInvestmentValue, historical.totalInvestmentValue);
-      const stakeChange = calculatePercentageChange(current.averageStakePercentage, historical.averageStakePercentage);
+      const performanceChange = calculatePercentageChange(current.averagePerformance, historical.averagePerformance);
 
       setMetrics({
         ...current,
         countChange,
         marketValueChange,
         investmentValueChange,
-        stakeChange,
+        performanceChange,
       });
     } catch (err) {
       console.error('Error fetching planned exits metrics:', err);
@@ -109,11 +114,11 @@ const PlannedExitsMetrics: React.FC<PlannedExitsMetricsProps> = ({ context }) =>
         totalCount: 0,
         totalMarketValue: 0,
         totalInvestmentValue: 0,
-        averageStakePercentage: 0,
+        averagePerformance: 0,
         countChange: 0,
         marketValueChange: 0,
         investmentValueChange: 0,
-        stakeChange: 0,
+        performanceChange: 0,
       });
     } finally {
       setIsLoading(false);
@@ -142,7 +147,7 @@ const PlannedExitsMetrics: React.FC<PlannedExitsMetricsProps> = ({ context }) =>
   };
 
   // Create widget items for the WidgetGroup component
-  // Order: 1) Total Planned Exits, 2) Total Investment Value, 3) Total Market Value, 4) Average Stake
+  // Order: 1) Total Planned Exits, 2) Total Investment Value, 3) Total Market Value, 4) Average Performance
   const widgets: WidgetItem[] = metrics ? [
     {
       key: "total-planned-exits",
@@ -189,18 +194,18 @@ const PlannedExitsMetrics: React.FC<PlannedExitsMetricsProps> = ({ context }) =>
       }
     },
     {
-      key: "avg-stake",
-      title: getTranslationFromI18nKeyAndLabel("avg_stake", "Average Stake"),
-      value: metrics.averageStakePercentage,
+      key: "avg-performance",
+      title: getTranslationFromI18nKeyAndLabel("avg_performance", "Average Performance"),
+      value: metrics.averagePerformance,
       suffix: "%",
       precision: 1,
-      prefix: <Building2 className="gba:h-5 gba:w-5 gba:text-purple-600" />,
-      color: '#722ed1', // Purple theme for ownership
+      prefix: <BarChart3 className="gba:h-5 gba:w-5 gba:text-purple-600" />,
+      color: '#722ed1', // Purple theme for performance
       span: { xs: 24, sm: 12, md: 12, lg: 6 },
-      description: getTranslationFromI18nKeyAndLabel("average_ownership_percentage", "Average ownership percentage"),
+      description: getTranslationFromI18nKeyAndLabel("average_investment_performance", "Average investment performance"),
       trend: {
-        value: formatPercentageChange(metrics.stakeChange),
-        positive: metrics.stakeChange >= 0,
+        value: formatPercentageChange(metrics.performanceChange),
+        positive: metrics.performanceChange >= 0,
         description: getTranslationFromI18nKeyAndLabel("vs_previous_period", "vs previous period")
       }
     },

@@ -23,6 +23,7 @@ import { AppActionButton } from "@/components/app-action-button/AppActionButton"
 import ConditionSection from "@/common/components/common-relations/record-sections/condition-section/ConditionSection";
 import { InvestmentSection } from "../../components/record-sections/investment-section";
 import { OpportunityStageProgression } from "./components/OpportunityStageProgression";
+import { isOpportunityOpen } from "./utils/opportunityStatusUtils";
 import { AccountSection } from "@/common/components/common-relations/record-sections/account-section";
 import { ContactSection } from "@/common/components/common-relations/record-sections/contact-section";
 import { ActivitySection } from "@/common/components/common-relations/record-sections/activity-section";
@@ -344,42 +345,48 @@ const InvestmentOpportunityRecordContent: React.FC<OpportunityRecordContentProps
     />
   ), [aiSummaryHook, opportunityId]);
 
-  const headerContent = useMemo(() => !loadingStages &&
-    !stagesError &&
-    opportunityStages.length > 0 &&
-    opportunityData?.opportunityPipelineStage ? (
-      <OpportunityStageProgression
-        currentStage={opportunity?.stage || "Discovery"}
-        stages={opportunityStages}
-        opportunityId={opportunityId}
-        stageConditionStatuses={stageConditionStatuses || []}
-        accessToken={props.accessToken}
-      />
-    ) : loadingStages ? (
-      <div style={{ 
-        textAlign: "center", 
-        padding: "var(--nw-spacing-lg)" 
-      }}>
-        <Spinner size="sm" />
-        <span style={{ marginLeft: "var(--nw-spacing-sm)" }}>Loading pipeline stages...</span>
-      </div>
-    ) : stagesError ? (
-      <div style={{ 
-        textAlign: "center", 
-        padding: "var(--nw-spacing-lg)", 
-        color: "var(--nw-color-danger-500)" 
-      }}>
-        <p>Failed to load pipeline stages: {stagesError}</p>
-      </div>
-    ) : !opportunityData?.opportunityPipelineStage ? (
-      <div style={{ 
-        textAlign: "center", 
-        padding: "var(--nw-spacing-lg)", 
-        color: "var(--nw-color-text-secondary)" 
-      }}>
-        <p>No pipeline stage assigned to this opportunity</p>
-      </div>
-    ) : undefined, [loadingStages, stagesError, opportunityStages, opportunityData?.opportunityPipelineStage, opportunity?.stage, opportunityId, stageConditionStatuses, props.accessToken]);
+  const headerContent = useMemo(() => {
+    const isReadonly = !isOpportunityOpen(opportunityData?.opportunityStatus?.value);
+    
+    return !loadingStages &&
+      !stagesError &&
+      opportunityStages.length > 0 &&
+      opportunityData?.opportunityPipelineStage ? (
+        <OpportunityStageProgression
+          currentStage={opportunity?.stage || "Discovery"}
+          stages={opportunityStages}
+          opportunityId={opportunityId}
+          stageConditionStatuses={stageConditionStatuses || []}
+          accessToken={props.accessToken}
+          readonly={isReadonly}
+          opportunityStatus={opportunityData?.opportunityStatus?.value}
+        />
+      ) : loadingStages ? (
+        <div style={{ 
+          textAlign: "center", 
+          padding: "var(--nw-spacing-lg)" 
+        }}>
+          <Spinner size="sm" />
+          <span style={{ marginLeft: "var(--nw-spacing-sm)" }}>Loading pipeline stages...</span>
+        </div>
+      ) : stagesError ? (
+        <div style={{ 
+          textAlign: "center", 
+          padding: "var(--nw-spacing-lg)", 
+          color: "var(--nw-color-danger-500)" 
+        }}>
+          <p>Failed to load pipeline stages: {stagesError}</p>
+        </div>
+      ) : !opportunityData?.opportunityPipelineStage ? (
+        <div style={{ 
+          textAlign: "center", 
+          padding: "var(--nw-spacing-lg)", 
+          color: "var(--nw-color-text-secondary)" 
+        }}>
+          <p>No pipeline stage assigned to this opportunity</p>
+        </div>
+      ) : undefined;
+  }, [loadingStages, stagesError, opportunityStages, opportunityData?.opportunityPipelineStage, opportunity?.stage, opportunityId, stageConditionStatuses, props.accessToken, opportunityData?.opportunityStatus?.value]);
 
   if (loading) {
     return (

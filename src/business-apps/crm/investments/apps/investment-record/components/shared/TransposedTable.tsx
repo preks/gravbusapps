@@ -1,7 +1,7 @@
 // Transposed Table Component for Investment Reports
 import React from 'react';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@newwork/nw-design-system';
-import { ColumnDefinition } from '../utils/columnDefinitions';
+import { ColumnDefinition } from './columnDefinitions';
 
 interface TransposedTableProps {
   columns: ColumnDefinition[];

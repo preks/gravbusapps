@@ -13,16 +13,19 @@ import {
   Badge
 } from '@newwork/nw-design-system';
 import { TrendingUp, Calendar, DollarSign, Percent } from 'lucide-react';
-import { EquityInvestmentData } from '../hooks/useEquityRecordData';
 import type { BaseEquityInvestmentRound } from '@/common/data/investment';
 
-interface InvestmentRoundsProps {
-  equityData?: EquityInvestmentData | null;
+interface EquityInvestmentRoundsProps {
+  equityData?: {
+    investment?: any;
+    equityInvestment?: any;
+    documents?: any[];
+  } | null;
   isLoading?: boolean;
   'data-testid'?: string;
 }
 
-const InvestmentRounds: React.FC<InvestmentRoundsProps> = ({
+const EquityInvestmentRounds: React.FC<EquityInvestmentRoundsProps> = ({
   equityData,
   isLoading,
   'data-testid': dataTestId = 'investment-rounds'
@@ -186,4 +189,4 @@ const InvestmentRounds: React.FC<InvestmentRoundsProps> = ({
   );
 };
 
-export default InvestmentRounds;
+export default EquityInvestmentRounds;
