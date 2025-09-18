@@ -24,9 +24,11 @@ import flowSmall from '@/assets/icons/flowSmall.svg';
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient';
 import { getAllEmployees } from './queries/getAllEmployees';
 import { BusinessAppContextProps } from '../../../../../common/BusinessAppContext';
-import { getCurrentActiveUserLocale } from '@/common/utils/windowUtils';
-import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
-import { getCurrentActiveStructureId } from '@/common/utils/windowUtils';
+import {
+  getCurrentActiveUserLocale,
+  getCurrentActiveStructureId,
+  getTranslationFromI18nKeyAndLabel,
+} from '@/common/utils/windowUtils';
 import { dispatchProcessContinueEvent } from '@/common/utils/processEventUtils';
 import { useAbsenceValidation } from './hooks/useAbsenceValidation';
 import { useFileClient } from '@/common/network/files/useFileClient';
