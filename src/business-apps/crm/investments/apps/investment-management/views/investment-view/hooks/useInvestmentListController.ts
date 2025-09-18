@@ -1,4 +1,5 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
+import { buildPlatformUrl } from '@/common/utils/navigationUtils';
 
 export interface InvestmentListControllerParams {
   search?: string;
@@ -109,8 +110,20 @@ export const useInvestmentListController = (): InvestmentListController => {
         }
       }
 
-      const newURL = `${window.location.pathname}?${newSearchParams.toString()}`;
-      window.history.replaceState({}, "", newURL);
+      try {
+        const params: Record<string, string> = {};
+        newSearchParams.forEach((value, key) => {
+          params[key] = value;
+        });
+        
+        const newURL = buildPlatformUrl(window.location.pathname, params);
+        
+        if (window.history && window.history.replaceState) {
+          window.history.replaceState({}, "", newURL);
+        }
+      } catch (error) {
+        console.warn('Failed to update URL in investment list controller:', error);
+      }
     },
     []
   );

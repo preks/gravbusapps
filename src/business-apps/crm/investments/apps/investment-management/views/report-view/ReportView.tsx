@@ -9,6 +9,7 @@ import {
 import { BarChart3, TrendingUp, Building2, PieChart, Upload } from 'lucide-react';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
+import { buildPlatformUrl } from '@/common/utils/navigationUtils';
 import { LiquidFundReport } from './liquid-fund-report/LiquidFundReport';
 import { RealEstateReport } from './real-estate-report/RealEstateReport';
 import { EquityReport } from './equity-report/EquityReport';
@@ -30,12 +31,32 @@ export const ReportView: React.FC<ReportViewProps> = ({
   const [activeSubTab, setActiveSubTab] = useState(initialSubTab);
   const [uploadDialogOpen, setUploadDialogOpen] = useState(false);
 
-  // Update URL when tab changes
+  // Update URL when tab changes using safe navigation
   useEffect(() => {
     const updateURL = () => {
-      const url = new URL(window.location.href);
-      url.searchParams.set('analyticsSubView', activeSubTab);
-      window.history.replaceState({}, '', url.toString());
+      try {
+        const currentUrl = new URL(window.location.href);
+        const params: Record<string, string> = {};
+        
+        // Preserve existing query parameters
+        currentUrl.searchParams.forEach((value, key) => {
+          params[key] = value;
+        });
+        
+        // Update the analytics sub view parameter
+        params.analyticsSubView = activeSubTab;
+        
+        // Use platform URL builder for safe navigation
+        const newUrl = buildPlatformUrl(currentUrl.pathname, params);
+        
+        // Use safe history manipulation
+        if (window.history && window.history.replaceState) {
+          window.history.replaceState({}, '', newUrl);
+        }
+      } catch (error) {
+        console.warn('Failed to update URL:', error);
+        // Fallback: just update the state without URL manipulation
+      }
     };
 
     updateURL();
