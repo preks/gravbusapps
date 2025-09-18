@@ -5,6 +5,7 @@ import {
   InvestmentLeadQueryResult,
 } from "../queries/LeadQueries";
 import { LeadFormValues } from "../types";
+import { extractAddressFromObject } from "../../../../common/utils/addressUtils";
 
 interface UseInvestmentLeadDataProps {
   businessAppContext: BusinessAppContextProps;
@@ -19,36 +20,6 @@ interface UseInvestmentLeadDataReturn {
   ) => Partial<LeadFormValues>;
 }
 
-// Helper function to extract address from various formats
-const extractAddressFromObject = (addressLine: any): string => {
-  if (!addressLine || typeof addressLine !== "object") {
-    return typeof addressLine === "string" ? addressLine : "";
-  }
-
-  // Standard format: { "lines": ["value"] } - PRIORITIZE THIS
-  if (addressLine.lines && Array.isArray(addressLine.lines)) {
-    return addressLine.lines.join(", ");
-  }
-
-  // Alternative format: { "address": "value" }
-  if (addressLine.address) {
-    // Handle corrupted double-encoded JSON
-    if (typeof addressLine.address === "string" && addressLine.address.startsWith("{")) {
-      try {
-        const parsed = JSON.parse(addressLine.address);
-        if (parsed.lines && Array.isArray(parsed.lines)) {
-          return parsed.lines.join(", ");
-        }
-      } catch (e) {
-        // If parsing fails, return the raw string
-        return addressLine.address;
-      }
-    }
-    return addressLine.address;
-  }
-
-  return "";
-};
 
 export const useInvestmentLeadData = ({
   businessAppContext,
@@ -103,30 +74,20 @@ export const useInvestmentLeadData = ({
         // Notes - ✅ ADDED: Map description to notes field
         notes: lead.description || "",
 
-        // Address Information - ✅ UPDATED: Multiple addressLine support and locality
+        // Address Information - Direct fields (NOT addresses relationship)
         country: lead.countryRef || lead.country?.id || "",
         region: lead.regionRef || lead.region?.id || "",
-        locality: lead.locality || "", // ✅ UPDATED: Use locality field
+        locality: lead.locality || "", // Direct locality field
         postalCode: lead.postalCode || "",
-        addressLine: extractAddressFromObject(lead.addressLine), // ✅ FIXED: Use helper to handle all address formats
+        addressLine: extractAddressFromObject(lead.addressLine) || "",
 
         // Legacy fields for backward compatibility
-        city: lead.locality || "",
-        // ✅ UPDATED: Split address lines from database into individual fields
-        ...(() => {
-          const addressLines = lead.addressLine && typeof lead.addressLine === "object" && lead.addressLine.lines
-            ? lead.addressLine.lines
-            : lead.addressLine 
-              ? [extractAddressFromObject(lead.addressLine)]
-              : [];
-          
-          return {
-            addressLine1: addressLines[0] || "",
-            addressLine2: addressLines[1] || "",
-            addressLine3: addressLines[2] || "",
-            addressLine4: addressLines[3] || "",
-          };
-        })(),
+        city: lead.locality || "", // Map locality to city for backward compatibility
+        // Address lines from direct fields
+        addressLine1: extractAddressFromObject(lead.addressLine) || "",
+        addressLine2: "", // Additional address lines not supported in current schema
+        addressLine3: "",
+        addressLine4: "",
 
         // Company relationship - ✅ ADDED: Support both convertedAccount and convertedAccountId
         accountId: lead.convertedAccountId || lead.convertedAccount?.id || "",
