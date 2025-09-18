@@ -12,6 +12,7 @@ export interface ExpenseDashboard {
   bookedExpenseRequests: number;
   pendingAdvancePayments: number;
   bookedAndPendingCount: number;
+  pendingItems: number;
   currentMonthExpenses: {
     total: number;
     count: number;
@@ -59,7 +60,10 @@ export interface ExpenseDashboardDataView {
   error: string | null;
 }
 
-export const useGetExpenseDashboard = (context?: BusinessAppContextProps): ExpenseDashboardDataView => {
+export const useGetExpenseDashboard = (
+  context?: BusinessAppContextProps,
+  filters?: { currency?: string; period?: 'monthly' | 'quarterly' | 'yearly' }
+): ExpenseDashboardDataView => {
   const [stats, setStats] = useState<ExpenseDashboard | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [error, setError] = useState<Error | null>(null);
@@ -79,12 +83,28 @@ export const useGetExpenseDashboard = (context?: BusinessAppContextProps): Expen
       setError(null);
       try {
         const now = dayjs();
+        const selectedCurrency = filters?.currency || 'Currency:v1:EUR';
+        const selectedPeriod: 'monthly' | 'quarterly' | 'yearly' = filters?.period || 'monthly';
+
+        const periodStart =
+          selectedPeriod === 'yearly'
+            ? now.startOf('year')
+            : selectedPeriod === 'quarterly'
+            ? now.startOf('quarter')
+            : now.startOf('month');
+        const periodEnd =
+          selectedPeriod === 'yearly'
+            ? now.endOf('year')
+            : selectedPeriod === 'quarterly'
+            ? now.endOf('quarter')
+            : now.endOf('month');
         const variables = {
           employeeId,
-          currency: 'Currency:v1:EUR',
+          currency: selectedCurrency,
           currentDate: now.toISOString(),
-          currentMonthStart: now.startOf('month').toISOString(),
-          currentMonthEnd: now.endOf('month').toISOString(),
+          // Align recent activity with selected period
+          currentMonthStart: periodStart.toISOString(),
+          currentMonthEnd: periodEnd.toISOString(),
           previousMonthStart: now.subtract(1, 'month').startOf('month').toISOString(),
           previousMonthEnd: now.subtract(1, 'month').endOf('month').toISOString(),
           currentQuarterStart: now.startOf('quarter').toISOString(),
@@ -125,12 +145,21 @@ export const useGetExpenseDashboard = (context?: BusinessAppContextProps): Expen
         const bookedExpenseRequests = data?.bookedExpenseRequests?.aggregate?.sum?.totalAmount ?? 0;
         const pendingAdvancePayments = data?.pendingAdvancePayments?.aggregate?.sum?.amount ?? 0;
         const bookedAndPendingCount = data?.bookedExpenseRequests?.aggregate?.count + data?.pendingAdvancePayments?.aggregate?.count;
+        const pendingItems = data?.pendingItems?.aggregate?.count ?? 0;
 
         const expenseDashboard: ExpenseDashboard = {
-          pendingPayouts: bookedExpenseRequests + pendingAdvancePayments,
+          pendingPayouts: (() => {
+            if (selectedPeriod === 'yearly') {
+              return (data?.currentYearBooked?.aggregate?.sum?.totalAmount ?? 0) + pendingAdvancePayments;
+            } else if (selectedPeriod === 'quarterly') {
+              return (data?.currentQuarterBooked?.aggregate?.sum?.totalAmount ?? 0) + pendingAdvancePayments;
+            }
+            return bookedExpenseRequests + pendingAdvancePayments;
+          })(),
           bookedExpenseRequests: bookedExpenseRequests,
           pendingAdvancePayments: pendingAdvancePayments,
           bookedAndPendingCount: bookedAndPendingCount,
+          pendingItems: pendingItems,
           currentMonthExpenses: {
             total: data?.currentMonthExpenses?.aggregate?.sum?.totalAmount ?? 0,
             count: data?.currentMonthExpenses?.aggregate?.count ?? 0,
@@ -182,7 +211,7 @@ export const useGetExpenseDashboard = (context?: BusinessAppContextProps): Expen
     };
 
     fetchStats();
-  }, [graphqlClient, context?.accessToken, context?.userInfo?.employeeDetails?.employeeId]);
+  }, [graphqlClient, context?.accessToken, context?.userInfo?.employeeDetails?.employeeId, filters?.currency, filters?.period]);
 
   return { stats, isLoading, error: error?.message ?? null };
 };

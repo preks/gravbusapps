@@ -95,6 +95,22 @@ export const GET_EXPENSE_DASHBOARD_BY_EMPLOYEE = `
       }
     }
 
+    # This month's BOOKED expenses (pending payout proxy)
+    currentMonthBooked: ExpenseRequestAggregate(
+      where: {
+        employeeId: {_eq: $employeeId}, 
+        isDeleted: {_eq: false},
+        status: {_eq: "BOOKED"},
+        decisionDate: {_gte: $currentMonthStart, _lt: $currentMonthEnd},
+        currencyRef: {_eq: $currency}
+      }
+    ) {
+      aggregate {
+        sum { totalAmount }
+        count
+      }
+    }
+
     # This quarter's expenses
     currentQuarterExpenses: ExpenseRequestAggregate(
       where: {
@@ -109,6 +125,22 @@ export const GET_EXPENSE_DASHBOARD_BY_EMPLOYEE = `
         sum {
           totalAmount
         }
+        count
+      }
+    }
+
+    # This quarter's BOOKED expenses (pending payout proxy)
+    currentQuarterBooked: ExpenseRequestAggregate(
+      where: {
+        employeeId: {_eq: $employeeId}, 
+        isDeleted: {_eq: false},
+        status: {_eq: "BOOKED"},
+        decisionDate: {_gte: $currentQuarterStart, _lt: $currentQuarterEnd},
+        currencyRef: {_eq: $currency}
+      }
+    ) {
+      aggregate {
+        sum { totalAmount }
         count
       }
     }
@@ -145,6 +177,22 @@ export const GET_EXPENSE_DASHBOARD_BY_EMPLOYEE = `
         sum {
           totalAmount
         }
+        count
+      }
+    }
+
+    # This year's BOOKED expenses (pending payout proxy)
+    currentYearBooked: ExpenseRequestAggregate(
+      where: {
+        employeeId: {_eq: $employeeId},
+        isDeleted: {_eq: false},
+        status: {_eq: "BOOKED"},
+        decisionDate: {_gte: $currentYearStart, _lt: $currentYearEnd},
+        currencyRef: {_eq: $currency}
+      }
+    ) {
+      aggregate {
+        sum { totalAmount }
         count
       }
     }
@@ -287,7 +335,18 @@ export const GET_EXPENSE_DASHBOARD_BY_EMPLOYEE = `
         }
       }
     }
-    
+    pendingItems: ExpenseItemAggregate(
+      where: {
+        employeeId: {_eq: $employeeId},
+        isDeleted: {_eq: false},
+        status: {_eq: "CREATED"}
+        expenseClass: {_not: {code: {_eq: "ALLOWANCE"}}}
+      }
+    ) {
+      aggregate {
+        count
+      }
+    }
 
   }
 `;

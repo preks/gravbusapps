@@ -27,6 +27,7 @@ export interface DashboardStats {
   pendingPayouts?: number;
   bookedExpenseRequests?: number;
   pendingAdvancePayments?: number;
+  pendingItems?: number;
   flaggedItems?: number;
   upcomingTrips?: number;
   expensesByTypeMonth?: Record<string, number>;

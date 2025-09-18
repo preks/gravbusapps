@@ -76,6 +76,16 @@ const ExpenseItemsTab: React.FC<ExpenseItemsTabProps> = (props) => {
   const [tableRefreshTrigger, setTableRefreshTrigger] = useState<number>(0);
   const graphqlClient = useGraphQLClient(contextProps.accessToken);
   
+  // Read URL flag to hide statistics/cards
+  const hideStats = useMemo(() => {
+    try {
+      const urlParams = new URLSearchParams(window.location.search);
+      return urlParams.get('hideStats') === '1';
+    } catch {
+      return false;
+    }
+  }, []);
+  
   
   // Ref to track if component is mounted
   const isMounted = useRef<boolean>(true);
@@ -91,15 +101,21 @@ const ExpenseItemsTab: React.FC<ExpenseItemsTabProps> = (props) => {
   useEffect(() => {
     // First check sessionStorage for filter
     const storedFilter = sessionStorage.getItem('expenseItemsFilter');
+    const urlParams = new URLSearchParams(window.location.search);
+    const statusParam = (urlParams.get('status') || '').toLowerCase();
     
-    if (storedFilter) {
+    if (storedFilter || statusParam) {
       
       
       // Clear existing filters first
       clearFilters();
       
       // Add the filter from sessionStorage
-      addFilter(storedFilter);
+      if (statusParam) {
+        addFilter(statusParam);
+      } else if (storedFilter) {
+        addFilter(storedFilter);
+      }
       
       // Clear the sessionStorage after using it
       sessionStorage.removeItem('expenseItemsFilter');
@@ -336,8 +352,10 @@ const ExpenseItemsTab: React.FC<ExpenseItemsTabProps> = (props) => {
 
   // Fetch statistics on component mount
   useEffect(() => {
-    fetchItemStatistics();
-  }, [fetchItemStatistics]);
+    if (!hideStats) {
+      fetchItemStatistics();
+    }
+  }, [fetchItemStatistics, hideStats]);
 
   // Combine UI and card filters
   const finalFilters = useMemo(() => {
@@ -472,18 +490,29 @@ const ExpenseItemsTab: React.FC<ExpenseItemsTabProps> = (props) => {
   // Update the content header only when it changes and when allItems is loaded
   const onContentHeaderChange = props.onContentHeaderChange;
   useEffect(() => {
+    if (hideStats) {
+      // Explicitly clear any header when hideStats is requested
+      if (onContentHeaderChange) {
+        const timerId = setTimeout(() => {
+          onContentHeaderChange(null);
+        }, 0);
+        return () => clearTimeout(timerId);
+      }
+      return;
+    }
     // Only update content header when we have items and the callback exists
     if (onContentHeaderChange && allItems && allItems.length > 0) {
-      // Use a small timeout to ensure proper React rendering cycle
       const timerId = setTimeout(() => {
         onContentHeaderChange(contentHeader);
       }, 0);
       return () => clearTimeout(timerId);
     }
-  }, [onContentHeaderChange, contentHeader, allItems]);
+  }, [onContentHeaderChange, contentHeader, allItems, hideStats]);
 
   // One-time effect to fetch all items for statistics without filters
   useEffect(() => {
+    // Skip heavy stats-only fetch when stats hidden
+    if (hideStats) return;
     // Only fetch all items once
     if (!hasLoadedAllItems) {
       const fetchAllItemsForStats = async () => {
@@ -564,7 +593,7 @@ const ExpenseItemsTab: React.FC<ExpenseItemsTabProps> = (props) => {
       
       fetchAllItemsForStats();
     }
-  }, [contextProps?.userInfo?.employeeDetails?.employeeId, contextProps?.accessToken, hasLoadedAllItems]);
+  }, [contextProps?.userInfo?.employeeDetails?.employeeId, contextProps?.accessToken, hasLoadedAllItems, hideStats]);
 
   // Handle adding a new expense item
   const handleAddExpenseItem = useCallback(() => {
