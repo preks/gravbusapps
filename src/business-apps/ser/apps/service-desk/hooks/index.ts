@@ -4,6 +4,7 @@ export { useTicketDetail } from './useTicketDetail';
 export { useTicketActions } from './useTicketActions';
 export { useEmployeeName } from './useEmployeeName';
 export { useCompletedTickets } from './useCompletedTickets';
+export { useServiceDeskCatalog } from './useServiceDeskCatalog';
 
 // New GraphQL-based hooks
 // export { useDesksForUser } from '../../hooks/useDesksForUser';
@@ -39,3 +40,9 @@ export type {
   UseEmployeeNameReturn,
   EmployeeData 
 } from './useEmployeeName';
+
+export type { 
+  ServiceDeskCatalogEntry,
+  ServiceDeskCatalog,
+  UseServiceDeskCatalogResult
+} from './useServiceDeskCatalog';

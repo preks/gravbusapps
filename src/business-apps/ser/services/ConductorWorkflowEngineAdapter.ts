@@ -26,6 +26,7 @@ export class ConductorWorkflowEngineAdapter implements WorkflowEngine {
   private accessToken: string;
   private currentUserId: string;
   private userInfo?: any;
+  private serviceDeskCatalogEntries: any[] = [];
 
   constructor(context: BusinessAppContextProps) {
     this.flowEngineBaseUrl = process.env.NEXT_PUBLIC_CUSTOM_FLOW_ENGINE_URL || 'http://localhost:3000';
@@ -33,11 +34,61 @@ export class ConductorWorkflowEngineAdapter implements WorkflowEngine {
     this.currentUserId = context.userInfo?.id || 'unknown-user';
     this.userInfo = context.userInfo;
     
+    // Load Service Desk Catalog for enhanced desk mapping (async, but don't block constructor)
+    this.loadServiceDeskCatalog();
+    
     console.log(`[ConductorAdapterRequester] Initialized with user:`, {
       userId: this.currentUserId,
       hasUserInfo: !!this.userInfo,
       displayName: this.getRequesterDisplayName()
     });
+  }
+
+  /**
+   * Load Service Desk Catalog for enhanced desk mapping
+   */
+  private async loadServiceDeskCatalog(): Promise<void> {
+    try {
+      // Get NEWWORK GraphQL endpoint
+      const graphqlEndpoint = process.env.NEXT_PUBLIC_GRAPHQL_ENDPOINT_NEWWORK || 'https://newwork-dev.newwork.com/v1/graphql';
+      
+      const response = await fetch(graphqlEndpoint, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${this.accessToken}`,
+        },
+        body: JSON.stringify({
+          query: `
+            query GetServiceDeskCatalog {
+              Catalog(where: {identifier: {_eq: "ServiceDeskCatalog"}}) {
+                catalogEntries(where: {isDeleted: {_eq: false}}) {
+                  code
+                  value
+                  additionalValue3
+                }
+              }
+            }
+          `
+        }),
+      });
+
+      if (response.ok) {
+        const result = await response.json();
+        const catalogs = result.data?.Catalog || [];
+        if (catalogs.length > 0) {
+          this.serviceDeskCatalogEntries = catalogs[0].catalogEntries || [];
+          console.log(`[ConductorAdapter] 📋 Loaded ${this.serviceDeskCatalogEntries.length} Service Desk Catalog entries:`, 
+            this.serviceDeskCatalogEntries.map(e => ({code: e.code, value: e.value, additionalValue3: e.additionalValue3})));
+        } else {
+          console.warn(`[ConductorAdapter] No Service Desk Catalog found in response`);
+        }
+      } else {
+        console.warn(`[ConductorAdapter] Failed to load Service Desk Catalog: ${response.status}`);
+      }
+    } catch (error) {
+      console.warn(`[ConductorAdapter] Error loading Service Desk Catalog:`, error);
+    }
   }
 
   /**
@@ -259,52 +310,6 @@ export class ConductorWorkflowEngineAdapter implements WorkflowEngine {
    * Get all service requests for current user
    * Queries flows initiated by current user and fetches full details for each
    */
-  async getMyRequests(): Promise<SubmittedRequest[]> {
-    try {
-      console.log(`[ConductorAdapter] Getting requests for user: ${this.currentUserId}`);
-
-      // Step 1: Get list of flows initiated by the current user  
-      const listResponse = await fetch(`${this.flowEngineBaseUrl}/api/flows/user/${this.currentUserId}/initiated?limit=50&offset=0`, {
-        headers: {
-          'Authorization': `Bearer ${this.accessToken}`,
-        },
-      });
-
-      if (!listResponse.ok) {
-        throw new Error(`Failed to get user flows: ${listResponse.status} ${listResponse.statusText}`);
-      }
-
-      const listResult = await listResponse.json();
-      const flowSummaries = listResult.data?.flows || listResult.flows || [];
-
-      console.log(`[ConductorAdapter] Found ${flowSummaries.length} flow summaries`);
-
-      // Step 2: Get full details for each flow
-      const submittedRequests: SubmittedRequest[] = [];
-      
-      for (const flowSummary of flowSummaries) {
-        try {
-          const flowId = flowSummary.flowId || flowSummary.id;
-          console.log(`[ConductorAdapter] Fetching full details for flow: ${flowId}`);
-          
-          // Get full flow details
-          const fullRequest = await this.getRequest(flowId);
-          submittedRequests.push(fullRequest);
-          
-        } catch (error) {
-          console.error(`[ConductorAdapter] Error getting details for flow ${flowSummary.flowId}:`, error);
-          // Continue with other flows instead of failing completely
-        }
-      }
-      
-      console.log(`[ConductorAdapter] Retrieved full details for ${submittedRequests.length} requests`);
-      return submittedRequests;
-
-    } catch (error) {
-      console.error('[ConductorAdapter] Error getting user requests:', error);
-      throw new Error(`Failed to get user requests: ${error instanceof Error ? error.message : 'Unknown error'}`);
-    }
-  }
 
   /**
    * Get a specific service request by ID
@@ -370,7 +375,7 @@ export class ConductorWorkflowEngineAdapter implements WorkflowEngine {
       const taskData = result.task || result;
       
       // Determine the actual desk based on API data instead of hardcoding
-      const actualDesk = this.determineTaskDesk(taskData, []);
+      const actualDesk = await this.determineTaskDesk(taskData, []);
       console.log(`[ConductorAdapter] 🎯 Determined desk for task ${ticketId}: ${actualDesk} (was hardcoded as 'Admin')`);
       
       // Convert to StepInstance format using real custom-flow-engine task data  
@@ -387,66 +392,10 @@ export class ConductorWorkflowEngineAdapter implements WorkflowEngine {
   /**
    * Assign a step to a specific user
    */
-  async assign(stepId: string, userId: string): Promise<void> {
-    try {
-      console.log(`[ConductorAdapter] Assigning step: ${stepId} to user: ${userId}`);
-
-      const response = await fetch(`${this.flowEngineBaseUrl}/api/tasks/${stepId}/reassign`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${this.accessToken}`,
-        },
-        body: JSON.stringify({
-          userId: this.currentUserId,
-          reassignTo: userId,
-          comment: `Assigned to ${userId} via Service Desk`
-        }),
-      });
-
-      if (!response.ok) {
-        throw new Error(`Failed to assign task: ${response.status} ${response.statusText}`);
-      }
-
-      console.log(`[ConductorAdapter] Step assigned successfully: ${stepId} -> ${userId}`);
-
-    } catch (error) {
-      console.error(`[ConductorAdapter] Error assigning step ${stepId}:`, error);
-      throw new Error(`Failed to assign step: ${error instanceof Error ? error.message : 'Unknown error'}`);
-    }
-  }
 
   /**
    * Advance/complete a step with optional data
    */
-  async advance(stepId: string, payload?: any): Promise<void> {
-    try {
-      console.log(`[ConductorAdapter] Advancing step: ${stepId}`, payload ? 'with payload' : 'without payload');
-
-      const response = await fetch(`${this.flowEngineBaseUrl}/api/tasks/${stepId}/complete`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${this.accessToken}`,
-        },
-        body: JSON.stringify({
-          userId: this.currentUserId,
-          formData: payload || {},
-          comment: payload?.comment || `Completed via Service Desk by ${this.currentUserId}`
-        }),
-      });
-
-      if (!response.ok) {
-        throw new Error(`Failed to complete task: ${response.status} ${response.statusText}`);
-      }
-
-      console.log(`[ConductorAdapter] Step completed successfully: ${stepId}`);
-
-    } catch (error) {
-      console.error(`[ConductorAdapter] Error completing step ${stepId}:`, error);
-      throw new Error(`Failed to complete step: ${error instanceof Error ? error.message : 'Unknown error'}`);
-    }
-  }
 
 
   // =================================================================================
@@ -1826,7 +1775,7 @@ export class ConductorWorkflowEngineAdapter implements WorkflowEngine {
       const result = await response.json();
       const tasks = result.tasks || [];
 
-      console.log(`[ConductorAdapter] Retrieved ${tasks.length} REAL tasks from custom-flow-engine:`, tasks.map(t => t.id));
+      console.log(`[ConductorAdapter] Retrieved ${tasks.length} REAL tasks from custom-flow-engine:`, tasks.map((t: any) => t.id));
       
       // VALIDATION: Filter out orphaned tasks (tasks without valid parent workflows)
       // DISABLED FOR ALL DESKS - showing all tasks regardless of workflow state
@@ -1870,7 +1819,7 @@ export class ConductorWorkflowEngineAdapter implements WorkflowEngine {
       // DESK FILTERING: Filter tasks by desk before converting
       const deskSpecificTasks = [];
       for (const task of validTasks) {
-        const actualTaskDesk = this.determineTaskDesk(task, []);
+        const actualTaskDesk = await this.determineTaskDesk(task, []);
         console.log(`[ConductorAdapter] Task ${task.id}: determined desk = ${actualTaskDesk}, requested desk = ${desk}`);
         
         if (actualTaskDesk === desk) {
@@ -1884,10 +1833,11 @@ export class ConductorWorkflowEngineAdapter implements WorkflowEngine {
       console.log(`[ConductorAdapter] Desk filtering: ${validTasks.length} → ${deskSpecificTasks.length} tasks for desk ${desk}`);
       
       // Convert only desk-specific tasks to StepInstance format
-      const stepInstances = deskSpecificTasks.map((task: any) => {
-        const taskDesk = this.determineTaskDesk(task, []);
-        return this.convertCustomFlowEngineTaskToStepInstance(task, taskDesk);
-      });
+      const stepInstances = [];
+      for (const task of deskSpecificTasks) {
+        const taskDesk = await this.determineTaskDesk(task, []);
+        stepInstances.push(this.convertCustomFlowEngineTaskToStepInstance(task, taskDesk));
+      }
       
       console.log(`[ConductorAdapter] Final result: ${stepInstances.length} StepInstances for desk: ${desk}`);
       return stepInstances;
@@ -2002,7 +1952,7 @@ export class ConductorWorkflowEngineAdapter implements WorkflowEngine {
         if (task.status === 'SCHEDULED' || task.status === 'IN_PROGRESS') {
           
           // Determine which desk this task belongs to based on its assignment
-          const taskDesk = this.determineTaskDesk(task, flowSteps);
+          const taskDesk = await this.determineTaskDesk(task, flowSteps);
           
           if (taskDesk === targetDesk) {
             // Convert to StepInstance format with flow context
@@ -2019,7 +1969,7 @@ export class ConductorWorkflowEngineAdapter implements WorkflowEngine {
         console.log(`[ConductorAdapterRequester] No active tasks found, checking ${flowSteps.length} flow steps for pending execution...`);
         
         // Debug: Log the flow steps structure
-        console.log(`[ConductorAdapterRequester] 🔍 Flow steps structure:`, flowSteps.map((step, i) => ({
+        console.log(`[ConductorAdapterRequester] 🔍 Flow steps structure:`, flowSteps.map((step: any, i: number) => ({
           index: i,
           title: step.title,
           type: step.type,
@@ -2034,7 +1984,7 @@ export class ConductorWorkflowEngineAdapter implements WorkflowEngine {
         
         if (currentStepIndex !== -1 && currentStepIndex < flowSteps.length) {
           const currentStep = flowSteps[currentStepIndex];
-          const stepDesk = this.determineStepDesk(currentStep);
+          const stepDesk = await this.determineStepDesk(currentStep);
           
           console.log(`[ConductorAdapterRequester] 🔍 Current step analysis:`, {
             stepIndex: currentStepIndex,
@@ -2098,11 +2048,11 @@ export class ConductorWorkflowEngineAdapter implements WorkflowEngine {
   /**
    * Determine which desk a task belongs to based on its assignment information
    */
-  private determineTaskDesk(task: any, flowSteps: any[]): StepReceiver {
+  private async determineTaskDesk(task: any, flowSteps: any[]): Promise<StepReceiver> {
     try {
       // First, try to get assignment from the task itself
       if (task.assignment?.targets) {
-        return this.mapAssignmentTargetsToDesk(task.assignment.targets);
+        return await this.mapAssignmentTargetsToDesk(task.assignment.targets);
       }
       
       // If no direct assignment, try to find the corresponding step in the flow
@@ -2114,7 +2064,7 @@ export class ConductorWorkflowEngineAdapter implements WorkflowEngine {
         );
         
         if (matchingStep?.assignment?.targets) {
-          return this.mapAssignmentTargetsToDesk(matchingStep.assignment.targets);
+          return await this.mapAssignmentTargetsToDesk(matchingStep.assignment.targets);
         }
       }
       
@@ -2129,36 +2079,135 @@ export class ConductorWorkflowEngineAdapter implements WorkflowEngine {
   /**
    * Determine which desk a step belongs to based on its assignment information
    */
-  private determineStepDesk(step: any): StepReceiver {
+  private async determineStepDesk(step: any): Promise<StepReceiver> {
     if (step.assignment?.targets) {
-      return this.mapAssignmentTargetsToDesk(step.assignment.targets);
+      return await this.mapAssignmentTargetsToDesk(step.assignment.targets);
     }
     return this.inferDeskFromTaskName(step.title || '');
   }
 
+
   /**
-   * Map assignment targets to service desk
+   * Map assignment targets to service desk using Service Desk Catalog data
    */
-  private mapAssignmentTargetsToDesk(targets: any): StepReceiver {
-    // Check organizational units first
-    if (targets.organizationalUnits?.length > 0) {
-      const orgUnit = targets.organizationalUnits[0].toLowerCase();
-      if (orgUnit.includes('hr') || orgUnit === 'ou_hr_001') return 'HR';
-      if (orgUnit.includes('it') || orgUnit === 'ou_it_001') return 'IT';
-      if (orgUnit.includes('finance')) return 'Finance';
-      if (orgUnit.includes('facilities')) return 'Facilities';
+  private async mapAssignmentTargetsToDesk(targets: any): Promise<StepReceiver> {
+    console.log(`[ConductorAdapter] 🔍 Mapping assignment targets:`, targets);
+    
+    // Ensure catalog is loaded before processing
+    if (this.serviceDeskCatalogEntries.length === 0) {
+      console.log(`[ConductorAdapter] 🔄 Catalog not loaded, loading now...`);
+      await this.loadServiceDeskCatalog();
     }
     
-    // Check capabilities
+    console.log(`[ConductorAdapter] 📋 Catalog entries count: ${this.serviceDeskCatalogEntries.length}`);
+    console.log(`[ConductorAdapter] 📋 Available catalog entries:`, this.serviceDeskCatalogEntries.map(e => ({code: e.code, additionalValue3: e.additionalValue3})));
+    
+    if (this.serviceDeskCatalogEntries.length === 0) {
+      console.error(`[ConductorAdapter] 🚨 CRITICAL: Service Desk Catalog failed to load! This will cause all tasks to go to Under desk.`);
+    }
+    
+    // Check if catalog is loaded
+    if (this.serviceDeskCatalogEntries.length === 0) {
+      console.warn(`[ConductorAdapter] ⚠️ Service Desk Catalog not loaded yet! Using legacy mapping only.`);
+      
+      // If catalog not loaded, use "Under desk" for any org unit that we can't categorize
+    if (targets.organizationalUnits?.length > 0) {
+        const orgUnit = targets.organizationalUnits[0];
+        console.log(`[ConductorAdapter] 🔄 Catalog not loaded, checking legacy patterns for: ${orgUnit}`);
+        
+        // Only check for obvious text patterns, not hardcoded dept-00x
+        const orgUnitLower = orgUnit.toLowerCase();
+        if (orgUnitLower.includes('hr')) return 'HR';
+        if (orgUnitLower.includes('it')) return 'IT';
+        if (orgUnitLower.includes('finance')) return 'Finance';
+        if (orgUnitLower.includes('facilities')) return 'Facilities';
+        
+        // For anything else (including dept-00x), use "Under desk"
+        console.log(`[ConductorAdapter] 🏠 No pattern match for ${orgUnit}, sending to Under desk`);
+        return 'Under desk' as StepReceiver;
+      }
+    }
+    
+    // Check organizational units first with Service Desk Catalog mapping
+    if (targets.organizationalUnits?.length > 0) {
+      const orgUnit = targets.organizationalUnits[0];
+      console.log(`[ConductorAdapter] 🎯 Processing organizational unit: "${orgUnit}"`);
+      
+      // First: Try to find direct match with catalog entry codes
+      const directMatch = this.serviceDeskCatalogEntries.find(entry => 
+        entry.code.toLowerCase() === orgUnit.toLowerCase()
+      );
+      if (directMatch) {
+        console.log(`[ConductorAdapter] ✅ Direct catalog match: ${orgUnit} → ${directMatch.code}`);
+        return directMatch.code as StepReceiver;
+      }
+      console.log(`[ConductorAdapter] ❌ No direct match for: ${orgUnit}`);
+      
+      // Second: Try to match with additionalValue3 (dept-00x fallback)
+      console.log(`[ConductorAdapter] 🔍 Searching for additionalValue3 match with: "${orgUnit}"`);
+      const deptMatch = this.serviceDeskCatalogEntries.find(entry => {
+        console.log(`[ConductorAdapter] 🔍 Checking entry: ${entry.code} with additionalValue3: "${entry.additionalValue3}" against "${orgUnit}"`);
+        return entry.additionalValue3 === orgUnit;
+      });
+      if (deptMatch) {
+        console.log(`[ConductorAdapter] ✅ Dept mapping match: ${orgUnit} → ${deptMatch.code} (via additionalValue3: ${deptMatch.additionalValue3})`);
+        return deptMatch.code as StepReceiver;
+      }
+      console.log(`[ConductorAdapter] ❌ No additionalValue3 match for: ${orgUnit}`);
+      
+      // Third: Legacy hardcoded mapping for backward compatibility
+      const orgUnitLower = orgUnit.toLowerCase();
+      console.log(`[ConductorAdapter] 🔍 Trying legacy mapping for: ${orgUnitLower}`);
+      if (orgUnitLower.includes('hr') || orgUnit === 'ou_hr_001') {
+        console.log(`[ConductorAdapter] ✅ Legacy HR match for: ${orgUnit}`);
+        return 'HR';
+      }
+      if (orgUnitLower.includes('it') || orgUnit === 'ou_it_001') {
+        console.log(`[ConductorAdapter] ✅ Legacy IT match for: ${orgUnit}`);
+        return 'IT';
+      }
+      if (orgUnitLower.includes('finance')) {
+        console.log(`[ConductorAdapter] ✅ Legacy Finance match for: ${orgUnit}`);
+        return 'Finance';
+      }
+      if (orgUnitLower.includes('facilities')) {
+        console.log(`[ConductorAdapter] ✅ Legacy Facilities match for: ${orgUnit}`);
+        return 'Facilities';
+      }
+      
+      // If no catalog or legacy match, send to "Under desk"
+      console.log(`[ConductorAdapter] 🏠 No catalog or legacy match for ${orgUnit}, sending to Under desk`);
+      return 'Under desk' as StepReceiver;
+    }
+    
+    // Check capabilities with Service Desk Catalog mapping
     if (targets.capabilities?.length > 0) {
       const capabilities = targets.capabilities.join(',').toLowerCase();
+      
+      // Try to match capabilities with catalog entries
+      for (const entry of this.serviceDeskCatalogEntries) {
+        const entryCode = entry.code.toLowerCase();
+        if (capabilities.includes(entryCode)) {
+          console.log(`[ConductorAdapter] ✅ Capability match: ${capabilities} → ${entry.code}`);
+          return entry.code as StepReceiver;
+        }
+      }
+      
+      // Legacy capability mapping
       if (capabilities.includes('hr')) return 'HR';
       if (capabilities.includes('it')) return 'IT';
       if (capabilities.includes('finance')) return 'Finance';
       if (capabilities.includes('facilities')) return 'Facilities';
     }
     
-    return 'HR'; // Default fallback
+    // Default fallback - return first available catalog entry or "Under desk"
+    if (this.serviceDeskCatalogEntries.length > 0) {
+      const defaultEntry = this.serviceDeskCatalogEntries[0];
+      console.log(`[ConductorAdapter] 🔄 Using default catalog entry: ${defaultEntry.code}`);
+      return defaultEntry.code as StepReceiver;
+    }
+    
+    return 'Under desk' as StepReceiver; // Ultimate fallback for uncategorized tasks
   }
 
   /**
@@ -2166,11 +2215,33 @@ export class ConductorWorkflowEngineAdapter implements WorkflowEngine {
    */
   private inferDeskFromTaskName(taskName: string): StepReceiver {
     const name = taskName.toLowerCase();
+    
+    // Try to match with catalog entries first
+    for (const entry of this.serviceDeskCatalogEntries) {
+      const entryCode = entry.code.toLowerCase();
+      const entryValue = entry.value?.toLowerCase() || '';
+      
+      if (name.includes(entryCode) || name.includes(entryValue)) {
+        console.log(`[ConductorAdapter] ✅ Task name inference: "${taskName}" → ${entry.code}`);
+        return entry.code as StepReceiver;
+      }
+    }
+    
+    // Legacy task name inference
     if (name.includes('hr') || name.includes('onboarding') || name.includes('training')) return 'HR';
     if (name.includes('it') || name.includes('system') || name.includes('equipment')) return 'IT';
     if (name.includes('finance') || name.includes('budget')) return 'Finance';
     if (name.includes('facilities') || name.includes('office') || name.includes('workspace')) return 'Facilities';
-    return 'HR'; // Default fallback
+    if (name.includes('marketing') || name.includes('campaign')) return 'HR'; // Marketing → HR fallback
+    
+    // Default fallback - return first available catalog entry or "Under desk"
+    if (this.serviceDeskCatalogEntries.length > 0) {
+      const defaultEntry = this.serviceDeskCatalogEntries[0];
+      console.log(`[ConductorAdapter] 🔄 Task name fallback to default catalog entry: ${defaultEntry.code}`);
+      return defaultEntry.code as StepReceiver;
+    }
+    
+    return 'Under desk' as StepReceiver; // Ultimate fallback for uncategorized tasks
   }
 
   /**
@@ -2276,46 +2347,6 @@ export class ConductorWorkflowEngineAdapter implements WorkflowEngine {
     }
   }
 
-  /**
-   * ✅ NEW: Get detailed information for a specific ticket/task
-   * Uses the custom-flow-engine API endpoint to get full task details including form fields
-   */
-  async getTicketDetail(taskId: string): Promise<StepInstance> {
-    try {
-      console.log(`[ConductorAdapter] Getting ticket detail for: ${taskId}`);
-
-      // Use makeRequest to get task details from custom-flow-engine
-      const taskDetail = await this.makeRequest(`/api/tasks/${taskId}?userId=${this.currentUserId}`, {
-        method: 'GET'
-      });
-
-      console.log(`[ConductorAdapter] ✅ Task detail fetched:`, {
-        taskId,
-        hasForm: !!taskDetail.form,
-        formLength: taskDetail.form?.length || 0,
-        hasInputs: !!taskDetail.inputs,
-        inputsLength: taskDetail.inputs?.length || 0,
-        hasLinks: !!taskDetail.links,
-        linksLength: taskDetail.links?.length || 0
-      });
-
-      // Convert the task to StepInstance format using existing conversion method
-      const desk = this.determineTaskDesk(taskDetail, []);
-      const stepInstance = this.convertCustomFlowEngineTaskToStepInstance(taskDetail, desk);
-
-      console.log(`[ConductorAdapter] ✅ Converted task to StepInstance:`, {
-        taskId,
-        hasFormInResult: !!(stepInstance as any).form,
-        hasInputsInResult: !!(stepInstance as any).inputs,
-        hasLinksInResult: !!(stepInstance as any).links
-      });
-
-      return stepInstance;
-    } catch (error) {
-      console.error(`[ConductorAdapter] ❌ Error getting ticket detail for ${taskId}:`, error);
-      throw error;
-    }
-  }
 
 }
 
