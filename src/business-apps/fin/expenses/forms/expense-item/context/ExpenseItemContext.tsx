@@ -77,7 +77,7 @@ interface ExpenseItemContextProps {
   calculateTotal: () => number;
   handleFileUpload: (files: File[]) => Promise<any | null>;
   handleSubmit: () => Promise<void>;
-  handleCancel: () => void;
+  handleCancel: (noDispatchEvent?: boolean) => void;
   handleExpenseGroupChange: (
     value: string,
     positionIndex: number
@@ -201,8 +201,7 @@ export const ExpenseItemProvider: React.FC<ExpenseItemProviderProps> = ({
       // Get expenseRequestId from either the wizard or task payload
       const expenseRequestId = 
         additionalData?.expenseRequestId || 
-        additionalData?.psi_taskPayload?.initialParameters?.expenseRequest;
-      
+        additionalData?.psi_taskPayload?.psi_initialParameters?.expenseRequest;
       // Set expenseRequestId in form
       if (expenseRequestId) {
         form.setFieldsValue({ expenseRequestId: expenseRequestId });
@@ -210,16 +209,17 @@ export const ExpenseItemProvider: React.FC<ExpenseItemProviderProps> = ({
         form.setFieldsValue({ expenseRequestId: "0" });
       }
       
-      // Handle itemCurrency if provided from wizard
+      // Handle itemCurrency and useSingleCurrency if provided from wizard
       if (additionalData?.itemCurrency && currencies.length > 0) {
         const currencyToSet = currencies.find(c => c.id === additionalData.itemCurrency);
         if (currencyToSet) {
-          form.setFieldsValue({ 
-            currency: currencyToSet.id,
-            fixedCurrency: true
-          });
+          if (typeof additionalData?.useSingleCurrency === 'boolean') {
+            form.setFieldsValue({ fixedCurrency: additionalData.useSingleCurrency });
+          }
+          form.setFieldsValue({ currency: currencyToSet.id });
         }
       }
+
     }
   }, [catalogueDataResponse, accessToken, additionalData, currencies]);
 
@@ -412,7 +412,7 @@ export const ExpenseItemProvider: React.FC<ExpenseItemProviderProps> = ({
             catalogueData?.data?.EmployeePosition || [];
           const structureId = employeePosition[0]?.structureId || "";
           const expenseIdValue =
-          additionalData?.psi_taskPayload?.initialParameters?.expenseId
+          additionalData?.psi_taskPayload?.psi_initialParameters?.expenseId
         if (expenseIdValue) {
           setCurrentStep("form");
           
@@ -537,9 +537,9 @@ export const ExpenseItemProvider: React.FC<ExpenseItemProviderProps> = ({
     try {
       const data = receiptData.data;
 
-      if (additionalData?.psi_taskPayload?.initialParameters?.currencyData) {
+      if (additionalData?.psi_taskPayload?.psi_initialParameters?.currencyData) {
         const requestCurrency = currencies.find(
-          (c) => (c.id === additionalData?.psi_taskPayload.initialParameters.currencyData)
+          (c) => (c.id === additionalData?.psi_taskPayload.psi_initialParameters.currencyData)
         );
         if (requestCurrency && requestCurrency.code !== data.currencyCode) {
           showToast(
@@ -660,6 +660,16 @@ export const ExpenseItemProvider: React.FC<ExpenseItemProviderProps> = ({
 
         setPositions(newPositions);
 
+        // Sync form fields for all generated positions (amount, cost center, reimbursable)
+        const formValuesBatch: Record<string, any> = {};
+        newPositions.forEach((pos, idx) => {
+          formValuesBatch[`expenseGroup-${idx}`] = pos.expenseGroup || undefined;
+          formValuesBatch[`amount-${idx}`] = pos.amount;
+          formValuesBatch[`costCenter-${idx}`] = pos.costCenter;
+          formValuesBatch[`isReimbursable-${idx}`] = pos.isReimbursable;
+        });
+        form.setFieldsValue(formValuesBatch);
+
         if (newPositions.length > 1) {
           setMultiPosition(true);
         } else {
@@ -683,6 +693,7 @@ export const ExpenseItemProvider: React.FC<ExpenseItemProviderProps> = ({
                   const updatedPositions = [...newPositions];
                   updatedPositions[index].expenseType = matchingType.id;
                   setPositions(updatedPositions);
+                  form.setFieldsValue({ [`expenseType-${index}`]: matchingType.id });
                 }
               }
             } catch (error) {
@@ -773,8 +784,15 @@ export const ExpenseItemProvider: React.FC<ExpenseItemProviderProps> = ({
     );
   };
 
-  const handleCancelWrapper = () => {
+  const handleCancelWrapper = (noDispatchEvent: boolean = false) => {
     try {
+      if(noDispatchEvent){
+        form.resetFields();
+        setPositions([DEFAULT_POSITION]);
+        setFileList([]);
+        setCurrentStep("start");
+      }
+      else {
       dispatchProcessContinueEventIfEnabled(
         EVENTS.ABORT, {
           "event": EVENTS.ABORT,
@@ -787,7 +805,7 @@ export const ExpenseItemProvider: React.FC<ExpenseItemProviderProps> = ({
               )
           }
         })
-    } catch (error) {
+    }} catch (error) {
       showToast(
         t("lowcoder:create_expense_type_item.error_flows", "Error in flow process"),
         "error"

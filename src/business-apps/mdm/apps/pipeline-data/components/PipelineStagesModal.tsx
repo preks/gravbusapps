@@ -30,7 +30,6 @@ import {
 } from 'lucide-react';
 import {
   DndContext,
-  closestCenter,
   closestCorners,
   DragEndEvent,
   DragOverlay,
@@ -50,7 +49,7 @@ import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 import { useSalesPipelineStages } from '../hooks/useSalesPipelineStages';
 import { useStageConditions } from '../hooks/useStageConditions';
 import { useCatalogManagerClient } from '@/common/network/catalogs/useCatalogManagerClient';
-import { SALES_PIPELINE_STAGE_CATALOG, SALES_PIPELINE_STAGE_VERSION } from '../hooks/useSalesPipelineStages';
+import { getPipelineCatalogConfig } from '../utils/catalogConfig';
 import {
   EnhancedSalesPipeline,
   EnhancedSalesPipelineStage,
@@ -67,6 +66,7 @@ interface PipelineStagesModalProps extends BusinessAppContextProps {
   visible: boolean;
   onClose: () => void;
   prefixDataTestId?: string;
+  sourceApp?: 'CRM' | 'IRM';
 }
 
 // Helper function to transform catalog entry to enhanced stage
@@ -262,6 +262,7 @@ export const PipelineStagesModal: React.FC<PipelineStagesModalProps> = ({
   visible,
   onClose,
   prefixDataTestId,
+  sourceApp,
   ...context
 }) => {
   const [stages, setStages] = useState<EnhancedSalesPipelineStage[]>([]);
@@ -331,7 +332,7 @@ export const PipelineStagesModal: React.FC<PipelineStagesModalProps> = ({
     setError(null);
 
     try {
-      const response = await fetchSalesPipelineStagesByParent(pipeline.id);
+      const response = await fetchSalesPipelineStagesByParent(pipeline.id, { sourceApp: sourceApp || (pipeline.type as 'CRM' | 'IRM') || 'CRM' });
       
       const filteredEntries = response.data.filter(entry => entry.parentEntryId === pipeline.id);
       setOriginalStageEntries(filteredEntries);
@@ -368,7 +369,7 @@ export const PipelineStagesModal: React.FC<PipelineStagesModalProps> = ({
     // Fetch condition counts for each stage
     const promises = stages.map(async (stage) => {
       try {
-        const count = await fetchStageConditionsCount(stage.code);
+        const count = await fetchStageConditionsCount(stage.code, sourceApp || (stage.pipeline?.type as 'CRM' | 'IRM') || 'CRM');
         counts[stage.id] = count;
         loading[stage.id] = false;
       } catch (error) {
@@ -435,16 +436,12 @@ export const PipelineStagesModal: React.FC<PipelineStagesModalProps> = ({
             alternativeCode: stage.alternativeCode,
             parentEntryId: stage.parentEntryId,
             additionalValue1: stage.rank.toString(),
+            displayOrder: stage.rank,
             objectValue: stage.objectValue || {},
             translations: []
           };
 
-          await catalogClient.updateCatalogEntry(
-            SALES_PIPELINE_STAGE_CATALOG,
-            SALES_PIPELINE_STAGE_VERSION,
-            stage.id,
-            payload
-          );
+          await catalogClient.updateCatalogEntry(stage.id, payload);
         }
       }
     } catch (error) {
@@ -497,11 +494,7 @@ export const PipelineStagesModal: React.FC<PipelineStagesModalProps> = ({
     
     try {
       setOperationLoading(true);
-      await catalogClient.deleteCatalogEntry(
-        SALES_PIPELINE_STAGE_CATALOG,
-        SALES_PIPELINE_STAGE_VERSION,
-        stageToDelete.id
-      );
+      await catalogClient.deleteCatalogEntry(stageToDelete.id);
       console.log(`Stage "${stageToDelete.value}" deleted successfully`);
       await loadStages();
     } catch (error) {
@@ -528,16 +521,12 @@ export const PipelineStagesModal: React.FC<PipelineStagesModalProps> = ({
           alternativeCode: values.alternativeCode,
           parentEntryId: editingStage.parentEntryId,
           additionalValue1: values.rank.toString(),
+          displayOrder: values.rank,
           objectValue: editingStage.objectValue || {},
           translations: []
         };
 
-        await catalogClient.updateCatalogEntry(
-          SALES_PIPELINE_STAGE_CATALOG,
-          SALES_PIPELINE_STAGE_VERSION,
-          editingStage.id,
-          payload
-        );
+        await catalogClient.updateCatalogEntry(editingStage.id, payload);
         console.log(`Stage "${values.value}" updated successfully`);
       } else {
         // Create new stage
@@ -549,15 +538,13 @@ export const PipelineStagesModal: React.FC<PipelineStagesModalProps> = ({
           alternativeCode: values.alternativeCode,
           parentEntryId: pipeline.id,
           additionalValue1: values.rank.toString(),
+          displayOrder: values.rank,
           objectValue: {},
           translations: []
         };
 
-        await catalogClient.createCatalogEntry(
-          SALES_PIPELINE_STAGE_CATALOG,
-          SALES_PIPELINE_STAGE_VERSION,
-          payload
-        );
+        const cfg = getPipelineCatalogConfig((pipeline?.type as 'CRM' | 'IRM') || 'CRM');
+        await catalogClient.createCatalogEntry(cfg.stageCatalog, cfg.version, payload);
         console.log(`Stage "${values.value}" created successfully`);
       }
 

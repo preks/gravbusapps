@@ -98,14 +98,15 @@ query MyQuery($expenseId: uuid!, $activeUserLocale: String, $employeeId: uuid!) 
     id
     version
     createdAt
+    description
     expenseRuleId
+    overnightAccommodation
     code
     processInstanceId
     additionalProperties
     project{
       id
       validTo
-      validFrom
       name
     }
     costCenterId
@@ -329,6 +330,21 @@ query MyQuery($expenseId: uuid!, $activeUserLocale: String, $employeeId: uuid!) 
     type
     locality
     addressLine
+  }
+     TravelBreakdown(where: {expenseRequestId: {_eq: $expenseId}, isDeleted: {_eq: false}, employeeId: {_eq: $employeeId}}) {
+    id
+    version
+    breakfast
+    lunch
+    dinner
+    overnight
+    expenseDate
+    travelRegionRef
+    projectId
+    expenseRuleId
+    expensePlanId
+    costCenterId
+    expenseRequestId
   }
     }`
 
@@ -563,6 +579,24 @@ export const getExpenseRulesDataQuery =`query getTravelRegionRules($expenseRuleI
 }
 `
 
+export const getExpenseRulePkData = `query getTravelRegionRules($expenseRuleId: uuid!,$activeUserLocale: String) {
+    ExpenseRuleByPk(id: $expenseRuleId) {
+      useSingleCurrency
+    currency {
+      code
+      id
+       value
+    translations(where: {localeCode: {_eq: $activeUserLocale}}) {
+      localeCode
+      value
+    }
+    catalog {
+      defaultLocale
+    }
+    }
+  }
+  }`
+
 export const getRequestsAbsences = `query MyQuery($employeeId: uuid, $requestId:uuid, $requestType: String, $absenceStatus: String, $startTimeValue: timestamp, $endTimeValue: timestamp, $statusArray: [String!] ,$activeUserLocale: String) {
   ExpenseRequest(where: {requestTypeRef: {_eq: $requestType},id: {_neq: $requestId}, employeeId: {_eq: $employeeId}, isDeleted: {_eq: false}, _or: [{startDate: {_gte: $startTimeValue, _lte: $endTimeValue}}, {endDate: {_gte: $startTimeValue, _lte: $endTimeValue}}, {_and: [{startDate: {_lte: $startTimeValue}}, {endDate: {_gte: $endTimeValue}}]}], status: {_nin: $statusArray}}, orderBy: {startDate: ASC}, limit: 1) {
     id
@@ -590,7 +624,7 @@ export const getRequestsAbsences = `query MyQuery($employeeId: uuid, $requestId:
   }
 }
 `
-export const getTravelRegionsAndUser =`query getTravelRegionRules($expenseRuleId: uuid!,$employeeId: uuid,$activeUserLocale: String) {
+export const getTravelRegionsAndUser =`query getTravelRegionRules($expenseRuleId: uuid!,$employeeId: uuid!,$activeUserLocale: String!) {
   AllowanceRegionRuleDetail(where: {allowanceRegionRule: {expenseRuleAllowanceCode: {expenseRuleId: {_eq: $expenseRuleId}}},isDeleted: {_eq: false}}, distinctOn: travelRegionRef) {
     id
     travelRegionRef
@@ -625,6 +659,28 @@ export const getTravelRegionsAndUser =`query getTravelRegionRules($expenseRuleId
   }
 }`
 
+export const getAllowanceData =`query getAllowanceData($employeeId: uuid!, $expenseRequestId: uuid, $expenseRequestRuleId: uuid!) {
+      TravelBreakdown(where: {expenseRequestId: {_eq: $expenseRequestId}, isDeleted: {_eq: false}, employeeId: {_eq: $employeeId}}) {
+    id
+    version
+    breakfast
+    lunch
+    dinner
+    overnight
+    expenseDate
+    travelRegionRef
+    projectId
+    expenseRuleId
+    expensePlanId
+    costCenterId
+    expenseRequestId
+  }
+      ExpenseRuleAllowanceSetup(where: {expenseRuleId: {_eq: $expenseRequestRuleId}, isDeleted: {_eq: false}}) {
+    id
+    issue
+  }
+}`
+
 export const getUserCostCenters =`query MyQuery($structureId: uuid!) {
   userCostCenters: CostCenter(where: {structureId: {_eq: $structureId}, isDeleted: {_eq: false}}) {
     id
@@ -639,8 +695,23 @@ export const getUserProjects =`query MyQuery($structureIdArray: [uuid!]) {
     id
     name
     structureId
-    validFrom
     validTo
+  }
+}
+`
+
+export const getRuleAllowancePeriod = `query getExpenseRuleAllowancePeriod($expenseRuleId: uuid!) {
+  ExpenseRuleAllowancePeriod(where: {expenseRuleId: {_eq: $expenseRuleId}, isDeleted: {_eq: false},  overnightAccomodation: {_eq: true}}) {
+    id
+    version
+    activeTo
+    activeFrom
+    midnightRule
+    minHours
+    startAfter
+    returnBefore
+    expenseRuleId
+    overnightAccomodation
   }
 }
 `

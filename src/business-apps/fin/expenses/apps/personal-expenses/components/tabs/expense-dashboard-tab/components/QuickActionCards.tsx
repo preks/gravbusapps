@@ -8,6 +8,25 @@ import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
 const QuickActionCards: React.FC<BusinessAppContextProps> = (props) => {
   const { userInfo } = props;
 
+  const handlePlanTrip = useCallback(() => {
+    const employeeId = userInfo?.employeeDetails?.employeeId;
+    if (!employeeId) {
+      console.warn('Cannot start process: Employee ID not available. User info may not be fully loaded.');
+      // TODO: Replace with nw-design-system toast when available
+      console.warn('User information not loaded yet. Please wait a moment and try again.');
+      return;
+    }
+    
+    startProcess({
+      domain: 'employee-expense',
+      processName: 'changeExpensePlan',
+      payload: {
+        employeeId: employeeId
+      },
+      builderType: 'NATIVE_SCREEN'
+    });
+  }, [userInfo?.employeeDetails?.employeeId]);
+
   const handleRecordExpense = useCallback(() => {
     const employeeId = userInfo?.employeeDetails?.employeeId;
     if (!employeeId) {
@@ -49,8 +68,21 @@ const QuickActionCards: React.FC<BusinessAppContextProps> = (props) => {
 
   const actionCards = [
     {
+      id: 'plan-trip',
+      title: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.submit_plan','Submit a Plan'),
+      description: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.record_expense_description','Plan a new Business Trip.'),
+      icon: <PlusCircleOutlined className="gba:text-2xl gba:text-blue-500" />,
+      features: [
+        getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.request_plan_approval','Request plan approval'),
+        getTranslationFromI18nKeyAndLabel('lowcoder:add_items_to_plan.add_trip_info_to_plan.skip_advance_payment_label','Request Advance Payment'),
+        getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.track_submission_status','Track Submission Status')],
+      buttonText: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.add_plan','Plan a new Business Trip'),
+      buttonIcon: <PlusCircleOutlined />,
+      buttonAction: handlePlanTrip
+    },
+    {
       id: 'record-expense',
-      title: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.record_expense','Record Expense'),
+      title: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.record_expense','Add an Expense'),
       description: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.record_expense_description','Quickly add a new expense to your records. Keep track of your spending efficiently.'),
       icon: <PlusCircleOutlined className="gba:text-2xl gba:text-blue-500" />,
       features: [
@@ -80,7 +112,7 @@ const QuickActionCards: React.FC<BusinessAppContextProps> = (props) => {
       id: 'view-reports',
       title: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.view_reports','View Reports'),
       description: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.view_reports_description','Access and review your expense reports and analytics to track your spending patterns.'),
-      icon: <ExperimentOutlined className="gba:text-2xl gba:text-purple-500" />,
+      icon: <ExperimentOutlined className="gba:text-2xl gba:text-green-500" />,
       features: [
         getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.view_trends_over_time','View trends over time'),
         getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.export_custom_reports','Export custom reports'),
@@ -93,7 +125,7 @@ const QuickActionCards: React.FC<BusinessAppContextProps> = (props) => {
   ];
 
   return (
-    <div className="gba:grid gba:grid-cols-3 gba:gap-4">
+    <div className="gba:grid gba:grid-cols-4 gba:gap-4">
       {actionCards.map(card => (
         <Card 
           key={card.id} 

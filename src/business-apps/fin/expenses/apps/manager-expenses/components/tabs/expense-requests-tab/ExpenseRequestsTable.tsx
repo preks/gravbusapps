@@ -1,152 +1,281 @@
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import { Table, TableHeader, TableBody, TableRow, TableCell, TableHead, Button, Avatar, AvatarImage, AvatarFallback, Spinner, Alert, Pagination, PaginationContent, PaginationItem, PaginationLink, PaginationNext, PaginationPrevious } from '@newwork/nw-design-system';
-import { DataContainer } from '@/components/layout/dataContainer/DataContainer';
-import Pill from '@/components/pill/Pill';
-import { BusinessAppContextProps } from '@/common/BusinessAppContext';
-import { useGetExpenseRequests, ExpenseRequest } from '../../../hooks/useGetExpenseRequests';
-import { useExpenseRequestFilters } from '../../../hooks/useExpenseRequestFilters';
-import { getExpenseRequestStatusDisplay } from '../../../utils';
-import ExpenseRequestDetails from './ExpenseRequestDetails';
-import { ensureShortDateFormat } from '../../../utils/dateUtils';
-import { formatNumberFunction, getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
-import { AppActionButton } from '@/components/app-action-button/AppActionButton';
-import { FlowContextName } from '@/common/types/FlowRegistryTypes';
-import { formatCurrency } from '../../../utils/currencyUtils';
+import React, { useState, useCallback, useMemo } from "react";
+import {
+  Table,
+  TableHeader,
+  TableBody,
+  TableRow,
+  TableCell,
+  TableHead,
+  Button,
+  Avatar,
+  AvatarImage,
+  AvatarFallback,
+  Spinner,
+  Alert,
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+} from "@newwork/nw-design-system";
+import { PiArrowUp, PiArrowDown } from "react-icons/pi";
+import { DataContainer } from "@/components/layout/dataContainer/DataContainer";
+import Pill from "@/components/pill/Pill";
+import { BusinessAppContextProps } from "@/common/BusinessAppContext";
+import { ExpenseRequest, SortField } from "../../../hooks/useGetExpenseRequests";
+import { getExpenseRequestStatusDisplay } from "../../../utils";
+import ExpenseRequestDetails from "./ExpenseRequestDetails";
+import {
+  getTranslationFromI18nKeyAndLabel,
+  getCurrentActiveUserLocale,
+} from "@/common/utils/windowUtils";
+import { AppActionButton } from "@/components/app-action-button/AppActionButton";
+import { formatCurrencyDisplay } from "../../../../personal-expenses/utils";
+import { Modal } from "antd";
+import { useExpensePlanFileService } from "../../../../personal-expenses/utils/expensePlanFileService";
+import { navigateTo, buildPlatformUrl } from "@/common/utils/navigationUtils";
 
-interface ExpenseRequestsTableProps extends BusinessAppContextProps {}
+interface ExpenseRequestsTableProps extends BusinessAppContextProps {
+  expenseRequests: ExpenseRequest[];
+  loading: boolean;
+  error: string | null;
+  totalCount: number;
+  fetchRequests: (
+    searchTerm?: string,
+    page?: number,
+    pageSize?: number,
+    sortBy?: string,
+    status?: string[],
+    requestDateStart?: string,
+    currencyFilter?: string | null,
+  ) => Promise<void>;
+
+  searchTerm: string;
+  setSearchTerm: (term: string) => void;
+  selectedFilters: string[];
+  filterGroups: any[];
+  filterLabelMap: Record<string, string>;
+  addFilter: (filter: string) => void;
+  removeFilter: (filter: string) => void;
+  handleDataFilterChange: (filterId: string, selected: boolean) => void;
+  primaryCurrency: string | null;
+}
 
 const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = (props) => {
-  
-  // Extract only the necessary props to prevent unnecessary re-renders
-  const contextProps = useMemo(() => ({
-    accessToken: props.accessToken,
-    userInfo: props.userInfo
-  }), [props.accessToken, props.userInfo]);
-  
-  // Local state management
+  const contextProps = useMemo(
+    () => ({
+      accessToken: props.accessToken,
+      userInfo: props.userInfo,
+    }),
+    [props.accessToken, props.userInfo],
+  );
+
   const [currentPage, setCurrentPage] = useState<number>(1);
   const [pageSize, setPageSize] = useState<number>(10);
   const [selectedRequest, setSelectedRequest] = useState<ExpenseRequest | null>(null);
-  const [selectedRowKeys, setSelectedRowKeys] = useState<React.Key[]>([]);
-  
-  // Get expense requests data using the hook
+  const [printModalOpen, setPrintModalOpen] = useState<boolean>(false);
+  const [printPdfUrl, setPrintPdfUrl] = useState<string>("");
+  const [printLoading, setPrintLoading] = useState<boolean>(false);
+
+  const [sorting, setSorting] = useState<{
+    field: SortField | null;
+    order: "ASC" | "DESC" | null;
+    lastField: SortField | null;
+  }>({
+    field: null,
+    order: null,
+    lastField: null,
+  });
+
   const {
-    requests,
-    isLoading,
+    expenseRequests: requests,
+    loading: isLoading,
     error,
     totalCount,
     fetchRequests,
-    approveRequest,
-    rejectRequest
-  } = useGetExpenseRequests(contextProps);
-
-  // Use the expense request filters hook
-  const {
-    search: searchText,
-    setSearch,
+    searchTerm,
+    setSearchTerm,
     selectedFilters,
     filterGroups,
     filterLabelMap,
     addFilter,
     removeFilter,
-    getFilters
-  } = useExpenseRequestFilters();
+    handleDataFilterChange,
+    primaryCurrency,
+  } = props;
 
-  // Fetch requests when filters or pagination changes
-  useEffect(() => {
-    console.log('ExpenseRequestsTable useEffect triggered');
-    console.log('Current selectedFilters:', selectedFilters);
-    console.log('Current searchText:', searchText);
-    const filters = getFilters();
-    console.log('getFilters() result:', filters);
-    fetchRequests(
-      searchText,
-      currentPage,
+  const handleSearchChange = useCallback(
+    (value: string) => {
+      setSearchTerm(value);
+      setCurrentPage(1);
+    },
+    [setSearchTerm],
+  );
+
+  const handleSort = useCallback(
+    (field: SortField) => {
+      let newSorting: {
+        field: SortField | null;
+        order: "ASC" | "DESC" | null;
+        lastField: SortField | null;
+      };
+
+      if (sorting.lastField === field) {
+        if (sorting.order === "ASC") {
+          newSorting = { field, order: "DESC", lastField: field };
+        } else if (sorting.order === "DESC") {
+          newSorting = { field: null, order: null, lastField: null };
+        } else {
+          newSorting = { field, order: "ASC", lastField: field };
+        }
+      } else {
+        newSorting = { field, order: "ASC", lastField: field };
+      }
+
+      setSorting(newSorting);
+      setCurrentPage(1);
+
+      if (newSorting.field && newSorting.order) {
+        const sortByParam = `${newSorting.field}:${newSorting.order.toLowerCase()}`;
+        fetchRequests(
+          searchTerm,
+          1,
+          pageSize,
+          sortByParam,
+          selectedFilters,
+          undefined,
+          primaryCurrency,
+        );
+      } else {
+        fetchRequests(searchTerm, 1, pageSize, "none", selectedFilters, undefined, primaryCurrency);
+      }
+    },
+    [
+      setCurrentPage,
+      sorting,
+      fetchRequests,
+      searchTerm,
       pageSize,
-      undefined, // sortBy
-      filters.status || [], // status filter - now an array
-      filters.requestDateStart
-    );
-  }, [searchText, currentPage, pageSize, selectedFilters, fetchRequests, getFilters]);
+      selectedFilters,
+      primaryCurrency,
+    ],
+  );
 
-  // Handle search changes
-  const handleSearchChange = useCallback((value: string) => {
-    setSearch(value);
-    setCurrentPage(1);
-  }, [setSearch]);
+  const { printExpensePlan, isMounted } = useExpensePlanFileService(contextProps);
 
-  const handleTableChange = (pagination: any, _filters: any, _sorter: any) => {
-    setCurrentPage(pagination.current);
-    setPageSize(pagination.pageSize);
-  };
+  const handlePrintRequest = useCallback(
+    async (request: ExpenseRequest) => {
+      setPrintLoading(true);
+      setPrintModalOpen(true);
 
-  // Handle request selection
+      try {
+        // Map expense request to expense plan format for printing
+        const mappedPlan = {
+          id: request.id,
+          code: request.code || "",
+          title: request.title || "Untitled Request",
+          description: request.description || "",
+          status: request.status,
+          startDate: request.startDate || "",
+          endDate: request.endDate || "",
+          planDate: request.requestDate || "",
+          totalAmount: request.totalAmount || 0,
+          currency: { value: request.currency || "EUR", label: request.currency || "EUR" } as any,
+          createdAt: request.createdAt || "",
+          updatedAt: request.updatedAt || "",
+          employeeDocument: request.employeeDocument || null,
+          employee: {
+            id: request.employee?.id || "",
+            code: request.employee?.id || "",
+            firstName:
+              request.employee?.displayName?.split(" ")[0] ||
+              request.employee?.fullName?.split(" ")[0] ||
+              "",
+            lastName:
+              request.employee?.displayName?.split(" ").slice(1).join(" ") ||
+              request.employee?.fullName?.split(" ").slice(1).join(" ") ||
+              "",
+            employeePosition: {
+              organizationalUnit: {
+                id: request.employee?.employeePosition?.organizationalUnit?.id || "",
+                name: request.employee?.employeePosition?.organizationalUnit?.name || "",
+              },
+              siteLocation: {
+                id: request.employee?.employeePosition?.siteLocation?.id || "",
+                name: request.employee?.employeePosition?.siteLocation?.name || "",
+              },
+            },
+          },
+
+          reimbursableAmount: request.totalAmount || 0,
+          decisionDate: null,
+          requestTypeRef: null,
+          employeeDocumentId: request.employeeDocument?.id || null,
+          advancePaymentPaidAmount: 0,
+          advancePaymentInTransitAmount: 0,
+          requestType: null,
+          expensePlanItem: [],
+          advancePayment: null,
+          expenseRequestTrip: null,
+          currencyRef: `Currency:v1:${request.currency || "EUR"}`,
+          expenseRequest: [],
+        };
+
+        const result = await printExpensePlan(mappedPlan);
+
+        if (result.success && result.pdfUrl && isMounted.current) {
+          setPrintPdfUrl(result.pdfUrl);
+        } else if (!result.success) {
+          console.error("Error printing request:", result.error);
+        }
+      } catch (error) {
+        console.error("Error fetching print PDF:", error);
+      } finally {
+        if (isMounted.current) {
+          setPrintLoading(false);
+        }
+      }
+    },
+    [printExpensePlan, isMounted],
+  );
+
+  const handleViewRequestDetails = useCallback((request: ExpenseRequest) => {
+    const url = buildPlatformUrl("/platform/fin/expenses/expense-request-record", {
+      expenseRequestId: request.id,
+    });
+    navigateTo(url);
+  }, []);
+
+  const renderSortIndicator = useCallback(
+    (field: SortField) => {
+      if (sorting.lastField === field && sorting.order !== null) {
+        if (sorting.order === "ASC") {
+          return <PiArrowUp className="gba:inline gba:ml-1" size={12} />;
+        } else if (sorting.order === "DESC") {
+          return <PiArrowDown className="gba:inline gba:ml-1" size={12} />;
+        }
+      }
+      return null;
+    },
+    [sorting],
+  );
+
   const handleSelectRequest = useCallback((request: ExpenseRequest) => {
     setSelectedRequest(request);
-    setSelectedRowKeys([request.id]);
   }, []);
-  
-  // Handle row selection change
-  const handleRowSelectionChange = useCallback((newSelectedRowKeys: React.Key[]) => {
-    setSelectedRowKeys(newSelectedRowKeys);
-    
-    // If a single row is selected, find and set the selected request
-    if (newSelectedRowKeys.length === 1) {
-      const selectedRequestId = newSelectedRowKeys[0];
-      const request = requests?.find(request => request.id === selectedRequestId);
-      if (request) {
-        setSelectedRequest(request);
-      }
-    } else {
-      // If multiple or no rows selected, clear the selected request
-      setSelectedRequest(null);
-    }
-  }, [requests]);
-  
-  // Handle approving a request
-  const handleApproveRequest = useCallback(async (requestId: string) => {
-    const success = await approveRequest(requestId);
-    if (success) {
-      // Refresh the list after approval
-      const filters = getFilters();
-      fetchRequests(
-        searchText,
-        currentPage,
-        pageSize,
-        undefined,
-        filters.status || []
-      );
-      setSelectedRequest(null);
-    }
-  }, [approveRequest, fetchRequests, searchText, currentPage, pageSize, getFilters]);
-  
-  // Handle rejecting a request
-  const handleRejectRequest = useCallback(async (requestId: string) => {
-    const success = await rejectRequest(requestId);
-    if (success) {
-      // Refresh the list after rejection
-      const filters = getFilters();
-      fetchRequests(
-        searchText,
-        currentPage,
-        pageSize,
-        undefined,
-        filters.status || []
-      );
-      setSelectedRequest(null);
-    }
-  }, [rejectRequest, fetchRequests, searchText, currentPage, pageSize, getFilters]);
 
-  const renderDataBody = () => {
-    console.log('ExpenseRequestsTable renderDataBody called');
-    console.log('requests data:', requests);
-    console.log('isLoading:', isLoading);
-    console.log('error:', error);
-    
-    if (isLoading) {
+  const handleApproveRequest = useCallback(async () => {
+    setSelectedRequest(null);
+  }, []);
+
+  const handleRejectRequest = useCallback(async () => {
+    setSelectedRequest(null);
+  }, []);
+
+  const renderDataBody = useCallback(() => {
+    if (isLoading && requests.length === 0) {
       return (
-        <div className="gba:flex gba:justify-center gba:p-8">
-          <Spinner />
+        <div className="gba:flex gba:justify-center gba:items-center gba:py-12">
+          <Spinner className="gba:h-8 gba:w-8" />
         </div>
       );
     }
@@ -154,174 +283,355 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = (props) => {
     if (error) {
       return (
         <Alert variant="destructive">
-          <div className="gba:font-medium">Error loading expense requests</div>
+          <div className="gba:font-medium">
+            {getTranslationFromI18nKeyAndLabel(
+              "lowcoder:team_expenses_page.dashboard_tab.error_loading_data",
+              "Error loading data",
+            )}
+          </div>
           <div className="gba:text-sm">{error}</div>
         </Alert>
       );
     }
 
-    if (!requests || requests.length === 0) {
+    if (requests.length === 0) {
       return (
-        <div className="gba:flex gba:flex-col gba:items-center gba:justify-center gba:p-8 gba:text-center">
-          <div className="gba:text-gray-500 gba:text-lg gba:font-medium gba:mb-2">
-            No expense requests found
-          </div>
-          <div className="gba:text-gray-400 gba:mb-4">
-            No expense requests match your current criteria.
-          </div>
+        <div className="gba:flex gba:justify-center gba:items-center gba:py-12 gba:text-gray-500">
+          {getTranslationFromI18nKeyAndLabel(
+            "lowcoder:personal_expenses.no_expense_data_available",
+            "No expense data available.",
+          )}
         </div>
       );
     }
 
     return (
       <div>
-        {/* Table with horizontal scrolling */}
-        <div className="gba:overflow-x-auto">
+        <div className="gba:overflow-x-auto gba:border gba:border-gray-200 gba:rounded-md gba:shadow-sm gba:relative">
+          {isLoading && requests.length > 0 && (
+            <div
+              className="gba:absolute gba:inset-0 gba:bg-white/50 gba:flex gba:items-center gba:justify-center gba:z-10"
+              data-testid="expense-requests-loading-overlay"
+            >
+              <Spinner className="gba:h-8 gba:w-8" />
+            </div>
+          )}
           <Table data-testid="expense-requests-table">
             <TableHeader>
               <TableRow>
-                <TableHead className="gba:w-[8%]"></TableHead>
-                <TableHead className="gba:w-[25%]">
-                  {getTranslationFromI18nKeyAndLabel('lowcoder:backoffice_expense_landing_page.request_info_pl', 'Requests')}
+                <TableHead className="gba:w-[60px]"></TableHead>
+                <TableHead
+                  className="gba:cursor-pointer gba:select-none"
+                  onClick={() => handleSort("title")}
+                  data-testid="expense-requests-title-header"
+                >
+                  <div className="gba:flex gba:items-center">
+                    <span>
+                      {getTranslationFromI18nKeyAndLabel(
+                        "lowcoder:employee_list.flows_button.expense_requests",
+                        "Expense Requests",
+                      )}
+                    </span>
+                    {renderSortIndicator("title")}
+                  </div>
                 </TableHead>
-                <TableHead className="gba:w-[15%]">
-                  Start Date
+                <TableHead
+                  className="gba:cursor-pointer gba:select-none"
+                  onClick={() => handleSort("startDate")}
+                  data-testid="expense-requests-start-date-header"
+                >
+                  <div className="gba:flex gba:items-center">
+                    <span>
+                      {getTranslationFromI18nKeyAndLabel(
+                        "lowcoder:personal_expenses.start_date",
+                        "Start Date",
+                      )}
+                    </span>
+                    {renderSortIndicator("startDate")}
+                  </div>
                 </TableHead>
-                <TableHead className="gba:w-[15%]">
-                  End Date
+                <TableHead
+                  className="gba:cursor-pointer gba:select-none"
+                  onClick={() => handleSort("endDate")}
+                  data-testid="expense-requests-end-date-header"
+                >
+                  <div className="gba:flex gba:items-center">
+                    <span>
+                      {getTranslationFromI18nKeyAndLabel(
+                        "lowcoder:personal_expenses.end_date",
+                        "End Date",
+                      )}
+                    </span>
+                    {renderSortIndicator("endDate")}
+                  </div>
                 </TableHead>
-                <TableHead className="gba:w-[20%]">
-                  {getTranslationFromI18nKeyAndLabel('lowcoder:hr_absences.create_absence.employee', 'Employee')}
+                <TableHead
+                  className="gba:cursor-pointer gba:select-none"
+                  onClick={() => handleSort("employee.fullName")}
+                  data-testid="expense-requests-employee-header"
+                >
+                  <div className="gba:flex gba:items-center">
+                    <span>
+                      {getTranslationFromI18nKeyAndLabel(
+                        "lowcoder:hr_absences.create_absence.employee",
+                        "Employee",
+                      )}
+                    </span>
+                    {renderSortIndicator("employee.fullName")}
+                  </div>
                 </TableHead>
-                <TableHead className="gba:w-[15%]">
-                  Creation Date
+                <TableHead
+                  className="gba:cursor-pointer gba:select-none"
+                  onClick={() => handleSort("requestDate")}
+                  data-testid="expense-requests-request-date-header"
+                >
+                  <div className="gba:flex gba:items-center">
+                    <span>
+                      {getTranslationFromI18nKeyAndLabel(
+                        "lowcoder:manager_expense_request_list.expense_table.creation_date",
+                        "Creation Date",
+                      )}
+                    </span>
+                    {renderSortIndicator("requestDate")}
+                  </div>
                 </TableHead>
-                <TableHead className="gba:w-[18%] gba:text-right">
-                  {getTranslationFromI18nKeyAndLabel('lowcoder:sales_hub.amount', 'Amount')}
+                <TableHead
+                  className="gba:text-right gba:cursor-pointer gba:select-none"
+                  onClick={() => handleSort("amount")}
+                  data-testid="expense-requests-amount-header"
+                >
+                  <div className="gba:flex gba:items-center gba:justify-end">
+                    <span>
+                      {getTranslationFromI18nKeyAndLabel(
+                        "lowcoder:manager_expense_request_list.expense_table.amount",
+                        "Amount",
+                      )}
+                    </span>
+                    {renderSortIndicator("amount")}
+                  </div>
                 </TableHead>
-                <TableHead className="gba:w-[18%]">
-                  {getTranslationFromI18nKeyAndLabel('lowcoder:expense_request_list.expense_request_table.status', 'Status')}
+                <TableHead
+                  className="gba:cursor-pointer gba:select-none"
+                  onClick={() => handleSort("status")}
+                  data-testid="expense-requests-status-header"
+                >
+                  <div className="gba:flex gba:items-center">
+                    <span>
+                      {getTranslationFromI18nKeyAndLabel(
+                        "lowcoder:expense_request_details.status",
+                        "Status",
+                      )}
+                    </span>
+                    {renderSortIndicator("status")}
+                  </div>
                 </TableHead>
               </TableRow>
             </TableHeader>
-          <TableBody>
-            {requests.map((record, index) => {
-              console.log(`Rendering record ${index + 1}:`, {
-                id: record.id,
-                startDate: record.startDate,
-                endDate: record.endDate,
-                requestDate: record.requestDate,
-                startDateType: typeof record.startDate,
-                endDateType: typeof record.endDate,
-                requestDateType: typeof record.requestDate
-              });
-              
-              const { type, label } = getExpenseRequestStatusDisplay(record.status);
-              return (
-                <TableRow 
-                  key={record.id}
-                  className="gba:cursor-pointer gba:hover:bg-gray-50"
-                  onClick={() => handleSelectRequest(record)}
-                  data-testid={`expense-requests-row-${record.id}`}
-                >
-                  <TableCell data-testid={`expense-requests-actions-cell-${record.id}`}>
-                    <div className="gba:flex gba:justify-start gba:gap-2">
-                      <AppActionButton
-                        data-testid={`expense-requests-update-button-${record.id}`}
-                        variant="secondary"
-                        contextsArray={[FlowContextName.expenseRequests]}
-                        externalContextData={{
-                          expenseRequestId: record.id
-                        }}
-                        prefixDataTestId="expense-requests-update"
-                        accessToken={props.accessToken}
-                        emptyStateBehavior="disable"
-                        deferMainContextRequestsUntilClick
+            <TableBody>
+              {requests.map((record) => {
+                const { type, label } = getExpenseRequestStatusDisplay(record.status);
+                return (
+                  <TableRow
+                    key={record.id}
+                    className="gba:cursor-pointer gba:hover:bg-gray-50"
+                    onClick={() => handleSelectRequest(record)}
+                    data-testid={`expense-requests-row-${record.id}`}
+                  >
+                    <TableCell data-testid={`expense-requests-actions-cell-${record.id}`}>
+                      <div
+                        className="gba:flex gba:justify-center gba:gap-2"
                         onClick={(e) => e.stopPropagation()}
-                      />
-                    </div>
-                  </TableCell>
-                  <TableCell className="gba:text-left">
-                    <div className="gba:font-medium gba:text-sm">{record.title ?? 'Untitled Request'}</div>
-                    <div className="gba:text-xs gba:text-gray-500">{record.code ?? 'N/A'}</div>
-                  </TableCell>
-                  <TableCell className="gba:text-sm">
-                    {record.startDate ? (() => {
-                      try {
-                        const date = new Date(record.startDate);
-                        return date.toLocaleDateString('en-US', { month: '2-digit', day: '2-digit', year: '2-digit' });
-                      } catch (error) {
-                        return 'N/A';
-                      }
-                    })() : 'N/A'}
-                  </TableCell>
-                  <TableCell className="gba:text-sm">
-                    {record.endDate ? (() => {
-                      try {
-                        const date = new Date(record.endDate);
-                        return date.toLocaleDateString('en-US', { month: '2-digit', day: '2-digit', year: '2-digit' });
-                      } catch (error) {
-                        return 'N/A';
-                      }
-                    })() : 'N/A'}
-                  </TableCell>
-                  <TableCell>
-                    <div className="gba:flex gba:items-center gba:gap-2">
-                      <Avatar className="gba:h-6 gba:w-6">
-                        <AvatarImage 
-                          src={record.employee?.pictureThumbnail ? `data:image/gif;base64,${record.employee.pictureThumbnail}` : undefined} 
-                          alt={record.employee?.fullName} 
+                      >
+                        <AppActionButton
+                          data-testid={`expense-requests-update-button-${record.id}`}
+                          size="icon"
+                          staticFlowData={[
+                            ...(record.employeeDocument?.file
+                              ? [
+                                  {
+                                    category: getTranslationFromI18nKeyAndLabel(
+                                      "lowcoder:employee_list.flows_button.actions",
+                                      "Actions",
+                                    ),
+                                    key: "print",
+                                    label: getTranslationFromI18nKeyAndLabel(
+                                      "lowcoder:expense_plan_list.expense_plan_flows.print",
+                                      "Print",
+                                    ),
+                                    onClick: () => {
+                                      handlePrintRequest(record);
+                                    },
+                                  },
+                                ]
+                              : []),
+                            {
+                              category: getTranslationFromI18nKeyAndLabel(
+                                "lowcoder:employee_list.flows_button.navigations",
+                                "Navigations",
+                              ),
+                              key: "view-request-details",
+                              label: getTranslationFromI18nKeyAndLabel(
+                                "lowcoder:expense_request_list.expense_request_flows.view_request_details",
+                                "View Request Details",
+                              ),
+                              onClick: () => {
+                                handleViewRequestDetails(record);
+                              },
+                            },
+                          ]}
+                          prefixDataTestId="expense-requests-update"
+                          accessToken={props.accessToken}
+                          emptyStateBehavior="disable"
+                          deferMainContextRequestsUntilClick
+                          onClick={(e) => e.stopPropagation()}
                         />
-                        <AvatarFallback>
-                          {record.employee?.displayName?.charAt(0) || record.employee?.fullName?.charAt(0) || 'U'}
-                        </AvatarFallback>
-                      </Avatar>
-                      <div>
-                        <div className="gba:font-medium gba:text-sm">{record.employee?.displayName || record.employee?.fullName}</div>
-                        <div className="gba:text-xs gba:text-gray-500">{record.employee?.department || 'N/A'}</div>
                       </div>
-                    </div>
-                  </TableCell>
-                  <TableCell className="gba:text-sm">
-                    {record.requestDate ? (() => {
-                      try {
-                        const date = new Date(record.requestDate);
-                        return date.toLocaleDateString('en-US', { month: '2-digit', day: '2-digit', year: '2-digit' });
-                      } catch (error) {
-                        return 'N/A';
-                      }
-                    })() : 'N/A'}
-                  </TableCell>
-                  <TableCell className="gba:text-right">
-                    <span className="gba:font-medium gba:text-sm">
-                      {typeof record.amount === 'number' ? formatCurrency(record.amount, record.currency) : 'N/A'}
-                    </span>
-                  </TableCell>
-                  <TableCell>
-                    <Pill type={type as any} label={label} data-testid={`status-pill-${record.status?.toLowerCase()}`} />
-                  </TableCell>
-                </TableRow>
-              );
-            })}
-          </TableBody>
-        </Table>
+                    </TableCell>
+                    <TableCell className="gba:text-left">
+                      <div className="gba:font-medium gba:text-sm">
+                        {record.title ?? "Untitled Request"}
+                      </div>
+                      <div className="gba:text-xs gba:text-gray-500">{record.code ?? "N/A"}</div>
+                    </TableCell>
+                    <TableCell className="gba:text-sm">
+                      {record.startDate
+                        ? (() => {
+                            try {
+                              const date = new Date(record.startDate);
+                              const userLocale = getCurrentActiveUserLocale();
+                              return date.toLocaleDateString(userLocale, {
+                                month: "2-digit",
+                                day: "2-digit",
+                                year: "2-digit",
+                              });
+                            } catch (error) {
+                              return "N/A";
+                            }
+                          })()
+                        : "N/A"}
+                    </TableCell>
+                    <TableCell className="gba:text-sm">
+                      {record.endDate
+                        ? (() => {
+                            try {
+                              const date = new Date(record.endDate);
+                              const userLocale = getCurrentActiveUserLocale();
+                              return date.toLocaleDateString(userLocale, {
+                                month: "2-digit",
+                                day: "2-digit",
+                                year: "2-digit",
+                              });
+                            } catch (error) {
+                              return "N/A";
+                            }
+                          })()
+                        : "N/A"}
+                    </TableCell>
+                    <TableCell>
+                      <div className="gba:flex gba:items-center gba:gap-2">
+                        <Avatar className="gba:h-6 gba:w-6">
+                          <AvatarImage
+                            src={
+                              record.employee?.pictureThumbnail
+                                ? `data:image/gif;base64,${record.employee.pictureThumbnail}`
+                                : undefined
+                            }
+                            alt={record.employee?.fullName}
+                          />
+                          <AvatarFallback>
+                            {record.employee?.displayName?.charAt(0) ||
+                              record.employee?.fullName?.charAt(0) ||
+                              "U"}
+                          </AvatarFallback>
+                        </Avatar>
+                        <div>
+                          <div className="gba:font-medium gba:text-sm">
+                            {record.employee?.displayName || record.employee?.fullName}
+                          </div>
+                          <div className="gba:text-xs gba:text-gray-500">
+                            {record.employee?.department || "N/A"}
+                          </div>
+                        </div>
+                      </div>
+                    </TableCell>
+                    <TableCell className="gba:text-sm">
+                      {record.requestDate
+                        ? (() => {
+                            try {
+                              const date = new Date(record.requestDate);
+                              const userLocale = getCurrentActiveUserLocale();
+                              return date.toLocaleDateString(userLocale, {
+                                month: "2-digit",
+                                day: "2-digit",
+                                year: "2-digit",
+                              });
+                            } catch (error) {
+                              return "N/A";
+                            }
+                          })()
+                        : "N/A"}
+                    </TableCell>
+                    <TableCell
+                      className="gba:text-right gba:text-sm"
+                      data-testid={`expense-request-amount-cell-${record.id}`}
+                    >
+                      {typeof record.amount === "number"
+                        ? formatCurrencyDisplay(record.amount, record.currency)
+                        : formatCurrencyDisplay(0, record.currency || "EUR")}
+                    </TableCell>
+                    <TableCell>
+                      <Pill
+                        type={type as any}
+                        label={label}
+                        data-testid={`status-pill-${record.status?.toLowerCase()}`}
+                      />
+                    </TableCell>
+                  </TableRow>
+                );
+              })}
+            </TableBody>
+          </Table>
         </div>
-        
-        {/* Pagination */}
-        {totalCount > pageSize && (
-          <div className="gba:flex gba:items-center gba:justify-between gba:px-2 gba:py-4 gba:border-t gba:border-gray-200" data-testid="expense-requests-pagination">
-            <div className="gba:text-sm gba:text-gray-600" data-testid="expense-requests-pagination-info">
-              {`${(currentPage - 1) * pageSize + 1}-${Math.min(currentPage * pageSize, totalCount)} of ${totalCount} expense requests`}
+
+        {totalCount > 0 && (
+          <div
+            className="gba:flex gba:items-center gba:justify-between gba:px-2 gba:py-4 gba:border-t gba:border-gray-200"
+            data-testid="expense-requests-pagination"
+          >
+            <div
+              className="gba:text-sm gba:text-gray-600"
+              data-testid="expense-requests-pagination-info"
+            >
+              {`${(currentPage - 1) * pageSize + 1}-${Math.min(
+                currentPage * pageSize,
+                totalCount,
+              )} ${getTranslationFromI18nKeyAndLabel("lowcoder:personal_expenses.of", "of")} ${totalCount} ${getTranslationFromI18nKeyAndLabel("lowcoder:personal_expenses.expense_requests", "expense requests")}`}
             </div>
             <div className="gba:flex gba:items-center gba:space-x-6 gba:lg:space-x-8">
               <div className="gba:flex gba:items-center gba:space-x-2">
-                <p className="gba:text-sm gba:font-medium">Rows per page</p>
+                <p className="gba:text-sm gba:font-medium">
+                  {getTranslationFromI18nKeyAndLabel(
+                    "lowcoder:personal_expenses.rows_per_page",
+                    "Rows per page",
+                  )}
+                </p>
                 <select
                   value={pageSize}
                   onChange={(e) => {
                     const newPageSize = Number(e.target.value);
                     setPageSize(newPageSize);
                     setCurrentPage(1);
+                    fetchRequests(
+                      searchTerm,
+                      1,
+                      newPageSize,
+                      sorting.field
+                        ? `${sorting.field}:${sorting.order?.toLowerCase()}`
+                        : "requestDate:desc",
+                      selectedFilters,
+                      undefined,
+                      primaryCurrency,
+                    );
                   }}
                   className="gba:h-8 gba:w-[70px] gba:rounded gba:border gba:border-input gba:px-3 gba:py-1 gba:text-sm"
                   data-testid="expense-requests-page-size-select"
@@ -332,49 +642,108 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = (props) => {
                   <option value={100}>100</option>
                 </select>
               </div>
-              <div className="gba:flex gba:w-[100px] gba:items-center gba:justify-center gba:text-sm gba:font-medium" data-testid="expense-requests-page-info">
-                Page {currentPage} of {Math.ceil(totalCount / pageSize)}
+              <div
+                className="gba:flex gba:w-[100px] gba:items-center gba:justify-center gba:text-sm gba:font-medium"
+                data-testid="expense-requests-page-info"
+              >
+                {getTranslationFromI18nKeyAndLabel("lowcoder:personal_expenses.page", "Page")}{" "}
+                {currentPage}{" "}
+                {getTranslationFromI18nKeyAndLabel("lowcoder:personal_expenses.of", "of")}{" "}
+                {Math.ceil(totalCount / pageSize)}
               </div>
               <div className="gba:flex gba:items-center gba:space-x-2">
                 <Button
                   variant="outline"
                   className="gba:h-8 gba:w-8 gba:p-0"
-                  onClick={() => setCurrentPage(1)}
+                  onClick={() => {
+                    setCurrentPage(1);
+                    fetchRequests(
+                      searchTerm,
+                      1,
+                      pageSize,
+                      sorting.field
+                        ? `${sorting.field}:${sorting.order?.toLowerCase()}`
+                        : "requestDate:desc",
+                      selectedFilters,
+                      undefined,
+                      primaryCurrency,
+                    );
+                  }}
                   disabled={currentPage === 1}
                   data-testid="expense-requests-first-page-button"
                 >
                   <span className="gba:sr-only">Go to first page</span>
-                  ⟨⟨
+                  ⟪⟪
                 </Button>
                 <Button
                   variant="outline"
                   className="gba:h-8 gba:w-8 gba:p-0"
-                  onClick={() => setCurrentPage(currentPage - 1)}
+                  onClick={() => {
+                    const newPage = currentPage - 1;
+                    setCurrentPage(newPage);
+                    fetchRequests(
+                      searchTerm,
+                      newPage,
+                      pageSize,
+                      sorting.field
+                        ? `${sorting.field}:${sorting.order?.toLowerCase()}`
+                        : "requestDate:desc",
+                      selectedFilters,
+                      undefined,
+                      primaryCurrency,
+                    );
+                  }}
                   disabled={currentPage === 1}
                   data-testid="expense-requests-previous-page-button"
                 >
-                  <span className="gba:sr-only">Go to previous page</span>
-                  ⟨
+                  <span className="gba:sr-only">Go to previous page</span>⟪
                 </Button>
                 <Button
                   variant="outline"
                   className="gba:h-8 gba:w-8 gba:p-0"
-                  onClick={() => setCurrentPage(currentPage + 1)}
+                  onClick={() => {
+                    const newPage = currentPage + 1;
+                    setCurrentPage(newPage);
+                    fetchRequests(
+                      searchTerm,
+                      newPage,
+                      pageSize,
+                      sorting.field
+                        ? `${sorting.field}:${sorting.order?.toLowerCase()}`
+                        : "requestDate:desc",
+                      selectedFilters,
+                      undefined,
+                      primaryCurrency,
+                    );
+                  }}
                   disabled={currentPage >= Math.ceil(totalCount / pageSize)}
                   data-testid="expense-requests-next-page-button"
                 >
-                  <span className="gba:sr-only">Go to next page</span>
-                  ⟩
+                  <span className="gba:sr-only">Go to next page</span>⟫
                 </Button>
                 <Button
                   variant="outline"
                   className="gba:h-8 gba:w-8 gba:p-0"
-                  onClick={() => setCurrentPage(Math.ceil(totalCount / pageSize))}
+                  onClick={() => {
+                    const lastPage = Math.ceil(totalCount / pageSize);
+                    setCurrentPage(lastPage);
+                    fetchRequests(
+                      searchTerm,
+                      lastPage,
+                      pageSize,
+                      sorting.field
+                        ? `${sorting.field}:${sorting.order?.toLowerCase()}`
+                        : "requestDate:desc",
+                      selectedFilters,
+                      undefined,
+                      primaryCurrency,
+                    );
+                  }}
                   disabled={currentPage >= Math.ceil(totalCount / pageSize)}
                   data-testid="expense-requests-last-page-button"
                 >
                   <span className="gba:sr-only">Go to last page</span>
-                  ⟩⟩
+                  ⟫⟫
                 </Button>
               </div>
             </div>
@@ -382,99 +751,109 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = (props) => {
         )}
       </div>
     );
-  };
-
-
-
-  // Handle filter changes from the filter sidebar
-  const handleFilterChange = useCallback((filterId: string, isSelected: boolean) => {
-    if (isSelected) {
-      addFilter(filterId);
-    } else {
-      removeFilter(filterId);
-    }
-    setCurrentPage(1);
-  }, [addFilter, removeFilter]);
-
-  // Get the selected filters array
-  const activeFilters = [...selectedFilters];
-  
-  // Update the URL or any other side effects when filters change
-  useEffect(() => {
-    const filters = getFilters();
-    fetchRequests(
-      searchText,
-      currentPage,
-      pageSize,
-      undefined, // sortBy
-      filters.status || [], // status filter - now an array
-      filters.requestDateStart
-    );
-  }, [selectedFilters, searchText, currentPage, pageSize, getFilters, fetchRequests]);
+  }, [requests, isLoading, error, totalCount, pageSize, currentPage]);
 
   return (
-    <DataContainer
-      floatingDetails={true}
-      dataControllerProps={{
-        search: searchText,
-        setSearch: handleSearchChange,
-        filter: activeFilters,
-        setFilter: (filters: string[]): void => {
-          // Create a set of new filter IDs for easier comparison
-          const newFilters = new Set(filters);
-          
-          // First, remove any filters that are not in the new filters
-          selectedFilters.forEach((filter: string) => {
-            if (!newFilters.has(filter)) {
-              removeFilter(filter);
-            }
-          });
-          
-          // Then, add any new filters that aren't already selected
-          filters.forEach((filter: string) => {
-            if (!selectedFilters.includes(filter)) {
-              addFilter(filter);
-            }
-          });
-          
-          setCurrentPage(1);
-        },
-        placeholder: 'Search by request title, code, employee...', 
-        filterLabelMap,
-        listTitle: (
-          <div className="gba:flex gba:items-center gba:gap-4">
-            <div className="gba:flex gba:items-center gba:gap-2">
-              <span>{getTranslationFromI18nKeyAndLabel('lowcoder:employee_list.flows_button.expense_requests', 'Expense Requests')}</span>
-              <span className="gba:text-gray-500">({totalCount})</span>
+    <>
+      <DataContainer
+        dataControllerProps={{
+          search: searchTerm,
+          setSearch: handleSearchChange,
+          filter: selectedFilters,
+          setFilter: (newFilters: string[]): void => {
+            const filtersToRemove = selectedFilters.filter((f) => !newFilters.includes(f));
+            const filtersToAdd = newFilters.filter((f) => !selectedFilters.includes(f));
+
+            filtersToRemove.forEach(removeFilter);
+            filtersToAdd.forEach(addFilter);
+
+            setCurrentPage(1);
+          },
+          filterLabelMap: filterLabelMap,
+          listTitle: (
+            <div className="gba:flex gba:items-center gba:gap-4">
+              <div className="gba:flex gba:items-center gba:gap-2">
+                <span>
+                  {getTranslationFromI18nKeyAndLabel(
+                    "lowcoder:employee_list.flows_button.expense_requests",
+                    "Expense Requests",
+                  )}
+                </span>
+                <span className="gba:text-gray-500">({totalCount})</span>
+              </div>
+            </div>
+          ),
+          debounceDelay: 300,
+        }}
+        dataFilterProps={{
+          filterGroups: filterGroups,
+          onFilterChange: handleDataFilterChange,
+        }}
+        dataBody={renderDataBody()}
+        contentBackground="white"
+        data-testid="expense-requests-container"
+      />
+
+      {/* Expense Request Details Sheet */}
+      <Sheet open={!!selectedRequest} onOpenChange={(open) => !open && setSelectedRequest(null)}>
+        <SheetContent className="gba:w-[500px] gba:sm:gba:w-[500px] gba:max-w-none">
+          <SheetHeader>
+            <SheetTitle className="gba:text-xl gba:font-semibold gba:text-gray-900">
+              {selectedRequest?.title ||
+                getTranslationFromI18nKeyAndLabel(
+                  "lowcoder:expense_request_details.title",
+                  "Expense Request Details",
+                )}
+            </SheetTitle>
+          </SheetHeader>
+          <div className="gba:mt-6 gba:overflow-y-auto gba:max-h-[calc(100vh-120px)]">
+            {selectedRequest && (
+              <ExpenseRequestDetails
+                request={selectedRequest}
+                onApprove={handleApproveRequest}
+                onReject={handleRejectRequest}
+                {...contextProps}
+              />
+            )}
+          </div>
+        </SheetContent>
+      </Sheet>
+
+      {/* Print Modal */}
+      <Modal
+        open={printModalOpen}
+        title="Print Expense Request"
+        footer={null}
+        onCancel={() => {
+          setPrintModalOpen(false);
+          setPrintPdfUrl("");
+        }}
+        width="90%"
+        style={{ top: 20 }}
+        destroyOnHidden={true}
+        data-testid="print-request-modal"
+      >
+        {printLoading ? (
+          <div className="gba:flex gba:justify-center gba:items-center gba:py-8">
+            <Spinner />
+          </div>
+        ) : printPdfUrl ? (
+          <iframe
+            src={printPdfUrl}
+            style={{ width: "100%", height: "calc(90vh - 55px)", border: "none" }}
+            title="Print Preview"
+            data-testid="print-request-iframe"
+          />
+        ) : (
+          <div className="gba:flex gba:flex-col gba:items-center gba:justify-center gba:py-8 gba:text-center">
+            <div className="gba:text-gray-600 gba:mb-4">No document available for printing</div>
+            <div className="gba:text-sm gba:text-gray-500">
+              This expense request does not have an associated document to print.
             </div>
           </div>
-        ),
-        debounceDelay: 300,
-      }}
-      dataFilterProps={{ 
-        filterGroups,
-        onFilterChange: handleFilterChange,
-      }}
-      hideFilter={false}
-      dataBody={renderDataBody()}
-      contentBackground="white"
-      dataDetails={selectedRequest ? {
-        title: 'Expense Request Details',
-        content: (
-          <ExpenseRequestDetails
-            request={selectedRequest} 
-            onApprove={handleApproveRequest}
-            onReject={handleRejectRequest}
-            {...contextProps}
-          />
-        ),
-        onClose: () => {
-          setSelectedRequest(null);
-          setSelectedRowKeys([]);
-        }
-      } : undefined}
-      data-testid="expense-requests-container"
-    />
+        )}
+      </Modal>
+    </>
   );
 };
 

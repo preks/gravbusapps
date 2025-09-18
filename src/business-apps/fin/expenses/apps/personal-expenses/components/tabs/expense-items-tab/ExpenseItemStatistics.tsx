@@ -1,4 +1,5 @@
-import { formatNumberFunction, getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
+import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
+import { formatCurrencyDisplay } from '../../../utils';
 import React, { useMemo, useCallback } from 'react';
 import { WidgetGroup, WidgetItem } from '@/components/widget-group';
 import { EuroOutlined, WalletOutlined } from '@ant-design/icons';
@@ -36,18 +37,16 @@ const ExpenseItemStatistics: React.FC<ExpenseItemStatisticsProps> = ({
   fetchItemStatistics = () => Promise.resolve()
 }) => {
   const currentMonthName = dayjs().format('MMMM');
+  // Resolve a currency code from items (fallback to EUR)
+  const currencyCode = useMemo(() => {
+    const code = items?.find((it) => it?.currency?.code)?.currency?.code as string | undefined;
+    return (code?.split(':').pop()) || 'EUR';
+  }, [items]);
   
   // Use backend aggregate for pending reimbursement total
   const pendingReimbursement = pendingReimbursementTotal ?? 0;
   
-  const missingReceipts = useMemo(() => items?.filter(item => !item.expenseItemFile || item.expenseItemFile.length === 0).length ?? 0, [items]);
-
-  // Get unique categories/types for the counter
-  const categoriesCount = useMemo(() => {
-    const uniqueCategories = new Set(items?.map(item => item.expenseClass?.value));
-    return uniqueCategories.size;
-  }, [items]);
-
+  
   // Pending item count from API
   const pendingItemCount = pendingItemCountFromApi ?? 0;
 
@@ -64,7 +63,6 @@ const ExpenseItemStatistics: React.FC<ExpenseItemStatisticsProps> = ({
 
   // Generate trend data for total expenses
   const totalExpensesTrend = useMemo(() => {
-    const previousMonthName = dayjs().subtract(1, 'month').format('MMMM');
     const current = totalExpenses ?? 0;
     const previous = previousMonthTotalExpenses ?? 0;
 
@@ -155,8 +153,7 @@ const ExpenseItemStatistics: React.FC<ExpenseItemStatisticsProps> = ({
     {
       key: 'total-expenses',
       title: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.total_expenses_for_month','Total Expenses for') + ' ' + currentMonthName,
-      value: formatNumberFunction(String(totalExpenses ?? 0)),
-      suffix: '€',
+      value: formatCurrencyDisplay(totalExpenses ?? 0, currencyCode),
       valueIsString: true,
       prefix: <EuroOutlined />,
       color: '#3f8600',
@@ -169,10 +166,9 @@ const ExpenseItemStatistics: React.FC<ExpenseItemStatisticsProps> = ({
     {
       key: 'pending-reimbursement',
       title: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.pending_reimbursement','Pending Reimbursement'),
-      value: formatNumberFunction(String(pendingReimbursement)),
+      value: formatCurrencyDisplay(pendingReimbursement, currencyCode),
       valueIsString: true,
       prefix: <WalletOutlined />,
-      suffix: '€',
       color: '#1677ff',
       span: { xs: 24, sm: 12, md: 8, lg: 8 },
       description: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.awaiting_processing','Awaiting processing'),
@@ -180,25 +176,7 @@ const ExpenseItemStatistics: React.FC<ExpenseItemStatisticsProps> = ({
       active: activeWidgetKey === 'pending-reimbursement',
       onClick: () => handleWidgetClick('pending-reimbursement')
     },
-    // {
-    //   key: 'missing-receipts',
-    //   title: 'Missing Receipts',
-    //   value: missingReceipts,
-    //   prefix: <FileExclamationOutlined />,
-    //   color: isNoReceiptFilterActive ? '#1890ff' : '#faad14',
-    //   span: { xs: 24, sm: 12, md: 8, lg: 8 },
-    //   description: isNoReceiptFilterActive ? 'Filter active' : 'Action required',
-    //   onClick: onMissingReceiptsClick
-    // },
-    // {
-    //   key: 'categories-used',
-    //   title: 'Categories Used',
-    //   value: categoriesCount,
-    //   prefix: <AppstoreOutlined />,
-    //   color: '#722ed1',
-    //   span: { xs: 24, sm: 12, md: 8, lg: 8 },
-    //   description: 'Across all expenses'
-    // }
+   
   ], [currentMonthName, totalExpenses, previousMonthTotalExpenses, pendingReimbursement, pendingItemCount, activeWidgetKey, totalExpensesTrend, pendingReimbursementTrend, handleWidgetClick, previousMonthPendingReimbursementTotal]);
 
   return (

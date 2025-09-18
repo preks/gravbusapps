@@ -3,6 +3,8 @@ import { SCREEN_NAMES_ENUM } from '../constants/constants';
 import { EVENTS } from '../../../utils/constants';
 
 export interface AdvanceObject {
+  id?: string;
+  version?: string;
   currencyRef: string;
   amount: number;
   paymentMethod: string | null;
@@ -41,6 +43,12 @@ export interface PaymentScreenLogObject {
       title: string;
       ruleId: string;
       expensePlan: string;
+      costCenter: string;
+      project: string;
+      expenseGroupRef: string;
+      source: string;
+      expenseClassRef: string;
+      autoCalculated: boolean;
     }>;
   };
   expenseRequestTrips: {
@@ -55,15 +63,32 @@ export const createAdvanceObject = (
   paymentMethod: string | null,
   expensePlanData: any
 ): AdvanceObject | null => {
+  const planDataPk = expensePlanData?.ExpensePlanByPk;
   if(paymentMethod)
-  return {
+  {
+    let initialAdvancePayment = null;
+    if (planDataPk?.advancePayment && planDataPk.advancePayment.length > 0) {
+      initialAdvancePayment = planDataPk.advancePayment[0];
+    }
+    if(initialAdvancePayment)
+      return {
+        id: initialAdvancePayment.id,
+        version: initialAdvancePayment.version,
+        currencyRef: selectedCurrencyId,
+        amount: parseFloat(amount),
+        paymentMethod: paymentMethod,
+        status: "PREPARED",
+        expensePlan: planDataPk.id,
+        costCenter: planDataPk.costCenter.id
+      }
+    else return {
     currencyRef: selectedCurrencyId,
     amount: parseFloat(amount),
     paymentMethod: paymentMethod,
     status: "PREPARED",
-    expensePlan: expensePlanData.ExpensePlanByPk.id,
-    costCenter: expensePlanData.ExpensePlanByPk.costCenter.id
-  };
+    expensePlan: planDataPk.id,
+    costCenter: planDataPk.costCenter.id
+  };}
   else return null
 };
 
@@ -76,7 +101,7 @@ export const createPaymentScreenLogObject = (
   event: string,
   skipStep:boolean
 ): PaymentScreenLogObject => {
-  const planItemsArray: Array<{id: string, version: string|number, code: string, title: string, ruleId: string, expensePlan: string}> = [];
+  const planItemsArray: Array<{id: string, version: string|number, code: string, title: string, ruleId: string, expensePlan: string, costCenter: string, project: string, expenseGroupRef: string, source: string, expenseClassRef: string, autoCalculated: boolean}> = [];
   if (expensePlanData.ExpensePlanItem && Array.isArray(expensePlanData.ExpensePlanItem)) {
     expensePlanData.ExpensePlanItem.forEach((item: any) => {
       if (item) {
@@ -86,7 +111,13 @@ export const createPaymentScreenLogObject = (
           code: item.code || '',
           title: item.title || '',
           ruleId: item.expenseRuleId || '',
-          expensePlan: initialPlan.id || ''
+          expensePlan: initialPlan.id || '',
+          costCenter: item.costCenterId || '',
+          project: item.projectId || '',
+          expenseGroupRef: item.expenseGroupRef || '',
+          source: item.source || '',
+          expenseClassRef: item.expenseClassRef || '',
+          autoCalculated: item.autoCalculated || false
         });
       }
     });

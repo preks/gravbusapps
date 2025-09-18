@@ -52,11 +52,10 @@ import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 import { useStageConditions } from '../hooks/useStageConditions';
 import { useMeasurementUnits, MeasurementUnit } from '../hooks/useMeasurementUnits';
 import { EnhancedSalesPipelineStage } from '../types';
+import { getPipelineCatalogConfig } from '../utils/catalogConfig';
 import { useCatalogManagerClient } from '@/common/network/catalogs/useCatalogManagerClient';
 
-// Catalog constants
-const SALES_PIPELINE_STAGE_CONDITION_CATALOG = 'SalesPipelineStageCondition';
-const SALES_PIPELINE_STAGE_CONDITION_VERSION = 'v1';
+// Catalog constants are dynamic based on CRM/IRM selection
 
 interface StageConditionObjectValue {
   description?: string;
@@ -101,6 +100,7 @@ interface StageConditionsModalProps extends BusinessAppContextProps {
   visible: boolean;
   onClose: () => void;
   prefixDataTestId?: string;
+  sourceApp?: 'CRM' | 'IRM';
 }
 
 // Draggable Condition Item Component
@@ -238,6 +238,7 @@ export const StageConditionsModal: React.FC<StageConditionsModalProps> = ({
   visible,
   onClose,
   prefixDataTestId,
+  sourceApp,
   ...context
 }) => {
   const [conditions, setConditions] = useState<StageCondition[]>([]);
@@ -331,7 +332,7 @@ export const StageConditionsModal: React.FC<StageConditionsModalProps> = ({
       }
 
       // Fetch real condition data from GraphQL
-      const conditionEntries = await fetchStageConditions(stage.code);
+      const conditionEntries = await fetchStageConditions(stage.code, sourceApp || (stage.pipeline?.type as 'CRM' | 'IRM') || 'CRM');
       
       // Transform GraphQL data to StageCondition format
       const transformedConditions: StageCondition[] = conditionEntries.map((entry, index) => {
@@ -438,13 +439,15 @@ export const StageConditionsModal: React.FC<StageConditionsModalProps> = ({
       console.log('Updating condition order:', updatedConditions.map(c => ({ id: c.id, name: c.name, rank: c.rank })));
       
       for (const condition of updatedConditions) {
+        const cfg = getPipelineCatalogConfig(sourceApp || (stage.type as 'CRM' | 'IRM') || (stage.pipeline?.type as 'CRM' | 'IRM') || 'CRM');
         const payload = {
           id: condition.id,
           code: condition.code,
           value: condition.name,
           alternativeCode: condition.alternativeCode,
-          parentEntryId: `SalesPipelineStage:v1:${stage.code}`, // Use correct stage ID format
+          parentEntryId: `${cfg.stageCatalog}:${cfg.version}:${stage.code}`,
           additionalValue1: condition.rank.toString(), // Order stored here
+          displayOrder: condition.rank,
           objectValue: condition.objectValue as any, // Convert to JSONValue
           translations: []
         };
@@ -452,8 +455,8 @@ export const StageConditionsModal: React.FC<StageConditionsModalProps> = ({
         console.log(`Updating condition ${condition.name} with rank ${condition.rank}`);
 
         await catalogClient.updateCatalogEntry(
-          SALES_PIPELINE_STAGE_CONDITION_CATALOG,
-          SALES_PIPELINE_STAGE_CONDITION_VERSION,
+          cfg.conditionCatalog,
+          cfg.version,
           condition.id,
           payload
         );
@@ -556,13 +559,14 @@ export const StageConditionsModal: React.FC<StageConditionsModalProps> = ({
       setOperationLoading(true);
 
       if (editingCondition) {
+        const cfg = getPipelineCatalogConfig((stage.type as 'CRM' | 'IRM') || (stage.pipeline?.type as 'CRM' | 'IRM') || 'CRM');
         // Update existing condition
         const payload = {
           id: editingCondition.id,
           code: editingCondition.code,
           value: values.name,
           alternativeCode: editingCondition.alternativeCode,
-          parentEntryId: `SalesPipelineStage:v1:${stage.code}`, // Use correct stage ID format
+          parentEntryId: `${cfg.stageCatalog}:${cfg.version}:${stage.code}`,
           additionalValue1: values.rank.toString(),
           objectValue: {
             description: values.description,
@@ -575,24 +579,21 @@ export const StageConditionsModal: React.FC<StageConditionsModalProps> = ({
           translations: []
         };
 
-        await catalogClient.updateCatalogEntry(
-          SALES_PIPELINE_STAGE_CONDITION_CATALOG,
-          SALES_PIPELINE_STAGE_CONDITION_VERSION,
-          editingCondition.id,
-          payload
-        );
+        await catalogClient.updateCatalogEntry(cfg.conditionCatalog, cfg.version, editingCondition.id, payload);
         
         console.log(`Condition "${values.name}" updated successfully`);
       } else {
         // Create new condition
+        const cfg = getPipelineCatalogConfig(sourceApp || (stage.type as 'CRM' | 'IRM') || (stage.pipeline?.type as 'CRM' | 'IRM') || 'CRM');
         const code = `CONDITION_${Date.now()}`; // Generate a unique code
         
         const payload = {
           code,
           value: values.name,
           alternativeCode: 'CONDITION',
-          parentEntryId: `SalesPipelineStage:v1:${stage.code}`, // Use correct stage ID format
+          parentEntryId: `${cfg.stageCatalog}:${cfg.version}:${stage.code}`,
           additionalValue1: values.rank.toString(),
+          displayOrder: values.rank,
           objectValue: {
             description: values.description,
             generateTask: values.generate_task,
@@ -604,11 +605,7 @@ export const StageConditionsModal: React.FC<StageConditionsModalProps> = ({
           translations: []
         };
 
-        await catalogClient.createCatalogEntry(
-          SALES_PIPELINE_STAGE_CONDITION_CATALOG,
-          SALES_PIPELINE_STAGE_CONDITION_VERSION,
-          payload
-        );
+        await catalogClient.createCatalogEntry(cfg.conditionCatalog, cfg.version, payload);
         
         console.log(`Condition "${values.name}" created successfully`);
       }

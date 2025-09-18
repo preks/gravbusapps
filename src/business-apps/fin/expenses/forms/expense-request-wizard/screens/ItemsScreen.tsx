@@ -15,6 +15,7 @@ import { useProcessEventState } from '@/business-apps/fin/expenses/utils/useProc
 import { showToast } from '../../../utils/notificationUtils';
 import RejectionComment from '../components/RejectionComment';
 import { getLatestRejectComment } from '../utils/tripScreenUtils';
+import { REQUEST_STATUS, DEFAULT_ITEM_LIST_LIMIT, DEFAULT_CURRENCY_FALLBACK } from '../constants/constants';
 
 
 interface ItemsScreenProps extends BusinessAppContextProps {
@@ -60,24 +61,34 @@ const ItemsScreen: React.FC<ItemsScreenProps> = (props) => {
   const { dispatchProcessContinueEventIfEnabled } = useProcessEventState(additionalData);
   
   const employeeId = userInfo?.employeeDetails?.employeeId;
-  const itemListLimit = 3;
+  const itemListLimit = DEFAULT_ITEM_LIST_LIMIT;
   
   const graphQLClient = useGraphqlClient(accessToken);
 
   const expenseItems = useMemo(() => {
-    if (!expenseRequestData?.ExpenseItem || !Array.isArray(expenseRequestData.ExpenseItem)) {
+    const expensesArray = expenseRequestData?.ExpenseItem;
+    if (!expensesArray || !Array.isArray(expensesArray)) {
       return [];
     }
-    
-    return noAllowanceItemsFunction(expenseRequestData.ExpenseItem);
-  }, [expenseRequestData]);
+    // Ensure locally deleted items are excluded from the working list
+    const mappedDeletedItems = deletedItems.map((element: any) => element.id);
+    const removeDeletedItems = expensesArray.filter((element: any) => !mappedDeletedItems.includes(element.id));
+    return noAllowanceItemsFunction(removeDeletedItems);
+  }, [expenseRequestData, deletedItems]);
+
+  useEffect(() => {
+    const event = new CustomEvent('expense-wizard-update-footer', {
+      detail: { itemsCount: expenseItems.length }
+    });
+    document.dispatchEvent(event);
+  }, [expenseItems]);
   
   const latestRejectComment = getLatestRejectComment(expenseRequestData);
 
   useEffect(() => {
     const calculateTotals = () => {
       if (!expenseItems || expenseItems.length === 0) {
-        const defaultCurrency = expenseRequestData?.ExpenseRequestByPk?.currency?.code || 'RON';
+        const defaultCurrency = expenseRequestData?.ExpenseRequestByPk?.currency?.code || DEFAULT_CURRENCY_FALLBACK;
         return [{ currency: defaultCurrency, amount: 0 }];
       }
 
@@ -106,9 +117,15 @@ const ItemsScreen: React.FC<ItemsScreenProps> = (props) => {
     try {
       setIsLoading(true);
       
-      const currentItemIds = expenseRequestData.ExpenseItem?.map((item: any) => item.id) || [];
-      
-      const excludedIds = [...currentItemIds, ...selectedItemsToInitial.map((item: any) => item.id)];
+      const currentItemIds = expenseItems?.map((item: any) => item.id) || [];
+      // Exclude currently attached items and items selected in this view from both API and local lists appropriately
+      const excludedIdsBase = [...currentItemIds, ...selectedItemsToInitial.map((item: any) => item.id)];
+      // API should also exclude payload items and locally deleted items to prevent duplicates
+      const excludedIdsForApi = [
+        ...excludedIdsBase,
+        ...payloadItemIds,
+        ...deletedItems.map((d: any) => d.id)
+      ];
       
       let itemCurrency = null;
       if (currentCurrency) {
@@ -123,54 +140,61 @@ const ItemsScreen: React.FC<ItemsScreenProps> = (props) => {
       const userLocale = getCurrentActiveUserLocale();
       const countVariables = {
         employeeId,
-        status: "CREATED",
+        status: REQUEST_STATUS.CREATED,
         activeUserLocale: userLocale,
-        idsArray: [...excludedIds, ...payloadItemIds],
+        idsArray: excludedIdsForApi,
         itemCurrency: itemCurrency
       };
       
-      await graphQLClient.request(fetchEmployeeExpenseItems, {
+      const countResponse = await graphQLClient.request(fetchEmployeeExpenseItems, {
         ...countVariables,
         limit: 1,
         offset: 0,
         titleSearch: searchQuery ? `%${searchQuery}%` : '%'
       });
-      
-      const offset = (currentPage - 1) * itemListLimit;
-      
-      const variables = {
-        ...countVariables,
-        limit: Number(itemListLimit),
-        offset: Math.max(0, Number(offset)),
-        titleSearch: searchQuery ? `%${searchQuery}%` : '%%'
-      };
-            
-      const response = await graphQLClient.request(fetchEmployeeExpenseItems, variables);
-      
-      const items = response?.ExpenseItemEmployee || [];
-      
-      const filteredApiItems = noAllowanceItemsFunction(items);
-      
+      const apiItemsCount = countResponse?.ExpenseItemAggregate?.aggregate?.count || 0;
+      const globalStart = Math.max(0, (currentPage - 1) * itemListLimit);
       const filteredDeletedItems = deletedItems.filter((item: any) => {
-        if (excludedIds.includes(item.id)) return false;
-        
+        if (excludedIdsBase.includes(item.id)) return false;
         if (searchQuery && item.title) {
           return item.title.toLowerCase().includes(searchQuery.toLowerCase());
         }
-        
         return true;
       });
       
-      const apiItemsCount = response?.ExpenseItemAggregate?.aggregate?.count || 0;
       const totalItemsCount = apiItemsCount + filteredDeletedItems.length;
       setTotalItems(totalItemsCount);
+
+      const deletedStart = globalStart < filteredDeletedItems.length ? globalStart : 0;
+      const deletedItemsInPage = globalStart < filteredDeletedItems.length
+        ? Math.min(itemListLimit, filteredDeletedItems.length - globalStart)
+        : 0;
+      const deletedSlice = deletedItemsInPage > 0
+        ? filteredDeletedItems.slice(deletedStart, deletedStart + deletedItemsInPage)
+        : [];
+
+      const apiNeeded = Math.max(0, itemListLimit - deletedSlice.length);
+      const apiOffset = Math.max(0, globalStart - filteredDeletedItems.length);
+      let items: any[] = [];
+      if (apiNeeded > 0) {
+        const variables = {
+          ...countVariables,
+          limit: Number(apiNeeded),
+          offset: Math.max(0, Number(apiOffset)),
+          titleSearch: searchQuery ? `%${searchQuery}%` : '%%'
+        };
+        const response = await graphQLClient.request(fetchEmployeeExpenseItems, variables);
+        items = response?.ExpenseItemEmployee || [];
+      }
       
-      let finalItems = filteredApiItems;
+      const filteredApiItems = noAllowanceItemsFunction(items).filter((apiItem: any) =>
+        !deletedItems.some((d: any) => d.id === apiItem.id)
+      );
       
-      if (finalItems.length < itemListLimit) {
-        const remainingSlots = itemListLimit - finalItems.length;
-        const deletedItemsToShow = filteredDeletedItems.slice(0, remainingSlots);
-        finalItems = [...finalItems, ...deletedItemsToShow];
+
+      let finalItems = deletedSlice;
+      if (filteredApiItems.length > 0) {
+        finalItems = [...finalItems, ...filteredApiItems];
       }
       
       setSelectItemsList(finalItems);
@@ -253,13 +277,30 @@ const ItemsScreen: React.FC<ItemsScreenProps> = (props) => {
       }));
       
       const currentItems = expenseRequestData?.ExpenseItem || [];
-      const updatedItems = [...currentItems, ...selectedItems];
+      const mergedByIdMap = new Map<string, any>();
+      for (const singleItem of currentItems) {
+        if (singleItem?.id) mergedByIdMap.set(singleItem.id, singleItem);
+      }
+      for (const singleItem of selectedItems) {
+        if (singleItem?.id) mergedByIdMap.set(singleItem.id, singleItem);
+      }
+      const updatedItems = Array.from(mergedByIdMap.values());
       setExpenseRequestData({
         ...expenseRequestData,
         ExpenseItem: updatedItems
       });
       
-      setSelectedItemsToInitial((prev: any[]) => [...prev, ...selectedItems]);
+
+      setSelectedItemsToInitial((prev: any[]) => {
+        const map = new Map<string, any>();
+        for (const it of prev) {
+          if (it?.id) map.set(it.id, it);
+        }
+        for (const it of selectedItems) {
+          if (it?.id) map.set(it.id, it);
+        }
+        return Array.from(map.values());
+      });
       
       setDeletedItems(deletedItems.filter((item: any) => 
         !selectedItemIdsForSelection.includes(item.id)
@@ -310,35 +351,38 @@ const ItemsScreen: React.FC<ItemsScreenProps> = (props) => {
       if (payloadItemsLoaded) return;
       if (additionalData && 
           additionalData.psi_taskPayload && 
-          additionalData.psi_taskPayload.initialParameters && 
-          additionalData.psi_taskPayload.initialParameters.expenseItems && 
-          additionalData.psi_taskPayload.initialParameters.expenseItems.length > 0) {
+          additionalData.psi_taskPayload.psi_initialParameters && 
+          additionalData.psi_taskPayload.psi_initialParameters.expenseItems && 
+          additionalData.psi_taskPayload.psi_initialParameters.expenseItems.length > 0) {
         
         try {
           setIsLoading(true);
-          const extractedPayloadItemIds = additionalData.psi_taskPayload.initialParameters.expenseItems
+          const extractedPayloadItemIds = additionalData.psi_taskPayload.psi_initialParameters.expenseItems
             .filter((item: any) => item.itemId)
             .map((item: any) => item.itemId);
           
           if (extractedPayloadItemIds.length === 0) return;
           setPayloadItemIds(extractedPayloadItemIds);
+          if(!expenseRequestData) return
           const existingItemIds = expenseRequestData?.ExpenseItem?.map((item: any) => item.id) || [];
           const newItemIds = extractedPayloadItemIds.filter((id: string) => !existingItemIds.includes(id));
           
           if (newItemIds.length === 0) return;
-          
           let itemCurrency = currentCurrency || "";
-          if (expenseRequestData?.ExpenseRequestByPk?.currencyRef) {
+          if (expenseRequestData?.ExpenseRequestByPk?.currencyRef && !itemCurrency) {
             itemCurrency = expenseRequestData.ExpenseRequestByPk.currencyRef;
-          } else if (expenseRequestData?.ExpenseItem && expenseRequestData?.ExpenseItem.length > 0) {
+          } else if (expenseRequestData?.ExpenseItem && expenseRequestData?.ExpenseItem.length > 0 && !itemCurrency) {
             itemCurrency = expenseRequestData.ExpenseItem[0].currencyRef;
+          }
+          else if(additionalData.psi_taskPayload.psi_initialParameters.expenseItems && additionalData.psi_taskPayload.psi_initialParameters.expenseItems.length > 0 && !itemCurrency){
+            itemCurrency = additionalData.psi_taskPayload.psi_initialParameters.expenseItems.find((item: any) => item.itemId && item.currencyId)?.currencyId || ""; 
           }
           
           const userLocale = getCurrentActiveUserLocale();
 
           const variables = {
             employeeId,
-            status: "CREATED",
+            status: REQUEST_STATUS.CREATED,
             activeUserLocale: userLocale,
             idsArray: newItemIds,
             itemCurrency: itemCurrency
@@ -376,20 +420,6 @@ const ItemsScreen: React.FC<ItemsScreenProps> = (props) => {
     fetchItemsFromPayload();
   }, [additionalData, employeeId, graphQLClient, expenseRequestData, setExpenseRequestData, currentCurrency]);
 
-  useEffect(() => {
-    document.addEventListener('expense-items-cancel-selection', handleCancelSelection);
-    document.addEventListener('expense-items-confirm-selection', handleConfirmSelection);
-    document.addEventListener('expense-request-next-items', handleNextItems);
-    document.addEventListener('expense-request-save-items', handleSaveItems);
-    
-    return () => {
-      document.removeEventListener('expense-items-cancel-selection', handleCancelSelection);
-      document.removeEventListener('expense-items-confirm-selection', handleConfirmSelection);
-      document.removeEventListener('expense-request-next-items', handleNextItems);
-      document.removeEventListener('expense-request-save-items', handleSaveItems);
-    };
-  }, [handleCancelSelection, handleConfirmSelection]);
-  
   const handleNextItems = useCallback(() => {
     if (expenseRequestData?.ExpenseRequestByPk) {
       const logObject = createItemsScreenLogObject(
@@ -422,9 +452,33 @@ const ItemsScreen: React.FC<ItemsScreenProps> = (props) => {
   
   const { showCreateItem } = useExpenseRequestWizardContext();
   
+
   const handleCreateItem = useCallback(() => {
     showCreateItem();
   }, [showCreateItem]);
+  
+  useEffect(() => {
+    document.addEventListener('expense-items-cancel-selection', handleCancelSelection);
+    document.addEventListener('expense-items-confirm-selection', handleConfirmSelection);
+    document.addEventListener('expense-request-next-items', handleNextItems);
+    document.addEventListener('expense-request-save-items', handleSaveItems);
+    // Reset selection/search/page/showSelectItems on external reset
+    const handleReset = () => {
+      setSelectedItemIdsForSelection([]);
+      setSearchQuery("");
+      setCurrentPage(1);
+      setShowSelectItems(false);
+    };
+    document.addEventListener('expense-items-reset-selection', handleReset);
+    
+    return () => {
+      document.removeEventListener('expense-items-cancel-selection', handleCancelSelection);
+      document.removeEventListener('expense-items-confirm-selection', handleConfirmSelection);
+      document.removeEventListener('expense-request-next-items', handleNextItems);
+      document.removeEventListener('expense-request-save-items', handleSaveItems);
+      document.removeEventListener('expense-items-reset-selection', handleReset);
+    };
+  }, [handleCancelSelection, handleConfirmSelection, handleNextItems, handleSaveItems]);
   
   useEffect(() => {
     if (showSelectItems) {
@@ -471,8 +525,8 @@ const ItemsScreen: React.FC<ItemsScreenProps> = (props) => {
 
   if (showSelectItems) {
     return (
-      <div className="gba:itemsScreenContainer" data-testid="expense-request-wizard-select-items-screen" style={{flexGrow:1}}>
-        <div className="gba:screenHeader gba:flex gba:justify-between gba:items-center gba:mb-4" data-testid="expense-request-wizard-select-items-header">
+      <div data-testid="expense-request-wizard-select-items-screen" style={{flexGrow:1}}>
+        <div className="gba:flex gba:justify-between gba:items-center gba:mb-4" data-testid="expense-request-wizard-select-items-header">
           <SearchBarWithLabel 
             onSearch={handleSearch} 
             placeholder={getTranslationFromI18nKeyAndLabel('lowcoder:modify_expense_request.expense_header_title', 'My Expense Items')}
@@ -481,7 +535,7 @@ const ItemsScreen: React.FC<ItemsScreenProps> = (props) => {
           />
         </div>
         
-        <div className="gba:itemsContent gba:bg-[#F7F7F7] gba:border-t gba:border-b gba:border-[#F7F7F7] gba:py-2 gba:px-2" data-testid="expense-request-wizard-select-items-content">
+        <div className="gba:bg-[#F7F7F7] gba:border-t gba:border-b gba:border-[#F7F7F7] gba:py-2 gba:px-2" data-testid="expense-request-wizard-select-items-content">
           {isLoading ? (
             <div className="gba:text-center gba:p-8 gba:bg-[#F7F7F7]" data-testid="loading-message">
               {getTranslationFromI18nKeyAndLabel('lowcoder:modify_expense_request.loading_text', 'Loading items...')}
@@ -517,7 +571,7 @@ const ItemsScreen: React.FC<ItemsScreenProps> = (props) => {
                 })}
               </div>
               {totalItems > itemListLimit &&
-              <div className="gba:paginationContainer gba:mt-4 gba:flex gba:justify-center" data-testid="expense-items-pagination-container">
+              <div className="gba:flex gba:justify-center gba:py-2 gba:mt-4 gba:flex gba:justify-center" data-testid="expense-items-pagination-container">
                 <Pagination
                   current={currentPage}
                   onChange={handlePageChange}
@@ -539,7 +593,7 @@ const ItemsScreen: React.FC<ItemsScreenProps> = (props) => {
   }
 
   return (
-    <div className="gba:itemsScreenContainer gba:flex gba:flex-col gba:h-full" style={{flexGrow:1}} data-testid="expense-request-wizard-items-screen">
+    <div className="gba:flex gba:flex-col" style={{flexGrow:1, height:"100%"}} data-testid="expense-request-wizard-items-screen">
       {!isTrip && latestRejectComment && (
        <div className="gba:mb-4">
         <RejectionComment isRequest={true} comment={latestRejectComment} />
@@ -547,7 +601,7 @@ const ItemsScreen: React.FC<ItemsScreenProps> = (props) => {
       )}
       {expenseItems.length > 0 && (
         <div className="gba:flex gba:flex-row gba:justify-between gba:items-center gba:mb-4 gba:px-4">
-          <div className="gba:screenTitle gba:m-0 gba:text-[16px] gba:font-bold" data-testid="expense-request-wizard-items-screen-title">
+          <div className="gba:m-0 gba:text-[16px] gba:font-bold" data-testid="expense-request-wizard-items-screen-title">
             {getTranslationFromI18nKeyAndLabel('lowcoder:create_expense_request.items_subtitle', 'Expense Items')}
             {expenseItems.length > 0 && ` (${expenseItems.length})`}
           </div>
@@ -602,7 +656,7 @@ const ItemsScreen: React.FC<ItemsScreenProps> = (props) => {
             </div>
             
             {expenseItems.length > itemListLimit && (
-              <div className="gba:paginationContainer gba:mt-4 gba:flex gba:justify-center" data-testid="expense-items-initial-pagination-container">
+              <div className="gba:flex gba:justify-center gba:py-2 gba:mt-4 gba:flex gba:justify-center" data-testid="expense-items-initial-pagination-container">
                 <Pagination
                   current={initialCurrentPage}
                   onChange={handleInitialPageChange}
@@ -615,9 +669,9 @@ const ItemsScreen: React.FC<ItemsScreenProps> = (props) => {
             )}
           </div>
         ) : (
-          <div className="gba:flex gba:flex-col gba:items-center gba:justify-center gba:h-full gba:p-8 gba:bg-[#F7F7F7] gba:gap-8" 
+          <div className="gba:flex gba:flex-col gba:items-center gba:justify-center gba:p-8 gba:bg-[#F7F7F7] gba:gap-8" 
                data-testid="empty-items-container"
-               style={{ flex: '1 1 auto', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+               style={{ flex: '1 1 auto', display: 'flex', alignItems: 'center', justifyContent: 'center',  height:"100%" }}>
             <Button 
               variant="ghost" 
               icon={<img src={ICONS.ADD_CIRCLE} alt="Add" style={{ width: '50px', height: '50px' }} />}
@@ -663,7 +717,7 @@ const ItemsScreen: React.FC<ItemsScreenProps> = (props) => {
       </div>
 
       {/* Expense Total Display */}
-      <div className="gba:expense-total-container gba:mt-8 gba:mb-4 gba:px-4" data-testid="expense-items-total-container">
+      <div className="gba:mt-8 gba:mb-4 gba:px-4" data-testid="expense-items-total-container">
         <div className="gba:flex gba:justify-between gba:items-center">
           <span className="gba:text-base gba:font-normal">
             {getTranslationFromI18nKeyAndLabel('lowcoder:modify_expense_request.expense_items_sum', 'Expenses')}
@@ -683,7 +737,7 @@ const ItemsScreen: React.FC<ItemsScreenProps> = (props) => {
               <span className="gba:text-3xl gba:font-bold" data-testid="expense-items-total-default">
                 {expenseRequestData?.ExpenseRequestByPk && expenseRequestData.ExpenseRequestByPk.currency ? 
                   `0.00 ${expenseRequestData.ExpenseRequestByPk.currency.code}` : 
-                  "0.00 RON"}
+                  `0.00 ${DEFAULT_CURRENCY_FALLBACK}`}
               </span>
             )}
           </div>

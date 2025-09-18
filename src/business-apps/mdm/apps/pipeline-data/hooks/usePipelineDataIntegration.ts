@@ -1,24 +1,17 @@
 import { useState, useEffect, useCallback } from 'react';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
-import { CatalogEntry } from '@/common/types/CatalogTypes';
-import { 
-  PipelineDataIntegration, 
-  EnhancedSalesPipeline, 
-  EnhancedSalesPipelineStage,
-  SalesPipeline,
-  SalesPipelineStage,
-  StageType,
-  STAGE_TYPE_CONFIGS
-} from '../types';
+// import { CatalogEntry } from '@/common/types/CatalogTypes';
+import { PipelineDataIntegration } from '../types';
 import { useSalesPipelines } from './useSalesPipelines';
 import { useSalesPipelineStages } from './useSalesPipelineStages';
+import { SourceApp } from '../utils/catalogConfig';
 
 export const usePipelineDataIntegration = (
   context: BusinessAppContextProps,
   options?: {
     limit?: number;
     autoFetch?: boolean;
-    sourceApp?: 'CRM' | 'IRM'; // Add sourceApp parameter for filtering
+    sourceApp?: SourceApp; // determines which catalogs to use
   }
 ): PipelineDataIntegration & {
   refetch: () => Promise<void>;
@@ -33,129 +26,11 @@ export const usePipelineDataIntegration = (
   const { fetchSalesPipelines } = useSalesPipelines(context);
   const { fetchSalesPipelineStages } = useSalesPipelineStages(context);
 
-  const transformPipelines = useCallback((
-    pipelineEntries: CatalogEntry[],
-    stageEntries: CatalogEntry[]
-  ): EnhancedSalesPipeline[] => {
-    console.log('Transforming pipelines:', pipelineEntries.length);
-    console.log('Available stages for matching:', stageEntries.length);
-    
-    return pipelineEntries
-      .filter((entry) => entry.id && entry.value)
-      .map((entry) => {
-        console.log(`Processing pipeline: ${entry.id} (${entry.value})`);
-        
-        // Get stages for this pipeline - try different matching strategies
-        const pipelineStages = stageEntries
-          .filter((stage) => {
-            // Try exact match first
-            if (stage.parentEntryId === entry.id) {
-              return true;
-            }
-            // Try partial match if full ID format doesn't work
-            const stageParentId = stage.parentEntryId || '';
-            const pipelineId = entry.id;
-            
-            // Log mismatches for debugging
-            if (stageParentId && !stageParentId.includes(pipelineId.split(':').pop() || '')) {
-              console.log(`Stage ${stage.id} parent: "${stageParentId}" vs pipeline: "${pipelineId}"`);
-            }
-            
-            return stageParentId === pipelineId;
-          })
-          .map((stage) => transformStage(stage, entry))
-          .sort((a, b) => a.rank - b.rank);
+  // Note: transformPipelines is not used in the current overview flow (stages on demand)
 
-        console.log(`Found ${pipelineStages.length} stages for pipeline ${entry.value}`);
+  // transformStage kept for reference in case future needs arise
 
-        return {
-          id: entry.id,
-          code: entry.code,
-          value: entry.value,
-          objectValue: (entry.objectValue as Record<string, any>) || {},
-          stages: pipelineStages,
-          stageCount: pipelineStages.length,
-          displayName: entry.value,
-          description: entry.additionalValue1 || '', // Use additionalValue1 as description
-          type: entry.type || 'CRM' // Default to CRM if no type is set
-        };
-      })
-      .sort((a, b) => a.value.localeCompare(b.value));
-  }, []);
-
-  const transformStage = useCallback((
-    stageEntry: CatalogEntry,
-    pipeline?: CatalogEntry
-  ): EnhancedSalesPipelineStage => {
-    const stageType = (stageEntry.alternativeCode as StageType) || StageType.DISCOVERY;
-    const stageConfig = STAGE_TYPE_CONFIGS[stageType] || STAGE_TYPE_CONFIGS[StageType.DISCOVERY];
-    const rank = parseInt(stageEntry.additionalValue1 || '1', 10) || 1;
-
-    console.log(`Transforming stage: ${stageEntry.id} - ${stageEntry.value} (type: ${stageType}, rank: ${rank})`);
-
-    return {
-      id: stageEntry.id,
-      parentEntryId: stageEntry.parentEntryId || '',
-      code: stageEntry.code || 'UNKNOWN',
-      alternativeCode: stageType,
-      value: stageEntry.value || 'Unnamed Stage',
-      additionalValue1: stageEntry.additionalValue1 || '1',
-      objectValue: (stageEntry.objectValue as Record<string, any>) || {},
-      pipeline: pipeline ? {
-        id: pipeline.id,
-        code: pipeline.code,
-        value: pipeline.value,
-        objectValue: (pipeline.objectValue as Record<string, any>) || {}
-      } : undefined,
-      rank,
-      stageTypeName: stageConfig.label,
-      stageTypeColor: stageConfig.color,
-      isFirst: rank === 1,
-      isLast: false // Will be set after sorting all stages
-    };
-  }, []);
-
-  const transformStages = useCallback((
-    stageEntries: CatalogEntry[],
-    pipelineEntries: CatalogEntry[]
-  ): EnhancedSalesPipelineStage[] => {
-    // Create a map of pipelines for quick lookup
-    const pipelineMap = new Map(
-      pipelineEntries.map(p => [p.id, p])
-    );
-
-    const transformedStages = stageEntries
-      .filter((entry) => entry.id && entry.value)
-      .map((entry) => {
-        const pipeline = pipelineMap.get(entry.parentEntryId || '');
-        return transformStage(entry, pipeline);
-      });
-
-    // Group by pipeline to determine isLast
-    const stagesByPipeline = new Map<string, EnhancedSalesPipelineStage[]>();
-    transformedStages.forEach(stage => {
-      const pipelineId = stage.parentEntryId;
-      if (!stagesByPipeline.has(pipelineId)) {
-        stagesByPipeline.set(pipelineId, []);
-      }
-      stagesByPipeline.get(pipelineId)!.push(stage);
-    });
-
-    // Sort stages within each pipeline and mark last stage
-    stagesByPipeline.forEach((stages) => {
-      stages.sort((a, b) => a.rank - b.rank);
-      if (stages.length > 0) {
-        stages[stages.length - 1].isLast = true;
-      }
-    });
-
-    return transformedStages.sort((a, b) => {
-      // Sort by pipeline name, then by rank
-      const pipelineCompare = (a.pipeline?.value || '').localeCompare(b.pipeline?.value || '');
-      if (pipelineCompare !== 0) return pipelineCompare;
-      return a.rank - b.rank;
-    });
-  }, [transformStage]);
+  // Note: transformStages is unused in current modal-first design
 
   const fetchData = useCallback(async () => {
     if (!context.accessToken) {
@@ -172,15 +47,17 @@ export const usePipelineDataIntegration = (
     try {
       console.log('Fetching pipeline data with token:', context.accessToken.substring(0, 20) + '...');
 
-      // Fetch both pipelines and stages in parallel
+      // Fetch both pipelines and stages in parallel using selected catalogs
       const [pipelinesResult, stagesResult] = await Promise.all([
         fetchSalesPipelines({
           limit: options?.limit || 100,
           offset: 0,
+          sourceApp: options?.sourceApp || 'CRM'
         }),
         fetchSalesPipelineStages({
           limit: 1000, // Get all stages
           offset: 0,
+          sourceApp: options?.sourceApp || 'CRM'
         })
       ]);
 
@@ -189,15 +66,8 @@ export const usePipelineDataIntegration = (
       console.log('Found pipelines:', pipelinesResult.data?.length || 0);
       console.log('Found stages:', stagesResult.data?.length || 0);
 
-      // Filter pipelines by sourceApp type if specified
-      let filteredPipelines = pipelinesResult.data.filter((entry) => entry.id && entry.value);
-      
-      if (options?.sourceApp) {
-        filteredPipelines = filteredPipelines.filter(entry => 
-          (entry.type || 'CRM') === options.sourceApp
-        );
-        console.log(`Filtered to ${options.sourceApp} pipelines:`, filteredPipelines.length);
-      }
+      // No type filtering anymore; catalogs are already specific to sourceApp
+      const filteredPipelines = pipelinesResult.data.filter((entry) => entry.id && entry.value);
 
       // Create a map to count stages per pipeline
       const stageCountMap = new Map<string, number>();
@@ -223,7 +93,8 @@ export const usePipelineDataIntegration = (
             stageCount: stageCount, // Real stage count from fetched data
             displayName: entry.value,
             description: entry.additionalValue1 || '', // Use additionalValue1 as description
-            type: entry.type || 'CRM' // Default to CRM if no type is set
+            // Use sourceApp as type for display context
+            type: options?.sourceApp || 'CRM'
           };
         })
         .sort((a, b) => a.value.localeCompare(b.value));

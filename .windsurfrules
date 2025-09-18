@@ -62,7 +62,7 @@ src
 # Component Dependencies
 - Use react for UI components
 - Use tailwind v4 for all styling (utility classes)
-- Use ant-design for React UI components
+- Use nw-design-system for React UI components
 - Use @dnd-kit for drag and drop
 - Use zustand for state management in React
 - Use react-dom for working with the DOM

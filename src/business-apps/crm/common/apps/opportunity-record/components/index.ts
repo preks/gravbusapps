@@ -3,7 +3,7 @@ import { CompanyInformation } from './CompanyInformation';
 import { ContactInformation } from './ContactInformation';
 import { ActivityTimeline } from './ActivityTimeline';
 import { TasksSection } from './TasksSection';
-import { StageProgression } from './StageProgression';
+import { OpportunityStageProgression as StageProgression } from './OpportunityStageProgression';
 import { OpportunityDocuments } from './OpportunityDocuments';
 
 export { OpportunityHeader };

@@ -1,49 +1,54 @@
-import React, { useState } from "react";
-import { useTranslation } from "react-i18next";
+import React, { useState, useMemo, useCallback, useEffect } from "react";
 import {
-  Table,
+  Card,
+  CardContent,
   Button,
   Input,
-  Space,
-  Typography,
-  message,
-  Modal,
-  Spin,
+  Spinner,
   Alert,
-  Descriptions,
-  Tag,
-} from "antd";
-import {
-  PlusOutlined,
-  EditOutlined,
-  DeleteOutlined,
-  SearchOutlined,
-  DollarCircleOutlined,
-} from "@ant-design/icons";
+  AlertDescription,
+  AlertTitle,
+  Sheet,
+  SheetContent,
+  SheetFooter,
+  SheetHeader,
+  SheetTitle,
+  SheetClose,
+  DataTable,
+  Badge,
+} from "@newwork/nw-design-system";
 import { BusinessAppContextProps } from "@/common/BusinessAppContext";
 import { useUserLocale } from "@/common/locale/useUserLocale";
 import { useCompensationDataIntegration } from "../../hooks/useCompensationDataIntegration";
-import { DataDetailsDrawer } from "@/components/data-details/DataDetailsDrawer";
+import { ColumnDef } from "@tanstack/react-table";
 import { PayGrade } from "./PayGradesTab";
-import { startProcess } from "@/common/utils/start-process";
+import { formatDataTestId } from "@/common/utils/formatDataTestId";
+import CardTabHeaderComponent from "../../../generic-components/card";
+import PayGradeForm from "@/business-apps/mdm/forms/pay-grade-form";
+import { DeleteButton } from "../../../generic-components/delete-button/DeleteButton";
+import { useRestClient } from "@/common/network/rest/useRestClient";
+import { env } from "@/common/env/EnvUtils";
+import {
+  EyeIcon,
+  ArrowsDownUpIcon,
+  PlusIcon,
+  PencilSimpleLineIcon,
+  CurrencyCircleDollarIcon,
+  XCircleIcon,
+  InfoIcon,
+} from "@phosphor-icons/react";
+import { VerticalTable } from "../../../generic-components/table/VerticalTable";
 
-const { Title } = Typography;
+const DATA_TEST_ID_PREFIX = "CompensationBandsTab";
 
 export interface CompensationBandsTabProps extends BusinessAppContextProps {
   prefixDataTestId?: string;
 }
 
-const currencies = [
-  { value: "EUR", label: "Euro (EUR)" },
-  { value: "USD", label: "US Dollar (USD)" },
-  { value: "GBP", label: "British Pound (GBP)" },
-  { value: "CHF", label: "Swiss Franc (CHF)" },
-];
-
 const CompensationBandsTab: React.FC<CompensationBandsTabProps> = (context) => {
-  const { t } = useTranslation();
-  const { prefixDataTestId, userInfo } = context;
+  const { prefixDataTestId } = context;
   const userLocale = useUserLocale() ?? "en-US";
+  const dataTestId = formatDataTestId(prefixDataTestId, DATA_TEST_ID_PREFIX);
 
   // Use real data integration
   const { payGrades, isLoading, error, refetch } =
@@ -51,429 +56,479 @@ const CompensationBandsTab: React.FC<CompensationBandsTabProps> = (context) => {
   const [selectedBand, setSelectedBand] = useState<PayGrade | null>(null);
   const [drawerVisible, setDrawerVisible] = useState<boolean>(false);
   const [searchTerm, setSearchTerm] = useState("");
-  const [editingBand, setEditingBand] = useState<PayGrade | null>(null);
 
-  const filteredBands = payGrades.filter(
-    (band) =>
-      band.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      band.code?.toLowerCase().includes(searchTerm.toLowerCase())
+  const restClient = useRestClient(
+    env("NEXT_PUBLIC_KOGITO_PROCESSES_ENDPOINT")
   );
 
-  const formatCurrency = (
-    amount: number,
-    currency?: { id: string; value: string } | string
-  ) => {
-    let currencyCode =
-      typeof currency === "string" ? currency : currency?.id || "EUR";
+  useEffect(() => {
+    if (selectedBand) {
+      const updatedSelectedBand = payGrades.find(
+        (payGrade) => payGrade.id === selectedBand.id
+      );
 
-    // Extract currency code from format like "Currency:v1:EUR" -> "EUR"
-    if (currencyCode.includes(":")) {
-      const parts = currencyCode.split(":");
-      currencyCode = parts[parts.length - 1]; // Get the last part
+      if (updatedSelectedBand) {
+        setSelectedBand(updatedSelectedBand);
+      }
     }
+  }, [payGrades]);
 
-    return new Intl.NumberFormat(userLocale, {
-      style: "currency",
-      currency: currencyCode,
-      minimumFractionDigits: 2,
-    }).format(amount);
-  };
+  const formatCurrency = useCallback(
+    (amount: number, currency?: { id: string; value: string } | string) => {
+      let currencyCode =
+        typeof currency === "string" ? currency : currency?.id || "EUR";
 
-  const handleAdd = () => {
-    startProcess({
-      domain: "dummy-domain",
-      processName: "changeCompensationBand",
-      payload: {
-        employeeId: userInfo?.employeeDetails.employeeId,
-      },
-      builderType: "NATIVE_SCREEN",
-    });
-  };
+      // Extract currency code from format like "Currency:v1:EUR" -> "EUR"
+      if (currencyCode.includes(":")) {
+        const parts = currencyCode.split(":");
+        currencyCode = parts[parts.length - 1]; // Get the last part
+      }
 
-  const handleRowClick = (record: PayGrade) => {
+      return new Intl.NumberFormat(userLocale, {
+        style: "currency",
+        currency: currencyCode,
+        minimumFractionDigits: 2,
+      }).format(amount);
+    },
+    [userLocale]
+  );
+
+  // Filter data based on search term
+  const filteredData = useMemo(() => {
+    return payGrades.filter(
+      (band) =>
+        band.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        band.code?.toLowerCase().includes(searchTerm.toLowerCase())
+    );
+  }, [payGrades, searchTerm]);
+
+  const handleRowClick = useCallback((record: PayGrade) => {
     setSelectedBand(record);
     setDrawerVisible(true);
-  };
+  }, []);
 
-  const handleDrawerClose = () => {
-    setDrawerVisible(false);
-    setSelectedBand(null);
-  };
-
-  const handleEdit = (record: PayGrade) => {
-    setEditingBand(record);
-    // Just set the state for the drawer, no process needed
-  };
-  
-  const handleDrawerEdit = (record: PayGrade) => {
-    // When editing from drawer button, start the process
-    startProcess({
-      domain: "dummy-domain",
-      processName: "changeCompensationBand",
-      payload: {
-        employeeId: userInfo?.employeeDetails.employeeId,
-        compensationBand: record,
+  const handleDeletePayGrade = async (payGrade: PayGrade) => {
+    await restClient.post(
+      "/employee/saveCompensationBand",
+      {
+        changeMode: "DELETE",
+        compensationBand: {
+          id: payGrade.id,
+          version: payGrade.version,
+        },
       },
-      builderType: "NATIVE_SCREEN",
-    });
+      {
+        headers: { Authorization: `Bearer ${context.accessToken}` },
+      }
+    );
+
+    await refetch();
   };
 
-  const handleDelete = async (record: PayGrade) => {
-    Modal.confirm({
-      title: "Delete Compensation Band",
-      content: `Are you sure you want to delete "${record.name}"?`,
-      okText: "Delete",
-      okType: "danger",
-      cancelText: "Cancel",
-      onOk: async () => {
-        // TODO: Implement API call to delete compensation band
-        message.warning(
-          "Delete functionality will be implemented with process API integration"
-        );
-        // Optionally refetch data
-        await refetch();
+  const drawerItems = useMemo(() => {
+    if (!selectedBand) return [];
+
+    return [
+      {
+        icon: <InfoIcon />,
+        title: "Basic Information",
+        items: [
+          {
+            label: "Name",
+            value: selectedBand.name,
+          },
+          {
+            label: "Code",
+            value: selectedBand.code,
+          },
+          {
+            label: "Pay Grade",
+            value: selectedBand.payGrade,
+          },
+          {
+            label: "Currency",
+            value:
+              typeof selectedBand.currency === "string"
+                ? selectedBand.currency
+                : selectedBand.currency?.value ||
+                  selectedBand.currency?.id ||
+                  "-",
+          },
+        ],
       },
-    });
+      {
+        icon: <InfoIcon />,
+        title: "Salary Information",
+        items: [
+          {
+            label: "Minimum Salary",
+            value: formatCurrency(
+              selectedBand.minSalary,
+              selectedBand.currency
+            ),
+          },
+          {
+            label: "Standard Salary",
+            value: formatCurrency(
+              selectedBand.standardSalary,
+              selectedBand.currency
+            ),
+          },
+          {
+            label: "Maximum Salary",
+            value: formatCurrency(
+              selectedBand.maxSalary,
+              selectedBand.currency
+            ),
+          },
+          {
+            label: "Salary Range",
+            value: formatCurrency(
+              selectedBand.maxSalary - selectedBand.minSalary,
+              selectedBand.currency
+            ),
+          },
+        ],
+      },
+      {
+        icon: <InfoIcon />,
+        title: "System Information",
+        items: [
+          {
+            label: "ID",
+            value: selectedBand.id,
+          },
+          {
+            label: "Version",
+            value:
+              selectedBand.version !== undefined ? selectedBand.version : "-",
+          },
+        ],
+      },
+    ];
+  }, [selectedBand]);
+
+  const dataTable = useMemo(
+    () => filteredData.map((compensationBand) => compensationBand),
+    [filteredData]
+  );
+
+  const renderCompensationBandsTable = () => {
+    const columns: ColumnDef<PayGrade>[] = [
+      {
+        accessorKey: "code",
+        header: ({ column }) => (
+          <Button
+            variant="ghost"
+            onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+            className="gba:h-auto gba:p-0 gba:font-semibold gba:hover:bg-transparent gba:justify-start"
+          >
+            Code
+            <ArrowsDownUpIcon className="gba:ml-2 gba:h-4 gba:w-4" />
+          </Button>
+        ),
+        enableSorting: true,
+        cell: ({ getValue }) => {
+          const code = getValue();
+          return (
+            <div className="gba:flex gba:items-center">
+              <Badge variant="info">{(code as string) ?? "N/A"}</Badge>
+            </div>
+          );
+        },
+      },
+      {
+        accessorKey: "name",
+        header: ({ column }) => (
+          <Button
+            variant="ghost"
+            onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+            className="gba:h-auto gba:p-0 gba:font-semibold gba:hover:bg-transparent gba:justify-start"
+          >
+            Name
+            <ArrowsDownUpIcon className="gba:ml-2 gba:h-4 gba:w-4" />
+          </Button>
+        ),
+        enableSorting: true,
+        cell: ({ getValue }) => {
+          const name = getValue();
+          return (
+            <div className="gba:flex gba:items-center">
+              <div className="gba:font-semibold">{name as string}</div>
+            </div>
+          );
+        },
+      },
+      {
+        accessorKey: "minSalary",
+        header: ({ column }) => (
+          <Button
+            variant="ghost"
+            onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+            className="gba:h-auto gba:p-0 gba:font-semibold gba:hover:bg-transparent gba:justify-start"
+          >
+            Minimum Salary
+            <ArrowsDownUpIcon className="gba:ml-2 gba:h-4 gba:w-4" />
+          </Button>
+        ),
+        enableSorting: true,
+        cell: ({ row }) => {
+          const minSalary = row.original.minSalary;
+          const currency = row.original.currency;
+          return formatCurrency(minSalary, currency);
+        },
+      },
+      {
+        accessorKey: "standardSalary",
+        header: ({ column }) => (
+          <Button
+            variant="ghost"
+            onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+            className="gba:h-auto gba:p-0 gba:font-semibold gba:hover:bg-transparent gba:justify-start"
+          >
+            Standard Salary
+            <ArrowsDownUpIcon className="gba:ml-2 gba:h-4 gba:w-4" />
+          </Button>
+        ),
+        enableSorting: true,
+        cell: ({ row }) => {
+          const standardSalary = row.original.standardSalary;
+          const currency = row.original.currency;
+          return formatCurrency(standardSalary, currency);
+        },
+      },
+      {
+        accessorKey: "maxSalary",
+        header: ({ column }) => (
+          <Button
+            variant="ghost"
+            onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+            className="gba:h-auto gba:p-0 gba:font-semibold gba:hover:bg-transparent gba:justify-start"
+          >
+            Maximum Salary
+            <ArrowsDownUpIcon className="gba:ml-2 gba:h-4 gba:w-4" />
+          </Button>
+        ),
+        enableSorting: true,
+        cell: ({ row }) => {
+          const maxSalary = row.original.maxSalary;
+          const currency = row.original.currency;
+          return formatCurrency(maxSalary, currency);
+        },
+      },
+      {
+        accessorKey: "range",
+        header: ({ column }) => (
+          <Button
+            variant="ghost"
+            onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+            className="gba:h-auto gba:p-0 gba:font-semibold gba:hover:bg-transparent gba:justify-start"
+          >
+            Range
+            <ArrowsDownUpIcon className="gba:ml-2 gba:h-4 gba:w-4" />
+          </Button>
+        ),
+        enableSorting: true,
+        cell: ({ row }) => {
+          const minSalary = row.original.minSalary;
+          const maxSalary = row.original.maxSalary;
+          const currency = row.original.currency;
+          return formatCurrency(maxSalary - minSalary, currency);
+        },
+      },
+      {
+        id: "actions",
+        header: "Actions",
+        enableSorting: false,
+        enableHiding: true,
+        cell: ({ row }) => {
+          return (
+            <div className="gba:flex gba:items-center">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => handleRowClick(row.original)}
+                data-testid={`${dataTestId}-view-function-${row.original.id}`}
+              >
+                <EyeIcon className="gba:h-4 gba:w-4" />
+              </Button>
+
+              <PayGradeForm
+                prefixDataTestId={prefixDataTestId}
+                accessToken={context.accessToken}
+                refetch={refetch}
+                childAddButton={
+                  <Button size="sm" variant="ghost">
+                    <PencilSimpleLineIcon className="h-4 w-4" />
+                  </Button>
+                }
+                payGradeLevel={row.original.payGrade}
+                payGrade={row.original}
+              />
+
+              <DeleteButton
+                onDelete={() => handleDeletePayGrade(row.original)}
+                itemName={row.original.name}
+                itemTitle={"Job Function"}
+              />
+            </div>
+          );
+        },
+      },
+    ];
+
+    return (
+      <DataTable
+        defaultDataSetId="compensation-bands"
+        dataSets={[
+          {
+            id: "compensation-bands",
+            label: "Compensation Bands",
+            data: dataTable,
+            columns: columns,
+          },
+        ]}
+      />
+    );
   };
 
-  if (isLoading) {
+  if (filteredData.length === 0 && isLoading) {
     return (
       <div
-        data-testid={`${prefixDataTestId}-CompensationBandsTab`}
+        data-testid={`${dataTestId}`}
         className="gba:flex gba:justify-center gba:items-center gba:h-64"
       >
-        <Spin size="large" />
+        <Spinner />
       </div>
     );
   }
 
   if (error) {
     return (
-      <div
-        data-testid={`${prefixDataTestId}-CompensationBandsTab`}
-        className="gba:p-4"
-      >
-        <Alert
-          message="Error Loading Data"
-          description={error}
-          type="error"
-          showIcon
-          action={
-            <Button size="small" danger onClick={() => refetch()}>
-              Retry
-            </Button>
-          }
-        />
+      <div data-testid={`${dataTestId}`} className="gba:p-4">
+        <Alert variant="destructive">
+          <XCircleIcon className="h-4 w-4" />
+          <AlertTitle>Error Loading Data</AlertTitle>
+          <AlertDescription>
+            <div className="gba:flex gba:justify-between gba:items-center">
+              <span>{error}</span>
+              <Button size="sm" variant="destructive" onClick={() => refetch()}>
+                Retry
+              </Button>
+            </div>
+          </AlertDescription>
+        </Alert>
       </div>
     );
   }
 
-  const columns = [
-    {
-      title: "Code",
-      dataIndex: "code",
-      key: "code",
-      width: 100,
-      sorter: (a: PayGrade, b: PayGrade) =>
-        (a.code || "").localeCompare(b.code || ""),
-    },
-    {
-      title: "Name",
-      dataIndex: "name",
-      key: "name",
-      sorter: (a: PayGrade, b: PayGrade) => a.name.localeCompare(b.name),
-    },
-    {
-      title: "Minimum Salary",
-      key: "minSalary",
-      width: 150,
-      render: (_: any, record: PayGrade) =>
-        formatCurrency(record.minSalary, record.currency),
-      sorter: (a: PayGrade, b: PayGrade) => a.minSalary - b.minSalary,
-    },
-    {
-      title: "Standard Salary",
-      key: "standardSalary",
-      width: 150,
-      render: (_: any, record: PayGrade) => (
-        <span className="gba:font-medium">
-          {formatCurrency(record.standardSalary, record.currency)}
-        </span>
-      ),
-      sorter: (a: PayGrade, b: PayGrade) => a.standardSalary - b.standardSalary,
-    },
-    {
-      title: "Maximum Salary",
-      key: "maxSalary",
-      width: 150,
-      render: (_: any, record: PayGrade) =>
-        formatCurrency(record.maxSalary, record.currency),
-      sorter: (a: PayGrade, b: PayGrade) => a.maxSalary - b.maxSalary,
-    },
-    {
-      title: "Range",
-      key: "range",
-      width: 150,
-      render: (_: any, record: PayGrade) =>
-        formatCurrency(record.maxSalary - record.minSalary, record.currency),
-      sorter: (a: PayGrade, b: PayGrade) =>
-        a.maxSalary - a.minSalary - (b.maxSalary - b.minSalary),
-    },
-    {
-      title: "Actions",
-      key: "actions",
-      width: 120,
-      render: (_: any, record: PayGrade) => (
-        <Space size="small">
-          <Button
-            type="text"
-            icon={<EditOutlined />}
-            onClick={() => handleEdit(record)}
-            size="small"
-          />
-          <Button
-            type="text"
-            icon={<DeleteOutlined />}
-            onClick={() => handleDelete(record)}
-            size="small"
-            danger
-          />
-        </Space>
-      ),
-    },
-  ];
-
   return (
-    <div
-      data-testid={`${prefixDataTestId || ""}-CompensationBandsTab`}
-      className="gba:p-6"
-    >
-      <div className="gba:mb-6">
-        <div className="gba:flex gba:justify-between gba:items-center gba:mb-4">
-          <div>
-            <Title level={2} className="gba:mb-2">
-              Compensation Bands
-            </Title>
-            <p className="gba:text-gray-600">
-              Manage compensation bands and salary ranges for different pay
-              grades
-            </p>
-          </div>
-          <Button
-            type="primary"
-            icon={<PlusOutlined />}
-            onClick={handleAdd}
-            data-testid={`${
-              prefixDataTestId || ""
-            }-CompensationBandsTab-AddButton`}
-          >
-            Add Compensation Band
-          </Button>
-        </div>
-
-        <Input
-          placeholder="Search compensation bands..."
-          prefix={<SearchOutlined />}
-          value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
-          style={{ maxWidth: "300px" }}
-          allowClear
-          data-testid={`${
-            prefixDataTestId || ""
-          }-CompensationBandsTab-SearchInput`}
-        />
-      </div>
-
-      <Table
-        columns={columns}
-        dataSource={filteredBands}
-        rowKey="id"
-        onRow={(record) => ({
-          onClick: () => handleRowClick(record),
-        })}
-        className="gba:cursor-pointer"
-        pagination={{
-          pageSize: 20,
-          showSizeChanger: true,
-          showQuickJumper: true,
-          showTotal: (total, range) =>
-            `${range[0]}-${range[1]} of ${total} compensation bands`,
-        }}
-        data-testid={`${prefixDataTestId || ""}-CompensationBandsTab-Table`}
-      />
-
-      {/* Compensation Band Details Drawer */}
-      <DataDetailsDrawer
-        title="Compensation Band Details"
-        icon={<DollarCircleOutlined />}
-        open={drawerVisible}
-        onClose={handleDrawerClose}
-        width={500}
-        placement="right"
-        dataTestId={`${
-          prefixDataTestId || ""
-        }-CompensationBandsTab-DetailsDrawer`}
-        footer={
-          <div className="gba:flex gba:justify-end gba:gap-2">
-            <Button
-              type="primary"
-              icon={<EditOutlined />}
-              onClick={() => {
-                handleDrawerClose();
-                if (selectedBand) {
-                  handleDrawerEdit(selectedBand);
-                }
-              }}
-            >
-              Edit
-            </Button>
-          </div>
-        }
+    <>
+      <Card
+        data-testid={`${dataTestId}-CompensationBands`}
+        className="gba:rounded-lg gba:border gba:bg-card gba:text-card-foreground gba:shadow-sm gba:overflow-hidden"
       >
-        {selectedBand && (
-          <div className="gba:space-y-6">
-            {/* Basic Information */}
-            <Descriptions
-              title="Basic Information"
-              bordered
-              column={1}
-              size="small"
-            >
-              <Descriptions.Item label="Name">
-                {selectedBand.name || "-"}
-              </Descriptions.Item>
-              <Descriptions.Item label="Code">
-                {selectedBand.code || "-"}
-              </Descriptions.Item>
-              <Descriptions.Item label="Pay Grade">
-                {selectedBand.payGrade !== undefined
-                  ? selectedBand.payGrade
-                  : "-"}
-              </Descriptions.Item>
-            </Descriptions>
+        <CardTabHeaderComponent
+          addButton={
+            <PayGradeForm
+              prefixDataTestId={prefixDataTestId}
+              accessToken={context.accessToken}
+              refetch={refetch}
+              childAddButton={
+                <Button className="gba:flex gba:justify-center gba:items-center">
+                  <PlusIcon /> Add Compensation Band
+                </Button>
+              }
+              payGradeLevel={payGrades.length + 1}
+            />
+          }
+          cardTitle="Compensation Bands"
+          cardDescription="Manage compensation bands and salary ranges for different pay
+                grades"
+        />
 
-            {/* Salary Information */}
-            <Descriptions
-              title="Salary Information"
-              bordered
-              column={1}
-              size="small"
-            >
-              <Descriptions.Item label="Currency">
-                {typeof selectedBand.currency === "string"
-                  ? selectedBand.currency
-                  : selectedBand.currency?.value ||
-                    selectedBand.currency?.id ||
-                    "-"}
-              </Descriptions.Item>
-              <Descriptions.Item label="Minimum Salary">
-                <span className="gba:text-green-600 gba:font-medium">
-                  {formatCurrency(
-                    selectedBand.minSalary,
-                    selectedBand.currency
-                  )}
-                </span>
-              </Descriptions.Item>
-              <Descriptions.Item label="Standard Salary">
-                <span className="gba:text-blue-600 gba:font-semibold">
-                  {formatCurrency(
-                    selectedBand.standardSalary,
-                    selectedBand.currency
-                  )}
-                </span>
-              </Descriptions.Item>
-              <Descriptions.Item label="Maximum Salary">
-                <span className="gba:text-red-600 gba:font-medium">
-                  {formatCurrency(
-                    selectedBand.maxSalary,
-                    selectedBand.currency
-                  )}
-                </span>
-              </Descriptions.Item>
-              <Descriptions.Item label="Salary Range">
-                <span className="gba:text-purple-600 gba:font-medium">
-                  {formatCurrency(
-                    selectedBand.maxSalary - selectedBand.minSalary,
-                    selectedBand.currency
-                  )}
-                </span>
-              </Descriptions.Item>
-            </Descriptions>
-
-            {/* Translations Section - if available */}
-            {selectedBand.nameI18n &&
-              Object.keys(selectedBand.nameI18n || {}).length > 0 && (
-                <Descriptions
-                  title="Name Translations"
-                  bordered
-                  column={1}
-                  size="small"
-                >
-                  {Object.entries(selectedBand.nameI18n || {}).map(
-                    ([locale, translation]) => (
-                      <Descriptions.Item key={locale} label={locale}>
-                        {translation || "-"}
-                      </Descriptions.Item>
-                    )
-                  )}
-                </Descriptions>
-              )}
-
-            {selectedBand.descriptionI18n &&
-              Object.keys(selectedBand.descriptionI18n || {}).length > 0 && (
-                <Descriptions
-                  title="Description Translations"
-                  bordered
-                  column={1}
-                  size="small"
-                >
-                  {Object.entries(selectedBand.descriptionI18n || {}).map(
-                    ([locale, translation]) => (
-                      <Descriptions.Item key={locale} label={locale}>
-                        {translation || "-"}
-                      </Descriptions.Item>
-                    )
-                  )}
-                </Descriptions>
-              )}
-
-            {/* Additional Details */}
-            {selectedBand.description && (
-              <Descriptions
-                title="Description"
-                bordered
-                column={1}
-                size="small"
-              >
-                <Descriptions.Item label="Description">
-                  {selectedBand.description || "-"}
-                </Descriptions.Item>
-              </Descriptions>
-            )}
-
-            {/* Technical Information */}
-            <Descriptions
-              title="System Information"
-              bordered
-              column={1}
-              size="small"
-            >
-              <Descriptions.Item label="ID">
-                {selectedBand.id}
-              </Descriptions.Item>
-              <Descriptions.Item label="Version">
-                {selectedBand.version !== undefined
-                  ? selectedBand.version
-                  : "-"}
-              </Descriptions.Item>
-              <Descriptions.Item label="Currency Reference">
-                {selectedBand.currencyRef || "-"}
-              </Descriptions.Item>
-            </Descriptions>
+        <CardContent>
+          <div className="gba:mb-6 gba:relative gba:max-w-sm">
+            <Input
+              placeholder="Search compensation bands..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="gba:pl-10"
+              data-testid={`${dataTestId}-search-input`}
+            />
           </div>
-        )}
-      </DataDetailsDrawer>
-    </div>
+          {renderCompensationBandsTable()}
+        </CardContent>
+      </Card>
+
+      {/* Compensation Band Details Sheet */}
+      <Sheet
+        open={drawerVisible}
+        onOpenChange={(openStatus) => {
+          if (!openStatus) {
+            setSelectedBand(null);
+          }
+          setDrawerVisible(openStatus);
+        }}
+      >
+        <style jsx>{`
+          [data-slot="sheet-overlay"] {
+            z-index: 1000 !important;
+          }
+          [data-slot="sheet-content"] {
+            z-index: 1001 !important;
+          }
+          [data-slot="select-content"] {
+            z-index: 1002 !important;
+          }
+        `}</style>
+        <SheetContent side="right" data-testid={`${dataTestId}-details-sheet`}>
+          <SheetHeader>
+            <div className="gba:flex gba:items-center gba:gap-2">
+              <CurrencyCircleDollarIcon className="h-5 w-5" />
+              <SheetTitle>Compensation Band Details</SheetTitle>
+            </div>
+          </SheetHeader>
+
+          <div className="gba:flex-1 gba:overflow-auto gba:px-4 gba:pb-4">
+            {selectedBand && (
+              <div className="gba:space-y-6">
+                {drawerItems.map((item) => {
+                  return (
+                    <VerticalTable
+                      icon={item.icon}
+                      title={item.title}
+                      items={item.items}
+                    />
+                  );
+                })}
+              </div>
+            )}
+          </div>
+
+          <SheetFooter>
+            <div className="gba:flex gba:justify-end gba:gap-2">
+              <PayGradeForm
+                prefixDataTestId={prefixDataTestId}
+                accessToken={context.accessToken}
+                refetch={refetch}
+                childAddButton={
+                  <Button>
+                    <PencilSimpleLineIcon className="h-4 w-4 gba:mr-2" /> Edit
+                  </Button>
+                }
+                payGradeLevel={selectedBand?.payGrade}
+                payGrade={selectedBand!}
+                isDrawerActive={true}
+              />
+              <SheetClose asChild>
+                <Button variant="outline">Close</Button>
+              </SheetClose>
+            </div>
+          </SheetFooter>
+        </SheetContent>
+      </Sheet>
+    </>
   );
 };
 

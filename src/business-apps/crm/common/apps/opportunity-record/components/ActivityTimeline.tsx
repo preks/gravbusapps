@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { PlusCircleOutlined, FileTextOutlined, CloseOutlined, LoadingOutlined, RobotOutlined, CheckCircleOutlined } from '@ant-design/icons';
+import { PlusCircleOutlined, CloseOutlined, LoadingOutlined, RobotOutlined, CheckCircleOutlined } from '@ant-design/icons';
 import { Button, List, Spin, Alert, Empty, message, Timeline, Typography, Modal } from 'antd';
 import { startProcess } from '@/common/utils/start-process';
 import { useProcessCompletion } from '@/common/hooks/useProcessCompletion';
@@ -12,11 +12,13 @@ import { env } from '@/common/env/EnvUtils';
 import dayjs from 'dayjs';
 import { LanguageDropdown } from './LanguageDropdown';
 import { translateMultipleTexts } from '../utils/translationService';
-import { useEmployeeData } from '@/business-apps/crm/common/hooks/useEmployeeData';
 import { useAiSummary } from '../hooks/useAiSummary';
 import { useSalesManagerEmployees } from '../hooks/useSalesManagerEmployees';
 import { useGetSalesTasks, SalesTaskData } from '../queries/OpportunityTaskQueries';
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient';
+import { ActivityDeletePopup } from '@/common/components/common-relations/popups/activity-delete-popup';
+import { AppAction } from '@/components/app-action/AppAction';
+import { FlowContextName } from '@/common/types/FlowRegistryTypes';
 
 const { Text } = Typography;
 
@@ -31,6 +33,12 @@ interface TranslatedActivity extends SalesActivityData {
   isTranslating?: boolean;
 }
 
+const getEmployeeDisplayNameFromObject = (employee: any): string => {
+  if (!employee) return 'Unknown User';
+  if (typeof employee === 'string') return employee;
+  return employee.displayName || employee.fullName || `${employee.firstName || ''} ${employee.lastName || ''}`.trim() || employee.id || 'Unknown User';
+};
+
 export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({ opportunityId, context }) => {
   const [activeTab, setActiveTab] = useState<'activities' | 'notes' | 'approvals' | 'ai-summary'>('activities');
   const [activities, setActivities] = useState<TranslatedActivity[]>([]);
@@ -44,14 +52,14 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({ opportunityI
   const [selectedLanguage, setSelectedLanguage] = useState('Original');
   const [translating, setTranslating] = useState(false);
   const originalActivitiesRef = useRef<SalesActivityData[]>([]);
+  const [deletePopup, setDeletePopup] = useState<{ open: boolean; activity?: SalesActivityData }>(() => ({ open: false }));
 
   const { fetchSalesActivities } = useGetSalesActivities(context);
   const { fetchSalesTasks } = useGetSalesTasks(context);
-  const { salesManagers, loading: salesManagersLoading, error: salesManagersError } = useSalesManagerEmployees(context.accessToken);
+  const { error: salesManagersError } = useSalesManagerEmployees(context.accessToken);
   const graphqlClient = useGraphQLClient(context.accessToken);
 
   const restClient = useRestClient(env('NEXT_PUBLIC_KOGITO_PROCESSES_ENDPOINT'));
-  const { getEmployeeDisplayName } = useEmployeeData(context.accessToken);
   const { state: aiSummaryState, generateSummary } = useAiSummary(opportunityId, context.accessToken);
 
   // Listen for process completion to refetch approval tasks
@@ -76,14 +84,47 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({ opportunityI
 
     try {
       const result = await fetchSalesActivities({ opportunityId });
-      // Sort activities by createdAt in descending order (newest first)
-      const sortedActivities = (result.SalesActivity || []).sort((a, b) =>
-        new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+      // Sort activities by occurredAt in descending order (newest first), fallback to createdAt
+      const sortedActivities = (result.SalesActivity || []).sort((a, b) => {
+        const dateA = new Date(a.occurredAt || a.createdAt).getTime();
+        const dateB = new Date(b.occurredAt || b.createdAt).getTime();
+        return dateB - dateA;
+      });
+
+      // Fetch creator employee information for activities where ownerEmployee is null
+      const enhancedActivities = await Promise.all(
+        sortedActivities.map(async (activity) => {
+          if (!activity.ownerEmployee && activity.createdBy) {
+            try {
+              // Look up employee by userId
+              const employeeQuery = `
+                query GetEmployeeByUserId($userId: String!) {
+                  Employee(where: {userId: {_eq: $userId}, isDeleted: {_eq: false}}, limit: 1) {
+                    id
+                    firstName
+                    lastName
+                    displayName
+                    fullName
+                  }
+                }
+              `;
+              
+              const employeeResult = await graphqlClient.request(employeeQuery, { userId: activity.createdBy });
+              const employee = employeeResult?.Employee?.[0];
+              if (employee) {
+                return { ...activity, ownerEmployee: employee };
+              }
+            } catch (error) {
+              console.warn('Failed to fetch creator employee for activity:', activity.id, error);
+            }
+          }
+          return activity;
+        })
       );
 
       // Store original activities for translation reference
-      originalActivitiesRef.current = sortedActivities;
-      setActivities(sortedActivities);
+      originalActivitiesRef.current = enhancedActivities;
+      setActivities(enhancedActivities);
     } catch (err) {
       setActivitiesError(err instanceof Error ? err.message : 'Failed to load activities');
     } finally {
@@ -320,18 +361,7 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({ opportunityI
     };
   }, [opportunityId]);
 
-  const handleAddActivity = () => {
-    if (opportunityId) {
-      startProcess({
-        domain: 'customer-relations',
-        processName: 'saveSalesActivity',
-        payload: {
-          opportunityId,
-        },
-        builderType: 'NATIVE_SCREEN',
-      });
-    }
-  };
+  
 
   const handleRequestApproval = () => {
     if (opportunityId) {
@@ -351,40 +381,7 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({ opportunityI
 
 
   const handleDeleteActivity = (activity: SalesActivityData) => {
-    Modal.confirm({
-      title: 'Confirm Deletion',
-      content: `Are you sure you want to delete the activity "${activity.title}"?`,
-      okText: 'Delete',
-      okType: 'danger',
-      cancelText: 'Cancel',
-      onOk: async () => {
-        try {
-          await restClient.post('/customer-relations/saveSalesActivity', {
-            changeMode: "DELETE",
-            salesActivity: {
-              id: activity.id,
-              version: activity.version,
-              opportunity: opportunityId
-            }
-          }, {
-            headers: { Authorization: `Bearer ${context.accessToken}` }
-          });
-
-          // Remove the activity from both states
-          setActivities(prevActivities =>
-            prevActivities.filter(a => a.id !== activity.id)
-          );
-
-          // Also remove from original activities ref
-          originalActivitiesRef.current = originalActivitiesRef.current.filter(a => a.id !== activity.id);
-
-          message.success('Activity deleted successfully');
-        } catch (error) {
-          console.error('Error deleting activity:', error);
-          message.error('Failed to delete activity');
-        }
-      },
-    });
+    setDeletePopup({ open: true, activity });
   };
 
   const handleDeleteTask = (task: SalesTaskData) => {
@@ -435,6 +432,7 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({ opportunityI
 
 
   return (
+    <>
     <div
       style={{
         backgroundColor: 'white',
@@ -540,14 +538,26 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({ opportunityI
                 />
               )}
             </div>
-            <Button
-              type="primary"
-              icon={<PlusCircleOutlined />}
-              onClick={handleAddActivity}
-              data-testid="add-activity-button"
+            <AppAction
+              contextsArray={[FlowContextName.customerActivityCreate]}
+              externalContextData={{ 
+                opportunityId,
+                opportunity: opportunityId,
+                salesActivity: { opportunity: opportunityId }
+              }}
+              prefixDataTestId="add-activity"
+              accessToken={context.accessToken}
+              emptyStateBehavior="enable"
+              deferMainContextRequestsUntilClick
             >
-              Add Activity
-            </Button>
+              <Button
+                type="primary"
+                icon={<PlusCircleOutlined />}
+                data-testid="add-activity-button"
+              >
+                Add Activity
+              </Button>
+            </AppAction>
           </div>
 
           <div style={{ padding: '0 24px 24px' }}>
@@ -596,7 +606,9 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({ opportunityI
                       </div>
                       <div>
                         <Text type="secondary">
-                          {dayjs(activity.createdAt).format('MMM D, YYYY [at] h:mm A')} - {getEmployeeDisplayName(activity.createdBy)}
+                          {dayjs(activity.occurredAt || activity.createdAt).format('MMM D, YYYY [at] h:mm A')} - {activity.ownerEmployee 
+                            ? getEmployeeDisplayNameFromObject(activity.ownerEmployee) 
+                            : activity.createdBy || 'Unknown User'}
                         </Text>
                       </div>
                       {getActivityTypeValue(activity.activityType) && (
@@ -938,5 +950,26 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({ opportunityI
         </div>
       )}
     </div>
+    {deletePopup.open && deletePopup.activity ? (
+      <ActivityDeletePopup
+        isOpen={deletePopup.open}
+        onClose={() => setDeletePopup({ open: false })}
+        accessToken={context.accessToken}
+        activityId={deletePopup.activity!.id}
+        activityVersion={deletePopup.activity!.version}
+        activityTitle={deletePopup.activity!.title}
+        opportunityId={opportunityId}
+        domain="crm"
+        onSuccess={() => {
+          setActivities(prev => prev.filter(a => a.id !== deletePopup.activity!.id));
+          originalActivitiesRef.current = originalActivitiesRef.current.filter(a => a.id !== deletePopup.activity!.id);
+          message.success('Activity deleted successfully');
+        }}
+        onError={() => {
+          message.error('Failed to delete activity');
+        }}
+      />
+    ) : null}
+  </>
   );
 }; 

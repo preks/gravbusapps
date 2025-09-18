@@ -229,7 +229,7 @@ export const DocumentUploadForm: React.FC<DocumentUploadFormProps> = (props) => 
           ...(additionalData?.opportunityId && { opportunity: additionalData.opportunityId }),
           ...(additionalData?.contactId && { contact: additionalData.contactId }),
           ...(additionalData?.accountId && { account: additionalData.accountId }),
-          version: 0,
+          ...(isUpdateMode ? {} : { version: 0 }),
           ...(isCreateFolder
             ? {}
             : file

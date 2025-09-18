@@ -1,118 +1,130 @@
 /**
- * Utility functions for currency formatting
+ * Utility functions for currency formatting and processing
  */
+import { getCurrentActiveUserLocale } from "@/common/utils/windowUtils";
+
+/**
+ * Helper function to extract currency code from currency reference
+ * @param currencyRef - Currency reference string (e.g., 'Currency:v1:EUR')
+ * @returns The extracted currency code or null if invalid format
+ */
+export const extractCurrencyCode = (currencyRef: string): string | null => {
+  if (!currencyRef) return null;
+
+  const match = currencyRef.match(/Currency:v1:([A-Z]{3})/i);
+  if (match) return match[1].toUpperCase();
+
+  // If it's already just a currency code (e.g., 'EUR')
+  if (/^[A-Z]{3}$/i.test(currencyRef)) {
+    return currencyRef.toUpperCase();
+  }
+
+  return null;
+};
+
+/**
+ * Helper function to standardize currency reference format
+ * @param currencyCode - Currency code or reference
+ * @returns Standardized currency reference
+ */
+export const standardizeCurrencyRef = (currencyCode: string): string => {
+  if (!currencyCode) return "";
+
+  // If it's already in the format Currency:v1:CODE, return as is
+  if (currencyCode.startsWith("Currency:v1:")) {
+    return currencyCode;
+  }
+
+  // If it's just a currency code (e.g., USD, EUR), convert to standard format
+  return `Currency:v1:${currencyCode}`;
+};
 
 /**
  * Format a number with thousand separators and fixed decimal places
- * Uses German locale formatting (dots for thousands, commas for decimals)
+ * Uses user's active locale for formatting
  * @param amount - The amount to format
  * @param decimalPlaces - Number of decimal places (default: 2)
  * @returns Formatted amount string
  */
 export const formatAmount = (amount: number | null | undefined, decimalPlaces = 2): string => {
   if (amount === null || amount === undefined) {
-    return '0,00';
+    return "0,00";
   }
-  
-  return new Intl.NumberFormat('de-DE', {
+
+  const userLocale = getCurrentActiveUserLocale();
+  return new Intl.NumberFormat(userLocale, {
     minimumFractionDigits: decimalPlaces,
     maximumFractionDigits: decimalPlaces,
   }).format(amount);
 };
 
 /**
- * Get currency symbol based on currency code
- * @param currencyCode - The currency code (e.g., 'EUR', 'USD', 'GBP')
- * @returns Currency symbol
+ * Interface for currency count data
  */
-export const getCurrencySymbol = (currencyCode: string): string => {
-  const currencyMap: Record<string, string> = {
-    'EUR': '€',
-    'USD': '$',
-    'GBP': '£',
-    'CHF': 'CHF',
-    'RON': 'RON',
-    'HUF': 'Ft',
-    'CZK': 'Kč',
-    'PLN': 'zł',
-    'BGN': 'лв',
-    'HRK': 'kn',
-    'DKK': 'kr',
-    'SEK': 'kr',
-    'NOK': 'kr',
-    'ISK': 'kr',
-    'RSD': 'дин',
-    'ALL': 'L',
-    'MKD': 'ден',
-    'MDL': 'L',
-    'UAH': '₴',
-    'GEL': '₾',
-    'AMD': '֏',
-    'AZN': '₼',
-    'BYN': 'Br',
-    'KZT': '₸',
-    'KGS': 'с',
-    'TJS': 'ЅМ',
-    'TMT': 'T',
-    'UZS': 'so\'m',
-    'MNT': '₮',
-    'CNY': '¥',
-    'JPY': '¥',
-    'KRW': '₩',
-    'INR': '₹',
-    'THB': '฿',
-    'VND': '₫',
-    'IDR': 'Rp',
-    'MYR': 'RM',
-    'SGD': 'S$',
-    'HKD': 'HK$',
-    'TWD': 'NT$',
-    'PHP': '₱',
-    'BRL': 'R$',
-    'ARS': '$',
-    'CLP': '$',
-    'COP': '$',
-    'MXN': '$',
-    'PEN': 'S/',
-    'UYU': '$',
-    'VEF': 'Bs',
-    'ZAR': 'R',
-    'NGN': '₦',
-    'EGP': 'E£',
-    'MAD': 'MAD',
-    'TND': 'TND',
-    'TRY': '₺',
-    'ILS': '₪',
-    'QAR': 'QR',
-    'SAR': 'ر.س',
-    'AED': 'د.إ',
-    'KWD': 'د.ك',
-    'BHD': '.د.ب',
-    'OMR': 'ر.ع.',
-    'JOD': 'د.ا',
-    'LBP': 'ل.ل',
-    'SYP': 'ل.س',
-    'IRR': '﷼',
-    'AFN': '؋',
-    'PKR': '₨',
-    'BDT': '৳',
-    'LKR': 'Rs',
-    'NPR': '₨',
-    'MMK': 'K',
-    'LAK': '₭',
-    'KHR': '៛',
-    'MOP': 'MOP$',
-    'BND': 'B$',
-    'XOF': 'CFA',
-    'XAF': 'FCFA',
-    'XPF': 'CFP',
-    'AUD': 'A$',
-    'NZD': 'NZ$',
-    'CAD': 'C$',
-    'RUB': '₽'
-  };
-  
-  return currencyMap[currencyCode.toUpperCase()] || currencyCode;
+export interface CurrencyCount {
+  code: string;
+  count: number;
+  totalAmount: number;
+}
+
+/**
+ * Determines the most used currency from a list of financial transactions
+ *
+ * @param transactions - Array of objects containing currency information
+ * @param currencyKey - The key in each transaction object that contains the currency code
+ * @param amountKey - Optional key for the amount in each transaction
+ * @param defaultCurrency - Default currency to return if no transactions exist
+ * @returns The most used currency code
+ */
+export const getMostUsedCurrency = <T extends Record<string, any>>(
+  transactions: T[],
+  currencyKey: keyof T,
+  amountKey?: keyof T,
+  defaultCurrency: string = "EUR",
+): string => {
+  if (!transactions || transactions.length === 0) {
+    return defaultCurrency;
+  }
+
+  // Count occurrences of each currency
+  const currencyCounts: Record<string, CurrencyCount> = {};
+
+  transactions.forEach((transaction) => {
+    const currencyCode = String(transaction[currencyKey] || defaultCurrency);
+    const amount =
+      amountKey && typeof transaction[amountKey] === "number"
+        ? (transaction[amountKey] as number)
+        : 1;
+
+    if (!currencyCounts[currencyCode]) {
+      currencyCounts[currencyCode] = {
+        code: currencyCode,
+        count: 0,
+        totalAmount: 0,
+      };
+    }
+
+    currencyCounts[currencyCode].count += 1;
+    currencyCounts[currencyCode].totalAmount += amount;
+  });
+
+  // Convert to array for sorting
+  const currencyCountArray = Object.values(currencyCounts);
+
+  // First try to find the currency with the most transactions
+  if (currencyCountArray.length > 0) {
+    // Sort by count (descending), then by total amount (descending)
+    currencyCountArray.sort((a, b) => {
+      if (b.count !== a.count) {
+        return b.count - a.count;
+      }
+      return b.totalAmount - a.totalAmount;
+    });
+
+    return currencyCountArray[0].code;
+  }
+
+  return defaultCurrency;
 };
 
 /**
@@ -122,12 +134,17 @@ export const getCurrencySymbol = (currencyCode: string): string => {
  * @param decimalPlaces - Number of decimal places (default: 2)
  * @returns Formatted amount with currency code
  */
-export const formatCurrency = (amount: number | null | undefined, currencyCode: string = 'EUR', decimalPlaces = 2): string => {
+export const formatCurrency = (
+  amount: number | null | undefined,
+  currencyCode: string = "EUR",
+  decimalPlaces = 2,
+): string => {
   if (amount === null || amount === undefined) {
     return `${currencyCode} 0,00`;
   }
-  
+
   const formattedAmount = formatAmount(amount, decimalPlaces);
-  
+
+  // Always use currency code (ISO 4217) instead of symbol
   return `${currencyCode} ${formattedAmount}`;
 };

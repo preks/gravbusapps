@@ -1,172 +1,104 @@
 import { useState, useEffect, useCallback } from 'react';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
-import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient';
 import { InvestmentDashboardStats } from '../types';
+import { useInvestmentDataIntegration } from '@/common/data/investment';
 
 export const useInvestmentDashboardStats = (context: BusinessAppContextProps) => {
+  const {
+    investments,
+    investmentAccounts,
+    investmentContacts,
+    investmentOpportunities,
+    investmentLeads,
+    stats: integrationStats,
+    isLoading,
+    error,
+    refetch: refetchIntegration
+  } = useInvestmentDataIntegration(context);
+
   const [stats, setStats] = useState<InvestmentDashboardStats>({
     // IRM Stats
     totalLeads: 0,
     totalOpportunities: 0,
     totalAccounts: 0,
     totalContacts: 0,
-    
+
     // Investment Stats
     totalInvestments: 0,
     equityInvestments: 0,
     realEstateInvestments: 0,
-    privateEquityInvestments: 0,
     liquidFunds: 0,
     totalPortfolioValue: 0,
     assetTypes: 0,
     averageROI: 0
   });
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
 
-  const graphqlClient = useGraphQLClient(context.accessToken);
+  const computeStats = useCallback(() => {
+    // Basic counts from integration
+    const totalLeads = investmentLeads.length;
+    const totalOpportunities = investmentOpportunities.length;
+    const totalAccounts = investmentAccounts.length;
+    const totalContacts = investmentContacts.length;
+    const totalInvestments = investments.length;
 
-  const fetchStats = useCallback(async () => {
-    if (!context.accessToken) {
-      setError('No access token available');
-      setIsLoading(false);
-      return;
-    }
+    // Distinct asset types
+    const assetTypeSet = new Set(
+      investments
+        .map(inv => inv.investmentType?.id || inv.investmentType?.code || inv.investmentTypeLabel)
+        .filter(Boolean) as string[]
+    );
+    const assetTypes = assetTypeSet.size;
 
-    setIsLoading(true);
-    setError(null);
+    // Group breakdown
+    let equityInvestments = 0;
+    let realEstateInvestments = 0;
+    let liquidFunds = 0;
 
-    try {
-      // GraphQL query to fetch CRM and investment data
-      const query = `
-        query GetInvestmentDashboardStats {
-          # IRM Data (filtered by sourceApp and excluding deleted records)
-          LeadAggregate(where: {sourceApp: {_eq: "IRM"}, isDeleted: {_eq: false}}) {
-            aggregate {
-              count
-            }
-          }
-          
-          OpportunityAggregate(where: {sourceApp: {_eq: "IRM"}, isDeleted: {_eq: false}}) {
-            aggregate {
-              count
-            }
-          }
-          
-          AccountAggregate(where: {sourceApp: {_eq: "IRM"}, isDeleted: {_eq: false}}) {
-            aggregate {
-              count
-            }
-          }
-          
-          ContactAggregate(where: {sourceApp: {_eq: "IRM"}, isDeleted: {_eq: false}}) {
-            aggregate {
-              count
-            }
-          }
-          
-          # Investment Data - Real data
-          allInvestments: Investment {
-            id
-            initialInvestmentAmount
-            bookValue
-            investmentGroupRef
-            investmentGroup {
-              value
-            }
-            investmentTypeRef
-            investmentType {
-              id
-              value
-            }
-          }
-          
-          # Get unique asset types (investment types)
-          uniqueAssetTypes: Investment(distinctOn: [investmentTypeRef]) {
-            investmentTypeRef
-            investmentType {
-              id
-              value
-            }
-          }
-        }
-      `;
+    investments.forEach(inv => {
+      const group = (inv as any).investmentGroup?.value || (inv as any).investmentGroupLabel || '';
+      if (group === 'Equity') equityInvestments += 1;
+      else if (group === 'Real Estate') realEstateInvestments += 1;
+      else if (group === 'Liquid Fund') liquidFunds += 1;
+    });
 
-      const result = await graphqlClient.request(query);
-      
-      // Extract IRM data (filtered by sourceApp)
-      const totalLeads = result.LeadAggregate?.aggregate?.count || 0;
-      const totalOpportunities = result.OpportunityAggregate?.aggregate?.count || 0;
-      const totalAccounts = result.AccountAggregate?.aggregate?.count || 0;
-      const totalContacts = result.ContactAggregate?.aggregate?.count || 0;
-      
-      // Extract investment data (real data)
-      const investments = result.allInvestments || [];
-      const totalInvestments = investments.length;
-      
-      // Calculate asset types count (unique investment groups)
-      const uniqueAssetTypesData = result.uniqueAssetTypes || [];
-      const assetTypes = uniqueAssetTypesData.length;
-      
-      // Calculate total portfolio value
-      const totalPortfolioValue = investments.reduce((sum: number, investment: any) => {
-        return sum + (investment.bookValue || 0);
-      }, 0);
-      
-      // Calculate average ROI
-      let totalROI = 0;
-      let validROICount = 0;
-      
-      investments.forEach((investment: any) => {
-        if (investment.initialInvestmentAmount && investment.bookValue) {
-          const roi = ((investment.bookValue - investment.initialInvestmentAmount) / investment.initialInvestmentAmount) * 100;
-          totalROI += roi;
-          validROICount++;
-        }
-      });
-      
-      const averageROI = validROICount > 0 ? totalROI / validROICount : 0;
-      
-      // Count investments by group (for the breakdown stats)
-      const investmentsByGroup: { [key: string]: number } = {};
-      investments.forEach((investment: any) => {
-        const group = investment.investmentGroup?.value || 'Unknown';
-        investmentsByGroup[group] = (investmentsByGroup[group] || 0) + 1;
-      });
-      
-      const investmentStats: InvestmentDashboardStats = {
-        // IRM Stats (real data)
-        totalLeads,
-        totalOpportunities,
-        totalAccounts,
-        totalContacts,
-        
-        // Investment Stats (real data)
-        totalInvestments,
-        equityInvestments: investmentsByGroup['Equity'] || 0,
-        realEstateInvestments: investmentsByGroup['Real Estate'] || 0,
-        privateEquityInvestments: investmentsByGroup['Private Equity'] || 0,
-        liquidFunds: investmentsByGroup['Liquid Fund'] || 0,
-        totalPortfolioValue,
-        assetTypes,
-        averageROI
-      };
+    // Portfolio value and ROI
+    const totalPortfolioValue = integrationStats.totalMarketValue || 0;
 
-      setStats(investmentStats);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to load investment statistics');
-    } finally {
-      setIsLoading(false);
-    }
-  }, [context.accessToken, graphqlClient]);
+    let totalROI = 0;
+    let validROICount = 0;
+    investments.forEach(inv => {
+      const initial = inv.initialInvestmentAmount || 0;
+      const market = (inv as any).investmentMarketValue || 0;
+      if (initial > 0 && market !== null && market !== undefined) {
+        const roi = ((market - initial) / initial) * 100;
+        totalROI += roi;
+        validROICount += 1;
+      }
+    });
+    const averageROI = validROICount > 0 ? totalROI / validROICount : 0;
 
-  const refetch = useCallback(() => {
-    fetchStats();
-  }, [fetchStats]);
+    setStats({
+      totalLeads,
+      totalOpportunities,
+      totalAccounts,
+      totalContacts,
+      totalInvestments,
+      equityInvestments,
+      realEstateInvestments,
+      liquidFunds,
+      totalPortfolioValue,
+      assetTypes,
+      averageROI
+    });
+  }, [investmentLeads, investmentOpportunities, investmentAccounts, investmentContacts, investments, integrationStats.totalMarketValue]);
 
   useEffect(() => {
-    fetchStats();
-  }, [fetchStats]);
+    computeStats();
+  }, [computeStats]);
+
+  const refetch = useCallback(() => {
+    return refetchIntegration();
+  }, [refetchIntegration]);
 
   return {
     stats,
@@ -174,4 +106,4 @@ export const useInvestmentDashboardStats = (context: BusinessAppContextProps) =>
     error,
     refetch
   };
-}; 
+};

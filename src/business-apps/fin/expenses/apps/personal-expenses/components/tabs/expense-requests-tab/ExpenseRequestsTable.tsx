@@ -13,7 +13,6 @@ import {
   CardContent, 
   Spinner, 
   Button, 
-  Badge,
   Sheet,
   SheetContent,
   SheetHeader,
@@ -23,13 +22,13 @@ import { DataContainer } from '@/components/layout/dataContainer/DataContainer';
 import { getExpenseRequestStatusDisplay} from '../../../utils';
 import Pill, { PillType } from '@/components/pill';
 import ExpenseRequestDetails from './ExpenseRequestDetails';
-import { formatDate, formatNumberFunction, getDateFormat, getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
-import dayjs from 'dayjs';
+import { formatDate, getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
 import { AppActionButton } from '@/components/app-action-button/AppActionButton';
 import { startProcess } from '@/common/utils/start-process';
 import { useExpenseRequestFileService } from '../../../utils/expenseRequestFileService';
 import { PiArrowUp, PiArrowDown } from 'react-icons/pi';
 import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils';
+import { formatCurrencyDisplay } from '../../../utils';
 
 export interface ExpenseRequestsTableProps extends BusinessAppContextProps {
   items?: any[];
@@ -76,8 +75,8 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = React.memo((pr
     selectedFilters = [],
     setFilters,
     filterGroups = [],
-    handleFilterChange,
-    clearFilters,
+    // handleFilterChange not used locally; provided to DataContainer via wrapper
+    // clearFilters not used locally
     filterLabelMap = {},
     onAddExpenseRequest,
     tableRefreshTrigger
@@ -92,12 +91,14 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = React.memo((pr
   // Server-side sorting state
   const [sortField, setSortField] = useState<string>('requestDate');
   const [sortOrder, setSortOrder] = useState<'ascend' | 'descend' | undefined>('descend');
+  // Preserve page index across search clear
+  const savedPageBeforeSearchRef = useRef<number | null>(null);
+  const prevDebouncedSearchRef = useRef<string>('');
 
   // Selected item for details panel
   const [selectedItem, setSelectedItem] = useState<typeof items[0] | null>(null);
 
-  // Selected row keys for table
-  const [selectedRowKeys, setSelectedRowKeys] = useState<React.Key[]>([]);
+  // Selected row keys for table (not used currently) – removed to satisfy linter
 
   // Print functionality state
   const [printModalOpen, setPrintModalOpen] = useState<boolean>(false);
@@ -117,12 +118,48 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = React.memo((pr
     setSearchInput(search || '');
   }, [search]);
 
-  // Call parent callback when debounced search changes
+  // Call parent callback when debounced search changes and manage pagination restore
   useEffect(() => {
+    const prev = (prevDebouncedSearchRef.current || '').trim();
+    const next = (debouncedSearchTerm || '').trim();
+
+    // Manage pagination transitions for search
+    if (prev === '' && next !== '') {
+      // Starting a new search → save current page and jump to page 1
+      if (onTableChange) {
+        onTableChange(
+          { current: 1, pageSize },
+          {},
+          { field: sortField, order: sortOrder }
+        );
+      }
+      savedPageBeforeSearchRef.current = currentPage;
+    } else if (prev !== '' && next === '') {
+      // Clearing search → restore saved page if available
+      if (onTableChange) {
+        onTableChange(
+          { current: savedPageBeforeSearchRef.current || 1, pageSize },
+          {},
+          { field: sortField, order: sortOrder }
+        );
+      }
+      savedPageBeforeSearchRef.current = null;
+    } else if (next !== '' && currentPage !== 1) {
+      // While typing within search mode, keep on page 1
+      if (onTableChange) {
+        onTableChange(
+          { current: 1, pageSize },
+          {},
+          { field: sortField, order: sortOrder }
+        );
+      }
+    }
+
     if (onSearchChange && debouncedSearchTerm !== search) {
       onSearchChange(debouncedSearchTerm);
     }
-  }, [debouncedSearchTerm, onSearchChange, search]);
+    prevDebouncedSearchRef.current = debouncedSearchTerm;
+  }, [debouncedSearchTerm, onSearchChange, search, onTableChange, currentPage, pageSize, sortField, sortOrder]);
 
   // Refresh data when tableRefreshTrigger changes (triggered from parent tab)
   useEffect(() => {
@@ -195,17 +232,7 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = React.memo((pr
   }, [onTableChange]);
 
   // Memoize pagination configuration
-  const paginationConfig = useMemo(() => ({
-    current: currentPage,
-    pageSize: pageSize,
-    total: totalCount,
-    showSizeChanger: true,
-    pageSizeOptions: ['10', '20', '50', '100'],
-    showTotal: (total: number, range: [number, number]) => 
-      `${range[0]}-${range[1]} of ${total} items`,
-    onChange: (page: number, size: number) => handleEnhancedTableChange({ current: page, pageSize: size }, {}, {}),
-    onShowSizeChange: (current: number, size: number) => handleEnhancedTableChange({ current, pageSize: size }, {}, {})
-  }), [currentPage, pageSize, totalCount, handleEnhancedTableChange]);
+  // Pagination config is constructed inline in JSX via handlers
 
   const getStatusDisplay = useCallback((status: string): { type: PillType; text: string; color?: string } => {
     
@@ -217,10 +244,7 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = React.memo((pr
   }, [filterLabelMap])
 
   
-  // Handle row selection change
-  const handleRowSelectionChange = useCallback((newSelectedRowKeys: React.Key[]) => {
-    setSelectedRowKeys(newSelectedRowKeys);
-  }, []);
+  // Row selection handling not used in this table
 
   // Handle item selection
   const handleSelectItem = useCallback((item: typeof items[0]) => {
@@ -461,13 +485,13 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = React.memo((pr
                           {record.title}
                         </TableCell>
                         <TableCell className="gba:py-4 gba:px-6">
-                          {record.requestDate ? dayjs(record.requestDate).format(getDateFormat('date.short')) : '-'}
+                          {record.requestDate ? (formatDate(record.requestDate, 'date.short') || '-') : '-'}
                         </TableCell>
                         <TableCell className="gba:py-4 gba:px-6">
-                          {record.startDate ? dayjs(record.startDate).format(getDateFormat('date.short')) : '-'}
+                          {record.startDate ? (formatDate(record.startDate, 'date.short') || '-') : '-'}
                         </TableCell>
                         <TableCell className="gba:py-4 gba:px-6">
-                          {record.endDate ? dayjs(record.endDate).format(getDateFormat('date.short')) : '-'}
+                          {record.endDate ? (formatDate(record.endDate, 'date.short') || '-') : '-'}
                         </TableCell>
                         <TableCell className="gba:py-4 gba:px-6">
                           {(() => {
@@ -477,8 +501,8 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = React.memo((pr
                         </TableCell>
                         <TableCell className="gba:py-4 gba:px-6 gba:text-right">
                           {(() => {
-                            const currencyCode = record.currency?.code || '';
-                            const formattedAmount = record.reimbursableAmount && record.reimbursableAmount !== 0 ? `${formatNumberFunction(String(record.reimbursableAmount ?? '0'))} ${currencyCode}` : '-';
+                            const formattedAmount = record.reimbursableAmount && record.reimbursableAmount !== 0 ? 
+                              formatCurrencyDisplay(record.reimbursableAmount, record.currency?.code) : '-';
                             
                             return (
                               <div data-testid={`reimbursable-amount-${record.id}`}>
@@ -492,7 +516,8 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = React.memo((pr
                             const advanceAmountValue = record.expensePlan?.advancePaymentAggregate?.aggregate?.sum?.amount;
                             // Use expense plan currency if available, otherwise fall back to main currency
                             const currencyCode = advanceAmountValue && advanceAmountValue !== 0  ?  record.currency?.code  : '';
-                            const formattedAmount = advanceAmountValue && advanceAmountValue !== 0 ? `${formatNumberFunction(String(advanceAmountValue))} ${currencyCode}` : "-";
+                            const formattedAmount = advanceAmountValue && advanceAmountValue !== 0 ? 
+                              formatCurrencyDisplay(advanceAmountValue, record.currency?.code) : "-";
                             return (
                               <div data-testid={`total-amount-${record.id}`}>
                                 {formattedAmount}
@@ -507,11 +532,11 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = React.memo((pr
               </Table>
             </div>
             
-            {/* Pagination - same pattern as other table components */}
-            {totalCount > pageSize && (
+            {/* Pagination */}
+            {totalCount > pageSize ? (
               <div className="gba:flex gba:items-center gba:justify-between gba:px-6 gba:py-4 gba:border-t" data-testid="expense-requests-pagination">
                 <div className="gba:text-sm gba:text-muted-foreground" data-testid="expense-requests-pagination-info">
-                  {`${(currentPage - 1) * pageSize + 1}-${Math.min(currentPage * pageSize, totalCount)} ${getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.of','of')} ${totalCount} ${getTranslationFromI18nKeyAndLabel('lowcoder:employee_list.flows_button.expense_requests','Expense Requests')}`}
+                  {getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.showing', 'Showing')} {`${(currentPage - 1) * pageSize + 1}-${Math.min(currentPage * pageSize, totalCount)}`} {getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.of', 'of')} {totalCount} {getTranslationFromI18nKeyAndLabel('lowcoder:employee_list.flows_button.expense_requests', 'Expense Requests')}
                 </div>
                 <div className="gba:flex gba:items-center gba:space-x-6 gba:lg:space-x-8">
                   <div className="gba:flex gba:items-center gba:space-x-2">
@@ -529,7 +554,7 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = React.memo((pr
                     </select>
                   </div>
                   <div className="gba:flex gba:w-[100px] gba:items-center gba:justify-center gba:text-sm gba:font-medium" data-testid="expense-requests-page-info">
-                    {getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.page','Page')} {currentPage} {getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.of','of')} {Math.ceil(totalCount / pageSize)}
+                    Page {currentPage} of {Math.ceil(totalCount / pageSize)}
                   </div>
                   <div className="gba:flex gba:items-center gba:space-x-2">
                     <Button
@@ -573,6 +598,26 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = React.memo((pr
                       ⟩⟩
                     </Button>
                   </div>
+                </div>
+              </div>
+            ) : (
+              <div className="gba:flex gba:items-center gba:justify-between gba:px-6 gba:py-4 gba:border-t" data-testid="expense-requests-pagination-info-single-page">
+                <div className="gba:text-sm gba:text-muted-foreground">
+                  {`${totalCount} ${getTranslationFromI18nKeyAndLabel('lowcoder:employee_list.flows_button.expense_requests', 'Expense Requests')}`}
+                </div>
+                <div className="gba:flex gba:items-center gba:space-x-2">
+                  <p className="gba:text-sm gba:font-medium">{getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.rows_per_page','Rows per page')}</p>
+                  <select
+                    value={pageSize}
+                    onChange={(e) => handleEnhancedTableChange({ current: 1, pageSize: Number(e.target.value) }, {}, {})}
+                    className="gba:h-8 gba:w-[70px] gba:rounded gba:border gba:border-input gba:px-3 gba:py-1 gba:text-sm"
+                    data-testid="expense-requests-page-size-select-single"
+                  >
+                    <option value={10}>10</option>
+                    <option value={20}>20</option>
+                    <option value={50}>50</option>
+                    <option value={100}>100</option>
+                  </select>
                 </div>
               </div>
             )}

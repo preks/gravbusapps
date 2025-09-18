@@ -65,15 +65,15 @@ export const createTripLogObject = (
   currentTitle: string,
   currentCurrency: string | null,
   event: string,
-  skipStep?:boolean
+  requestAdvancePayment?:boolean
 ): LogObject => {
   const startTripDateTime = combineDateTimeToISOString(startLocation.departureDate, startLocation.departureTime);
   const endTripDateTime = combineDateTimeToISOString(endLocation.departureDate, endLocation.departureTime);
   const initialAdvancePayment = initialPlan.advancePayment && initialPlan.advancePayment.length > 0 ? initialPlan.advancePayment[0] : null;
 
   return {
-    stepKey: SCREEN_NAMES_ENUM.TRIPS_TAB + "_" + event,
-    event: skipStep ? event + "_"+EVENTS.SKIP : event,
+    stepKey: SCREEN_NAMES_ENUM.TRIPS_TAB + "_" + event + (!requestAdvancePayment ? ("_"+ EVENTS.SKIP) : ""),
+    event: event,
     expensePlan: {
       id: initialPlan.id,
       startDate: startTripDateTime || initialPlan.startDate || "",
@@ -129,7 +129,7 @@ export const handleTripSubmitAction = (
   currentTitle: string,
   currentCurrency: string | null,
   event:string,
-  skipStep?:boolean,
+  requestAdvancePayment?:boolean,
   dispatchProcessContinueEventIfEnabled?: (event: string, payload: any) => boolean
 ): boolean => {
   const initialPlan = expensePlanData?.ExpensePlanByPk;
@@ -143,7 +143,7 @@ export const handleTripSubmitAction = (
     );
     return false;
   }
-  const logObject = createTripLogObject(startLocation, endLocation, initialPlan, employeeRuleId, currentTitle, currentCurrency,event,skipStep);
+  const logObject = createTripLogObject(startLocation, endLocation, initialPlan, employeeRuleId, currentTitle, currentCurrency,event,requestAdvancePayment);
   const planItems: Array<{id: string, version: string|number, code: string, title: string, ruleId: string, expensePlan: string}> = [];
   if (expensePlanData.ExpenseItem && Array.isArray(expensePlanData.ExpenseItem)) {
     expensePlanData.ExpenseItem.forEach((item: any) => {
@@ -160,9 +160,9 @@ export const handleTripSubmitAction = (
     });
   }
   const additionalItems: Array<{id: string, version: string|number, code: string, title: string, ruleId: string, expensePlan: string}> = [];
-  if (expensePlanData.additionalData?.psi_taskPayload?.initialParameters?.expenseItems && 
-      Array.isArray(expensePlanData.additionalData.psi_taskPayload.initialParameters.expenseItems)) {
-        expensePlanData.additionalData.psi_taskPayload.initialParameters.expenseItems.forEach((item: any) => {
+  if (expensePlanData.additionalData?.psi_taskPayload?.psi_initialParameters?.expenseItems && 
+      Array.isArray(expensePlanData.additionalData.psi_taskPayload.psi_initialParameters.expenseItems)) {
+        expensePlanData.additionalData.psi_taskPayload.psi_initialParameters.expenseItems.forEach((item: any) => {
       additionalItems.push({
         id: item.id,
         version: item.version,
@@ -193,8 +193,42 @@ export const handleTripSubmitAction = (
     });
   }
 
+  // Fallback: if counts match, preserve ids/versions by pointType and tripOrder alignment
+  const preserveTripIdsIfCountsMatch = (existingTrips: TripData[] | undefined, newTrips: TripData[]): TripData[] => {
+    if (!existingTrips || !Array.isArray(existingTrips)) return newTrips;
+    if (!Array.isArray(newTrips) || newTrips.length === 0) return newTrips;
+    if (existingTrips.length !== newTrips.length) return newTrips;
+
+    const result = newTrips.map(trip => ({ ...trip }));
+    const pointTypes = Array.from(new Set([
+      ...existingTrips.map(t => t.pointType),
+      ...newTrips.map(t => t.pointType)
+    ]));
+    pointTypes.forEach((type) => {
+      const existingGroup = existingTrips
+        .filter(t => t.pointType === type)
+        .slice()
+        .sort((a, b) => (a.tripOrder || 0) - (b.tripOrder || 0));
+      const incomingGroup = result
+        .filter(t => t.pointType === type)
+        .slice()
+        .sort((a, b) => (a.tripOrder || 0) - (b.tripOrder || 0));
+      if (existingGroup.length === incomingGroup.length && incomingGroup.length > 0) {
+        for (let i = 0; i < incomingGroup.length; i += 1) {
+          incomingGroup[i].id = existingGroup[i].id;
+          incomingGroup[i].version = existingGroup[i].version;
+        }
+      }
+    });
+    return result;
+  };
+
+  const finalTrips = (Array.isArray(initialPlan.expenseRequestTrip) && verifiedTrips)
+    ? preserveTripIdsIfCountsMatch(initialPlan.expenseRequestTrip, arrayWithExistingTrips)
+    : arrayWithExistingTrips;
+
   (logObject as LogObject).expenseRequestTrips = {
-    expenseTrips: verifiedTrips ? arrayWithExistingTrips : (initialPlan.expenseRequestTrip || [])
+    expenseTrips: verifiedTrips ? finalTrips : (initialPlan.expenseRequestTrip || [])
   };
 
   if (dispatchProcessContinueEventIfEnabled) {
@@ -360,12 +394,12 @@ export const checkTripExists = (array: any[] | undefined, pointType: string, obj
   if (!array) return null;
   
   const filteredArray = array.filter(item => item.pointType === pointType);
-  const objectToCheckTime = new Date(objectToCheck.tripDateTime).getTime();
+  const objectToCheckKey = dayjs(objectToCheck.tripDateTime).format('YYYY-MM-DDTHH:mm');
   
-  return filteredArray.find(item => {
-    const itemTime = new Date(item.tripDateTime).getTime();
+  const found = filteredArray.find(item => {
+    const itemKey = dayjs(item.tripDateTime).format('YYYY-MM-DDTHH:mm');
     return item.address === objectToCheck.address &&
-      itemTime === objectToCheckTime &&
+      itemKey === objectToCheckKey &&
       item.pointType === objectToCheck.pointType &&
       item.tripDirection === objectToCheck.tripDirection &&
       item.costCenterId === objectToCheck.costCenter &&
@@ -375,6 +409,16 @@ export const checkTripExists = (array: any[] | undefined, pointType: string, obj
       item.expensePlanId === objectToCheck.expensePlan &&
       item.allowanceRegionRuleDetailId === objectToCheck.allowanceRegionRuleDetail;
   }) || null;
+  if (found) {
+    const merged: TripData = {
+      ...objectToCheck,
+      id: found.id,
+      version: found.version
+    } as TripData;
+    return merged;
+  }
+
+  return null;
 };
 
 
@@ -412,9 +456,8 @@ export const setLocalitiesDefault = (expensePlanData: any,
           ...prevLocation,
           location: localityToSet
         }));
-        
-        setLocationsAreSynced(true);
       }
+      setLocationsAreSynced(true);
     } catch (error) {
       
     }
@@ -438,7 +481,7 @@ export const setLocalitiesDefault = (expensePlanData: any,
     expensePlanData: any,
     isTrip:boolean,
     setCurrentScreen: React.Dispatch<React.SetStateAction<string>>,
-    setSkipAdvancePayment: (skip: boolean) => void,
+    setRequestAdvancePayment: (skip: boolean) => void,
     currentScreen?: string)=>{
     
     const stepKey = additionalData?.psi_taskPayload?.stepKey
@@ -449,30 +492,34 @@ export const setLocalitiesDefault = (expensePlanData: any,
         switch(stepKey){
           case SCREEN_NAMES_ENUM.TRIPS_TAB + "_" + EVENTS.SAVE:
             targetScreen = SCREEN_NAMES_ENUM.TRIPS_TAB;
+            setRequestAdvancePayment(true);
             break;
           case SCREEN_NAMES_ENUM.TRIPS_TAB + "_" + EVENTS.SAVE + "_" +EVENTS.SKIP:
-            setSkipAdvancePayment(true);
+            setRequestAdvancePayment(false);
             targetScreen = SCREEN_NAMES_ENUM.TRIPS_TAB;
             break;
           case SCREEN_NAMES_ENUM.ITEMS_TAB + "_" + EVENTS.SAVE:
+            setRequestAdvancePayment(true);
             targetScreen = SCREEN_NAMES_ENUM.ITEMS_TAB;
             break;
           case SCREEN_NAMES_ENUM.ITEMS_TAB + "_" + EVENTS.SAVE + "_" +EVENTS.SKIP:
-            setSkipAdvancePayment(true);
+            setRequestAdvancePayment(false);
             targetScreen = SCREEN_NAMES_ENUM.ITEMS_TAB;
             break;
           case SCREEN_NAMES_ENUM.PAYMENT_TAB + "_" + EVENTS.SAVE:
+            setRequestAdvancePayment(true);
             targetScreen = SCREEN_NAMES_ENUM.PAYMENT_TAB;
             break;
           case SCREEN_NAMES_ENUM.PAYMENT_TAB + "_" + EVENTS.SAVE + "_" +EVENTS.SKIP:
-            setSkipAdvancePayment(true);
+            setRequestAdvancePayment(false);
             targetScreen = SCREEN_NAMES_ENUM.PAYMENT_TAB;
             break;
           case SCREEN_NAMES_ENUM.SUMMARY_TAB + "_" + EVENTS.SAVE:
+            setRequestAdvancePayment(true);
             targetScreen = SCREEN_NAMES_ENUM.SUMMARY_TAB;
             break;
           case SCREEN_NAMES_ENUM.SUMMARY_TAB + "_" + EVENTS.SAVE + "_" +EVENTS.SKIP:
-            setSkipAdvancePayment(true);
+            setRequestAdvancePayment(false);
             targetScreen = SCREEN_NAMES_ENUM.SUMMARY_TAB;
             break;
           default:
@@ -483,31 +530,35 @@ export const setLocalitiesDefault = (expensePlanData: any,
       else if(stepKey.includes(EVENTS.NEXT)){
         switch(stepKey){
           case SCREEN_NAMES_ENUM.TRIPS_TAB + "_" + EVENTS.NEXT:
+            setRequestAdvancePayment(true);
             targetScreen = SCREEN_NAMES_ENUM.ITEMS_TAB;
             break;
           case SCREEN_NAMES_ENUM.TRIPS_TAB + "_" + EVENTS.NEXT + "_" +EVENTS.SKIP:
-            setSkipAdvancePayment(true);
+            setRequestAdvancePayment(false);
             targetScreen = SCREEN_NAMES_ENUM.ITEMS_TAB;
             break;
           case SCREEN_NAMES_ENUM.ITEMS_TAB + "_" + EVENTS.NEXT:
+            setRequestAdvancePayment(true);
             targetScreen = targetScreen = SCREEN_NAMES_ENUM.PAYMENT_TAB; 
             break;
           case SCREEN_NAMES_ENUM.ITEMS_TAB + "_" + EVENTS.NEXT + "_" +EVENTS.SKIP:
-            setSkipAdvancePayment(true);
+            setRequestAdvancePayment(false);
             targetScreen = SCREEN_NAMES_ENUM.SUMMARY_TAB;
             break;
           case SCREEN_NAMES_ENUM.PAYMENT_TAB + "_" + EVENTS.NEXT:
+            setRequestAdvancePayment(true);
             targetScreen = SCREEN_NAMES_ENUM.SUMMARY_TAB;
             break;
           case SCREEN_NAMES_ENUM.PAYMENT_TAB + "_" + EVENTS.NEXT + "_" +EVENTS.SKIP:
-            setSkipAdvancePayment(true);
+            setRequestAdvancePayment(false);
             targetScreen = SCREEN_NAMES_ENUM.SUMMARY_TAB;
             break;
           case SCREEN_NAMES_ENUM.SUMMARY_TAB + "_" + EVENTS.NEXT:
+            setRequestAdvancePayment(true);
             targetScreen = SCREEN_NAMES_ENUM.SUMMARY_TAB;
             break;
           case SCREEN_NAMES_ENUM.SUMMARY_TAB + "_" + EVENTS.NEXT + "_" +EVENTS.SKIP:
-            setSkipAdvancePayment(true);
+            setRequestAdvancePayment(false);
             targetScreen = SCREEN_NAMES_ENUM.SUMMARY_TAB;
             break;
           default:

@@ -2,9 +2,10 @@ import { showToast } from "@/business-apps/fin/expenses/utils/notificationUtils"
 import { dispatchProcessContinueEvent } from "@/common/utils/processEventUtils";
 import dayjs from "dayjs";
 import { completeTaskFlow, getOpenedTaskFlow, initiateFlow } from "../../expense-item/context/services/flowHandlers";
-import { DEFAULT_EXPENSE_STATUS, FLOW_DOMAIN, FLOW_PROCESS_NAME } from "../constants";
+import { DEFAULT_EXPENSE_SOURCE, DEFAULT_EXPENSE_STATUS, FLOW_DOMAIN, FLOW_PROCESS_NAME } from "../constants";
 import { getTranslationFromI18nKeyAndLabel } from "@/common/utils/windowUtils";
 import { EVENTS } from "../../../utils/constants";
+import { DEFAULT_CURRENCY_ID, DEFAULT_EXPENSE_CLASS_ID, EXPENSE_SEARCH_TERM } from "../../expense-item/constants/constants";
 
 /**
  * Handles the submission of an expense plan item
@@ -66,7 +67,7 @@ export const handleSubmit = async (
     }
 
     // Check if we have an expense plan from either the wizard or task payload
-    const hasExpensePlan = additionalData?.expensePlanId || additionalData?.psi_taskPayload?.initialParameters?.expensePlan;
+    const hasExpensePlan = additionalData?.expensePlanId || additionalData?.psi_taskPayload?.psi_initialParameters?.expensePlan;
     
     let flowProcessId: string | null = null;
     let taskId: string | null = null;
@@ -114,13 +115,13 @@ export const handleSubmit = async (
         ...(itemValues?.id && { version: itemValues.version }),
         title: values.title,
         totalAmount: values.amount || 0,
-        currencyRef: values.currency || "Currency:v1:EUR",
+        currencyRef: values.currency || DEFAULT_CURRENCY_ID,
         reimbursable: values.reimbursable || false,
-        expenseClassRef: catalogueDataResponse?.data?.expenceClass?.find((element: any) => element.code.toLowerCase().includes("expense"))?.id || "ExpenseClass:v1:EXPENSE",
+        expenseClassRef: catalogueDataResponse?.data?.expenceClass?.find((element: any) => element.code.toLowerCase().includes(EXPENSE_SEARCH_TERM))?.id || DEFAULT_EXPENSE_CLASS_ID,
         status: DEFAULT_EXPENSE_STATUS,
         employee: generalDataResponse?.data?.Employee?.[0]?.id || userInfo?.employeeDetails?.employeeId || "",
         expenseGroupRef: values.expenseGroup,
-        source: values.expenseType ? "GENERAL_EXPENSE_RULE" : "",
+        source: values.expenseType ? DEFAULT_EXPENSE_SOURCE : "",
         expenseDate: values.date ? dayjs(values.date).format() : dayjs().format(),
         reimbursableAmount: values.reimbursable === true ? values.amount : "",
         nonReimbursableAmount: values.reimbursable !== true ? values.amount : "",
@@ -132,14 +133,14 @@ export const handleSubmit = async (
         },
         expenseRule: employeeRuleId as string,
       },
-      event: "pse_submit",
+      event: EVENTS.SUBMIT,
     };
 
     let operationSuccessful = false;
     
     if (flowProcessId && taskId && taskName && hasExpensePlan && accessToken) {
       try {
-        const userId = userInfo?.id || "2999c7b5-1b62-4887-ae86-2efb10909246";
+        const userId = userInfo?.id || "";
         await completeTaskFlow(
           accessToken,
           userId,

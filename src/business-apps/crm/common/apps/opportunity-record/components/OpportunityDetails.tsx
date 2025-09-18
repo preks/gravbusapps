@@ -289,7 +289,9 @@ export const OpportunityDetails: React.FC<OpportunityDetailsProps> = ({
                         <Tooltip 
                           title={condition.description}
                           placement="top"
-                          overlayStyle={{ maxWidth: '300px' }}
+                          styles={{
+                            root: { maxWidth: '300px' }
+                          }}
                         >
                           <InfoCircleOutlined className="gba:text-gray-400 hover:gba:text-gray-600 gba:cursor-help gba:text-xs gba:flex-shrink-0" />
                         </Tooltip>

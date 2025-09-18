@@ -55,6 +55,12 @@ export interface LocationData {
     title: string;
     ruleId: string;
     expenseRequest: string;
+    costCenter: string,
+    project: string,
+    expenseGroupRef: string,
+    source: string,
+    expenseClassRef: string,
+    autoCalculated: boolean
   }
 
   /**
@@ -79,12 +85,16 @@ export interface LocationData {
       requestTypeRef: any;
       additionalProperties: any;
       currencyRef: any;
+      overnightAccommodation?: boolean;
     };
     expenseRequestTrips?: {
       expenseTrips: TripData[] | any[];
     };
     expenseRequestItems?: {
       expenseItems: ExpenseItemData[] | any[];
+    };
+    travelBreakdownWrapper?: {
+      travelBreakdowns: any[];
     };
   }
 

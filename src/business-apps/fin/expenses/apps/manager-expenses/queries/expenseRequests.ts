@@ -3,7 +3,8 @@ export const GET_EXPENSE_REQUESTS_BY_MANAGER = `
   query GetExpenseRequestsByManager(
     $where: ExpenseRequestBoolExp,
     $limit: Int!,
-    $offset: Int!
+    $offset: Int!,
+    $orderBy: [ExpenseRequestOrderBy!]
   ) {
     ExpenseRequestAggregate(where: $where) {
       aggregate {
@@ -13,7 +14,7 @@ export const GET_EXPENSE_REQUESTS_BY_MANAGER = `
     ExpenseRequest(
       limit: $limit,
       offset: $offset,
-      orderBy: {requestDate: DESC},
+      orderBy: $orderBy,
       where: $where
     ) {
       id
@@ -27,13 +28,24 @@ export const GET_EXPENSE_REQUESTS_BY_MANAGER = `
       currencyRef
       status
       createdAt
-      employeeDocument { # Corrected field for attachments
-        file # Corresponds to fileUrl
-        name # Corresponds to fileName
+      updatedAt
+      employeeDocument {
+        file
+        fileSize
+        id
+        description
+        mimeType
+        name
+        type
+        employee {
+          id
+        }
       }
       employee {
         id
         displayName
+        firstName
+        lastName
         fullName
         pictureThumbnail
         employeePosition {
@@ -107,6 +119,7 @@ export const GET_MAIN_VIEW_EXPENSE_REQUESTS = `
       currencyRef
       status
       createdAt
+      updatedAt
       employeeDocument {
         file
         name
@@ -114,6 +127,8 @@ export const GET_MAIN_VIEW_EXPENSE_REQUESTS = `
       employee {
         id
         displayName
+        firstName
+        lastName
         fullName
         pictureThumbnail
         employeePosition {
@@ -147,6 +162,8 @@ export const GET_EXPENSE_REQUEST_BY_ID = `
       }
       employee {
         id
+        firstName
+        lastName
         fullName
         department
         additionalProperties
@@ -167,6 +184,8 @@ export const GET_TEAM_MEMBERS_BY_MANAGER = `
       orderBy: {fullName: ASC}
     ) {
       id
+      firstName
+      lastName
       fullName
       department
       jobTitle
@@ -223,12 +242,9 @@ export const GET_EXPENSE_REQUEST_STATISTICS = `
   ) {
     aggregate {
       count
-      sum {
-        totalAmount
-      }
     }
   }
-  approvedRequests: ExpenseRequestAggregate(
+  pendingAmount: ExpenseRequestAggregate(
     where: {
       employee: {
         employeePosition: {
@@ -236,17 +252,31 @@ export const GET_EXPENSE_REQUEST_STATISTICS = `
         }
       },
       isDeleted: {_eq: false},
-      status: {_eq: "APPROVED"}
+      status: {_in: ["APPROVED", "VERIFIED", "BOOKED", "TRANSFERRED"]}
+    }
+  ) {
+    aggregate {
+      sum {
+        totalAmount
+      }
+    }
+  }
+  totalRequestsSubmitted: ExpenseRequestAggregate(
+    where: {
+      employee: {
+        employeePosition: {
+          supervisorEmployeeId: {_eq: $employeeId}
+        }
+      },
+      isDeleted: {_eq: false},
+      status: {_nin: ["REJECTED", "DISCARDED", "CREATED"]}
     }
   ) {
     aggregate {
       count
-      sum {
-        totalAmount
-      }
     }
   }
-  rejectedRequests: ExpenseRequestAggregate(
+  totalSubmittedAmount: ExpenseRequestAggregate(
     where: {
       employee: {
         employeePosition: {
@@ -254,17 +284,37 @@ export const GET_EXPENSE_REQUEST_STATISTICS = `
         }
       },
       isDeleted: {_eq: false},
-      status: {_eq: "REJECTED"}
+      status: {_nin: ["REJECTED", "DISCARDED", "CREATED"]}
+    }
+  ) {
+    aggregate {
+      sum {
+        totalAmount
+      }
+    }
+  }
+}
+`;
+
+export const GET_EXPENSE_REQUEST_STATISTICS_WITH_CURRENCY = `
+  query GetExpenseRequestStatisticsWithCurrency($employeeId: uuid!, $currencyRef: String!) {
+  pendingRequests: ExpenseRequestAggregate(
+    where: {
+      employee: {
+        employeePosition: {
+          supervisorEmployeeId: {_eq: $employeeId}
+        }
+      },
+      isDeleted: {_eq: false},
+      status: {_eq: "PENDING"},
+      currencyRef: {_eq: $currencyRef}
     }
   ) {
     aggregate {
       count
-      sum {
-        totalAmount
-      }
     }
   }
-  allSubmittedRequests: ExpenseRequestAggregate(
+  pendingAmount: ExpenseRequestAggregate(
     where: {
       employee: {
         employeePosition: {
@@ -272,7 +322,42 @@ export const GET_EXPENSE_REQUEST_STATISTICS = `
         }
       },
       isDeleted: {_eq: false},
-      status: {_nin: ["CREATED", "DISCARDED", "RETURNED"]}
+      status: {_in: ["APPROVED", "VERIFIED", "BOOKED", "TRANSFERRED"]},
+      currencyRef: {_eq: $currencyRef}
+    }
+  ) {
+    aggregate {
+      sum {
+        totalAmount
+      }
+    }
+  }
+  totalRequestsSubmitted: ExpenseRequestAggregate(
+    where: {
+      employee: {
+        employeePosition: {
+          supervisorEmployeeId: {_eq: $employeeId}
+        }
+      },
+      isDeleted: {_eq: false},
+      status: {_nin: ["REJECTED", "DISCARDED", "CREATED"]},
+      currencyRef: {_eq: $currencyRef}
+    }
+  ) {
+    aggregate {
+      count
+    }
+  }
+  totalSubmittedAmount: ExpenseRequestAggregate(
+    where: {
+      employee: {
+        employeePosition: {
+          supervisorEmployeeId: {_eq: $employeeId}
+        }
+      },
+      isDeleted: {_eq: false},
+      status: {_nin: ["REJECTED", "DISCARDED", "CREATED"]},
+      currencyRef: {_eq: $currencyRef}
     }
   ) {
     aggregate {

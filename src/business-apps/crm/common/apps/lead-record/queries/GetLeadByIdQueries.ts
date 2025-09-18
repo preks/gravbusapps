@@ -1,5 +1,5 @@
-import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient';
-import { BusinessAppContextProps } from '@/common/BusinessAppContext';
+import { useGraphQLClient } from "@/common/network/graphql/useGraphQLClient";
+import { BusinessAppContextProps } from "@/common/BusinessAppContext";
 
 export interface GetLeadByIdQueryVariables {
   id: string;
@@ -44,7 +44,20 @@ export interface GetLeadByIdResponse {
     companyWebsite: string;
     companyEmail: string;
     companyPhone: string;
-    addressLine: string;
+    addresses?: Array<{
+      addressLine?: any;
+      city?: string;
+      country?: {
+        id: string;
+        value: string;
+        code: string;
+      };
+      region?: {
+        id: string;
+        value: string;
+        code: string;
+      };
+    }>;
     numberOfEmployees?: {
       id: string;
       value: string;
@@ -54,6 +67,7 @@ export interface GetLeadByIdResponse {
       value: string;
     };
     convertedOpportunityId: string;
+    sensitive?: boolean;
   }>;
 }
 
@@ -101,7 +115,20 @@ export const GET_LEAD_BY_ID = `
       companyWebsite
       companyEmail
       companyPhone
-      addressLine
+      addresses {
+        addressLine
+        city
+        country {
+          id
+          value
+          code
+        }
+        region {
+          id
+          value
+          code
+        }
+      }
       numberOfEmployees {
         id
         value
@@ -111,23 +138,27 @@ export const GET_LEAD_BY_ID = `
         value
       }
       convertedOpportunityId
+      sensitive
     }
   }
 `;
 
 export const useGetLeadById = (context: BusinessAppContextProps) => {
   const graphqlClient = useGraphQLClient(context.accessToken);
-  
+
   const fetchLeadById = async (variables: GetLeadByIdQueryVariables) => {
     const query = GET_LEAD_BY_ID;
     try {
-      const result = await graphqlClient.request<GetLeadByIdResponse>(query, variables);
+      const result = await graphqlClient.request<GetLeadByIdResponse>(
+        query,
+        variables
+      );
       return result;
     } catch (error) {
-      console.error('Error fetching lead by ID:', error);
+      console.error("Error fetching lead by ID:", error);
       throw error;
     }
   };
 
   return { fetchLeadById };
-}; 
+};

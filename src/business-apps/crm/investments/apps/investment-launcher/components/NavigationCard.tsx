@@ -56,7 +56,7 @@ const InvestmentNavigationCard: React.FC<InvestmentNavigationCardProps> = ({
       });
       navigateTo(url);
     } else if (area.id === "investments") {
-      const url = buildPlatformUrl("/platform/irm/investment-relations", {
+      const url = buildPlatformUrl("/platform/irm/investment-management", {
         view: "investments",
       });
       navigateTo(url);
@@ -271,7 +271,7 @@ const InvestmentNavigationCard: React.FC<InvestmentNavigationCardProps> = ({
                 onClick={(e) =>
                   handleActionClick(
                     "leads",
-                    { salesLeadStatus: "SalesLeadStatus:v1:OPEN" },
+                    { leadStatus: "InvestmentLeadStatus:v1:OPEN" },
                     e
                   )
                 }
@@ -284,7 +284,7 @@ const InvestmentNavigationCard: React.FC<InvestmentNavigationCardProps> = ({
                 onClick={(e) =>
                   handleActionClick(
                     "leads",
-                    { salesLeadStatus: "SalesLeadStatus:v1:CONVERTED" },
+                    { leadStatus: "InvestmentLeadStatus:v1:CONVERTED" },
                     e
                   )
                 }
@@ -394,15 +394,6 @@ const InvestmentNavigationCard: React.FC<InvestmentNavigationCardProps> = ({
                 onClick={(e) => handleInvestmentTypeClick("equity", e)}
               >
                 <span className="gba:text-gray-600">Equity Investments</span>
-                <RemixIcons.RiArrowRightSLine className="gba:h-4 gba:w-4 gba:text-gray-400" />
-              </div>
-              <div
-                className="gba:flex gba:items-center gba:justify-between gba:text-sm gba:cursor-pointer hover:gba:bg-gray-50 gba:p-1 gba:rounded"
-                onClick={(e) => handleInvestmentTypeClick("private-equity", e)}
-              >
-                <span className="gba:text-gray-600">
-                  Private Equity Investments
-                </span>
                 <RemixIcons.RiArrowRightSLine className="gba:h-4 gba:w-4 gba:text-gray-400" />
               </div>
               <div

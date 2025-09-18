@@ -96,15 +96,42 @@ export const createItemsScreenLogObject = (
     code: item.code || '',
     title: item.title || '',
     ruleId: item.expenseRuleId || '',
-    expenseRequest: initialRequest?.id || ''
+    expenseRequest: initialRequest?.id || '',
+    costCenter: item.costCenterId || '',
+    project: item.projectId || '',
+    expenseGroupRef: item.expenseGroupRef || '',
+    source: item.source || '',
+    expenseClassRef: item.expenseClassRef || '',
+    autoCalculated: item.autoCalculated || false
   })).concat(getAllowanceItemsFunction(expenseRequestData?.ExpenseItem || []).map(item => ({
     id: item.id,
     version: item.version,
     code: item.code || '',
     title: item.title || '',
     ruleId: item.expenseRuleId || '',
-    expenseRequest: initialRequest?.id || ''
+    expenseRequest: initialRequest?.id || '',
+    costCenter: item.costCenterId || '',
+    project: item.projectId || '',
+    expenseGroupRef: item.expenseGroupRef || '',
+    source: item.source || '',
+    expenseClassRef: item.expenseClassRef || '',
+    autoCalculated: item.autoCalculated || false
   })))
+  const travelBreakdowns: any[] = (expenseRequestData?.TravelBreakdown || [])
+  .map((item: any) => ({
+    id: item.id,
+    version: item.version,
+    breakfast: item.breakfast,
+    lunch: item.lunch,
+    dinner: item.dinner,
+    overnight: item.overnight,
+    expenseDate: item.expenseDate,
+    travelRegionRef: item.travelRegionRef,
+    project: item.projectId,
+    expenseRule: item.expenseRuleId,
+    expenseRequest: initialRequest?.id,
+    costCenter: item.costCenterId
+  }));
   return {
     stepKey: SCREEN_NAMES_ENUM.ITEMS_TAB + "_" + event,
     event: event,
@@ -122,13 +149,17 @@ export const createItemsScreenLogObject = (
       requestDate: initialRequest?.requestDate ? dayjs(initialRequest.requestDate).format("YYYY-MM-DD") : "",
       requestTypeRef: initialRequest?.requestTypeRef,
       additionalProperties: initialRequest?.additionalProperties,
-      currencyRef: initialRequest?.currency?.id || currentCurrency || ""
+      currencyRef: initialRequest?.currency?.id || currentCurrency || "",
+      overnightAccommodation: !!expenseRequestData?.ExpenseRequestByPk?.overnightAccommodation
     },
     expenseRequestItems: {
       expenseItems: expenseItemsArray
     },
     expenseRequestTrips: {
       expenseTrips: (expenseRequestData?.ExpenseRequestByPk?.expenseRequestTrip || [])
+    },
+    travelBreakdownWrapper: {
+      travelBreakdowns: travelBreakdowns
     }
   };
 };

@@ -1,5 +1,5 @@
-import { formatNumberFunction, getTranslationFromI18nKeyAndLabel, formatDate, getDateFormat } from '@/common/utils/windowUtils';
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import { getTranslationFromI18nKeyAndLabel, formatDate } from '@/common/utils/windowUtils';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { 
   Table, 
   TableHeader, 
@@ -20,7 +20,6 @@ import {
 } from '@newwork/nw-design-system';
 import Pill from '@/components/pill';
 import { PiFileText, PiImage, PiArrowUp, PiArrowDown } from 'react-icons/pi';
-import dayjs from 'dayjs';
 import { AppActionButton } from '@/components/app-action-button/AppActionButton';
 import { useGetExpenseItems, ExpenseFilter } from '../../../hooks/useGetExpenseItems';
 import { DataContainer } from '@/components/layout/dataContainer/DataContainer';
@@ -30,6 +29,7 @@ import { getExpenseItemStatusDisplay } from '../../../utils';
 import ExpenseItemDetails from './ExpenseItemDetails';
 import { startProcess } from '@/common/utils/start-process';
 import { notification } from 'antd';
+import { formatCurrencyDisplay } from '../../../utils';
 
 
 const DATA_TEST_ID_PREFIX = 'ExpenseItemsTable';
@@ -81,6 +81,8 @@ const ExpenseItemsTable: React.FC<ExpenseItemsTableProps> = React.memo((props) =
 
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(20);
+  // Preserve the page index before user starts searching, so we can restore it after clearing search
+  const savedPageBeforeSearchRef = useRef<number | null>(null);
 
   const { items, isLoading, error, totalCount, fetchItems } = useGetExpenseItems(contextProps);
 
@@ -104,9 +106,30 @@ const ExpenseItemsTable: React.FC<ExpenseItemsTableProps> = React.memo((props) =
   const [isSheetOpen, setIsSheetOpen] = useState(false);
 
   const handleSearchChange = useCallback((value: string) => {
+    const trimmedNext = (value || '').trim();
+    const trimmedPrev = (search || '').trim();
     setSearch(value);
-    setCurrentPage(1);
-  }, [setSearch]);
+
+    // Detect transitions to manage page restoration
+    if (trimmedPrev === '' && trimmedNext !== '') {
+      // Starting a new search → save current page and jump to page 1
+      savedPageBeforeSearchRef.current = currentPage;
+      setCurrentPage(1);
+      return;
+    }
+
+    if (trimmedPrev !== '' && trimmedNext === '') {
+      // Clearing search → restore saved page if available
+      setCurrentPage(savedPageBeforeSearchRef.current || 1);
+      savedPageBeforeSearchRef.current = null;
+      return;
+    }
+
+    // While typing within search mode, keep user on page 1 for fresh results
+    if (trimmedNext !== '') {
+      setCurrentPage(1);
+    }
+  }, [search, currentPage]);
 
   const handleFilterChange = useCallback((filterId: string, selected: boolean) => {
     if (selected) {
@@ -134,7 +157,7 @@ const ExpenseItemsTable: React.FC<ExpenseItemsTableProps> = React.memo((props) =
         return prev.filter(key => key !== itemId);
       }
     });
-  }, []);
+  }, [selectedRowKeys]);
 
   const handleSelectAll = useCallback((checked: boolean) => {
     if (checked) {
@@ -142,22 +165,24 @@ const ExpenseItemsTable: React.FC<ExpenseItemsTableProps> = React.memo((props) =
     } else {
       setSelectedRowKeys([]);
     }
-  }, [items]);
+  }, [selectedRowKeys, items]);
 
   const handleCloseDetails = useCallback(() => {
     setSelectedItem(null);
-    setSelectedRowKeys([]);
+    // setSelectedRowKeys([]);
     setIsSheetOpen(false);
   }, []);
-
   // Handlers for the top buttons
   const handleCreateExpenseRequest = useCallback(() => {
     if (!selectedRowKeys.length) return;
     const selectedItems = items?.filter((item: any) => selectedRowKeys.includes(item.id)) || [];
     
-    // Check if all items are in 'CREATED' status (draft)
-    const allDraft = selectedItems.every((item: any) => item.status === 'CREATED');
-    if (!allDraft) {
+    // Check if all items are in 'CREATED' status (normalize possible shapes)
+    const allCreated = selectedItems.every((item: any) => {
+      const rawStatus = ( item?.status ?? '').toString().toUpperCase();
+      return rawStatus === 'CREATED';
+    });
+    if (!allCreated) {
       const errorMessage = getTranslationFromI18nKeyAndLabel(
         'gba.expenseItems.createRequestDraftOnly',
         'An Expense Request can be started only with items in status DRAFT.'
@@ -198,13 +223,12 @@ const ExpenseItemsTable: React.FC<ExpenseItemsTableProps> = React.memo((props) =
     
     const expenseItems = selectedItems.map((element: any) => ({
       itemId: element.id,
-      currencyId: element.currencyId
+      currencyId: element.currencyRef
     }));
     const payload = {
       employeeId: contextProps.userInfo?.employeeDetails?.employeeId,
       expenseItems
     };
-    
     // Log payload for create button
     startProcess({
       domain: 'employee-expense',
@@ -326,6 +350,8 @@ const ExpenseItemsTable: React.FC<ExpenseItemsTableProps> = React.memo((props) =
           if (filters.length === 0) {
             // Clear all filters including amount range
             clearFilters();
+            // Also clear the search state when clearing all filters
+            handleSearchChange('');
           } else {
             // Handle individual filter removal - find which filters were removed and remove them
             const removedFilters = allSelectedFilters.filter(f => !filters.includes(f));
@@ -342,16 +368,16 @@ const ExpenseItemsTable: React.FC<ExpenseItemsTableProps> = React.memo((props) =
           ...(selectedRowKeys.length > 0
             ? [
                 <Button
-                  key="create-expense-request"
+                  key={`create-expense-request-${selectedRowKeys.join('|')}`}
                   variant="default"
                   data-testid="create-expense-request-btn"
-                  onClick={handleCreateExpenseRequest}
+                  onClick={() => handleCreateExpenseRequest()}
                   className="gba:inline-flex gba:items-center gba:gap-2"
                 >
                   {getTranslationFromI18nKeyAndLabel('lowcoder:employee_list.flows_button.create_expense_request','Create Expense Request')} ({selectedRowKeys.length})
                 </Button>,
                 <Button
-                  key="delete-selection"
+                  key={`delete-selection-${selectedRowKeys.join('|')}`}
                   variant="destructive"
                   data-testid="delete-selection-btn"
                   onClick={() => handleDeleteSelection()}
@@ -499,12 +525,8 @@ const ExpenseItemsTable: React.FC<ExpenseItemsTableProps> = React.memo((props) =
                                       domain: 'employee-expense',
                                       processName: 'changeExpenseItem',
                                       payload: {
-                                          psi_taskPayload: {
-                                           initialParameters: {
                                             employeeId: contextProps.userInfo?.employeeDetails?.employeeId,
                                             expenseId: record.id
-                                          }
-                                      }
                                      },
                                       builderType: 'NATIVE_SCREEN'
                                     });
@@ -553,7 +575,7 @@ const ExpenseItemsTable: React.FC<ExpenseItemsTableProps> = React.memo((props) =
                               <div className="gba:text-sm" data-testid="expense-expense-date-cell">
                                 {(() => {
                                   try {
-                                    return dayjs(record.expenseDate).format(getDateFormat('dayjs.date.long'));
+                                    return formatDate(record.expenseDate, 'date.long') || 'N/A';
                                   } catch (error) {
                                     return 'N/A';
                                   }
@@ -582,7 +604,7 @@ const ExpenseItemsTable: React.FC<ExpenseItemsTableProps> = React.memo((props) =
                           </TableCell>
                           <TableCell className="gba:py-4 gba:px-6 gba:text-right" data-testid={`${DATA_TEST_ID_PREFIX}-amount-cell-${record.id}`}>
                             <span data-testid="expense-amount-cell">
-                              {formatNumberFunction(String(record.reimbursableAmount ?? '0'))} {record.currency?.code || ''}
+                              {formatCurrencyDisplay(record.reimbursableAmount ?? '0', record.currency?.code)}
                             </span>
                           </TableCell>
                         </TableRow>
@@ -663,7 +685,7 @@ const ExpenseItemsTable: React.FC<ExpenseItemsTableProps> = React.memo((props) =
               ) : (
                 <div className="gba:flex gba:items-center gba:justify-between gba:px-6 gba:py-4" data-testid={`${DATA_TEST_ID_PREFIX}-pagination-info-single-page`}>
                   <div className="gba:text-sm gba:text-muted-foreground">
-                    {`${totalCount} expense items`}
+                    {`${totalCount} ${getTranslationFromI18nKeyAndLabel('lowcoder:employee_list.flows_button.expense_items','Expense Items')}`}
                   </div>
                   <div className="gba:flex gba:items-center gba:space-x-2">
                     <p className="gba:text-sm gba:font-medium">Rows per page</p>

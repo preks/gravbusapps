@@ -27,7 +27,7 @@ import { PiArrowUp, PiArrowDown, PiInfo } from 'react-icons/pi';
 import { AppActionButton } from '@/components/app-action-button/AppActionButton';
 import { FlowContextName } from '@/common/types/FlowRegistryTypes';
 import { JobPosition } from '../hooks/useJobPositionListData';
-import { formatDataTestId } from '@/modules/orgchart/utils';
+import { formatDataTestId } from '@/common/utils/formatDataTestId';
 
 // Memoized AppActionButton to prevent unnecessary re-renders and API calls
 const MemoizedAppActionButton = React.memo<{
@@ -219,7 +219,6 @@ export const JobPositionTable: React.FC<JobPositionTableProps> = ({
             <AvatarImage 
               src={avatarSrc} 
               alt={`${firstName} ${lastName}`}
-              className="gba:object-cover gba:object-center"
             />
           )}
           <AvatarFallback className="gba:text-xs gba:font-medium">{initials}</AvatarFallback>

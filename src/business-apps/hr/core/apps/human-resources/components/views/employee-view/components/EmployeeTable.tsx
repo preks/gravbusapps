@@ -19,7 +19,7 @@ import {
 } from '@newwork/nw-design-system';
 import { PiArrowUp, PiArrowDown } from 'react-icons/pi';
 import { Employee } from '@/business-apps/hr/core/hooks/useGetEmployees';
-import { formatDataTestId } from '@/modules/orgchart/utils';
+import { formatDataTestId } from '@/common/utils/formatDataTestId';
 import { AppActionButton } from '@/components/app-action-button/AppActionButton';
 import { FlowContextName } from '@/common/types/FlowRegistryTypes';
 
@@ -29,9 +29,10 @@ const MemoizedAppActionButton = memo<{
   employeeId: string;
   userId?: string;
   supervisorEmployeeId?: string;
+  organizationalUnitId?: string;
   accessToken: string;
   dataTestIdPrefix: string;
-}>(({ employeeId, userId, supervisorEmployeeId, accessToken, dataTestIdPrefix }) => (
+}>(({ employeeId, userId, supervisorEmployeeId, organizationalUnitId, accessToken, dataTestIdPrefix }) => (
   <AppActionButton
     data-testid={formatDataTestId(dataTestIdPrefix, `Actions-${employeeId}`)}
     size="icon"
@@ -39,7 +40,8 @@ const MemoizedAppActionButton = memo<{
     externalContextData={{
       employeeId: employeeId,
       keycloakUserId: userId,
-      managerId: supervisorEmployeeId
+      managerId: supervisorEmployeeId,
+      organizationalUnitId: organizationalUnitId
     }}
     prefixDataTestId={`${dataTestIdPrefix}-action-${employeeId}`}
     accessToken={accessToken}
@@ -176,7 +178,6 @@ export const EmployeeTable: React.FC<EmployeeTableProps> = ({
             <AvatarImage 
               src={avatarSrc} 
               alt={`${employee.firstName} ${employee.lastName}`}
-              className="gba:object-cover gba:object-center"
             />
           )}
           <AvatarFallback className="gba:text-xs gba:font-medium">{initials}</AvatarFallback>
@@ -349,6 +350,7 @@ export const EmployeeTable: React.FC<EmployeeTableProps> = ({
                         employeeId={employee.id}
                         userId={employee.userId}
                         supervisorEmployeeId={employee.supervisorEmployeeId}
+                        organizationalUnitId={employee.organizationalUnitId}
                         accessToken={accessToken}
                         dataTestIdPrefix={DATA_TEST_ID_PREFIX}
                       />

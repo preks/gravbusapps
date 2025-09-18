@@ -3,7 +3,7 @@ import { Divider, Typography } from 'antd';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 import { Button } from '@newwork/gravity-ui-catalog';
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
-import '../expense-request-invalid/ExpenseRequestInvalid.css';
+
 import { showToast } from '../../utils/notificationUtils';
 import { EVENTS } from '../../utils/constants';
 import { useProcessEventState } from '@/business-apps/fin/expenses/utils/useProcessEventState';
@@ -22,31 +22,31 @@ interface ExpensePlanInvalidContentProps {
 const ExpensePlanInvalidContent: React.FC<ExpensePlanInvalidContentProps> = ({ onCancel }) => {
 
   return (
-    <div className="gba:mainContainer" data-testid="expense-plan-invalid-content">
-      <div className="gba:headerContainer" data-testid="expense-plan-invalid-header">
-        <div className="gba:titleContainer">
-          <Title level={4} className="gba:headerTitle" data-testid="expense-plan-invalid-title">
+    <div className="gba:mx-auto gba:flex gba:flex-col" style={{ width: '100%', maxWidth: '800px', minHeight: 'calc(100vh - 10px)', fontFamily: "'Roboto', sans-serif" }} data-testid="expense-plan-invalid-content">
+      <div className="gba:flex gba:items-center" style={{ paddingTop: '40px', paddingBottom: '30px', height: '2rem', boxSizing: 'content-box', position: 'relative', fontFamily: "'Roboto', sans-serif", marginBottom: '16px' }} data-testid="expense-plan-invalid-header">
+        <div className="gba:flex-1" style={{ position: 'absolute', left: 0, right: 0, display: 'flex', justifyContent: 'center', pointerEvents: 'none' }}>
+          <Title level={4} style={{ margin: 0, textAlign: 'center', fontFamily: "'Roboto', sans-serif", pointerEvents: 'auto' }} data-testid="expense-plan-invalid-title">
             {getTranslationFromI18nKeyAndLabel('lowcoder:initiate_expense_plan.header_container', 'Create Expense Plan')}
           </Title>
         </div>
       </div>
-      <Divider className="gba:headerDivider" data-testid="expense-plan-invalid-divider" />
+      <Divider style={{ margin: '0 0 46px 0' }} data-testid="expense-plan-invalid-divider" />
       
-      <div className="gba:validationContainer" data-testid="expense-plan-invalid-validation-container">
-        <h3 className="gba:validationTitle" data-testid="expense-plan-invalid-validation-title">
+      <div style={{ backgroundColor: '#f8d8e4', padding: '16px 24px', borderRadius: '4px', marginBottom: '32px' }} data-testid="expense-plan-invalid-validation-container">
+        <h3 style={{ fontSize: '14px', fontWeight: 700, color: '#ff0000', marginBottom: '8px' }} data-testid="expense-plan-invalid-validation-title">
           {getTranslationFromI18nKeyAndLabel('lowcoder:create_expense_request.invalid_profile_title', 'Validation Issue')}
         </h3>
-        <p className="gba:validationMessage" data-testid="expense-plan-invalid-validation-message">
+        <p style={{ fontSize: '14px', color: '#595959', margin: 0 }} data-testid="expense-plan-invalid-validation-message">
           {getTranslationFromI18nKeyAndLabel('lowcoder:create_expense_request.invalid_profile_text_plan', 'Code/SAP number missing in your profile. Please reach out to your administration to provide the missing data before starting an expense plan.')}
         </p>
       </div>
       
-      <div className="gba:footerContainer" data-testid="expense-plan-invalid-footer">
-        <Divider className="gba:divider" data-testid="expense-plan-invalid-bottom-divider" />
-        <div className="gba:actionButtonsContainer" data-testid="expense-plan-invalid-actions">
+      <div style={{ marginTop: 'auto', width: '100%' }} data-testid="expense-plan-invalid-footer">
+        <Divider style={{ margin: '16px 0' }} data-testid="expense-plan-invalid-bottom-divider" />
+        <div className="gba:flex gba:justify-between" style={{ padding: '16px 0' }} data-testid="expense-plan-invalid-actions">
           <Button 
             variant="outline" 
-            className="gba:cancelButton" 
+            style={{ minWidth: '100px', borderWidth: '2px', fontSize: '16px', fontWeight: 600, height: '40px', padding: '0px 16px', borderRadius: '22px' }}
             data-testid="expense-plan-invalid-cancel-button"
             onClick={onCancel}
           >
@@ -89,7 +89,7 @@ const ExpensePlanInvalid: React.FC<BusinessAppContextProps> = () => {
   };
   
   return (
-    <div className="gba:expensePlanInvalidWrapper" data-testid="expense-plan-invalid-wrapper">
+    <div data-testid="expense-plan-invalid-wrapper">
       <ExpensePlanInvalidContent onCancel={handleCancel} />
     </div>
   );

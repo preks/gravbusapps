@@ -1,0 +1,59 @@
+import React from 'react';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@newwork/nw-design-system';
+import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
+import { ExpensePlan } from '../hooks/useRequestAdvancePaymentData';
+import { SelectFieldProps } from '../types/FormTypes';
+
+interface ExpensePlanSelectProps extends Omit<SelectFieldProps, 'disabled'> {
+  plans: ExpensePlan[];
+}
+
+const ExpensePlanSelect: React.FC<ExpensePlanSelectProps> = ({ plans, value, onChange, 'data-testid': dataTestId = 'request-advance-payment-expense-plan-field' }) => {
+  return (
+    <div className="gba:mb-6 gba:bg-gray-100" data-testid={dataTestId}>
+      <label className="gba:block gba:text-xs gba:font-medium gba:text-black  gba:px-3 gba:py-1 gba:rounded">
+        {getTranslationFromI18nKeyAndLabel(
+          'lowcoder:create_expense_request.initial_expense_plan_select_label',
+          'Expense Plan'
+        )}
+        <span className="gba:text-[#707070]"> *</span>
+      </label>
+      {plans.length > 0 ? (
+        <Select value={value} onValueChange={onChange} data-testid="request-advance-payment-expense-plan-select">
+          <SelectTrigger
+            className="gba:h-10 gba:bg-gray-100 gba:border-none"
+            style={{ width: '100%', justifyContent: 'space-between' }}
+          >
+            <SelectValue placeholder={getTranslationFromI18nKeyAndLabel(
+              'lowcoder:create_expense_request.initial_expense_plan_select_placeholder',
+              'Select Expense Plan'
+            )} />
+          </SelectTrigger>
+          <SelectContent>
+            {plans.map((plan) => (
+              <SelectItem key={plan.id} value={plan.id}>
+                {plan.code} - {plan.title}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      ) : (
+        <div className="gba:w-full gba:h-10 gba:bg-gray-100 gba:border-none gba:flex gba:items-center gba:justify-between gba:px-3">
+          <span className="gba:text-gray-500 gba:text-sm">
+            {getTranslationFromI18nKeyAndLabel(
+              'lowcoder:request_advance_payment.no_expense_plans',
+              'No approved expense plans available'
+            )}
+          </span>
+          <div className="gba:w-4 gba:h-4 gba:flex gba:items-center gba:justify-center">
+            <svg className="gba:w-4 gba:h-4 gba:text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+            </svg>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
+export default ExpensePlanSelect;

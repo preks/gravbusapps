@@ -11,6 +11,7 @@ export interface SettingsCardEntry {
   basePath?: string // New pattern: base platform path
   params?: Record<string, string> // New pattern: query parameters
   disabled?: boolean
+  onClick?: () => void
 }
 
 export interface SettingsCard {
@@ -171,6 +172,10 @@ export const SettingsLayout: React.FC<SettingsLayoutProps> = ({
                           )}
                           onClick={() => {
                             if (!entry.disabled) {
+                              if (entry.onClick) {
+                                entry.onClick()
+                                return
+                              }
                               // Use new pattern with basePath and params, or fallback to legacy url
                               const finalUrl = entry.basePath 
                                 ? buildPlatformUrl(entry.basePath, entry.params)

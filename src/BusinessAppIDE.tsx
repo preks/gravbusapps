@@ -1,37 +1,52 @@
-import { useState, useEffect, createElement, useCallback } from "react";
+import { useState, useEffect, useCallback } from "react";
 import {
-  Layout,
-  Modal,
-  Form,
-  Input,
-  Typography,
   Button,
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  Label,
+  Textarea,
+  Toaster,
   Tooltip,
-  notification,
-  Spin,
-  Alert
-} from "antd";
-import {
-  SettingOutlined,
-  MenuFoldOutlined,
-  MenuUnfoldOutlined
-} from "@ant-design/icons";
-import { IdeMainMenu, BusinessAppInfo } from '@/components/ide-main-menu';
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+  ThemeProvider,
+  ThemeSwitch,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+  SidebarProvider,
+  SidebarInset,
+  SidebarTrigger,
+  Separator,
+} from "@newwork/nw-design-system";
+import { toast } from "sonner";
+import { Gear, Info } from "@phosphor-icons/react";
+import { IDEMainMenu, BusinessAppInfo } from "@/components/ide-main-menu";
+import { IDERenderer } from "@/components/ide-renderer";
 import { UserInfoProps } from "./common/BusinessAppContext";
 import ProcessEventListener, {
-  ProcessLocalDevEvent
+  ProcessLocalDevEvent,
 } from "./common/components/process/ProcessEventListener";
 import { IDEStartScreen } from "./components/ide-start-screen";
 import HeaderLogo from "./assets/icons/header_logo.svg";
 import FeatureHubProvider from "./common/components/feature/FeatureHubProvider";
 import { useDynamicScreen } from "./common/hooks/useDynamicScreen";
-import { InfoCircleOutlined } from "@ant-design/icons";
 import { UiCatalogProvider } from "@newwork/gravity-ui-catalog";
 import { useRewrapAntDStylesLive } from "./common/hooks/useRewrapAntDStylesLive";
 
 // Get available modules without eagerly loading them
 const modulePatterns = import.meta.glob("./business-apps/**/index.ts", {
-  eager: false
+  eager: false,
+});
+
+// Also load example entries from ./common/examples (apps, forms, popups)
+const examplePatterns = import.meta.glob("./common/examples/**/index.ts", {
+  eager: false,
 });
 
 const businessApps: BusinessAppInfo[] = [];
@@ -46,13 +61,7 @@ for (const path in modulePatterns) {
     continue;
   }
 
-  const excludedDirs = [
-    "/components/",
-    "/modules/",
-    "/hooks/",
-    "/lib/",
-    "/utils/"
-  ];
+  const excludedDirs = ["/components/", "/modules/", "/hooks/", "/lib/", "/utils/"];
   if (excludedDirs.some((dir) => path.includes(dir))) {
     continue;
   }
@@ -75,7 +84,7 @@ for (const path in modulePatterns) {
       "modals",
       "tabs",
       "views",
-      "charts"
+      "charts",
     ];
 
     // Check if this is a non-app directory or if any parent directory is a non-app directory
@@ -85,19 +94,20 @@ for (const path in modulePatterns) {
     }
 
     // Only include paths that are actual apps (typically in "apps", "forms", or "popups" directories)
-    const hasAppsFormsOrPopups = pathParts.some(part => part === "apps" || part === "forms" || part === "popups");
+    const hasAppsFormsOrPopups = pathParts.some(
+      (part) => part === "apps" || part === "forms" || part === "popups",
+    );
     if (!hasAppsFormsOrPopups) {
       continue;
     }
 
     // Determine the type based on the parent directory
-    let componentType: 'app' | 'form' | 'popup' = 'app';
-    if (pathParts.includes('forms')) {
-      componentType = 'form';
-    } else if (pathParts.includes('popups')) {
-      componentType = 'popup';
+    let componentType: "app" | "form" | "popup" = "app";
+    if (pathParts.includes("forms")) {
+      componentType = "form";
+    } else if (pathParts.includes("popups")) {
+      componentType = "popup";
     }
-    
 
     let subModule = "";
     if (pathParts.length > 4) {
@@ -127,23 +137,55 @@ for (const path in modulePatterns) {
   }
 }
 
-const { Header, Sider, Content } = Layout;
-const { Text } = Typography;
+// Build the businessApps array from example index.ts files under ./common/examples
+for (const path in examplePatterns) {
+  const pathParts = path.split("/");
+  // Example path: ./common/examples/forms/example-catalog-select-form/index.ts
+
+  // Determine type based on directory
+  let componentType: "app" | "form" | "popup" = "app";
+  if (pathParts.includes("forms")) {
+    componentType = "form";
+  } else if (pathParts.includes("popups")) {
+    componentType = "popup";
+  }
+
+  // Find index of "examples" segment
+  const examplesIndex = pathParts.indexOf("examples");
+  if (examplesIndex === -1) {
+    continue;
+  }
+
+  // appName is directory containing index.ts
+  const appName = pathParts[pathParts.length - 2];
+
+  // screenKey: examples/<relativeDir from examples root to dir containing index.ts>
+  const relativeDirParts = pathParts.slice(examplesIndex + 1, pathParts.length - 1);
+  const screenKey = `examples/${relativeDirParts.join("/")}`;
+
+  // display name from folder name
+  const displayName = appName
+    .split("-")
+    .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+    .join("");
+
+  // subModule for grouping inside examples (e.g., forms, apps, popups)
+  const subModule = relativeDirParts.length > 0 ? relativeDirParts[0] : undefined;
+
+  businessApps.push({
+    name: displayName,
+    path,
+    module: "examples",
+    subModule,
+    screenKey,
+    type: componentType,
+  });
+}
 
 const STORAGE_KEY_USER_INFO = "business-app-ide-user-info";
 const STORAGE_KEY_ACCESS_TOKEN = "business-app-ide-access-token";
 const STORAGE_KEY_ADDITIONAL_DATA = "business-app-ide-additional-data";
 const STORAGE_KEY_SIDEBAR_COLLAPSED = "business-app-ide-sidebar-collapsed";
-const STORAGE_KEY_RECENT_APPS = "business-app-ide-recent-apps";
-
-interface RecentlyUsedApp {
-  name: string;
-  module: string;
-  subModule?: string;
-  lastUsed: number;
-}
-
-const MAX_RECENT_APPS = 5;
 
 export interface CompMeta {
   name: string;
@@ -152,16 +194,11 @@ export interface CompMeta {
 
 const handleProcessLocalDevEvent = (event: ProcessLocalDevEvent) => {
   const { domain, processName, processInstanceId, startProcessBody } = event;
-
-  notification.info({
-    message: "Process Start Event Detected",
+  toast.success("Process Start Event Detected", {
     description: `Domain: ${domain}, \nProcess: ${processName}${
       processInstanceId ? `, ID: ${processInstanceId}` : ""
-    }\nProcess body: ${
-      startProcessBody ? JSON.stringify(startProcessBody) : "No process body"
-    }`,
-    duration: 5,
-    placement: "topRight"
+    }\nProcess body: ${startProcessBody ? JSON.stringify(startProcessBody) : "No process body"}`,
+    position: "top-right",
   });
 };
 
@@ -169,73 +206,6 @@ export interface BusinessAppIDEProps {
   readonly packageName: string;
   readonly packageVersion: string;
 }
-
-// Dynamic component wrapper that loads components on demand
-const DynamicComponentWrapper: React.FC<{
-  app: BusinessAppInfo;
-  userInfo?: UserInfoProps;
-  accessToken?: string;
-  additionalData?: { [k: string]: any };
-}> = ({ app, userInfo, accessToken, additionalData }) => {
-  const { loadScreen, state, getScreenInfo } = useDynamicScreen();
-
-  useEffect(() => {
-    loadScreen(app.screenKey);
-  }, [app.screenKey, loadScreen]);
-
-  if (state.isLoading) {
-    const screenInfo = getScreenInfo(app.screenKey);
-    const isFromCache = screenInfo?.isCachedGlobally;
-
-    return (
-      <div className="gba:flex gba:items-center gba:justify-center gba:h-full gba:min-h-[400px]">
-        <div className="gba:text-center">
-          <Spin size="large" />
-          <div className="gba:mt-4 gba:text-gray-600">
-            {isFromCache
-              ? `Loading ${app.name} from cache...`
-              : `Loading ${app.name}...`}
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  if (state.error) {
-    return (
-      <div className="gba:p-6">
-        <Alert
-          message="Failed to Load Component"
-          description={
-            <div>
-              <div>{state.error}</div>
-              <div className="gba:mt-2 gba:text-xs gba:text-gray-500">
-                Screen: {app.screenKey}
-              </div>
-            </div>
-          }
-          type="error"
-          showIcon
-          action={
-            <Button size="small" onClick={() => loadScreen(app.screenKey)}>
-              Retry
-            </Button>
-          }
-        />
-      </div>
-    );
-  }
-
-  if (state.component) {
-    return createElement(state.component, {
-      userInfo,
-      accessToken,
-      additionalData
-    });
-  }
-
-  return null;
-};
 
 export function BusinessAppIDE(props: Readonly<BusinessAppIDEProps>) {
   const { packageVersion } = props;
@@ -247,39 +217,56 @@ export function BusinessAppIDE(props: Readonly<BusinessAppIDEProps>) {
     return businessApps.find((app) => app.name === name) || null;
   };
 
+  const getAppByPath = (path: string): BusinessAppInfo | null => {
+    return businessApps.find((app) => app.screenKey === path) || null;
+  };
+
   const urlParams = new URLSearchParams(
-    typeof window !== "undefined" ? window.location.search : ""
+    typeof window !== "undefined" ? window.location.search : "",
   );
-  const appFromUrl = urlParams.get("app");
+
+  // Check for different parameter types (app, form, popup)
+  const appFromUrl = urlParams.get("app") || urlParams.get("form") || urlParams.get("popup");
 
   const [selectedApp, setSelectedApp] = useState<BusinessAppInfo | null>(
-    getAppByName(appFromUrl || "") || null
+    // First try to find by full path (new format), then fallback to name (legacy format)
+    getAppByPath(appFromUrl || "") || getAppByName(appFromUrl || "") || null,
   );
   const [userInfo, setUserInfo] = useState<string>("");
   const [userInfoError, setUserInfoError] = useState<string>("");
   const [accessToken, setAccessToken] = useState<string>("");
   const [additionalData, setAdditionalData] = useState<string>("");
   const [additionalDataError, setAdditionalDataError] = useState<string>("");
-  const [settingsModalVisible, setSettingsModalVisible] =
-    useState<boolean>(false);
-  const [performanceModalVisible, setPerformanceModalVisible] =
-    useState<boolean>(false);
+  const [settingsModalVisible, setSettingsModalVisible] = useState<boolean>(false);
+  const [performanceModalVisible, setPerformanceModalVisible] = useState<boolean>(false);
   const [collapsed, setCollapsed] = useState<boolean>(
-    localStorage.getItem(STORAGE_KEY_SIDEBAR_COLLAPSED) === "true"
+    localStorage.getItem(STORAGE_KEY_SIDEBAR_COLLAPSED) === "true",
   );
-  const [recentlyUsedApps, setRecentlyUsedApps] = useState<RecentlyUsedApp[]>(
-    []
-  );
+
+  // Density state (affects spacing multipliers across DS components)
+  const [density, setDensity] = useState<"default" | "compact" | "comfortable">("default");
+  const densityClass =
+    density === "compact"
+      ? "gba:density-compact"
+      : density === "comfortable"
+        ? "gba:density-comfortable"
+        : "gba:density-default";
+
+  // Apply density globally on <html> to ensure DS components outside wrapper are affected
+  useEffect(() => {
+    const root = window?.document?.documentElement;
+    if (!root) return;
+    root.classList.remove("gba:density-default", "gba:density-compact", "gba:density-comfortable");
+    root.classList.add(densityClass);
+  }, [densityClass]);
+
   const [lastPublishedDate, setLastPublishedDate] = useState<string>("");
   const [openKeys, setOpenKeys] = useState<string[]>([]);
 
   useEffect(() => {
     const savedUserInfo = localStorage.getItem(STORAGE_KEY_USER_INFO);
     const savedAccessToken = localStorage.getItem(STORAGE_KEY_ACCESS_TOKEN);
-    const savedAdditionalData = localStorage.getItem(
-      STORAGE_KEY_ADDITIONAL_DATA
-    );
-    const savedRecentApps = localStorage.getItem(STORAGE_KEY_RECENT_APPS);
+    const savedAdditionalData = localStorage.getItem(STORAGE_KEY_ADDITIONAL_DATA);
 
     if (savedUserInfo) {
       setUserInfo(savedUserInfo);
@@ -295,21 +282,25 @@ export function BusinessAppIDE(props: Readonly<BusinessAppIDEProps>) {
       validateAdditionalData(savedAdditionalData);
     }
 
-    if (savedRecentApps) {
-      try {
-        const parsed = JSON.parse(savedRecentApps);
-        setRecentlyUsedApps(parsed);
-      } catch (error) {
-        console.error("Failed to parse recent apps:", error);
-      }
+    // Load saved density
+    const savedDensity = localStorage.getItem("business-app-ide-density") as
+      | "default"
+      | "compact"
+      | "comfortable"
+      | null;
+    if (
+      savedDensity === "default" ||
+      savedDensity === "compact" ||
+      savedDensity === "comfortable"
+    ) {
+      setDensity(savedDensity);
     }
 
     // Set open keys based on the currently selected app (from URL)
-    // Only if menu is not collapsed initially
-    const initialSelectedApp = getAppByName(appFromUrl || "");
-    const initialCollapsed =
-      localStorage.getItem(STORAGE_KEY_SIDEBAR_COLLAPSED) === "true";
-    if (!initialCollapsed) {
+    // Only if menu is not collapsed initially and using legacy menu
+    const initialSelectedApp = getAppByPath(appFromUrl || "") || getAppByName(appFromUrl || "");
+    const initialCollapsed = localStorage.getItem(STORAGE_KEY_SIDEBAR_COLLAPSED) === "true";
+    if (!initialCollapsed && initialSelectedApp) {
       const requiredKeys = getRequiredOpenKeysForApp(initialSelectedApp);
       setOpenKeys(requiredKeys);
     }
@@ -333,9 +324,7 @@ export function BusinessAppIDE(props: Readonly<BusinessAppIDEProps>) {
       setOpenKeys((prevKeys) => {
         // Only add required keys if they're not already open
         // This ensures the path to the selected app is visible without disrupting user's menu state
-        const missingKeys = requiredKeys.filter(
-          (key) => !prevKeys.includes(key)
-        );
+        const missingKeys = requiredKeys.filter((key) => !prevKeys.includes(key));
         if (missingKeys.length > 0) {
           return [...prevKeys, ...missingKeys];
         }
@@ -346,11 +335,17 @@ export function BusinessAppIDE(props: Readonly<BusinessAppIDEProps>) {
 
   useEffect(() => {
     const url = new URL(window.location.href);
+
+    // Clear all type parameters first
+    url.searchParams.delete("app");
+    url.searchParams.delete("form");
+    url.searchParams.delete("popup");
+
     if (selectedApp) {
-      url.searchParams.set("app", selectedApp.name);
+      // Set the appropriate parameter based on the app's type
+      url.searchParams.set(selectedApp.type, selectedApp.screenKey);
       fetchLastPublishedDate(selectedApp);
     } else {
-      url.searchParams.delete("app");
       setLastPublishedDate("");
     }
     window.history.pushState({}, "", url.toString());
@@ -374,7 +369,7 @@ export function BusinessAppIDE(props: Readonly<BusinessAppIDEProps>) {
       // Note: CORS must be enabled on Azure Storage to allow these requests
       const response = await fetch(url, {
         method: "GET",
-        mode: "cors" // This requires proper CORS configuration on Azure Storage
+        mode: "cors", // This requires proper CORS configuration on Azure Storage
       });
 
       if (!response.ok) {
@@ -389,17 +384,14 @@ export function BusinessAppIDE(props: Readonly<BusinessAppIDEProps>) {
           month: "short",
           day: "numeric",
           hour: "2-digit",
-          minute: "2-digit"
+          minute: "2-digit",
         });
         setLastPublishedDate(formattedDate);
       } else {
         setLastPublishedDate("");
       }
     } catch (error) {
-      console.warn(
-        `Failed to fetch last published date for ${app.name}:`,
-        error
-      );
+      console.warn(`Failed to fetch last published date for ${app.name}:`, error);
       setLastPublishedDate("");
     }
   };
@@ -434,34 +426,53 @@ export function BusinessAppIDE(props: Readonly<BusinessAppIDEProps>) {
     setOpenKeys(keys);
   };
 
-  /**
-   * Updates the recently used apps list and saves to localStorage
-   */
+  // Recently used apps tracking - centralized tracking for both IDEStartScreen and IdeMainMenu
+  const STORAGE_KEY_RECENT_APPS = "business-app-ide-recent-apps";
+  const MAX_RECENT_APPS = 5;
+
   const updateRecentlyUsedApps = (app: BusinessAppInfo): void => {
+    const savedRecentApps = localStorage.getItem(STORAGE_KEY_RECENT_APPS);
+    let recentlyUsedApps: Array<{
+      name: string;
+      module: string;
+      subModule?: string;
+      screenKey: string;
+      lastUsed: number;
+    }> = [];
+
+    if (savedRecentApps) {
+      try {
+        recentlyUsedApps = JSON.parse(savedRecentApps);
+      } catch (error) {
+        console.error("Failed to parse recent apps:", error);
+      }
+    }
+
     const now = Date.now();
     const existingIndex = recentlyUsedApps.findIndex(
-      (recentApp) => recentApp.name === app.name
+      (recentApp) => recentApp.screenKey === app.screenKey,
     );
 
-    let updatedApps = [...recentlyUsedApps];
-
     if (existingIndex !== -1) {
-      updatedApps[existingIndex].lastUsed = now;
+      recentlyUsedApps[existingIndex].lastUsed = now;
     } else {
-      updatedApps.push({
+      recentlyUsedApps.push({
         name: app.name,
         module: app.module,
         subModule: app.subModule,
-        lastUsed: now
+        screenKey: app.screenKey,
+        lastUsed: now,
       });
     }
 
-    updatedApps = updatedApps
+    recentlyUsedApps = recentlyUsedApps
       .sort((a, b) => b.lastUsed - a.lastUsed)
       .slice(0, MAX_RECENT_APPS);
 
-    setRecentlyUsedApps(updatedApps);
-    localStorage.setItem(STORAGE_KEY_RECENT_APPS, JSON.stringify(updatedApps));
+    localStorage.setItem(STORAGE_KEY_RECENT_APPS, JSON.stringify(recentlyUsedApps));
+
+    // Dispatch custom event to notify other components in the same window
+    window.dispatchEvent(new CustomEvent("recentAppsUpdated"));
   };
 
   const handleAppSelect = (app: BusinessAppInfo) => {
@@ -508,17 +519,10 @@ export function BusinessAppIDE(props: Readonly<BusinessAppIDEProps>) {
     setSettingsModalVisible(false);
   };
 
-
-
-
-
-  
-
-
-
-
-
-
+  // Persist density selection
+  useEffect(() => {
+    localStorage.setItem("business-app-ide-density", density);
+  }, [density]);
 
   const parsedUserInfo = useCallback((): UserInfoProps | undefined => {
     if (userInfo?.length > 2) {
@@ -532,9 +536,7 @@ export function BusinessAppIDE(props: Readonly<BusinessAppIDEProps>) {
     return undefined;
   }, [userInfo]);
 
-  const parsedAdditionalData = useCallback(():
-    | { [k: string]: any }
-    | undefined => {
+  const parsedAdditionalData = useCallback((): { [k: string]: any } | undefined => {
     if (additionalData?.length > 2) {
       try {
         return JSON.parse(additionalData);
@@ -547,358 +549,288 @@ export function BusinessAppIDE(props: Readonly<BusinessAppIDEProps>) {
   }, [additionalData]);
 
   return (
-    <UiCatalogProvider>
-      <Layout style={{ minHeight: "100vh" }}>
-        <ProcessEventListener onLocalDevEvent={handleProcessLocalDevEvent} />
-        <FeatureHubProvider userId={parsedUserInfo()?.id ?? ""} />
+    <ThemeProvider defaultTheme="light" storageKey="business-app-ide-ui-theme">
+      <div className={densityClass}>
+        <UiCatalogProvider>
+          <div className="gba:h-screen gba:flex gba:flex-col gba:overflow-hidden">
+            <ProcessEventListener onLocalDevEvent={handleProcessLocalDevEvent} />
+            <FeatureHubProvider userId={parsedUserInfo()?.id ?? ""} />
 
-        {/* Full-width Header */}
-        <Header
-          style={{
-            background: "#fff",
-            padding: "0 16px",
-            display: "grid",
-            gridTemplateColumns: "1fr 1fr 1fr",
-            alignItems: "center",
-            height: 48,
-            boxShadow: "0 1px 4px rgba(0,0,0,0.05)",
-            borderBottom: "1px solid #e8e8e8",
-            position: "fixed",
-            top: 0,
-            left: 0,
-            right: 0,
-            zIndex: 1000
-          }}
-        >
-          {/* Left section: Package Info */}
-          <div className="gba:flex gba:items-center gba:flex-nowrap gba:justify-start">
-            <div className="gba:flex gba:items-center gba:gap-3">
-              <div className="gba:flex gba:items-center">
-                <div className="gba:py-[12px]">
-                  <a
-                    href="#"
-                    onClick={(e) => {
-                      e.preventDefault();
-                      goToStartScreen();
-                    }}
-                  >
-                    <img
-                      src={HeaderLogo}
-                      alt="Business Apps IDE"
-                      width="120"
-                      height="14"
-                      className="gba:w-[120px] gba:h-[14px]"
-                    />
-                  </a>
-                </div>
-              </div>
-              <span className="gba:text-xs gba:text-[#666]">
-                v{packageVersion}
-              </span>
-            </div>
-          </div>
-
-          {/* Center section: Search Placeholder - Perfectly centered */}
-          <div className="gba:flex gba:items-center gba:justify-center">
-            <button
-              className="gba:w-[219px] gba:h-8 gba:flex gba:items-center gba:justify-center gba:rounded-full gba:bg-[#EFEFEF] gba:outline-none"
-              data-testid="GlobalSearchButton-Button"
-            >
-              <div className="gba:w-[418px] gba:h-[26px] gba:flex gba:items-center gba:justify-center gba:rounded-full gba:bg-[#EFEFEF]">
-                <div
-                  className="gba:text-sm gba:text-[#999999]"
-                  data-testid="GlobalSearchButton-Text"
-                >
-                  Search in NEWWORK
-                </div>
-              </div>
-            </button>
-          </div>
-
-          {/* Right section: Last Published Date and Settings Button */}
-          <div className="gba:flex gba:items-center gba:justify-end gba:gap-4">
-            {lastPublishedDate && (
-              <div
-                className="gba:flex gba:items-center gba:text-sm gba:text-[#666666]"
-                data-testid="LastPublishedDate"
-              >
-                <Text type="secondary">
-                  Last Published: {lastPublishedDate}
-                </Text>
-              </div>
-            )}
-            <Tooltip title="Settings">
-              <Button
-                type="text"
-                icon={<SettingOutlined />}
-                onClick={() => setSettingsModalVisible(true)}
-                style={{ fontSize: "16px" }}
-              />
-            </Tooltip>
-            <Tooltip title="Performance Metrics">
-              <Button
-                type="text"
-                icon={<InfoCircleOutlined />}
-                onClick={() => setPerformanceModalVisible(true)}
-                style={{ fontSize: "16px" }}
-              />
-            </Tooltip>
-          </div>
-        </Header>
-
-        {/* Layout with Sidebar and Content below header */}
-        <Layout style={{ marginTop: 48 }}>
-          <Sider
-            width={264}
-            collapsedWidth={68}
-            collapsible
-            collapsed={collapsed}
-            onCollapse={setCollapsed}
-            trigger={null}
-            theme="light"
-            style={{
-              height: "calc(100vh - 48px)",
-              position: "fixed",
-              left: 0,
-              top: 48,
-              bottom: 0,
-              boxShadow: "2px 0 8px rgba(0,0,0,0.05)",
-              overflow: "hidden",
-              zIndex: 1000
-            }}
-          >
-            <div
-              style={{
-                height: "calc(100% - 56px)", // Total height minus button height
-                overflow: "auto",
-                position: "relative"
-              }}
-            >
-              <IdeMainMenu
+            {/* Sidebar + Inset layout */}
+            <SidebarProvider open={!collapsed} onOpenChange={(open) => setCollapsed(!open)}>
+              <IDEMainMenu
                 businessApps={businessApps}
                 selectedApp={selectedApp}
-                collapsed={collapsed}
                 openKeys={openKeys}
-                onAppSelect={handleAppSelect}
                 onOpenChange={handleOpenChange}
+                onAppSelect={handleAppSelect}
               />
-            </div>
-
-            <div
-              className="gba:border-t gba:border-[#e1e3eb] gba:p-2 gba:flex gba:justify-center gba:bg-white"
-              style={{
-                position: "sticky",
-                bottom: 0,
-                height: "56px",
-                zIndex: 10,
-                boxShadow: "0 -2px 8px rgba(0,0,0,0.1)"
-              }}
-            >
-              <Tooltip title={collapsed ? "Expand Menu" : "Collapse Menu"}>
-                <Button
-                  type="text"
-                  icon={
-                    collapsed ? <MenuUnfoldOutlined /> : <MenuFoldOutlined />
-                  }
-                  onClick={() => setCollapsed(!collapsed)}
-                  style={{
-                    fontSize: "16px",
-                    width: "100%",
-                    height: "40px",
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center"
-                  }}
-                />
-              </Tooltip>
-            </div>
-          </Sider>
-
-          <Layout
-            style={{
-              marginLeft: collapsed ? 68 : 264,
-              transition: "margin-left 0.2s"
-            }}
-          >
-            <Content
-              style={{
-                overflow: "initial",
-                background: "#fff",
-                minHeight: "calc(100vh - 48px)"
-              }}
-            >
-              {selectedApp ? (
-                <div className="gba:w-full gba:h-full gba:overflow-auto">
-                  <DynamicComponentWrapper
-                    app={selectedApp}
-                    userInfo={parsedUserInfo()}
-                    accessToken={accessToken ?? undefined}
-                    additionalData={parsedAdditionalData()}
-                    key={`${selectedApp.name}-${JSON.stringify(
-                      parsedUserInfo()
-                    )}-${accessToken}-${JSON.stringify(
-                      parsedAdditionalData()
-                    )}`}
-                  />
-                </div>
-              ) : (
-                <IDEStartScreen
-                  businessApps={businessApps}
-                  onAppSelect={handleAppSelect}
-                  recentlyUsedApps={recentlyUsedApps}
-                />
-              )}
-            </Content>
-          </Layout>
-        </Layout>
-
-        <Modal
-          title="Business App Settings"
-          open={settingsModalVisible}
-          onCancel={() => setSettingsModalVisible(false)}
-          onOk={saveSettings}
-          width={700}
-          okText="Save Settings"
-        >
-          <Form layout="vertical">
-            <Form.Item
-              label="User Info (JSON format)"
-              validateStatus={userInfoError ? "error" : ""}
-              help={userInfoError}
-            >
-              <Input.TextArea
-                placeholder="Enter user info in JSON format"
-                rows={6}
-                onChange={(e) => {
-                  setUserInfo(e.target.value);
-                  validateUserInfo(e.target.value);
-                }}
-                value={userInfo}
-              />
-            </Form.Item>
-            <Form.Item label="Access Token">
-              <Input.TextArea
-                placeholder="Enter your access token"
-                rows={3}
-                onChange={(e) => setAccessToken(e.target.value)}
-                value={accessToken}
-              />
-            </Form.Item>
-            <Form.Item
-              label="Additional Data (JSON format)"
-              validateStatus={additionalDataError ? "error" : ""}
-              help={additionalDataError}
-            >
-              <Input.TextArea
-                placeholder='Enter additional data in JSON format (e.g., {"employeeId": "123", "jobPositionId": "456"})'
-                rows={4}
-                onChange={(e) => {
-                  setAdditionalData(e.target.value);
-                  validateAdditionalData(e.target.value);
-                }}
-                value={additionalData}
-              />
-            </Form.Item>
-            <Text type="secondary">
-              These settings will be saved in your browser's local storage and
-              persisted between sessions. Additional Data is used to pass
-              context information like employeeId, jobPositionId, etc.
-            </Text>
-          </Form>
-        </Modal>
-
-        <Modal
-          title="Dynamic Screen Loading Performance"
-          open={performanceModalVisible}
-          onCancel={() => setPerformanceModalVisible(false)}
-          footer={[
-            <Button
-              key="close"
-              onClick={() => setPerformanceModalVisible(false)}
-            >
-              Close
-            </Button>
-          ]}
-          width={800}
-        >
-          <div className="gba:space-y-4">
-            <div className="gba:p-4 gba:bg-green-50 gba:border gba:border-green-200 gba:rounded-lg">
-              <h4 className="gba:text-green-800 gba:font-semibold gba:mb-2">
-                Performance Improvements
-              </h4>
-              <ul className="gba:text-green-700 gba:space-y-1">
-                <li>
-                  • Global caching: Components loaded once, reused across
-                  sessions
-                </li>
-                <li>
-                  • Smart preloading: Common screens preloaded automatically
-                </li>
-                <li>
-                  • Concurrent loading prevention: Multiple requests for same
-                  screen deduplicated
-                </li>
-                <li>
-                  • Performance tracking: Load times monitored and optimized
-                </li>
-              </ul>
-            </div>
-
-            <div>
-              <h4 className="gba:font-semibold gba:mb-2">
-                Screen Loading Statistics
-              </h4>
-              <div className="gba:max-h-64 gba:overflow-y-auto gba:border gba:border-gray-200 gba:rounded-lg">
-                <table className="gba:w-full gba:text-sm">
-                  <thead className="gba:bg-gray-50">
-                    <tr>
-                      <th className="gba:p-2 gba:text-left gba:font-medium">
-                        Screen
-                      </th>
-                      <th className="gba:p-2 gba:text-left gba:font-medium">
-                        Load Count
-                      </th>
-                      <th className="gba:p-2 gba:text-left gba:font-medium">
-                        Avg Time (ms)
-                      </th>
-                      <th className="gba:p-2 gba:text-left gba:font-medium">
-                        Last Load (ms)
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {Array.from(getPerformanceMetrics().entries()).map(
-                      ([screenKey, metrics]) => (
-                        <tr
-                          key={screenKey}
-                          className="gba:border-t gba:border-gray-200"
-                        >
-                          <td className="gba:p-2 gba:font-mono gba:text-xs">
-                            {screenKey}
-                          </td>
-                          <td className="gba:p-2">{metrics.loadCount}</td>
-                          <td className="gba:p-2">
-                            {(metrics.loadTime / metrics.loadCount).toFixed(1)}
-                          </td>
-                          <td className="gba:p-2">
-                            {metrics.lastLoadTime.toFixed(1)}
-                          </td>
-                        </tr>
-                      )
-                    )}
-                  </tbody>
-                </table>
-                {getPerformanceMetrics().size === 0 && (
-                  <div className="gba:p-4 gba:text-center gba:text-gray-500">
-                    No screens loaded yet. Navigate to a screen to see
-                    performance data.
+              <SidebarInset>
+                {/* Header inside inset, responsive to collapsed state */}
+                <header className="gba:flex gba:h-12 gba:shrink-0 gba:items-center gba:gap-2 gba:transition-[width,height] gba:ease-linear">
+                  <div className="gba:flex gba:items-center gba:gap-2 gba:px-4">
+                    <SidebarTrigger className="gba:-ml-1" />
+                    <Separator orientation="vertical" className="gba:mr-2" />
+                    <a
+                      href="#"
+                      onClick={(e) => {
+                        e.preventDefault();
+                        goToStartScreen();
+                      }}
+                      className="gba:flex gba:items-center gba:gap-2"
+                    >
+                      <img
+                        src={HeaderLogo}
+                        alt="Business Apps IDE"
+                        width="120"
+                        height="14"
+                        className="gba:w-[120px] gba:h-[14px]"
+                      />
+                      <span className="gba:text-xs gba:text-[#666]">v{packageVersion}</span>
+                    </a>
                   </div>
-                )}
-              </div>
-            </div>
+
+                  <div className="gba:flex gba:flex-1 gba:items-center gba:justify-center">
+                    <div className="gba:w-[250px] gba:h-[26px] gba:flex gba:items-center gba:justify-center gba:rounded-full gba:bg-input">
+                      <div
+                        className="gba:text-sm gba:text-input-foreground"
+                        data-testid="GlobalSearchButton-Text"
+                      >
+                        Search in NEWWORK
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="gba:flex gba:items-center gba:justify-end gba:gap-4 gba:pr-4">
+                    <div className="gba:flex gba:items-center gba:gap-2">
+                      <ThemeSwitch data-testid="BusinessAppIDE-theme-switch" />
+                      <Select
+                        value={density}
+                        onValueChange={(v) =>
+                          setDensity(v as "default" | "compact" | "comfortable")
+                        }
+                      >
+                        <SelectTrigger
+                          data-testid="BusinessAppIDE-density-select"
+                          aria-label="Density"
+                        >
+                          <SelectValue placeholder="Density" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="default" data-testid="BusinessAppIDE-density-default">
+                            Default
+                          </SelectItem>
+                          <SelectItem value="compact" data-testid="BusinessAppIDE-density-compact">
+                            Compact
+                          </SelectItem>
+                          <SelectItem
+                            value="comfortable"
+                            data-testid="BusinessAppIDE-density-comfortable"
+                          >
+                            Comfortable
+                          </SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    {lastPublishedDate && (
+                      <div
+                        className="gba:flex gba:items-center gba:text-sm"
+                        data-testid="LastPublishedDate"
+                      >
+                        <span className="gba:text-secondary-foreground">
+                          Last Published: {lastPublishedDate}
+                        </span>
+                      </div>
+                    )}
+                    <TooltipProvider>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => setSettingsModalVisible(true)}
+                          >
+                            <Gear size={16} />
+                          </Button>
+                        </TooltipTrigger>
+                        <TooltipContent>Settings</TooltipContent>
+                      </Tooltip>
+                    </TooltipProvider>
+                    <TooltipProvider>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => setPerformanceModalVisible(true)}
+                          >
+                            <Info size={16} />
+                          </Button>
+                        </TooltipTrigger>
+                        <TooltipContent>Performance Metrics</TooltipContent>
+                      </Tooltip>
+                    </TooltipProvider>
+                  </div>
+                </header>
+
+                <div className="gba:flex-1 gba:min-h-0 gba:overflow-y-auto gba:bg-background gba:rounded-xl">
+                  {!selectedApp ? (
+                    <IDEStartScreen businessApps={businessApps} onAppSelect={handleAppSelect} />
+                  ) : (
+                    <IDERenderer
+                      selectedApp={selectedApp}
+                      userInfo={parsedUserInfo()}
+                      accessToken={accessToken ?? undefined}
+                      additionalData={parsedAdditionalData()}
+                      onAppSelect={setSelectedApp}
+                    />
+                  )}
+                </div>
+              </SidebarInset>
+            </SidebarProvider>
+
+            <Dialog open={settingsModalVisible} onOpenChange={setSettingsModalVisible}>
+              <DialogContent className="gba:max-w-[700px] gba:max-h-[90vh] gba:overflow-y-auto">
+                <DialogHeader>
+                  <DialogTitle>Business App Settings</DialogTitle>
+                </DialogHeader>
+                <div className="gba:space-y-6">
+                  <div className="gba:space-y-2">
+                    <Label htmlFor="userInfo">User Info (JSON format)</Label>
+                    <Textarea
+                      id="userInfo"
+                      placeholder="Enter user info in JSON format"
+                      rows={6}
+                      value={userInfo}
+                      onChange={(e) => {
+                        setUserInfo(e.target.value);
+                        validateUserInfo(e.target.value);
+                      }}
+                      className={`gba:w-full gba:resize-none gba:whitespace-pre-wrap gba:break-words ${userInfoError ? "gba:border-red-500" : ""}`}
+                      style={{ wordBreak: "break-word", overflowWrap: "break-word" }}
+                    />
+                    {userInfoError && (
+                      <p className="gba:text-sm gba:text-red-500">{userInfoError}</p>
+                    )}
+                  </div>
+
+                  <div className="gba:space-y-2">
+                    <Label htmlFor="accessToken">Access Token</Label>
+                    <Textarea
+                      id="accessToken"
+                      placeholder="Enter your access token"
+                      rows={3}
+                      value={accessToken}
+                      onChange={(e) => setAccessToken(e.target.value)}
+                      className="gba:w-full gba:resize-none gba:whitespace-pre-wrap gba:break-words"
+                      style={{ wordBreak: "break-word", overflowWrap: "break-word" }}
+                    />
+                  </div>
+
+                  <div className="gba:space-y-2">
+                    <Label htmlFor="additionalData">Additional Data (JSON format)</Label>
+                    <Textarea
+                      id="additionalData"
+                      placeholder='Enter additional data in JSON format (e.g., {"employeeId": "123", "jobPositionId": "456"})'
+                      rows={4}
+                      value={additionalData}
+                      onChange={(e) => {
+                        setAdditionalData(e.target.value);
+                        validateAdditionalData(e.target.value);
+                      }}
+                      className={`gba:w-full gba:resize-none gba:whitespace-pre-wrap gba:break-words ${additionalDataError ? "gba:border-red-500" : ""}`}
+                      style={{ wordBreak: "break-word", overflowWrap: "break-word" }}
+                    />
+                    {additionalDataError && (
+                      <p className="gba:text-sm gba:text-red-500">{additionalDataError}</p>
+                    )}
+                  </div>
+
+                  <p className="gba:text-sm gba:text-gray-600">
+                    These settings will be saved in your browser's local storage and persisted
+                    between sessions. Additional Data is used to pass context information like
+                    employeeId, jobPositionId, etc.
+                  </p>
+
+                  <div className="gba:flex gba:justify-end gba:gap-2">
+                    <Button variant="outline" onClick={() => setSettingsModalVisible(false)}>
+                      Cancel
+                    </Button>
+                    <Button onClick={saveSettings}>Save Settings</Button>
+                  </div>
+                </div>
+              </DialogContent>
+            </Dialog>
+
+            <Dialog open={performanceModalVisible} onOpenChange={setPerformanceModalVisible}>
+              <DialogContent className="gba:max-w-[800px]">
+                <DialogHeader>
+                  <DialogTitle>Dynamic Screen Loading Performance</DialogTitle>
+                </DialogHeader>
+                <div className="gba:space-y-4">
+                  <div className="gba:p-4 gba:bg-green-50 gba:border gba:border-green-200 gba:rounded-lg">
+                    <h4 className="gba:text-green-800 gba:font-semibold gba:mb-2">
+                      Performance Improvements
+                    </h4>
+                    <ul className="gba:text-green-700 gba:space-y-1">
+                      <li>• Global caching: Components loaded once, reused across sessions</li>
+                      <li>• Smart preloading: Common screens preloaded automatically</li>
+                      <li>
+                        • Concurrent loading prevention: Multiple requests for same screen
+                        deduplicated
+                      </li>
+                      <li>• Performance tracking: Load times monitored and optimized</li>
+                    </ul>
+                  </div>
+
+                  <div>
+                    <h4 className="gba:font-semibold gba:mb-2">Screen Loading Statistics</h4>
+                    <div className="gba:max-h-64 gba:overflow-y-auto gba:border gba:border-gray-200 gba:rounded-lg">
+                      <table className="gba:w-full gba:text-sm">
+                        <thead className="gba:bg-gray-50">
+                          <tr>
+                            <th className="gba:p-2 gba:text-left gba:font-medium">Screen</th>
+                            <th className="gba:p-2 gba:text-left gba:font-medium">Load Count</th>
+                            <th className="gba:p-2 gba:text-left gba:font-medium">Avg Time (ms)</th>
+                            <th className="gba:p-2 gba:text-left gba:font-medium">
+                              Last Load (ms)
+                            </th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {Array.from(getPerformanceMetrics().entries()).map(
+                            ([screenKey, metrics]) => (
+                              <tr key={screenKey} className="gba:border-t gba:border-gray-200">
+                                <td className="gba:p-2 gba:font-mono gba:text-xs">{screenKey}</td>
+                                <td className="gba:p-2">{metrics.loadCount}</td>
+                                <td className="gba:p-2">
+                                  {(metrics.loadTime / metrics.loadCount).toFixed(1)}
+                                </td>
+                                <td className="gba:p-2">{metrics.lastLoadTime.toFixed(1)}</td>
+                              </tr>
+                            ),
+                          )}
+                        </tbody>
+                      </table>
+                      {getPerformanceMetrics().size === 0 && (
+                        <div className="gba:p-4 gba:text-center gba:text-gray-500">
+                          No screens loaded yet. Navigate to a screen to see performance data.
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="gba:flex gba:justify-end">
+                    <Button onClick={() => setPerformanceModalVisible(false)}>Close</Button>
+                  </div>
+                </div>
+              </DialogContent>
+            </Dialog>
+
+            <Toaster />
           </div>
-        </Modal>
-      </Layout>
-    </UiCatalogProvider>
+        </UiCatalogProvider>
+      </div>
+    </ThemeProvider>
   );
 }

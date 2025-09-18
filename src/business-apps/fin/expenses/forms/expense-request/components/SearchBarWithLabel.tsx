@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { CloseCircleOutlined, SearchOutlined } from '@ant-design/icons';
+import { XCircleIcon, MagnifyingGlassIcon } from '@phosphor-icons/react';
 
 interface SearchBarWithLabelProps {
   onSearch: (value: string) => void;
@@ -58,9 +58,9 @@ const SearchBarWithLabel: React.FC<SearchBarWithLabelProps> = ({ onSearch, place
   };
 
   return (
-    <div className="gba:searchBarWithLabelContainer" data-testid="search-bar-with-label-container">
+    <div className="gba:flex gba:items-center" style={{ gap: '12px' }} data-testid="search-bar-with-label-container">
       <div 
-        className={`gba:searchBar ${expanded ? 'gba:expanded' : ''}`} 
+        style={{ display: 'flex', flexDirection: 'row', alignItems: 'center', borderRadius: '40px', padding: '4px 8px', transition: 'width 0.3s, padding 0.3s, background-color 0.3s', cursor: 'pointer', width: expanded ? '300px' : '44px', border: '2px solid #EBEBEB', background: expanded ? '#F7F7F7' : '#EBEBEB', position: 'relative', overflow: 'hidden', height: '32px', justifyContent: expanded ? 'flex-start' : 'center' }}
         onClick={handleClick}
         ref={containerRef}
         data-testid="plan-search-bar"
@@ -71,24 +71,24 @@ const SearchBarWithLabel: React.FC<SearchBarWithLabelProps> = ({ onSearch, place
           value={inputValue}
           onChange={(e) => setInputValue(e.target.value)}
           placeholder={placeholder}
-          className="gba:searchInput"
+          style={{ border: 'none', outline: 'none', width: expanded ? '100%' : '0', opacity: expanded ? '1' : '0', transition: 'opacity 0.3s, width 0.3s', backgroundColor: 'transparent', paddingLeft: '30px', color: '#333' }}
           data-testid="plan-search-input"
         />
         {inputValue && (
           <div 
-            className="gba:clearIcon" 
+            style={{ position: 'absolute', right: '12px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', opacity: '1' }}
             onClick={handleClear}
             data-testid="plan-search-clear"
           >
-            <CloseCircleOutlined data-testid="plan-search-clear-icon" />
+            <XCircleIcon data-testid="plan-search-clear-icon" />
           </div>
         )}
-        <div className="gba:searchIconContainer" data-testid="plan-search-icon-container">
-          <SearchOutlined data-testid="plan-search-icon" />
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: '16px', height: '16px', position: 'absolute', right: expanded ? 'auto' : '12px', left: expanded ? '10px' : 'auto', transition: 'right 0.3s, left 0.3s' }} data-testid="plan-search-icon-container">
+          <MagnifyingGlassIcon data-testid="plan-search-icon" />
         </div>
       </div>
       {!expanded && (
-        <div className="gba:planCountText" data-testid="plan-count-text">
+        <div style={{ fontSize: '14px', fontWeight: 'bold', color: '#333', whiteSpace: 'nowrap' }} data-testid="plan-count-text">
           {label}
         </div>
       )}

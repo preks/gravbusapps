@@ -6,6 +6,7 @@ query MyQuery($expenseId: uuid!, $activeUserLocale: String, $employeeId: uuid!) 
     id
     version
     createdAt
+    description
     expenseRuleId
     code
     processInstanceId
@@ -13,7 +14,6 @@ query MyQuery($expenseId: uuid!, $activeUserLocale: String, $employeeId: uuid!) 
     project{
       id
       validTo
-      validFrom
       name
     }
     costCenterId
@@ -351,7 +351,6 @@ export const getUserProjects =`query MyQuery($structureIdArray: [uuid!]) {
     id
     name
     structureId
-    validFrom
     validTo
   }
 }

@@ -3,6 +3,7 @@ import { Form } from 'antd';
 import { InputField, SelectField, TextAreaField, CheckboxGroup } from '@newwork/gravity-ui-catalog';
 import { useTranslation } from 'react-i18next';
 import { getCatalogValue } from '@/common/utils/windowUtils';
+import { TITLE_MAX_LENGTH, COMMENT_TEXTAREA_ROWS, REQUEST_TYPES } from '../constants/constants';
 interface ExpenseFormContentProps {
   form: any;
   showTransportation: boolean;
@@ -22,7 +23,7 @@ const ExpenseFormContent: React.FC<ExpenseFormContentProps> = ({
   form, 
   showTransportation, 
   setFormIsValid, 
-  testIdPrefix = "expense",
+  testIdPrefix = REQUEST_TYPES.EXPENSE,
   costCenters = [],
   projects = [],
   selectedCostCenter = "",
@@ -34,11 +35,11 @@ const ExpenseFormContent: React.FC<ExpenseFormContentProps> = ({
   const transportationMeans = expenseCatalogueData?.expenseTransportationMeans || [];
 
   return (
-    <div className="gba:formContainer" data-testid={`${testIdPrefix}-form-container`}>
+    <div style={{ margin: '0' }} data-testid={`${testIdPrefix}-form-container`}>
       <Form 
         form={form} 
         layout="vertical" 
-        className="gba:form" 
+        className="gba:flex gba:flex-col gba:flex-grow" 
         data-testid={`${testIdPrefix}-form`}
         initialValues={{
           costCenter: selectedCostCenter
@@ -55,8 +56,8 @@ const ExpenseFormContent: React.FC<ExpenseFormContentProps> = ({
         validateTrigger={['onChange', 'onBlur']}
       >
         {/* Title field */}
-        <div className="gba:marginBottom16" data-testid={`${testIdPrefix}-title-container`}>
-          <div className="gba:relativePosition">
+        <div className="gba:mb-4" data-testid={`${testIdPrefix}-title-container`}>
+          <div className="gba:relative">
             <Form.Item
               name="title"
               rules={[
@@ -65,7 +66,7 @@ const ExpenseFormContent: React.FC<ExpenseFormContentProps> = ({
                   message: t('lowcoder:create_expense_request.expense_request_container.current_title_custom_rule', 'Please enter a title') 
                 },
                 { 
-                  max: 50, 
+                  max: TITLE_MAX_LENGTH, 
                   message: t('lowcoder:create_expense_request.maximum_characters_title_error_message', 'Maximum limit reached: The title can be up to 50 characters only.') 
                 }
               ]}
@@ -84,8 +85,8 @@ const ExpenseFormContent: React.FC<ExpenseFormContentProps> = ({
         </div>
 
         {/* Cost Center field */}
-        <div className="gba:marginBottom16" data-testid={`${testIdPrefix}-cost-center-container`}>
-          <div className="gba:relativePosition">
+        <div className="gba:mb-4" data-testid={`${testIdPrefix}-cost-center-container`}>
+          <div className="gba:relative">
             <Form.Item
               name="costCenter"
               rules={[{ 
@@ -116,8 +117,8 @@ const ExpenseFormContent: React.FC<ExpenseFormContentProps> = ({
         </div>
 
         {/* Project field */}
-        <div className="gba:marginBottom16" data-testid={`${testIdPrefix}-project-container`}>
-          <div className="gba:relativePosition">
+        <div className="gba:mb-4" data-testid={`${testIdPrefix}-project-container`}>
+          <div className="gba:relative">
             <Form.Item
               name="project"
               style={{ marginBottom: 0 }}
@@ -139,8 +140,8 @@ const ExpenseFormContent: React.FC<ExpenseFormContentProps> = ({
         </div>
 
         {/* Comment field */}
-        <div className="gba:marginBottom16" data-testid={`${testIdPrefix}-comment-container`}>
-          <div className="gba:relativePosition">
+        <div className="gba:mb-4" data-testid={`${testIdPrefix}-comment-container`}>
+          <div className="gba:relative">
             <Form.Item
               name="comment"
               style={{ marginBottom: 0 }}
@@ -151,7 +152,7 @@ const ExpenseFormContent: React.FC<ExpenseFormContentProps> = ({
                 label={t('lowcoder:initiate_expense_plan.create_expense_plan.comment_text_area', 'Comment')}
                 placeholder={t('lowcoder:initiate_expense_plan.create_expense_plan.comment_text_area', 'Enter Comment')}
                 onChange={(field: any) => form.setFieldsValue({ comment: field.value })}
-                rows={4}
+                rows={COMMENT_TEXTAREA_ROWS}
               />
             </Form.Item>
           </div>
@@ -159,11 +160,11 @@ const ExpenseFormContent: React.FC<ExpenseFormContentProps> = ({
 
         {/* Transportation means field - only shown when trip button is clicked */}
         {showTransportation && (
-          <div className="gba:marginBottom16" data-testid={`${testIdPrefix}-transportation-means-container`}>
-            <div className="gba:relativePositionCheckbox">
+          <div className="gba:mb-4" data-testid={`${testIdPrefix}-transportation-means-container`}>
+            <div style={{ position: 'relative', borderRadius: '4px', padding: '10px 16px' }}>
               <Form.Item
                 name="transportationMeans"
-                label={<div className="gba:transportationMeansLabel">{t('lowcoder:create_expense_request.expense_request_container.transportation_checkbox', 'Means of Transportation')}</div>}
+                label={<div style={{ paddingBottom: '15px', fontWeight: 500, fontStyle: 'normal', fontSize: '14px' }}>{t('lowcoder:create_expense_request.expense_request_container.transportation_checkbox', 'Means of Transportation')}</div>}
                 style={{ marginBottom: 0 }}
               >
                 <CheckboxGroup
@@ -174,7 +175,7 @@ const ExpenseFormContent: React.FC<ExpenseFormContentProps> = ({
                     value: item.id
                   }))}
                   onChange={(values: any) => form.setFieldsValue({ transportationMeans: values })}
-                  className="gba:transportationCheckboxGroup"
+                  className="gba:flex gba:flex-col" style={{ gap: '15px', backgroundColor: '#ffffff' }}
                 />
               </Form.Item>
             </div>

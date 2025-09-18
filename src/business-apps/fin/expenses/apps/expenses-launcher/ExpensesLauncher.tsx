@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useEffect } from "react";
 import { BusinessAppContextProps } from "@/common/BusinessAppContext";
 import {
   LauncherLayout,
@@ -16,10 +16,7 @@ import { quickActions, categoryLabels } from "./utils/expenseAreas";
 import { ExpenseArea, QuickAction } from "./types";
 import BackgroundImage from "@/assets/images/background.png";
 import { useExpenseDashboardStats } from "./hooks/useExpenseDashboardStats";
-import {
-  useExpensePermissions,
-  EXPENSE_FEATURE_KEYS,
-} from "./hooks/useExpensePermissions";
+import { useExpensePermissions, EXPENSE_FEATURE_KEYS } from "./hooks/useExpensePermissions";
 import { startProcess } from "@/common/utils/start-process";
 import { navigateTo, buildPlatformUrl } from "@/common/utils/navigationUtils";
 import * as RemixIcons from "@remixicon/react";
@@ -40,12 +37,14 @@ import {
   Plus,
   Sliders,
 } from "@phosphor-icons/react";
-
+import { formatCurrencyLocalized } from "@/business-apps/fin/expenses/apps/expenses-launcher/utils/currencyUtils";
+import { MODULE_COLORS } from "@/common/constants/ui";
 interface ExpensesLauncherProps extends BusinessAppContextProps {}
 
+const moduleColor = MODULE_COLORS.FIN;
+
 const ExpensesLauncher: React.FC<ExpensesLauncherProps> = (context) => {
-  const { stats, isLoading, error, refetch } =
-    useExpenseDashboardStats(context);
+  const { stats, isLoading, error, refetch } = useExpenseDashboardStats(context);
   const {
     loading: permissionsLoading,
     error: permissionsError,
@@ -58,24 +57,37 @@ const ExpensesLauncher: React.FC<ExpensesLauncherProps> = (context) => {
     canManageBudgets,
     canManageExpensePolicy,
     isFeatureVisible,
+    getAccessibleFeatures,
+    getAllPermissions,
   } = useExpensePermissions(
     context.userInfo?.employeeDetails?.employeeId || "",
-    context.accessToken || ""
+    context.accessToken || "",
   );
+
+  // Local permission debug log (always print once when ready)
+  useEffect(() => {
+    if (!permissionsLoading) {
+      // eslint-disable-next-line no-console
+      console.log("[ExpensesLauncher][permissions]", {
+        canViewPersonalExpenses: canViewPersonalExpenses(),
+        canViewTeamExpenses: canViewTeamExpenses(),
+        canApproveExpenses: canApproveExpenses(),
+        hasManagerPermissions: hasManagerPermissions(),
+        hasFinancePermissions: hasFinancePermissions(),
+        accessibleFeatures: getAccessibleFeatures(),
+        raw: getAllPermissions?.(),
+      });
+    }
+  }, [permissionsLoading]);
 
   // Determine UI layout based on permissions (following HR pattern)
   const showFinanceView = hasFinancePermissions();
   const showManagerView = hasManagerPermissions() && !hasFinancePermissions();
   const showEmployeeView = !hasManagerPermissions() && !hasFinancePermissions();
 
-  // Format currency and numbers
+  // Format currency localized with code placement per locale
   const formatCurrency = (amount: number): string => {
-    return new Intl.NumberFormat("en-US", {
-      style: "currency",
-      currency: "EUR",
-      minimumFractionDigits: 0,
-      maximumFractionDigits: 0,
-    }).format(amount);
+    return formatCurrencyLocalized(amount, "EUR", 0);
   };
 
   const formatNumber = (num: number): string => {
@@ -99,7 +111,7 @@ const ExpensesLauncher: React.FC<ExpensesLauncherProps> = (context) => {
         },
         {
           id: "pending-finance-requests",
-          title: "Pending Requests",
+          title: "Pending Verification",
           value: isLoading ? "..." : formatNumber(stats.pendingFinanceRequests),
           color: "default",
         },
@@ -162,7 +174,6 @@ const ExpensesLauncher: React.FC<ExpensesLauncherProps> = (context) => {
       label: action.label,
       icon: action.icon, // Now directly using PhosphorIcon components
       onClick: () => handleQuickAction(action),
-      variant: "secondary",
     }));
   }, []);
 
@@ -229,8 +240,7 @@ const ExpensesLauncher: React.FC<ExpensesLauncherProps> = (context) => {
       areas.push({
         id: "finance-settings",
         title: "Finance Settings",
-        description:
-          "Manage expense calculation rules, mileage policies, and travel regulations",
+        description: "Manage expense calculation rules, mileage policies, and travel regulations",
         icon: Sliders, // Now directly using PhosphorIcon components
         category: "manager",
         kpiType: "settings",
@@ -278,8 +288,7 @@ const ExpensesLauncher: React.FC<ExpensesLauncherProps> = (context) => {
       areas.push({
         id: "advanced-expense-analytics",
         title: "Advanced Expense Analytics",
-        description:
-          "Enterprise spending insights, budget tracking, and performance metrics",
+        description: "Enterprise spending insights, budget tracking, and performance metrics",
         icon: ChartLine, // Now directly using PhosphorIcon components
         category: "reporting",
         kpiType: "analytics",
@@ -310,8 +319,7 @@ const ExpensesLauncher: React.FC<ExpensesLauncherProps> = (context) => {
         areas.push({
           id: "team-expenses",
           title: "Team Expenses",
-          description:
-            "Review and manage your team members expense submissions",
+          description: "Review and manage your team members expense submissions",
           icon: Users, // Now directly using PhosphorIcon components
           category: "manager",
           kpiType: "team",
@@ -329,8 +337,7 @@ const ExpensesLauncher: React.FC<ExpensesLauncherProps> = (context) => {
       areas.push({
         id: "finance-settings",
         title: "Finance Settings",
-        description:
-          "Manage expense calculation rules, mileage policies, and travel regulations",
+        description: "Manage expense calculation rules, mileage policies, and travel regulations",
         icon: Sliders, // Now directly using PhosphorIcon components
         category: "manager",
         kpiType: "settings",
@@ -379,8 +386,7 @@ const ExpensesLauncher: React.FC<ExpensesLauncherProps> = (context) => {
         areas.push({
           id: "team-expense-analytics",
           title: "Team Expense Analytics",
-          description:
-            "Team spending insights, budget tracking, and performance metrics",
+          description: "Team spending insights, budget tracking, and performance metrics",
           icon: ChartPie, // Now directly using PhosphorIcon components
           category: "manager",
           kpiType: "analytics",
@@ -393,8 +399,7 @@ const ExpensesLauncher: React.FC<ExpensesLauncherProps> = (context) => {
         areas.push({
           id: "expense-items",
           title: "Expense Items",
-          description:
-            "Manage individual expense entries, receipts, and categorization",
+          description: "Manage individual expense entries, receipts, and categorization",
           icon: Receipt, // Now directly using PhosphorIcon components
           category: "core",
         });
@@ -403,8 +408,7 @@ const ExpensesLauncher: React.FC<ExpensesLauncherProps> = (context) => {
       areas.push({
         id: "plans",
         title: "Plans",
-        description:
-          "Budget planning, expense forecasting, and financial planning",
+        description: "Budget planning, expense forecasting, and financial planning",
         icon: Article, // Now directly using PhosphorIcon components
         category: "planning",
       });
@@ -412,8 +416,7 @@ const ExpensesLauncher: React.FC<ExpensesLauncherProps> = (context) => {
       areas.push({
         id: "advance-payments",
         title: "Advance Payments",
-        description:
-          "Request and manage advance payments for upcoming expenses",
+        description: "Request and manage advance payments for upcoming expenses",
         icon: CurrencyDollar, // Now directly using PhosphorIcon components
         category: "core",
       });
@@ -421,8 +424,7 @@ const ExpensesLauncher: React.FC<ExpensesLauncherProps> = (context) => {
       areas.push({
         id: "requests",
         title: "Requests",
-        description:
-          "Submit, track, and approve expense reimbursement requests",
+        description: "Submit, track, and approve expense reimbursement requests",
         icon: FileText, // Now directly using PhosphorIcon components
         category: "core",
       });
@@ -452,12 +454,12 @@ const ExpensesLauncher: React.FC<ExpensesLauncherProps> = (context) => {
           switch (kpiType) {
             case "personal":
               return {
-                value: formatCurrency(stats.monthlyExpenses || 2450),
+                value: formatCurrency(stats.monthlyExpenses),
                 label: "Monthly Expenses",
               };
             case "team":
               return {
-                value: formatNumber(stats.teamMonthlyExpenses || 849),
+                value: formatNumber(stats.teamMonthlyExpenses),
                 label: "Monthly Requests",
               };
             case "analytics":
@@ -525,32 +527,6 @@ const ExpensesLauncher: React.FC<ExpensesLauncherProps> = (context) => {
           onClick: () => handleLinkClick(link.action),
         })) || [];
 
-      // Get variant based on category and area ID
-      const getVariant = (category: string, areaId: string) => {
-        if (areaId === "plans") return "ext2";
-        if (areaId === "calendar") return "success";
-        if (areaId === "analytics") return "info";
-        if (
-          areaId === "expense-management" ||
-          areaId === "advanced-expense-analytics"
-        )
-          return "success";
-        if (areaId === "team-expenses" || areaId === "team-expense-analytics")
-          return "success";
-
-        switch (category) {
-          case "core":
-            return "ext2";
-          case "planning":
-            return "success";
-          case "reporting":
-            return "ext4";
-          case "manager":
-            return "ext2";
-          default:
-            return "default";
-        }
-      };
 
       return {
         id: area.id,
@@ -563,7 +539,6 @@ const ExpensesLauncher: React.FC<ExpensesLauncherProps> = (context) => {
           label: area.buttonLabel || getDefaultButtonLabel(area.id),
           onClick: () => handleNavigationClick(area),
         },
-        variant: getVariant(area.category, area.id),
       };
     });
 
@@ -573,13 +548,13 @@ const ExpensesLauncher: React.FC<ExpensesLauncherProps> = (context) => {
         title: showFinanceView
           ? "Finance Dashboard"
           : showManagerView
-          ? "Management Dashboard"
-          : "Expense Management",
+            ? "Management Dashboard"
+            : "Expense Management",
         description: showFinanceView
           ? "Comprehensive expense oversight and policy management"
           : showManagerView
-          ? "Personal and team expense management tools"
-          : "Essential expense functions for daily operations and financial management",
+            ? "Personal and team expense management tools"
+            : "Essential expense functions for daily operations and financial management",
         cards,
       },
     ];
@@ -596,30 +571,26 @@ const ExpensesLauncher: React.FC<ExpensesLauncherProps> = (context) => {
   ]);
 
   const handleNavigationClick = (area: ExpenseArea) => {
-    console.log(
-      `Navigation clicked for ${area.title} - navigation disabled temporarily`
-    );
+    console.log(`Navigation clicked for ${area.title} - navigation disabled temporarily`);
 
     if (area.buttonAction) {
       switch (area.buttonAction) {
         case "navigate-personal-expenses":
-          const personalExpensesUrl = buildPlatformUrl(
-            "/platform/fin/expenses/personal-expenses",
-            { tab: "dashboard" }
-          );
+          const personalExpensesUrl = buildPlatformUrl("/platform/fin/expenses/personal-expenses", {
+            tab: "dashboard",
+          });
           navigateTo(personalExpensesUrl);
           break;
         case "navigate-team-expenses":
-          const teamExpensesUrl = buildPlatformUrl(
-            "/platform/fin/expenses/manager-expenses",
-            { tab: "dashboard" }
-          );
+          const teamExpensesUrl = buildPlatformUrl("/platform/fin/expenses/manager-expenses", {
+            tab: "dashboard",
+          });
           navigateTo(teamExpensesUrl);
           break;
         case "navigate-finance-management":
           const financeManagementUrl = buildPlatformUrl(
             "/platform/fin/expenses/backoffice-expenses",
-            { tab: "dashboard" }
+            { tab: "dashboard" },
           );
           navigateTo(financeManagementUrl);
           break;
@@ -628,10 +599,9 @@ const ExpensesLauncher: React.FC<ExpensesLauncherProps> = (context) => {
         case "navigate-advanced-analytics":
         case "navigate-finance-settings":
         case "navigate-calendar-view":
-          const calendarUrl = buildPlatformUrl(
-            "/platform/fin/expenses/personal-expenses",
-            { tab: "calendar" }
-          );
+          const calendarUrl = buildPlatformUrl("/platform/fin/expenses/personal-expenses", {
+            tab: "calendar",
+          });
           navigateTo(calendarUrl);
           break;
         default:
@@ -650,10 +620,9 @@ const ExpensesLauncher: React.FC<ExpensesLauncherProps> = (context) => {
       const tabName = areaToTabMap[area.id];
 
       if (tabName) {
-        const personalExpensesUrl = buildPlatformUrl(
-          "/platform/fin/expenses/personal-expenses",
-          { tab: tabName }
-        );
+        const personalExpensesUrl = buildPlatformUrl("/platform/fin/expenses/personal-expenses", {
+          tab: tabName,
+        });
         navigateTo(personalExpensesUrl);
       }
     }
@@ -685,16 +654,14 @@ const ExpensesLauncher: React.FC<ExpensesLauncherProps> = (context) => {
 
     if (tabName) {
       if (linkAction.startsWith("personal-")) {
-        const personalExpensesUrl = buildPlatformUrl(
-          "/platform/fin/expenses/personal-expenses",
-          { tab: tabName }
-        );
+        const personalExpensesUrl = buildPlatformUrl("/platform/fin/expenses/personal-expenses", {
+          tab: tabName,
+        });
         navigateTo(personalExpensesUrl);
       } else if (linkAction.startsWith("team-")) {
-        const teamExpensesUrl = buildPlatformUrl(
-          "/platform/fin/expenses/manager-expenses",
-          { tab: tabName }
-        );
+        const teamExpensesUrl = buildPlatformUrl("/platform/fin/expenses/manager-expenses", {
+          tab: tabName,
+        });
         navigateTo(teamExpensesUrl);
       } else if (
         linkAction.startsWith("finance-") &&
@@ -709,10 +676,9 @@ const ExpensesLauncher: React.FC<ExpensesLauncherProps> = (context) => {
         const landingScreenUrl = `/platform/landing_screen/${tabName}`;
         navigateTo(landingScreenUrl);
       } else if (linkAction.startsWith("finance-")) {
-        const financeExpensesUrl = buildPlatformUrl(
-          "/platform/fin/expenses/backoffice-expenses",
-          { tab: tabName }
-        );
+        const financeExpensesUrl = buildPlatformUrl("/platform/fin/expenses/backoffice-expenses", {
+          tab: tabName,
+        });
         navigateTo(financeExpensesUrl);
       }
     }
@@ -733,6 +699,7 @@ const ExpensesLauncher: React.FC<ExpensesLauncherProps> = (context) => {
         payload: {
           employeeId: employeeId,
         },
+        builderType: "NATIVE_SCREEN",
       });
     } else if (action.action === "submit-request") {
       startProcess({
@@ -741,6 +708,7 @@ const ExpensesLauncher: React.FC<ExpensesLauncherProps> = (context) => {
         payload: {
           employeeId: employeeId,
         },
+        builderType: "NATIVE_SCREEN",
       });
     } else if (action.action === "create-plan") {
       startProcess({
@@ -749,6 +717,7 @@ const ExpensesLauncher: React.FC<ExpensesLauncherProps> = (context) => {
         payload: {
           employeeId: employeeId,
         },
+        builderType: "NATIVE_SCREEN",
       });
     } else if (action.action === "request-advance") {
       startProcess({
@@ -757,6 +726,7 @@ const ExpensesLauncher: React.FC<ExpensesLauncherProps> = (context) => {
         payload: {
           employeeId: employeeId,
         },
+        builderType: "NATIVE_SCREEN",
       });
     } else {
       console.log(`Quick action "${action.action}" functionality coming soon`);
@@ -802,9 +772,8 @@ const ExpensesLauncher: React.FC<ExpensesLauncherProps> = (context) => {
             <RemixIcons.RiErrorWarningLine className="h-4 w-4" />
             <AlertTitle>Permission Check Failed</AlertTitle>
             <AlertDescription>
-              Unable to determine your permissions.{" "}
-              {permissionsError?.message || "Unknown error"} Showing limited
-              view.
+              Unable to determine your permissions. {permissionsError?.message || "Unknown error"}{" "}
+              Showing limited view.
             </AlertDescription>
           </Alert>
         </div>
@@ -845,6 +814,7 @@ const ExpensesLauncher: React.FC<ExpensesLauncherProps> = (context) => {
       quickActions={launcherQuickActions}
       quickActionsTitle="Quick Actions"
       quickActionsDescription="Frequently used expense functions and shortcuts"
+      variant={moduleColor}
     />
   );
 };

@@ -20,13 +20,13 @@ import {
   TooltipProvider,
   TooltipTrigger
 } from '@newwork/nw-design-system';
-import { FileImageOutlined, LoadingOutlined, FilePdfOutlined, FileWordOutlined, FileExcelOutlined, FileOutlined } from '@ant-design/icons';
+import { FileImageOutlined, FilePdfOutlined, FileWordOutlined, FileExcelOutlined, FileOutlined } from '@ant-design/icons';
 import { FileClient } from '@/common/network/files/FileClient';
 import { ExpenseItem, useGetExpenseItem } from '../../../hooks/useGetExpenseItems';
 import { getExpenseItemStatusDisplay } from '../../../utils';
-import { getTranslationFromI18nKeyAndLabel, getDateFormat } from '@/common/utils/windowUtils';
+import { getTranslationFromI18nKeyAndLabel, formatDate } from '@/common/utils/windowUtils';
+import { formatCurrencyDisplay } from '../../../utils';
 import type { UploadFile } from 'antd/es/upload/interface';
-import dayjs from 'dayjs';
 
 // Utility function to truncate file names
 const truncateFileName = (fileName: string, maxLength: number = 15): string => {
@@ -128,7 +128,6 @@ export const ExpenseItemDetails: React.FC<ExpenseItemDetailsProps> = ({
   
   // Fetch file attachments for an expense item
   const fetchFileAttachments = useCallback(async (item: ExpenseItem) => {
-    console.log('Fetching file attachments for item:', item.id, 'Files:', item?.expenseItemFile);
     
     if (!item?.expenseItemFile || item.expenseItemFile.length === 0) {
       console.log('No expense item files found');
@@ -160,7 +159,7 @@ export const ExpenseItemDetails: React.FC<ExpenseItemDetailsProps> = ({
       
       for (const fileInfo of item.expenseItemFile) {
         try {
-          console.log('Processing file info:', fileInfo);
+         
           
           // Extract file ID from fileUrl if available, otherwise use id
           let fileId = fileInfo.id;
@@ -173,7 +172,7 @@ export const ExpenseItemDetails: React.FC<ExpenseItemDetailsProps> = ({
             }
           }
           
-          console.log('Using file ID:', fileId);
+        
           
           // Use the fileId as the file identifier
           const pathParams = {
@@ -203,7 +202,6 @@ export const ExpenseItemDetails: React.FC<ExpenseItemDetailsProps> = ({
           }
           
           if (fileBlob && isMounted.current) {
-            console.log('File blob retrieved successfully:', fileBlob.size, 'bytes, type:', fileBlob.type);
             
             // Create object URL for the blob
             const downloadUrl = URL.createObjectURL(fileBlob);
@@ -218,7 +216,6 @@ export const ExpenseItemDetails: React.FC<ExpenseItemDetailsProps> = ({
               type: fileBlob.type || 'application/octet-stream'
             };
             
-            console.log('Created upload file:', uploadFile);
             processedFiles.push(uploadFile);
           }
         } catch (fileError) {
@@ -269,7 +266,6 @@ export const ExpenseItemDetails: React.FC<ExpenseItemDetailsProps> = ({
 
   // Render attachment preview
   const renderAttachmentPreview = useCallback(() => {
-    console.log('Rendering attachment preview - fileLoading:', fileLoading, 'fileList:', fileList);
     
     if (fileLoading) {
       return (
@@ -457,7 +453,7 @@ export const ExpenseItemDetails: React.FC<ExpenseItemDetailsProps> = ({
                 <div className="gba:flex gba:items-center gba:space-x-2">
                   <span className="gba:text-sm gba:text-gray-700">
                     {getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.expense_date', 'Expense Date')}: {' '}
-                    {dayjs(displayItem.expenseDate).format(getDateFormat('date-long'))}
+                    {formatDate(displayItem.expenseDate, 'date.long')}
                   </span>
                 </div>
               )}
@@ -465,7 +461,7 @@ export const ExpenseItemDetails: React.FC<ExpenseItemDetailsProps> = ({
                 <div className="gba:flex gba:items-center gba:space-x-2">
                   <span className="gba:text-sm gba:text-gray-700">
                     {getTranslationFromI18nKeyAndLabel('lowcoder:expense_item_list.expense_table.invoice_date', 'Invoice Date')}: {' '}
-                    {dayjs(displayItem.invoiceDate).format(getDateFormat('date-long'))}
+                    {formatDate(displayItem.invoiceDate, 'date.long')}
                   </span>
                 </div>
               )}
@@ -529,7 +525,7 @@ export const ExpenseItemDetails: React.FC<ExpenseItemDetailsProps> = ({
                 {getTranslationFromI18nKeyAndLabel('lowcoder:travel_region_rule.travel_region_rule_details_list.amount', 'Amount')}:
               </span>
               <span className="gba:text-gray-900 gba:font-semibold">
-                €{typeof displayItem.reimbursableAmount === 'number' ? displayItem.reimbursableAmount.toFixed(2) : '0.00'}
+                {formatCurrencyDisplay(displayItem.reimbursableAmount, displayItem.currency?.code)}
               </span>
             </div>
           </div>

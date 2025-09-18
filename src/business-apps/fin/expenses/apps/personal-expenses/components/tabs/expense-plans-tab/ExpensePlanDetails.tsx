@@ -12,11 +12,10 @@ import {
   CardHeader,
   CardTitle
 } from '@newwork/nw-design-system';
-import { getExpensePlanStatusDisplay } from '../../../utils';
+import { getExpensePlanStatusDisplay, formatCurrencyDisplay } from '../../../utils';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 import { PiCalendarDuotone, PiClock, PiPath, PiArrowRight } from 'react-icons/pi';
-import dayjs from 'dayjs';
-import { getTranslationFromI18nKeyAndLabel, getDateFormat } from '@/common/utils/windowUtils';
+import { getTranslationFromI18nKeyAndLabel, formatDate } from '@/common/utils/windowUtils';
 import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils';
 
 export interface ExpensePlanDetailsProps extends BusinessAppContextProps {
@@ -29,15 +28,6 @@ const ExpensePlanDetails: React.FC<ExpensePlanDetailsProps> = ({
   onClose
 }) => {
   if (!selectedItem) return null;
-  
-  // Helper function to format currency
-  const formatCurrency = (amount: number) => {
-    let currencySymbol = '€'; // Default to Euro symbol
-    if (selectedItem.currency?.value) {
-      currencySymbol = selectedItem.currency.value === 'European euro' ? '€' : selectedItem.currency.value.charAt(0);
-    }
-    return `${currencySymbol}${amount.toFixed(2)}`;
-  };
   
   // Get trip type
   const getTripType = () => {
@@ -83,8 +73,8 @@ const ExpensePlanDetails: React.FC<ExpensePlanDetailsProps> = ({
               <PiCalendarDuotone className="gba:text-gray-500" />
               <span className="gba:text-sm gba:text-gray-700">
                 {getTranslationFromI18nKeyAndLabel('lowcoder:team_expenses_page.plan_details.duration', 'Duration')}: {' '}
-                {dayjs(selectedItem.startDate).format(getDateFormat('date.short'))} {' → '} 
-                {dayjs(selectedItem.endDate).format(getDateFormat('date.short'))}
+                {formatDate(selectedItem.startDate, 'date.short')} {' → '} 
+                {formatDate(selectedItem.endDate, 'date.short')}
               </span>
             </div>
           )}
@@ -94,7 +84,7 @@ const ExpensePlanDetails: React.FC<ExpensePlanDetailsProps> = ({
               <PiClock className="gba:text-gray-500" />
               <span className="gba:text-sm gba:text-gray-700">
                 {getTranslationFromI18nKeyAndLabel('lowcoder:team_expenses_page.plan_details.plan_date', 'Plan Date')}: {' '}
-                {dayjs(selectedItem.planDate).format(getDateFormat('date.short'))}
+                {formatDate(selectedItem.planDate, 'date.short')}
               </span>
             </div>
           )}
@@ -104,7 +94,7 @@ const ExpensePlanDetails: React.FC<ExpensePlanDetailsProps> = ({
               <PiPath className="gba:text-gray-500" />
               <span className="gba:text-sm gba:text-gray-700">
                 {getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.decision_date', 'Decision Date')}: {' '}
-                {dayjs(selectedItem.decisionDate).format(getDateFormat('date.short'))}
+                {formatDate(selectedItem.decisionDate, 'date.short')}
               </span>
             </div>
           )}
@@ -180,7 +170,7 @@ const ExpensePlanDetails: React.FC<ExpensePlanDetailsProps> = ({
                 {getTranslationFromI18nKeyAndLabel('lowcoder:expense_request_list.expense_plan_table.total_amount', 'Total Amount')}
               </span>
               <span className="gba:text-sm gba:font-semibold gba:text-gray-900">
-                {typeof selectedItem.totalAmount === 'number' ? formatCurrency(selectedItem.totalAmount) : '-'}
+                {formatCurrencyDisplay(selectedItem.totalAmount, selectedItem.currency?.code)}
               </span>
             </div>
             
@@ -190,7 +180,7 @@ const ExpensePlanDetails: React.FC<ExpensePlanDetailsProps> = ({
                   {getTranslationFromI18nKeyAndLabel('lowcoder:approve_expense_request.advance_payment', 'Advance Payment')}
                 </span>
                 <span className="gba:text-sm gba:font-semibold gba:text-gray-900">
-                  {formatCurrency(selectedItem.advancePaymentPaidAmount)}
+                  {formatCurrencyDisplay(selectedItem.advancePaymentPaidAmount, selectedItem.currency?.code)}
                 </span>
               </div>
             )}

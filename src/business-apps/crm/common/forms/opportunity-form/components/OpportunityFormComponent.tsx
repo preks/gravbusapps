@@ -58,8 +58,7 @@ const OpportunityFormComponent: React.FC = () => {
         accountId: toStringOrUndefined(formValues.accountId), // Account ID from selected company
         salesCampaign: toStringOrUndefined(formValues.salesCampaignId), // Campaign ID for backend
         opportunityStatusRef: toStringOrUndefined(formValues.opportunityStatus),
-        pipelineRef: toStringOrUndefined(formValues.pipeline),
-        salesPipelineRef: toStringOrUndefined(formValues.pipeline), // Same as pipelineRef
+        salesPipelineRef: toStringOrUndefined(formValues.pipeline), // Use salesPipelineRef instead of deprecated pipelineRef
         salesPipelineStageRef: toStringOrUndefined(
           formValues.salesPipelineStage
         ),
@@ -78,12 +77,19 @@ const OpportunityFormComponent: React.FC = () => {
         ownerEmployee: toStringOrUndefined(formValues.owner),
       };
 
-      const changeMode = "INSERT";
+      // Use UPDATE mode if editing existing opportunity, INSERT for new opportunity
+      const changeMode = formValues.id ? "UPDATE" : "INSERT";
 
       const payload = {
         opportunity: opportunityPayload,
         changeMode: changeMode,
       };
+
+      // Add id and version for UPDATE mode
+      if (changeMode === "UPDATE" && formValues.id) {
+        opportunityPayload.id = formValues.id;
+        opportunityPayload.version = formValues.version;
+      }
 
       // Dispatch process continue event on successful submission
       dispatchProcessContinueEvent("pse_submit", payload);

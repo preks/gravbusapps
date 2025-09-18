@@ -5,7 +5,8 @@ export const GET_MAIN_VIEW_ADVANCE_PAYMENTS = `
     $managerId: uuid!,
     $limit: Int!,
     $offset: Int!,
-    $where: AdvancePaymentBoolExp!
+    $where: AdvancePaymentBoolExp!,
+    $orderBy: [AdvancePaymentOrderBy!]
   ) {
     AdvancePaymentAggregate(
       where: {
@@ -35,7 +36,7 @@ export const GET_MAIN_VIEW_ADVANCE_PAYMENTS = `
     AdvancePayment(
       limit: $limit,
       offset: $offset,
-      orderBy: {createdAt: DESC},
+      orderBy: $orderBy,
       where: {
         _and: [
           {
@@ -94,7 +95,7 @@ export const GET_MAIN_VIEW_ADVANCE_PAYMENTS = `
 
 // Query for advance payment statistics in the main view
 export const GET_MAIN_VIEW_ADVANCE_PAYMENT_STATISTICS = `
-  query GetMainViewAdvancePaymentStatistics($managerId: uuid!) {
+  query GetMainViewAdvancePaymentStatistics($managerId: uuid!, $currencyRef: String) {
     allPaymentsStats: AdvancePaymentAggregate(
       where: {
         expensePlan: {
@@ -104,7 +105,9 @@ export const GET_MAIN_VIEW_ADVANCE_PAYMENT_STATISTICS = `
             }
           },
           isDeleted: {_eq: false}
-        }
+        },
+        status: {_neq: "REJECTED"},
+        currencyRef: {_eq: $currencyRef}
       }
     ) {
       aggregate {
@@ -124,7 +127,8 @@ export const GET_MAIN_VIEW_ADVANCE_PAYMENT_STATISTICS = `
           },
           isDeleted: {_eq: false}
         },
-        status: {_eq: "PENDING"}
+        status: {_in: ["PENDING", "PREPARED"]},
+        currencyRef: {_eq: $currencyRef}
       }
     ) {
       aggregate {
@@ -134,5 +138,6 @@ export const GET_MAIN_VIEW_ADVANCE_PAYMENT_STATISTICS = `
         }
       }
     }
+    # Currency stats are now handled at the app level via useAppCurrency
   }
 `;

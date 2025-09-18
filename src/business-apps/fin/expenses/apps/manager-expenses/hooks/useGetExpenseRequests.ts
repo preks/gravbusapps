@@ -1,18 +1,23 @@
-import { useState, useEffect, useCallback } from 'react';
-import { BusinessAppContextProps } from '@/common/BusinessAppContext';
-import { 
-  GET_EXPENSE_REQUESTS_BY_MANAGER, 
-  GET_MAIN_VIEW_EXPENSE_REQUESTS,
+import { useState, useEffect, useCallback, useRef } from "react";
+import { BusinessAppContextProps } from "@/common/BusinessAppContext";
+import {
+  GET_EXPENSE_REQUESTS_BY_MANAGER,
   APPROVE_EXPENSE_REQUEST,
   REJECT_EXPENSE_REQUEST,
-  GET_EXPENSE_REQUEST_STATISTICS 
-} from '../queries/expenseRequests';
-import { env } from '@/common/env/EnvUtils';
+  GET_EXPENSE_REQUEST_STATISTICS,
+  GET_EXPENSE_REQUEST_STATISTICS_WITH_CURRENCY,
+} from "../queries/expenseRequests";
+import { env } from "@/common/env/EnvUtils";
 
-// Props for the hook, ensuring accessToken and userInfo are provided
-export interface UseGetExpenseRequestsProps extends Pick<BusinessAppContextProps, 'accessToken' | 'userInfo'> {}
+export interface UseGetExpenseRequestsProps
+  extends Pick<BusinessAppContextProps, "accessToken" | "userInfo"> {
+  pageSize?: number;
+  searchTerm?: string;
+  currentStatusFilter?: string[] | null;
+  currentCurrencyFilter?: string | null;
+  statisticsOnly?: boolean;
+}
 
-// Define types for the hook
 export interface ExpenseRequest {
   id: string;
   code?: string;
@@ -22,31 +27,70 @@ export interface ExpenseRequest {
   startDate?: string | null;
   endDate?: string | null;
   amount: number;
+  totalAmount?: number;
   currency: string;
   status: string;
+  createdAt?: string;
+  updatedAt?: string;
   attachments?: {
     fileUrl: string;
     fileName: string;
   }[];
+  employeeDocument?: {
+    file: string;
+    fileSize: number;
+    id: string;
+    description: string;
+    mimeType: string;
+    name: string;
+    type: string;
+    employee: {
+      id: string;
+    };
+  } | null;
   employee?: {
     id: string;
     displayName?: string;
     fullName: string;
+    firstName: string;
+    lastName: string;
     department?: string;
     pictureThumbnail?: string;
+    employeePosition?: {
+      organizationalUnit?: {
+        id: string;
+        name: string;
+      };
+      siteLocation?: {
+        id: string;
+        name: string;
+      };
+    };
     additionalProperties?: Record<string, any>;
   };
 }
 
-
 export interface ExpenseRequestStatisticsData {
   pendingCount: number;
   pendingAmount: number | null;
-  approvedCount: number;
-  approvedAmount: number | null;
-  rejectedCount: number;
-  rejectedAmount: number | null;
+  totalRequestsSubmitted: number;
   totalSubmittedAmount: number | null;
+}
+
+export type SortField =
+  | "title"
+  | "requestDate"
+  | "startDate"
+  | "endDate"
+  | "amount"
+  | "status"
+  | "employee.fullName";
+
+export type SortOrder = "ASC" | "DESC";
+
+export interface SortConfig {
+  field: SortField;
+  order: SortOrder;
 }
 
 export interface ExpenseRequestsResult {
@@ -55,19 +99,22 @@ export interface ExpenseRequestsResult {
   error: string | null;
   totalCount: number;
   fetchRequests: (
-    searchTerm?: string, 
-    page?: number, 
-    pageSize?: number, 
-    employeeId?: string,
+    searchTerm?: string,
+    page?: number,
+    pageSize?: number,
+    sortBy?: string,
     status?: string[],
-    requestDateStart?: string
+    requestDateStart?: string,
+    currencyFilter?: string | null,
   ) => Promise<void>;
   approveRequest: (requestId: string) => Promise<boolean>;
   rejectRequest: (requestId: string, rejectionReason?: string) => Promise<boolean>;
   requestStats: ExpenseRequestStatisticsData | null;
   requestStatsLoading: boolean;
   requestStatsError: string | null;
-  fetchRequestStatistics: () => Promise<void>;
+  fetchRequestStatistics: (currencyFilter?: string | null) => Promise<void>;
+  sorting: SortConfig;
+  updateSorting: (field: SortField) => void;
 }
 
 /**
@@ -75,361 +122,498 @@ export interface ExpenseRequestsResult {
  * @param context Business app context containing user info and access token
  * @returns Object containing expense requests, loading state, error, total count, and fetch function
  */
-export const useGetExpenseRequests = ({ accessToken, userInfo }: UseGetExpenseRequestsProps): ExpenseRequestsResult => {
+export const useGetExpenseRequests = ({
+  accessToken,
+  userInfo,
+  pageSize = 10,
+  searchTerm,
+  currentStatusFilter,
+  currentCurrencyFilter,
+  statisticsOnly = false,
+}: UseGetExpenseRequestsProps): ExpenseRequestsResult => {
   const [requests, setRequests] = useState<ExpenseRequest[]>([]);
-  const [isLoading, setIsLoading] = useState<boolean>(true);
+  const [isLoading, setIsLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
   const [totalCount, setTotalCount] = useState<number>(0);
   const [requestStats, setRequestStats] = useState<ExpenseRequestStatisticsData | null>(null);
   const [requestStatsLoading, setRequestStatsLoading] = useState<boolean>(false);
   const [requestStatsError, setRequestStatsError] = useState<string | null>(null);
 
-  // Get supervisor employee ID from user info
-  const supervisorEmployeeId = userInfo?.employeeDetails?.employeeId || "00000000-0000-0000-0000-000000000000";
-  
+  const [sorting, setSorting] = useState<SortConfig>({
+    field: "requestDate",
+    order: "DESC",
+  });
 
+  const supervisorEmployeeId =
+    userInfo?.employeeDetails?.employeeId || "00000000-0000-0000-0000-000000000000";
+
+  const lastFetchParams = useRef<{
+    searchTerm: string;
+    page: number;
+    pageSize: number;
+    sortBy: string;
+    status: string[];
+    requestDateStart?: string;
+    currencyFilter?: string | null;
+  } | null>(null);
+
+  const lastStatsFetchParams = useRef<{
+    currencyFilter?: string | null;
+  } | null>(null);
 
   /**
-   * Helper function to map API response to ExpenseRequest objects
+   *
    */
   const mapResponseToRequests = (data: any): ExpenseRequest[] => {
     const fetchedRequests = data?.ExpenseRequest ?? [];
-    
-    
-      return fetchedRequests.map((request: any, index: number) => {
-      
+
+    return fetchedRequests.map((request: any) => {
       return {
         id: request.id,
         code: request.code,
-        title: request.title ?? 'Untitled Request',
+        title: request.title ?? "Untitled Request",
         description: request.description,
         requestDate: request.requestDate,
-        amount: request.totalAmount ?? 0,
-        currency: request.currencyRef ? request.currencyRef.replace('Currency:v1:', '') : 'EUR',
-        status: request.status ?? 'PENDING',
-        attachments: request.employeeDocument ? [{
-          fileUrl: request.employeeDocument.file,
-          fileName: request.employeeDocument.name
-        }] : [],
-        employee: request.employee ? {
-          id: request.employee.id,
-          displayName: request.employee.displayName,
-          fullName: request.employee.fullName,
-          department: request.employee.employeePosition?.organizationalUnit?.name, // Extract department from nested structure
-          pictureThumbnail: request.employee.pictureThumbnail,
-          additionalProperties: request.employee.additionalProperties
-        } : undefined,
         startDate: request.startDate,
         endDate: request.endDate,
+        amount: request.totalAmount,
+        currency: (() => {
+          const extractedCurrency = request.currencyRef
+            ? request.currencyRef.replace("Currency:v1:", "")
+            : "EUR";
+
+          return extractedCurrency;
+        })(),
+        status: request.status ?? "PENDING",
+        attachments: request.employeeDocument
+          ? [
+              {
+                fileUrl: request.employeeDocument.file,
+                fileName: request.employeeDocument.name,
+              },
+            ]
+          : [],
+        employee: request.employee
+          ? {
+              id: request.employee.id,
+              displayName: request.employee.displayName,
+              fullName: request.employee.fullName,
+              department: request.employee.employeePosition?.organizationalUnit?.name,
+              pictureThumbnail: request.employee.pictureThumbnail,
+              additionalProperties: request.employee.additionalProperties,
+            }
+          : undefined,
       };
     });
   };
-  
-  // Function to fetch requests with search, pagination, and filtering
-  const fetchRequests = useCallback(async (
-    searchTerm: string = '', 
-    page: number = 1, 
-    pageSize: number = 10, 
-    employeeId: string = 'all', 
-    status: string[] = [],
-    requestDateStart?: string
-  ) => {
-    if (!accessToken) {
-      setError('Access token not available.');
-      setIsLoading(false);
-      return;
-    }
-    
-    console.log('Fetching expense requests with:', {
-      managerId: supervisorEmployeeId,
-      searchTerm,
-      page,
-      pageSize,
-      employeeId,
-      status,
-      query: GET_EXPENSE_REQUESTS_BY_MANAGER.substring(0, 100) + '...' // Log first 100 chars of query
-    });
-    
 
-    setIsLoading(true);
-    setError(null);
-    
-    try {
-      const searchValue = searchTerm ? `%${searchTerm}%` : '%%'; 
-      const offset = (page - 1) * pageSize;
-      
-      // Build the where clause for filtering
-      const whereClause: any = {
-        employee: {
-          employeePosition: {
-            supervisorEmployeeId: { _eq: supervisorEmployeeId }
-          }
-        },
-        isDeleted: { _eq: false }
+  const fetchRequests = useCallback(
+    async (
+      searchTerm: string = "",
+      page: number = 1,
+      pageSize: number = 10,
+      sortBy?: string,
+      status: string[] = [],
+      requestDateStart?: string,
+      currencyFilter: string | null = null,
+    ) => {
+      const effectiveSortBy = sortBy || `${sorting.field}:${sorting.order.toLowerCase()}`;
+
+      if (!accessToken) {
+        setError("Access token not available.");
+        setIsLoading(false);
+        return;
+      }
+
+      const currentParams = {
+        searchTerm: searchTerm || "",
+        page,
+        pageSize,
+        sortBy: effectiveSortBy,
+        status: status || [],
+        requestDateStart,
+        currencyFilter,
       };
 
-      // Add search functionality
-      if (searchTerm && searchTerm.trim() !== '') {
-        whereClause._or = [
-          { code: { _ilike: searchValue } },
-          { title: { _ilike: searchValue } },
-          { employee: { fullName: { _ilike: searchValue } } }
-        ];
+      const isDuplicateRequest =
+        lastFetchParams.current &&
+        lastFetchParams.current.searchTerm === currentParams.searchTerm &&
+        lastFetchParams.current.page === currentParams.page &&
+        lastFetchParams.current.pageSize === currentParams.pageSize &&
+        lastFetchParams.current.sortBy === currentParams.sortBy &&
+        JSON.stringify(lastFetchParams.current.status) === JSON.stringify(currentParams.status) &&
+        lastFetchParams.current.requestDateStart === currentParams.requestDateStart &&
+        lastFetchParams.current.currencyFilter === currentParams.currencyFilter;
+
+      if (isDuplicateRequest) {
+        return;
       }
 
-      // Add status filter
-      if (status && status.length > 0) {
-  
-        
-        // Map filter values to actual database status values
-        const mappedStatuses = status.map(statusValue => {
-          let actualStatus = statusValue;
-          
-          // Map filter values to actual database status values for expense requests
-          if (statusValue === 'draft') {
-            actualStatus = 'CREATED';
-          } else if (statusValue === 'in_approval') {
-            actualStatus = 'PENDING';
-          } else if (statusValue === 'verification_required' || statusValue === 'approved') {
-            actualStatus = 'APPROVED';
-          } else if (statusValue === 'revision_required') {
-            actualStatus = 'REJECTED'; // Changed from RETURNED to REJECTED
-          } else if (statusValue === 'booking_required' || statusValue === 'verified') {
-            actualStatus = 'VERIFIED';
-          } else if (statusValue === 'transfer_required' || statusValue === 'booked') {
-            actualStatus = 'BOOKED';
-          } else if (statusValue === 'payment_required' || statusValue === 'transferred') {
-            actualStatus = 'TRANSFERRED';
-          } else if (statusValue === 'paid') {
-            actualStatus = 'PAID';
-          } else if (statusValue === 'closed') {
-            actualStatus = 'CLOSED';
-          }
-          
-          // If the status is already a valid ExpenseStatus enum value for expense requests, use it as is
-          const validStatuses = [
-            'CREATED', 'PENDING', 'APPROVED', 'VERIFIED', 'BOOKED', 
-            'TRANSFERRED', 'PAID', 'CLOSED', 'RETURNED', 'REJECTED'
-          ];
-          
-          if (validStatuses.includes(statusValue.toUpperCase())) {
-            actualStatus = statusValue.toUpperCase();
-          }
-          
-          return actualStatus;
-        });
-        
-        console.log('Mapped statuses:', mappedStatuses);
-        whereClause.status = { _in: mappedStatuses };
-      }
+      lastFetchParams.current = currentParams;
 
-      const variables = {
-        where: whereClause,
-        limit: pageSize,
-        offset
-      };
-      
-      console.log('GraphQL variables being sent:', variables);
-      
-      const response = await fetch(env('NEXT_PUBLIC_GRAPHQL_ENDPOINT_NEWWORK')!, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${accessToken}`,
-        },
-        body: JSON.stringify({
-          query: GET_EXPENSE_REQUESTS_BY_MANAGER,
-          variables,
-        }),
-      });
+      setIsLoading(true);
+      setError(null);
 
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status} ${response.statusText}`);
-      }
+      try {
+        const offset = (page - 1) * pageSize;
 
-      const result = await response.json();
-
-      if (result.errors) {
-        console.error('GraphQL errors in expense requests:', result.errors);
-        throw new Error(result.errors.map((e: any) => e.message).join(', '));
-      }
-      
-      console.log('Full GraphQL response:', result);
-      console.log('GraphQL data:', result.data);
-      console.log('Expense requests data received:', {
-        requestsCount: result.data.ExpenseRequest?.length,
-        totalCount: result.data.ExpenseRequestAggregate?.aggregate?.count,
-        fullResponse: result.data // Log the full response
-      });
-      
-      // Get total count from aggregate query
-      const count = result.data?.ExpenseRequestAggregate?.aggregate?.count ?? 0;
-      setTotalCount(count);
-      
-      // Map the requests using helper function
-      const mappedRequests = mapResponseToRequests(result.data);
-      
-      setRequests(mappedRequests);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : String(err));
-      setRequests([]); // Clear requests on error
-      setTotalCount(0);
-    } finally {
-      setIsLoading(false);
-    }
-  }, [accessToken, supervisorEmployeeId, setIsLoading, setError, setRequests, setTotalCount]);
-
-  // Function to approve an expense request
-  const approveRequest = useCallback(async (requestId: string): Promise<boolean> => {
-    if (!accessToken) {
-      setError('Access token not found. Cannot approve expense request.');
-      return false;
-    }
-
-    try {
-      const response = await fetch(env('NEXT_PUBLIC_GRAPHQL_ENDPOINT_NEWWORK')!, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${accessToken}`,
-        },
-        body: JSON.stringify({
-          query: APPROVE_EXPENSE_REQUEST,
-          variables: { id: requestId },
-        }),
-      });
-
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status} ${response.statusText}`);
-      }
-
-      const result = await response.json();
-
-      if (result.errors && result.errors.length > 0) {
-        throw new Error(result.errors.map((e: any) => e.message).join(', '));
-      }
-      
-      // Update the local state
-      setRequests(prevRequests => 
-        prevRequests.map(request => 
-          request.id === requestId 
-            ? { ...request, status: 'APPROVED' } 
-            : request
-        )
-      );
-      
-      return true;
-    } catch (err) {
-      setError(err instanceof Error ? err.message : String(err));
-      return false;
-    }
-  }, [accessToken, setError, setRequests]);
-
-  // Function to reject an expense request
-  const rejectRequest = useCallback(async (requestId: string, rejectionReason?: string): Promise<boolean> => {
-    if (!accessToken) {
-      setError('Access token not found. Cannot reject expense request.');
-      return false;
-    }
-
-    try {
-      const response = await fetch(env('NEXT_PUBLIC_GRAPHQL_ENDPOINT_NEWWORK')!, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${accessToken}`,
-        },
-        body: JSON.stringify({
-          query: REJECT_EXPENSE_REQUEST,
-          variables: { 
-            id: requestId,
-            rejectionReason: rejectionReason ?? undefined,
+        const whereClause: Record<string, any> = {
+          employee: {
+            employeePosition: {
+              supervisorEmployeeId: { _eq: supervisorEmployeeId },
+            },
           },
-        }),
-      });
+          isDeleted: { _eq: false },
+        };
 
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status} ${response.statusText}`);
+        if (currencyFilter) {
+          whereClause.currencyRef = { _eq: `Currency:v1:${currencyFilter}` };
+        }
+
+        if (searchTerm && searchTerm.trim() !== "") {
+          whereClause._or = [
+            { title: { _ilike: `%${searchTerm}%` } },
+            { description: { _ilike: `%${searchTerm}%` } },
+          ];
+        }
+
+        if (status && status.length > 0) {
+          const mappedStatuses = status.map((statusValue) => {
+            let actualStatus = statusValue;
+
+            const validStatuses = [
+              "CREATED",
+              "PENDING",
+              "APPROVED",
+              "VERIFIED",
+              "BOOKED",
+              "TRANSFERRED",
+              "PAID",
+              "CLOSED",
+              "RETURNED",
+              "REJECTED",
+            ];
+
+            if (validStatuses.includes(statusValue.toUpperCase())) {
+              actualStatus = statusValue.toUpperCase();
+            } else if (statusValue.toLowerCase() === "in_approval") {
+              actualStatus = "PENDING";
+            }
+
+            return actualStatus;
+          });
+
+          whereClause.status = { _in: mappedStatuses };
+        } else {
+        }
+
+        // Parse the sortBy parameter to create orderBy array
+        let orderBy: any[] | undefined = [{ requestDate: "DESC" }]; // Default sorting
+        if (effectiveSortBy && effectiveSortBy !== "none") {
+          const [field, order] = effectiveSortBy.split(":");
+          if (field && order) {
+            const orderDirection = order.toUpperCase() === "ASC" ? "ASC" : "DESC";
+
+            // Handle nested fields like 'employee.fullName'
+            if (field.includes(".")) {
+              const [parent, child] = field.split(".");
+              // Try different approaches for nested field sorting
+              if (parent === "employee" && child === "fullName") {
+                // Try sorting by firstName and lastName separately
+                orderBy = [
+                  { employee: { firstName: orderDirection } },
+                  { employee: { lastName: orderDirection } },
+                ];
+              } else {
+                orderBy = [{ [parent]: { [child]: orderDirection } }];
+              }
+            } else if (field === "amount") {
+              // The GraphQL server is receiving the correct sorting parameters
+              // but the sorting is still not working correctly. This suggests the issue
+              // is in the GraphQL server or database handling of the totalAmount field.
+              //
+              // Since the data is numeric but sorting isn't working, this appears to be
+              // a server-side issue with how the totalAmount field is handled for sorting.
+              orderBy = [{ totalAmount: orderDirection }];
+            } else if (field === "requestDate") {
+              orderBy = [{ requestDate: orderDirection }];
+            } else if (field === "status") {
+              orderBy = [{ status: orderDirection }];
+            } else if (field === "title") {
+              orderBy = [{ title: orderDirection }];
+            } else if (field === "startDate") {
+              orderBy = [{ startDate: orderDirection }];
+            } else if (field === "endDate") {
+              orderBy = [{ endDate: orderDirection }];
+            } else {
+              orderBy = [{ [field]: orderDirection }];
+            }
+          }
+        } else if (effectiveSortBy === "none") {
+          // No sorting - use natural order (no orderBy parameter)
+          orderBy = undefined;
+        }
+
+        const variables: any = {
+          where: whereClause,
+          limit: pageSize,
+          offset,
+        };
+
+        // Only include orderBy if it's defined
+        if (orderBy) {
+          variables.orderBy = orderBy;
+        }
+
+        const response = await fetch(env("NEXT_PUBLIC_GRAPHQL_ENDPOINT_NEWWORK")!, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${accessToken}`,
+          },
+          body: JSON.stringify({
+            query: GET_EXPENSE_REQUESTS_BY_MANAGER,
+            variables,
+          }),
+        });
+
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status} ${response.statusText}`);
+        }
+
+        const result = await response.json();
+
+        if (result.errors) {
+          console.error("GraphQL errors:", result.errors);
+          throw new Error(result.errors.map((e: any) => e.message).join(", "));
+        }
+
+        const count = result.data?.ExpenseRequestAggregate?.aggregate?.count ?? 0;
+        setTotalCount(count);
+
+        const mappedRequests = mapResponseToRequests(result.data);
+
+        setRequests(mappedRequests);
+      } catch (err) {
+        setError(err instanceof Error ? err.message : String(err));
+        setRequests([]);
+        setTotalCount(0);
+      } finally {
+        setIsLoading(false);
+      }
+    },
+    [accessToken, supervisorEmployeeId, setIsLoading, setError, setRequests, setTotalCount],
+  );
+
+  const approveRequest = useCallback(
+    async (requestId: string): Promise<boolean> => {
+      if (!accessToken) {
+        setError("Access token not available for approval.");
+        return false;
       }
 
-      const result = await response.json();
+      try {
+        const response = await fetch(env("NEXT_PUBLIC_GRAPHQL_ENDPOINT_NEWWORK")!, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${accessToken}`,
+          },
+          body: JSON.stringify({
+            query: APPROVE_EXPENSE_REQUEST,
+            variables: { requestId },
+          }),
+        });
 
-      if (result.errors && result.errors.length > 0) {
-        throw new Error(result.errors.map((e: any) => e.message).join(', '));
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`);
+        }
+
+        const result = await response.json();
+
+        if (result.errors && result.errors.length > 0) {
+          throw new Error(result.errors.map((e: any) => e.message).join(", "));
+        }
+
+        setRequests((prevRequests) =>
+          prevRequests.map((request) =>
+            request.id === requestId ? { ...request, status: "APPROVED" } : request,
+          ),
+        );
+        return true;
+      } catch (err) {
+        setError(err instanceof Error ? err.message : String(err));
+        return false;
       }
-      
-      // Update the local state
-      setRequests(prevRequests => 
-        prevRequests.map(request => 
-          request.id === requestId 
-            ? { ...request, status: 'REJECTED' } 
-            : request
-        )
-      );
-      return true;
-    } catch (err) {
-      setError(err instanceof Error ? err.message : String(err));
-      return false;
-    }
-  }, [accessToken, setError, setRequests]);
+    },
+    [accessToken, setError, setRequests],
+  );
 
-  const fetchRequestStatistics = useCallback(async () => {
-    if (!accessToken) {
-      setRequestStatsError('Access token not available for statistics.');
-      setRequestStats(null);
-      setRequestStatsLoading(false);
-      return;
-    }
-    
-    console.log('Fetching expense request statistics for manager:', supervisorEmployeeId);
-    setRequestStatsLoading(true);
-    setRequestStatsError(null);
-    try {
-      const response = await fetch(env('NEXT_PUBLIC_GRAPHQL_ENDPOINT_NEWWORK')!, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${accessToken}`,
-        },
-        body: JSON.stringify({
-          query: GET_EXPENSE_REQUEST_STATISTICS,
-          variables: { employeeId: supervisorEmployeeId },
-        }),
-      });
-      const result = await response.json();
-      if (result.errors) {
-        console.error('GraphQL errors in expense request statistics:', result.errors);
-        throw new Error(result.errors.map((e: any) => e.message).join(', '));
+  const rejectRequest = useCallback(
+    async (requestId: string, rejectionReason?: string): Promise<boolean> => {
+      if (!accessToken) {
+        setError("Access token not available for rejection.");
+        return false;
       }
-      
-      console.log('Expense request statistics received:', result.data);
-      const data = result.data;
-      setRequestStats({
-        pendingCount: data.pendingRequests?.aggregate?.count ?? 0,
-        pendingAmount: data.pendingRequests?.aggregate?.sum?.totalAmount ?? null,
-        approvedCount: data.approvedRequests?.aggregate?.count ?? 0,
-        approvedAmount: data.approvedRequests?.aggregate?.sum?.totalAmount ?? null,
-        rejectedCount: data.rejectedRequests?.aggregate?.count ?? 0,
-        rejectedAmount: data.rejectedRequests?.aggregate?.sum?.totalAmount ?? null,
-        totalSubmittedAmount: data.allSubmittedRequests?.aggregate?.sum?.totalAmount ?? null,
-      });
-    } catch (err: any) {
-      console.error('Error fetching expense request statistics:', err);
-      setRequestStatsError(err.message ?? 'Failed to fetch expense request statistics.');
-      setRequestStats(null);
-    } finally {
-      setRequestStatsLoading(false);
-    }
-  }, [accessToken, setRequestStats, setRequestStatsLoading, setRequestStatsError]);
 
-  // Initial data fetch (requests, and statistics)
+      try {
+        const response = await fetch(env("NEXT_PUBLIC_GRAPHQL_ENDPOINT_NEWWORK")!, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${accessToken}`,
+          },
+          body: JSON.stringify({
+            query: REJECT_EXPENSE_REQUEST,
+            variables: {
+              requestId,
+              rejectionReason: rejectionReason || "",
+            },
+          }),
+        });
+
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`);
+        }
+
+        const result = await response.json();
+
+        if (result.errors && result.errors.length > 0) {
+          throw new Error(result.errors.map((e: any) => e.message).join(", "));
+        }
+
+        setRequests((prevRequests) =>
+          prevRequests.map((request) =>
+            request.id === requestId ? { ...request, status: "REJECTED" } : request,
+          ),
+        );
+        return true;
+      } catch (err) {
+        setError(err instanceof Error ? err.message : String(err));
+        return false;
+      }
+    },
+    [accessToken, setError, setRequests],
+  );
+
+  const fetchRequestStatistics = useCallback(
+    async (currencyFilter?: string | null) => {
+      if (!accessToken) {
+        setRequestStatsError("Access token not available for statistics.");
+        setRequestStatsLoading(false);
+        return;
+      }
+
+      if (
+        lastStatsFetchParams.current &&
+        lastStatsFetchParams.current.currencyFilter === currencyFilter
+      ) {
+        return;
+      }
+
+      lastStatsFetchParams.current = { currencyFilter };
+
+      setRequestStatsLoading(true);
+      setRequestStatsError(null);
+      try {
+        const query = currencyFilter
+          ? GET_EXPENSE_REQUEST_STATISTICS_WITH_CURRENCY
+          : GET_EXPENSE_REQUEST_STATISTICS;
+
+        const variables = currencyFilter
+          ? {
+              employeeId: supervisorEmployeeId,
+              currencyRef: `Currency:v1:${currencyFilter}`,
+            }
+          : {
+              employeeId: supervisorEmployeeId,
+            };
+
+        const response = await fetch(env("NEXT_PUBLIC_GRAPHQL_ENDPOINT_NEWWORK")!, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${accessToken}`,
+          },
+          body: JSON.stringify({
+            query,
+            variables,
+          }),
+        });
+        const result = await response.json();
+        if (result.errors) {
+          throw new Error(result.errors.map((e: any) => e.message).join(", "));
+        }
+
+        const data = result.data;
+
+        const stats = {
+          pendingCount: data.pendingRequests?.aggregate?.count ?? 0,
+          pendingAmount: data.pendingAmount?.aggregate?.sum?.totalAmount ?? null,
+          totalRequestsSubmitted: data.totalRequestsSubmitted?.aggregate?.count ?? 0,
+          totalSubmittedAmount: data.totalSubmittedAmount?.aggregate?.sum?.totalAmount ?? null,
+        };
+
+        setRequestStats(stats);
+      } catch (err: any) {
+        console.error(err);
+        setRequestStatsError(err.message ?? "Failed to fetch expense request statistics.");
+        setRequestStats(null);
+      } finally {
+        setRequestStatsLoading(false);
+      }
+    },
+    [
+      accessToken,
+      supervisorEmployeeId,
+      setRequestStats,
+      setRequestStatsLoading,
+      setRequestStatsError,
+    ],
+  );
+
   useEffect(() => {
-    if (accessToken) {
-      fetchRequests(); // Fetches the first page of requests
-      fetchRequestStatistics();
+    if (!statisticsOnly) {
+      fetchRequests(
+        searchTerm || "",
+        1,
+        pageSize,
+        undefined,
+        currentStatusFilter || [],
+        undefined,
+        currentCurrencyFilter,
+      );
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [accessToken, fetchRequests, fetchRequestStatistics]);
+  }, [
+    fetchRequests,
+    statisticsOnly,
+    searchTerm,
+    pageSize,
+    currentStatusFilter,
+    currentCurrencyFilter,
+  ]);
+
+  useEffect(() => {
+    if (currentCurrencyFilter) {
+      fetchRequestStatistics(currentCurrencyFilter);
+    }
+  }, [currentCurrencyFilter, fetchRequestStatistics]);
+
+  const updateSorting = useCallback((field: SortField) => {
+    setSorting((prevSorting) => {
+      if (prevSorting.field === field) {
+        return {
+          field,
+          order: prevSorting.order === "ASC" ? "DESC" : "ASC",
+        };
+      }
+
+      return {
+        field,
+        order: "DESC",
+      };
+    });
+  }, []);
 
   return {
     requests,
@@ -437,11 +621,13 @@ export const useGetExpenseRequests = ({ accessToken, userInfo }: UseGetExpenseRe
     error,
     totalCount,
     fetchRequests,
+    approveRequest,
+    rejectRequest,
     requestStats,
     requestStatsLoading,
     requestStatsError,
     fetchRequestStatistics,
-    approveRequest,
-    rejectRequest
+    sorting,
+    updateSorting,
   };
 };

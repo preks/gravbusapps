@@ -58,6 +58,25 @@ const LocationForm: React.FC<LocationFormProps> = ({
     departureTime,
     travelRegionRef} = locationData
   const idPrefix = index !== undefined ? `${id}-${index}` : id;
+
+  const travelRegionOptions = useMemo(() => (
+    (travelRegions || []).map((region) => ({
+      id: region.travelRegionRef,
+      name: getCatalogValue(region.travelRegion)
+    }))
+  ), [travelRegions]);
+  const selectedTravelRegionValue = useMemo(() => {
+    if (!travelRegionRef) return undefined;
+    return travelRegionOptions.some(opt => opt.id === travelRegionRef) ? travelRegionRef : undefined;
+  }, [travelRegionRef, travelRegionOptions]);
+
+  useEffect(() => {
+    if (isAbroad) {
+      if (travelRegionRef && !travelRegionOptions.some(opt => opt.id === travelRegionRef)) {
+        onUpdate('travelRegionRef', undefined);
+      }
+    }
+  }, [isAbroad, travelRegionRef, travelRegionOptions, onUpdate]);
   
   /**
    * Check if date and time are in the future
@@ -152,8 +171,8 @@ const LocationForm: React.FC<LocationFormProps> = ({
   }, [overlapWarning, showWarnings, departureDate, prevOverlapWarning]);
 
   return (
-    <div className="gba:locationFormContent" data-testid={`${idPrefix}-form-content`}>
-      <div className="gba:switchContainer" data-testid={`${idPrefix}-abroad-switch-container`}>
+    <div className="gba:flex gba:flex-col gba:gap-4" data-testid={`${idPrefix}-form-content`}>
+      <div className="gba:mb-0" data-testid={`${idPrefix}-abroad-switch-container`}>
         <Switch
           label={getTranslationFromI18nKeyAndLabel('lowcoder:create_expense_request.add_request_trip_details.rule_start_switch', 'Abroad')}
           name={`${idPrefix}Abroad`}
@@ -163,7 +182,7 @@ const LocationForm: React.FC<LocationFormProps> = ({
         />
       </div>
       
-      <div className="gba:inputContainer" data-testid={`${idPrefix}-input-container`}>
+      <div className="gba:relative" data-testid={`${idPrefix}-input-container`}>
         <InputField
           label={locationFormLabels.inputFieldLabel || getTranslationFromI18nKeyAndLabel('lowcoder:create_expense_request.add_request_trip_details.destination_collapsible_title', 'Destination')}
           name={`${idPrefix}Location`}
@@ -177,29 +196,26 @@ const LocationForm: React.FC<LocationFormProps> = ({
       
      
       {isAbroad && travelRegions && travelRegions.length > 0 && (
-        <div className="gba:inputContainer" data-testid={`${idPrefix}-travel-region-container`}>
+        <div className="gba:relative" data-testid={`${idPrefix}-travel-region-container`}>
           <SelectField
             allowClear
             label={getTranslationFromI18nKeyAndLabel('lowcoder:create_expense_request.add_request_trip_details.select_start_region_rule_label', 'Region')}
             name={`${idPrefix}TravelRegion`}
             data-testid={`${idPrefix}-travel-region-select`}
-            data={travelRegions.map((region) => ({
-              id: region.travelRegionRef,
-              name: getCatalogValue(region.travelRegion)
-            }))}
+            data={travelRegionOptions}
             onChange={(value: any) => {
               onUpdate('travelRegionRef', value?.value);
             }}
             placeholder={getTranslationFromI18nKeyAndLabel('lowcoder:create_expense_request.add_request_trip_details.select_start_region_rule_placeholder', 'Select Region')}
-            value={travelRegionRef || undefined}
+            value={selectedTravelRegionValue}
             required={isAbroad}
           />
         </div>
       )}
       {showDateTimeFields && (
         <>
-          <div className="gba:dateTimeContainer" data-testid={`${idPrefix}-date-time-container`}>
-            <div className="gba:dateInputContainer" data-testid={`${idPrefix}-date-container`}>
+          <div className="gba:grid gba:grid-cols-2 gba:gap-4" data-testid={`${idPrefix}-date-time-container`}>
+            <div className="gba:flex-1 gba:relative" data-testid={`${idPrefix}-date-container`}>
               <DateInputField
                 label={locationFormLabels.dateFieldLabel || getTranslationFromI18nKeyAndLabel('lowcoder:create_expense_request.add_request_trip_details.departure_date', 'Departure Date')}
                 name={`${idPrefix}DepartureDate`}
@@ -215,7 +231,7 @@ const LocationForm: React.FC<LocationFormProps> = ({
               />
             </div>
             
-            <div className="gba:timeInputContainer" data-testid={`${idPrefix}-time-container`}>
+            <div className="gba:flex-1 gba:relative" data-testid={`${idPrefix}-time-container`}>
               <TimeInputField
                 label={locationFormLabels.timeFieldLabel ||  getTranslationFromI18nKeyAndLabel('lowcoder:create_expense_request.add_request_trip_details.departure_time', 'Departure Time')}
                 name={`${idPrefix}DepartureTime`}
@@ -238,7 +254,8 @@ const LocationForm: React.FC<LocationFormProps> = ({
           
           {/* Show employee rule error if it exists - this has highest priority */}
           {errorMessage && (
-            <div className="gba:warningMessageRow" data-testid={`${idPrefix}-error-row`}>
+            <div className="gba:flex gba:flex-col gba:w-[100%]" style={{ marginTop: '8px',
+                  marginBottom: '4px', gridColumn: '1 / -1'}} data-testid={`${idPrefix}-error-row`}>
               <Alert
                 message={errorMessage}
                 type="error"
@@ -253,7 +270,8 @@ const LocationForm: React.FC<LocationFormProps> = ({
             <>
               {/* Show overlap warning if it exists - this has priority */}
               {overlapWarning && overlapWarning.message && (
-                <div className="gba:warningMessageRow" data-testid={`${idPrefix}-warnings-row`}>
+                <div className="gba:flex gba:flex-col gba:w-[100%]" style={{ marginTop: '8px',
+                  marginBottom: '4px', gridColumn: '1 / -1'}} data-testid={`${idPrefix}-warnings-row`}>
                   <Alert
                     message={overlapWarning.message}
                     type={overlapWarning.isError ? "error" : "warning"}
@@ -265,7 +283,8 @@ const LocationForm: React.FC<LocationFormProps> = ({
               
               {/* Show future date warning if enabled and no overlap warning exists */}
               {showFutureWarning && isFutureDateTime && !overlapWarning && (
-                <div className="gba:warningMessageRow" data-testid={`${idPrefix}-warnings-row`}>
+                <div className="gba:flex gba:flex-col gba:w-[100%]" style={{ marginTop: '8px',
+                  marginBottom: '4px', gridColumn: '1 / -1'}} data-testid={`${idPrefix}-warnings-row`}>
                   <Alert
                     message={getTranslationFromI18nKeyAndLabel(
                       "lowcoder:create_expense_request.add_request_trip_details.future_date_warning",
@@ -280,7 +299,8 @@ const LocationForm: React.FC<LocationFormProps> = ({
 
               {/* Show past date warning if enabled and no overlap warning exists */}
               {showPastWarning && isPastDateTime && !overlapWarning && (
-                <div className="gba:warningMessageRow" data-testid={`${idPrefix}-warnings-row`}>
+                <div className="gba:flex gba:flex-col gba:w-[100%]" style={{ marginTop: '8px',
+                  marginBottom: '4px', gridColumn: '1 / -1'}} data-testid={`${idPrefix}-warnings-row`}>
                   <Alert
                     message={getTranslationFromI18nKeyAndLabel(
                       "lowcoder:add_items_to_plan.add_trip_info_to_plan.past_date_warning",

@@ -10,6 +10,8 @@ import { getDayName } from '../../expense-request-wizard/utils/allowanceScreenUt
 import { createSummaryScreenLogObject } from '../utils/summaryScreenUtils';
 import { EVENTS } from '../../../utils/constants';
 import { useProcessEventState } from '@/business-apps/fin/expenses/utils/useProcessEventState';
+import { PLAN_TYPES } from '../../expense-plan/constants/constants';
+import { PLAN_SUMMARY_SCREEN_ITEM_LIST_LIMIT } from '../../expense-request-wizard/constants/constants';
 
 /**
  * PlanSummaryScreen component props
@@ -35,10 +37,10 @@ const PlanSummaryScreen: React.FC<PlanSummaryScreenProps> = (props) => {
   const planData = expensePlanData?.ExpensePlanByPk;
   const planItemData = expensePlanData?.ExpensePlanItem;
   const expenseItems = noAllowanceItemsFunction(planItemData);
-  const isTrip = expensePlanData?.ExpensePlanByPk?.requestTypeRef?.toLowerCase().includes('trip');
+  const isTrip = expensePlanData?.ExpensePlanByPk?.requestTypeRef?.toLowerCase().includes(PLAN_TYPES.TRIP);
   const handleSave = useCallback(() => {
     let skipStep =false
-    if(additionalData?.psi_taskPayload.stepKey){
+    if(additionalData?.psi_taskPayload.stepKey && additionalData?.psi_taskPayload.stepKey.includes(EVENTS.SKIP)){
       skipStep = true
     }
     if (expensePlanData?.ExpensePlanByPk) {
@@ -56,7 +58,7 @@ const PlanSummaryScreen: React.FC<PlanSummaryScreenProps> = (props) => {
   
   const handleSubmit = useCallback(() => {
     let skipStep =false
-    if(additionalData?.psi_taskPayload.stepKey){
+    if(additionalData?.psi_taskPayload.stepKey && additionalData?.psi_taskPayload.stepKey.includes(EVENTS.SKIP)){
       skipStep = true
     }
     if (expensePlanData?.ExpensePlanByPk) {
@@ -99,7 +101,7 @@ const PlanSummaryScreen: React.FC<PlanSummaryScreenProps> = (props) => {
     });
   }
   // Pagination state
-  const itemListLimit = 4;
+  const itemListLimit = PLAN_SUMMARY_SCREEN_ITEM_LIST_LIMIT;
   const [allowanceCurrentPage, setAllowanceCurrentPage] = useState(1);
   const [expenseCurrentPage, setExpenseCurrentPage] = useState(1);
   
@@ -113,10 +115,14 @@ const PlanSummaryScreen: React.FC<PlanSummaryScreenProps> = (props) => {
   };
   
   // Get paginated data
-  const paginatedAllowanceItems = allowanceItems?.slice(
+  const paginatedAllowanceItems = allowanceItems?.sort((a:any, b:any) => {
+    const positionA = a.itemOrder ?? 0;
+    const positionB = b.itemOrder ?? 0;
+    return positionA - positionB;
+}).slice(
     (allowanceCurrentPage - 1) * itemListLimit,
     allowanceCurrentPage * itemListLimit
-  );
+  )
   
   const paginatedExpenseItems = normalItems?.slice(
     (expenseCurrentPage - 1) * itemListLimit,
@@ -124,9 +130,9 @@ const PlanSummaryScreen: React.FC<PlanSummaryScreenProps> = (props) => {
   );
   
   return (
-    <div className="gba:summaryScreenContainer gba:flex gba:flex-col gba:flex-grow" data-testid="expense-plan-wizard-summary-screen" style={{ minHeight: '50vh' }}>
-      <div className="gba:summaryContent gba:flex gba:flex-col gba:flex-grow" data-testid="expense-plan-wizard-summary-screen-content">
-        <div className="gba:summaryHeader gba:rounded-lg" data-testid="expense-plan-summary-header">
+    <div className="gba:flex gba:flex-col gba:flex-grow" data-testid="expense-plan-wizard-summary-screen" style={{ minHeight: '50vh' }}>
+      <div className="gba:flex gba:flex-col gba:flex-grow" data-testid="expense-plan-wizard-summary-screen-content">
+        <div className="gba:rounded-lg" data-testid="expense-plan-summary-header">
         <Row gutter={[24, 16]}>
             <Col xs={24} md={12} className="gba:text-left">
               <div className="gba:flex gba:items-center gba:gap-2">
@@ -184,7 +190,7 @@ const PlanSummaryScreen: React.FC<PlanSummaryScreenProps> = (props) => {
         <div style={{flexGrow:1}}>
         <div className="gba:mt-6" data-testid="expense-plan-allowances-section">
           <span 
-            className="gba:inline-block gba:font-bold gba:w-full gba:bg-[#F7F7F7] gba:px-4 gba:py-5 gba:text-sm gba:mb-3" 
+            className="gba:inline-block gba:font-bold gba:w-[100%] gba:bg-[#F7F7F7] gba:px-4 gba:py-5 gba:text-sm gba:mb-3" 
             data-testid="expense-plan-allowances-section-title"
           >
             {getTranslationFromI18nKeyAndLabel('lowcoder:expense_calculation_rule_details.calculation_allowance_code_list.calculation_allowance_code_modal.expense_group_placeholder', 'Allowances') + " ("+allowanceItems?.length + ")"}
@@ -192,7 +198,7 @@ const PlanSummaryScreen: React.FC<PlanSummaryScreenProps> = (props) => {
           
           {allowanceItems && allowanceItems.length > 0 ? (
             <>
-              <div className="gba:allowances-list" data-testid="expense-plan-allowances-list">
+              <div data-testid="expense-plan-allowances-list">
                 {paginatedAllowanceItems.map((item) => (
                   <ExpenseItemRow 
                     key={item.id}
@@ -205,7 +211,7 @@ const PlanSummaryScreen: React.FC<PlanSummaryScreenProps> = (props) => {
               </div>
               
               {allowanceItems.length > itemListLimit && (
-                <div className="gba:paginationContainer  gba:flex gba:justify-center" data-testid="allowance-items-pagination-container">
+                <div className="gba:flex gba:justify-center" data-testid="allowance-items-pagination-container">
                   <Pagination
                     current={allowanceCurrentPage}
                     onChange={handleAllowancePageChange}
@@ -226,7 +232,7 @@ const PlanSummaryScreen: React.FC<PlanSummaryScreenProps> = (props) => {
         
         <div className="gba:mt-6" data-testid="expense-plan-expense-items-section">
           <span 
-            className="gba:inline-block gba:font-bold gba:w-full gba:bg-[#F7F7F7] gba:px-4 gba:py-5 gba:text-sm gba:mb-3" 
+            className="gba:inline-block gba:font-bold gba:w-[100%] gba:bg-[#F7F7F7] gba:px-4 gba:py-5 gba:text-sm gba:mb-3" 
             data-testid="expense-plan-expense-items-section-title"
           >
             {getTranslationFromI18nKeyAndLabel('lowcoder:add_items_to_plan.expense_items_counter', 'Estimated Expense Items') + " (" + normalItems.length + ")"}
@@ -234,7 +240,7 @@ const PlanSummaryScreen: React.FC<PlanSummaryScreenProps> = (props) => {
           
           {normalItems && normalItems.length > 0 ? (
             <>
-              <div className="gba:expense-items-list" data-testid="expense-plan-expense-items-list">
+              <div data-testid="expense-plan-expense-items-list">
                 {paginatedExpenseItems.map((element:any) => (
                   <ExpenseItemRow 
                     key={element.id}
@@ -247,7 +253,7 @@ const PlanSummaryScreen: React.FC<PlanSummaryScreenProps> = (props) => {
               </div>
               
               {normalItems.length > itemListLimit && (
-                <div className="gba:paginationContainer  gba:flex gba:justify-center" data-testid="expense-items-pagination-container">
+                <div className="gba:flex gba:justify-center" data-testid="expense-items-pagination-container">
                   <Pagination
                     current={expenseCurrentPage}
                     onChange={handleExpensePageChange}

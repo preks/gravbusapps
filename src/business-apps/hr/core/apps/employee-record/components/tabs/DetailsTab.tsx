@@ -8,7 +8,7 @@ import { formatPhoneNumber } from '../../utils/formatters';
 import { useGetAcademicTitles } from '../../../../hooks/useGetAcademicTitles';
 import { getTranslationFromI18nKeyAndLabel } from '../../../../../../../common/utils/windowUtils';
 import useEmployeePermissions, { SECTION_KEYS } from '../../hooks/useEmployeePermissions';
-import AppActionButton from '@/components/app-action-button/AppActionButton';
+import { AppActionMenu } from '@/components/app-action-menu/AppActionMenu';
 import { FlowContextName } from '@/common/types/FlowRegistryTypes';
 import { PiPencilSimple } from 'react-icons/pi';
 import { UserInfoProps } from '../../../../../../../common/BusinessAppContext';
@@ -288,9 +288,8 @@ const DetailsTab: React.FC<DetailsTabProps> = ({ employee, accessToken, employee
           <div className="gba:mb-6 gba:border-b gba:border-gray-200 gba:pb-2 gba:flex gba:justify-between gba:items-center">
             <h3 className="gba:text-xl gba:font-semibold gba:text-blue-700">Personal Data</h3>
             {isSelfView && (
-              <AppActionButton 
+              <AppActionMenu 
                 data-testid="personal-data-action-button"
-                variant="ghost"
                 contextsArray={[FlowContextName.updateEmployeePersonalData]}
                 externalContextData={{
                   employeeId: employee?.id,
@@ -298,8 +297,9 @@ const DetailsTab: React.FC<DetailsTabProps> = ({ employee, accessToken, employee
                 prefixDataTestId="personal-data-action"
                 accessToken={accessToken}
                 autoExecuteSingleAction={true}
-                icon={<PiPencilSimple />}
-              />
+              >
+                <PiPencilSimple className="gba:cursor-pointer" />
+              </AppActionMenu>
             )}
           </div>
           {/* Personal data with masking already applied in the data definition */}
@@ -315,9 +315,8 @@ const DetailsTab: React.FC<DetailsTabProps> = ({ employee, accessToken, employee
           <div className="gba:mb-6 gba:border-b gba:border-gray-200 gba:pb-2 gba:flex gba:justify-between gba:items-center">
             <h3 className="gba:text-xl gba:font-semibold gba:text-blue-700">Address</h3>
             {isSelfView && (
-              <AppActionButton 
+              <AppActionMenu 
                 data-testid="employee-address-action-button"
-                variant="ghost"
                 contextsArray={[FlowContextName.updateEmployeeAddress]}
                 externalContextData={{
                   employeeId: employee?.id,
@@ -325,8 +324,9 @@ const DetailsTab: React.FC<DetailsTabProps> = ({ employee, accessToken, employee
                 prefixDataTestId="employee-address-action"
                 accessToken={accessToken}
                 autoExecuteSingleAction={true}
-                icon={<PiPencilSimple />}
-              />
+              >
+                <PiPencilSimple className="gba:cursor-pointer" />
+              </AppActionMenu>
             )}
           </div>
           {renderDataItems(addressData.map(item => ({...item, sectionKey: SECTION_KEYS.details.addressPublic})))}
@@ -341,9 +341,8 @@ const DetailsTab: React.FC<DetailsTabProps> = ({ employee, accessToken, employee
           <div className="gba:mb-6 gba:border-b gba:border-gray-200 gba:pb-2 gba:flex gba:justify-between gba:items-center">
             <h3 className="gba:text-xl gba:font-semibold gba:text-blue-700">Bank Account</h3>
             {isSelfView && (
-              <AppActionButton 
+              <AppActionMenu 
                 data-testid="bank-account-action-button"
-                variant="ghost"
                 contextsArray={[FlowContextName.updateEmployeeBankAccount]}
                 externalContextData={{
                   employeeId: employee?.id,
@@ -351,8 +350,9 @@ const DetailsTab: React.FC<DetailsTabProps> = ({ employee, accessToken, employee
                 prefixDataTestId="bank-account-action"
                 accessToken={accessToken}
                 autoExecuteSingleAction={true}
-                icon={<PiPencilSimple />}
-              />
+              >
+                <PiPencilSimple className="gba:cursor-pointer" />
+              </AppActionMenu>
             )}
           </div>
           {renderDataItems(bankAccountData.map(item => ({...item, sectionKey: SECTION_KEYS.details.bankAccount})))}
@@ -367,9 +367,8 @@ const DetailsTab: React.FC<DetailsTabProps> = ({ employee, accessToken, employee
           <div className="gba:mb-6 gba:border-b gba:border-gray-200 gba:pb-2 gba:flex gba:justify-between gba:items-center">
             <h3 className="gba:text-xl gba:font-semibold gba:text-blue-700">Private Communication</h3>
             {isSelfView && (
-              <AppActionButton 
+              <AppActionMenu 
                 data-testid="private-communication-action-button"
-                variant="ghost"
                 contextsArray={[FlowContextName.updateEmployeeCommunication]}
                 externalContextData={{
                   employeeId: employee?.id,
@@ -377,8 +376,9 @@ const DetailsTab: React.FC<DetailsTabProps> = ({ employee, accessToken, employee
                 prefixDataTestId="private-communication-action"
                 accessToken={accessToken}
                 autoExecuteSingleAction={true}
-                icon={<PiPencilSimple />}
-              />
+              >
+                <PiPencilSimple className="gba:cursor-pointer" />
+              </AppActionMenu>
             )}
           </div>
           {renderDataItems(privateCommunicationData.map(item => ({...item, sectionKey: SECTION_KEYS.details.contactInfoPrivate})))}

@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Form } from "antd";
 import { Button, Checkbox } from "@newwork/gravity-ui-catalog";
 import dayjs from "dayjs";
@@ -7,7 +7,7 @@ import { useGraphqlClient } from "@/common/network/graphql/useGraphQLClient";
 import { ICONS } from "../../../utils/icons";
 import LocationContainer from "../../expense-request-wizard/components/LocationContainer/LocationContainer";
 import LocationForm from "../../expense-request-wizard/components/LocationForm/LocationForm";
-import "../../expense-request-wizard/screens/TripScreen.css";
+
 import { DestinationLimit, LocationData, TripScreenProps } from "../../expense-request-wizard/utils/types";
 import { getMaxLimits, getMinLimits, getMinMaxLimits, validateAndSanitizeLocation } from "../../expense-request-wizard/utils/locationTimeUtils";
 import { getExpenseRulesDataQuery, getRequestsAbsences } from "../queries/ExpensePlanWizardQueries";
@@ -20,7 +20,7 @@ import RejectionComment from "../../expense-request-wizard/components/RejectionC
 import { EVENTS } from "../../../utils/constants";
 import { getLatestRejectComment, setLocalitiesDefault } from '../utils/tripScreenUtils';
 import { setByExternalCustomComponent } from '../../expense-request-wizard/utils/tripScreenUtils';
-import { formatDateTimeToISO } from '../../expense-request-wizard/utils/dateOverlapUtils';
+import { combineDateTimeToISOString } from '../../expense-request-wizard/utils/locationTimeUtils';
 
 
 /**
@@ -70,15 +70,15 @@ export const PlanTripScreen: React.FC<TripScreenProps> = (props) => {
     submitActionTripData, 
     setEmployeeRuleId, 
     updateTripFormValidation,
-    skipAdvancePayment,
-    setSkipAdvancePayment
+    requestAdvancePayment,
+    setRequestAdvancePayment
   } = useExpensePlanWizardContext();
   const { userInfo } = props;
   
   // Get expense items from additionalData if available
   const getExpenseItems = () => {
-    if (additionalData?.psi_taskPayload?.initialParameters?.expenseItems) {
-      return additionalData.psi_taskPayload.initialParameters.expenseItems;
+    if (additionalData?.psi_taskPayload?.psi_initialParameters?.expenseItems) {
+      return additionalData.psi_taskPayload.psi_initialParameters.expenseItems;
     }
     return [];
   };
@@ -117,6 +117,7 @@ export const PlanTripScreen: React.FC<TripScreenProps> = (props) => {
   const [endLocation, setEndLocation] = useState<LocationData>(initialEndLocation);
   
   const [expenseRulesData, setExpenseRulesData] = useState<any>(null);
+  const lastAbsenceCheckKeyRef = useRef<string | null>(null);
   
   const [locationsAreSynced, setLocationsAreSynced] = useState<boolean>(false);
   
@@ -150,7 +151,7 @@ export const PlanTripScreen: React.FC<TripScreenProps> = (props) => {
       }
       
       const ruleData = await fetchEmployeeRule(employeeId, dateString, accessToken);
-      
+      const ruleDataValue = ruleData.id || ruleData.expenseRuleId;
       if (!ruleData) {
         const errorMessage = getTranslationFromI18nKeyAndLabel(
           'lowcoder:create_expense_item.missing_expense_rule_message', 
@@ -160,8 +161,8 @@ export const PlanTripScreen: React.FC<TripScreenProps> = (props) => {
         return false;
       }
       
-      if (ruleData.id) {
-        setEmployeeRuleId(ruleData.id);
+      if (ruleDataValue) {
+        setEmployeeRuleId(ruleDataValue);
       }
       
       return true;
@@ -208,8 +209,17 @@ export const PlanTripScreen: React.FC<TripScreenProps> = (props) => {
         return;
       }
       
-      const startTimeValue = formatDateTimeToISO(startDate, startTime, formatDateTimeToISO(endDate, endTime));
-      const endTimeValue = formatDateTimeToISO(endDate, endTime, formatDateTimeToISO(startDate, startTime));
+      const startTimeValue = combineDateTimeToISOString(startDate, startTime,combineDateTimeToISOString(endDate, endTime));
+      const endTimeValue = combineDateTimeToISOString(endDate, endTime,combineDateTimeToISOString(startDate, startTime));
+      let finalStartDate = startTimeValue;
+      let finalEndDate = endTimeValue;
+      try {
+        if (finalStartDate && finalEndDate && new Date(finalStartDate).getTime() > new Date(finalEndDate).getTime()) {
+          const temporaryValue = finalStartDate;
+          finalStartDate = finalEndDate;
+          finalEndDate = temporaryValue;
+        }
+      } catch {}
       
       const variables = {
         employeeId: employeeId,
@@ -218,9 +228,19 @@ export const PlanTripScreen: React.FC<TripScreenProps> = (props) => {
         statusArray: EXCLUDED_STATUSES,
         planId: expenseId,
         activeUserLocale,
-        startTimeValue,
-        endTimeValue
+        startTimeValue: finalStartDate,
+        endTimeValue: finalEndDate
       };
+      const dedupeKey = JSON.stringify({
+        employeeId,
+        expenseId,
+        startTimeValue: finalStartDate,
+        endTimeValue: finalEndDate
+      });
+      if (lastAbsenceCheckKeyRef.current === dedupeKey) {
+        return;
+      }
+      lastAbsenceCheckKeyRef.current = dedupeKey;
       try {
         const response = await graphqlClient.request(getRequestsAbsences, variables);
         const overlapWarning = getOverlapWarningMessage(response, expenseId);
@@ -534,12 +554,12 @@ export const PlanTripScreen: React.FC<TripScreenProps> = (props) => {
   }, [startLocation, destinations, endLocation, employeeRuleError, ruleConflictError, startLocationOverlap, endLocationOverlap, validateTripForm]);
 
   const handleSave = () => {
-    submitActionTripData(startLocation, destinations, endLocation, expenseRulesData, EVENTS.SAVE,skipAdvancePayment);
+    submitActionTripData(startLocation, destinations, endLocation, expenseRulesData, EVENTS.SAVE,requestAdvancePayment);
   };
 
   const handleNext = () => {
     if (validateTripForm()) {
-     submitActionTripData(startLocation, destinations, endLocation, expenseRulesData, EVENTS.NEXT,skipAdvancePayment);
+     submitActionTripData(startLocation, destinations, endLocation, expenseRulesData, EVENTS.NEXT,requestAdvancePayment);
     }
   };
 
@@ -568,15 +588,15 @@ export const PlanTripScreen: React.FC<TripScreenProps> = (props) => {
   // }
 
   return (
-    <div className="gba:tripScreenContainer" data-testid="trip-screen-container">
+    <div className="gba:flex gba:flex-col gba:w-[100%]" data-testid="trip-screen-container">
       <Form form={form} layout="vertical">
         {latestRejectComment && (
           <RejectionComment isRequest={false} comment={latestRejectComment} />
         )}
         
-        <div className="gba:locationsContainer" data-testid="locations-container">
+        <div data-testid="locations-container">
           {/* Start Location */}
-          <div className="gba:locationContainerWrapper gba:withDivider" data-testid="start-location-wrapper">
+          <div className="gba:border-b gba:border-b-[#e8e8e8] gba:py-4" data-testid="start-location-wrapper">
             <LocationContainer
               title={getTranslationFromI18nKeyAndLabel('lowcoder:add_items_to_plan.add_trip_info_to_plan.start_location', 'Start Location')}
               icon={ICONS.PIN_ICON}
@@ -640,7 +660,7 @@ export const PlanTripScreen: React.FC<TripScreenProps> = (props) => {
 
           {/* Destinations */}
           {destinations.map((destination, index) => (
-            <div key={destination.id} className="gba:locationContainerWrapper gba:withDivider" data-testid={`destination-wrapper-${destination.id}`}>
+             <div key={destination.id} className="gba:border-b gba:border-b-[#e8e8e8] gba:py-4" data-testid={`destination-wrapper-${destination.id}`}>
               <LocationContainer
                 title={getTranslationFromI18nKeyAndLabel(
                   "lowcoder:add_items_to_plan.add_trip_info_to_plan.destination_collapsible_title",
@@ -678,10 +698,10 @@ export const PlanTripScreen: React.FC<TripScreenProps> = (props) => {
           ))}
 
           {/* Add Destination Button */}
-          <div
-            className="gba:addDestinationContainer gba:withDivider"
-            data-testid="add-destination-container"
-          >
+                     <div
+             className="gba:flex gba:pl-4 gba:border-b gba:border-b-[#e8e8e8] gba:py-4 [&>button]:!gba:py-0 [&>button]:!gba:px-[10px] [&>button]:-gba:ml-[10px] [&>button]:!gba:rounded-[20px]"
+             data-testid="add-destination-container"
+           >
             <Button
               variant="ghost"
               onClick={addDestination}
@@ -698,7 +718,7 @@ export const PlanTripScreen: React.FC<TripScreenProps> = (props) => {
           </div>
 
           {/* End Location */}
-          <div className="gba:locationContainerWrapper" data-testid="end-location-wrapper">
+          <div className="gba:py-4" data-testid="end-location-wrapper">
             <LocationContainer
               title={getTranslationFromI18nKeyAndLabel('lowcoder:add_items_to_plan.add_trip_info_to_plan.end_location_text', 'End Location')}
               icon={ICONS.PIN_ICON}
@@ -759,11 +779,11 @@ export const PlanTripScreen: React.FC<TripScreenProps> = (props) => {
           </div>
 
           {/* Skip Advance Payment Checkbox */}
-          <div className="gba:skipAdvancePaymentContainer" data-testid="skip-advance-payment-container">
+          <div className="gba:font-medium gba:py-4 [&_label]:flex [&_label]:flex-row-reverse" data-testid="skip-advance-payment-container">
             <Checkbox
-              value={skipAdvancePayment}
+              value={requestAdvancePayment}
               name={"skip-advance-payment-checkbox"}
-              onChange={(e) =>setSkipAdvancePayment(e.value as boolean || false)}
+              onChange={(e) =>setRequestAdvancePayment(e.value as boolean || false)}
               data-testid="skip-advance-payment-checkbox"
             >
               {getTranslationFromI18nKeyAndLabel('lowcoder:add_items_to_plan.add_trip_info_to_plan.skip_advance_payment_label', 'Request Advance Payment')}

@@ -1,6 +1,6 @@
 // GraphQL query for fetching dashboard data for a manager
 export const GET_EXPENSE_DASHBOARD_BY_MANAGER = `
-query GetExpenseDashboardByManager($managerId: uuid!, $startDate: timestamp, $yearStart: timestamp, $currentYear: Int) {
+query GetExpenseDashboardByManager($managerId: uuid!, $startDate: timestamp, $yearStart: timestamp, $currentYear: Int, $currencyRef: String) {
   # Get team members count
   TeamMembersAggregate: EmployeeAggregate(
     where: {
@@ -55,7 +55,8 @@ query GetExpenseDashboardByManager($managerId: uuid!, $startDate: timestamp, $ye
       },
       status: {_eq: "APPROVED"},
       requestDate: {_gte: $startDate},
-      isDeleted: {_eq: false}
+      isDeleted: {_eq: false},
+      currencyRef: {_eq: $currencyRef}
     }
   ) {
     aggregate {
@@ -76,7 +77,8 @@ query GetExpenseDashboardByManager($managerId: uuid!, $startDate: timestamp, $ye
         }
       },
       status: {_nin: ["CREATED", "RETURNED", "REJECTED", "DISCARDED"]},
-      isDeleted: {_eq: false}
+      isDeleted: {_eq: false},
+      currencyRef: {_eq: $currencyRef}
     }
   ) {
     id
@@ -86,6 +88,8 @@ query GetExpenseDashboardByManager($managerId: uuid!, $startDate: timestamp, $ye
     requestDate
     employee {
       fullName
+      firstName
+      lastName  
     }
   }
 
@@ -121,12 +125,41 @@ query GetExpenseDashboardByManager($managerId: uuid!, $startDate: timestamp, $ye
       },
       status: {_eq: "APPROVED"},
       requestDate: {_gte: $yearStart},
-      isDeleted: {_eq: false}
+      isDeleted: {_eq: false},
+      currencyRef: {_eq: $currencyRef}
     },
     orderBy: {requestDate: ASC}
   ) {
     requestDate
     totalAmount
   }
-}
+  }
+`;
+
+// GraphQL query for fetching all team employees under a manager
+export const GET_ALL_TEAM_EMPLOYEES = `
+  query GetAllTeamEmployees($managerId: uuid!, $activeStructure: uuid!) {
+    Employee(
+      where: {
+        isDeleted: {_eq: false}
+        employeePosition: {
+          structureId: {_eq: $activeStructure}
+          supervisorEmployeeId: {_eq: $managerId}
+        }
+      }
+      orderBy: {firstName: ASC, lastName: ASC}
+    ) {
+      id
+      userId
+      firstName
+      lastName
+      fullName
+      displayName
+      employeePosition {
+        organizationalUnit {
+          name
+        }
+      }
+    }
+  }
 `;

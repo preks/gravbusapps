@@ -72,12 +72,11 @@ export const ExpensePlanItemForm: React.FC<ExpensePlanItemFormProps> = ({
       validateTrigger={['onChange', 'onBlur']}
       initialValues={{
         date: new Date(),
-        currency: "Currency:v1:EUR",
         reimbursable: true,
       }}
     >
-      <div className={`gba:marginBottom16`} data-testid="title-field-container">
-        <div className={`gba:relativePosition`}>
+      <div className={`gba:mb-4`} data-testid="title-field-container">
+        <div className={`gba:relative`}>
           <Form.Item
             name="title"
             rules={[{ required: true, message: t('lowcoder:create_expense_type_item.current_title_custom_rule', 'Please enter a title')}]}
@@ -99,8 +98,8 @@ export const ExpensePlanItemForm: React.FC<ExpensePlanItemFormProps> = ({
         </div>
       </div>
 
-      <div className={`gba:marginBottom16`} data-testid="date-field-container">
-        <div className={`gba:relativePosition`}>
+      <div className={`gba:mb-4`} data-testid="date-field-container">
+        <div className={`gba:relative`}>
           <Form.Item
             shouldUpdate
             name="date"
@@ -138,8 +137,8 @@ export const ExpensePlanItemForm: React.FC<ExpensePlanItemFormProps> = ({
         </div>
       </div>
 
-      <div className={`gba:marginBottom16`} data-testid="expense-group-field-container">
-        <div className={`gba:relativePosition`}>
+      <div className={`gba:mb-4`} data-testid="expense-group-field-container">
+        <div className={`gba:relative`}>
           <Form.Item
             name="expenseGroup"
             rules={[{ required: true, message: t('lowcoder:create_expense_type_item.current_expense_group_custom_rule', 'Please select an expense group') }]}
@@ -172,8 +171,8 @@ export const ExpensePlanItemForm: React.FC<ExpensePlanItemFormProps> = ({
         </div>
       </div>
 
-      <div className={`gba:marginBottom16`} data-testid="expense-type-field-container">
-        <div className={`gba:relativePosition`}>
+      <div className={`gba:mb-4`} data-testid="expense-type-field-container">
+        <div className={`gba:relative`}>
           <Form.Item
             name="expenseType"
             rules={[{ required: true, message: t('lowcoder:create_expense_item.change_expense_item_container.current_expense_type_custom_rule', 'Please select an expense type') }]}
@@ -207,8 +206,8 @@ export const ExpensePlanItemForm: React.FC<ExpensePlanItemFormProps> = ({
 
       {/* Custom Fields */}
       {Object.values(customFields).flat().map((field) => (
-        <div key={field.id} className={`gba:marginBottom16`} data-testid={`custom-field-${field.id}-container`}>
-          <div className={`gba:relativePosition`}>
+        <div key={field.id} className={`gba:mb-4`} data-testid={`custom-field-${field.id}-container`}>
+          <div className={`gba:relative`}>
             <Form.Item
               name={field.infoValue}
               rules={field.mandatory ? [{ required: true, message: t('lowcoder:create_expense_type_item.custom_field_required', 'This field is required') }] : []}
@@ -230,41 +229,46 @@ export const ExpensePlanItemForm: React.FC<ExpensePlanItemFormProps> = ({
         </div>
       ))}
       
-      <div className={`gba:amountCurrencyRow gba:marginBottom16`} data-testid="amount-currency-container">
-        <div className={`gba:amountField`} data-testid="amount-field-container">
+      <div className={`gba:mb-4`} data-testid="amount-currency-container">
+      <div className="gba:flex gba:gap-4">
+        <div className={`gba:w-1/2`} data-testid="amount-field-container">
           <Form.Item
             name="amount"
             rules={[{ required: true, message: t('lowcoder:create_expense_type_item.current_amount_custom_rule', 'Please enter an amount') }]}
             style={{ marginBottom: 0 }}
           >
-            <InputField
-              label={t("lowcoder:create_expense_type_item.current_amount_label", "Amount")}
-              name="amount"
-              type="number"
-              step="0.01"
-              min="0"
-              className="gba:no-spinner"
-              placeholder={t(
-                "lowcoder:create_expense_type_item.current_amount_placeholder",
-                "Enter Amount"
-              )}
-              data-testid="amount-input"
-              onChange={(field) => {
-                let value = field.value as string;
-                if (value.includes('.')) {
-                  const parts = value.split('.');
-                  if (parts[1] && parts[1].length > 2) {
-                    value = `${parts[0]}.${parts[1].substring(0, 2)}`;
+              <InputField
+                label={t("lowcoder:create_expense_type_item.current_amount_label", "Amount")}
+                name="amount"
+                type="number"
+                step="0.01"
+                min="0"
+                className="gba:[&>input[type=number]]:appearance-textfield 
+         gba:[&>input[type=number]::-webkit-inner-spin-button]:appearance-none 
+         gba:[&>input[type=number]::-webkit-inner-spin-button]:m-0 
+         gba:[&>input[type=number]::-webkit-outer-spin-button]:appearance-none 
+         gba:[&>input[type=number]::-webkit-outer-spin-button]:m-0"
+                placeholder={t(
+                  "lowcoder:created_expense_type_item.current_amount_placeholder",
+                  "Enter Amount"
+                )}
+                data-testid="amount-input"
+                onChange={(field) => {
+                  let value = field.value as string;
+                  if (value.includes('.')) {
+                    const parts = value.split('.');
+                    if (parts[1] && parts[1].length > 2) {
+                      value = `${parts[0]}.${parts[1].substring(0, 2)}`;
+                    }
                   }
-                }
-                form.setFieldsValue({ amount: value });
-              }}
-              required={true}
-            />
+                  form.setFieldsValue({ amount: value });
+                }}
+                required={true}
+              />
           </Form.Item>
         </div>
 
-        <div className={`gba:currencyField`} data-testid="currency-field-container">
+        <div className={`gba:w-1/2`} data-testid="currency-field-container">
           <Form.Item
             name="currency"
             rules={[{ required: true, message: t('lowcoder:create_expense_type_item.current_currency_custom_rule', 'Please select a currency') }]}
@@ -295,10 +299,11 @@ export const ExpensePlanItemForm: React.FC<ExpensePlanItemFormProps> = ({
             />
           </Form.Item>
         </div>
+        </div>
       </div>
 
-      <div className={`gba:marginBottom16`} data-testid="cost-center-field-container">
-        <div className={`gba:relativePosition`}>
+      <div className={`gba:mb-4`} data-testid="cost-center-field-container">
+        <div className={`gba:relative`}>
           <Form.Item
             name="costCenter"
             rules={[{ required: true, message: t('lowcoder:create_expense_type_item.current_cost_center_custom_rule', 'Please select a cost center') }]}
@@ -324,8 +329,8 @@ export const ExpensePlanItemForm: React.FC<ExpensePlanItemFormProps> = ({
         </div>
       </div>
 
-      <div className={`gba:marginBottom16`} data-testid="reimbursable-switch-container">
-        <div className={`gba:relativePosition`}>
+      <div className={`gba:mb-4`} data-testid="reimbursable-switch-container">
+        <div className={`gba:relative`}>
           <Form.Item
             name="reimbursable"
             style={{ marginBottom: 0 }}
@@ -356,11 +361,12 @@ export const ExpensePlanItemForm: React.FC<ExpensePlanItemFormProps> = ({
         className="gba:mt-[30px] gba:mb-[30px]"
         data-testid="form-divider"
       />
-      <div className="gba:actionButtonsContainer" data-testid="expense-plan-item-actions">
+      <div className="gba:flex gba:justify-between gba:py-4" style={{ width: '100%' }} data-testid="expense-plan-item-actions">
         <Button
           variant="outline" 
           onClick={handleCancel}
-          className="gba:cancelButton"
+          className="gba:min-w-[100px] gba:border-2 gba:text-base gba:font-semibold gba:px-4"
+          style={{ borderRadius: '22px', height: '40px' }}
           data-testid="cancel-button"
         >
           {t("lowcoder:create_expense_request.initiate_cancel_button", "Cancel")}
@@ -369,7 +375,8 @@ export const ExpensePlanItemForm: React.FC<ExpensePlanItemFormProps> = ({
           variant="primary"
           onClick={handleSubmit}
           disabled={loading || !formIsValid || !!expenseRuleError}
-          className="gba:submitButton"
+          className="gba:min-w-[100px] gba:border-2 gba:text-base gba:font-semibold gba:px-4"
+          style={{ borderRadius: '22px', width: 'auto', height: '40px' }}
           data-testid="submit-button"
         >
           {isEditMode ? t("lowcoder:expense_calculation_rule_details.calculation_rule_tab_custom_fields.custom_fields_modal.btn_update", "Update") : t("lowcoder:expense_calculation_rule_details.calculation_rule_tab_custom_fields.custom_fields_modal.btn_save", "Create")}

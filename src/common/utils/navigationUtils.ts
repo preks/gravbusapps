@@ -2,26 +2,35 @@ interface NavigationMapping {
   [key: string]: string;
 }
 
-// Mapping of platform URLs to app names for development mode
+// Mapping of platform URLs to app paths for development mode
 const PLATFORM_URL_TO_APP_MAPPING: NavigationMapping = {
-  '/platform/crm/lead-list': 'LeadList',
-  '/platform/crm/lead-record': 'LeadRecord',
-  '/platform/crm/contact-record': 'ContactRecord',
-  '/platform/crm/opportunity-record': 'OpportunityRecord',
-  '/platform/crm/account-record': 'AccountRecord',
-  '/platform/crm/campaign-record': 'CampaignRecord',
-  '/platform/crm/customer-relations': 'CustomerRelations',
-  '/platform/irm/investment-relations': 'InvestmentRelations',
-  '/platform/fin/expenses/expense-plan-record': 'ExpensePlanRecord',
-  '/platform/fin/expenses/expense-request-record': 'ExpenseRequestRecord',
-  '/platform/fin/expenses/personal-expenses': 'PersonalExpenses',
-  '/platform/fin/expenses/manager-expenses': 'ManagerExpenses',
-  '/platform/fin/expenses/backoffice-expenses': 'BackofficeExpenses',
-  '/platform/employee-record': 'EmployeeRecord',
-  '/platform/mdm/pipeline-data': 'PipelineData',
-  '/platform/mdm/lead-data': 'LeadData',
-  '/platform/mdm/operation-data': 'OperationData',
-  '/platform/mdm/engagement-data': 'EngagementData',
+  '/platform/crm/lead-list': 'crm/common/apps/lead-list',
+  '/platform/crm/lead-record': 'crm/common/apps/lead-record',
+  '/platform/crm/contact-record': 'crm/common/apps/contact-record',
+  '/platform/crm/opportunity-record': 'crm/common/apps/opportunity-record',
+  '/platform/crm/account-record': 'crm/common/apps/account-record',
+  '/platform/crm/campaign-record': 'crm/common/apps/campaign-record',
+  '/platform/crm/customer-relations': 'crm/common/apps/customer-relations',
+  '/platform/crm/team-performance': 'crm/common/apps/customer-team-performance',
+  '/platform/crm/team-member-record': 'crm/common/apps/customer-member-record',
+  '/platform/irm/investment-relations': 'crm/investments/apps/investment-relations',
+  '/platform/irm/investment-record': 'crm/investments/apps/investment-record',
+  '/platform/irm/liquid-portfolio-record': 'crm/investments/apps/liquid-portfolio-record',
+  '/platform/irm/lead-record': 'crm/investments/apps/investment-lead-record',
+  '/platform/irm/account-record': 'crm/investments/apps/investment-account-record',
+  '/platform/irm/contact-record': 'crm/investments/apps/investment-contact-record',
+  '/platform/irm/opportunity-record': 'crm/investments/apps/investment-opportunity-record',
+  '/platform/irm/investment-management': 'crm/investments/apps/investment-management',
+  '/platform/fin/expenses/expense-plan-record': 'fin/expenses/apps/expense-plan-record',
+  '/platform/fin/expenses/expense-request-record': 'fin/expenses/apps/expense-request-record',
+  '/platform/fin/expenses/personal-expenses': 'fin/expenses/apps/personal-expenses',
+  '/platform/fin/expenses/manager-expenses': 'fin/expenses/apps/manager-expenses',
+  '/platform/fin/expenses/backoffice-expenses': 'fin/expenses/apps/backoffice-expenses',
+  '/platform/employee-record': 'hr/core/apps/employee-record',
+  '/platform/mdm/pipeline-data': 'mdm/apps/pipeline-data',
+  '/platform/mdm/lead-data': 'mdm/apps/lead-data',
+  '/platform/mdm/operation-data': 'mdm/apps/operation-data',
+  '/platform/mdm/engagement-data': 'mdm/apps/engagement-data',
 };
 
 /**
@@ -35,36 +44,20 @@ const isPlatformUrl = (url: string): boolean => {
 };
 
 /**
- * Extracts query parameters from a URL
- */
-const extractQueryParams = (url: string): Record<string, string> => {
-  const queryString = url.split('?')[1];
-  if (!queryString) return {};
-  
-  const params: Record<string, string> = {};
-  const urlParams = new URLSearchParams(queryString);
-  
-  for (const [key, value] of urlParams.entries()) {
-    params[key] = value;
-  }
-  
-  return params;
-};
-
-/**
  * Converts a platform URL to development query parameters
  */
 const convertToDevQueryParams = (url: string): string => {
   const [basePath, queryString] = url.split('?');
-  const appName = PLATFORM_URL_TO_APP_MAPPING[basePath];
+  const appPath = PLATFORM_URL_TO_APP_MAPPING[basePath];
   
-  if (!appName) {
+  if (!appPath) {
     console.warn(`No app mapping found for platform URL: ${basePath}`);
     return url;
   }
   
+  // Platform URLs always map to app parameters
   const existingParams = queryString ? `&${queryString}` : '';
-  return `?app=${appName}${existingParams}`;
+  return `?app=${appPath}${existingParams}`;
 };
 
 /**
@@ -107,4 +100,5 @@ export const buildPlatformUrl = (basePath: string, params?: Record<string, strin
   
   const queryString = new URLSearchParams(params).toString();
   return `${basePath}?${queryString}`;
-}; 
+};
+

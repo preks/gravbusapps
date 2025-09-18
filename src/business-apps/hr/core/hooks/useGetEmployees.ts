@@ -14,6 +14,7 @@ export interface Employee {
   lastName: string;
   jobTitle: string;
   organizationalUnit: string;
+  organizationalUnitId?: string;
   email: string;
   profilePicture: string;
   employmentType?: string;
@@ -86,6 +87,7 @@ const EMPLOYEE_POSITION_QUERY = `
         name
       }
       organizationalUnit {
+        id
         name
       }
       matrixUnitEmployees(where: { matrixUnit: { isDeleted: { _eq: false } } }) {
@@ -257,6 +259,7 @@ export function useGetEmployees(filters: EmployeeFilters & { accessToken: string
             lastName: ep.lastName,
             jobTitle: ep.jobPosition?.name ?? '',
             organizationalUnit: ep.organizationalUnit?.name ?? '',
+            organizationalUnitId: ep.organizationalUnit?.id,
             email: '', // Email not provided in query, default empty
             employmentType: workingCondition?.employmentType?.value ?? '',
             contractType: workingCondition?.contractType?.value ?? '',
@@ -363,6 +366,7 @@ export function useGetEmployees(filters: EmployeeFilters & { accessToken: string
             lastName: ep.lastName,
             jobTitle: ep.jobPosition?.name ?? '',
             organizationalUnit: ep.organizationalUnit?.name ?? '',
+            organizationalUnitId: ep.organizationalUnit?.id,
             email: '', // Email not provided in query, default empty
             employmentType: workingCondition?.employmentType?.value ?? '',
             contractType: workingCondition?.contractType?.value ?? '',

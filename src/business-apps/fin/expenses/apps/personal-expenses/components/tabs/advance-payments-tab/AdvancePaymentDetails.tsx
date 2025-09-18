@@ -15,7 +15,8 @@ import {
 import { AdvancePayment } from '../../../hooks/useGetAdvancePayments';
 import { getAdvancePaymentStatusDisplay } from '../../../utils';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
-import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
+import { getTranslationFromI18nKeyAndLabel, formatNumberFunction } from '@/common/utils/windowUtils';
+import { formatCurrencyDisplay } from '../../../utils';
 
 interface AdvancePaymentDetailsProps extends BusinessAppContextProps {
   payment: AdvancePayment;
@@ -79,7 +80,7 @@ const AdvancePaymentDetails: React.FC<AdvancePaymentDetailsProps> = ({ payment, 
                 {getTranslationFromI18nKeyAndLabel('lowcoder:manager_expense_request_list.expense_table.amount', 'Amount')}
               </span>
               <span className="gba:text-sm gba:font-semibold gba:text-gray-900">
-                €{payment.amount?.toFixed(2) ?? '0.00'}
+                {formatCurrencyDisplay(payment.amount || 0, payment.currency?.code)}
               </span>
             </div>
 

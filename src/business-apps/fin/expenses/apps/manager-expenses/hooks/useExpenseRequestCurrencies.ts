@@ -1,0 +1,126 @@
+import { useState, useEffect, useCallback } from "react";
+import { useGraphQLClient } from "@/common/network/graphql/useGraphQLClient";
+import { BusinessAppContextProps } from "@/common/BusinessAppContext";
+
+interface CurrencyCount {
+  currency: string;
+  count: number;
+}
+
+interface CurrencyDetectionResponse {
+  managerRequests: {
+    id: string;
+    currencyRef: string;
+  }[];
+  allRequests: {
+    id: string;
+    currencyRef: string;
+  }[];
+}
+
+const GET_CURRENCY_DISTRIBUTION = `
+  query GetCurrencyDistribution($managerId: uuid!) {
+    # Get all requests for the manager to analyze currency distribution
+    managerRequests: ExpenseRequest(
+      where: {
+        employee: {
+          employeePosition: {
+            supervisorEmployeeId: {_eq: $managerId}
+          }
+        },
+        isDeleted: {_eq: false}
+      }
+    ) {
+      id
+      currencyRef
+    }
+    # Debug: Get all requests without manager filtering
+    allRequests: ExpenseRequest(
+      where: {
+        isDeleted: {_eq: false}
+      }
+    ) {
+      id
+      currencyRef
+    }
+  }
+`;
+
+export const useExpenseRequestCurrencies = (
+  context: BusinessAppContextProps,
+  managerId: string,
+) => {
+  const [mostUsedCurrency, setMostUsedCurrency] = useState<string>("EUR"); // Default fallback
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<Error | null>(null);
+
+  const graphqlClient = useGraphQLClient(context.accessToken);
+
+  const detectMostUsedCurrency = useCallback(async () => {
+    if (!managerId || !context.accessToken) {
+      setIsLoading(false);
+      return;
+    }
+
+    setIsLoading(true);
+    setError(null);
+
+    try {
+      const result = await graphqlClient.request<CurrencyDetectionResponse>(
+        GET_CURRENCY_DISTRIBUTION,
+        { managerId },
+      );
+
+      if (result?.managerRequests && result?.allRequests) {
+        // Helper function to count currencies from requests
+        const countCurrencies = (requests: { currencyRef: string }[]): CurrencyCount[] => {
+          const currencyMap = new Map<string, number>();
+
+          requests.forEach((request) => {
+            if (request.currencyRef) {
+              const currency = request.currencyRef.replace("Currency:v1:", "");
+              currencyMap.set(currency, (currencyMap.get(currency) || 0) + 1);
+            }
+          });
+
+          return Array.from(currencyMap.entries()).map(([currency, count]) => ({
+            currency,
+            count,
+          }));
+        };
+
+        const managerRequestsCurrencyCounts = countCurrencies(result.managerRequests);
+
+        // Sort by count (descending) and get the most used currency
+        if (managerRequestsCurrencyCounts.length > 0) {
+          managerRequestsCurrencyCounts.sort((a, b) => b.count - a.count);
+          const detectedCurrency = managerRequestsCurrencyCounts[0].currency;
+
+          // The detectedCurrency is already the extracted currency code
+          setMostUsedCurrency(detectedCurrency);
+        } else {
+          setMostUsedCurrency("EUR");
+        }
+      } else {
+        setMostUsedCurrency("EUR");
+      }
+    } catch (err) {
+      console.error("Error detecting most used currency:", err);
+      setError(err instanceof Error ? err : new Error("Failed to detect currency"));
+      setMostUsedCurrency("EUR"); // Fallback to EUR on error
+    } finally {
+      setIsLoading(false);
+    }
+  }, [managerId, context.accessToken, graphqlClient]);
+
+  useEffect(() => {
+    detectMostUsedCurrency();
+  }, [detectMostUsedCurrency]);
+
+  return {
+    mostUsedCurrency,
+    isLoading,
+    error,
+    refetch: detectMostUsedCurrency,
+  };
+};

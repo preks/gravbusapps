@@ -4,7 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { getCurrentActiveUserLocale } from '@/common/utils/windowUtils';
 import { useGraphqlClient } from '@/common/network/graphql/useGraphQLClient';
 import { showToast } from '../../../utils/notificationUtils';
-import { fetchEmployeeRule, fetchExpenseRequestAndItems } from '../ExpenseRequestWizardQueries';
+import { fetchEmployeeRule, fetchExpenseRequestAndItems, getExpenseRulePkData } from '../ExpenseRequestWizardQueries';
 import { handleTripSubmitAction } from '../utils/tripScreenUtils';
 import { LocationData } from '../utils/types';
 import { getCurrencyWithFallback } from '../utils/currencyUtils';
@@ -29,11 +29,18 @@ export interface ExpenseRequestWizardContextProps {
   setCurrentTitle: (title: string) => void;
   currentCurrency: string | null;
   setCurrentCurrency: (currency: string | null) => void;
-  submitActionTripData: (startLocation: LocationData, destinations: LocationData[], endLocation: LocationData, expenseRulesData: any,event:string) => boolean;
+  submitActionTripData: (
+    startLocation: LocationData,
+    destinations: LocationData[],
+    endLocation: LocationData,
+    expenseRulesData: any,
+    event: string,
+    overnightAccommodation?: boolean
+  ) => boolean;
   showExpenseItem: boolean;
   setShowExpenseItem: (show: boolean) => void;
-  expenseItemParams: { expenseRequestId?: string; itemCurrency?: string };
-  setExpenseItemParams: (params: { expenseRequestId?: string; itemCurrency?: string }) => void;
+  expenseItemParams: { expenseRequestId?: string; itemCurrency?: string; useSingleCurrency?: boolean };
+  setExpenseItemParams: (params: { expenseRequestId?: string; itemCurrency?: string; useSingleCurrency?: boolean }) => void;
   showCreateItem: () => void;
   hideExpenseItem: (shouldRefetch?: boolean) => void;
   refetchExpenseData: () => Promise<void>;
@@ -83,7 +90,7 @@ export const ExpenseRequestWizardProvider: React.FC<ExpenseRequestWizardProvider
   
   // New state for ExpenseItem integration
   const [showExpenseItem, setShowExpenseItem] = useState<boolean>(false);
-  const [expenseItemParams, setExpenseItemParams] = useState<{ expenseRequestId?: string; itemCurrency?: string }>({});
+  const [expenseItemParams, setExpenseItemParams] = useState<{ expenseRequestId?: string; itemCurrency?: string; useSingleCurrency?: boolean }>({});
   // State for deleted items that need to persist across navigation
   const [deletedItems, setDeletedItems] = useState<any[]>([]);
   // State to track if payload items have been loaded
@@ -159,6 +166,9 @@ export const ExpenseRequestWizardProvider: React.FC<ExpenseRequestWizardProvider
       }
       
       setExpenseRequestData(response);
+      // Ensure currentCurrency reflects freshly loaded data (avoid stale value after reload)
+      const refreshedCurrencyId = response?.ExpenseRequestByPk?.currency?.id || null;
+      setCurrentCurrency(refreshedCurrencyId);
     } catch (error) {
       showToast(
         t("lowcoder:modify_expense_request.error_fetching_expense_data", "Error fetching expense data"),
@@ -168,7 +178,6 @@ export const ExpenseRequestWizardProvider: React.FC<ExpenseRequestWizardProvider
       setLoading(false);
     }
   };
-
   // Initialize data
   useEffect(() => {
     const initializeData = async () => {
@@ -239,7 +248,8 @@ export const ExpenseRequestWizardProvider: React.FC<ExpenseRequestWizardProvider
     destinations: LocationData[],
     endLocation: LocationData,
     expenseRulesData: any,
-    event:string
+    event:string,
+    overnightAccommodation?: boolean
   ): boolean => {
     // Determine currency based on trip data
     const determinedCurrency = getCurrencyWithFallback(
@@ -262,6 +272,7 @@ export const ExpenseRequestWizardProvider: React.FC<ExpenseRequestWizardProvider
       currentTitle,
       determinedCurrency,
       event,
+      overnightAccommodation,
       dispatchProcessContinueEventIfEnabled
     );
   };
@@ -273,16 +284,33 @@ export const ExpenseRequestWizardProvider: React.FC<ExpenseRequestWizardProvider
   
   // Function to show expense item component with the necessary parameters
   const showCreateItem = () => {
-    if (expenseRequestData?.ExpenseRequestByPk) {
-      // Set the parameters for the ExpenseItem component
-      setExpenseItemParams({
-        expenseRequestId: expenseRequestData.ExpenseRequestByPk.id,
-        itemCurrency: currentCurrency || (expenseRequestData.ExpenseItem?.[0]?.currencyRef || "")
-      });
-      
-      // Show the ExpenseItem component
+    if (!employeeRuleId) return;
+    (async () => {
+      try {
+        const expenseRuleId = employeeRuleId;
+        const activeUserLocale = getCurrentActiveUserLocale();
+        let useSingleCurrencyValue: boolean | undefined = undefined;
+        let ruleCurrencyId: string | undefined = undefined;
+        if (expenseRuleId) {
+          const ruleResp = await graphqlClient.request(getExpenseRulePkData, { expenseRuleId, activeUserLocale });
+          useSingleCurrencyValue = ruleResp?.ExpenseRuleByPk?.useSingleCurrency;
+          ruleCurrencyId = ruleResp?.ExpenseRuleByPk?.currency?.id;
+        }
+        const currencyToSet = currentCurrency || (expenseRequestData.ExpenseItem?.[0]?.currencyRef || "")
+        setExpenseItemParams({
+          expenseRequestId: expenseRequestData.ExpenseRequestByPk.id,
+          itemCurrency: useSingleCurrencyValue ? (currencyToSet || ruleCurrencyId) : currencyToSet,
+          useSingleCurrency: !!useSingleCurrencyValue
+        });
+      } catch {
+        setExpenseItemParams({
+          expenseRequestId: expenseRequestData.ExpenseRequestByPk.id,
+          itemCurrency: currentCurrency || (expenseRequestData.ExpenseItem?.[0]?.currencyRef || ""),
+          useSingleCurrency: false
+        });
+      }
       setShowExpenseItem(true);
-    }
+    })();
   };
   
   // Function to hide expense item component and return to wizard

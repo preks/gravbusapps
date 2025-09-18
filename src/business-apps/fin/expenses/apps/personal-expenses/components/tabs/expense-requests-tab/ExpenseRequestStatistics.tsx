@@ -8,7 +8,8 @@ import {
 import { WidgetGroup, WidgetItem } from '@/components/widget-group';
 import { useGetExpenseRequestStatistics } from '../../../hooks/useGetExpenseRequestStatistics';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
-import { getTranslationFromI18nKeyAndLabel, formatNumberFunction } from '@/common/utils/windowUtils';
+import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
+import { formatCurrencyDisplay } from '../../../utils';
 
 interface ExpenseRequestStatisticsProps extends BusinessAppContextProps {
   statsLoading?: boolean;
@@ -140,9 +141,8 @@ const ExpenseRequestStatistics: React.FC<ExpenseRequestStatisticsProps> = ({
     {
       key: 'total-amount',
       title: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.total_amount_for_month_requests',`Total Amount for`) + " " + currentMonthName,
-      value: `${formatNumberFunction(String(statistics.currentMonthAmount || '0'))}`,
+      value: `${formatCurrencyDisplay(String(statistics.currentMonthAmount || '0'), 'EUR')}`,
       prefix: <DollarOutlined />,
-      suffix: '€',
       color: '#3f8600',
       precision: 2,
       span: { xs: 24, sm: 12, md: 6 },
@@ -163,9 +163,8 @@ const ExpenseRequestStatistics: React.FC<ExpenseRequestStatisticsProps> = ({
     {
       key: 'reimbursable',
       title: getTranslationFromI18nKeyAndLabel('lowcoder:expense_item_list.expense_table.reimbursable','Reimbursable'),
-      value: statistics.reimbursableAmount,
+      value: formatCurrencyDisplay(statistics.reimbursableAmount, 'EUR'),
       prefix: <DollarOutlined />,
-      suffix: '€',
       color: '#722ed1',
       precision: 2,
       span: { xs: 24, sm: 12, md: 6 },

@@ -1,41 +1,74 @@
 import React, { useState, useEffect } from "react";
-import {
-  Tabs,
-  TabsContent,
-  TabsList,
-  TabsTrigger,
-} from "@newwork/nw-design-system";
-import { PageLayout } from "@newwork/nw-design-system";
+import { PageLayout, Button } from "@newwork/nw-design-system";
 import {
   DollarSign,
   Users,
   Building2,
   Contact as ContactIcon,
-  LayoutDashboard,
-  Grid3X3,
-  List,
+  BarChart3,
 } from "lucide-react";
-import { TrendUp } from "@phosphor-icons/react";
+import { TrendUpIcon } from "@phosphor-icons/react";
 import { BusinessAppContextProps } from "@/common/BusinessAppContext";
-import { LeadList } from "@/business-apps/crm/common/components/lead-list";
-import { AccountList } from "@/business-apps/crm/common/components/account-list";
-import { ContactList } from "@/business-apps/crm/common/components/contact-list";
-import { OpportunityList } from "@/business-apps/crm/common/components/opportunity-list";
-import { OpportunityBoard } from "@/business-apps/crm/common/components/opportunity-board";
-import InvestmentsDashboard from "./components/views/investments-dashboard/InvestmentsDashboard";
-import { Investments } from "./components/views/investment-list";
-import { DashboardOutlined, HomeOutlined } from "@ant-design/icons";
+import { MODULE_COLORS } from "@/common/constants/ui";
+import { LeadView } from "./views/lead-view";
+import { AccountView } from "./views/account-view";
+import { ContactView } from "./views/contact-view";
+import { OpportunityView } from "./views/opportunity-view";
+import { AnalyticsView } from "./views/analytics-view";
+import { DashboardView } from "./views/dashboard-view";
+import { TaskView } from "./views/task-view";
+import { navigateTo } from "@/common/utils/navigationUtils";
+import { useDashboardQueries } from "./views/dashboard-view/queries/DashboardQueries";
+import { PipelineInfo } from "./views/dashboard-view/types/dashboardTypes";
+
 
 export interface InvestmentRelationsProps extends BusinessAppContextProps {}
+
+const moduleColor = MODULE_COLORS.IRM;
 
 export const InvestmentRelations: React.FC<InvestmentRelationsProps> = (
   context
 ) => {
+  const { fetchPipelines } = useDashboardQueries(context);
+  const [pipelines, setPipelines] = useState<PipelineInfo[]>([]);
+  const [dateRange, setDateRange] = useState<{ startDate: Date; endDate: Date }>(() => {
+    const now = new Date();
+    const start = new Date(now.getFullYear(), 0, 1, 0, 0, 0, 0);
+    const end = new Date(now.getFullYear(), 11, 31, 23, 59, 59, 999);
+    return { startDate: start, endDate: end };
+  });
+
+  useEffect(() => {
+    let mounted = true;
+    (async () => {
+      try {
+        const entries = await fetchPipelines();
+        if (!mounted) return;
+        const mapped: PipelineInfo[] = (entries || []).map((e: any) => ({
+          id: e.id,
+          name: e.value,
+          ref: e.id, // prefer id; queries also accept code
+          description: e.description,
+        }));
+        setPipelines(mapped);
+      } catch {
+        // ignore; UI handles empty gracefully
+      }
+    })();
+    return () => {
+      mounted = false;
+    };
+  }, [fetchPipelines]);
   const viewOptions = [
     {
       key: "dashboard",
-      icon: <DashboardOutlined />,
-      label: "Portfolio",
+      icon: <BarChart3 />,
+      label: "Dashboard",
+    },
+    {
+      key: "tasks",
+      icon: <BarChart3 />,
+      label: "Tasks",
     },
     {
       key: "leads",
@@ -58,9 +91,9 @@ export const InvestmentRelations: React.FC<InvestmentRelationsProps> = (
       label: "Opportunities",
     },
     {
-      key: "investments",
-      icon: <TrendUp />,
-      label: "Investments",
+      key: "analytics",
+      icon: <BarChart3 />,
+      label: "Analytics",
     },
   ];
 
@@ -81,78 +114,18 @@ export const InvestmentRelations: React.FC<InvestmentRelationsProps> = (
     return viewOptions[0].key;
   };
 
-  // Get initial subView from URL for opportunities tab
-  const getInitialOpportunitiesSubView = () => {
-    const urlParams = new URLSearchParams(window.location.search);
-    const subViewFromUrl = urlParams.get("subView");
-
-    // Map URL subView values to internal tab values for opportunities
-    if (subViewFromUrl === "pipeline") {
-      return "board";
-    } else if (subViewFromUrl === "list") {
-      return "list";
-    }
-
-    // Default to list view
-    return "list";
-  };
-
-  // Get initial subView from URL for investments tab
-  const getInitialInvestmentsSubView = () => {
-    const urlParams = new URLSearchParams(window.location.search);
-    const subViewFromUrl = urlParams.get("subView");
-
-    // Valid investment subView values
-    if (
-      subViewFromUrl &&
-      [
-        "overview",
-        "equity",
-        "real-estate",
-        "private-equity",
-        "liquid-funds",
-      ].includes(subViewFromUrl)
-    ) {
-      return subViewFromUrl;
-    }
-
-    // Default to overview
-    return "overview";
-  };
-
   const [activeTab, setActiveTab] = useState<string>(getInitialView());
-  const [opportunitiesSubTab, setOpportunitiesSubTab] = useState<string>(
-    getInitialOpportunitiesSubView()
-  );
-  const [investmentsSubTab, setInvestmentsSubTab] = useState<string>(
-    getInitialInvestmentsSubView()
-  );
 
   // Update URL when view changes
-  const updateUrl = (view: string, subView?: string) => {
+  const updateUrl = (view: string) => {
     const urlParams = new URLSearchParams(window.location.search);
 
     // Always set the view parameter (including for default)
     urlParams.set("view", view);
 
-    // Handle subView parameter for opportunities
-    if (view === "opportunities" && subView) {
-      // Map internal tab values to URL subView values
-      if (subView === "board") {
-        urlParams.set("subView", "pipeline");
-      } else if (subView === "list") {
-        urlParams.set("subView", "list");
-      }
-    }
-    // Handle subView parameter for investments
-    else if (view === "investments" && subView) {
-      // Direct mapping for investments - no conversion needed
-      urlParams.set("subView", subView);
-    } else {
-      // Clear subView parameter when not in opportunities or investments view
-      if (urlParams.has("subView")) {
-        urlParams.delete("subView");
-      }
+    // Clear any subView parameter (no investments subviews here anymore)
+    if (urlParams.has("subView")) {
+      urlParams.delete("subView");
     }
 
     const newUrl = `${window.location.pathname}?${urlParams.toString()}`;
@@ -165,50 +138,14 @@ export const InvestmentRelations: React.FC<InvestmentRelationsProps> = (
       return;
     }
     setActiveTab(key);
-
-    // If switching to opportunities, include current subView in URL
-    if (key === "opportunities") {
-      updateUrl(key, opportunitiesSubTab);
-    } else if (key === "investments") {
-      updateUrl(key, investmentsSubTab);
-    } else {
-      updateUrl(key);
-    }
-  };
-
-  const handleOpportunitiesSubTabChange = (subTab: string) => {
-    setOpportunitiesSubTab(subTab);
-    // Update URL with new subView when tab changes
-    updateUrl(activeTab, subTab);
-  };
-
-  const handleInvestmentsSubTabChange = (subTab: string) => {
-    setInvestmentsSubTab(subTab);
-    // Update URL with new subView when tab changes
-    updateUrl(activeTab, subTab);
-  };
-
-  const handleNavigateToInvestments = (subTab?: string) => {
-    // Switch to investments tab
-    setActiveTab("investments");
-
-    // Set the specific subtab if provided, otherwise use current
-    const targetSubTab = subTab || investmentsSubTab;
-    setInvestmentsSubTab(targetSubTab);
-    updateUrl("investments", targetSubTab);
+    updateUrl(key);
   };
 
   // Ensure URL always has view parameter on initial load
   useEffect(() => {
     const urlParams = new URLSearchParams(window.location.search);
     if (!urlParams.has("view")) {
-      let subView: string | undefined;
-      if (activeTab === "opportunities") {
-        subView = opportunitiesSubTab;
-      } else if (activeTab === "investments") {
-        subView = investmentsSubTab;
-      }
-      updateUrl(activeTab, subView);
+      updateUrl(activeTab);
     }
   }, []);
 
@@ -217,90 +154,62 @@ export const InvestmentRelations: React.FC<InvestmentRelationsProps> = (
     const handlePopState = () => {
       const newView = getInitialView();
       setActiveTab(newView);
-
-      // Set subView based on the current view
-      if (newView === "opportunities") {
-        const newOpportunitiesSubView = getInitialOpportunitiesSubView();
-        setOpportunitiesSubTab(newOpportunitiesSubView);
-      } else if (newView === "investments") {
-        const newInvestmentsSubView = getInitialInvestmentsSubView();
-        setInvestmentsSubTab(newInvestmentsSubView);
-      }
     };
 
     window.addEventListener("popstate", handlePopState);
     return () => window.removeEventListener("popstate", handlePopState);
   }, []);
 
-  const renderOpportunitiesContent = () => {
-    return (
-      <Tabs
-        value={opportunitiesSubTab}
-        onValueChange={handleOpportunitiesSubTabChange}
-      >
-        <TabsList className="gba:mb-4">
-          <TabsTrigger value="list" data-testid="opportunities-list-tab">
-            <List className="gba:mr-2 gba:h-4 gba:w-4" />
-            List View
-          </TabsTrigger>
-          <TabsTrigger value="board" data-testid="opportunities-board-tab">
-            <Grid3X3 className="gba:mr-2 gba:h-4 gba:w-4" />
-            Board View
-          </TabsTrigger>
-        </TabsList>
-        <TabsContent value="list">
-          <OpportunityList {...context} sourceApp="IRM" />
-        </TabsContent>
-        <TabsContent value="board">
-          <OpportunityBoard {...context} sourceApp="IRM" />
-        </TabsContent>
-      </Tabs>
-    );
-  };
-
   const renderTabContent = () => {
     switch (activeTab) {
       case "dashboard":
         return (
           <div data-testid="dashboard-tab-content">
-            <InvestmentsDashboard
-              accessToken={context.accessToken}
-              userInfo={context.userInfo}
-              onNavigateToInvestments={handleNavigateToInvestments}
+            <DashboardView
+              pipelines={pipelines}
+              dateRange={dateRange}
+              moduleColor={moduleColor}
+              {...context}
             />
           </div>
         );
-      case "investments":
+      case "tasks":
         return (
-          <div data-testid="investments-tab-content">
-            <Investments
-              accessToken={context.accessToken}
-              userInfo={context.userInfo}
-              initialSubTab={investmentsSubTab}
-              onSubTabChange={handleInvestmentsSubTabChange}
-            />
+          <div data-testid="tasks-tab-content">
+            <TaskView {...context} />
           </div>
         );
+
       case "leads":
         return (
           <div data-testid="leads-tab-content">
-            <LeadList {...context} sourceApp="IRM" />
+            <LeadView {...context} />
           </div>
         );
       case "accounts":
         return (
           <div data-testid="accounts-tab-content">
-            <AccountList {...context} sourceApp="IRM" />
+            <AccountView {...context} />
           </div>
         );
       case "contacts":
         return (
           <div data-testid="contacts-tab-content">
-            <ContactList {...context} sourceApp="IRM" />
+            <ContactView {...context} />
           </div>
         );
       case "opportunities":
-        return renderOpportunitiesContent();
+        return (
+          <div data-testid="opportunities-tab-content">
+            <OpportunityView {...context} />
+          </div>
+        );
+      case "analytics":
+        return (
+          <div data-testid="analytics-tab-content">
+            <AnalyticsView moduleColor={moduleColor} {...context} />
+          </div>
+        );
       default:
         return null;
     }
@@ -309,14 +218,18 @@ export const InvestmentRelations: React.FC<InvestmentRelationsProps> = (
   return (
     <div data-testid="investment-relations-app">
       <PageLayout
-        headerPhosphorIcon={{
-          icon: TrendUp,
-          variant: "premium",
-          size: "lg",
-          label: "Investment Relations",
-        }}
+        headerIcon={TrendUpIcon}
         headerTitle="Investment Relations"
         headerDescription="Manage investment portfolios, client relationships, and track investment opportunities across asset classes"
+        headerContent={
+          <Button
+            variant="default"
+            onClick={() => navigateTo("/platform/irm/investment-management")}
+            data-testid="investment-relations-navigate-to-management-button"
+          >
+            Investment Management
+          </Button>
+        }
         headerSubViews={{
           value: activeTab,
           onValueChange: handleTabChange,
@@ -326,6 +239,7 @@ export const InvestmentRelations: React.FC<InvestmentRelationsProps> = (
             icon: option.icon,
           })),
         }}
+        variant={moduleColor}
         className="gba:min-h-screen"
       >
         <div className="gba:h-full gba:overflow-auto">{renderTabContent()}</div>

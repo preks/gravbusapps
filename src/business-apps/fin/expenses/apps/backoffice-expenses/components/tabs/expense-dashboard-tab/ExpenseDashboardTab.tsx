@@ -18,10 +18,11 @@ import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
 
 interface ExpenseDashboardTabProps extends BusinessAppContextProps {
   prefixDataTestId?: string;
+  moduleColor?: string;
 }
 
 const ExpenseDashboardTab: React.FC<ExpenseDashboardTabProps> = (props) => {
-  const { accessToken, prefixDataTestId = 'expense-dashboard-tab' } = props;
+  const { accessToken, prefixDataTestId = 'expense-dashboard-tab', moduleColor } = props;
   const [currentFilters, setCurrentFilters] = useState<FilterOptions>({
     department: '',
     currency: 'Currency:v1:RON',
@@ -431,6 +432,7 @@ const ExpenseDashboardTab: React.FC<ExpenseDashboardTabProps> = (props) => {
           error={error}
           monthlyTrends={stats.monthlyTrends}
           selectedCurrencyCode={selectedCurrencyCode}
+          moduleColor={moduleColor}
         />
       </div>
     </div>

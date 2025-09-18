@@ -11,6 +11,7 @@ import ExpenseItemDetails from '../expense-items-tab/ExpenseItemDetails';
 import ExpensePlanDetails from '../expense-plans-tab/ExpensePlanDetails';
 import ExpenseRequestDetails from '../expense-requests-tab/ExpenseRequestDetails';
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
+import { formatCurrencyDisplay } from '../../../utils';
 
 interface CalendarExpenseItem {
   id: string;
@@ -156,7 +157,7 @@ const ExpenseCalendarTab: React.FC<BusinessAppContextProps> = (props) => {
         title: item.title,
         expenseDate: dayjs(item.expenseDate),
         totalAmount: item.totalAmount,
-        currencyCode: item.currencyRef ? item.currencyRef.split(':').pop() || 'N/A' : 'N/A',
+        currencyCode: item.currency?.code ? item.currency.code.split(':').pop() || 'N/A' : 'N/A',
         status: item.status || 'UNKNOWN',
         type: 'expense',
       }));
@@ -175,7 +176,7 @@ const ExpenseCalendarTab: React.FC<BusinessAppContextProps> = (props) => {
               expenseDate: dayjs(plan.startDate),
               endDate: dayjs(plan.endDate),
               totalAmount: plan.totalAmount,
-              currencyCode: plan.currency?.value ? plan.currency.value.split(':').pop() || 'N/A' : 'N/A',
+              currencyCode: plan.currency?.code ? plan.currency.code.split(':').pop() || 'N/A' : 'N/A',
               status: plan.status || 'UNKNOWN',
               type: 'plan',
             } as CalendarExpenseItem;
@@ -185,7 +186,7 @@ const ExpenseCalendarTab: React.FC<BusinessAppContextProps> = (props) => {
               title: plan.title,
               expenseDate: dayjs(plan.planDate),
               totalAmount: plan.totalAmount,
-              currencyCode: plan.currency?.value ? plan.currency.value.split(':').pop() || 'N/A' : 'N/A',
+              currencyCode: plan.currency?.code ? plan.currency.code.split(':').pop() || 'N/A' : 'N/A',
               status: plan.status || 'UNKNOWN',
               type: 'plan',
             } as CalendarExpenseItem;
@@ -227,7 +228,7 @@ const ExpenseCalendarTab: React.FC<BusinessAppContextProps> = (props) => {
               expenseDate: dayjs(request.startDate),
               endDate: dayjs(request.endDate),
               totalAmount: request.totalAmount,
-              currencyCode: request.currencyRef ? request.currencyRef.split(':').pop() || 'N/A' : 'N/A',
+              currencyCode: request.currency?.code ? request.currency.code.split(':').pop() || 'N/A' : 'N/A',
               status: request.status || 'UNKNOWN',
               type: 'request',
             };
@@ -238,7 +239,7 @@ const ExpenseCalendarTab: React.FC<BusinessAppContextProps> = (props) => {
               title: request.title,
               expenseDate: dayjs(request.requestDate),
               totalAmount: request.totalAmount,
-              currencyCode: request.currencyRef ? request.currencyRef.split(':').pop() || 'N/A' : 'N/A',
+              currencyCode: request.currency?.code ? request.currency.code.split(':').pop() || 'N/A' : 'N/A',
               status: request.status || 'UNKNOWN',
               type: 'request',
             };
@@ -251,9 +252,7 @@ const ExpenseCalendarTab: React.FC<BusinessAppContextProps> = (props) => {
     }
   }, [rawExpenseRequests]);
 
-  const onSelect = (date: Dayjs, info: { source: 'year' | 'month' | 'date' | 'customize' }) => {
-    console.log('[onSelect]', 'Selected date:', date.format('YYYY-MM-DD'), 'Source:', info.source);
-  };
+
 
   const dateCellRender = (value: Dayjs) => {
     const allAvailableItems = [
@@ -297,7 +296,7 @@ const ExpenseCalendarTab: React.FC<BusinessAppContextProps> = (props) => {
             <div style={{ fontSize: '0.8em', fontWeight: 'bold', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{item.title}</div>
             {(item.type === 'expense' || !item.endDate || value.isSame(item.expenseDate, 'day')) && (
               <div style={{ fontSize: '0.75em', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <span>{(item.totalAmount ?? 0).toFixed(2)} {item.currencyCode}</span>
+                <span>{formatCurrencyDisplay(item.totalAmount, item.currencyCode)}</span>
                 <Tag color={getStatusColor(item.status)} style={{ margin: 0, fontSize: '0.7em', padding: '0 4px' }}>{item.status}</Tag>
               </div>
             )}
@@ -305,6 +304,15 @@ const ExpenseCalendarTab: React.FC<BusinessAppContextProps> = (props) => {
         ))}
       </ul>
     );
+  };
+
+  // Wrapper for antd v5: use cellRender instead of deprecated dateCellRender
+  const cellRender = (value: Dayjs, info: any) => {
+    if (info?.type === 'date') {
+      const rendered = dateCellRender(value);
+      return rendered ?? info.originNode;
+    }
+    return info?.originNode;
   };
 
   return (
@@ -357,8 +365,7 @@ const ExpenseCalendarTab: React.FC<BusinessAppContextProps> = (props) => {
       {(expensesError || plansError || requestsError) && <div style={{ textAlign: 'center', padding: '20px' }}><Alert message={`Error: ${(expensesError || '') + (plansError || '') + (requestsError || '')}`} type="error" /></div>}
       {!(isLoadingExpenses || isLoadingPlans || isLoadingRequests) && !(expensesError || plansError || requestsError) && (
         <Calendar
-          onSelect={onSelect}
-          dateCellRender={dateCellRender}
+          cellRender={cellRender}
           headerRender={({ value, onChange }) => {
             const currentMonth = value.format('MMMM');
             const currentYear = value.format('YYYY');

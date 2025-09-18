@@ -14,6 +14,7 @@ import { showToast } from '../../../utils/notificationUtils';
 import ExpenseItemCard from '../../expense-request-wizard/components/ExpenseItemCard';
 import RejectionComment from '../../expense-request-wizard/components/RejectionComment';
 import { getLatestRejectComment } from '../utils/tripScreenUtils';
+import { REQUEST_STATUS, DEFAULT_ITEM_LIST_LIMIT, DEFAULT_CURRENCY_FALLBACK } from '../constants/constants';
 
 
 interface ItemsScreenProps extends BusinessAppContextProps {
@@ -48,7 +49,7 @@ const PlanItemsScreen: React.FC<ItemsScreenProps> = (props) => {
   const { dispatchProcessContinueEventIfEnabled } = useProcessEventState(additionalData);
   
   const employeeId = userInfo?.employeeDetails?.employeeId;
-  const itemListLimit = 3;
+  const itemListLimit = DEFAULT_ITEM_LIST_LIMIT;
   
   const graphQLClient = useGraphqlClient(accessToken);
 
@@ -65,9 +66,16 @@ const PlanItemsScreen: React.FC<ItemsScreenProps> = (props) => {
   }, [expensePlanData,deletedItems]);
 
   useEffect(() => {
+    const event = new CustomEvent('expense-plan-wizard-update-footer', {
+      detail: { itemsCount: expenseItems.length }
+    });
+    document.dispatchEvent(event);
+  }, [expenseItems]);
+
+  useEffect(() => {
     const calculateTotals = () => {
       if (!expenseItems || expenseItems.length === 0) {
-        const defaultCurrency = expensePlanData?.ExpensePlanByPk?.currency?.code || 'RON';
+        const defaultCurrency = expensePlanData?.ExpensePlanByPk?.currency?.code || DEFAULT_CURRENCY_FALLBACK;
         return [{ currency: defaultCurrency, amount: 0 }];
       }
 
@@ -128,13 +136,13 @@ const PlanItemsScreen: React.FC<ItemsScreenProps> = (props) => {
       if (payloadItemsLoaded) return;
       if (additionalData && 
           additionalData.psi_taskPayload && 
-          additionalData.psi_taskPayload.initialParameters && 
-          additionalData.psi_taskPayload.initialParameters.expenseItems && 
-          additionalData.psi_taskPayload.initialParameters.expenseItems.length > 0) {
+          additionalData.psi_taskPayload.psi_initialParameters && 
+          additionalData.psi_taskPayload.psi_initialParameters.expenseItems && 
+          additionalData.psi_taskPayload.psi_initialParameters.expenseItems.length > 0) {
         
         try {
           setIsLoading(true);
-          const extractedPayloadItemIds = additionalData.psi_taskPayload.initialParameters.expenseItems
+          const extractedPayloadItemIds = additionalData.psi_taskPayload.psi_initialParameters.expenseItems
             .filter((item: any) => item.itemId)
             .map((item: any) => item.itemId);
           
@@ -151,12 +159,15 @@ const PlanItemsScreen: React.FC<ItemsScreenProps> = (props) => {
           } else if (expensePlanData?.ExpensePlanItem && expensePlanData?.ExpensePlanItem.length > 0) {
             itemCurrency = expensePlanData.ExpensePlanItem[0].currencyRef;
           }
+          else if(additionalData.psi_taskPayload.psi_initialParameters.expenseItems && additionalData.psi_taskPayload.psi_initialParameters.expenseItems.length > 0 && !currentCurrency){
+            itemCurrency = additionalData.psi_taskPayload.psi_initialParameters.expenseItems.find((item: any) => item.itemId && item.currencyId)?.currencyId || ""; 
+          }
           
           const userLocale = getCurrentActiveUserLocale();
 
           const variables = {
             employeeId,
-            status: "CREATED",
+            status: REQUEST_STATUS.CREATED,
             activeUserLocale: userLocale,
             idsArray: newItemIds,
             itemCurrency: itemCurrency
@@ -194,21 +205,12 @@ const PlanItemsScreen: React.FC<ItemsScreenProps> = (props) => {
     fetchItemsFromPayload();
   }, [additionalData, employeeId, graphQLClient, expensePlanData, setExpensePlanData, currentCurrency]);
 
-  useEffect(() => {
 
-    document.addEventListener('expense-plan-next-items', handleNextItems);
-    document.addEventListener('expense-plan-save-items', handleSaveItems);
-    
-    return () => {
-      document.removeEventListener('expense-plan-next-items', handleNextItems);
-      document.removeEventListener('expense-plan-save-items', handleSaveItems);
-    };
-  }, []);
   
   const handleNextItems = useCallback(() => {
     if (expensePlanData?.ExpensePlanByPk) {
       let skipStep =false
-      if(additionalData?.psi_taskPayload?.stepKey){
+      if(additionalData?.psi_taskPayload?.stepKey && additionalData?.psi_taskPayload?.stepKey.includes(EVENTS.SKIP)){
         skipStep = true
       }
       const logObject = createItemsScreenLogObject(
@@ -228,7 +230,7 @@ const PlanItemsScreen: React.FC<ItemsScreenProps> = (props) => {
   const handleSaveItems = useCallback(() => {
     if (expensePlanData?.ExpensePlanByPk) {
       let skipStep =false
-      if(additionalData?.psi_taskPayload?.stepKey){
+      if(additionalData?.psi_taskPayload?.stepKey && additionalData?.psi_taskPayload?.stepKey.includes(EVENTS.SKIP)){
         skipStep = true
       }
       const logObject = createItemsScreenLogObject(
@@ -245,6 +247,16 @@ const PlanItemsScreen: React.FC<ItemsScreenProps> = (props) => {
     }
   }, [expensePlanData, employeeRuleId, currentTitle, currentCurrency, expenseItems, additionalData, dispatchProcessContinueEventIfEnabled]);
   
+  useEffect(() => {
+
+    document.addEventListener('expense-plan-next-items', handleNextItems);
+    document.addEventListener('expense-plan-save-items', handleSaveItems);
+    
+    return () => {
+      document.removeEventListener('expense-plan-next-items', handleNextItems);
+      document.removeEventListener('expense-plan-save-items', handleSaveItems);
+    };
+  }, [handleNextItems, handleSaveItems]);
   const { showCreateItem } = useExpensePlanWizardContext();
   
   const handleCreateItem = useCallback(() => {
@@ -257,7 +269,7 @@ const PlanItemsScreen: React.FC<ItemsScreenProps> = (props) => {
   };
 
   return (
-    <div className="gba:itemsScreenContainer gba:flex gba:flex-col gba:h-full" data-testid="expense-plan-wizard-items-screen" style={{flexGrow:1}}>
+    <div className="gba:flex gba:flex-col" data-testid="expense-plan-wizard-items-screen" style={{flexGrow:1, height:"100%"}}>
       {!isTrip && latestRejectComment && (
        <div className="gba:mb-4">
         <RejectionComment isRequest={false} comment={latestRejectComment} />
@@ -265,7 +277,7 @@ const PlanItemsScreen: React.FC<ItemsScreenProps> = (props) => {
       )}
       {expenseItems.length > 0 && (
         <div className="gba:flex gba:flex-row gba:justify-between gba:items-center gba:mb-4 gba:px-4">
-          <div className="gba:screenTitle gba:m-0 gba:text-[16px] gba:font-bold" data-testid="expense-plan-wizard-items-screen-title">
+          <div className="gba:m-0 gba:text-[16px] gba:font-bold" data-testid="expense-plan-wizard-items-screen-title">
             {getTranslationFromI18nKeyAndLabel('lowcoder:add_items_to_plan.expense_items_counter', 'Estimated Expense Items')}
             {expenseItems.length > 0 && ` (${expenseItems.length})`}
           </div>
@@ -276,7 +288,7 @@ const PlanItemsScreen: React.FC<ItemsScreenProps> = (props) => {
               className="gba:flex gba:items-center gba:gap-1"
               style={{ backgroundColor: '#EFEFEF', borderRadius: '9999px', fontWeight:600 }}
               data-testid="create-item-button"
-              onClick={handleCreateItem}
+              onClick={(e) => { e.stopPropagation(); handleCreateItem(); }}
             >
               {getTranslationFromI18nKeyAndLabel('lowcoder:add_items_to_plan.add_position_btn', 'Add Expense Item')}
             </Button>
@@ -310,7 +322,7 @@ const PlanItemsScreen: React.FC<ItemsScreenProps> = (props) => {
             </div>
             
             {expenseItems.length > itemListLimit && (
-              <div className="gba:paginationContainer gba:mt-4 gba:flex gba:justify-center" data-testid="expense-items-initial-pagination-container">
+              <div className="gba:flex gba:justify-center gba:py-2 gba:mt-4 gba:flex gba:justify-center" data-testid="expense-items-initial-pagination-container">
                 <Pagination
                   current={initialCurrentPage}
                   onChange={handleInitialPageChange}
@@ -323,9 +335,9 @@ const PlanItemsScreen: React.FC<ItemsScreenProps> = (props) => {
             )}
           </div>
         ) : (
-          <div className="gba:flex gba:flex-col gba:items-center gba:justify-center gba:h-full gba:p-8 gba:bg-[#F7F7F7] gba:gap-8" 
+          <div className="gba:flex gba:flex-col gba:items-center gba:justify-center gba:p-8 gba:bg-[#F7F7F7] gba:gap-8" 
                data-testid="empty-items-container"
-               style={{ flex: '1 1 auto', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+               style={{ flex: '1 1 auto', display: 'flex', alignItems: 'center', justifyContent: 'center', height:"100%" }}>
             <Button 
               variant="ghost" 
               icon={<img src={ICONS.FOCUS} alt="Create" style={{ width: '50px', height: '50px' }} />}
@@ -342,7 +354,7 @@ const PlanItemsScreen: React.FC<ItemsScreenProps> = (props) => {
                 boxShadow: 'none'
               }}
               data-testid="empty-create-item-button"
-              onClick={handleCreateItem}
+              onClick={(e) => { e.stopPropagation(); handleCreateItem(); }}
             >
               {getTranslationFromI18nKeyAndLabel('lowcoder:add_items_to_plan.add_items_button', 'Add Estimated Expense Items')}
             </Button>
@@ -351,7 +363,7 @@ const PlanItemsScreen: React.FC<ItemsScreenProps> = (props) => {
       </div>
 
       {/* Expense Total Display */}
-      <div className="gba:expense-total-container gba:mt-8 gba:mb-4 gba:px-4" data-testid="expense-items-total-container">
+      <div className="gba:mt-8 gba:mb-4 gba:px-4" data-testid="expense-items-total-container">
         <div className="gba:flex gba:justify-between gba:items-center">
           <span className="gba:text-base gba:font-normal">
             {getTranslationFromI18nKeyAndLabel('lowcoder:add_items_to_plan.total_text', 'Estimated Expenses')}
@@ -371,7 +383,7 @@ const PlanItemsScreen: React.FC<ItemsScreenProps> = (props) => {
               <span className="gba:text-3xl gba:font-bold" data-testid="expense-items-total-default">
                 {expensePlanData?.ExpensePlanByPk && expensePlanData.ExpensePlanByPk.currency ? 
                   `0.00 ${expensePlanData.ExpensePlanByPk.currency.code}` : 
-                  "0.00 RON"}
+                  `0.00 ${DEFAULT_CURRENCY_FALLBACK}`}
               </span>
             )}
           </div>

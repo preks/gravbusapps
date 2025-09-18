@@ -102,11 +102,16 @@ const LEAD_QUERY = `
         addressLine
         city
         country {
+            id
             value
+            code
         }
-        countryRef
+        region {
+            id
+            value
+            code
+        }
         postalCode
-        regionRef
         }
     }
   }
@@ -457,7 +462,6 @@ export const ConvertLeadForm: React.FC<ConvertLeadFormProps> = (props) => {
           jobTitle: values.contactJobTitle || null,
           department: values.contactDepartment || null,
           contactType: values.contactType || null,
-          contactRole: values.contactRole || null,
           sourceApp: values.contactSourceApp || "CRM",
           workExperienceYears: values.contactWorkExperienceYears || 0,
           birthDate: values.contactBirthDate

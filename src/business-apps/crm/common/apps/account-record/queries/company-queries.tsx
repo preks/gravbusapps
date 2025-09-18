@@ -156,7 +156,6 @@ export const GET_COMPANY_BY_ID = `
         id
         value
       }
-      addressLine
       numberOfEmployees {
         id
         value

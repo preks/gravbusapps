@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient';
+import { Employee, EmployeeResponse } from '../types/employee.types';
 import { getTeamMembersByManagerQuery } from '../queries/teamQueries';
 
 // Default mock data to use when GraphQL query fails
@@ -87,7 +88,6 @@ export const useTeamMembers = ({ accessToken, employeeId }: UseTeamMembersProps)
         // During development, use mock data to avoid API calls
         // TODO: For production, remove this condition and use only the API
         if (process.env.NODE_ENV === 'development') {
-          console.log('Using mock team members data in development mode');
           setTeamMembers(mockTeamMembers);
           setError(null);
           return;
@@ -101,7 +101,7 @@ export const useTeamMembers = ({ accessToken, employeeId }: UseTeamMembersProps)
         if (response?.Employee) {
           // Add simulated status to each team member
           const statuses: ('Online' | 'Away' | 'Offline')[] = ['Online', 'Away', 'Offline'];
-          const teamMembersWithStatus = response.Employee.map((member: any) => ({
+          const teamMembersWithStatus = response.Employee.map((member: Employee) => ({
             ...member,
             // Randomly assign a status for demonstration purposes
             status: statuses[Math.floor(Math.random() * statuses.length)]
@@ -111,14 +111,12 @@ export const useTeamMembers = ({ accessToken, employeeId }: UseTeamMembersProps)
           setError(null);
         } else {
           // Fall back to mock data if API returns empty result
-          console.log('API returned empty result, using mock data');
           setTeamMembers(mockTeamMembers);
           setError(null);
         }
       } catch (err) {
         console.error('Error fetching team members:', err);
         // Fall back to mock data on error
-        console.log('Error occurred, using mock data');
         setTeamMembers(mockTeamMembers);
         setError(null);
       } finally {

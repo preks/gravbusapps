@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useMemo, useEffect } from 'react';
+import React, { useState, useCallback, useMemo, useEffect, useRef } from 'react';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 import { ExpensePlan } from '../../../hooks/useGetExpensePlans';
 import { getExpensePlanStatusDisplay } from '../../../utils';
@@ -16,22 +16,21 @@ import {
   CardContent, 
   Spinner, 
   Button, 
-  Badge, 
   Sheet,
   SheetContent,
   SheetHeader,
   SheetTitle
 } from '@newwork/nw-design-system';
-import Pill, { PillType } from '@/components/pill';
+import Pill from '@/components/pill';
 import { Modal } from 'antd';
-import { formatNumberFunction, getDateFormat, getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
+import { formatDate, getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
 import { PiArrowUp, PiArrowDown } from 'react-icons/pi';
-import dayjs from 'dayjs';
 import { AppActionButton } from '@/components/app-action-button/AppActionButton';
 import { DataContainer } from '@/components/layout/dataContainer/DataContainer';
 import { DataFilterGroup } from '@/components/data-filter/DataFilter';
 import { useExpensePlanFileService } from '../../../utils/expensePlanFileService';
 import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils';
+import { formatCurrencyDisplay } from '../../../utils';
 
 const DATA_TEST_ID_PREFIX = 'ExpensePlansTable';
 
@@ -69,6 +68,10 @@ const ExpensePlansTable: React.FC<ExpensePlansTableProps> = React.memo((props) =
     selectedFilters,
     ...contextProps
   } = props;
+
+  // Preserve page index across search clear (search is controlled by parent via props)
+  const savedPageBeforeSearchRef = useRef<number | null>(null);
+  const prevSearchRef = useRef<string>('');
 
   // Track if any filters are active to show conditional messages
   const hasActiveFilters = useMemo(() => {
@@ -193,14 +196,11 @@ const ExpensePlansTable: React.FC<ExpensePlansTableProps> = React.memo((props) =
     }
   }, [onTableChange]);
 
-  const handlePaginationChange = useCallback((page: number, newPageSize?: number) => {
-    const pagination = {
-      current: page,
-      pageSize: newPageSize || pageSize,
-      total: totalCount
-    };
-    onTableChange(pagination, {}, {});
-  }, [pageSize, totalCount, onTableChange]);
+  // Use the enhanced table change handler for pagination changes as well
+  const handlePagination = useCallback((page: number, newPageSize?: number) => {
+    const pagination = { current: page, pageSize: newPageSize || pageSize };
+    handleEnhancedTableChange(pagination, {}, {});
+  }, [pageSize, handleEnhancedTableChange]);
 
   // Watch for table refresh trigger from parent
   useEffect(() => {
@@ -214,6 +214,24 @@ const ExpensePlansTable: React.FC<ExpensePlansTableProps> = React.memo((props) =
       onTableChange(pagination, {}, {});
     }
   }, [props.tableRefreshTrigger, currentPage, pageSize, totalCount, onTableChange]);
+
+  // Watch search prop transitions to manage page restore when cleared
+  useEffect(() => {
+    const prev = (prevSearchRef.current || '').trim();
+    const next = (props.search || '').trim();
+    if (prev === '' && next !== '') {
+      // starting a search → save current page and jump to 1
+      const pagination = { current: 1, pageSize, total: totalCount };
+      onTableChange(pagination, {}, {});
+      savedPageBeforeSearchRef.current = currentPage;
+    } else if (prev !== '' && next === '') {
+      // clearing search → restore saved page
+      const pagination = { current: savedPageBeforeSearchRef.current || 1, pageSize, total: totalCount };
+      onTableChange(pagination, {}, {});
+      savedPageBeforeSearchRef.current = null;
+    }
+    prevSearchRef.current = props.search || '';
+  }, [props.search, onTableChange, currentPage, pageSize, totalCount]);
 
   const renderDataBody = useMemo(() => {
     return (
@@ -389,6 +407,7 @@ const ExpensePlansTable: React.FC<ExpensePlansTableProps> = React.memo((props) =
                                           employeeId:  contextProps.userInfo?.employeeDetails?.employeeId,
                                           expensePlan: record.id
                                         },
+                                        builderType: 'NATIVE_SCREEN'
                                       });
                                     }
                                   }
@@ -454,7 +473,7 @@ const ExpensePlansTable: React.FC<ExpensePlansTableProps> = React.memo((props) =
                             <div className="gba:text-sm" data-testid="expense-plan-plan-date-cell">
                               {(() => {
                                 try {
-                                  return dayjs(record.planDate).format(getDateFormat('date.short'));
+                                  return formatDate(record.planDate, 'date.short') || 'N/A';
                                 } catch (error) {
                                   return 'N/A';
                                 }
@@ -471,7 +490,7 @@ const ExpensePlansTable: React.FC<ExpensePlansTableProps> = React.memo((props) =
                             <div className="gba:text-sm" data-testid="expense-plan-start-date-cell">
                               {(() => {
                                 try {
-                                  return dayjs(record.startDate).format(getDateFormat('date.short'));
+                                  return formatDate(record.startDate, 'date.short') || 'N/A';
                                 } catch (error) {
                                   return 'N/A';
                                 }
@@ -488,7 +507,7 @@ const ExpensePlansTable: React.FC<ExpensePlansTableProps> = React.memo((props) =
                             <div className="gba:text-sm" data-testid="expense-plan-end-date-cell">
                               {(() => {
                                 try {
-                                  return dayjs(record.endDate).format(getDateFormat('date.short'));
+                                  return formatDate(record.endDate, 'date.short') || 'N/A';
                                 } catch (error) {
                                   return 'N/A';
                                 }
@@ -509,15 +528,15 @@ const ExpensePlansTable: React.FC<ExpensePlansTableProps> = React.memo((props) =
                         <TableCell className="gba:py-4 gba:px-6 gba:text-right" data-testid={`${DATA_TEST_ID_PREFIX}-reimbursable-amount-cell-${record.id}`}>
                           <div className="gba:text-sm gba:font-medium" data-testid="expense-plan-reimbursable-amount-cell">
                             {record.reimbursableAmount ? 
-                              `${formatNumberFunction(String(record.reimbursableAmount))} ${record.currency?.code || 'EUR'}` : 
-                              '0.00 EUR'
+                              formatCurrencyDisplay(record.reimbursableAmount, record.currency?.code) : 
+                                                              formatCurrencyDisplay(0, 'EUR')
                             }
                           </div>
                         </TableCell>
                         <TableCell className="gba:py-4 gba:px-6 gba:text-right" data-testid={`${DATA_TEST_ID_PREFIX}-paid-advance-cell-${record.id}`}>
                           <div className="gba:text-sm gba:font-medium" data-testid="expense-plan-paid-advance-cell">
                             {record.advancePaymentPaidAmount && record.advancePaymentPaidAmount > 0 ? 
-                              `${formatNumberFunction(String(record.advancePaymentPaidAmount))} ${record.currency?.code || 'EUR'}` : 
+                              formatCurrencyDisplay(record.advancePaymentPaidAmount, record.currency?.code) : 
                               '-'
                             }
                           </div>
@@ -540,7 +559,7 @@ const ExpensePlansTable: React.FC<ExpensePlansTableProps> = React.memo((props) =
                     <p className="gba:text-sm gba:font-medium">{getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.rows_per_page', 'Rows per page')}</p>
                     <select
                       value={pageSize}
-                      onChange={(e) => handlePaginationChange(1, Number(e.target.value))}
+                      onChange={(e) => handlePagination(1, Number(e.target.value))}
                       className="gba:h-8 gba:w-[70px] gba:rounded gba:border gba:border-input gba:px-3 gba:py-1 gba:text-sm"
                       data-testid={`${DATA_TEST_ID_PREFIX}-page-size-select`}
                     >
@@ -557,7 +576,7 @@ const ExpensePlansTable: React.FC<ExpensePlansTableProps> = React.memo((props) =
                     <Button
                       variant="outline"
                       className="gba:h-8 gba:w-8 gba:p-0"
-                      onClick={() => handlePaginationChange(1)}
+                      onClick={() => handlePagination(1)}
                       disabled={currentPage <= 1}
                       data-testid={`${DATA_TEST_ID_PREFIX}-first-page-button`}
                     >
@@ -567,7 +586,7 @@ const ExpensePlansTable: React.FC<ExpensePlansTableProps> = React.memo((props) =
                     <Button
                       variant="outline"
                       className="gba:h-8 gba:w-8 gba:p-0"
-                      onClick={() => handlePaginationChange(currentPage - 1)}
+                      onClick={() => handlePagination(currentPage - 1)}
                       disabled={currentPage <= 1}
                       data-testid={`${DATA_TEST_ID_PREFIX}-previous-page-button`}
                     >
@@ -577,7 +596,7 @@ const ExpensePlansTable: React.FC<ExpensePlansTableProps> = React.memo((props) =
                     <Button
                       variant="outline"
                       className="gba:h-8 gba:w-8 gba:p-0"
-                      onClick={() => handlePaginationChange(currentPage + 1)}
+                      onClick={() => handlePagination(currentPage + 1)}
                       disabled={currentPage >= Math.ceil(totalCount / pageSize)}
                       data-testid={`${DATA_TEST_ID_PREFIX}-next-page-button`}
                     >
@@ -587,7 +606,7 @@ const ExpensePlansTable: React.FC<ExpensePlansTableProps> = React.memo((props) =
                     <Button
                       variant="outline"
                       className="gba:h-8 gba:w-8 gba:p-0"
-                      onClick={() => handlePaginationChange(Math.ceil(totalCount / pageSize))}
+                      onClick={() => handlePagination(Math.ceil(totalCount / pageSize))}
                       disabled={currentPage >= Math.ceil(totalCount / pageSize)}
                       data-testid={`${DATA_TEST_ID_PREFIX}-last-page-button`}
                     >
@@ -600,13 +619,13 @@ const ExpensePlansTable: React.FC<ExpensePlansTableProps> = React.memo((props) =
             ) : (
               <div className="gba:flex gba:items-center gba:justify-between gba:px-6 gba:py-4" data-testid={`${DATA_TEST_ID_PREFIX}-pagination-info-single-page`}>
                 <div className="gba:text-sm gba:text-muted-foreground">
-                  {`${totalCount} expense plans`}
+                  {`${totalCount} ${getTranslationFromI18nKeyAndLabel('lowcoder:team_expenses_page.dashboard_tab.expense_plans', 'Expense Plans')}`}
                 </div>
                 <div className="gba:flex gba:items-center gba:space-x-2">
                   <p className="gba:text-sm gba:font-medium">Rows per page</p>
                   <select
                     value={pageSize}
-                    onChange={(e) => handlePaginationChange(1, Number(e.target.value))}
+                    onChange={(e) => handlePagination(1, Number(e.target.value))}
                     className="gba:h-8 gba:w-[70px] gba:rounded gba:border gba:border-input gba:px-3 gba:py-1 gba:text-sm"
                     data-testid={`${DATA_TEST_ID_PREFIX}-page-size-select-single`}
                   >
@@ -622,7 +641,7 @@ const ExpensePlansTable: React.FC<ExpensePlansTableProps> = React.memo((props) =
         </Card>
       </div>
     );
-  }, [plans, isLoading, selectedItem, handleSelectItem, contextProps.accessToken, totalCount, pageSize, currentPage, handlePaginationChange, sortField, sortOrder, handleSort, renderSortIcon]);
+  }, [plans, isLoading, selectedItem, handleSelectItem, contextProps.accessToken, totalCount, pageSize, currentPage, handlePagination, sortField, sortOrder, handleSort, renderSortIcon]);
 
   return (
     <div>

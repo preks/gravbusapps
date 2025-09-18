@@ -6,10 +6,25 @@ import type { AbsenceListCardAbsence } from "../types/absenceTypes";
 
 interface KeyInsightsSectionProps {
   absences: AbsenceListCardAbsence[];
+  overrides?: {
+    plannedPct?: number;
+    unplannedPct?: number;
+    avgDaysPerRequest?: number;
+    approvalRatePct?: number;
+    vacationCount?: number;
+    sickCount?: number;
+  };
+  /** When true, do not use local calculations as fallback; render error/placeholder */
+  disableLocalCalc?: boolean;
+  /** Optional error text to display when overrides are missing */
+  errorMessage?: string;
 }
 
 const KeyInsightsSection: React.FC<KeyInsightsSectionProps> = ({
   absences,
+  overrides,
+  disableLocalCalc = false,
+  errorMessage
 }) => {
   const total = absences.length;
   const planned = absences.filter((a) => {
@@ -23,7 +38,7 @@ const KeyInsightsSection: React.FC<KeyInsightsSectionProps> = ({
     const num = parseFloat(a.duration);
     return !isNaN(num) && num > 0;
   });
-  const avg = absencesWithDuration.length
+  const avgLocal = absencesWithDuration.length
     ? (
         absencesWithDuration.reduce(
           (sum, a) => sum + parseFloat(a.duration),
@@ -35,14 +50,10 @@ const KeyInsightsSection: React.FC<KeyInsightsSectionProps> = ({
   const approved = absences.filter(
     (a) => (a.status || "").toLowerCase() === "approved"
   ).length;
-  const approvalRate = total ? Math.round((approved / total) * 100) : 0;
-
-  const getApprovalBadge = () => {
-    if (approvalRate >= 95) return <Badge variant="default" className="gba:text-xs">Excellent</Badge>;
-    if (approvalRate >= 85) return <Badge variant="secondary" className="gba:text-xs">Good</Badge>;
-    if (approvalRate >= 70) return <Badge variant="secondary" className="gba:text-xs">Fair</Badge>;
-    return <Badge variant="destructive" className="gba:text-xs">Needs Improvement</Badge>;
-  };
+  const approvalRate = overrides?.approvalRatePct ?? (disableLocalCalc ? 0 : (total ? Math.round((approved / total) * 100) : 0));
+  const avg = (overrides?.avgDaysPerRequest ?? (disableLocalCalc ? 0 : Number(avgLocal))).toString();
+  const plannedPctFinal = overrides?.plannedPct ?? (disableLocalCalc ? undefined : plannedPct);
+  const unplannedPctFinal = overrides?.unplannedPct ?? (disableLocalCalc ? undefined : unplannedPct);
 
   return (
     <div
@@ -54,31 +65,40 @@ const KeyInsightsSection: React.FC<KeyInsightsSectionProps> = ({
         className="gba:p-6 gba:space-y-4 gba:hover:shadow-md gba:transition-shadow"
         data-testid="key-insights-section-planned-absences"
       >
-        <div className="gba:flex gba:items-center gba:justify-between">
-          <div className="gba:flex gba:items-center gba:gap-2">
-            <div className="gba:w-8 gba:h-8 gba:rounded-lg gba:bg-primary gba:bg-opacity-10 gba:flex gba:items-center gba:justify-center">
-              <Calendar className="gba:w-4 gba:h-4 gba:text-primary" />
-            </div>
-            <span className="gba:text-sm gba:font-medium gba:text-muted-foreground" data-testid="planned-absences-title">
-              {getTranslationFromI18nKeyAndLabel(
-                "lowcoder:absence_hub.planned_absences",
-                "Planned Absences"
-              )}
-            </span>
-          </div>
-          {plannedPct >= 80 && <Badge variant="default" className="gba:text-xs">Well Planned</Badge>}
-        </div>
-        <div className="gba:text-center">
-          <div className="gba:text-3xl gba:font-bold gba:text-foreground" data-testid="planned-absences-value">
-            {plannedPct}%
-          </div>
-          <div className="gba:text-xs gba:text-muted-foreground gba:mt-1" data-testid="planned-absences-sub">
+        <div className="gba:flex gba:items-center">
+          <span
+            className="gba:text-sm gba:text-gray-500 gba:font-medium"
+            data-testid="planned-absences-title"
+          >
             {getTranslationFromI18nKeyAndLabel(
-              "lowcoder:absence_hub.vs_unplanned",
-              `vs ${unplannedPct}% unplanned`,
-              { unplannedPct }
+              "lowcoder:absence_hub.planned_absences",
+              "Planned Absences"
             )}
-          </div>
+          </span>
+        </div>
+        <div
+          className="gba:text-3xl gba:font-bold gba:text-gray-900"
+          data-testid="planned-absences-value"
+        >
+          {plannedPctFinal}%
+        </div>
+        <div
+          className="gba:text-xs gba:text-gray-500"
+          data-testid="planned-absences-sub"
+        >
+          {errorMessage ? (
+            <span className="gba:text-red-600" data-testid="planned-absences-error">{errorMessage}</span>
+          ) : overrides?.vacationCount !== undefined && overrides?.sickCount !== undefined ? (
+            <span data-testid="planned-absences-breakdown">
+              {overrides.vacationCount} requests vacation vs {overrides.sickCount} requests sick
+            </span>
+          ) : (
+            getTranslationFromI18nKeyAndLabel(
+              "lowcoder:absence_hub.vs_unplanned",
+              `vs ${unplannedPctFinal ?? 0}% unplanned (sick leave)`,
+              { unplannedPct: unplannedPctFinal ?? 0 }
+            )
+          )}
         </div>
       </Card>
       
@@ -101,16 +121,14 @@ const KeyInsightsSection: React.FC<KeyInsightsSectionProps> = ({
           </div>
           {parseFloat(avg) <= 5 && <Badge variant="default" className="gba:text-xs">Efficient</Badge>}
         </div>
-        <div className="gba:text-center">
-          <div className="gba:text-3xl gba:font-bold gba:text-foreground" data-testid="avg-days-value">
-            {avg}
-          </div>
-          <div className="gba:text-xs gba:text-muted-foreground gba:mt-1" data-testid="avg-days-sub">
-            {getTranslationFromI18nKeyAndLabel(
-              "lowcoder:absence_hub.efficient_leave_planning",
-              "Days per request"
-            )}
-          </div>
+        <div
+          className="gba:text-xs gba:text-gray-500"
+          data-testid="avg-days-sub"
+        >
+          {getTranslationFromI18nKeyAndLabel(
+            "lowcoder:absence_hub.avg_days_scope",
+            "Based on APPROVED requests"
+          )}
         </div>
       </Card>
       
@@ -133,16 +151,14 @@ const KeyInsightsSection: React.FC<KeyInsightsSectionProps> = ({
           </div>
           {getApprovalBadge()}
         </div>
-        <div className="gba:text-center">
-          <div className="gba:text-3xl gba:font-bold gba:text-foreground" data-testid="approval-rate-value">
-            {approvalRate}%
-          </div>
-          <div className="gba:text-xs gba:text-muted-foreground gba:mt-1" data-testid="approval-rate-sub">
-            {getTranslationFromI18nKeyAndLabel(
-              "lowcoder:absence_hub.approval_success_rate",
-              "Approval success rate"
-            )}
-          </div>
+        <div
+          className="gba:text-xs gba:text-gray-500"
+          data-testid="approval-rate-sub"
+        >
+          {getTranslationFromI18nKeyAndLabel(
+            "lowcoder:absence_hub.approval_status_scope",
+            "Statuses considered: APPROVED vs ALL STATUSES"
+          )}
         </div>
       </Card>
     </div>

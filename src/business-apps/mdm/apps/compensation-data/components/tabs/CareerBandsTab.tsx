@@ -1,41 +1,33 @@
-import React, { useState } from "react";
-import { useTranslation } from "react-i18next";
-import {
-  Card,
-  Table,
-  Button,
-  Collapse,
-  Tag,
-  Space,
-  Typography,
-  Modal,
-  message,
-  Spin,
-  Alert,
-  Descriptions,
-  Divider,
-} from "antd";
-import {
-  EditOutlined,
-  DeleteOutlined,
-  PlusOutlined,
-  RightOutlined,
-  CreditCardOutlined,
-  LinkOutlined,
-  TeamOutlined,
-  DollarOutlined,
-  BankOutlined,
-  AppstoreOutlined,
-} from "@ant-design/icons";
+import React, { useState, useMemo, useEffect } from "react";
 import { BusinessAppContextProps } from "@/common/BusinessAppContext";
 import { PayGrade, JobLevelGroup, JobLevel } from "./PayGradesTab";
 import { useCompensationDataIntegration } from "../../hooks/useCompensationDataIntegration";
-import { DataDetailsDrawer } from "@/components/data-details/DataDetailsDrawer";
-import type { JobLevelGroupVisualization } from "../../types";
-import { startProcess } from "@/common/utils/start-process";
-
-const { Title, Text } = Typography;
-const { Panel } = Collapse;
+import {
+  Card,
+  CardContent,
+  Button,
+  Alert,
+  AlertTitle,
+  AlertDescription,
+  Spinner,
+  Accordion,
+  DataTable,
+} from "@newwork/nw-design-system";
+import { CardTabHeaderComponent } from "../../../generic-components/card/CardTabHeaderComponent";
+import { formatDataTestId } from "@/common/utils/formatDataTestId";
+import {
+  UsersIcon,
+  ArrowsDownUpIcon,
+  EyeIcon,
+  CreditCardIcon,
+  CurrencyCircleDollarIcon,
+  BankIcon,
+  SquaresFourIcon,
+  InfoIcon,
+  XCircleIcon,
+} from "@phosphor-icons/react";
+import { ColumnDef } from "@tanstack/react-table";
+import SheetWrapperComponent from "../../../generic-components/sheet-wrapper/SheetWrapperComponent";
 
 export interface CareerBandsTabProps extends BusinessAppContextProps {
   prefixDataTestId?: string;
@@ -47,35 +39,51 @@ interface JobLevelDetail extends JobLevel {
   range: number;
   nameI18n?: Record<string, string>;
   descriptionI18n?: Record<string, string>;
-  version?: number;
+  version: number;
   payGradeId: string;
   jobLevelGroupId: string;
   code: string;
   level: number;
   heirarchyOrder: number;
+  displayName: string;
 }
 
+const DATA_TEST_ID_PREFIX = "CareerBandsTab";
+
 const CareerBandsTab: React.FC<CareerBandsTabProps> = (context) => {
-  const { t } = useTranslation();
   const { prefixDataTestId, userInfo } = context;
+  const dataTestId = formatDataTestId(prefixDataTestId, DATA_TEST_ID_PREFIX);
 
   // State for drawer
   const [selectedJobLevelDetail, setSelectedJobLevelDetail] =
     useState<JobLevelDetail | null>(null);
   const [drawerVisible, setDrawerVisible] = useState<boolean>(false);
+  const [accordionValue, setAccordionValue] = useState<string | string[]>([]);
 
   // Use real data integration
   const { payGrades, jobLevelGroups, jobLevels, isLoading, error, refetch } =
     useCompensationDataIntegration(context);
-  const [editingJobLevel, setEditingJobLevel] = useState<JobLevel | null>(null);
-  const [selectedGroupId, setSelectedGroupId] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (selectedJobLevelDetail) {
+      const newJobLevel = getJobLevelDetails(
+        selectedJobLevelDetail.jobLevelGroupId
+      );
+      const targetJobLevel = newJobLevel.find(
+        (jl) => jl.id === selectedJobLevelDetail.id
+      );
+      if (targetJobLevel) {
+        setSelectedJobLevelDetail(targetJobLevel);
+      }
+    }
+  }, [jobLevels]);
 
   const formatCurrency = (
     amount: number,
     currency?: { id: string; value: string } | string
   ) => {
     let currencyCode =
-      typeof currency === "string" ? currency : currency?.id || "EUR";
+      typeof currency === "string" ? currency : currency?.id ?? "EUR";
 
     // Extract currency code from format like "Currency:v1:EUR" -> "EUR"
     if (currencyCode.includes(":")) {
@@ -116,7 +124,7 @@ const CareerBandsTab: React.FC<CareerBandsTabProps> = (context) => {
 
     const minSalary = Math.min(...details.map((d) => d.payGrade.minSalary));
     const maxSalary = Math.max(...details.map((d) => d.payGrade.maxSalary));
-    const currency = details[0]?.payGrade.currency || "EUR";
+    const currency = details[0]?.payGrade.currency ?? "EUR";
 
     return {
       groupCount: details.length,
@@ -127,57 +135,356 @@ const CareerBandsTab: React.FC<CareerBandsTabProps> = (context) => {
     };
   };
 
-  const handleEditJobLevel = (jobLevel: JobLevelDetail) => {
-    setEditingJobLevel(jobLevel);
-    startProcess({
-      domain: "dummy-domain",
-      processName: "changeCareerBand",
-      payload: {
-        employeeId: userInfo?.employeeDetails.employeeId,
-        jobLevel,
+  const drawerItems = useMemo(() => {
+    if (!selectedJobLevelDetail) return [];
+
+    return [
+      {
+        icon: <InfoIcon />,
+        title: "Basic Information",
+        items: [
+          {
+            label: "Name",
+            value: selectedJobLevelDetail.name ?? "-",
+          },
+          {
+            label: "Code",
+            value: selectedJobLevelDetail.code ?? "-",
+          },
+          {
+            label: "Pay Grade",
+            value: selectedJobLevelDetail.payGrade?.code ?? "-",
+          },
+          {
+            label: "Job Group",
+            value: selectedJobLevelDetail.jobLevelGroup?.name ?? "-",
+          },
+        ],
       },
-      builderType: "NATIVE_SCREEN",
-    });
+      {
+        icon: <InfoIcon />,
+        title: "Compensation Details",
+        items: [
+          {
+            label: "Currency",
+            value:
+              selectedJobLevelDetail.payGrade?.currency?.value ??
+              selectedJobLevelDetail.payGrade?.currency?.id ??
+              "-",
+          },
+          {
+            label: "Minimum Salary",
+            value: formatCurrency(
+              selectedJobLevelDetail.payGrade?.minSalary ?? 0,
+              selectedJobLevelDetail.payGrade?.currency
+            ),
+          },
+          {
+            label: "Standard Salary",
+            value: formatCurrency(
+              selectedJobLevelDetail.payGrade?.standardSalary ?? 0,
+              selectedJobLevelDetail.payGrade?.currency
+            ),
+          },
+          {
+            label: "Maximum Salary",
+            value: formatCurrency(
+              selectedJobLevelDetail.payGrade?.maxSalary ?? 0,
+              selectedJobLevelDetail.payGrade?.currency
+            ),
+          },
+          {
+            label: "Salary Range",
+            value: formatCurrency(
+              selectedJobLevelDetail.range ?? 0,
+              selectedJobLevelDetail.payGrade?.currency
+            ),
+          },
+        ],
+      },
+      {
+        icon: <InfoIcon />,
+        title: "Additional Details",
+        items: [
+          {
+            label: "Category",
+            value: selectedJobLevelDetail.jobLevelGroup?.category ?? "-",
+          },
+          {
+            label: "Hierarchy Order",
+            value:
+              selectedJobLevelDetail.heirarchyOrder !== undefined
+                ? selectedJobLevelDetail.heirarchyOrder
+                : "-",
+          },
+          {
+            label: "Level",
+            value:
+              selectedJobLevelDetail.level !== undefined
+                ? selectedJobLevelDetail.level
+                : "-",
+          },
+        ],
+      },
+      {
+        icon: <InfoIcon />,
+        title: "System Information",
+        items: [
+          {
+            label: "ID",
+            value: selectedJobLevelDetail.id,
+          },
+          {
+            label: "Pay Grade ID",
+            value: selectedJobLevelDetail.payGradeId ?? "-",
+          },
+          {
+            label: "Job Level Group ID",
+            value: selectedJobLevelDetail.jobLevelGroupId ?? "-",
+          },
+          {
+            label: "Version",
+            value:
+              selectedJobLevelDetail.version !== undefined
+                ? selectedJobLevelDetail.version
+                : "-",
+          },
+        ],
+      },
+    ];
+  }, [selectedJobLevelDetail]);
+
+  const navigationItems = useMemo(() => {
+    if (!selectedJobLevelDetail) return [];
+
+    return [
+      {
+        redirectLink: `/mdm/compensation-data/pay-grades/${selectedJobLevelDetail.payGradeId}`,
+        color: "blue",
+        icon: CurrencyCircleDollarIcon,
+        title: selectedJobLevelDetail.payGrade?.name ?? "Pay Grade Details",
+        description:
+          "View complete pay grade information, salary structures and related job positions",
+      },
+      {
+        redirectLink: `/mdm/compensation-data/compensation-bands/${selectedJobLevelDetail.compensationBandId}`,
+        color: "green",
+        icon: BankIcon,
+        title: "Compensation Band Details",
+        description:
+          "View complete compensation band structure, range analysis and market comparisons",
+      },
+      {
+        redirectLink: `/mdm/compensation-data/job-level-groups/${selectedJobLevelDetail.jobLevelGroupId}`,
+        color: "purple",
+        icon: UsersIcon,
+        title: selectedJobLevelDetail.jobLevelGroup?.name ?? "Job Level Group",
+        description: `View all positions within ${
+          selectedJobLevelDetail.jobLevelGroup?.name ?? "this group"
+        }, career progression paths, and requirements`,
+      },
+      {
+        redirectLink: `/mdm/organizational-data?structure=${selectedJobLevelDetail.id}`,
+        color: "orange",
+        icon: SquaresFourIcon,
+        title: "Organizational Positions",
+        description: ` View organizational units and positions with ${selectedJobLevelDetail.name} level`,
+      },
+    ];
+  }, [selectedJobLevelDetail]);
+
+  const renderJobLevelsTable = (groupId: string) => {
+    const groupJobLevels = getJobLevelDetails(groupId);
+
+    const columns: ColumnDef<JobLevelDetail>[] = [
+      {
+        accessorKey: "name",
+        header: ({ column }) => (
+          <Button
+            variant="ghost"
+            onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+            className="gba:h-auto gba:p-0 gba:font-semibold gba:hover:bg-transparent gba:justify-start"
+          >
+            Levels
+            <ArrowsDownUpIcon className="gba:ml-2 gba:h-4 gba:w-4" />
+          </Button>
+        ),
+        enableSorting: true,
+        cell: ({ getValue }) => {
+          const levelName = getValue();
+          return (levelName as string) ?? "N/A";
+        },
+      },
+      {
+        accessorKey: "paygrade",
+        header: ({ column }) => (
+          <Button
+            variant="ghost"
+            onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+            className="gba:h-auto gba:p-0 gba:font-semibold gba:hover:bg-transparent gba:justify-start"
+          >
+            Pay Grade
+            <ArrowsDownUpIcon className="gba:ml-2 gba:h-4 gba:w-4" />
+          </Button>
+        ),
+        enableSorting: true,
+        cell: ({ getValue }) => {
+          const payGrade = getValue();
+          return (payGrade as string) ?? "N/A";
+        },
+      },
+      {
+        accessorKey: "minSalary",
+        header: ({ column }) => (
+          <Button
+            variant="ghost"
+            onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+            className="gba:h-auto gba:p-0 gba:font-semibold gba:hover:bg-transparent gba:justify-start"
+          >
+            Minimum
+            <ArrowsDownUpIcon className="gba:ml-2 gba:h-4 gba:w-4" />
+          </Button>
+        ),
+        enableSorting: true,
+        cell: ({ getValue }) => {
+          const minSalary = getValue();
+          return (minSalary as string) ?? "N/A";
+        },
+      },
+      {
+        accessorKey: "standardSalary",
+        header: ({ column }) => (
+          <Button
+            variant="ghost"
+            onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+            className="gba:h-auto gba:p-0 gba:font-semibold gba:hover:bg-transparent gba:justify-start"
+          >
+            Standard
+            <ArrowsDownUpIcon className="gba:ml-2 gba:h-4 gba:w-4" />
+          </Button>
+        ),
+        enableSorting: true,
+        cell: ({ getValue }) => {
+          const standardSalary = getValue();
+          return (standardSalary as string) ?? "N/A";
+        },
+      },
+      {
+        accessorKey: "maxSalary",
+        header: ({ column }) => (
+          <Button
+            variant="ghost"
+            onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+            className="gba:h-auto gba:p-0 gba:font-semibold gba:hover:bg-transparent gba:justify-start"
+          >
+            Maximum
+            <ArrowsDownUpIcon className="gba:ml-2 gba:h-4 gba:w-4" />
+          </Button>
+        ),
+        enableSorting: true,
+        cell: ({ getValue }) => {
+          const maxSalary = getValue();
+          return (maxSalary as string) ?? "N/A";
+        },
+      },
+      {
+        accessorKey: "range",
+        header: ({ column }) => (
+          <Button
+            variant="ghost"
+            onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+            className="gba:h-auto gba:p-0 gba:font-semibold gba:hover:bg-transparent gba:justify-start"
+          >
+            Range
+            <ArrowsDownUpIcon className="gba:ml-2 gba:h-4 gba:w-4" />
+          </Button>
+        ),
+        enableSorting: true,
+        cell: ({ getValue }) => {
+          const range = getValue();
+          return (range as string) ?? "N/A";
+        },
+      },
+      {
+        id: "actions",
+        header: () => <div className="gba:flex gba:w-[20px]">Actions</div>,
+        enableSorting: false,
+        enableHiding: true,
+        cell: ({ row }) => (
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => handleRowClick(row.original)}
+            data-testid={`${dataTestId}-view-contract-type-${row.original.id}`}
+          >
+            <EyeIcon className="gba:h-4 gba:w-4" />
+          </Button>
+        ),
+      },
+    ];
+
+    const dataTable = groupJobLevels.map((jobLevel) => ({
+      ...jobLevel,
+      id: jobLevel.id,
+      name: jobLevel.name,
+      payGrade: jobLevel.payGrade.code,
+      minSalary: jobLevel.payGrade.minSalary,
+      standardSalary: jobLevel.payGrade.standardSalary,
+      maxSalary: jobLevel.payGrade.maxSalary,
+      range: jobLevel.range,
+    }));
+
+    return (
+      <DataTable
+        defaultDataSetId="job-levels"
+        dataSets={[
+          {
+            id: "job-levels",
+            label: "Job Levels",
+            data: dataTable,
+            columns: columns,
+          },
+        ]}
+      />
+    );
   };
 
-  const handleAddJobLevel = (group: JobLevelGroupVisualization) => {
-    setEditingJobLevel(null);
-    setSelectedGroupId(group.id);
-    startProcess({
-      domain: "dummy-domain",
-      processName: "changeCareerBand",
-      payload: {
-        employeeId: userInfo?.employeeDetails.employeeId,
-      },
-      builderType: "NATIVE_SCREEN",
-    });
-  };
+  const groupItems = useMemo(
+    () =>
+      jobLevelGroups.map((group) => {
+        const summary = getGroupSummary(group.id);
 
-  const handleDeleteJobLevel = (jobLevel: JobLevelDetail) => {
-    Modal.confirm({
-      title: "Delete Job Level",
-      content: `Are you sure you want to delete "${jobLevel.name}"?`,
-      okText: "Delete",
-      okType: "danger",
-      cancelText: "Cancel",
-      onOk: async () => {
-        // TODO: Implement API call to delete job level
-        message.warning(
-          "Delete functionality will be implemented with process API integration"
-        );
-        // Optionally refetch data
-        await refetch();
-      },
-    });
-  };
+        return {
+          id: group.id,
+          title: group.name,
+          description: summary ? summary.salaryRange : "No data",
+          badgeText: `${summary?.groupCount ?? 0} levels`,
+          badgeVariant: "info" as const,
+          contentDescription: group.description,
+          content: (
+            <div className="gba:space-y-4">
+              {renderJobLevelsTable(group.id)}
+            </div>
+          ),
+        };
+      }),
+    [
+      jobLevelGroups,
+      userInfo?.employeeDetails.employeeId,
+      refetch,
+      context.accessToken,
+      dataTestId,
+      payGrades,
+    ]
+  );
 
-  if (isLoading) {
+  if (jobLevelGroups.length === 0 && isLoading) {
     return (
       <div
         data-testid={`${prefixDataTestId}-CareerBandsTab`}
         className="gba:flex gba:justify-center gba:items-center gba:h-64"
       >
-        <Spin size="large" />
+        <Spinner />
       </div>
     );
   }
@@ -189,16 +496,19 @@ const CareerBandsTab: React.FC<CareerBandsTabProps> = (context) => {
         className="gba:p-4"
       >
         <Alert
-          message="Error Loading Data"
-          description={error}
-          type="error"
-          showIcon
-          action={
-            <Button size="small" danger onClick={() => refetch()}>
+          className="gba:w-full gba:!flex gba:justify-between gba:!items-center"
+          variant="destructive"
+        >
+          <AlertTitle className="gba:flex gba:items-center gba:justify-center gba:gap-2">
+            <XCircleIcon className="h-4 w-4" />
+            Error Loading Data
+          </AlertTitle>
+          <AlertDescription>
+            <Button size="sm" variant="destructive" onClick={() => refetch()}>
               Retry
             </Button>
-          }
-        />
+          </AlertDescription>
+        </Alert>
       </div>
     );
   }
@@ -208,479 +518,50 @@ const CareerBandsTab: React.FC<CareerBandsTabProps> = (context) => {
     setSelectedJobLevelDetail(record);
     setDrawerVisible(true);
   };
-  // Handle drawer close
-  const handleDrawerClose = () => {
-    setDrawerVisible(false);
-    setSelectedJobLevelDetail(null);
-  };
-
-  const columns = [
-    {
-      title: "Levels",
-      dataIndex: "name",
-      key: "name",
-      width: 200,
-    },
-    {
-      title: "Pay Grade",
-      dataIndex: "payGrade",
-      key: "payGrade",
-      width: 120,
-      render: (payGrade: PayGrade) => payGrade.code,
-    },
-    {
-      title: "Minimum",
-      dataIndex: "payGrade",
-      key: "minimum",
-      width: 150,
-      render: (payGrade: PayGrade) =>
-        formatCurrency(payGrade.minSalary, payGrade.currency),
-    },
-    {
-      title: "Standard",
-      dataIndex: "payGrade",
-      key: "standard",
-      width: 150,
-      render: (payGrade: PayGrade) => (
-        <span className="gba:font-medium">
-          {formatCurrency(payGrade.standardSalary, payGrade.currency)}
-        </span>
-      ),
-    },
-    {
-      title: "Maximum",
-      dataIndex: "payGrade",
-      key: "maximum",
-      width: 150,
-      render: (payGrade: PayGrade) =>
-        formatCurrency(payGrade.maxSalary, payGrade.currency),
-    },
-    {
-      title: "Range",
-      dataIndex: "range",
-      key: "range",
-      width: 120,
-      render: (range: number, record: JobLevelDetail) =>
-        formatCurrency(range, record.payGrade.currency),
-    },
-    {
-      title: "Actions",
-      key: "actions",
-      width: 120,
-      render: (_: any, record: JobLevelDetail) => (
-        <Space size="small">
-          <Button
-            type="text"
-            icon={<EditOutlined />}
-            onClick={() => handleEditJobLevel(record)}
-            size="small"
-          />
-          <Button
-            type="text"
-            danger
-            icon={<DeleteOutlined />}
-            onClick={() => handleDeleteJobLevel(record)}
-            size="small"
-          />
-        </Space>
-      ),
-    },
-  ];
 
   return (
-    <div data-testid={`${prefixDataTestId}-CareerBandsTab`}>
-      <Card>
-        <div className="gba:mb-4">
-          <Title level={2}>Career Band Details</Title>
-          <Text className="gba:text-gray-600">
-            Detailed breakdown of compensation ranges for each career band and
-            group
-          </Text>
-        </div>
+    <Card data-testid={`${prefixDataTestId}-CareerBandsTab`}>
+      <CardTabHeaderComponent
+        cardTitle="Career Band Details"
+        cardDescription="Detailed breakdown of compensation ranges for each career band and
+            group"
+      />
 
-        <Collapse
-          defaultActiveKey={jobLevelGroups.map((g) => g.id)}
-          expandIconPosition="start"
-        >
-          {jobLevelGroups.map((group) => {
-            const summary = getGroupSummary(group.id);
-            const jobLevelDetails = getJobLevelDetails(group.id);
-
-            return (
-              <Panel
-                key={group.id}
-                header={
-                  <div className="gba:flex gba:justify-between gba:items-center gba:w-full gba:pr-4">
-                    <div className="gba:flex gba:items-center gba:gap-3">
-                      <span className="gba:font-medium gba:text-lg">
-                        {group.name}
-                      </span>
-                      <span className="gba:text-gray-500">
-                        {summary
-                          ? `${summary.groupCount} groups • ${summary.salaryRange}`
-                          : "No data"}
-                      </span>
-                    </div>
-                    <div className="gba:flex gba:items-center gba:gap-2">
-                      <Tag color="blue">{summary?.groupCount || 0} groups</Tag>
-                      <Button
-                        type="text"
-                        icon={<EditOutlined />}
-                        size="small"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          // Handle group edit
-                        }}
-                      />
-                      <Button
-                        type="text"
-                        danger
-                        icon={<DeleteOutlined />}
-                        size="small"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          // Handle group delete
-                        }}
-                      />
-                    </div>
-                  </div>
-                }
-                extra={
-                  <Button
-                    type="primary"
-                    size="small"
-                    icon={<PlusOutlined />}
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handleAddJobLevel(group);
-                    }}
-                  >
-                    Add Level
-                  </Button>
-                }
-              >
-                <Table
-                  columns={columns}
-                  dataSource={jobLevelDetails}
-                  rowKey="id"
-                  pagination={false}
-                  size="small"
-                  onRow={(record) => ({
-                    onClick: () => handleRowClick(record),
-                  })}
-                  className="gba:cursor-pointer"
-                />
-              </Panel>
-            );
-          })}
-        </Collapse>
-      </Card>
-
-      {/* Compensation Band Details Drawer */}
-      <DataDetailsDrawer
-        title="Compensation Band Details"
-        icon={<CreditCardOutlined />}
-        open={drawerVisible}
-        onClose={handleDrawerClose}
-        width={500}
-        placement="right"
-        dataTestId={`${prefixDataTestId}-compensation-band-details-drawer`}
-        footer={
-          <div className="gba:flex gba:justify-end gba:gap-2">
-            <Button
-              type="primary"
-              icon={<EditOutlined />}
-              onClick={() => {
-                handleDrawerClose();
-                if (selectedJobLevelDetail) {
-                  handleEditJobLevel(selectedJobLevelDetail);
-                }
-              }}
-            >
-              Edit
-            </Button>
+      <CardContent>
+        {jobLevelGroups.length === 0 && !isLoading ? (
+          <div className="gba:text-center gba:flex gba:flex-col gba:items-center gba:justify-center gba:py-8">
+            <UsersIcon className="gba:text-4xl gba:text-gray-400 gba:mb-4" />
+            <h1 className="gba:font-bold gba:text-xl">
+              No Job Level Groups Found
+            </h1>
           </div>
-        }
-      >
-        {selectedJobLevelDetail && (
-          <div className="gba:space-y-6">
-            {/* Basic Information */}
-            <Descriptions
-              title="Basic Information"
-              bordered
-              column={1}
-              size="small"
-            >
-              <Descriptions.Item label="Level Name">
-                {selectedJobLevelDetail.name || "-"}
-              </Descriptions.Item>
-              <Descriptions.Item label="Code">
-                {selectedJobLevelDetail.code || "-"}
-              </Descriptions.Item>
-              <Descriptions.Item label="Pay Grade">
-                {selectedJobLevelDetail.payGrade?.code || "-"}
-              </Descriptions.Item>
-              <Descriptions.Item label="Job Group">
-                <Tag
-                  color={
-                    selectedJobLevelDetail.jobLevelGroup?.color?.replace(
-                      "gba:",
-                      ""
-                    ) || "blue"
-                  }
-                >
-                  {selectedJobLevelDetail.jobLevelGroup?.name || "-"}
-                </Tag>
-              </Descriptions.Item>
-            </Descriptions>
-
-            {/* Compensation Details */}
-            <Descriptions
-              title="Compensation Details"
-              bordered
-              column={1}
-              size="small"
-            >
-              <Descriptions.Item label="Currency">
-                {selectedJobLevelDetail.payGrade?.currency?.value ||
-                  selectedJobLevelDetail.payGrade?.currency?.id ||
-                  "-"}
-              </Descriptions.Item>
-              <Descriptions.Item label="Minimum Salary">
-                <span className="gba:text-green-600 gba:font-medium">
-                  {formatCurrency(
-                    selectedJobLevelDetail.payGrade?.minSalary || 0,
-                    selectedJobLevelDetail.payGrade?.currency
-                  )}
-                </span>
-              </Descriptions.Item>
-              <Descriptions.Item label="Standard Salary">
-                <span className="gba:text-blue-600 gba:font-semibold">
-                  {formatCurrency(
-                    selectedJobLevelDetail.payGrade?.standardSalary || 0,
-                    selectedJobLevelDetail.payGrade?.currency
-                  )}
-                </span>
-              </Descriptions.Item>
-              <Descriptions.Item label="Maximum Salary">
-                <span className="gba:text-red-600 gba:font-medium">
-                  {formatCurrency(
-                    selectedJobLevelDetail.payGrade?.maxSalary || 0,
-                    selectedJobLevelDetail.payGrade?.currency
-                  )}
-                </span>
-              </Descriptions.Item>
-              <Descriptions.Item label="Salary Range">
-                <span className="gba:text-purple-600 gba:font-medium">
-                  {formatCurrency(
-                    selectedJobLevelDetail.range || 0,
-                    selectedJobLevelDetail.payGrade?.currency
-                  )}
-                </span>
-              </Descriptions.Item>
-            </Descriptions>
-
-            {/* Additional Details */}
-            <Descriptions
-              title="Additional Details"
-              bordered
-              column={1}
-              size="small"
-            >
-              <Descriptions.Item label="Category">
-                {selectedJobLevelDetail.jobLevelGroup?.category || "-"}
-              </Descriptions.Item>
-              <Descriptions.Item label="Hierarchy Order">
-                {selectedJobLevelDetail.heirarchyOrder !== undefined
-                  ? selectedJobLevelDetail.heirarchyOrder
-                  : "-"}
-              </Descriptions.Item>
-              <Descriptions.Item label="Level">
-                {selectedJobLevelDetail.level !== undefined
-                  ? selectedJobLevelDetail.level
-                  : "-"}
-              </Descriptions.Item>
-            </Descriptions>
-
-            {/* Translations Section - if available */}
-            {selectedJobLevelDetail.nameI18n &&
-              Object.keys(selectedJobLevelDetail.nameI18n).length > 0 && (
-                <Descriptions
-                  title="Translations"
-                  bordered
-                  column={1}
-                  size="small"
-                >
-                  {Object.entries(selectedJobLevelDetail.nameI18n || {}).map(
-                    ([locale, translation]) => (
-                      <Descriptions.Item key={locale} label={locale}>
-                        {translation}
-                      </Descriptions.Item>
-                    )
-                  )}
-                </Descriptions>
-              )}
-
-            {/* Technical Information */}
-            <Descriptions
-              title="System Information"
-              bordered
-              column={1}
-              size="small"
-            >
-              <Descriptions.Item label="ID">
-                {selectedJobLevelDetail.id}
-              </Descriptions.Item>
-              <Descriptions.Item label="Pay Grade ID">
-                {selectedJobLevelDetail.payGradeId || "-"}
-              </Descriptions.Item>
-              <Descriptions.Item label="Job Level Group ID">
-                {selectedJobLevelDetail.jobLevelGroupId || "-"}
-              </Descriptions.Item>
-              <Descriptions.Item label="Version">
-                {selectedJobLevelDetail.version !== undefined
-                  ? selectedJobLevelDetail.version
-                  : "-"}
-              </Descriptions.Item>
-            </Descriptions>
-
-            {/* Related Navigation Links */}
-            <div className="gba:mt-6">
-              <Divider orientation="left">
-                <span className="gba:flex gba:items-center gba:gap-2">
-                  <LinkOutlined />
-                  <span className="gba:text-base">Related Resources</span>
-                </span>
-              </Divider>
-
-              <div className="gba:grid gba:grid-cols-1 gba:gap-4">
-                {/* Pay Grade Navigation */}
-                {selectedJobLevelDetail.payGradeId && (
-                  <Card
-                    className="gba:shadow-sm gba:hover:shadow-md gba:transition-shadow"
-                    size="small"
-                    bodyStyle={{ padding: "12px" }}
-                  >
-                    <a
-                      href={`/mdm/compensation-data/pay-grades/${selectedJobLevelDetail.payGradeId}`}
-                      className="gba:flex gba:items-center gba:gap-3 gba:text-blue-600 gba:hover:text-blue-800"
-                      target="_blank"
-                      rel="noopener noreferrer"
-                    >
-                      <div className="gba:flex gba:justify-center gba:items-center gba:w-10 gba:h-10 gba:rounded-full gba:bg-blue-100">
-                        <DollarOutlined className="gba:text-lg gba:text-blue-600" />
-                      </div>
-                      <div className="gba:flex-grow">
-                        <div className="gba:font-medium">
-                          {selectedJobLevelDetail.payGrade?.name ||
-                            "Pay Grade Details"}
-                        </div>
-                        <div className="gba:text-xs gba:text-gray-500">
-                          View complete pay grade information, salary
-                          structures, and related job positions
-                        </div>
-                      </div>
-                      <RightOutlined className="gba:text-gray-400" />
-                    </a>
-                  </Card>
-                )}
-
-                {/* Compensation Band Navigation */}
-                {selectedJobLevelDetail.compensationBandId && (
-                  <Card
-                    className="gba:shadow-sm gba:hover:shadow-md gba:transition-shadow"
-                    size="small"
-                    bodyStyle={{ padding: "12px" }}
-                  >
-                    <a
-                      href={`/mdm/compensation-data/compensation-bands/${selectedJobLevelDetail.compensationBandId}`}
-                      className="gba:flex gba:items-center gba:gap-3 gba:text-green-600 gba:hover:text-green-800"
-                      target="_blank"
-                      rel="noopener noreferrer"
-                    >
-                      <div className="gba:flex gba:justify-center gba:items-center gba:w-10 gba:h-10 gba:rounded-full gba:bg-green-100">
-                        <BankOutlined className="gba:text-lg gba:text-green-600" />
-                      </div>
-                      <div className="gba:flex-grow">
-                        <div className="gba:font-medium">
-                          Compensation Band Details
-                        </div>
-                        <div className="gba:text-xs gba:text-gray-500">
-                          View complete compensation band structure, range
-                          analysis, and market comparisons
-                        </div>
-                      </div>
-                      <RightOutlined className="gba:text-gray-400" />
-                    </a>
-                  </Card>
-                )}
-
-                {/* Job Level Group Navigation */}
-                {selectedJobLevelDetail.jobLevelGroupId && (
-                  <Card
-                    className="gba:shadow-sm gba:hover:shadow-md gba:transition-shadow"
-                    size="small"
-                    bodyStyle={{ padding: "12px" }}
-                  >
-                    <a
-                      href={`/mdm/compensation-data/job-level-groups/${selectedJobLevelDetail.jobLevelGroupId}`}
-                      className="gba:flex gba:items-center gba:gap-3 gba:text-purple-600 gba:hover:text-purple-800"
-                      target="_blank"
-                      rel="noopener noreferrer"
-                    >
-                      <div className="gba:flex gba:justify-center gba:items-center gba:w-10 gba:h-10 gba:rounded-full gba:bg-purple-100">
-                        <TeamOutlined className="gba:text-lg gba:text-purple-600" />
-                      </div>
-                      <div className="gba:flex-grow">
-                        <div className="gba:font-medium">
-                          {selectedJobLevelDetail.jobLevelGroup?.name ||
-                            "Job Level Group"}
-                        </div>
-                        <div className="gba:text-xs gba:text-gray-500">
-                          View all positions within{" "}
-                          {selectedJobLevelDetail.jobLevelGroup?.name ||
-                            "this group"}
-                          , career progression paths, and requirements
-                        </div>
-                      </div>
-                      <RightOutlined className="gba:text-gray-400" />
-                    </a>
-                  </Card>
-                )}
-
-                {/* Organizational Structure */}
-                <Card
-                  className="gba:shadow-sm gba:hover:shadow-md gba:transition-shadow"
-                  size="small"
-                  bodyStyle={{ padding: "12px" }}
-                >
-                  <a
-                    href={`/mdm/organizational-data?structure=${selectedJobLevelDetail.id}`}
-                    className="gba:flex gba:items-center gba:gap-3 gba:text-orange-600 gba:hover:text-orange-800"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                  >
-                    <div className="gba:flex gba:justify-center gba:items-center gba:w-10 gba:h-10 gba:rounded-full gba:bg-orange-100">
-                      <AppstoreOutlined className="gba:text-lg gba:text-orange-600" />
-                    </div>
-                    <div className="gba:flex-grow">
-                      <div className="gba:font-medium">
-                        Organizational Positions
-                      </div>
-                      <div className="gba:text-xs gba:text-gray-500">
-                        View organizational units and positions with{" "}
-                        {selectedJobLevelDetail.name} level
-                      </div>
-                    </div>
-                    <RightOutlined className="gba:text-gray-400" />
-                  </a>
-                </Card>
-              </div>
-            </div>
-          </div>
+        ) : (
+          <Accordion
+            className="gba:w-full"
+            value={accordionValue}
+            onValueChange={(value) => setAccordionValue(value)}
+            items={groupItems}
+          />
         )}
-      </DataDetailsDrawer>
-    </div>
+
+        {selectedJobLevelDetail && (
+          <SheetWrapperComponent
+            prefixDataTestId={dataTestId}
+            isDrawerVisible={drawerVisible}
+            onOpenChange={(openStatus) => {
+              if (!openStatus) {
+                setSelectedJobLevelDetail(null);
+              }
+              setDrawerVisible(openStatus);
+            }}
+            title="Compensation Band Details"
+            titleIcon={CreditCardIcon}
+            drawerItems={drawerItems}
+            navigationItems={navigationItems}
+          />
+        )}
+      </CardContent>
+    </Card>
   );
 };
 

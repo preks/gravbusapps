@@ -1,271 +1,264 @@
-import React, { useState, useEffect, useCallback } from 'react';
-import { Spin, Alert, Button } from 'antd';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import { RecordLayout, Spinner } from '@newwork/nw-design-system';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
-import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient';
-
-// Import the individual record components
-import { EquityRecord } from './components/equity-record';
-import { LiquidFundRecord } from './components/liquid-funds-record';
-import { PrivateEquityRecord } from './components/private-equity-record';
-import { RealEstateRecord } from './components/real-estate-record';
+import { useGetInvestmentById, useGetInvestmentDocumentsByInvestmentId } from '@/common/data/investment';
+import { useGetInvestmentCatalogData } from '@/business-apps/crm/investments/forms/investment-form/queries/InvestmentCatalogQueries';
+import { AiSummaryButton } from '@/common/components/common-relations/record-sections/header-section/ai-summary-button';
+import { AppActionButton } from '@/components/app-action-button/AppActionButton';
+import { FlowContextName } from '@/common/types/FlowRegistryTypes';
+import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
+import { useInvestmentTileFields } from './hooks/useInvestmentTileFields';
+import { useInvestmentAiSummary } from './hooks/useInvestmentAiSummary';
+import { TrendingUp, Home, BarChart3 } from 'lucide-react';
+import { 
+  createHeaderMeta, 
+  getTypeSpecificDetailGroups 
+} from './utils/investmentHeaderConfig';
+import { createInvestmentTabsConfig } from './utils/investmentTabConfig';
 
 interface InvestmentRecordProps extends BusinessAppContextProps {}
 
-interface InvestmentGroupData {
-  id: string;
-  investmentGroup?: {
-    id: string;
-    code: string;
-    value: string;
-  };
-}
-
-interface SpecificInvestmentData {
-  liquidFundId?: string;
-  equityInvestmentId?: string;
-  privateEquityInvestmentId?: string;
-  realEstateInvestmentId?: string;
-}
-
-const GET_INVESTMENT_GROUP_QUERY = `
-  query GetInvestmentGroup($id: uuid!) {
-    Investment(where: { id: { _eq: $id } }) {
-      id
-      investmentGroup {
-        id
-        code
-        value
-      }
-    }
-  }
-`;
-
-const GET_LIQUID_FUND_ID_QUERY = `
-  query GetLiquidFundId($investmentId: uuid!) {
-    LiquidFundInvestment(where: { investmentId: { _eq: $investmentId } }) {
-      id
-    }
-  }
-`;
-
-const GET_EQUITY_INVESTMENT_ID_QUERY = `
-  query GetEquityInvestmentId($investmentId: uuid!) {
-    EquityInvestment(where: { investmentId: { _eq: $investmentId } }) {
-      id
-    }
-  }
-`;
-
-const GET_PRIVATE_EQUITY_ID_QUERY = `
-  query GetPrivateEquityId($investmentId: uuid!) {
-    PrivateEquityInvestment(where: { investmentId: { _eq: $investmentId } }) {
-      id
-    }
-  }
-`;
-
-const GET_REAL_ESTATE_ID_QUERY = `
-  query GetRealEstateId($investmentId: uuid!) {
-    RealEstateInvestment(where: { investmentId: { _eq: $investmentId } }) {
-      id
-    }
-  }
-`;
-
 const InvestmentRecord: React.FC<InvestmentRecordProps> = (props) => {
   const [investmentId, setInvestmentId] = useState<string | null>(null);
-  const [investmentType, setInvestmentType] = useState<string | null>(null);
-  const [specificEntityData, setSpecificEntityData] = useState<SpecificInvestmentData>({});
+  const [activeTab, setActiveTab] = useState('home');
+  const [investmentData, setInvestmentData] = useState<any>(null);
+  const [documents, setDocuments] = useState<any[]>([]);
+  const [catalogData, setCatalogData] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  
-  const graphqlClient = useGraphQLClient(props.accessToken);
 
-  const fetchInvestmentData = useCallback(async (id: string) => {
+  // Dynamic investment type detection using catalog data
+  const determineInvestmentType = useCallback((investmentData: any): string => {
+    if (!investmentData) return 'generic';
+    
+    // Use the actual investment type code for dynamic behavior
+    if (investmentData.investmentType?.code) {
+      return investmentData.investmentType.code;
+    }
+    
+    // Fallback to group-based detection
+    const group = investmentData.investmentGroup?.code || '';
+    if (group.includes('EQUITY')) return 'equity';
+    if (group.includes('LIQUID_FUND')) return 'liquid_fund';
+    if (group.includes('REAL_ESTATE')) return 'real_estate';
+    if (group.includes('PRIVATE_EQUITY')) return 'private_equity';
+    
+    return 'generic';
+  }, []);
+
+  // Extract type-specific data arrays
+  const extractTypeSpecificData = useCallback((investmentData: any, documents: any[]): any => {
+    if (!investmentData) return null;
+    
+    const base = { investment: investmentData, documents };
+    
+    // Extract all type-specific arrays
+    return {
+      ...base,
+      equityInvestment: Array.isArray(investmentData.equityInvestment) ? investmentData.equityInvestment[0] : undefined,
+      liquidFundInvestment: Array.isArray(investmentData.liquidFundInvestment) ? investmentData.liquidFundInvestment[0] : undefined,
+      realEstateInvestment: Array.isArray(investmentData.realEstateInvestment) ? investmentData.realEstateInvestment[0] : undefined,
+      privateEquityInvestment: Array.isArray(investmentData.privateEquityInvestment) ? investmentData.privateEquityInvestment[0] : undefined
+    };
+  }, []);
+
+  // Get icon based on investment group (hardcoded for now)
+  const getInvestmentIcon = useCallback((investmentData: any) => {
+    if (!investmentData) return BarChart3;
+    
+    const group = investmentData.investmentGroup?.code || '';
+    if (group.includes('EQUITY')) return TrendingUp;
+    if (group.includes('REAL_ESTATE')) return Home;
+    return BarChart3;
+  }, []);
+
+  // Get display category based on investment group
+  const getInvestmentCategory = useCallback((investmentData: any): string => {
+    if (!investmentData) return 'INVESTMENT';
+    
+    const group = investmentData.investmentGroup?.code || '';
+    if (group.includes('EQUITY')) return 'EQUITY INVESTMENT';
+    if (group.includes('LIQUID_FUND')) return 'LIQUID FUND INVESTMENT';
+    if (group.includes('REAL_ESTATE')) return 'REAL ESTATE INVESTMENT';
+    if (group.includes('PRIVATE_EQUITY')) return 'PRIVATE EQUITY INVESTMENT';
+    
+    return 'INVESTMENT';
+  }, []);
+  
+  // Central hooks for data fetching
+  const { fetchInvestmentById } = useGetInvestmentById(props);
+  const { fetchInvestmentDocumentsByInvestmentId } = useGetInvestmentDocumentsByInvestmentId(props);
+  const { fetchInvestmentCatalogData } = useGetInvestmentCatalogData(props);
+
+  // Get investmentId from URL
+  useEffect(() => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const id = urlParams.get('investmentId');
+    if (id) {
+      setInvestmentId(id);
+    }
+  }, []);
+
+  // Load catalog data once for dynamic field definitions
+  useEffect(() => {
+    const loadCatalogData = async () => {
+      try {
+        const catalog = await fetchInvestmentCatalogData();
+        setCatalogData(catalog);
+      } catch (err) {
+        console.error('Failed to load catalog data:', err);
+        // Don't fail the entire component if catalog fails - fallback to static fields
+      }
+    };
+
+    if (props.accessToken) {
+      loadCatalogData();
+    }
+  }, [props.accessToken, fetchInvestmentCatalogData]);
+
+  // Load investment and document data
+  const loadData = useCallback(async () => {
+    if (!investmentId || !props.accessToken) {
+      setIsLoading(false);
+      return;
+    }
+
     setIsLoading(true);
     setError(null);
     
     try {
-      // First, get the investment group
-      const result = await graphqlClient.request<{ Investment: InvestmentGroupData[] }>(
-        GET_INVESTMENT_GROUP_QUERY,
-        { id }
-      );
+      const [investmentResult, documentsResult] = await Promise.all([
+        fetchInvestmentById(investmentId),
+        fetchInvestmentDocumentsByInvestmentId(investmentId)
+      ]);
       
-      if (!result.Investment || result.Investment.length === 0) {
-        setError('Investment not found');
+      if (!investmentResult.investment) {
+        setError(`No investment found for ID: ${investmentId}`);
         return;
       }
 
-      const investment = result.Investment[0];
-      const typeCode = investment.investmentGroup?.code || investment.investmentGroup?.value || null;
-      setInvestmentType(typeCode);
-
-      if (!typeCode) {
-        setError('Investment group not found');
-        return;
-      }
-
-      // Now fetch the specific entity ID based on the investment group
-      const groupCode = typeCode.toLowerCase();
-      let specificEntityId = null;
-      let entityKey = '';
-
-      if (groupCode.includes('liquid') || groupCode.includes('fund')) {
-        const liquidResult = await graphqlClient.request<{ LiquidFundInvestment: { id: string }[] }>(
-          GET_LIQUID_FUND_ID_QUERY,
-          { investmentId: id }
-        );
-        if (liquidResult.LiquidFundInvestment && liquidResult.LiquidFundInvestment.length > 0) {
-          specificEntityId = liquidResult.LiquidFundInvestment[0].id;
-          entityKey = 'liquidFundId';
-        }
-      } else if (groupCode.includes('equity') && !groupCode.includes('private')) {
-        const equityResult = await graphqlClient.request<{ EquityInvestment: { id: string }[] }>(
-          GET_EQUITY_INVESTMENT_ID_QUERY,
-          { investmentId: id }
-        );
-        if (equityResult.EquityInvestment && equityResult.EquityInvestment.length > 0) {
-          specificEntityId = equityResult.EquityInvestment[0].id;
-          entityKey = 'equityInvestmentId';
-        }
-      } else if (groupCode.includes('private') && groupCode.includes('equity')) {
-        const privateEquityResult = await graphqlClient.request<{ PrivateEquityInvestment: { id: string }[] }>(
-          GET_PRIVATE_EQUITY_ID_QUERY,
-          { investmentId: id }
-        );
-        if (privateEquityResult.PrivateEquityInvestment && privateEquityResult.PrivateEquityInvestment.length > 0) {
-          specificEntityId = privateEquityResult.PrivateEquityInvestment[0].id;
-          entityKey = 'privateEquityInvestmentId';
-        }
-      } else if (groupCode.includes('real') && groupCode.includes('estate')) {
-        const realEstateResult = await graphqlClient.request<{ RealEstateInvestment: { id: string }[] }>(
-          GET_REAL_ESTATE_ID_QUERY,
-          { investmentId: id }
-        );
-        if (realEstateResult.RealEstateInvestment && realEstateResult.RealEstateInvestment.length > 0) {
-          specificEntityId = realEstateResult.RealEstateInvestment[0].id;
-          entityKey = 'realEstateInvestmentId';
-        }
-      }
-
-      if (specificEntityId && entityKey) {
-        setSpecificEntityData({ [entityKey]: specificEntityId });
-      } else {
-        setError(`Specific investment entity not found for type: ${typeCode}`);
-      }
-
+      setInvestmentData(investmentResult.investment);
+      setDocuments(documentsResult || []);
     } catch (err) {
-      console.error('Error fetching investment data:', err);
       setError(err instanceof Error ? err.message : 'Unknown error');
     } finally {
       setIsLoading(false);
     }
-  }, [graphqlClient]);
+  }, [investmentId, props.accessToken, fetchInvestmentById, fetchInvestmentDocumentsByInvestmentId]);
 
   useEffect(() => {
-    // Get investmentId from URL query parameters
-    const urlParams = new URLSearchParams(window.location.search);
-    const id = urlParams.get('investmentId');
-    
-    if (id) {
-      setInvestmentId(id);
-      fetchInvestmentData(id);
-    } else {
-      setError('Investment ID not provided in URL parameters');
-      setIsLoading(false);
-    }
-  }, [fetchInvestmentData]);
+    loadData();
+  }, [loadData]);
 
-  const handleRetry = useCallback(() => {
-    if (investmentId) {
-      fetchInvestmentData(investmentId);
-    }
-  }, [investmentId, fetchInvestmentData]);
+  // Determine investment type and type-specific data using dynamic approach
+  const investmentType = useMemo(() => determineInvestmentType(investmentData), [investmentData, determineInvestmentType]);
+  const typeSpecificData = useMemo(() => extractTypeSpecificData(investmentData, documents), [investmentData, documents, extractTypeSpecificData]);
 
-  // Show loading spinner while fetching investment group
+  // Hook for tile fields and AI summary
+  const { processedTiles } = useInvestmentTileFields(props, investmentData);
+  const aiSummaryHook = useInvestmentAiSummary(investmentId || '', props.accessToken);
+
+  // Navigation
+  const handleBack = useCallback(() => {
+    // Use browser history back to return to the previous page
+    // This respects where the user actually came from
+    window.history.back();
+  }, []);
+
+  // Loading state
   if (isLoading) {
     return (
-      <div 
-        className="gba:bg-gray-50 gba:min-h-screen gba:flex gba:items-center gba:justify-center" 
-        data-testid="investment-record-loading"
-      >
-        <Spin size="large" />
+      <div className="gba:flex gba:items-center gba:justify-center gba:min-h-screen">
+        <Spinner size="lg" />
       </div>
     );
   }
 
-  // Show error message if data fetching failed or investment ID missing
-  if (error) {
+  // Error state
+  if (error || !typeSpecificData) {
     return (
-      <div 
-        className="gba:bg-gray-50 gba:min-h-screen gba:flex gba:items-center gba:justify-center" 
-        data-testid="investment-record-error"
-      >
-        <Alert
-          message="Error Loading Investment"
-          description={error}
-          type="error"
-          showIcon
-          action={
-            investmentId && (
-              <Button size="small" onClick={handleRetry}>
-                Retry
-              </Button>
-            )
-          }
-        />
+      <div className="gba:p-8 gba:text-center">
+        <div className="gba:mb-4">
+          <button
+            onClick={handleBack}
+            className="gba:flex gba:items-center gba:text-blue-500 gba:hover:text-blue-600 gba:mx-auto"
+            data-testid="back-to-investments-button"
+          >
+            <span className="gba:mr-2">←</span>
+            Back to Investments
+          </button>
+        </div>
+        {error && (
+          <p className="gba:text-red-500 gba:text-lg gba:mb-4">
+            {error}
+          </p>
+        )}
       </div>
     );
   }
 
-  // Route to the appropriate record component based on investment group
-  if (!investmentType || !investmentId) {
-    return (
-      <div 
-        className="gba:bg-gray-50 gba:min-h-screen gba:flex gba:items-center gba:justify-center" 
-        data-testid="investment-record-no-type"
-      >
-        <Alert
-          message="Investment Group Not Found"
-          description="Unable to determine the group of this investment"
-          type="warning"
-          showIcon
-        />
-      </div>
-    );
-  }
+  const investment = investmentData;
 
-  // Route based on investment group code/value with specific entity IDs
-  const typeCode = investmentType.toLowerCase();
-  
-  if (typeCode.includes('equity') && !typeCode.includes('private') && specificEntityData.equityInvestmentId) {
-    return <EquityRecord {...props} investmentId={specificEntityData.equityInvestmentId} />;
-  }
-  
-  if ((typeCode.includes('liquid') || typeCode.includes('fund')) && specificEntityData.liquidFundId) {
-    return <LiquidFundRecord {...props} investmentId={specificEntityData.liquidFundId} />;
-  }
-  
-  if (typeCode.includes('private') && typeCode.includes('equity') && specificEntityData.privateEquityInvestmentId) {
-    return <PrivateEquityRecord {...props} investmentId={specificEntityData.privateEquityInvestmentId} />;
-  }
-  
-  if (typeCode.includes('real') && typeCode.includes('estate') && specificEntityData.realEstateInvestmentId) {
-    return <RealEstateRecord {...props} investmentId={specificEntityData.realEstateInvestmentId} />;
-  }
+  // Header configuration using centralized utilities
+  const headerMeta = createHeaderMeta(investment, investmentType, typeSpecificData);
 
-  // Default fallback if group doesn't match known patterns
+  const headerActions = (
+    <AiSummaryButton
+      config={{
+        entityType: 'investment',
+        loadingMessage: getTranslationFromI18nKeyAndLabel('crm.investments.ai.summary.loading', 'Generating AI Summary...'),
+        loadingSubtitle: getTranslationFromI18nKeyAndLabel('crm.investments.ai.summary.subtitle', 'Analyzing investment data and activities')
+      }}
+      summaryHook={aiSummaryHook}
+      dataTestId={`${investmentType}-update-button-${investmentId}`}
+    />
+  );
+
+  const headerActionButton = (
+    <AppActionButton
+      size="icon"
+      contextsArray={[FlowContextName.investmentEntity]}
+      externalContextData={{ investmentId }}
+      prefixDataTestId={`${investmentType}-record-action`}
+      emptyStateBehavior="enable"
+      deferMainContextRequestsUntilClick={false}
+      accessToken={props.accessToken}
+    />
+  );
+
+  // Detail groups for header using centralized utilities with dynamic catalog data
+  const headerDetailGroups = getTypeSpecificDetailGroups(investmentType, typeSpecificData, investment, catalogData);
+
+  // Tab configuration using centralized utilities
+  const subViewsConfig = createInvestmentTabsConfig(
+    activeTab,
+    setActiveTab,
+    investmentId || '',
+    investment,
+    investmentType,
+    typeSpecificData,
+    processedTiles,
+    documents,
+    loadData,
+    props
+  );
+
   return (
-    <div 
-      className="gba:bg-gray-50 gba:min-h-screen gba:flex gba:items-center gba:justify-center" 
-      data-testid="investment-record-unknown-type"
+    <div
+      className="gba:investment-details-container"
+      data-testid={`${investmentType}-investment-detail`}
     >
-      <Alert
-        message="Unknown Investment Group"
-        description={`Investment group "${investmentType}" is not supported`}
-        type="warning"
-        showIcon
+      <RecordLayout
+        headerOrientation="horizontal"
+        headerIcon={getInvestmentIcon(investment)}
+        headerCategory={getInvestmentCategory(investment)}
+        onBack={handleBack}
+        headerTitle={investment?.name || 'Investment Record'}
+        headerMeta={headerMeta}
+        headerActions={headerActions}
+        headerActionButton={headerActionButton}
+        headerDetailGroups={headerDetailGroups}
+        subViews={subViewsConfig}
       />
     </div>
   );

@@ -5,7 +5,7 @@ import dayjs from 'dayjs';
 import { Card } from '@newwork/gravity-ui-catalog';
 import { Employee } from '../../hooks/useEmployeeData';
 import { getTranslationFromI18nKeyAndLabel } from '../../../../../../../common/utils/windowUtils';
-import AppActionButton from '@/components/app-action-button/AppActionButton';
+import { AppActionMenu } from '@/components/app-action-menu/AppActionMenu';
 import { FlowContextName } from '@/common/types/FlowRegistryTypes';
 import { PiPencilSimple } from 'react-icons/pi';
 import { UserInfoProps } from '../../../../../../../common/BusinessAppContext';
@@ -126,18 +126,48 @@ const EmploymentTab: React.FC<EmploymentTabProps> = ({
   const getWorkingHoursData = () => {
     const workingHours = employee.workingHours?.[0];
     
+    // Compute weekly hours by summing daily hours if missing
+    const computedWeeklyHours = (() => {
+      const days = [
+        workingHours?.mondayHours,
+        workingHours?.tuesdayHours,
+        workingHours?.wednesdayHours,
+        workingHours?.thursdayHours,
+        workingHours?.fridayHours,
+        workingHours?.saturdayHours,
+        workingHours?.sundayHours
+      ];
+      return days.reduce((sum, val) => sum + (typeof val === 'number' ? val : 0), 0);
+    })();
+
+    // Compute weekly days as count of days with hours > 0
+    const computedWeeklyDays = (() => {
+      const days = [
+        workingHours?.mondayHours,
+        workingHours?.tuesdayHours,
+        workingHours?.wednesdayHours,
+        workingHours?.thursdayHours,
+        workingHours?.fridayHours,
+        workingHours?.saturdayHours,
+        workingHours?.sundayHours
+      ];
+      return days.reduce((count, val) => count + ((typeof val === 'number' && val > 0) ? 1 : 0), 0);
+    })();
+    
     return [
       {
         label: "Weekly Hours",
-        value: workingHours?.weeklyHours?.toString() || ''
+        value: computedWeeklyHours.toString() || ''
       },
       {
         label: "FTE (Full-Time Equivalent)",
-        value: employee.fullTimeEquivalent?.toString() || ''
+        value: (workingHours?.fullTimeEquivalent !== undefined && workingHours?.fullTimeEquivalent !== null)
+          ? workingHours.fullTimeEquivalent.toString()
+          : ''
       },
       {
         label: "Days per Week",
-        value: workingHours?.weeklyDays?.toString() || ''
+        value: computedWeeklyDays.toString() || ''
       }
     ];
   };
@@ -292,9 +322,8 @@ const EmploymentTab: React.FC<EmploymentTabProps> = ({
           <div className="gba:mb-6 gba:border-b gba:border-gray-200 gba:pb-2 gba:flex gba:justify-between gba:items-center">
             <h3 className="gba:text-xl gba:font-semibold gba:text-blue-700">Working Conditions</h3>
             {isSelfView && (
-              <AppActionButton 
+              <AppActionMenu 
                 data-testid="employee-working-conditions-edit-button"
-                variant="ghost"
                 contextsArray={[FlowContextName.updateEmployeeWorkingCondition]}
                 externalContextData={{
                   employeeId: employee.id
@@ -302,8 +331,9 @@ const EmploymentTab: React.FC<EmploymentTabProps> = ({
                 prefixDataTestId="employee-working-conditions-edit"
                 accessToken={accessToken}
                 autoExecuteSingleAction={true}
-                icon={<PiPencilSimple />}
-              />
+              >
+                <PiPencilSimple className="gba:cursor-pointer" />
+              </AppActionMenu>
             )}
           </div>
           {renderDataItems(workingConditionsData)}
@@ -318,9 +348,8 @@ const EmploymentTab: React.FC<EmploymentTabProps> = ({
           <div className="gba:mb-6 gba:border-b gba:border-gray-200 gba:pb-2 gba:flex gba:justify-between gba:items-center">
             <h3 className="gba:text-xl gba:font-semibold gba:text-blue-700">Working Hours</h3>
             {isSelfView && (
-              <AppActionButton 
+              <AppActionMenu 
                 data-testid="employee-working-hours-edit-button"
-                variant="ghost"
                 contextsArray={[FlowContextName.updateEmployeeWorkingHours]}
                 externalContextData={{
                   employeeId: employee.id
@@ -328,8 +357,9 @@ const EmploymentTab: React.FC<EmploymentTabProps> = ({
                 prefixDataTestId="employee-working-hours-edit"
                 accessToken={accessToken}
                 autoExecuteSingleAction={true}
-                icon={<PiPencilSimple />}
-              />
+              >
+                <PiPencilSimple className="gba:cursor-pointer" />
+              </AppActionMenu>
             )}
           </div>
           {renderDataItems(workingHoursData)}

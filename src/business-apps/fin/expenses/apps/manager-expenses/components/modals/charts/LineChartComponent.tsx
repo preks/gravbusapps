@@ -1,7 +1,15 @@
-import React from 'react';
-import { Card, CardHeader, CardTitle, CardContent } from '@newwork/nw-design-system';
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
-import { formatNumberFunction } from '@/common/utils/windowUtils';
+import React from "react";
+import { Card, CardHeader, CardTitle, CardContent } from "@newwork/nw-design-system";
+import {
+  LineChart,
+  Line,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  ResponsiveContainer,
+} from "recharts";
+import { formatCurrencyDisplay } from "../../../../personal-expenses/utils";
 
 interface LineChartProps {
   data: {
@@ -13,18 +21,20 @@ interface LineChartProps {
   lineDataKey?: string;
   lineColor?: string;
   height?: number;
+  currency?: string;
 }
 
 /**
  * Reusable line chart component for time series analytics
  */
-const LineChartComponent: React.FC<LineChartProps> = ({ 
-  data, 
-  title, 
-  xAxisDataKey = 'date',
-  lineDataKey = 'value',
-  lineColor = '#52c41a',
-  height = 300
+const LineChartComponent: React.FC<LineChartProps> = ({
+  data,
+  title,
+  xAxisDataKey = "date",
+  lineDataKey = "value",
+  lineColor = "#52c41a",
+  height = 300,
+  currency = "EUR",
 }) => {
   if (!data || data.length === 0) {
     return (
@@ -56,7 +66,10 @@ const LineChartComponent: React.FC<LineChartProps> = ({
         </CardHeader>
       )}
       <CardContent>
-        <div style={{ height: height }} data-testid={`${title.toLowerCase().replace(/\s+/g, '-')}-chart`}>
+        <div
+          style={{ height: height }}
+          data-testid={`${title.toLowerCase().replace(/\s+/g, "-")}-chart`}
+        >
           <ResponsiveContainer width="100%" height="100%">
             <LineChart
               data={data}
@@ -70,15 +83,15 @@ const LineChartComponent: React.FC<LineChartProps> = ({
               <CartesianGrid strokeDasharray="3 3" />
               <XAxis dataKey={xAxisDataKey} />
               <YAxis />
-              <Tooltip 
-                formatter={(value) => [`${formatNumberFunction(value.toString(), "0.00[,]00")}`, 'Amount']}
+              <Tooltip
+                formatter={(value) => [formatCurrencyDisplay(value, currency), "Amount"]}
                 labelFormatter={(label) => `${label}`}
               />
-              <Line 
-                type="monotone" 
-                dataKey={lineDataKey} 
-                stroke={lineColor} 
-                activeDot={{ r: 8 }} 
+              <Line
+                type="monotone"
+                dataKey={lineDataKey}
+                stroke={lineColor}
+                activeDot={{ r: 8 }}
                 name="Amount"
               />
             </LineChart>

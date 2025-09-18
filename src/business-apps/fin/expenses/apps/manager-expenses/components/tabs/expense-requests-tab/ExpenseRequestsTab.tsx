@@ -1,48 +1,102 @@
-import React, { useEffect, useMemo } from 'react';
-import { BusinessAppContextProps } from '@/common/BusinessAppContext';
-import { useGetExpenseRequests } from '../../../hooks/useGetExpenseRequests';
-import ExpenseRequestStatistics from './ExpenseRequestStatistics';
-import ExpenseRequestsTable from './ExpenseRequestsTable';
+import React, { useMemo, useEffect } from "react";
+import { BusinessAppContextProps } from "@/common/BusinessAppContext";
+import { useGetExpenseRequests } from "../../../hooks/useGetExpenseRequests";
+import { useExpenseRequestFilters } from "../../../hooks/useExpenseRequestFilters";
+import ExpenseRequestStatistics from "./ExpenseRequestStatistics";
+import ExpenseRequestsTable from "./ExpenseRequestsTable";
 
-export interface ExpenseRequestsTabProps extends BusinessAppContextProps {}
+export interface ExpenseRequestsTabProps extends BusinessAppContextProps {
+  moduleColor?: string;
+}
 
 const ExpenseRequestsTab: React.FC<ExpenseRequestsTabProps> = (props) => {
-  // Extract only the necessary props to prevent unnecessary re-renders
-  const contextProps = useMemo(() => ({
-    accessToken: props.accessToken,
-    userInfo: props.userInfo
-  }), [props.accessToken, props.userInfo]);
-  
-  // Use hook only for statistics
+  const contextProps = useMemo(
+    () => ({
+      accessToken: props.accessToken,
+      userInfo: props.userInfo,
+    }),
+    [props.accessToken, props.userInfo],
+  );
+
+  const managerId = props.userInfo?.employeeDetails?.employeeId || "";
+
   const {
-    requestStats,
-    requestStatsLoading,
-    requestStatsError,
-    fetchRequestStatistics
-  } = useGetExpenseRequests(contextProps);
-  
-  // Fetch statistics on component mount
+    search: searchTerm,
+    setSearch: setSearchTerm,
+    selectedFilters,
+    primaryCurrency,
+    filterGroups,
+    handleDataFilterChange,
+    filterLabelMap,
+    addFilter,
+    removeFilter,
+  } = useExpenseRequestFilters({
+    accessToken: props.accessToken,
+    managerId,
+    userInfo: props.userInfo,
+  });
+
+  const { requestStats, requestStatsLoading, requestStatsError, fetchRequestStatistics } =
+    useGetExpenseRequests({
+      ...contextProps,
+      currentCurrencyFilter: primaryCurrency,
+      statisticsOnly: true,
+    });
+
+  const {
+    requests: expenseRequests,
+    isLoading: requestsLoading,
+    error: requestsError,
+    totalCount,
+    fetchRequests,
+  } = useGetExpenseRequests({
+    ...contextProps,
+    pageSize: 10,
+    searchTerm,
+    currentStatusFilter: selectedFilters,
+    currentCurrencyFilter: primaryCurrency,
+    statisticsOnly: false,
+  });
+
   useEffect(() => {
-    fetchRequestStatistics();
-  }, [fetchRequestStatistics]);
+    if (props.accessToken) {
+      fetchRequests("", 1, 10, "requestDate:desc", selectedFilters, undefined, primaryCurrency);
+    }
+  }, [props.accessToken, fetchRequests, selectedFilters, primaryCurrency]);
 
   return (
     <div className="gba:h-full gba:flex gba:flex-col">
-      {/* Statistics Section - Now inside the tab content */}
       <div className="gba:mb-6">
-        <ExpenseRequestStatistics 
-          requestStats={requestStats} 
-          requestStatsLoading={requestStatsLoading} 
-          requestStatsError={requestStatsError} 
-          fetchRequestStatistics={fetchRequestStatistics} 
+        <ExpenseRequestStatistics
+          requestStats={requestStats}
+          requestStatsLoading={requestStatsLoading}
+          requestStatsError={requestStatsError}
+          fetchRequestStatistics={fetchRequestStatistics}
+          currencyFilter={primaryCurrency}
+          addFilter={addFilter}
+          removeFilter={removeFilter}
+          selectedFilters={selectedFilters}
         />
       </div>
-      
-      {/* Table Container */}
+
       <div className="gba:flex-1">
         <div data-testid="expense-requests-table-container">
           <ExpenseRequestsTable
             {...contextProps}
+            expenseRequests={expenseRequests}
+            loading={requestsLoading}
+            error={requestsError}
+            totalCount={totalCount}
+            fetchRequests={fetchRequests}
+            searchTerm={searchTerm}
+            setSearchTerm={setSearchTerm}
+            selectedFilters={selectedFilters}
+            filterGroups={filterGroups}
+            filterLabelMap={filterLabelMap}
+            addFilter={addFilter}
+            removeFilter={removeFilter}
+            handleDataFilterChange={handleDataFilterChange}
+            primaryCurrency={primaryCurrency}
           />
         </div>
       </div>

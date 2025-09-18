@@ -29,6 +29,7 @@ import {
   useOpportunityStatusCatalog,
   usePipelineCatalogs,
   useCurrencyCatalog,
+  useOpportunityData,
 } from "../hooks";
 import { useSalesCampaignsGraphQL } from "../../../hooks/useSalesCampaignsGraphQL";
 
@@ -246,6 +247,25 @@ export const OpportunityFormProvider: React.FC<
     employeeId: businessAppContext.userInfo?.employeeDetails?.employeeId,
   });
 
+  // Opportunity data fetching hook for pre-filling form when updating existing opportunity
+  const {
+    opportunityData,
+    loading: opportunityDataLoading,
+    error: opportunityDataError,
+    mapOpportunityToFormValues,
+  } = useOpportunityData({ businessAppContext });
+
+  // Extract opportunityId for tracking changes
+  const opportunityId =
+    businessAppContext.additionalData?.opportunityId ||
+    businessAppContext.additionalData?.psi_taskPayload?.psi_initialParameters
+      ?.opportunityId;
+
+  // Reset auto-selection flag when opportunity changes or when creating new opportunity
+  useEffect(() => {
+    autoSelectionDone.current = false;
+  }, [opportunityId]);
+
   // Default submit function - saves opportunity via API
   const defaultOnSubmit = useCallback(
     async (values: OpportunityFormValues) => {
@@ -281,8 +301,7 @@ export const OpportunityFormProvider: React.FC<
           opportunityStatusRef: values.opportunityStatus,
           status: values.status,
           stage: values.stage,
-          pipelineRef: values.pipeline,
-          salesPipelineRef: values.pipeline, // Map to salesPipelineRef for backward compatibility
+          salesPipelineRef: values.pipeline, // Use salesPipelineRef instead of deprecated pipelineRef
           salesPipelineStageRef: values.salesPipelineStage,
 
           // Relationship fields
@@ -352,14 +371,17 @@ export const OpportunityFormProvider: React.FC<
 
         message.success("Opportunity saved successfully");
 
-        // If we're in a process context, dispatch continue event
-        if (window.parent && typeof window.parent.postMessage === "function") {
-          const processPayload = {
-            opportunityId: result?.opportunity?.id || values.id,
-            ...result,
-          };
-          dispatchProcessContinueEvent("opportunitySaved", processPayload);
-        }
+        // Prepare payload in the same format as other forms (lead, contact, account)
+        const payload = {
+          opportunity: {
+            ...opportunityPayload,
+            id: result?.opportunity?.id || values.id,
+          },
+          changeMode: changeMode,
+        };
+
+        // Dispatch process continue event on successful submission
+        dispatchProcessContinueEvent("pse_submit", payload);
       } catch (error) {
         const errorMessage =
           error instanceof Error ? error.message : "Unknown error occurred";
@@ -427,12 +449,52 @@ export const OpportunityFormProvider: React.FC<
         (emp) => emp.id === currentUserEmployee.employeeId
       );
       if (!isCurrentUserAlreadyInList) {
-        return [currentUserOption, ...regularEmployees];
+        regularEmployees.unshift(currentUserOption);
+      }
+    }
+
+    // Add opportunity owner employee if they exist and are not already in the list
+    if (opportunityData?.ownerEmployee) {
+      const ownerEmployee = opportunityData.ownerEmployee;
+      const ownerDisplayName =
+        ownerEmployee.displayName ||
+        `${ownerEmployee.firstName} ${ownerEmployee.lastName}`;
+
+      const isOwnerAlreadyInList = regularEmployees.some(
+        (emp) => emp.id === ownerEmployee.id
+      );
+
+      if (!isOwnerAlreadyInList) {
+        const ownerOption: SelectOption = {
+          id: ownerEmployee.id,
+          value: ownerEmployee.id,
+          label: `${ownerDisplayName} - Owner`,
+          name: ownerDisplayName,
+          extraInfo: {
+            picture: undefined,
+            pictureThumbnail: ownerEmployee.pictureThumbnail || undefined,
+            jobPosition: "Owner",
+            organizationalUnit: "N/A",
+            userId: undefined,
+          },
+        };
+
+        // Add owner at the beginning (but after current user if present)
+        const currentUserIndex = regularEmployees.findIndex(
+          (emp) =>
+            currentUserEmployee && emp.id === currentUserEmployee.employeeId
+        );
+
+        if (currentUserIndex >= 0) {
+          regularEmployees.splice(currentUserIndex + 1, 0, ownerOption);
+        } else {
+          regularEmployees.unshift(ownerOption);
+        }
       }
     }
 
     return regularEmployees;
-  }, [employeePositionData, currentUserEmployee]);
+  }, [employeePositionData, currentUserEmployee, opportunityData]);
 
   // Catalog hooks for dynamic data
   const { opportunityStatusOptions } =
@@ -484,12 +546,38 @@ export const OpportunityFormProvider: React.FC<
     [currencyOptions]
   );
 
-  // Auto-select current user as owner
+  // Populate form values when opportunity data is loaded (for editing existing opportunities)
+  useEffect(() => {
+    // Only populate if we have opportunity data and the form doesn't already have this opportunity's data
+    if (
+      opportunityData &&
+      opportunityData.id &&
+      (!formValues.id || formValues.id !== opportunityData.id)
+    ) {
+      const mappedValues = mapOpportunityToFormValues(opportunityData);
+      setFormValuesState((prev) => ({
+        ...prev,
+        ...mappedValues,
+      }));
+
+      // Don't auto-select current user if we're editing an existing opportunity
+      autoSelectionDone.current = true;
+    }
+  }, [
+    opportunityData,
+    mapOpportunityToFormValues,
+    businessAppContext.additionalData?.opportunityId,
+    businessAppContext.additionalData?.psi_taskPayload?.psi_initialParameters
+      ?.opportunityId,
+  ]);
+
+  // Auto-select current user as owner (only if not editing existing opportunity)
   useEffect(() => {
     if (
       currentUserEmployee &&
       !autoSelectionDone.current &&
-      !formValues.owner
+      !formValues.owner &&
+      !formValues.id // Only auto-select for new opportunities
     ) {
       setFormValuesState((prev) => ({
         ...prev,
@@ -498,7 +586,13 @@ export const OpportunityFormProvider: React.FC<
       }));
       autoSelectionDone.current = true;
     }
-  }, [currentUserEmployee, formValues.owner]);
+  }, [
+    currentUserEmployee,
+    formValues.owner,
+    businessAppContext.additionalData?.opportunityId,
+    businessAppContext.additionalData?.psi_taskPayload?.psi_initialParameters
+      ?.opportunityId,
+  ]);
 
   // Accounts data hook for company autocomplete with pagination
   const {

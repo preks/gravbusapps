@@ -11,8 +11,16 @@ export interface ContactActivityData {
   version: number;
   description: string;
   createdAt: string;
+  occurredAt?: string | null;
   completedAt?: string | null;
   createdBy: string;
+  ownerEmployee?: {
+    id: string;
+    firstName: string;
+    lastName: string;
+    displayName: string;
+    fullName: string;
+  };
   activityType?: {
     code: string;
     id: string;
@@ -28,14 +36,22 @@ export interface ContactActivityResponse {
 export const GET_CONTACT_ACTIVITIES = (variables: ContactActivityQueryVariables): string => {
   return `
     query GetContactActivities($contactId: uuid!) {
-      SalesActivity(where: {contactId: {_eq: $contactId}, isDeleted: {_eq: false}}) {
+      SalesActivity(where: {contact: {id: {_eq: $contactId}}, isDeleted: {_eq: false}}) {
         id
         title
         version
         description
         createdAt
+        occurredAt
         completedAt
         createdBy
+        ownerEmployee {
+          id
+          firstName
+          lastName
+          displayName
+          fullName
+        }
         activityType {
           code
           id

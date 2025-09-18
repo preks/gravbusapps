@@ -4,7 +4,8 @@ export const GET_MAIN_VIEW_EXPENSE_PLANS = `
   query GetMainViewExpensePlans(
     $where: ExpensePlanBoolExp,
     $limit: Int!,
-    $offset: Int!
+    $offset: Int!,
+    $orderBy: [ExpensePlanOrderBy!]
   ) {
     ExpensePlanAggregate(where: $where) {
       aggregate {
@@ -14,7 +15,7 @@ export const GET_MAIN_VIEW_EXPENSE_PLANS = `
     ExpensePlan(
       limit: $limit,
       offset: $offset,
-      orderBy: {planDate: DESC},
+      orderBy: $orderBy,
       where: $where
     ) {
       id
@@ -29,7 +30,18 @@ export const GET_MAIN_VIEW_EXPENSE_PLANS = `
       currencyRef
       createdAt
       updatedAt
-      status
+      employeeDocument {
+        file
+        fileSize
+        id
+        description
+        mimeType
+        name
+        type
+        employee {
+          id
+        }
+      }
       employee {
         id
         displayName
@@ -52,7 +64,7 @@ export const GET_MAIN_VIEW_EXPENSE_PLANS = `
 
 // Query for expense plan statistics in the main view
 export const GET_MAIN_VIEW_EXPENSE_PLAN_STATISTICS = `
-  query GetMainViewExpensePlanStatistics($managerId: uuid!) {
+  query GetMainViewExpensePlanStatistics($managerId: uuid!, $currencyRef: String) {
     allPlansStats: ExpensePlanAggregate(
       where: {
         employee: {
@@ -60,7 +72,9 @@ export const GET_MAIN_VIEW_EXPENSE_PLAN_STATISTICS = `
             supervisorEmployeeId: {_eq: $managerId}
           }
         },
-        isDeleted: {_eq: false}
+        isDeleted: {_eq: false},
+        status: {_nin: [ "DISCARDED", "REJECTED"]},
+        currencyRef: {_eq: $currencyRef}
       }
     ) {
       aggregate {
@@ -78,14 +92,41 @@ export const GET_MAIN_VIEW_EXPENSE_PLAN_STATISTICS = `
           }
         },
         isDeleted: {_eq: false},
-        status: {_eq: "PENDING"}
+        status: {_eq: "PENDING"},
+        currencyRef: {_eq: $currencyRef}
       }
     ) {
       aggregate {
         pendingCount: count
+      }
+    }
+    pendingAmountStats: ExpensePlanAggregate(
+      where: {
+        employee: {
+          employeePosition: {
+            supervisorEmployeeId: {_eq: $managerId}
+          }
+        },
+        isDeleted: {_eq: false},
+        status: {_eq: "PENDING"},
+        currencyRef: {_eq: $currencyRef}
+      }
+    ) {
+      aggregate {
         sum {
           totalAmount
         }
+      }
+    }
+    # Debug: Get all pending plans without filters to see if any exist
+    allPendingPlansDebug: ExpensePlanAggregate(
+      where: {
+        isDeleted: {_eq: false},
+        status: {_eq: "PENDING"}
+      }
+    ) {
+      aggregate {
+        count
       }
     }
   }

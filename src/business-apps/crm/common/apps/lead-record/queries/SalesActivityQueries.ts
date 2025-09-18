@@ -11,8 +11,16 @@ export interface SalesActivityData {
   version: number;
   description: string;
   createdAt: string;
+  occurredAt?: string | null;
   completedAt?: string | null;
   createdBy: string;
+  ownerEmployee?: {
+    id: string;
+    firstName: string;
+    lastName: string;
+    displayName: string;
+    fullName: string;
+  };
   activityType?: {
     code: string;
     id: string;
@@ -28,14 +36,22 @@ export interface SalesActivityResponse {
 export const GET_SALES_ACTIVITIES = (variables: SalesActivityQueryVariables): string => {
   return `
     query GetSalesActivities($leadId: uuid!) {
-      SalesActivity(where: {leadId: {_eq: $leadId}, isDeleted: {_eq: false}}) {
+      SalesActivity(where: {lead: {id: {_eq: $leadId}}, isDeleted: {_eq: false}}) {
         id
         title
         version
         description
         createdAt
+        occurredAt
         completedAt
         createdBy
+        ownerEmployee {
+          id
+          firstName
+          lastName
+          displayName
+          fullName
+        }
         activityType {
           code
           id

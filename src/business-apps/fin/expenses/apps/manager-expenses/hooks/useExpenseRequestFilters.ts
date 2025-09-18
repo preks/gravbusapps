@@ -1,230 +1,249 @@
-import { useState, useCallback, useMemo } from 'react';
-import { DataFilterGroup } from '@/components/data-filter/DataFilter';
-import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
+import { useState, useMemo, useCallback, useEffect } from "react";
+import type { DataFilterGroup, DataFilter } from "@/components/data-filter";
+import { ExpenseStatus, getExpenseRequestStatusDisplay } from "../utils";
+import { useDebounce } from "@/common/hooks/useDebounce";
+import { BusinessAppContextProps } from "@/common/BusinessAppContext";
+import { useExpenseRequestCurrencies } from "./useExpenseRequestCurrencies";
+import { getTranslationFromI18nKeyAndLabel } from "@/common/utils/windowUtils";
 
-// Define expense request status types - updated to match the correct options
-export enum ExpenseRequestStatus {
-  DRAFT = 'DRAFT',
-  IN_APPROVAL = 'IN_APPROVAL',
-  VERIFICATION_REQUIRED = 'VERIFICATION_REQUIRED',
-  REVISION_REQUIRED = 'REVISION_REQUIRED',
-  BOOKING_REQUIRED = 'BOOKING_REQUIRED',
-  TRANSFER_REQUIRED = 'TRANSFER_REQUIRED',
-  PAYMENT_REQUIRED = 'PAYMENT_REQUIRED',
-  PAID = 'PAID',
-  CLOSED = 'CLOSED'
+export interface UseExpenseRequestFiltersProps {
+  accessToken?: string;
+  managerId?: string;
+  userInfo?: any;
+  onCurrencyChange?: (currency: string) => void;
 }
 
-// Interface for request filter
-export interface ExpenseRequestFilter {
-  status?: string[];
-  requestDateStart?: string;
-  requestDateEnd?: string;
-  requestType?: { value: string };
-}
-
-// Interface for the return type of useExpenseRequestFilters
 export interface UseExpenseRequestFiltersReturn {
   search: string;
-  setSearch: (search: string) => void;
+  setSearch: (term: string) => void;
+  debouncedSearch: string;
   selectedFilters: string[];
   filterGroups: DataFilterGroup[];
   filterLabelMap: Record<string, string>;
   addFilter: (filterId: string) => void;
   removeFilter: (filterId: string) => void;
-  getFilters: () => ExpenseRequestFilter;
+  getFilters: () => Record<string, any>;
+  handleDataFilterChange: (filterId: string, selected: boolean) => void;
+  primaryCurrency: string | null;
+  setCurrencyFilter: (currency: string) => void;
+  mostUsedCurrency: string | null;
+  availableCurrencies: string[];
+  currenciesLoading: boolean;
+  currenciesInitialized: boolean;
+  resetCurrencySelection: () => void;
 }
 
-/**
- * Hook to manage filter selection for expense requests
- */
-export const useExpenseRequestFilters = (): UseExpenseRequestFiltersReturn => {
-  // State for search and selected filters
-  const [search, setSearch] = useState<string>('');
+const availableFilterStatuses: ExpenseStatus[] = [
+  ExpenseStatus.PREPARED,
+  ExpenseStatus.CREATED,
+  ExpenseStatus.ASSIGNED,
+  ExpenseStatus.PENDING,
+  ExpenseStatus.APPROVED,
+  ExpenseStatus.RETURNED,
+  ExpenseStatus.REJECTED,
+  ExpenseStatus.VERIFIED,
+  ExpenseStatus.BOOKED,
+  ExpenseStatus.PAID,
+  ExpenseStatus.CLOSED,
+  ExpenseStatus.DISCARDED,
+  ExpenseStatus.TRANSFERRED,
+];
+
+export const useExpenseRequestFilters = ({
+  accessToken,
+  managerId,
+  userInfo,
+  onCurrencyChange,
+}: UseExpenseRequestFiltersProps = {}): UseExpenseRequestFiltersReturn => {
+  const [search, setSearch] = useState<string>("");
   const [selectedFilters, setSelectedFilters] = useState<string[]>([]);
 
-  // Define these as constants for stable references
-  const TIME_PERIOD_OPTIONS = ['last30days', 'last90days', 'last180days'];
-  const REQUEST_TYPE_OPTIONS = ['general', 'trip'];
-  
-  const statusLabelMap: Record<string, string> = {
-    [ExpenseRequestStatus.DRAFT]: 'Draft',
-    [ExpenseRequestStatus.IN_APPROVAL]: 'Approval Required',
-    [ExpenseRequestStatus.VERIFICATION_REQUIRED]: 'Verification Required',
-    [ExpenseRequestStatus.REVISION_REQUIRED]: 'Revision Required',
-    [ExpenseRequestStatus.BOOKING_REQUIRED]: 'Booking Required',
-    [ExpenseRequestStatus.TRANSFER_REQUIRED]: 'Transfer Required',
-    [ExpenseRequestStatus.PAYMENT_REQUIRED]: 'Payment Required',
-    [ExpenseRequestStatus.PAID]: 'Paid',
-    [ExpenseRequestStatus.CLOSED]: 'Closed'
+  const [localPrimaryCurrency, setLocalPrimaryCurrency] = useState<string | null>(null);
+  const [localMostUsedCurrency, setLocalMostUsedCurrency] = useState<string | null>(null);
+  const [userHasManuallySelectedCurrency, setUserHasManuallySelectedCurrency] =
+    useState<boolean>(false);
+
+  const contextProps: BusinessAppContextProps = {
+    accessToken: accessToken || "",
+    userInfo: userInfo || null,
   };
 
-  // Define filter groups - memoized so they don't cause re-renders
-  const filterGroups = useMemo<DataFilterGroup[]>(() => [
-    {
-      id: 'timePeriod',
-      title: getTranslationFromI18nKeyAndLabel('lowcoder:employee_list.employee_report_filter.period_title', 'Time Period'),
-      filters: [
-        { id: 'last30days', label: getTranslationFromI18nKeyAndLabel('lowcoder:team_expenses_page.dashboard_tab.last_30_days', 'Last 30 days'), selected: selectedFilters.includes('last30days') },
-        { id: 'last90days', label: getTranslationFromI18nKeyAndLabel('lowcoder:team_expenses_page.dashboard_tab.last_90_days', 'Last 90 days'), selected: selectedFilters.includes('last90days') },
-        { id: 'last180days', label: getTranslationFromI18nKeyAndLabel('lowcoder:team_expenses_page.dashboard_tab.last_180_days', 'Last 180 days'), selected: selectedFilters.includes('last180days') }
-      ],
-      selectionMode: 'single'
-    },
-    {
-      id: 'requestType',
-      title: getTranslationFromI18nKeyAndLabel('lowcoder:expense_calculation_rule.expense_calculation_rule_modal.affected_expense_modal.request_type', 'Request Type'),
-      filters: [
-        { id: 'general', label: 'General Expense', selected: selectedFilters.includes('general') },
-        { id: 'trip', label: 'Trip', selected: selectedFilters.includes('trip') }
-      ],
-      selectionMode: 'single'
-    },
-    {
-      id: 'status',
-      title: getTranslationFromI18nKeyAndLabel('lowcoder:manager_expense_request_list.expense_table.status', 'Status'),
-      filters: Object.values(ExpenseRequestStatus).map(status => {
-        const id = status.toLowerCase();
-        return { 
-          id, 
-          label: statusLabelMap[status],
-          selected: selectedFilters.includes(id) 
-        };
-      }),
-      selectionMode: 'multiple'
-    }
-  ], [selectedFilters]);
-  
-  // Build the filter label map dynamically
-  const filterLabelMap = useMemo(() => {
-    const labelMap: Record<string, string> = {
-      'last30days': getTranslationFromI18nKeyAndLabel('lowcoder:team_expenses_page.dashboard_tab.last_30_days', 'Last 30 days'),
-      'last90days': getTranslationFromI18nKeyAndLabel('lowcoder:team_expenses_page.dashboard_tab.last_90_days', 'Last 90 days'),
-      'last180days': getTranslationFromI18nKeyAndLabel('lowcoder:team_expenses_page.dashboard_tab.last_180_days', 'Last 180 days'),
-      'general': 'General Expense',
-      'trip': 'Trip',
-    };
-    
-    // Add all status options
-    Object.entries(statusLabelMap).forEach(([key, value]) => {
-      labelMap[key.toLowerCase()] = value;
-    });
-    
-    return labelMap;
-  }, []);
-  
-  // Add a filter to the selected filters
-  const addFilter = useCallback((filterId: string) => {
-    // For time period filters, ensure only one is selected at a time
-    if (TIME_PERIOD_OPTIONS.includes(filterId)) {
-      setSelectedFilters(prev => {
-        const newFilters = prev.filter(f => !TIME_PERIOD_OPTIONS.includes(f));
-        return [...newFilters, filterId];
-      });
-    } else {
-      setSelectedFilters(prev => [...prev, filterId]);
-    }
-  }, []);
-  
-  // Remove a filter from the selected filters
-  const removeFilter = useCallback((filterId: string) => {
-    setSelectedFilters(prev => prev.filter(id => id !== filterId));
-  }, []);
-  
-  // Convert selected filters to the API filter format
-  const getFilters = useCallback((): ExpenseRequestFilter => {
-    const filters: ExpenseRequestFilter = {};
-    
-    // Handle status filters, mapping UI status values to backend database values
-    let statusFilters = selectedFilters
-      .filter(filter => {
-        const validStatuses = Object.values(ExpenseRequestStatus).map(s => s.toLowerCase());
-        const isValid = validStatuses.includes(filter);
-        console.log(`Filter validation - ${filter}: ${isValid} (valid statuses: ${validStatuses.join(', ')})`);
-        return isValid;
-      });
+  const {
+    mostUsedCurrency: detectedCurrency,
+    isLoading: currenciesLoading,
+    error: currenciesError,
+  } = useExpenseRequestCurrencies(contextProps, managerId || "");
 
-    // Map UI status values to database status values
-    console.log('Filter mapping - selected filters:', selectedFilters);
-    console.log('Filter mapping - status filters before mapping:', statusFilters);
-    
-    statusFilters = statusFilters.map(status => {
-      let mappedStatus;
-      switch (status) {
-        case 'draft':
-          mappedStatus = 'CREATED';
-          break;
-        case 'in_approval':
-          mappedStatus = 'PENDING';
-          break;
-        case 'verification_required':
-          mappedStatus = 'APPROVED';
-          break;
-        case 'revision_required':
-          mappedStatus = 'REJECTED'; // Changed from RETURNED to REJECTED
-          break;
-        case 'booking_required':
-          mappedStatus = 'VERIFIED';
-          break;
-        case 'transfer_required':
-          mappedStatus = 'BOOKED';
-          break;
-        case 'payment_required':
-          mappedStatus = 'TRANSFERRED';
-          break;
-        case 'paid':
-          mappedStatus = 'PAID';
-          break;
-        case 'closed':
-          mappedStatus = 'CLOSED';
-          break;
-        default:
-          mappedStatus = status.toUpperCase();
-      }
-      console.log(`Filter mapping - ${status} → ${mappedStatus}`);
-      return mappedStatus;
-    });
-    
-    console.log('Filter mapping - status filters after mapping:', statusFilters);
+  const debouncedSearch = useDebounce(search, 300);
 
-    if (statusFilters.length > 0) {
-      filters.status = statusFilters;
-    }
-    
-    // Handle time period filters
-    const timePeriodFilter = selectedFilters.find(filter => TIME_PERIOD_OPTIONS.includes(filter));
-    if (timePeriodFilter) {
-      const now = new Date();
-      const startDate = new Date(now);
-      
-      if (timePeriodFilter === 'last30days') {
-        startDate.setDate(now.getDate() - 30);
-      } else if (timePeriodFilter === 'last90days') {
-        startDate.setDate(now.getDate() - 90);
-      } else if (timePeriodFilter === 'last180days') {
-        startDate.setDate(now.getDate() - 180);
+  useEffect(() => {
+    if (detectedCurrency && !currenciesLoading) {
+      setLocalMostUsedCurrency(detectedCurrency);
+
+      if (!userHasManuallySelectedCurrency && localPrimaryCurrency === null) {
+        setLocalPrimaryCurrency(detectedCurrency);
       }
-      
-      filters.requestDateStart = startDate.toISOString().split('T')[0];
     }
-    
-    // Handle request type filters
-    const requestTypeFilter = selectedFilters.find(filter => REQUEST_TYPE_OPTIONS.includes(filter));
-    if (requestTypeFilter) {
-      filters.requestType = { value: requestTypeFilter };
+  }, [detectedCurrency, currenciesLoading, userHasManuallySelectedCurrency, localPrimaryCurrency]);
+
+  useEffect(() => {}, [localPrimaryCurrency]);
+
+  useEffect(() => {
+    if (localPrimaryCurrency && onCurrencyChange) {
+      onCurrencyChange(localPrimaryCurrency);
     }
-    
-    return filters;
-  }, [selectedFilters]);
-  
+  }, [localPrimaryCurrency, onCurrencyChange]);
+
+  const availableCurrencies = useMemo(() => {
+    const currencies = new Set<string>();
+
+    if (localMostUsedCurrency) {
+      currencies.add(localMostUsedCurrency);
+    }
+
+    currencies.add("EUR");
+    currencies.add("USD");
+    currencies.add("GBP");
+    currencies.add("RON");
+
+    return Array.from(currencies);
+  }, [localMostUsedCurrency]);
+
+  const handleDataFilterChange = useCallback(
+    (filterId: string, selected: boolean) => {
+      if (filterId.startsWith("currency:")) {
+        const currency = filterId.replace("currency:", "");
+
+        if (selected) {
+          setLocalPrimaryCurrency(currency);
+          setUserHasManuallySelectedCurrency(true);
+        } else {
+          setLocalPrimaryCurrency(localMostUsedCurrency || "EUR");
+          setUserHasManuallySelectedCurrency(false);
+        }
+      } else {
+        setSelectedFilters((prev) => {
+          if (selected) {
+            return [...prev, filterId];
+          } else {
+            return prev.filter((f) => f !== filterId);
+          }
+        });
+      }
+    },
+    [localMostUsedCurrency],
+  );
+
+  const filterLabelMap: Record<string, string> = useMemo(() => {
+    const map: Record<string, string> = {};
+    availableFilterStatuses.forEach((status) => {
+      // Use the getExpenseRequestStatusDisplay function for consistent translated labels
+      const display = getExpenseRequestStatusDisplay(status);
+      map[status] = display.label;
+    });
+    return map;
+  }, []);
+
+  const filterGroups = useMemo<DataFilterGroup[]>(() => {
+    // Status filters
+    const statusItems: DataFilter[] = availableFilterStatuses.map((status) => ({
+      id: status,
+      label: filterLabelMap[status],
+      selected: selectedFilters.includes(status),
+      group: "statusGroup",
+    }));
+
+    const currencyItems: DataFilter[] = (
+      availableCurrencies.length > 0 ? availableCurrencies : ["EUR", "USD"]
+    ).map((currency) => ({
+      id: `currency:${currency}`,
+      label: currency,
+      selected: currency === (localPrimaryCurrency || "EUR"),
+      group: "currencyGroup",
+    }));
+
+    return [
+      {
+        id: "statusGroup",
+        title: getTranslationFromI18nKeyAndLabel(
+          "lowcoder:expense_request_list.expense_plan_table.status",
+          "Status",
+        ),
+        filters: statusItems,
+        selectionMode: "multiple",
+      },
+      {
+        id: "currencyGroup",
+        title: getTranslationFromI18nKeyAndLabel(
+          "lowcoder:expense_calculation_rule.expense_table.currency",
+          "Currency",
+        ),
+        filters: currencyItems,
+        selectionMode: "single",
+      },
+    ];
+  }, [
+    availableFilterStatuses,
+    filterLabelMap,
+    selectedFilters,
+    availableCurrencies,
+    localPrimaryCurrency,
+  ]);
+
+  const resetCurrencySelection = useCallback(() => {
+    setUserHasManuallySelectedCurrency(false);
+    setLocalPrimaryCurrency("EUR");
+  }, []);
+
+  const addFilter = useCallback(
+    (filterId: string) => {
+      handleDataFilterChange(filterId, true);
+    },
+    [handleDataFilterChange],
+  );
+
+  const removeFilter = useCallback(
+    (filterId: string) => {
+      handleDataFilterChange(filterId, false);
+    },
+    [handleDataFilterChange],
+  );
+
+  const returnPrimaryCurrency = useMemo(() => {
+    const currency = localPrimaryCurrency || "EUR";
+
+    return currency;
+  }, [localPrimaryCurrency]);
+
   return {
     search,
     setSearch,
+    debouncedSearch,
     selectedFilters,
     filterGroups,
     filterLabelMap,
     addFilter,
     removeFilter,
-    getFilters,
+    primaryCurrency: returnPrimaryCurrency,
+    mostUsedCurrency: localMostUsedCurrency,
+    availableCurrencies: availableCurrencies,
+    currenciesLoading,
+    currenciesInitialized: !currenciesError,
+    handleDataFilterChange,
+    setCurrencyFilter: setLocalPrimaryCurrency,
+    resetCurrencySelection,
+    getFilters: useCallback(() => {
+      const filters: Record<string, any> = {};
+
+      if (selectedFilters.length > 0) {
+        filters.status = selectedFilters;
+      }
+
+      if (localPrimaryCurrency) {
+        filters.currency = `Currency:v1:${localPrimaryCurrency}`;
+      }
+
+      return filters;
+    }, [selectedFilters, localPrimaryCurrency]),
   };
 };
