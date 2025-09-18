@@ -195,3 +195,31 @@
 .gba\:absence-calendar-root {
   padding: 30px 25px 25px 25px;
 }
+
+/* Tooltip styles for absence calendar */
+.gba\:absence-calendar-tooltip {
+  z-index: 9999 !important;
+}
+
+.gba\:absence-calendar-tooltip .ant-tooltip-inner {
+  background: rgba(0, 0, 0, 0.9) !important;
+  color: #fff !important;
+  border-radius: 8px;
+  padding: 12px;
+  max-width: 300px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  font-size: 12px;
+}
+
+.gba\:absence-calendar-tooltip .ant-tooltip-arrow::before {
+  background: rgba(0, 0, 0, 0.9) !important;
+}
+
+.gba\:absence-calendar-tag {
+  transition: all 0.2s ease;
+}
+
+.gba\:absence-calendar-tag:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+}
