@@ -575,7 +575,6 @@ const ExpenseItemsTab: React.FC<ExpenseItemsTabProps> = (props) => {
       return;
     }
     
-    console.log('Starting create expense process for employeeId:', employeeId);
     startProcess({
       domain: 'employee-expense',
       processName: 'changeExpenseItem',

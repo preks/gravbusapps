@@ -19,7 +19,7 @@ export interface UploadReportButtonProps {
   /**
    * Button variant
    */
-  variant?: 'default' | 'outline' | 'secondary';
+  variant?: 'default' | 'outline' | 'secondary' | 'ai';
   
   /**
    * Button size
@@ -33,7 +33,7 @@ export interface UploadReportButtonProps {
  */
 export const UploadReportButton: React.FC<UploadReportButtonProps> = ({
   investmentId,
-  variant = 'default',
+  variant = 'ai',
   size = 'default',
   accessToken
 }) => {

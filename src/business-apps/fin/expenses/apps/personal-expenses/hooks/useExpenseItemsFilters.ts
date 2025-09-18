@@ -284,7 +284,6 @@ export const useExpenseItemsFilters = (availableStatuses: string[] = []): UseExp
     endDateRange?: [Date | null, Date | null] | null,
     expenseDateRangeParam?: [Date | null, Date | null] | null
   ): ExpenseFilter => {
-    console.log('Getting filters from selected filters:', filtersToApply);
 
     // Map UI filter format to the expected API filter format
     const filter: ExpenseFilter = {};
@@ -308,7 +307,6 @@ export const useExpenseItemsFilters = (availableStatuses: string[] = []): UseExp
     if (statuses.length > 0) {
       // Convert all selected statuses from lowercase UI values to uppercase API values
       filter.status = statuses.map(status => status.toUpperCase());
-      console.log('Applying status filters:', filter.status);
     }
 
     // Process expense date range filters (priority over time period filters)
@@ -316,13 +314,11 @@ export const useExpenseItemsFilters = (availableStatuses: string[] = []): UseExp
     if (dateRangeToUse && dateRangeToUse[0] && dateRangeToUse[1]) {
       filter.expenseDateStart = dateRangeToUse[0].toISOString().split('T')[0];
       filter.expenseDateEnd = dateRangeToUse[1].toISOString().split('T')[0];
-      console.log('Applying expense date range filters:', filter.expenseDateStart, 'to', filter.expenseDateEnd);
     }
     // Process date range filters (priority over time period filters)
     else if (startDateRange && startDateRange[0] && endDateRange && endDateRange[1]) {
       filter.expenseDateStart = startDateRange[0].toISOString().split('T')[0];
       filter.expenseDateEnd = endDateRange[1].toISOString().split('T')[0];
-      console.log('Applying date range filters:', filter.expenseDateStart, 'to', filter.expenseDateEnd);
     }
 
 
@@ -354,7 +350,6 @@ export const useExpenseItemsFilters = (availableStatuses: string[] = []): UseExp
       }
     }
 
-    console.log('getFilters returning:', filter);
     return filter;
   }, [selectedFilters, EXPENSE_TYPE_OPTIONS, OTHER_OPTIONS, expenseDateRange, amountRange, getAllSelectedFilters]);
   

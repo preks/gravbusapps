@@ -67,7 +67,6 @@ export interface AccountData {
     firstName: string;
     pictureThumbnail?: string;
   };
-  countryRef: string;
   createdAt: string;
   updatedAt: string;
 }
@@ -151,7 +150,6 @@ export const GET_ACCOUNTS_DATA = `
         firstName
         pictureThumbnail
       }
-      countryRef
       createdAt
       updatedAt
     }

@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from "react";
 import { BusinessAppContextProps } from "@/common/BusinessAppContext";
 import { useGetLeadById, LeadQueryResult } from "../queries/LeadQueries";
 import { LeadFormValues } from "../types";
+import { extractAddressFromObject } from "../../../utils/addressUtils";
 
 interface UseLeadDataProps {
   businessAppContext: BusinessAppContextProps;
@@ -13,6 +14,7 @@ interface UseLeadDataReturn {
   error: string | null;
   mapLeadToFormValues: (lead: LeadQueryResult) => Partial<LeadFormValues>;
 }
+
 
 export const useLeadData = ({
   businessAppContext,
@@ -67,7 +69,7 @@ export const useLeadData = ({
         region: firstAddress?.regionRef || "",
         city: firstAddress?.city || "",
         postalCode: firstAddress?.postalCode || "",
-        addressLine1: firstAddress?.addressLine || "",
+        addressLine1: extractAddressFromObject(firstAddress?.addressLine) || "",
 
         // Company relationship
         accountId: lead.account?.id || "",

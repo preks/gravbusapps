@@ -152,28 +152,40 @@ export const useEquityAnalyticsIntegration = ({
       // Calculate pagination
       const offset = (page - 1) * pageSize;
 
-      // Use enhanced investment reports query
+      // FIXED: Use date filters to get reports within selected date range
       const filterParams = {
-        // Comment out date filters to enable auto-loading without filters on initial screen
-        // reportDateFrom: filters.startDate,
-        // reportDateTo: filters.endDate,
-        investmentIds: filters.investmentType ? [] : undefined, // Can filter by specific investments later
-        limit: pageSize,
-        offset,
+        reportDateFrom: filters.startDate,
+        reportDateTo: filters.endDate,
+        // Get all equity investments
+        equityInvestmentIds: [], // Empty array means get all equity investments
+        limit: 1000, // Large limit to get all data for aggregation
+        offset: 0,
         orderBy: [{
-          field: 'date', // Sort by report date instead of investment-specific fields
-          direction: (sortOrder === 'ASC' ? 'ASC_NULLS_LAST' : 'DESC_NULLS_LAST') as 'ASC_NULLS_LAST' | 'DESC_NULLS_LAST'
+          field: 'date',
+          direction: 'DESC' as const // Get latest reports first
         }]
       };
 
       const response = await fetchInvestmentReports(filterParams);
 
-      // Enhanced query returns: { InvestmentReport: [...], InvestmentReportAggregate: {...} }
       const investmentReports = response.InvestmentReport || [];
       
-      // Extract all equity reports from the investment reports relationships
-      const allAnalyticsData: EquityAnalyticsRowData[] = [];
+      // FIXED: Group by investment ID and get the latest report for each investment
+      const latestReportsByInvestment = new Map<string, any>();
+      
       investmentReports.forEach(investmentReport => {
+        const investmentId = investmentReport.investment?.id;
+        if (investmentId && investmentReport.equityInvestmentReport?.length > 0) {
+          // Only keep the latest report for each investment (since we sorted by date DESC)
+          if (!latestReportsByInvestment.has(investmentId)) {
+            latestReportsByInvestment.set(investmentId, investmentReport);
+          }
+        }
+      });
+      
+      // Transform latest reports to analytics data
+      const allAnalyticsData: EquityAnalyticsRowData[] = [];
+      latestReportsByInvestment.forEach(investmentReport => {
         const equityData = transformEquityToAnalyticsRow(investmentReport, filters.currency || 'EUR');
         allAnalyticsData.push(...equityData);
       });
@@ -197,8 +209,8 @@ export const useEquityAnalyticsIntegration = ({
       const endIndex = startIndex + pageSize;
       const paginatedData = filteredData.slice(startIndex, endIndex);
 
-      // Calculate totals
-      const totals = calculateTotals(paginatedData);
+      // Calculate totals from all filtered data (not just paginated)
+      const totals = calculateTotals(filteredData);
 
       setState(prev => ({
         ...prev,

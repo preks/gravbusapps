@@ -1,11 +1,12 @@
 import { useState, useEffect, useCallback } from 'react';
-import { useGetInvestmentById } from '@/common/data/investment';
+import { useGetInvestmentById, useGetInvestmentDocumentsByInvestmentId } from '@/common/data/investment';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
-import type { Investment, RealEstateInvestment } from '@/common/data/investment';
+import type { Investment, RealEstateInvestment, InvestmentDocument } from '@/common/data/investment';
 
 export interface RealEstateInvestmentData {
   investment: Investment;
   realEstateInvestment?: RealEstateInvestment;
+  documents: InvestmentDocument[];
 }
 
 export const useRealEstateRecordData = (context: BusinessAppContextProps, investmentId?: string) => {
@@ -14,6 +15,7 @@ export const useRealEstateRecordData = (context: BusinessAppContextProps, invest
   const [error, setError] = useState<string | null>(null);
 
   const { fetchInvestmentById } = useGetInvestmentById(context);
+  const { fetchInvestmentDocumentsByInvestmentId } = useGetInvestmentDocumentsByInvestmentId(context);
 
   const fetchRealEstateData = useCallback(async () => {
     if (!investmentId || !context.accessToken) {
@@ -25,24 +27,29 @@ export const useRealEstateRecordData = (context: BusinessAppContextProps, invest
     setError(null);
 
     try {
-      const result = await fetchInvestmentById(investmentId);
+      // Fetch investment data and documents in parallel
+      const [investmentResult, documentsResult] = await Promise.all([
+        fetchInvestmentById(investmentId),
+        fetchInvestmentDocumentsByInvestmentId(investmentId)
+      ]);
 
-      if (!result.investment) {
+      if (!investmentResult.investment) {
         const errorMsg = `No investment found for ID: ${investmentId}`;
         setError(errorMsg);
         return;
       }
 
       // Check if this investment has real estate-specific data (array format)
-      const realEstateInvestmentArray = (result.investment as any).realEstateInvestment;
+      const realEstateInvestmentArray = (investmentResult.investment as any).realEstateInvestment;
       const hasRealEstateData = realEstateInvestmentArray && 
                                Array.isArray(realEstateInvestmentArray) && 
                                realEstateInvestmentArray.length > 0;
 
       // Always create the real estate data structure, even without real estate-specific data
       const realEstateInvestmentData: RealEstateInvestmentData = {
-        investment: result.investment,
-        realEstateInvestment: hasRealEstateData ? realEstateInvestmentArray[0] : undefined
+        investment: investmentResult.investment,
+        realEstateInvestment: hasRealEstateData ? realEstateInvestmentArray[0] : undefined,
+        documents: documentsResult || []
       };
 
       setRealEstateData(realEstateInvestmentData);
@@ -52,7 +59,7 @@ export const useRealEstateRecordData = (context: BusinessAppContextProps, invest
     } finally {
       setIsLoading(false);
     }
-  }, [investmentId, context.accessToken, fetchInvestmentById]);
+  }, [investmentId, context.accessToken, fetchInvestmentById, fetchInvestmentDocumentsByInvestmentId]);
 
   useEffect(() => {
     fetchRealEstateData();
