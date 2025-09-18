@@ -412,6 +412,25 @@ const handleStartLocationChange = (updatedLocation: LocationData) => {
     }
   }, [allowancePeriodRule, startLocation.departureDate, endLocation.departureDate]);
 
+  // Enforce accommodation value based on trip length
+  useEffect(() => {
+    try {
+      const startDate = startLocation.departureDate ? dayjs(startLocation.departureDate).startOf('day') : null;
+      const endDate = endLocation.departureDate ? dayjs(endLocation.departureDate).startOf('day') : null;
+      if (!startDate || !endDate) {
+        return;
+      }
+      const diffDays = endDate.diff(startDate, 'day');
+      if (diffDays < 1) {
+        if (overnightAccommodation !== false) setOvernightAccommodation(false);
+      } else if (diffDays > 1) {
+        if (overnightAccommodation !== true) setOvernightAccommodation(true);
+      } else {
+        // diffDays === 1 → keep current checkbox state (user-controlled)
+      }
+    } catch {}
+  }, [startLocation.departureDate, endLocation.departureDate, overnightAccommodation]);
+
   const handleEndLocationChange = (updatedLocation: LocationData) => {
     const sanitizedLocation = validateAndSanitizeLocation(updatedLocation, endLimits);
     if (endLocation.isAbroad && !updatedLocation.isAbroad && expenseRulesData?.homeRegionRule?.length > 0) {
@@ -438,6 +457,7 @@ const handleStartLocationChange = (updatedLocation: LocationData) => {
           myData = expenseRequestData.ExpenseRequestByPk.expensePlan.expenseRequestTrip;
         }
         const startObject = myData.find((item: any) => item.pointType === 'START_POINT');
+        const endObject = myData.find((item: any) => item.pointType === 'END_POINT');
         
         if (startObject && startObject.tripDateTime && dayjs(startObject.tripDateTime).isValid()) {
           const formattedDate = dayjs(startObject.tripDateTime).format('YYYY-MM-DDTHH:mm:ss.SSSZZ');
@@ -469,6 +489,30 @@ const handleStartLocationChange = (updatedLocation: LocationData) => {
             // Still try to prefill with available data even if rule is missing
             setByExternalCustomComponent(expenseRequestData, null, setStartLocation, setDestinations, setEndLocation);
           }
+
+          // Initialize accommodation considering stored value priority when version != 0
+          try {
+            const startDate = startObject?.tripDateTime ? dayjs(startObject.tripDateTime).startOf('day') : null;
+            const endDate = endObject?.tripDateTime ? dayjs(endObject.tripDateTime).startOf('day') : null;
+            const stored = expenseRequestData?.ExpenseRequestByPk?.overnightAccommodation;
+            const version = expenseRequestData?.ExpenseRequestByPk?.version ?? 0;
+            if (startDate && endDate) {
+              const diffDays = endDate.diff(startDate, 'day');
+              const versionZero = version === 0;
+              if (diffDays < 1) {
+                setOvernightAccommodation(false);
+              } else if (diffDays > 1) {
+                setOvernightAccommodation(true);
+              } else {
+                // Exactly 2 days
+                if ((versionZero || version !== 0) && typeof stored === 'boolean') {
+                  setOvernightAccommodation(stored);
+                } else {
+                  setOvernightAccommodation(true); // default checked for 2 days
+                }
+              }
+            }
+          } catch {}
         } else {
           // Try to prefill with available data even if start object is invalid
           setByExternalCustomComponent(expenseRequestData, expenseRulesData, setStartLocation, setDestinations, setEndLocation)
@@ -688,6 +732,25 @@ const handleStartLocationChange = (updatedLocation: LocationData) => {
     validateTripForm();
   }, [startLocation, destinations, endLocation, employeeRuleError, ruleConflictError, startLocationOverlap, endLocationOverlap, validateTripForm]);
 
+  const resolveOvernightAccommodation = (): boolean => {
+    const saved = expenseRequestData?.ExpenseRequestByPk?.overnightAccommodation;
+    // Checkbox should be user-controllable; keep stored-only priority for submissions if dates missing
+    const startDate = startLocation.departureDate ? dayjs(startLocation.departureDate).startOf('day') : null;
+    const endDate = endLocation.departureDate ? dayjs(endLocation.departureDate).startOf('day') : null;
+    if (startDate && endDate) {
+      const diffDays = endDate.diff(startDate, 'day');
+      if (diffDays < 1) return false; // < 2 days
+      if (diffDays > 1) return true;  // > 2 days
+      // exactly 2 days → use checkbox state; if undefined, fallback to saved or true
+      if (typeof overnightAccommodation === 'boolean') return overnightAccommodation;
+      if (typeof saved === 'boolean') return saved;
+      return true;
+    }
+    // Fallback when dates missing: prefer saved, else current state
+    if (typeof saved === 'boolean') return saved;
+    return !!overnightAccommodation;
+  };
+
   const handleSave = () => {
     submitActionTripData(
       startLocation,
@@ -695,7 +758,7 @@ const handleStartLocationChange = (updatedLocation: LocationData) => {
       endLocation,
       expenseRulesData,
       EVENTS.SAVE,
-      showOvernightAccommodation ? overnightAccommodation : undefined
+      resolveOvernightAccommodation()
     );
   };
 
@@ -707,7 +770,7 @@ const handleStartLocationChange = (updatedLocation: LocationData) => {
         endLocation,
         expenseRulesData,
         EVENTS.NEXT,
-        showOvernightAccommodation ? overnightAccommodation : undefined
+        resolveOvernightAccommodation()
       );
     }
   };
@@ -941,7 +1004,7 @@ const handleStartLocationChange = (updatedLocation: LocationData) => {
                   onChange={(e) => setOvernightAccommodation((e.value as boolean) || false)}
                   data-testid="overnight-accommodation-checkbox"
                 >
-                  {getTranslationFromI18nKeyAndLabel('lowcoder:create_expense_request.add_request_trip_details.checkbox_labe_accommodation', 'Accommodation?')}
+                  {getTranslationFromI18nKeyAndLabel('lowcoder:create_expense_request.add_request_trip_details.checkbox_label_accommodation', 'Accommodation?')}
                 </Checkbox>
               </div>
             )}
