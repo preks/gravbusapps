@@ -149,7 +149,8 @@ export const createItemsScreenLogObject = (
       requestDate: initialRequest?.requestDate ? dayjs(initialRequest.requestDate).format("YYYY-MM-DD") : "",
       requestTypeRef: initialRequest?.requestTypeRef,
       additionalProperties: initialRequest?.additionalProperties,
-      currencyRef: initialRequest?.currency?.id || currentCurrency || ""
+      currencyRef: initialRequest?.currency?.id || currentCurrency || "",
+      overnightAccommodation: !!expenseRequestData?.ExpenseRequestByPk?.overnightAccommodation
     },
     expenseRequestItems: {
       expenseItems: expenseItemsArray
