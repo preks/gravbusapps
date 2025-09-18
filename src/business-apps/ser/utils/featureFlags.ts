@@ -7,10 +7,18 @@ import { env } from '@/common/env/EnvUtils';
 /**
  * Checks if Services+ is enabled
  * Based on SERVICES_PLUS_ENABLED environment variable
+ * Defaults to enabled in development mode
  */
 export const isServicesPlusEnabled = (): boolean => {
-  const enabled = env('SERVICES_PLUS_ENABLED') || 'false';
-  return enabled === 'true' || enabled === '1';
+  const enabled = env('SERVICES_PLUS_ENABLED');
+  
+  // If explicitly set, use that value
+  if (enabled !== undefined && enabled !== null && enabled !== '') {
+    return enabled === 'true' || enabled === '1';
+  }
+  
+  // Default to enabled in development mode (when env var is not set)
+  return true;
 };
 
 /**
