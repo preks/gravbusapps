@@ -2,22 +2,12 @@
  * Services+ Feature Flag Utilities
  */
 
-import { env } from '@/common/env/EnvUtils';
-
 /**
  * Checks if Services+ is enabled
- * Based on SERVICES_PLUS_ENABLED environment variable
- * Defaults to enabled in development mode
+ * Hardcoded to true - Services+ is always enabled
  */
 export const isServicesPlusEnabled = (): boolean => {
-  const enabled = env('SERVICES_PLUS_ENABLED');
-  
-  // If explicitly set, use that value
-  if (enabled !== undefined && enabled !== null && enabled !== '') {
-    return enabled === 'true' || enabled === '1';
-  }
-  
-  // Default to enabled in development mode (when env var is not set)
+  // Services+ is always enabled
   return true;
 };
 

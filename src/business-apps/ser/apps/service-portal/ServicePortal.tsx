@@ -221,9 +221,9 @@ export const ServicePortal: React.FC<ServicePortalProps> = ({
       currentView: 'requestForm',
       selectedTemplate: undefined, // Clear mock template
       selectedFlowTemplate: flowTemplate,
-      selectedCategoryId: flowTemplate.category || 'flow' // Use template category or default
+      selectedCategoryId: flowTemplate.category || 'flow-templates' // Use template category or default
     });
-    const newUrl = buildUrlWithApp('requestForm', flowTemplate.category || 'flow');
+    const newUrl = buildUrlWithApp('requestForm', flowTemplate.category || 'flow-templates');
     window.history.pushState({}, '', newUrl);
   };
 
