@@ -34,6 +34,54 @@
 
 @import "./business-apps/hr/absences/apps/personal-absences/components/absence-calendar/styles/AbsenceCalendar.css" layer(legacy-unlayered-override);
 
+/* Tooltip styles for absence calendar segments */
+.ant-tooltip-inner {
+  background: #f8f9fa !important;
+  color: #374151 !important;
+  border-radius: 8px;
+  padding: 12px;
+  max-width: 300px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  font-size: 12px;
+  border: 1px solid #e5e7eb;
+}
+
+.ant-tooltip-arrow::before {
+  background: #f8f9fa !important;
+  border: 1px solid #e5e7eb;
+}
+
+/* Absence segment text styling */
+.gba\:absence-segment-text {
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
+  font-weight: 500;
+  letter-spacing: 0.025em;
+}
+
+/* Calendar legend styling */
+.gba\:calendar-legend {
+  background: #f9fafb;
+  border-top: 1px solid #e5e7eb;
+}
+
+.gba\:calendar-legend .gba\:flex {
+  align-items: center;
+  gap: 1.5rem;
+  flex-wrap: wrap;
+}
+
+.gba\:calendar-legend .gba\:text-sm {
+  font-weight: 500;
+  color: #374151;
+  margin-right: 0.5rem;
+}
+
+.gba\:calendar-legend .gba\:text-xs {
+  font-size: 0.75rem;
+  color: #6b7280;
+  font-weight: 500;
+}
+
 
 @import "./business-apps/hr/absences/apps/personal-absences/styles/absenceHub.css" layer(legacy-unlayered-override);
 @import "./business-apps/hr/absences/apps/personal-absences/styles/absenceListCard.css" layer(legacy-unlayered-override);
