@@ -12,6 +12,10 @@ import type {
   TaskAction,
 } from 'packages/services-plus-core';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
+import { env } from '@/common/env/EnvUtils';
+
+// TODO: Change to use the correct API_BASE (from .env) for the newwork-dev.newwork.com/flow-engine
+const API_BASE = (env('NEXT_PUBLIC_CUSTOM_FLOW_ENGINE_API_URL') || 'https://newwork-dev.newwork.com/flow-engine') + '/api';
 
 /**
  * ConductorWorkflowEngineAdapter - Integrates Services+ with Custom Flow Engine
@@ -29,7 +33,7 @@ export class ConductorWorkflowEngineAdapter implements WorkflowEngine {
   private serviceDeskCatalogEntries: any[] = [];
 
   constructor(context: BusinessAppContextProps) {
-    this.flowEngineBaseUrl = process.env.NEXT_PUBLIC_CUSTOM_FLOW_ENGINE_URL || 'http://localhost:3000';
+    this.flowEngineBaseUrl = API_BASE;
     this.accessToken = context.accessToken;
     this.currentUserId = context.userInfo?.id || 'unknown-user';
     this.userInfo = context.userInfo;
@@ -188,7 +192,7 @@ export class ConductorWorkflowEngineAdapter implements WorkflowEngine {
       };
 
       console.log(`[ConductorAdapterRequester] 🚀 API Request Details:`, {
-        url: `${this.flowEngineBaseUrl}/api/templates/${flowTemplateId}/execute`,
+        url: `${this.flowEngineBaseUrl}/templates/${flowTemplateId}/execute`,
         method: 'POST',
         templateKey: templateKey,
         flowTemplateId: flowTemplateId,
@@ -202,7 +206,7 @@ export class ConductorWorkflowEngineAdapter implements WorkflowEngine {
       });
       
       // Execute the flow template via Custom Flow Engine
-      const response = await fetch(`${this.flowEngineBaseUrl}/api/templates/${flowTemplateId}/execute`, {
+      const response = await fetch(`${this.flowEngineBaseUrl}/templates/${flowTemplateId}/execute`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -220,7 +224,7 @@ export class ConductorWorkflowEngineAdapter implements WorkflowEngine {
             status: response.status,
             statusText: response.statusText,
             body: errorBody,
-            url: `${this.flowEngineBaseUrl}/api/templates/${flowTemplateId}/execute`,
+            url: `${this.flowEngineBaseUrl}/templates/${flowTemplateId}/execute`,
             templateKey: templateKey,
             flowTemplateId: flowTemplateId,
             actualPayloadSent: requestPayload
@@ -235,7 +239,7 @@ export class ConductorWorkflowEngineAdapter implements WorkflowEngine {
         (enhancedError as any).debugPayload = {
           apiCall: {
             method: 'POST',
-            url: `${this.flowEngineBaseUrl}/api/templates/${flowTemplateId}/execute`,
+            url: `${this.flowEngineBaseUrl}/templates/${flowTemplateId}/execute`,
             headers: {
               'Content-Type': 'application/json',
               'Authorization': 'Bearer [REDACTED]'
@@ -282,7 +286,7 @@ export class ConductorWorkflowEngineAdapter implements WorkflowEngine {
       (enhancedError as any).debugPayload = {
         apiCall: {
           method: 'POST',
-          url: `${this.flowEngineBaseUrl}/api/templates/${flowTemplateId}/execute`,
+          url: `${this.flowEngineBaseUrl}/templates/${flowTemplateId}/execute`,
           headers: {
             'Content-Type': 'application/json',
             'Authorization': 'Bearer [REDACTED]'
@@ -320,7 +324,7 @@ export class ConductorWorkflowEngineAdapter implements WorkflowEngine {
       console.log(`[ConductorAdapter] Getting request details for: ${requestId}`);
 
       // Get flow details from Custom Flow Engine
-      const response = await fetch(`${this.flowEngineBaseUrl}/api/flows/${requestId}`, {
+      const response = await fetch(`${this.flowEngineBaseUrl}/flows/${requestId}`, {
         headers: {
           'Authorization': `Bearer ${this.accessToken}`,
         },
@@ -352,7 +356,7 @@ export class ConductorWorkflowEngineAdapter implements WorkflowEngine {
     try {
       console.log(`🔍 [ConductorAdapter] Getting ticket detail for REAL task ID: ${ticketId}`);
 
-      const response = await fetch(`${this.flowEngineBaseUrl}/api/tasks/${ticketId}?userId=${this.currentUserId}`, {
+      const response = await fetch(`${this.flowEngineBaseUrl}/tasks/${ticketId}?userId=${this.currentUserId}`, {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',
@@ -464,7 +468,7 @@ export class ConductorWorkflowEngineAdapter implements WorkflowEngine {
   }>> {
     try {
       // Fetch template definition to analyze steps
-      const response = await fetch(`${this.flowEngineBaseUrl}/api/templates/${templateId}`, {
+      const response = await fetch(`${this.flowEngineBaseUrl}/templates/${templateId}`, {
         method: 'GET',
         headers: {
           'Authorization': `Bearer ${this.accessToken}`,
@@ -1286,7 +1290,7 @@ export class ConductorWorkflowEngineAdapter implements WorkflowEngine {
 
       const [basicRequest, history] = await Promise.all([
         this.getRequest(requestId),
-        this.makeRequest(`/api/flows/${requestId}/history`)
+        this.makeRequest(`/flows/${requestId}/history`)
       ]);
 
       return {
@@ -1318,7 +1322,7 @@ export class ConductorWorkflowEngineAdapter implements WorkflowEngine {
       if (filters?.status) params.set('status', filters.status);
       if (filters?.limit) params.set('limit', filters.limit.toString());
 
-      const result = await this.makeRequest(`/api/tasks/user/${userId}?${params.toString()}`);
+      const result = await this.makeRequest(`/tasks/user/${userId}?${params.toString()}`);
       
       const tasks = result.tasks || [];
       return tasks.map((task: any) => this.convertTaskToStepInstance(task));
@@ -1336,7 +1340,7 @@ export class ConductorWorkflowEngineAdapter implements WorkflowEngine {
     try {
       console.log(`[ConductorAdapter] Getting task statistics for: ${userId}`);
 
-      const result = await this.makeRequest(`/api/tasks/user/${userId}/stats`);
+      const result = await this.makeRequest(`/tasks/user/${userId}/stats`);
       
       return {
         assigned: result.statistics?.assigned || 0,
@@ -1366,7 +1370,7 @@ export class ConductorWorkflowEngineAdapter implements WorkflowEngine {
       if (options?.limit) params.set('limit', options.limit.toString());
       if (options?.offset) params.set('offset', options.offset.toString());
 
-      const result = await this.makeRequest(`/api/tasks/user/${this.currentUserId}/completed?${params.toString()}`);
+      const result = await this.makeRequest(`/tasks/user/${this.currentUserId}/completed?${params.toString()}`);
       
       const tasks = result.tasks || [];
       const totalCount = result.totalCount || tasks.length;
@@ -1397,7 +1401,7 @@ export class ConductorWorkflowEngineAdapter implements WorkflowEngine {
       console.log(`[ConductorAdapter] Claiming step: ${stepId} by user: ${userId}`);
       console.warn(`[ConductorAdapter] ⚠️ WARNING: Task ID may change after claim due to workflow recreation`);
 
-      await this.makeRequest(`/api/tasks/${stepId}/claim`, {
+      await this.makeRequest(`/tasks/${stepId}/claim`, {
         method: 'POST',
         body: JSON.stringify({
           userId
@@ -1419,7 +1423,7 @@ export class ConductorWorkflowEngineAdapter implements WorkflowEngine {
     try {
       console.log(`[ConductorAdapter] Unclaiming step: ${stepId} by user: ${userId}`);
 
-      await this.makeRequest(`/api/tasks/${stepId}/unclaim`, {
+      await this.makeRequest(`/tasks/${stepId}/unclaim`, {
         method: 'POST',
         body: JSON.stringify({
           userId,
@@ -1440,7 +1444,7 @@ export class ConductorWorkflowEngineAdapter implements WorkflowEngine {
     try {
       console.log(`[ConductorAdapter] Assigning step: ${stepId} from ${userId} to ${assignToUserId}`);
 
-      await this.makeRequest(`/api/tasks/${stepId}/reassign`, {
+      await this.makeRequest(`/tasks/${stepId}/reassign`, {
         method: 'POST',
         body: JSON.stringify({
           currentUserId: userId,
@@ -1462,7 +1466,7 @@ export class ConductorWorkflowEngineAdapter implements WorkflowEngine {
     try {
       console.log(`[ConductorAdapter] Unassigning step: ${stepId} by user: ${userId}`);
 
-      await this.makeRequest(`/api/tasks/${stepId}/unassign`, {
+      await this.makeRequest(`/tasks/${stepId}/unassign`, {
         method: 'POST',
         body: JSON.stringify({
           userId,
@@ -1483,7 +1487,7 @@ export class ConductorWorkflowEngineAdapter implements WorkflowEngine {
     try {
       console.log(`[ConductorAdapter] Reassigning step: ${stepId} from ${currentUserId} to ${newUserId}`);
 
-      await this.makeRequest(`/api/tasks/${stepId}/reassign`, {
+      await this.makeRequest(`/tasks/${stepId}/reassign`, {
         method: 'POST',
         body: JSON.stringify({
           currentUserId,
@@ -1505,7 +1509,7 @@ export class ConductorWorkflowEngineAdapter implements WorkflowEngine {
     try {
       console.log(`[ConductorAdapter] Advancing step: ${stepId} by user: ${userId}`);
 
-      await this.makeRequest(`/api/tasks/${stepId}/complete`, {
+      await this.makeRequest(`/tasks/${stepId}/complete`, {
         method: 'POST',
         body: JSON.stringify({
           userId,
@@ -1527,7 +1531,7 @@ export class ConductorWorkflowEngineAdapter implements WorkflowEngine {
     try {
       console.log(`[ConductorAdapter] Rejecting step: ${stepId} by user: ${userId}`);
 
-      await this.makeRequest(`/api/tasks/${stepId}/reject`, {
+      await this.makeRequest(`/tasks/${stepId}/reject`, {
         method: 'POST',
         body: JSON.stringify({
           userId,
@@ -1559,7 +1563,7 @@ export class ConductorWorkflowEngineAdapter implements WorkflowEngine {
 
       console.log(`[ConductorAdapter] Request body for task completion:`, requestBody);
 
-      await this.makeRequest(`/api/tasks/${taskId}/complete`, {
+      await this.makeRequest(`/tasks/${taskId}/complete`, {
         method: 'POST',
         body: JSON.stringify(requestBody),
       });
@@ -1581,7 +1585,7 @@ export class ConductorWorkflowEngineAdapter implements WorkflowEngine {
       console.log(`[ConductorAdapter] Adding comment to step: ${stepId} by user: ${userId} with visibility: ${visibility || 'default'}`);
       console.warn(`[ConductorAdapter] ⚠️ WARNING: Task ID may change after comment due to workflow recreation (same as CLAIM issue)`);
 
-      const result = await this.makeRequest(`/api/tasks/${stepId}/comment`, {
+      const result = await this.makeRequest(`/tasks/${stepId}/comment`, {
         method: 'POST',
         body: JSON.stringify({
           userId,
@@ -1615,7 +1619,7 @@ export class ConductorWorkflowEngineAdapter implements WorkflowEngine {
     try {
       console.log(`[ConductorAdapter] Getting comments for step: ${stepId}`);
 
-      const task = await this.makeRequest(`/api/tasks/${stepId}?userId=${this.currentUserId}`);
+      const task = await this.makeRequest(`/tasks/${stepId}?userId=${this.currentUserId}`);
       
       // Extract comments from task data - assuming comments are in task response
       return task.comments || [];
@@ -1633,7 +1637,7 @@ export class ConductorWorkflowEngineAdapter implements WorkflowEngine {
     try {
       console.log(`[ConductorAdapter] Getting flow comments for: ${flowId}`);
 
-      const result = await this.makeRequest(`/api/flows/${flowId}/comments`);
+      const result = await this.makeRequest(`/flows/${flowId}/comments`);
       
       return result.comments || [];
 
@@ -1651,7 +1655,7 @@ export class ConductorWorkflowEngineAdapter implements WorkflowEngine {
       console.log(`[ConductorAdapter] Getting task: ${stepId} for user: ${userId || 'anonymous'}`);
 
       const params = userId ? `?userId=${userId}` : '';
-      const result = await this.makeRequest(`/api/tasks/${stepId}${params}`);
+      const result = await this.makeRequest(`/tasks/${stepId}${params}`);
       
       return this.convertTaskToStepInstance(result);
 
@@ -1668,7 +1672,7 @@ export class ConductorWorkflowEngineAdapter implements WorkflowEngine {
     try {
       console.log(`[ConductorAdapter] Getting available actions for step: ${stepId} and user: ${userId}`);
 
-      const result = await this.makeRequest(`/api/tasks/${stepId}/actions?userId=${userId}`);
+      const result = await this.makeRequest(`/tasks/${stepId}/actions?userId=${userId}`);
       
       const actions = result.availableActions || [];
       
@@ -1694,7 +1698,7 @@ export class ConductorWorkflowEngineAdapter implements WorkflowEngine {
     try {
       console.log(`[ConductorAdapter] Triggering task synchronization`);
 
-      const result = await this.makeRequest('/api/tasks/sync', {
+      const result = await this.makeRequest('/tasks/sync', {
         method: 'POST',
       });
       
@@ -1718,7 +1722,7 @@ export class ConductorWorkflowEngineAdapter implements WorkflowEngine {
       console.log(`[ConductorAdapter] Getting requests for user: ${targetUserId}`);
 
       // Step 1: Get list of flows initiated by the user  
-      const listResponse = await this.makeRequest(`/api/flows/user/${targetUserId}/initiated?limit=50&offset=0`);
+      const listResponse = await this.makeRequest(`/flows/user/${targetUserId}/initiated?limit=50&offset=0`);
 
       const flows = listResponse.data?.flows || listResponse.flows || [];
       console.log(`[ConductorAdapter] Found ${flows.length} flows for user ${targetUserId}`);
@@ -1729,7 +1733,7 @@ export class ConductorWorkflowEngineAdapter implements WorkflowEngine {
           const flowId = flow.flowId || flow.id;
           console.log(`[ConductorAdapter] Getting details for flow: ${flowId}`);
           
-          const detailResponse = await this.makeRequest(`/api/flows/${flowId}`);
+          const detailResponse = await this.makeRequest(`/flows/${flowId}`);
           const transformed = this.convertFlowToSubmittedRequest(detailResponse);
           console.log(`[ConductorAdapter] ✅ Successfully processed flow ${flowId}`);
           return transformed;
@@ -1760,7 +1764,7 @@ export class ConductorWorkflowEngineAdapter implements WorkflowEngine {
       console.log(`[ConductorAdapter] Getting REAL tickets for desk: ${desk} using custom-flow-engine API`);
 
       // Use the actual custom-flow-engine API that we know works
-      const response = await fetch(`${this.flowEngineBaseUrl}/api/tasks/user/${this.currentUserId}`, {
+      const response = await fetch(`${this.flowEngineBaseUrl}/tasks/user/${this.currentUserId}`, {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',
@@ -1791,7 +1795,7 @@ export class ConductorWorkflowEngineAdapter implements WorkflowEngine {
           const flowId = task.flowId;
           if (flowId) {
             // Try to get the parent workflow - if it doesn't exist, skip the task
-            const workflowResponse = await fetch(`${this.flowEngineBaseUrl}/api/flows/${flowId}`, {
+            const workflowResponse = await fetch(`${this.flowEngineBaseUrl}/flows/${flowId}`, {
               method: 'GET',
               headers: {
                 'Content-Type': 'application/json',
@@ -2293,7 +2297,7 @@ export class ConductorWorkflowEngineAdapter implements WorkflowEngine {
       if (options?.includeDrafts !== undefined) queryParams.append('includeDrafts', options.includeDrafts.toString());
       if (options?.search) queryParams.append('search', options.search);
 
-      const url = `${this.flowEngineBaseUrl}/api/templates?${queryParams.toString()}`;
+      const url = `${this.flowEngineBaseUrl}/templates?${queryParams.toString()}`;
       console.log(`[ConductorAdapterRequester] 🔗 Templates API URL:`, url);
 
       const response = await fetch(url, {
@@ -2331,7 +2335,7 @@ export class ConductorWorkflowEngineAdapter implements WorkflowEngine {
       console.log(`[ConductorAdapter] Getting task step comments for: ${taskId}`);
 
       // makeRequest already handles response validation and returns parsed JSON
-      const result = await this.makeRequest(`/api/tasks/${taskId}/comments`, {
+      const result = await this.makeRequest(`/tasks/${taskId}/comments`, {
         method: 'GET',
       });
 
