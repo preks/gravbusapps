@@ -113,3 +113,13 @@ export const getUserInitials = (
   
   return fallback;
 };
+
+/**
+ * Get user's employee ID from their UserInfo object
+ * Returns the employeeId if available, null otherwise
+ */
+export const getUserEmployeeId = (userInfo?: UserInfoProps): string | null => {
+  if (!userInfo) return null;
+  
+  return userInfo.employeeDetails?.employeeId || null;
+};

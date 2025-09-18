@@ -1,5 +1,6 @@
 export { useUserCapabilities } from './useUserCapabilities';
 export { useDeskTickets } from './useDeskTickets';
+export { useMultipleDeskCounts } from './useMultipleDeskCounts';
 export { useTicketDetail } from './useTicketDetail';
 export { useTicketActions } from './useTicketActions';
 export { useEmployeeName } from './useEmployeeName';
@@ -19,6 +20,11 @@ export type {
   UseDeskTicketsProps, 
   UseDeskTicketsReturn 
 } from './useDeskTickets';
+
+export type { 
+  UseMultipleDeskCountsProps, 
+  UseMultipleDeskCountsReturn 
+} from './useMultipleDeskCounts';
 
 export type { 
   UseTicketDetailProps, 

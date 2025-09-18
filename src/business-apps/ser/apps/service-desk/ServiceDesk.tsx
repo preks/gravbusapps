@@ -8,8 +8,7 @@ import { Tickets } from './components/Tickets';
 import { TemplatesTab } from './components/TemplatesTab';
 import { Analytics } from './components/Analytics';
 import { TaskRecord } from './components/TaskRecord';
-import { useUserCapabilities } from './hooks/useUserCapabilities';
-import { ServiceDeskDiagnostic } from './components/ServiceDeskDiagnostic';
+import { getUserEmployeeId } from '../../utils/userUtils';
 import { PageLayout } from '@newwork/nw-design-system';
 import { 
   HeadsetIcon,
@@ -20,7 +19,7 @@ import {
 } from '@phosphor-icons/react';
 
 // UI Components
-import { Alert, Spin, Button } from 'antd';
+import { Alert } from '@newwork/nw-design-system';
 
 /**
  * ServiceDesk component for managing service requests across different desks
@@ -81,15 +80,11 @@ const ServiceDesk: React.FC<ServiceDeskProps> = ({
     }
     return '';
   });
-  const [showDiagnostic, setShowDiagnostic] = useState(false);
+  // Removed diagnostic state - no longer needed since capability loading is handled by sub-components
   const [selectedTaskId, setSelectedTaskId] = useState<string | null>(resolvedTicketId);
   const [lastTicketsTab, setLastTicketsTab] = useState<string>(''); // Remember last selected tab in Tickets subview
   
-  // Get user capabilities to determine available desks
-  const { capabilities, isLoading: capabilitiesLoading, error: capabilitiesError } = useUserCapabilities({
-    accessToken,
-    userInfo,
-  });
+  // Note: Capability-based filtering is now handled by the Tickets component
 
   // Update task from URL parameters and ensure URL parameters are set
   useEffect(() => {
@@ -185,14 +180,9 @@ const ServiceDesk: React.FC<ServiceDeskProps> = ({
     
     let tabToSet = '';
     
-    // When switching to tickets, use last remembered tab or default to first available
-    if (subView === 'tickets' && capabilities && capabilities.length > 0) {
-      // Use last remembered tab if it exists and is valid (either a capability desk or 'completed')
-      const isValidCapabilityTab = lastTicketsTab && capabilities.some(cap => cap.desk === lastTicketsTab);
-      const isCompletedTab = lastTicketsTab === 'completed';
-      const validLastTab = isValidCapabilityTab || isCompletedTab;
-      
-      tabToSet = validLastTab ? lastTicketsTab : capabilities[0].desk;
+    // When switching to tickets, use last remembered tab
+    if (subView === 'tickets' && lastTicketsTab) {
+      tabToSet = lastTicketsTab;
       setActiveTab(tabToSet);
     }
     
@@ -268,100 +258,14 @@ const ServiceDesk: React.FC<ServiceDeskProps> = ({
   console.log('ServiceDesk Debug:', {
     servicesFeature,
     isServicesEnabled,
-    capabilitiesLoading,
-    capabilitiesError,
     accessToken: !!accessToken,
     userInfo: !!userInfo,
-    capabilities,
+    employeeId: getUserEmployeeId(userInfo)
   });
 
-  // Loading state while checking capabilities
-  if (capabilitiesLoading) {
-    return (
-      <div 
-        data-testid="service-desk-loading" 
-        className="gba:p-6 gba:flex gba:justify-center gba:items-center gba:min-h-96"
-      >
-        <div className="gba:flex gba:items-center gba:gap-4">
-          <Spin size="large" />
-          <span className="gba:text-gray-500">
-            {getTranslationFromI18nKeyAndLabel(
-              'services.loading.capabilities',
-              'Loading desk capabilities...'
-            )}
-          </span>
-        </div>
-      </div>
-    );
-  }
+  // Note: Access control is now handled by individual components (e.g., Tickets component)
 
-  // Error state with diagnostic option
-  if (capabilitiesError) {
-    if (showDiagnostic) {
-      return <ServiceDeskDiagnostic accessToken={accessToken} userInfo={userInfo} />;
-    }
-
-    return (
-      <div data-testid="service-desk-error" className="gba:p-6">
-        <Alert
-          message={getTranslationFromI18nKeyAndLabel(
-            'services.desk.error.title',
-            'Error Loading Service Desk'
-          )}
-          description={
-            <div>
-              <p className="gba:mb-3">
-                {getTranslationFromI18nKeyAndLabel(
-                  'services.desk.error.description',
-                  'Failed to load desk capabilities. Please try again.'
-                )}
-              </p>
-              <div className="gba:space-x-2">
-                <Button 
-                  type="primary" 
-                  onClick={() => window.location.reload()}
-                >
-                  {getTranslationFromI18nKeyAndLabel('services.error.retry', 'Retry')}
-                </Button>
-                <Button onClick={() => setShowDiagnostic(true)}>
-                  {getTranslationFromI18nKeyAndLabel('services.error.diagnostic', 'Show Diagnostic')}
-                </Button>
-              </div>
-            </div>
-          }
-          type="error"
-          showIcon
-          className="gba:max-w-md gba:mx-auto"
-        />
-      </div>
-    );
-  }
-
-  // No desks available
-  if (!capabilities || capabilities.length === 0) {
-    return (
-      <div data-testid="service-desk-no-access" className="gba:p-6">
-        <Alert
-          message={getTranslationFromI18nKeyAndLabel(
-            'services.desk.noAccess.title',
-            'No Desk Access'
-          )}
-          description={getTranslationFromI18nKeyAndLabel(
-            'services.desk.noAccess.description',
-            'You do not have access to any service desks.'
-          )}
-          type="warning"
-          showIcon
-          className="gba:max-w-md gba:mx-auto"
-        />
-      </div>
-    );
-  }
-
-  // Default to first available desk if no tab is selected
-  if (!activeTab && capabilities.length > 0) {
-    setActiveTab(capabilities[0].desk);
-  }
+  // Note: Default tab selection is now handled by the Tickets component
 
   // Show task record if selected
   if (selectedTaskId) {

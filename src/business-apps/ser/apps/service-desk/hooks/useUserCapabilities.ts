@@ -1,122 +1,109 @@
 import { useState, useEffect } from 'react';
-import type { StepReceiver } from 'packages/services-plus-core';
-import { useDesksForUser } from '../../../hooks/useDesksForUser';
-
+import { useGraphqlClient } from '@/common/network/graphql/useGraphQLClient';
+import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 
 export interface UserCapability {
-  desk: StepReceiver;
+  id: string;
   name: string;
-  ticketCount: number;
+  description: string;
+  groupId: string;
 }
 
-export interface UseUserCapabilitiesProps {
-  accessToken: string;
-  userInfo?: any;
+export interface UseUserCapabilitiesProps extends Pick<BusinessAppContextProps, 'accessToken' | 'userInfo'> {
+  employeeId?: string;
 }
 
 export interface UseUserCapabilitiesReturn {
-  capabilities: UserCapability[] | null;
+  capabilities: UserCapability[];
   isLoading: boolean;
   error: string | null;
+  refetch: () => void;
 }
 
-/**
- * Hook to get user capabilities and determine which desks they have access to
- * Integrates with GraphQL-based MAP Orgchart data for real capability checking
- */
+const GET_USER_CAPABILITIES = `
+  query GetUserCapabilities($employeeId: uuid!) {
+    EmployeeCapability(where: {employeeId: {_eq: $employeeId}}) {
+      id
+      employeeId
+      capabilityId
+      capability {
+        id
+        name
+        description
+        groupId
+      }
+    }
+  }
+`;
+
 export const useUserCapabilities = ({
   accessToken,
   userInfo,
+  employeeId
 }: UseUserCapabilitiesProps): UseUserCapabilitiesReturn => {
-  const [capabilities, setCapabilities] = useState<UserCapability[] | null>(null);
-  const [isLoading, setIsLoading] = useState<boolean>(true);
+  const [capabilities, setCapabilities] = useState<UserCapability[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Use the new GraphQL-based desk access hook
-  const {
-    availableDesks,
-    isLoading: desksLoading,
-    error: desksError,
-    getUserCapabilities,
-  } = useDesksForUser({ accessToken, userInfo });
+  const graphqlClient = useGraphqlClient(accessToken);
 
-  useEffect(() => {
-    const processCapabilities = async () => {
-      try {
-        setIsLoading(true);
-        setError(null);
+  const fetchCapabilities = async () => {
+    if (!employeeId) {
+      console.log('[useUserCapabilities] No employeeId provided, skipping fetch');
+      return;
+    }
 
-        console.log('useUserCapabilities: Processing capabilities', { 
-          desksLoading, 
-          availableDesks: availableDesks.length,
-          desksError,
-          accessToken: !!accessToken, 
-          userInfo: !!userInfo,
-          employeeId: userInfo?.employeeDetails?.employeeId 
-        });
+    setIsLoading(true);
+    setError(null);
 
-        // Wait for GraphQL data to load - don't process anything until it's ready
-        if (desksLoading) {
-          console.log('useUserCapabilities: Still loading GraphQL desk capabilities');
-          setIsLoading(true); // Keep loading state active
-          return;
-        }
+    try {
+      console.log(`[useUserCapabilities] Fetching capabilities for employeeId: ${employeeId}`);
+      
+      const response = await graphqlClient.request(
+        GET_USER_CAPABILITIES,
+        { employeeId }
+      );
 
-        // If we have GraphQL desk data, use it
-        if (availableDesks.length > 0) {
-          console.log('useUserCapabilities: Using GraphQL-based desk capabilities', {
-            deskCount: availableDesks.length,
-            desks: availableDesks.map(d => d.desk)
-          });
-          
-          const userCapabilities: UserCapability[] = availableDesks.map(deskCap => ({
-            desk: deskCap.desk,
-            name: deskCap.name,
-            ticketCount: deskCap.ticketCount,
+      console.log('[useUserCapabilities] Raw GraphQL response:', response);
+
+      if (response?.EmployeeCapability) {
+        console.log('[useUserCapabilities] EmployeeCapability data:', response.EmployeeCapability);
+        const userCapabilities = response.EmployeeCapability
+          .filter((ec: any) => ec.capability && ec.capability.id) // Filter out null capabilities
+          .map((ec: any) => ({
+            id: ec.capability.id,
+            name: ec.capability.name,
+            description: ec.capability.description,
+            groupId: ec.capability.groupId,
           }));
 
-          console.log('useUserCapabilities: GraphQL capabilities processed', {
-            userCapabilities,
-            rawCapabilities: getUserCapabilities(),
-          });
-
-          setCapabilities(userCapabilities);
-          return;
-        }
-
-        // No GraphQL desk data available - user has no desk access
-        console.log('useUserCapabilities: No GraphQL capabilities available, user has no desk access', {
-          desksLoading,
-          availableDesksCount: availableDesks.length,
-          hasDesksError: !!desksError
-        });
-        
-        // Set empty capabilities - the UI will handle the "no access" state
+        console.log(`[useUserCapabilities] Found ${userCapabilities.length} capabilities:`, userCapabilities);
+        setCapabilities(userCapabilities);
+      } else {
+        console.log('[useUserCapabilities] No capabilities found');
         setCapabilities([]);
-      } catch (err) {
-        console.error('useUserCapabilities: Error processing capabilities:', err);
-        setError(err instanceof Error ? err.message : 'Failed to process capabilities');
-        
-        // No emergency fallback - user truly has no access
-        setCapabilities([]);
-      } finally {
-        setIsLoading(false);
-        console.log('useUserCapabilities: Finished processing');
       }
-    };
+    } catch (err) {
+      console.error('[useUserCapabilities] Error fetching capabilities:', err);
+      setError(err instanceof Error ? err.message : 'Failed to fetch capabilities');
+      setCapabilities([]);
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
-    processCapabilities();
-  }, [availableDesks, desksLoading, desksError, accessToken, userInfo]);
+  useEffect(() => {
+    fetchCapabilities();
+  }, [employeeId, accessToken]);
 
-  // Combine errors from both GraphQL and processing
-  const combinedError = error || desksError;
-
-  // If GraphQL is still loading, override the isLoading state
-  const actualIsLoading = desksLoading || isLoading;
+  const refetch = () => {
+    fetchCapabilities();
+  };
 
   return {
     capabilities,
-    isLoading: actualIsLoading,
-    error: combinedError,
+    isLoading,
+    error,
+    refetch
   };
 };

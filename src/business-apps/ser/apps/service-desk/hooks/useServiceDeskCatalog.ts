@@ -74,10 +74,18 @@ export const useServiceDeskCatalog = ({
     try {
       setIsLoading(true);
       setError(null);
+      
+      console.log('[useServiceDeskCatalog] Starting fetch with:', {
+        hasAccessToken: !!accessToken,
+        hasUserInfo: !!userInfo,
+        endpoint: 'GraphQL endpoint should be logged by GraphQLClient'
+      });
 
       const response = await graphqlClient.request<{ Catalog: ServiceDeskCatalog[] }>(
         GET_SERVICE_DESK_CATALOG
       );
+      
+      console.log('[useServiceDeskCatalog] GraphQL response received:', response);
 
       const catalogs = response?.Catalog || [];
       if (catalogs.length > 0) {
@@ -85,7 +93,7 @@ export const useServiceDeskCatalog = ({
         setCatalog(serviceDeskCatalog);
         
         // Sort catalog entries by additionalValue1 (display order) then by code
-        const sortedEntries = (serviceDeskCatalog.catalogEntries || []).sort((a, b) => {
+        const sortedEntries = (serviceDeskCatalog.catalogEntries || []).sort((a: ServiceDeskCatalogEntry, b: ServiceDeskCatalogEntry) => {
           // Parse additionalValue1 as numbers for proper sorting
           const orderA = a.additionalValue1 ? parseInt(a.additionalValue1, 10) : 999;
           const orderB = b.additionalValue1 ? parseInt(b.additionalValue1, 10) : 999;
@@ -118,8 +126,14 @@ export const useServiceDeskCatalog = ({
         setCatalogEntries([]);
       }
     } catch (err) {
-      console.error('Failed to fetch Service Desk Catalog:', err);
-      setError(err instanceof Error ? err.message : 'Unknown error');
+      console.error('[useServiceDeskCatalog] Failed to fetch Service Desk Catalog:', err);
+      console.error('[useServiceDeskCatalog] Error details:', {
+        name: err instanceof Error ? err.name : 'Unknown',
+        message: err instanceof Error ? err.message : String(err),
+        stack: err instanceof Error ? err.stack : undefined
+      });
+      
+      setError(err instanceof Error ? err.message : 'Failed to fetch');
       setCatalog(null);
       setCatalogEntries([]);
     } finally {
