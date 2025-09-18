@@ -1861,7 +1861,7 @@ export class ConductorWorkflowEngineAdapter implements WorkflowEngine {
     let assignedToUserId: string | undefined;
     let claimedByUserId: string | undefined;
     
-    console.log(`[ConductorAdapter] 🎯 Converting task ${taskId}: assignmentStatus='${assignmentStatus}', assignedTo='${assignedToUser}'`);
+    console.log(`[ConductorAdapter] 🎯 Converting task ${taskId}: assignmentStatus='${assignmentStatus}', assignedTo='${assignedToUser}', urgency_level='${task.urgency_level}'`);
     
     if (assignedToUser) {
       if (assignmentStatus === 'ASSIGNED') {
@@ -1910,12 +1910,13 @@ export class ConductorWorkflowEngineAdapter implements WorkflowEngine {
         canComment: task.availableActions.canComment !== false // Default to true
       } : undefined,
       
-      // ✅ PRESERVE form, inputs, links, and assignment from custom-flow-engine response
+      // ✅ PRESERVE form, inputs, links, assignment, and urgency_level from custom-flow-engine response
       ...(task.form && { form: task.form }),
       ...(task.inputs && { inputs: task.inputs }),
       ...(task.links && { links: task.links }),
       ...(task.assignment && { assignment: task.assignment }),
-    } as StepInstance & { form?: any[]; inputs?: any[]; links?: any[]; assignment?: any };
+      ...(task.urgency_level && { urgency_level: task.urgency_level }),
+    } as StepInstance & { form?: any[]; inputs?: any[]; links?: any[]; assignment?: any; urgency_level?: string };
   }
 
   /**

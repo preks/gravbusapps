@@ -57,17 +57,13 @@ const PRIORITY_OPTIONS = [
   { value: 'low', label: 'Low', color: '#52c41a' },
 ];
 
-// Get random priority for stub
-const getRandomPriority = () => {
-  const priorities = ['critical', 'high', 'medium', 'low'];
-  return priorities[Math.floor(Math.random() * priorities.length)];
-};
+// Priority options remain for mapping urgency levels to display labels
 
 // Calculate SLA due date based on ticket data
 const calculateSLADue = (ticket: StepInstance): Date | null => {
   if (!ticket.startedAt) return null;
   
-  // Default SLA hours based on priority (stub logic)
+  // Default SLA hours based on urgency level from API
   const slaHours = {
     critical: 4,
     high: 8,
@@ -75,8 +71,9 @@ const calculateSLADue = (ticket: StepInstance): Date | null => {
     low: 72
   };
   
-  const priority = getRandomPriority();
-  const hours = slaHours[priority as keyof typeof slaHours] || 24;
+  // Use actual urgency_level from API response instead of random generation
+  const urgencyLevel = (ticket as any).urgency_level || 'medium';
+  const hours = slaHours[urgencyLevel as keyof typeof slaHours] || 24;
   
   const startDate = new Date(ticket.startedAt);
   const dueDate = new Date(startDate.getTime() + (hours * 60 * 60 * 1000));
@@ -131,7 +128,8 @@ export const DeskQueue: React.FC<DeskQueueProps> = ({
         requesterId: ticket.requesterId,
         flowInitiatedBy: ticket.flowInitiatedBy,
         requesterName: ticket.requesterName,
-        hasRequesterName: !!(ticket.requesterName && ticket.requesterName.trim().length > 0)
+        hasRequesterName: !!(ticket.requesterName && ticket.requesterName.trim().length > 0),
+        urgency_level: (ticket as any).urgency_level // Debug urgency_level
       })));
     } else {
       console.log(`[ConductorAdapterRequester] ❌ No tickets received or tickets is empty`);
@@ -379,21 +377,22 @@ export const DeskQueue: React.FC<DeskQueueProps> = ({
       ),
     },
     {
-      title: getTranslationFromI18nKeyAndLabel('services.queue.columns.priority', 'Priority'),
-      key: 'priority',
+      title: getTranslationFromI18nKeyAndLabel('services.queue.columns.urgency', 'Urgency'),
+      key: 'urgency',
       width: 90,
       render: (_: unknown, record: StepInstance) => {
-        const priority = getRandomPriority();
-        const priorityOption = PRIORITY_OPTIONS.find(p => p.value === priority);
-        const variant = priority === 'critical' || priority === 'high' ? 'destructive' : 
-                       priority === 'medium' ? 'default' : 'secondary';
+        // Use actual urgency_level from API response instead of random generation
+        const urgencyLevel = (record as any).urgency_level || 'medium'; // Default to medium if not provided
+        const priorityOption = PRIORITY_OPTIONS.find(p => p.value === urgencyLevel);
+        const variant = urgencyLevel === 'critical' || urgencyLevel === 'high' ? 'destructive' : 
+                       urgencyLevel === 'medium' ? 'default' : 'secondary';
         return (
           <Badge 
             variant={variant}
             className="gba:text-xs"
-            data-testid={`priority-${record.id}`}
+            data-testid={`urgency-${record.id}`}
           >
-            {priorityOption?.label}
+            {priorityOption?.label || urgencyLevel.charAt(0).toUpperCase() + urgencyLevel.slice(1)}
           </Badge>
         );
       },
