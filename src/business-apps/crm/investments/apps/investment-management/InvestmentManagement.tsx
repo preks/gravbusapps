@@ -10,7 +10,7 @@ import { BusinessAppContextProps } from "@/common/BusinessAppContext";
 import { getTranslationFromI18nKeyAndLabel } from "@/common/utils/windowUtils";
 import DivestmentView from "./views/divestment-view/DivestmentView";
 import { InvestmentView } from "./views/investment-view";
-import { navigateTo } from "@/common/utils/navigationUtils";
+import { navigateTo, buildPlatformUrl } from "@/common/utils/navigationUtils";
 import DashboardView from "./views/dashboard-view/DashboardView";
 import { AnalyticsView } from "./views/analytics-view";
 import { ReportView } from "./views/report-view";
@@ -93,17 +93,36 @@ export const InvestmentManagement: React.FC<InvestmentManagementProps> = (
     updateUrl("investments", targetSubTab);
   };
 
-  // Update URL when view changes
+  // Update URL when view changes using platform navigation utilities
   const updateUrl = (view: string, subView?: string) => {
-    const urlParams = new URLSearchParams(window.location.search);
-    urlParams.set("view", view);
-    if (view === "investments" && subView) {
-      urlParams.set("subView", subView);
-    } else if (urlParams.has("subView")) {
-      urlParams.delete("subView");
+    try {
+      const currentUrl = new URL(window.location.href);
+      const params: Record<string, string> = {};
+      
+      // Preserve existing query parameters
+      currentUrl.searchParams.forEach((value, key) => {
+        params[key] = value;
+      });
+      
+      // Update view and subView parameters
+      params.view = view;
+      if (view === "investments" && subView) {
+        params.subView = subView;
+      } else if (params.subView) {
+        delete params.subView;
+      }
+      
+      // Use platform URL builder for safe navigation
+      const newUrl = buildPlatformUrl(currentUrl.pathname, params);
+      
+      // Use safe history manipulation
+      if (window.history && window.history.replaceState) {
+        window.history.replaceState({}, "", newUrl);
+      }
+    } catch (error) {
+      console.warn('Failed to update URL:', error);
+      // Fallback: just update the state without URL manipulation
     }
-    const newUrl = `${window.location.pathname}?${urlParams.toString()}`;
-    window.history.replaceState({}, "", newUrl);
   };
 
   const handleViewChange = (key: string) => {

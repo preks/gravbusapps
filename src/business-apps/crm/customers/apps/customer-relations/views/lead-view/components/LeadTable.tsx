@@ -496,12 +496,13 @@ export const LeadTable: React.FC<LeadTableProps> = ({
                         />
                         <div className="gba:flex gba:flex-col gba:gap-1">
                           {(() => {
+                            const firstAddress = record.addresses?.[0];
                             const address = formatAddress({
-                              addressLine: (record as any).addressLine,
-                              locality: record.city,
-                              postalCode: record.postalCode,
-                              region: record.region?.additionalValue1,
-                              country: record.country?.value,
+                              addressLine: firstAddress?.addressLine,
+                              locality: firstAddress?.city,
+                              postalCode: firstAddress?.postalCode,
+                              region: firstAddress?.region?.additionalValue1,
+                              country: firstAddress?.country?.value,
                             });
                             if (!address)
                               return (

@@ -88,7 +88,20 @@ export interface OpportunityResponse {
       type: string;
       code: string;
     };
-    addressLine: string;
+    addresses?: Array<{
+      addressLine?: any;
+      city?: string;
+      country?: {
+        id: string;
+        value: string;
+        code: string;
+      };
+      region?: {
+        id: string;
+        value: string;
+        code: string;
+      };
+    }>;
     foundationDate: string;
     annualRevenue: {
       id: string;
@@ -177,7 +190,20 @@ export const GET_OPPORTUNITY_BY_ID = `
           type
           code
         }
-        addressLine
+        addresses {
+          addressLine
+          city
+          country {
+            id
+            value
+            code
+          }
+          region {
+            id
+            value
+            code
+          }
+        }
         foundationDate
         annualRevenue {
           id

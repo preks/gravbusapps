@@ -5,6 +5,7 @@ import type { Stage, StageCondition } from '@/components/stage-progression';
 import { FlowContextName } from '@/common/types/FlowRegistryTypes';
 import { CheckCircleFilled, CloseCircleFilled } from '@ant-design/icons';
 import { AppActionMenu } from '@/components/app-action-menu/AppActionMenu';
+import { isOpportunityOpen } from '../utils/opportunityStatusUtils';
 
 // Tooltip content component for opportunity stage conditions
 const OpportunityStageTooltipContent: React.FC<{ 
@@ -155,6 +156,8 @@ interface OpportunityStageProgressionProps {
   accessToken: string;
   opportunityVersion?: number;
   onStageUpdate?: () => void;
+  readonly?: boolean;
+  opportunityStatus?: string; // Add opportunity status to control tooltip behavior
 }
 
 export const OpportunityStageProgression: React.FC<OpportunityStageProgressionProps> = ({
@@ -163,14 +166,24 @@ export const OpportunityStageProgression: React.FC<OpportunityStageProgressionPr
   opportunityId,
   stageConditionStatuses,
   accessToken,
-  onStageUpdate: _onStageUpdate = () => {}
+  onStageUpdate: _onStageUpdate = () => {},
+  readonly = false,
+  opportunityStatus
 }) => {
   // State for hover-based tooltip
   const [hoveredStageId, setHoveredStageId] = useState<string | null>(null);
   const [tooltipPosition, setTooltipPosition] = useState<{ x: number; y: number; width: number } | null>(null);
 
+  // Check if tooltips should be enabled (only when opportunity is open)
+  const tooltipsEnabled = isOpportunityOpen(opportunityStatus);
+
   // Handle tooltip hover using AppActionMenu hover handlers
   const handleTooltipMouseEnter = useCallback((stageId: string, event: React.MouseEvent) => {
+    // Only show tooltip if opportunity is open
+    if (!tooltipsEnabled) {
+      return;
+    }
+    
     const rect = event.currentTarget.getBoundingClientRect();
     setHoveredStageId(stageId);
     setTooltipPosition({
@@ -178,7 +191,7 @@ export const OpportunityStageProgression: React.FC<OpportunityStageProgressionPr
       y: rect.bottom + 10, // Show below the stage
       width: rect.width // Store the stage width
     });
-  }, []);
+  }, [tooltipsEnabled]);
 
   const handleTooltipMouseLeave = useCallback(() => {
     setHoveredStageId(null);
@@ -203,6 +216,8 @@ export const OpportunityStageProgression: React.FC<OpportunityStageProgressionPr
     
     convertToStageFormat(stages).forEach(stage => {
       const isCurrentStage = stage.code === currentStage;
+      const isDisabled = readonly && !isCurrentStage;
+      
       props[stage.id] = {
         mouseHandlers: {
           onMouseEnter: (e: React.MouseEvent<HTMLDivElement>) => handleTooltipMouseEnter(stage.id, e),
@@ -212,12 +227,12 @@ export const OpportunityStageProgression: React.FC<OpportunityStageProgressionPr
           opportunityId: opportunityId,
           targetStageRef: stage.id
         },
-        contextsArray: isCurrentStage ? emptyContextsArray : transitionContextsArray
+        contextsArray: (isCurrentStage || isDisabled) ? emptyContextsArray : transitionContextsArray
       };
     });
     
     return props;
-  }, [stages, currentStage, opportunityId, handleTooltipMouseEnter, handleTooltipMouseLeave, emptyContextsArray, transitionContextsArray]);
+  }, [stages, currentStage, opportunityId, handleTooltipMouseEnter, handleTooltipMouseLeave, emptyContextsArray, transitionContextsArray, readonly]);
 
   if (!stages || stages.length === 0) {
     return null;
@@ -275,8 +290,8 @@ export const OpportunityStageProgression: React.FC<OpportunityStageProgressionPr
         }}
       </StageProgression>
 
-      {/* Custom Tooltip Overlay */}
-      {hoveredStageId && tooltipPosition && (() => {
+      {/* Custom Tooltip Overlay - only show if tooltips are enabled */}
+      {tooltipsEnabled && hoveredStageId && tooltipPosition && (() => {
         const hoveredStage = convertToStageFormat(stages).find(s => s.id === hoveredStageId);
         if (!hoveredStage) return null;
 

@@ -148,6 +148,7 @@ export const DataController: React.FC<Readonly<DataControllerProps>> = ({
     if (debouncedSearch !== search) {
       setSearch(debouncedSearch);
     }
+    
   }, [debouncedSearch, search, setSearch]);
 
   // Simple handler for input changes - updates local state immediately

@@ -58,8 +58,7 @@ const OpportunityFormComponent: React.FC = () => {
         accountId: toStringOrUndefined(formValues.accountId), // Account ID from selected company
         salesCampaign: toStringOrUndefined(formValues.salesCampaignId), // Campaign ID for backend
         opportunityStatusRef: toStringOrUndefined(formValues.opportunityStatus),
-        pipelineRef: toStringOrUndefined(formValues.pipeline),
-        salesPipelineRef: toStringOrUndefined(formValues.pipeline), // Same as pipelineRef
+        salesPipelineRef: toStringOrUndefined(formValues.pipeline), // Use salesPipelineRef instead of deprecated pipelineRef
         salesPipelineStageRef: toStringOrUndefined(
           formValues.salesPipelineStage
         ),

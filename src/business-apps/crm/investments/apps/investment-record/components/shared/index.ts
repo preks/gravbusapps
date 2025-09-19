@@ -1,9 +1,12 @@
 // Shared Investment Record Components
-// Note: PlannedExitFlag and StatusPill are now imported directly to reduce coupling
-export { default as CompanyInformation } from './CompanyInformation';
-export { default as ContactDetails } from './ContactDetails';
-export { default as UploadReportButton } from './UploadReportButton';
+// Consolidated and cleaned up for better maintainability
+// Note: CompanyInformation and ContactDetails replaced with standard AccountSection and ContactSection
 export { default as InvestmentHomeTab } from './InvestmentHomeTab';
-// InvestmentDocuments removed - now using central DocumentSection and NoteSection
 export { default as InvestmentTileSection } from './InvestmentTileSection';
-export { GenerateOnePagerButton } from './GenerateOnePagerButton';
+export { default as InvestmentReportsTab } from './InvestmentReportsTab';
+
+// Consolidated action buttons
+export { GenerateOnePagerButton, UploadReportButton } from './InvestmentActionButtons';
+
+// Note: Group-specific components moved to ../group-specific/ directory
+// Import them directly from there: EquityInvestmentRounds, RealEstateLiquidityForecast

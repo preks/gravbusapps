@@ -44,7 +44,12 @@ export interface Account {
     code: string;
   };
   numberOfEmployeesRef: string;
-  addressLine: string;
+  addresses?: Array<{
+    addressLine?: string;
+    city?: string;
+    region?: { id: string; value: string; code: string };
+    country?: { id: string; value: string; code: string };
+  }>;
   foundationDate: string;
   annualRevenueRef: string;
   annualRevenue: {
@@ -215,17 +220,4 @@ export interface OpportunityMetrics {
   pipelineVelocity: number;
 }
 
-// Default export for wrapper compatibility
-export default {
-  Note,
-  OpportunityStage,
-  Contact,
-  Account,
-  Opportunity,
-  OpportunityActivity,
-  OpportunityTask,
-  Competitor,
-  OpportunityProduct,
-  ReferenceData,
-  OpportunityMetrics,
-}; 
+// No default export; types are exported by name only 
