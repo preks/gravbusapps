@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState } from 'react';
 import {
   Table,
   TableBody,
@@ -11,29 +11,34 @@ import {
   AlertDescription,
   Button,
   PageLayout,
-} from "@newwork/nw-design-system";
-import { PiMagnifyingGlass, PiArrowLeft, PiClipboardText } from "react-icons/pi";
-import { BusinessAppContextProps } from "@/common/BusinessAppContext";
-import { ApprovalRequest, useGetApprovals } from "../../hooks/useGetApprovals";
+} from '@newwork/nw-design-system';
+import { PiMagnifyingGlass, PiArrowLeft } from 'react-icons/pi';
+import { BusinessAppContextProps } from '@/common/BusinessAppContext';
+import { ApprovalRequest } from '../../types';
+import { useFlowExecutionTasks } from '../../hooks/useFlowExecutionTasks';
+import { mapFlowTasksToApprovalRequests } from '../../utils/flowTaskMapper';
+import { validateTaskSelection } from '../../utils/taskValidation';
 import {
   getTranslationFromI18nKeyAndLabel,
   getCurrentActiveUserLocale,
-} from "@/common/utils/windowUtils";
-import { formatCurrencyDisplay } from "../../../personal-expenses/utils";
-import { getExpenseRequestStatusDisplay } from "../../utils";
-import Pill from "@/components/pill";
+} from '@/common/utils/windowUtils';
+import { formatCurrencyDisplay } from '../../../personal-expenses/utils';
+import { getExpenseRequestStatusDisplay } from '../../utils';
+import Pill from '@/components/pill';
 
 interface ApprovalsPageProps extends BusinessAppContextProps {
   onNavigateBack: () => void;
 }
 
-const DATA_TEST_ID_PREFIX = "approvals-page";
+const DATA_TEST_ID_PREFIX = 'approvals-page';
 
 const ApprovalsPage: React.FC<ApprovalsPageProps> = ({ onNavigateBack, ...props }) => {
   const [isSearchExpanded, setIsSearchExpanded] = useState(false);
+  const [selectedTasks, setSelectedTasks] = useState<ApprovalRequest[]>([]);
+  const [validationError, setValidationError] = useState<string | null>(null);
 
   const {
-    approvalRequests,
+    tasks,
     searchTerm,
     setSearchTerm,
     pageSize,
@@ -43,7 +48,10 @@ const ApprovalsPage: React.FC<ApprovalsPageProps> = ({ onNavigateBack, ...props 
     setCurrentPage,
     isLoading,
     error,
-  } = useGetApprovals(props);
+  } = useFlowExecutionTasks(props);
+
+  // Map flow execution tasks to approval requests for UI compatibility
+  const approvalRequests = mapFlowTasksToApprovalRequests(tasks);
 
   const handleSearchClick = () => {
     setIsSearchExpanded(true);
@@ -57,17 +65,41 @@ const ApprovalsPage: React.FC<ApprovalsPageProps> = ({ onNavigateBack, ...props 
 
   const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setSearchTerm(e.target.value);
-    setCurrentPage(1); // Reset to first page when searching
+    setCurrentPage(1);
   };
 
   const handlePageSizeChange = (newPageSize: number) => {
     setPageSize(newPageSize);
-    setCurrentPage(1); // Reset to first page when changing page size
+    setCurrentPage(1);
+  };
+
+  const handleTaskSelection = (task: ApprovalRequest) => {
+    setValidationError(null);
+
+    const isAlreadySelected = selectedTasks.some((selected) => selected.id === task.id);
+
+    if (isAlreadySelected) {
+      setSelectedTasks((prev) => prev.filter((selected) => selected.id !== task.id));
+      return;
+    }
+
+    const validation = validateTaskSelection(selectedTasks, task);
+
+    if (!validation.isValid) {
+      setValidationError(validation.errorMessage || 'Invalid task selection');
+      return;
+    }
+
+    setSelectedTasks((prev) => [...prev, task]);
+  };
+
+  const handleClearSelection = () => {
+    setSelectedTasks([]);
+    setValidationError(null);
   };
 
   return (
     <div data-testid="approvals-page-container">
-      {/* Back Button Above Everything */}
       <div className="gba:px-6 gba:pt-6 gba:pb-0">
         <button
           onClick={onNavigateBack}
@@ -77,8 +109,8 @@ const ApprovalsPage: React.FC<ApprovalsPageProps> = ({ onNavigateBack, ...props 
           <PiArrowLeft className="gba:mr-2" />
           <span>
             {getTranslationFromI18nKeyAndLabel(
-              "lowcoder:team_expenses_page.dashboard_tab.back_to_btn",
-              "Back to Dashboard",
+              'lowcoder:team_expenses_page.dashboard_tab.back_to_btn',
+              'Back to Dashboard',
             )}
           </span>
         </button>
@@ -86,14 +118,13 @@ const ApprovalsPage: React.FC<ApprovalsPageProps> = ({ onNavigateBack, ...props 
 
       <PageLayout
         headerTitle={getTranslationFromI18nKeyAndLabel(
-          "lowcoder:team_expenses_page.dashboard_tab.pending_approvals",
-          "Pending Approvals",
+          'lowcoder:team_expenses_page.dashboard_tab.pending_approvals',
+          'Pending Approvals',
         )}
         headerDescription={getTranslationFromI18nKeyAndLabel(
-          "lowcoder:team_expenses_page.dashboard_tab.review_subheader",
-          "Review and process pending expense approval requests from your team",
+          'lowcoder:team_expenses_page.dashboard_tab.review_subheader',
+          'Review and process pending expense approval requests from your team',
         )}
-        headerIcon={PiClipboardText}
         className="gba:min-h-screen"
       >
         <div className="gba:px-6" data-testid="approvals-page">
@@ -101,6 +132,14 @@ const ApprovalsPage: React.FC<ApprovalsPageProps> = ({ onNavigateBack, ...props 
             <Alert className="gba:mb-4" data-testid="approvals-error-alert">
               <AlertDescription>
                 <strong>Error:</strong> {error}
+              </AlertDescription>
+            </Alert>
+          )}
+
+          {validationError && (
+            <Alert className="gba:mb-4" data-testid="validation-error-alert">
+              <AlertDescription>
+                <strong>Selection Error:</strong> {validationError}
               </AlertDescription>
             </Alert>
           )}
@@ -120,9 +159,8 @@ const ApprovalsPage: React.FC<ApprovalsPageProps> = ({ onNavigateBack, ...props 
             </div>
           ) : (
             <div data-testid={`${DATA_TEST_ID_PREFIX}-container`}>
-              {/* Search Bar - Collapsible like expense plans */}
               <div className="gba:mb-4 gba:flex gba:justify-between gba:items-center">
-                <div className="gba:flex gba:items-center">
+                <div className="gba:flex gba:items-center gba:gap-4">
                   {!isSearchExpanded ? (
                     <Button
                       variant="ghost"
@@ -138,8 +176,8 @@ const ApprovalsPage: React.FC<ApprovalsPageProps> = ({ onNavigateBack, ...props 
                       <PiMagnifyingGlass className="gba:absolute gba:left-3 gba:top-1/2 gba:transform gba:-translate-y-1/2 gba:text-muted-foreground gba:text-sm" />
                       <input
                         placeholder={getTranslationFromI18nKeyAndLabel(
-                          "lowcoder:team_expenses_page.dashboard_tab.pending_approvals",
-                          "Search approvals...",
+                          'lowcoder:team_expenses_page.dashboard_tab.pending_approvals',
+                          'Search approvals...',
                         )}
                         onChange={handleSearchChange}
                         onBlur={handleSearchBlur}
@@ -150,36 +188,73 @@ const ApprovalsPage: React.FC<ApprovalsPageProps> = ({ onNavigateBack, ...props 
                       />
                     </div>
                   )}
+
+                  {selectedTasks.length > 0 && (
+                    <div className="gba:flex gba:items-center gba:gap-2">
+                      <span className="gba:text-sm gba:text-gray-600">
+                        {selectedTasks.length} selected
+                      </span>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={handleClearSelection}
+                        data-testid="clear-selection-button"
+                      >
+                        Clear Selection
+                      </Button>
+                    </div>
+                  )}
                 </div>
               </div>
 
-              {/* Table with horizontal scrolling - exactly like expense plans */}
               <div className="gba:overflow-x-auto">
                 <Table data-testid={`${DATA_TEST_ID_PREFIX}-table`}>
                   <TableHeader>
                     <TableRow>
+                      <TableHead className="gba:w-[5%]">
+                        <input
+                          type="checkbox"
+                          checked={
+                            selectedTasks.length > 0 &&
+                            selectedTasks.length === approvalRequests.length
+                          }
+                          onChange={(e) => {
+                            if (e.target.checked) {
+                              if (selectedTasks.length > 0) {
+                                const firstTaskGroup = selectedTasks[0].taskGroup;
+                                const sameTypeTasks = approvalRequests.filter(
+                                  (task) => task.taskGroup === firstTaskGroup,
+                                );
+                                setSelectedTasks(sameTypeTasks);
+                              } else {
+                                setSelectedTasks(approvalRequests);
+                              }
+                            } else {
+                              setSelectedTasks([]);
+                            }
+                          }}
+                          data-testid="select-all-checkbox"
+                        />
+                      </TableHead>
                       <TableHead className="gba:w-[15%]">
                         {getTranslationFromI18nKeyAndLabel(
-                          "lowcoder:expense_request_list.expense_plan_table.date",
-                          "Date",
+                          'lowcoder:expense_request_list.expense_plan_table.date',
+                          'Date',
                         )}
                       </TableHead>
-                      <TableHead className="gba:w-[35%]">
+                      <TableHead className="gba:w-[20%]">
                         {getTranslationFromI18nKeyAndLabel(
-                          "lowcoder:employee_landing_page.request",
-                          "Request",
+                          'lowcoder:employee_landing_page.request',
+                          'Title',
                         )}
                       </TableHead>
-                      <TableHead className="gba:w-[20%] gba:text-right">
+                      <TableHead className="gba:w-[20%]">Task Group</TableHead>
+
+                      <TableHead className="gba:w-[15%]">Employee</TableHead>
+                      <TableHead className="gba:w-[10%]">
                         {getTranslationFromI18nKeyAndLabel(
-                          "lowcoder:expense_request_list.expense_plan_table.amount",
-                          "Amount",
-                        )}
-                      </TableHead>
-                      <TableHead className="gba:w-[15%]">
-                        {getTranslationFromI18nKeyAndLabel(
-                          "lowcoder:expense_request_list.expense_plan_table.status",
-                          "Status",
+                          'lowcoder:expense_request_list.expense_plan_table.status',
+                          'Status',
                         )}
                       </TableHead>
                     </TableRow>
@@ -191,40 +266,49 @@ const ApprovalsPage: React.FC<ApprovalsPageProps> = ({ onNavigateBack, ...props 
                         data-testid={`${DATA_TEST_ID_PREFIX}-row-${request.id}`}
                         className="gba:cursor-pointer gba:hover:bg-gray-50"
                       >
+                        <TableCell>
+                          <input
+                            type="checkbox"
+                            checked={selectedTasks.some((selected) => selected.id === request.id)}
+                            onChange={() => handleTaskSelection(request)}
+                            data-testid={`task-checkbox-${request.id}`}
+                          />
+                        </TableCell>
                         <TableCell data-testid="approval-date" className="gba:text-sm">
                           {request.createdAt
                             ? (() => {
                                 try {
                                   const date = new Date(request.createdAt);
                                   const userLocale = getCurrentActiveUserLocale();
-                                  return date.toLocaleDateString(userLocale, {
-                                    month: "2-digit",
-                                    day: "2-digit",
-                                    year: "2-digit",
-                                  });
+                                  return (
+                                    date.toLocaleDateString(userLocale, {
+                                      month: '2-digit',
+                                      day: '2-digit',
+                                      year: '2-digit',
+                                    }) +
+                                    ' ' +
+                                    date.toLocaleTimeString(userLocale, {
+                                      hour: '2-digit',
+                                      minute: '2-digit',
+                                    })
+                                  );
                                 } catch (error) {
-                                  return "N/A";
+                                  return 'N/A';
                                 }
                               })()
-                            : "N/A"}
+                            : 'N/A'}
                         </TableCell>
                         <TableCell>
-                          <div>
-                            <div className="gba:font-medium gba:text-sm">{request.title}</div>
-                            <div className="gba:text-xs gba:text-gray-500">
-                              {request.employee.firstName} {request.employee.lastName}
-                            </div>
-                          </div>
+                          <div className="gba:font-medium gba:text-sm">{request.title}</div>
                         </TableCell>
-                        <TableCell className="gba:text-right">
-                          <span className="gba:font-medium gba:text-sm">
-                            {formatCurrencyDisplay(
-                              request.totalAmount !== undefined && request.totalAmount !== null
-                                ? request.totalAmount
-                                : 0,
-                              "EUR",
-                            )}
-                          </span>
+                        <TableCell>
+                          <span className="gba:text-sm">{request.taskGroup}</span>
+                        </TableCell>
+
+                        <TableCell>
+                          <div className="gba:text-sm">
+                            {request.employee.firstName} {request.employee.lastName}
+                          </div>
                         </TableCell>
                         <TableCell>
                           {(() => {
@@ -244,7 +328,6 @@ const ApprovalsPage: React.FC<ApprovalsPageProps> = ({ onNavigateBack, ...props 
                 </Table>
               </div>
 
-              {/* Pagination - Exactly like expense plans */}
               {totalCount > 0 && (
                 <div
                   className="gba:flex gba:items-center gba:justify-between gba:px-2 gba:py-4 gba:border-t gba:border-gray-200"
@@ -255,19 +338,19 @@ const ApprovalsPage: React.FC<ApprovalsPageProps> = ({ onNavigateBack, ...props 
                     data-testid={`${DATA_TEST_ID_PREFIX}-pagination-info`}
                   >
                     {`${(currentPage - 1) * pageSize + 1}-${Math.min(currentPage * pageSize, totalCount)} ${getTranslationFromI18nKeyAndLabel(
-                      "lowcoder:personal_expenses.of",
-                      "of",
+                      'lowcoder:personal_expenses.of',
+                      'of',
                     )} ${totalCount} ${getTranslationFromI18nKeyAndLabel(
-                      "lowcoder:team_expenses_page.dashboard_tab.approval_requests_footer",
-                      "approval requests",
+                      'lowcoder:team_expenses_page.dashboard_tab.approval_requests_footer',
+                      'approval requests',
                     )}`}
                   </div>
                   <div className="gba:flex gba:items-center gba:space-x-6 gba:lg:space-x-8">
                     <div className="gba:flex gba:items-center gba:space-x-2">
                       <p className="gba:text-sm gba:font-medium">
                         {getTranslationFromI18nKeyAndLabel(
-                          "lowcoder:personal_expenses.rows_per_page",
-                          "Rows per page",
+                          'lowcoder:personal_expenses.rows_per_page',
+                          'Rows per page',
                         )}
                       </p>
                       <select
@@ -289,9 +372,9 @@ const ApprovalsPage: React.FC<ApprovalsPageProps> = ({ onNavigateBack, ...props 
                       className="gba:flex gba:w-[100px] gba:items-center gba:justify-center gba:text-sm gba:font-medium"
                       data-testid={`${DATA_TEST_ID_PREFIX}-page-info`}
                     >
-                      {getTranslationFromI18nKeyAndLabel("lowcoder:personal_expenses.page", "Page")}{" "}
-                      {currentPage}{" "}
-                      {getTranslationFromI18nKeyAndLabel("lowcoder:personal_expenses.of", "of")}{" "}
+                      {getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.page', 'Page')}{' '}
+                      {currentPage}{' '}
+                      {getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.of', 'of')}{' '}
                       {Math.ceil(totalCount / pageSize)}
                     </div>
                     <div className="gba:flex gba:items-center gba:space-x-2">
