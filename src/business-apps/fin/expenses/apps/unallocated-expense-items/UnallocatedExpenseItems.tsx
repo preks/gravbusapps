@@ -1,10 +1,10 @@
-import React, { useCallback, useEffect, useMemo } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef } from 'react';
 import { PageLayout, Button, Spinner } from '@newwork/nw-design-system';
 import { PiArrowLeft } from 'react-icons/pi';
 import { WalletIcon } from '@phosphor-icons/react';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
-import ExpenseItemsTable from '../personal-expenses/components/tabs/expense-items-tab/ExpenseItemsTable';
+import UnallocatedExpenseItemsTable from './UnallocatedExpenseItemsTable';
 import { useExpenseItemsFilters } from '../personal-expenses/hooks/useExpenseItemsFilters';
 import { startProcess } from '@/common/utils/start-process';
 import { buildPlatformUrl, navigateTo } from '@/common/utils/navigationUtils';
@@ -41,15 +41,20 @@ const UnallocatedExpenseItems: React.FC<UnallocatedExpenseItemsProps> = ({ acces
     amountRange,
   } = useExpenseItemsFilters(availableStatuses);
 
-  // Enforce CREATED on initial load, also respect URL param (status=CREATED)
+  // Apply default status only once on initial mount; allow user to clear/uncheck afterwards
+  const defaultStatusAppliedRef = useRef(false);
   useEffect(() => {
+    if (defaultStatusAppliedRef.current) return;
     const urlParams = new URLSearchParams(window.location.search);
     const statusParam = (urlParams.get('status') || '').toUpperCase();
     const shouldForceCreated = !statusParam || statusParam === 'CREATED';
-    if (shouldForceCreated && !selectedFilters.includes('created')) {
+    if (shouldForceCreated) {
       setFilters(['created']);
+    } else if (statusParam) {
+      setFilters([statusParam.toLowerCase()]);
     }
-  }, [selectedFilters, setFilters]);
+    defaultStatusAppliedRef.current = true;
+  }, [setFilters]);
  
   const handleAddExpenseItem = useCallback(() => {
     const employeeId = userInfo?.employeeDetails?.employeeId;
@@ -95,7 +100,7 @@ const UnallocatedExpenseItems: React.FC<UnallocatedExpenseItemsProps> = ({ acces
         variant="default"
       >
        
-        <ExpenseItemsTable
+        <UnallocatedExpenseItemsTable
           accessToken={accessToken}
           userInfo={userInfo}
           additionalData={additionalData}
