@@ -3,11 +3,12 @@ import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
 import { useFeature } from '@/common/hooks/useFeature';
 import type { StepReceiver } from 'packages/services-plus-core';
-import { Dashboard } from './components/Dashboard';
+import { Dashboard } from './components/dashboard';
 import { Tickets } from './components/Tickets';
 import { TemplatesTab } from './components/TemplatesTab';
 import { Analytics } from './components/Analytics';
 import { TaskRecord } from './components/TaskRecord';
+import { ServiceDeskCatalogDiagnostic } from './components/ServiceDeskCatalogDiagnostic';
 import { getUserEmployeeId } from '../../utils/userUtils';
 import { PageLayout } from '@newwork/nw-design-system';
 import { 
@@ -15,7 +16,8 @@ import {
   ChartBarIcon,
   TicketIcon,
   FileTextIcon,
-  HouseIcon
+  HouseIcon,
+  BugIcon
 } from '@phosphor-icons/react';
 
 // UI Components
@@ -315,6 +317,13 @@ const ServiceDesk: React.FC<ServiceDeskProps> = ({
             userInfo={userInfo}
           />
         );
+      case 'diagnostic':
+        return (
+          <ServiceDeskCatalogDiagnostic
+            accessToken={accessToken}
+            userInfo={userInfo}
+          />
+        );
       default:
         return (
           <Dashboard
@@ -372,6 +381,14 @@ const ServiceDesk: React.FC<ServiceDeskProps> = ({
                 'Analytics'
               ),
               icon: <ChartBarIcon size={16} />
+            },
+            { 
+              value: 'diagnostic', 
+              label: getTranslationFromI18nKeyAndLabel(
+                'services.desk.submenu.diagnostic',
+                'Diagnostic'
+              ),
+              icon: <BugIcon size={16} />
             },
           ],
           onValueChange: handleSubViewChange,

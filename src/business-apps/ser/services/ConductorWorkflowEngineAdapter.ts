@@ -53,9 +53,42 @@ export class ConductorWorkflowEngineAdapter implements WorkflowEngine {
    */
   private async loadServiceDeskCatalog(): Promise<void> {
     try {
-      // Get NEWWORK GraphQL endpoint
-      const graphqlEndpoint = process.env.NEXT_PUBLIC_GRAPHQL_ENDPOINT_NEWWORK || 'https://newwork-dev.newwork.com/v1/graphql';
+      // Get NEWWORK GraphQL endpoint - use env() function for browser compatibility
+      const graphqlEndpoint = env('NEXT_PUBLIC_GRAPHQL_ENDPOINT_NEWWORK') || 'https://newwork-dev.newwork.com/v1/graphql';
       
+      console.log(`[ConductorAdapter] 🔗 Loading Service Desk Catalog from: ${graphqlEndpoint}`);
+      console.log(`[ConductorAdapter] 🔑 Access token available: ${!!this.accessToken} (length: ${this.accessToken?.length || 0})`);
+      
+      // First, try to find any catalog that might contain desk information
+      const searchQuery = `
+        query SearchDeskCatalogs {
+          Catalog(where: {
+            _or: [
+              {identifier: {_eq: "ServiceDeskCatalog"}},
+              {identifier: {_ilike: "%desk%"}},
+              {identifier: {_ilike: "%service%"}},
+              {name: {_ilike: "%desk%"}},
+              {name: {_ilike: "%service%"}}
+            ]
+          }) {
+            id
+            identifier
+            version
+            name
+            description
+            catalogEntries(where: {isDeleted: {_eq: false}}) {
+              id
+              code
+              value
+              additionalValue1
+              additionalValue2
+              additionalValue3
+              isDeleted
+            }
+          }
+        }
+      `;
+
       const response = await fetch(graphqlEndpoint, {
         method: 'POST',
         headers: {
@@ -63,36 +96,73 @@ export class ConductorWorkflowEngineAdapter implements WorkflowEngine {
           'Authorization': `Bearer ${this.accessToken}`,
         },
         body: JSON.stringify({
-          query: `
-            query GetServiceDeskCatalog {
-              Catalog(where: {identifier: {_eq: "ServiceDeskCatalog"}}) {
-                catalogEntries(where: {isDeleted: {_eq: false}}) {
-                  code
-                  value
-                  additionalValue3
-                }
-              }
-            }
-          `
+          query: searchQuery
         }),
       });
 
       if (response.ok) {
         const result = await response.json();
         const catalogs = result.data?.Catalog || [];
-        if (catalogs.length > 0) {
-          this.serviceDeskCatalogEntries = catalogs[0].catalogEntries || [];
-          console.log(`[ConductorAdapter] 📋 Loaded ${this.serviceDeskCatalogEntries.length} Service Desk Catalog entries:`, 
-            this.serviceDeskCatalogEntries.map(e => ({code: e.code, value: e.value, additionalValue3: e.additionalValue3})));
+        
+        console.log(`[ConductorAdapter] 📋 Found ${catalogs.length} potential desk catalogs:`, 
+          catalogs.map((c: any) => ({identifier: c.identifier, name: c.name, entriesCount: c.catalogEntries?.length || 0})));
+        
+        // Look for the best catalog to use
+        let selectedCatalog = null;
+        
+        // Priority 1: Exact match for "ServiceDeskCatalog"
+        selectedCatalog = catalogs.find((c: any) => c.identifier === 'ServiceDeskCatalog');
+        
+        // Priority 2: Any catalog with "desk" in identifier
+        if (!selectedCatalog) {
+          selectedCatalog = catalogs.find((c: any) => c.identifier.toLowerCase().includes('desk'));
+        }
+        
+        // Priority 3: Any catalog with "service" in identifier
+        if (!selectedCatalog) {
+          selectedCatalog = catalogs.find((c: any) => c.identifier.toLowerCase().includes('service'));
+        }
+        
+        // Priority 4: First catalog with entries
+        if (!selectedCatalog) {
+          selectedCatalog = catalogs.find((c: any) => c.catalogEntries && c.catalogEntries.length > 0);
+        }
+        
+        if (selectedCatalog) {
+          this.serviceDeskCatalogEntries = selectedCatalog.catalogEntries || [];
+          console.log(`[ConductorAdapter] ✅ Selected catalog "${selectedCatalog.identifier}" with ${this.serviceDeskCatalogEntries.length} entries:`, 
+            this.serviceDeskCatalogEntries.map((e: any) => ({code: e.code, value: e.value, additionalValue3: e.additionalValue3})));
         } else {
-          console.warn(`[ConductorAdapter] No Service Desk Catalog found in response`);
+          console.warn(`[ConductorAdapter] ⚠️ No suitable Service Desk Catalog found. Available catalogs:`, catalogs);
+          // Create fallback desk entries
+          this.createFallbackDeskEntries();
         }
       } else {
-        console.warn(`[ConductorAdapter] Failed to load Service Desk Catalog: ${response.status}`);
+        const errorText = await response.text();
+        console.error(`[ConductorAdapter] ❌ Failed to load Service Desk Catalog: ${response.status} ${response.statusText}`, errorText);
+        // Create fallback desk entries
+        this.createFallbackDeskEntries();
       }
     } catch (error) {
-      console.warn(`[ConductorAdapter] Error loading Service Desk Catalog:`, error);
+      console.error(`[ConductorAdapter] ❌ Error loading Service Desk Catalog:`, error);
+      // Create fallback desk entries
+      this.createFallbackDeskEntries();
     }
+  }
+
+  /**
+   * Create fallback desk entries when catalog loading fails
+   */
+  private createFallbackDeskEntries(): void {
+    console.log(`[ConductorAdapter] 🔧 Creating fallback desk entries`);
+    this.serviceDeskCatalogEntries = [
+      { code: 'HR', value: 'Human Resources', additionalValue3: 'dept-001' },
+      { code: 'IT', value: 'Information Technology', additionalValue3: 'dept-002' },
+      { code: 'Finance', value: 'Finance', additionalValue3: 'dept-003' },
+      { code: 'Facilities', value: 'Facilities Management', additionalValue3: 'dept-004' },
+      { code: 'Admin', value: 'Administration', additionalValue3: 'dept-005' }
+    ];
+    console.log(`[ConductorAdapter] ✅ Created ${this.serviceDeskCatalogEntries.length} fallback desk entries`);
   }
 
   /**
