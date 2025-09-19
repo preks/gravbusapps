@@ -21,11 +21,10 @@ import {
   ResponsiveContainer,
   XAxis,
   YAxis,
-  CartesianGrid,
   Tooltip,
   Legend
 } from 'recharts';
-import { TrendingUp, BarChart3, PieChart as PieChartIcon, Activity, Clock, AlertTriangle, Loader2 } from 'lucide-react';
+import { TrendingUp, BarChart3, PieChart as PieChartIcon, Activity, AlertTriangle, Loader2 } from 'lucide-react';
 import { useChartData } from './hooks/useChartData';
 
 /**
@@ -140,7 +139,6 @@ export const ChartsSection: React.FC<ChartsSectionProps> = ({
             <div className="gba:h-[300px]">
               <ResponsiveContainer width="100%" height="100%">
                 <LineChart data={ticketVolumeData}>
-                  <CartesianGrid strokeDasharray="3 3" />
                   <XAxis dataKey="date" />
                   <YAxis />
                   <Tooltip />
@@ -203,7 +201,7 @@ export const ChartsSection: React.FC<ChartsSectionProps> = ({
                     label={({ desk, tickets }) => `${desk}: ${tickets}`}
                   >
                     {deskDistributionData.map((entry, index) => (
-                      <Cell key={`cell-${index}`} fill={entry.fill} />
+                      <Cell key={`cell-${index}`} fill={String(entry.fill)} />
                     ))}
                   </Pie>
                   <Tooltip />
@@ -234,7 +232,6 @@ export const ChartsSection: React.FC<ChartsSectionProps> = ({
             <div className="gba:h-[300px]">
               <ResponsiveContainer width="100%" height="100%">
                 <AreaChart data={resolutionTimeData}>
-                  <CartesianGrid strokeDasharray="3 3" />
                   <XAxis dataKey="week" />
                   <YAxis />
                   <Tooltip />
@@ -282,13 +279,12 @@ export const ChartsSection: React.FC<ChartsSectionProps> = ({
             <div className="gba:h-[300px]">
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={priorityData}>
-                  <CartesianGrid strokeDasharray="3 3" />
                   <XAxis dataKey="priority" />
                   <YAxis />
                   <Tooltip />
                   <Bar dataKey="count" radius={[4, 4, 0, 0]} name="Tickets">
                     {priorityData.map((entry, index) => (
-                      <Cell key={`cell-${index}`} fill={entry.fill} />
+                      <Cell key={`cell-${index}`} fill={String(entry.fill)} />
                     ))}
                   </Bar>
                 </BarChart>
