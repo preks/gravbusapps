@@ -4,8 +4,9 @@ dayjs.extend(quarterOfYear);
 import { useState, useEffect } from 'react';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 import { GET_EXPENSE_DASHBOARD_BY_EMPLOYEE } from '../queries/expenseDashboard';
-import { useGraphqlClient } from '@/common/network/graphql/useGraphQLClient';
-import { getCatalogValue } from '@/common/utils/windowUtils';
+import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient';
+import { buildDashboardVariables } from '../../personal-expenses/utils/dateRanges';
+import { transformDashboardResponse } from '../../personal-expenses/utils/transformExpenseDashboard';
 
 export interface ExpenseDashboard {
   pendingPayouts: number;
@@ -42,9 +43,18 @@ export interface ExpenseDashboard {
   recentActivity: Array<{
     id: string;
     title: string;
+    expenseRequest?: {
+      id: string;
+      title: string;
+      status: string;
+    };
+    expensePlan?: {
+      id: string;
+      title: string;
+      status: string;
+    };
     status: string;
     updatedAt: string;
-    totalAmount: number;
     expenseType?: string;
     expenseDate?: string;
   }>;
@@ -67,7 +77,7 @@ export const useGetExpenseDashboard = (
   const [stats, setStats] = useState<ExpenseDashboard | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [error, setError] = useState<Error | null>(null);
-  const graphqlClient = useGraphqlClient(context?.accessToken ?? '');
+  const graphqlClient = useGraphQLClient(context?.accessToken ?? '');
 
   useEffect(() => {
     const employeeId = context?.userInfo?.employeeDetails?.employeeId;
@@ -86,122 +96,11 @@ export const useGetExpenseDashboard = (
         const selectedCurrency = filters?.currency || 'Currency:v1:EUR';
         const selectedPeriod: 'monthly' | 'quarterly' | 'yearly' = filters?.period || 'monthly';
 
-        const periodStart =
-          selectedPeriod === 'yearly'
-            ? now.startOf('year')
-            : selectedPeriod === 'quarterly'
-            ? now.startOf('quarter')
-            : now.startOf('month');
-        const periodEnd =
-          selectedPeriod === 'yearly'
-            ? now.endOf('year')
-            : selectedPeriod === 'quarterly'
-            ? now.endOf('quarter')
-            : now.endOf('month');
-        const variables = {
-          employeeId,
-          currency: selectedCurrency,
-          currentDate: now.toISOString(),
-          // Align recent activity with selected period
-          currentMonthStart: periodStart.toISOString(),
-          currentMonthEnd: periodEnd.toISOString(),
-          previousMonthStart: now.subtract(1, 'month').startOf('month').toISOString(),
-          previousMonthEnd: now.subtract(1, 'month').endOf('month').toISOString(),
-          currentQuarterStart: now.startOf('quarter').toISOString(),
-          currentQuarterEnd: now.endOf('quarter').toISOString(),
-          previousQuarterStart: now.subtract(1, 'quarter').startOf('quarter').toISOString(),
-          previousQuarterEnd: now.subtract(1, 'quarter').endOf('quarter').toISOString(),
-          currentYearStart: now.startOf('year').toISOString(),
-          currentYearEnd: now.endOf('year').toISOString(),
-          previousYearStart: now.subtract(1, 'year').startOf('year').toISOString(),
-          previousYearEnd: now.subtract(1, 'year').endOf('year').toISOString(),
-          currentMonthStartTz: now.startOf('month').toISOString(),
-          currentMonthEndTz: now.endOf('month').toISOString(),
-          currentQuarterStartTz: now.startOf('quarter').toISOString(),
-          currentQuarterEndTz: now.endOf('quarter').toISOString(),
-          currentYearStartTz: now.startOf('year').toISOString(),
-          currentYearEndTz: now.endOf('year').toISOString(),
-        };
+        const variables = buildDashboardVariables(employeeId, selectedCurrency, now, selectedPeriod);
 
         const data = await graphqlClient.request(GET_EXPENSE_DASHBOARD_BY_EMPLOYEE, variables);
-
-        const processExpensesByType = (expenseData: any[]): Record<string, number> => {
-          const expenseTypes: Record<string, number> = {};
-          expenseData?.forEach((item: any) => {
-            // Use getCatalogValue to get the translated name from the catalog entry
-            const type = item.expenseGroup ? getCatalogValue(item.expenseGroup) : 'Other';
-            if (!expenseTypes[type]) {
-              expenseTypes[type] = 0;
-            }
-            expenseTypes[type] += item.totalAmount || 0;
-          });
-          return expenseTypes;
-        };
-
-        const expensesByTypeMonth = processExpensesByType(data?.expensesByTypeMonth);
-        const expensesByTypeQuarter = processExpensesByType(data?.expensesByTypeQuarter);
-        const expensesByTypeYear = processExpensesByType(data?.expensesByTypeYear);
-
-        const bookedExpenseRequests = data?.bookedExpenseRequests?.aggregate?.sum?.totalAmount ?? 0;
-        const pendingAdvancePayments = data?.pendingAdvancePayments?.aggregate?.sum?.amount ?? 0;
-        const bookedAndPendingCount = data?.bookedExpenseRequests?.aggregate?.count + data?.pendingAdvancePayments?.aggregate?.count;
-        const pendingItems = data?.pendingItems?.aggregate?.count ?? 0;
-
-        const expenseDashboard: ExpenseDashboard = {
-          pendingPayouts: (() => {
-            if (selectedPeriod === 'yearly') {
-              return (data?.currentYearBooked?.aggregate?.sum?.totalAmount ?? 0) + pendingAdvancePayments;
-            } else if (selectedPeriod === 'quarterly') {
-              return (data?.currentQuarterBooked?.aggregate?.sum?.totalAmount ?? 0) + pendingAdvancePayments;
-            }
-            return bookedExpenseRequests + pendingAdvancePayments;
-          })(),
-          bookedExpenseRequests: bookedExpenseRequests,
-          pendingAdvancePayments: pendingAdvancePayments,
-          bookedAndPendingCount: bookedAndPendingCount,
-          pendingItems: pendingItems,
-          currentMonthExpenses: {
-            total: data?.currentMonthExpenses?.aggregate?.sum?.totalAmount ?? 0,
-            count: data?.currentMonthExpenses?.aggregate?.count ?? 0,
-          },
-          previousMonthExpenses: {
-            total: data?.previousMonthExpenses?.aggregate?.sum?.totalAmount ?? 0,
-            count: data?.previousMonthExpenses?.aggregate?.count ?? 0,
-          },
-          currentQuarterExpenses: {
-            total: data?.currentQuarterExpenses?.aggregate?.sum?.totalAmount ?? 0,
-            count: data?.currentQuarterExpenses?.aggregate?.count ?? 0,
-          },
-          previousQuarterExpenses: {
-            total: data?.previousQuarterExpenses?.aggregate?.sum?.totalAmount ?? 0,
-            count: data?.previousQuarterExpenses?.aggregate?.count ?? 0,
-          },
-          currentYearExpenses: {
-            total: data?.currentYearExpenses?.aggregate?.sum?.totalAmount ?? 0,
-            count: data?.currentYearExpenses?.aggregate?.count ?? 0,
-          },
-          previousYearExpenses: {
-            total: data?.previousYearExpenses?.aggregate?.sum?.totalAmount ?? 0,
-            count: data?.previousYearExpenses?.aggregate?.count ?? 0,
-          },
-          flaggedItems: data?.flaggedItems?.aggregate?.count ?? 0,
-          upcomingTrips: data?.upcomingTrips?.aggregate?.count ?? 0,
-          recentActivity: data?.recentActivity?.map((item: any) => ({
-            id: item.id,
-            title: item.title ?? 'Unnamed Item',
-            status: item.status ?? 'Unknown',
-            updatedAt: item.updatedAt ? new Date(item.updatedAt).toLocaleDateString() : 'N/A',
-            totalAmount: item.totalAmount ?? 0,
-            expenseType: item.expenseClass?.value ?? 'General',
-            expenseDate: item.expenseDate ? new Date(item.expenseDate).toLocaleDateString() : 'N/A',
-          })) ?? [],
-          expensesByTypeMonth,
-          expensesByTypeQuarter,
-          expensesByTypeYear,
-          expenseItemsWithoutReceipts: data?.itemsWithoutReceipts?.aggregate?.count ?? 0,
-        };
-        
-        setStats(expenseDashboard);
+        const expenseDashboard = transformDashboardResponse(data, selectedPeriod);
+        setStats(expenseDashboard as ExpenseDashboard);
       } catch (err) {
         setError(err instanceof Error ? err : new Error(String(err)));
         setStats(null);

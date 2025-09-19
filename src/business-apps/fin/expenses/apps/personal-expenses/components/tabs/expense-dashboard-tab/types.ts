@@ -8,7 +8,7 @@ export interface RecentActivity {
   title: string;
   status: string;
   updatedAt: string;
-  totalAmount: number;
+  totalAmount?: number;
   expenseType?: string;
 }
 
@@ -27,6 +27,7 @@ export interface DashboardStats {
   pendingPayouts?: number;
   bookedExpenseRequests?: number;
   pendingAdvancePayments?: number;
+  bookedAndPendingCount?: number;
   pendingItems?: number;
   flaggedItems?: number;
   upcomingTrips?: number;

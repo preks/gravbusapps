@@ -23,6 +23,46 @@ export const GET_EXPENSE_DASHBOARD_BY_EMPLOYEE = `
     $currentYearEndTz: timestamptz!,
     $currency: String!
   ) {
+    # Action feed from plan/request comments (approved/returned), sorted by date desc within selected period
+    requestActivity: ExpenseRequestComment(
+      where: {
+        expenseRequest: { employeeId: {_eq: $employeeId}, isDeleted: {_eq: false} },
+        commentType: { _in: ["APPROVE_COMMENT", "REJECT_COMMENT"] },
+        commentDate: { _gte: $currentMonthStart, _lt: $currentMonthEnd }
+      },
+      orderBy: { commentDate: DESC }
+    ) {
+      id
+      comment
+      commentType
+      commentDate
+      expenseRequest { 
+        id 
+        title 
+        code 
+        status 
+      }
+    }
+
+    planActivity: ExpensePlanComment(
+      where: {
+        expensePlan: { employeeId: {_eq: $employeeId}, isDeleted: {_eq: false} },
+        commentType: { _in: ["APPROVE_COMMENT", "REJECT_COMMENT"] },
+        commentDate: { _gte: $currentMonthStart, _lt: $currentMonthEnd }
+      },
+      orderBy: { commentDate: DESC }
+    ) {
+      id
+      comment
+      commentType
+      commentDate
+      expensePlan { 
+        id 
+        title 
+        code 
+        status
+      }
+    }
 
 
     # Sum of BOOKED expense requests
