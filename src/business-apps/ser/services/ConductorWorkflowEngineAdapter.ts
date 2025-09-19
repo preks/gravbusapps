@@ -2422,6 +2422,60 @@ export class ConductorWorkflowEngineAdapter implements WorkflowEngine {
     }
   }
 
+  /**
+   * Get templates from custom-flow-engine
+   * Implementation of optional WorkflowEngine.getTemplates method
+   */
+  async getTemplates(options?: {
+    limit?: number;
+    offset?: number;
+    onlyLatest?: boolean;
+    includeDrafts?: boolean;
+    search?: string;
+  }): Promise<{
+    status: string;
+    count: number;
+    totalCount: number;
+    hasMore: boolean;
+    data: any[];
+  }> {
+    try {
+      console.log('[ConductorAdapter] Getting templates from custom-flow-engine...', options);
+
+      // Build query parameters
+      const params = new URLSearchParams();
+      if (options?.limit) params.append('limit', options.limit.toString());
+      if (options?.offset) params.append('offset', options.offset.toString());
+      if (options?.search) params.append('search', options.search);
+
+      const queryString = params.toString();
+      const endpoint = `/templates${queryString ? `?${queryString}` : ''}`;
+
+      const result = await this.makeRequest(endpoint, {
+        method: 'GET',
+      });
+
+      console.log('[ConductorAdapter] ✅ Templates fetched successfully:', {
+        count: result.count,
+        totalCount: result.totalCount,
+        hasMore: result.hasMore,
+        templatesWithTags: result.data?.filter((t: any) => t.tags)?.length || 0
+      });
+
+      return {
+        status: result.status || 'success',
+        count: result.count || 0,
+        totalCount: result.totalCount || 0,
+        hasMore: result.hasMore || false,
+        data: result.data || []
+      };
+
+    } catch (error) {
+      console.error('[ConductorAdapter] ❌ Error getting templates:', error);
+      throw new Error(`Failed to get templates: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
+  }
+
 
 }
 

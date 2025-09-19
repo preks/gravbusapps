@@ -6,10 +6,8 @@ import {
   type QuickActionData,
   type KpiData
 } from '@newwork/nw-design-system';
-// ServiceCategory type used in prop interfaces
-import { getSortedCategories } from '../../../data';
 import { getCategoryIcon } from '../../../utils/iconMapping';
-import { useDesksForUser } from '../../../hooks/useDesksForUser';
+import { useDesksForUser, useServicePortalCategories, useSharedFlowTemplates } from '../../../hooks';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 import { 
   ClockCounterClockwise,
@@ -30,6 +28,14 @@ export const ServiceCatalog: React.FC<ServiceCatalogProps> = ({
   accessToken,
   userInfo
 }) => {
+  // Fetch dynamic categories from catalog
+  const {
+    categories: catalogCategories,
+    categoryGroups,
+    isLoading: categoriesLoading,
+    error: categoriesError,
+  } = useServicePortalCategories({ accessToken });
+
   // Check if user has access to any service desk
   const {
     availableDesks,
@@ -37,75 +43,72 @@ export const ServiceCatalog: React.FC<ServiceCatalogProps> = ({
     error: deskAccessError,
   } = useDesksForUser({ accessToken, userInfo });
 
-  // Transform service categories into NavigationCard format
-  const serviceCategoryCards: NavigationCardInput[] = useMemo(() => {
-    const variants = ['ext1', 'ext2', 'ext3', 'ext4', 'ext5', 'ext6', 'ext7', 'ext8'] as const;
-    const sortedCategories = getSortedCategories();
-    
-    return sortedCategories.map((category, index): NavigationCardInput => ({
-      id: category.id,
-      title: category.name,
-      description: category.description || 'Available services in this category',
-      icon: getCategoryIcon(category.id),
-      stats: {
-        value: Math.floor(Math.random() * 8) + 3, // Random 3-10 services
-        label: 'Services'
-      },
-      primaryAction: {
-        label: 'View Services',
-        onClick: () => onCategorySelect(category.id)
-      },
-      variant: variants[index % variants.length], // Cycle through variants for visual variety
-    }));
-  }, [onCategorySelect]);
+  // Fetch all templates to count services per category
+  const {
+    templates: allFlowTemplates,
+    isLoading: templatesLoading,
+    error: templatesError,
+  } = useSharedFlowTemplates({ accessToken, userInfo }, { 
+    enabled: true,
+    limit: 100
+  });
 
-  // Group categories into logical sections
-  const sections: LauncherSectionConfig[] = useMemo(() => {
-    // Flow Templates section (always first)
-    const flowTemplatesCategories = serviceCategoryCards.filter(card => 
-      ['flow-templates'].includes(card.id)
-    );
-    
-    const coreCategories = serviceCategoryCards.filter(card => 
-      ['hr', 'it', 'finance', 'legal'].includes(card.id)
-    );
-    
-    const businessCategories = serviceCategoryCards.filter(card => 
-      ['travel', 'procurement', 'facilities'].includes(card.id)
-    );
-    
-    const supportCategories = serviceCategoryCards.filter(card => 
-      !['flow-templates', 'hr', 'it', 'finance', 'legal', 'travel', 'procurement', 'facilities'].includes(card.id)
-    );
+  // Function to count templates for a specific category
+  const getTemplateCountForCategory = (categoryId: string): number => {
+    if (!allFlowTemplates || allFlowTemplates.length === 0) {
+      return 0;
+    }
 
-    return [
-      // Flow Templates section (first)
-      {
-        id: 'flow-templates',
-        title: 'Dynamic Workflow Templates',
-        description: 'Live templates from workflow engine with automatic form generation',
-        cards: flowTemplatesCategories
-      },
-      {
-        id: 'core-services',
-        title: 'Core Business Services',
-        description: 'Essential services for daily operations',
-        cards: coreCategories
-      },
-      {
-        id: 'business-operations',
-        title: 'Business Operations',
-        description: 'Services for travel, procurement, and facilities',
-        cards: businessCategories
-      },
-      {
-        id: 'support-services',
-        title: 'Support & Compliance',
-        description: 'Specialized support and administrative services',
-        cards: supportCategories
+    const expectedCategoryRef = `ServicePortalCategory:1:${categoryId.toUpperCase()}`;
+    
+    return allFlowTemplates.filter(template => {
+      // Check if template has tags and serviceCategory
+      if (!template.tags || !template.tags.serviceCategory) {
+        return false;
       }
-    ].filter(section => section.cards.length > 0); // Only show sections with cards
-  }, [serviceCategoryCards]);
+      
+      // Check if any of the template's service categories match our category
+      const templateCategories = Array.isArray(template.tags.serviceCategory) 
+        ? template.tags.serviceCategory 
+        : [template.tags.serviceCategory];
+      
+      return templateCategories.includes(expectedCategoryRef);
+    }).length;
+  };
+
+  // Transform category groups into sections
+  const sections: LauncherSectionConfig[] = useMemo(() => {
+    return categoryGroups.map(group => {
+      // Transform group categories to navigation cards
+      const groupCards = group.categories.map((category, index): NavigationCardInput => {
+        const variants = ['ext1', 'ext2', 'ext3', 'ext4', 'ext5', 'ext6', 'ext7', 'ext8'] as const;
+        const templateCount = getTemplateCountForCategory(category.id);
+        
+        return {
+          id: category.id,
+          title: category.name,
+          description: category.description || 'Available services in this category',
+          icon: getCategoryIcon(category.icon || category.id),
+          stats: {
+            value: templateCount,
+            label: templateCount === 1 ? 'Service' : 'Services'
+          },
+          primaryAction: {
+            label: 'View Services',
+            onClick: () => onCategorySelect(category.id)
+          },
+          variant: variants[index % variants.length], // Cycle through variants for visual variety
+        };
+      });
+
+      return {
+        id: group.id,
+        title: group.name,
+        description: group.description,
+        cards: groupCards
+      };
+    });
+  }, [categoryGroups, onCategorySelect, allFlowTemplates]);
 
   // Quick actions for common tasks (conditionally include Service Desk)
   const quickActions: QuickActionData[] = useMemo(() => {
@@ -150,18 +153,22 @@ export const ServiceCatalog: React.FC<ServiceCatalogProps> = ({
 
   // Header KPIs showing service statistics
   const headerKpis: KpiData[] = useMemo(() => {
-    const sortedCategories = getSortedCategories();
+    // Count total templates with tags (real services)
+    const totalServices = allFlowTemplates ? allFlowTemplates.filter(template => 
+      template.tags && template.tags.serviceCategory
+    ).length : 0;
+
     return [
       {
         id: 'total-services',
         title: 'Available Services',
-        value: sortedCategories.reduce((sum) => sum + (Math.floor(Math.random() * 8) + 3), 0),
+        value: totalServices,
         icon: ChartLine
       },
       {
         id: 'categories',
         title: 'Service Categories',
-        value: sortedCategories.length,
+        value: catalogCategories.length,
         icon: ClockCounterClockwise
       },
       {
@@ -171,8 +178,52 @@ export const ServiceCatalog: React.FC<ServiceCatalogProps> = ({
         icon: ClockCounterClockwise
       }
     ];
-  }, []);
+  }, [catalogCategories, allFlowTemplates]);
 
+  // Show loading state while fetching categories
+  if (categoriesLoading) {
+    return (
+      <div data-testid="service-catalog-loading" className="gba:flex gba:items-center gba:justify-center gba:min-h-96">
+        <div className="gba:text-center">
+          <div className="gba:animate-spin gba:rounded-full gba:h-8 gba:w-8 gba:border-b-2 gba:border-blue-600 gba:mx-auto gba:mb-4"></div>
+          <p className="gba:text-gray-600">Loading service categories...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Show error state if categories failed to load
+  if (categoriesError) {
+    return (
+      <div data-testid="service-catalog-error" className="gba:flex gba:items-center gba:justify-center gba:min-h-96">
+        <div className="gba:text-center gba:max-w-md">
+          <div className="gba:text-red-500 gba:text-6xl gba:mb-4">⚠️</div>
+          <h3 className="gba:text-xl gba:font-semibold gba:text-gray-900 gba:mb-2">Failed to Load Categories</h3>
+          <p className="gba:text-gray-600 gba:mb-4">{categoriesError}</p>
+          <button 
+            onClick={() => window.location.reload()} 
+            className="gba:px-4 gba:py-2 gba:bg-blue-600 gba:text-white gba:rounded gba:hover:bg-blue-700"
+          >
+            Reload Page
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  // Show empty state if no categories available
+  if (!categoriesLoading && categoryGroups.length === 0) {
+    return (
+      <div data-testid="service-catalog-empty" className="gba:flex gba:items-center gba:justify-center gba:min-h-96">
+        <div className="gba:text-center gba:max-w-md">
+          <div className="gba:text-gray-400 gba:text-6xl gba:mb-4">📂</div>
+          <h3 className="gba:text-xl gba:font-semibold gba:text-gray-900 gba:mb-2">No Service Categories</h3>
+          <p className="gba:text-gray-600">No service categories are currently available in the catalog.</p>
+        </div>
+      </div>
+    );
+  }
+  
   return (
     <div data-testid="service-catalog-container">
       <LauncherLayout

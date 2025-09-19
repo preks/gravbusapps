@@ -73,7 +73,7 @@ export interface FlowTemplate {
   
   // Future enhancements for categorization
   category?: string;
-  tags?: string[];
+  tags?: Record<string, any>;
   metadata?: {
     icon?: string;
     estimatedTime?: string;

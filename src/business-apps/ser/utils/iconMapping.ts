@@ -3,42 +3,38 @@
  * Maps service category IDs to Phosphor React icons
  */
 
-import { 
-  Users, 
-  Laptop, 
-  Airplane, 
-  Buildings, 
-  CurrencyDollar, 
-  ShoppingCart, 
-  FileText, 
-  Shield, 
-  Key, 
-  ChartBar, 
-  GraduationCap, 
-  Car, 
-  Clipboard,
-  Tree,
-  Icon
-} from '@phosphor-icons/react';
+import * as PhosphorIcons from '@phosphor-icons/react';
+import { Icon } from '@phosphor-icons/react';
 
+// Category code mapping - fallback for category codes
 export const categoryIcons: Record<string, Icon> = {
-  'hr': Users,
-  'it': Laptop,
-  'travel': Airplane,
-  'facilities': Buildings,
-  'finance': CurrencyDollar,
-  'procurement': ShoppingCart,
-  'legal': FileText,
-  'security': Shield,
-  'access-identity': Key,
-  'data-analytics': ChartBar,
-  'learning-development': GraduationCap,
-  'fleet': Car,
-  'admin': Clipboard,
-  'flow-templates': Tree,
-  'workflow': Tree // Alias for flow-templates
+  'hr': PhosphorIcons.UsersIcon,
+  'it': PhosphorIcons.LaptopIcon,
+  'travel': PhosphorIcons.AirplaneIcon,
+  'facilities': PhosphorIcons.BuildingsIcon,
+  'finance': PhosphorIcons.CurrencyDollarIcon,
+  'procurement': PhosphorIcons.ShoppingCartIcon,
+  'legal': PhosphorIcons.FileTextIcon,
+  'security': PhosphorIcons.ShieldIcon,
+  'access-identity': PhosphorIcons.KeyIcon,
+  'data-analytics': PhosphorIcons.ChartBarIcon,
+  'learning-development': PhosphorIcons.GraduationCapIcon,
+  'fleet': PhosphorIcons.CarIcon,
+  'admin': PhosphorIcons.ClipboardIcon,
+  'flow-templates': PhosphorIcons.TreeIcon,
+  'workflow': PhosphorIcons.TreeIcon, // Alias for flow-templates
+  'cbs': PhosphorIcons.BriefcaseIcon, // Core Business Services
 };
 
-export const getCategoryIcon = (categoryId: string): Icon => {
-  return categoryIcons[categoryId] || Clipboard;
+export const getCategoryIcon = (iconNameOrCategoryId: string): Icon => {
+  // Check if it's a Phosphor icon with pi_ prefix
+  if (iconNameOrCategoryId && iconNameOrCategoryId.startsWith('pi_')) {
+    const phosphorIconName = iconNameOrCategoryId.substring(3); // Remove 'pi_' prefix
+    if ((PhosphorIcons as any)[phosphorIconName]) {
+      return (PhosphorIcons as any)[phosphorIconName];
+    }
+  }
+  
+  // Fallback to category code mapping
+  return categoryIcons[iconNameOrCategoryId] || PhosphorIcons.ClipboardIcon;
 };

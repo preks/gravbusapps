@@ -98,6 +98,7 @@ export const useSharedFlowTemplates = (
       formSchema,
       estimatedDuration,
       stepCount,
+      tags: engineTemplate.tags, // Preserve tags from API response
       metadata: {
         difficulty,
         estimatedTime: estimatedDuration

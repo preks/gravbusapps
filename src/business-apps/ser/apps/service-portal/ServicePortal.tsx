@@ -217,13 +217,27 @@ export const ServicePortal: React.FC<ServicePortalProps> = ({
   };
 
   const navigateToFlowRequestForm = (flowTemplate: FlowTemplate) => {
-    setState({
+    // Determine category from template tags
+    let categoryId = 'flow-templates'; // fallback
+    
+    if (flowTemplate.tags?.serviceCategory && Array.isArray(flowTemplate.tags.serviceCategory)) {
+      // Extract category ID from ServicePortalCategory reference (e.g., "ServicePortalCategory:1:HR" -> "hr")
+      const categoryRef = flowTemplate.tags.serviceCategory[0];
+      if (typeof categoryRef === 'string' && categoryRef.includes('ServicePortalCategory:1:')) {
+        categoryId = categoryRef.split('ServicePortalCategory:1:')[1].toLowerCase();
+      }
+    }
+    
+    setState(prevState => ({
+      ...prevState,
       currentView: 'requestForm',
       selectedTemplate: undefined, // Clear mock template
       selectedFlowTemplate: flowTemplate,
-      selectedCategoryId: flowTemplate.category || 'flow-templates' // Use template category or default
-    });
-    const newUrl = buildUrlWithApp('requestForm', flowTemplate.category || 'flow-templates');
+      // Keep the current selectedCategoryId if we came from a category, otherwise use determined category
+      selectedCategoryId: prevState.selectedCategoryId || categoryId
+    }));
+    
+    const newUrl = buildUrlWithApp('requestForm', categoryId);
     window.history.pushState({}, '', newUrl);
   };
 

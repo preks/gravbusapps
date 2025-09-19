@@ -21,6 +21,7 @@ export type ServiceCategory = {
   icon?: string;
   description?: string;
   order: number;
+  catalogEntryId?: string; // Original catalog entry ID for template filtering
 };
 
 export type StepDefinition = {
