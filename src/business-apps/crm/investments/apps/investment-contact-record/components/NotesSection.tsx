@@ -1,12 +1,17 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { PlusCircleOutlined, UserOutlined, CloseOutlined, LoadingOutlined } from '@ant-design/icons';
-import { Button, Spin, Alert, Empty, Timeline, Typography, message, Modal } from 'antd';
+import { PlusCircleOutlined, CloseOutlined, LoadingOutlined } from '@ant-design/icons';
+import { Spin, Alert, Empty, Timeline, Typography, message } from 'antd';
+import { Button } from '@newwork/nw-design-system';
+import { NoteDeletePopup } from '@/common/components/common-relations/popups/note-delete-popup';
 import { startProcess } from '@/common/utils/start-process';
+import { AppAction } from '@/components/app-action/AppAction';
+import { FlowContextName } from '@/common/types/FlowRegistryTypes';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
-import { useGetContactNotes, ContactNoteData } from '../queries/ContactNoteQueries';
+import { useGetInvestmentNotesByContactId } from '@/common/data/investment/hooks/useInvestmentContacts';
+import type { InvestmentNote } from '@/common/data/investment/types';
 import { useEmployeeData } from '@/business-apps/crm/common/hooks/useEmployeeData';
-import { useRestClient } from '@/common/network/rest/useRestClient';
-import { env } from '@/common/env/EnvUtils';
+// import { useRestClient } from '@/common/network/rest/useRestClient';
+// import { env } from '@/common/env/EnvUtils';
 import dayjs from 'dayjs';
 import { LanguageDropdown } from './LanguageDropdown';
 import { translateMultipleTexts } from '../utils/translationService';
@@ -18,7 +23,7 @@ interface NotesSectionProps {
   context: BusinessAppContextProps;
 }
 
-interface TranslatedNote extends ContactNoteData {
+interface TranslatedNote extends InvestmentNote {
   translatedTitle?: string;
   translatedText?: string;
   isTranslating?: boolean;
@@ -30,10 +35,11 @@ export const NotesSection: React.FC<NotesSectionProps> = ({ contactId, context }
   const [error, setError] = useState<string | null>(null);
   const [selectedLanguage, setSelectedLanguage] = useState('Original');
   const [translating, setTranslating] = useState(false);
-  const originalNotesRef = useRef<ContactNoteData[]>([]);
-  const { fetchContactNotes } = useGetContactNotes(context);
+  const originalNotesRef = useRef<InvestmentNote[]>([]);
+  const { fetchInvestmentNotesByContactId } = useGetInvestmentNotesByContactId(context);
   const { getEmployeeDisplayName } = useEmployeeData(context.accessToken);
-  const restClient = useRestClient(env('NEXT_PUBLIC_KOGITO_PROCESSES_ENDPOINT'));
+  // const restClient = useRestClient(env('NEXT_PUBLIC_KOGITO_PROCESSES_ENDPOINT'));
+  const [deletePopup, setDeletePopup] = useState<{ open: boolean; note?: InvestmentNote }>({ open: false });
 
   const loadNotes = async () => {
     if (!contactId) return;
@@ -42,8 +48,8 @@ export const NotesSection: React.FC<NotesSectionProps> = ({ contactId, context }
     setError(null);
     
     try {
-      const result = await fetchContactNotes({ contactId });
-      const sortedNotes = (result.CrmNote || []).sort((a, b) => 
+      const result = await fetchInvestmentNotesByContactId(contactId);
+      const sortedNotes = (result || []).sort((a, b) => 
         new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
       );
       
@@ -146,51 +152,11 @@ export const NotesSection: React.FC<NotesSectionProps> = ({ contactId, context }
     };
   }, [contactId]);
 
-  const handleDeleteNote = (note: ContactNoteData) => {
-    Modal.confirm({
-      title: 'Confirm Deletion',
-      content: `Are you sure you want to delete the note "${note.noteTitle}"?`,
-      okText: 'Delete',
-      okType: 'danger',
-      cancelText: 'Cancel',
-      onOk: async () => {
-        try {
-          await restClient.post('/customer-relations/saveCrmNote', {
-            changeMode: "DELETE",
-            crmNote: {
-              id: note.id,
-              version: note.version,
-              contact: contactId
-            }
-          }, {
-            headers: { Authorization: `Bearer ${context.accessToken}` }
-          });
-          
-          // Remove the note from both states
-          setNotes(prevNotes => prevNotes.filter(n => n.id !== note.id));
-          originalNotesRef.current = originalNotesRef.current.filter(n => n.id !== note.id);
-          
-          message.success('Note deleted successfully');
-        } catch (error) {
-          console.error('Error deleting note:', error);
-          message.error('Failed to delete note');
-        }
-      },
-    });
+  const handleDeleteNote = (note: InvestmentNote) => {
+    setDeletePopup({ open: true, note });
   };
 
-  const handleAddNote = () => {
-    if (contactId) {
-      startProcess({
-        domain: 'customer-relations',
-        processName: 'saveCrmNote',
-        payload: {
-          contactId,
-        },
-        builderType: 'NATIVE_SCREEN',
-      });
-    }
-  };
+  // handled by AppAction staticFlowData fallback
 
   const handleLanguageChange = (languageCode: string) => {
     setSelectedLanguage(languageCode);
@@ -224,14 +190,36 @@ export const NotesSection: React.FC<NotesSectionProps> = ({ contactId, context }
             />
           )}
         </div>
-        <Button 
-          type="primary"
-          icon={<PlusCircleOutlined />}
-          onClick={handleAddNote}
-          data-testid="add-note-button"
+        <AppAction
+          contextsArray={[FlowContextName.investmentNoteEntity]}
+          externalContextData={{
+            contactId,
+            contact: contactId,
+            investmentNote: { contact: contactId }
+          }}
+          staticFlowData={contactId ? [{
+            key: 'create-investment-note-fallback',
+            label: 'Add Note',
+            onClick: () => startProcess({
+              domain: 'investments',
+              processName: 'createInvestmentNote',
+              payload: { contactId },
+              builderType: 'NATIVE_SCREEN'
+            })
+          }] : []}
+          prefixDataTestId="add-note"
+          accessToken={context.accessToken}
+          emptyStateBehavior="enable"
+          deferMainContextRequestsUntilClick
         >
-          Add Note
-        </Button>
+          <Button 
+            variant="default"
+            data-testid="add-note-button"
+          >
+            <PlusCircleOutlined />
+            Add Note
+          </Button>
+        </AppAction>
       </div>
 
       <div style={{ padding: '0 24px 24px' }}>
@@ -249,7 +237,7 @@ export const NotesSection: React.FC<NotesSectionProps> = ({ contactId, context }
             showIcon
             style={{ marginBottom: '16px' }}
             action={
-              <Button size="small" onClick={loadNotes}>
+              <Button size="sm" onClick={loadNotes}>
                 Retry
               </Button>
             }
@@ -287,9 +275,8 @@ export const NotesSection: React.FC<NotesSectionProps> = ({ contactId, context }
                     <div>{note.translatedText || note.noteText}</div>
                   </div>
                   <Button 
-                    type="text" 
-                    icon={<CloseOutlined />} 
-                    size="small"
+                    variant="ghost" 
+                    size="sm"
                     style={{ 
                       position: 'absolute', 
                       right: 0, 
@@ -299,13 +286,34 @@ export const NotesSection: React.FC<NotesSectionProps> = ({ contactId, context }
                     }}
                     onClick={() => handleDeleteNote(note)}
                     data-testid={`delete-note-${note.id}`}
-                  />
+                  >
+                    <CloseOutlined />
+                  </Button>
                 </div>
               </Timeline.Item>
             ))}
           </Timeline>
         )}
       </div>
+
+      {deletePopup.open && deletePopup.note && (
+        <NoteDeletePopup
+          isOpen={deletePopup.open}
+          onClose={() => setDeletePopup({ open: false })}
+          accessToken={context.accessToken}
+          noteId={deletePopup.note.id}
+          noteVersion={deletePopup.note.version}
+          noteTitle={deletePopup.note.noteTitle}
+          domain="investments"
+          onSuccess={() => {
+            const id = deletePopup.note!.id;
+            setNotes(prev => prev.filter(n => n.id !== id));
+            originalNotesRef.current = originalNotesRef.current.filter(n => n.id !== id);
+            setDeletePopup({ open: false });
+          }}
+          onError={() => setDeletePopup({ open: false })}
+        />
+      )}
     </div>
   );
 }; 

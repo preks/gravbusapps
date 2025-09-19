@@ -1,14 +1,17 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { PlusCircleOutlined, CloseOutlined, LoadingOutlined } from '@ant-design/icons';
-import { Button, Spin, Alert, Empty, message, Timeline, Typography, Modal } from 'antd';
+import { PlusCircleOutlined, CloseOutlined, LoadingOutlined, CheckCircleOutlined } from '@ant-design/icons';
+import { Spin, Alert, Empty, message, Timeline, Typography, Modal } from 'antd';
+import { Button } from '@newwork/nw-design-system';
+import { AppAction } from '@/components/app-action/AppAction';
+import { FlowContextName } from '@/common/types/FlowRegistryTypes';
+import { ActivityDeletePopup } from '@/common/components/common-relations/popups/activity-delete-popup';
 // import { Clock, Calendar } from 'lucide-react'; // Unused import
 import { startProcess } from '@/common/utils/start-process';
 import { useProcessCompletion } from '@/common/hooks/useProcessCompletion';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 import { NotesSection } from './NotesSection';
-import { useGetContactActivities, ContactActivityData } from '../queries/ContactActivityQueries';
-// import { useGetContactDocuments, ContactDocumentData } from '../queries/ContactDocumentQueries'; // Unused import
-import { useGetContactTasks, ContactTaskData } from '../queries/ContactTaskQueries';
+import { useGetInvestmentActivitiesByContactId, useGetInvestmentTasksByContactId } from '@/common/data/investment/hooks/useInvestmentContacts';
+import type { InvestmentActivity, InvestmentTask } from '@/common/data/investment/types';
 import { useEmployeeData } from '@/business-apps/crm/common/hooks/useEmployeeData';
 import { useRestClient } from '@/common/network/rest/useRestClient';
 // import { useFileClient } from '@/common/network/files/useFileClient'; // Unused import
@@ -16,8 +19,6 @@ import { env } from '@/common/env/EnvUtils';
 import dayjs from 'dayjs';
 import { LanguageDropdown } from './LanguageDropdown';
 import { translateMultipleTexts } from '../utils/translationService';
-import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient';
-import { CheckCircleOutlined } from '@ant-design/icons';
 // import { useSalesManagerEmployees } from '../../opportunity-record/hooks/useSalesManagerEmployees';
 
 const { Text } = Typography;
@@ -27,7 +28,7 @@ interface ActivityTimelineProps {
   context: BusinessAppContextProps;
 }
 
-interface TranslatedActivity extends ContactActivityData {
+interface TranslatedActivity extends InvestmentActivity {
   translatedTitle?: string;
   translatedDescription?: string;
   isTranslating?: boolean;
@@ -57,16 +58,15 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({ contactId, c
   const [notesKey, setNotesKey] = useState(0);
   const [selectedLanguage, setSelectedLanguage] = useState('Original');
   const [translating, setTranslating] = useState(false);
-  const [approvalTasks, setApprovalTasks] = useState<ContactTaskData[]>([]);
+  const [approvalTasks, setApprovalTasks] = useState<InvestmentTask[]>([]);
   const [approvalTasksLoading, setApprovalTasksLoading] = useState(false);
   const [approvalTasksError, setApprovalTasksError] = useState<string | null>(null);
-  const originalActivitiesRef = useRef<ContactActivityData[]>([]);
+  const originalActivitiesRef = useRef<InvestmentActivity[]>([]);
 
-  const { fetchContactActivities } = useGetContactActivities(context);
-  const { fetchContactTasks } = useGetContactTasks(context);
+  const { fetchInvestmentActivitiesByContactId } = useGetInvestmentActivitiesByContactId(context);
+  const { fetchInvestmentTasksByContactId } = useGetInvestmentTasksByContactId(context);
   const { getEmployeeDisplayName } = useEmployeeData(context.accessToken);
   const restClient = useRestClient(env('NEXT_PUBLIC_KOGITO_PROCESSES_ENDPOINT'));
-  const graphqlClient = useGraphQLClient(context.accessToken);
   // const { salesManagers } = useSalesManagerEmployees(context.accessToken);
 
   // Listen for process completion to refetch approval tasks
@@ -90,9 +90,9 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({ contactId, c
     setActivitiesError(null);
     
     try {
-      const result = await fetchContactActivities({ contactId });
+      const result = await fetchInvestmentActivitiesByContactId(contactId);
       // Sort activities by occurredAt in descending order (newest first), fallback to createdAt
-      const sortedActivities = (result.SalesActivity || []).sort((a, b) => {
+      const sortedActivities = (result || []).sort((a, b) => {
         const dateA = new Date(a.occurredAt || a.createdAt).getTime();
         const dateB = new Date(b.occurredAt || b.createdAt).getTime();
         return dateB - dateA;
@@ -201,10 +201,10 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({ contactId, c
     setApprovalTasksError(null);
 
     try {
-      const result = await fetchContactTasks({ contactId });
+      const result = await fetchInvestmentTasksByContactId(contactId);
       
       // Filter for approval tasks only - check both possible field structures
-      let approvalTasks = (result.SalesTask || []).filter(task => {
+      let approvalTasks = (result || []).filter(task => {
         // Check both type.value (catalog reference) and direct typeRef fields
         const taskTypeValue = task.type?.value;
         const typeRef = task.typeRef;
@@ -215,8 +215,8 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({ contactId, c
           // Check direct typeRef field for various formats
           (typeRef && (
             typeRef.toLowerCase() === 'approval' ||
-            typeRef === 'SalesTaskType:v1:APPROVAL' ||
-            typeRef === 'SalesTaskType:v1:APPROVAL'
+            typeRef === 'InvestmentTaskType:v1:APPROVAL' ||
+            typeRef === 'InvestmentTaskType:v1:APPROVAL'
           ))
         );
       });
@@ -369,54 +369,10 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({ contactId, c
     };
   }, [contactId]);
 
-  const handleAddActivity = () => {
-    if (contactId) {
-      startProcess({
-        domain: 'customer-relations',
-        processName: 'saveSalesActivity',
-        payload: {
-          contactId,
-        },
-        builderType: 'NATIVE_SCREEN',
-      });
-    }
-  };
+  const [deletePopup, setDeletePopup] = useState<{ open: boolean; activity?: InvestmentActivity }>({ open: false });
 
-  const handleDeleteActivity = (activity: ContactActivityData) => {
-    Modal.confirm({
-      title: 'Confirm Deletion',
-      content: `Are you sure you want to delete the activity "${activity.title}"?`,
-      okText: 'Delete',
-      okType: 'danger',
-      cancelText: 'Cancel',
-      onOk: async () => {
-        try {
-          await restClient.post('/customer-relations/saveSalesActivity', {
-            changeMode: "DELETE",
-            salesActivity: {
-              id: activity.id,
-              version: activity.version,
-              contact: contactId
-            }
-          }, {
-            headers: { Authorization: `Bearer ${context.accessToken}` }
-          });
-          
-          // Remove the activity from both states
-          setActivities(prevActivities => 
-            prevActivities.filter(a => a.id !== activity.id)
-          );
-          
-          // Also remove from original activities ref
-          originalActivitiesRef.current = originalActivitiesRef.current.filter(a => a.id !== activity.id);
-          
-          message.success('Activity deleted successfully');
-        } catch (error) {
-          console.error('Error deleting activity:', error);
-          message.error('Failed to delete activity');
-        }
-      },
-    });
+  const handleDeleteActivity = (activity: InvestmentActivity) => {
+    setDeletePopup({ open: true, activity });
   };
 
   const handleLanguageChange = (languageCode: string) => {
@@ -430,7 +386,7 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({ contactId, c
     return '';
   };
 
-  const handleDeleteTask = (task: ContactTaskData) => {
+  const handleDeleteTask = (task: InvestmentTask) => {
     Modal.confirm({
       title: 'Confirm Deletion',
       content: `Are you sure you want to delete the approval task "${task.name}"?`,
@@ -439,9 +395,9 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({ contactId, c
       cancelText: 'Cancel',
       onOk: async () => {
         try {
-          await restClient.post('/customer-relations/saveSalesTask', {
+          await restClient.post('/investments/saveInvestmentTask', {
             changeMode: "DELETE",
-            salesTask: {
+            investmentTask: {
               id: task.id,
               version: task.version,
               contactId: contactId
@@ -556,14 +512,26 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({ contactId, c
                 />
               )}
             </div>
-            <Button 
-              type="primary"
-              icon={<PlusCircleOutlined />}
-              onClick={handleAddActivity}
-              data-testid="add-activity-button"
+            <AppAction
+              contextsArray={[FlowContextName.createInvestmentActivity]}
+              externalContextData={{ 
+                contactId,
+                contact: contactId,
+                investmentActivity: { contact: contactId }
+              }}
+              prefixDataTestId="investment-contact-add-activity"
+              accessToken={context.accessToken}
+              emptyStateBehavior="enable"
+              deferMainContextRequestsUntilClick
             >
-              Add Activity
-            </Button>
+              <Button 
+                variant="default"
+                data-testid="add-activity-button"
+              >
+                <PlusCircleOutlined />
+                Add Activity
+              </Button>
+            </AppAction>
           </div>
 
           <div style={{ padding: '0 24px 24px' }}>
@@ -581,7 +549,7 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({ contactId, c
                 showIcon
                 style={{ marginBottom: '16px' }}
                 action={
-                  <Button size="small" onClick={loadActivities}>
+                  <Button size="sm" onClick={loadActivities}>
                     Retry
                   </Button>
                 }
@@ -635,9 +603,8 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({ contactId, c
                         <div>{activity.translatedDescription || activity.description}</div>
                       </div>
                       <Button 
-                        type="text" 
-                        icon={<CloseOutlined />} 
-                        size="small"
+                        variant="ghost" 
+                        size="sm"
                         style={{ 
                           position: 'absolute', 
                           right: 0, 
@@ -647,7 +614,9 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({ contactId, c
                         }}
                         onClick={() => handleDeleteActivity(activity)}
                         data-testid={`delete-activity-${activity.id}`}
-                      />
+                      >
+                        <CloseOutlined />
+                      </Button>
                     </div>
                   </Timeline.Item>
                 ))}
@@ -680,22 +649,25 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({ contactId, c
             >
               Approval Tasks
             </div>
-            <Button
-              type="primary"
-              icon={<PlusCircleOutlined />}
-              onClick={() => startProcess({
-                domain: 'customer-relations',
-                processName: 'saveSalesTask',
-                payload: {
-                  contactId,
-                  typeRef: 'SalesTaskType:v1:APPROVAL', // Correct catalog format
-                },
-                builderType: 'NATIVE_SCREEN',
-              })}
-              data-testid="request-approval-button"
+            <AppAction
+              contextsArray={[FlowContextName.investmentTaskCreate]}
+              externalContextData={{
+                contactId,
+                typeRef: 'InvestmentTaskType:v1:APPROVAL'
+              }}
+              prefixDataTestId="irm-contact-approvals"
+              accessToken={context.accessToken}
+              emptyStateBehavior="enable"
+              deferMainContextRequestsUntilClick
             >
-              Request Approval
-            </Button>
+              <Button
+                variant="default"
+                data-testid="request-approval-button"
+              >
+                <CheckCircleOutlined />
+                Request Approval
+              </Button>
+            </AppAction>
           </div>
 
           <div style={{ padding: '0 24px 24px' }}>
@@ -716,7 +688,7 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({ contactId, c
                 showIcon
                 style={{ marginBottom: '16px' }}
                 action={
-                  <Button size="small" onClick={loadApprovalTasks}>
+                  <Button size="sm" onClick={loadApprovalTasks}>
                     Retry
                   </Button>
                 }
@@ -803,13 +775,14 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({ contactId, c
                       )}
                     </div>
                     <Button
-                      type="text"
-                      icon={<CloseOutlined />}
-                      size="small"
+                      variant="ghost"
+                      size="sm"
                       style={{ position: 'absolute', right: 0, top: 0, padding: '4px', lineHeight: 1 }}
                       onClick={() => handleDeleteTask(task)}
                       data-testid={`delete-approval-task-${task.id}`}
-                    />
+                    >
+                      <CloseOutlined />
+                    </Button>
                   </Timeline.Item>
                 ))}
               </Timeline>
@@ -817,6 +790,27 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({ contactId, c
           </div>
         </div>
       )}
+      {deletePopup.open && deletePopup.activity ? (
+        <ActivityDeletePopup
+          isOpen={deletePopup.open}
+          onClose={() => setDeletePopup({ open: false })}
+          accessToken={context.accessToken}
+          activityId={deletePopup.activity!.id}
+          activityVersion={deletePopup.activity!.version}
+          activityTitle={deletePopup.activity!.title}
+          contactId={contactId}
+          domain="investments"
+          onSuccess={() => {
+            setActivities(prev => prev.filter(a => a.id !== deletePopup.activity!.id));
+            originalActivitiesRef.current = originalActivitiesRef.current.filter(a => a.id !== deletePopup.activity!.id);
+            message.success('Activity deleted successfully');
+          }}
+          onError={() => {
+            message.error('Failed to delete activity');
+          }}
+        />
+      ) : null}
+
     </div>
   );
 }; 

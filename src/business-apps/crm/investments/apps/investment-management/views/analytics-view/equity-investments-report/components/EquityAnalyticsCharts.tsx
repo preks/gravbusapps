@@ -1,5 +1,5 @@
-import React from 'react';
-import { Card } from 'antd';
+import React, { useMemo } from 'react';
+import { Card, CardHeader, CardTitle, CardContent, CardDescription, IconAvatar, ChartContainer, ChartTooltip, ChartTooltipContent, ChartLegend, ChartLegendContent } from '@newwork/nw-design-system';
 import {
   ComposedChart,
   ScatterChart,
@@ -7,300 +7,294 @@ import {
   Bar,
   Line,
   XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  Legend,
-  ResponsiveContainer
+  YAxis
 } from 'recharts';
-import { formatCurrency, formatPercentage } from '../utils/formatters';
+import { formatCurrency } from '@/common/data/investment';
+import { ChartScatterIcon, ChartBarIcon, TrendUpIcon } from '@phosphor-icons/react';
 
-const CHART_COLORS = ['#8884d8', '#82ca9d', '#ffc658', '#ff7c7c', '#8dd1e1'];
+// Design system chart colors using CSS variables
+const CHART_COLORS = [
+  'var(--nw-color-primary-500)',      // Blue
+  'var(--nw-color-success-500)',      // Green  
+  'var(--nw-color-warning-500)',      // Yellow/Orange
+  'var(--nw-color-danger-500)',       // Red
+  'var(--nw-color-info-500)'          // Light Blue
+];
 
 interface EquityAnalyticsChartsProps {
-  stakeVsValuationData: any[];
-  ebitdaValuationAnalysisData: any[];
-  rolePerformanceData: any[];
+  stakeVsInvestmentAmountData: any[];
+  roleInvestmentAmountData: any[];
   concentrationByRoleData: any[];
-  valuationDistributionData: any[];
 }
 
 export const EquityAnalyticsCharts: React.FC<EquityAnalyticsChartsProps> = ({
-  stakeVsValuationData,
-  ebitdaValuationAnalysisData,
-  rolePerformanceData,
-  concentrationByRoleData,
-  valuationDistributionData
+  stakeVsInvestmentAmountData,
+  roleInvestmentAmountData,
+  concentrationByRoleData
 }) => {
   return (
     <>
-      {/* Stake vs Valuation Correlation - Scatter Plot (Full Width) */}
-      <div style={{ 
-        gridColumn: '1 / -1', 
-        marginBottom: '24px' 
-      }}>
-        <Card title="Stake vs Company Valuation Correlation" style={{ borderRadius: '8px' }}>
-          <ResponsiveContainer width="100%" height={350}>
+      {/* Stake vs Investment Amount Correlation - Scatter Plot (Full Width) */}
+      <Card>
+        <CardHeader>
+          <div className="gba:flex gba:items-center gba:gap-3">
+            <IconAvatar icon={ChartScatterIcon} variant="default" size="md" decorative />
+            <div>
+              <CardTitle>Stake vs Amount Correlation</CardTitle>
+              <CardDescription>Relationship between stake percentage and total investment amount</CardDescription>
+            </div>
+          </div>
+        </CardHeader>
+        <CardContent>
+          <ChartContainer 
+            config={useMemo(() => ({
+              stakevsinvestment: { label: "Stake vs Investment" }
+            }), [])} 
+            className="gba:h-[350px] gba:w-full"
+          >
             <ScatterChart
-              data={stakeVsValuationData}
+              data={stakeVsInvestmentAmountData}
               margin={{ top: 20, right: 20, bottom: 20, left: 20 }}
             >
               <XAxis 
                 type="number" 
                 dataKey="stake" 
                 name="Stake %"
+                tick={{ fontSize: 12 }}
                 tickFormatter={(value) => `${value}%`}
               />
               <YAxis 
                 type="number" 
-                dataKey="valuation" 
-                name="Valuation"
-                tickFormatter={(value) => formatCurrency(value, 'EUR')}
+                dataKey="investmentAmount" 
+                name="Investment Amount"
+                tick={{ fontSize: 12 }}
+                tickFormatter={(value) => formatCurrency(value)}
               />
-              <Tooltip 
-                formatter={(value, name) => {
-                  if (name === 'Valuation') {
-                    return [formatCurrency(value as number, 'EUR'), name];
+              <ChartTooltip 
+                content={({ active, payload }) => {
+                  if (active && payload && payload.length) {
+                    const data = payload[0].payload; // Get the actual data point
+                    
+                    return (
+                      <div className="gba:bg-white gba:p-3 gba:border gba:border-gray-200 gba:rounded-lg gba:shadow-lg">
+                        <div className="gba:mb-2 gba:font-medium gba:text-gray-700">
+                          Company: {data.company || data.name || 'Unknown'}
+                        </div>
+                        <div className="gba:flex gba:items-center gba:gap-2 gba:mb-1">
+                          <div 
+                            className="gba:w-3 gba:h-3 gba:rounded-full" 
+                            style={{ backgroundColor: 'var(--color-stakevsinvestment)' }}
+                          />
+                          <span className="gba:font-medium">Stake Percentage:</span>
+                          <span className="gba:font-semibold">{data.stake}%</span>
+                        </div>
+                        <div className="gba:flex gba:items-center gba:gap-2 gba:mb-1">
+                          <div 
+                            className="gba:w-3 gba:h-3 gba:rounded-full" 
+                            style={{ backgroundColor: 'var(--color-stakevsinvestment)' }}
+                          />
+                          <span className="gba:font-medium">Investment Amount:</span>
+                          <span className="gba:font-semibold">{formatCurrency(data.investmentAmount)}</span>
+                        </div>
+                      </div>
+                    );
                   }
-                  if (name === 'Stake %') {
-                    return [`${value}%`, name];
-                  }
-                  return [value, name];
-                }}
-                labelFormatter={(label, payload) => {
-                  if (payload && payload.length > 0) {
-                    return `${payload[0]?.payload?.name}`;
-                  }
-                  return label;
+                  return null;
                 }}
               />
-              <CartesianGrid strokeDasharray="3 3" />
               <Scatter 
-                name="Stake vs Valuation" 
-                data={stakeVsValuationData} 
-                fill={CHART_COLORS[0]}
+                name="stakevsinvestment" 
+                data={stakeVsInvestmentAmountData} 
+                fill="var(--color-stakevsinvestment)"
               />
             </ScatterChart>
-          </ResponsiveContainer>
-        </Card>
-      </div>
-
-      {/* EBITDA vs Company Valuation Analysis - Composed Chart */}
-      <Card title="EBITDA vs Company Valuation Analysis" style={{ borderRadius: '8px' }}>
-        <ResponsiveContainer width="100%" height={350}>
-          <ComposedChart
-            data={ebitdaValuationAnalysisData}
-            margin={{ top: 20, right: 30, left: 20, bottom: 60 }}
-          >
-            <XAxis 
-              dataKey="range" 
-              angle={-45}
-              textAnchor="end"
-              height={60}
-              fontSize={11}
-            />
-            <YAxis yAxisId="left" />
-            <YAxis yAxisId="right" orientation="right" />
-            <Tooltip 
-              formatter={(value, name) => {
-                if (name === 'Total Valuation' || name === 'Average EBITDA') {
-                  return [formatCurrency(value as number, 'EUR'), name];
-                }
-                return [value, name];
-              }}
-            />
-            <Legend />
-            <Bar 
-              yAxisId="left"
-              dataKey="count" 
-              fill={CHART_COLORS[0]} 
-              name="Company Count"
-              radius={[4, 4, 0, 0]}
-              maxBarSize={60}
-            />
-            <Bar 
-              yAxisId="right"
-              dataKey="totalValuation" 
-              fill={CHART_COLORS[1]} 
-              name="Total Valuation"
-              radius={[4, 4, 0, 0]}
-              maxBarSize={60}
-            />
-            <Line 
-              yAxisId="right"
-              type="monotone" 
-              dataKey="averageEbitda" 
-              stroke={CHART_COLORS[2]} 
-              strokeWidth={3}
-              name="Average EBITDA"
-              dot={{ r: 6 }}
-            />
-          </ComposedChart>
-        </ResponsiveContainer>
+          </ChartContainer>
+        </CardContent>
       </Card>
 
-      {/* Investment Role vs Performance - Scatter Plot */}
-      <Card title="Investment Role vs Performance Analysis" style={{ borderRadius: '8px' }}>
-        <ResponsiveContainer width="100%" height={350}>
-          <ScatterChart
-            margin={{ top: 20, right: 20, bottom: 20, left: 20 }}
+      {/* Investment Role vs Investment Amount - Scatter Plot */}
+      <Card>
+        <CardHeader>
+          <div className="gba:flex gba:items-center gba:gap-3">
+            <IconAvatar icon={ChartScatterIcon} variant="secondary" size="md" decorative />
+            <div>
+              <CardTitle>Role vs Amount</CardTitle>
+              <CardDescription>Comparison of investment amounts across different investment roles</CardDescription>
+            </div>
+          </div>
+        </CardHeader>
+        <CardContent>
+          <ChartContainer 
+            config={useMemo(() => ({
+              rolevsinvestment: { label: "Role vs Investment" }
+            }), [])} 
+            className="gba:h-[350px] gba:w-full"
           >
-            <XAxis 
-              type="number" 
-              dataKey="role" 
-              name="Investment Role"
-              domain={[0, 4]}
-              ticks={[1, 2, 3]}
-              tickFormatter={(value) => value === 1 ? 'Follow-on' : value === 2 ? 'Co-Investor' : 'Lead'}
-            />
-            <YAxis 
-              type="number" 
-              dataKey="performance" 
-              name="ROI"
-              tickFormatter={formatPercentage}
-            />
-            <Tooltip 
-              formatter={(value, name) => {
-                if (name === 'ROI') {
-                  return [formatPercentage(value as number), name];
-                }
-                if (name === 'Investment Role') {
-                  const roleLabel = value === 1 ? 'Follow-on' : value === 2 ? 'Co-Investor' : 'Lead';
-                  return [roleLabel, name];
-                }
-                return [value, name];
-              }}
-              labelFormatter={(label, payload) => {
-                if (payload && payload.length > 0) {
-                  return `${payload[0]?.payload?.name}`;
-                }
-                return label;
-              }}
-            />
-            <CartesianGrid strokeDasharray="3 3" />
-            <Scatter 
-              name="Role vs Performance" 
-              data={rolePerformanceData} 
-              fill={CHART_COLORS[3]}
-            />
-          </ScatterChart>
-        </ResponsiveContainer>
-      </Card>
-
-      {/* Portfolio Concentration by Role - Bar Chart (Regular Grid Item) */}
-      <Card title="Portfolio Concentration by Investment Role" style={{ borderRadius: '8px' }}>
-        <ResponsiveContainer width="100%" height={300}>
-          <ComposedChart
-            data={concentrationByRoleData}
-            margin={{ top: 20, right: 30, left: 20, bottom: 5 }}
-          >
-            <XAxis dataKey="role" />
-            <YAxis yAxisId="left" />
-            <YAxis yAxisId="right" orientation="right" />
-            <Tooltip 
-              formatter={(value, name) => {
-                if (name === 'Total Valuation' || name === 'Average Valuation' || name === 'Total EBITDA') {
-                  return [formatCurrency(value as number, 'EUR'), name];
-                }
-                return [value, name];
-              }}
-            />
-            <Legend />
-            <Bar 
-              yAxisId="left"
-              dataKey="count" 
-              fill={CHART_COLORS[0]} 
-              name="Investment Count"
-              radius={[4, 4, 0, 0]}
-              maxBarSize={60}
-            />
-            <Bar 
-              yAxisId="right"
-              dataKey="totalValuation" 
-              fill={CHART_COLORS[1]} 
-              name="Total Valuation"
-              radius={[4, 4, 0, 0]}
-              maxBarSize={60}
-            />
-            <Bar 
-              yAxisId="right"
-              dataKey="totalEbitda" 
-              fill={CHART_COLORS[2]} 
-              name="Total EBITDA"
-              radius={[4, 4, 0, 0]}
-              maxBarSize={60}
-            />
-            <Line 
-              yAxisId="right"
-              type="monotone" 
-              dataKey="averageValuation" 
-              stroke={CHART_COLORS[3]} 
-              strokeWidth={3}
-              name="Average Valuation"
-              dot={{ r: 6 }}
-            />
-          </ComposedChart>
-        </ResponsiveContainer>
-      </Card>
-
-      {/* Company Valuation Distribution - Full Width */}
-      <div style={{ 
-        gridColumn: '1 / -1', 
-        marginTop: '24px'
-      }}>
-        <Card title="Company Valuation Distribution" style={{ borderRadius: '8px' }}>
-          <ResponsiveContainer width="100%" height={300}>
-            <ComposedChart
-              data={valuationDistributionData}
-              margin={{ top: 20, right: 30, left: 20, bottom: 5 }}
+            <ScatterChart
+              data={roleInvestmentAmountData}
+              margin={{ top: 20, right: 20, bottom: 20, left: 20 }}
             >
               <XAxis 
-                dataKey="range" 
-                angle={-45}
-                textAnchor="end"
-                height={60}
-                fontSize={11}
+                type="number" 
+                dataKey="role" 
+                name="Investment Role"
+                domain={[0, 4]}
+                ticks={[1, 2, 3]}
+                tick={{ fontSize: 12 }}
+                tickFormatter={(value) => value === 1 ? 'Follow-on' : value === 2 ? 'Co-Investor' : 'Lead'}
               />
-              <YAxis yAxisId="left" />
-              <YAxis yAxisId="right" orientation="right" />
-              <Tooltip 
-                formatter={(value, name) => {
-                  if (name === 'Total Valuation' || name === 'Total EBITDA') {
-                    return [formatCurrency(value as number, 'EUR'), name];
+              <YAxis 
+                type="number" 
+                dataKey="investmentAmount" 
+                name="Investment Amount"
+                tick={{ fontSize: 12 }}
+                tickFormatter={(value) => formatCurrency(value)}
+              />
+              <ChartTooltip 
+                content={({ active, payload }) => {
+                  if (active && payload && payload.length) {
+                    const data = payload[0].payload; // Get the actual data point
+                    const roleValue = data.role;
+                    const roleLabel = roleValue === 1 ? 'Follow-on' : roleValue === 2 ? 'Co-Investor' : 'Lead';
+                    
+                    return (
+                      <div className="gba:bg-white gba:p-3 gba:border gba:border-gray-200 gba:rounded-lg gba:shadow-lg">
+                        <div className="gba:mb-2 gba:font-medium gba:text-gray-700">
+                          Company: {data.company || data.name || 'Unknown'}
+                        </div>
+                        <div className="gba:flex gba:items-center gba:gap-2 gba:mb-1">
+                          <div 
+                            className="gba:w-3 gba:h-3 gba:rounded-full" 
+                            style={{ backgroundColor: 'var(--color-rolevsinvestment)' }}
+                          />
+                          <span className="gba:font-medium">Investment Role:</span>
+                          <span className="gba:font-semibold">{roleLabel}</span>
+                        </div>
+                        <div className="gba:flex gba:items-center gba:gap-2 gba:mb-1">
+                          <div 
+                            className="gba:w-3 gba:h-3 gba:rounded-full" 
+                            style={{ backgroundColor: 'var(--color-rolevsinvestment)' }}
+                          />
+                          <span className="gba:font-medium">Investment Amount:</span>
+                          <span className="gba:font-semibold">{formatCurrency(data.investmentAmount)}</span>
+                        </div>
+                      </div>
+                    );
                   }
-                  return [value, name];
+                  return null;
                 }}
               />
-              <Legend />
+              <Scatter 
+                name="rolevsinvestment" 
+                data={roleInvestmentAmountData} 
+                fill="var(--color-rolevsinvestment)"
+              />
+            </ScatterChart>
+          </ChartContainer>
+        </CardContent>
+      </Card>
+
+      {/* Portfolio Concentration by Role - Bar Chart */}
+      <Card>
+        <CardHeader>
+          <div className="gba:flex gba:items-center gba:gap-3">
+            <IconAvatar icon={ChartBarIcon} variant="success" size="md" decorative />
+            <div>
+              <CardTitle>Portfolio Concentration by Role</CardTitle>
+              <CardDescription>Investment distribution and valuation metrics by role</CardDescription>
+            </div>
+          </div>
+        </CardHeader>
+        <CardContent>
+          <ChartContainer 
+            config={useMemo(() => ({
+              investmentcount: { label: "Investment Count" },
+              totalvaluation: { label: "Total Valuation" },
+              averagevaluation: { label: "Average Valuation" }
+            }), [])} 
+            className="gba:h-[300px] gba:w-full"
+          >
+            <ComposedChart
+              data={concentrationByRoleData}
+              margin={{ top: 20, right: 30, left: 20, bottom: 5 }}
+            >
+              <XAxis dataKey="role" tick={{ fontSize: 12 }} />
+              <YAxis yAxisId="left" tick={{ fontSize: 12 }} />
+              <YAxis yAxisId="right" orientation="right" tick={{ fontSize: 12 }} />
+              <ChartTooltip 
+                content={({ active, payload, label }) => {
+                  if (active && payload && payload.length) {
+                    return (
+                      <div className="gba:bg-white gba:p-3 gba:border gba:border-gray-200 gba:rounded-lg gba:shadow-lg">
+                        <div className="gba:mb-2 gba:font-medium gba:text-gray-700">
+                          {label}
+                        </div>
+                        {payload.map((entry, index) => {
+                          let formattedValue = '';
+                          let properLabel = '';
+                          let dotColor = '';
+                          
+                          if (entry.dataKey === 'count') {
+                            formattedValue = `${entry.value}`;
+                            properLabel = 'Investment Count';
+                            dotColor = 'var(--color-investmentcount)';
+                          } else if (entry.dataKey === 'totalValuation') {
+                            formattedValue = formatCurrency(entry.value as number);
+                            properLabel = 'Total Valuation';
+                            dotColor = 'var(--color-totalvaluation)';
+                          } else if (entry.dataKey === 'averageValuation') {
+                            formattedValue = formatCurrency(entry.value as number);
+                            properLabel = 'Average Valuation';
+                            dotColor = 'var(--color-averagevaluation)';
+                          }
+                          
+                          return (
+                            <div key={index} className="gba:flex gba:items-center gba:gap-2 gba:mb-1">
+                              <div 
+                                className="gba:w-3 gba:h-3 gba:rounded-full" 
+                                style={{ backgroundColor: dotColor }}
+                              />
+                              <span className="gba:font-medium">{properLabel}:</span>
+                              <span className="gba:font-semibold">{formattedValue}</span>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    );
+                  }
+                  return null;
+                }}
+              />
+              <ChartLegend content={<ChartLegendContent />} />
               <Bar 
                 yAxisId="left"
                 dataKey="count" 
-                fill={CHART_COLORS[0]} 
-                name="Company Count"
+                name="investmentcount"
+                fill="var(--color-investmentcount)"
                 radius={[4, 4, 0, 0]}
                 maxBarSize={60}
               />
               <Bar 
                 yAxisId="right"
                 dataKey="totalValuation" 
-                fill={CHART_COLORS[1]} 
-                name="Total Valuation"
+                name="totalvaluation"
+                fill="var(--color-totalvaluation)"
                 radius={[4, 4, 0, 0]}
                 maxBarSize={60}
               />
               <Line 
                 yAxisId="right"
                 type="monotone" 
-                dataKey="totalEbitda" 
-                stroke={CHART_COLORS[2]} 
+                dataKey="averageValuation" 
+                name="averagevaluation"
+                stroke="var(--color-averagevaluation)"
                 strokeWidth={3}
-                name="Total EBITDA"
                 dot={{ r: 6 }}
               />
             </ComposedChart>
-          </ResponsiveContainer>
-        </Card>
-      </div>
+          </ChartContainer>
+        </CardContent>
+      </Card>
     </>
   );
 }; 

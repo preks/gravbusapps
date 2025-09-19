@@ -4,7 +4,6 @@ import {
   SelectContent,
   SelectItem,
   SelectTrigger,
-  SelectValue,
   Input,
   Label,
   Spinner,
@@ -14,7 +13,6 @@ import {
 import { PiMagnifyingGlass } from "react-icons/pi";
 import { debounce, DEFAULT_SEARCH_DEBOUNCE_DELAY } from "@/common/data/investment";
 import { SelectOption } from "../types";
-import { formatDataTestId } from "@/common/utils/formatDataTestId";
 
 interface SearchableSelectProps {
   label?: string;
@@ -63,36 +61,6 @@ const SearchableSelect: React.FC<SearchableSelectProps> = ({
       ? options.find((option) => option.value === value || option.id === value)
       : undefined;
 
-  // Debug logging for specific problematic fields - ✅ ENHANCED after catalog fix
-  useEffect(() => {
-    if (
-      name === "leadStatus" ||
-      name === "leadSource" ||
-      name === "rating" ||
-      name === "country"
-    ) {
-      console.log(`🔍 SearchableSelect "${name}" Debug AFTER CATALOG FIX:`, {
-        value: value,
-        valueType: typeof value,
-        optionsCount: options.length,
-        selectedOption: selectedOption,
-        cachedSelectedOption: cachedSelectedOption,
-        displayValue: selectedOption?.label || cachedSelectedOption?.label,
-        firstOption: options[0],
-        // Try to find option manually
-        manualFind: options.find((opt) => {
-          const matchesValue = opt.value === value;
-          const matchesId = opt.id === value;
-          console.log(
-            `  🔍 Comparing "${opt.value}" === "${value}" (${matchesValue}) or "${opt.id}" === "${value}" (${matchesId})`
-          );
-          return matchesValue || matchesId;
-        }),
-        catalogPrefix: options[0]?.value?.split(":")[0] || "no-prefix",
-        valuePrefix: value?.split(":")[0] || "no-value-prefix",
-      });
-    }
-  }, [name, value, selectedOption, cachedSelectedOption, options]);
 
   // Update cached selected option when found in current options
   useEffect(() => {
@@ -173,9 +141,6 @@ const SearchableSelect: React.FC<SearchableSelectProps> = ({
           !loading &&
           onLoadMore
         ) {
-          console.log(
-            "🔄 Scroll triggered loadMore - API has more data available"
-          );
           onLoadMore();
         }
       }
@@ -331,13 +296,6 @@ const SearchableSelect: React.FC<SearchableSelectProps> = ({
                 </div>
               )}
 
-              {/* Debug info */}
-              {process.env.NODE_ENV === "development" && (
-                <div className="gba:p-1 gba:text-xs gba:text-gray-400 gba:border-t gba:border-gray-50">
-                  hasMore: {String(hasMore)} | loading: {String(loading)} |
-                  options: {options.length}
-                </div>
-              )}
             </div>
           </SelectContent>
         </Select>

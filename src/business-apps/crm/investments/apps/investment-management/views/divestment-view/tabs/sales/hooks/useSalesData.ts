@@ -1,53 +1,12 @@
 import { useState, useCallback } from "react";
 import { BusinessAppContextProps } from "@/common/BusinessAppContext";
-import { useGraphQLClient } from "@/common/network/graphql/useGraphQLClient";
+import { useGetInvestmentOpportunities } from "@/common/data/investment/hooks/useInvestmentOpportunities";
+import type { InvestmentOpportunity } from "@/common/data/investment/types";
+import type { InvestmentOpportunityQueryVariables } from "@/common/data/investment/queries/investmentOpportunityQueries";
 
-export interface SoldOpportunity {
-  id: string;
-  name: string;
-  estimatedAmount: number;
-  winningChance: number;
-  closeDate: string;
-  salesPipeline: {
-    id: string;
-    value: string;
-    code: string;
-    objectValue?: any;
-  };
-  salesPipelineStage: {
-    id: string;
-    value: string;
-    code: string;
-    objectValue?: any;
-  };
-  opportunityStatus: {
-    id: string;
-    value: string;
-    code: string;
-    objectValue?: any;
-    displayValue: string; // Override for "Sold"
-  };
-  currency: {
-    id: string;
-    value: string;
-    code: string;
-    objectValue?: any;
-  };
-  account?: {
-    id: string;
-    name: string;
-  };
-  accountId: string;
-  ownerEmployee?: {
-    id: string;
-    firstName: string;
-    lastName: string;
-    displayName: string;
-    pictureThumbnail: string;
-  };
-  sourceApp: string;
-  createdAt: string;
-  updatedAt: string;
+// Use InvestmentOpportunity directly but extend with display fields
+export interface SoldOpportunity extends InvestmentOpportunity {
+  displayValue?: string; // Override for "Sold" display
 }
 
 export interface SalesMetrics {
@@ -82,68 +41,11 @@ interface UseSalesDataParams {
   context: BusinessAppContextProps;
 }
 
-const transformSoldOpportunityData = (apiOpportunity: any): SoldOpportunity => {
+const transformSoldOpportunityData = (investmentOpportunity: InvestmentOpportunity): SoldOpportunity => {
   return {
-    id: apiOpportunity.id,
-    name: apiOpportunity.name || "",
-    estimatedAmount: apiOpportunity.estimatedAmount || 0,
-    winningChance: apiOpportunity.winningChance || 0,
-    closeDate: apiOpportunity.closeDate || "",
-    salesPipeline: apiOpportunity.salesPipeline
-      ? {
-          id: apiOpportunity.salesPipeline.id,
-          value: apiOpportunity.salesPipeline.value,
-          code: apiOpportunity.salesPipeline.code,
-          objectValue: apiOpportunity.salesPipeline.objectValue,
-        }
-      : { id: "", value: "", code: "", objectValue: undefined },
-    salesPipelineStage: apiOpportunity.salesPipelineStage
-      ? {
-          id: apiOpportunity.salesPipelineStage.id,
-          value: apiOpportunity.salesPipelineStage.value,
-          code: apiOpportunity.salesPipelineStage.code,
-          objectValue: apiOpportunity.salesPipelineStage.objectValue,
-        }
-      : { id: "", value: "", code: "", objectValue: undefined },
-    opportunityStatus: apiOpportunity.opportunityStatus
-      ? {
-          id: apiOpportunity.opportunityStatus.id,
-          value: apiOpportunity.opportunityStatus.value,
-          code: apiOpportunity.opportunityStatus.code,
-          objectValue: apiOpportunity.opportunityStatus.objectValue,
-          // Override WON status to display as "Sold"
-          displayValue: apiOpportunity.opportunityStatus.value === "WON" ? "Sold" : apiOpportunity.opportunityStatus.value,
-        }
-      : { id: "", value: "", code: "", objectValue: undefined, displayValue: "" },
-    currency: apiOpportunity.currency
-      ? {
-          id: apiOpportunity.currency.id,
-          value: apiOpportunity.currency.value,
-          code: apiOpportunity.currency.code,
-          objectValue: apiOpportunity.currency.objectValue,
-        }
-      : { id: "", value: "USD", code: "USD", objectValue: undefined },
-    account: apiOpportunity.account
-      ? {
-          id: apiOpportunity.account.id,
-          name: apiOpportunity.account.name,
-        }
-      : undefined,
-    accountId: apiOpportunity.accountId || "",
-    ownerEmployee: apiOpportunity.ownerEmployee
-      ? {
-          id: apiOpportunity.ownerEmployee.id,
-          firstName: apiOpportunity.ownerEmployee.firstName || "",
-          lastName: apiOpportunity.ownerEmployee.lastName || "",
-          displayName:
-            apiOpportunity.ownerEmployee.displayName ||
-            `${apiOpportunity.ownerEmployee.firstName} ${apiOpportunity.ownerEmployee.lastName}`,
-          pictureThumbnail: apiOpportunity.ownerEmployee.pictureThumbnail || "",
-        }
-      : undefined,
-    sourceApp: apiOpportunity.sourceApp || "",
-    createdAt: apiOpportunity.createdAt,
-    updatedAt: apiOpportunity.updatedAt || "",
+    ...investmentOpportunity,
+    // Override WON status to display as "Sold"
+    displayValue: investmentOpportunity.opportunityStatus?.value === "WON" ? "Sold" : investmentOpportunity.opportunityStatus?.value,
   };
 };
 
@@ -157,13 +59,18 @@ export const useSalesData = (
   const [error, setError] = useState<Error | null>(null);
   const [hasMore, setHasMore] = useState(false);
 
-  const { request } = useGraphQLClient(params.context);
+  const { fetchInvestmentOpportunities } = useGetInvestmentOpportunities(params.context);
 
   const loadPage = useCallback(
     async (
       page: number,
       pageSize = 20,
-      additionalFilters?: any,
+      additionalFilters?: {
+        search?: string;
+        ownerEmployeeIds?: string[];
+        closeDateFrom?: string;
+        closeDateTo?: string;
+      },
       overrideSortField?: string,
       overrideSortOrder?: "ASC" | "DESC" | ""
     ) => {
@@ -176,180 +83,78 @@ export const useSalesData = (
       setError(null);
 
       try {
-        const offset = (page - 1) * pageSize;
+        // Build query variables for InvestmentOpportunity
+        const variables: InvestmentOpportunityQueryVariables = {
+          limit: pageSize,
+          offset: (page - 1) * pageSize,
+          dealType: "DIVESTMENT_DEAL", // Filter for divestment opportunities
+          search: additionalFilters?.search || params.search,
+          ownerEmployeeIds: additionalFilters?.ownerEmployeeIds,
+          closeDateFrom: additionalFilters?.closeDateFrom,
+          closeDateTo: additionalFilters?.closeDateTo,
+        };
 
-        // Build where conditions - filter for WON opportunities from divestments sourceApp
-        const whereConditions: any[] = [
-          { isDeleted: { _eq: false } },
-          { sourceApp: { _eq: "divestments" } },
-          { status: { _eq: "WON" } }
-        ];
-
-        // Add search functionality
-        const search = additionalFilters?.search || params.search;
-        if (search?.trim()) {
-          const searchTerm = `%${search.trim()}%`;
-          const isNumber = !isNaN(Number(search));
-
-          const searchConditions: any[] = [
-            { name: { _ilike: searchTerm } },
-            { account: { name: { _ilike: searchTerm } } },
-            { ownerEmployee: { firstName: { _ilike: searchTerm } } },
-            { ownerEmployee: { lastName: { _ilike: searchTerm } } },
-            { ownerEmployee: { displayName: { _ilike: searchTerm } } },
-            { salesPipelineStage: { value: { _ilike: searchTerm } } },
-            { salesPipeline: { value: { _ilike: searchTerm } } }
-          ];
-
-          // Add number-specific conditions if the search term can be parsed as a number
-          if (isNumber) {
-            const numericValue = Number(search);
-            searchConditions.push({ estimatedAmount: { _eq: numericValue } });
-            searchConditions.push({ winningChance: { _eq: numericValue } });
-          }
-
-          whereConditions.push({ _or: searchConditions });
-        }
-
-        // Combine all where conditions with _and
-        const whereCondition = { _and: whereConditions };
-
-        // Build order by condition
-        let orderBy: any[] = [];
+        // Add sorting
         const sortField = overrideSortField || params.sortField;
         const sortOrder = overrideSortOrder || params.sortOrder;
-
-        if (sortField && sortField !== "") {
-          const sortCondition: any = {};
-
-          if (sortField === "name") {
-            sortCondition.name = sortOrder === "ASC" ? "ASC_NULLS_LAST" : "DESC_NULLS_LAST";
-          } else if (sortField === "estimatedAmount") {
-            sortCondition.estimatedAmount = sortOrder === "ASC" ? "ASC_NULLS_LAST" : "DESC_NULLS_LAST";
-          } else if (sortField === "winningChance") {
-            sortCondition.winningChance = sortOrder === "ASC" ? "ASC_NULLS_LAST" : "DESC_NULLS_LAST";
-          } else if (sortField === "closeDate") {
-            sortCondition.closeDate = sortOrder === "ASC" ? "ASC_NULLS_LAST" : "DESC_NULLS_LAST";
-          } else if (sortField === "createdAt") {
-            sortCondition.createdAt = sortOrder === "ASC" ? "ASC_NULLS_LAST" : "DESC_NULLS_LAST";
-          } else if (sortField === "ownerEmployeeId") {
-            sortCondition.ownerEmployee = {
-              displayName: sortOrder === "ASC" ? "ASC_NULLS_LAST" : "DESC_NULLS_LAST",
-            };
-          } else if (sortField === "stage") {
-            sortCondition.salesPipelineStage = {
-              value: sortOrder === "ASC" ? "ASC_NULLS_LAST" : "DESC_NULLS_LAST",
-            };
-          } else if (sortField === "pipeline") {
-            sortCondition.salesPipeline = {
-              value: sortOrder === "ASC" ? "ASC_NULLS_LAST" : "DESC_NULLS_LAST",
-            };
-          } else if (sortField === "accountId") {
-            sortCondition.account = {
-              name: sortOrder === "ASC" ? "ASC_NULLS_LAST" : "DESC_NULLS_LAST",
-            };
-          }
-
-          if (Object.keys(sortCondition).length > 0) {
-            orderBy = [sortCondition];
-          }
+        
+        if (sortField && sortField !== "" && sortOrder) {
+          variables.orderBy = [{
+            field: sortField,
+            direction: sortOrder === "ASC" ? "ASC_NULLS_LAST" : "DESC_NULLS_LAST"
+          }];
         }
 
-        // Default sorting if no specific sort is provided
-        if (orderBy.length === 0) {
-          orderBy = [{ closeDate: "DESC_NULLS_LAST" }];
-        }
+        // Fetch using InvestmentOpportunity API
+        const result = await fetchInvestmentOpportunities(variables);
 
-        const query = `
-          query GetSoldOpportunities($offset: Int!, $limit: Int!, $where: OpportunityBoolExp!, $orderBy: [OpportunityOrderBy!]!) {
-            Opportunity(offset: $offset, limit: $limit, where: $where, orderBy: $orderBy) {
-              id
-              name
-              estimatedAmount
-              winningChance
-              closeDate
-              status
-              sourceApp
-              createdAt
-              updatedAt
-              accountId
-              salesPipeline {
-                id
-                value
-                code
-                objectValue
-              }
-              salesPipelineStage {
-                id
-                value
-                code
-                objectValue
-              }
-              opportunityStatus {
-                id
-                value
-                code
-                objectValue
-              }
-              currency {
-                id
-                value
-                code
-                objectValue
-              }
-              account {
-                id
-                name
-              }
-              ownerEmployee {
-                id
-                firstName
-                lastName
-                displayName
-                pictureThumbnail
-              }
-            }
-            OpportunityAggregate(where: $where) {
-              aggregate {
-                count
-                sum {
-                  estimatedAmount
-                }
-                avg {
-                  estimatedAmount
-                  winningChance
-                }
-              }
-            }
-          }
-        `;
+        if (result?.InvestmentOpportunity) {
 
-        const result = await request(query, {
-          offset,
-          limit: pageSize,
-          where: whereCondition,
-          orderBy,
-        });
+          // Filter for WON opportunities - check multiple possible status fields and values
+          const wonOpportunities = result.InvestmentOpportunity.filter(opp => {
+            const statusValue = opp.opportunityStatus?.value?.toUpperCase();
+            const statusCode = opp.opportunityStatus?.code?.toUpperCase();
+            const statusAltCode = opp.opportunityStatus?.alternativeCode?.toUpperCase();
+            const directStatus = opp.status?.toUpperCase();
+            
+            // Check for various "WON" representations
+            const wonVariations = ["WON", "CLOSED WON", "SOLD", "SUCCESS", "COMPLETED"];
+            
+            return wonVariations.some(variation => 
+              statusValue === variation ||
+              statusCode === variation ||
+              statusAltCode === variation ||
+              directStatus === variation ||
+              statusValue?.includes("WON") ||
+              statusCode?.includes("WON") ||
+              statusAltCode?.includes("WON") ||
+              directStatus?.includes("WON")
+            );
+          });
 
-        if (result?.Opportunity) {
-          const transformedOpportunities = result.Opportunity.map(transformSoldOpportunityData);
+          const transformedOpportunities = wonOpportunities.map(transformSoldOpportunityData);
           setSoldOpportunities(transformedOpportunities);
 
-          const aggregateData = result.OpportunityAggregate?.aggregate;
-          const totalCount = aggregateData?.count || 0;
+          // Use the total count from aggregation but only count WON opportunities
+          const aggregateCount = result.InvestmentOpportunityAggregate?.aggregate?.count || 0;
+          // For now, use the filtered count since we don't have a way to pre-filter by status in the API
+          const totalCount = wonOpportunities.length;
           setTotal(totalCount);
-          setHasMore(offset + pageSize < totalCount);
+          setHasMore((page * pageSize) < totalCount);
 
-          // Calculate metrics for sold opportunities
-          if (aggregateData) {
-            const metricsData: SalesMetrics = {
-              totalSold: totalCount,
-              totalRevenue: aggregateData.sum?.estimatedAmount || 0,
-              averageRevenue: aggregateData.avg?.estimatedAmount || 0,
-              averageWinRate: aggregateData.avg?.winningChance || 0,
-            };
-            setMetrics(metricsData);
-          }
+          // Calculate metrics from the WON opportunities
+          const totalValue = wonOpportunities.reduce((sum, opp) => sum + (opp.estimatedAmount || 0), 0);
+          const averageValue = wonOpportunities.length > 0 ? totalValue / wonOpportunities.length : 0;
+          const averageWinRate = wonOpportunities.length > 0 ? 
+            wonOpportunities.reduce((sum, opp) => sum + (opp.probability || 0), 0) / wonOpportunities.length : 0;
+
+          const metricsData: SalesMetrics = {
+            totalSold: totalCount,
+            totalRevenue: totalValue,
+            averageRevenue: averageValue,
+            averageWinRate: averageWinRate,
+          };
+          setMetrics(metricsData);
         }
       } catch (err) {
         setError(
@@ -361,7 +166,7 @@ export const useSalesData = (
       }
     },
     [
-      request,
+      fetchInvestmentOpportunities,
       params.search,
       params.sortField,
       params.sortOrder,

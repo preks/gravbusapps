@@ -84,7 +84,7 @@ const transformAccountData = (apiAccount: AccountData): Account => {
     // Legacy billing fields for backward compatibility
     billingCity: city || "",
     billingState: region || "",
-    billingCountry: country || apiAccount.countryRef || "",
+    billingCountry: country || "",
     sourceApp: "",
     createdAt: apiAccount.createdAt,
     updatedAt: apiAccount.updatedAt,
@@ -507,17 +507,14 @@ export const useAccountListData = (
               orderBy.numberOfEmployees = { value: sortDirection };
               break;
             case "city":
-              // City sorting not directly available in AccountOrderBy - use locality field as fallback
-              orderBy.locality = sortDirection;
+              // Not supported by AccountOrderBy; consider client-side sort if needed
               break;
             case "region":
-              // Use regionRef field for region sorting
-              orderBy.regionRef = sortDirection;
+              // Not supported by AccountOrderBy; consider client-side sort if needed
               break;
             case "country":
             case "billingCountry":
-              // Use countryRef field for country sorting
-              orderBy.countryRef = sortDirection;
+              // Not supported by AccountOrderBy; consider client-side sort if needed
               break;
             case "contactEmail":
               orderBy.email = sortDirection;

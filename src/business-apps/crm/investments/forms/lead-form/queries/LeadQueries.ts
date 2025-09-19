@@ -99,8 +99,8 @@ export interface InvestmentLeadQueryResult {
     value: string;
   };
 
-  // Address Information
-  addressLine?: any; // jsonb
+  // Address Information - Direct fields (NOT addresses relationship)
+  addressLine?: any; // JSON field with lines array
   locality?: string;
   postalCode?: string;
   countryRef?: string;
@@ -109,7 +109,7 @@ export interface InvestmentLeadQueryResult {
     code: string;
     value: string;
   };
-  regionRef?: string; // ✅ ADDED
+  regionRef?: string;
   region?: {
     id: string;
     code: string;
@@ -169,6 +169,16 @@ export interface InvestmentLeadQueryResult {
   requiredCapitalAmount?: number;
   forecastedProfitAmount?: number;
   annualNetColdRent?: number;
+
+  // Real Estate specific fields
+  buildingYear?: number;
+  size?: number;
+  sizeMeasurementUnitRef?: string;
+  sizeMeasurementUnit?: {
+    id: string;
+    code: string;
+    value: string;
+  };
 
   // System fields
   version?: number;
@@ -275,7 +285,7 @@ export const GET_INVESTMENT_LEAD_BY_ID = `
         value
       }
       
-      # Address Information - ✅ ADDED: regionRef and region
+      # Address Information - Direct fields (NOT addresses relationship)
       addressLine
       locality
       postalCode
@@ -345,6 +355,16 @@ export const GET_INVESTMENT_LEAD_BY_ID = `
       requiredCapitalAmount
       forecastedProfitAmount
       annualNetColdRent
+      
+      # Real Estate specific fields
+      buildingYear
+      size
+      sizeMeasurementUnitRef
+      sizeMeasurementUnit {
+        id
+        code
+        value
+      }
       
       # System fields - ✅ ADDED: All system fields
       version

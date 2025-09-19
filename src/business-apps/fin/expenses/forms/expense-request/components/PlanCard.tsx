@@ -2,6 +2,7 @@ import React from 'react';
 import { formatDate } from '@/common/utils/windowUtils';
 import { useTranslation } from 'react-i18next';
 import { ICONS } from '../../../utils/icons';
+import { PLAN_TYPE_ENUM, DEFAULT_PLAN_CURRENCY_CODE } from '../constants/constants';
 
 interface PlanCardProps {
   plan: {
@@ -40,8 +41,8 @@ const PlanCard: React.FC<PlanCardProps> = ({ plan, onClick, selectable = true })
   
   const formattedCreationDate = creationDate ? formatDate(creationDate, 'date.long') : t('lowcoder:expense_summary_request.no_creation_date', 'No creation date');
 
-  const iconPath = planType === 'TRIP' ? ICONS.TRIP_ICON : ICONS.RECEIPT_ICON;
-  const iconTitle = planType === 'TRIP' ? 'Trip' : 'Expense';
+  const iconPath = planType === PLAN_TYPE_ENUM.TRIP ? ICONS.TRIP_ICON : ICONS.RECEIPT_ICON;
+  const iconTitle = planType === PLAN_TYPE_ENUM.TRIP ? 'Trip' : 'Expense';
 
   const handleClick = () => {
     if (selectable && onClick) {
@@ -123,7 +124,7 @@ const PlanCard: React.FC<PlanCardProps> = ({ plan, onClick, selectable = true })
           )}
           
                      <span style={{ fontSize: '18px', fontWeight: 500, width: '33%', textAlign: 'right', display: 'inline-block' }} data-testid="plan-card-amount">
-            {planAmount || '0'} {planCurrency || 'EUR'}
+            {planAmount || '0'} {planCurrency || DEFAULT_PLAN_CURRENCY_CODE}
           </span>
         </div>
       </div>

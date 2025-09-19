@@ -74,6 +74,7 @@ export interface TaskSegmentProps {
   };
 
   // Assignees
+  showAssigneeSelection?: boolean;
   assignees?: Array<{
     id: string;
     displayName: string;
@@ -89,6 +90,10 @@ export interface TaskSegmentProps {
 
   // File upload callback (optional convenience)
   onFilesChange?: (files: File[]) => void;
+
+  // New behavior controls
+  showType?: boolean;
+  staticDefaults?: Partial<Record<string, any>>;
 
   ["data-testid"]?: string;
 }
@@ -118,6 +123,7 @@ const TaskSegment: React.FC<TaskSegmentProps> = ({
   entities = [],
   entitiesLoading = false,
   onEntitySearch,
+  showAssigneeSelection = true,
   assignees = [],
   assigneesLoading = false,
   onAssigneeSearch,
@@ -127,9 +133,22 @@ const TaskSegment: React.FC<TaskSegmentProps> = ({
   entitiesHasMore = false,
   onEntityLoadMore,
   initialEntityFromContext,
+  showType = true,
+  staticDefaults,
   "data-testid": dataTestId = "task-segment",
 }) => {
   const form = useFormContext<any>();
+
+  // Apply static defaults once
+  React.useEffect(() => {
+    if (!staticDefaults) return;
+    Object.entries(staticDefaults).forEach(([key, value]) => {
+      if (value !== undefined && (form.getValues(key) === undefined || form.getValues(key) === '')) {
+        form.setValue(key as any, value, { shouldValidate: true });
+      }
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const typeState = useCatalogOptions({
     accessToken,
@@ -261,7 +280,7 @@ const TaskSegment: React.FC<TaskSegmentProps> = ({
         name="title"
         render={({ field }) => (
           <FormItem>
-            <FormLabel>{titleLabel}</FormLabel>
+            <FormLabel>{titleLabel}<span className="nw:text-destructive">*</span></FormLabel>
             <FormControl>
               <Input
                 placeholder="Please Enter..."
@@ -337,36 +356,38 @@ const TaskSegment: React.FC<TaskSegmentProps> = ({
 
       {/* Type and Priority*/}
       <div className="gba:grid gba:grid-cols-2 gba:gap-4">
-        <FormField
-          control={form.control as any}
-          name="taskTypeRef"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>{typeLabel}</FormLabel>
-              <Select onValueChange={field.onChange} value={field.value}>
-                <FormControl>
-                  <SelectTrigger
-                    className="gba:w-full"
-                    data-testid={`${dataTestId}-type`}
-                    aria-invalid={
-                      !!(form.formState?.errors as any)?.taskTypeRef
-                    }
-                  >
-                    <SelectValue placeholder="Please Select..." />
-                  </SelectTrigger>
-                </FormControl>
-                <SelectContent>
-                  {typeState.options.map((opt) => (
-                    <SelectItem key={opt.value} value={opt.value}>
-                      {opt.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
+        {showType && (
+          <FormField
+            control={form.control as any}
+            name="taskTypeRef"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>{typeLabel}</FormLabel>
+                <Select onValueChange={field.onChange} value={field.value}>
+                  <FormControl>
+                    <SelectTrigger
+                      className="gba:w-full"
+                      data-testid={`${dataTestId}-type`}
+                      aria-invalid={
+                        !!(form.formState?.errors as any)?.taskTypeRef
+                      }
+                    >
+                      <SelectValue placeholder="Please Select..." />
+                    </SelectTrigger>
+                  </FormControl>
+                  <SelectContent>
+                    {typeState.options.map((opt) => (
+                      <SelectItem key={opt.value} value={opt.value}>
+                        {opt.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+        )}
 
         {/* Priority */}
         <FormField
@@ -433,35 +454,36 @@ const TaskSegment: React.FC<TaskSegmentProps> = ({
       />
 
       {/* Assigned To */}
-      <FormField
-        control={form.control as any}
-        name="assignedEmployeeId"
-        render={({ field }) => (
-          <FormItem>
-            <FormLabel>{assigneeLabel || "Assigned To"}</FormLabel>
-            <FormControl>
-              <EmployeeSelect
-                className="gba:w-full gba:h-auto"
-                employees={assigneeOptions as any}
-                value={field.value || ''}
-                onValueChange={(v: string | null) => {
-                  field.onChange(v);
-                  const uid = assigneeUserMap.get(String(v || ''));
-                  if (uid) {
-                    form.setValue('assignedUserId', uid);
-                  }
-                }}
-                onSearch={onAssigneeSearch}
-                loading={Boolean(assigneesLoading)}
-                onLoadMore={onAssigneeLoadMore}
-                hasMore={Boolean(assigneesHasMore)}
-                data-testid={`${dataTestId}-assignee`}
-              />
-            </FormControl>
-            <FormMessage />
-          </FormItem>
-        )}
-      />
+      {showAssigneeSelection !== false && (
+        <FormField
+          control={form.control as any}
+          name="assignedEmployeeId"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>{assigneeLabel || "Assigned To"}</FormLabel>
+              <FormControl>
+                <EmployeeSelect
+                  employees={assigneeOptions as any}
+                  value={field.value || ''}
+                  onValueChange={(v: string | null) => {
+                    field.onChange(v);
+                    const uid = assigneeUserMap.get(String(v || ''));
+                    if (uid) {
+                      form.setValue('assignedUserId', uid);
+                    }
+                  }}
+                  onSearch={onAssigneeSearch}
+                  loading={Boolean(assigneesLoading)}
+                  onLoadMore={onAssigneeLoadMore}
+                  hasMore={Boolean(assigneesHasMore)}
+                  data-testid={`${dataTestId}-assignee`}
+                />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+      )}
 
       {/* Related Entity */}
       {showEntitySelection && (
@@ -473,7 +495,6 @@ const TaskSegment: React.FC<TaskSegmentProps> = ({
               <FormLabel>{entityLabel || "Related Entity"}</FormLabel>
               <FormControl>
                 <EntitySelect
-                  className="gba:w-full gba:h-auto"
                   entities={entitySelectOptions as any}
                   value={field.value || ''}
                   onValueChange={(v: string | null) => {
@@ -529,24 +550,32 @@ const TaskSegment: React.FC<TaskSegmentProps> = ({
 export default TaskSegment;
 
 // Zod schema colocated with TaskSegment for convenient reuse/override
-export const taskSegmentSchema = z.object({
-  title: z.string().min(1, "Title is required"),
-  timingType: z.enum(["DEADLINE", "SCHEDULED"]).refine((v) => !!v, {
-    message: "Timing is required",
-  }),
-  taskTypeRef: z.string().min(1, "Type is required"),
-  taskPriorityRef: z.string().min(1, "Priority is required"),
-  taskStatusRef: z.string().min(1, "Status is required"),
-  assignedEmployeeId: z.string().min(1, "Assigned employee is required"),
-  relatedEntityId: z.string().min(1, "Related entity is required"),
-  description: z.string().optional(),
-  dueDate: z.preprocess(
-    (val) => (val == null ? "" : val),
-    z.string().min(1, "Deadline is required")
-  ),
-  files: z.any().optional(),
-});
+const buildTaskSegmentSchema = (options?: { requireAssignee?: boolean; requireEntity?: boolean; requireType?: boolean }) => {
+  const requireAssignee = options?.requireAssignee !== false;
+  const requireEntity = options?.requireEntity !== false;
+  const requireType = options?.requireType !== false;
+  return z.object({
+    title: z.string().min(1, "Title is required"),
+    timingType: z.enum(["DEADLINE", "SCHEDULED"]).refine((v) => !!v, {
+      message: "Timing is required",
+    }),
+    taskTypeRef: requireType ? z.string().min(1, "Type is required") : z.string().optional(),
+    taskPriorityRef: z.string().min(1, "Priority is required"),
+    taskStatusRef: z.string().min(1, "Status is required"),
+    assignedEmployeeId: requireAssignee ? z.string().min(1, "Assigned employee is required") : z.string().optional(),
+    relatedEntityId: requireEntity ? z.string().min(1, "Related entity is required") : z.string().optional(),
+    description: z.string().optional(),
+    dueDate: z.preprocess(
+      (val) => (val == null ? "" : val),
+      z.string().min(1, "Deadline is required")
+    ),
+    files: z.any().optional(),
+  });
+};
 
-export type TaskSegmentSchema = z.infer<typeof taskSegmentSchema>;
+export type TaskSegmentSchema = z.infer<ReturnType<typeof buildTaskSegmentSchema>>;
 
-export const createTaskSegmentResolver = () => zodResolver(taskSegmentSchema);
+// Default schema export for convenience
+export const taskSegmentSchema = buildTaskSegmentSchema();
+
+export const createTaskSegmentResolver = (options?: { requireAssignee?: boolean; requireEntity?: boolean; requireType?: boolean }) => zodResolver(buildTaskSegmentSchema(options));

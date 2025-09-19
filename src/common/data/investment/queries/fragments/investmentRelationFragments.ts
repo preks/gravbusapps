@@ -1,6 +1,7 @@
 
 import { CATALOG_ENTRY, AUDIT_FIELDS } from '@/common/network/graphql/commonFragments';
 import { EMPLOYEE_REF } from '@/common/data/employee/queries/fragments/employeeFragments';
+import { INVESTMENT_REF } from './investmentFragments';
 
 export const INVESTMENT_LEAD = `
         id
@@ -23,6 +24,9 @@ export const INVESTMENT_LEAD = `
         addressLine
         postalCode
         locality
+        
+        # Investment descriptive fields
+        investmentName
         ${AUDIT_FIELDS}
         
         # Catalog relationships
@@ -54,6 +58,35 @@ export const INVESTMENT_LEAD = `
           ${CATALOG_ENTRY}
         }
         
+        # Investment-specific fields
+        stakePercentage
+        marketValue
+        initialInvestmentAmount
+        buildingYear
+        size
+        sizeMeasurementUnit {
+          ${CATALOG_ENTRY}
+        }
+        sizeMeasurementUnitRef
+        forecastedProfitAmount
+        requiredCapitalAmount
+        loanAmount
+        loanInterestRate
+        
+        # Investment relationships
+        investmentGroup {
+          ${CATALOG_ENTRY}
+        }
+        investmentType {
+          ${CATALOG_ENTRY}
+        }
+        investmentRole {
+          ${CATALOG_ENTRY}
+        }
+        investmentStakeType {
+          ${CATALOG_ENTRY}
+        }
+        
         # Employee relationship
         ownerEmployee {
           ${EMPLOYEE_REF}
@@ -82,6 +115,12 @@ export const INVESTMENT_CONTACT_REF = `
     jobPosition
     picture
     pictureThumbnail
+    academicTitle {
+        ${CATALOG_ENTRY}
+    }
+    salutation {
+        ${CATALOG_ENTRY}
+    }
 `;
 
 export const INVESTMENT_CONTACT = `
@@ -126,8 +165,14 @@ export const INVESTMENT_ACCOUNT_REF = `
     name
     email
     phone
+    website
     foundationDate
     geographicPresence
+    picture
+    pictureThumbnail
+    legalForm {
+        ${CATALOG_ENTRY}
+    }
     accountAnnualRevenueBand {
         ${CATALOG_ENTRY}
     }
@@ -197,7 +242,37 @@ export const INVESTMENT_OPPORTUNITY = `
     closeDate
     annualNetColdRent
     dealType
+    
+    # Investment descriptive fields
+    investmentName
     ${AUDIT_FIELDS}
+    
+    # Investment-specific fields
+    stakePercentage
+    marketValue
+    buildingYear
+    size
+    sizeMeasurementUnit {
+      ${CATALOG_ENTRY}
+    }
+    sizeMeasurementUnitRef
+    requiredCapitalAmount
+    loanAmount
+    loanInterestRate
+    
+    # Investment relationships
+    investmentGroup {
+      ${CATALOG_ENTRY}
+    }
+    investmentType {
+      ${CATALOG_ENTRY}
+    }
+    investmentRole {
+      ${CATALOG_ENTRY}
+    }
+    investmentStakeType {
+      ${CATALOG_ENTRY}
+    }
     
     # Catalog relationships
     currency {
@@ -217,6 +292,39 @@ export const INVESTMENT_OPPORTUNITY = `
     ownerEmployee {
       ${EMPLOYEE_REF}
     }
+    
+    # Account relationship
+    account {
+      ${INVESTMENT_ACCOUNT_REF}
+    }
+    
+    # Contact relationships
+    investmentOpportunityContact {
+      id
+      contactType
+      contact {
+        ${INVESTMENT_CONTACT_REF}
+      }
+    }
+
+    # Stage conditions (embed current and historical statuses)
+    opportunityStageConditions: investmentOpportunityStageCondition(where: { isDeleted: { _eq: false } }, orderBy: [{ createdAt: DESC }]) {
+      id
+      completed
+      completedAt
+      deadlineAt
+      version
+      configSnapshot
+      completedByEmployee {
+        id
+        displayName
+        firstName
+        lastName
+      }
+      opportunityPipelineStageCondition {
+        ${CATALOG_ENTRY}
+      }
+    }
 `;
 
 export const INVESTMENT_TASK = `
@@ -224,11 +332,11 @@ export const INVESTMENT_TASK = `
     code
     name
     description
-    comment
     startDate
     dueDate
     endDate
     taskTiming
+    taskTypeRef
     ${AUDIT_FIELDS}
 
     # Catalog references
@@ -248,6 +356,11 @@ export const INVESTMENT_TASK = `
     }
     assignedEmployee {
       ${EMPLOYEE_REF}
+    }
+
+    # Entity references
+    investment {
+      ${INVESTMENT_REF}
     }
 
     # User references
@@ -274,6 +387,9 @@ export const INVESTMENT_ACTIVITY = `
     }
     
     # Entity references
+    investment {
+      ${INVESTMENT_REF}
+    }
     account {
       ${INVESTMENT_ACCOUNT_REF}
     }
@@ -299,6 +415,11 @@ export const INVESTMENT_NOTE = `
     authorEmployee {
       ${EMPLOYEE_REF}
     }
+    
+    # Entity references
+    investment {
+      ${INVESTMENT_REF}
+    }
 `;
 
 export const INVESTMENT_DOCUMENT = `
@@ -306,6 +427,7 @@ export const INVESTMENT_DOCUMENT = `
     name
     description
     file
+    fileInfo
     fileSize
     mimeType
     verified
@@ -314,6 +436,7 @@ export const INVESTMENT_DOCUMENT = `
     authenticationDate
     mandatory
     expirationDate
+    version
     folder
     ${AUDIT_FIELDS}
     
@@ -324,10 +447,26 @@ export const INVESTMENT_DOCUMENT = `
     documentType {
       ${CATALOG_ENTRY}
     }
+    
     # Entity references
     parentDocument {
       id
       name
       description
+    }
+    investment {
+      ${INVESTMENT_REF}
+    }
+    account {
+      ${INVESTMENT_ACCOUNT_REF}
+    }
+    contact {
+      ${INVESTMENT_CONTACT_REF}
+    }
+    opportunity {
+      ${INVESTMENT_OPPORTUNITY_REF}
+    }
+    lead {
+      ${INVESTMENT_LEAD_REF}
     }
 `

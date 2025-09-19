@@ -18,10 +18,54 @@ export function getCurrentActiveStructureId(): string {
  * @returns {uuid} context.locationId - The locationId of the manager.
  */
 export function getPlatformContext() {
-  if (window.lowcoder?.platformContext) {
-    return window.lowcoder.platformContext;
+  // Start from the platform-provided context when available
+  const base: any = window.lowcoder?.platformContext
+    ? { ...(window.lowcoder as any).platformContext }
+    : { structureId: getCurrentActiveStructureId() ?? "" };
+
+  // Try to ensure employeeDetails.userId exists for flows referencing it
+  // Derive from multiple potential sources available on the host platform
+  const derivedUserId =
+    (window as any)?.lowcoder?.userInfo?.id ||
+    (window as any)?.lowcoder?.platformContext?.userId ||
+    (window as any)?.lowcoder?.currentUser?.id ||
+    (window as any)?.lowcoder?.user?.id ||
+    base?.employeeDetails?.userId;
+
+  // Always provide an employeeDetails object so expressions like #{employeeDetails.userId} resolve
+  base.employeeDetails = {
+    ...(base.employeeDetails || {}),
+    userId:
+      base.employeeDetails?.userId ||
+      derivedUserId ||
+      (window as any)?.lowcoder?.user?.id ||
+      (window as any)?.lowcoder?.currentUser?.id ||
+      "",
+  };
+
+  // Fallback: if userId is still empty but we have employeeId, reuse it
+  if (!base.employeeDetails.userId && base.employeeId) {
+    base.employeeDetails.userId = base.employeeId;
   }
-  return { structureId: getCurrentActiveStructureId() ?? "" };
+
+  // Normalize: if userId is present but not a UUID and employeeId is a UUID, use employeeId
+  const isUuid = (v: any) =>
+    typeof v === "string" &&
+    /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-5][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$/.test(
+      v,
+    );
+  if (!isUuid(base.employeeDetails.userId) && isUuid(base.employeeId)) {
+    base.employeeDetails.userId = base.employeeId;
+  }
+
+  // Also expose a top-level userId for flows that expect it
+  base.userId =
+    base.userId ||
+    base.employeeDetails.userId ||
+    (window as any)?.lowcoder?.platformContext?.userId ||
+    "";
+
+  return base;
 }
 
 export function getCurrentActiveUserLocale(): string {
@@ -38,12 +82,10 @@ export function getCatalogValue(catalogEntry: any): string {
   }
 
   try {
-    const currentLocale = (
-      window?.lowcoder?.i18n?.selectedLocale || "en-US"
-    ).toLowerCase();
+    const currentLocale = (window?.lowcoder?.i18n?.selectedLocale || "en-US").toLowerCase();
     if (Array.isArray(catalogEntry.translations)) {
       const translation = catalogEntry.translations.find(
-        (t: any) => t?.localeCode?.toLowerCase() === currentLocale
+        (t: any) => t?.localeCode?.toLowerCase() === currentLocale,
       );
       if (translation && translation.value) return translation.value;
     }
@@ -54,15 +96,14 @@ export function getCatalogValue(catalogEntry: any): string {
 }
 
 export function getDateFormat(format: string): string {
-  if (window?.lowcoder?.getDateFormat)
-    return window.lowcoder.getDateFormat(format);
+  if (window?.lowcoder?.getDateFormat) return window.lowcoder.getDateFormat(format);
   return "DD.MM.YYYY";
 }
 
 export function getTranslationFromI18nKeyAndLabel(
   key: string,
   defaultValue: string,
-  translationVariables?: {}
+  translationVariables?: {},
 ) {
   if (typeof window?.lowcoder?.i18n?.t !== "function") {
     return defaultValue;
@@ -80,7 +121,7 @@ export function getTranslationFromI18nKeyAndLabel(
 export const formatDate = (
   dateValue: Date | string | undefined,
   format = "date.short",
-  customSpecificFormat = null
+  customSpecificFormat = null,
 ): string | undefined => {
   if (!dateValue) return dateValue;
 
@@ -94,16 +135,19 @@ export const formatDate = (
 };
 
 export const formatNumberFunction = (
-  number: string,
-  format: string = "0.00[,]00"
+  number: number | string,
+  format: string = "0.00[,]00",
 ): string => {
   if (
     !window.lowcoder?.i18n?.formatNumber ||
     typeof window.lowcoder.i18n?.formatNumber !== "function"
   ) {
-    return number;
+    return String(number);
   }
-  return window.lowcoder.i18n.formatNumber(number, format);
+
+  const numericValue = typeof number === "string" ? parseFloat(number) : number;
+
+  return window.lowcoder.i18n.formatNumber(numericValue, format);
 };
 
 export const formatDateToISO = (dateValue: Date): Date | string | undefined => {

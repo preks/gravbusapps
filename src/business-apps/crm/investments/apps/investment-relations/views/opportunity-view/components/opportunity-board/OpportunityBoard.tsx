@@ -33,6 +33,7 @@ import { startProcess } from '@/common/utils/start-process';
 interface OpportunityBoardProps extends BusinessAppContextProps {
   // Board loads its own stages based on selected pipeline
   dealType?: string; // Optional dealType filter (INVESTMENT_DEAL, DIVESTMENT_DEAL)
+  refreshTrigger?: number; // Optional trigger to force refresh from parent
 }
 
 
@@ -40,7 +41,8 @@ interface OpportunityBoardProps extends BusinessAppContextProps {
 export const OpportunityBoard: React.FC<OpportunityBoardProps> = ({ 
   accessToken,
   userInfo,
-  dealType = "INVESTMENT_DEAL" // Default to investment deals
+  dealType = "INVESTMENT_DEAL", // Default to investment deals
+  refreshTrigger
 }) => {
   // Filter states
   const [selectedPipelineId, setSelectedPipelineId] = useState<string>("");
@@ -127,6 +129,13 @@ export const OpportunityBoard: React.FC<OpportunityBoardProps> = ({
   useEffect(() => {
     loadData();
   }, [loadData]);
+
+  // Load data when parent triggers refresh (for process completion events)
+  useEffect(() => {
+    if (refreshTrigger && refreshTrigger > 0) {
+      loadData();
+    }
+  }, [refreshTrigger, loadData]);
 
 
 

@@ -207,7 +207,6 @@ export const GET_EXPENSE_DASHBOARD_BY_EMPLOYEE = `
     ) {
       id
       title
-      description
       status
       updatedAt
       totalAmount

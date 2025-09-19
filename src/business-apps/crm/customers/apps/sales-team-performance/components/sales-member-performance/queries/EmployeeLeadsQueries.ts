@@ -41,7 +41,6 @@ export const GET_EMPLOYEE_LEADS_QUERY = `
       companyPhone
       companyWebsite
       createdAt
-      countryRef
       academicTitle {
         id
         code

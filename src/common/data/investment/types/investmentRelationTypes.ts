@@ -78,6 +78,9 @@ export interface InvestmentOpportunity extends BaseInvestmentOpportunity {
   investmentStakeTypeLabel?: string;
   ownerDisplayName?: string;
   accountDisplayName?: string;
+
+  // Pull-through of stage condition statuses for UI components
+  opportunityStageConditions?: InvestmentOpportunityStageCondition[];
 }
 
 // Enhanced InvestmentAccountContact type with computed fields

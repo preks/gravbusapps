@@ -106,6 +106,7 @@ export const GET_MAIN_VIEW_ADVANCE_PAYMENT_STATISTICS = `
           },
           isDeleted: {_eq: false}
         },
+        status: {_neq: "REJECTED"},
         currencyRef: {_eq: $currencyRef}
       }
     ) {
@@ -126,7 +127,7 @@ export const GET_MAIN_VIEW_ADVANCE_PAYMENT_STATISTICS = `
           },
           isDeleted: {_eq: false}
         },
-        status: {_eq: "PENDING"},
+        status: {_in: ["PENDING", "PREPARED"]},
         currencyRef: {_eq: $currencyRef}
       }
     ) {

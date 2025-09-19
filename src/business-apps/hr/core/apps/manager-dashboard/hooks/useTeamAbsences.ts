@@ -15,7 +15,7 @@ export interface TeamAbsence {
   status?: string;
   type: {
     value: string;
-    objectValue?: any;
+    objectValue?: unknown; // Can be various types based on catalog configuration
   };
   employee: {
     id: string;

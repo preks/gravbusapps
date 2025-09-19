@@ -39,7 +39,6 @@ export const useUserAvatar = ({ accessToken, userId }: UseUserAvatarProps) => {
       // During development, use default avatar to avoid API calls
       // TODO: For production, remove this condition and use only the API
       if (process.env.NODE_ENV === 'development') {
-        console.log('Using default avatar in development mode');
         setAvatar(defaultAvatarUrl);
         setLoading(false);
         return;
@@ -52,13 +51,11 @@ export const useUserAvatar = ({ accessToken, userId }: UseUserAvatarProps) => {
           setAvatar(response.User[0].profilePicture);
         } else {
           // Use default avatar if API returns empty result
-          console.log('API returned empty avatar, using default');
           setAvatar(defaultAvatarUrl);
         }
       } catch (err) {
         console.error('Error fetching user avatar:', err);
         // Use default avatar on error
-        console.log('Error occurred, using default avatar');
         setAvatar(defaultAvatarUrl);
         setError(null); // Don't show error to user since we're providing a fallback
       } finally {

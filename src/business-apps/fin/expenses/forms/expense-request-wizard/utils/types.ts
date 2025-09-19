@@ -85,12 +85,16 @@ export interface LocationData {
       requestTypeRef: any;
       additionalProperties: any;
       currencyRef: any;
+      overnightAccommodation?: boolean;
     };
     expenseRequestTrips?: {
       expenseTrips: TripData[] | any[];
     };
     expenseRequestItems?: {
       expenseItems: ExpenseItemData[] | any[];
+    };
+    travelBreakdownWrapper?: {
+      travelBreakdowns: any[];
     };
   }
 

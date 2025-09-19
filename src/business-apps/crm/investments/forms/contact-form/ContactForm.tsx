@@ -8,12 +8,14 @@ interface ContactFormProps {
   initialValues?: Partial<ContactFormValues>;
   onSubmit?: (values: ContactFormValues) => Promise<void>;
   onCancel?: () => Promise<void>;
+  hideActions?: boolean; // Hide submit/cancel buttons when embedded
 }
 
 const ContactForm: React.FC<BusinessAppContextProps & ContactFormProps> = ({
   initialValues,
   onSubmit = async () => {},
   onCancel = async () => {},
+  hideActions = false,
   accessToken,
   userInfo,
   additionalData
@@ -40,6 +42,7 @@ const ContactForm: React.FC<BusinessAppContextProps & ContactFormProps> = ({
       initialValues={initialValues}
       onSubmit={onSubmit}
       onCancel={onCancel}
+      hideActions={hideActions}
     >
       <ContactFormComponent />
     </ContactFormProvider>

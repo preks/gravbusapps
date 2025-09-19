@@ -5,6 +5,7 @@ import {
   InvestmentLeadQueryResult,
 } from "../queries/LeadQueries";
 import { LeadFormValues } from "../types";
+import { extractAddressFromObject } from "../../../../common/utils/addressUtils";
 
 interface UseInvestmentLeadDataProps {
   businessAppContext: BusinessAppContextProps;
@@ -18,6 +19,7 @@ interface UseInvestmentLeadDataReturn {
     lead: InvestmentLeadQueryResult
   ) => Partial<LeadFormValues>;
 }
+
 
 export const useInvestmentLeadData = ({
   businessAppContext,
@@ -34,6 +36,7 @@ export const useInvestmentLeadData = ({
   // Function to map investment lead data to form values
   const mapLeadToFormValues = useCallback(
     (lead: InvestmentLeadQueryResult): Partial<LeadFormValues> => {
+
       const mappedValues = {
         // System fields
         id: lead.id,
@@ -71,24 +74,20 @@ export const useInvestmentLeadData = ({
         // Notes - ✅ ADDED: Map description to notes field
         notes: lead.description || "",
 
-        // Address Information - ✅ UPDATED: Single addressLine and locality
+        // Address Information - Direct fields (NOT addresses relationship)
         country: lead.countryRef || lead.country?.id || "",
         region: lead.regionRef || lead.region?.id || "",
-        locality: lead.locality || "", // ✅ UPDATED: Use locality field
+        locality: lead.locality || "", // Direct locality field
         postalCode: lead.postalCode || "",
-        addressLine: lead.addressLine
-          ? typeof lead.addressLine === "object"
-            ? lead.addressLine.address || JSON.stringify(lead.addressLine)
-            : lead.addressLine
-          : "", // ✅ UPDATED: Single addressLine field
+        addressLine: extractAddressFromObject(lead.addressLine) || "",
 
         // Legacy fields for backward compatibility
-        city: lead.locality || "",
-        addressLine1: lead.addressLine
-          ? typeof lead.addressLine === "object"
-            ? lead.addressLine.address || JSON.stringify(lead.addressLine)
-            : lead.addressLine
-          : "",
+        city: lead.locality || "", // Map locality to city for backward compatibility
+        // Address lines from direct fields
+        addressLine1: extractAddressFromObject(lead.addressLine) || "",
+        addressLine2: "", // Additional address lines not supported in current schema
+        addressLine3: "",
+        addressLine4: "",
 
         // Company relationship - ✅ ADDED: Support both convertedAccount and convertedAccountId
         accountId: lead.convertedAccountId || lead.convertedAccount?.id || "",
@@ -109,14 +108,12 @@ export const useInvestmentLeadData = ({
         requiredCapitalAmount: lead.requiredCapitalAmount?.toString() || "",
         forecastedProfitAmount: lead.forecastedProfitAmount?.toString() || "",
         annualNetColdRent: lead.annualNetColdRent?.toString() || "",
-      };
 
-      console.log("🔄 Final mapped values for address fields:", {
-        country: mappedValues.country,
-        region: mappedValues.region,
-        locality: mappedValues.locality,
-        addressLine: mappedValues.addressLine,
-      });
+        // Real Estate specific fields
+        buildingYear: lead.buildingYear?.toString() || "",
+        size: lead.size?.toString() || "",
+        measurementUnit: lead.sizeMeasurementUnitRef || lead.sizeMeasurementUnit?.id || "",
+      };
 
       return mappedValues;
     },

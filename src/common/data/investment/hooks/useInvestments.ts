@@ -10,13 +10,21 @@ import type {
   BaseRealEstateInvestment,
   RealEstateInvestment,
   BaseLiquidFundInvestment,
-  LiquidFundInvestment
+  LiquidFundInvestment,
+  BaseInvestmentDocument,
+  InvestmentDocument
 } from '../types';
+
+// Interface for investment by ID data
+export interface InvestmentByIdData {
+  investment?: Investment;
+}
 
 // Use the new query imports
 import {
   GET_INVESTMENTS,
   GET_INVESTMENT_BY_ID,
+  GET_INVESTMENT_DOCUMENTS_BY_INVESTMENT_ID,
   type InvestmentQueryVariables
 } from '../queries';
 
@@ -25,7 +33,8 @@ import {
   toInvestment,
   toEquityInvestment,
   toRealEstateInvestment,
-  toLiquidFundInvestment
+  toLiquidFundInvestment,
+  toInvestmentDocument
 } from '../mappers';
 
 // Note: InvestmentQueryVariables is imported from queries
@@ -82,13 +91,13 @@ export const useGetInvestmentById = (context: BusinessAppContextProps) => {
   
   const fetchInvestmentById = useCallback(async (id: string) => {
     const query = GET_INVESTMENT_BY_ID(id);
-    
     try {
-      const result = await graphqlClient.request<{ Investment: BaseInvestment[] }>(query);
-      const baseInvestment = result.Investment[0];
-      
+      // Request raw object to preserve specialization blocks (equity/realEstate/liquidFund)
+      const result = await graphqlClient.request<any>(query);
+      const rawInvestment = result?.Investment?.[0];
       return {
-        investment: baseInvestment ? toInvestment(baseInvestment) : undefined
+        // Return raw object so callers can access specialization arrays; cast to keep external type stable
+        investment: rawInvestment as unknown as Investment
       } as InvestmentByIdData;
     } catch (error) {
       console.error('Error fetching investment by ID:', error);
@@ -124,4 +133,28 @@ export const useSearchInvestments = (context: BusinessAppContextProps) => {
   }, [graphqlClient]);
 
   return { searchInvestments };
+};
+
+// =====================================================
+// INVESTMENT DOCUMENT HOOKS
+// =====================================================
+
+// Hook for getting investment documents by investment ID
+export const useGetInvestmentDocumentsByInvestmentId = (context: BusinessAppContextProps) => {
+  const graphqlClient = useGraphQLClient(context.accessToken);
+  
+  const fetchInvestmentDocumentsByInvestmentId = useCallback(async (investmentId: string) => {
+    const query = GET_INVESTMENT_DOCUMENTS_BY_INVESTMENT_ID(investmentId);
+    
+    try {
+      const result = await graphqlClient.request<{ InvestmentDocument: BaseInvestmentDocument[] }>(query);
+      // Transform base types to enhanced types using mapper
+      return result.InvestmentDocument.map(toInvestmentDocument);
+    } catch (error) {
+      console.error('Error fetching investment documents by investment ID:', error);
+      throw error;
+    }
+  }, [graphqlClient]);
+
+  return { fetchInvestmentDocumentsByInvestmentId };
 };

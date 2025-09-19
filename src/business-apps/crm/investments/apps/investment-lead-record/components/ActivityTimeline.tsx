@@ -14,13 +14,14 @@ import dayjs from 'dayjs';
 import { LanguageDropdown } from './LanguageDropdown';
 import { translateMultipleTexts } from '../utils/translationService';
 import { useEmployeeData } from '@/business-apps/crm/common/hooks/useEmployeeData';
-import { useAiSummary } from '../hooks/useAiSummary';
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient';
 import { CheckCircleOutlined } from '@ant-design/icons';
 import type { InvestmentActivity, InvestmentTask } from '@/common/data/investment/types';
 import { AppAction } from '@/components/app-action';
 import { FlowContextName } from '@/common/types/FlowRegistryTypes';
 import { Button } from '@newwork/nw-design-system';
+import { ActivityDeletePopup } from '@/common/components/common-relations/popups/activity-delete-popup';
+import { DeleteConfirmPopup } from '@/common/components/common-relations/popups/delete-confirm-popup';
 
 const { Text } = Typography;
 
@@ -37,16 +38,16 @@ interface TranslatedActivity extends InvestmentActivity {
 
 export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({ leadId, context }) => {
   // Read initial tab from URL parameters
-  const getInitialTab = (): 'activities' | 'notes' | 'approvals' | 'ai-summary' => {
+  const getInitialTab = (): 'activities' | 'notes' | 'approvals' => {
     const urlParams = new URLSearchParams(window.location.search);
     const tabParam = urlParams.get('tab');
-    if (tabParam === 'activities' || tabParam === 'notes' || tabParam === 'approvals' || tabParam === 'ai-summary') {
-      return tabParam as 'activities' | 'notes' | 'approvals' | 'ai-summary';
+    if (tabParam === 'activities' || tabParam === 'notes' || tabParam === 'approvals') {
+      return tabParam as 'activities' | 'notes' | 'approvals';
     }
     return 'activities';
   };
 
-  const [activeTab, setActiveTab] = useState<'activities' | 'notes' | 'approvals' | 'ai-summary'>(getInitialTab);
+  const [activeTab, setActiveTab] = useState<'activities' | 'notes' | 'approvals'>(getInitialTab);
   const [activities, setActivities] = useState<TranslatedActivity[]>([]);
   const [activitiesLoading, setActivitiesLoading] = useState(false);
   const [activitiesError, setActivitiesError] = useState<string | null>(null);
@@ -62,7 +63,8 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({ leadId, cont
   const { fetchInvestmentTasksByLeadId } = useGetInvestmentTasksByLeadId(context);
   const restClient = useRestClient(env('NEXT_PUBLIC_KOGITO_PROCESSES_ENDPOINT'));
   const graphqlClient = useGraphQLClient(context.accessToken);
-  const { generateSummary, state: aiSummaryState } = useAiSummary(leadId || '', context.accessToken);
+  const [deletePopup, setDeletePopup] = useState<{ open: boolean; activity?: InvestmentActivity }>({ open: false });
+  const [deleteApprovalPopup, setDeleteApprovalPopup] = useState<{ open: boolean; task?: InvestmentTask }>({ open: false });
 
   // Listen for process completion to refetch approval tasks
   useProcessCompletion({
@@ -79,7 +81,7 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({ leadId, cont
   });
 
   // Function to update tab and URL
-  const updateActiveTab = (newTab: 'activities' | 'notes' | 'approvals' | 'ai-summary') => {
+  const updateActiveTab = (newTab: 'activities' | 'notes' | 'approvals') => {
     setActiveTab(newTab);
 
     // Update URL parameter
@@ -118,9 +120,8 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({ leadId, cont
     setApprovalTasksError(null);
 
     try {
-      // For now, show no approval tasks since central investment data doesn't have approval task hooks yet
-      setApprovalTasks([]);
-      setApprovalTasksError(null);
+      const tasksData = await fetchInvestmentTasksByLeadId(leadId);
+      setApprovalTasks(tasksData);
     } catch (error) {
       console.error('Error loading approval tasks:', error);
       setApprovalTasksError(error instanceof Error ? error.message : 'Failed to load approval tasks');
@@ -159,67 +160,10 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({ leadId, cont
 
 
 
-  const handleAddNote = () => {
-    if (leadId) {
-      startProcess({
-        domain: 'investments',
-        processName: 'createInvestmentNote',
-        payload: {
-          leadId,
-        },
-        builderType: 'NATIVE_SCREEN',
-      });
-    }
-  };
-
-  const handleAddTask = () => {
-    if (leadId) {
-      startProcess({
-        domain: 'investments',
-        processName: 'createInvestmentTask',
-        payload: {
-          leadId,
-        },
-        builderType: 'NATIVE_SCREEN',
-      });
-    }
-  };
+  // Direct process calls removed - now handled by AppAction components
 
   const handleDeleteActivity = (activity: InvestmentActivity) => {
-    Modal.confirm({
-      title: 'Confirm Deletion',
-      content: `Are you sure you want to delete the activity "${activity.title}"?`,
-      okText: 'Delete',
-      okType: 'danger',
-      cancelText: 'Cancel',
-      onOk: async () => {
-        try {
-          await restClient.post('/investments/saveInvestmentActivity', {
-            changeMode: "DELETE",
-            investmentActivity: {
-              id: activity.id,
-              version: activity.version,
-              lead: leadId
-            }
-          }, {
-            headers: { Authorization: `Bearer ${context.accessToken}` }
-          });
-
-          // Remove the activity from both states
-          setActivities(prevActivities =>
-            prevActivities.filter(a => a.id !== activity.id)
-          );
-
-          // Also remove from original activities ref
-          originalActivitiesRef.current = originalActivitiesRef.current.filter(a => a.id !== activity.id);
-
-          message.success('Activity deleted successfully');
-        } catch (error) {
-          console.error('Error deleting activity:', error);
-          message.error('Failed to delete activity');
-        }
-      },
-    });
+    setDeletePopup({ open: true, activity });
   };
 
   const handleLanguageChange = (languageCode: string) => {
@@ -247,32 +191,7 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({ leadId, cont
   };
 
   const handleDeleteTask = (task: InvestmentTask) => {
-    Modal.confirm({
-      title: 'Confirm Deletion',
-      content: `Are you sure you want to delete the approval task "${task.name}"?`,
-      okText: 'Delete',
-      okType: 'danger',
-      cancelText: 'Cancel',
-      onOk: async () => {
-        try {
-          await restClient.post('/investments/saveInvestmentTask', {
-            changeMode: "DELETE",
-            investmentTask: {
-              id: task.id,
-              version: task.version,
-              lead: leadId
-            }
-          }, {
-            headers: { Authorization: `Bearer ${context.accessToken}` }
-          });
-          setApprovalTasks(prevTasks => prevTasks.filter(t => t.id !== task.id));
-          message.success('Approval task deleted successfully');
-        } catch (error) {
-          console.error('Error deleting approval task:', error);
-          message.error('Failed to delete approval task');
-        }
-      },
-    });
+    setDeleteApprovalPopup({ open: true, task });
   };
 
   const getEmployeeDisplayNameFromObject = (employee: any): string => {
@@ -297,21 +216,9 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({ leadId, cont
     }
   };
 
-  const handleRequestApproval = () => {
-    if (leadId) {
-      startProcess({
-        domain: 'investments',
-        processName: 'createInvestmentTask',
-        payload: {
-          leadId,
-          typeRef: 'InvestmentTaskType:v1:APPROVAL',
-        },
-        builderType: 'NATIVE_SCREEN',
-      });
-    }
-  };
+  // Request approval handled by AppAction component
 
-  const handleTabChange = (newTab: 'activities' | 'notes' | 'approvals' | 'ai-summary') => {
+  const handleTabChange = (newTab: 'activities' | 'notes' | 'approvals') => {
     updateActiveTab(newTab);
   };
 
@@ -322,7 +229,8 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({ leadId, cont
         borderRadius: '8px',
         border: '1px solid #f0f0f0',
         overflow: 'hidden',
-        marginBottom: '24px'
+        marginBottom: '24px',
+        height: 'fit-content'
       }}
     >
       {/* Tab Navigation */}
@@ -381,22 +289,6 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({ leadId, cont
           >
             Approvals
           </div>
-          <div
-            className={`gba:activity-tab${activeTab === 'ai-summary' ? '-active' : ''}`}
-            data-testid="ai-summary-tab"
-            style={{
-              padding: '12px 24px',
-              fontWeight: '500',
-              color: activeTab === 'ai-summary' ? '#1890ff' : '#8c8c8c',
-              backgroundColor: activeTab === 'ai-summary' ? 'white' : 'transparent',
-              flex: 1,
-              textAlign: 'center',
-              cursor: 'pointer'
-            }}
-            onClick={() => updateActiveTab('ai-summary')}
-          >
-            AI Summary
-          </div>
         </div>
       </div>
 
@@ -432,9 +324,12 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({ leadId, cont
             <AppAction
               contextsArray={[FlowContextName.createInvestmentActivity]}
               accessToken={context.accessToken}
-              externalContextData={{ leadId : leadId }}
+              externalContextData={{ 
+                leadId: leadId,
+                lead: leadId,
+                investmentActivity: { lead: leadId }
+              }}
               prefixDataTestId="add-activity"
-
               emptyStateBehavior="hide"
             >
               <Button
@@ -564,18 +459,40 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({ leadId, cont
             >
               Notes
             </div>
-            <Button
-              variant="default"
-              onClick={handleAddNote}
-              data-testid="add-note-button"
+            <AppAction
+              contextsArray={[FlowContextName.investmentNoteEntity]}
+              externalContextData={{
+                leadId,
+                lead: leadId,
+                investmentNote: { lead: leadId }
+              }}
+              staticFlowData={leadId ? [{
+                key: 'create-investment-note-fallback',
+                label: 'Add Note',
+                onClick: () => startProcess({
+                  domain: 'investments',
+                  processName: 'createInvestmentNote',
+                  payload: { leadId },
+                  builderType: 'NATIVE_SCREEN'
+                })
+              }] : []}
+              prefixDataTestId="add-note"
+              accessToken={context.accessToken}
+              emptyStateBehavior="enable"
+              deferMainContextRequestsUntilClick
             >
-              <PlusCircleOutlined />
-              Add Note
-            </Button>
+              <Button
+                variant="default"
+                data-testid="add-note-button"
+              >
+                <PlusCircleOutlined />
+                Add Note
+              </Button>
+            </AppAction>
           </div>
           <div style={{ padding: '0 24px 24px' }}>
             <NotesSection
-              key={notesKey}
+              key={`notes-${notesKey}`}
               leadId={leadId}
               context={context}
               showHeader={false}
@@ -599,21 +516,51 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({ leadId, cont
               className="gba:approvals-title"
               style={{ fontSize: '18px', fontWeight: '500' }}
             >
-              Approval Tasks
+              Approvals
             </div>
-            <Button
-              variant="default"
-              onClick={handleRequestApproval}
-              data-testid="request-approval-button"
+            <AppAction
+              contextsArray={[FlowContextName.investmentTaskCreate]}
+              externalContextData={{ 
+                leadId,
+                lead: leadId,
+                investmentTask: { lead: leadId, type: 'InvestmentTaskType:v1:APPROVAL' }
+              }}
+              staticFlowData={leadId ? [{
+                key: 'create-investment-approval-fallback',
+                label: 'Request Approval',
+                onClick: () => startProcess({
+                  domain: 'investments',
+                  processName: 'createInvestmentTask',
+                  payload: {
+                    leadId,
+                    typeRef: 'InvestmentTaskType:v1:APPROVAL',
+                  },
+                  builderType: 'NATIVE_SCREEN'
+                })
+              }] : []}
+              prefixDataTestId="request-approval"
+              accessToken={context.accessToken}
+              emptyStateBehavior="enable"
+              deferMainContextRequestsUntilClick
             >
-              <PlusCircleOutlined />
-              Request Approval
-            </Button>
+              <Button
+                variant="default"
+                data-testid="request-approval-button"
+              >
+                <CheckCircleOutlined />
+                Request Approval
+              </Button>
+            </AppAction>
           </div>
+
+          {/* List of approval tasks */}
           <div style={{ padding: '0 24px 24px' }}>
             {approvalTasksLoading && (
               <div style={{ textAlign: 'center', padding: '40px 0' }}>
                 <Spin size="large" />
+                <div style={{ marginTop: '16px', color: '#8c8c8c' }}>
+                  Loading approval tasks...
+                </div>
               </div>
             )}
 
@@ -623,12 +570,7 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({ leadId, cont
                 description={approvalTasksError}
                 type="error"
                 showIcon
-                style={{ marginBottom: '16px' }}
-                action={
-                  <Button size="sm" onClick={loadApprovalTasks}>
-                    Retry
-                  </Button>
-                }
+                action={<Button size="sm" onClick={() => loadApprovalTasks()}>Retry</Button>}
               />
             )}
 
@@ -678,7 +620,7 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({ leadId, cont
                         <Button
                           variant="ghost"
                           size="sm"
-                          onClick={() => handleDeleteTask(task)}
+                          onClick={() => setDeleteApprovalPopup({ open: true, task })}
                         >
                           <CloseOutlined />
                         </Button>
@@ -692,83 +634,57 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({ leadId, cont
         </div>
       )}
 
-      {/* AI Summary Tab Content */}
-      {activeTab === 'ai-summary' && (
-        <div>
-          <div
-            style={{
-              display: 'flex',
-              justifyContent: 'space-between',
-              alignItems: 'center',
-              padding: '16px 24px'
-            }}
-          >
-            <div
-              className="gba:ai-summary-title"
-              style={{ fontSize: '18px', fontWeight: '500' }}
-            >
-              AI Summary
-            </div>
-            <Button
-              variant="default"
-              onClick={() => generateSummary()}
-              disabled={aiSummaryState?.type === 'loading'}
-              data-testid="generate-summary-button"
-            >
-              <RobotOutlined />
-              Generate Summary
-            </Button>
-          </div>
-          <div style={{ padding: '0 24px 24px' }}>
-            {aiSummaryState?.type === 'loading' && (
-              <div style={{ textAlign: 'center', padding: '40px 0' }}>
-                <Spin size="large" />
-                <div style={{ marginTop: '16px', color: '#8c8c8c' }}>
-                  Generating AI summary...
-                </div>
-              </div>
-            )}
+      {deletePopup.open && deletePopup.activity ? (
+        <ActivityDeletePopup
+          isOpen={deletePopup.open}
+          onClose={() => setDeletePopup({ open: false })}
+          accessToken={context.accessToken}
+          activityId={deletePopup.activity!.id}
+          activityVersion={deletePopup.activity!.version}
+          activityTitle={deletePopup.activity?.title || 'Activity'}
+          leadId={leadId}
+          domain="investments"
+          onSuccess={() => {
+            setActivities(prev => prev.filter(a => a.id !== deletePopup.activity!.id));
+            originalActivitiesRef.current = originalActivitiesRef.current.filter(a => a.id !== deletePopup.activity!.id);
+            message.success('Activity deleted successfully');
+          }}
+          onError={() => {
+            message.error('Failed to delete activity');
+          }}
+        />
+      ) : null}
 
-                         {aiSummaryState?.type === 'error' && (
-               <Alert
-                 message="Error Generating Summary"
-                 description="Failed to generate summary. Please try again."
-                 type="error"
-                 showIcon
-                 style={{ marginBottom: '16px' }}
-                 action={
-                   <Button size="sm" onClick={() => generateSummary()}>
-                     Retry
-                   </Button>
-                 }
-               />
-             )}
+      {deleteApprovalPopup.open && deleteApprovalPopup.task ? (
+        <DeleteConfirmPopup
+          isOpen={deleteApprovalPopup.open}
+          onClose={() => setDeleteApprovalPopup({ open: false })}
+          accessToken={context.accessToken}
+          itemTitle={deleteApprovalPopup.task?.name ? String(deleteApprovalPopup.task.name) : 'Approval Task'}
+          itemType="task"
+          flowContextName={FlowContextName.investmentTaskDelete}
+          externalContextData={{
+            taskId: deleteApprovalPopup.task!.id,
+            investmentTask: {
+              id: deleteApprovalPopup.task!.id,
+              version: deleteApprovalPopup.task!.version,
+            },
+            leadId,
+          }}
+          onFlowSuccess={() => {
+            const id = deleteApprovalPopup.task!.id;
+            setApprovalTasks(prev => prev.filter(t => t.id !== id));
+            setDeleteApprovalPopup({ open: false });
+            message.success('Approval task deleted successfully');
+          }}
+          onFlowError={() => {
+            setDeleteApprovalPopup({ open: false });
+            message.error('Failed to delete approval task');
+          }}
+          data-testid={`delete-approval-task-popup`}
+        />
+      ) : null}
 
-             {aiSummaryState?.type === 'success' && aiSummaryState.content?.summary && (
-               <div style={{ backgroundColor: '#f8f9fa', padding: '16px', borderRadius: '8px' }}>
-                 <Text strong style={{ display: 'block', marginBottom: '8px' }}>
-                   Summary
-                 </Text>
-                 <div style={{ whiteSpace: 'pre-wrap' }}>
-                   {aiSummaryState.content.summary}
-                 </div>
-               </div>
-             )}
-
-             {(!aiSummaryState || (aiSummaryState.type !== 'loading' && aiSummaryState.type !== 'success' && aiSummaryState.type !== 'error')) && (
-               <Empty
-                 description="No AI summary yet"
-                 style={{ padding: '40px 0' }}
-                 data-testid="empty-ai-summary"
-               >
-                 <div style={{ fontSize: '14px', color: '#8c8c8c' }}>
-                   Generate an AI summary to get insights about this lead
-                 </div>
-               </Empty>
-             )}
-          </div>
-        </div>
-      )}
     </div>
   );
 }; 

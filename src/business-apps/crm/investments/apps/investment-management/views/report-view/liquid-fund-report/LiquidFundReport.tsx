@@ -36,145 +36,137 @@ export const LiquidFundReport: React.FC<LiquidFundReportProps> = ({
   userInfo,
   'data-testid': dataTestId = 'liquid-fund-analytics'
 }) => {
-  // Sub-tab management
-  const [activeSubTab, setActiveSubTab] = useState<string>('overview');
+  // Sub-tab management - Start with Bank Deposits since Overview is removed
+  const [activeSubTab, setActiveSubTab] = useState<string>('tab1');
 
-  // Filter states - Updated to 2024 where actual data exists
-  const [startDate, setStartDate] = useState<dayjs.Dayjs | null>(
-    dayjs('2024-01-01') // January 1st, 2024 (where actual data exists)
-  );
-  const [endDate, setEndDate] = useState<dayjs.Dayjs | null>(
-    dayjs('2024-12-31') // December 31st, 2024
-  );
+  // FIXED: Filter states - Use same pattern as individual investment record reports
+  const [timeFilter, setTimeFilter] = useState<string>('all');
+  const [dateRange, setDateRange] = useState<[dayjs.Dayjs | null, dayjs.Dayjs | null] | null>(null);
   const [selectedCurrency, setSelectedCurrency] = useState<string>('EUR');
-  
-  // Applied filters state (only updates when Apply button is clicked)
-  // LOAD DATA IMMEDIATELY - Set default applied filters to show data on initial load
-  const [appliedStartDate, setAppliedStartDate] = useState<dayjs.Dayjs | null>(
-    dayjs('2024-01-01') // AUTO-APPLY: Show data immediately
-  );
-  const [appliedEndDate, setAppliedEndDate] = useState<dayjs.Dayjs | null>(
-    dayjs('2024-12-31') // AUTO-APPLY: Show data immediately
-  );
-  const [appliedCurrency, setAppliedCurrency] = useState<string>('EUR');
 
   // Available currencies
   const availableCurrencies = ['EUR', 'USD', 'GBP', 'CHF'];
 
-  // Create stable date strings from APPLIED filters (not current filter state)
-  const startDateString = useMemo(() => 
-    appliedStartDate?.format('YYYY-MM-DD') || '2024-01-01',
-    [appliedStartDate?.valueOf()]
-  );
-  const endDateString = useMemo(() => 
-    appliedEndDate?.format('YYYY-MM-DD') || '2024-12-31',
-    [appliedEndDate?.valueOf()]
-  );
-
-  // Apply filters handler
-  const handleApplyFilters = () => {
-    setAppliedStartDate(startDate);
-    setAppliedEndDate(endDate);
-    setAppliedCurrency(selectedCurrency);
-  };
-
-  // Check if filters have changed (to show/hide Apply button)
-  const filtersChanged = useMemo(() => {
-    const currentStart = startDate?.format('YYYY-MM-DD');
-    const currentEnd = endDate?.format('YYYY-MM-DD');
-    const appliedStart = appliedStartDate?.format('YYYY-MM-DD');
-    const appliedEnd = appliedEndDate?.format('YYYY-MM-DD');
+  // FIXED: Calculate date strings using same logic as individual investment record reports
+  const { startDateString, endDateString } = useMemo(() => {
+    if (dateRange && dateRange[0] && dateRange[1]) {
+      return {
+        startDateString: dateRange[0].format('YYYY-MM-DD'),
+        endDateString: dateRange[1].format('YYYY-MM-DD')
+      };
+    } else if (timeFilter !== 'all') {
+      const now = dayjs();
+      let calculatedStartDate: dayjs.Dayjs | null = null;
+      switch (timeFilter) {
+        case 'last7days': calculatedStartDate = now.subtract(7, 'days'); break;
+        case 'last30days': calculatedStartDate = now.subtract(30, 'days'); break;
+        case 'last3months': calculatedStartDate = now.subtract(3, 'months'); break;
+        case 'last6months': calculatedStartDate = now.subtract(6, 'months'); break;
+        case 'lastyear': calculatedStartDate = now.subtract(1, 'year'); break;
+        default: calculatedStartDate = null;
+      }
+      if (calculatedStartDate) {
+        return {
+          startDateString: calculatedStartDate.format('YYYY-MM-DD'),
+          endDateString: now.format('YYYY-MM-DD')
+        };
+      }
+    }
     
-    return currentStart !== appliedStart || 
-           currentEnd !== appliedEnd || 
-           selectedCurrency !== appliedCurrency;
-  }, [startDate, endDate, appliedStartDate, appliedEndDate, selectedCurrency, appliedCurrency]);
+    // Default to show recent data if no filter is set
+    return {
+      startDateString: dayjs().subtract(1, 'year').format('YYYY-MM-DD'),
+      endDateString: dayjs().format('YYYY-MM-DD')
+    };
+  }, [dateRange, timeFilter]);
 
-  // Create filters for Overview and specific investment types
-  const overviewFilters = useMemo((): AnalyticsFilters => ({
-    startDate: startDateString,
-    endDate: endDateString,
-    currency: appliedCurrency
-    // No investmentType filter to show all liquid fund reports
-  }), [startDateString, endDateString, appliedCurrency]);
-
+  // Create filters for specific investment types (Overview removed)
   const bankDepositFilters = useMemo((): AnalyticsFilters => ({
     startDate: startDateString,
     endDate: endDateString,
-    currency: appliedCurrency,
+    currency: selectedCurrency,
     investmentType: 'Bank Deposit'
-  }), [startDateString, endDateString, appliedCurrency]);
+  }), [startDateString, endDateString, selectedCurrency]);
 
   const fixedTermDepositFilters = useMemo((): AnalyticsFilters => ({
     startDate: startDateString,
     endDate: endDateString,
-    currency: appliedCurrency,
+    currency: selectedCurrency,
     investmentType: 'Fixed-Term Deposit'
-  }), [startDateString, endDateString, appliedCurrency]);
+  }), [startDateString, endDateString, selectedCurrency]);
 
   const multipleTypesFilters = useMemo((): AnalyticsFilters => ({
     startDate: startDateString,
     endDate: endDateString,
-    currency: appliedCurrency,
+    currency: selectedCurrency,
     investmentType: 'Money Market Funds,Pension Fund,Equity,Bond' // Multiple types separated by comma
-  }), [startDateString, endDateString, appliedCurrency]);
+  }), [startDateString, endDateString, selectedCurrency]);
 
-
-
-  const handleStartDateChange = (date: dayjs.Dayjs | null) => {
-    setStartDate(date);
+  // FIXED: Filter change handlers matching record reports pattern
+  const handleTimeFilterChange = (value: string) => {
+    setTimeFilter(value);
+    if (value !== 'all') {
+      setDateRange(null); // Clear date range when using time filter
+    }
   };
 
-  const handleEndDateChange = (date: dayjs.Dayjs | null) => {
-    setEndDate(date);
+  const handleDateRangeChange = (dates: [dayjs.Dayjs | null, dayjs.Dayjs | null] | null) => {
+    setDateRange(dates);
+    if (dates && dates[0] && dates[1]) {
+      setTimeFilter('all'); // Clear time filter when using date range
+    }
   };
 
-  const handleCurrencyChange = (currency: string) => {
-    setSelectedCurrency(currency);
+  const handleClearFilters = () => {
+    setTimeFilter('all');
+    setDateRange(null);
   };
+
 
 
 
   return (
     <div className="gba:space-y-6 gba:p-6" data-testid={dataTestId}>
-      {/* Filters Section */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="gba:flex gba:items-center gba:gap-2">
-            <FilterIcon className="gba:h-5 gba:w-5" />
-            Filters
-          </CardTitle>
-          <CardDescription>
-            Configure time period and currency for the analytics view
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="gba:flex gba:flex-wrap gba:items-center gba:gap-4 gba:mb-4">
+      {/* FIXED: Filters Section - Using same pattern as record reports */}
+      <div className="gba:bg-white gba:rounded-lg gba:border gba:shadow-sm gba:mb-6">
+        <div className="gba:p-4 gba:border-b">
+          <div className="gba:flex gba:items-center gba:gap-2">
+            <FilterIcon className="gba:w-4 gba:h-4" />
+            <h3 className="gba:text-sm gba:font-medium">Filters</h3>
+          </div>
+        </div>
+        <div className="gba:p-4">
+          <div className="gba:flex gba:flex-wrap gba:items-center gba:gap-4">
             <div className="gba:flex gba:items-center gba:gap-2">
-              <label className="gba:text-sm gba:font-medium">Start Date:</label>
-              <DatePicker
-                value={startDate}
-                onChange={handleStartDateChange}
-                format="DD/MM/YYYY"
-                placeholder="Start Date"
-                allowClear={false}
-              />
+              <label className="gba:text-sm gba:font-medium">Time Period:</label>
+              <Select value={timeFilter} onValueChange={handleTimeFilterChange}>
+                <SelectTrigger className="gba:w-[180px]">
+                  <SelectValue placeholder="Select period" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Time</SelectItem>
+                  <SelectItem value="last7days">Last 7 Days</SelectItem>
+                  <SelectItem value="last30days">Last 30 Days</SelectItem>
+                  <SelectItem value="last3months">Last 3 Months</SelectItem>
+                  <SelectItem value="last6months">Last 6 Months</SelectItem>
+                  <SelectItem value="lastyear">Last Year</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
             
             <div className="gba:flex gba:items-center gba:gap-2">
-              <label className="gba:text-sm gba:font-medium">End Date:</label>
-              <DatePicker
-                value={endDate}
-                onChange={handleEndDateChange}
+              <label className="gba:text-sm gba:font-medium">Date Range:</label>
+              <DatePicker.RangePicker
+                value={dateRange}
+                onChange={handleDateRangeChange}
                 format="DD/MM/YYYY"
-                placeholder="End Date"
-                allowClear={false}
+                placeholder={["Start Date", "End Date"]}
               />
             </div>
             
             <div className="gba:flex gba:items-center gba:gap-2">
               <label className="gba:text-sm gba:font-medium">Currency:</label>
-              <Select value={selectedCurrency} onValueChange={handleCurrencyChange}>
+              <Select value={selectedCurrency} onValueChange={setSelectedCurrency}>
                 <SelectTrigger className="gba:w-[120px]">
                   <SelectValue />
                 </SelectTrigger>
@@ -187,27 +179,22 @@ export const LiquidFundReport: React.FC<LiquidFundReportProps> = ({
                 </SelectContent>
               </Select>
             </div>
-          </div>
-          
-          {/* Apply Filter Button - main button style */}
-          <div className="gba:flex gba:justify-end gba:gap-2">
+            
             <Button 
-              onClick={handleApplyFilters}
-              className="gba:bg-black hover:gba:bg-gray-800 gba:text-white gba:border-black"
-              data-testid={`${dataTestId}-apply-filters`}
+              onClick={handleClearFilters}
+              variant="outline"
+              className="gba:ml-auto"
+              data-testid={`${dataTestId}-clear-filters`}
             >
-              Apply Filter
+              Clear Filters
             </Button>
           </div>
-        </CardContent>
-      </Card>
+        </div>
+      </div>
 
-      {/* Analytics Tables with Sub-tabs */}
+      {/* Analytics Tables with Sub-tabs - Overview removed */}
       <Tabs value={activeSubTab} onValueChange={setActiveSubTab} className="gba:w-full">
-        <TabsList className="gba:grid gba:w-full gba:grid-cols-4">
-          <TabsTrigger value="overview" data-testid={`${dataTestId}-overview`}>
-            Overview
-          </TabsTrigger>
+        <TabsList className="gba:grid gba:w-full gba:grid-cols-3">
           <TabsTrigger value="tab1" data-testid={`${dataTestId}-tab1`}>
             Bank Deposits
           </TabsTrigger>
@@ -218,17 +205,6 @@ export const LiquidFundReport: React.FC<LiquidFundReportProps> = ({
             Multiple Types
           </TabsTrigger>
         </TabsList>
-        
-        <TabsContent value="overview" className="gba:mt-6">
-          <AnalyticsTable
-            accessToken={accessToken}
-            userInfo={userInfo}
-            filters={overviewFilters}
-            investmentType="All Liquid Fund Reports"
-            title="Liquid Fund Analytics - Overview"
-            data-testid={`${dataTestId}-overview-table`}
-          />
-        </TabsContent>
         
         <TabsContent value="tab1" className="gba:mt-6">
           <AnalyticsTable

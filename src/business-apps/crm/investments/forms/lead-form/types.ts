@@ -71,6 +71,11 @@ export interface LeadFormValues {
   requiredCapitalAmount: string;
   forecastedProfitAmount: string;
   annualNetColdRent: string;
+  
+  // Real Estate Specific Fields
+  buildingYear: string;
+  size: string;
+  measurementUnit: string;
 
   // Notes
   notes: string;

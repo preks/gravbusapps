@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useCallback } from 'react';
 import {
   Card,
   CardContent,
@@ -18,8 +18,7 @@ import {
   DollarSign,
   TrendingUp,
   TrendingDown,
-  RefreshCw,
-  ExternalLink
+  RefreshCw
 } from 'lucide-react';
 import { buildPlatformUrl, navigateTo } from '@/common/utils/navigationUtils';
 import { useLiquidFundAnalyticsIntegration } from '../hooks';
@@ -59,13 +58,34 @@ export const AnalyticsTable: React.FC<AnalyticsTableProps> = ({
     sortOrder: 'ASC'
   });
 
-  const formatCurrency = (amount: number, currency: string = filters.currency || 'EUR'): string => {
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: currency,
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 2
-    }).format(amount);
+  // Currency helpers to match list style: number-only + narrow symbol right-aligned
+  const getCurrencySymbol = (currencyCode?: string): string => {
+    try {
+      const code = currencyCode || filters.currency || 'EUR';
+      const parts = new Intl.NumberFormat(undefined, {
+        style: 'currency',
+        currency: code,
+        currencyDisplay: 'narrowSymbol'
+      }).formatToParts(0);
+      return parts.find(p => p.type === 'currency')?.value || code;
+    } catch {
+      return '€';
+    }
+  };
+
+  const formatCurrencyNumberOnly = (amount: number, currency?: string): string => {
+    try {
+      const code = currency || filters.currency || 'EUR';
+      const parts = new Intl.NumberFormat(undefined, {
+        style: 'currency',
+        currency: code,
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2,
+      }).formatToParts(amount);
+      return parts.filter(p => p.type !== 'currency').map(p => p.value).join('');
+    } catch {
+      return new Intl.NumberFormat(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(amount);
+    }
   };
 
   const formatPerformance = (value: number): React.ReactNode => {
@@ -121,13 +141,15 @@ export const AnalyticsTable: React.FC<AnalyticsTableProps> = ({
     });
   };
 
-  // Handle investment navigation
-  const handleInvestmentClick = (investmentId: string, investmentName: string) => {
-    console.log('Investment clicked:', { investmentId, investmentName });
-    const url = buildPlatformUrl('/platform/irm/investment-record', { investmentId });
-    console.log('Navigating to:', url);
-    navigateTo(url);
-  };
+  // Handle row click navigation
+  const handleRowClick = useCallback((investmentId: string) => {
+    const detailsUrl = buildPlatformUrl('/platform/irm/investment-record', { 
+      investmentId,
+      fromView: 'reports',
+      fromSubView: 'liquid-fund'
+    });
+    navigateTo(detailsUrl);
+  }, []);
 
   const hasData = !isLoading && !error && analyticsData.length > 0;
 
@@ -170,17 +192,8 @@ export const AnalyticsTable: React.FC<AnalyticsTableProps> = ({
         </CardDescription>
       </CardHeader>
       <CardContent>
-        {!hasData ? (
-          <div className="gba:text-center gba:py-8 gba:text-gray-500" data-testid={`${dataTestId}-empty-state`}>
-            <DollarSign className="gba:h-12 gba:w-12 gba:mx-auto gba:mb-3 gba:text-gray-300" />
-            <p className="gba:text-lg gba:font-medium gba:mb-2">No {investmentType} Data Found</p>
-            <p className="gba:text-sm">
-              No liquid fund portfolios are available for {investmentType.toLowerCase()}.
-            </p>
-          </div>
-        ) : (
-          <div className="gba:overflow-x-auto">
-            <Table data-testid={`${dataTestId}-table`}>
+        <div className="gba:overflow-x-auto">
+          <Table data-testid={`${dataTestId}-table`}>
             <TableHeader>
               <TableRow className="gba:border-b gba:bg-gray-50">
                 <TableHead className="gba:font-semibold gba:text-gray-700 gba:text-left gba:py-3 gba:px-4">Proprietor</TableHead>
@@ -213,8 +226,8 @@ export const AnalyticsTable: React.FC<AnalyticsTableProps> = ({
                   <TableCell colSpan={isFixedTermDeposits ? 11 : isMultipleInvestmentTypes ? 12 : 9} className="gba:text-center gba:py-12 gba:text-gray-500">
                     <div className="gba:flex gba:flex-col gba:items-center gba:gap-2">
                       <DollarSign className="gba:h-12 gba:w-12 gba:text-gray-300" />
-                      <p className="gba:text-lg gba:font-medium">No data available</p>
-                      <p className="gba:text-sm">No reports found for the selected time period. Try adjusting your date range.</p>
+                      <p className="gba:text-lg gba:font-medium">No {investmentType} Data Found</p>
+                      <p className="gba:text-sm">No liquid fund portfolios are available for {investmentType.toLowerCase()} in the selected time period.</p>
                     </div>
                   </TableCell>
                 </TableRow>
@@ -223,25 +236,14 @@ export const AnalyticsTable: React.FC<AnalyticsTableProps> = ({
                   {analyticsData.map((row, index) => (
                     <TableRow
                       key={row.id}
-                      className="gba:border-b gba:hover:gba:bg-gray-50"
+                      className="gba:cursor-pointer gba:border-b gba:hover:gba:bg-gray-50"
+                      onClick={() => row.investmentId && handleRowClick(row.investmentId)}
                       data-testid={`${dataTestId}-row-${index + 1}`}
                     >
                       <TableCell className="gba:py-3 gba:px-4">
-                        <div className="gba:font-medium">
-                          <div>{row.proprietorName}</div>
-                          {row.investmentId ? (
-                            <button
-                              onClick={() => handleInvestmentClick(row.investmentId!, row.investmentName!)}
-                              className="gba:text-xs gba:text-blue-600 hover:gba:text-blue-800 hover:gba:underline gba:cursor-pointer gba:bg-transparent gba:border-none gba:p-0 gba:text-left"
-                              data-testid={`${dataTestId}-investment-link-${row.id}`}
-                            >
-                              🔗 {row.investmentName} <ExternalLink className="gba:inline gba:h-3 gba:w-3 gba:ml-1" />
-                            </button>
-                          ) : (
-                            <div className="gba:text-xs gba:text-gray-500">
-                              ❌ {row.investmentName || 'Unknown Investment'} (No ID: {JSON.stringify(row.investmentId)})
-                            </div>
-                          )}
+                        <div className="gba:flex gba:items-center gba:gap-2">
+                          <DollarSign className="gba:w-4 gba:h-4 gba:text-gray-500" />
+                          <span className="gba:font-medium">{row.proprietorName}</span>
                         </div>
                       </TableCell>
                       <TableCell className="gba:text-left gba:py-3 gba:px-4">
@@ -270,23 +272,65 @@ export const AnalyticsTable: React.FC<AnalyticsTableProps> = ({
                           </TableCell>
                         </>
                       )}
-                      <TableCell className="gba:text-right gba:font-mono gba:py-3 gba:px-4">
-                        {formatCurrency(row.openingBalance)}
+                      <TableCell className="gba:text-right gba:py-3 gba:px-4">
+                        <div className="gba:w-full gba:flex gba:justify-end gba:items-baseline">
+                          <span className="gba:text-sm gba:[font-variant-numeric:tabular-nums]">
+                            {formatCurrencyNumberOnly(row.openingBalance)}
+                          </span>
+                          <span className="gba:text-xs gba:text-gray-400 gba:inline-block gba:text-right gba:shrink-0 gba:w-[5ch]">
+                            {getCurrencySymbol(filters.currency)}
+                          </span>
+                        </div>
                       </TableCell>
-                      <TableCell className="gba:text-right gba:font-mono gba:py-3 gba:px-4">
-                        {formatCurrency(row.incoming)}
+                      <TableCell className="gba:text-right gba:py-3 gba:px-4">
+                        <div className="gba:w-full gba:flex gba:justify-end gba:items-baseline">
+                          <span className="gba:text-sm gba:[font-variant-numeric:tabular-nums]">
+                            {formatCurrencyNumberOnly(row.incoming)}
+                          </span>
+                          <span className="gba:text-xs gba:text-gray-400 gba:inline-block gba:text-right gba:shrink-0 gba:w-[5ch]">
+                            {getCurrencySymbol(filters.currency)}
+                          </span>
+                        </div>
                       </TableCell>
-                      <TableCell className="gba:text-right gba:font-mono gba:py-3 gba:px-4">
-                        {formatCurrency(row.outgoing)}
+                      <TableCell className="gba:text-right gba:py-3 gba:px-4">
+                        <div className="gba:w-full gba:flex gba:justify-end gba:items-baseline">
+                          <span className="gba:text-sm gba:[font-variant-numeric:tabular-nums]">
+                            {formatCurrencyNumberOnly(row.outgoing)}
+                          </span>
+                          <span className="gba:text-xs gba:text-gray-400 gba:inline-block gba:text-right gba:shrink-0 gba:w-[5ch]">
+                            {getCurrencySymbol(filters.currency)}
+                          </span>
+                        </div>
                       </TableCell>
-                      <TableCell className="gba:text-right gba:font-mono gba:py-3 gba:px-4">
-                        {formatCurrency(row.realizedGainsLosses)}
+                      <TableCell className="gba:text-right gba:py-3 gba:px-4">
+                        <div className="gba:w-full gba:flex gba:justify-end gba:items-baseline">
+                          <span className="gba:text-sm gba:[font-variant-numeric:tabular-nums]">
+                            {formatCurrencyNumberOnly(row.realizedGainsLosses)}
+                          </span>
+                          <span className="gba:text-xs gba:text-gray-400 gba:inline-block gba:text-right gba:shrink-0 gba:w-[5ch]">
+                            {getCurrencySymbol(filters.currency)}
+                          </span>
+                        </div>
                       </TableCell>
-                      <TableCell className="gba:text-right gba:font-mono gba:py-3 gba:px-4">
-                        {formatCurrency(row.unrealizedGainsLosses)}
+                      <TableCell className="gba:text-right gba:py-3 gba:px-4">
+                        <div className="gba:w-full gba:flex gba:justify-end gba:items-baseline">
+                          <span className="gba:text-sm gba:[font-variant-numeric:tabular-nums]">
+                            {formatCurrencyNumberOnly(row.unrealizedGainsLosses)}
+                          </span>
+                          <span className="gba:text-xs gba:text-gray-400 gba:inline-block gba:text-right gba:shrink-0 gba:w-[5ch]">
+                            {getCurrencySymbol(filters.currency)}
+                          </span>
+                        </div>
                       </TableCell>
-                      <TableCell className="gba:text-right gba:font-mono gba:font-medium gba:py-3 gba:px-4">
-                        {formatCurrency(row.closingBalance)}
+                      <TableCell className="gba:text-right gba:py-3 gba:px-4">
+                        <div className="gba:w-full gba:flex gba:justify-end gba:items-baseline">
+                          <span className="gba:text-sm gba:[font-variant-numeric:tabular-nums] gba:font-medium">
+                            {formatCurrencyNumberOnly(row.closingBalance)}
+                          </span>
+                          <span className="gba:text-xs gba:text-gray-400 gba:inline-block gba:text-right gba:shrink-0 gba:w-[5ch]">
+                            {getCurrencySymbol(filters.currency)}
+                          </span>
+                        </div>
                       </TableCell>
                       <TableCell className="gba:text-center gba:py-3 gba:px-4">
                         {formatPerformance(row.timeWeightedPerformance)}
@@ -297,8 +341,7 @@ export const AnalyticsTable: React.FC<AnalyticsTableProps> = ({
               )}
             </TableBody>
           </Table>
-          </div>
-        )}
+        </div>
       </CardContent>
     </Card>
   );

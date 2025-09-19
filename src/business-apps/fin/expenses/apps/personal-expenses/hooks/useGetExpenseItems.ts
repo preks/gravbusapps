@@ -212,7 +212,6 @@ export const useGetExpenseItems = (context?: BusinessAppContextProps): ExpenseIt
       if (filter?.noReceipt) {
         console.log('No Receipt filter is active!');
       }
-      console.log('Query variables:', JSON.stringify(variables));
       
       const response = await fetch(env('NEXT_PUBLIC_GRAPHQL_ENDPOINT_NEWWORK')!, {
         method: 'POST',
@@ -245,11 +244,9 @@ export const useGetExpenseItems = (context?: BusinessAppContextProps): ExpenseIt
       
       // Apply client-side filtering for expenseClass
       if (filter?.expenseClass && filter.expenseClass.value) {
-        console.log('Applying client-side filtering for expenseClass:', filter.expenseClass.value);
         mappedItems = mappedItems.filter(item => 
           item.expenseClass?.value === filter.expenseClass?.value
         );
-        console.log('After filtering by expense class:', mappedItems.length, 'items remain');
       }
       
       // Apply client-side filtering for items with no receipts
@@ -258,28 +255,8 @@ export const useGetExpenseItems = (context?: BusinessAppContextProps): ExpenseIt
         
         // Detailed inspection of the first few items
         console.log('DATA INSPECTION:');
-        mappedItems.slice(0, 3).forEach(item => {
-          console.log(`Item ${item.id} - expenseItemFile:`, 
-            item.expenseItemFile, 
-            'type:', typeof item.expenseItemFile, 
-            'is array:', Array.isArray(item.expenseItemFile), 
-            'length:', item.expenseItemFile?.length);
-        });
         
-        // Log counts before filtering
-        const withAttachments = mappedItems.filter(item => {
-          const hasAttachment = Array.isArray(item.expenseItemFile) && item.expenseItemFile.length > 0;
-          if (hasAttachment) console.log(`Item ${item.id} HAS attachments:`, item.expenseItemFile);
-          return hasAttachment;
-        }).length;
         
-        const withoutAttachments = mappedItems.filter(item => {
-          const hasNoAttachment = !Array.isArray(item.expenseItemFile) || item.expenseItemFile.length === 0;
-          if (hasNoAttachment) console.log(`Item ${item.id} has NO attachments:`, item.expenseItemFile);
-          return hasNoAttachment;
-        }).length;
-        
-        console.log(`Before filtering: ${withAttachments} items with attachments, ${withoutAttachments} without attachments`);
         
         // Apply the filter with stronger type checking
         mappedItems = mappedItems.filter(item => {
@@ -288,7 +265,6 @@ export const useGetExpenseItems = (context?: BusinessAppContextProps): ExpenseIt
           return hasNoAttachments;
         });
         
-        console.log('After filtering for no receipts:', mappedItems.length, 'items remain');
       }
       
       // Update total count based on filtered results if any client-side filtering was applied

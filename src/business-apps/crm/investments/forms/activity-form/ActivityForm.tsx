@@ -38,9 +38,14 @@ const ActivityForm: React.FC<ActivityFormProps> = ({
   const activityId = additionalData?.activityId;
   const isUpdateMode = !!activityId;
 
-  // Get entity IDs from business app context
+  // Get entity IDs from business app context (support externalContextData from AppAction)
   const { accountId, leadId, contactId, opportunityId } = additionalData || {};
-  const hasEntityFromContext = accountId || leadId || contactId || opportunityId;
+  // const hasEntityFromContext = accountId || leadId || contactId || opportunityId; // not used after forcing hide
+  
+  // For investment activities, we hide entity selection since investment + account context is sufficient
+  // In the investment record context, this specialized form must never ask for a related entity
+  // Always hide the related entity selector
+  const shouldShowEntitySelection = false;
 
   // Investment activity hooks
   const { fetchInvestmentActivityById } = useGetInvestmentActivityById({ accessToken, additionalData });
@@ -70,7 +75,12 @@ const ActivityForm: React.FC<ActivityFormProps> = ({
             lead: activity.lead,
             ownerEmployee: activity.ownerEmployee,
             version: activity.version,
-          });
+            // keep relatedEntityId for validation convenience
+            ...(activity.account?.id ? { relatedEntityId: activity.account.id } : {}),
+            ...(activity.contact?.id ? { relatedEntityId: activity.contact.id } : {}),
+            ...(activity.opportunity?.id ? { relatedEntityId: activity.opportunity.id } : {}),
+            ...(activity.lead?.id ? { relatedEntityId: activity.lead.id } : {}),
+          } as any);
 
           // Hydrate and pin related entity if present so combobox trigger keeps rich label
           const relId = activity.account?.id || activity.contact?.id || activity.opportunity?.id || activity.lead?.id;
@@ -86,19 +96,26 @@ const ActivityForm: React.FC<ActivityFormProps> = ({
   }, [isUpdateMode, activityId, fetchInvestmentActivityById]);
 
   const handleEntitySearch = useCallback((searchTerm: string) => {
-    if (searchTerm.trim().length >= 2) {
-      searchEntities(searchTerm);
-    }
+    // Allow empty string to fetch first page
+    searchEntities((searchTerm || ''));
   }, [searchEntities]);
+
+  // Prefetch entities on mount if selection is visible
+  useEffect(() => {
+    if (shouldShowEntitySelection) {
+      searchEntities('');
+    }
+  }, [shouldShowEntitySelection, searchEntities]);
 
   // Compose validation using the shared util, with domain toggle on entity requirement
   const validateForm = useCallback((data: any): string[] | null => {
-    return validateActivityData(data, { requireEntity: !hasEntityFromContext });
-  }, [hasEntityFromContext]);
+    // For investment context, we don't require entity selection since investment context is sufficient
+    return validateActivityData(data, { requireEntity: shouldShowEntitySelection });
+  }, [shouldShowEntitySelection]);
 
   // Form submission handler - business logic only
   const handleSubmit = useCallback(async (formData: Activity) => {
-    const payload = buildActivityPayload(formData, { accessToken, userInfo, additionalData }, {
+    const payload = buildActivityPayload(formData, { accessToken, userInfo, additionalData } as any, {
       isUpdate: isUpdateMode,
     });
     return payload;
@@ -135,6 +152,8 @@ const ActivityForm: React.FC<ActivityFormProps> = ({
       cancelButtonText={getTranslationFromI18nKeyAndLabel('crm:common.cancel', 'Cancel')}
       data-testid="investment-activity-process-dialog"
     >
+      {/* Investment context header intentionally removed as requested */}
+      
       <ActivitySegment
         // Let segment load type options from catalog
         accessToken={accessToken}
@@ -145,7 +164,8 @@ const ActivityForm: React.FC<ActivityFormProps> = ({
         entitiesHasMore={entitiesHasMore}
         onEntityLoadMore={loadMoreEntities}
         onEntitySearch={handleEntitySearch}
-        showEntitySelection={!hasEntityFromContext}
+        showEntitySelection={shouldShowEntitySelection}
+        showOwnerSelection={false}
         initialEntityFromContext={{ accountId, contactId, opportunityId, leadId }}
         titleLabel={getTranslationFromI18nKeyAndLabel('crm:salesActivity.title', 'Title')}
         typeLabel={getTranslationFromI18nKeyAndLabel('crm:salesActivity.type', 'Type')}

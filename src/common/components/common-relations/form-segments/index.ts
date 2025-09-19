@@ -12,7 +12,7 @@ export { validateActivityData, mapEntityToOption } from './activity-segment/util
 
 export { default as TaskSegment } from './task-segment/TaskSegment';
 export type { TaskSegmentProps, TaskOption, TaskSegmentSchema } from './task-segment/TaskSegment';
-export { taskSegmentSchema, createTaskSegmentResolver } from './task-segment/TaskSegment';
+//export { taskSegmentSchema, createTaskSegmentResolver } from './task-segment/TaskSegment';
 
 export { default as NoteSegment } from './note-segment/NoteSegment';
 export type { NoteSegmentProps, NoteSegmentSchema } from './note-segment/NoteSegment';

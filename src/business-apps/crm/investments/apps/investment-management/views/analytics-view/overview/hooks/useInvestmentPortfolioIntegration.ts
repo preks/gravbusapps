@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 import { InvestmentPortfolioKPIs, InvestmentQueryVariables } from '../types';
 import { useGetInvestments } from '@/common/data/investment/hooks/useInvestments';
+import { useGetPortfolioKPIs } from '../queries/PortfolioKPIQueries';
 import type { Investment as CentralInvestment } from '@/common/data/investment/types';
 
 export interface EnhancedInvestmentSummary {
@@ -45,13 +46,20 @@ export const useInvestmentPortfolioIntegration = (context: BusinessAppContextPro
   const [kpis, setKPIs] = useState<InvestmentPortfolioKPIs>({
     totalPortfolioValue: 0,
     totalInvestments: 0,
-    averageROI: 0,
+    totalAmountInvested: 0,
+    activeInvestments: 0
+  });
+  const [previousKpis, setPreviousKPIs] = useState<InvestmentPortfolioKPIs>({
+    totalPortfolioValue: 0,
+    totalInvestments: 0,
+    totalAmountInvested: 0,
     activeInvestments: 0
   });
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   const { fetchInvestments } = useGetInvestments(context);
+  const { fetchPortfolioKPIs } = useGetPortfolioKPIs(context);
 
   const extractCurrencyCode = (inv: CentralInvestment): string => inv.currency?.code || 'EUR';
 
@@ -146,9 +154,8 @@ export const useInvestmentPortfolioIntegration = (context: BusinessAppContextPro
     const totalPortfolioValue = enhancedInvestments.reduce((sum, inv) => sum + (inv.marketValue || 0), 0);
     const totalInvestments = enhancedInvestments.length;
     const activeInvestments = enhancedInvestments.filter(inv => inv.isActive).length;
-    const totalROI = enhancedInvestments.reduce((sum, inv) => sum + (inv.roi || 0), 0);
-    const averageROI = totalInvestments > 0 ? totalROI / totalInvestments : 0;
-    return { totalPortfolioValue, totalInvestments, averageROI, activeInvestments };
+    const totalAmountInvested = enhancedInvestments.reduce((sum, inv) => sum + (inv.totalInvestmentAmount || 0), 0);
+    return { totalPortfolioValue, totalInvestments, totalAmountInvested, activeInvestments };
   }, []);
 
   const loadData = useCallback(async (variables: InvestmentQueryVariables = {}) => {
@@ -162,31 +169,41 @@ export const useInvestmentPortfolioIntegration = (context: BusinessAppContextPro
     setError(null);
     
     try {
-      const result = await fetchInvestments({
-        limit: variables.limit,
-        offset: variables.offset,
-        search: variables.search,
-        orderBy: variables.orderBy?.map((o: any) => ({ field: o.field || 'createdAt', direction: (o.direction || 'DESC') as 'ASC' | 'DESC' }))
-      });
-      const enhancedInvestments = transformInvestmentData(result.Investment as unknown as CentralInvestment[]);
-      const calculatedKPIs = calculateKPIs(enhancedInvestments);
+      // Fetch both investment data and KPIs with real historical comparison in parallel
+      const [investmentResult, kpiResult] = await Promise.all([
+        fetchInvestments({
+          limit: variables.limit,
+          offset: variables.offset,
+          search: variables.search,
+          orderBy: variables.orderBy?.map((o: any) => ({ field: o.field || 'createdAt', direction: (o.direction || 'DESC') as 'ASC' | 'DESC' }))
+        }),
+        fetchPortfolioKPIs()
+      ]);
       
+      // Process investment data for list display
+      const enhancedInvestments = transformInvestmentData(investmentResult.Investment as unknown as CentralInvestment[]);
+      
+      // Use real KPI data with historical comparison
       setInvestments(enhancedInvestments);
-      setKPIs(calculatedKPIs);
+      setKPIs(kpiResult.current);
+      setPreviousKPIs(kpiResult.previous);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Unknown error');
     } finally {
       setIsLoading(false);
     }
-  }, [context.accessToken, fetchInvestments, transformInvestmentData, calculateKPIs]);
+  }, [context.accessToken, fetchInvestments, fetchPortfolioKPIs, transformInvestmentData]);
 
   useEffect(() => {
-    loadData();
-  }, [loadData]);
+    if (context.accessToken) {
+      loadData();
+    }
+  }, [context.accessToken]); // Only depend on accessToken, not loadData
 
   return {
     investments,
     kpis,
+    previousKpis,
     isLoading,
     error,
     refetch: loadData

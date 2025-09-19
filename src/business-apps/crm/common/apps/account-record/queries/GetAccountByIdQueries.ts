@@ -26,7 +26,20 @@ export interface GetAccountByIdResponse {
       id: string;
       value: string;
     };
-    addressLine: string;
+    addresses?: Array<{
+      addressLine?: any;
+      city?: string;
+      country?: {
+        id: string;
+        value: string;
+        code: string;
+      };
+      region?: {
+        id: string;
+        value: string;
+        code: string;
+      };
+    }>;
     numberOfEmployees?: {
       id: string;
       value: string;
@@ -60,7 +73,20 @@ export const GET_ACCOUNT_BY_ID = `
         id
         value
       }
-      addressLine
+      addresses {
+        addressLine
+        city
+        country {
+          id
+          value
+          code
+        }
+        region {
+          id
+          value
+          code
+        }
+      }
       numberOfEmployees {
         id
         value

@@ -11,6 +11,7 @@ import { showToast } from '../../../utils/notificationUtils';
 import { useProcessEventState } from '@/business-apps/fin/expenses/utils/useProcessEventState';
 import { EVENTS } from '../../../utils/constants';
 import { createAdvanceObject, createPaymentScreenLogObject } from '../utils/paymentScreenUtils';
+import { DEFAULT_PLAN_CURRENCY_CODE } from '../../expense-request/constants/constants';
 
 interface PaymentScreenProps extends BusinessAppContextProps {
   additionalData?: { 
@@ -47,7 +48,7 @@ const PaymentScreen: React.FC<PaymentScreenProps> = (props) => {
     if (items.length > 0 && items[0].currency?.code) {
       return items[0].currency.code;
     }
-    return 'EUR';
+    return DEFAULT_PLAN_CURRENCY_CODE;
   }, [expensePlanData]);
 
   // Check for initial advance payment
@@ -185,7 +186,7 @@ const PaymentScreen: React.FC<PaymentScreenProps> = (props) => {
     return parseFloat(amount) || 0;
   }, [amount]);
 
-  const currencyCode = expensePlanData?.ExpensePlanByPk?.currency?.code || 'EUR';
+  const currencyCode = expensePlanData?.ExpensePlanByPk?.currency?.code || DEFAULT_PLAN_CURRENCY_CODE;
 
   // Get total amount from expense plan data
   const expensePlanTotalAmount = useMemo(() => {
@@ -215,7 +216,7 @@ const PaymentScreen: React.FC<PaymentScreenProps> = (props) => {
   // Get the selected currency code for display
   const selectedCurrencyCode = useMemo(() => {
     const selectedCurrency = currencies.find(c => c.id === currency);
-    return selectedCurrency?.code || 'EUR';
+    return selectedCurrency?.code || DEFAULT_PLAN_CURRENCY_CODE;
   }, [currency, currencies]);
 
   // Handle amount change
@@ -246,6 +247,34 @@ const PaymentScreen: React.FC<PaymentScreenProps> = (props) => {
     // Validate advance payment with current value
     const advancePaymentErrorValue = validateAdvancePaymentWithValue(value);
     setAdvancePaymentError(advancePaymentErrorValue);
+  };
+
+  const handleAmountBlur = () => {
+
+    const currentValue = form.getFieldValue('amount');
+    if (currentValue === undefined || currentValue === null || String(currentValue).trim() === '') {
+      return;
+    }
+    const normalized = String(currentValue)
+      .replace(/[^0-9,.-]/g, '')
+      .replace(/,(?=\d{1,2}$)/, '.')
+      .replace(/,/g, '');
+
+    const num = parseFloat(normalized);
+    if (isNaN(num)) {
+      return;
+    }
+    const platformFormatted = formatNumberFunction(String(num), "0.00[,]00");
+    const intlFormatted = new Intl.NumberFormat(getCurrentActiveUserLocale() || 'en-US', {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    }).format(num);
+
+    const finalDisplay = platformFormatted && platformFormatted !== String(num)
+      ? platformFormatted
+      : intlFormatted;
+
+    form.setFieldsValue({ amount: finalDisplay });
   };
 
   // Validation functions
@@ -340,7 +369,6 @@ const PaymentScreen: React.FC<PaymentScreenProps> = (props) => {
         EVENTS.NEXT,
         skipStep
       );
-      
       dispatchProcessContinueEventIfEnabled(EVENTS.NEXT, logObject);
     }
   };
@@ -420,10 +448,29 @@ const PaymentScreen: React.FC<PaymentScreenProps> = (props) => {
                     )}
                     data-testid="payment-amount-input"
                     onChange={(field) => {
-                      const formattedValue = formatNumberFunction(String(field.value), "0.00[,]00");
-                      form.setFieldsValue({ amount: formattedValue });
-                      handleAmountChange(field);
+                      const prev = amount || '';
+                      const nextRaw = String(field.value);
+                      const isZeroVariant = (v: string) => {
+                        const digits = String(v).replace(/\D/g, '');
+                        return digits.length > 0 && /^0+$/.test(digits);
+                      };
+                      let value = isZeroVariant(prev)
+                        ? nextRaw.replace(/^[0.,]+/, '')
+                        : nextRaw;
+                      if (/^0+\d+$/.test(value)) {
+                        value = value.replace(/^0+/, '');
+                      }
+                      if (value.includes('.') || value.includes(',')) {
+                        const sep = value.includes('.') ? '.' : ',';
+                        const parts = value.split(sep);
+                        if (parts[1] && parts[1].length > 2) {
+                          value = `${parts[0]}${sep}${parts[1].substring(0, 2)}`;
+                        }
+                      }
+                      form.setFieldsValue({ amount: value });
+                      handleAmountChange({ ...field, value });
                     }}
+                    onBlur={handleAmountBlur}
                     required={true}
                   />
               </Form.Item>

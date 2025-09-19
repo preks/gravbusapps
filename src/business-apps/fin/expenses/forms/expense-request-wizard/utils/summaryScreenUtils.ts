@@ -44,6 +44,21 @@ export const createSummaryScreenLogObject = (
     autoCalculated: item.autoCalculated || false
   }));
   
+  const travelBreakdowns: any[] = (expenseRequestData?.TravelBreakdown || [])
+  .map((item: any) => ({
+    id: item.id,
+    version: item.version,
+    breakfast: item.breakfast,
+    lunch: item.lunch,
+    dinner: item.dinner,
+    overnight: item.overnight,
+    expenseDate: item.expenseDate,
+    travelRegionRef: item.travelRegionRef,
+    project: item.projectId,
+    expenseRule: item.expenseRuleId,
+    expenseRequest: initialRequest?.id,
+    costCenter: item.costCenterId
+  }));
   return {
     stepKey: SCREEN_NAMES_ENUM.SUMMARY_TAB + "_" + event,
     event: event,
@@ -61,13 +76,17 @@ export const createSummaryScreenLogObject = (
       requestDate: initialRequest?.requestDate ? dayjs(initialRequest.requestDate).format("YYYY-MM-DD") : "",
       requestTypeRef: initialRequest?.requestTypeRef,
       additionalProperties: initialRequest?.additionalProperties,
-      currencyRef: initialRequest?.currency?.id || ""
+      currencyRef: initialRequest?.currency?.id || "",
+      overnightAccommodation: !!expenseRequestData?.ExpenseRequestByPk?.overnightAccommodation
     },
     expenseRequestItems: {
       expenseItems: expenseItemsArray
     },
     expenseRequestTrips: {
       expenseTrips: (expenseRequestData?.ExpenseRequestByPk?.expenseRequestTrip || [])
+    },
+    travelBreakdownWrapper: {
+      travelBreakdowns: travelBreakdowns
     }
   };
 };

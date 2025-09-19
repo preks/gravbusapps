@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Form } from "antd";
-import { Button } from "@newwork/gravity-ui-catalog";
+import { Button, Checkbox } from "@newwork/gravity-ui-catalog";
 import dayjs from "dayjs";
 import { getTranslationFromI18nKeyAndLabel, getCurrentActiveUserLocale, formatDate } from "@/common/utils/windowUtils";
 import { useGraphqlClient } from "@/common/network/graphql/useGraphQLClient";
@@ -11,6 +11,7 @@ import LocationForm from "../components/LocationForm/LocationForm";
 import { DestinationLimit, LocationData, TripScreenProps } from "../utils/types";
 import { getMaxLimits, getMinLimits, getMinMaxLimits, validateAndSanitizeLocation } from "../utils/locationTimeUtils";
 import { getExpenseRulesDataQuery, getRequestsAbsences } from "../ExpenseRequestWizardQueries";
+import { getRuleAllowancePeriod } from "../ExpenseRequestWizardQueries";
 import { useExpenseRequestWizardContext } from "../context/ExpenseRequestWizardContext";
 import { showToast } from "../../../utils/notificationUtils";
 import LoadScreen from "./LoadScreen";
@@ -110,6 +111,9 @@ export const TripScreen: React.FC<TripScreenProps> = (props) => {
   const [endLocation, setEndLocation] = useState<LocationData>(initialEndLocation);
   
   const [expenseRulesData, setExpenseRulesData] = useState<any>(null);
+  const [allowancePeriodRule, setAllowancePeriodRule] = useState<any | null>(null);
+  const [showOvernightAccommodation, setShowOvernightAccommodation] = useState<boolean>(false);
+  const [overnightAccommodation, setOvernightAccommodation] = useState<boolean>(true);
   
   const [locationsAreSynced, setLocationsAreSynced] = useState<boolean>(false);
   const lastAbsenceCheckKeyRef = useRef<string | null>(null);
@@ -371,6 +375,62 @@ const handleStartLocationChange = (updatedLocation: LocationData) => {
     }
   };
 
+  // Fetch allowance period rule for employee rule id
+  useEffect(() => {
+    const fetchAllowancePeriod = async () => {
+      try {
+        if (!accessToken || !employeeRuleId) return;
+        const response = await graphqlClient.request(getRuleAllowancePeriod, { expenseRuleId: employeeRuleId });//employeeRuleId
+        const first = response?.ExpenseRuleAllowancePeriod && Array.isArray(response.ExpenseRuleAllowancePeriod)
+          ? response.ExpenseRuleAllowancePeriod[0]
+          : null;
+        setAllowancePeriodRule(first);
+      } catch {
+        setAllowancePeriodRule(null);
+      }
+    };
+    fetchAllowancePeriod();
+  }, [accessToken, employeeRuleId, graphqlClient]);
+
+  // Determine checkbox visibility: show if rule exists and dates are consecutive calendar days
+  useEffect(() => {
+    try {
+      if (!allowancePeriodRule) {
+        setShowOvernightAccommodation(false);
+        return;
+      }
+      const startDate = startLocation.departureDate ? dayjs(startLocation.departureDate).startOf('day') : null;
+      const endDate = endLocation.departureDate ? dayjs(endLocation.departureDate).startOf('day') : null;
+      if (!startDate || !endDate) {
+        setShowOvernightAccommodation(false);
+        return;
+      }
+      const diffDays = endDate.diff(startDate, 'day');
+      setShowOvernightAccommodation(diffDays === 1);
+    } catch {
+      setShowOvernightAccommodation(false);
+    }
+  }, [allowancePeriodRule, startLocation.departureDate, endLocation.departureDate]);
+
+  // Enforce accommodation value based on trip length
+  useEffect(() => {
+    try {
+      const startDate = startLocation.departureDate ? dayjs(startLocation.departureDate).startOf('day') : null;
+      const endDate = endLocation.departureDate ? dayjs(endLocation.departureDate).startOf('day') : null;
+      if (!startDate || !endDate) {
+        return;
+      }
+      const diffDays = endDate.diff(startDate, 'day');
+      if (diffDays < 1) {
+        if (overnightAccommodation !== false) setOvernightAccommodation(false);
+      } else if (diffDays > 1) {
+        if (overnightAccommodation !== true) setOvernightAccommodation(true);
+      } else {
+        // diffDays === 1 → keep current checkbox state (user-controlled)
+      }
+    } catch {}
+  }, [startLocation.departureDate, endLocation.departureDate, overnightAccommodation]);
+
   const handleEndLocationChange = (updatedLocation: LocationData) => {
     const sanitizedLocation = validateAndSanitizeLocation(updatedLocation, endLimits);
     if (endLocation.isAbroad && !updatedLocation.isAbroad && expenseRulesData?.homeRegionRule?.length > 0) {
@@ -397,6 +457,7 @@ const handleStartLocationChange = (updatedLocation: LocationData) => {
           myData = expenseRequestData.ExpenseRequestByPk.expensePlan.expenseRequestTrip;
         }
         const startObject = myData.find((item: any) => item.pointType === 'START_POINT');
+        const endObject = myData.find((item: any) => item.pointType === 'END_POINT');
         
         if (startObject && startObject.tripDateTime && dayjs(startObject.tripDateTime).isValid()) {
           const formattedDate = dayjs(startObject.tripDateTime).format('YYYY-MM-DDTHH:mm:ss.SSSZZ');
@@ -428,6 +489,30 @@ const handleStartLocationChange = (updatedLocation: LocationData) => {
             // Still try to prefill with available data even if rule is missing
             setByExternalCustomComponent(expenseRequestData, null, setStartLocation, setDestinations, setEndLocation);
           }
+
+          // Initialize accommodation considering stored value priority when version != 0
+          try {
+            const startDate = startObject?.tripDateTime ? dayjs(startObject.tripDateTime).startOf('day') : null;
+            const endDate = endObject?.tripDateTime ? dayjs(endObject.tripDateTime).startOf('day') : null;
+            const stored = expenseRequestData?.ExpenseRequestByPk?.overnightAccommodation;
+            const version = expenseRequestData?.ExpenseRequestByPk?.version ?? 0;
+            if (startDate && endDate) {
+              const diffDays = endDate.diff(startDate, 'day');
+              const versionZero = version === 0;
+              if (diffDays < 1) {
+                setOvernightAccommodation(false);
+              } else if (diffDays > 1) {
+                setOvernightAccommodation(true);
+              } else {
+                // Exactly 2 days
+                if ((versionZero || version !== 0) && typeof stored === 'boolean') {
+                  setOvernightAccommodation(stored);
+                } else {
+                  setOvernightAccommodation(true); // default checked for 2 days
+                }
+              }
+            }
+          } catch {}
         } else {
           // Try to prefill with available data even if start object is invalid
           setByExternalCustomComponent(expenseRequestData, expenseRulesData, setStartLocation, setDestinations, setEndLocation)
@@ -647,13 +732,46 @@ const handleStartLocationChange = (updatedLocation: LocationData) => {
     validateTripForm();
   }, [startLocation, destinations, endLocation, employeeRuleError, ruleConflictError, startLocationOverlap, endLocationOverlap, validateTripForm]);
 
+  const resolveOvernightAccommodation = (): boolean => {
+    const saved = expenseRequestData?.ExpenseRequestByPk?.overnightAccommodation;
+    // Checkbox should be user-controllable; keep stored-only priority for submissions if dates missing
+    const startDate = startLocation.departureDate ? dayjs(startLocation.departureDate).startOf('day') : null;
+    const endDate = endLocation.departureDate ? dayjs(endLocation.departureDate).startOf('day') : null;
+    if (startDate && endDate) {
+      const diffDays = endDate.diff(startDate, 'day');
+      if (diffDays < 1) return false; // < 2 days
+      if (diffDays > 1) return true;  // > 2 days
+      // exactly 2 days → use checkbox state; if undefined, fallback to saved or true
+      if (typeof overnightAccommodation === 'boolean') return overnightAccommodation;
+      if (typeof saved === 'boolean') return saved;
+      return true;
+    }
+    // Fallback when dates missing: prefer saved, else current state
+    if (typeof saved === 'boolean') return saved;
+    return !!overnightAccommodation;
+  };
+
   const handleSave = () => {
-    submitActionTripData(startLocation, destinations, endLocation, expenseRulesData, EVENTS.SAVE);
+    submitActionTripData(
+      startLocation,
+      destinations,
+      endLocation,
+      expenseRulesData,
+      EVENTS.SAVE,
+      resolveOvernightAccommodation()
+    );
   };
 
   const handleNext = () => {
     if (validateTripForm()) {
-      submitActionTripData(startLocation, destinations, endLocation, expenseRulesData, EVENTS.NEXT);
+      submitActionTripData(
+        startLocation,
+        destinations,
+        endLocation,
+        expenseRulesData,
+        EVENTS.NEXT,
+        resolveOvernightAccommodation()
+      );
     }
   };
   
@@ -665,7 +783,7 @@ const handleStartLocationChange = (updatedLocation: LocationData) => {
     return () => {
       document.removeEventListener('expense-request-save-trip', saveEventHandler);
     };
-  }, [startLocation, destinations, endLocation, expenseRulesData]);
+  }, [startLocation, destinations, endLocation, expenseRulesData, showOvernightAccommodation, overnightAccommodation]);
 
   useEffect(() => {
     const nextEventHandler = () => {
@@ -675,7 +793,7 @@ const handleStartLocationChange = (updatedLocation: LocationData) => {
     return () => {
       document.removeEventListener('expense-request-next-trip', nextEventHandler);
     };
-  }, [startLocation, destinations, endLocation, expenseRulesData, validateTripForm]);
+  }, [startLocation, destinations, endLocation, expenseRulesData, validateTripForm, showOvernightAccommodation, overnightAccommodation]);
 
   if (!expenseRequestData) {
     return <LoadScreen accessToken={accessToken} userInfo={userInfo} />;
@@ -878,6 +996,18 @@ const handleStartLocationChange = (updatedLocation: LocationData) => {
                 }}
               />
             </LocationContainer>
+            {showOvernightAccommodation && (
+              <div className="gba:font-medium gba:pt-4 [&_label]:flex [&_label]:flex-row-reverse" data-testid="overnight-accommodation-container">
+                <Checkbox
+                  value={overnightAccommodation}
+                  name={"overnight-accommodation-checkbox"}
+                  onChange={(e) => setOvernightAccommodation((e.value as boolean) || false)}
+                  data-testid="overnight-accommodation-checkbox"
+                >
+                  {getTranslationFromI18nKeyAndLabel('lowcoder:create_expense_request.add_request_trip_details.checkbox_label_accommodation', 'Accommodation?')}
+                </Checkbox>
+              </div>
+            )}
           </div>
         </div>
       </Form>

@@ -16,6 +16,7 @@ import {
   useInvestmentContactData,
   mapInvestmentContactToFormValues,
 } from "../hooks/useContactData";
+import { useEmployeeByIdGraphQL } from "../hooks/useEmployeeByIdGraphQL";
 
 // ✅ UPDATED: Catalog constants for InvestmentContact
 export const ACADEMIC_TITLE_CATALOG = "AcademicTitle";
@@ -27,6 +28,7 @@ interface ContactFormContextValue extends ContactContextState {
   setFormValues: (updates: Partial<ContactFormValues>) => void;
   onSubmit: (values: ContactFormValues) => Promise<void>;
   onCancel: () => Promise<void>;
+  hideActions: boolean; // Hide submit/cancel buttons when embedded
 
   // Business app context for child components
   businessAppContext: BusinessAppContextProps;
@@ -72,6 +74,7 @@ interface ContactFormProviderProps {
   initialValues?: Partial<ContactFormValues>;
   onSubmit?: (values: ContactFormValues) => Promise<void>;
   onCancel?: () => Promise<void>;
+  hideActions?: boolean; // Hide submit/cancel buttons when embedded
 }
 
 export const ContactFormProvider: React.FC<ContactFormProviderProps> = ({
@@ -80,6 +83,7 @@ export const ContactFormProvider: React.FC<ContactFormProviderProps> = ({
   initialValues = {},
   onSubmit = async () => {},
   onCancel = async () => {},
+  hideActions = false,
 }) => {
   // Form state
   const [formValues, setFormValuesState] = useState<ContactFormValues>({
@@ -129,6 +133,18 @@ export const ContactFormProvider: React.FC<ContactFormProviderProps> = ({
     ...initialValues,
   });
 
+  // 🎯 DEBUG: Log initial values and form state for owner field debugging
+  console.log('🎯 ContactFormContext - Initialization:', {
+    initialValues: initialValues,
+    initialValuesOwner: initialValues?.owner,
+    initialValuesOwnerEmployeeId: initialValues?.ownerEmployeeId,
+    formValuesOwner: formValues.owner,
+    formValuesOwnerEmployeeId: formValues.ownerEmployeeId,
+    isLeadConversion: businessAppContext.additionalData?.isLeadConversion,
+    leadOwnerId: businessAppContext.additionalData?.leadOwnerId,
+    note: 'Check if initialValues.owner is being properly set in form state'
+  });
+
   // Global state
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -162,6 +178,18 @@ export const ContactFormProvider: React.FC<ContactFormProviderProps> = ({
     firstName: currentUserEmployee?.firstName,
     lastName: currentUserEmployee?.lastName,
   });
+
+  // 🎯 Lead owner employee hook - for lead conversion scenarios
+  const isLeadConversion = businessAppContext.additionalData?.isLeadConversion === true;
+  const leadOwnerId = businessAppContext.additionalData?.leadOwnerId;
+  const {
+    employeeData: leadOwnerEmployee,
+    isLoading: leadOwnerLoading,
+    error: leadOwnerError,
+  } = useEmployeeByIdGraphQL(
+    businessAppContext.accessToken,
+    isLeadConversion && leadOwnerId ? leadOwnerId : undefined
+  );
 
   // ✅ UPDATED: Load contact data when contactId is available
   const {
@@ -361,8 +389,50 @@ export const ContactFormProvider: React.FC<ContactFormProviderProps> = ({
       }
     }
 
+    // 🎯 Add lead owner employee for lead conversion scenarios
+    if (isLeadConversion && leadOwnerEmployee && leadOwnerId) {
+      const isLeadOwnerInList = regularEmployees.some(
+        (emp) => emp.value === leadOwnerId
+      );
+
+      if (!isLeadOwnerInList) {
+        const leadOwnerDisplayName =
+          leadOwnerEmployee.employee.displayName ||
+          `${leadOwnerEmployee.employee.firstName} ${leadOwnerEmployee.employee.lastName}`.trim();
+        const leadOwnerJobTitle =
+          leadOwnerEmployee.jobPosition?.name || "Lead Owner";
+        const leadOwnerOrgUnit =
+          leadOwnerEmployee.organizationalUnit?.name || "Unknown";
+
+        const leadOwnerOption: SelectOption = {
+          id: leadOwnerId,
+          value: leadOwnerId,
+          label: `${leadOwnerDisplayName} - ${leadOwnerJobTitle}`,
+          name: leadOwnerDisplayName,
+          extraInfo: {
+            picture: leadOwnerEmployee.employee.picture,
+            pictureThumbnail: leadOwnerEmployee.employee.pictureThumbnail,
+            jobPosition: leadOwnerJobTitle,
+            organizationalUnit: leadOwnerOrgUnit,
+            userId: leadOwnerEmployee.employee.userId,
+          },
+        };
+
+        // Add lead owner at the beginning for easy access
+        regularEmployees.unshift(leadOwnerOption);
+        
+        console.log('🎯 Added lead owner to contact form employee options:', {
+          leadOwnerId,
+          leadOwnerDisplayName,
+          leadOwnerJobTitle,
+          isLeadConversion,
+          totalEmployees: regularEmployees.length
+        });
+      }
+    }
+
     return regularEmployees;
-  }, [employeePositions, currentUserEmployee, contactData]);
+  }, [employeePositions, currentUserEmployee, contactData, isLeadConversion, leadOwnerEmployee, leadOwnerId]);
 
   // Wrapper functions for hook methods (without hook dependencies to prevent infinite re-renders)
   const searchAcademicTitlesWrapper = useCallback(
@@ -442,6 +512,7 @@ export const ContactFormProvider: React.FC<ContactFormProviderProps> = ({
     // 4. We're NOT editing an existing contact (no contactId)
     // 5. We don't have contact data loaded
     // 6. No form ID is set
+    // 7. We're NOT in a lead conversion context (preserve lead's owner)
     if (
       currentUserEmployee &&
       !formValues.owner &&
@@ -449,7 +520,8 @@ export const ContactFormProvider: React.FC<ContactFormProviderProps> = ({
       !autoSelectionDone.current &&
       !currentContactId && // Don't auto-select when editing existing contact
       !contactData && // Don't auto-select when we have contact data
-      !formValues.id // Don't auto-select when form has ID
+      !formValues.id && // Don't auto-select when form has ID
+      !businessAppContext.additionalData?.isLeadConversion // Don't auto-select during lead conversion
     ) {
       console.log(
         "✅ Investment Contact Context: Auto-selecting current user as owner:",
@@ -462,7 +534,17 @@ export const ContactFormProvider: React.FC<ContactFormProviderProps> = ({
       }));
       autoSelectionDone.current = true;
     } else {
-      console.log("❌ Investment Contact Context: Auto-selection skipped");
+      console.log("⏩ Contact auto-selection skipped - reasons:", {
+        hasCurrentUserEmployee: !!currentUserEmployee,
+        hasOwner: !!formValues.owner,
+        hasOwnerEmployeeId: !!formValues.ownerEmployeeId,
+        autoSelectionAlreadyDone: autoSelectionDone.current,
+        hasCurrentContactId: !!currentContactId,
+        hasContactData: !!contactData,
+        hasFormId: !!formValues.id,
+        isLeadConversion: !!businessAppContext.additionalData?.isLeadConversion,
+        leadOwnerId: businessAppContext.additionalData?.leadOwnerId
+      });
     }
   }, [
     currentUserEmployee,
@@ -480,6 +562,7 @@ export const ContactFormProvider: React.FC<ContactFormProviderProps> = ({
     setFormValues,
     onSubmit,
     onCancel,
+    hideActions,
     isLoading: false, // Simplified form doesn't track global loading state
     error: null, // Simplified form doesn't track global error state
 

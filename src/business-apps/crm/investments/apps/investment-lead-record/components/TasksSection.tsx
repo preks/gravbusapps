@@ -1,8 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { Spin, Alert, Button, Timeline, Typography, message, Modal, Tag } from 'antd';
+import { Spin, Alert, Timeline, Typography, message, Modal, Tag } from 'antd';
+import { Button } from '@newwork/nw-design-system';
 import { PlusCircleOutlined, CloseOutlined, EditOutlined, UserOutlined } from '@ant-design/icons';
 import { Clock, Calendar } from 'lucide-react';
 import { startProcess } from '@/common/utils/start-process';
+import { AppAction } from '@/components/app-action';
+import { FlowContextName } from '@/common/types/FlowRegistryTypes';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 import { useRestClient } from '@/common/network/rest/useRestClient';
 import { env } from '@/common/env/EnvUtils';
@@ -150,18 +153,7 @@ export const TasksSection: React.FC<TasksSectionProps> = ({ leadId, context }) =
     };
   }, [leadId]);
 
-  const handleAddTaskClick = () => {
-    if (leadId) {
-      startProcess({
-        domain: 'investments', // Updated from 'customer-relations'
-        processName: 'createInvestmentTask', // Updated naming
-        payload: {
-          leadId,
-        },
-        builderType: 'NATIVE_SCREEN',
-      });
-    }
-  };
+  // Add task handled by AppAction component
 
   const handleUpdateTask = (task: SimpleTaskData) => {
     startProcess({
@@ -256,7 +248,7 @@ export const TasksSection: React.FC<TasksSectionProps> = ({ leadId, context }) =
         showIcon
         className="gba:mb-4"
         action={
-          <Button size="small" onClick={loadTasks}>
+          <Button size="sm" onClick={loadTasks}>
             Retry
           </Button>
         }
@@ -265,106 +257,147 @@ export const TasksSection: React.FC<TasksSectionProps> = ({ leadId, context }) =
   }
 
   return (
-    <div className="gba:space-y-4">
+    <div
+      style={{
+        backgroundColor: 'white',
+        borderRadius: '8px',
+        border: '1px solid #f0f0f0',
+        overflow: 'hidden',
+        marginBottom: '24px',
+        height: 'fit-content'
+      }}
+      data-testid="lead-tasks-section"
+    >
       {/* Header */}
-      <div className="gba:flex gba:justify-between gba:items-center">
+      <div
+        style={{
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          padding: '16px 24px'
+        }}
+      >
         <div>
           <h3 className="gba:text-lg gba:font-medium gba:text-gray-900">Tasks</h3>
           <p className="gba:text-sm gba:text-gray-600">
             Manage tasks and activities related to this investment lead
           </p>
         </div>
-        <Button
-          type="primary"
-          icon={<PlusCircleOutlined />}
-          onClick={handleAddTaskClick}
-          className="gba:bg-blue-600 gba:hover:bg-blue-700"
+        <AppAction
+          contextsArray={[FlowContextName.investmentTaskCreate]}
+          externalContextData={{ 
+            leadId,
+            lead: leadId,
+            investmentTask: { lead: leadId }
+          }}
+          staticFlowData={leadId ? [{
+            key: 'create-investment-task-fallback',
+            label: 'Add Task',
+            onClick: () => startProcess({
+              domain: 'investments',
+              processName: 'createInvestmentTask',
+              payload: { leadId },
+              builderType: 'NATIVE_SCREEN'
+            })
+          }] : []}
+          prefixDataTestId="add-task"
+          accessToken={context.accessToken}
+          emptyStateBehavior="enable"
+          deferMainContextRequestsUntilClick
         >
-          Add Task
-        </Button>
+          <Button
+            variant="default"
+          >
+            <PlusCircleOutlined />
+            Add Task
+          </Button>
+        </AppAction>
       </div>
 
       {/* Tasks List */}
-      {tasks.length === 0 ? (
-        <div className="gba:text-center gba:py-8 gba:text-gray-500">
-          <p>No tasks found for this investment lead.</p>
-          <p className="gba:text-sm">Create a new task to get started.</p>
-        </div>
-      ) : (
-        <Timeline>
-          {tasks.map((task) => (
-                         <Timeline.Item
-               key={task.id}
-               dot={getTimingTypeIcon(task.taskTiming)}
-               className="gba:pb-6"
-             >
-              <div className="gba:bg-white gba:border gba:border-gray-200 gba:rounded-lg gba:p-4 gba:shadow-sm">
-                <div className="gba:flex gba:justify-between gba:items-start gba:mb-3">
-                  <div className="gba:flex-1">
-                    <div className="gba:flex gba:items-center gba:gap-2 gba:mb-2">
-                      <Text strong className="gba:text-base">
-                        {task.name || 'Untitled Task'}
-                      </Text>
-                                             <Tag color={getPriorityColor(task.taskPriority)}>
-                         {task.taskPriorityLabel || 'No Priority'}
-                       </Tag>
-                       <Tag color={getStatusColor(task.taskStatus)}>
-                         {task.taskStatusLabel || 'No Status'}
-                       </Tag>
-                    </div>
-                    
-                    {task.description && (
-                      <Text className="gba:text-gray-600 gba:block gba:mb-2">
-                        {task.description}
-                      </Text>
-                    )}
-                    
-                    <div className="gba:flex gba:items-center gba:gap-4 gba:text-sm gba:text-gray-500">
-                      {task.dueDate && (
-                        <span className="gba:flex gba:items-center gba:gap-1">
-                          <Calendar className="gba:w-4 gba:h-4" />
-                          Due: {dayjs(task.dueDate).format('MMM D, YYYY')}
-                        </span>
+      <div style={{ padding: '0 24px 24px' }}>
+        {tasks.length === 0 ? (
+          <div className="gba:text-center gba:py-8 gba:text-gray-500">
+            <p>No tasks found for this investment lead.</p>
+            <p className="gba:text-sm">Create a new task to get started.</p>
+          </div>
+        ) : (
+          <Timeline>
+            {tasks.map((task) => (
+                           <Timeline.Item
+                 key={task.id}
+                 dot={getTimingTypeIcon(task.taskTiming)}
+                 className="gba:pb-6"
+               >
+                <div className="gba:bg-white gba:border gba:border-gray-200 gba:rounded-lg gba:p-4 gba:shadow-sm">
+                  <div className="gba:flex gba:justify-between gba:items-start gba:mb-3">
+                    <div className="gba:flex-1">
+                      <div className="gba:flex gba:items-center gba:gap-2 gba:mb-2">
+                        <Text strong className="gba:text-base">
+                          {task.name || 'Untitled Task'}
+                        </Text>
+                                               <Tag color={getPriorityColor(task.taskPriority)}>
+                           {task.taskPriorityLabel || 'No Priority'}
+                         </Tag>
+                         <Tag color={getStatusColor(task.taskStatus)}>
+                           {task.taskStatusLabel || 'No Status'}
+                         </Tag>
+                      </div>
+                      
+                      {task.description && (
+                        <Text className="gba:text-gray-600 gba:block gba:mb-2">
+                          {task.description}
+                        </Text>
                       )}
                       
-                                             {task.assignedDisplayName && (
-                         <span className="gba:flex gba:items-center gba:gap-1">
-                           <UserOutlined />
-                           Assigned: {task.assignedDisplayName}
-                         </span>
-                       )}
-                      
-                      <span className="gba:flex gba:items-center gba:gap-1">
-                        <Clock className="gba:w-4 gba:h-4" />
-                        Created: {dayjs(task.createdAt).format('MMM D, YYYY')}
-                      </span>
+                      <div className="gba:flex gba:items-center gba:gap-4 gba:text-sm gba:text-gray-500">
+                        {task.dueDate && (
+                          <span className="gba:flex gba:items-center gba:gap-1">
+                            <Calendar className="gba:w-4 gba:h-4" />
+                            Due: {dayjs(task.dueDate).format('MMM D, YYYY')}
+                          </span>
+                        )}
+                        
+                                               {task.assignedDisplayName && (
+                           <span className="gba:flex gba:items-center gba:gap-1">
+                             <UserOutlined />
+                             Assigned: {task.assignedDisplayName}
+                           </span>
+                         )}
+                        
+                        <span className="gba:flex gba:items-center gba:gap-1">
+                          <Clock className="gba:w-4 gba:h-4" />
+                          Created: {dayjs(task.createdAt).format('MMM D, YYYY')}
+                        </span>
+                      </div>
+                    </div>
+                    
+                    <div className="gba:flex gba:gap-2 gba:ml-4">
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        onClick={() => handleUpdateTask(task)}
+                        className="gba:text-blue-600 gba:hover:text-blue-700"
+                      >
+                        <EditOutlined />
+                        Edit
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="destructive"
+                        onClick={() => handleDeleteTask(task)}
+                      >
+                        <CloseOutlined />
+                        Delete
+                      </Button>
                     </div>
                   </div>
-                  
-                  <div className="gba:flex gba:gap-2 gba:ml-4">
-                    <Button
-                      size="small"
-                      icon={<EditOutlined />}
-                      onClick={() => handleUpdateTask(task)}
-                      className="gba:text-blue-600 gba:border-blue-600 gba:hover:text-blue-700 gba:hover:border-blue-700"
-                    >
-                      Edit
-                    </Button>
-                    <Button
-                      size="small"
-                      danger
-                      icon={<CloseOutlined />}
-                      onClick={() => handleDeleteTask(task)}
-                    >
-                      Delete
-                    </Button>
-                  </div>
                 </div>
-              </div>
-            </Timeline.Item>
-          ))}
-        </Timeline>
-      )}
+              </Timeline.Item>
+            ))}
+          </Timeline>
+        )}
+      </div>
     </div>
   );
 }; 

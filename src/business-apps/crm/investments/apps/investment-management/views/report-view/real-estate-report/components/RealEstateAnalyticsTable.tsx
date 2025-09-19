@@ -94,17 +94,8 @@ export const RealEstateAnalyticsTable: React.FC<RealEstateAnalyticsTableProps> =
         </div>
       </CardHeader>
       <CardContent>
-        {!hasData ? (
-          <div className="gba:text-center gba:py-8 gba:text-gray-500" data-testid={`${dataTestId}-empty-state`}>
-            <Building2 className="gba:h-12 gba:w-12 gba:mx-auto gba:mb-3 gba:text-gray-300" />
-            <p className="gba:text-lg gba:font-medium gba:mb-2">No Real Estate Reports Found</p>
-            <p className="gba:text-sm">
-              No real estate reports are available for {propertyType.toLowerCase()}.
-            </p>
-          </div>
-        ) : (
-          <div className="gba:overflow-x-auto">
-            <Table data-testid={`${dataTestId}-table`}>
+        <div className="gba:overflow-x-auto">
+          <Table data-testid={`${dataTestId}-table`}>
               <TableHeader>
                 <TableRow className="gba:border-b gba:bg-gray-50">
                   <TableHead className="gba:font-semibold gba:text-gray-700 gba:text-left gba:py-3 gba:px-4">Property</TableHead>
@@ -117,7 +108,18 @@ export const RealEstateAnalyticsTable: React.FC<RealEstateAnalyticsTableProps> =
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {data.map((report) => (
+                {data.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={7} className="gba:text-center gba:py-12 gba:text-gray-500">
+                      <div className="gba:flex gba:flex-col gba:items-center gba:gap-2">
+                        <Building2 className="gba:h-12 gba:w-12 gba:text-gray-300" />
+                        <p className="gba:text-lg gba:font-medium">No {propertyType} Data Found</p>
+                        <p className="gba:text-sm">No real estate reports are available for {propertyType.toLowerCase()} in the selected time period.</p>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ) : (
+                  data.map((report) => (
                   <TableRow key={report.id} className="gba:border-b gba:hover:bg-gray-50">
                     <TableCell className="gba:py-3 gba:px-4">
                       <div className="gba:font-medium">
@@ -184,11 +186,11 @@ export const RealEstateAnalyticsTable: React.FC<RealEstateAnalyticsTableProps> =
                       )}
                     </TableCell>
                   </TableRow>
-                ))}
+                  ))
+                )}
               </TableBody>
             </Table>
-          </div>
-        )}
+        </div>
       </CardContent>
     </Card>
   );

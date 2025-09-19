@@ -209,7 +209,7 @@ export const LeadTable: React.FC<LeadTableProps> = ({
         <div className="gba:overflow-x-auto">
           <Table
             data-testid={`${DATA_TEST_ID_PREFIX}-table`}
-            style={{ minWidth: "1200px" }}
+            className="gba:min-w-[1200px]"
           >
             <TableHeader>
               <TableRow className="gba:border-b gba:bg-gray-50">
@@ -496,12 +496,13 @@ export const LeadTable: React.FC<LeadTableProps> = ({
                         />
                         <div className="gba:flex gba:flex-col gba:gap-1">
                           {(() => {
+                            const firstAddress = record.addresses?.[0];
                             const address = formatAddress({
-                              addressLine: (record as any).addressLine,
-                              locality: record.city,
-                              postalCode: record.postalCode,
-                              region: record.region?.additionalValue1,
-                              country: record.country?.value,
+                              addressLine: firstAddress?.addressLine,
+                              locality: firstAddress?.city,
+                              postalCode: firstAddress?.postalCode,
+                              region: firstAddress?.region?.additionalValue1,
+                              country: firstAddress?.country?.value,
                             });
                             if (!address)
                               return (
@@ -530,7 +531,7 @@ export const LeadTable: React.FC<LeadTableProps> = ({
                       <Badge
                         variant={getLeadStatusBadgeVariant(record.leadStatus)}
                       >
-                        {record.leadStatus?.value || "-"}
+                        {record.leadStatus?.value || record.leadStatus?.code || "-"}
                       </Badge>
                     </TableCell>
                   )}

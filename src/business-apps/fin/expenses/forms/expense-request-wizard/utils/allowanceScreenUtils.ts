@@ -34,6 +34,7 @@ export const createAllowanceScreenLogObject = (
   currentTitle: string,
   expenseItems: any[],
   expenseRequestData: any,
+  existingDeductions: any[],
   event: string
 ) => {
   // Map allowance items
@@ -70,6 +71,43 @@ export const createAllowanceScreenLogObject = (
   // Combine both arrays
   const expenseItemsArray: ExpenseItem[] = [...allowanceItems, ...nonAllowanceItems];
   
+  // Build travel breakdowns from list data if present
+  const listDataArray = expenseItems || [];
+  const travelBreakdowns: any[] = [];
+
+  if(existingDeductions.length > 0) {
+  listDataArray.forEach((item: any) => {
+    const deductionDay = item?.deductionDay;
+    if (!deductionDay) {
+      return;
+    }
+
+    const existing = deductionDay.id
+      ? existingDeductions.find((d: any) => d.id === deductionDay.id)
+      : null;
+    const deductionDayData: any = {
+      breakfast: deductionDay.breakfast,
+      lunch: deductionDay.lunch,
+      dinner: deductionDay.dinner,
+      overnight: deductionDay.overnight,
+      expenseDate: item.expenseDate,
+      travelRegionRef: item.travelRegionRef || existing?.travelRegionRef || '',
+      expenseRequest: item.expenseRequestId ?? item.expenseRequest.id,
+      costCenter: item.costCenterId,
+      project: item.projectId,
+      id: deductionDay.id ?? null,
+      version: deductionDay.id ? (deductionDay.version ?? 0) : 0,
+    };
+
+    if (existing) {
+      deductionDayData.id = existing.id;
+      deductionDayData.version = existing.version;
+    }
+
+    travelBreakdowns.push(deductionDayData);
+  });
+}
+
   return {
     stepKey: SCREEN_NAMES_ENUM.ALLOWANCE_TAB + "_" + event,
     event: event,
@@ -87,13 +125,17 @@ export const createAllowanceScreenLogObject = (
       requestDate: initialRequest?.requestDate ? dayjs(initialRequest.requestDate).format("YYYY-MM-DD") : "",
       requestTypeRef: initialRequest?.requestTypeRef,
       additionalProperties: initialRequest?.additionalProperties,
-      currencyRef: initialRequest?.currency?.id || ""
+      currencyRef: initialRequest?.currency?.id || "",
+      overnightAccommodation: !!expenseRequestData?.ExpenseRequestByPk?.overnightAccommodation
     },
     expenseRequestItems: {
       expenseItems: expenseItemsArray
     },
     expenseRequestTrips: {
       expenseTrips: (expenseRequestData?.ExpenseRequestByPk?.expenseRequestTrip || [])
+    },
+    travelBreakdownWrapper: {
+       travelBreakdowns: travelBreakdowns
     }
   };
 };

@@ -3,6 +3,7 @@ import { Form } from 'antd';
 import { InputField, SelectField, TextAreaField, CheckboxGroup } from '@newwork/gravity-ui-catalog';
 import { useTranslation } from 'react-i18next';
 import { getCatalogValue } from '@/common/utils/windowUtils';
+import { TITLE_MAX_LENGTH, COMMENT_TEXTAREA_ROWS, REQUEST_TYPES } from '../constants/constants';
 interface ExpenseFormContentProps {
   form: any;
   showTransportation: boolean;
@@ -22,7 +23,7 @@ const ExpenseFormContent: React.FC<ExpenseFormContentProps> = ({
   form, 
   showTransportation, 
   setFormIsValid, 
-  testIdPrefix = "expense",
+  testIdPrefix = REQUEST_TYPES.EXPENSE,
   costCenters = [],
   projects = [],
   selectedCostCenter = "",
@@ -65,7 +66,7 @@ const ExpenseFormContent: React.FC<ExpenseFormContentProps> = ({
                   message: t('lowcoder:create_expense_request.expense_request_container.current_title_custom_rule', 'Please enter a title') 
                 },
                 { 
-                  max: 50, 
+                  max: TITLE_MAX_LENGTH, 
                   message: t('lowcoder:create_expense_request.maximum_characters_title_error_message', 'Maximum limit reached: The title can be up to 50 characters only.') 
                 }
               ]}
@@ -151,7 +152,7 @@ const ExpenseFormContent: React.FC<ExpenseFormContentProps> = ({
                 label={t('lowcoder:initiate_expense_plan.create_expense_plan.comment_text_area', 'Comment')}
                 placeholder={t('lowcoder:initiate_expense_plan.create_expense_plan.comment_text_area', 'Enter Comment')}
                 onChange={(field: any) => form.setFieldsValue({ comment: field.value })}
-                rows={4}
+                rows={COMMENT_TEXTAREA_ROWS}
               />
             </Form.Item>
           </div>

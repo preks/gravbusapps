@@ -64,13 +64,6 @@ export interface OpportunityQueryResult {
     objectValue?: any;
   };
   opportunityStatusRef?: string;
-  pipeline?: {
-    id: string;
-    code: string;
-    value: string;
-    objectValue?: any;
-  };
-  pipelineRef?: string;
   salesPipeline?: {
     id: string;
     code: string;
@@ -220,13 +213,6 @@ export const GET_OPPORTUNITY_BY_ID = `
         objectValue
       }
       opportunityStatusRef
-      pipeline {
-        id
-        code
-        value
-        objectValue
-      }
-      pipelineRef
       salesPipeline {
         id
         code

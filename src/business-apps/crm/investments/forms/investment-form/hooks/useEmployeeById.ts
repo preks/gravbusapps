@@ -48,11 +48,11 @@ export interface UseEmployeeByIdReturn {
   fetchEmployee: (id: string) => Promise<void>;
 }
 
-export const GET_EMPLOYEE_BY_ID = (employeeId: string): string => {
+export const GET_EMPLOYEE_BY_ID = (): string => {
   return `
-    query GetEmployeeById {
+    query GetEmployeeById($employeeId: uuid!) {
       EmployeePosition(
-        where: { employeeId: { _eq: "${employeeId}" } }
+        where: { employeeId: { _eq: $employeeId } }
         limit: 1
       ) {
         id
@@ -107,8 +107,8 @@ export const useEmployeeById = ({ accessToken, employeeId }: UseEmployeeByIdProp
       setError(null);
 
       try {
-        const query = GET_EMPLOYEE_BY_ID(id);
-        const result = await graphqlClient.request<EmployeeByIdResponse>(query);
+        const query = GET_EMPLOYEE_BY_ID();
+        const result = await graphqlClient.request<EmployeeByIdResponse>(query, { employeeId: id });
 
         const employeeData = result.EmployeePosition?.[0] || null;
         setEmployee(employeeData);

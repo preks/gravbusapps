@@ -1,17 +1,14 @@
-import React from 'react';
-import { Card } from 'antd';
+import React, { useMemo } from 'react';
+import { Card, CardHeader, CardTitle, CardContent, CardDescription, IconAvatar, ChartContainer, ChartTooltip, ChartTooltipContent, ChartLegend, ChartLegendContent } from '@newwork/nw-design-system';
 import {
   ComposedChart,
-  BarChart,
   Bar,
   Line,
   XAxis,
-  YAxis,
-  Tooltip,
-  Legend,
-  ResponsiveContainer
+  YAxis
 } from 'recharts';
-import { formatCurrency, formatPercentage } from '../utils/formatters';
+import { formatCurrency } from '@/common/data/investment';
+import { ChartLineUpIcon, TrendUpIcon } from '@phosphor-icons/react';
 
 const CHART_COLORS = ['#8884d8', '#82ca9d', '#ffc658', '#ff7c7c', '#8dd1e1'];
 
@@ -27,72 +24,128 @@ export const EquityTimelineCharts: React.FC<EquityTimelineChartsProps> = ({
   return (
     <>
       {/* Equity Investment Performance Timeline - Full Width Row */}
-      <div style={{ gridColumn: '1 / -1', marginBottom: '24px' }}>
-        <Card title="Equity Investment Performance Timeline" style={{ borderRadius: '8px' }}>
-          <ResponsiveContainer width="100%" height={400}>
+      <Card>
+        <CardHeader>
+          <div className="gba:flex gba:items-center gba:gap-3">
+            <IconAvatar icon={ChartLineUpIcon} variant="default" size="md" decorative />
+            <div>
+              <CardTitle>Equity Performance Timeline</CardTitle>
+              <CardDescription>Timeline of equity investment activity and cumulative growth</CardDescription>
+            </div>
+          </div>
+        </CardHeader>
+        <CardContent>
+          <ChartContainer 
+            config={useMemo(() => ({
+              newinvestments: { label: "New Investments" },
+              totalvaluation: { label: "Total Valuation" },
+              cumulativeinvestments: { label: "Cumulative Investments" }
+            }), [])} 
+            className="gba:h-[400px] gba:w-full"
+          >
             <ComposedChart
               data={equityTimelineData}
               margin={{ top: 20, right: 30, left: 20, bottom: 5 }}
             >
-              <XAxis dataKey="month" />
-              <YAxis yAxisId="left" />
-              <YAxis yAxisId="right" orientation="right" />
-              <Tooltip
-                formatter={(value, name) => {
-                  if (name === 'Total Valuation' || name === 'Total EBITDA') {
-                    return [formatCurrency(value as number, 'EUR'), name];
+              <XAxis dataKey="month" tick={{ fontSize: 12 }} />
+              <YAxis yAxisId="left" tick={{ fontSize: 12 }} />
+              <YAxis yAxisId="right" orientation="right" tick={{ fontSize: 12 }} />
+              <ChartTooltip
+                content={({ active, payload, label }) => {
+                  if (active && payload && payload.length) {
+                    return (
+                      <div className="gba:bg-white gba:p-3 gba:border gba:border-gray-200 gba:rounded-lg gba:shadow-lg">
+                        <div className="gba:mb-2 gba:font-medium gba:text-gray-700">
+                          {label}
+                        </div>
+                        {payload.map((entry, index) => {
+                          let formattedValue = '';
+                          let properLabel = '';
+                          let dotColor = '';
+                          
+                          if (entry.dataKey === 'investmentCount') {
+                            formattedValue = `${entry.value}`;
+                            properLabel = 'New Investments';
+                            dotColor = 'var(--color-newinvestments)';
+                          } else if (entry.dataKey === 'totalValuation') {
+                            formattedValue = formatCurrency(entry.value as number);
+                            properLabel = 'Total Valuation';
+                            dotColor = 'var(--color-totalvaluation)';
+                          } else if (entry.dataKey === 'cumulativeInvestments') {
+                            formattedValue = `${entry.value}`;
+                            properLabel = 'Cumulative Investments';
+                            dotColor = 'var(--color-cumulativeinvestments)';
+                          }
+                          
+                          return (
+                            <div key={index} className="gba:flex gba:items-center gba:gap-2 gba:mb-1">
+                              <div 
+                                className="gba:w-3 gba:h-3 gba:rounded-full" 
+                                style={{ backgroundColor: dotColor }}
+                              />
+                              <span className="gba:font-medium">{properLabel}:</span>
+                              <span className="gba:font-semibold">{formattedValue}</span>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    );
                   }
-                  return [value, name];
+                  return null;
                 }}
               />
-              <Legend />
+              <ChartLegend content={<ChartLegendContent />} />
               <Bar
                 yAxisId="left"
                 dataKey="investmentCount"
-                fill={CHART_COLORS[0]}
-                name="New Investments"
+                name="newinvestments"
+                fill="var(--color-newinvestments)"
                 radius={[4, 4, 0, 0]}
               />
               <Line
                 yAxisId="right"
                 type="monotone"
                 dataKey="totalValuation"
-                stroke={CHART_COLORS[1]}
+                name="totalvaluation"
+                stroke="var(--color-totalvaluation)"
                 strokeWidth={3}
-                name="Total Valuation"
-                dot={false}
-              />
-              <Line
-                yAxisId="right"
-                type="monotone"
-                dataKey="totalEbitda"
-                stroke={CHART_COLORS[2]}
-                strokeWidth={2}
-                name="Total EBITDA"
-                strokeDasharray="5 5"
                 dot={false}
               />
               <Line
                 yAxisId="left"
                 type="monotone"
                 dataKey="cumulativeInvestments"
-                stroke={CHART_COLORS[3]}
+                name="cumulativeinvestments"
+                stroke="var(--color-cumulativeinvestments)"
                 strokeWidth={2}
-                name="Cumulative Investments"
                 dot={false}
               />
             </ComposedChart>
-          </ResponsiveContainer>
-        </Card>
-      </div>
+          </ChartContainer>
+        </CardContent>
+      </Card>
 
       {/* Top Companies by Valuation - Full Width Row */}
-      <div style={{ gridColumn: '1 / -1', marginBottom: '24px' }}>
-        <Card title="Top 10 Companies by Valuation" style={{ borderRadius: '8px' }}>
-          <ResponsiveContainer width="100%" height={400}>
+      <Card>
+        <CardHeader>
+          <div className="gba:flex gba:items-center gba:gap-3">
+            <IconAvatar icon={TrendUpIcon} variant="success" size="md" decorative />
+            <div>
+              <CardTitle>Top Companies by Valuation</CardTitle>
+              <CardDescription>Highest valued companies in the equity investment portfolio</CardDescription>
+            </div>
+          </div>
+        </CardHeader>
+        <CardContent>
+          <ChartContainer 
+            config={useMemo(() => ({
+              valuation: { label: "Valuation" }
+            }), [])} 
+            className="gba:h-[400px] gba:w-full"
+          >
             <ComposedChart
               data={topCompaniesByValuationData}
-              margin={{ top: 20, right: 30, left: 20, bottom: 20 }}
+              margin={{ top: 20, right: 30, left: 20, bottom: 80 }}
             >
               <XAxis
                 dataKey="company"
@@ -100,60 +153,63 @@ export const EquityTimelineCharts: React.FC<EquityTimelineChartsProps> = ({
                 textAnchor="end"
                 height={80}
                 interval={0}
-                fontSize={11}
+                tick={{ fontSize: 11 }}
                 tickFormatter={(value) => {
                   // Truncate company names longer than 15 characters
                   return value.length > 15 ? `${value.substring(0, 15)}...` : value;
                 }}
               />
-              <YAxis yAxisId="left" tickFormatter={(value) => formatCurrency(value, 'EUR').replace('€', '')} />
-              <YAxis yAxisId="right" orientation="right" tickFormatter={formatPercentage} />
-              <Tooltip
-                formatter={(value, name) => {
-                  if (name === 'Valuation' || name === 'EBITDA') {
-                    return [formatCurrency(value as number, 'EUR'), name];
+              <YAxis 
+                tick={{ fontSize: 12 }}
+                tickFormatter={(value) => formatCurrency(value).replace(/[€$£¥]/g, '')} 
+              />
+              <ChartTooltip
+                content={({ active, payload, label }) => {
+                  if (active && payload && payload.length) {
+                    return (
+                      <div className="gba:bg-white gba:p-3 gba:border gba:border-gray-200 gba:rounded-lg gba:shadow-lg">
+                        <div className="gba:mb-2 gba:font-medium gba:text-gray-700">
+                          {label}
+                        </div>
+                        {payload.map((entry, index) => {
+                          let formattedValue = '';
+                          let properLabel = '';
+                          let dotColor = '';
+                          
+                          if (entry.dataKey === 'valuation') {
+                            formattedValue = formatCurrency(entry.value as number);
+                            properLabel = 'Valuation';
+                            dotColor = 'var(--color-valuation)';
+                          }
+                          
+                          return (
+                            <div key={index} className="gba:flex gba:items-center gba:gap-2 gba:mb-1">
+                              <div 
+                                className="gba:w-3 gba:h-3 gba:rounded-full" 
+                                style={{ backgroundColor: dotColor }}
+                              />
+                              <span className="gba:font-medium">{properLabel}:</span>
+                              <span className="gba:font-semibold">{formattedValue}</span>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    );
                   }
-                  if (name === 'Stake') {
-                    return [formatPercentage(value as number), name];
-                  }
-                  return [value, name];
-                }}
-                labelFormatter={(label, payload) => {
-                  // Show full company name in tooltip
-                  if (payload && payload.length > 0) {
-                    return payload[0]?.payload?.company || label;
-                  }
-                  return label;
+                  return null;
                 }}
               />
-              <Legend />
+              <ChartLegend content={<ChartLegendContent />} />
               <Bar
-                yAxisId="left"
                 dataKey="valuation"
-                fill={CHART_COLORS[0]}
-                name="Valuation"
+                name="valuation"
+                fill="var(--color-valuation)"
                 radius={[4, 4, 0, 0]}
-              />
-              <Bar
-                yAxisId="left"
-                dataKey="ebitda"
-                fill={CHART_COLORS[1]}
-                name="EBITDA"
-                radius={[4, 4, 0, 0]}
-              />
-              <Line
-                yAxisId="right"
-                type="monotone"
-                dataKey="stake"
-                stroke={CHART_COLORS[2]}
-                strokeWidth={3}
-                name="Stake"
-                dot={false}
               />
             </ComposedChart>
-          </ResponsiveContainer>
-        </Card>
-      </div>
+          </ChartContainer>
+        </CardContent>
+      </Card>
     </>
   );
 }; 

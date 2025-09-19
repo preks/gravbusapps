@@ -3,8 +3,8 @@ import { InvestmentFormProvider } from './context/InvestmentFormContext';
 import InvestmentFormComponent from './components/InvestmentFormComponent';
 import { InvestmentFormValues } from './types';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
-import { saveInvestment, deleteInvestment } from './utils/apiClient';
 import { dispatchProcessContinueEvent } from '@/common/utils/processEventUtils';
+import { buildInvestmentPayload } from '@/common/data/investment/payloads/investmentPayloads';
 
 interface InvestmentFormProps {
   initialValues?: Partial<InvestmentFormValues>;
@@ -26,8 +26,8 @@ const InvestmentForm: React.FC<BusinessAppContextProps & InvestmentFormProps> = 
 }) => {
   if (!accessToken) {
     return (
-      <div className="gba:p-6 gba:text-center">
-        <div className="gba:text-red-500">
+      <div>
+        <div>
           Error: No access token found. Please ensure you are properly authenticated.
         </div>
       </div>
@@ -48,44 +48,29 @@ const InvestmentForm: React.FC<BusinessAppContextProps & InvestmentFormProps> = 
     ...initialValues,
     ...(extractedInvestmentId && { id: extractedInvestmentId })
   };
-  // Handle form submission with API integration
+  // Handle form submission with payload building for Kogito flow
   const handleSubmit = async (values: InvestmentFormValues) => {
     try {
-      // Call the API to save the investment
-      const result = await saveInvestment(values);
-      
-      if (!result.success) {
-        throw new Error(result.error || 'Failed to save investment');
-      }
-
-      // Log success
-
 
       // Call the provided onSubmit handler if available
       if (onSubmit) {
         await onSubmit(values);
       }
       
-      // Prepare payload for process continuation
-      const payload = {
-          investment: {
-            id: values.id || result.data?.id,
-            ownerEmployeeId: values.ownerEmployeeId,
-            name: values.name,
-            accountId: values.accountId,
-            initialInvestmentAmount: values.initialInvestmentAmount,
-            group: values.group,
-            version: values.version,
-            ...result.data
-          }
-      };
+      // Prepare payload for process continuation using the payload builder
+      const payload = buildInvestmentPayload(
+        values,
+        businessAppContext,
+        { isUpdate: Boolean(values.id) }
+      );
+      
       
       // Dispatch process continue event on successful submission
       dispatchProcessContinueEvent('pse_submit', payload);
       
     } catch (error) {
-      console.error('Error saving investment:', error);
-      throw error; // Re-throw to let the form context handle it
+      console.error('Error building investment payload:', error);
+      throw error; // Re-throw to let AppActionForm handle error display
     }
   };
 
@@ -112,16 +97,6 @@ const InvestmentForm: React.FC<BusinessAppContextProps & InvestmentFormProps> = 
       // Get the current version from initial values if available
       const version = enhancedInitialValues.version;
       
-      // Call the API to delete the investment
-      const result = await deleteInvestment(id, version);
-      
-      if (!result.success) {
-        throw new Error(result.error || 'Failed to delete investment');
-      }
-
-      // Log success
-      
-
       // Call the provided onDelete handler if available
       if (onDelete) {
         await onDelete(id);
@@ -135,6 +110,7 @@ const InvestmentForm: React.FC<BusinessAppContextProps & InvestmentFormProps> = 
           version
         }
       };
+      
       
       // Dispatch process continue event on successful deletion
       dispatchProcessContinueEvent('pse_submit', payload);

@@ -1,22 +1,24 @@
-import React, { useMemo, useState, useCallback } from 'react';
+import React, { useMemo, useState, useCallback, memo } from 'react';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 import { Card, CardHeader, CardTitle, CardContent, Badge } from '@newwork/nw-design-system';
 import { InfoCircleOutlined, CheckCircleFilled, CloseCircleFilled, CalendarOutlined, ClockCircleOutlined, UserOutlined } from '@ant-design/icons';
 import { AppActionMenu } from '@/components/app-action-menu/AppActionMenu';
-import { FlowContextName } from '@/common/types/FlowRegistryTypes';
+import type { AppActionCommonProps } from '@/common/hooks/useAppActionData';
 import { getSalesPipelineStageBadgeVariant } from '@/common/utils/badgeUtils';
+import { FlowContextName } from '@/common/types/FlowRegistryTypes';
 
 interface ConditionSectionProps extends Partial<BusinessAppContextProps> {
   opportunity?: any;
   stageConditionStatuses?: any[];
   'data-testid'?: string;
+  stageConditionActionProps?: Omit<AppActionCommonProps, 'accessToken'>;
 }
 
-const ConditionSection: React.FC<ConditionSectionProps> = ({ opportunity, stageConditionStatuses = [], ...context }) => {
+const ConditionSection: React.FC<ConditionSectionProps> = memo(({ opportunity, stageConditionStatuses = [], stageConditionActionProps, ...context }) => {
   const [hoveredConditionId, setHoveredConditionId] = useState<string | null>(null);
 
   const handleConditionMouseLeave = useCallback(() => setHoveredConditionId(null), []);
-  const conditionContextsArray = useMemo(() => [FlowContextName.saveOpportunityStageConditionStatus], []);
+  const conditionContextsArray = useMemo(() => stageConditionActionProps?.contextsArray || [], [stageConditionActionProps?.contextsArray]);
 
   const conditionProps = useMemo(() => {
     const props: Record<string, {
@@ -39,15 +41,16 @@ const ConditionSection: React.FC<ConditionSectionProps> = ({ opportunity, stageC
   }, [stageConditionStatuses, handleConditionMouseLeave, conditionContextsArray]);
 
   const transformStageConditionStatusToUI = (statusData: any) => {
-    const config = statusData.configSnapshot || statusData.salesPipelineStageCondition?.objectValue || {};
+    const conditionEntry = statusData.opportunityPipelineStageCondition;
+    const config = statusData.configSnapshot || conditionEntry?.objectValue || {};
     // deadline configuration available if needed in future
     const getEmployeeName = (employee: any) => employee?.displayName || `${employee?.firstName || ''} ${employee?.lastName || ''}`.trim() || 'System';
     const approvedBy = getEmployeeName(statusData.completedByEmployee);
     const checkedType = config.check_type === 'MANUAL' ? 'User' : 'Automated';
     return {
-      id: statusData.salesPipelineStageCondition?.code || statusData.id,
+      id: conditionEntry?.code || statusData.id,
       stageConditionStatusId: statusData.id,
-      title: statusData.salesPipelineStageCondition?.value || 'Unknown Condition',
+      title: conditionEntry?.value || 'Unknown Condition',
       description: config.description || 'No description available',
       isCompleted: statusData.completed || false,
       generateTask: config.generate_task || config.generateTask || false,
@@ -58,13 +61,13 @@ const ConditionSection: React.FC<ConditionSectionProps> = ({ opportunity, stageC
     };
   };
 
-  const getCurrentStageConditions = (statuses: any[], currentStage: string) => {
-    const expectedStageId = `SalesPipelineStage:v1:${currentStage}`;
-    return statuses.filter(s => s.salesPipelineStageCondition?.parentEntryId === expectedStageId);
+  const getCurrentStageConditions = (statuses: any[], currentStageStageId?: string) => {
+    if (!currentStageStageId) return [];
+    return statuses.filter(s => s.opportunityPipelineStageCondition?.parentEntryId === currentStageStageId);
   };
 
   const currentStageConditionStatuses = (stageConditionStatuses && stageConditionStatuses.length > 0)
-    ? getCurrentStageConditions(stageConditionStatuses, opportunity?.salesPipelineStage?.code || '')
+    ? getCurrentStageConditions(stageConditionStatuses, opportunity?.opportunityPipelineStage?.id)
     : [];
   const stageConditions = currentStageConditionStatuses.map(transformStageConditionStatusToUI);
   const sortedStageConditions = [...stageConditions].sort((a, b) => (a.isCompleted === b.isCompleted ? 0 : a.isCompleted ? 1 : -1));
@@ -80,8 +83,8 @@ const ConditionSection: React.FC<ConditionSectionProps> = ({ opportunity, stageC
       <CardContent>
         <div className="gba:space-y-3">
           <div className="gba:flex gba:justify-center gba:p-3 gba:bg-gray-50 gba:rounded-lg gba:border gba:border-gray-200">
-            <Badge variant={getSalesPipelineStageBadgeVariant(opportunity?.salesPipelineStage)}>
-              {opportunity?.salesPipelineStage?.value || 'No Stage'}
+            <Badge variant={getSalesPipelineStageBadgeVariant(opportunity?.opportunityPipelineStage)}>
+              {opportunity?.opportunityPipelineStage?.value || 'No Stage'}
             </Badge>
           </div>
 
@@ -99,12 +102,12 @@ const ConditionSection: React.FC<ConditionSectionProps> = ({ opportunity, stageC
                           prefixDataTestId="stage-condition-status-icon"
                           accessToken={(context as BusinessAppContextProps).accessToken as string}
                           emptyStateBehavior="disable"
-                          deferMainContextRequestsUntilClick={false}
-                          autoExecuteSingleAction
+                          deferMainContextRequestsUntilClick={true}
+                          autoExecuteSingleAction={true}
                           onMouseEnter={conditionProps[condition.stageConditionStatusId]?.mouseHandlers.onMouseEnter}
                           onMouseLeave={conditionProps[condition.stageConditionStatusId]?.mouseHandlers.onMouseLeave}
                         >
-                          <div className="gba:relative gba:inline-flex gba:items-center gba:justify-center gba:w-8 gba:h-8">
+                          <div className="gba:relative gba:inline-flex gba:items-center gba:justify-center gba:w-8 gba:h-8 gba:cursor-pointer">
                             {hoveredConditionId === condition.stageConditionStatusId ? (
                               condition.isCompleted ? (
                                 <CloseCircleFilled className="gba:text-2xl" style={{ color: '#f59e0b' }} />
@@ -181,7 +184,9 @@ const ConditionSection: React.FC<ConditionSectionProps> = ({ opportunity, stageC
       </CardContent>
     </Card>
   );
-};
+});
+
+ConditionSection.displayName = 'ConditionSection';
 
 export default ConditionSection;
 

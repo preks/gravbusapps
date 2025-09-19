@@ -47,7 +47,7 @@ export interface SalesTaskResponse {
 export const GET_SALES_TASKS = (variables: SalesTaskQueryVariables): string => {
   return `
     query GetSalesTasks($leadId: uuid!) {
-      SalesTask(where: {leadId: {_eq: $leadId}, isDeleted: {_eq: false}}) {
+      SalesTask(where: {lead: {id: {_eq: $leadId}}, isDeleted: {_eq: false}}) {
         id
         name
         version

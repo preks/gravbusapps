@@ -50,6 +50,9 @@ export interface LiquidFundInvestment extends BaseLiquidFundInvestment {
   interestPaymentFrequencyLabel?: string;
 }
 
+// Note: Enhanced interfaces have been removed in favor of utility functions
+// Use liquidFundUtils for computed properties instead
+
 // Enhanced Investment Role type with computed fields
 export interface InvestmentRole extends BaseInvestmentRole {
   // Computed display fields only

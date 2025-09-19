@@ -22,8 +22,11 @@ import {
 } from 'lucide-react';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 import dayjs from 'dayjs';
-import { RealEstateAnalyticsTable } from './components/RealEstateAnalyticsTable';
-import type { RealEstateAnalyticsFilters } from './types';
+import { ExistingPropertiesTable } from './components/ExistingPropertiesTable';
+import { ProjectDevelopmentTable } from './components/ProjectDevelopmentTable';
+import { MezzanineLoansTable } from './components/MezzanineLoansTable';
+import { OthersTable } from './components/OthersTable';
+import type { RealEstateReportFilters } from './types';
 // Removed separate catalog hook - using central data source instead
 // import { useInvestmentTypeCatalog } from './hooks/useInvestmentTypeCatalog';
 
@@ -50,87 +53,77 @@ export const RealEstateReport: React.FC<RealEstateReportProps> = ({
   const typesError = null;
   
   // Sub-tab management
-  const [activeSubTab, setActiveSubTab] = useState<string>('overview');
+  const [activeSubTab, setActiveSubTab] = useState<string>('existing-properties');
 
-  // Filter states - Updated to 2024 where actual data exists
-  const [startDate, setStartDate] = useState<dayjs.Dayjs | null>(
-    dayjs('2024-01-01') // January 1st, 2024 (where actual data exists)
-  );
-  const [endDate, setEndDate] = useState<dayjs.Dayjs | null>(
-    dayjs('2024-12-31') // December 31st, 2024
-  );
+  // FIXED: Filter states - Use same pattern as individual investment record reports
+  const [timeFilter, setTimeFilter] = useState<string>('all');
+  const [dateRange, setDateRange] = useState<[dayjs.Dayjs | null, dayjs.Dayjs | null] | null>(null);
   const [selectedCurrency, setSelectedCurrency] = useState<string>('EUR');
-  
-  // Applied filters state (only updates when Apply button is clicked)
-  // LOAD DATA IMMEDIATELY - Set default applied filters to show data on initial load
-  const [appliedStartDate, setAppliedStartDate] = useState<dayjs.Dayjs | null>(
-    dayjs('2024-01-01') // AUTO-APPLY: Show data immediately
-  );
-  const [appliedEndDate, setAppliedEndDate] = useState<dayjs.Dayjs | null>(
-    dayjs('2024-12-31') // AUTO-APPLY: Show data immediately  
-  );
-  const [appliedCurrency, setAppliedCurrency] = useState<string>('EUR');
 
   // Available currencies
   const availableCurrencies = ['EUR', 'USD', 'GBP', 'CHF'];
 
-  // Create stable date strings from APPLIED filters
-  // Return undefined if no applied filters - this prevents data loading until user applies filters
-  const startDateString = useMemo(() => 
-    appliedStartDate?.format('YYYY-MM-DD'),
-    [appliedStartDate?.valueOf()]
-  );
-  const endDateString = useMemo(() => 
-    appliedEndDate?.format('YYYY-MM-DD'),
-    [appliedEndDate?.valueOf()]
-  );
-
-  // Create filters for Overview and specific investment types
-  const overviewFilters = useMemo((): RealEstateAnalyticsFilters => ({
-    startDate: startDateString,
-    endDate: endDateString,
-    currency: appliedCurrency
-    // No investmentType filter to show all real estate reports
-  }), [startDateString, endDateString, appliedCurrency]);
+  // FIXED: Calculate date strings using same logic as individual investment record reports
+  const { startDateString, endDateString } = useMemo(() => {
+    if (dateRange && dateRange[0] && dateRange[1]) {
+      return {
+        startDateString: dateRange[0].format('YYYY-MM-DD'),
+        endDateString: dateRange[1].format('YYYY-MM-DD')
+      };
+    } else if (timeFilter !== 'all') {
+      const now = dayjs();
+      let calculatedStartDate: dayjs.Dayjs | null = null;
+      switch (timeFilter) {
+        case 'last7days': calculatedStartDate = now.subtract(7, 'days'); break;
+        case 'last30days': calculatedStartDate = now.subtract(30, 'days'); break;
+        case 'last3months': calculatedStartDate = now.subtract(3, 'months'); break;
+        case 'last6months': calculatedStartDate = now.subtract(6, 'months'); break;
+        case 'lastyear': calculatedStartDate = now.subtract(1, 'year'); break;
+        default: calculatedStartDate = null;
+      }
+      if (calculatedStartDate) {
+        return {
+          startDateString: calculatedStartDate.format('YYYY-MM-DD'),
+          endDateString: now.format('YYYY-MM-DD')
+        };
+      }
+    }
+    
+    // Default to show recent data if no filter is set
+    return {
+      startDateString: dayjs().subtract(1, 'year').format('YYYY-MM-DD'),
+      endDateString: dayjs().format('YYYY-MM-DD')
+    };
+  }, [dateRange, timeFilter]);
 
   // Create dynamic filters for each investment type
-  const createInvestmentTypeFilters = useCallback((investmentTypeValue: string): RealEstateAnalyticsFilters => ({
+  const createInvestmentTypeFilters = useCallback((investmentTypeValue: string): RealEstateReportFilters => ({
     startDate: startDateString,
     endDate: endDateString,
-    currency: appliedCurrency,
+    currency: selectedCurrency,
     investmentType: investmentTypeValue
-  }), [startDateString, endDateString, appliedCurrency]);
+  }), [startDateString, endDateString, selectedCurrency]);
 
-  // Apply filters handler
-  const handleApplyFilters = () => {
-    setAppliedStartDate(startDate);
-    setAppliedEndDate(endDate);
-    setAppliedCurrency(selectedCurrency);
+  // FIXED: Filter change handlers matching record reports pattern
+  const handleTimeFilterChange = (value: string) => {
+    setTimeFilter(value);
+    if (value !== 'all') {
+      setDateRange(null); // Clear date range when using time filter
+    }
   };
 
-  // Check if filters have changed (to show/hide Apply button)
-  // const filtersChanged = useMemo(() => {
-  //   const currentStart = startDate?.format('YYYY-MM-DD');
-  //   const currentEnd = endDate?.format('YYYY-MM-DD');
-  //   const appliedStart = appliedStartDate?.format('YYYY-MM-DD');
-  //   const appliedEnd = appliedEndDate?.format('YYYY-MM-DD');
-  //   
-  //   return currentStart !== appliedStart || 
-  //          currentEnd !== appliedEnd || 
-  //          selectedCurrency !== appliedCurrency;
-  // }, [startDate, endDate, appliedStartDate, appliedEndDate, selectedCurrency, appliedCurrency]);
-
-  const handleStartDateChange = (date: dayjs.Dayjs | null) => {
-    setStartDate(date);
+  const handleDateRangeChange = (dates: [dayjs.Dayjs | null, dayjs.Dayjs | null] | null) => {
+    setDateRange(dates);
+    if (dates && dates[0] && dates[1]) {
+      setTimeFilter('all'); // Clear time filter when using date range
+    }
   };
 
-  const handleEndDateChange = (date: dayjs.Dayjs | null) => {
-    setEndDate(date);
+  const handleClearFilters = () => {
+    setTimeFilter('all');
+    setDateRange(null);
   };
 
-  const handleCurrencyChange = (currency: string) => {
-    setSelectedCurrency(currency);
-  };
 
   return (
     <div className="gba:space-y-6 gba:p-6" data-testid={dataTestId}>
@@ -148,30 +141,36 @@ export const RealEstateReport: React.FC<RealEstateReportProps> = ({
         <CardContent>
           <div className="gba:flex gba:flex-wrap gba:items-center gba:gap-4 gba:mb-4">
             <div className="gba:flex gba:items-center gba:gap-2">
-              <label className="gba:text-sm gba:font-medium">Start Date:</label>
-              <DatePicker
-                value={startDate}
-                onChange={handleStartDateChange}
-                format="DD/MM/YYYY"
-                placeholder="Start Date"
-                allowClear={false}
-              />
+              <label className="gba:text-sm gba:font-medium">Time Period:</label>
+              <Select value={timeFilter} onValueChange={handleTimeFilterChange}>
+                <SelectTrigger className="gba:w-[150px]">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Time</SelectItem>
+                  <SelectItem value="last7days">Last 7 Days</SelectItem>
+                  <SelectItem value="last30days">Last 30 Days</SelectItem>
+                  <SelectItem value="last3months">Last 3 Months</SelectItem>
+                  <SelectItem value="last6months">Last 6 Months</SelectItem>
+                  <SelectItem value="lastyear">Last Year</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
             
             <div className="gba:flex gba:items-center gba:gap-2">
-              <label className="gba:text-sm gba:font-medium">End Date:</label>
-              <DatePicker
-                value={endDate}
-                onChange={handleEndDateChange}
+              <label className="gba:text-sm gba:font-medium">Date Range:</label>
+              <DatePicker.RangePicker
+                value={dateRange}
+                onChange={handleDateRangeChange}
                 format="DD/MM/YYYY"
-                placeholder="End Date"
-                allowClear={false}
+                placeholder={['Start Date', 'End Date']}
+                allowClear={true}
               />
             </div>
             
             <div className="gba:flex gba:items-center gba:gap-2">
               <label className="gba:text-sm gba:font-medium">Currency:</label>
-              <Select value={selectedCurrency} onValueChange={handleCurrencyChange}>
+              <Select value={selectedCurrency} onValueChange={setSelectedCurrency}>
                 <SelectTrigger className="gba:w-[120px]">
                   <SelectValue />
                 </SelectTrigger>
@@ -184,16 +183,14 @@ export const RealEstateReport: React.FC<RealEstateReportProps> = ({
                 </SelectContent>
               </Select>
             </div>
-          </div>
-          
-          {/* Apply Filter Button - main button style */}
-          <div className="gba:flex gba:justify-end gba:gap-2">
+            
             <Button 
-              onClick={handleApplyFilters}
-              className="gba:bg-black hover:gba:bg-gray-800 gba:text-white gba:border-black"
-              data-testid={`${dataTestId}-apply-filters`}
+              onClick={handleClearFilters}
+              variant="outline"
+              className="gba:ml-auto"
+              data-testid={`${dataTestId}-clear-filters`}
             >
-              Apply Filter
+              Clear Filters
             </Button>
           </div>
         </CardContent>
@@ -210,10 +207,7 @@ export const RealEstateReport: React.FC<RealEstateReportProps> = ({
         </div>
       ) : (
         <Tabs value={activeSubTab} onValueChange={setActiveSubTab} className="gba:w-full">
-          <TabsList className="gba:grid gba:w-full" style={{ gridTemplateColumns: `repeat(${realEstateTypes.length + 1}, minmax(0, 1fr))` }}>
-            <TabsTrigger value="overview" data-testid={`${dataTestId}-overview-tab`}>
-              Overview
-            </TabsTrigger>
+          <TabsList className="gba:grid gba:w-full" style={{ gridTemplateColumns: `repeat(${realEstateTypes.length}, minmax(0, 1fr))` }}>
             {realEstateTypes.map((type) => {
               const tabValue = type.value.toLowerCase().replace(/\s+/g, '-');
               return (
@@ -228,31 +222,74 @@ export const RealEstateReport: React.FC<RealEstateReportProps> = ({
             })}
           </TabsList>
           
-          <TabsContent value="overview" className="gba:mt-6">
-            <RealEstateAnalyticsTable
-              accessToken={accessToken}
-              userInfo={userInfo}
-              filters={overviewFilters}
-              propertyType="All Real Estate Reports"
-              title="Real Estate Analytics - Overview"
-              data-testid={`${dataTestId}-overview-table`}
-            />
-          </TabsContent>
-          
           {realEstateTypes.map((type) => {
             const tabValue = type.value.toLowerCase().replace(/\s+/g, '-');
             const typeFilters = createInvestmentTypeFilters(type.value);
             
+            // Select the appropriate table component based on investment type
+            const getTableComponent = () => {
+              switch (type.value) {
+                case 'Existing Properties':
+                  return (
+                    <ExistingPropertiesTable
+                      accessToken={accessToken}
+                      userInfo={userInfo}
+                      filters={typeFilters}
+                      propertyType={`${type.value} Properties`}
+                      title={`Real Estate Analytics - ${type.value}`}
+                      data-testid={`${dataTestId}-${tabValue}-table`}
+                    />
+                  );
+                case 'Project Development':
+                  return (
+                    <ProjectDevelopmentTable
+                      accessToken={accessToken}
+                      userInfo={userInfo}
+                      filters={typeFilters}
+                      propertyType={`${type.value} Properties`}
+                      title={`Real Estate Analytics - ${type.value}`}
+                      data-testid={`${dataTestId}-${tabValue}-table`}
+                    />
+                  );
+                case 'Mezzanine Loans':
+                  return (
+                    <MezzanineLoansTable
+                      accessToken={accessToken}
+                      userInfo={userInfo}
+                      filters={typeFilters}
+                      propertyType={`${type.value} Properties`}
+                      title={`Real Estate Analytics - ${type.value}`}
+                      data-testid={`${dataTestId}-${tabValue}-table`}
+                    />
+                  );
+                case 'Others':
+                  return (
+                    <OthersTable
+                      accessToken={accessToken}
+                      userInfo={userInfo}
+                      filters={typeFilters}
+                      propertyType={`${type.value} Properties`}
+                      title={`Real Estate Analytics - ${type.value}`}
+                      data-testid={`${dataTestId}-${tabValue}-table`}
+                    />
+                  );
+                default:
+                  return (
+                    <ExistingPropertiesTable
+                      accessToken={accessToken}
+                      userInfo={userInfo}
+                      filters={typeFilters}
+                      propertyType={`${type.value} Properties`}
+                      title={`Real Estate Analytics - ${type.value}`}
+                      data-testid={`${dataTestId}-${tabValue}-table`}
+                    />
+                  );
+              }
+            };
+            
             return (
               <TabsContent key={type.id} value={tabValue} className="gba:mt-6">
-                <RealEstateAnalyticsTable
-                  accessToken={accessToken}
-                  userInfo={userInfo}
-                  filters={typeFilters}
-                  propertyType={`${type.value} Properties`}
-                  title={`Real Estate Analytics - ${type.value}`}
-                  data-testid={`${dataTestId}-${tabValue}-table`}
-                />
+                {getTableComponent()}
               </TabsContent>
             );
           })}

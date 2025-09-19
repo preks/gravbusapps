@@ -20,6 +20,7 @@ export const INVESTMENT_TYPE_CATALOG = "InvestmentType";
 export const INVESTMENT_GROUP_CATALOG = "InvestmentGroup";
 export const INVESTMENT_ROLE_CATALOG = "InvestmentRole";
 export const INVESTMENT_STAKE_TYPE_CATALOG = "InvestmentStakeType";
+export const MEASUREMENT_UNIT_CATALOG = "MeasurementUnit";
 export const CATALOG_VERSION = "v1";
 
 export const useLeadCatalogs = ({ accessToken }: LeadCatalogsHookParams) => {
@@ -30,6 +31,8 @@ export const useLeadCatalogs = ({ accessToken }: LeadCatalogsHookParams) => {
   const [industries, setIndustries] = useState<SelectOption[]>([]);
   const [countries, setCountries] = useState<SelectOption[]>([]);
   const [employeeSizes, setEmployeeSizes] = useState<SelectOption[]>([]);
+  const [investmentGroups, setInvestmentGroups] = useState<SelectOption[]>([]);
+  const [investmentTypes, setInvestmentTypes] = useState<SelectOption[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -251,6 +254,66 @@ export const useLeadCatalogs = ({ accessToken }: LeadCatalogsHookParams) => {
     }
   }, [catalogClient]);
 
+  const fetchInvestmentGroups = useCallback(async (): Promise<SelectOption[]> => {
+    try {
+      const response = await catalogClient.getCatalogEntriesList(
+        {
+          catalogIdentifier: INVESTMENT_GROUP_CATALOG,
+          version: CATALOG_VERSION,
+        },
+        {
+          limit: 100,
+          offset: 0,
+          returnTotalRecords: true,
+          includeChildCatalogEntries: true,
+        }
+      );
+
+      const mappedGroups: SelectOption[] = response.data.map((entry: any) => ({
+        id: entry.id,
+        name: entry.value || entry.label || entry.name || "Unknown",
+        label: entry.value || entry.label || entry.name || "Unknown",
+        value: entry.id,
+      }));
+
+      setInvestmentGroups(mappedGroups);
+      return mappedGroups;
+    } catch (err) {
+      console.error("Error fetching investment groups:", err);
+      throw err;
+    }
+  }, [catalogClient]);
+
+  const fetchInvestmentTypes = useCallback(async (): Promise<SelectOption[]> => {
+    try {
+      const response = await catalogClient.getCatalogEntriesList(
+        {
+          catalogIdentifier: INVESTMENT_TYPE_CATALOG,
+          version: CATALOG_VERSION,
+        },
+        {
+          limit: 100,
+          offset: 0,
+          returnTotalRecords: true,
+          includeChildCatalogEntries: true,
+        }
+      );
+
+      const mappedTypes: SelectOption[] = response.data.map((entry: any) => ({
+        id: entry.id,
+        name: entry.value || entry.label || entry.name || "Unknown",
+        label: entry.value || entry.label || entry.name || "Unknown",
+        value: entry.id,
+      }));
+
+      setInvestmentTypes(mappedTypes);
+      return mappedTypes;
+    } catch (err) {
+      console.error("Error fetching investment types:", err);
+      throw err;
+    }
+  }, [catalogClient]);
+
   const loadCatalogs = useCallback(async () => {
     if (!accessToken) return;
 
@@ -266,6 +329,8 @@ export const useLeadCatalogs = ({ accessToken }: LeadCatalogsHookParams) => {
         fetchIndustries(),
         fetchCountries(),
         fetchEmployeeSizes(),
+        fetchInvestmentGroups(),
+        fetchInvestmentTypes(),
       ]);
     } catch (err) {
       console.error("Error loading lead catalogs:", err);
@@ -284,6 +349,8 @@ export const useLeadCatalogs = ({ accessToken }: LeadCatalogsHookParams) => {
     fetchIndustries,
     fetchCountries,
     fetchEmployeeSizes,
+    fetchInvestmentGroups,
+    fetchInvestmentTypes,
   ]);
 
   useEffect(() => {
@@ -298,6 +365,8 @@ export const useLeadCatalogs = ({ accessToken }: LeadCatalogsHookParams) => {
     industries,
     countries,
     employeeSizes,
+    investmentGroups,
+    investmentTypes,
     loading,
     error,
     refetch: loadCatalogs,
@@ -308,5 +377,7 @@ export const useLeadCatalogs = ({ accessToken }: LeadCatalogsHookParams) => {
     fetchIndustries,
     fetchCountries,
     fetchEmployeeSizes,
+    fetchInvestmentGroups,
+    fetchInvestmentTypes,
   };
 };

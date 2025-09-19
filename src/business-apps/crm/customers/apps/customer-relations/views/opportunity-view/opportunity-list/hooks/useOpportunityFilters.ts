@@ -109,16 +109,15 @@ export const useOpportunityFilters = (
     if (!context.accessToken) return;
     setIsPipelinesLoading(true); setPipelinesError(null);
     try {
-      const res = await graphqlClient.request<{ Opportunity: Array<{ salesPipeline?: { id: string; code?: string; value?: string } | null, pipeline?: { id: string; code?: string; value?: string } | null }> }>(`
+      const res = await graphqlClient.request<{ Opportunity: Array<{ salesPipeline?: { id: string; code?: string; value?: string } | null }> }>(`
         query GetOppPipelines {
           Opportunity(where: { isDeleted: { _eq: false } }, distinctOn: [salesPipelineRef], limit: 50) {
             salesPipeline { id code value }
-            pipeline { id code value }
           }
         }
       `);
       const map = new Map<string, string>();
-      (res?.Opportunity || []).forEach(r => { const p = r.salesPipeline || r.pipeline; if (p?.id) map.set(p.id, p.value || p.code || p.id); });
+      (res?.Opportunity || []).forEach(r => { const p = r.salesPipeline; if (p?.id) map.set(p.id, p.value || p.code || p.id); });
       setPipelineOptions(Array.from(map.entries()).map(([id, name]) => ({ id, name })));
     } catch (e) { setPipelinesError(e); setPipelineOptions([]); }
     finally { setIsPipelinesLoading(false); }

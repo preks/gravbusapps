@@ -23,9 +23,13 @@ export interface InvestmentAccountRef {
   // Fields used in investment queries (inline account selection)
   email?: string;
   phone?: string;
+  website?: string;
   foundationDate?: string; // ISO date string
   geographicPresence?: string;
+  picture?: string;
+  pictureThumbnail?: string;
   // Catalog references (inline)
+  legalForm?: CatalogEntry;
   companySize?: CatalogEntry;
   accountAnnualRevenueBand?: CatalogEntry;
   industryClass?: CatalogEntry;
@@ -51,6 +55,9 @@ export interface InvestmentContactRef {
   jobPosition?: string;
   picture?: string;
   pictureThumbnail?: string;
+  // Catalog references
+  academicTitle?: CatalogEntry;
+  salutation?: CatalogEntry;
 }
 
 export interface InvestmentOpportunityRef {
@@ -127,6 +134,10 @@ export interface BaseInvestmentLead extends BaseEntity {
   requiredCapitalAmount?: number;
   forecastedProfitAmount?: number;
   annualNetColdRent?: number;
+  buildingYear?: string;
+  size?: number;
+  sizeMeasurementUnit?: CatalogEntry;
+  sizeMeasurementUnitRef?: string;
 }
 
 // investment_account table
@@ -216,7 +227,8 @@ export interface BaseInvestmentOpportunity extends BaseEntity {
 
   // Catalog references
   currency?: CatalogEntry;
-  opportunityPipeline?: CatalogEntry;
+  // Pipeline with stages (GraphQL provides childEntries on catalog entry)
+  opportunityPipeline?: CatalogEntry & { childEntries?: CatalogEntry[] };
   opportunityPipelineStage?: CatalogEntry;
   // Some queries may expose this as `stage`
   stage?: CatalogEntry;
@@ -225,6 +237,13 @@ export interface BaseInvestmentOpportunity extends BaseEntity {
   // Entity references (using Ref types)
   ownerEmployee?: EmployeeRef;
   account?: InvestmentAccountRef;
+  
+  // Contact relationships
+  investmentOpportunityContact?: Array<{
+    id: string;
+    contactType?: ContactType;
+    contact?: InvestmentContactRef;
+  }>;
   
   // Related investments (bidirectional relationship)
   investment?: InvestmentRef[]; // List of investments related to this opportunity
@@ -244,9 +263,17 @@ export interface BaseInvestmentOpportunity extends BaseEntity {
   requiredCapitalAmount?: number;
   forecastedProfitAmount?: number;
   annualNetColdRent?: number;
+  buildingYear?: string;
+  size?: number;
+  sizeMeasurementUnit?: CatalogEntry;
+  sizeMeasurementUnitRef?: string;
+  currencyRef?: string;
+
+  // Stage conditions relationship (statuses per stage condition)
+  opportunityStageConditions?: BaseInvestmentOpportunityStageCondition[];
 }
 
-// investment_opportunity_contact table
+// investment_opportunity_contact table (used for standalone entities)
 export interface BaseInvestmentOpportunityContact extends BaseEntity {
   id: string;
   
@@ -255,7 +282,7 @@ export interface BaseInvestmentOpportunityContact extends BaseEntity {
   
   // Entity references (using Ref types)
   opportunity?: InvestmentOpportunityRef;
-  contact?: InvestmentContactRef;
+  contact?: InvestmentContactRef; // Use ContactRef for consistency
 }
 
 // investment_communication_channel table
@@ -310,6 +337,7 @@ export interface BaseInvestmentNote extends BaseEntity {
   reminderDate?: string; // ISO date string
   
   // Entity references (using Ref types)
+  investment?: InvestmentRef;
   authorEmployee?: EmployeeRef;
   account?: InvestmentAccountRef;
   contact?: InvestmentContactRef;
@@ -327,6 +355,7 @@ export interface BaseInvestmentDocument extends BaseEntity {
   name?: string;
   description?: string;
   file?: string;
+  fileInfo?: any; // JSONB field containing file metadata
   fileSize?: number;
   mimeType?: string;
   verified?: boolean;
@@ -335,6 +364,7 @@ export interface BaseInvestmentDocument extends BaseEntity {
   authenticationDate?: string; // ISO date string
   mandatory?: boolean;
   expirationDate?: string; // ISO date string
+  version?: number;
   
   // Catalog references
   documentGroup?: CatalogEntry;
@@ -348,6 +378,7 @@ export interface BaseInvestmentDocument extends BaseEntity {
   contact?: InvestmentContactRef;
   opportunity?: InvestmentOpportunityRef;
   lead?: InvestmentLeadRef;
+  investment?: InvestmentRef; // Add investment relationship
 }
 
 // investment_activity table
@@ -366,6 +397,7 @@ export interface BaseInvestmentActivity extends BaseEntity {
   activityType?: CatalogEntry;
   
   // Entity references (using Ref types)
+  investment?: InvestmentRef;
   ownerEmployee?: EmployeeRef;
   account?: InvestmentAccountRef;
   contact?: InvestmentContactRef;
@@ -409,7 +441,6 @@ export interface BaseInvestmentTask extends BaseEntity {
   // Common Fields (from nw_common_relations.task)
   code?: string;
   name?: string;
-  comment?: string;
   source?: SourceTable;
   description?: string;
   templateStartDate?: string; // ISO date string
@@ -424,6 +455,7 @@ export interface BaseInvestmentTask extends BaseEntity {
   taskStatus?: CatalogEntry;
   
   // Entity references (using Ref types)
+  investment?: InvestmentRef;
   creatorEmployee?: EmployeeRef;
   assignedEmployee?: EmployeeRef;
   creatorUserId?: string;
@@ -433,7 +465,6 @@ export interface BaseInvestmentTask extends BaseEntity {
   contact?: InvestmentContactRef;
   lead?: InvestmentLeadRef;
   opportunity?: InvestmentOpportunityRef;
-  // Note: investment reference will be added in investmentBaseTypes.ts
 }
 
 // investment_opportunity_stage_condition table

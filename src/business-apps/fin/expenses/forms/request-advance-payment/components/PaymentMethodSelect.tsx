@@ -19,7 +19,10 @@ const PaymentMethodSelect: React.FC<PaymentMethodSelectProps> = ({ methods, valu
         <span className="gba:text-[#707070]"> *</span>
       </label>
       <Select value={value} onValueChange={onChange} disabled={disabled} data-testid="request-advance-payment-payment-method-select">
-        <SelectTrigger className="gba:w-full gba:h-10 gba:border-none gba:bg-gray-100">
+        <SelectTrigger
+          className="gba:h-10 gba:bg-gray-100 gba:border-none"
+          style={{ width: '100%', justifyContent: 'space-between' }}
+        >
           <SelectValue placeholder={getTranslationFromI18nKeyAndLabel(
             'lowcoder:create_expense_request.add_request_trip_details.payment_method',
             'Select Payment Method'

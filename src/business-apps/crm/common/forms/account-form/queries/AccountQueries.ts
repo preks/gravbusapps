@@ -54,9 +54,6 @@ export interface AccountDataResponse {
         code: string;
       };
     }>;
-    // Legacy address fields for backward compatibility
-    addressLine?: string;
-    countryRef?: string;
     // Campaign Information
     salesCampaign?: {
       id: string;
@@ -118,8 +115,6 @@ export const GET_ACCOUNT_BY_ID = `
           code
         }
       }
-      addressLine
-      countryRef
       salesCampaign {
         id
         name
