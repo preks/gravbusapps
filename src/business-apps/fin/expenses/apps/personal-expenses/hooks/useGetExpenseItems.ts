@@ -92,7 +92,7 @@ export const useGetExpenseItems = (context?: BusinessAppContextProps): ExpenseIt
       searchTerm: formattedSearchTerm,
       limit: pageSize,
       offset: offset,
-      currencyRef: filter?.currencyRef ?? null,
+      currencyRef: filter?.currencyRef ?? 'Currency:v1:EUR',
     };
     
     // Add orderBy for server-side sorting

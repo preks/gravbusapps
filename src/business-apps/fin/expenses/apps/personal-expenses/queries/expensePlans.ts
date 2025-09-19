@@ -218,6 +218,28 @@ export const GET_EXPENSE_PLANS_BY_EMPLOYEE = `
   }
 `;
 
+// Query to discover which currencies are used by the employee's expense plans
+// Used to build currency filter options and to preselect the most-used currency once
+export const GET_USED_PLAN_CURRENCIES_BY_EMPLOYEE = `
+  query GetUsedPlanCurrenciesByEmployee($employeeId: uuid!, $limit: Int = 1000) {
+    ExpensePlan(
+      where: {
+        employeeId: {_eq: $employeeId},
+        isDeleted: {_eq: false},
+        status: {_nin: ["DISCARDED"]}
+      },
+      limit: $limit
+    ) {
+      currencyRef
+      currency { code }
+      expenseRequest(limit: 1) {
+        currencyRef
+        currency { code }
+      }
+    }
+  }
+`;
+
 export const GET_EXPENSE_PLAN_BY_ID = `
   query GetExpensePlanById($id: uuid!) {
     ExpensePlan(where: {id: {_eq: $id}}) {
@@ -277,7 +299,7 @@ export const GET_CLOSED_PLANS_STATISTICS = `
 `;
 
 export const GET_EXPENSE_PLAN_STATISTICS = `
-  query GetExpensePlanStatistics($employeeId: uuid!, $startDate: timestamp!, $endDate: timestamp!, $activeUserLocale: String!) {
+  query GetExpensePlanStatistics($employeeId: uuid!, $startDate: timestamp!, $endDate: timestamp!, $activeUserLocale: String!, $currencyRef: String!) {
     ExpensePlanAggregate(
       where: {
         employeeId: {_eq: $employeeId},
@@ -295,7 +317,7 @@ export const GET_EXPENSE_PLAN_STATISTICS = `
         isDeleted: {_eq: false},
         planDate: {_gte: $startDate, _lte: $endDate},
         status: {_nin: ["DRAFT", "PAID", "CLOSED", "DISCARDED"]},
-        currencyRef: {_eq: "Currency:v1:EUR"}
+        currencyRef: {_eq: $currencyRef}
       }
     ) {
       aggregate {

@@ -129,7 +129,7 @@ export const GET_ITEMS_WITHOUT_RECEIPTS = `
 `;
 
 export const GET_PENDING_ITEMS = `
-  query GetPendingItems($employeeId: uuid!) {
+  query GetPendingItems($employeeId: uuid!, $currencyRef: String!) {
     allPending: ExpenseItemAggregate(
       where: {
         employeeId: {_eq: $employeeId},
@@ -147,7 +147,7 @@ export const GET_PENDING_ITEMS = `
         isDeleted: {_eq: false},
         status: {_eq: "PENDING"},
         expenseClass: {_not: {code: {_eq: "ALLOWANCE"}}},
-        currencyRef: {_eq: "Currency:v1:EUR"}
+        currencyRef: {_eq: $currencyRef}
       }
     ) {
       aggregate {
@@ -161,14 +161,14 @@ export const GET_PENDING_ITEMS = `
 `;
 
 export const GET_PENDING_ITEMS_WITH_DATE_RANGE = `
-  query GetPendingItemsWithDateRange($employeeId: uuid!, $startDate: timestamp, $endDate: timestamp) {
+  query GetPendingItemsWithDateRange($employeeId: uuid!, $startDate: timestamp, $endDate: timestamp, $currencyRef: String!) {
     pendingExcludingAllowance: ExpenseItemAggregate(
       where: {
         employeeId: {_eq: $employeeId},
         isDeleted: {_eq: false},
         status: {_eq: "PENDING",_nin: ["DISCARDED"]},
         expenseClass: {_not: {code: {_eq: "ALLOWANCE"}}},
-        currencyRef: {_eq: "Currency:v1:EUR"},
+        currencyRef: {_eq: $currencyRef},
         expenseDate: {
           _gte: $startDate,
           _lte: $endDate
@@ -257,6 +257,22 @@ export const GET_EXPENSE_ITEM_STATISTICS = `
       aggregate {
         count
       }
+    }
+  }
+`;
+
+export const GET_USED_CURRENCIES_BY_EMPLOYEE = `
+  query GetUsedCurrenciesByEmployee($employeeId: uuid!, $limit: Int = 1000) {
+    ExpenseItem(
+      where: {
+        employeeId: {_eq: $employeeId},
+        isDeleted: {_eq: false},
+        expenseClass: {_not: {code: {_eq: "ALLOWANCE"}}}
+      },
+      limit: $limit
+    ) {
+      currencyRef
+      currency { code }
     }
   }
 `;

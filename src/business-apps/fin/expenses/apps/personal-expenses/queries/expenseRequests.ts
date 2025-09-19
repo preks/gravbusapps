@@ -119,14 +119,14 @@ export const GET_EXPENSE_REQUEST_BY_ID = `
 `;
 
 export const GET_EXPENSE_REQUEST_STATISTICS = `
-  query GetExpenseRequestStatistics($employeeId: uuid!, $startDate: timestamp!, $endDate: timestamp!) {
+  query GetExpenseRequestStatistics($employeeId: uuid!, $startDate: timestamp!, $endDate: timestamp!, $currencyRef: String!) {
     ExpenseRequestAggregate(
       where: {
         employeeId: {_eq: $employeeId},
         isDeleted: {_eq: false},
         requestDate: {_gte: $startDate, _lt: $endDate}
         status: {_in: ["PAID", "CLOSED", "TRANSFERRED"]},
-        currencyRef: {_eq: "Currency:v1:EUR"}
+        currencyRef: {_eq: $currencyRef}
       }
     ) {
       aggregate {
@@ -152,7 +152,7 @@ export const GET_EXPENSE_REQUEST_STATISTICS = `
         employeeId: {_eq: $employeeId},
         isDeleted: {_eq: false},
         status: {_nin: ["PAID", "CLOSED", "TRANSFERRED"]},
-        currencyRef: {_eq: "Currency:v1:EUR"}
+        currencyRef: {_eq: $currencyRef}
       }
     ) {
       aggregate {

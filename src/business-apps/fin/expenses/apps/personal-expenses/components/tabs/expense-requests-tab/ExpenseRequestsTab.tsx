@@ -5,6 +5,8 @@ import ExpenseRequestStatistics from './ExpenseRequestStatistics';
 import ExpenseRequestsTable from './ExpenseRequestsTable';
 import { useGetExpenseRequests } from '../../../hooks/useGetExpenseRequests';
 import { useExpenseRequestFilters } from '../../../hooks/useExpenseRequestFilters';
+import { useExpenseCurrencies } from '../../../hooks/useExpenseCurrencies';
+import { getSelectedCurrencyRef } from '../../../utils/currencyUtils';
 import { message } from 'antd';
 import dayjs from 'dayjs';
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
@@ -49,6 +51,8 @@ const ExpenseRequestsTab: React.FC<ExpenseRequestsTabProps> = (props) => {
   } = useExpenseRequestFilters();
   
   const { items, isLoading, error, totalCount, fetchItems } = useGetExpenseRequests(contextProps);
+  const selectedCurrencyRef = useMemo(() => getSelectedCurrencyRef(selectedFilters, 'Currency:v1:EUR'), [selectedFilters]);
+  const { currencyStats } = useExpenseCurrencies(contextProps, selectedFilters, setFilters);
 
   // Helper function to get current month date range
   const getCurrentMonthRange = useCallback(() => {
@@ -126,8 +130,13 @@ const ExpenseRequestsTab: React.FC<ExpenseRequestsTabProps> = (props) => {
 
   // Memoize the filters to prevent unnecessary API calls
   const memoizedFilters = useMemo(() => {
-    return getFilters();
-  }, [getFilters]);
+    const base = getFilters();
+    if (selectedCurrencyRef) {
+      base._and = base._and || [];
+      base._and.push({ currencyRef: { _eq: selectedCurrencyRef } });
+    }
+    return base;
+  }, [getFilters, selectedCurrencyRef]);
 
   // Only fetch when filters, page, pageSize, or sorting changes
   useEffect(() => {
@@ -212,12 +221,14 @@ const ExpenseRequestsTab: React.FC<ExpenseRequestsTabProps> = (props) => {
   const contentHeader = useMemo(() => {
     return (
       <ExpenseRequestStatistics 
-        {...contextProps} 
+        {...contextProps}
+        currencyCode={(selectedCurrencyRef?.split(':').pop()) || 'EUR'}
+        {...({ selectedCurrencyRef } as any)}
         onWidgetClick={handleWidgetClick}
         activeWidgetKey={activeWidget || undefined}
       />
     );
-  }, [contextProps, handleWidgetClick, activeWidget]);
+  }, [contextProps, handleWidgetClick, activeWidget, selectedCurrencyRef]);
 
   // Memoize the label map to prevent unnecessary re-rendering
   
@@ -254,7 +265,7 @@ const ExpenseRequestsTab: React.FC<ExpenseRequestsTabProps> = (props) => {
     });
   }, [contextProps.userInfo?.employeeDetails?.employeeId]);
 
-  const handleTableChange = useCallback((pagination: any, filters: any, sorter: any) => {
+  const handleTableChange = useCallback((pagination: any, _filters: any, sorter: any) => {
     setCurrentPage(pagination.current);
     setPageSize(pagination.pageSize);
     
@@ -304,13 +315,22 @@ const ExpenseRequestsTab: React.FC<ExpenseRequestsTabProps> = (props) => {
       selectedFilters={selectedFilters}
       setFilters={handleSetFilter}
       filterGroups={filterGroups}
-      handleFilterChange={handleFilterChangeCallback}
+      handleFilterChange={(filterId: string, selected: boolean) => {
+        if (filterId.startsWith('currency:')) {
+          const nonCurrency = selectedFilters.filter(f => !f.startsWith('currency:'));
+          setFilters(selected ? [...nonCurrency, filterId] : nonCurrency);
+        } else {
+          handleFilterChangeCallback(filterId, selected);
+        }
+      }}
       clearFilters={clearFilters}
       filterLabelMap={{ ...filterLabelMap }}
       onAddExpenseRequest={handleAddExpenseRequest}
       tableRefreshTrigger={tableRefreshTrigger}
       addFilter={addFilter}
       removeFilter={removeFilter}
+      // pass currencyStats to render group in table
+      {...({ currencyStats } as any)}
     />
   );
 };

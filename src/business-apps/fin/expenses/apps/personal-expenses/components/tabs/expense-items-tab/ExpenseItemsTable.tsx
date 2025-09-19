@@ -22,6 +22,8 @@ import Pill from '@/components/pill';
 import { PiFileText, PiImage, PiArrowUp, PiArrowDown } from 'react-icons/pi';
 import { AppActionButton } from '@/components/app-action-button/AppActionButton';
 import { useGetExpenseItems, ExpenseFilter } from '../../../hooks/useGetExpenseItems';
+import { useExpenseCurrencies } from '../../../hooks/useExpenseCurrencies';
+// removed env import; handled in hook
 import { DataContainer } from '@/components/layout/dataContainer/DataContainer';
 import { DataFilterGroup } from '@/components/data-filter/DataFilter';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
@@ -86,10 +88,30 @@ const ExpenseItemsTable: React.FC<ExpenseItemsTableProps> = React.memo((props) =
 
   const { items, isLoading, error, totalCount, fetchItems } = useGetExpenseItems(contextProps);
 
+  const { currencyStats, selectedCurrencyRef } = useExpenseCurrencies(contextProps, allSelectedFilters, setFilters);
+
+  const currencyLabelMap = useMemo(() => {
+    const map: Record<string, string> = {};
+    currencyStats.forEach(cs => {
+      map[`currency:${cs.ref}`] = cs.code;
+    });
+    return map;
+  }, [currencyStats]);
+
+  const combinedFilterLabelMap = useMemo(() => ({
+    ...filterLabelMap,
+    ...currencyLabelMap,
+  }), [filterLabelMap, currencyLabelMap]);
+
+  // currency fetching now handled by useExpenseCurrencies
+
   useEffect(() => {
-    const apiFilters = getFilters(allSelectedFilters);
+    const apiFilters = { ...getFilters(allSelectedFilters) };
+    if (selectedCurrencyRef) {
+      (apiFilters as ExpenseFilter).currencyRef = selectedCurrencyRef;
+    }
     fetchItems(search, currentPage, pageSize, apiFilters, sortField, sortOrder);
-  }, [fetchItems, currentPage, pageSize, search, allSelectedFilters, getFilters, sortField, sortOrder]);
+  }, [fetchItems, currentPage, pageSize, search, allSelectedFilters, getFilters, sortField, sortOrder, selectedCurrencyRef]);
 
   // Refresh data when tableRefreshTrigger changes (triggered from parent tab)
   useEffect(() => {
@@ -132,13 +154,23 @@ const ExpenseItemsTable: React.FC<ExpenseItemsTableProps> = React.memo((props) =
   }, [search, currentPage]);
 
   const handleFilterChange = useCallback((filterId: string, selected: boolean) => {
-    if (selected) {
-      addFilter(filterId);
+    if (filterId.startsWith('currency:')) {
+      if (selected) {
+        // Allow only a single currency at a time
+        const nonCurrency = allSelectedFilters.filter(f => !f.startsWith('currency:'));
+        setFilters([...nonCurrency, filterId]);
+      } else {
+        removeFilter(filterId);
+      }
     } else {
-      removeFilter(filterId);
+      if (selected) {
+        addFilter(filterId);
+      } else {
+        removeFilter(filterId);
+      }
     }
     setCurrentPage(1);
-  }, [addFilter, removeFilter]);
+  }, [addFilter, removeFilter, setFilters, allSelectedFilters]);
 
   const handleAddExpenseItem = useCallback(() => {
     onAddExpenseItem();
@@ -358,7 +390,7 @@ const ExpenseItemsTable: React.FC<ExpenseItemsTableProps> = React.memo((props) =
             removedFilters.forEach(filterId => removeFilter(filterId));
           }
         },
-        filterLabelMap: filterLabelMap,
+        filterLabelMap: combinedFilterLabelMap,
         addButton: {
           onClick: handleAddExpenseItem,
           label: getTranslationFromI18nKeyAndLabel('lowcoder:expense_calculation_rule_details.calculation_allowance_setup_list.calculation_allowance_setup_modal.btn_add','Add'),
@@ -390,7 +422,18 @@ const ExpenseItemsTable: React.FC<ExpenseItemsTableProps> = React.memo((props) =
         ],
       }}
       dataFilterProps={{
-        filterGroups: filterGroups,
+        filterGroups: useMemo(() => {
+          const currencyGroup: DataFilterGroup | null = currencyStats.length > 0 ? {
+            id: 'currency',
+            title: getTranslationFromI18nKeyAndLabel('lowcoder:expense_item_list.currency','Currency'),
+            filters: currencyStats.map(cs => ({
+              id: `currency:${cs.ref}`,
+              label: cs.code,
+              selected: allSelectedFilters.includes(`currency:${cs.ref}`)
+            }))
+          } : null;
+          return currencyGroup ? [currencyGroup, ...filterGroups] : filterGroups;
+        }, [currencyStats, filterGroups, allSelectedFilters]),
         onFilterChange: handleFilterChange as (filterId: string, selected: boolean) => void,
       }}
       contentBackground="white"

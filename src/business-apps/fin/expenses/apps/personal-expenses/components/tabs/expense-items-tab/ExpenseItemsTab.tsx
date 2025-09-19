@@ -10,6 +10,8 @@ import { useExpenseItemsFilters } from '../../../hooks/useExpenseItemsFilters';
 import { startProcess } from '@/common/utils/start-process';
 import { env } from '@/common/env/EnvUtils';
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
+// import { useExpenseItemStatistics } from '../../../hooks/useExpenseItemStatistics';
+import { getSelectedCurrencyRef } from '../../../utils/currencyUtils';
 
 export interface ExpenseItemsTabProps extends BusinessAppContextProps {
   onContentHeaderChange?: (header: ReactNode) => void;
@@ -52,14 +54,11 @@ const ExpenseItemsTab: React.FC<ExpenseItemsTabProps> = (props) => {
     setExpenseDateRange,
     expenseDateRange,
     amountRange,
-    setAmountRange,
     onStatusFilterChange,
-    search,
-    setSearch
   } = useExpenseItemsFilters(availableStatuses);
 
   // Use the selectedFilters from the hook which already includes date range and amount range
-  const allSelectedFilters = selectedFilters;
+  // const allSelectedFilters = selectedFilters;
 
   const [activeCard, setActiveCard] = useState<string | null>(null);
 
@@ -166,6 +165,11 @@ const ExpenseItemsTab: React.FC<ExpenseItemsTabProps> = (props) => {
     };
   }, [addFilter, clearFilters, selectedFilters]);
 
+  // Resolve selected currency from filters (token format: currency:<ref>)
+  const selectedCurrencyRef = useMemo(() => {
+    return getSelectedCurrencyRef(selectedFilters, 'Currency:v1:EUR');
+  }, [selectedFilters]);
+
   const handleWidgetClick = useCallback((widgetKey: string) => {
     const isDeactivating = activeCard === widgetKey;
     const newActiveCard = isDeactivating ? null : widgetKey;
@@ -222,10 +226,7 @@ const ExpenseItemsTab: React.FC<ExpenseItemsTabProps> = (props) => {
     }
   }, [activeCard, clearFilters, setExpenseDateRange, onStatusFilterChange]);
 
-
-
-  // Handle status filter changes - use the hook's function
-  const handleStatusFilterChange = onStatusFilterChange;
+  // Handle status filter changes - use the hook's function (direct usage in handlers)
 
   // Handle clicking on missing receipts card
   const handleMissingReceiptsClick = useCallback(() => {
@@ -245,7 +246,7 @@ const ExpenseItemsTab: React.FC<ExpenseItemsTabProps> = (props) => {
     }
   }, [addFilter, removeFilter, selectedFilters, clearFilters]);
 
-  // Function to fetch statistics data specifically
+  // Function to fetch statistics data specifically (kept for compatibility; will be replaced by hook usage)
       const fetchItemStatistics = useCallback(async () => {
     setStatsLoading(true);
     setStatsError(null);
@@ -276,7 +277,7 @@ const ExpenseItemsTab: React.FC<ExpenseItemsTabProps> = (props) => {
             query: GET_EXPENSE_ITEM_STATISTICS,
             variables: {
               employeeId,
-              currencyRef: 'Currency:v1:EUR',
+              currencyRef: selectedCurrencyRef,
               startDate,
               endDate,
             },
@@ -307,6 +308,7 @@ const ExpenseItemsTab: React.FC<ExpenseItemsTabProps> = (props) => {
             query: GET_PENDING_ITEMS_WITH_DATE_RANGE,
             variables: {
               employeeId,
+              currencyRef: selectedCurrencyRef,
               startDate,
               endDate,
             },
@@ -348,7 +350,7 @@ const ExpenseItemsTab: React.FC<ExpenseItemsTabProps> = (props) => {
         setStatsLoading(false);
       }
     }
-  }, [contextProps]);
+  }, [contextProps, selectedCurrencyRef]);
 
   // Fetch statistics on component mount
   useEffect(() => {
@@ -357,24 +359,7 @@ const ExpenseItemsTab: React.FC<ExpenseItemsTabProps> = (props) => {
     }
   }, [fetchItemStatistics, hideStats]);
 
-  // Combine UI and card filters
-  const finalFilters = useMemo(() => {
-    let filters = [...allSelectedFilters];
-    
-    // Map card keys to filter values as needed
-    if (activeCard === 'pending-reimbursement' && !filters.includes('pending')) {
-      filters.push('pending');
-    }
-    
-    if (activeCard === 'total-expenses') {
-      // Only filter paid or closed items for total expenses
-      filters = filters.filter(f => f !== 'pending' && f !== 'submitted' && f !== 'in progress');
-      if (!filters.includes('paid')) filters.push('paid');
-      if (!filters.includes('closed')) filters.push('closed');
-    }
-    
-    return filters;
-  }, [allSelectedFilters, activeCard]);
+  // Combine UI and card filters no longer needed locally (table consumes selectedFilters directly)
 
   // Create a custom getFilters function that includes date range parameters
   const getFiltersWithDateRange = useCallback((filtersToApply?: string[]) => {
@@ -397,6 +382,7 @@ const ExpenseItemsTab: React.FC<ExpenseItemsTabProps> = (props) => {
             try {
               const data = await graphqlClient.request(GET_PENDING_ITEMS, {
                 employeeId: contextProps.userInfo.employeeDetails.employeeId,
+                currencyRef: selectedCurrencyRef,
               });
               setPendingItemCountFromApi(
                 data?.pendingExcludingAllowance?.aggregate?.count ?? 0
@@ -464,7 +450,6 @@ const ExpenseItemsTab: React.FC<ExpenseItemsTabProps> = (props) => {
   // Memoize the content header to prevent unnecessary re-renders
   // Use allItems for statistics instead of filtered items
   const contentHeader = useMemo(() => {
-    const isNoReceiptFilterActive = selectedFilters.includes('noreceiptfilter');
 
     return (
       <div>
@@ -475,13 +460,12 @@ const ExpenseItemsTab: React.FC<ExpenseItemsTabProps> = (props) => {
           pendingReimbursementTotal={pendingReimbursementTotal}
           previousMonthPendingReimbursementTotal={previousMonthPendingReimbursementTotal}
           pendingItemCountFromApi={pendingItemCountFromApi}
-          onMissingReceiptsClick={handleMissingReceiptsClick} 
-          isNoReceiptFilterActive={isNoReceiptFilterActive}
           statsLoading={statsLoading ?? !hasLoadedAllItems}
           statsError={statsError}
           fetchItemStatistics={fetchItemStatistics}
           onWidgetClick={handleWidgetClick}
           activeWidgetKey={activeCard ?? undefined}
+          currencyCode={(selectedCurrencyRef?.split(':').pop()) || 'EUR'}
         />
       </div>
     );
@@ -548,7 +532,7 @@ const ExpenseItemsTab: React.FC<ExpenseItemsTabProps> = (props) => {
                 expenseDateEnd: null,
                 totalAmountMin: null,
                 totalAmountMax: null,
-                currencyRef: 'Currency:v1:EUR'
+                currencyRef: selectedCurrencyRef
               },
             }),
           });
@@ -593,7 +577,7 @@ const ExpenseItemsTab: React.FC<ExpenseItemsTabProps> = (props) => {
       
       fetchAllItemsForStats();
     }
-  }, [contextProps?.userInfo?.employeeDetails?.employeeId, contextProps?.accessToken, hasLoadedAllItems, hideStats]);
+  }, [contextProps?.userInfo?.employeeDetails?.employeeId, contextProps?.accessToken, hasLoadedAllItems, hideStats, selectedCurrencyRef]);
 
   // Handle adding a new expense item
   const handleAddExpenseItem = useCallback(() => {

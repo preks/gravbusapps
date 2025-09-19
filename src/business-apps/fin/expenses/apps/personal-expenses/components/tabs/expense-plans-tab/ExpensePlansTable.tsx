@@ -53,6 +53,8 @@ export interface ExpensePlansTableProps extends BusinessAppContextProps {
   addFilter: (filterId: string, selected: boolean) => void;
   removeFilter: (filterId: string) => void;
   tableRefreshTrigger?: number;
+  // injected from tab: computed currency stats for building currency group and pills
+  currencyStats?: Array<{ ref: string; code: string; count: number }>;
 }
 
 const ExpensePlansTable: React.FC<ExpensePlansTableProps> = React.memo((props) => {
@@ -651,7 +653,13 @@ const ExpensePlansTable: React.FC<ExpensePlansTableProps> = React.memo((props) =
           setSearch: props.onSearchChange,
           filter: props.selectedFilters,
           setFilter: props.setFilters,
-          filterLabelMap: props.filterLabelMap,
+          filterLabelMap: useMemo(() => {
+            const currencyLabelMap: Record<string, string> = {};
+            (props.currencyStats || []).forEach((cs) => {
+              currencyLabelMap[`currency:${cs.ref}`] = cs.code;
+            });
+            return { ...props.filterLabelMap, ...currencyLabelMap };
+          }, [props.filterLabelMap, props.currencyStats]),
           placeholder: getTranslationFromI18nKeyAndLabel('lowcoder:employee_list.employee_report_filter.job_search','Search') + '...',
           addButton: {
             onClick: handleAddExpensePlan,
@@ -662,7 +670,15 @@ const ExpensePlansTable: React.FC<ExpensePlansTableProps> = React.memo((props) =
           listAmount: totalCount ? `${totalCount}` : undefined,
         }}
         dataFilterProps={{
-          filterGroups: props.filterGroups,
+          filterGroups: useMemo(() => {
+            const currencyFilters = (props as any).currencyStats?.map((cs: any) => ({
+              id: `currency:${cs.ref}`,
+              label: cs.code,
+              selected: (props.selectedFilters || []).includes(`currency:${cs.ref}`)
+            })) || [];
+            const currencyGroup = currencyFilters.length > 0 ? [{ id: 'currency', title: getTranslationFromI18nKeyAndLabel('lowcoder:expense_item_list.currency','Currency'), filters: currencyFilters }] : [];
+            return [...currencyGroup, ...props.filterGroups];
+          }, [props.filterGroups, props.selectedFilters, (props as any).currencyStats]),
           onFilterChange: props.handleFilterChange,
         }}
         hideFilter={false}

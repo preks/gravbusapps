@@ -8,6 +8,8 @@ import {  getActiveWidgetFromFilters } from '../../../hooks/useExpensePlanWidget
 import ExpensePlanStatistics from './ExpensePlanStatistics';
 import dayjs from 'dayjs';
 import { ExpenseStatus } from '../../../utils';
+import { useExpensePlanCurrencies } from '../../../hooks/useExpensePlanCurrencies';
+import { getSelectedCurrencyRef } from '../../../utils/currencyUtils';
 
 interface ExpensePlansTabProps extends BusinessAppContextProps {
   onContentHeaderChange?: (header: ReactNode) => void;
@@ -41,9 +43,10 @@ const ExpensePlansTab: React.FC<ExpensePlansTabProps> = (props) => {
   } = useExpensePlanFilters();
   
   const { items, isLoading, error, totalCount, fetchItems } = useGetExpensePlans(props);
-  const { statistics, isLoading: statsLoading, error: statsError, fetchStatistics } = useGetExpensePlanStatistics(props);
+  const selectedCurrencyRef = useMemo(() => getSelectedCurrencyRef(selectedFilters, 'Currency:v1:EUR'), [selectedFilters]);
+  const { statistics, isLoading: statsLoading, error: statsError, fetchStatistics } = useGetExpensePlanStatistics(props, selectedCurrencyRef);
+  const { currencyStats } = useExpensePlanCurrencies(props, selectedFilters, setFilters);
 
- 
   // Synchronize activeWidget with selectedFilters when filters change externally
   useEffect(() => {
     const expectedActiveWidget = getActiveWidgetFromFilters(selectedFilters);
@@ -136,8 +139,6 @@ const ExpensePlansTab: React.FC<ExpensePlansTabProps> = (props) => {
     }
   }, [activeWidget, clearFilters, handleFilterChange, setPlanDateRange, getCurrentMonthRange, setDestinationFilter, statistics.topDestination, setStartDateRange, setEndDateRange]);
 
-
-
   // Wrapper for clear all filters without parameters (for ExpensePlansTable clearFilters prop)
   const handleClearAllFiltersNoParams = useCallback(() => {
     // Use the enhanced setFilters which handles clearing all filters properly
@@ -148,7 +149,7 @@ const ExpensePlansTab: React.FC<ExpensePlansTabProps> = (props) => {
 
   // Helper function to build widget-specific filters
   const buildWidgetFilters = useCallback((baseFilters: any) => {
-    const filters = { ...baseFilters };
+    const filtersObj = { ...baseFilters };
     
     // Add total-estimated widget filters
     if (activeWidget === 'total-estimated') {
@@ -163,10 +164,10 @@ const ExpensePlansTab: React.FC<ExpensePlansTabProps> = (props) => {
         ]
       };
       
-      if (filters._and) {
-        filters._and.push(planDateCondition);
+      if (filtersObj._and) {
+        filtersObj._and.push(planDateCondition);
       } else {
-        filters._and = [planDateCondition];
+        filtersObj._and = [planDateCondition];
       }
     }
   
@@ -185,22 +186,26 @@ const ExpensePlansTab: React.FC<ExpensePlansTabProps> = (props) => {
         }
       };
       
-      if (filters._and) {
-        filters._and.push(destinationCondition);
+      if (filtersObj._and) {
+        filtersObj._and.push(destinationCondition);
       } else {
-        filters._and = [destinationCondition];
+        filtersObj._and = [destinationCondition];
       }
     }
     
-    return filters;
+    return filtersObj;
   }, [activeWidget, destinationFilter]);
  
   // Memoize the filters to prevent unnecessary API calls
   const memoizedFilters = useMemo(() => {
     const baseFilters = getFilters();
+    if (selectedCurrencyRef) {
+      baseFilters._and = baseFilters._and || [];
+      baseFilters._and.push({ currencyRef: { _eq: selectedCurrencyRef } });
+    }
     const finalFilters = buildWidgetFilters(baseFilters);
     return finalFilters;
-  }, [getFilters, buildWidgetFilters]);
+  }, [getFilters, buildWidgetFilters, selectedCurrencyRef]);
 
   // Only fetch when filters, page, pageSize, or sorting changes
   useEffect(() => {
@@ -217,12 +222,11 @@ const ExpensePlansTab: React.FC<ExpensePlansTabProps> = (props) => {
     fetchStatistics();
   }, [fetchStatistics]);
 
-
   // Process completion event listener for refreshing data
   useEffect(() => {
     const handleProcessCompletion = (event: any) => {
       try {
-  
+ 
         if (event.detail?.resolution === 'success') {
           console.log('ExpensePlansTab: Refreshing data after successful process completion');
           
@@ -287,7 +291,6 @@ const ExpensePlansTab: React.FC<ExpensePlansTabProps> = (props) => {
     };
   }, [fetchItems, fetchStatistics, memoizedFilters, currentPage, pageSize, sortField, sortOrder, props.accessToken, props.userInfo?.employeeDetails?.employeeId]);
 
-
   // Memoize content header to prevent unnecessary re-renders
   const contentHeader = useMemo(() => {
     return <ExpensePlanStatistics 
@@ -303,8 +306,9 @@ const ExpensePlansTab: React.FC<ExpensePlansTabProps> = (props) => {
       activeWidgetKey={activeWidget ?? undefined}
       currentMonthClosedPlans={statistics.currentMonthClosedPlans}
       previousMonthClosedPlans={statistics.previousMonthClosedPlans}
+      currencyCode={(selectedCurrencyRef?.split(':').pop()) || 'EUR'}
     />;
-  }, [items, statistics, statsLoading, statsError, handleWidgetClick, activeWidget]);
+  }, [items, statistics, statsLoading, statsError, handleWidgetClick, activeWidget, selectedCurrencyRef]);
 
   useEffect(() => {
     if (props.onContentHeaderChange) {
@@ -313,7 +317,7 @@ const ExpensePlansTab: React.FC<ExpensePlansTabProps> = (props) => {
   }, [props.onContentHeaderChange, contentHeader]);
 
   // Enhanced table change handler for server-side sorting
-  const handleTableChange = useCallback((pagination: any, filters: any, sorter: any) => {
+  const handleTableChange = useCallback((pagination: any, sorter: any) => {
     setCurrentPage(pagination.current);
     setPageSize(pagination.pageSize);
     
@@ -343,12 +347,20 @@ const ExpensePlansTab: React.FC<ExpensePlansTabProps> = (props) => {
       selectedFilters={selectedFilters}
       setFilters={setFilters}
       filterGroups={filterGroups}
-      handleFilterChange={handleFilterChange}
+      handleFilterChange={(filterId: string, selected: boolean) => {
+        if (filterId.startsWith('currency:')) {
+          const nonCurrency = selectedFilters.filter(f => !f.startsWith('currency:'));
+          setFilters(selected ? [...nonCurrency, filterId] : nonCurrency);
+        } else {
+          handleFilterChange(filterId, selected);
+        }
+      }}
       clearFilters={handleClearAllFiltersNoParams}
       filterLabelMap={filterLabelMap}
       addFilter={addFilter}
       removeFilter={removeFilter}
       tableRefreshTrigger={tableRefreshTrigger}
+      {...({ currencyStats } as any)}
     />
   );
 };
