@@ -1,7 +1,7 @@
 import React, { useState, useCallback, useMemo } from 'react';
 import { DataFilterGroup } from '@/components/data-filter/DataFilter';
 import { ExpenseFilter } from './useGetExpenseItems';
-import { ExpenseStatus, getExpenseItemStatusDisplay } from '../utils';
+import { ExpenseStatus } from '../utils';
 import { ExpenseDateRangeFilter } from '../components/tabs/expense-items-tab/ExpenseDateRangeFilter';
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
 
@@ -185,7 +185,6 @@ export const useExpenseFilters = (): UseExpenseFiltersReturn => {
     endDateRange?: [Date | null, Date | null] | null,
     expenseDateRangeParam?: [Date | null, Date | null] | null
   ): ExpenseFilter => {
-    console.log('Getting filters from selected filters:', filtersToApply);
 
     // Map UI filter format to the expected API filter format
     const filter: ExpenseFilter = {};
@@ -210,7 +209,6 @@ export const useExpenseFilters = (): UseExpenseFiltersReturn => {
     if (statuses.length > 0) {
       // Convert all selected statuses from lowercase UI values to uppercase API values
       filter.status = statuses.map(status => status.toUpperCase());
-      console.log('Applying status filters:', filter.status);
     }
 
     // Process expense date range filters (priority over time period filters)
@@ -218,13 +216,11 @@ export const useExpenseFilters = (): UseExpenseFiltersReturn => {
     if (dateRangeToUse && dateRangeToUse[0] && dateRangeToUse[1]) {
       filter.expenseDateStart = dateRangeToUse[0].toISOString().split('T')[0];
       filter.expenseDateEnd = dateRangeToUse[1].toISOString().split('T')[0];
-      console.log('Applying expense date range filters:', filter.expenseDateStart, 'to', filter.expenseDateEnd);
     }
     // Process date range filters (priority over time period filters)
     else if (startDateRange && startDateRange[0] && endDateRange && endDateRange[1]) {
       filter.expenseDateStart = startDateRange[0].toISOString().split('T')[0];
       filter.expenseDateEnd = endDateRange[1].toISOString().split('T')[0];
-      console.log('Applying date range filters:', filter.expenseDateStart, 'to', filter.expenseDateEnd);
     }
     // Process time period filters (only if no date range is specified)
     else if (timePeriod) {
@@ -263,7 +259,6 @@ export const useExpenseFilters = (): UseExpenseFiltersReturn => {
       filter.noReceipt = true;
     }
 
-    console.log('getFilters returning:', filter);
     return filter;
   }, [selectedFilters, TIME_PERIOD_OPTIONS, EXPENSE_TYPE_OPTIONS, OTHER_OPTIONS, expenseDateRange, getAllSelectedFilters]);
   

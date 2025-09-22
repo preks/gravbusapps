@@ -4,6 +4,7 @@ import { BarChart3, Droplets, Home, LayoutDashboard } from 'lucide-react';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
 import { formatDataTestId } from '@/common/utils/formatDataTestId';
+import { buildPlatformUrl } from '@/common/utils/navigationUtils';
 
 // Import the investment report components
 import EquityInvestmentsReport from './equity-investments-report/EquityInvestmentsReport';
@@ -30,12 +31,30 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = (props) => {
     return 'overview';
   }, []);
 
-  // Update URL when tab changes
+  // Update URL when tab changes using safe navigation
   const updateUrl = useCallback((tab: string) => {
-    const urlParams = new URLSearchParams(window.location.search);
-    urlParams.set('analyticsTab', tab);
-    const newUrl = `${window.location.pathname}?${urlParams.toString()}`;
-    window.history.replaceState({}, '', newUrl);
+    try {
+      const currentUrl = new URL(window.location.href);
+      const params: Record<string, string> = {};
+      
+      // Preserve existing query parameters
+      currentUrl.searchParams.forEach((value, key) => {
+        params[key] = value;
+      });
+      
+      // Update the analytics tab parameter
+      params.analyticsTab = tab;
+      
+      // Use platform URL builder for safe navigation
+      const newUrl = buildPlatformUrl(currentUrl.pathname, params);
+      
+      // Use safe history manipulation
+      if (window.history && window.history.replaceState) {
+        window.history.replaceState({}, '', newUrl);
+      }
+    } catch (error) {
+      console.warn('Failed to update URL in analytics view:', error);
+    }
   }, []);
 
   const handleTabChange = useCallback((value: string) => {

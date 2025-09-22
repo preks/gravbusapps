@@ -42,13 +42,18 @@ export const useRealEstateAnalyticsIntegration = ({
 
   // Transform RealEstateInvestmentReport data to UI format
   const transformRealEstateToAnalyticsRow = useCallback((report: any): RealEstateAnalyticsRowData => {
-    const investment = report.realEstateInvestment?.investment;
+    const investment = report.realEstateInvestment?.investment || report.investment;
+    
+    // FIXED: Use investment name as property name (as requested)
+    const propertyName = investment?.name || 
+                        report.realEstateInvestment?.locality || 
+                        `Property ${report.id.slice(-8)}`;
     
     return {
       id: report.id,
       date: report.date ? new Date(report.date).toLocaleDateString() : 'N/A',
-      propertyName: report.realEstateInvestment?.locality || `Property ${report.id.slice(-8)}`,
-      propertyCode: report.realEstateInvestment?.id?.slice(-8) || 'N/A',
+      propertyName: propertyName,
+      propertyCode: investment?.code || report.realEstateInvestment?.id?.slice(-8) || 'N/A',
       propertyType: (() => {
         // Since investment relationship is broken, map to investment types based on available data
         const locality = report.realEstateInvestment?.locality?.toLowerCase() || '';
@@ -79,57 +84,68 @@ export const useRealEstateAnalyticsIntegration = ({
       fundManagerName: 'N/A', // Default since relationship is broken
       // Investment information for linking
       investmentId: investment?.id,
-      investmentName: investment?.name || investment?.code || `Investment ${report.realEstateInvestment?.id?.slice(-8) || 'Unknown'}`
+      investmentName: propertyName // Use the same property name (which is now investment name)
     };
   }, []);
 
-  // Load Real Estate analytics data using central investment reports hook
+  // FIXED: Load Real Estate analytics data - get all real estate investments and latest reports
   const loadRealEstateAnalyticsData = useCallback(async (): Promise<RealEstateAnalyticsResponse> => {
     try {
       setLoading(true);
       setError(null);
 
-      // Use central investment reports query with real estate filtering
+      // FIXED: Query all real estate investment reports within date range
       const filterParams = {
         reportDateFrom: filters.startDate,
         reportDateTo: filters.endDate,
-        limit: 100,
+        // Get all real estate investments
+        realEstateInvestmentIds: [], // Empty array means get all real estate investments
+        limit: 1000, // Large limit to get all data for aggregation
         offset: 0,
         orderBy: [{
           field: 'date',
-          direction: 'DESC_NULLS_LAST' as 'DESC_NULLS_LAST'
+          direction: 'DESC' as const // Get latest reports first
         }]
       };
 
-      console.log('RealEstate Central Query Parameters:', filterParams);
+      console.log('RealEstate Reports Query Parameters:', filterParams);
 
       const response = await fetchInvestmentReports(filterParams);
-      console.log('RealEstate Central Response:', response);
+      console.log('RealEstate Reports Response:', response);
 
-      // Extract real estate investment reports from the central response
       const investmentReports = response.InvestmentReport || [];
       
-      // Transform all real estate investment reports to analytics format
-      const allTransformedData: RealEstateAnalyticsRowData[] = [];
+      // FIXED: Group by investment ID and get the latest report for each investment
+      const latestReportsByInvestment = new Map<string, any>();
+      
       investmentReports.forEach(investmentReport => {
+        const investmentId = investmentReport.investment?.id;
+        if (investmentId && investmentReport.realEstateInvestmentReport?.length > 0) {
+          // Only keep the latest report for each investment (since we sorted by date DESC)
+          if (!latestReportsByInvestment.has(investmentId)) {
+            latestReportsByInvestment.set(investmentId, investmentReport);
+          }
+        }
+      });
+      
+      // Transform latest reports to analytics format
+      const allTransformedData: RealEstateAnalyticsRowData[] = [];
+      latestReportsByInvestment.forEach(investmentReport => {
         const realEstateReports = investmentReport.realEstateInvestmentReport || [];
         realEstateReports.forEach((realEstateReport: any) => {
           const transformedData = transformRealEstateToAnalyticsRow({
             ...realEstateReport,
-            realEstateInvestment: investmentReport.investment?.realEstateInvestment?.[0]
+            realEstateInvestment: investmentReport.investment?.realEstateInvestment?.[0],
+            investment: investmentReport.investment // Pass investment data for proper name mapping
           });
           allTransformedData.push(transformedData);
         });
       });
 
-      // Filter by property type if specified (legacy support)
-      let filteredData = filters.propertyType && filters.propertyType !== 'all'
-        ? allTransformedData.filter(item => item.propertyType?.toLowerCase().includes(filters.propertyType!.toLowerCase()))
-        : allTransformedData;
-        
       // Filter by investment type if specified
+      let filteredData = allTransformedData;
       if (filters.investmentType) {
-        filteredData = filteredData.filter(item => {
+        filteredData = allTransformedData.filter(item => {
           // Direct match with the investment type category
           return item.propertyType === filters.investmentType;
         });
@@ -142,22 +158,13 @@ export const useRealEstateAnalyticsIntegration = ({
       }
 
       console.log('RealEstate Transformed Data:', filteredData);
-      
-      // Debug investment data
-      console.log('Debug - Investment data in reports:', filteredData.slice(0, 3).map(item => ({
-        id: item.id,
-        propertyName: item.propertyName,
-        investmentId: item.investmentId,
-        investmentName: item.investmentName,
-        hasInvestmentId: !!item.investmentId
-      })));
 
       setData(filteredData);
-      setTotalCount(response.InvestmentReportAggregate?.aggregate?.count || filteredData.length);
+      setTotalCount(filteredData.length);
 
       return {
         data: filteredData,
-        totalCount: response.InvestmentReportAggregate?.aggregate?.count || filteredData.length,
+        totalCount: filteredData.length,
       };
     } catch (err) {
       console.error('Error loading real estate analytics data:', err);

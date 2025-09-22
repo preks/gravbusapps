@@ -15,7 +15,6 @@ import { Building2, Calendar, User, ChevronUp, ChevronDown } from "lucide-react"
 import { BusinessAppContextProps } from "@/common/BusinessAppContext";
 import { DataContainer } from "@/components/layout/dataContainer/DataContainer";
 import { ColumnConfig } from "@/components/dataController";
-import { AppAction } from "@/components/app-action/AppAction";
 import { AppActionButton } from "@/components/app-action-button/AppActionButton";
 import { FlowContextName } from "@/common/types/FlowRegistryTypes";
 // no i18n usage here
@@ -39,9 +38,9 @@ const PlannedExits: React.FC<PlannedExitsProps> = ({ accessToken, userInfo }) =>
   // Custom filter state for column-specific filters
   const [investmentName, setInvestmentName] = useState("");
   const [initialRange, setInitialRange] = useState<{ min?: number; max?: number } | null>(null);
+  const [totalRange, setTotalRange] = useState<{ min?: number; max?: number } | null>(null);
   const [marketRange, setMarketRange] = useState<{ min?: number; max?: number } | null>(null);
   const [performanceRange, setPerformanceRange] = useState<{ min?: number; max?: number } | null>(null); // not applied server-side
-  const [stakeRange, setStakeRange] = useState<{ min?: number; max?: number } | null>(null);
   const [plannedAfter, setPlannedAfter] = useState<string | undefined>(undefined);
   const [plannedBefore, setPlannedBefore] = useState<string | undefined>(undefined);
   const [createdAfter, setCreatedAfter] = useState<string | undefined>(undefined);
@@ -77,10 +76,10 @@ const PlannedExits: React.FC<PlannedExitsProps> = ({ accessToken, userInfo }) =>
       investmentNameContains: investmentName.trim() || undefined,
       initialInvestmentMinAmount: initialRange?.min,
       initialInvestmentMaxAmount: initialRange?.max,
+      totalInvestmentMinAmount: totalRange?.min,
+      totalInvestmentMaxAmount: totalRange?.max,
       investmentMarketValueMinAmount: marketRange?.min,
       investmentMarketValueMaxAmount: marketRange?.max,
-      stakePercentageMin: stakeRange?.min,
-      stakePercentageMax: stakeRange?.max,
     }
   });
 
@@ -143,17 +142,19 @@ const PlannedExits: React.FC<PlannedExitsProps> = ({ accessToken, userInfo }) =>
 
   // Column visibility configuration
   const [columnConfig, setColumnConfig] = useState<ColumnConfig[]>([
-    { id: 'actions', label: 'Actions', visible: true, disabled: true },
     { id: 'investment', label: 'Investment', visible: true },
     { id: 'group', label: 'Group', visible: true },
+    { id: 'type', label: 'Type', visible: true },
     { id: 'initialInvestment', label: 'Initial Investment', visible: true },
+    { id: 'totalInvestment', label: 'Total Investment', visible: true },
     { id: 'marketValue', label: 'Market Value', visible: true },
     { id: 'performance', label: 'Performance', visible: true },
-    { id: 'stake', label: 'Stake %', visible: true },
     { id: 'plannedExitDate', label: 'Planned Exit Date', visible: true },
     { id: 'owner', label: 'Owner', visible: true },
     // Optional
     { id: 'created', label: 'Created', visible: false },
+    // Actions column must be LAST
+    { id: 'actions', label: 'Actions', visible: true, disabled: true },
   ]);
 
   useEffect(() => {
@@ -217,10 +218,11 @@ const PlannedExits: React.FC<PlannedExitsProps> = ({ accessToken, userInfo }) =>
   const columnToFilterMap: Record<string, string> = {
     investment: 'investmentName',
     group: 'investmentGroup',
+    type: 'investmentType',
     initialInvestment: 'initialInvestmentRange',
+    totalInvestment: 'totalInvestmentRange',
     marketValue: 'marketValueRange',
     performance: 'performanceRange',
-    stake: 'stakeRange',
     plannedExitDate: 'plannedExitDate',
     owner: 'owner',
     created: 'createdDate',
@@ -249,6 +251,16 @@ const PlannedExits: React.FC<PlannedExitsProps> = ({ accessToken, userInfo }) =>
         { id: 'InvestmentGroup:v1:LIQUID_FUND', label: 'Liquid Fund', selected: selectedFilters.includes('InvestmentGroup:v1:LIQUID_FUND') },
       ],
     },
+    {
+      id: 'investmentType',
+      title: 'Investment Type',
+      filters: [
+        { id: 'InvestmentType:v1:EQUITY_STOCK', label: 'Equity Stock', selected: selectedFilters.includes('InvestmentType:v1:EQUITY_STOCK') },
+        { id: 'InvestmentType:v1:REAL_ESTATE_PROPERTY', label: 'Real Estate Property', selected: selectedFilters.includes('InvestmentType:v1:REAL_ESTATE_PROPERTY') },
+        { id: 'InvestmentType:v1:LIQUID_FUND_BOND', label: 'Liquid Fund Bond', selected: selectedFilters.includes('InvestmentType:v1:LIQUID_FUND_BOND') },
+        { id: 'InvestmentType:v1:PRIVATE_EQUITY', label: 'Private Equity', selected: selectedFilters.includes('InvestmentType:v1:PRIVATE_EQUITY') },
+      ],
+    },
     // Ranges matching numeric columns
     {
       id: 'initialInvestmentRange',
@@ -259,6 +271,18 @@ const PlannedExits: React.FC<PlannedExitsProps> = ({ accessToken, userInfo }) =>
         onAmountRangeChange: setInitialRange,
         label: 'Initial Investment',
         dataTestIdPrefix: 'planned-exits-initial-range'
+      }),
+      hideSearch: true,
+    },
+    {
+      id: 'totalInvestmentRange',
+      title: 'Total Investment',
+      filters: [],
+      customComponent: React.createElement(ExpenseAmountRangeFilter, {
+        amountRange: totalRange,
+        onAmountRangeChange: setTotalRange,
+        label: 'Total Investment',
+        dataTestIdPrefix: 'planned-exits-total-range'
       }),
       hideSearch: true,
     },
@@ -283,18 +307,6 @@ const PlannedExits: React.FC<PlannedExitsProps> = ({ accessToken, userInfo }) =>
         onAmountRangeChange: setPerformanceRange,
         label: 'Performance %',
         dataTestIdPrefix: 'planned-exits-performance-range'
-      }),
-      hideSearch: true,
-    },
-    {
-      id: 'stakeRange',
-      title: 'Stake %',
-      filters: [],
-      customComponent: React.createElement(ExpenseAmountRangeFilter, {
-        amountRange: stakeRange,
-        onAmountRangeChange: setStakeRange,
-        label: 'Stake %',
-        dataTestIdPrefix: 'planned-exits-stake-range'
       }),
       hideSearch: true,
     },
@@ -388,24 +400,6 @@ const PlannedExits: React.FC<PlannedExitsProps> = ({ accessToken, userInfo }) =>
               </div>
             </div>
           ),
-          actions: (
-            <AppAction
-              contextsArray={[FlowContextName.createInvestment]}
-              accessToken={accessToken}
-              data-testid="planned-exits-add-action"
-              emptyStateBehavior="hide"
-            >
-              <button
-                className="gba:flex gba:flex-row gba:justify-center gba:items-center gba:px-3 gba:py-0 gba:h-8 gba:rounded gba:gap-1"
-                data-testid="planned-exits-add-action"
-                type="button"
-              >
-                <span className="gba:h-4 gba:font-normal gba:text-sm gba:leading-4 gba:flex gba:items-center gba:text-black gba:flex-none order-1 gba:grow-0">
-                  Add
-                </span>
-              </button>
-            </AppAction>
-          ),
         }}
         dataFilterProps={{
           filterGroups: visibleFilterGroups,
@@ -420,10 +414,11 @@ const PlannedExits: React.FC<PlannedExitsProps> = ({ accessToken, userInfo }) =>
                 <TableRow>
                   {visibleColumns.includes('investment') && (<SortableHead label="Investment" field="name" />)}
                   {visibleColumns.includes('group') && (<SortableHead label="Group" field="investmentGroup.value" />)}
+                  {visibleColumns.includes('type') && (<SortableHead label="Type" field="investmentType.value" />)}
                   {visibleColumns.includes('initialInvestment') && (<SortableHead label="Initial Investment" field="initialInvestmentAmount" />)}
+                  {visibleColumns.includes('totalInvestment') && (<SortableHead label="Total Investment" field="totalInvestmentAmount" />)}
                   {visibleColumns.includes('marketValue') && (<SortableHead label="Market Value" field="investmentMarketValue" />)}
                   {visibleColumns.includes('performance') && (<TableHead>Performance</TableHead>)}
-                  {visibleColumns.includes('stake') && (<SortableHead label="Stake %" field="stakePercentage" />)}
                   {visibleColumns.includes('plannedExitDate') && (<SortableHead label="Planned Exit Date" field="plannedExitDate" />)}
                   {visibleColumns.includes('owner') && (<SortableHead label="Owner" field="ownerEmployee.displayName" />)}
                   {visibleColumns.includes('created') && (<SortableHead label="Created" field="createdAt" />)}
@@ -442,8 +437,14 @@ const PlannedExits: React.FC<PlannedExitsProps> = ({ accessToken, userInfo }) =>
                     {visibleColumns.includes('group') && (<TableCell>
                       <Badge variant="outline">{investment.investmentGroup?.value || "Unknown"}</Badge>
                     </TableCell>)}
+                    {visibleColumns.includes('type') && (<TableCell>
+                      <Badge variant="secondary">{investment.investmentType?.value || "Unknown"}</Badge>
+                    </TableCell>)}
                     {visibleColumns.includes('initialInvestment') && (<TableCell>
                       <span>{formatCurrency(investment.initialInvestmentAmount || 0)}</span>
+                    </TableCell>)}
+                    {visibleColumns.includes('totalInvestment') && (<TableCell>
+                      <span>{formatCurrency(investment.totalInvestmentAmount || 0)}</span>
                     </TableCell>)}
                     {visibleColumns.includes('marketValue') && (<TableCell>
                       <span>{formatCurrency(investment.investmentMarketValue || 0)}</span>
@@ -472,11 +473,6 @@ const PlannedExits: React.FC<PlannedExitsProps> = ({ accessToken, userInfo }) =>
                           </div>
                         );
                       })()}
-                    </TableCell>)}
-                    {visibleColumns.includes('stake') && (<TableCell>
-                      <span className="gba:font-medium">
-                        {investment.stakePercentage ? `${investment.stakePercentage.toFixed(1)}%` : "N/A"}
-                      </span>
                     </TableCell>)}
                     {visibleColumns.includes('plannedExitDate') && (<TableCell>
                       {investment.plannedExitDate ? (

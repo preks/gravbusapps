@@ -1,25 +1,51 @@
 import { format } from 'date-fns';
 import { EmployeeAbsence, EnhancedAbsence } from '../types';
 import { getEmployeeName } from './absenceUtils';
+import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
 
 // Date utility functions
 export const formatDateRange = (startDate: Date | string, endDate: Date | string): string => {
   const start = typeof startDate === 'string' ? new Date(startDate) : startDate;
   const end = typeof endDate === 'string' ? new Date(endDate) : endDate;
-  
+
   if (start.getTime() === end.getTime()) {
-    return format(start, "MMM d, yyyy");
+    return format(start, 'MMM d, yyyy');
   }
-  return `${format(start, "MMM d")} - ${format(end, "MMM d, yyyy")}`;
+  return `${format(start, 'MMM d')} - ${format(end, 'MMM d, yyyy')}`;
 };
 
 export const getMonthName = (date: string | Date): string => {
+  const monthKeys = [
+    'lowcoder:absence_report.employee_table.january',
+    'lowcoder:absence_report.employee_table.february',
+    'lowcoder:absence_report.employee_table.march',
+    'lowcoder:absence_report.employee_table.april',
+    'lowcoder:absence_report.employee_table.may',
+    'lowcoder:absence_report.employee_table.june',
+    'lowcoder:absence_report.employee_table.july',
+    'lowcoder:absence_report.employee_table.august',
+    'lowcoder:absence_report.employee_table.september',
+    'lowcoder:absence_report.employee_table.october',
+    'lowcoder:absence_report.employee_table.november',
+    'lowcoder:absence_report.employee_table.december',
+  ];
   const monthNames = [
-    "January", "February", "March", "April", "May", "June",
-    "July", "August", "September", "October", "November", "December"
+    'January',
+    'February',
+    'March',
+    'April',
+    'May',
+    'June',
+    'July',
+    'August',
+    'September',
+    'October',
+    'November',
+    'December',
   ];
   const dateObj = typeof date === 'string' ? new Date(date) : date;
-  return monthNames[dateObj.getMonth()];
+  const monthIndex = dateObj.getMonth();
+  return getTranslationFromI18nKeyAndLabel(monthKeys[monthIndex], monthNames[monthIndex]);
 };
 
 export const isToday = (date: string | Date): boolean => {
@@ -28,11 +54,15 @@ export const isToday = (date: string | Date): boolean => {
   return today.toDateString() === checkDate.toDateString();
 };
 
-export const isWithinDateRange = (date: string | Date, startDate: string | Date, endDate: string | Date): boolean => {
+export const isWithinDateRange = (
+  date: string | Date,
+  startDate: string | Date,
+  endDate: string | Date,
+): boolean => {
   const checkDate = typeof date === 'string' ? new Date(date) : date;
   const start = typeof startDate === 'string' ? new Date(startDate) : startDate;
   const end = typeof endDate === 'string' ? new Date(endDate) : endDate;
-  
+
   return checkDate >= start && checkDate <= end;
 };
 
@@ -46,18 +76,21 @@ export const getEmployeeInitials = (employee: EmployeeAbsence['employee']): stri
 
 // Absence type formatting
 export const getAbsenceTypeName = (type: EmployeeAbsence['type'], locale = 'en'): string => {
-  const translation = type.translations?.find(t => t.localeCode === locale);
+  const translation = type.translations?.find((t) => t.localeCode === locale);
   return translation?.value || type.value || type.objectValue || 'Unknown Type';
 };
 
-export const getAbsenceGroupName = (type: EmployeeAbsence['type'], absenceGroups: Record<string, string>): string => {
+export const getAbsenceGroupName = (
+  type: EmployeeAbsence['type'],
+  absenceGroups: Record<string, string>,
+): string => {
   return absenceGroups[type.parentEntryId] || type.groupName || 'Unknown Group';
 };
 
 // Status formatting and badge variants
 export const getAbsenceStatusBadgeVariant = (status: string): string => {
   if (!status) return 'outline';
-  
+
   switch (status.toLowerCase()) {
     case 'pending':
       return 'warning';
@@ -86,42 +119,46 @@ export const formatDuration = (calendarDays: number, effectiveDays: number): str
 };
 
 // Chart data transformation
-export const transformAbsencesForChart = (absences: EmployeeAbsence[], absenceGroups: Record<string, string>) => {
+export const transformAbsencesForChart = (
+  absences: EmployeeAbsence[],
+  absenceGroups: Record<string, string>,
+) => {
   const grouped: { [month: string]: { [type: string]: number } } = {};
-  
+
   absences.forEach((absence) => {
     const month = getMonthName(absence.startDate);
     const type = getAbsenceGroupName(absence.type, absenceGroups);
-    
+
     if (!grouped[month]) grouped[month] = {};
     if (!grouped[month][type]) grouped[month][type] = 0;
     grouped[month][type] += 1;
   });
-  
+
   return grouped;
 };
 
-export const transformAbsencesForPieChart = (absences: EmployeeAbsence[], absenceGroups: Record<string, string>) => {
+export const transformAbsencesForPieChart = (
+  absences: EmployeeAbsence[],
+  absenceGroups: Record<string, string>,
+) => {
   const pieDataMap: { [group: string]: number } = {};
-  
+
   absences.forEach((absence) => {
     const group = getAbsenceGroupName(absence.type, absenceGroups);
     if (!pieDataMap[group]) pieDataMap[group] = 0;
     pieDataMap[group] += absence.effectiveDays;
   });
-  
+
   return Object.keys(pieDataMap).map((group) => ({
     name: group,
     value: pieDataMap[group],
   }));
 };
 
-
-
 // Data enhancement functions
 export const enhanceAbsence = (
-  absence: EmployeeAbsence, 
-  absenceGroups: Record<string, string>
+  absence: EmployeeAbsence,
+  absenceGroups: Record<string, string>,
 ): EnhancedAbsence => {
   return {
     ...absence,
@@ -130,39 +167,54 @@ export const enhanceAbsence = (
     groupName: getAbsenceGroupName(absence.type, absenceGroups),
     dateRange: formatDateRange(absence.startDate, absence.endDate),
     duration: formatDuration(absence.calendarDays, absence.effectiveDays),
-    statusBadgeVariant: getAbsenceStatusBadgeVariant(absence.status)
+    statusBadgeVariant: getAbsenceStatusBadgeVariant(absence.status),
   };
 };
 
 // Search and filter utilities
-export const filterAbsencesBySearch = (absences: EmployeeAbsence[], searchTerm: string): EmployeeAbsence[] => {
+export const filterAbsencesBySearch = (
+  absences: EmployeeAbsence[],
+  searchTerm: string,
+): EmployeeAbsence[] => {
   if (!searchTerm.trim()) return absences;
-  
+
   const term = searchTerm.toLowerCase();
-  return absences.filter(absence => 
-    (absence.employee.firstName || '').toLowerCase().includes(term) ||
-    (absence.employee.lastName || '').toLowerCase().includes(term) ||
-    (absence.type.value || '').toLowerCase().includes(term) ||
-    (absence.type.objectValue || '').toLowerCase().includes(term) ||
-    (absence.status || '').toLowerCase().includes(term) ||
-    (absence.employee.employeePosition?.organizationalUnit?.name || '').toLowerCase().includes(term) ||
-    (absence.createdAt || '').toLowerCase().includes(term)
+  return absences.filter(
+    (absence) =>
+      (absence.employee.firstName || '').toLowerCase().includes(term) ||
+      (absence.employee.lastName || '').toLowerCase().includes(term) ||
+      (absence.type.value || '').toLowerCase().includes(term) ||
+      (absence.type.objectValue || '').toLowerCase().includes(term) ||
+      (absence.status || '').toLowerCase().includes(term) ||
+      (absence.employee.employeePosition?.organizationalUnit?.name || '')
+        .toLowerCase()
+        .includes(term) ||
+      (absence.createdAt || '').toLowerCase().includes(term),
   );
 };
 
-export const filterAbsencesByStatus = (absences: EmployeeAbsence[], statuses: string[]): EmployeeAbsence[] => {
+export const filterAbsencesByStatus = (
+  absences: EmployeeAbsence[],
+  statuses: string[],
+): EmployeeAbsence[] => {
   if (!statuses.length) return absences;
-  return absences.filter(absence => statuses.includes((absence.status || '').toLowerCase()));
+  return absences.filter((absence) => statuses.includes((absence.status || '').toLowerCase()));
 };
 
-export const filterAbsencesByType = (absences: EmployeeAbsence[], typeIds: string[]): EmployeeAbsence[] => {
+export const filterAbsencesByType = (
+  absences: EmployeeAbsence[],
+  typeIds: string[],
+): EmployeeAbsence[] => {
   if (!typeIds.length) return absences;
-  return absences.filter(absence => typeIds.includes(absence.type.id));
+  return absences.filter((absence) => typeIds.includes(absence.type.id));
 };
 
-export const filterAbsencesByGroup = (absences: EmployeeAbsence[], groupIds: string[]): EmployeeAbsence[] => {
+export const filterAbsencesByGroup = (
+  absences: EmployeeAbsence[],
+  groupIds: string[],
+): EmployeeAbsence[] => {
   if (!groupIds.length) return absences;
-  return absences.filter(absence => groupIds.includes(absence.type.parentEntryId));
+  return absences.filter((absence) => groupIds.includes(absence.type.parentEntryId));
 };
 
 // Profile picture utilities
@@ -177,11 +229,15 @@ export const getProfilePictureUrl = (picture?: string | null): string | null => 
 };
 
 // Sorting utilities
-export const sortAbsencesByField = (absences: EmployeeAbsence[], field: string, order: 'asc' | 'desc' = 'desc'): EmployeeAbsence[] => {
+export const sortAbsencesByField = (
+  absences: EmployeeAbsence[],
+  field: string,
+  order: 'asc' | 'desc' = 'desc',
+): EmployeeAbsence[] => {
   return [...absences].sort((a, b) => {
     let aValue: any;
     let bValue: any;
-    
+
     switch (field) {
       case 'employeeName':
         aValue = getEmployeeName({ employee: a.employee });
@@ -214,9 +270,9 @@ export const sortAbsencesByField = (absences: EmployeeAbsence[], field: string, 
       default:
         return 0;
     }
-    
+
     if (aValue < bValue) return order === 'asc' ? -1 : 1;
     if (aValue > bValue) return order === 'asc' ? 1 : -1;
     return 0;
   });
-}; 
+};

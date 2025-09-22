@@ -427,6 +427,7 @@ export const INVESTMENT_DOCUMENT = `
     name
     description
     file
+    fileInfo
     fileSize
     mimeType
     verified
@@ -435,6 +436,7 @@ export const INVESTMENT_DOCUMENT = `
     authenticationDate
     mandatory
     expirationDate
+    version
     folder
     ${AUDIT_FIELDS}
     
@@ -445,10 +447,26 @@ export const INVESTMENT_DOCUMENT = `
     documentType {
       ${CATALOG_ENTRY}
     }
+    
     # Entity references
     parentDocument {
       id
       name
       description
+    }
+    investment {
+      ${INVESTMENT_REF}
+    }
+    account {
+      ${INVESTMENT_ACCOUNT_REF}
+    }
+    contact {
+      ${INVESTMENT_CONTACT_REF}
+    }
+    opportunity {
+      ${INVESTMENT_OPPORTUNITY_REF}
+    }
+    lead {
+      ${INVESTMENT_LEAD_REF}
     }
 `

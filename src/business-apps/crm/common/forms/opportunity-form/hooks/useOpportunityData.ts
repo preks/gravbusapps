@@ -86,8 +86,6 @@ export const mapOpportunityDataToFormValues = (
       opportunity.opportunityStatus?.id ||
       "",
     pipeline:
-      opportunity.pipelineRef ||
-      opportunity.pipeline?.id ||
       opportunity.salesPipelineRef ||
       opportunity.salesPipeline?.id ||
       "",

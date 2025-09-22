@@ -7,9 +7,9 @@ import dayjs from 'dayjs';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 import { useGetInvestmentReports } from '@/common/data/investment/hooks/useInvestmentReports';
 import { type InvestmentReportQueryVariables } from '@/common/data/investment/queries';
-import { createInvestmentReportColumns, ColumnDefinition } from './utils/columnDefinitions';
-import TransposedTable from './components/TransposedTable';
-import ReportFilters from './components/ReportFilters';
+import { createInvestmentReportColumns, ColumnDefinition } from './columnDefinitions';
+import TransposedTable from './TransposedTable';
+import ReportFilters from './ReportFilters';
 
 interface InvestmentReportsTabProps extends BusinessAppContextProps {
   investmentId: string;

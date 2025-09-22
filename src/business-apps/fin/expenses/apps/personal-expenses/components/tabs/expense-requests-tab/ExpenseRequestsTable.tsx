@@ -13,7 +13,6 @@ import {
   CardContent, 
   Spinner, 
   Button, 
-  Badge,
   Sheet,
   SheetContent,
   SheetHeader,
@@ -23,8 +22,7 @@ import { DataContainer } from '@/components/layout/dataContainer/DataContainer';
 import { getExpenseRequestStatusDisplay} from '../../../utils';
 import Pill, { PillType } from '@/components/pill';
 import ExpenseRequestDetails from './ExpenseRequestDetails';
-import { formatDate, formatNumberFunction, getDateFormat, getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
-import dayjs from 'dayjs';
+import { formatDate, getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
 import { AppActionButton } from '@/components/app-action-button/AppActionButton';
 import { startProcess } from '@/common/utils/start-process';
 import { useExpenseRequestFileService } from '../../../utils/expenseRequestFileService';
@@ -77,8 +75,8 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = React.memo((pr
     selectedFilters = [],
     setFilters,
     filterGroups = [],
-    handleFilterChange,
-    clearFilters,
+    // handleFilterChange not used locally; provided to DataContainer via wrapper
+    // clearFilters not used locally
     filterLabelMap = {},
     onAddExpenseRequest,
     tableRefreshTrigger
@@ -93,12 +91,14 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = React.memo((pr
   // Server-side sorting state
   const [sortField, setSortField] = useState<string>('requestDate');
   const [sortOrder, setSortOrder] = useState<'ascend' | 'descend' | undefined>('descend');
+  // Preserve page index across search clear
+  const savedPageBeforeSearchRef = useRef<number | null>(null);
+  const prevDebouncedSearchRef = useRef<string>('');
 
   // Selected item for details panel
   const [selectedItem, setSelectedItem] = useState<typeof items[0] | null>(null);
 
-  // Selected row keys for table
-  const [selectedRowKeys, setSelectedRowKeys] = useState<React.Key[]>([]);
+  // Selected row keys for table (not used currently) – removed to satisfy linter
 
   // Print functionality state
   const [printModalOpen, setPrintModalOpen] = useState<boolean>(false);
@@ -118,12 +118,48 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = React.memo((pr
     setSearchInput(search || '');
   }, [search]);
 
-  // Call parent callback when debounced search changes
+  // Call parent callback when debounced search changes and manage pagination restore
   useEffect(() => {
+    const prev = (prevDebouncedSearchRef.current || '').trim();
+    const next = (debouncedSearchTerm || '').trim();
+
+    // Manage pagination transitions for search
+    if (prev === '' && next !== '') {
+      // Starting a new search → save current page and jump to page 1
+      if (onTableChange) {
+        onTableChange(
+          { current: 1, pageSize },
+          {},
+          { field: sortField, order: sortOrder }
+        );
+      }
+      savedPageBeforeSearchRef.current = currentPage;
+    } else if (prev !== '' && next === '') {
+      // Clearing search → restore saved page if available
+      if (onTableChange) {
+        onTableChange(
+          { current: savedPageBeforeSearchRef.current || 1, pageSize },
+          {},
+          { field: sortField, order: sortOrder }
+        );
+      }
+      savedPageBeforeSearchRef.current = null;
+    } else if (next !== '' && currentPage !== 1) {
+      // While typing within search mode, keep on page 1
+      if (onTableChange) {
+        onTableChange(
+          { current: 1, pageSize },
+          {},
+          { field: sortField, order: sortOrder }
+        );
+      }
+    }
+
     if (onSearchChange && debouncedSearchTerm !== search) {
       onSearchChange(debouncedSearchTerm);
     }
-  }, [debouncedSearchTerm, onSearchChange, search]);
+    prevDebouncedSearchRef.current = debouncedSearchTerm;
+  }, [debouncedSearchTerm, onSearchChange, search, onTableChange, currentPage, pageSize, sortField, sortOrder]);
 
   // Refresh data when tableRefreshTrigger changes (triggered from parent tab)
   useEffect(() => {
@@ -196,17 +232,7 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = React.memo((pr
   }, [onTableChange]);
 
   // Memoize pagination configuration
-  const paginationConfig = useMemo(() => ({
-    current: currentPage,
-    pageSize: pageSize,
-    total: totalCount,
-    showSizeChanger: true,
-    pageSizeOptions: ['10', '20', '50', '100'],
-    showTotal: (total: number, range: [number, number]) => 
-      `${range[0]}-${range[1]} of ${total} items`,
-    onChange: (page: number, size: number) => handleEnhancedTableChange({ current: page, pageSize: size }, {}, {}),
-    onShowSizeChange: (current: number, size: number) => handleEnhancedTableChange({ current, pageSize: size }, {}, {})
-  }), [currentPage, pageSize, totalCount, handleEnhancedTableChange]);
+  // Pagination config is constructed inline in JSX via handlers
 
   const getStatusDisplay = useCallback((status: string): { type: PillType; text: string; color?: string } => {
     
@@ -218,10 +244,7 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = React.memo((pr
   }, [filterLabelMap])
 
   
-  // Handle row selection change
-  const handleRowSelectionChange = useCallback((newSelectedRowKeys: React.Key[]) => {
-    setSelectedRowKeys(newSelectedRowKeys);
-  }, []);
+  // Row selection handling not used in this table
 
   // Handle item selection
   const handleSelectItem = useCallback((item: typeof items[0]) => {
@@ -462,13 +485,13 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = React.memo((pr
                           {record.title}
                         </TableCell>
                         <TableCell className="gba:py-4 gba:px-6">
-                          {record.requestDate ? dayjs(record.requestDate).format(getDateFormat('date.short')) : '-'}
+                          {record.requestDate ? (formatDate(record.requestDate, 'date.short') || '-') : '-'}
                         </TableCell>
                         <TableCell className="gba:py-4 gba:px-6">
-                          {record.startDate ? dayjs(record.startDate).format(getDateFormat('date.short')) : '-'}
+                          {record.startDate ? (formatDate(record.startDate, 'date.short') || '-') : '-'}
                         </TableCell>
                         <TableCell className="gba:py-4 gba:px-6">
-                          {record.endDate ? dayjs(record.endDate).format(getDateFormat('date.short')) : '-'}
+                          {record.endDate ? (formatDate(record.endDate, 'date.short') || '-') : '-'}
                         </TableCell>
                         <TableCell className="gba:py-4 gba:px-6">
                           {(() => {

@@ -102,11 +102,16 @@ const LEAD_QUERY = `
         addressLine
         city
         country {
+            id
             value
+            code
         }
-        countryRef
+        region {
+            id
+            value
+            code
+        }
         postalCode
-        regionRef
         }
     }
   }

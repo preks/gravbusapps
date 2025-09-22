@@ -24,6 +24,16 @@ export const GET_INVESTMENT_LEAD_PREFILL_DATA = `
       addressLine
       postalCode
       locality
+      countryRef
+      country {
+        id
+        value
+      }
+      regionRef
+      region {
+        id
+        value
+      }
       
       # Catalog relationships for account pre-filling
       legalForm {
@@ -46,16 +56,6 @@ export const GET_INVESTMENT_LEAD_PREFILL_DATA = `
         value
       }
       accountAnnualRevenueBandRef
-      country {
-        id
-        value
-      }
-      countryRef
-      region {
-        id
-        value
-      }
-      regionRef
       timeZone {
         id
         value

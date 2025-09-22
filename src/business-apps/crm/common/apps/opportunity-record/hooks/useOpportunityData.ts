@@ -130,7 +130,7 @@ export const useOpportunityData = (opportunityId: string, accessToken: string) =
               code: rawOpportunityData.account.numberOfEmployees?.code || ''
             },
             numberOfEmployeesRef: rawOpportunityData.account.numberOfEmployees?.id || '',
-            addressLine: rawOpportunityData.account.addressLine || '',
+            addressLine: rawOpportunityData.account.addresses?.[0]?.addressLine || '',
             foundationDate: rawOpportunityData.account.foundationDate || '',
             annualRevenueRef: rawOpportunityData.account.annualRevenue?.id || '',
             annualRevenue: {

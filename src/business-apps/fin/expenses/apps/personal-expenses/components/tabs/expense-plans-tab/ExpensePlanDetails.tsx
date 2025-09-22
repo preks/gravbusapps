@@ -15,10 +15,8 @@ import {
 import { getExpensePlanStatusDisplay, formatCurrencyDisplay } from '../../../utils';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 import { PiCalendarDuotone, PiClock, PiPath, PiArrowRight } from 'react-icons/pi';
-import dayjs from 'dayjs';
-import { getTranslationFromI18nKeyAndLabel, getDateFormat } from '@/common/utils/windowUtils';
+import { getTranslationFromI18nKeyAndLabel, formatDate } from '@/common/utils/windowUtils';
 import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils';
-import { formatNumberFunction } from '@/common/utils/windowUtils';
 
 export interface ExpensePlanDetailsProps extends BusinessAppContextProps {
   selectedItem: any;
@@ -75,8 +73,8 @@ const ExpensePlanDetails: React.FC<ExpensePlanDetailsProps> = ({
               <PiCalendarDuotone className="gba:text-gray-500" />
               <span className="gba:text-sm gba:text-gray-700">
                 {getTranslationFromI18nKeyAndLabel('lowcoder:team_expenses_page.plan_details.duration', 'Duration')}: {' '}
-                {dayjs(selectedItem.startDate).format(getDateFormat('date.short'))} {' → '} 
-                {dayjs(selectedItem.endDate).format(getDateFormat('date.short'))}
+                {formatDate(selectedItem.startDate, 'date.short')} {' → '} 
+                {formatDate(selectedItem.endDate, 'date.short')}
               </span>
             </div>
           )}
@@ -86,7 +84,7 @@ const ExpensePlanDetails: React.FC<ExpensePlanDetailsProps> = ({
               <PiClock className="gba:text-gray-500" />
               <span className="gba:text-sm gba:text-gray-700">
                 {getTranslationFromI18nKeyAndLabel('lowcoder:team_expenses_page.plan_details.plan_date', 'Plan Date')}: {' '}
-                {dayjs(selectedItem.planDate).format(getDateFormat('date.short'))}
+                {formatDate(selectedItem.planDate, 'date.short')}
               </span>
             </div>
           )}
@@ -96,7 +94,7 @@ const ExpensePlanDetails: React.FC<ExpensePlanDetailsProps> = ({
               <PiPath className="gba:text-gray-500" />
               <span className="gba:text-sm gba:text-gray-700">
                 {getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.decision_date', 'Decision Date')}: {' '}
-                {dayjs(selectedItem.decisionDate).format(getDateFormat('date.short'))}
+                {formatDate(selectedItem.decisionDate, 'date.short')}
               </span>
             </div>
           )}

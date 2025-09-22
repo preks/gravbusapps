@@ -18,12 +18,6 @@ export interface LeadQueryResult {
   companyPhone?: string;
   companyWebsite?: string;
   createdAt?: string;
-  countryRef?: string;
-  country?: {
-    id: string;
-    code: string;
-    value: string;
-  };
   leadSource?: {
     id: string;
     code: string;
@@ -53,16 +47,21 @@ export interface LeadQueryResult {
     id: string;
     name: string;
   };
-  addresses?: {
-    addressLine: string;
-    city: string;
+  addresses?: Array<{
+    addressLine?: any;
+    city?: string;
     country?: {
+      id: string;
       value: string;
+      code: string;
     };
-    countryRef: string;
-    postalCode: string;
-    regionRef: string;
-  }[];
+    region?: {
+      id: string;
+      value: string;
+      code: string;
+    };
+    postalCode?: string;
+  }>;
   position?: string;
   industryRef?: string;
   industry?: {
@@ -101,12 +100,6 @@ export const GET_LEAD_BY_ID = `
       companyPhone
       companyWebsite
       createdAt
-      countryRef
-      country {
-        id
-        code
-        value
-      }
       leadSource {
         id
         code
@@ -142,9 +135,11 @@ export const GET_LEAD_BY_ID = `
         country {
           value
         }
-        countryRef
         postalCode
-        regionRef
+        region {
+          id
+          value
+        }
       }
       position
       industryRef

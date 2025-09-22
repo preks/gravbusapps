@@ -26,13 +26,11 @@ export const useGeographicDistribution = (accessToken: string) => {
             # Get all accounts for geographic analysis
             accounts: Account(
               where: {
-                isDeleted: {_eq: false}, addresses: {country: {value: {_isNull: false}}, _or: {countryRef: {_isNull: false}}}
+                isDeleted: {_eq: false}, addresses: {country: {value: {_isNull: false}}}
               }
             ) {
               id
               name
-              countryRef
-              addressLine
               addresses {
                 country {
                   id

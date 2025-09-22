@@ -252,9 +252,7 @@ const ExpenseCalendarTab: React.FC<BusinessAppContextProps> = (props) => {
     }
   }, [rawExpenseRequests]);
 
-  const onSelect = (date: Dayjs, info: { source: 'year' | 'month' | 'date' | 'customize' }) => {
-    console.log('[onSelect]', 'Selected date:', date.format('YYYY-MM-DD'), 'Source:', info.source);
-  };
+
 
   const dateCellRender = (value: Dayjs) => {
     const allAvailableItems = [
@@ -308,6 +306,15 @@ const ExpenseCalendarTab: React.FC<BusinessAppContextProps> = (props) => {
     );
   };
 
+  // Wrapper for antd v5: use cellRender instead of deprecated dateCellRender
+  const cellRender = (value: Dayjs, info: any) => {
+    if (info?.type === 'date') {
+      const rendered = dateCellRender(value);
+      return rendered ?? info.originNode;
+    }
+    return info?.originNode;
+  };
+
   return (
     <div className="gba-expense-calendar-tab">
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px', marginTop: '8px', padding: '0 8px' }}>
@@ -358,8 +365,7 @@ const ExpenseCalendarTab: React.FC<BusinessAppContextProps> = (props) => {
       {(expensesError || plansError || requestsError) && <div style={{ textAlign: 'center', padding: '20px' }}><Alert message={`Error: ${(expensesError || '') + (plansError || '') + (requestsError || '')}`} type="error" /></div>}
       {!(isLoadingExpenses || isLoadingPlans || isLoadingRequests) && !(expensesError || plansError || requestsError) && (
         <Calendar
-          onSelect={onSelect}
-          dateCellRender={dateCellRender}
+          cellRender={cellRender}
           headerRender={({ value, onChange }) => {
             const currentMonth = value.format('MMMM');
             const currentYear = value.format('YYYY');

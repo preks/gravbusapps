@@ -1,6 +1,8 @@
-import { AccountFormValues } from '../account-form/types';
-import { ContactFormValues } from '../contact-form/types';
-import { InvestmentOpportunityFormValues } from '../opportunity-form/types';
+import { AccountFormValues } from '../../account-form/types';
+import { ContactFormValues } from '../../contact-form/types';
+import { InvestmentOpportunityFormValues } from '../../opportunity-form/types';
+import { extractAddressFromObject } from '../../../../common/utils/addressUtils';
+
 
 export const getAccountInitialValues = (leadData: any): Partial<AccountFormValues> => {
   if (!leadData) {
@@ -30,11 +32,11 @@ export const getAccountInitialValues = (leadData: any): Partial<AccountFormValue
     // ===== OWNER INFORMATION (from InvestmentLead) =====
     owner: leadData.ownerEmployeeId || leadData.ownerEmployee?.id || '',
     
-    // ===== GEOGRAPHIC INFORMATION (from InvestmentLead address fields) =====
+    // ===== GEOGRAPHIC INFORMATION (from InvestmentLead direct fields) =====
     geographicPresence: leadData.locality || leadData.region?.value || '',
     country: leadData.countryRef || leadData.country?.id || '',
     region: leadData.regionRef || leadData.region?.id || '',
-    addressLine1: typeof leadData.addressLine === 'string' ? leadData.addressLine : (leadData.addressLine ? JSON.stringify(leadData.addressLine) : ''),
+    addressLine1: extractAddressFromObject(leadData.addressLine) || '',
     addressLine2: '', // Not available in InvestmentLead
     addressLine3: '', // Not available in InvestmentLead
     addressLine4: '', // Not available in InvestmentLead
@@ -77,16 +79,16 @@ export const getAccountInitialValues = (leadData: any): Partial<AccountFormValue
     accountAnnualRevenueBandRef: leadData.accountAnnualRevenueBandRef,
     accountAnnualRevenueBandValue: leadData.accountAnnualRevenueBand?.value,
     
-    // Geographic fields
-    countryRef: leadData.countryRef,
+    // Geographic fields - Using direct fields
+    countryRef: leadData.countryRef || leadData.country?.id,
     countryValue: leadData.country?.value,
-    regionRef: leadData.regionRef,
+    regionRef: leadData.regionRef || leadData.region?.id,
     regionValue: leadData.region?.value,
     timeZoneRef: leadData.timeZoneRef,
     timeZoneValue: leadData.timeZone?.value,
     locality: leadData.locality,
     postalCode: leadData.postalCode,
-    addressLine: leadData.addressLine,
+    addressLine: extractAddressFromObject(leadData.addressLine),
     
     // 🎯 Owner field - Pre-filled with lead's owner
     owner: leadData.ownerEmployeeId, // Main owner field for AccountFormValues

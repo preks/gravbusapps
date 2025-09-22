@@ -1,18 +1,6 @@
-import React, {
-  useState,
-  useCallback,
-  useEffect,
-  useRef,
-  useMemo,
-} from "react";
+import React, { useState, useCallback, useEffect, useRef, useMemo } from "react";
 import { useDebounce } from "@/common/hooks/useDebounce";
-import {
-  PiFunnelSimple,
-  PiFunnelSimpleX,
-  PiMagnifyingGlass,
-  PiXCircle,
-  PiX,
-} from "react-icons/pi";
+import { PiFunnelSimple, PiFunnelSimpleX, PiMagnifyingGlass, PiXCircle, PiX } from "react-icons/pi";
 import { getTranslationFromI18nKeyAndLabel } from "@/common/utils/windowUtils";
 import { DataControllerActions } from "./DataControllerActions";
 
@@ -32,15 +20,13 @@ export interface ColumnConfig {
 export interface ColumnVisibilityConfig {
   columns: ColumnConfig[];
   onColumnVisibilityChange: (columnId: string, visible: boolean) => void;
-  'data-testid'?: string;
+  "data-testid"?: string;
 }
 
 /**
  * PlusSquareIcon - SVG icon for the Add button.
  */
-export const PlusSquareIcon: React.FC<{ className?: string }> = ({
-  className,
-}) => (
+export const PlusSquareIcon: React.FC<{ className?: string }> = ({ className }) => (
   <svg
     xmlns="http://www.w3.org/2000/svg"
     width="16"
@@ -131,7 +117,7 @@ export const DataController: React.FC<Readonly<DataControllerProps>> = ({
   filterLabelMap,
   placeholder = getTranslationFromI18nKeyAndLabel(
     "lowcoder:employee_list.employee_report_filter.job_search",
-    "Search"
+    "Search",
   ) + "...",
   listTitle,
   listIcon,
@@ -162,6 +148,7 @@ export const DataController: React.FC<Readonly<DataControllerProps>> = ({
     if (debouncedSearch !== search) {
       setSearch(debouncedSearch);
     }
+    
   }, [debouncedSearch, search, setSearch]);
 
   // Simple handler for input changes - updates local state immediately
@@ -207,18 +194,17 @@ export const DataController: React.FC<Readonly<DataControllerProps>> = ({
       }
       return "";
     },
-    []
+    [],
   );
 
   //
 
   // Check if date range filter is active
-  const hasDateRangeFilter =
-    dateRange && (dateRange.createdAfter || dateRange.createdBefore);
+  const hasDateRangeFilter = dateRange && (dateRange.createdAfter || dateRange.createdBefore);
 
   return (
     <div
-      className="gba:w-full gba:bg-white gba:px-2 gba:pt-4"
+      className="gba:w-full gba:bg-white gba:px-2 gba:pt-2"
       data-testid="data-controller-container"
     >
       <div
@@ -238,11 +224,7 @@ export const DataController: React.FC<Readonly<DataControllerProps>> = ({
                     ? "gba:!bg-black gba:text-white"
                     : "gba:!bg-black/[0.04] gba:text-black"
                 }`}
-                aria-label={
-                  showDataFilter
-                    ? "Close filter sidebar"
-                    : "Open filter sidebar"
-                }
+                aria-label={showDataFilter ? "Close filter sidebar" : "Open filter sidebar"}
                 onClick={onToggleDataFilter}
                 type="button"
                 data-testid="data-controller-filter-toggle-button"
@@ -303,9 +285,7 @@ export const DataController: React.FC<Readonly<DataControllerProps>> = ({
               className="gba:flex gba:flex-row gba:items-center gba:gap-2 gba:ml-2"
               data-testid="data-controller-list-info"
             >
-              {listIcon && (
-                <span data-testid="data-controller-list-icon">{listIcon}</span>
-              )}
+              {listIcon && <span data-testid="data-controller-list-icon">{listIcon}</span>}
               {listAmount && (
                 <span
                   className="gba:font-semibold gba:text-base gba:text-gray-700"
@@ -346,10 +326,7 @@ export const DataController: React.FC<Readonly<DataControllerProps>> = ({
               data-testid="data-controller-date-range-filter"
             >
               <span className="gba:text-blue-800 gba:text-sm gba:leading-tight gba:whitespace-normal gba:filter-pill-text">
-                {formatDateRangeLabel(
-                  dateRange?.createdAfter,
-                  dateRange?.createdBefore
-                )}
+                {formatDateRangeLabel(dateRange?.createdAfter, dateRange?.createdBefore)}
               </span>
               <button
                 className="gba:ml-0.5 gba:bg-transparent gba:border-none gba:text-blue-800 gba:w-3 gba:h-3 gba:flex gba:items-center gba:justify-center gba:p-0 gba:cursor-pointer gba:rounded-full gba:hover:bg-blue-200 gba:transition-colors"
@@ -403,7 +380,7 @@ export const DataController: React.FC<Readonly<DataControllerProps>> = ({
             <span>
               {getTranslationFromI18nKeyAndLabel(
                 "lowcoder:personal_expenses.clear_all_filters_btn",
-                "Clear all filters"
+                "Clear all filters",
               )}
             </span>
             <span className="gba:flex gba:items-center gba:justify-center">

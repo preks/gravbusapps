@@ -37,6 +37,7 @@ export const OpportunityView: React.FC<OpportunityViewProps> = (context) => {
   // const [showDataFilter, setShowDataFilter] = useState(false);
   const [activeTab, setActiveTab] = useState("list");
   const [initializedFromUrl, setInitializedFromUrl] = useState(false);
+  const [boardRefreshTrigger, setBoardRefreshTrigger] = useState(0);
 
   // Board view filters have been moved to the OpportunityBoard component
   // List view only needs basic filtering
@@ -206,6 +207,7 @@ export const OpportunityView: React.FC<OpportunityViewProps> = (context) => {
             "✅ Success resolution detected, refreshing opportunity data"
           );
           loadData(); // Refresh opportunity list data
+          setBoardRefreshTrigger(prev => prev + 1); // Trigger board refresh
           return;
         }
 
@@ -219,6 +221,7 @@ export const OpportunityView: React.FC<OpportunityViewProps> = (context) => {
             "✅ Success in response or investmentOpportunity detected, refreshing data"
           );
           loadData();
+          setBoardRefreshTrigger(prev => prev + 1); // Trigger board refresh
           return;
         }
 
@@ -231,6 +234,7 @@ export const OpportunityView: React.FC<OpportunityViewProps> = (context) => {
             "✅ Continue event with payload detected, refreshing opportunity data"
           );
           loadData();
+          setBoardRefreshTrigger(prev => prev + 1); // Trigger board refresh
         }
       } catch (err) {
         console.error("Error handling process event:", err);
@@ -474,6 +478,7 @@ export const OpportunityView: React.FC<OpportunityViewProps> = (context) => {
         <TabsContent value="board" className="gba:mt-6">
           <OpportunityBoard
             {...context}
+            refreshTrigger={boardRefreshTrigger}
           />
         </TabsContent>
       </Tabs>

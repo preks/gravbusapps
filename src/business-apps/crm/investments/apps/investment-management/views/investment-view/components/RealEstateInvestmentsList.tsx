@@ -90,10 +90,10 @@ const RealEstateInvestmentsList: React.FC<RealEstateInvestmentsListProps> = (con
 
   // Define available columns based on what I see in the image
   const [columnConfig, setColumnConfig] = useState<ColumnConfig[]>(() => [
-    { id: "actions", label: "Actions", visible: true, disabled: true },
     { id: "investment", label: "Investment", visible: true },
     { id: "type", label: "Type", visible: true },
     { id: "initialInvestment", label: "Initial Investment", visible: true },
+    { id: "totalInvestment", label: "Total Investment", visible: true },
     { id: "marketValue", label: "Market Value", visible: true },
     { id: "performance", label: "Performance", visible: true },
     { id: "acquisitionDate", label: "Acquisition Date", visible: true },
@@ -106,6 +106,8 @@ const RealEstateInvestmentsList: React.FC<RealEstateInvestmentsListProps> = (con
     { id: "locality", label: "Location", visible: false },
     { id: "buildingYear", label: "Building Year", visible: false },
     { id: "occupancyPercent", label: "Occupancy %", visible: false },
+    // Actions column must be LAST
+    { id: "actions", label: "Actions", visible: true, disabled: true },
   ]);
 
   // Get visible columns for passing to table
@@ -383,6 +385,11 @@ const RealEstateInvestmentsList: React.FC<RealEstateInvestmentsListProps> = (con
                     Initial Investment
                   </SortableTableHead>
                 )}
+                {visibleColumns.includes('totalInvestment') && (
+                  <SortableTableHead field="totalInvestmentAmount" currentSortField={sortField} currentSortOrder={sortOrder} onSort={handleSortingChange}>
+                    Total Investment
+                  </SortableTableHead>
+                )}
                 {visibleColumns.includes('marketValue') && (
                   <SortableTableHead field="investmentMarketValue" currentSortField={sortField} currentSortOrder={sortOrder} onSort={handleSortingChange}>
                     Market Value
@@ -460,6 +467,9 @@ const RealEstateInvestmentsList: React.FC<RealEstateInvestmentsListProps> = (con
                   {visibleColumns.includes('initialInvestment') && (
                     <TableCell className="gba:text-right">{renderAmount(investment.initialInvestmentAmount, investment.currency?.code)}</TableCell>
                   )}
+                  {visibleColumns.includes('totalInvestment') && (
+                    <TableCell className="gba:text-right">{renderAmount(investment.totalInvestmentAmount, investment.currency?.code)}</TableCell>
+                  )}
                   {visibleColumns.includes('marketValue') && (
                     <TableCell className="gba:text-right">{renderAmount(investment.investmentMarketValue, investment.currency?.code)}</TableCell>
                   )}
@@ -467,9 +477,9 @@ const RealEstateInvestmentsList: React.FC<RealEstateInvestmentsListProps> = (con
                     <TableCell className="gba:text-right">
                       {(() => {
                         const currentValue = investment.investmentMarketValue || 0;
-                        const initialValue = investment.initialInvestmentAmount || 0;
-                        const performanceAmount = currentValue - initialValue;
-                        const performancePercentage = initialValue > 0 ? (performanceAmount / initialValue) * 100 : 0;
+                        const totalValue = investment.totalInvestmentAmount || 0;
+                        const performanceAmount = currentValue - totalValue;
+                        const performancePercentage = totalValue > 0 ? (performanceAmount / totalValue) * 100 : 0;
                         const isZero = performancePercentage === 0;
                         const isPositive = performancePercentage > 0;
 

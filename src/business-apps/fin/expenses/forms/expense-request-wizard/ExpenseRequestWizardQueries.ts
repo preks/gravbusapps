@@ -100,6 +100,7 @@ query MyQuery($expenseId: uuid!, $activeUserLocale: String, $employeeId: uuid!) 
     createdAt
     description
     expenseRuleId
+    overnightAccommodation
     code
     processInstanceId
     additionalProperties
