@@ -17,6 +17,8 @@ export interface UseFlowExecutionTasksResult {
   setPageSize: (size: number) => void;
   searchTerm: string;
   setSearchTerm: (term: string) => void;
+  filterProcessName: string | null;
+  setFilterProcessName: (processName: string | null) => void;
   refresh: () => Promise<void>;
   completing: boolean;
   completeTask: (taskId: string, variables?: Record<string, any>) => Promise<void>;
@@ -25,6 +27,11 @@ export interface UseFlowExecutionTasksResult {
 
 export const useFlowExecutionTasks = (
   context?: BusinessAppContextProps,
+  externalPagination?: {
+    currentPage?: number;
+    pageSize?: number;
+    searchTerm?: string;
+  },
 ): UseFlowExecutionTasksResult => {
   // State for tasks data
   const [tasks, setTasks] = useState<FlowExecutionTask[]>([]);
@@ -32,12 +39,23 @@ export const useFlowExecutionTasks = (
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
 
-  // Pagination state
-  const [currentPage, setCurrentPage] = useState<number>(1);
-  const [pageSize, setPageSize] = useState<number>(20);
+  // Pagination state - use external if provided, otherwise internal state
+  const [internalCurrentPage, setInternalCurrentPage] = useState<number>(1);
+  const [internalPageSize, setInternalPageSize] = useState<number>(20);
+  const [internalSearchTerm, setInternalSearchTerm] = useState<string>('');
 
-  // Search state
-  const [searchTerm, setSearchTerm] = useState<string>('');
+  // Use external pagination if provided, otherwise use internal state
+  const currentPage = externalPagination?.currentPage ?? internalCurrentPage;
+  const pageSize = externalPagination?.pageSize ?? internalPageSize;
+  const searchTerm = externalPagination?.searchTerm ?? internalSearchTerm;
+
+  // Setters - use internal setters if no external pagination provided
+  const setCurrentPage = externalPagination ? () => {} : setInternalCurrentPage;
+  const setPageSize = externalPagination ? () => {} : setInternalPageSize;
+  const setSearchTerm = externalPagination ? () => {} : setInternalSearchTerm;
+
+  // Filter state
+  const [filterProcessName, setFilterProcessName] = useState<string | null>(null);
 
   // Action states
   const [completing, setCompleting] = useState<boolean>(false);
@@ -64,6 +82,7 @@ export const useFlowExecutionTasks = (
         direction: 'DESC',
         ...(searchTerm && { search: searchTerm }),
         ...(context?.userInfo?.id && { userId: context.userInfo.id }),
+        ...(filterProcessName && { filterProcessName }),
       };
 
       const response = await flowMetricsClient.getFlowExecutionTasks(params);
@@ -92,7 +111,7 @@ export const useFlowExecutionTasks = (
     } finally {
       setIsLoading(false);
     }
-  }, [accessToken, currentPage, pageSize, searchTerm, context?.userInfo?.id]);
+  }, [accessToken, currentPage, pageSize, searchTerm, filterProcessName, context?.userInfo?.id]);
 
   // Complete a task
   const completeTask = useCallback(
@@ -134,6 +153,8 @@ export const useFlowExecutionTasks = (
     setPageSize,
     searchTerm,
     setSearchTerm,
+    filterProcessName,
+    setFilterProcessName,
     refresh: fetchTasks,
     completing,
     completeTask,

@@ -23,6 +23,13 @@ export type ValidTaskGroup =
   | 'Transfer'
   | 'Handout';
 
+export type ApprovalTabKey =
+  | 'expense-plan'
+  | 'expense-request'
+  | 'advance-payment'
+  | 'handout-payment'
+  | 'transfer-payment';
+
 export interface TaskSelectionValidation {
   isValid: boolean;
   errorMessage?: string;

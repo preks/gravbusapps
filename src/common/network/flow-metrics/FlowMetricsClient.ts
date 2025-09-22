@@ -53,6 +53,7 @@ export interface FlowExecutionTasksParams {
   searchItem?: string;
   userId?: string;
   taskName?: string;
+  filterProcessName?: string;
 }
 
 export class FlowMetricsClient extends RestClient {
@@ -86,6 +87,7 @@ export class FlowMetricsClient extends RestClient {
       search,
       userId,
       taskName,
+      filterProcessName,
     } = params;
 
     const queryParams: Record<string, string | number> = {
@@ -103,6 +105,10 @@ export class FlowMetricsClient extends RestClient {
 
     if (taskName) {
       queryParams.taskName = taskName;
+    }
+
+    if (filterProcessName) {
+      queryParams.filterProcessName = filterProcessName;
     }
 
     return this.get<FlowExecutionTasksResponse>('/flow-executions/tasks', {
