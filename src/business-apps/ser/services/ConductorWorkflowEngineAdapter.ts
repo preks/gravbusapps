@@ -444,6 +444,7 @@ export class ConductorWorkflowEngineAdapter implements WorkflowEngine {
 
       const result = await response.json();
       console.log(`[ConductorAdapter] Got REAL task detail:`, result);
+      console.log(`[ConductorAdapter] 🔍 FormData check: task.formData =`, result.formData);
       
       // Use the task data from custom-flow-engine API response
       const taskData = result.task || result;
@@ -1071,6 +1072,7 @@ export class ConductorWorkflowEngineAdapter implements WorkflowEngine {
       status: taskData.status,
       urgency_level: taskData.urgency_level, // ✅ ADD URGENCY DEBUG
       assignment: taskData.assignment,
+      formData: taskData.formData, // ✅ ADD FORMDATA DEBUG
       hasFlowDetail: !!flowDetail,
       flowDetailKeys: flowDetail ? Object.keys(flowDetail) : []
     });
@@ -1112,7 +1114,9 @@ export class ConductorWorkflowEngineAdapter implements WorkflowEngine {
       // ✅ PRESERVE urgency_level from task data
       ...(taskData.urgency_level && { urgency_level: taskData.urgency_level }),
       // ✅ PRESERVE assignment object from task data
-      ...(taskData.assignment && { assignment: taskData.assignment })
+      ...(taskData.assignment && { assignment: taskData.assignment }),
+      // ✅ PRESERVE formData from task data (submitted form data for completed tasks)
+      ...(taskData.formData && { formData: taskData.formData })
     } as StepInstance & { urgency_level?: string; assignment?: any };
     
     console.log(`[ConductorAdapterRequester] ✅ Converted to StepInstance:`, {
@@ -1122,6 +1126,7 @@ export class ConductorWorkflowEngineAdapter implements WorkflowEngine {
       status: stepInstance.status,
       urgency_level: (stepInstance as any).urgency_level, // ✅ ADD URGENCY DEBUG
       assignment: (stepInstance as any).assignment, // ✅ ADD ASSIGNMENT DEBUG
+      formData: (stepInstance as any).formData, // ✅ ADD FORMDATA DEBUG
       claimedBy: stepInstance.claimedByUserId,
       assignedTo: stepInstance.assignedToUserId,
       requesterId: stepInstance.requesterId,
@@ -1575,17 +1580,22 @@ export class ConductorWorkflowEngineAdapter implements WorkflowEngine {
   /**
    * Enhanced advance method with comment support
    */
-  async advance(stepId: string, userId: string, payload?: any, comment?: string): Promise<void> {
+  async advance(stepId: string, userId: string, payload?: any, comment?: string, commentVisibility?: string): Promise<void> {
     try {
       console.log(`[ConductorAdapter] Advancing step: ${stepId} by user: ${userId}`);
 
+      const requestBody = {
+        userId,
+        formData: payload || {},
+        ...(comment && { 
+          comment,
+          commentVisibility: commentVisibility || 'INTERNAL_TASK'
+        })
+      };
+
       await this.makeRequest(`/tasks/${stepId}/complete`, {
         method: 'POST',
-        body: JSON.stringify({
-          userId,
-          formData: payload,
-          comment
-        }),
+        body: JSON.stringify(requestBody),
       });
 
     } catch (error) {
@@ -1619,16 +1629,17 @@ export class ConductorWorkflowEngineAdapter implements WorkflowEngine {
    * Complete a task with form data (dynamic form completion)
    * This method is specifically for completing tasks that have associated forms
    */
-  async completeTask(taskId: string, formData: any, comment?: string): Promise<void> {
+  async completeTask(taskId: string, formData: any, comment?: string, commentVisibility?: string): Promise<void> {
     try {
       console.log(`[ConductorAdapter] Completing task: ${taskId} with form data:`, formData);
 
       const requestBody = {
         userId: this.currentUserId,
-        outputData: {
-          formData: formData
-        },
-        ...(comment && { comment })
+        formData: formData,
+        ...(comment && { 
+          comment,
+          commentVisibility: commentVisibility || 'INTERNAL_FLOW'
+        })
       };
 
       console.log(`[ConductorAdapter] Request body for task completion:`, requestBody);
@@ -1935,7 +1946,7 @@ export class ConductorWorkflowEngineAdapter implements WorkflowEngine {
     let assignedToUserId: string | undefined;
     let claimedByUserId: string | undefined;
     
-    console.log(`[ConductorAdapter] 🎯 Converting task ${taskId}: assignmentStatus='${assignmentStatus}', assignedTo='${assignedToUser}', urgency_level='${task.urgency_level}'`);
+    console.log(`[ConductorAdapter] 🎯 Converting task ${taskId}: assignmentStatus='${assignmentStatus}', assignedTo='${assignedToUser}', urgency_level='${task.urgency_level}', formData='${JSON.stringify(task.formData)}'`);
     
     if (assignedToUser) {
       if (assignmentStatus === 'ASSIGNED') {
@@ -1984,13 +1995,14 @@ export class ConductorWorkflowEngineAdapter implements WorkflowEngine {
         canComment: task.availableActions.canComment !== false // Default to true
       } : undefined,
       
-      // ✅ PRESERVE form, inputs, links, assignment, and urgency_level from custom-flow-engine response
+      // ✅ PRESERVE form, inputs, links, assignment, urgency_level, and formData from custom-flow-engine response
       ...(task.form && { form: task.form }),
       ...(task.inputs && { inputs: task.inputs }),
       ...(task.links && { links: task.links }),
       ...(task.assignment && { assignment: task.assignment }),
       ...(task.urgency_level && { urgency_level: task.urgency_level }),
-    } as StepInstance & { form?: any[]; inputs?: any[]; links?: any[]; assignment?: any; urgency_level?: string };
+      ...(task.formData && { formData: task.formData }),
+    } as StepInstance & { form?: any[]; inputs?: any[]; links?: any[]; assignment?: any; urgency_level?: string; formData?: Record<string, any> };
   }
 
   /**

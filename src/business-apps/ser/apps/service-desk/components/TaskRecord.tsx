@@ -381,7 +381,12 @@ export const TaskRecord: React.FC<TaskRecordProps> = ({
       const workflowEngine = createConductorWorkflowEngine({ accessToken, userInfo });
       
       // Complete the ticket with form data
-      await (workflowEngine as any).completeTask(ticket.id, formData);
+      await (workflowEngine as any).completeTask(
+        ticket.id, 
+        formData, 
+        'Ticket completed successfully', 
+        'INTERNAL_FLOW'
+      );
       message.success('Ticket completed successfully');
       
       // Refresh ticket data
@@ -637,6 +642,47 @@ export const TaskRecord: React.FC<TaskRecordProps> = ({
                       Due: {new Date(ticket.dueDate).toLocaleDateString()} at {new Date(ticket.dueDate).toLocaleTimeString()}
                     </p>
                   )}
+                </div>
+              )}
+
+              {/* Submitted Form Data - Show for completed tasks */}
+              {ticket.formData && Object.keys(ticket.formData).length > 0 && (
+                <div className="gba:mt-6 gba:space-y-3">
+                  <div className="gba:flex gba:items-center gba:gap-2">
+                    <div className="gba:w-2 gba:h-2 gba:bg-green-500 gba:rounded-full"></div>
+                    <h4 className="gba:text-sm gba:font-medium gba:text-foreground">Submitted Form Data</h4>
+                    <Badge variant="secondary" className="gba:text-xs">
+                      Completed
+                    </Badge>
+                  </div>
+                  <div className="gba:bg-green-50 gba:rounded-lg gba:p-4 gba:border gba:border-green-200">
+                    <div className="gba:space-y-3">
+                      {Object.entries(ticket.formData).map(([key, value]) => (
+                        <div key={key} className="gba:flex gba:flex-col gba:gap-1">
+                          <div className="gba:text-xs gba:font-medium gba:text-green-800 gba:uppercase gba:tracking-wide">
+                            {key.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase())}
+                          </div>
+                          <div className="gba:text-sm gba:text-green-700">
+                            {Array.isArray(value) ? (
+                              <div className="gba:flex gba:flex-wrap gba:gap-1">
+                                {value.map((item, index) => (
+                                  <Badge key={index} variant="outline" className="gba:text-xs gba:bg-green-100 gba:text-green-700 gba:border-green-300">
+                                    {String(item)}
+                                  </Badge>
+                                ))}
+                              </div>
+                            ) : typeof value === 'object' && value !== null ? (
+                              <pre className="gba:text-xs gba:bg-green-100 gba:p-2 gba:rounded gba:overflow-x-auto">
+                                {JSON.stringify(value, null, 2)}
+                              </pre>
+                            ) : (
+                              <span className="gba:break-words">{String(value)}</span>
+                            )}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
                 </div>
               )}
             </CardContent>

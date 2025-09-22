@@ -111,6 +111,9 @@ export type StepInstance = {
     canReject: boolean;
     canComment: boolean;
   };
+  
+  // Form data submitted when completing the task
+  formData?: Record<string, any>;
 };
 
 export type SubmittedRequest = {
