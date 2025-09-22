@@ -748,12 +748,31 @@ export const LeadDocuments: React.FC<LeadDocumentsProps> = ({
     previousParentId: string | null | undefined
   ) => {
     try {
+      // Find the document being moved to get its current data
+      const documentToMove = documents.find(d => d.id === docId);
+      if (!documentToMove) {
+        throw new Error('Document not found');
+      }
+
+      // Determine if this is a file or folder
+      const isFolder = documentToMove.folder === true || (!documentToMove.mimeType && !documentToMove.file && !!documentToMove.name && !documentToMove.documentType);
+      
       await restClient.post(
         '/investment-relations/updateInvestmentDocument',
         {
-          id: docId,
-          version: version,
-          parentDocument: newParentId || null
+          investmentDocument: {
+            id: docId,
+            version: version,
+            parentDocument: newParentId || null,
+            lead: leadId,
+            format: isFolder ? 'FOLDER' : 'FILE',
+            name: documentToMove.name,
+            // Include other necessary fields from the original document
+            ...(documentToMove.mimeType && { mimeType: documentToMove.mimeType }),
+            ...(documentToMove.file && { file: documentToMove.file }),
+            ...(documentToMove.fileSize && { fileSize: documentToMove.fileSize }),
+            ...(documentToMove.description && { description: documentToMove.description })
+          }
         },
         { headers: { Authorization: `Bearer ${context.accessToken}` } }
       );
