@@ -37,7 +37,7 @@ const parseUrlParams = () => {
   const path = window.location.pathname;
   const searchParams = new URLSearchParams(window.location.search);
   
-  // Match task patterns: /task/123
+  // Match task patterns: /task/123 (legacy path-based)
   const taskMatch = path.match(/\/task\/([^\/]+)/);
   
   // Get subview from URL parameter (e.g., ?subview=tickets)
@@ -46,9 +46,12 @@ const parseUrlParams = () => {
   // Get ticket tab from URL parameter (e.g., ?tab=IT or ?tab=completed)
   const ticketTabFromUrl = searchParams.get('tab') || null;
   
+  // Get taskId from URL parameter (new parameter-based approach)
+  const taskIdFromParam = searchParams.get('taskId') || null;
+  
   return {
     subviewFromUrl,
-    ticketIdFromUrl: taskMatch ? taskMatch[1] : null,
+    ticketIdFromUrl: taskIdFromParam || (taskMatch ? taskMatch[1] : null),
     ticketTabFromUrl,
   };
 };
@@ -88,7 +91,7 @@ const ServiceDesk: React.FC<ServiceDeskProps> = ({
   
   // Note: Capability-based filtering is now handled by the Tickets component
 
-  // Update task from URL parameters and ensure URL parameters are set
+  // Update task from URL parameters and initialize state
   useEffect(() => {
     if (resolvedTicketId) {
       setSelectedTaskId(resolvedTicketId);
@@ -99,29 +102,8 @@ const ServiceDesk: React.FC<ServiceDeskProps> = ({
       setLastTicketsTab(activeTab);
     }
     
-    // Ensure app, subview and tab parameters are set on component load
-    const url = new URL(window.location.href);
-    let urlChanged = false;
-    
-    if (!url.searchParams.has('app')) {
-      url.searchParams.set('app', 'ServiceDesk');
-      urlChanged = true;
-    }
-    
-    if (!url.searchParams.has('subview')) {
-      url.searchParams.set('subview', activeSubView);
-      urlChanged = true;
-    }
-    
-    // Set tab parameter if we're on tickets subview and have an active tab
-    if (activeSubView === 'tickets' && activeTab && !url.searchParams.has('tab')) {
-      url.searchParams.set('tab', activeTab);
-      urlChanged = true;
-    }
-    
-    if (urlChanged) {
-      window.history.replaceState({}, '', url.toString());
-    }
+    // Note: URL parameters are handled by the navigation system
+    // No need to manually set URL parameters on component load
   }, [resolvedTicketId, activeSubView, activeTab, lastTicketsTab]);
 
 
@@ -143,55 +125,39 @@ const ServiceDesk: React.FC<ServiceDeskProps> = ({
       } else {
         setSelectedTaskId(null);
       }
-      
-      // Ensure app parameter is preserved on browser navigation
-      const url = new URL(window.location.href);
-      if (!url.searchParams.has('app')) {
-        url.searchParams.set('app', 'ServiceDesk');
-        window.history.replaceState({}, '', url.toString());
-      }
     };
 
     window.addEventListener('popstate', handlePopState);
     return () => window.removeEventListener('popstate', handlePopState);
   }, []);
 
-  // Helper function to build URL with app, subview and tab parameters preserved
-  const buildUrlWithApp = (path: string, subview?: string, tab?: string) => {
-    const url = new URL(window.location.href);
-    url.pathname = path;
-    // Preserve the app parameter if it exists
-    if (!url.searchParams.has('app')) {
-      url.searchParams.set('app', 'ServiceDesk');
-    }
-    // Set subview parameter if provided
-    if (subview) {
-      url.searchParams.set('subview', subview);
-    }
-    // Set tab parameter if provided
-    if (tab) {
-      url.searchParams.set('tab', tab);
-    }
-    return url.toString();
-  };
+
 
   // Handle submenu change
   const handleSubViewChange = (subView: string) => {
     setActiveSubView(subView);
     setSelectedTaskId(null); // Clear task selection when switching subviews
     
-    let tabToSet = '';
+    // Update URL parameters directly for internal navigation
+    const url = new URL(window.location.href);
+    
+    // Clear or set subview parameter
+    if (subView === 'dashboard') {
+      url.searchParams.delete('subview');
+    } else {
+      url.searchParams.set('subview', subView);
+    }
     
     // When switching to tickets, use last remembered tab
     if (subView === 'tickets' && lastTicketsTab) {
-      tabToSet = lastTicketsTab;
-      setActiveTab(tabToSet);
+      setActiveTab(lastTicketsTab);
+      url.searchParams.set('tab', lastTicketsTab);
+    } else {
+      url.searchParams.delete('tab');
     }
     
-    // Update URL to reflect current subview and tab
-    const currentPath = window.location.pathname;
-    const newUrl = buildUrlWithApp(currentPath, subView, tabToSet || undefined);
-    window.history.pushState({}, '', newUrl);
+    // Update URL without full navigation
+    window.history.pushState({}, '', url.toString());
   };
 
   // Handle ticket tab change (IT, HR, Completed, etc.)
@@ -201,12 +167,12 @@ const ServiceDesk: React.FC<ServiceDeskProps> = ({
     setLastTicketsTab(tabKey); // Remember this tab for when user returns to Tickets subview
     setSelectedTaskId(null); // Clear task selection when switching tabs
     
-    // Always use root path and rely on tab parameter for consistency
-    // This avoids conflicts between path-based and parameter-based tab selection
-    const newPath = '/';
-    const newUrl = buildUrlWithApp(newPath, activeSubView, tabKey);
-    console.log('🔍 [ServiceDesk] Tab change URL:', newUrl);
-    window.history.pushState({}, '', newUrl);
+    // Update URL parameters directly for internal navigation
+    const url = new URL(window.location.href);
+    url.searchParams.set('tab', tabKey);
+    
+    console.log('🔍 [ServiceDesk] Tab change URL:', url.toString());
+    window.history.pushState({}, '', url.toString());
   };
 
 
@@ -214,10 +180,13 @@ const ServiceDesk: React.FC<ServiceDeskProps> = ({
   const handleTaskSelect = (taskId: string, _deskKey: string) => {
     console.log('🔍 [ServiceDesk] handleTaskSelect called:', { taskId, _deskKey, activeTab, activeSubView });
     setSelectedTaskId(taskId);
-    // Use new URL format with tab parameter instead of path-based desk
-    const newUrl = buildUrlWithApp(`/task/${taskId}`, activeSubView, activeTab);
-    console.log('🔍 [ServiceDesk] Task select URL:', newUrl);
-    window.history.pushState({}, '', newUrl);
+    
+    // Update URL parameters directly for internal navigation
+    const url = new URL(window.location.href);
+    url.searchParams.set('taskId', taskId);
+    
+    console.log('🔍 [ServiceDesk] Task select URL:', url.toString());
+    window.history.pushState({}, '', url.toString());
   };
 
   // Handle closing task detail
@@ -225,11 +194,12 @@ const ServiceDesk: React.FC<ServiceDeskProps> = ({
     console.log('🔍 [ServiceDesk] handleTaskClose called:', { activeTab, activeSubView });
     setSelectedTaskId(null);
     
-    // Always use root path and rely on tab parameter for consistency
-    const newPath = '/';
-    const newUrl = buildUrlWithApp(newPath, activeSubView, activeTab);
-    console.log('🔍 [ServiceDesk] Task close URL:', newUrl);
-    window.history.pushState({}, '', newUrl);
+    // Update URL parameters directly - remove taskId parameter
+    const url = new URL(window.location.href);
+    url.searchParams.delete('taskId');
+    
+    console.log('🔍 [ServiceDesk] Task close URL:', url.toString());
+    window.history.pushState({}, '', url.toString());
   };
 
   // Feature flag check - return early if explicitly disabled
@@ -239,19 +209,20 @@ const ServiceDesk: React.FC<ServiceDeskProps> = ({
         data-testid="services-plus-disabled" 
         className="gba:p-6 gba:text-center"
       >
-        <Alert
-          message={getTranslationFromI18nKeyAndLabel(
-            'services.feature.disabled.title',
-            'Feature Not Available'
-          )}
-          description={getTranslationFromI18nKeyAndLabel(
-            'services.feature.disabled.description',
-            'Services+ is not enabled for your organization.'
-          )}
-          type="info"
-          showIcon
-          className="gba:max-w-md gba:mx-auto"
-        />
+        <Alert variant="default" className="gba:max-w-md gba:mx-auto">
+          <h4 className="gba:font-semibold">
+            {getTranslationFromI18nKeyAndLabel(
+              'services.feature.disabled.title',
+              'Feature Not Available'
+            )}
+          </h4>
+          <p>
+            {getTranslationFromI18nKeyAndLabel(
+              'services.feature.disabled.description',
+              'Services+ is not enabled for your organization.'
+            )}
+          </p>
+        </Alert>
       </div>
     );
   }
