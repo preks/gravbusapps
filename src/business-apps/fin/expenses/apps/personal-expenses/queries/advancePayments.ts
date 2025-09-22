@@ -1,315 +1,8 @@
-// Filter interfaces following Single Responsibility Principle
-export interface AdvancePaymentFilters {
-  statusFilter?: string[];
-  amountRange?: { min?: number; max?: number };
-  advanceRange?: { min?: number; max?: number };
-}
-
-export interface FilterState {
-  hasStatusFilter: boolean;
-  hasAmountRange: boolean;
-  hasAdvanceRange: boolean;
-}
-
-// Filter validation and state management
-export const validateFilters = (filters: AdvancePaymentFilters): FilterState => {
-  const hasStatusFilter = Boolean(filters.statusFilter && filters.statusFilter.length > 0);
-  const hasAmountRange = Boolean(
-    filters.amountRange && 
-    (filters.amountRange.min !== undefined || filters.amountRange.max !== undefined)
-  );
-  const hasAdvanceRange = Boolean(
-    filters.advanceRange && 
-    (filters.advanceRange.min !== undefined || filters.advanceRange.max !== undefined)
-  );
-  
-  return {
-    hasStatusFilter,
-    hasAmountRange,
-    hasAdvanceRange
-  };
-};
-
-// Query parameter builder following Open/Closed Principle
-export const buildQueryParameters = (filterState: FilterState): string => {
-  const parameters: string[] = [];
-  
-  if (filterState.hasStatusFilter) {
-    parameters.push('$statusFilter: [String!]');
-  }
-  
-  if (filterState.hasAmountRange) {
-    parameters.push('$amountMin: numeric, $amountMax: numeric');
-  }
-  
-  if (filterState.hasAdvanceRange) {
-    parameters.push('$advanceMin: numeric, $advanceMax: numeric');
-  }
-  
-  // Add orderBy parameter for dynamic sorting
-  parameters.push('$orderBy: [AdvancePaymentOrderBy!]');
-  
-  return parameters.join(', ');
-};
-
-// Query condition builder following Single Responsibility Principle
-// Build expense plan conditions (amount range)
-export const buildExpensePlanConditions = (filterState: FilterState, filters: AdvancePaymentFilters): string => {
-  if (filterState.hasAmountRange && filters.amountRange) {
-    const { min, max } = filters.amountRange;
-    const conditions: string[] = [];
-    
-    if (min !== undefined) {
-      conditions.push('_gte: $amountMin');
-    }
-    if (max !== undefined) {
-      conditions.push('_lte: $amountMax');
-    }
-    
-    if (conditions.length > 0) {
-      return `totalAmount: { ${conditions.join(', ')} }`;
-    }
-  }
-  
-  return '';
-};
-
-// Build advance payment conditions (advance range)
-export const buildAdvancePaymentConditions = (filterState: FilterState, filters: AdvancePaymentFilters): string => {
-  if (filterState.hasAdvanceRange && filters.advanceRange) {
-    const { min, max } = filters.advanceRange;
-    const conditions: string[] = [];
-    
-    if (min !== undefined) {
-      conditions.push('_gte: $advanceMin');
-    }
-    if (max !== undefined) {
-      conditions.push('_lte: $advanceMax');
-    }
-    
-    if (conditions.length > 0) {
-      return `amount: { ${conditions.join(', ')} }`;
-    }
-  }
-  
-  return '';
-};
-
-// Main query builder following Dependency Inversion Principle
-export const buildAdvancePaymentsQuery = (filters: AdvancePaymentFilters): string => {
-  const filterState = validateFilters(filters);
-  const queryParameters = buildQueryParameters(filterState);
-  const expensePlanConditions = buildExpensePlanConditions(filterState, filters);
-  const advancePaymentConditions = buildAdvancePaymentConditions(filterState, filters);
-  
-  const parameterString = queryParameters ? `, ${queryParameters}` : '';
-  const expensePlanConditionString = expensePlanConditions ? `, ${expensePlanConditions}` : '';
-  const advancePaymentConditionString = advancePaymentConditions ? `, ${advancePaymentConditions}` : '';
-  
-  return `
-    query GetAdvancePaymentsByEmployee(
-      $employeeId: uuid!, 
-      $limit: Int, 
-      $offset: Int, 
-      $searchTerm: String${parameterString}
-    ) {
-      AdvancePaymentAggregate(
-        where: {
-          expensePlan: {
-            employeeId: {_eq: $employeeId} 
-            ${expensePlanConditionString}
-          }, 
-          isDeleted: {_eq: false},
-          ${filterState.hasStatusFilter ? 'status: {_in: $statusFilter},' : ''}
-          ${advancePaymentConditionString ? `${advancePaymentConditionString},` : ''}
-          _or: [
-            {code: {_ilike: $searchTerm}},
-            {description: {_ilike: $searchTerm}},
-            {status: {_ilike: $searchTerm}},
-            {paymentMethod: {_ilike: $searchTerm}},
-            {expensePlan: {title: {_ilike: $searchTerm}}}
-          ]
-        }
-      ) {
-        aggregate {
-          count
-        }
-      }
-      AdvancePayment(
-        limit: $limit,
-        offset: $offset,
-        orderBy: $orderBy,
-        where: {
-          expensePlan: {employeeId: 
-              {_eq: $employeeId} 
-              ${expensePlanConditionString}}
-          isDeleted: {_eq: false},
-          ${filterState.hasStatusFilter ? 'status: {_in: $statusFilter},' : ''}
-          ${advancePaymentConditionString ? `${advancePaymentConditionString},` : ''}
-          _or: [
-            {code: {_ilike: $searchTerm}},
-            {description: {_ilike: $searchTerm}},
-            {status: {_ilike: $searchTerm}},
-            {paymentMethod: {_ilike: $searchTerm}},
-            {expensePlan: {
-              title: {_ilike: $searchTerm}
-            }
-           }
-          ]
-        }
-      ) {
-        id
-        code
-        description
-        amount
-        currencyRef
-        currency {
-          code
-        }
-        costCenter {
-          name
-        }
-        status
-        paymentMethod
-        expensePlan {
-          id
-          code
-          reimbursableAmount
-          startDate
-          endDate
-          planDate
-          decisionDate
-          status
-          title
-          totalAmount
-          requestTypeRef
-          createdAt
-          employeeDocumentId
-          advancePaymentPaidAmount
-          advancePaymentInTransitAmount
-          currencyRef
-          description
-          currency {
-            type
-            translations(where: {localeCode: {_eq: "en"}}) {
-              localeCode
-              value
-            }
-            catalog {
-              defaultLocale
-            }
-            value
-            id
-            code
-          }
-          requestType {
-            value
-            translations(where: {localeCode: {_eq: "en"}}) {
-              localeCode
-              value
-            }
-            catalog {
-              defaultLocale
-            }
-          }
-          expensePlanItem {
-            title
-            status
-            totalAmount
-            expenseDate
-          }
-          advancePayment {
-            id
-            amount
-            status
-            currency {
-              code
-              translations(where: {localeCode: {_eq: "en"}}) {
-                localeCode
-                value
-              }
-              catalog {
-                defaultLocale
-              }
-            }
-          }
-          expenseRequestTrip {
-            tripDateTime
-          }
-          expenseRequest {
-            id
-            code
-            title
-            description
-            startDate
-            endDate
-            requestDate
-            decisionDate
-            totalAmount
-            currencyRef
-            status
-            reimbursableAmount
-            nonReimbursableAmount
-            additionalProperties
-            currency {
-              value
-              translations(where: {localeCode: {_eq: "en"}}) {
-                localeCode
-                value
-              }
-              catalog {
-                defaultLocale
-              }
-            }
-            requestType {
-              value
-              translations(where: {localeCode: {_eq: "en"}}) {
-                localeCode
-                value
-              }
-              catalog {
-                defaultLocale
-              }
-            }
-            costCenter {
-              name
-            }
-            project {
-              name
-            }
-            employee {
-              fullName
-              employeePosition {
-                supervisor {
-                  fullName
-                }
-              }
-            }
-          }
-          employee {
-            id
-            code
-            firstName
-            lastName
-            employeePosition {
-              siteLocation {
-                name
-              }
-              organizationalUnit {
-                name
-              }
-              firstName
-              lastName
-            }
-          }
-        }
-        expensePlanId
-      }
-    }
-  `;
-};
+// Moved dynamic query builder to utils/advancePaymentsQueryBuilder for SRP
 
 // Hook for using the dynamic query
+import { buildAdvancePaymentsQuery, validateFilters, AdvancePaymentFilters } from '../../personal-expenses/utils/advancePaymentsQueryBuilder';
+
 export const useAdvancePaymentsQuery = (filters: AdvancePaymentFilters) => {
   const query = buildAdvancePaymentsQuery(filters);
   const filterState = validateFilters(filters);
@@ -638,14 +331,14 @@ export const GET_ADVANCE_PAYMENT_BY_ID = `
 `;
 
 export const GET_ADVANCE_PAYMENT_STATISTICS = `
-  query GetAdvancePaymentStatistics($employeeId: uuid!, $startDate: timestamptz!, $endDate: timestamptz!) {
+  query GetAdvancePaymentStatistics($employeeId: uuid!, $startDate: timestamptz!, $endDate: timestamptz!, $currencyRef: String!) {
     AdvancePaymentAggregate(
       where: {
         expensePlan: {employeeId: {_eq: $employeeId}},
         isDeleted: {_eq: false},
         createdAt: {_gte: $startDate, _lte: $endDate}
         status: {_in: ["APPROVED", "PAID", "BOOKED"]},
-        currencyRef: {_eq: "Currency:v1:EUR"}
+        currencyRef: {_eq: $currencyRef}
       }
     ) {
       aggregate {
@@ -659,7 +352,8 @@ export const GET_ADVANCE_PAYMENT_STATISTICS = `
       where: {
         expensePlan: {employeeId: {_eq: $employeeId}},
         isDeleted: {_eq: false},
-        status: {_in: ["PENDING", "PREPARED"]}
+        status: {_in: ["PENDING", "PREPARED"]},
+        currencyRef: {_eq: $currencyRef}
       }
     ) {
       aggregate {
@@ -670,12 +364,26 @@ export const GET_ADVANCE_PAYMENT_STATISTICS = `
       where: {
         expensePlan: {employeeId: {_eq: $employeeId}},
         isDeleted: {_eq: false},
-        status: {_in: ["APPROVED", "PAID", "BOOKED"]}
+        status: {_in: ["APPROVED", "PAID", "BOOKED"]},
+        currencyRef: {_eq: $currencyRef}
       }
     ) {
       aggregate {
         count
       }
+    }
+  }
+`;
+
+// Distinct currencies used by the employee in advance payments
+export const GET_USED_ADVANCE_PAYMENT_CURRENCIES = `
+  query GetUsedAdvancePaymentCurrencies($employeeId: uuid!, $limit: Int = 2000) {
+    AdvancePayment(limit: $limit, where: {
+      isDeleted: {_eq: false},
+      expensePlan: { employeeId: {_eq: $employeeId} }
+    }) {
+      currencyRef
+      currency { code }
     }
   }
 `;

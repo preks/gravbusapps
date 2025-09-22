@@ -19,7 +19,7 @@ export interface UnallocatedExpenseItemsTableProps extends BusinessAppContextPro
 }
 
 const UnallocatedExpenseItemsTable: React.FC<UnallocatedExpenseItemsTableProps> = (props) => {
-  // Directly reuse the ExpenseItemsTable to ensure identical features and behavior
+  // Directly reuse the ExpenseItemsTable; filtering will be controlled via status in URL/session
   return <ExpenseItemsTable {...props} />;
 };
 
