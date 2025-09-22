@@ -22,17 +22,18 @@ import {
 } from '@ant-design/icons';
 import { Modal, message, Input as AntdInput } from 'antd';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
-import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient';
 import { DebouncedInput } from '@/components/data-filter/DebouncedInput';
 import { DataContainer } from '@/components/layout/dataContainer';
 import { useEmployeeData } from '@/business-apps/crm/common/hooks/useEmployeeData';
-import { startProcess } from '@/common/utils/start-process';
+import { AppActionButton } from '@/components/app-action-button/AppActionButton';
+import { FlowContextName } from '@/common/types/FlowRegistryTypes';
 import { useGetInvestmentDocumentsByLeadId } from '@/common/data/investment/hooks/useInvestmentLeads';
 import type { InvestmentDocument } from '@/common/data/investment/types';
 import { useProcessCompletion } from '@/common/hooks/useProcessCompletion';
 import { DndContext, PointerSensor, useSensor, useSensors, DragEndEvent, DragStartEvent, DragOverlay, useDraggable, useDroppable } from '@dnd-kit/core';
 import { useRestClient } from '@/common/network/rest/useRestClient';
 import { env } from '@/common/env/EnvUtils';
+import { SimpleDocumentDeletePopup } from '@/business-apps/crm/investments/popups/document-delete-popup/SimpleDocumentDeletePopup';
 
 // Use the actual investment document type
 type Document = InvestmentDocument;
@@ -91,6 +92,8 @@ export const LeadDocuments: React.FC<LeadDocumentsProps> = ({
   const [selectedFilters, setSelectedFilters] = useState<string[]>([]);
   const [renameModal, setRenameModal] = useState<{ open: boolean; node?: DocumentFolder; name: string }>({ open: false, name: '' });
   const [activeDragItem, setActiveDragItem] = useState<{ itemType: 'document' | 'folder'; name: string; mimeType?: string | null } | null>(null);
+  const [deletePopup, setDeletePopup] = useState<{ open: boolean; document?: Document }>({ open: false });
+  const [isDragging, setIsDragging] = useState(false);
   
   // Column configuration with default visibility
   const [columnConfig, setColumnConfig] = useState<ColumnConfig[]>([
@@ -104,7 +107,6 @@ export const LeadDocuments: React.FC<LeadDocumentsProps> = ({
     { id: "actions", label: "Actions", visible: true, disabled: true }, // Always visible
   ]);
 
-  const graphQLClient = useGraphQLClient(context.accessToken);
   const { getEmployeeDisplayName } = useEmployeeData(context.accessToken);
 
   const openRenameFolder = (node: DocumentFolder) => {
@@ -125,9 +127,9 @@ export const LeadDocuments: React.FC<LeadDocumentsProps> = ({
       return;
     }
     try {
-      await restClient.post('/customer-relations/saveCrmDocument', {
+      await restClient.post('/investments/saveInvestmentDocument', {
         changeMode: 'UPDATE',
-        crmDocument: { id: node.folderId, version: node.folderVersion, name: newName, lead: leadId },
+        investmentDocument: { id: node.folderId, version: node.folderVersion, name: newName, lead: leadId },
       }, { headers: { Authorization: `Bearer ${context.accessToken}` } });
       message.success('Folder renamed');
       setRenameModal({ open: false, name: '', node: undefined });
@@ -139,22 +141,9 @@ export const LeadDocuments: React.FC<LeadDocumentsProps> = ({
   };
 
   const openEditDocument = (doc: Document) => {
-    startProcess({
-      domain: 'customer-relations',
-      processName: 'saveCrmDocument',
-      payload: {
-        leadId,
-        crmDocument: {
-          id: doc.id,
-          version: doc.version,
-          name: doc.name,
-          documentGroupRef: doc.documentGroup?.id,
-          documentTypeRef: doc.documentType?.id,
-          parentDocument: doc.parentDocument || undefined,
-        },
-      },
-      builderType: 'NATIVE_SCREEN',
-    });
+    // TODO: Replace with AppActionButton flow registry approach
+    console.log('Edit document clicked - needs flow registry implementation', doc);
+    // Note: This will need to be converted to use AppActionButton with proper context
   };
 
   // Compute visible columns
@@ -448,18 +437,64 @@ export const LeadDocuments: React.FC<LeadDocumentsProps> = ({
 
   const documentFolders: DocumentFolder[] = useMemo(() => {
     const allDocs = Array.isArray(documents) ? documents : [];
+    console.log('All documents received:', allDocs.map(d => ({ 
+      id: d.id, 
+      name: d.name, 
+      folder: d.folder, 
+      mimeType: d.mimeType, 
+      file: d.file,
+      parentDocument: d.parentDocument 
+    })));
+    
     const allFolders = allDocs.filter(d => {
-      const fmt = (d.format || '').toUpperCase();
-      const looksLikeFile = fmt === 'FILE' || !!d.mimeType || !!d.file;
-      return !looksLikeFile;
+      // Multiple ways to detect a folder:
+      // 1. folder field is true (when backend works correctly)
+      // 2. has no file characteristics but has a name (common folder pattern)
+      // 3. documentType indicates it's a folder
+      // 4. has no documentType AND no file content (created as folder but backend bug)
+      const isFolderByField = d.folder === true;
+      const isFolderByContent = !d.mimeType && !d.file && !!d.name && !d.documentType;
+      const isFolderByType = d.documentType?.value?.toLowerCase().includes('folder') || 
+                           d.documentGroup?.value?.toLowerCase().includes('folder');
+      
+      // Backend bug workaround: if it has no file data, no document type, but has a name, it's likely a folder
+      const isFolderByPattern = !d.mimeType && !d.file && !d.fileSize && 
+                               !d.documentType && !!d.name && d.name.trim() !== '';
+      
+      const isFolder = isFolderByField || isFolderByContent || isFolderByType || isFolderByPattern;
+      const looksLikeFile = !!d.mimeType || !!d.file || !!d.fileSize;
+      
+      // A folder should not have file characteristics
+      const result = isFolder && !looksLikeFile;
+      
+      console.log(`Document "${d.name}" analysis:`, {
+        folder: d.folder,
+        mimeType: d.mimeType,
+        file: d.file,
+        fileSize: d.fileSize,
+        documentType: d.documentType?.value,
+        documentGroup: d.documentGroup?.value,
+        isFolderByField,
+        isFolderByContent,
+        isFolderByType,
+        isFolderByPattern,
+        isFolder,
+        looksLikeFile,
+        result
+      });
+      
+      return result;
     });
+    
+    console.log('Filtered folders:', allFolders.map(f => ({ id: f.id, name: f.name, folder: f.folder })));
     const docsForFilter = Array.isArray(filteredDocuments) ? filteredDocuments : [];
 
     const docsByFolder: Record<string, Document[]> = {};
     for (const doc of docsForFilter) {
-      if ((doc.format || '').toUpperCase() === 'FILE' && doc.parentDocument) {
-        if (!docsByFolder[doc.parentDocument]) docsByFolder[doc.parentDocument] = [];
-        docsByFolder[doc.parentDocument].push(doc);
+      if (!doc.folder && doc.parentDocument?.id) {
+        const parentId = doc.parentDocument.id;
+        if (!docsByFolder[parentId]) docsByFolder[parentId] = [];
+        docsByFolder[parentId].push(doc);
       }
     }
 
@@ -475,7 +510,7 @@ export const LeadDocuments: React.FC<LeadDocumentsProps> = ({
         children: [],
       };
       folderNodeCache[f.id] = node;
-      const childFolders = allFolders.filter(cf => cf.parentDocument === f.id);
+      const childFolders = allFolders.filter(cf => cf.parentDocument?.id === f.id);
       node.children = childFolders.map(cf => buildNode(cf));
       return node;
     };
@@ -488,8 +523,16 @@ export const LeadDocuments: React.FC<LeadDocumentsProps> = ({
   const rootLevelFiles: Document[] = useMemo(() => {
     const docsForFilter = Array.isArray(filteredDocuments) ? filteredDocuments : [];
     return docsForFilter.filter(d => {
-      const fmt = (d.format || '').toUpperCase();
-      const isFile = fmt === 'FILE' || !!d.mimeType || !!d.file;
+      // Use the same logic as isFileDocument
+      const isFolderByField = d.folder === true;
+      const isFolderByContent = !d.mimeType && !d.file && !!d.name && !d.documentType;
+      const isFolderByType = d.documentType?.value?.toLowerCase().includes('folder') || 
+                           d.documentGroup?.value?.toLowerCase().includes('folder');
+      const isFolderByPattern = !d.mimeType && !d.file && !d.fileSize && 
+                               !d.documentType && !!d.name && d.name.trim() !== '';
+      const isFolder = isFolderByField || isFolderByContent || isFolderByType || isFolderByPattern;
+      const isFile = !isFolder && (!!d.mimeType || !!d.file || !!d.fileSize);
+      
       return isFile && !d.parentDocument;
     });
   }, [filteredDocuments]);
@@ -525,12 +568,12 @@ export const LeadDocuments: React.FC<LeadDocumentsProps> = ({
   const constructDocumentUrl = (document: Document) => {
     // Check if document.file already has an extension
     if (document.file && document.file.includes('.')) {
-      // File already has extension, use as is
-      return `/files/api/v1/public/downloads/crm/leads/${leadId}/documents/${document.file}`;
+      // File already has extension, use as is - use IRM path since this is investment documents
+      return `/files/api/v1/public/downloads/irm/leads/${leadId}/documents/${document.file}`;
     } else {
-      // File doesn't have extension, add one
+      // File doesn't have extension, add one - use IRM path since this is investment documents
       const fileExtension = getFileExtension(document);
-      return `/files/api/v1/public/downloads/crm/leads/${leadId}/documents/${document.file}.${fileExtension}`;
+      return `/files/api/v1/public/downloads/irm/leads/${leadId}/documents/${document.file}.${fileExtension}`;
     }
   };
 
@@ -559,41 +602,37 @@ export const LeadDocuments: React.FC<LeadDocumentsProps> = ({
     window.document.body.removeChild(link);
   };
 
+  // Handle document deletion
   const handleDeleteDocument = (document: Document) => {
-    if (document.id?.startsWith('mock-')) {
-      setDocuments(prev => prev.filter(d => d.id !== document.id));
-      message.success('Document deleted (mock)');
-      return;
-    }
-    Modal.confirm({
-      title: 'Confirm Deletion',
-      content: `Are you sure you want to delete "${document.name}"?`,
-      okText: 'Delete',
-      okType: 'danger',
-      cancelText: 'Cancel',
-      onOk: async () => {
-        try {
-          await restClient.post('/customer-relations/saveCrmDocument', {
-            changeMode: 'DELETE',
-            crmDocument: { id: document.id, version: document.version, lead: leadId },
-          }, { headers: { Authorization: `Bearer ${context.accessToken}` } });
-          message.success('Document deleted');
-          await fetchDocuments();
-        } catch (e: any) {
-          console.error('Error deleting document', e);
-          message.error(e?.message || 'Failed to delete document');
-        }
-      }
-    });
+    setDeletePopup({ open: true, document });
   };
 
-  const isFile = (doc: Document) => (doc.format || '').toUpperCase() === 'FILE';
+  // Handle successful document deletion
+  const handleDocumentDeleted = useCallback(async () => {
+    await fetchDocuments();
+    message.success('Document deleted successfully');
+  }, [fetchDocuments]);
+
+  // Listen for process completion events to refresh documents
+  useProcessCompletion({
+    onSuccess: handleDocumentDeleted
+  });
+
+  const isFile = (doc: Document) => !doc.folder && (!!doc.mimeType || !!doc.file);
   const totalDocuments = documents.filter(isFile).length;
   const totalSize = documents.filter(isFile).reduce((sum, doc) => sum + (doc.fileSize || 0), 0);
 
   const isFileDocument = (d: Document): boolean => {
-    const fmt = (d.format || '').toUpperCase();
-    return fmt === 'FILE' || !!d.mimeType || !!d.file;
+    // A file document is something that's not a folder and has file characteristics
+    const isFolderByField = d.folder === true;
+    const isFolderByContent = !d.mimeType && !d.file && !!d.name && !d.documentType;
+    const isFolderByType = d.documentType?.value?.toLowerCase().includes('folder') || 
+                         d.documentGroup?.value?.toLowerCase().includes('folder');
+    const isFolderByPattern = !d.mimeType && !d.file && !d.fileSize && 
+                             !d.documentType && !!d.name && d.name.trim() !== '';
+    const isFolder = isFolderByField || isFolderByContent || isFolderByType || isFolderByPattern;
+    
+    return !isFolder && (!!d.mimeType || !!d.file || !!d.fileSize);
   };
 
   const hasDescendantFiles = (startFolderId: string): boolean => {
@@ -604,7 +643,7 @@ export const LeadDocuments: React.FC<LeadDocumentsProps> = ({
     while (toVisit.length && visited < safetyLimit) {
       const currentId = toVisit.pop() as string;
       for (const d of documents) {
-        if (d.parentDocument === currentId) {
+        if (d.parentDocument?.id === currentId) {
           if (isFileDocument(d)) return true;
           toVisit.push(d.id);
         }
@@ -657,18 +696,33 @@ export const LeadDocuments: React.FC<LeadDocumentsProps> = ({
     );
   };
 
-  const Droppable: React.FC<{ id: string; data: any; className?: string; children: React.ReactNode; disabled?: boolean }> = ({ id, data, className, children, disabled }) => {
+  const Droppable: React.FC<{ id: string; data: any; className?: string; children: React.ReactNode; disabled?: boolean; isFolder?: boolean }> = ({ id, data, className, children, disabled, isFolder = false }) => {
     const { setNodeRef, isOver } = useDroppable({ id, data, disabled });
-    const combinedClass = `${className || ''} ${isOver ? 'gba:ring-2 gba:ring-blue-500 gba:bg-blue-50' : ''}`;
+    const showDropIndicator = isDragging && isOver && !disabled;
+    
+    // Only show visual feedback on folders and root zones during drag
+    const showBorder = isDragging && !disabled && (isFolder || id.includes('root'));
+    const combinedClass = `${className || ''} ${showDropIndicator ? 'gba:ring-2 gba:ring-blue-500 gba:bg-blue-50 gba:transition-all gba:duration-200' : ''} ${showBorder ? 'gba:border-dashed gba:border-2 gba:border-blue-300' : ''}`;
+    
     return (
       <div ref={setNodeRef} className={combinedClass} data-over={isOver}>
+        {showDropIndicator && (isFolder || id.includes('root')) && (
+          <div className="gba:absolute gba:inset-0 gba:flex gba:items-center gba:justify-center gba:bg-blue-50 gba:bg-opacity-50 gba:rounded gba:pointer-events-none gba:z-10">
+            <span className="gba:text-blue-600 gba:font-medium gba:text-sm">
+              {id.includes('root') ? 'Drop to move to root level' : 'Drop into folder'}
+            </span>
+          </div>
+        )}
         {children}
       </div>
     );
   };
 
   const updateParentDocumentLocal = (docId: string, parentId: string | null) => {
-    setDocuments((prev) => prev.map(d => d.id === docId ? { ...d, parentDocument: parentId } : d));
+    setDocuments((prev) => prev.map(d => d.id === docId ? { 
+      ...d, 
+      parentDocument: parentId ? { id: parentId } as any : undefined 
+    } : d));
   };
 
   const isFolderAncestor = useCallback((ancestorId: string, folderId: string): boolean => {
@@ -678,7 +732,7 @@ export const LeadDocuments: React.FC<LeadDocumentsProps> = ({
     const maxHops = 1000;
     let hops = 0;
     while (current && hops < maxHops) {
-      const currentParentId: string | undefined = current.parentDocument || undefined;
+      const currentParentId: string | undefined = current.parentDocument?.id;
       if (!currentParentId) return false;
       if (currentParentId === ancestorId) return true;
       current = docById[currentParentId];
@@ -695,58 +749,107 @@ export const LeadDocuments: React.FC<LeadDocumentsProps> = ({
   ) => {
     try {
       await restClient.post(
-        '/customer-relations/saveCrmDocument',
+        '/investment-relations/updateInvestmentDocument',
         {
-          changeMode: 'UPDATE',
-          crmDocument: {
-            id: docId,
-            version: version,
-            parentDocument: newParentId ?? '',
-            lead: leadId,
-          },
+          id: docId,
+          version: version,
+          parentDocument: newParentId || null
         },
         { headers: { Authorization: `Bearer ${context.accessToken}` } }
       );
-      message.success('Document moved');
+      message.success('Document moved successfully');
+      // Refresh documents to get the latest state
+      await fetchDocuments();
     } catch (e: any) {
       console.error('Error moving document', e);
-      setDocuments((prev) => prev.map(d => d.id === docId ? { ...d, parentDocument: previousParentId || null } : d));
+      // Revert the local change on error
+      setDocuments((prev) => prev.map(d => d.id === docId ? { 
+        ...d, 
+        parentDocument: previousParentId ? { id: previousParentId } as any : undefined 
+      } : d));
       message.error(e?.message || 'Failed to move document');
     }
   };
 
   const handleDragEnd = (event: DragEndEvent) => {
     setActiveDragItem(null);
+    setIsDragging(false);
+    
     const active = event.active?.data?.current as any;
     const over = event.over?.data?.current as any;
-    if (!active || !over) return;
+    
+    if (!active || !over) {
+      console.log('Drag ended without valid active or over elements');
+      return;
+    }
+    
     const targetFolderId: string | null | undefined = (over.targetFolderId === '' ? null : (over.targetFolderId as string | null | undefined));
-    if (typeof targetFolderId === 'undefined') return;
+    if (typeof targetFolderId === 'undefined') {
+      console.log('Drag ended without valid target folder');
+      return;
+    }
+    
     if ((active.itemType === 'document' || active.itemType === 'folder') && active.id && active.version != null) {
-      const previousParentId = documents.find(d => d.id === active.id)?.parentDocument || null;
-      if (previousParentId === targetFolderId) return;
+      const previousParentId = documents.find(d => d.id === active.id)?.parentDocument?.id || null;
+      
+      // Check if actually moving to a different location
+      if (previousParentId === targetFolderId) {
+        console.log('Document dropped in same location, no move needed');
+        return;
+      }
+      
+      // Prevent moving folder into its own subfolder
       if (active.itemType === 'folder' && typeof targetFolderId === 'string' && isFolderAncestor(active.id as string, targetFolderId)) {
         message.warning('Cannot move a folder into its own subfolder');
         return;
       }
+      
+      // Get item name for feedback
+      const itemName = documents.find(d => d.id === active.id)?.name || 'Item';
+      const targetName = targetFolderId ? (documents.find(d => d.id === targetFolderId)?.name || 'folder') : 'root';
+      
+      console.log(`Moving ${active.itemType} "${itemName}" to ${targetFolderId ? `folder "${targetName}"` : 'root level'}`);
+      
+      // Update local state immediately for responsive UI
       updateParentDocumentLocal(active.id, targetFolderId);
+      
+      // Expand target folder if moving into a folder
       if (typeof targetFolderId === 'string') {
         setExpandedFolders(prev => { const next = new Set(prev); next.add(targetFolderId); return next; });
       }
-      if (String(active.id).startsWith('mock-') || (typeof targetFolderId === 'string' && String(targetFolderId).startsWith('mock-'))) return;
+      
+      // Skip API call for mock data
+      if (String(active.id).startsWith('mock-') || (typeof targetFolderId === 'string' && String(targetFolderId).startsWith('mock-'))) {
+        message.success(`${active.itemType === 'folder' ? 'Folder' : 'Document'} moved successfully (mock)`);
+        return;
+      }
+      
+      // Persist to backend
       void persistParentDocumentUpdate(active.id, active.version, targetFolderId, previousParentId);
     }
   };
 
   const handleDragStart = (event: DragStartEvent) => {
+    setIsDragging(true);
     const current = event.active?.data?.current as any;
-    if (!current) return;
+    
+    if (!current) {
+      console.log('Drag started without valid data');
+      return;
+    }
+    
     if (current.itemType === 'document' && current.id) {
       const doc = documents.find(d => d.id === current.id);
-      if (doc) setActiveDragItem({ itemType: 'document', name: doc.name || 'Document', mimeType: doc.mimeType });
+      if (doc) {
+        setActiveDragItem({ itemType: 'document', name: doc.name || 'Document', mimeType: doc.mimeType });
+        console.log(`Started dragging document: ${doc.name}`);
+      }
     } else if (current.itemType === 'folder' && current.id) {
       const folderDoc = documents.find(d => d.id === current.id);
-      if (folderDoc) setActiveDragItem({ itemType: 'folder', name: folderDoc.name || 'Folder' });
+      if (folderDoc) {
+        setActiveDragItem({ itemType: 'folder', name: folderDoc.name || 'Folder' });
+        console.log(`Started dragging folder: ${folderDoc.name}`);
+      }
     }
   };
 
@@ -759,33 +862,32 @@ export const LeadDocuments: React.FC<LeadDocumentsProps> = ({
         <div className="gba:flex gba:items-center gba:justify-between">
           <CardTitle>Documents</CardTitle>
           <div className="gba:flex gba:items-center gba:gap-2">
-            <Button
-              variant="outline"
-              onClick={() => startProcess({
-                domain: 'customer-relations',
-                processName: 'saveCrmDocument',
-                payload: { leadId },
-                builderType: 'NATIVE_SCREEN',
-              })}
-              className="gba:px-4 gba:py-2 gba:text-sm gba:font-medium gba:border-blue-600 gba:text-blue-600 gba:hover:bg-blue-50 gba:hover:border-blue-700 gba:transition-colors"
+            <AppActionButton
+              contextsArray={[FlowContextName.investmentDocumentCreate]}
+              externalContextData={{ leadId }}
+              prefixDataTestId="lead-documents-upload"
+              accessToken={context.accessToken}
+              emptyStateBehavior="enable"
+              deferMainContextRequestsUntilClick
+              className="gba:px-4 gba:py-2 gba:text-sm gba:font-medium gba:border gba:border-blue-600 gba:text-blue-600 gba:hover:bg-blue-50 gba:hover:border-blue-700 gba:transition-colors gba:rounded"
+              data-testid="lead-documents-upload-button"
             >
               <FileOutlined className="gba:mr-2" />
               Upload Document
-            </Button>
-            <Button
-              variant="outline"
-              onClick={() => startProcess({
-                domain: 'customer-relations',
-                processName: 'saveCrmDocument',
-                payload: { leadId, createFolder: true },
-                builderType: 'NATIVE_SCREEN',
-              })}
-              className="gba:px-4 gba:py-2 gba:text-sm gba:font-medium gba:border-gray-600 gba:text-gray-700 gba:hover:bg-gray-50 gba:hover:border-gray-700 gba:transition-colors"
-              data-testid="create-folder-button"
+            </AppActionButton>
+            <AppActionButton
+              contextsArray={[FlowContextName.investmentDocumentCreate]}
+              externalContextData={{ leadId, createFolder: true }}
+              prefixDataTestId="lead-documents-create-folder"
+              accessToken={context.accessToken}
+              emptyStateBehavior="enable"
+              deferMainContextRequestsUntilClick
+              className="gba:px-4 gba:py-2 gba:text-sm gba:font-medium gba:border gba:border-gray-600 gba:text-gray-700 gba:hover:bg-gray-50 gba:hover:border-gray-700 gba:transition-colors gba:rounded"
+              data-testid="lead-documents-create-folder-button"
             >
               <FolderAddOutlined className="gba:mr-2" />
               Create Folder
-            </Button>
+            </AppActionButton>
           </div>
         </div>
       </CardHeader>
@@ -877,15 +979,14 @@ export const LeadDocuments: React.FC<LeadDocumentsProps> = ({
                   </Droppable>
                   {/* Root-level files */}
                   {rootLevelFiles.map((document) => (
-                    <Droppable key={`drop-doc-root-${document.id}`} id={`drop-doc-root-${document.id}`} data={{}}>
-                      <Draggable id={`drag-doc-${document.id}`} data={{ itemType: 'document', id: document.id, version: document.version }}>
-                        <div 
-                          key={document.id}
-                          className="gba:flex gba:items-center gba:py-2 gba:px-4 gba:hover:bg-blue-50 gba:cursor-pointer gba:border-b gba:border-gray-50 gba:group"
-                          style={{ paddingLeft: '32px' }}
-                          data-testid={`document-tree-root-${document.id}`}
-                          onClick={() => handleViewDocument(document)}
-                        >
+                    <Draggable key={document.id} id={`drag-doc-${document.id}`} data={{ itemType: 'document', id: document.id, version: document.version }}>
+                      <div 
+                        key={document.id}
+                        className="gba:flex gba:items-center gba:py-2 gba:px-4 gba:hover:bg-blue-50 gba:cursor-pointer gba:border-b gba:border-gray-50 gba:group"
+                        style={{ paddingLeft: '32px' }}
+                        data-testid={`document-tree-root-${document.id}`}
+                        onClick={() => handleViewDocument(document)}
+                      >
                           <div className="gba:flex gba:items-center gba:flex-1 gba:min-w-0">
                             <div className="gba:w-6"></div>
                             <div className="gba:flex gba:items-center gba:gap-2 gba:flex-1 gba:min-w-0">
@@ -905,13 +1006,19 @@ export const LeadDocuments: React.FC<LeadDocumentsProps> = ({
                             <Button variant="ghost" size="sm" onClick={(e) => { e.stopPropagation(); handleViewDocument(document); }} data-testid={`view-tree-document-${document.id}`} className="gba:p-1 gba:h-6 gba:w-6 gba:opacity-0 gba:group-hover:opacity-100" title="View">
                               <EyeOutlined style={{ fontSize: '10px' }} />
                             </Button>
-                            <Button variant="ghost" size="sm" onClick={(e) => { e.stopPropagation(); handleDeleteDocument(document); }} data-testid={`delete-tree-document-${document.id}`} className="gba:p-1 gba:h-6 gba:w-6 gba:opacity-0 gba:group-hover:opacity-100" title="Delete">
+                            <Button 
+                              variant="ghost" 
+                              size="sm" 
+                              onClick={(e) => { e.stopPropagation(); handleDeleteDocument(document); }} 
+                              data-testid={`delete-tree-document-${document.id}`} 
+                              className="gba:p-1 gba:h-6 gba:w-6 gba:opacity-0 gba:group-hover:opacity-100" 
+                              title="Delete"
+                            >
                               <DeleteOutlined style={{ fontSize: '10px' }} />
                             </Button>
                           </div>
                         </div>
                       </Draggable>
-                    </Droppable>
                   ))}
 
                   {documentFolders.map((folder) => {
@@ -920,7 +1027,7 @@ export const LeadDocuments: React.FC<LeadDocumentsProps> = ({
                       const indentPx = 16 * depth;
                       return (
                         <React.Fragment key={node.folderId || node.name}>
-                          <Droppable id={`drop-folder-${node.folderId || node.name}`} data={{ targetFolderId: node.folderId }} className="gba:w-full" disabled={!node.folderId}>
+                          <Droppable id={`drop-folder-${node.folderId || node.name}`} data={{ targetFolderId: node.folderId }} className="gba:w-full" disabled={!node.folderId} isFolder={true}>
                             <Draggable id={`drag-folder-${node.folderId || node.name}`} data={{ itemType: 'folder', id: node.folderId, version: node.folderVersion }}>
                               <div 
                                 className="gba:flex gba:items-center gba:py-2 gba:px-4 gba:hover:bg-gray-50 gba:cursor-pointer gba:border-b gba:border-gray-100"
@@ -941,10 +1048,10 @@ export const LeadDocuments: React.FC<LeadDocumentsProps> = ({
                                 <div className="gba:w-20 gba:text-right gba:mr-4 gba:text-sm gba:text-gray-500">-</div>
                                 <div className="gba:w-16 gba:text-right gba:mr-4 gba:text-sm gba:text-gray-500">Folder</div>
                                 <div className="gba:w-28 gba:flex gba:items-center gba:justify-end gba:gap-1">
-                                  <Button variant="ghost" size="sm" onClick={(e) => { e.stopPropagation(); startProcess({ domain: 'customer-relations', processName: 'saveCrmDocument', payload: { leadId, ...(node.folderId ? { parentDocument: node.folderId } : {}) }, builderType: 'NATIVE_SCREEN' }); }} className="gba:p-1 gba:h-6 gba:w-6" data-testid={`new-document-icon-${node.folderId || node.name}`} title="New Document">
+                                  <Button variant="ghost" size="sm" onClick={(e) => { e.stopPropagation(); console.log('TODO: Replace with AppActionButton - New Document in folder', node.folderId); }} className="gba:p-1 gba:h-6 gba:w-6" data-testid={`new-document-icon-${node.folderId || node.name}`} title="New Document">
                                     <FileOutlined className="gba:text-xs" />
                                   </Button>
-                                  <Button variant="ghost" size="sm" onClick={(e) => { e.stopPropagation(); startProcess({ domain: 'customer-relations', processName: 'saveCrmDocument', payload: { leadId, createFolder: true, ...(node.folderId ? { parentDocument: node.folderId } : {}) }, builderType: 'NATIVE_SCREEN' }); }} className="gba:p-1 gba:h-6 gba:w-6" data-testid={`new-subfolder-icon-${node.folderId || node.name}`} title="New Subfolder">
+                                  <Button variant="ghost" size="sm" onClick={(e) => { e.stopPropagation(); console.log('TODO: Replace with AppActionButton - New Subfolder in folder', node.folderId); }} className="gba:p-1 gba:h-6 gba:w-6" data-testid={`new-subfolder-icon-${node.folderId || node.name}`} title="New Subfolder">
                                     <FolderAddOutlined className="gba:text-xs" />
                                   </Button>
                                   <Button variant="ghost" size="sm" onClick={(e) => { e.stopPropagation(); openRenameFolder(node); }} className="gba:p-1 gba:h-6 gba:w-6" data-testid={`rename-folder-icon-${node.folderId || node.name}`} title="Rename Folder" disabled={!node.folderId}>
@@ -960,20 +1067,16 @@ export const LeadDocuments: React.FC<LeadDocumentsProps> = ({
 
                           {isExpanded && (
                             <>
-                              <Droppable id={`drop-root-inline-${node.folderId}`} data={{ targetFolderId: null }} className="gba:w-full">
-                                <div className="gba:h-0.5" />
-                              </Droppable>
                               {Array.isArray(node.children) && node.children.map(child => renderFolder(child, depth + 1))}
                               {Array.isArray(node.documents) && node.documents.map((document) => (
-                                <Droppable key={`drop-doc-row-${document.id}`} id={`drop-doc-row-${document.id}`} data={{}}>
-                                  <Draggable id={`drag-doc-${document.id}`} data={{ itemType: 'document', id: document.id, version: document.version }}>
-                                    <div 
-                                      key={document.id}
-                                      className="gba:flex gba:items-center gba:py-2 gba:px-4 gba:hover:bg-blue-50 gba:cursor-pointer gba:border-b gba:border-gray-50 gba:group"
-                                      style={{ paddingLeft: `${16 * (depth + 1) + 16}px` }}
-                                      data-testid={`document-tree-${document.id}`}
-                                      onClick={() => handleViewDocument(document)}
-                                    >
+                                <Draggable key={document.id} id={`drag-doc-${document.id}`} data={{ itemType: 'document', id: document.id, version: document.version }}>
+                                  <div 
+                                    key={document.id}
+                                    className="gba:flex gba:items-center gba:py-2 gba:px-4 gba:hover:bg-blue-50 gba:cursor-pointer gba:border-b gba:border-gray-50 gba:group"
+                                    style={{ paddingLeft: `${16 * (depth + 1) + 16}px` }}
+                                    data-testid={`document-tree-${document.id}`}
+                                    onClick={() => handleViewDocument(document)}
+                                  >
                                       <div className="gba:flex gba:items-center gba:flex-1 gba:min-w-0">
                                         <div className="gba:w-6"></div>
                                         <div className="gba:flex gba:items-center gba:gap-2 gba:flex-1 gba:min-w-0">
@@ -993,13 +1096,19 @@ export const LeadDocuments: React.FC<LeadDocumentsProps> = ({
                                         <Button variant="ghost" size="sm" onClick={(e) => { e.stopPropagation(); handleViewDocument(document); }} data-testid={`view-tree-document-${document.id}`} className="gba:p-1 gba:h-6 gba:w-6 gba:opacity-0 gba:group-hover:opacity-100" title="View">
                                           <EyeOutlined style={{ fontSize: '10px' }} />
                                         </Button>
-                                        <Button variant="ghost" size="sm" onClick={(e) => { e.stopPropagation(); handleDeleteDocument(document); }} data-testid={`delete-tree-document-${document.id}`} className="gba:p-1 gba:h-6 gba:w-6 gba:opacity-0 gba:group-hover:opacity-100" title="Delete">
+                                        <Button 
+                                          variant="ghost" 
+                                          size="sm" 
+                                          onClick={(e) => { e.stopPropagation(); handleDeleteDocument(document); }} 
+                                          data-testid={`delete-nested-document-${document.id}`} 
+                                          className="gba:p-1 gba:h-6 gba:w-6 gba:opacity-0 gba:group-hover:opacity-100" 
+                                          title="Delete"
+                                        >
                                           <DeleteOutlined style={{ fontSize: '10px' }} />
                                         </Button>
                                       </div>
                                     </div>
                                   </Draggable>
-                                </Droppable>
                               ))}
                             </>
                           )}
@@ -1011,7 +1120,7 @@ export const LeadDocuments: React.FC<LeadDocumentsProps> = ({
 
                   {/* Bottom root drop zone */}
                   <Droppable id={`drop-root-bottom`} data={{ targetFolderId: '' }} className="gba:w-full">
-                    <div className="gba:h-6 gba:bg-transparent" />
+                    <div className="gba:h-8 gba:bg-transparent" />
                   </Droppable>
                 </div>
                 <DragOverlay>
@@ -1048,12 +1157,7 @@ export const LeadDocuments: React.FC<LeadDocumentsProps> = ({
                 </div>
               ),
               addButton: {
-                onClick: () => startProcess({
-                  domain: 'customer-relations',
-                  processName: 'saveCrmDocument',
-                  payload: { leadId },
-                  builderType: 'NATIVE_SCREEN',
-                }),
+                onClick: () => console.log('TODO: Replace with AppActionButton - Add Document from DataContainer'),
                 label: 'Add Document',
                 'data-testid': 'add-document-button',
               },
@@ -1215,6 +1319,25 @@ export const LeadDocuments: React.FC<LeadDocumentsProps> = ({
           data-testid="rename-folder-input"
         />
       </Modal>
+
+      {deletePopup.open && deletePopup.document && (
+        <SimpleDocumentDeletePopup
+          isOpen={deletePopup.open}
+          onClose={() => setDeletePopup({ open: false })}
+          accessToken={context.accessToken}
+          documentId={deletePopup.document.id}
+          documentVersion={deletePopup.document.version}
+          documentName={deletePopup.document.name || 'Unnamed Document'}
+          leadId={leadId}
+          onSuccess={() => {
+            const id = deletePopup.document!.id;
+            setDocuments(prev => prev.filter(d => d.id !== id));
+            setDeletePopup({ open: false });
+            message.success('Document deleted successfully');
+          }}
+          onError={() => setDeletePopup({ open: false })}
+        />
+      )}
     </Card>
   );
 };

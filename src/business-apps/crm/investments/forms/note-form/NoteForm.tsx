@@ -119,20 +119,6 @@ const NoteForm: React.FC<NoteFormProps> = ({
       cancelButtonText={getTranslationFromI18nKeyAndLabel('crm:common.cancel', 'Cancel')}
       data-testid="investment-note-process-dialog"
     >
-      {isInvestmentContext && (
-        <div className="gba:mb-4 gba:p-4 gba:bg-blue-50 gba:border gba:border-blue-200 gba:rounded-md" data-testid="investment-context-header">
-          <h3 className="gba:text-sm gba:font-medium gba:text-blue-900 gba:mb-1">
-            {getTranslationFromI18nKeyAndLabel('crm:investmentNote.title', 'Investment Note')}
-          </h3>
-          <p className="gba:text-xs gba:text-blue-700">
-            {getTranslationFromI18nKeyAndLabel(
-              'crm:investmentNote.description', 
-              'This note will be associated with the current investment and its related account.'
-            )}
-          </p>
-        </div>
-      )}
-      
       <NoteSegment
         // Use controlled entity search from hook
         entities={entities}
