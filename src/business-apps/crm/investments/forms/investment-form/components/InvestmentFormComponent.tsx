@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { useForm } from 'react-hook-form';
 import { Button, Badge } from '@newwork/nw-design-system';
 import { PiSwap } from 'react-icons/pi';
@@ -11,13 +11,56 @@ import {
   DynamicGroupSegment
 } from './segments';
 import InvestmentTypeSelector from './InvestmentTypeSelector';
+import InvestmentLiquidFundTypeSelector from './InvestmentLiquidFundTypeSelector';
 import { useGetInvestmentById } from '@/common/data/investment';
 import { getInvestmentGroupFromContext } from '../utils/investmentDataTransformer';
 import { createInvestmentFormResolver } from '../utils/investmentFormSchema';
 import { InvestmentFormValues } from '../types';
 import { buildInvestmentPayload } from '@/common/data/investment';
+import { BusinessAppContextProps } from '@/common/BusinessAppContext';
+import { getValueByPath } from '@/common/utils/objectUtils';
 
 const prefixDataTestId = 'InvestmentForm';
+
+// ============================================================================
+// CLEAN ARCHITECTURE: Data Transformation Layer
+// ============================================================================
+
+/**
+ * Unified data transformation hook that computes all derived fields
+ * Eliminates the need for manual synchronization and workarounds
+ */
+const useUnifiedInvestmentData = (
+  rawFormValues: InvestmentFormValues,
+  businessAppContext: BusinessAppContextProps,
+  currentEmployee?: any
+): InvestmentFormValues => {
+  return useMemo(() => {
+    // Compute group reference
+    const investmentGroupRef = rawFormValues.investmentGroupRef || 
+      (rawFormValues.group ? `InvestmentGroup:v1:${rawFormValues.group}` : '');
+    
+    // Compute owner with clear priority order
+    const ownerEmployeeId = rawFormValues.ownerEmployeeId || 
+      businessAppContext.userInfo?.employeeDetails?.employeeId || 
+      currentEmployee?.id || 
+      '';
+    
+    return {
+      ...rawFormValues,
+      investmentGroupRef,
+      ownerEmployeeId,
+    };
+  }, [
+    // Recalculate when any form values change (including additional properties)
+    rawFormValues,
+    businessAppContext.userInfo?.employeeDetails?.employeeId,
+    currentEmployee?.id
+  ]);
+};
+
+
+// ============================================================================
 
 // Helper function to extract field name from property path, matching schema logic
 const getFormFieldName = (property: string): string => {
@@ -43,7 +86,14 @@ const mapInvestmentDataToFormFields = (rawInvestment: any, fieldsDef: any): Reco
     for (const group of fieldsDef.formFields) {
       for (const field of group.fields) {
         const fieldName = getFormFieldName(field.property);
-        const value = getValueByPath(rawInvestment, field.property);
+        let value = getValueByPath(rawInvestment, field.property);
+        
+        // SPECIAL FIX: If looking for liquidFundInvestment.additionalProperties but not found,
+        // try the investment.additionalProperties instead (common case for our setup)
+        if (value === undefined && field.property.startsWith('liquidFundInvestment.additionalProperties.')) {
+          const propertyName = field.property.replace('liquidFundInvestment.additionalProperties.', '');
+          value = getValueByPath(rawInvestment, `additionalProperties.${propertyName}`);
+        }
         
         if (value !== undefined && value !== null) {
           // Handle different field types
@@ -79,44 +129,6 @@ const formatDateForInput = (dateValue: any): string => {
   }
 };
 
-// Generic helper to resolve values from object using dot notation paths
-const getValueByPath = (obj: any, path: string): any => {
-  const parts = path.split('.');
-  
-  return parts.reduce((current, key, index) => {
-    if (current && typeof current === 'object') {
-      // Handle array access (e.g., realEstateInvestment[0].buildingYear)
-      if (Array.isArray(current)) {
-        return current[0]?.[key];
-      }
-      
-      // Special handling for additionalProperties - parse JSON if it's a string
-      if (key === 'additionalProperties' && typeof current[key] === 'string') {
-        try {
-          const parsed = JSON.parse(current[key]);
-          // If this is the last key in the path, return the whole parsed object
-          // Otherwise, continue navigation through the parsed object
-          if (index === parts.length - 1) {
-            return parsed;
-          }
-          return parsed;
-        } catch (error) {
-          console.warn('Failed to parse additionalProperties JSON:', current[key], error);
-          return undefined;
-        }
-      }
-      
-      // Special handling: if requesting a relationship object but we need the ID for form field
-      if (key === 'loanRecipientInvestmentAccount' && current[key]?.id) {
-        // Return the ID of the related object for form compatibility
-        return current[key].id;
-      }
-      
-      return current[key];
-    }
-    return undefined;
-  }, obj);
-};
 
 // Helper function to get group display name from catalog data
 const getGroupDisplayName = (
@@ -151,9 +163,10 @@ export const InvestmentFormComponent: React.FC = () => {
     setFormValues,
     getFormFieldsDefinition,
     currentEmployee,
-    investmentCatalogData
+    investmentCatalogData,
+    investmentCatalogLoading
   } = useInvestmentFormContext();
-
+  
   // Add the investment fetch hook
   const { fetchInvestmentById } = useGetInvestmentById(businessAppContext);
   
@@ -171,6 +184,11 @@ export const InvestmentFormComponent: React.FC = () => {
     businessAppContext.additionalData?.psi_taskPayload?.psi_initialParameters?.investmentId;
   const preSelectedGroup = getInvestmentGroupFromContext(businessAppContext.additionalData);
   const isUpdate = Boolean(externalInvestmentId);
+
+  // Liquid fund flow states
+  const isLiquidFund = formValues.group === 'LIQUID_FUND';
+  const hasInvestmentType = Boolean(formValues.investmentTypeRef);
+  const hasLiquidFundType = Boolean(formValues.investmentLiquidFundTypeRef);
 
   // Clean workflow initialization
   useEffect(() => {
@@ -228,27 +246,14 @@ export const InvestmentFormComponent: React.FC = () => {
               loanStartDate: formatDateForInput(rawInvestment.loanStartDate),
               loanEndDate: formatDateForInput(rawInvestment.loanEndDate),
               loanInterestClaim: rawInvestment.loanInterestClaim?.toString() || '',
+              // Liquid fund type (for liquid fund investments)
+              investmentLiquidFundTypeRef: (rawInvestment as any).liquidFundInvestment?.[0]?.investmentLiquidFundType?.code 
+                ? `InvestmentLiquidFundType:v1:${(rawInvestment as any).liquidFundInvestment[0].investmentLiquidFundType.code}`
+                : '',
             };
             
-            // Step 4 & 5: If type is selected, map dynamic fields based on property paths
-            let dynamicDefaults = {};
-            if (typeRef) {
-              const fieldsDef = await getFormFieldsDefinition();
-              dynamicDefaults = mapInvestmentDataToFormFields(rawInvestment, fieldsDef);
-              
-              // Debug the mapping process
-              console.groupCollapsed('🔍 Investment Form Clean Workflow Debug');
-              console.log('Raw investment from GraphQL:', rawInvestment);
-              console.log('Extracted group code:', groupCode);
-              console.log('Extracted type code:', typeCode);
-              console.log('Form fields definition:', fieldsDef);
-              console.log('Mapped dynamic defaults:', dynamicDefaults);
-              console.log('Final form values:', { ...baseFormData, ...dynamicDefaults });
-              console.groupEnd();
-            }
-            
-            // Set form values and go to form step
-            setFormValues({ ...baseFormData, ...dynamicDefaults });
+            // Set base form values immediately (dynamic fields will be mapped separately after catalog loads)
+            setFormValues(baseFormData);
             setCurrentStep('form');
           } else {
             setLoadingError('Investment not found');
@@ -284,8 +289,58 @@ export const InvestmentFormComponent: React.FC = () => {
     initializeForm();
   }, [externalInvestmentId, preSelectedGroup]);
 
+  // Ref to track mapping state per investment ID
+  const lastMappedInvestmentId = useRef<string | null>(null);
+
+  // Separate effect: Map dynamic fields after catalog data is loaded
+  useEffect(() => {
+    if (!rawInvestmentData || !investmentCatalogData || investmentCatalogLoading) {
+      return; // Wait for both raw data and catalog to be available
+    }
+
+    const currentInvestmentId = formValues.id || 'create-mode';
+    
+    // Check if we've already mapped for this specific investment
+    if (lastMappedInvestmentId.current === currentInvestmentId) {
+      return; // Already mapped for this investment
+    }
+
+    const mapDynamicFields = () => {
+      const fieldsDef = getFormFieldsDefinition();
+      
+      if (fieldsDef) {
+        const dynamicDefaults = mapInvestmentDataToFormFields(rawInvestmentData, fieldsDef);
+        
+        if (Object.keys(dynamicDefaults).length > 0) {
+          // Create merged object directly and set form values
+          const mergedFormValues = { ...formValues, ...dynamicDefaults };
+          setFormValues(mergedFormValues);
+          
+          // Mark this investment as mapped
+          lastMappedInvestmentId.current = currentInvestmentId;
+        }
+      }
+    };
+
+    mapDynamicFields();
+  }, [rawInvestmentData, investmentCatalogData, investmentCatalogLoading, formValues.id, getFormFieldsDefinition]);
+
+  // Reset dynamic fields mapping when investment type or liquid fund type changes (only for create mode)
+  useEffect(() => {
+    const isUpdateMode = Boolean(formValues.id);
+    if (!isUpdateMode) {
+      lastMappedInvestmentId.current = null; // Reset for create mode when type changes
+    }
+  }, [formValues.investmentTypeRef, formValues.investmentLiquidFundTypeRef, formValues.id]);
+
   // Step 3: Handle group selection from SelectSegment
   const handleGroupSelect = (group: string) => {
+    // Reset dynamic fields mapping when group changes (only for create mode)
+    const isUpdateMode = Boolean(formValues.id);
+    if (!isUpdateMode) {
+      lastMappedInvestmentId.current = null;
+    }
+    
     // Clean form values when switching groups in create mode
     // Preserve existing ownerEmployeeId if it exists, fallback to currentEmployee or businessAppContext
     const preservedOwnerId = formValues.ownerEmployeeId || 
@@ -333,7 +388,7 @@ export const InvestmentFormComponent: React.FC = () => {
     const loadFormFields = async () => {
       if (formValues.investmentTypeRef) {
         try {
-          const fieldsDef = await getFormFieldsDefinition();
+          const fieldsDef = getFormFieldsDefinition();
           setFormFieldsDefinition(fieldsDef);
         } catch (error) {
           console.error('Error loading form fields for validation:', error);
@@ -342,21 +397,30 @@ export const InvestmentFormComponent: React.FC = () => {
     };
     
     loadFormFields();
-  }, [formValues.investmentTypeRef, getFormFieldsDefinition]);
+  }, [formValues.group, formValues.investmentTypeRef, formValues.investmentLiquidFundTypeRef, getFormFieldsDefinition]);
   
   const formResolver = createInvestmentFormResolver(formFieldsDefinition);
   
+  // CLEAN ARCHITECTURE: Use unified data transformation
+  const unifiedFormValues = useUnifiedInvestmentData(formValues, businessAppContext, currentEmployee);
+  
+  // Debug logging for form values (can be removed in production)
+  // useEffect(() => {
+  //   console.log('Current formValues:', formValues);
+  //   console.log('Unified form values:', unifiedFormValues);
+  // }, [formValues, unifiedFormValues]);
+  
   const form = useForm<InvestmentFormValues>({
-    resolver: formResolver as any, // Type assertion to handle the interface mismatch
-    defaultValues: formValues,
-    // Removed 'values' prop to prevent form reset when formValues change
-    // This allows user input to persist when investment type changes
+    resolver: formResolver as any,
+    values: unifiedFormValues, // Always sync with unified data
+    resetOptions: {
+      keepDirtyValues: true, // Preserve user input during resets
+    },
   });
 
-  // Reset form when formValues change (e.g., after loading investment data)
-  useEffect(() => {
-    form.reset(formValues);
-  }, [formValues, form]);
+
+  // CLEAN ARCHITECTURE: No manual form reset needed
+  // The 'values' prop with 'keepDirtyValues: true' handles this automatically
 
 
   // Show loading spinner
@@ -408,40 +472,49 @@ export const InvestmentFormComponent: React.FC = () => {
     );
   }
 
-  // Show main form step  
+  // Show main form step
+  
+
   return (
       <AppActionForm
         form={form} 
+        formData={unifiedFormValues}
         processType={isUpdate ? 'update' : 'create'}
+        validateForm={() => {
+          // Use react-hook-form validation state instead of bypassing validation entirely
+          const errors = form.formState.errors;
+          if (Object.keys(errors).length > 0) {
+            const errorMessages = Object.entries(errors).map(([field, error]) => 
+              `${field}: ${error?.message || 'Invalid value'}`
+            );
+            return errorMessages; // Return array of error messages
+          }
+          return null; // Return null when validation passes
+        }}
         onSubmit={async (formData) => {
-          // Check form validity before proceeding
-          const isFormValid = await form.trigger(); // Trigger validation
-          if (!isFormValid) {
-            throw new Error('Please fill in all required fields');
+          try {
+            // CLEAN ARCHITECTURE: Ensure investmentGroupRef is properly formatted and required fields are present
+            const enhancedFormData = {
+              ...formData,
+              // Ensure investmentGroupRef is in correct format
+              investmentGroupRef: formData.investmentGroupRef || (formData.group ? `InvestmentGroup:v1:${formData.group}` : ''),
+              // Ensure ownerEmployeeId is present (should already be from unified data)
+              ownerEmployeeId: formData.ownerEmployeeId || businessAppContext.userInfo?.employeeDetails?.employeeId || '',
+              // Ensure accountId is present - use empty string if not provided (backend may auto-assign)
+              accountId: formData.accountId || '', // Let backend handle missing accountId
+            };
+            
+            // Build payload directly - no manual field injection needed
+            const payload = buildInvestmentPayload(enhancedFormData, businessAppContext, { 
+              isUpdate, 
+              rawInvestmentData 
+            });
+            
+            return payload;
+          } catch (error) {
+            console.error('❌ Error building payload:', error);
+            throw error;
           }
-          
-          // Ensure investmentGroupRef is properly set from formValues state
-          // If we only have the group code, convert it to full reference format
-          let groupRef = formValues.investmentGroupRef;
-          if (!groupRef && formValues.group) {
-            // Convert group code to full reference format
-            groupRef = `InvestmentGroup:v1:${formValues.group}`;
-          }
-          
-          const formDataWithGroupRef = {
-            ...formData,
-            investmentGroupRef: groupRef,
-            group: formValues.group
-          };
-          
-        // Use central investment payload builder
-        const payload = buildInvestmentPayload(formDataWithGroupRef, businessAppContext, { 
-          isUpdate, 
-          rawInvestmentData 
-        });
-        
-        // TODO: Send payload to API
-          return payload;
         }}
         businessAppContext={businessAppContext}
         data-testid={`${prefixDataTestId}-form`}
@@ -510,8 +583,16 @@ export const InvestmentFormComponent: React.FC = () => {
         {/* Investment Type Selector */}
         <InvestmentTypeSelector currentGroup={formValues.group} />
 
-        {/* Dynamic Fields (rendered when type is selected) */}
-        {formValues.investmentTypeRef && (
+        {/* NEW: Liquid Fund Type Selector (for liquid funds with investment type selected) */}
+        {isLiquidFund && hasInvestmentType && (
+          <InvestmentLiquidFundTypeSelector currentInvestmentType={formValues.investmentTypeRef || ''} />
+        )}
+
+        {/* Dynamic Fields - Conditional Display:
+             - For NON-liquid funds: Show when investment type is selected
+             - For liquid funds: Show when BOTH investment type AND liquid fund type are selected */}
+        {((formValues.investmentTypeRef && !isLiquidFund) || 
+          (isLiquidFund && hasInvestmentType && hasLiquidFundType)) && (
           <DynamicGroupSegment />
         )}
           </div>
