@@ -24,6 +24,7 @@ export const categoryIcons: Record<string, Icon> = {
   'flow-templates': PhosphorIcons.TreeIcon,
   'workflow': PhosphorIcons.TreeIcon, // Alias for flow-templates
   'cbs': PhosphorIcons.BriefcaseIcon, // Core Business Services
+  'uncategorized': PhosphorIcons.QuestionIcon, // For uncategorized templates
 };
 
 export const getCategoryIcon = (iconNameOrCategoryId: string): Icon => {

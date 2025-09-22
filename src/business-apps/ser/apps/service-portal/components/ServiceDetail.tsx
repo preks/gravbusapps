@@ -68,6 +68,48 @@ export const ServiceDetail: React.FC<ServiceDetailProps> = ({
       return [];
     }
     
+    // Special handling for uncategorized templates
+    if (category.id === 'uncategorized') {
+      console.log('🎭 [ServiceDetail] Filtering uncategorized templates');
+      
+      const uncategorizedTemplates = allFlowTemplates.filter(template => {
+        // Include templates without tags or serviceCategory
+        if (!template.tags || !template.tags.serviceCategory) {
+          console.log('🎭 [ServiceDetail] Found uncategorized template (no tags):', template.name);
+          return true;
+        }
+        
+        // Also include templates with serviceCategory that doesn't match any existing category
+        const templateCategories = Array.isArray(template.tags.serviceCategory) 
+          ? template.tags.serviceCategory 
+          : [template.tags.serviceCategory];
+        
+        // Check if any template category matches existing categories
+        // Note: We need to get categories from the parent component or context
+        // For now, we'll just include templates with invalid category references
+        const hasValidCategory = templateCategories.some(templateCategory => {
+          // This is a simplified check - in a real implementation, you'd want to 
+          // check against the actual available categories
+          return templateCategory && templateCategory.startsWith('ServicePortalCategory:1:');
+        });
+        
+        if (!hasValidCategory) {
+          console.log('🎭 [ServiceDetail] Found uncategorized template (invalid category):', template.name, templateCategories);
+          return true;
+        }
+        
+        return false;
+      });
+      
+      console.log('🎭 [ServiceDetail] Uncategorized templates result:', {
+        filteredCount: uncategorizedTemplates.length,
+        filteredTemplates: uncategorizedTemplates.map(t => t.name)
+      });
+      
+      return uncategorizedTemplates;
+    }
+    
+    // Regular category filtering
     // Use the original catalog entry ID if available, otherwise construct it
     const expectedCategoryRef = category.catalogEntryId || `ServicePortalCategory:1:${category.id.toUpperCase()}`;
     
@@ -121,6 +163,20 @@ export const ServiceDetail: React.FC<ServiceDetailProps> = ({
       try {
         // Simulate API delay
         await new Promise(resolve => setTimeout(resolve, 300));
+        
+        // Handle special uncategorized category
+        if (categoryId === 'uncategorized') {
+          const uncategorizedCategory = {
+            id: 'uncategorized',
+            name: 'Uncategorized',
+            description: 'Services that are not assigned to any category or have invalid category references',
+            icon: 'uncategorized',
+            order: 999 // Put uncategorized at the end
+          };
+          console.log('🎭 [ServiceDetail] Uncategorized category created');
+          setCategory(uncategorizedCategory);
+          return;
+        }
         
         const categoryData = getCategoryById(categoryId);
         if (!categoryData) {

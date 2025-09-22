@@ -76,9 +76,38 @@ export const ServiceCatalog: React.FC<ServiceCatalogProps> = ({
     }).length;
   };
 
+  // Function to count uncategorized templates
+  const getUncategorizedTemplatesCount = (): number => {
+    if (!allFlowTemplates || allFlowTemplates.length === 0) {
+      return 0;
+    }
+
+    return allFlowTemplates.filter(template => {
+      // Count templates without tags or serviceCategory
+      if (!template.tags || !template.tags.serviceCategory) {
+        return true;
+      }
+      
+      // Also count templates with serviceCategory that doesn't match any existing category
+      const templateCategories = Array.isArray(template.tags.serviceCategory) 
+        ? template.tags.serviceCategory 
+        : [template.tags.serviceCategory];
+      
+      // Check if any template category matches existing categories
+      const hasValidCategory = templateCategories.some(templateCategory => {
+        return catalogCategories.some(category => {
+          const expectedCategoryRef = `ServicePortalCategory:1:${category.id.toUpperCase()}`;
+          return templateCategory === expectedCategoryRef;
+        });
+      });
+      
+      return !hasValidCategory;
+    }).length;
+  };
+
   // Transform category groups into sections
   const sections: LauncherSectionConfig[] = useMemo(() => {
-    return categoryGroups.map(group => {
+    const regularSections = categoryGroups.map(group => {
       // Transform group categories to navigation cards
       const groupCards = group.categories.map((category, index): NavigationCardInput => {
         const variants = ['ext1', 'ext2', 'ext3', 'ext4', 'ext5', 'ext6', 'ext7', 'ext8'] as const;
@@ -108,7 +137,36 @@ export const ServiceCatalog: React.FC<ServiceCatalogProps> = ({
         cards: groupCards
       };
     });
-  }, [categoryGroups, onCategorySelect, allFlowTemplates]);
+
+    // Add uncategorized section if there are uncategorized templates
+    const uncategorizedCount = getUncategorizedTemplatesCount();
+    if (uncategorizedCount > 0) {
+      const uncategorizedSection = {
+        id: 'uncategorized-section',
+        title: 'Uncategorized Services',
+        description: 'Services that are not assigned to any category',
+        cards: [{
+          id: 'uncategorized',
+          title: 'Uncategorized',
+          description: 'Templates without category tags or with invalid categories',
+          icon: getCategoryIcon('uncategorized'),
+          stats: {
+            value: uncategorizedCount,
+            label: uncategorizedCount === 1 ? 'Service' : 'Services'
+          },
+          primaryAction: {
+            label: 'View Services',
+            onClick: () => onCategorySelect('uncategorized')
+          },
+          variant: 'ext8' as const, // Use a distinct variant for uncategorized
+        }]
+      };
+      
+      regularSections.push(uncategorizedSection);
+    }
+
+    return regularSections;
+  }, [categoryGroups, catalogCategories, onCategorySelect, allFlowTemplates]);
 
   // Quick actions for common tasks (conditionally include Service Desk)
   const quickActions: QuickActionData[] = useMemo(() => {

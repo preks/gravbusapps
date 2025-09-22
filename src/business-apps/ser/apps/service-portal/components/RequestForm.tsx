@@ -51,6 +51,7 @@ import { useRealEmployeeData, getEmployeeOptions, getJobPositionOptions, getDepa
 import { useEmploymentTypeCatalog } from '../hooks/useEmploymentTypeCatalog';
 import { DynamicFormGenerator } from '../../../components/DynamicFormGenerator';
 import { flowbotClient } from '@/common/network/flowbot';
+import { parseMarkdownForReact } from '@/common/utils/markdownUtils';
 
 export interface RequestFormProps extends BusinessAppContextProps {
   template?: ServiceRequestTemplate;
@@ -1458,9 +1459,10 @@ Please try again in a few moments, or proceed with submitting your request.`);
                 {/* AI Response Text */}
                 <Card className="gba:p-6 gba:bg-gradient-to-br gba:from-gray-50 gba:to-white gba:border-l-4 gba:border-l-purple-500">
                   <div className="gba:prose gba:prose-sm gba:max-w-none">
-                    <div className="gba:whitespace-pre-line gba:text-gray-800 gba:leading-relaxed">
-                      {aiResponse}
-                    </div>
+                    <div 
+                      className="gba:whitespace-pre-line gba:text-gray-800 gba:leading-relaxed"
+                      dangerouslySetInnerHTML={parseMarkdownForReact(aiResponse)}
+                    />
                   </div>
                 </Card>
 
