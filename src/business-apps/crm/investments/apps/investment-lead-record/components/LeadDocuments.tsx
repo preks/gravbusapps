@@ -38,6 +38,54 @@ import { SimpleDocumentDeletePopup } from '@/business-apps/crm/investments/popup
 // Use the actual investment document type
 type Document = InvestmentDocument;
 
+/**
+ * Helper function to determine if a document is a folder based on multiple detection criteria
+ * @param doc - The document to analyze
+ * @param enableLogging - Whether to log the analysis details (default: false)
+ * @returns boolean - true if the document is determined to be a folder
+ */
+const isDocumentFolder = (doc: Document, enableLogging: boolean = false): boolean => {
+  // Multiple ways to detect a folder:
+  // 1. folder field is true (when backend works correctly)
+  // 2. has no file characteristics but has a name (common folder pattern)
+  // 3. documentType indicates it's a folder
+  // 4. has no documentType AND no file content (created as folder but backend bug)
+  const isFolderByField = doc.folder === true;
+  const isFolderByContent = !doc.mimeType && !doc.file && !!doc.name && !doc.documentType;
+  const isFolderByType = doc.documentType?.value?.toLowerCase().includes('folder') || 
+                       doc.documentGroup?.value?.toLowerCase().includes('folder');
+  
+  // Backend bug workaround: if it has no file data, no document type, but has a name, it's likely a folder
+  const isFolderByPattern = !doc.mimeType && !doc.file && !doc.fileSize && 
+                           !doc.documentType && !!doc.name && doc.name.trim() !== '';
+  
+  const isFolder = isFolderByField || isFolderByContent || isFolderByType || isFolderByPattern;
+  const looksLikeFile = !!doc.mimeType || !!doc.file || !!doc.fileSize;
+  
+  // A folder should not have file characteristics
+  const result = isFolder && !looksLikeFile;
+  
+  if (enableLogging) {
+    console.log(`Document "${doc.name}" analysis:`, {
+      folder: doc.folder,
+      mimeType: doc.mimeType,
+      file: doc.file,
+      fileSize: doc.fileSize,
+      documentType: doc.documentType?.value,
+      documentGroup: doc.documentGroup?.value,
+      isFolderByField,
+      isFolderByContent,
+      isFolderByType,
+      isFolderByPattern,
+      isFolder,
+      looksLikeFile,
+      result
+    });
+  }
+  
+  return result;
+};
+
 interface DocumentFolder {
   name: string;
   count: number;
@@ -446,45 +494,7 @@ export const LeadDocuments: React.FC<LeadDocumentsProps> = ({
       parentDocument: d.parentDocument 
     })));
     
-    const allFolders = allDocs.filter(d => {
-      // Multiple ways to detect a folder:
-      // 1. folder field is true (when backend works correctly)
-      // 2. has no file characteristics but has a name (common folder pattern)
-      // 3. documentType indicates it's a folder
-      // 4. has no documentType AND no file content (created as folder but backend bug)
-      const isFolderByField = d.folder === true;
-      const isFolderByContent = !d.mimeType && !d.file && !!d.name && !d.documentType;
-      const isFolderByType = d.documentType?.value?.toLowerCase().includes('folder') || 
-                           d.documentGroup?.value?.toLowerCase().includes('folder');
-      
-      // Backend bug workaround: if it has no file data, no document type, but has a name, it's likely a folder
-      const isFolderByPattern = !d.mimeType && !d.file && !d.fileSize && 
-                               !d.documentType && !!d.name && d.name.trim() !== '';
-      
-      const isFolder = isFolderByField || isFolderByContent || isFolderByType || isFolderByPattern;
-      const looksLikeFile = !!d.mimeType || !!d.file || !!d.fileSize;
-      
-      // A folder should not have file characteristics
-      const result = isFolder && !looksLikeFile;
-      
-      console.log(`Document "${d.name}" analysis:`, {
-        folder: d.folder,
-        mimeType: d.mimeType,
-        file: d.file,
-        fileSize: d.fileSize,
-        documentType: d.documentType?.value,
-        documentGroup: d.documentGroup?.value,
-        isFolderByField,
-        isFolderByContent,
-        isFolderByType,
-        isFolderByPattern,
-        isFolder,
-        looksLikeFile,
-        result
-      });
-      
-      return result;
-    });
+    const allFolders = allDocs.filter(d => isDocumentFolder(d, true));
     
     console.log('Filtered folders:', allFolders.map(f => ({ id: f.id, name: f.name, folder: f.folder })));
     const docsForFilter = Array.isArray(filteredDocuments) ? filteredDocuments : [];
@@ -523,14 +533,7 @@ export const LeadDocuments: React.FC<LeadDocumentsProps> = ({
   const rootLevelFiles: Document[] = useMemo(() => {
     const docsForFilter = Array.isArray(filteredDocuments) ? filteredDocuments : [];
     return docsForFilter.filter(d => {
-      // Use the same logic as isFileDocument
-      const isFolderByField = d.folder === true;
-      const isFolderByContent = !d.mimeType && !d.file && !!d.name && !d.documentType;
-      const isFolderByType = d.documentType?.value?.toLowerCase().includes('folder') || 
-                           d.documentGroup?.value?.toLowerCase().includes('folder');
-      const isFolderByPattern = !d.mimeType && !d.file && !d.fileSize && 
-                               !d.documentType && !!d.name && d.name.trim() !== '';
-      const isFolder = isFolderByField || isFolderByContent || isFolderByType || isFolderByPattern;
+      const isFolder = isDocumentFolder(d);
       const isFile = !isFolder && (!!d.mimeType || !!d.file || !!d.fileSize);
       
       return isFile && !d.parentDocument;
@@ -624,13 +627,7 @@ export const LeadDocuments: React.FC<LeadDocumentsProps> = ({
 
   const isFileDocument = (d: Document): boolean => {
     // A file document is something that's not a folder and has file characteristics
-    const isFolderByField = d.folder === true;
-    const isFolderByContent = !d.mimeType && !d.file && !!d.name && !d.documentType;
-    const isFolderByType = d.documentType?.value?.toLowerCase().includes('folder') || 
-                         d.documentGroup?.value?.toLowerCase().includes('folder');
-    const isFolderByPattern = !d.mimeType && !d.file && !d.fileSize && 
-                             !d.documentType && !!d.name && d.name.trim() !== '';
-    const isFolder = isFolderByField || isFolderByContent || isFolderByType || isFolderByPattern;
+    const isFolder = isDocumentFolder(d);
     
     return !isFolder && (!!d.mimeType || !!d.file || !!d.fileSize);
   };
