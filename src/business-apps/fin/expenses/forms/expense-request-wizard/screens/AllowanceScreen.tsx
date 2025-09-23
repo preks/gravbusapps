@@ -7,7 +7,7 @@ import { BusinessAppContextProps } from '@/business-apps/types';
 import AllowanceContainer from '../components/AllowanceContainer';
 import { CostCenter } from '../utils/types';
 import { getTravelRegionsAndUser, getUserCostCenters, getUserProjects, getAllowanceData } from '../ExpenseRequestWizardQueries';
-import { DEDUCTIONS_TYPES_ENUM, DEDUCTION_KEYS, DEFAULT_ITEM_LIST_LIMIT } from '../constants/constants';
+import { DEDUCTIONS_TYPES_ENUM, DEDUCTIONS_TYPES_ENUM_V2, DEDUCTION_KEYS, DEFAULT_ITEM_LIST_LIMIT } from '../constants/constants';
 import { getAllowanceItemsFunction } from '../utils/itemsScreenUtils';
 import { createAllowanceScreenLogObject } from '../utils/allowanceScreenUtils';
 import { EVENTS } from '../../../utils/constants';
@@ -122,10 +122,10 @@ const AllowanceScreen: React.FC<AllowanceScreenProps> = (props) => {
         const setup = Array.isArray(response?.ExpenseRuleAllowanceSetup) ? response.ExpenseRuleAllowanceSetup : [];
         const issues = new Set<string>(setup.map((s: any) => s.issue).filter(Boolean));
         const keys: string[] = [];
-        if (issues.has(DEDUCTIONS_TYPES_ENUM.BREAKFAST)) keys.push(DEDUCTION_KEYS.BREAKFAST);
-        if (issues.has(DEDUCTIONS_TYPES_ENUM.LUNCH)) keys.push(DEDUCTION_KEYS.LUNCH);
-        if (issues.has(DEDUCTIONS_TYPES_ENUM.DINNER)) keys.push(DEDUCTION_KEYS.DINNER);
-        if (issues.has(DEDUCTIONS_TYPES_ENUM.OVERNIGHT)) keys.push(DEDUCTION_KEYS.OVERNIGHT);
+        if (issues.has(DEDUCTIONS_TYPES_ENUM.BREAKFAST) || issues.has(DEDUCTIONS_TYPES_ENUM_V2.BREAKFAST)) keys.push(DEDUCTION_KEYS.BREAKFAST);
+        if (issues.has(DEDUCTIONS_TYPES_ENUM.LUNCH) || issues.has(DEDUCTIONS_TYPES_ENUM_V2.LUNCH)) keys.push(DEDUCTION_KEYS.LUNCH);
+        if (issues.has(DEDUCTIONS_TYPES_ENUM.DINNER) || issues.has(DEDUCTIONS_TYPES_ENUM_V2.DINNER)) keys.push(DEDUCTION_KEYS.DINNER);
+        if (issues.has(DEDUCTIONS_TYPES_ENUM.OVERNIGHT) || issues.has(DEDUCTIONS_TYPES_ENUM_V2.OVERNIGHT)) keys.push(DEDUCTION_KEYS.OVERNIGHT);
         setVisibleDeductionKeys(keys);
         if (keys.length === 0) {
           setDeductionsData([]);

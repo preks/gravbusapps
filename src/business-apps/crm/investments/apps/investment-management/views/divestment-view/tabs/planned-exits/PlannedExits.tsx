@@ -178,7 +178,12 @@ const PlannedExits: React.FC<PlannedExitsProps> = ({ accessToken, userInfo }) =>
           refetch();
         }
       } catch (err) {
-        // Error handling process completion
+        console.error('Error handling process completion event:', {
+          eventType: event?.type,
+          eventDetail: event?.detail,
+          error: err
+        });
+        // Continue execution - don't let event processing errors break the component
       }
     };
 
@@ -488,10 +493,9 @@ const PlannedExits: React.FC<PlannedExitsProps> = ({ accessToken, userInfo }) =>
                       <div className="gba:flex gba:items-center gba:gap-2">
                         <User className="gba:w-4 gba:h-4 gba:text-gray-600" />
                         <span>
-                          {investment.ownerEmployee?.displayName || 
-                           investment.ownerEmployee?.firstName && investment.ownerEmployee?.lastName
-                             ? `${investment.ownerEmployee.firstName} ${investment.ownerEmployee.lastName}`
-                             : "N/A"}
+                          {investment.ownerEmployee 
+                            ? investment.ownerEmployee.displayName || `${investment.ownerEmployee.firstName || ''} ${investment.ownerEmployee.lastName || ''}`.trim() || '-'
+                            : '-'}
                         </span>
                       </div>
                     </TableCell>)}

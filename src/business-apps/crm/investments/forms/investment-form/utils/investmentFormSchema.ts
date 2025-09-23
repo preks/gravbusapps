@@ -8,11 +8,12 @@ const baseInvestmentSchema = z.object({
   name: z.string().min(1, 'Investment name is required'),
   ownerEmployeeId: z.string().min(1, 'Investment owner is required'),
   group: z.string().min(1, 'Investment group is required'),
-  investmentTypeRef: z.string().min(1, 'Investment type is required'),
   
   // Optional fields that might be present
   id: z.string().optional(),
   description: z.string().optional(),
+  investmentTypeRef: z.string().optional(), // Made optional - will be conditionally required
+  investmentLiquidFundTypeRef: z.string().optional(), // Added for liquid funds
 });
 
 // Helper function to extract field name from property path (e.g., "realEstateInvestment.totalCost" -> "totalCost")
@@ -149,7 +150,24 @@ export const createDynamicInvestmentSchema = (formFieldsDefinition?: FormFieldsD
     }
   }
   
-  return baseInvestmentSchema.extend(dynamicFields);
+  // Create base schema with dynamic fields
+  const schemaWithDynamicFields = baseInvestmentSchema.extend(dynamicFields);
+  
+  // Add conditional validation for investment flow
+  return schemaWithDynamicFields.refine(
+    (data) => {
+      // For liquid funds: either investmentTypeRef OR investmentLiquidFundTypeRef must be present
+      if (data.group === 'LIQUID_FUND') {
+        return data.investmentTypeRef || data.investmentLiquidFundTypeRef;
+      }
+      // For non-liquid funds: investmentTypeRef is required
+      return !!data.investmentTypeRef;
+    },
+    {
+      message: 'Investment type or liquid fund type is required',
+      path: ['investmentTypeRef'], // This will show the error on the investmentTypeRef field
+    }
+  );
 };
 
 /**

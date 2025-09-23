@@ -371,6 +371,9 @@ export const GET_INVESTMENTS = (variables: InvestmentQueryVariables = {}): strin
           interestRate
           bankAccountNumber
           earlyTerminationAllowed
+          investmentLiquidFundType {
+            ${CATALOG_ENTRY}
+          }
         }
       }
       

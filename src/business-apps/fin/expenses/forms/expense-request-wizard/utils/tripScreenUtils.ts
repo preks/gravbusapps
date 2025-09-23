@@ -85,7 +85,7 @@ export const createTripLogObject = (
       requestTypeRef: initialRequest.requestTypeRef,
       additionalProperties: initialRequest.additionalProperties || {},
       currencyRef: currentCurrency || initialRequest.currency?.id,
-      ...(typeof overnightAccommodation === 'boolean' ? { overnightAccommodation } : {})
+      overnightAccommodation: !!overnightAccommodation
     }
   };
 };
