@@ -1,7 +1,7 @@
 import React, { useMemo } from 'react';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
-import { ActivitySegment, createActivitySegmentResolver } from '@/common/components/common-relations/form-segments';
+import ActivitySegment, { createActivitySegmentResolver } from '@/common/components/common-relations/form-segments/activity-segment/ActivitySegment';
 import { AppActionForm } from '@/components/app-action-form';
 import { useForm } from 'react-hook-form';
 

@@ -2,7 +2,7 @@ import React from 'react';
 import { Combobox, Avatar, AvatarImage, AvatarFallback, Badge } from '@newwork/nw-design-system';
 import { Briefcase, Building2, Rocket } from 'lucide-react';
 
-export type EntityType = 'account' | 'contact' | 'opportunity' | 'lead';
+export type EntityType = 'account' | 'contact' | 'opportunity' | 'lead' | 'investment';
 
 export interface EntitySelectOption {
   id: string;
@@ -34,7 +34,7 @@ const EntitySelect = React.forwardRef<HTMLButtonElement, EntitySelectProps & Rec
   loading,
   hasMore,
   onLoadMore,
-  placeholder = 'Search leads, contacts, accounts, or opportunities...',
+  placeholder = 'Search leads, contacts, accounts, opportunities, or investments...',
   searchPlaceholder = 'Type to search...',
   className,
   'data-testid': dataTestId = 'entity-select',
