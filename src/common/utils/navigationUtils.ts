@@ -28,6 +28,7 @@ const PLATFORM_URL_TO_APP_MAPPING: NavigationMapping = {
   '/platform/fin/expenses/backoffice-expenses': 'fin/expenses/apps/backoffice-expenses',
   '/platform/employee-record': 'hr/core/apps/employee-record',
   '/platform/sales-demo/service-desk': 'ser/apps/service-desk',
+  '/platform/sales-demo/service-launcher': 'ser/apps/service-portal',
   '/platform/mdm/pipeline-data': 'mdm/apps/pipeline-data',
   '/platform/mdm/lead-data': 'mdm/apps/lead-data',
   '/platform/mdm/operation-data': 'mdm/apps/operation-data',

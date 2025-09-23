@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { ServiceCatalog, ServiceDetail, RequestForm, MyRequests } from './components';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
-import { WorkflowEngine, ServiceRequestTemplate, FlowTemplate } from '../../types';
+import { ServiceRequestTemplate, FlowTemplate } from '../../types';
+import type { WorkflowEngine } from '../../services';
 import { mockWorkflowEngine, createConductorWorkflowEngine } from '../../services';
 import { useServicesFeatureFlag } from '../../utils/featureFlags';
 
@@ -28,19 +29,25 @@ interface ServicePortalState {
 
 // Parse URL parameters for view and state
 const parseUrlParams = () => {
+  const path = window.location.pathname;
   const searchParams = new URLSearchParams(window.location.search);
+  
+  // Match legacy path patterns: /category/hr, /service/123, /request/456
+  const categoryMatch = path.match(/\/category\/([^\/]+)/);
+  const serviceMatch = path.match(/\/service\/([^\/]+)/);
+  const requestMatch = path.match(/\/request\/([^\/]+)/);
   
   // Get view from URL parameter (e.g., ?view=myRequests)
   const viewFromUrl = searchParams.get('view') || 'catalog';
   
-  // Get category from URL parameter (e.g., ?category=hr)
-  const categoryFromUrl = searchParams.get('category') || undefined;
+  // Get category from URL parameter (new approach) or path (legacy)
+  const categoryFromUrl = searchParams.get('category') || (categoryMatch ? categoryMatch[1] : undefined);
   
-  // Get service from URL parameter (e.g., ?service=123)
-  const serviceFromUrl = searchParams.get('service') || undefined;
+  // Get service from URL parameter (new approach) or path (legacy)
+  const serviceFromUrl = searchParams.get('service') || (serviceMatch ? serviceMatch[1] : undefined);
   
-  // Get request from URL parameter (e.g., ?request=456)
-  const requestFromUrl = searchParams.get('request') || undefined;
+  // Get request from URL parameter (new approach) or path (legacy)
+  const requestFromUrl = searchParams.get('request') || (requestMatch ? requestMatch[1] : undefined);
   
   return {
     viewFromUrl: viewFromUrl as ServicePortalView,
@@ -60,7 +67,7 @@ export const ServicePortal: React.FC<ServicePortalProps> = ({
   const { viewFromUrl, categoryFromUrl, serviceFromUrl, requestFromUrl } = parseUrlParams();
   
   // Initialize workflow engine - prefer passed engine, fallback to real Conductor engine, then mock for development
-  const activeWorkflowEngine: WorkflowEngine = workflowEngine || 
+  const activeWorkflowEngine = workflowEngine || 
     (contextProps.accessToken ? createConductorWorkflowEngine(contextProps) : mockWorkflowEngine);
   const { isEnabled, checkAndRedirect } = useServicesFeatureFlag();
   
@@ -82,7 +89,9 @@ export const ServicePortal: React.FC<ServicePortalProps> = ({
     const url = new URL(window.location.href);
     let urlChanged = false;
     
-    if (!url.searchParams.has('app')) {
+    // Only set app parameter in development environment (not needed in platform/production)
+    const isProduction = process.env.NODE_ENV === 'production';
+    if (!isProduction && !url.searchParams.has('app')) {
       url.searchParams.set('app', 'ServicePortal');
       urlChanged = true;
     }
@@ -130,11 +139,14 @@ export const ServicePortal: React.FC<ServicePortalProps> = ({
         selectedRequestId: requestFromUrl
       }));
       
-      // Ensure app parameter is preserved on browser navigation
-      const url = new URL(window.location.href);
-      if (!url.searchParams.has('app')) {
-        url.searchParams.set('app', 'ServicePortal');
-        window.history.replaceState({}, '', url.toString());
+      // Ensure app parameter is preserved on browser navigation (only in development)
+      const isProduction = process.env.NODE_ENV === 'production';
+      if (!isProduction) {
+        const url = new URL(window.location.href);
+        if (!url.searchParams.has('app')) {
+          url.searchParams.set('app', 'ServicePortal');
+          window.history.replaceState({}, '', url.toString());
+        }
       }
     };
 
@@ -150,10 +162,11 @@ export const ServicePortal: React.FC<ServicePortalProps> = ({
   // Helper function to build URL with app and view parameters
   const buildUrlWithApp = (view: string, category?: string, service?: string, request?: string) => {
     const url = new URL(window.location.href);
-    url.pathname = '/'; // Always use root path for service portal
+    // Preserve current pathname (don't force to root like service desk does)
     
-    // Preserve or set the app parameter
-    if (!url.searchParams.has('app')) {
+    // Only set app parameter in development environment (not needed in platform/production)
+    const isProduction = process.env.NODE_ENV === 'production';
+    if (!isProduction && !url.searchParams.has('app')) {
       url.searchParams.set('app', 'ServicePortal');
     }
     
@@ -187,6 +200,24 @@ export const ServicePortal: React.FC<ServicePortalProps> = ({
     
     return url.toString();
   };
+
+  // Helper function to clean URL parameters when navigating away from specific views
+  // Available for future use by components that need to clear navigation state
+  // const cleanUrlParameters = (parametersToRemove: string[]) => {
+  //   const url = new URL(window.location.href);
+  //   let urlChanged = false;
+  //   
+  //   parametersToRemove.forEach(param => {
+  //     if (url.searchParams.has(param)) {
+  //       url.searchParams.delete(param);
+  //       urlChanged = true;
+  //     }
+  //   });
+  //   
+  //   if (urlChanged) {
+  //     window.history.pushState({}, '', url.toString());
+  //   }
+  // };
 
   // Navigation handlers
   const navigateToCatalog = () => {
@@ -250,6 +281,9 @@ export const ServicePortal: React.FC<ServicePortalProps> = ({
     window.history.pushState({}, '', newUrl);
   };
 
+  // URL cleanup utility available for components that need to clear specific parameters
+  // Example usage: cleanUrlParameters(['request', 'service']) to clean up navigation state
+
   // Removed unused helper functions - components now handle their own navigation
 
   // Removed getLayoutProps - each component now handles its own layout
@@ -282,7 +316,7 @@ export const ServicePortal: React.FC<ServicePortalProps> = ({
           <RequestForm
             template={state.selectedTemplate}
             flowTemplate={state.selectedFlowTemplate}
-            workflowEngine={activeWorkflowEngine}
+            workflowEngine={activeWorkflowEngine as any}
             onSuccess={navigateToMyRequests}
             onCancel={() => navigateToCategory(state.selectedCategoryId!)}
             {...contextProps}
@@ -292,7 +326,7 @@ export const ServicePortal: React.FC<ServicePortalProps> = ({
       case 'myRequests':
         return (
           <MyRequests
-            workflowEngine={activeWorkflowEngine}
+            workflowEngine={activeWorkflowEngine as any}
             onBack={navigateToCatalog}
             {...contextProps}
           />
