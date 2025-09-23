@@ -1,13 +1,22 @@
-import { useMemo } from 'react';
-import { InvestmentReportClient } from './InvestmentReportClient';
+import { useCallback, useMemo } from 'react';
+import { investmentReportClient } from './InvestmentReportClient';
+import type { GenerateInvestmentReportRequest, GenerateInvestmentReportResponse } from './InvestmentReportClient';
 
 export const useInvestmentReportClient = (accessToken: string) => {
-  const client = useMemo(() => new InvestmentReportClient(), []);
-  
+  const generateInvestmentReport = useCallback(
+    (request: GenerateInvestmentReportRequest): Promise<GenerateInvestmentReportResponse> =>
+      investmentReportClient.generateInvestmentReport(request, accessToken),
+    [accessToken]
+  );
+
+  const generateInvestmentReportBlob = useCallback(
+    (request: GenerateInvestmentReportRequest): Promise<Blob> =>
+      investmentReportClient.generateInvestmentReportBlob(request, accessToken),
+    [accessToken]
+  );
+
   return useMemo(() => ({
-    generateInvestmentReport: (request: any) => 
-      client.generateInvestmentReport(request, accessToken),
-    generateInvestmentReportBlob: (request: any) => 
-      client.generateInvestmentReportBlob(request, accessToken),
-  }), [client, accessToken]);
+    generateInvestmentReport,
+    generateInvestmentReportBlob,
+  }), [generateInvestmentReport, generateInvestmentReportBlob]);
 };

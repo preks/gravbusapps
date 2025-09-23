@@ -5,7 +5,7 @@ import { Alert, message, Spin } from 'antd';
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 import { useInvestmentReportClient } from '@/common/network/investment-reports';
-import { useInvestmentReportData } from '../../hooks/useInvestmentReportData';
+import { useInvestmentReportData, BaseInvestment } from '../../hooks/useInvestmentReportData';
 import { AppAction } from '@/components/app-action/AppAction';
 import { FlowContextName } from '@/common/types/FlowRegistryTypes';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
@@ -228,7 +228,7 @@ export interface GenerateOnePagerButtonProps extends Partial<BusinessAppContextP
    * Pre-loaded investment data to avoid duplicate API calls
    * When provided, this data will be used instead of fetching it again
    */
-  investmentData?: any;
+  investmentData?: BaseInvestment;
 }
 
 /**
@@ -324,7 +324,7 @@ interface DirectApiGenerateButtonProps extends Partial<BusinessAppContextProps> 
   investmentId: string;
   variant?: 'default' | 'destructive' | 'outline' | 'secondary' | 'ghost' | 'link';
   size?: 'sm' | 'default' | 'lg';
-  investmentData?: any;
+  investmentData?: BaseInvestment;
 }
 
 const DirectApiGenerateButton: React.FC<DirectApiGenerateButtonProps> = ({
@@ -429,7 +429,7 @@ interface FlowBasedGenerateButtonProps extends Partial<BusinessAppContextProps> 
   investmentId: string;
   variant?: 'default' | 'destructive' | 'outline' | 'secondary' | 'ghost' | 'link';
   size?: 'sm' | 'default' | 'lg';
-  investmentData?: any;
+  investmentData?: BaseInvestment;
 }
 
 const FlowBasedGenerateButton: React.FC<FlowBasedGenerateButtonProps> = ({

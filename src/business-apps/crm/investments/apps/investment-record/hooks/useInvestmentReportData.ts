@@ -3,10 +3,242 @@ import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 import { useGetInvestmentById } from '@/common/data/investment';
 import { GenerateInvestmentReportRequest } from '@/common/network/investment-reports';
 
+// ==========================================
+// TYPE DEFINITIONS
+// ==========================================
+
+/**
+ * Currency reference interface
+ */
+interface CurrencyRef {
+  value?: string;
+  code?: string;
+}
+
+/**
+ * Catalog reference interface
+ */
+interface CatalogRef {
+  id?: string;
+  code?: string;
+  value?: string;
+  catalog?: string;
+  catalogId?: string;
+  objectValue?: any;
+  translations?: Array<{
+    localeCode?: string;
+    value?: string;
+  }>;
+}
+
+/**
+ * Employee reference interface
+ */
+interface EmployeeRef {
+  id?: string;
+  code?: string;
+  firstName?: string;
+  lastName?: string;
+  displayName?: string;
+  fullName?: string;
+  picture?: string;
+  pictureThumbnail?: string;
+}
+
+/**
+ * Equity investment round interface
+ */
+interface EquityInvestmentRound {
+  id?: string;
+  version?: number;
+  name?: string;
+  year?: string;
+  preValue?: number;
+  investmentVolume?: number;
+  volumeShare?: number;
+  roundSharePercentage?: number;
+  currency?: CatalogRef;
+  currencyRef?: string;
+  equityInvestment?: string;
+  // Audit fields
+  createdAt?: string;
+  createdBy?: string;
+  updatedAt?: string;
+  updatedBy?: string;
+  recordState?: string;
+  activeFrom?: string;
+  activeTo?: string;
+}
+
+/**
+ * Equity investment interface
+ */
+interface EquityInvestment {
+  id?: string;
+  version?: number;
+  businessKey?: string;
+  additionalProperties?: any;
+  foundationDate?: string;
+  marketValue?: number;
+  ebitdaAmount?: number;
+  turnoverAmount?: number;
+  investment?: string;
+  equityInvestmentRound?: EquityInvestmentRound[];
+  // Audit fields
+  createdAt?: string;
+  createdBy?: string;
+  updatedAt?: string;
+  updatedBy?: string;
+  recordState?: string;
+  activeFrom?: string;
+  activeTo?: string;
+  isDeleted?: boolean;
+  processInstanceId?: string;
+  synchronizedAt?: string;
+}
+
+/**
+ * Real estate investment interface
+ */
+interface RealEstateInvestment {
+  id?: string;
+  version?: number;
+  businessKey?: string;
+  additionalProperties?: any;
+  countryRef?: string;
+  regionRef?: string;
+  country?: CatalogRef;
+  region?: CatalogRef;
+  addressLine?: any;
+  postalCode?: string;
+  locality?: string;
+  buildingYear?: string;
+  size?: number;
+  sizeMeasurementUnitRef?: string;
+  sizeMeasurementUnit?: CatalogRef;
+  numberOfUnits?: number;
+  occupancyPercent?: number;
+  annualNetColdRent?: number;
+  funding?: number;
+  actualAnnualExpenses?: number;
+  targetAnnualExpenses?: number;
+  liquidityForecast?: any;
+  investment?: string;
+  description?: string;
+  areaDescription?: string;
+  // Audit fields
+  createdAt?: string;
+  createdBy?: string;
+  updatedAt?: string;
+  updatedBy?: string;
+  recordState?: string;
+  activeFrom?: string;
+  activeTo?: string;
+}
+
+/**
+ * Investment role interface
+ */
+interface InvestmentRole {
+  id?: string;
+  version?: number;
+  businessKey?: string;
+  recordState?: string;
+  activeTo?: string;
+  additionalProperties?: any;
+  investmentRoleRef?: string;
+  investmentRole?: CatalogRef;
+  displayOrder?: number;
+  // Audit fields
+  createdAt?: string;
+  createdBy?: string;
+  updatedAt?: string;
+  updatedBy?: string;
+  activeFrom?: string;
+  isDeleted?: boolean;
+  processInstanceId?: string;
+  synchronizedAt?: string;
+}
+
+/**
+ * Base investment interface
+ */
+export interface BaseInvestment {
+  id: string;
+  version?: number;
+  code?: string;
+  name?: string;
+  isin?: string;
+  description?: string;
+  acquisitionDate?: string | null;
+  planedExit?: boolean;
+  plannedExitDate?: string | null;
+  exitDate?: string | null;
+  initialInvestmentAmount?: number;
+  totalInvestmentAmount?: number;
+  investmentMarketValue?: number;
+  debtFinancingAmount?: number;
+  requiredCapitalAmount?: number;
+  forecastedRevenueAmount?: number;
+  forecastedProfitAmount?: number;
+  stakePercentage?: number;
+  
+  // Loan-specific fields
+  loanRecipientName?: string;
+  loanAmount?: number;
+  loanOpenCommitmentAmount?: number;
+  loanInterestRate?: number;
+  loanStartDate?: string;
+  loanEndDate?: string;
+  loanInterestClaim?: number;
+  totalCommitmentAmount?: number;
+  totalDistributionAmount?: number;
+  
+  // Fund management
+  fundManagerName?: string;
+  identification?: string;
+  
+  additionalProperties?: {
+    tiles?: Record<string, string>;
+    [key: string]: any;
+  };
+  
+  // Catalog relationships
+  investmentGroup?: CatalogRef;
+  investmentType?: CatalogRef;
+  investmentStakeType?: CatalogRef;
+  investmentPhase?: CatalogRef;
+  investmentStatus?: CatalogRef;
+  investmentRiskLevel?: CatalogRef;
+  currency?: CurrencyRef;
+  
+  // Employee relationship
+  ownerEmployee?: EmployeeRef | null;
+  
+  // Entity relationships
+  investmentAccount?: any;
+  investmentOpportunity?: any;
+  loanRecipientInvestmentAccount?: any;
+  
+  // Investment specializations
+  equityInvestment?: EquityInvestment[];
+  realEstateInvestment?: RealEstateInvestment[];
+  investmentRole?: InvestmentRole[];
+  
+  // Audit fields
+  createdAt?: string;
+  createdBy?: string;
+  updatedAt?: string;
+  updatedBy?: string;
+  recordState?: string;
+  activeFrom?: string;
+  activeTo?: string;
+}
+
 /**
  * Helper function to extract currency reference
  */
-const extractCurrencyRef = (currencyData: any): string => {
+const extractCurrencyRef = (currencyData: CurrencyRef | null | undefined): string => {
   if (!currencyData) return '';
   return currencyData.value || currencyData.code || '';
 };
@@ -14,7 +246,7 @@ const extractCurrencyRef = (currencyData: any): string => {
 /**
  * Helper function to format catalog reference
  */
-const formatCatalogRef = (catalogData: any): string => {
+const formatCatalogRef = (catalogData: CatalogRef | null | undefined): string => {
   if (!catalogData) return '';
   const { catalog, value } = catalogData;
   if (catalog && value) {
@@ -38,7 +270,7 @@ const formatCatalogRef = (catalogData: any): string => {
  * @param investment - The investment data object
  * @returns The template name to use for report generation
  */
-const getTemplateNameByInvestmentType = (investment: any): string => {
+const getTemplateNameByInvestmentType = (investment: BaseInvestment): string => {
   // Primary logic: Use templateName from investmentType.objectValue
   const templateName = investment.investmentType?.objectValue?.templateName;
   
@@ -54,7 +286,7 @@ const getTemplateNameByInvestmentType = (investment: any): string => {
 /**
  * Transform investment data to report payload format
  */
-const transformInvestmentToReportPayload = (investmentData: any): GenerateInvestmentReportRequest => {
+const transformInvestmentToReportPayload = (investmentData: BaseInvestment): GenerateInvestmentReportRequest => {
   const investment = investmentData;
   
   // Base investment data
@@ -103,9 +335,9 @@ const transformInvestmentToReportPayload = (investmentData: any): GenerateInvest
   };
 
   // 🔥 EQUITY INVESTMENT DATA - Handle array structure correctly
-  const equityInvestmentData = Array.isArray(investment.equityInvestment) && investment.equityInvestment.length > 0 
+  const equityInvestmentData: EquityInvestment | null = Array.isArray(investment.equityInvestment) && investment.equityInvestment.length > 0 
     ? investment.equityInvestment[0] 
-    : investment.equityInvestment;
+    : null;
     
   const equityInvestment = equityInvestmentData ? {
     id: equityInvestmentData.id,
@@ -147,9 +379,9 @@ const transformInvestmentToReportPayload = (investmentData: any): GenerateInvest
   })) || [];
 
   // 🔥 INVESTMENT ROLE - Handle array structure correctly (similar to equityInvestment)
-  const investmentRoleData = Array.isArray(investment.investmentRole) && investment.investmentRole.length > 0 
+  const investmentRoleData: InvestmentRole | null = Array.isArray(investment.investmentRole) && investment.investmentRole.length > 0 
     ? investment.investmentRole[0] 
-    : investment.investmentRole;
+    : null;
     
   const investmentRole = investmentRoleData ? {
     id: investmentRoleData.id,
@@ -173,9 +405,9 @@ const transformInvestmentToReportPayload = (investmentData: any): GenerateInvest
   } : null;
 
   // 🔥 REAL ESTATE INVESTMENT DATA - Handle array structure correctly
-  const realEstateInvestmentData = Array.isArray(investment.realEstateInvestment) && investment.realEstateInvestment.length > 0 
+  const realEstateInvestmentData: RealEstateInvestment | null = Array.isArray(investment.realEstateInvestment) && investment.realEstateInvestment.length > 0 
     ? investment.realEstateInvestment[0] 
-    : investment.realEstateInvestment;
+    : null;
     
   const realEstateInvestment = realEstateInvestmentData ? {
     id: realEstateInvestmentData.id,
@@ -344,7 +576,7 @@ export const useInvestmentReportData = (context: BusinessAppContextProps) => {
   }, [fetchInvestmentById]);
 
   // Export transformation function for use with pre-loaded data
-  const transformInvestmentToPayload = useCallback((investmentData: any): GenerateInvestmentReportRequest => {
+  const transformInvestmentToPayload = useCallback((investmentData: BaseInvestment): GenerateInvestmentReportRequest => {
     return transformInvestmentToReportPayload(investmentData);
   }, []);
 

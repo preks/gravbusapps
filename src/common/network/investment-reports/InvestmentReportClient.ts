@@ -1,4 +1,4 @@
-import { env } from "../../env/EnvUtils";
+import { env } from '@/common/env/EnvUtils';
 import { setAccessTokenToAuthorizationHeader } from "../HeaderUtils";
 import { RestClient, type RequestOptions, ResponseType } from "../rest/RestClient";
 
@@ -37,6 +37,9 @@ export interface GenerateInvestmentReportResponse {
 export class InvestmentReportClient extends RestClient {
   constructor() {
     let url: string = env("NEXT_PUBLIC_INVESTMENT_REPORT_API") ?? env("NEXT_PUBLIC_BASE_URL") ?? "";
+    if (!url) {
+      throw new Error("Missing NEXT_PUBLIC_INVESTMENT_REPORT_API or NEXT_PUBLIC_BASE_URL");
+    }
     if (!url.endsWith("/")) {
       url += "/";
     }
@@ -54,13 +57,16 @@ export class InvestmentReportClient extends RestClient {
     accessToken: string,
     options: Omit<RequestOptions, "body"> = {}
   ): Promise<GenerateInvestmentReportResponse> {
+    if (!accessToken) {
+      throw new Error("accessToken is required for generateInvestmentReport");
+    }
     const headers = {
       ...options.headers,
       Authorization: setAccessTokenToAuthorizationHeader(accessToken)
     };
 
     return this.post<GenerateInvestmentReportResponse>(
-      "/generateInvestmentReport",
+      "generateInvestmentReport",
       request,
       {
         ...options,
@@ -78,13 +84,16 @@ export class InvestmentReportClient extends RestClient {
     accessToken: string,
     options: Omit<RequestOptions, "body"> = {}
   ): Promise<Blob> {
+    if (!accessToken) {
+      throw new Error("accessToken is required for generateInvestmentReportBlob");
+    }
     const headers = {
       ...options.headers,
       Authorization: setAccessTokenToAuthorizationHeader(accessToken)
     };
 
     return this.post<Blob>(
-      "/generateInvestmentReport",
+      "generateInvestmentReport",
       request,
       {
         ...options,
@@ -95,4 +104,5 @@ export class InvestmentReportClient extends RestClient {
   }
 }
 
+// Singleton instance for reuse across the application
 export const investmentReportClient = new InvestmentReportClient();
