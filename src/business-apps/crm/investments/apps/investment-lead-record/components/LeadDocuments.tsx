@@ -20,7 +20,8 @@ import {
   EditOutlined,
   DeleteOutlined
 } from '@ant-design/icons';
-import { Modal, message, Input as AntdInput } from 'antd';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, Input } from '@newwork/nw-design-system';
+import { toast } from 'sonner';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 import { DebouncedInput } from '@/components/data-filter/DebouncedInput';
 import { DataContainer } from '@/components/layout/dataContainer';
@@ -165,13 +166,13 @@ export const LeadDocuments: React.FC<LeadDocumentsProps> = ({
     const newName = renameModal.name?.trim();
     const node = renameModal.node;
     if (!node || !newName) {
-      message.error('Please enter a folder name');
+      toast.error('Please enter a folder name');
       return;
     }
     if (node.folderId?.startsWith('mock-')) {
       setDocuments(prev => prev.map(d => d.id === node.folderId ? { ...d, name: newName } : d));
       setRenameModal({ open: false, name: '', node: undefined });
-      message.success('Folder renamed (mock)');
+      toast.success('Folder renamed (mock)');
       return;
     }
     try {
@@ -179,12 +180,12 @@ export const LeadDocuments: React.FC<LeadDocumentsProps> = ({
         changeMode: 'UPDATE',
         investmentDocument: { id: node.folderId, version: node.folderVersion, name: newName, lead: leadId },
       }, { headers: { Authorization: `Bearer ${context.accessToken}` } });
-      message.success('Folder renamed');
+      toast.success('Folder renamed');
       setRenameModal({ open: false, name: '', node: undefined });
       await fetchDocuments();
     } catch (e: any) {
       console.error('Error renaming folder', e);
-      message.error(e?.message || 'Failed to rename folder');
+      toast.error(e?.message || 'Failed to rename folder');
     }
   };
 
@@ -388,14 +389,27 @@ export const LeadDocuments: React.FC<LeadDocumentsProps> = ({
   };
 
   useEffect(() => {
-    fetchDocuments();
+    const loadDocuments = async () => {
+      try {
+        await fetchDocuments();
+      } catch (error) {
+        console.error('Error loading documents in useEffect:', error);
+        toast.error('Failed to load documents. Please refresh the page.');
+      }
+    };
+    loadDocuments();
   }, [leadId, context.accessToken]);
 
   // Listen for process completion to refetch documents after upload
   useProcessCompletion({
-    onSuccess: () => {
+    onSuccess: async () => {
       console.log('Process completed, refreshing lead documents');
-      fetchDocuments();
+      try {
+        await fetchDocuments();
+      } catch (error) {
+        console.error('Error refreshing documents after process completion:', error);
+        toast.error('Failed to refresh documents after upload.');
+      }
     },
     onFailure: () => {
       console.log('Document upload process failed');
@@ -613,7 +627,7 @@ export const LeadDocuments: React.FC<LeadDocumentsProps> = ({
   // Handle successful document deletion
   const handleDocumentDeleted = useCallback(async () => {
     await fetchDocuments();
-    message.success('Document deleted successfully');
+    toast.success('Document deleted successfully');
   }, [fetchDocuments]);
 
   // Listen for process completion events to refresh documents
@@ -650,36 +664,32 @@ export const LeadDocuments: React.FC<LeadDocumentsProps> = ({
     return false;
   };
 
-  const handleDeleteFolder = (node: DocumentFolder) => {
+  const handleDeleteFolder = async (node: DocumentFolder) => {
     if (!node.folderId || node.folderVersion == null) return;
     if (hasDescendantFiles(node.folderId)) {
-      message.warning('Cannot delete a folder that contains files. Move or delete files first.');
+      toast.warning('Cannot delete a folder that contains files. Move or delete files first.');
       return;
     }
     if (node.folderId.startsWith('mock-')) {
-      message.warning('Cannot delete a folder that contains files.');
+      toast.warning('Cannot delete a folder that contains files.');
       return;
     }
-    Modal.confirm({
-      title: 'Confirm Deletion',
-      content: `Are you sure you want to delete the folder "${node.name}"?`,
-      okText: 'Delete',
-      okType: 'danger',
-      cancelText: 'Cancel',
-      onOk: async () => {
-        try {
-          await restClient.post('/customer-relations/saveCrmDocument', {
-            changeMode: 'DELETE',
-            crmDocument: { id: node.folderId, version: node.folderVersion, lead: leadId },
-          }, { headers: { Authorization: `Bearer ${context.accessToken}` } });
-          message.success('Folder deleted');
-          await fetchDocuments();
-        } catch (e: any) {
-          console.error('Error deleting folder', e);
-          message.error(e?.message || 'Failed to delete folder');
-        }
+    // Note: Modal.confirm functionality needs to be replaced with custom Dialog state management
+    // For now, we'll use the browser confirm as a temporary solution
+    const confirmed = window.confirm(`Are you sure you want to delete the folder "${node.name}"?`);
+    if (confirmed) {
+      try {
+        await restClient.post('/customer-relations/saveCrmDocument', {
+          changeMode: 'DELETE',
+          crmDocument: { id: node.folderId, version: node.folderVersion, lead: leadId },
+        }, { headers: { Authorization: `Bearer ${context.accessToken}` } });
+        toast.success('Folder deleted');
+        await fetchDocuments();
+      } catch (e: any) {
+        console.error('Error deleting folder', e);
+        toast.error(e?.message || 'Failed to delete folder');
       }
-    });
+    }
   };
 
   // DnD helpers
@@ -773,7 +783,7 @@ export const LeadDocuments: React.FC<LeadDocumentsProps> = ({
         },
         { headers: { Authorization: `Bearer ${context.accessToken}` } }
       );
-      message.success('Document moved successfully');
+      toast.success('Document moved successfully');
       // Refresh documents to get the latest state
       await fetchDocuments();
     } catch (e: any) {
@@ -783,11 +793,11 @@ export const LeadDocuments: React.FC<LeadDocumentsProps> = ({
         ...d, 
         parentDocument: previousParentId ? { id: previousParentId } as any : undefined 
       } : d));
-      message.error(e?.message || 'Failed to move document');
+      toast.error(e?.message || 'Failed to move document');
     }
   };
 
-  const handleDragEnd = (event: DragEndEvent) => {
+  const handleDragEnd = async (event: DragEndEvent) => {
     setActiveDragItem(null);
     setIsDragging(false);
     
@@ -795,13 +805,11 @@ export const LeadDocuments: React.FC<LeadDocumentsProps> = ({
     const over = event.over?.data?.current as any;
     
     if (!active || !over) {
-      console.log('Drag ended without valid active or over elements');
       return;
     }
     
     const targetFolderId: string | null | undefined = (over.targetFolderId === '' ? null : (over.targetFolderId as string | null | undefined));
     if (typeof targetFolderId === 'undefined') {
-      console.log('Drag ended without valid target folder');
       return;
     }
     
@@ -810,21 +818,18 @@ export const LeadDocuments: React.FC<LeadDocumentsProps> = ({
       
       // Check if actually moving to a different location
       if (previousParentId === targetFolderId) {
-        console.log('Document dropped in same location, no move needed');
         return;
       }
       
       // Prevent moving folder into its own subfolder
       if (active.itemType === 'folder' && typeof targetFolderId === 'string' && isFolderAncestor(active.id as string, targetFolderId)) {
-        message.warning('Cannot move a folder into its own subfolder');
+        toast.warning('Cannot move a folder into its own subfolder');
         return;
       }
       
       // Get item name for feedback
       const itemName = documents.find(d => d.id === active.id)?.name || 'Item';
       const targetName = targetFolderId ? (documents.find(d => d.id === targetFolderId)?.name || 'folder') : 'root';
-      
-      console.log(`Moving ${active.itemType} "${itemName}" to ${targetFolderId ? `folder "${targetName}"` : 'root level'}`);
       
       // Update local state immediately for responsive UI
       updateParentDocumentLocal(active.id, targetFolderId);
@@ -836,12 +841,17 @@ export const LeadDocuments: React.FC<LeadDocumentsProps> = ({
       
       // Skip API call for mock data
       if (String(active.id).startsWith('mock-') || (typeof targetFolderId === 'string' && String(targetFolderId).startsWith('mock-'))) {
-        message.success(`${active.itemType === 'folder' ? 'Folder' : 'Document'} moved successfully (mock)`);
+        toast.success(`${active.itemType === 'folder' ? 'Folder' : 'Document'} moved successfully (mock)`);
         return;
       }
       
       // Persist to backend
-      void persistParentDocumentUpdate(active.id, active.version, targetFolderId, previousParentId);
+      try {
+        await persistParentDocumentUpdate(active.id, active.version, targetFolderId, previousParentId);
+      } catch (error) {
+        console.error('Error in handleDragEnd while moving document:', error);
+        toast.error('Failed to move the document. Please try again.');
+      }
     }
   };
 
@@ -850,7 +860,6 @@ export const LeadDocuments: React.FC<LeadDocumentsProps> = ({
     const current = event.active?.data?.current as any;
     
     if (!current) {
-      console.log('Drag started without valid data');
       return;
     }
     
@@ -858,13 +867,11 @@ export const LeadDocuments: React.FC<LeadDocumentsProps> = ({
       const doc = documents.find(d => d.id === current.id);
       if (doc) {
         setActiveDragItem({ itemType: 'document', name: doc.name || 'Document', mimeType: doc.mimeType });
-        console.log(`Started dragging document: ${doc.name}`);
       }
     } else if (current.itemType === 'folder' && current.id) {
       const folderDoc = documents.find(d => d.id === current.id);
       if (folderDoc) {
         setActiveDragItem({ itemType: 'folder', name: folderDoc.name || 'Folder' });
-        console.log(`Started dragging folder: ${folderDoc.name}`);
       }
     }
   };
@@ -1319,22 +1326,33 @@ export const LeadDocuments: React.FC<LeadDocumentsProps> = ({
           />
         )}
       </CardContent>
-      {/* Rename Folder Modal */}
-      <Modal
-        open={renameModal.open}
-        title="Rename Folder"
-        onOk={confirmRenameFolder}
-        onCancel={() => setRenameModal({ open: false, name: '', node: undefined })}
-        okText="Save"
-        data-testid="rename-folder-modal"
-      >
-        <AntdInput
-          value={renameModal.name}
-          onChange={(e) => setRenameModal(prev => ({ ...prev, name: e.target.value }))}
-          placeholder="Enter new folder name"
-          data-testid="rename-folder-input"
-        />
-      </Modal>
+      {/* Rename Folder Dialog */}
+      <Dialog open={renameModal.open} onOpenChange={(open) => !open && setRenameModal({ open: false, name: '', node: undefined })}>
+        <DialogContent data-testid="rename-folder-modal">
+          <DialogHeader>
+            <DialogTitle>Rename Folder</DialogTitle>
+          </DialogHeader>
+          <div className="gba:py-4">
+            <Input
+              value={renameModal.name}
+              onChange={(e) => setRenameModal(prev => ({ ...prev, name: e.target.value }))}
+              placeholder="Enter new folder name"
+              data-testid="rename-folder-input"
+            />
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setRenameModal({ open: false, name: '', node: undefined })}
+            >
+              Cancel
+            </Button>
+            <Button onClick={confirmRenameFolder}>
+              Save
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {deletePopup.open && deletePopup.document && (
         <SimpleDocumentDeletePopup
@@ -1349,7 +1367,7 @@ export const LeadDocuments: React.FC<LeadDocumentsProps> = ({
             const id = deletePopup.document!.id;
             setDocuments(prev => prev.filter(d => d.id !== id));
             setDeletePopup({ open: false });
-            message.success('Document deleted successfully');
+            toast.success('Document deleted successfully');
           }}
           onError={() => setDeletePopup({ open: false })}
         />

@@ -30,7 +30,7 @@ export const InvestmentHomeTab: React.FC<InvestmentHomeTabProps> = ({
   const { fetchInvestmentActivitiesByInvestmentId } = useGetInvestmentActivitiesByInvestmentId(context);
   const { fetchInvestmentNotesByInvestmentId } = useGetInvestmentNotesByInvestmentId(context);
 
-  const loadTasks = async () => {
+  const loadTasks = useCallback(async () => {
     if (!investmentId) return;
     
     try {
@@ -55,9 +55,9 @@ export const InvestmentHomeTab: React.FC<InvestmentHomeTabProps> = ({
     } catch (err) {
       console.error('Failed to load tasks:', err);
     }
-  };
+  }, [investmentId, fetchInvestmentTasksByInvestmentId]);
 
-  const loadActivities = async () => {
+  const loadActivities = useCallback(async () => {
     if (!investmentId) return;
     
     setActivitiesLoading(true);
@@ -71,9 +71,9 @@ export const InvestmentHomeTab: React.FC<InvestmentHomeTabProps> = ({
     } finally {
       setActivitiesLoading(false);
     }
-  };
+  }, [investmentId, fetchInvestmentActivitiesByInvestmentId]);
 
-  const loadNotes = async () => {
+  const loadNotes = useCallback(async () => {
     if (!investmentId) return;
     
     setNotesLoading(true);
@@ -99,9 +99,9 @@ export const InvestmentHomeTab: React.FC<InvestmentHomeTabProps> = ({
     } finally {
       setNotesLoading(false);
     }
-  };
+  }, [investmentId, fetchInvestmentNotesByInvestmentId]);
 
-  const loadApprovals = async () => {
+  const loadApprovals = useCallback(async () => {
     if (!investmentId) return;
     
     try {
@@ -126,7 +126,7 @@ export const InvestmentHomeTab: React.FC<InvestmentHomeTabProps> = ({
     } catch (err) {
       console.error('Failed to load approvals:', err);
     }
-  };
+  }, [investmentId, fetchInvestmentTasksByInvestmentId]);
 
   // Process event handler for refreshing data after process completion
   const handleProcessEvent = useCallback((event: any) => {
@@ -153,7 +153,7 @@ export const InvestmentHomeTab: React.FC<InvestmentHomeTabProps> = ({
     loadActivities();
     loadNotes();
     loadApprovals();
-  }, [investmentId]);
+  }, [loadTasks, loadActivities, loadNotes, loadApprovals]);
 
   // Listen for process events
   useEffect(() => {

@@ -235,12 +235,15 @@ const DocumentPopup: React.FC<DocumentPopupProps> = ({ initialValues = {}, ...pr
           default: return null;
         }
       })();
-      // Debug all potential ID sources
-      console.log('DEBUG: contextValues =', contextValues);
-      console.log('DEBUG: entityBindingKey =', entityBindingKey);
-      console.log('DEBUG: source =', source);
-      console.log('DEBUG: idFromUrl =', idFromUrl);
-      console.log('DEBUG: urlParams =', Object.fromEntries(urlParams.entries()));
+      // Debug entity resolution (development only)
+      if (process.env.NODE_ENV === 'development') {
+        console.debug('DocumentPopup: Entity resolution -', {
+          entityType: contextValues.entityType,
+          hasEntityId: !!contextValues.entityId,
+          bindingKey: entityBindingKey,
+          hasUrlId: !!idFromUrl
+        });
+      }
       
       const resolvedId = contextValues.entityId || source?.investmentDocument?.[entityBindingKey] || source?.[entityBindingKey] || source?.accountId || source?.contactId || source?.leadId || source?.opportunityId || source?.account || source?.contact || source?.lead || source?.opportunity || idFromUrl || '';
       
@@ -254,9 +257,7 @@ const DocumentPopup: React.FC<DocumentPopupProps> = ({ initialValues = {}, ...pr
         }
       })();
 
-      // Debug and sanitize the resolvedId to match the required regex pattern ^(/[\w_-]{1,256})+$
-      console.log('DEBUG: resolvedId =', resolvedId);
-      console.log('DEBUG: folderEntity =', folderEntity);
+      // Sanitize the resolvedId to match the required regex pattern ^(/[\w_-]{1,256})+$
       
       // Ensure resolvedId exists and sanitize it
       if (!resolvedId || resolvedId.trim() === '') {
@@ -266,8 +267,12 @@ const DocumentPopup: React.FC<DocumentPopupProps> = ({ initialValues = {}, ...pr
       const sanitizedId = resolvedId.replace(/[^\w-]/g, '_'); // Replace non-word/non-hyphen chars with underscore
       const folderPath = `/${folderEntity}/${sanitizedId}/documents`;
       
-      console.log('DEBUG: sanitizedId =', sanitizedId);
-      console.log('DEBUG: final folderPath =', folderPath);
+      // Log folder path validation in development
+      if (process.env.NODE_ENV === 'development') {
+        console.debug('DocumentPopup: Folder path generation completed', { 
+          pathValid: /^(\/[\w_-]{1,256})+$/.test(folderPath) 
+        });
+      }
       
       // Validate the folder path matches the expected regex
       const folderPathRegex = /^(\/[\w_-]{1,256})+$/;
