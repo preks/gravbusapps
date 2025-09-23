@@ -162,8 +162,8 @@ const PlannedExitsMetrics: React.FC<PlannedExitsMetricsProps> = ({ context }) =>
       key: "total-planned-exits",
       title: getTranslationFromI18nKeyAndLabel("total_planned_exits", "Total Planned Exits"),
       value: metrics.totalCount,
-      prefix: <TrendingDown className="gba:h-5 gba:w-5 gba:text-red-600" />,
-      color: '#f5222d', // Red theme for exits
+      prefix: <TrendingDown className="gba:h-5 gba:w-5" style={{ color: 'var(--nw-color-danger-500)' }} />,
+      color: 'var(--nw-color-danger-500)', // Red theme for exits
       span: { xs: 24, sm: 12, md: 12, lg: 6 },
       description: getTranslationFromI18nKeyAndLabel("investments_planned_for_exit", "Investments planned for exit"),
       trend: {
@@ -177,8 +177,8 @@ const PlannedExitsMetrics: React.FC<PlannedExitsMetricsProps> = ({ context }) =>
       title: getTranslationFromI18nKeyAndLabel("total_investment_value", "Total Investment Value"),
       value: formatCurrencyCompact(metrics.totalInvestmentValue, metrics.currencyCode),
       valueIsString: true,
-      prefix: <TrendingUp className="gba:h-5 gba:w-5 gba:text-blue-600" />,
-      color: '#1677ff', // Blue theme for investments
+      prefix: <TrendingUp className="gba:h-5 gba:w-5" style={{ color: 'var(--nw-color-primary-500)' }} />,
+      color: 'var(--nw-color-primary-500)', // Blue theme for investments
       span: { xs: 24, sm: 12, md: 12, lg: 6 },
       description: getTranslationFromI18nKeyAndLabel("total_invested_capital", "Total invested capital"),
       trend: {
@@ -192,8 +192,8 @@ const PlannedExitsMetrics: React.FC<PlannedExitsMetricsProps> = ({ context }) =>
       title: getTranslationFromI18nKeyAndLabel("total_market_value", "Total Market Value"),
       value: formatCurrencyCompact(metrics.totalMarketValue, metrics.currencyCode),
       valueIsString: true,
-      prefix: <DollarSign className="gba:h-5 gba:w-5 gba:text-green-600" />,
-      color: '#52c41a', // Green theme for money
+      prefix: <DollarSign className="gba:h-5 gba:w-5" style={{ color: 'var(--nw-color-success-500)' }} />,
+      color: 'var(--nw-color-success-500)', // Green theme for money
       span: { xs: 24, sm: 12, md: 12, lg: 6 },
       description: getTranslationFromI18nKeyAndLabel("current_market_value", "Current market value"),
       trend: {
@@ -208,8 +208,8 @@ const PlannedExitsMetrics: React.FC<PlannedExitsMetricsProps> = ({ context }) =>
       value: metrics.averagePerformance,
       suffix: "%",
       precision: 1,
-      prefix: <BarChart3 className="gba:h-5 gba:w-5 gba:text-purple-600" />,
-      color: '#722ed1', // Purple theme for performance
+      prefix: <BarChart3 className="gba:h-5 gba:w-5" style={{ color: 'var(--nw-color-secondary-500)' }} />,
+      color: 'var(--nw-color-secondary-500)', // Purple theme for performance
       span: { xs: 24, sm: 12, md: 12, lg: 6 },
       description: getTranslationFromI18nKeyAndLabel("average_investment_performance", "Average investment performance"),
       trend: {

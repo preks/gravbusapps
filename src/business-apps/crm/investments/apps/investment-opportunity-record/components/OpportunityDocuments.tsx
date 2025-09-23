@@ -29,7 +29,8 @@ import {
   EditOutlined,
   DeleteOutlined
 } from '@ant-design/icons';
-import { Modal, message, Input as AntdInput } from 'antd';
+import { Modal, Input as AntdInput } from 'antd';
+import { toast } from 'sonner';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 import { DebouncedInput } from '@/components/data-filter/DebouncedInput';
 import { DataContainer } from '@/components/layout/dataContainer';
@@ -47,6 +48,7 @@ interface Document {
   description?: string | null;
   createdAt: string;
   expirationDate?: string | null;
+  version?: number;
   documentType?: {
     id: string;
     value: string;
@@ -146,13 +148,13 @@ export const OpportunityDocuments: React.FC<OpportunityDocumentsProps> = ({
     const newName = renameModal.name?.trim();
     const node = renameModal.node;
     if (!node || !newName) {
-      message.error('Please enter a folder name');
+      toast.error('Please enter a folder name');
       return;
     }
     if (node.folderId?.startsWith('mock-')) {
       setDocuments(prev => prev.map(d => d.id === node.folderId ? { ...d, name: newName } : d));
       setRenameModal({ open: false, name: '', node: undefined });
-      message.success('Folder renamed (mock)');
+      toast.success('Folder renamed (mock)');
       return;
     }
     try {
@@ -165,12 +167,12 @@ export const OpportunityDocuments: React.FC<OpportunityDocumentsProps> = ({
           opportunity: opportunityId,
         },
       }, { headers: { Authorization: `Bearer ${context.accessToken}` } });
-      message.success('Folder renamed');
+      toast.success('Folder renamed');
       setRenameModal({ open: false, name: '', node: undefined });
       await fetchDocuments();
     } catch (e: any) {
       console.error('Error renaming folder', e);
-      message.error(e?.message || 'Failed to rename folder');
+      toast.error(e?.message || 'Failed to rename folder');
     }
   };
 
@@ -428,11 +430,16 @@ export const OpportunityDocuments: React.FC<OpportunityDocumentsProps> = ({
           <span className="gba:text-sm">Columns</span>
         </Button>
         {isOpen && (
-          <div className="gba:absolute gba:top-full gba:right-0 gba:mt-1 gba:bg-white gba:border gba:border-gray-200 gba:rounded-lg gba:shadow-lg gba:p-2 gba:min-w-[200px] gba:z-50">
+          <div className="gba:absolute gba:top-full gba:right-0 gba:mt-1 gba:rounded-lg gba:shadow-lg gba:p-2 gba:min-w-[200px] gba:z-50" style={{ backgroundColor: 'var(--nw-color-background)', border: '1px solid var(--nw-color-border)' }}>
             {columnConfig.map((column) => (
               <label
                 key={column.id}
-                className="gba:flex gba:items-center gba:gap-2 gba:p-2 gba:hover:bg-gray-50 gba:cursor-pointer"
+                className="gba:flex gba:items-center gba:gap-2 gba:p-2 gba:cursor-pointer"
+                style={{ 
+                  ':hover': { backgroundColor: 'var(--nw-color-background-hover)' }
+                }}
+                onMouseEnter={(e) => e.target.style.backgroundColor = 'var(--nw-color-background-hover)'}
+                onMouseLeave={(e) => e.target.style.backgroundColor = 'transparent'}
               >
                 <input
                   type="checkbox"
@@ -602,7 +609,7 @@ export const OpportunityDocuments: React.FC<OpportunityDocumentsProps> = ({
   const handleDeleteDocument = (document: Document) => {
     if (document.id?.startsWith('mock-')) {
       setDocuments(prev => prev.filter(d => d.id !== document.id));
-      message.success('Document deleted (mock)');
+      toast.success('Document deleted (mock)');
       return;
     }
     Modal.confirm({
@@ -617,11 +624,11 @@ export const OpportunityDocuments: React.FC<OpportunityDocumentsProps> = ({
             changeMode: 'DELETE',
             investmentDocument: { id: document.id, version: document.version, opportunity: opportunityId },
           }, { headers: { Authorization: `Bearer ${context.accessToken}` } });
-          message.success('Document deleted');
+          toast.success('Document deleted');
           await fetchDocuments();
         } catch (e: any) {
           console.error('Error deleting document', e);
-          message.error(e?.message || 'Failed to delete document');
+          toast.error(e?.message || 'Failed to delete document');
         }
       }
     });
@@ -652,11 +659,11 @@ export const OpportunityDocuments: React.FC<OpportunityDocumentsProps> = ({
   const handleDeleteFolder = (node: DocumentFolder) => {
     if (!node.folderId || node.folderVersion == null) return;
     if (hasDescendantFiles(node.folderId)) {
-      message.warning('Cannot delete a folder that contains files. Move or delete files first.');
+      toast.warning('Cannot delete a folder that contains files. Move or delete files first.');
       return;
     }
     if (node.folderId.startsWith('mock-')) {
-      message.warning('Cannot delete a folder that contains files.');
+      toast.warning('Cannot delete a folder that contains files.');
       return;
     }
     Modal.confirm({
@@ -671,11 +678,11 @@ export const OpportunityDocuments: React.FC<OpportunityDocumentsProps> = ({
             changeMode: 'DELETE',
             investmentDocument: { id: node.folderId, version: node.folderVersion, opportunity: opportunityId },
           }, { headers: { Authorization: `Bearer ${context.accessToken}` } });
-          message.success('Folder deleted');
+          toast.success('Folder deleted');
           await fetchDocuments();
         } catch (e: any) {
           console.error('Error deleting folder', e);
-          message.error(e?.message || 'Failed to delete folder');
+          toast.error(e?.message || 'Failed to delete folder');
         }
       }
     });
@@ -694,9 +701,13 @@ export const OpportunityDocuments: React.FC<OpportunityDocumentsProps> = ({
 
   const Droppable: React.FC<{ id: string; data: any; className?: string; children: React.ReactNode; disabled?: boolean }> = ({ id, data, className, children, disabled }) => {
     const { setNodeRef, isOver } = useDroppable({ id, data, disabled });
-    const combinedClass = `${className || ''} ${isOver ? 'gba:ring-2 gba:ring-blue-500 gba:bg-blue-50' : ''}`;
+    const combinedClass = `${className || ''} ${isOver ? 'gba:ring-2' : ''}`;
+    const dropZoneStyle = isOver ? {
+      backgroundColor: 'var(--nw-color-primary-background)',
+      borderColor: 'var(--nw-color-primary-500)'
+    } : {};
     return (
-      <div ref={setNodeRef} className={combinedClass} data-over={isOver}>
+      <div ref={setNodeRef} className={combinedClass} style={dropZoneStyle} data-over={isOver}>
         {children}
       </div>
     );
@@ -742,11 +753,11 @@ export const OpportunityDocuments: React.FC<OpportunityDocumentsProps> = ({
         },
         { headers: { Authorization: `Bearer ${context.accessToken}` } }
       );
-      message.success('Document moved');
+      toast.success('Document moved');
     } catch (e: any) {
       console.error('Error moving document', e);
       setDocuments((prev) => prev.map(d => d.id === docId ? { ...d, parentDocument: previousParentId || null } : d));
-      message.error(e?.message || 'Failed to move document');
+      toast.error(e?.message || 'Failed to move document');
     }
   };
 
@@ -761,7 +772,7 @@ export const OpportunityDocuments: React.FC<OpportunityDocumentsProps> = ({
       const previousParentId = documents.find(d => d.id === active.id)?.parentDocument || null;
       if (previousParentId === targetFolderId) return;
       if (active.itemType === 'folder' && typeof targetFolderId === 'string' && isFolderAncestor(active.id as string, targetFolderId)) {
-        message.warning('Cannot move a folder into its own subfolder');
+        toast.warning('Cannot move a folder into its own subfolder');
         return;
       }
       updateParentDocumentLocal(active.id, targetFolderId);
@@ -1343,7 +1354,7 @@ export const OpportunityDocuments: React.FC<OpportunityDocumentsProps> = ({
     >
       <AntdInput
         value={renameModal.name}
-        onChange={(e) => setRenameModal(prev => ({ ...prev, name: e.target.value }))}
+        onChange={(e: React.ChangeEvent<HTMLInputElement>) => setRenameModal(prev => ({ ...prev, name: e.target.value }))}
         placeholder="Enter new folder name"
         data-testid="rename-folder-input"
       />
