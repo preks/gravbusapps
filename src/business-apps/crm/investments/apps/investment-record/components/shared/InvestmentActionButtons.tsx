@@ -1,54 +1,14 @@
 import React, { useState, useEffect } from 'react';
-import { Button, Dialog, DialogContent, DialogHeader, DialogTitle } from '@newwork/nw-design-system';
+import { Button, Dialog, DialogContent, DialogHeader, DialogTitle, Alert } from '@newwork/nw-design-system';
 import { FileText, Upload, Eye } from 'lucide-react';
-import { Alert, message, Spin } from 'antd';
+import { Spin } from 'antd';
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
+import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 import { useInvestmentReportClient } from '@/common/network/investment-reports';
 import { useInvestmentReportData, BaseInvestment } from '../../hooks/useInvestmentReportData';
 import { AppAction } from '@/components/app-action/AppAction';
 import { FlowContextName } from '@/common/types/FlowRegistryTypes';
-import { BusinessAppContextProps } from '@/common/BusinessAppContext';
-
-// =============================================================================
-// TYPE DEFINITIONS
-// =============================================================================
-
-interface InvestmentData {
-  investmentGroup?: {
-    code: string;
-    childEntries?: Array<{
-      code: string;
-      objectValue?: {
-        tileFields?: any[];
-      };
-    }>;
-  };
-  investmentType?: {
-    code: string;
-  };
-}
-
-interface CatalogData {
-  investmentGroups?: Array<{
-    code: string;
-    objectValue?: {
-      tileFields?: any[];
-    };
-    childEntries?: Array<{
-      code: string;
-      objectValue?: {
-        tileFields?: any[];
-      };
-    }>;
-  }>;
-  investmentTypes?: Array<{
-    code: string;
-    objectValue?: {
-      tileFields?: any[];
-    };
-  }>;
-}
 
 // =============================================================================
 // INVESTMENT REPORT PDF MODAL
@@ -90,31 +50,17 @@ const InvestmentReportPdfModal: React.FC<InvestmentReportPdfModalProps> = ({
       setDocumentError('');
       
       try {
-        
-        // Try primary URL first
-        let response = await fetch(reportUrl, {
+        // Use direct fetch with proper authentication for file downloads
+        const response = await fetch(reportUrl, {
           method: 'GET',
           headers: {
             'Authorization': `Bearer ${accessToken}`,
             'Accept': 'application/pdf, application/octet-stream, */*',
           },
         });
-
-        // If primary URL fails, try fallback URL
-        if (!response.ok && (window as any).investmentReportUrls?.fallback) {
-          const fallbackUrl = (window as any).investmentReportUrls.fallback;
-          
-          response = await fetch(fallbackUrl, {
-            method: 'GET',
-            headers: {
-              'Authorization': `Bearer ${accessToken}`,
-              'Accept': 'application/pdf, application/octet-stream, */*',
-            },
-          });
-        }
-
+        
         if (!response.ok) {
-          throw new Error(`HTTP ${response.status}: ${response.statusText} (tried both URL formats)`);
+          throw new Error(`Failed to download document: HTTP ${response.status} - ${response.statusText}`);
         }
 
         const blob = await response.blob();
@@ -146,46 +92,85 @@ const InvestmentReportPdfModal: React.FC<InvestmentReportPdfModalProps> = ({
   const canShowDocument = documentUrl && !loading && !hasError;
 
   return (
-    <Dialog open={isVisible} onOpenChange={handleClose}>
-      <DialogContent className="gba:max-w-[90vw] gba:max-h-[90vh] gba:w-full">
-        <DialogHeader className="gba:flex gba:flex-row gba:items-center gba:justify-center gba:space-y-0 gba:pb-4">
-          <DialogTitle className="gba:text-lg gba:font-semibold">
+    <Dialog open={isVisible} onOpenChange={handleClose} data-testid="investment-report-modal">
+      <DialogContent className="gba:max-w-[90vw] gba:max-h-[90vh] gba:w-full" data-testid="investment-report-modal-content">
+        <DialogHeader 
+          className="gba:flex gba:flex-row gba:items-center gba:justify-center" 
+          style={{ paddingBottom: 'var(--nw-spacing-md)' }}
+          data-testid="investment-report-modal-header"
+        >
+          <DialogTitle className="gba:font-semibold" style={{ fontSize: 'var(--nw-text-lg)' }}>
             {getTranslationFromI18nKeyAndLabel('investment.reports.pdfViewer', 'Investment Report')}
           </DialogTitle>
         </DialogHeader>
         
-        <div className="gba:mt-4 gba:bg-white gba:min-h-[80vh]">
+        <div 
+          style={{ 
+            marginTop: 'var(--nw-spacing-md)', 
+            backgroundColor: 'var(--nw-color-surface-primary)',
+            minHeight: '80vh'
+          }}
+        >
           {loading ? (
-            <div className="gba:flex gba:flex-col gba:justify-center gba:items-center gba:h-96 gba:gap-4">
+            <div 
+              className="gba:flex gba:flex-col gba:justify-center gba:items-center" 
+              style={{ 
+                height: '24rem',
+                gap: 'var(--nw-spacing-md)'
+              }}
+              data-testid="investment-report-loading"
+            >
               <Spin size="large" />
-              <div className="gba:text-sm gba:text-gray-600">
+              <div style={{ 
+                fontSize: 'var(--nw-text-sm)', 
+                color: 'var(--nw-color-text-secondary)' 
+              }}>
                 {getTranslationFromI18nKeyAndLabel('investment.reports.loading', 'Loading investment report...')}
               </div>
             </div>
           ) : hasError ? (
-            <div className="gba:flex gba:justify-center gba:items-center gba:h-96">
+            <div 
+              className="gba:flex gba:justify-center gba:items-center" 
+              style={{ height: '24rem' }}
+              data-testid="investment-report-error"
+            >
               <Alert
-                message={getTranslationFromI18nKeyAndLabel('investment.reports.error', 'Error Loading Report')}
-                description={hasError}
-                type="error"
-                showIcon
-                className="gba:max-w-md"
-              />
+                variant="destructive"
+                title={getTranslationFromI18nKeyAndLabel('investment.reports.error', 'Error Loading Report')}
+                style={{ maxWidth: '28rem' }}
+                data-testid="investment-report-error-alert"
+              >
+                {hasError}
+              </Alert>
             </div>
           ) : canShowDocument ? (
             <iframe
               src={documentUrl}
-              className="gba:w-full gba:h-[calc(90vh-120px)] gba:border-0"
+              className="gba:w-full gba:border-0"
+              style={{ height: 'calc(90vh - 120px)' }}
               title={reportFileName}
               data-testid="investment-report-pdf-iframe"
             />
           ) : (
-            <div className="gba:flex gba:justify-center gba:items-center gba:h-96">
+            <div 
+              className="gba:flex gba:justify-center gba:items-center" 
+              style={{ height: '24rem' }}
+              data-testid="investment-report-no-url"
+            >
               <div className="gba:text-center">
-                <div className="gba:text-lg gba:font-medium gba:mb-2">
+                <div 
+                  className="gba:font-medium" 
+                  style={{ 
+                    fontSize: 'var(--nw-text-lg)', 
+                    marginBottom: 'var(--nw-spacing-sm)' 
+                  }}
+                >
                   {getTranslationFromI18nKeyAndLabel('investment.reports.noUrl', 'No report URL available')}
                 </div>
-                <div className="gba:text-sm gba:text-gray-500">
+                <div style={{ 
+                  fontSize: 'var(--nw-text-sm)', 
+                  color: 'var(--nw-color-text-muted)' 
+                }}>
                   {getTranslationFromI18nKeyAndLabel('investment.reports.noUrlDesc', 'Report URL could not be constructed')}
                 </div>
               </div>
@@ -231,43 +216,6 @@ export interface GenerateOnePagerButtonProps extends Partial<BusinessAppContextP
   investmentData?: BaseInvestment;
 }
 
-/**
- * Helper function to check if investment has tiles defined in catalog objectValue
- */
-const hasInvestmentTilesConfiguration = (investment: InvestmentData | undefined, catalogData: CatalogData | undefined): boolean => {
-  if (!investment || !catalogData) {
-    return false;
-  }
-
-  const investmentGroupCode = investment?.investmentGroup?.code;
-  const investmentTypeCode = investment?.investmentType?.code;
-
-  // Check investment group for tile configuration
-  const investmentGroups = catalogData.investmentGroups || [];
-  const matchingGroup = investmentGroups.find((group) => group.code === investmentGroupCode);
-  
-  if (matchingGroup?.objectValue?.tileFields && matchingGroup.objectValue.tileFields.length > 0) {
-    return true; // Group has tile fields defined
-  }
-
-  // Check investment type for tile configuration
-  const investmentTypes = catalogData.investmentTypes || [];
-  const matchingType = investmentTypes.find((type) => type.code === investmentTypeCode);
-  
-  if (matchingType?.objectValue?.tileFields && matchingType.objectValue.tileFields.length > 0) {
-    return true; // Type has tile fields defined
-  }
-
-  // Also check nested types in groups (for flipped relationships)
-  if (matchingGroup?.childEntries && matchingGroup.childEntries.length > 0) {
-    const nestedType = matchingGroup.childEntries.find((type) => type.code === investmentTypeCode);
-    if (nestedType?.objectValue?.tileFields && nestedType.objectValue.tileFields.length > 0) {
-      return true; // Nested type has tile fields defined
-    }
-  }
-
-  return false; // No tile configuration found
-};
 
 /**
  * Generate One-Pager Button Component
@@ -276,8 +224,6 @@ const hasInvestmentTilesConfiguration = (investment: InvestmentData | undefined,
  */
 export const GenerateOnePagerButton: React.FC<GenerateOnePagerButtonProps> = ({
   investmentId,
-  investment,
-  catalogData,
   variant = 'default',
   size = 'default',
   accessToken,
@@ -306,7 +252,6 @@ export const GenerateOnePagerButton: React.FC<GenerateOnePagerButtonProps> = ({
   // NEW DIRECT API APPROACH (opt-in with useDirectApi=true)
   return (
     <DirectApiGenerateButton
-      investmentId={investmentId}
       variant={variant}
       size={size}
       accessToken={accessToken}
@@ -321,14 +266,12 @@ export const GenerateOnePagerButton: React.FC<GenerateOnePagerButtonProps> = ({
 // =============================================================================
 
 interface DirectApiGenerateButtonProps extends Partial<BusinessAppContextProps> {
-  investmentId: string;
   variant?: 'default' | 'destructive' | 'outline' | 'secondary' | 'ghost' | 'link';
   size?: 'sm' | 'default' | 'lg';
   investmentData?: BaseInvestment;
 }
 
 const DirectApiGenerateButton: React.FC<DirectApiGenerateButtonProps> = ({
-  investmentId,
   variant = 'default',
   size = 'default',
   accessToken,
@@ -340,7 +283,7 @@ const DirectApiGenerateButton: React.FC<DirectApiGenerateButtonProps> = ({
 
   // Initialize hooks for direct API approach
   const reportClient = useInvestmentReportClient(accessToken || '');
-  const { fetchInvestmentReportData, transformInvestmentToPayload } = useInvestmentReportData({ 
+  const { transformInvestmentToPayload } = useInvestmentReportData({ 
     accessToken: accessToken || '', 
     userInfo 
   } as BusinessAppContextProps);
@@ -365,13 +308,12 @@ const DirectApiGenerateButton: React.FC<DirectApiGenerateButtonProps> = ({
       const response = await reportClient.generateInvestmentReport(reportPayload);
 
       if (response.success) {
-        message.success(
-          getTranslationFromI18nKeyAndLabel('investment.reports.generateSuccess', 'One-pager report generated successfully!')
-        );
+        console.info('✅ Report generated successfully:', getTranslationFromI18nKeyAndLabel('investment.reports.generateSuccess', 'One-pager report generated successfully!'));
 
-        // If the API returns a download URL, open it
+        // If the API returns a download URL, open it using platform navigation
         if (response.reportUrl) {
-          window.open(response.reportUrl, '_blank');
+          const url = buildPlatformUrl(response.reportUrl);
+          navigateTo(url);
         }
       } else {
         throw new Error(response.message || 'Report generation failed');
@@ -380,9 +322,7 @@ const DirectApiGenerateButton: React.FC<DirectApiGenerateButtonProps> = ({
       
       const errorMessage = err instanceof Error ? err.message : 'Unknown error occurred';
       setError(errorMessage);
-      message.error(
-        getTranslationFromI18nKeyAndLabel('investment.reports.generateError', 'Failed to generate report: ') + errorMessage
-      );
+      console.error('❌ Report generation failed:', getTranslationFromI18nKeyAndLabel('investment.reports.generateError', 'Failed to generate report: ') + errorMessage);
     } finally {
       setIsGenerating(false);
     }
@@ -390,28 +330,27 @@ const DirectApiGenerateButton: React.FC<DirectApiGenerateButtonProps> = ({
 
 
   return (
-    <div className="gba:space-y-2" data-testid="generate-investment-one-pager-container">
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--nw-spacing-sm)' }} data-testid="generate-investment-one-pager-container">
       {error && (
         <Alert
-          message="Report Generation Error"
-          description={error}
-          type="error"
-          showIcon
-          closable
-          onClose={() => setError(null)}
+          variant="destructive"
+          title="Report Generation Error"
           data-testid="generate-investment-one-pager-error"
-        />
+        >
+          {error}
+        </Alert>
       )}
       
       <Button
         variant={variant}
         size={size}
-        className="gba:flex gba:items-center gba:gap-2"
+        className="gba:flex gba:items-center"
+        style={{ gap: 'var(--nw-spacing-sm)' }}
         onClick={handleGenerateReport}
         disabled={isGenerating}
         data-testid="generate-investment-one-pager-button"
       >
-        <FileText className="gba:h-4 gba:w-4" />
+        <FileText style={{ height: '1rem', width: '1rem' }} />
         {isGenerating 
           ? getTranslationFromI18nKeyAndLabel('investment.reports.generating', 'Generating...') 
           : getTranslationFromI18nKeyAndLabel('investment.reports.generateOnePager', 'Generate One-Pager')
@@ -454,35 +393,20 @@ const FlowBasedGenerateButton: React.FC<FlowBasedGenerateButtonProps> = ({
     userInfo 
   } as BusinessAppContextProps);
 
-  // Extract file path from FileInfo string and construct proper URL with fallback options
+  // Extract file path from FileInfo string and construct proper URL
   const extractFilePathFromReportPath = (reportPath: string): string | null => {
     try {
       // Parse FileInfo string to get the path
-      // Example: "FileInfo(appName=investment_relations, fileId=investment-report-Existing_Properties-1758549109766.pdf, folderPath=/generated-reports, accessScope=null, path=/api/v1/tenant/downloads/investment_relations/generated-reports/investment-report-Existing_Properties-1758549109766.pdf, fileMetadata=null)"
+      // Example: "FileInfo(appName=investment_relations, fileId=investment-report-Co-Investments-1758641093671.pdf, folderPath=/generated-reports, accessScope=null, path=/api/v1/tenant/downloads/investment_relations/generated-reports/investment-report-Co-Investments-1758641093671.pdf, fileMetadata=null)"
       const pathMatch = reportPath.match(/path=([^,\s)]+)/);
       if (pathMatch) {
         const extractedPath = pathMatch[1];
         
-        // Construct the proper URL based on NEWWORK platform format
+        // Construct the proper URL: https://newwork-dev.newwork.com/files/api/v1/tenant/downloads/...
         const baseUrl = 'https://newwork-dev.newwork.com';
+        const fullUrl = `${baseUrl}/files${extractedPath}`;
         
-        // Primary format: Add /files prefix if not present
-        let primaryUrl = extractedPath;
-        if (!primaryUrl.startsWith('/files/') && primaryUrl.startsWith('/api/')) {
-          primaryUrl = '/files' + primaryUrl;
-        }
-        const fullPrimaryUrl = baseUrl + primaryUrl;
-        
-        // Alternative format: Direct API path (fallback)
-        const fallbackUrl = baseUrl + extractedPath;
-        
-        // Store both URLs for potential fallback use
-        (window as any).investmentReportUrls = {
-          primary: fullPrimaryUrl,
-          fallback: fallbackUrl
-        };
-        
-        return fullPrimaryUrl;
+        return fullUrl;
       }
       
       return null;
@@ -506,9 +430,7 @@ const FlowBasedGenerateButton: React.FC<FlowBasedGenerateButtonProps> = ({
 
     try {
       if (!accessToken) {
-        message.error(
-          getTranslationFromI18nKeyAndLabel('investment.reports.viewerError', 'Authentication required to view report')
-        );
+        console.error('❌ Authentication error:', getTranslationFromI18nKeyAndLabel('investment.reports.viewerError', 'Authentication required to view report'));
         return;
       }
 
@@ -524,9 +446,7 @@ const FlowBasedGenerateButton: React.FC<FlowBasedGenerateButtonProps> = ({
 
     } catch (error) {
       console.error('❌ Error in handleShowGeneratedReport:', error);
-      message.error(
-        getTranslationFromI18nKeyAndLabel('investment.reports.viewerError', 'Failed to open report viewer: ' + (error as Error).message)
-      );
+      console.error('❌ PDF viewer error:', getTranslationFromI18nKeyAndLabel('investment.reports.viewerError', 'Failed to open report viewer: ' + (error as Error).message));
       setIsGenerating(false);
     }
   };
@@ -558,18 +478,17 @@ const FlowBasedGenerateButton: React.FC<FlowBasedGenerateButtonProps> = ({
             return null;
           };
 
-          const result = checkForReportPath(event.detail);
-          if (result) {
-            const downloadPath = extractFilePathFromReportPath(result.reportPath);
-            const fileName = extractFileNameFromReportPath(result.reportPath);
-            
-            
-            if (downloadPath) {
-              handleShowGeneratedReport(downloadPath, fileName);
-              setIsGenerating(false);
-            } else {
-              console.error('❌ Could not extract download path from event reportPath');
-            }
+           const result = checkForReportPath(event.detail);
+           if (result) {
+             const downloadPath = extractFilePathFromReportPath(result.reportPath);
+             const fileName = extractFileNameFromReportPath(result.reportPath);
+             
+             if (downloadPath) {
+               handleShowGeneratedReport(downloadPath, fileName);
+               setIsGenerating(false);
+             } else {
+               console.error('❌ Could not extract download path from event reportPath');
+             }
           } 
         }
       }
@@ -646,18 +565,17 @@ const FlowBasedGenerateButton: React.FC<FlowBasedGenerateButtonProps> = ({
             
             const reportData = checkResponseForReportPath(data);
             
-            if (reportData) {
-              const downloadPath = extractFilePathFromReportPath(reportData.reportPath);
-              const fileName = extractFileNameFromReportPath(reportData.reportPath);
-              
-              
-              if (downloadPath) {
-                setIsGenerating(false);
-                handleShowGeneratedReport(downloadPath, fileName);
-              } else {
-                console.error('❌ Could not extract download path from network reportPath');
-              }
-            } 
+             if (reportData) {
+               const downloadPath = extractFilePathFromReportPath(reportData.reportPath);
+               const fileName = extractFileNameFromReportPath(reportData.reportPath);
+               
+               if (downloadPath) {
+                 setIsGenerating(false);
+                 handleShowGeneratedReport(downloadPath, fileName);
+               } else {
+                 console.error('❌ Could not extract download path from network reportPath');
+               }
+             }
           }
         } catch (e) {
           // Ignore parsing errors
@@ -712,26 +630,29 @@ const FlowBasedGenerateButton: React.FC<FlowBasedGenerateButtonProps> = ({
     const originalXHROpen = XMLHttpRequest.prototype.open;
     const originalXHRSend = XMLHttpRequest.prototype.send;
 
-    XMLHttpRequest.prototype.open = function(method, url, ...args) {
-      this._url = url;
-      this._method = method;
-      return originalXHROpen.apply(this, [method, url, ...args]);
+    XMLHttpRequest.prototype.open = function(
+      method: string, 
+      url: string | URL, 
+      async?: boolean, 
+      username?: string | null, 
+      password?: string | null
+    ) {
+      (this as any)._url = url;
+      (this as any)._method = method;
+      return originalXHROpen.call(this, method, url, async ?? true, username, password);
     };
 
-    XMLHttpRequest.prototype.send = function(data) {
+    XMLHttpRequest.prototype.send = function(body?: Document | XMLHttpRequestBodyInit | null) {
       const xhr = this;
       
       xhr.addEventListener('load', function() {
-
         if ((xhr.status === 200 || xhr.status === 201) && xhr.getResponseHeader('content-type')?.includes('application/json')) {
           try {
             const responseData = JSON.parse(xhr.responseText);
             // Check for reportPath in XHR response
             if (responseData && responseData.reportPath) {
-              
               const downloadPath = extractFilePathFromReportPath(responseData.reportPath);
               const fileName = extractFileNameFromReportPath(responseData.reportPath);
-              
               
               if (downloadPath) {
                 handleShowGeneratedReport(downloadPath, fileName);
@@ -739,14 +660,13 @@ const FlowBasedGenerateButton: React.FC<FlowBasedGenerateButtonProps> = ({
                 console.error('❌ Could not extract download path from XHR reportPath');
               }
             }
-            
           } catch (e) {
             // Ignore JSON parsing errors
           }
         }
       });
 
-      return originalXHRSend.apply(this, arguments);
+      return originalXHRSend.call(this, body);
     };
 
     return () => {
@@ -792,11 +712,12 @@ const FlowBasedGenerateButton: React.FC<FlowBasedGenerateButtonProps> = ({
           <Button
             variant={variant}
             size={size}
-            className="gba:flex gba:items-center gba:gap-2"
+            className="gba:flex gba:items-center"
+            style={{ gap: 'var(--nw-spacing-sm)' }}
             data-testid="generate-investment-one-pager-button"
             disabled={isGenerating}
           >
-            <Eye className="gba:h-4 gba:w-4" />
+            <Eye style={{ height: '1rem', width: '1rem' }} />
             {isGenerating 
               ? getTranslationFromI18nKeyAndLabel('investment.reports.generating', 'Generating...') 
               : getTranslationFromI18nKeyAndLabel('investment.reports.generateOnePager', 'Generate One-Pager')
@@ -869,10 +790,11 @@ export const UploadReportButton: React.FC<UploadReportButtonProps> = ({
       <Button
         variant={variant}
         size={size}
-        className="gba:flex gba:items-center gba:gap-2"
+        className="gba:flex gba:items-center"
+        style={{ gap: 'var(--nw-spacing-sm)' }}
         data-testid="upload-investment-report-button"
       >
-        <Upload className="gba:h-4 gba:w-4" />
+        <Upload style={{ height: '1rem', width: '1rem' }} />
         {getTranslationFromI18nKeyAndLabel('investment.reports.uploadReport', 'Upload Report')}
       </Button>
     </AppAction>

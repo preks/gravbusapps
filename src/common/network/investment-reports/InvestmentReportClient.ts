@@ -102,6 +102,7 @@ export class InvestmentReportClient extends RestClient {
       }
     );
   }
+
 }
 
 // Singleton instance for reuse across the application
