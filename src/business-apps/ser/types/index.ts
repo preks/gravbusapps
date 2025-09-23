@@ -161,6 +161,9 @@ export interface WorkflowEngine {
   advance(stepId: string, payload?: any): Promise<void>;
   comment(stepId: string, body: string): Promise<Comment>;
   getTaskStepComments(taskId: string): Promise<{ comments: any[]; totalComments: number }>; // ✅ NEW: Get comments for task step
+  
+  // ✅ NEW: Two-step template execution (execute template + complete first task with form data)
+  executeTemplate?(templateId: string, formData: any): Promise<string>;
 }
 
 // Analytics event types

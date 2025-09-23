@@ -247,7 +247,7 @@ export class ConductorWorkflowEngineAdapter implements WorkflowEngine {
       // Prepare execution context with assignment resolution
       const executionContext = this.buildExecutionContext(formData, templateKey);
       
-      // Prepare request payload
+      // Prepare request payload (inputValues removed - not supported by API)
       requestPayload = {
           initiator: this.currentUserId,
           context: {
@@ -257,8 +257,8 @@ export class ConductorWorkflowEngineAdapter implements WorkflowEngine {
             initiatedFrom: 'service-portal',
             urgency: formData.urgency || 'standard'
           },
-          runtimeAssignments: executionContext.assignments,
-          inputValues: formData
+          runtimeAssignments: executionContext.assignments
+          // Note: inputValues removed - form data should be submitted via task completion
       };
 
       console.log(`[ConductorAdapterRequester] 🚀 API Request Details:`, {
@@ -332,7 +332,7 @@ export class ConductorWorkflowEngineAdapter implements WorkflowEngine {
       }
 
       const result = await response.json();
-      const flowId = result.data.flowId || result.flowId;
+      const flowId = result.data.workflowId || result.data.flowId || result.flowId;
 
       console.log(`[ConductorAdapterRequester] ✅ Request created successfully:`, {
         flowId: flowId,
@@ -1658,6 +1658,56 @@ export class ConductorWorkflowEngineAdapter implements WorkflowEngine {
   }
 
   /**
+   * Execute template with two-step process: 
+   * 1. Execute template to start workflow (without inputValues)
+   * 2. Complete first task with form data
+   */
+  async executeTemplate(templateId: string, formData: any): Promise<string> {
+    try {
+      console.log(`[ConductorAdapter] 🚀 Starting two-step template execution: ${templateId}`);
+
+      // Step 1: Execute template to start workflow (pass formData for runtime assignments, but inputValues already removed from startRequest)
+      const flowId = await this.startRequest(templateId, formData); // Pass formData for runtime assignments
+      
+      console.log(`[ConductorAdapter] ✅ Step 1 complete - Workflow started with ID: ${flowId}`);
+
+      // Step 2: Get step_0 task ID and complete it with form data
+      console.log(`[ConductorAdapter] 🔍 Step 2 - Getting step_0 task ID for workflow: ${flowId}`);
+      
+      try {
+        // Use the endpoint you provided to get the actual task ID
+        const stepResponse = await this.makeRequest(`/flows/${flowId}/steps/step_0/data`, {
+          method: 'GET',
+        });
+
+        console.log(`[ConductorAdapter] 🔍 Step data response:`, stepResponse);
+
+        if (stepResponse.data && stepResponse.data.length > 0) {
+          const firstStepData = stepResponse.data[0];
+          const taskId = firstStepData.taskId;
+          
+          console.log(`[ConductorAdapter] ✅ Found step_0 task: ${taskId}`);
+          
+          // Directly complete the task with form data (no claiming needed)
+          await this.completeTask(taskId, formData, 'Initial form submission from Service Portal');
+          console.log(`[ConductorAdapter] ✅ Step 2 complete - First task completed with form data`);
+        } else {
+          console.log(`[ConductorAdapter] ⚠️ No task data found for step_0 in workflow ${flowId}`);
+        }
+      } catch (stepError) {
+        console.error(`[ConductorAdapter] ❌ Error getting step_0 task data:`, stepError);
+        console.log(`[ConductorAdapter] ⚠️ Continuing without form data submission - workflow started but form data not submitted`);
+      }
+
+      return flowId;
+
+    } catch (error) {
+      console.error('[ConductorAdapter] ❌ Error in executeTemplate:', error);
+      throw new Error(`Failed to execute template: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
+  }
+
+  /**
    * Enhanced comment method with userId parameter and visibility support
    * NOTE: custom-flow-engine recreates tasks on comment, so task ID may change
    */
@@ -2352,61 +2402,6 @@ export class ConductorWorkflowEngineAdapter implements WorkflowEngine {
     return -1; // No current step found
   }
 
-  /**
-   * Get all templates from custom-flow-engine for development purposes
-   * @param options Query options for filtering templates
-   */
-  async getTemplates(options?: {
-    limit?: number;
-    offset?: number;
-    onlyLatest?: boolean;
-    includeDrafts?: boolean;
-    search?: string;
-  }): Promise<{
-    status: string;
-    count: number;
-    totalCount: number;
-    hasMore: boolean;
-    data: any[];
-  }> {
-    try {
-      console.log(`[ConductorAdapterRequester] 📋 Fetching templates from custom-flow-engine:`, options);
-      
-      const queryParams = new URLSearchParams();
-      if (options?.limit) queryParams.append('limit', options.limit.toString());
-      if (options?.offset) queryParams.append('offset', options.offset.toString());
-      if (options?.onlyLatest !== undefined) queryParams.append('onlyLatest', options.onlyLatest.toString());
-      if (options?.includeDrafts !== undefined) queryParams.append('includeDrafts', options.includeDrafts.toString());
-      if (options?.search) queryParams.append('search', options.search);
-
-      const url = `${this.flowEngineBaseUrl}/templates?${queryParams.toString()}`;
-      console.log(`[ConductorAdapterRequester] 🔗 Templates API URL:`, url);
-
-      const response = await fetch(url, {
-        method: 'GET',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${this.accessToken}`,
-        },
-      });
-
-      if (!response.ok) {
-        throw new Error(`Failed to fetch templates: ${response.status} ${response.statusText}`);
-      }
-
-      const result = await response.json();
-      console.log(`[ConductorAdapterRequester] ✅ Templates fetched successfully:`, {
-        count: result.count,
-        totalCount: result.totalCount,
-        hasMore: result.hasMore
-      });
-
-      return result;
-    } catch (error) {
-      console.error(`[ConductorAdapterRequester] ❌ Error fetching templates:`, error);
-      throw error;
-    }
-  }
 
   /**
    * ✅ NEW: Get comments for a specific task step (all instances)
