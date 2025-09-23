@@ -10,6 +10,7 @@ import { ServiceCategory, ServiceRequestTemplate, FlowTemplate } from '../../../
 import { getCategoryById } from '../../../data';
 import { getCategoryIcon } from '../../../utils/iconMapping';
 import { useSharedFlowTemplates } from '../../../hooks/useSharedFlowTemplates';
+import { useServicePortalCategories } from '../../../hooks';
 import { FlowTemplateCard } from './FlowTemplateCard';
 import { FlowTemplatesDetail } from './FlowTemplatesDetail';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
@@ -50,6 +51,13 @@ export const ServiceDetail: React.FC<ServiceDetailProps> = ({
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  // Fetch dynamic categories from catalog (same as ServiceCatalog)
+  const {
+    categories: catalogCategories,
+    isLoading: categoriesLoading,
+    error: categoriesError,
+  } = useServicePortalCategories(contextProps);
+
   // Fetch flow templates from custom-flow-engine using shared service
   const { 
     templates: allFlowTemplates, 
@@ -85,12 +93,11 @@ export const ServiceDetail: React.FC<ServiceDetailProps> = ({
           : [template.tags.serviceCategory];
         
         // Check if any template category matches existing categories
-        // Note: We need to get categories from the parent component or context
-        // For now, we'll just include templates with invalid category references
         const hasValidCategory = templateCategories.some(templateCategory => {
-          // This is a simplified check - in a real implementation, you'd want to 
-          // check against the actual available categories
-          return templateCategory && templateCategory.startsWith('ServicePortalCategory:1:');
+          return catalogCategories.some(category => {
+            const expectedCategoryRef = `ServicePortalCategory:1:${category.id.toUpperCase()}`;
+            return templateCategory === expectedCategoryRef;
+          });
         });
         
         if (!hasValidCategory) {
@@ -161,6 +168,16 @@ export const ServiceDetail: React.FC<ServiceDetailProps> = ({
       setError(null);
       
       try {
+        // Wait for categories to load if they're still loading
+        if (categoriesLoading) {
+          console.log('🎭 [ServiceDetail] Waiting for categories to load...');
+          return; // Don't proceed until categories are loaded
+        }
+        
+        if (categoriesError) {
+          throw new Error(`Failed to load categories: ${categoriesError}`);
+        }
+        
         // Simulate API delay
         await new Promise(resolve => setTimeout(resolve, 300));
         
@@ -178,12 +195,23 @@ export const ServiceDetail: React.FC<ServiceDetailProps> = ({
           return;
         }
         
-        const categoryData = getCategoryById(categoryId);
+        // First try to find in dynamic catalog categories
+        let categoryData = catalogCategories.find(cat => cat.id === categoryId);
+        
+        // If not found in catalog, try static categories as fallback
         if (!categoryData) {
-          throw new Error(`Category ${categoryId} not found`);
+          categoryData = getCategoryById(categoryId);
         }
         
-        console.log('🎭 [ServiceDetail] Category loaded:', categoryData.name);
+        if (!categoryData) {
+          throw new Error(`Category ${categoryId} not found in catalog or static categories`);
+        }
+        
+        console.log('🎭 [ServiceDetail] Category loaded:', {
+          id: categoryData.id,
+          name: categoryData.name,
+          source: catalogCategories.find(cat => cat.id === categoryId) ? 'catalog' : 'static'
+        });
         setCategory(categoryData);
       } catch (err) {
         console.error('🎭 [ServiceDetail] Error loading category:', err);
@@ -194,7 +222,7 @@ export const ServiceDetail: React.FC<ServiceDetailProps> = ({
     };
 
     loadCategory();
-  }, [categoryId]);
+  }, [categoryId, categoriesLoading, categoriesError, catalogCategories]);
 
   // Debug effect for flow templates
   useEffect(() => {
