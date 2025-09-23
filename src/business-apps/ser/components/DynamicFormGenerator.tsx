@@ -395,6 +395,33 @@ export const DynamicFormGenerator: React.FC<DynamicFormGeneratorProps> = ({
           </div>
         );
 
+      case 'DATETIME':
+        return (
+          <div className="gba:space-y-2" key={field.name} data-testid={`field-container-${field.name}`}>
+            <label htmlFor={field.name} className="gba:block gba:text-sm gba:font-medium gba:text-foreground">
+              <Calendar className="gba:w-4 gba:h-4 gba:inline gba:mr-1" />
+              {field.label}
+              {field.required && <span className="gba:text-destructive gba:ml-1">*</span>}
+            </label>
+            {field.description && (
+              <p className="gba:text-xs gba:text-muted-foreground">{field.description}</p>
+            )}
+            <Input
+              {...commonProps}
+              type="datetime-local"
+              value={value}
+              onChange={(e) => handleFieldChange(field.name, e.target.value)}
+              onBlur={() => setTouchedFields(prev => new Set(prev).add(field.name))}
+            />
+            {hasError && (
+              <div className="gba:flex gba:items-center gba:gap-1 gba:text-destructive gba:text-xs">
+                <Warning size={12} />
+                {error}
+              </div>
+            )}
+          </div>
+        );
+
       case 'CHECKBOX':
         return (
           <div className="gba:space-y-2" key={field.name} data-testid={`field-container-${field.name}`}>

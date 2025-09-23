@@ -9,6 +9,7 @@ export type DynamicFormFieldType =
   | 'TEXTAREA' 
   | 'SELECT' 
   | 'DATE' 
+  | 'DATETIME'
   | 'CHECKBOX' 
   | 'NUMBER'
   | 'EMAIL'
