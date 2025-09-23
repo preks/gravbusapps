@@ -1,6 +1,6 @@
 import { RestClient } from '../rest/RestClient';
 import { env } from '@/common/env/EnvUtils';
-import { FlowTags } from '@/common/types/FlowTags';
+import { FlowTags } from '@/business-apps/flow/types';
 
 // Flow template types (matching backend)
 export enum FlowStepType {
@@ -16,6 +16,7 @@ export enum InputType {
   SELECT = 'SELECT',
   MULTISELECT = 'MULTISELECT',
   CHECKBOX = 'CHECKBOX',
+  RADIO = 'RADIO',
   DATE = 'DATE',
   DATETIME = 'DATETIME',
   NUMBER = 'NUMBER',
@@ -107,6 +108,7 @@ interface ApiResponse<T> {
   status: 'success' | 'error';
   data: T;
   count?: number;
+  totalCount?: number;
   message?: string;
 }
 
@@ -127,9 +129,53 @@ export class FlowTemplateClient extends RestClient {
    * Get all flow templates
    */
   async getTemplates(): Promise<FlowTemplate[]> {
-    const response = await this.get<ApiResponse<FlowTemplate[]>>('/');
+    const response = await this.get<ApiResponse<FlowTemplate[]>>('/?limit=50');
     return response.data;
   }
+
+  /**
+   * Get templates with pagination and search support
+   * Maps to templateController.getAllTemplatesController in flow engine
+   */
+  async getTemplatesList(params?: {
+    limit?: number;
+    offset?: number;
+    onlyLatest?: boolean;
+    includeDrafts?: boolean;
+    templateType?: 'TEMPLATE' | 'SELF_SERVICE';
+    search?: string;
+    tagFilters?: Record<string, string>;
+  }): Promise<{
+    templates: FlowTemplate[];
+    totalCount: number;
+    limit: number;
+    offset: number;
+  }> {
+    const searchParams = new URLSearchParams();
+    
+    if (params?.limit !== undefined) searchParams.append('limit', params.limit.toString());
+    if (params?.offset !== undefined) searchParams.append('offset', params.offset.toString());
+    if (params?.onlyLatest !== undefined) searchParams.append('onlyLatest', params.onlyLatest.toString());
+    if (params?.includeDrafts !== undefined) searchParams.append('includeDrafts', params.includeDrafts.toString());
+    if (params?.templateType) searchParams.append('templateType', params.templateType);
+    if (params?.search?.trim()) searchParams.append('search', params.search.trim());
+    if (params?.tagFilters) {
+      Object.entries(params.tagFilters).forEach(([key, value]) => {
+        searchParams.append(`tagFilters[${key}]`, value);
+      });
+    }
+
+    const url = searchParams.toString() ? `/?${searchParams.toString()}` : '/';
+    const response = await this.get<ApiResponse<FlowTemplate[]>>(url);
+    
+    return {
+      templates: response.data,
+      totalCount: response.totalCount || response.data.length,
+      limit: params?.limit || 20,
+      offset: params?.offset || 0,
+    };
+  }
+
 
   /**
    * Get a specific flow template by ID

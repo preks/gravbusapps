@@ -464,6 +464,10 @@ const TaskInbox: React.FC<TaskInboxProps> = ({
           case 'CHECKBOX':
             initialFormData[input.name] = input.options && input.options.length > 0 ? [] : false;
             break;
+          case 'RADIO':
+          case 'radio':
+            initialFormData[input.name] = '';
+            break;
           case 'MULTISELECT':
             initialFormData[input.name] = [];
             break;

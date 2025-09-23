@@ -295,9 +295,11 @@ const FlowHub: React.FC<FlowHubProps> = (context) => {
         icon: Gear,
         category: 'core',
         links: [
-          { label: 'Compliance Solution', action: 'solution-compliance' }
+          { label: 'Compliance Solution', action: 'solution-compliance' },
+          { label: 'Employee Lifecycle', action: 'solution-employee-lifecycle' },
+          { label: 'Survey Solution', action: 'solution-survey' }
         ],
-        buttonLabel: 'Open Solution',
+        buttonLabel: 'Browse Solutions',
         buttonAction: 'navigate-solution-compliance'
       });
 
@@ -514,6 +516,12 @@ const FlowHub: React.FC<FlowHubProps> = (context) => {
         case 'navigate-solution-compliance':
           navigateTo('/platform/apps/flow/apps/solutions/compliance');
           break;
+        case 'navigate-solution-employee-lifecycle':
+          navigateTo('/platform/apps/flow/apps/solutions/employee-lifecycle');
+          break;
+        case 'navigate-solution-survey':
+          navigateTo('/platform/apps/flow/apps/solutions/survey');
+          break;
         case 'navigate-personal-analytics':
         case 'navigate-team-analytics':
         case 'navigate-system-analytics':
@@ -570,6 +578,12 @@ const FlowHub: React.FC<FlowHubProps> = (context) => {
       // Flow Solutions
       case 'solution-compliance':
         navigateTo('/platform/apps/flow/apps/solutions/compliance');
+        return;
+      case 'solution-employee-lifecycle':
+        navigateTo('/platform/apps/flow/apps/solutions/employee-lifecycle');
+        return;
+      case 'solution-survey':
+        navigateTo('/platform/apps/flow/apps/solutions/survey');
         return;
 
       // Flow Templates / Creator

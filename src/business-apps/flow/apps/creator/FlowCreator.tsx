@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
 import { FlowTemplateList } from './components/FlowTemplateList';
@@ -9,8 +9,9 @@ import { useFlowTemplateStore } from './hooks/useFlowTemplateStore';
 import { useWizardStore } from './hooks/useWizardStore';
 import { useFlowTemplateClient } from '@/common/network/flows/useFlowTemplateClient';
 import { FlowTemplate } from '@/common/network/flows/FlowTemplateClient';
-import { Spinner, Alert, AlertDescription, Button, Tabs, TabsContent, TabsList, TabsTrigger, Card, CardContent, CardHeader, CardTitle, Badge, Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@newwork/nw-design-system';
-import { Settings, FileText, Users, CheckCircle, MessageSquare, ClipboardList, RefreshCw, Building2, Briefcase, Heart, Truck, ShoppingCart, Banknote, Shield, Factory, Wrench, UserCheck, Calculator, TrendingUp, Headphones, Cpu, Globe, Calendar, Zap, Sparkles } from 'lucide-react';
+import { Spinner, Alert, AlertDescription, Button, Tabs, TabsContent, TabsList, TabsTrigger, Card, CardContent, CardHeader, CardTitle, Badge, Select, SelectContent, SelectItem, SelectTrigger, SelectValue, Input } from '@newwork/nw-design-system';
+import { DebouncedInput } from '@/components/data-filter/DebouncedInput';
+import { Settings, FileText, Users, CheckCircle, MessageSquare, ClipboardList, RefreshCw, Building2, Briefcase, Heart, Truck, ShoppingCart, Banknote, Shield, Factory, Wrench, UserCheck, Calculator, TrendingUp, Headphones, Cpu, Globe, Calendar, Zap, Sparkles, Search, ChevronLeft, ChevronRight } from 'lucide-react';
 import { MockDataProvider } from '../../providers/MockDataProvider';
 import { FlowDesigner } from './components/designer/FlowDesigner';
 
@@ -33,6 +34,19 @@ export const FlowCreator: React.FC<FlowCreatorProps> = ({
   const [templates, setTemplates] = useState<FlowTemplate[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  
+  // Pagination and search state
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalCount, setTotalCount] = useState(0);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [isSearching, setIsSearching] = useState(false);
+  const itemsPerPage = 20;
+  
+  // Use ref to always get current search term in callbacks
+  const currentSearchTermRef = useRef(searchTerm);
+  useEffect(() => {
+    currentSearchTermRef.current = searchTerm;
+  }, [searchTerm]);
   const [isWizardOpen, setIsWizardOpen] = useState(false);
   const [showDesigner, setShowDesigner] = useState(false);
   const [selectedTemplate, setSelectedTemplate] = useState<FlowTemplate | null>(null);
@@ -1134,33 +1148,81 @@ export const FlowCreator: React.FC<FlowCreatorProps> = ({
 
   // No conversion needed - using the same format everywhere!
 
-  // Load templates from API
-  const loadTemplates = async () => {
+  // Load templates from API with pagination and search
+  const loadTemplates = useCallback(async (page: number = 1, search: string = '', resetPreview: boolean = true) => {
     try {
       setIsLoading(true);
       setError(null);
-      const templates = await flowTemplateClient.getTemplates();
-      console.log('FlowCreator: Loaded templates:', templates.length);
-      setTemplates(templates);
-      // Auto-select first template for preview
-      if (templates.length > 0 && !previewTemplate) {
-        console.log('FlowCreator: Auto-selecting first template:', templates[0].name);
-        setPreviewTemplate(templates[0]);
+      
+      // Always update search term state to match the actual search being performed
+      setSearchTerm(search);
+      if (search !== '') {
+        setIsSearching(true);
+        setCurrentPage(1);
+      }
+      
+      const offset = (page - 1) * itemsPerPage;
+      const response = await flowTemplateClient.getTemplatesList({
+        limit: itemsPerPage,
+        offset,
+        search: search.trim() || undefined,
+        onlyLatest: true,
+        includeDrafts: true
+      });
+      
+      console.log(`FlowCreator: Loaded ${response.templates.length} templates (page ${page}, total: ${response.totalCount})`);
+      console.log(`Pagination: Setting current page to ${page}, total count to ${response.totalCount}`);
+      
+      setTemplates(response.templates);
+      setTotalCount(response.totalCount);
+      setCurrentPage(page);
+      
+      // Auto-select first template for preview on first load or search
+      if (resetPreview && response.templates.length > 0) {
+        console.log('FlowCreator: Auto-selecting first template:', response.templates[0].name);
+        setPreviewTemplate(response.templates[0]);
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load templates');
       console.error('Error loading templates:', err);
     } finally {
       setIsLoading(false);
+      setIsSearching(false);
     }
-  };
+  }, [flowTemplateClient, itemsPerPage]);
+
+  // Calculate pagination info first
+  const totalPages = useMemo(() => {
+    const pages = Math.ceil(totalCount / itemsPerPage);
+    console.log(`Pagination calc: totalCount=${totalCount}, itemsPerPage=${itemsPerPage}, totalPages=${pages}`);
+    return pages;
+  }, [totalCount, itemsPerPage]);
+  const startItem = useMemo(() => (currentPage - 1) * itemsPerPage + 1, [currentPage, itemsPerPage]);
+  const endItem = useMemo(() => Math.min(currentPage * itemsPerPage, totalCount), [currentPage, itemsPerPage, totalCount]);
+
+  // Debounced search handler
+  const handleSearch = useCallback((searchValue: string) => {
+    loadTemplates(1, searchValue, true);
+  }, []);
+
+  // Pagination handlers
+  const handlePageChange = useCallback((page: number) => {
+    const currentSearch = currentSearchTermRef.current;
+    console.log(`Pagination: Requesting page ${page}, current: ${currentPage}, total pages: ${totalPages}`);
+    console.log(`Pagination: Using current searchTerm: "${currentSearch}"`);
+    if (page >= 1 && page <= totalPages) {
+      loadTemplates(page, currentSearch, false);
+    } else {
+      console.warn(`Invalid page requested: ${page} (valid range: 1-${totalPages})`);
+    }
+  }, [totalPages, currentPage]);
 
   // Load templates on component mount
   useEffect(() => {
     console.log('FlowCreator: accessToken =', accessToken ? 'PRESENT' : 'MISSING');
     if (accessToken) {
       console.log('FlowCreator: Making API call to load templates');
-      loadTemplates();
+      loadTemplates(1, '', true);
     } else {
       console.log('FlowCreator: No accessToken, skipping API call');
     }
@@ -1804,9 +1866,42 @@ export const FlowCreator: React.FC<FlowCreatorProps> = ({
                 {/* Left Side - Template List */}
                 <div className="gba:lg:col-span-2 gba:w-full">
                   <div className="gba:space-y-6">
+                    {/* Search and Filter Bar */}
+                    <div className="gba:flex gba:flex-col gba:sm:flex-row gba:gap-4 gba:items-start gba:sm:items-center gba:justify-between">
+                      <div className="gba:flex-1 gba:max-w-md">
+                        <div className="gba:relative">
+                          <Search className="gba:absolute gba:left-3 gba:top-1/2 gba:transform gba:-translate-y-1/2 gba:text-gray-400 gba:h-4 gba:w-4" />
+                          <DebouncedInput
+                            placeholder="Search templates..."
+                            value={searchTerm}
+                            onChange={handleSearch}
+                            className="gba:pl-10"
+                            debounceDelay={500}
+                            data-testid={`${testId}-search`}
+                          />
+                        </div>
+                      </div>
+                      {totalCount > 0 && (
+                        <div className="gba:flex gba:items-center gba:gap-2 gba:text-sm gba:text-gray-600">
+                          <span data-testid={`${testId}-results-count`}>
+                            {startItem}-{endItem} of {totalCount} templates
+                          </span>
+                          {searchTerm && (
+                            <Badge variant="secondary" className="gba:ml-2">
+                              Search: "{searchTerm}"
+                            </Badge>
+                          )}
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Loading State */}
                     {isLoading ? (
                       <div className="gba:flex gba:justify-center gba:items-center gba:py-8" data-testid={`${testId}-loading`}>
                         <Spinner size="lg" />
+                        {isSearching && (
+                          <span className="gba:ml-3 gba:text-gray-600">Searching templates...</span>
+                        )}
                       </div>
                     ) : error ? (
                       <Alert variant="destructive" data-testid={`${testId}-error`}>
@@ -1815,23 +1910,109 @@ export const FlowCreator: React.FC<FlowCreatorProps> = ({
                         </AlertDescription>
                         <Button
                           variant="outline"
-                          onClick={loadTemplates}
+                          onClick={() => loadTemplates(currentPage, searchTerm)}
                           data-testid={`${testId}-retry`}
                         >
                           Retry
                         </Button>
                       </Alert>
                     ) : (
-                      <FlowTemplateList 
-                        templates={templates} 
-                        onCreateNew={handleCreateNew}
-                        onEdit={handleEdit}
-                        onDelete={handleDelete}
-                        onTemplateSelect={handleTemplateSelect}
-                        selectedTemplate={previewTemplate}
-                        data-testid={`${testId}-list`} 
-                        accessToken={accessToken}
-                      />
+                      <>
+                        {/* Template List */}
+                        <FlowTemplateList 
+                          templates={templates}
+                          searchTerm={searchTerm} 
+                          onCreateNew={handleCreateNew}
+                          onEdit={handleEdit}
+                          onDelete={handleDelete}
+                          onTemplateSelect={handleTemplateSelect}
+                          selectedTemplate={previewTemplate}
+                          data-testid={`${testId}-list`} 
+                          accessToken={accessToken}
+                        />
+
+                        {/* Pagination */}
+                        {totalPages > 1 && (
+                          <div className="gba:flex gba:items-center gba:justify-between gba:mt-6">
+                            <div className="gba:flex gba:items-center gba:gap-2">
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => handlePageChange(currentPage - 1)}
+                                disabled={currentPage === 1}
+                                data-testid={`${testId}-prev-page`}
+                              >
+                                <ChevronLeft className="gba:h-4 gba:w-4" />
+                                Previous
+                              </Button>
+                              
+                              <span className="gba:text-sm gba:text-gray-600 gba:px-3">
+                                Page {currentPage} of {totalPages}
+                              </span>
+
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => handlePageChange(currentPage + 1)}
+                                disabled={currentPage === totalPages}
+                                data-testid={`${testId}-next-page`}
+                              >
+                                Next
+                                <ChevronRight className="gba:h-4 gba:w-4" />
+                              </Button>
+                            </div>
+
+                            {/* Quick page jumps for larger datasets */}
+                            {totalPages > 5 && (
+                              <div className="gba:flex gba:items-center gba:gap-1">
+                                {currentPage > 3 && (
+                                  <>
+                                    <Button
+                                      variant="ghost"
+                                      size="sm"
+                                      onClick={() => handlePageChange(1)}
+                                      data-testid={`${testId}-page-1`}
+                                    >
+                                      1
+                                    </Button>
+                                    {currentPage > 4 && <span className="gba:text-gray-400">...</span>}
+                                  </>
+                                )}
+                                
+                                {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                                  const page = Math.max(1, currentPage - 2) + i;
+                                  if (page > totalPages) return null;
+                                  return (
+                                    <Button
+                                      key={page}
+                                      variant={currentPage === page ? "default" : "ghost"}
+                                      size="sm"
+                                      onClick={() => handlePageChange(page)}
+                                      data-testid={`${testId}-page-${page}`}
+                                    >
+                                      {page}
+                                    </Button>
+                                  );
+                                })}
+
+                                {currentPage < totalPages - 2 && (
+                                  <>
+                                    {currentPage < totalPages - 3 && <span className="gba:text-gray-400">...</span>}
+                                    <Button
+                                      variant="ghost"
+                                      size="sm"
+                                      onClick={() => handlePageChange(totalPages)}
+                                      data-testid={`${testId}-page-${totalPages}`}
+                                    >
+                                      {totalPages}
+                                    </Button>
+                                  </>
+                                )}
+                              </div>
+                            )}
+                          </div>
+                        )}
+                      </>
                     )}
                   </div>
                 </div>

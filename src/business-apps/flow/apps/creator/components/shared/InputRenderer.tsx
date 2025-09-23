@@ -8,7 +8,10 @@ import {
   SelectItem,
   SelectTrigger,
   SelectValue,
-  Button
+  Button,
+  RadioGroup,
+  RadioGroupItem,
+  Label
 } from '@newwork/nw-design-system';
 import { InputType } from '@/common/network/flows/FlowTemplateClient';
 
@@ -343,6 +346,48 @@ export const InputRenderer: React.FC<InputRendererProps> = ({
               value={value || ''}
               onChange={(e) => onChange?.(e.target.value)}
             />
+          </div>
+        );
+        
+      case InputType.RADIO:
+      case 'radio': // Handle lowercase for backward compatibility
+        return (
+          <div className="gba:mb-4">
+            <label className="gba:block gba:text-sm gba:font-medium gba:mb-2" style={{ color: 'var(--color-text-primary)' }}>
+              {input.label}
+            </label>
+            <RadioGroup
+              value={value || ''}
+              onValueChange={(newValue) => {
+                console.log('Radio value changing to:', newValue);
+                onChange?.(newValue);
+              }}
+              disabled={readOnly}
+              data-testid={`${testId}-input-${index}`}
+            >
+              {input.options?.map((option: any, optIndex: number) => {
+                // Handle both string options and {label, value} objects
+                const optionValue = typeof option === 'string' ? option : option.value;
+                const optionLabel = typeof option === 'string' ? option : option.label;
+                
+                return (
+                  <div key={optIndex} className="gba:flex gba:items-center gba:space-x-2 gba:mb-2">
+                    <RadioGroupItem 
+                      value={optionValue} 
+                      id={`${testId}-input-${index}-option-${optIndex}`}
+                      disabled={readOnly}
+                    />
+                    <Label 
+                      htmlFor={`${testId}-input-${index}-option-${optIndex}`}
+                      className="gba:text-sm gba:cursor-pointer"
+                      style={{ color: 'var(--color-text-primary)' }}
+                    >
+                      {optionLabel}
+                    </Label>
+                  </div>
+                );
+              })}
+            </RadioGroup>
           </div>
         );
         
