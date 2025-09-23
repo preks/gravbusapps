@@ -75,8 +75,9 @@ const FlowActionsButton: React.FC<FlowActionsButtonProps> = ({ actions, onAction
                 // Use onSelect to prevent closing/triggering when "disabled" semantics apply
                 onSelect={(e) => {
                   if (action.disabled) { e.preventDefault(); return; }
+                  setOpen(false);
                   if (action.link) { window.location.href = action.link; return; }
-                  onAction?.(action);
+                  setTimeout(() => { onAction?.(action); }, 0);
                 }}
               >
                 {iconUrl ? <img src={iconUrl} alt="icon" className="gba:w-4 gba:h-4" /> : <span className="gba:w-4" />}
