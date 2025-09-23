@@ -3,7 +3,6 @@ import { PlusCircleOutlined, CloseOutlined, LoadingOutlined } from '@ant-design/
 import { Spin, Alert, Empty, Timeline, Typography, message } from 'antd';
 import { Button } from '@newwork/nw-design-system';
 import { NoteDeletePopup } from '@/common/components/common-relations/popups/note-delete-popup';
-import { startProcess } from '@/common/utils/start-process';
 import { AppAction } from '@/components/app-action/AppAction';
 import { FlowContextName } from '@/common/types/FlowRegistryTypes';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
@@ -39,20 +38,22 @@ export const NotesSection: React.FC<NotesSectionProps> = ({ contactId, context }
   const { fetchInvestmentNotesByContactId } = useGetInvestmentNotesByContactId(context);
   const { getEmployeeDisplayName } = useEmployeeData(context.accessToken);
   // const restClient = useRestClient(env('NEXT_PUBLIC_KOGITO_PROCESSES_ENDPOINT'));
-  const [deletePopup, setDeletePopup] = useState<{ open: boolean; note?: InvestmentNote }>({ open: false });
+  const [deletePopup, setDeletePopup] = useState<{ open: boolean; note?: InvestmentNote }>({
+    open: false,
+  });
 
   const loadNotes = async () => {
     if (!contactId) return;
-    
+
     setLoading(true);
     setError(null);
-    
+
     try {
       const result = await fetchInvestmentNotesByContactId(contactId);
-      const sortedNotes = (result || []).sort((a, b) => 
-        new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+      const sortedNotes = (result || []).sort(
+        (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
       );
-      
+
       originalNotesRef.current = sortedNotes;
       setNotes(sortedNotes);
     } catch (err) {
@@ -69,40 +70,44 @@ export const NotesSection: React.FC<NotesSectionProps> = ({ contactId, context }
   useEffect(() => {
     const translateNotes = async () => {
       const originalNotes = originalNotesRef.current;
-      
+
       if (selectedLanguage === 'Original' || originalNotes.length === 0) {
         setNotes(originalNotes);
         return;
       }
 
       setTranslating(true);
-      
+
       try {
         const textsToTranslate: string[] = [];
-        const noteMapping: Array<{ noteIndex: number, titleIndex: number, textIndex: number }> = [];
-        
+        const noteMapping: Array<{ noteIndex: number; titleIndex: number; textIndex: number }> = [];
+
         originalNotes.forEach((note, noteIndex) => {
           const titleIndex = textsToTranslate.length;
-          textsToTranslate.push(note.noteTitle);
-          
+          textsToTranslate.push(note.title);
+
           const textIndex = textsToTranslate.length;
-          textsToTranslate.push(note.noteText);
-          
+          textsToTranslate.push(note.text);
+
           noteMapping.push({ noteIndex, titleIndex, textIndex });
         });
 
-        const translatedTexts = await translateMultipleTexts(textsToTranslate, selectedLanguage, context.accessToken);
-        
+        const translatedTexts = await translateMultipleTexts(
+          textsToTranslate,
+          selectedLanguage,
+          context.accessToken,
+        );
+
         const translatedNotes: TranslatedNote[] = originalNotes.map((originalNote, noteIndex) => {
           const mapping = noteMapping[noteIndex];
           return {
             ...originalNote,
             translatedTitle: translatedTexts[mapping.titleIndex],
             translatedText: translatedTexts[mapping.textIndex],
-            isTranslating: false
+            isTranslating: false,
           };
         });
-        
+
         setNotes(translatedNotes);
       } catch (err) {
         console.error('Translation error:', err);
@@ -138,15 +143,15 @@ export const NotesSection: React.FC<NotesSectionProps> = ({ contactId, context }
       'taskCompleted',
       'processCompleted',
       'task-completion',
-      'process-completion'
+      'process-completion',
     ];
 
-    eventNames.forEach(eventName => {
+    eventNames.forEach((eventName) => {
       window.addEventListener(eventName, handleProcessCompletion as EventListener);
     });
 
     return () => {
-      eventNames.forEach(eventName => {
+      eventNames.forEach((eventName) => {
         window.removeEventListener(eventName, handleProcessCompletion as EventListener);
       });
     };
@@ -164,58 +169,37 @@ export const NotesSection: React.FC<NotesSectionProps> = ({ contactId, context }
 
   return (
     <div>
-      <div 
+      <div
         style={{
           display: 'flex',
           justifyContent: 'space-between',
           alignItems: 'center',
-          padding: '16px 24px'
+          padding: '16px 24px',
         }}
       >
         <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-          <div 
-            className="gba:notes-title" 
-            style={{ fontSize: '18px', fontWeight: '500' }}
-          >
+          <div className="gba:notes-title" style={{ fontSize: '18px', fontWeight: '500' }}>
             Notes
           </div>
-          <LanguageDropdown
-            selectedLanguage={selectedLanguage}
-            onChange={handleLanguageChange}
-          />
+          <LanguageDropdown selectedLanguage={selectedLanguage} onChange={handleLanguageChange} />
           {translating && (
-            <Spin 
-              indicator={<LoadingOutlined style={{ fontSize: 16 }} spin />} 
-              size="small" 
-            />
+            <Spin indicator={<LoadingOutlined style={{ fontSize: 16 }} spin />} size="small" />
           )}
         </div>
         <AppAction
-          contextsArray={[FlowContextName.investmentNoteEntity]}
+          contextsArray={[FlowContextName.createInvestmentNote]}
           externalContextData={{
             contactId,
             contact: contactId,
-            investmentNote: { contact: contactId }
+            investmentNote: { contact: contactId },
           }}
-          staticFlowData={contactId ? [{
-            key: 'create-investment-note-fallback',
-            label: 'Add Note',
-            onClick: () => startProcess({
-              domain: 'investments',
-              processName: 'createInvestmentNote',
-              payload: { contactId },
-              builderType: 'NATIVE_SCREEN'
-            })
-          }] : []}
+          staticFlowData={[]}
           prefixDataTestId="add-note"
           accessToken={context.accessToken}
           emptyStateBehavior="enable"
           deferMainContextRequestsUntilClick
         >
-          <Button 
-            variant="default"
-            data-testid="add-note-button"
-          >
+          <Button variant="default" data-testid="add-note-button">
             <PlusCircleOutlined />
             Add Note
           </Button>
@@ -245,11 +229,7 @@ export const NotesSection: React.FC<NotesSectionProps> = ({ contactId, context }
         )}
 
         {!loading && !error && notes.length === 0 && (
-          <Empty
-            description="No notes yet"
-            style={{ padding: '40px 0' }}
-            data-testid="empty-notes"
-          >
+          <Empty description="No notes yet" style={{ padding: '40px 0' }} data-testid="empty-notes">
             <div style={{ fontSize: '14px', color: '#8c8c8c' }}>
               Start by adding your first note
             </div>
@@ -261,28 +241,33 @@ export const NotesSection: React.FC<NotesSectionProps> = ({ contactId, context }
             {notes.map((note, index) => (
               <Timeline.Item key={note.id || index} color="orange">
                 <div style={{ position: 'relative' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <Text strong>
-                      {note.translatedTitle || note.noteTitle}
-                    </Text>
+                  <div
+                    style={{
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      alignItems: 'center',
+                    }}
+                  >
+                    <Text strong>{note.translatedTitle || note.title}</Text>
                   </div>
                   <div>
                     <Text type="secondary">
-                      {dayjs(note.createdAt).format('MMM D, YYYY [at] h:mm A')} - {getEmployeeDisplayName(note.createdBy)}
+                      {dayjs(note.createdAt).format('MMM D, YYYY [at] h:mm A')} -{' '}
+                      {getEmployeeDisplayName(note.createdBy)}
                     </Text>
                   </div>
                   <div style={{ marginTop: '4px' }}>
-                    <div>{note.translatedText || note.noteText}</div>
+                    <div>{note.translatedText || note.text}</div>
                   </div>
-                  <Button 
-                    variant="ghost" 
+                  <Button
+                    variant="ghost"
                     size="sm"
-                    style={{ 
-                      position: 'absolute', 
-                      right: 0, 
+                    style={{
+                      position: 'absolute',
+                      right: 0,
                       top: 0,
                       padding: '4px',
-                      lineHeight: 1
+                      lineHeight: 1,
                     }}
                     onClick={() => handleDeleteNote(note)}
                     data-testid={`delete-note-${note.id}`}
@@ -303,12 +288,12 @@ export const NotesSection: React.FC<NotesSectionProps> = ({ contactId, context }
           accessToken={context.accessToken}
           noteId={deletePopup.note.id}
           noteVersion={deletePopup.note.version}
-          noteTitle={deletePopup.note.noteTitle}
+          noteTitle={deletePopup.note.title || 'Untitled Note'}
           domain="investments"
           onSuccess={() => {
             const id = deletePopup.note!.id;
-            setNotes(prev => prev.filter(n => n.id !== id));
-            originalNotesRef.current = originalNotesRef.current.filter(n => n.id !== id);
+            setNotes((prev) => prev.filter((n) => n.id !== id));
+            originalNotesRef.current = originalNotesRef.current.filter((n) => n.id !== id);
             setDeletePopup({ open: false });
           }}
           onError={() => setDeletePopup({ open: false })}
@@ -316,4 +301,4 @@ export const NotesSection: React.FC<NotesSectionProps> = ({ contactId, context }
       )}
     </div>
   );
-}; 
+};

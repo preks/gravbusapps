@@ -10,7 +10,6 @@ export interface AnalyticsQueryVariables {
 export interface AnalyticsFilters {
   startDate?: string;
   endDate?: string;
-  currency?: string;
   investmentType?: string; // Filter for "Bank Deposits"
 }
 
@@ -78,6 +77,8 @@ export interface AnalyticsRowData {
   cashBankIdentifier: string;
   proprietorName: string;
   originalCurrency: string;
+  // Report date for display
+  reportDate?: string;
   // Additional fields for Fixed-Term Deposits
   maturityDate?: string;
   interestRate?: number;
@@ -100,6 +101,12 @@ export interface AnalyticsRowData {
   portfolioId: string;
   investmentType: string;
   reportCount: number;
+  
+  // IMPORTANT: Full data structures for dynamic column access
+  // These ensure the getValue functions in dynamic columns can access all nested data
+  investment?: any; // The investment entity with all its properties
+  liquidFundInvestment?: any[]; // Array of liquid fund investment data
+  liquidFundReport?: any; // The liquid fund report data
 }
 
 // Summary totals for analytics display

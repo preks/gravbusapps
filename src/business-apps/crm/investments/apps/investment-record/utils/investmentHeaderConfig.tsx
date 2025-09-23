@@ -23,15 +23,41 @@ export const formatDate = (dateString: string | null): string => {
 const getValueByPath = (obj: any, path: string): any => {
   if (!obj || !path) return undefined;
   
-  return path.split('.').reduce((current, key) => {
-    return current && current[key] !== undefined ? current[key] : undefined;
+  return path.split('.').reduce((current, key, index, parts) => {
+    if (!current || current[key] === undefined) return undefined;
+    
+    // Special handling for additionalProperties
+    if (key === 'additionalProperties') {
+      if (typeof current[key] === 'string') {
+        // Legacy case: additionalProperties stored as JSON string (parse it)
+        try {
+          const parsed = JSON.parse(current[key]);
+          // If this is the last key in the path, return the whole parsed object
+          // Otherwise, continue navigation through the parsed object
+          if (index === parts.length - 1) {
+            return parsed;
+          }
+          return parsed;
+         } catch (error) {
+           return undefined;
+         }
+      } else if (typeof current[key] === 'object') {
+        // New case: additionalProperties stored as object (direct access)
+        if (index === parts.length - 1) {
+          return current[key];
+        }
+        return current[key];
+      }
+    }
+    
+    return current[key];
   }, obj);
 };
 
 /**
  * Formats a field value based on its type
  */
-const formatFieldValue = (value: any, fieldType: string, currencyCode: string): string => {
+export const formatFieldValue = (value: any, fieldType: string, currencyCode: string): string => {
   if (value === null || value === undefined) return '-';
   
   switch (fieldType) {
@@ -75,10 +101,22 @@ export const getInvestmentTypeFieldDefinition = (
 ): FormFieldsDefinition | null => {
   if (!catalogData || !investmentTypeCode) return null;
   
-  // Look through investment types for matching code
+  // SPECIAL CASE FOR EQUITY: Check the EQUITY group level instead of individual type
+  // Find the investment type to get its parent group
   const investmentTypes = catalogData.investmentTypes || [];
   const matchingType = investmentTypes.find((type: any) => type.code === investmentTypeCode);
   
+  const parentCode = matchingType?.parentEntryId?.split(':').pop();
+  if (parentCode === 'EQUITY') {
+    // For equity investments, use the EQUITY group's form fields
+    const investmentGroups = catalogData.investmentGroups || [];
+    const equityGroup = investmentGroups.find((group: any) => group.code === 'EQUITY');
+    if (equityGroup?.objectValue) {
+      return equityGroup.objectValue as FormFieldsDefinition;
+    }
+  }
+  
+  // For non-equity investments, check the type level first
   if (matchingType?.objectValue) {
     return matchingType.objectValue as FormFieldsDefinition;
   }
@@ -92,6 +130,27 @@ export const getInvestmentTypeFieldDefinition = (
         return childType.objectValue as FormFieldsDefinition;
       }
     }
+  }
+  
+  return null;
+};
+
+/**
+ * Gets the liquid fund type's form field definition from catalog data
+ * ONLY for liquid fund investments with investmentLiquidFundTypeRef
+ */
+export const getLiquidFundTypeFieldDefinition = (
+  liquidFundTypeCode: string,
+  catalogData: any
+): FormFieldsDefinition | null => {
+  if (!catalogData || !liquidFundTypeCode) return null;
+  
+  // Look through investment liquid fund types for matching code
+  const liquidFundTypes = catalogData.investmentLiquidFundTypes || [];
+  const matchingType = liquidFundTypes.find((type: any) => type.code === liquidFundTypeCode);
+  
+  if (matchingType?.objectValue) {
+    return matchingType.objectValue as FormFieldsDefinition;
   }
   
   return null;
@@ -131,6 +190,13 @@ export const transformFormFieldsToHeaderItems = (
     // If not found in main investment, try type-specific data
     if (value === undefined) {
       value = getValueByPath(typeSpecificData, field.property);
+    }
+    
+    // SPECIAL FIX: If looking for liquidFundInvestment.additionalProperties but not found,
+    // try the investment.additionalProperties instead (common case for our setup)
+    if (value === undefined && field.property.startsWith('liquidFundInvestment.additionalProperties.')) {
+      const fieldName = field.property.replace('liquidFundInvestment.additionalProperties.', '');
+      value = getValueByPath(investment, `additionalProperties.${fieldName}`);
     }
     
     // Format the value
@@ -194,6 +260,13 @@ export const createHeaderMeta = (investment: any, investmentType: string, typeSp
     <Badge variant="secondary" className="gba:text-sm">
       {investment?.investmentType?.value || 'Investment'}
     </Badge>
+    {/* Liquid Fund Type Badge - ONLY for liquid funds */}
+    {investment?.investmentGroup?.code?.includes('LIQUID_FUND') && 
+     typeSpecificData?.liquidFundInvestment?.investmentLiquidFundType?.value && (
+      <Badge variant="default" className="gba:text-sm gba:bg-blue-100 gba:text-blue-800">
+        {typeSpecificData.liquidFundInvestment.investmentLiquidFundType.value}
+      </Badge>
+    )}
     <Badge variant="outline" className="gba:text-sm">
       {investment?.investmentStatus?.value || 'Unknown'}
     </Badge>
@@ -222,10 +295,24 @@ export const getTypeSpecificDetailGroups = (
   
   // Try dynamic fields first if catalog data is available
   if (catalogData && investment?.investmentType?.code) {
-    const formFieldsDefinition = getInvestmentTypeFieldDefinition(
-      investment.investmentType.code,
-      catalogData
-    );
+    let formFieldsDefinition: FormFieldsDefinition | null = null;
+    
+    // PRIORITY 1: For liquid funds with liquid fund type - use liquid fund type fields
+    if (investment.investmentGroup?.code?.includes('LIQUID_FUND') && 
+        typeSpecificData?.liquidFundInvestment?.investmentLiquidFundType?.code) {
+      formFieldsDefinition = getLiquidFundTypeFieldDefinition(
+        typeSpecificData.liquidFundInvestment.investmentLiquidFundType.code,
+        catalogData
+      );
+    }
+    
+    // PRIORITY 2: Fallback to investment type fields
+    if (!formFieldsDefinition) {
+      formFieldsDefinition = getInvestmentTypeFieldDefinition(
+        investment.investmentType.code,
+        catalogData
+      );
+    }
     
     if (formFieldsDefinition) {
       const dynamicItems = transformFormFieldsToHeaderItems(

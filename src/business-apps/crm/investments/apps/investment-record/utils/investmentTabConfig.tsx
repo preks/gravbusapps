@@ -57,7 +57,8 @@ export const createInvestmentTabsConfig = (
   processedTiles: any[],
   documents: any[],
   loadData: () => void,
-  props: BusinessAppContextProps
+  props: BusinessAppContextProps,
+  catalogData?: any
 ) => ({
   defaultValue: activeTab,
   onValueChange: setActiveTab,
@@ -173,6 +174,11 @@ export const createInvestmentTabsConfig = (
             investmentId={investmentId}
             investmentGroupIds={[investment?.investmentGroup?.id].filter(Boolean)}
             specificInvestmentId={investmentId}
+            catalogData={catalogData}
+            investmentTypeCode={investment?.investmentType?.code || ''}
+            liquidFundTypeCode={typeSpecificData?.liquidFundInvestment?.investmentLiquidFundType?.code}
+            investment={investment}
+            typeSpecificData={typeSpecificData}
             accessToken={props.accessToken}
             userInfo={props.userInfo}
             additionalData={props.additionalData}

@@ -11,18 +11,20 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-  Badge
+  Badge,
+  Spinner,
+  Button,
+  Alert
 } from '@newwork/nw-design-system';
-import { Spin, Alert } from 'antd';
 import { 
   DollarSign,
-  TrendingUp,
-  TrendingDown,
   RefreshCw
 } from 'lucide-react';
 import { buildPlatformUrl, navigateTo } from '@/common/utils/navigationUtils';
 import { useLiquidFundAnalyticsIntegration } from '../hooks';
-import { AnalyticsRowData, AnalyticsFilters } from '../types';
+import { useInvestmentLiquidFundReportCatalog } from '../hooks/useInvestmentLiquidFundReportCatalog';
+import { AnalyticsFilters } from '../types';
+import { DynamicTableColumn } from '../utils/liquidFundReportColumnTransformer';
 
 interface AnalyticsTableProps {
   accessToken: string;
@@ -41,6 +43,20 @@ export const AnalyticsTable: React.FC<AnalyticsTableProps> = ({
   investmentType,
   title
 }) => {
+  // Format date to match other investment report tables
+  const formatDate = (dateString?: string): string => {
+    if (!dateString) return 'N/A';
+    try {
+      return new Date(dateString).toLocaleDateString('en-US', {
+        year: 'numeric',
+        month: 'short',
+        day: 'numeric'
+      });
+    } catch {
+      return 'Invalid Date';
+    }
+  };
+
   // Use real data integration hook
   const {
     analyticsData,
@@ -58,88 +74,88 @@ export const AnalyticsTable: React.FC<AnalyticsTableProps> = ({
     sortOrder: 'ASC'
   });
 
-  // Currency helpers to match list style: number-only + narrow symbol right-aligned
-  const getCurrencySymbol = (currencyCode?: string): string => {
-    try {
-      const code = currencyCode || filters.currency || 'EUR';
-      const parts = new Intl.NumberFormat(undefined, {
-        style: 'currency',
-        currency: code,
-        currencyDisplay: 'narrowSymbol'
-      }).formatToParts(0);
-      return parts.find(p => p.type === 'currency')?.value || code;
-    } catch {
-      return '€';
+  // Use catalog integration for dynamic columns - following existing pattern
+  const {
+    catalogData,
+    isLoading: catalogLoading,
+    error: catalogError,
+    getDynamicColumnsForType
+  } = useInvestmentLiquidFundReportCatalog({ accessToken, userInfo });
+
+  // All formatting is now handled by the dynamic column getValue functions
+
+  // All columns are now dynamic - no more hardcoded conditional columns
+
+  // Determine dynamic columns based on the data and investment type filter
+  const dynamicColumns: DynamicTableColumn[] = useMemo(() => {
+    // Debug information removed for production
+
+    if (!catalogData) return [];
+
+    // Strategy 1: Try to detect from data if we have it
+    if (analyticsData.length > 0) {
+      const liquidFundTypeCodes = Array.from(
+        new Set(
+          analyticsData
+            .map(row => {
+              return (
+                row.liquidFundInvestment?.[0]?.investmentLiquidFundType?.code ||
+                row.liquidFundReport?.investmentLiquidFundType?.code ||
+                row.investment?.liquidFundInvestment?.[0]?.investmentLiquidFundType?.code ||
+                row.liquidFundInvestment?.[0]?.investmentLiquidFundTypeRef?.split(':')?.pop() ||
+                row.liquidFundReport?.investmentLiquidFundTypeRef?.split(':')?.pop()
+              );
+            })
+            .filter(Boolean)
+        )
+      );
+
+      if (liquidFundTypeCodes.length > 0) {
+        const primaryTypeCode = liquidFundTypeCodes[0];
+        const columns = getDynamicColumnsForType(primaryTypeCode);
+        if (columns.length > 0) {
+          return columns;
+        }
+      }
     }
-  };
 
-  const formatCurrencyNumberOnly = (amount: number, currency?: string): string => {
-    try {
-      const code = currency || filters.currency || 'EUR';
-      const parts = new Intl.NumberFormat(undefined, {
-        style: 'currency',
-        currency: code,
-        minimumFractionDigits: 2,
-        maximumFractionDigits: 2,
-      }).formatToParts(amount);
-      return parts.filter(p => p.type !== 'currency').map(p => p.value).join('');
-    } catch {
-      return new Intl.NumberFormat(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(amount);
+    // Strategy 2: Use tab-based mapping when no data (empty tabs)
+    const tabToTypeMapping: Record<string, string> = {
+      'Bank Deposit': 'BANK_DEPOSITE',
+      'Fixed-Term Deposit': 'FIXED_TERM_DEPOSIT', 
+      'Money Market Funds': 'MONEY_MARKET_FUNDS',
+      'Pension Fund': 'PENSION_FUNDS',
+      'Equity': 'EQUITY',
+      'Bond': 'BONDS'
+    };
+
+    // Try to map investment type filter to liquid fund type
+    const mappedType = tabToTypeMapping[filters.investmentType || ''] || 
+                      Object.values(tabToTypeMapping).find(type => 
+                        (filters.investmentType || '').toLowerCase().includes(type.toLowerCase().replace('_', '-'))
+                      );
+
+    if (mappedType) {
+      const columns = getDynamicColumnsForType(mappedType);
+      if (columns.length > 0) {
+        return columns;
+      }
     }
-  };
 
-  const formatPerformance = (value: number): React.ReactNode => {
-    if (value === 0) {
-      return <span className="gba:text-gray-500">x%</span>;
+    // Strategy 3: Fallback to first available type
+    if (catalogData.investmentLiquidFundTypes?.length > 0) {
+      const firstAvailableType = catalogData.investmentLiquidFundTypes[0];
+      const columns = getDynamicColumnsForType(firstAvailableType.code);
+      if (columns.length > 0) {
+        return columns;
+      }
     }
 
-    const icon = value > 0 
-      ? <TrendingUp className="gba:h-3 gba:w-3 gba:text-green-600" />
-      : <TrendingDown className="gba:h-3 gba:w-3 gba:text-red-600" />;
-    
-    const colorClass = value > 0 
-      ? 'gba:text-green-600' 
-      : 'gba:text-red-600';
+    return [];
+  }, [catalogData, analyticsData, getDynamicColumnsForType, investmentType, filters.investmentType]);
 
-    return (
-      <div className={`gba:flex gba:items-center gba:gap-1 ${colorClass}`}>
-        {icon}
-        <span>{Math.abs(value).toFixed(2)}%</span>
-      </div>
-    );
-  };
-
-  const formatDate = (dateString?: string): string => {
-    if (!dateString) return 'N/A';
-    try {
-      return new Date(dateString).toLocaleDateString('en-US', {
-        year: 'numeric',
-        month: 'short',
-        day: 'numeric'
-      });
-    } catch {
-      return 'Invalid Date';
-    }
-  };
-
-  const formatInterestRate = (rate?: number): string => {
-    if (typeof rate !== 'number') return 'N/A';
-    return `${rate.toFixed(2)}%`;
-  };
-
-  // Check if this is Fixed-Term Deposits to show additional columns
-  const isFixedTermDeposits = investmentType.toLowerCase().includes('fixed-term');
-  
-  // Check if this is Multiple Investment Types (Tab 3) to show additional columns
-  const isMultipleInvestmentTypes = investmentType.toLowerCase().includes('multiple');
-
-  const formatQuantity = (quantity?: number): string => {
-    if (typeof quantity !== 'number') return 'N/A';
-    return quantity.toLocaleString('en-US', { 
-      minimumFractionDigits: 0,
-      maximumFractionDigits: 2 
-    });
-  };
+  // Determine if we should show dynamic columns (when we have consistent liquid fund types)
+  const shouldShowDynamicColumns = dynamicColumns.length > 0 && !catalogLoading;
 
   // Handle row click navigation
   const handleRowClick = useCallback((investmentId: string) => {
@@ -151,30 +167,33 @@ export const AnalyticsTable: React.FC<AnalyticsTableProps> = ({
     navigateTo(detailsUrl);
   }, []);
 
-  const hasData = !isLoading && !error && analyticsData.length > 0;
+  const isLoadingAny = isLoading || catalogLoading;
+  const hasError = error || catalogError;
 
-  if (isLoading) {
+  if (isLoadingAny) {
     return (
-      <div className="gba:flex gba:justify-center gba:items-center gba:h-64" data-testid={`${dataTestId}-loading`}>
-        <Spin size="large" />
+      <div className="gba:flex gba:justify-center gba:items-center" style={{ height: 'var(--nw-spacing-64)' }} data-testid={`${dataTestId}-loading`}>
+        <Spinner data-testid={`${dataTestId}-loading-spinner`} />
       </div>
     );
   }
 
-  if (error) {
+  if (hasError) {
     return (
-      <div className="gba:flex gba:justify-center gba:items-center gba:h-64" data-testid={`${dataTestId}-error`}>
-        <Alert
-          message="Error Loading Analytics Data"
-          description={error}
-          type="error"
-          showIcon
-          action={
-            <button onClick={refetch} className="gba:text-blue-600 hover:gba:text-blue-800">
-              <RefreshCw className="gba:h-4 gba:w-4" />
-            </button>
-          }
-        />
+      <div className="gba:flex gba:justify-center gba:items-center" style={{ height: 'var(--nw-spacing-64)' }} data-testid={`${dataTestId}-error`}>
+        <Alert variant="destructive">
+          <div className="gba:flex gba:items-center gba:justify-between">
+            <div>
+              <div style={{ fontWeight: 'var(--nw-font-weight-medium)' }}>Error Loading Analytics Data</div>
+              {(error || catalogError) && (
+                <div style={{ fontSize: 'var(--nw-text-sm)', marginTop: 'var(--nw-spacing-1)', color: 'var(--nw-color-text-secondary)' }}>{error || catalogError}</div>
+              )}
+            </div>
+            <Button variant="outline" size="sm" onClick={refetch}>
+              <RefreshCw style={{ height: 'var(--nw-spacing-4)', width: 'var(--nw-spacing-4)' }} />
+            </Button>
+          </div>
+        </Alert>
       </div>
     );
   }
@@ -182,8 +201,8 @@ export const AnalyticsTable: React.FC<AnalyticsTableProps> = ({
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="gba:flex gba:items-center gba:gap-2">
-          <DollarSign className="gba:h-5 gba:w-5" />
+        <CardTitle className="gba:flex gba:items-center" style={{ gap: 'var(--nw-spacing-2)' }}>
+          <DollarSign style={{ height: 'var(--nw-spacing-5)', width: 'var(--nw-spacing-5)' }} />
           {title}
           <Badge variant="outline">{totalCount} investments</Badge>
         </CardTitle>
@@ -195,39 +214,58 @@ export const AnalyticsTable: React.FC<AnalyticsTableProps> = ({
         <div className="gba:overflow-x-auto">
           <Table data-testid={`${dataTestId}-table`}>
             <TableHeader>
-              <TableRow className="gba:border-b gba:bg-gray-50">
-                <TableHead className="gba:font-semibold gba:text-gray-700 gba:text-left gba:py-3 gba:px-4">Proprietor</TableHead>
-                <TableHead className="gba:font-semibold gba:text-gray-700 gba:text-left gba:py-3 gba:px-4">Original Currency</TableHead>
-                {isMultipleInvestmentTypes && (
-                  <>
-                    <TableHead className="gba:font-semibold gba:text-gray-700 gba:text-left gba:py-3 gba:px-4">Deposit Name</TableHead>
-                    <TableHead className="gba:font-semibold gba:text-gray-700 gba:text-left gba:py-3 gba:px-4">ISIN</TableHead>
-                    <TableHead className="gba:font-semibold gba:text-gray-700 gba:text-left gba:py-3 gba:px-4">Quantity</TableHead>
-                  </>
-                )}
-                {isFixedTermDeposits && (
-                  <>
-                    <TableHead className="gba:font-semibold gba:text-gray-700 gba:text-left gba:py-3 gba:px-4">Maturity Date</TableHead>
-                    <TableHead className="gba:font-semibold gba:text-gray-700 gba:text-left gba:py-3 gba:px-4">Interest Rate</TableHead>
-                  </>
-                )}
-                <TableHead className="gba:font-semibold gba:text-gray-700 gba:text-right gba:py-3 gba:px-4">Opening Balance</TableHead>
-                <TableHead className="gba:font-semibold gba:text-gray-700 gba:text-right gba:py-3 gba:px-4">Incoming</TableHead>
-                <TableHead className="gba:font-semibold gba:text-gray-700 gba:text-right gba:py-3 gba:px-4">Outgoing</TableHead>
-                <TableHead className="gba:font-semibold gba:text-gray-700 gba:text-right gba:py-3 gba:px-4">Realized Gains/Losses</TableHead>
-                <TableHead className="gba:font-semibold gba:text-gray-700 gba:text-right gba:py-3 gba:px-4">Unrealized Gains/Losses</TableHead>
-                <TableHead className="gba:font-semibold gba:text-gray-700 gba:text-right gba:py-3 gba:px-4">Closing Balance</TableHead>
-                <TableHead className="gba:font-semibold gba:text-gray-700 gba:text-center gba:py-3 gba:px-4">Time-weighted Performance</TableHead>
+              <TableRow style={{ borderBottom: 'var(--nw-border-width-thin) solid var(--nw-color-border-default)', backgroundColor: 'var(--nw-color-surface-secondary)' }}>
+                {/* Static columns that are consistent across all investment report tabs */}
+                <TableHead 
+                  className="gba:text-left" 
+                  style={{ 
+                    fontWeight: 'var(--nw-font-weight-semibold)', 
+                    fontFamily: 'var(--nw-font-family-base)', 
+                    color: 'var(--nw-color-text-primary)', 
+                    padding: 'var(--nw-spacing-3) var(--nw-spacing-4)' 
+                  }}
+                >
+                  Investment
+                </TableHead>
+                <TableHead 
+                  className="gba:text-center" 
+                  style={{ 
+                    fontWeight: 'var(--nw-font-weight-semibold)', 
+                    fontFamily: 'var(--nw-font-family-base)', 
+                    color: 'var(--nw-color-text-primary)', 
+                    padding: 'var(--nw-spacing-3) var(--nw-spacing-4)' 
+                  }}
+                >
+                  Date
+                </TableHead>
+                {/* Dynamic columns based on catalog configuration */}
+                {shouldShowDynamicColumns && dynamicColumns.map((column) => (
+                  <TableHead 
+                    key={column.id}
+                    className={column.className || 'gba:text-left'}
+                    style={{ 
+                      fontWeight: 'var(--nw-font-weight-semibold)', 
+                      fontFamily: 'var(--nw-font-family-base)', 
+                      color: 'var(--nw-color-text-primary)', 
+                      padding: 'var(--nw-spacing-3) var(--nw-spacing-4)' 
+                    }}
+                  >
+                    {column.label}
+                  </TableHead>
+                ))}
               </TableRow>
             </TableHeader>
             <TableBody>
               {analyticsData.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={isFixedTermDeposits ? 11 : isMultipleInvestmentTypes ? 12 : 9} className="gba:text-center gba:py-12 gba:text-gray-500">
-                    <div className="gba:flex gba:flex-col gba:items-center gba:gap-2">
-                      <DollarSign className="gba:h-12 gba:w-12 gba:text-gray-300" />
-                      <p className="gba:text-lg gba:font-medium">No {investmentType} Data Found</p>
-                      <p className="gba:text-sm">No liquid fund portfolios are available for {investmentType.toLowerCase()} in the selected time period.</p>
+                  <TableCell colSpan={
+                    // Static columns (Investment, Date) + dynamic columns
+                    2 + (shouldShowDynamicColumns ? dynamicColumns.length : 0)
+                  } className="gba:text-center" style={{ padding: 'var(--nw-spacing-12) 0', color: 'var(--nw-color-text-secondary)' }}>
+                    <div className="gba:flex gba:flex-col gba:items-center" style={{ gap: 'var(--nw-spacing-2)' }}>
+                      <DollarSign style={{ height: 'var(--nw-spacing-12)', width: 'var(--nw-spacing-12)', color: 'var(--nw-muted-foreground)' }} />
+                      <p style={{ fontSize: 'var(--nw-text-lg)', fontWeight: 'var(--nw-font-weight-medium)' }}>No {investmentType} Data Found</p>
+                      <p style={{ fontSize: 'var(--nw-text-sm)' }}>No liquid fund portfolios are available for {investmentType.toLowerCase()} in the selected time period.</p>
                     </div>
                   </TableCell>
                 </TableRow>
@@ -236,105 +274,33 @@ export const AnalyticsTable: React.FC<AnalyticsTableProps> = ({
                   {analyticsData.map((row, index) => (
                     <TableRow
                       key={row.id}
-                      className="gba:cursor-pointer gba:border-b gba:hover:gba:bg-gray-50"
+                      className="gba:cursor-pointer"
+                      style={{ borderBottom: 'var(--nw-border-width-thin) solid var(--nw-color-border-default)' }}
+                      onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'var(--nw-color-surface-secondary)'}
+                      onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
                       onClick={() => row.investmentId && handleRowClick(row.investmentId)}
                       data-testid={`${dataTestId}-row-${index + 1}`}
                     >
-                      <TableCell className="gba:py-3 gba:px-4">
-                        <div className="gba:flex gba:items-center gba:gap-2">
-                          <DollarSign className="gba:w-4 gba:h-4 gba:text-gray-500" />
-                          <span className="gba:font-medium">{row.proprietorName}</span>
+                      {/* Static columns that are consistent across all investment report tabs */}
+                      <TableCell style={{ padding: 'var(--nw-spacing-3) var(--nw-spacing-4)' }}>
+                        <div className="gba:flex gba:items-center" style={{ gap: 'var(--nw-spacing-2)' }}>
+                          <DollarSign style={{ width: 'var(--nw-spacing-4)', height: 'var(--nw-spacing-4)', color: 'var(--nw-color-text-secondary)' }} />
+                          <span style={{ fontWeight: 'var(--nw-font-weight-medium)' }}>{row.investmentName}</span>
                         </div>
                       </TableCell>
-                      <TableCell className="gba:text-left gba:py-3 gba:px-4">
-                        <Badge variant="outline">{row.originalCurrency}</Badge>
+                      <TableCell className="gba:text-center" style={{ padding: 'var(--nw-spacing-3) var(--nw-spacing-4)' }}>
+                        {row.reportDate ? formatDate(row.reportDate) : '-'}
                       </TableCell>
-                      {isMultipleInvestmentTypes && (
-                        <>
-                          <TableCell className="gba:text-left gba:py-3 gba:px-4">
-                            {row.depositName || 'N/A'}
-                          </TableCell>
-                          <TableCell className="gba:text-left gba:py-3 gba:px-4">
-                            {row.isin || 'N/A'}
-                          </TableCell>
-                          <TableCell className="gba:text-left gba:py-3 gba:px-4">
-                            {formatQuantity(row.stocksQuantity)}
-                          </TableCell>
-                        </>
-                      )}
-                      {isFixedTermDeposits && (
-                        <>
-                          <TableCell className="gba:text-left gba:py-3 gba:px-4">
-                            {formatDate(row.maturityDate)}
-                          </TableCell>
-                          <TableCell className="gba:text-left gba:py-3 gba:px-4">
-                            {formatInterestRate(row.interestRate)}
-                          </TableCell>
-                        </>
-                      )}
-                      <TableCell className="gba:text-right gba:py-3 gba:px-4">
-                        <div className="gba:w-full gba:flex gba:justify-end gba:items-baseline">
-                          <span className="gba:text-sm gba:[font-variant-numeric:tabular-nums]">
-                            {formatCurrencyNumberOnly(row.openingBalance)}
-                          </span>
-                          <span className="gba:text-xs gba:text-gray-400 gba:inline-block gba:text-right gba:shrink-0 gba:w-[5ch]">
-                            {getCurrencySymbol(filters.currency)}
-                          </span>
-                        </div>
-                      </TableCell>
-                      <TableCell className="gba:text-right gba:py-3 gba:px-4">
-                        <div className="gba:w-full gba:flex gba:justify-end gba:items-baseline">
-                          <span className="gba:text-sm gba:[font-variant-numeric:tabular-nums]">
-                            {formatCurrencyNumberOnly(row.incoming)}
-                          </span>
-                          <span className="gba:text-xs gba:text-gray-400 gba:inline-block gba:text-right gba:shrink-0 gba:w-[5ch]">
-                            {getCurrencySymbol(filters.currency)}
-                          </span>
-                        </div>
-                      </TableCell>
-                      <TableCell className="gba:text-right gba:py-3 gba:px-4">
-                        <div className="gba:w-full gba:flex gba:justify-end gba:items-baseline">
-                          <span className="gba:text-sm gba:[font-variant-numeric:tabular-nums]">
-                            {formatCurrencyNumberOnly(row.outgoing)}
-                          </span>
-                          <span className="gba:text-xs gba:text-gray-400 gba:inline-block gba:text-right gba:shrink-0 gba:w-[5ch]">
-                            {getCurrencySymbol(filters.currency)}
-                          </span>
-                        </div>
-                      </TableCell>
-                      <TableCell className="gba:text-right gba:py-3 gba:px-4">
-                        <div className="gba:w-full gba:flex gba:justify-end gba:items-baseline">
-                          <span className="gba:text-sm gba:[font-variant-numeric:tabular-nums]">
-                            {formatCurrencyNumberOnly(row.realizedGainsLosses)}
-                          </span>
-                          <span className="gba:text-xs gba:text-gray-400 gba:inline-block gba:text-right gba:shrink-0 gba:w-[5ch]">
-                            {getCurrencySymbol(filters.currency)}
-                          </span>
-                        </div>
-                      </TableCell>
-                      <TableCell className="gba:text-right gba:py-3 gba:px-4">
-                        <div className="gba:w-full gba:flex gba:justify-end gba:items-baseline">
-                          <span className="gba:text-sm gba:[font-variant-numeric:tabular-nums]">
-                            {formatCurrencyNumberOnly(row.unrealizedGainsLosses)}
-                          </span>
-                          <span className="gba:text-xs gba:text-gray-400 gba:inline-block gba:text-right gba:shrink-0 gba:w-[5ch]">
-                            {getCurrencySymbol(filters.currency)}
-                          </span>
-                        </div>
-                      </TableCell>
-                      <TableCell className="gba:text-right gba:py-3 gba:px-4">
-                        <div className="gba:w-full gba:flex gba:justify-end gba:items-baseline">
-                          <span className="gba:text-sm gba:[font-variant-numeric:tabular-nums] gba:font-medium">
-                            {formatCurrencyNumberOnly(row.closingBalance)}
-                          </span>
-                          <span className="gba:text-xs gba:text-gray-400 gba:inline-block gba:text-right gba:shrink-0 gba:w-[5ch]">
-                            {getCurrencySymbol(filters.currency)}
-                          </span>
-                        </div>
-                      </TableCell>
-                      <TableCell className="gba:text-center gba:py-3 gba:px-4">
-                        {formatPerformance(row.timeWeightedPerformance)}
-                      </TableCell>
+                      {/* Dynamic columns based on catalog configuration */}
+                      {shouldShowDynamicColumns && dynamicColumns.map((column) => (
+                        <TableCell 
+                          key={column.id}
+                          className={column.className || 'gba:text-left'}
+                          style={{ padding: 'var(--nw-spacing-3) var(--nw-spacing-4)' }}
+                        >
+                          {column.getValue(row)}
+                        </TableCell>
+                      ))}
                     </TableRow>
                   ))}
                 </>

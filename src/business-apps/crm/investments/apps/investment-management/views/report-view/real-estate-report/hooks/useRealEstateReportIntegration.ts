@@ -49,11 +49,7 @@ export const useRealEstateReportIntegration = ({
         ? GET_REAL_ESTATE_INVESTMENTS_BY_TYPE(filters.investmentType, filters)
         : GET_REAL_ESTATE_INVESTMENTS_BY_TYPE('', filters); // Get all types if no specific type
 
-      console.log('Real Estate Report Query:', query);
-
       const response = await graphqlClient.request<RealEstateInvestmentResponse>(query);
-      
-      console.log('Real Estate Report Response:', response);
 
       const investments = response.Investment || [];
       
@@ -67,14 +63,6 @@ export const useRealEstateReportIntegration = ({
           investment.investmentType?.value === filters.investmentType
         );
       }
-
-      console.log('Enhanced Real Estate Investments:', {
-        originalCount: investments.length,
-        enhancedCount: enhancedInvestments.length,
-        filteredCount: filteredInvestments.length,
-        filters,
-        sampleInvestment: filteredInvestments[0]
-      });
 
       setData(filteredInvestments);
       setTotalCount(response.InvestmentAggregate?.aggregate?.count || filteredInvestments.length);

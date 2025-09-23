@@ -29,7 +29,7 @@ export interface ActivityTypeOption {
 export interface EntityOption {
   id: string;
   name: string;
-  type: 'account' | 'contact' | 'opportunity' | 'lead';
+  type: 'account' | 'contact' | 'opportunity' | 'lead' | 'investment';
   subtitle?: string;
   pictureThumbnail?: string;
 }
@@ -47,6 +47,7 @@ export interface Activity {
   opportunity?: { id: string };
   lead?: { id: string };
   ownerEmployee?: { id: string };
+  ownerEmployeeId?: string; // Added to support form field
   version?: string;
 }
 
@@ -432,6 +433,7 @@ export const activitySegmentSchema = z.object({
   description: z.string().min(1, 'Description is required'),
   files: z.any().optional(),
   relatedEntityId: z.string().optional(),
+  ownerEmployeeId: z.string().optional(), // Added to support owner selection
 });
 
 export type ActivitySegmentSchema = z.infer<typeof activitySegmentSchema>;
