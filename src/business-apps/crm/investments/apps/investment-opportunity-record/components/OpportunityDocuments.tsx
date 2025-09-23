@@ -566,11 +566,11 @@ export const OpportunityDocuments: React.FC<OpportunityDocumentsProps> = ({
     // Check if document.file already has an extension
     if (document.file && document.file.includes('.')) {
       // File already has extension, use as is
-      return `/files/api/v1/public/downloads/crm/opportunities/${opportunityId}/documents/${document.file}`;
+      return `/files/api/v1/public/downloads/irm/opportunities/${opportunityId}/documents/${document.file}`;
     } else {
       // File doesn't have extension, add one
       const fileExtension = getFileExtension(document);
-      return `/files/api/v1/public/downloads/crm/opportunities/${opportunityId}/documents/${document.file}.${fileExtension}`;
+      return `/files/api/v1/public/downloads/irm/opportunities/${opportunityId}/documents/${document.file}.${fileExtension}`;
     }
   };
 

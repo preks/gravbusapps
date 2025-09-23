@@ -103,6 +103,7 @@ export enum FlowContextName {
   investmentDocumentEntity = "investmentDocumentEntity",
   investmentDocumentCreate = "investmentDocumentCreate",
   investmentDocumentUpdate = "investmentDocumentUpdate",
+  investmentDocumentDelete = "investmentDocumentDelete",
 
   /// Investments
   createInvestment = "investmentCreate", // TODO: Obsolete
