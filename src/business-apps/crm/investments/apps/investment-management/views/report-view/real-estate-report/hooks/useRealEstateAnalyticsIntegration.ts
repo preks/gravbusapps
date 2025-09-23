@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { useGetInvestmentReports } from '@/common/data/investment/hooks/useInvestmentReports';
+import { useGetInvestmentReports } from '@/common/data/investment-report/hooks/useInvestmentReports';
 import type { 
   RealEstateAnalyticsFilters, 
   RealEstateAnalyticsRowData, 
@@ -44,7 +44,7 @@ export const useRealEstateAnalyticsIntegration = ({
   const transformRealEstateToAnalyticsRow = useCallback((report: any): RealEstateAnalyticsRowData => {
     const investment = report.realEstateInvestment?.investment || report.investment;
     
-    // FIXED: Use investment name as property name (as requested)
+    // Use investment name as property name
     const propertyName = investment?.name || 
                         report.realEstateInvestment?.locality || 
                         `Property ${report.id.slice(-8)}`;
@@ -88,13 +88,13 @@ export const useRealEstateAnalyticsIntegration = ({
     };
   }, []);
 
-  // FIXED: Load Real Estate analytics data - get all real estate investments and latest reports
+  // Load Real Estate analytics data - get all real estate investments and latest reports
   const loadRealEstateAnalyticsData = useCallback(async (): Promise<RealEstateAnalyticsResponse> => {
     try {
       setLoading(true);
       setError(null);
 
-      // FIXED: Query all real estate investment reports within date range
+      // Query all real estate investment reports within date range
       const filterParams = {
         reportDateFrom: filters.startDate,
         reportDateTo: filters.endDate,
@@ -108,14 +108,11 @@ export const useRealEstateAnalyticsIntegration = ({
         }]
       };
 
-      console.log('RealEstate Reports Query Parameters:', filterParams);
-
       const response = await fetchInvestmentReports(filterParams);
-      console.log('RealEstate Reports Response:', response);
 
       const investmentReports = response.InvestmentReport || [];
       
-      // FIXED: Group by investment ID and get the latest report for each investment
+      // Group by investment ID and get the latest report for each investment
       const latestReportsByInvestment = new Map<string, any>();
       
       investmentReports.forEach(investmentReport => {
@@ -150,14 +147,7 @@ export const useRealEstateAnalyticsIntegration = ({
           return item.propertyType === filters.investmentType;
         });
         
-        console.log(`Filtered for ${filters.investmentType}:`, {
-          originalCount: allTransformedData.length,
-          filteredCount: filteredData.length,
-          sampleTypes: allTransformedData.slice(0, 5).map(item => item.propertyType)
-        });
       }
-
-      console.log('RealEstate Transformed Data:', filteredData);
 
       setData(filteredData);
       setTotalCount(filteredData.length);

@@ -129,7 +129,7 @@ export const transformFormFieldsToTableColumns = (
 const getColumnClassName = (fieldType: string): string => {
   switch (fieldType) {
     case 'AMOUNT':
-      return 'gba:text-right gba:font-mono';
+      return 'gba:text-right'; // Removed gba:font-mono for consistent font styling
     case 'NUMBER':
     case 'PERCENTAGE':
       return 'gba:text-right';

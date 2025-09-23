@@ -11,9 +11,11 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-  Badge
+  Badge,
+  Spinner,
+  Button,
+  Alert
 } from '@newwork/nw-design-system';
-import { Spin, Alert } from 'antd';
 import { 
   DollarSign,
   RefreshCw
@@ -41,6 +43,20 @@ export const AnalyticsTable: React.FC<AnalyticsTableProps> = ({
   investmentType,
   title
 }) => {
+  // Format date to match other investment report tables
+  const formatDate = (dateString?: string): string => {
+    if (!dateString) return 'N/A';
+    try {
+      return new Date(dateString).toLocaleDateString('en-US', {
+        year: 'numeric',
+        month: 'short',
+        day: 'numeric'
+      });
+    } catch {
+      return 'Invalid Date';
+    }
+  };
+
   // Use real data integration hook
   const {
     analyticsData,
@@ -156,26 +172,28 @@ export const AnalyticsTable: React.FC<AnalyticsTableProps> = ({
 
   if (isLoadingAny) {
     return (
-      <div className="gba:flex gba:justify-center gba:items-center gba:h-64" data-testid={`${dataTestId}-loading`}>
-        <Spin size="large" />
+      <div className="gba:flex gba:justify-center gba:items-center" style={{ height: 'var(--nw-spacing-64)' }} data-testid={`${dataTestId}-loading`}>
+        <Spinner data-testid={`${dataTestId}-loading-spinner`} />
       </div>
     );
   }
 
   if (hasError) {
     return (
-      <div className="gba:flex gba:justify-center gba:items-center gba:h-64" data-testid={`${dataTestId}-error`}>
-        <Alert
-          message="Error Loading Analytics Data"
-          description={error || catalogError}
-          type="error"
-          showIcon
-          action={
-            <button onClick={refetch} className="gba:text-blue-600 hover:gba:text-blue-800">
-              <RefreshCw className="gba:h-4 gba:w-4" />
-            </button>
-          }
-        />
+      <div className="gba:flex gba:justify-center gba:items-center" style={{ height: 'var(--nw-spacing-64)' }} data-testid={`${dataTestId}-error`}>
+        <Alert variant="destructive">
+          <div className="gba:flex gba:items-center gba:justify-between">
+            <div>
+              <div style={{ fontWeight: 'var(--nw-font-weight-medium)' }}>Error Loading Analytics Data</div>
+              {(error || catalogError) && (
+                <div style={{ fontSize: 'var(--nw-text-sm)', marginTop: 'var(--nw-spacing-1)', color: 'var(--nw-color-text-secondary)' }}>{error || catalogError}</div>
+              )}
+            </div>
+            <Button variant="outline" size="sm" onClick={refetch}>
+              <RefreshCw style={{ height: 'var(--nw-spacing-4)', width: 'var(--nw-spacing-4)' }} />
+            </Button>
+          </div>
+        </Alert>
       </div>
     );
   }
@@ -183,8 +201,8 @@ export const AnalyticsTable: React.FC<AnalyticsTableProps> = ({
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="gba:flex gba:items-center gba:gap-2">
-          <DollarSign className="gba:h-5 gba:w-5" />
+        <CardTitle className="gba:flex gba:items-center" style={{ gap: 'var(--nw-spacing-2)' }}>
+          <DollarSign style={{ height: 'var(--nw-spacing-5)', width: 'var(--nw-spacing-5)' }} />
           {title}
           <Badge variant="outline">{totalCount} investments</Badge>
         </CardTitle>
@@ -196,14 +214,41 @@ export const AnalyticsTable: React.FC<AnalyticsTableProps> = ({
         <div className="gba:overflow-x-auto">
           <Table data-testid={`${dataTestId}-table`}>
             <TableHeader>
-              <TableRow className="gba:border-b gba:bg-gray-50">
-                <TableHead className="gba:font-semibold gba:text-gray-700 gba:text-left gba:py-3 gba:px-4">Proprietor</TableHead>
-                <TableHead className="gba:font-semibold gba:text-gray-700 gba:text-left gba:py-3 gba:px-4">Original Currency</TableHead>
-                {/* Dynamic columns from catalog - replace ALL hardcoded columns */}
+              <TableRow style={{ borderBottom: 'var(--nw-border-width-thin) solid var(--nw-color-border-default)', backgroundColor: 'var(--nw-color-surface-secondary)' }}>
+                {/* Static columns that are consistent across all investment report tabs */}
+                <TableHead 
+                  className="gba:text-left" 
+                  style={{ 
+                    fontWeight: 'var(--nw-font-weight-semibold)', 
+                    fontFamily: 'var(--nw-font-family-base)', 
+                    color: 'var(--nw-color-text-primary)', 
+                    padding: 'var(--nw-spacing-3) var(--nw-spacing-4)' 
+                  }}
+                >
+                  Investment
+                </TableHead>
+                <TableHead 
+                  className="gba:text-center" 
+                  style={{ 
+                    fontWeight: 'var(--nw-font-weight-semibold)', 
+                    fontFamily: 'var(--nw-font-family-base)', 
+                    color: 'var(--nw-color-text-primary)', 
+                    padding: 'var(--nw-spacing-3) var(--nw-spacing-4)' 
+                  }}
+                >
+                  Date
+                </TableHead>
+                {/* Dynamic columns based on catalog configuration */}
                 {shouldShowDynamicColumns && dynamicColumns.map((column) => (
                   <TableHead 
                     key={column.id}
-                    className={`gba:font-semibold gba:text-gray-700 gba:py-3 gba:px-4 ${column.className || 'gba:text-left'}`}
+                    className={column.className || 'gba:text-left'}
+                    style={{ 
+                      fontWeight: 'var(--nw-font-weight-semibold)', 
+                      fontFamily: 'var(--nw-font-family-base)', 
+                      color: 'var(--nw-color-text-primary)', 
+                      padding: 'var(--nw-spacing-3) var(--nw-spacing-4)' 
+                    }}
                   >
                     {column.label}
                   </TableHead>
@@ -214,14 +259,13 @@ export const AnalyticsTable: React.FC<AnalyticsTableProps> = ({
               {analyticsData.length === 0 ? (
                 <TableRow>
                   <TableCell colSpan={
-                    // Calculate total columns: base + dynamic only
-                    2 + // Base: Proprietor, Original Currency 
-                    (shouldShowDynamicColumns ? dynamicColumns.length : 0) // All other columns are dynamic
-                  } className="gba:text-center gba:py-12 gba:text-gray-500">
-                    <div className="gba:flex gba:flex-col gba:items-center gba:gap-2">
-                      <DollarSign className="gba:h-12 gba:w-12 gba:text-gray-300" />
-                      <p className="gba:text-lg gba:font-medium">No {investmentType} Data Found</p>
-                      <p className="gba:text-sm">No liquid fund portfolios are available for {investmentType.toLowerCase()} in the selected time period.</p>
+                    // Static columns (Investment, Date) + dynamic columns
+                    2 + (shouldShowDynamicColumns ? dynamicColumns.length : 0)
+                  } className="gba:text-center" style={{ padding: 'var(--nw-spacing-12) 0', color: 'var(--nw-color-text-secondary)' }}>
+                    <div className="gba:flex gba:flex-col gba:items-center" style={{ gap: 'var(--nw-spacing-2)' }}>
+                      <DollarSign style={{ height: 'var(--nw-spacing-12)', width: 'var(--nw-spacing-12)', color: 'var(--nw-muted-foreground)' }} />
+                      <p style={{ fontSize: 'var(--nw-text-lg)', fontWeight: 'var(--nw-font-weight-medium)' }}>No {investmentType} Data Found</p>
+                      <p style={{ fontSize: 'var(--nw-text-sm)' }}>No liquid fund portfolios are available for {investmentType.toLowerCase()} in the selected time period.</p>
                     </div>
                   </TableCell>
                 </TableRow>
@@ -230,24 +274,29 @@ export const AnalyticsTable: React.FC<AnalyticsTableProps> = ({
                   {analyticsData.map((row, index) => (
                     <TableRow
                       key={row.id}
-                      className="gba:cursor-pointer gba:border-b gba:hover:gba:bg-gray-50"
+                      className="gba:cursor-pointer"
+                      style={{ borderBottom: 'var(--nw-border-width-thin) solid var(--nw-color-border-default)' }}
+                      onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'var(--nw-color-surface-secondary)'}
+                      onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
                       onClick={() => row.investmentId && handleRowClick(row.investmentId)}
                       data-testid={`${dataTestId}-row-${index + 1}`}
                     >
-                      <TableCell className="gba:py-3 gba:px-4">
-                        <div className="gba:flex gba:items-center gba:gap-2">
-                          <DollarSign className="gba:w-4 gba:h-4 gba:text-gray-500" />
-                          <span className="gba:font-medium">{row.proprietorName}</span>
+                      {/* Static columns that are consistent across all investment report tabs */}
+                      <TableCell style={{ padding: 'var(--nw-spacing-3) var(--nw-spacing-4)' }}>
+                        <div className="gba:flex gba:items-center" style={{ gap: 'var(--nw-spacing-2)' }}>
+                          <DollarSign style={{ width: 'var(--nw-spacing-4)', height: 'var(--nw-spacing-4)', color: 'var(--nw-color-text-secondary)' }} />
+                          <span style={{ fontWeight: 'var(--nw-font-weight-medium)' }}>{row.investmentName}</span>
                         </div>
                       </TableCell>
-                      <TableCell className="gba:text-left gba:py-3 gba:px-4">
-                        <Badge variant="outline">{row.originalCurrency}</Badge>
+                      <TableCell className="gba:text-center" style={{ padding: 'var(--nw-spacing-3) var(--nw-spacing-4)' }}>
+                        {row.reportDate ? formatDate(row.reportDate) : '-'}
                       </TableCell>
-                      {/* Dynamic columns from catalog - replace ALL hardcoded columns */}
+                      {/* Dynamic columns based on catalog configuration */}
                       {shouldShowDynamicColumns && dynamicColumns.map((column) => (
                         <TableCell 
                           key={column.id}
-                          className={`gba:py-3 gba:px-4 ${column.className || 'gba:text-left'}`}
+                          className={column.className || 'gba:text-left'}
+                          style={{ padding: 'var(--nw-spacing-3) var(--nw-spacing-4)' }}
                         >
                           {column.getValue(row)}
                         </TableCell>
