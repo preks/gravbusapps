@@ -1,12 +1,11 @@
 // Investment Reports Tab - Refactored for Size Compliance
 import React, { useCallback, useEffect, useState } from 'react';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow, Button } from '@newwork/nw-design-system';
-import { Spin, Alert } from 'antd';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow, Button, Spinner, Alert, AlertTitle, AlertDescription } from '@newwork/nw-design-system';
 import { FlipHorizontalIcon } from 'lucide-react';
 import dayjs from 'dayjs';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
-import { useGetInvestmentReports } from '@/common/data/investment/hooks/useInvestmentReports';
-import { type InvestmentReportQueryVariables } from '@/common/data/investment/queries';
+import { useGetInvestmentReports } from '@/common/data/investment-report/hooks/useInvestmentReports';
+import { type InvestmentReportQueryVariables } from '@/common/data/investment-report/queries';
 import { createInvestmentReportColumns, ColumnDefinition } from './columnDefinitions';
 import TransposedTable from './TransposedTable';
 import ReportFilters from './ReportFilters';
@@ -16,7 +15,11 @@ interface InvestmentReportsTabProps extends BusinessAppContextProps {
   investmentGroupIds?: string[];
   specificInvestmentId?: string;
   customColumns?: ColumnDefinition[];
-  investmentType?: string;
+  catalogData: any; // Now required for dynamic columns
+  investmentTypeCode: string; // Now required
+  liquidFundTypeCode?: string;
+  investment?: any; // Add the full investment record from header
+  typeSpecificData?: any; // Add type-specific data from header
   'data-testid'?: string;
 }
 
@@ -25,7 +28,11 @@ const InvestmentReportsTab: React.FC<InvestmentReportsTabProps> = ({
   investmentGroupIds,
   specificInvestmentId,
   customColumns,
-  investmentType,
+  catalogData,
+  investmentTypeCode,
+  liquidFundTypeCode,
+  investment,
+  typeSpecificData,
   accessToken,
   userInfo,
   'data-testid': dataTestId = 'investment-reports-tab'
@@ -37,7 +44,7 @@ const InvestmentReportsTab: React.FC<InvestmentReportsTabProps> = ({
   const [pageSize] = useState(20);
   const [total, setTotal] = useState(0);
   const [sortField, setSortField] = useState<string>('date');
-  const [sortOrder, setSortOrder] = useState<'ASC_NULLS_LAST' | 'DESC_NULLS_LAST'>('DESC_NULLS_LAST');
+  const [sortOrder, setSortOrder] = useState<'ASC' | 'DESC'>('DESC');
   const [dateRange, setDateRange] = useState<[dayjs.Dayjs | null, dayjs.Dayjs | null] | null>(null);
   const [timeFilter, setTimeFilter] = useState<string>('all');
   const [isTransposed, setIsTransposed] = useState(false);
@@ -51,21 +58,16 @@ const InvestmentReportsTab: React.FC<InvestmentReportsTabProps> = ({
     
     try {
       const params: InvestmentReportQueryVariables = {
-        investmentIds: [investmentId],
         limit: pageSize,
         offset: (currentPage - 1) * pageSize,
         orderBy: [{ field: sortField, direction: sortOrder }]
       };
-
-      if (investmentGroupIds?.length) {
-        // TODO: Add investmentGroupIds to InvestmentReportQueryVariables interface
-      }
-
-      if (specificInvestmentId) {
-        params.equityInvestmentIds = [specificInvestmentId];
-        params.liquidFundInvestmentIds = [specificInvestmentId];
-        params.realEstateInvestmentIds = [specificInvestmentId];
-      }
+      
+      // INDIVIDUAL INVESTMENT REPORTS: Always show ALL reports for this investment
+      // Unlike the reports-view which shows latest-per-investment, here we want ALL reports
+      // So we always use the generic investment filter to get all reports for this investment ID
+      
+      params.investmentIds = [investmentId];
 
       // Handle date filtering
       if (dateRange && dateRange[0] && dateRange[1]) {
@@ -88,6 +90,7 @@ const InvestmentReportsTab: React.FC<InvestmentReportsTabProps> = ({
       }
 
       const response = await fetchInvestmentReports(params);
+      
       setReports(response.InvestmentReport || []);
       setTotal(response.InvestmentReportAggregate?.aggregate?.count || 0);
     } catch (err) {
@@ -103,21 +106,28 @@ const InvestmentReportsTab: React.FC<InvestmentReportsTabProps> = ({
 
   const handleSort = (field: string) => {
     if (sortField === field) {
-      setSortOrder(sortOrder === 'ASC_NULLS_LAST' ? 'DESC_NULLS_LAST' : 'ASC_NULLS_LAST');
+      setSortOrder(sortOrder === 'ASC' ? 'DESC' : 'ASC');
     } else {
       setSortField(field);
-      setSortOrder('ASC_NULLS_LAST');
+      setSortOrder('ASC');
     }
     setCurrentPage(1);
   };
 
-  // Generate columns using the factory function
+  // Generate columns using the dynamic catalog-based system
   const columns: ColumnDefinition[] = React.useMemo(() => {
     if (customColumns && customColumns.length > 0) {
       return customColumns;
     }
-    return createInvestmentReportColumns(investmentType, accessToken);
-  }, [customColumns, investmentType, accessToken]);
+    return createInvestmentReportColumns(
+      investmentTypeCode,
+      liquidFundTypeCode,
+      catalogData,
+      accessToken,
+      investment,
+      typeSpecificData
+    );
+  }, [customColumns, investmentTypeCode, liquidFundTypeCode, catalogData, accessToken, investment, typeSpecificData]);
 
   const handleTimeFilterChange = (value: string) => {
     setTimeFilter(value);
@@ -138,7 +148,7 @@ const InvestmentReportsTab: React.FC<InvestmentReportsTabProps> = ({
   if (isLoading) {
     return (
       <div className="gba:flex gba:justify-center gba:items-center gba:h-64" data-testid={`${dataTestId}-loading`}>
-        <Spin size="large" />
+        <Spinner data-testid={`${dataTestId}-loading-spinner`} />
       </div>
     );
   }
@@ -146,13 +156,17 @@ const InvestmentReportsTab: React.FC<InvestmentReportsTabProps> = ({
   if (error) {
     return (
       <div className="gba:p-4" data-testid={`${dataTestId}-error`}>
-        <Alert
-          message="Error Loading Reports"
-          description={error}
-          type="error"
-          showIcon
-          action={<Button size="sm" onClick={loadReports}>Retry</Button>}
-        />
+        <Alert variant="destructive" data-testid="investment-reports-alert">
+          <AlertTitle>Error Loading Reports</AlertTitle>
+          <AlertDescription>
+            {error}
+            <div className="gba:mt-3">
+              <Button size="sm" onClick={loadReports} data-testid="investment-reports-retry-button">
+                Retry
+              </Button>
+            </div>
+          </AlertDescription>
+        </Alert>
       </div>
     );
   }
@@ -209,7 +223,7 @@ const InvestmentReportsTab: React.FC<InvestmentReportsTabProps> = ({
                         {column.title}
                         {column.sortable && sortField === column.key && (
                           <span className="gba:text-xs">
-                            {sortOrder === 'ASC_NULLS_LAST' ? '↑' : '↓'}
+                            {sortOrder === 'ASC' ? '↑' : '↓'}
                           </span>
                         )}
                       </div>

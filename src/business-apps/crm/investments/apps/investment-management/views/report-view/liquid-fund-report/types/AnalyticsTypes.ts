@@ -10,7 +10,6 @@ export interface AnalyticsQueryVariables {
 export interface AnalyticsFilters {
   startDate?: string;
   endDate?: string;
-  currency?: string;
   investmentType?: string; // Filter for "Bank Deposits"
 }
 
@@ -78,6 +77,8 @@ export interface AnalyticsRowData {
   cashBankIdentifier: string;
   proprietorName: string;
   originalCurrency: string;
+  // Report date for display
+  reportDate?: string;
   // Additional fields for Fixed-Term Deposits
   maturityDate?: string;
   interestRate?: number;
