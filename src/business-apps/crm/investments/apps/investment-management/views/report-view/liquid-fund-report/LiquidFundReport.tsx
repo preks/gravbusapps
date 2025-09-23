@@ -39,15 +39,11 @@ export const LiquidFundReport: React.FC<LiquidFundReportProps> = ({
   // Sub-tab management - Start with Bank Deposits since Overview is removed
   const [activeSubTab, setActiveSubTab] = useState<string>('tab1');
 
-  // FIXED: Filter states - Use same pattern as individual investment record reports
+  // Filter states - Use same pattern as individual investment record reports
   const [timeFilter, setTimeFilter] = useState<string>('all');
   const [dateRange, setDateRange] = useState<[dayjs.Dayjs | null, dayjs.Dayjs | null] | null>(null);
-  const [selectedCurrency, setSelectedCurrency] = useState<string>('EUR');
 
-  // Available currencies
-  const availableCurrencies = ['EUR', 'USD', 'GBP', 'CHF'];
-
-  // FIXED: Calculate date strings using same logic as individual investment record reports
+  // Calculate date strings using same logic as individual investment record reports
   const { startDateString, endDateString } = useMemo(() => {
     if (dateRange && dateRange[0] && dateRange[1]) {
       return {
@@ -84,25 +80,22 @@ export const LiquidFundReport: React.FC<LiquidFundReportProps> = ({
   const bankDepositFilters = useMemo((): AnalyticsFilters => ({
     startDate: startDateString,
     endDate: endDateString,
-    currency: selectedCurrency,
     investmentType: 'Bank Deposit'
-  }), [startDateString, endDateString, selectedCurrency]);
+  }), [startDateString, endDateString]);
 
   const fixedTermDepositFilters = useMemo((): AnalyticsFilters => ({
     startDate: startDateString,
     endDate: endDateString,
-    currency: selectedCurrency,
     investmentType: 'Fixed-Term Deposit'
-  }), [startDateString, endDateString, selectedCurrency]);
+  }), [startDateString, endDateString]);
 
   const multipleTypesFilters = useMemo((): AnalyticsFilters => ({
     startDate: startDateString,
     endDate: endDateString,
-    currency: selectedCurrency,
     investmentType: 'Money Market Funds,Pension Fund,Equity,Bond' // Multiple types separated by comma
-  }), [startDateString, endDateString, selectedCurrency]);
+  }), [startDateString, endDateString]);
 
-  // FIXED: Filter change handlers matching record reports pattern
+  // Filter change handlers matching record reports pattern
   const handleTimeFilterChange = (value: string) => {
     setTimeFilter(value);
     if (value !== 'all') {
@@ -127,7 +120,7 @@ export const LiquidFundReport: React.FC<LiquidFundReportProps> = ({
 
   return (
     <div className="gba:space-y-6 gba:p-6" data-testid={dataTestId}>
-      {/* FIXED: Filters Section - Using same pattern as record reports */}
+      {/* Filters Section - Using same pattern as record reports */}
       <div className="gba:bg-white gba:rounded-lg gba:border gba:shadow-sm gba:mb-6">
         <div className="gba:p-4 gba:border-b">
           <div className="gba:flex gba:items-center gba:gap-2">
@@ -162,22 +155,6 @@ export const LiquidFundReport: React.FC<LiquidFundReportProps> = ({
                 format="DD/MM/YYYY"
                 placeholder={["Start Date", "End Date"]}
               />
-            </div>
-            
-            <div className="gba:flex gba:items-center gba:gap-2">
-              <label className="gba:text-sm gba:font-medium">Currency:</label>
-              <Select value={selectedCurrency} onValueChange={setSelectedCurrency}>
-                <SelectTrigger className="gba:w-[120px]">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {availableCurrencies.map((currency) => (
-                    <SelectItem key={currency} value={currency}>
-                      {currency}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
             </div>
             
             <Button 

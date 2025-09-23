@@ -71,18 +71,16 @@ export {
   useGetInvestmentOpportunities,
   useGetInvestmentOpportunityById,
   
-  // Report hooks
-  useGetInvestmentReports,
-  useGetInvestmentReportById,
-  useGetInvestmentTransactions,
-  useGetInvestmentTransactionById,
-  // NOTE: Specific report hooks removed - use useGetInvestmentReports instead
-  useGetEquityInvestmentRounds,
-  useGetRealEstateInvestmentRentalUnits,
-  
   // Integration hooks
   useInvestmentDataIntegration
 } from './hooks';
+
+// Report hooks (re-exported from centralized investment-report module)
+// @deprecated Import from '@/common/data/investment-report/hooks' directly in new code.
+export {
+  useGetInvestmentReports,
+  useGetInvestmentReportById
+} from '@/common/data/investment-report/hooks';
 
 // Export commonly used queries
 export {
@@ -98,13 +96,8 @@ export {
   GET_INVESTMENT_LEAD_BY_ID,
   GET_INVESTMENT_OPPORTUNITIES,
   GET_INVESTMENT_OPPORTUNITY_BY_ID,
-  GET_INVESTMENT_REPORTS,
-  GET_INVESTMENT_REPORT_BY_ID,
-  GET_INVESTMENT_TRANSACTIONS,
-  GET_INVESTMENT_TRANSACTION_BY_ID,
-  // NOTE: Specific report queries removed - all reports now use GET_INVESTMENT_REPORTS
-  GET_EQUITY_INVESTMENT_ROUNDS,
-  GET_REAL_ESTATE_INVESTMENT_RENTAL_UNITS
+  // MIGRATION NOTE: Investment report queries moved to @/common/data/investment-report/queries
+  // Use the centralized investment-report module for all report queries
 } from './queries';
 
 // Export commonly used mappers

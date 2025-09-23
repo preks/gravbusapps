@@ -7,6 +7,7 @@ import { AiSummaryButton } from '@/common/components/common-relations/record-sec
 import { AppActionButton } from '@/components/app-action-button/AppActionButton';
 import { FlowContextName } from '@/common/types/FlowRegistryTypes';
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
+import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils';
 import { useInvestmentTileFields } from './hooks/useInvestmentTileFields';
 import { useInvestmentAiSummary } from './hooks/useInvestmentAiSummary';
 import { TrendingUp, Home, BarChart3 } from 'lucide-react';
@@ -160,9 +161,29 @@ const InvestmentRecord: React.FC<InvestmentRecordProps> = (props) => {
 
   // Navigation
   const handleBack = useCallback(() => {
-    // Use browser history back to return to the previous page
-    // This respects where the user actually came from
-    window.history.back();
+    // Get the fromView and fromSubView parameters from URL
+    const urlParams = new URLSearchParams(window.location.search);
+    const fromView = urlParams.get('fromView');
+    const fromSubView = urlParams.get('fromSubView');
+    
+    // Navigate back based on the source view
+    if (fromView && fromSubView) {
+      switch (fromView) {
+        case 'investments':
+          navigateTo(buildPlatformUrl('/platform/irm/investment-management', { view: fromView, subView: fromSubView }));
+          break;
+        case 'divestments':
+          navigateTo(buildPlatformUrl('/platform/irm/investment-management', { view: fromView, subView: fromSubView }));
+          break;
+        default:
+          // Fallback to investment management main view
+          navigateTo(buildPlatformUrl('/platform/irm/investment-management', { view: 'investments' }));
+          break;
+      }
+    } else {
+      // Fallback to investment management main view if no source info
+      navigateTo(buildPlatformUrl('/platform/irm/investment-management', { view: 'investments' }));
+    }
   }, []);
 
   // Loading state
@@ -240,7 +261,8 @@ const InvestmentRecord: React.FC<InvestmentRecordProps> = (props) => {
     processedTiles,
     documents,
     loadData,
-    props
+    props,
+    catalogData
   );
 
   return (

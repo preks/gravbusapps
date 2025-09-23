@@ -57,7 +57,7 @@ const getValueByPath = (obj: any, path: string): any => {
 /**
  * Formats a field value based on its type
  */
-const formatFieldValue = (value: any, fieldType: string, currencyCode: string): string => {
+export const formatFieldValue = (value: any, fieldType: string, currencyCode: string): string => {
   if (value === null || value === undefined) return '-';
   
   switch (fieldType) {
@@ -101,10 +101,22 @@ export const getInvestmentTypeFieldDefinition = (
 ): FormFieldsDefinition | null => {
   if (!catalogData || !investmentTypeCode) return null;
   
-  // Look through investment types for matching code
+  // SPECIAL CASE FOR EQUITY: Check the EQUITY group level instead of individual type
+  // Find the investment type to get its parent group
   const investmentTypes = catalogData.investmentTypes || [];
   const matchingType = investmentTypes.find((type: any) => type.code === investmentTypeCode);
   
+  const parentCode = matchingType?.parentEntryId?.split(':').pop();
+  if (parentCode === 'EQUITY') {
+    // For equity investments, use the EQUITY group's form fields
+    const investmentGroups = catalogData.investmentGroups || [];
+    const equityGroup = investmentGroups.find((group: any) => group.code === 'EQUITY');
+    if (equityGroup?.objectValue) {
+      return equityGroup.objectValue as FormFieldsDefinition;
+    }
+  }
+  
+  // For non-equity investments, check the type level first
   if (matchingType?.objectValue) {
     return matchingType.objectValue as FormFieldsDefinition;
   }
