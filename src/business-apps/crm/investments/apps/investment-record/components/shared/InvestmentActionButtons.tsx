@@ -270,12 +270,14 @@ const DirectApiGenerateButton: React.FC<DirectApiGenerateButtonProps> = ({
   const handleGenerateReport = async () => {
     setIsGenerating(true);
     setError(null);
-
     try {
-      // Use pre-loaded data if available, otherwise fetch it
-      const reportPayload = investmentData 
-        ? transformInvestmentToPayload(investmentData)
-        : await fetchInvestmentReportData(investmentId);
+      // 🔥 ALWAYS USE PRE-LOADED DATA - NO ADDITIONAL API CALLS
+      if (!investmentData) {
+        throw new Error('Investment data not available. Please refresh the page.');
+      }
+      
+      // Use existing investment data instead of fetching
+      const reportPayload = transformInvestmentToPayload(investmentData);
 
       // Generate the report
       const response = await reportClient.generateInvestmentReport(reportPayload);
@@ -293,6 +295,7 @@ const DirectApiGenerateButton: React.FC<DirectApiGenerateButtonProps> = ({
         throw new Error(response.message || 'Report generation failed');
       }
     } catch (err) {
+      
       const errorMessage = err instanceof Error ? err.message : 'Unknown error occurred';
       setError(errorMessage);
       message.error(
@@ -421,7 +424,6 @@ const FlowBasedGenerateButton: React.FC<FlowBasedGenerateButtonProps> = ({
 
     try {
       if (!accessToken) {
-        console.error('❌ No access token available for PDF viewer');
         message.error(
           getTranslationFromI18nKeyAndLabel('investment.reports.viewerError', 'Authentication required to view report')
         );
@@ -673,17 +675,21 @@ const FlowBasedGenerateButton: React.FC<FlowBasedGenerateButtonProps> = ({
 
   // Prepare complete payload for flow
   const getFlowContextData = () => {
+    
     if (investmentData) {
-      // Transform investment data to complete payload format
       const completePayload = transformInvestmentToPayload(investmentData);
-      return {
+      
+      const contextData = {
         investmentId,
         ...completePayload // Includes reportPath, templateName, reportData
       };
+      
+      return contextData;
     }
 
     // Fallback to basic data if no investment data available
-    return { investmentId };
+    const fallbackData = { investmentId };
+    return fallbackData;
   };
 
   const handleAppActionClick = () => {

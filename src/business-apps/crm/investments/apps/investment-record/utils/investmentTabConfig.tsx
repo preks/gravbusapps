@@ -1,4 +1,5 @@
 // Investment Tab Configuration Utilities
+import React from 'react';
 import { Home, BarChart3, Folder, FileText } from 'lucide-react';
 import { DocumentSection } from '@/common/components/common-relations/record-sections/document-section';
 import { AccountSection } from '@/common/components/common-relations/record-sections/account-section';
