@@ -41,10 +41,10 @@ export interface UseExpenseItemsFiltersReturn {
 /**
  * Hook to manage filter selection for expense items with all available statuses
  */
-export const useExpenseItemsFilters = (availableStatuses: string[] = []): UseExpenseItemsFiltersReturn => {
+export const useExpenseItemsFilters = (availableStatuses: string[] = [], initialSelectedFilters: string[] = []): UseExpenseItemsFiltersReturn => {
   // State for search and selected filters
   const [search, setSearch] = useState<string>('');
-  const [selectedFilters, setSelectedFilters] = useState<string[]>([]);
+  const [selectedFilters, setSelectedFilters] = useState<string[]>(initialSelectedFilters);
   const [expenseDateRange, setExpenseDateRange] = useState<[Date | null, Date | null] | null>(null);
   const [amountRange, setAmountRange] = useState<{ min?: number; max?: number } | null>(null);
   const [currencyStats, setCurrencyStats] = useState<CurrencyStat[]>([]);

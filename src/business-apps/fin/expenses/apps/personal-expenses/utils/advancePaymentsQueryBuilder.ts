@@ -217,7 +217,17 @@ export const buildAdvancePaymentsQuery = (filters: AdvancePaymentFilters): strin
           }
           expenseRequestTrip { tripDateTime }
           expenseRequest {
-            id code title description startDate endDate requestDate decisionDate totalAmount currencyRef status
+            id 
+            code 
+            title 
+            description 
+            startDate 
+            endDate 
+            requestDate 
+            decisionDate 
+            totalAmount 
+            currencyRef 
+            status
             reimbursableAmount nonReimbursableAmount additionalProperties
             currency { value translations(where: {localeCode: {_eq: "en"}}) { localeCode value } catalog { defaultLocale } }
             requestType { value translations(where: {localeCode: {_eq: "en"}}) { localeCode value } catalog { defaultLocale } }

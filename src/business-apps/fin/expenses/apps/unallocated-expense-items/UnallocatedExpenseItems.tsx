@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useRef } from 'react';
+import React, { useCallback, useMemo } from 'react';
 import { PageLayout, Button, Spinner } from '@newwork/nw-design-system';
 import { PiArrowLeft } from 'react-icons/pi';
 import { WalletIcon } from '@phosphor-icons/react';
@@ -29,6 +29,13 @@ const UnallocatedExpenseItems: React.FC<UnallocatedExpenseItemsProps> = ({ acces
     'TRANSFERRED'
   ], []);
 
+  // Determine initial status from URL or default to 'created'
+  const initialStatusFromUrl = (() => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const statusParam = (urlParams.get('status') || '').toUpperCase();
+    return (!statusParam || statusParam === 'CREATED') ? 'created' : statusParam.toLowerCase();
+  })();
+
   const {
     addFilter,
     removeFilter,
@@ -39,22 +46,7 @@ const UnallocatedExpenseItems: React.FC<UnallocatedExpenseItemsProps> = ({ acces
     getFilters,
     setFilters,
     amountRange,
-  } = useExpenseItemsFilters(availableStatuses);
-
-  // Apply default status only once on initial mount; allow user to clear/uncheck afterwards
-  const defaultStatusAppliedRef = useRef(false);
-  useEffect(() => {
-    if (defaultStatusAppliedRef.current) return;
-    const urlParams = new URLSearchParams(window.location.search);
-    const statusParam = (urlParams.get('status') || '').toUpperCase();
-    const shouldForceCreated = !statusParam || statusParam === 'CREATED';
-    if (shouldForceCreated) {
-      setFilters(['created']);
-    } else if (statusParam) {
-      setFilters([statusParam.toLowerCase()]);
-    }
-    defaultStatusAppliedRef.current = true;
-  }, [setFilters]);
+  } = useExpenseItemsFilters(availableStatuses, [initialStatusFromUrl]);
  
   const handleAddExpenseItem = useCallback(() => {
     const employeeId = userInfo?.employeeDetails?.employeeId;

@@ -52,6 +52,11 @@ const ExpenseRequestsTab: React.FC<ExpenseRequestsTabProps> = (props) => {
   
   const { items, isLoading, error, totalCount, fetchItems } = useGetExpenseRequests(contextProps);
   const selectedCurrencyRef = useMemo(() => getSelectedCurrencyRef(selectedFilters, 'Currency:v1:EUR'), [selectedFilters]);
+  // Only apply currency filter to table data when a currency is explicitly selected
+  const explicitSelectedCurrencyRef = useMemo(() => {
+    const token = selectedFilters.find((f) => f.startsWith('currency:'));
+    return token ? token.substring('currency:'.length) : undefined;
+  }, [selectedFilters]);
   const { currencyStats } = useExpenseCurrencies(contextProps, selectedFilters, setFilters);
 
   // Helper function to get current month date range
@@ -131,12 +136,13 @@ const ExpenseRequestsTab: React.FC<ExpenseRequestsTabProps> = (props) => {
   // Memoize the filters to prevent unnecessary API calls
   const memoizedFilters = useMemo(() => {
     const base = getFilters();
-    if (selectedCurrencyRef) {
+    // Do NOT filter by currency unless explicitly selected by the user
+    if (explicitSelectedCurrencyRef) {
       base._and = base._and || [];
-      base._and.push({ currencyRef: { _eq: selectedCurrencyRef } });
+      base._and.push({ currencyRef: { _eq: explicitSelectedCurrencyRef } });
     }
     return base;
-  }, [getFilters, selectedCurrencyRef]);
+  }, [getFilters, explicitSelectedCurrencyRef]);
 
   // Only fetch when filters, page, pageSize, or sorting changes
   useEffect(() => {

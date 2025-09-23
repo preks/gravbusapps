@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
-import { GET_EXPENSE_ITEMS_BY_EMPLOYEE, GET_EXPENSE_ITEM_BY_ID } from '../queries/expenseItems';
+import { GET_EXPENSE_ITEMS_BY_EMPLOYEE_WHERE, GET_EXPENSE_ITEM_BY_ID } from '../queries/expenseItems';
 import { env } from '@/common/env/EnvUtils';
 
 // Define types for the hook
@@ -73,7 +73,7 @@ export interface ExpenseItemResult {
  * @param context Business app context containing user info and access token
  * @returns Object containing expense items, loading state, error, total count, and fetch function
  */
-export const useGetExpenseItems = (context?: BusinessAppContextProps): ExpenseItemsResult => {
+export const useGetExpenseItems = (context?: BusinessAppContextProps, options?: { autoFetch?: boolean }): ExpenseItemsResult => {
   const [items, setItems] = useState<ExpenseItem[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [error, setError] = useState<Error | null>(null);
@@ -83,21 +83,61 @@ export const useGetExpenseItems = (context?: BusinessAppContextProps): ExpenseIt
    * Helper function to build GraphQL variables for the query
    */
   const buildQueryVariables = useCallback((employeeId: string, searchTerm: string, page: number, pageSize: number, filter?: ExpenseFilter, sortField?: string | null, sortOrder?: 'ascend' | 'descend' | null) => {
-    const formattedSearchTerm = searchTerm === '' ? '%' : `%${searchTerm}%`;
+    const trimmedSearch = (searchTerm || '').trim();
     const offset = (page - 1) * pageSize;
-    
-    // Build variables object dynamically based on provided filters
-    const variables: Record<string, any> = {
-      employeeId,
-      searchTerm: formattedSearchTerm,
-      limit: pageSize,
-      offset: offset,
-      currencyRef: filter?.currencyRef ?? 'Currency:v1:EUR',
+
+    // Build dynamic where clause to avoid forcing currency when not selected
+    const where: Record<string, any> = {
+      employeeId: { _eq: employeeId },
+      isDeleted: { _eq: false },
+      // exclude allowance
+      expenseClass: { _not: { code: { _eq: 'ALLOWANCE' } } },
+      // always exclude discarded
+      status: { _nin: ['DISCARDED'] },
     };
-    
+
+    if (trimmedSearch) {
+      const pattern = `%${trimmedSearch}%`;
+      where._or = [
+        { title: { _ilike: pattern } },
+        { code: { _ilike: pattern } },
+        { status: { _ilike: pattern } },
+        { expenseClass: { value: { _ilike: pattern } } },
+        { expenseClass: { translations: { value: { _ilike: pattern } } } },
+        { costCenter: { name: { _ilike: pattern } } },
+      ];
+    }
+
+    if (filter?.status) {
+      where.status = { ...(where.status || {}), _in: filter.status };
+    }
+
+    if (filter?.expenseDateStart || filter?.expenseDateEnd) {
+      where.expenseDate = {
+        ...(filter?.expenseDateStart ? { _gte: filter.expenseDateStart } : {}),
+        ...(filter?.expenseDateEnd ? { _lte: filter.expenseDateEnd } : {}),
+      };
+    }
+
+    if (filter?.totalAmountMin !== undefined || filter?.totalAmountMax !== undefined) {
+      where.totalAmount = {
+        ...(filter?.totalAmountMin !== undefined && filter.totalAmountMin !== null ? { _gte: filter.totalAmountMin } : {}),
+        ...(filter?.totalAmountMax !== undefined && filter.totalAmountMax !== null ? { _lte: filter.totalAmountMax } : {}),
+      };
+    }
+
+    if (filter?.currencyRef) {
+      where.currencyRef = { _eq: filter.currencyRef };
+    }
+
+    const variables: Record<string, any> = {
+      limit: pageSize,
+      offset,
+      where,
+    };
+
     // Add orderBy for server-side sorting
     if (sortField && sortOrder) {
-      // Map UI sort field to GraphQL field names
       const fieldMap: Record<string, string> = {
         title: 'title',
         expenseDate: 'expenseDate',
@@ -107,40 +147,15 @@ export const useGetExpenseItems = (context?: BusinessAppContextProps): ExpenseIt
         createdAt: 'createdAt',
         updatedAt: 'updatedAt',
         code: 'code',
-        description: 'description'
+        description: 'description',
       };
       const gqlField = fieldMap[sortField] || sortField;
       const direction = sortOrder === 'ascend' ? 'ASC' : 'DESC';
       variables.orderBy = [{ [gqlField]: direction }];
     } else {
-      // Default sorting by expense date descending
       variables.orderBy = [{ expenseDate: 'DESC' }];
     }
-    
-    // Only include filter variables if they are provided
-    if (filter?.status) {
-      variables.status = filter.status;
-    }
-    
-    if (filter?.expenseDateStart) {
-      variables.expenseDateStart = filter.expenseDateStart;
-    }
-    
-    if (filter?.expenseDateEnd) {
-      variables.expenseDateEnd = filter.expenseDateEnd;
-    }
-    
-    if (filter?.totalAmountMin !== undefined && filter?.totalAmountMin !== null) {
-      variables.totalAmountMin = filter.totalAmountMin;
-    }
-    
-    if (filter?.totalAmountMax !== undefined && filter?.totalAmountMax !== null) {
-      variables.totalAmountMax = filter.totalAmountMax;
-    }
-    
-    // We don't have a direct expenseClass filter in the GraphQL query
-    // We'll do client-side filtering for the expense class after fetching
-    
+
     return variables;
   }, []);
 
@@ -220,7 +235,7 @@ export const useGetExpenseItems = (context?: BusinessAppContextProps): ExpenseIt
           'Authorization': `Bearer ${accessToken}`,
         },
         body: JSON.stringify({
-          query: GET_EXPENSE_ITEMS_BY_EMPLOYEE,
+          query: GET_EXPENSE_ITEMS_BY_EMPLOYEE_WHERE,
           variables,
         }),
       });
@@ -282,10 +297,12 @@ export const useGetExpenseItems = (context?: BusinessAppContextProps): ExpenseIt
     }
   }, [context?.userInfo?.employeeDetails?.employeeId, context?.accessToken, buildQueryVariables, mapResponseToItems]);
 
-  // Initial fetch on component mount
+  // Initial fetch on component mount (configurable)
   useEffect(() => {
-    fetchItems(); // Initial fetch on component mount or when employee/token changes (via fetchItems dependencies)
-  }, [fetchItems]); // Only re-run when employeeId or accessToken changes
+    if (options?.autoFetch !== false) {
+      fetchItems();
+    }
+  }, [fetchItems, options?.autoFetch]);
 
   return { items, isLoading, error: error?.message ?? null, totalCount, fetchItems };
 };

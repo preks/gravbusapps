@@ -111,6 +111,43 @@ export const GET_EXPENSE_ITEMS_BY_EMPLOYEE = `
   }
 `;
 
+// GraphQL query variant that accepts a dynamic where clause to allow optional filters (e.g., currency)
+export const GET_EXPENSE_ITEMS_BY_EMPLOYEE_WHERE = `
+  query GetExpenseItemsByEmployeeWhere(
+    $limit: Int,
+    $offset: Int,
+    $orderBy: [ExpenseItemOrderBy!],
+    $where: ExpenseItemBoolExp!
+  ) {
+    ExpenseItemAggregate(where: $where) {
+      aggregate { count }
+    }
+    ExpenseItem(limit: $limit, offset: $offset, orderBy: $orderBy, where: $where) {
+      id
+      code
+      title
+      status
+      expenseDate
+      totalAmount
+      reimbursableAmount
+      nonReimbursableAmount
+      deductibleAmount
+      nonDeductibleAmount
+      currencyRef
+      currency { code value }
+      costCenter { name }
+      expenseClass {
+        value
+        translations { value localeCode }
+      }
+      additionalProperties
+      status
+      expenseItemFile { id fileUrl fileName }
+      employee { fullName additionalProperties }
+    }
+  }
+`;
+
 export const GET_ITEMS_WITHOUT_RECEIPTS = `
   query GetItemsWithoutReceipts($employeeId: uuid!) {
     itemsWithoutReceipts: ExpenseItemAggregate(

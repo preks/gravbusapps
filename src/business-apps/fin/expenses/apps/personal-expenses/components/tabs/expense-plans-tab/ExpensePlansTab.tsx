@@ -45,6 +45,11 @@ const ExpensePlansTab: React.FC<ExpensePlansTabProps> = (props) => {
   const { items, isLoading, error, totalCount, fetchItems } = useGetExpensePlans(props);
   const selectedCurrencyRef = useMemo(() => getSelectedCurrencyRef(selectedFilters, 'Currency:v1:EUR'), [selectedFilters]);
   const { statistics, isLoading: statsLoading, error: statsError, fetchStatistics } = useGetExpensePlanStatistics(props, selectedCurrencyRef);
+  // Only apply currency filter to table data when a currency is explicitly selected (like requests tab)
+  const explicitSelectedCurrencyRef = useMemo(() => {
+    const token = selectedFilters.find((f) => f.startsWith('currency:'));
+    return token ? token.substring('currency:'.length) : undefined;
+  }, [selectedFilters]);
   const { currencyStats } = useExpensePlanCurrencies(props, selectedFilters, setFilters);
 
   // Synchronize activeWidget with selectedFilters when filters change externally
@@ -199,13 +204,19 @@ const ExpensePlansTab: React.FC<ExpensePlansTabProps> = (props) => {
   // Memoize the filters to prevent unnecessary API calls
   const memoizedFilters = useMemo(() => {
     const baseFilters = getFilters();
-    if (selectedCurrencyRef) {
+    // Filter by currency only when explicitly selected
+    if (explicitSelectedCurrencyRef) {
       baseFilters._and = baseFilters._and || [];
-      baseFilters._and.push({ currencyRef: { _eq: selectedCurrencyRef } });
+      baseFilters._and.push({
+        _or: [
+          { currencyRef: { _eq: explicitSelectedCurrencyRef } },
+          { expenseRequest: { currencyRef: { _eq: explicitSelectedCurrencyRef } } }
+        ]
+      });
     }
     const finalFilters = buildWidgetFilters(baseFilters);
     return finalFilters;
-  }, [getFilters, buildWidgetFilters, selectedCurrencyRef]);
+  }, [getFilters, buildWidgetFilters, explicitSelectedCurrencyRef]);
 
   // Only fetch when filters, page, pageSize, or sorting changes
   useEffect(() => {

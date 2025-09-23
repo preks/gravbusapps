@@ -124,7 +124,7 @@ export const GET_EXPENSE_REQUEST_STATISTICS = `
       where: {
         employeeId: {_eq: $employeeId},
         isDeleted: {_eq: false},
-        requestDate: {_gte: $startDate, _lt: $endDate}
+        startDate: {_gte: $startDate, _lt: $endDate}
         status: {_in: ["PAID", "CLOSED", "TRANSFERRED"]},
         currencyRef: {_eq: $currencyRef}
       }

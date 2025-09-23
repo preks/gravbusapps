@@ -86,7 +86,7 @@ const ExpenseItemsTable: React.FC<ExpenseItemsTableProps> = React.memo((props) =
   // Preserve the page index before user starts searching, so we can restore it after clearing search
   const savedPageBeforeSearchRef = useRef<number | null>(null);
 
-  const { items, isLoading, error, totalCount, fetchItems } = useGetExpenseItems(contextProps);
+  const { items, isLoading, error, totalCount, fetchItems } = useGetExpenseItems(contextProps, { autoFetch: false });
 
   const { currencyStats, selectedCurrencyRef } = useExpenseCurrencies(contextProps, allSelectedFilters, setFilters);
 

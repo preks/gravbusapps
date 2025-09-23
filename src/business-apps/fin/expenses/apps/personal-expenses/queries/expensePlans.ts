@@ -288,7 +288,7 @@ export const GET_CLOSED_PLANS_STATISTICS = `
         employeeId: {_eq: $employeeId},
         isDeleted: {_eq: false},
         status: {_in: ["CLOSED", "PAID"]},
-        planDate: {_gte: $startDate, _lte: $endDate}
+        startDate: {_gte: $startDate, _lte: $endDate}
       }
     ) {
       aggregate {
@@ -304,7 +304,7 @@ export const GET_EXPENSE_PLAN_STATISTICS = `
       where: {
         employeeId: {_eq: $employeeId},
         isDeleted: {_eq: false},
-        planDate: {_gte: $startDate, _lte: $endDate}
+        startDate: {_gte: $startDate, _lte: $endDate}
       }
     ) {
       aggregate {
@@ -315,7 +315,7 @@ export const GET_EXPENSE_PLAN_STATISTICS = `
       where: {
         employeeId: {_eq: $employeeId},
         isDeleted: {_eq: false},
-        planDate: {_gte: $startDate, _lte: $endDate},
+        startDate: {_gte: $startDate, _lte: $endDate},
         status: {_nin: ["DRAFT", "PAID", "CLOSED", "DISCARDED"]},
         currencyRef: {_eq: $currencyRef}
       }
