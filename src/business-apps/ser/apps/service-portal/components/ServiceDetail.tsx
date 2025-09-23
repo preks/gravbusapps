@@ -305,20 +305,29 @@ export const ServiceDetail: React.FC<ServiceDetailProps> = ({
     ];
   }, [category, categoryTemplates]);
 
-  if (isLoading) {
+  // Show loading state if categories are still loading OR if we're in the loading phase
+  if (isLoading || categoriesLoading || (!category && !error)) {
+    const loadingMessage = categoriesLoading 
+      ? "Loading service categories..."
+      : flowTemplatesLoading 
+        ? "Loading service templates..."
+        : "Loading service information...";
+    
     return (
       <PageLayout
-        headerTitle="Loading Services..."
-        headerDescription="Please wait while we load the service information"
+        headerTitle="Loading Services"
+        headerDescription={loadingMessage}
       >
-        <div className="gba:flex gba:justify-center gba:items-center gba:h-64">
+        <div className="gba:flex gba:flex-col gba:justify-center gba:items-center gba:h-64 gba:space-y-4">
           <div className="gba:animate-spin gba:rounded-full gba:h-12 gba:w-12 gba:border-b-2 gba:border-primary"></div>
+          <p className="gba:text-gray-600 gba:text-sm">{loadingMessage}</p>
         </div>
       </PageLayout>
     );
   }
 
-  if (error || !category) {
+  // Only show error if there's actually an error AND we're not loading
+  if (error || (!category && !isLoading && !categoriesLoading)) {
     return (
       <div data-testid="service-detail-error-container" style={{ backgroundColor: "white", padding: "16px" }}>
         {/* Back navigation */}
@@ -344,6 +353,11 @@ export const ServiceDetail: React.FC<ServiceDetailProps> = ({
         </PageLayout>
       </div>
     );
+  }
+
+  // Type guard: At this point, category should be defined
+  if (!category) {
+    return null; // This should never happen due to the checks above
   }
 
   const IconComponent = getCategoryIcon(category.id);
