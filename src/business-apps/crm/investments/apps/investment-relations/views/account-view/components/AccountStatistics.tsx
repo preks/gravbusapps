@@ -15,23 +15,25 @@ interface AccountStatisticsProps extends BusinessAppContextProps {}
 export const AccountStatistics: React.FC<AccountStatisticsProps> = ({ ...context }) => {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<Error | null>(null);
-  const { fetchRecentAccountsWithTrend, fetchActiveAccountsWithTrend, fetchAccountsThisYearWithTrend, fetchTotalRevenueApprox } = useAccountStatisticsQueries(context);
+  const { fetchRecentAccountsWithTrend, fetchActiveAccountsWithTrend, fetchAccountsThisYearWithTrend, fetchTotalRevenueApprox, fetchCurrencyInfo } = useAccountStatisticsQueries(context);
 
   const [recent, setRecent] = useState<{ current: number; changePercent: number; isPositive: boolean }>({ current: 0, changePercent: 0, isPositive: true });
   const [active, setActive] = useState<{ current: number; changePercent: number; isPositive: boolean }>({ current: 0, changePercent: 0, isPositive: true });
   const [thisYear, setThisYear] = useState<{ current: number; changePercent: number; isPositive: boolean }>({ current: 0, changePercent: 0, isPositive: true });
   const [totalRevenue, setTotalRevenue] = useState<number>(0);
+  const [currencyCode, setCurrencyCode] = useState<string>('USD'); // Default fallback
 
   useEffect(() => {
     const load = async () => {
       setIsLoading(true);
       setError(null);
       try {
-        const [r, a, y, rev] = await Promise.all([
+        const [r, a, y, rev, currency] = await Promise.all([
           fetchRecentAccountsWithTrend(),
           fetchActiveAccountsWithTrend(),
           fetchAccountsThisYearWithTrend(),
           fetchTotalRevenueApprox(),
+          fetchCurrencyInfo(),
         ]);
         const calc = (t: { current: number; previous: number }) => ({
           current: t.current,
@@ -42,6 +44,7 @@ export const AccountStatistics: React.FC<AccountStatisticsProps> = ({ ...context
         setActive(calc(a));
         setThisYear(calc(y));
         setTotalRevenue(rev);
+        setCurrencyCode(currency || 'USD'); // Use extracted currency or fallback to USD
       } catch (e) {
         setError(e instanceof Error ? e : new Error('Failed to load account statistics'));
       } finally {
@@ -53,12 +56,41 @@ export const AccountStatistics: React.FC<AccountStatisticsProps> = ({ ...context
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // Custom formatter that only abbreviates millions and billions, not thousands
   const formatCurrency = (amount: number): string => {
+    if (amount === undefined || amount === null || !isFinite(amount)) return "-";
+    
+    const abs = Math.abs(amount);
+    const sign = amount < 0 ? '-' : '';
+    
+    if (abs >= 1_000_000_000) {
+      // Billions
+      const formatted = new Intl.NumberFormat('en-US', {
+        style: 'currency',
+        currency: currencyCode,
+        maximumFractionDigits: 1,
+        minimumFractionDigits: 0
+      }).format(abs / 1_000_000_000);
+      return `${sign}${formatted}B`;
+    }
+    
+    if (abs >= 1_000_000) {
+      // Millions
+      const formatted = new Intl.NumberFormat('en-US', {
+        style: 'currency',
+        currency: currencyCode,
+        maximumFractionDigits: 1,
+        minimumFractionDigits: 0
+      }).format(abs / 1_000_000);
+      return `${sign}${formatted}M`;
+    }
+    
+    // Thousands and below - show as normal currency
     return new Intl.NumberFormat('en-US', {
       style: 'currency',
-      currency: 'USD',
-      minimumFractionDigits: 0,
-      maximumFractionDigits: 0
+      currency: currencyCode,
+      maximumFractionDigits: 0,
+      minimumFractionDigits: 0
     }).format(amount);
   };
 

@@ -9,12 +9,15 @@ import { getTranslationFromI18nKeyAndLabel } from "@/common/utils/windowUtils";
 import { WidgetGroup, WidgetItem } from "@/components/widget-group";
 import { BusinessAppContextProps } from "@/common/BusinessAppContext";
 import { useGetInvestments } from "@/common/data/investment";
+import { formatCurrencyCompact } from "../../../../../utils/currencyUtils";
+import { extractCurrencyCode } from "@/business-apps/crm/common/utils/currencyUtils";
 
 interface PlannedExitsMetrics {
   totalCount: number;
   totalMarketValue: number;
   totalInvestmentValue: number;
   averagePerformance: number;
+  currencyCode: string; // Extracted currency code for formatting
   // Period-over-period changes
   countChange: number;
   marketValueChange: number;
@@ -64,6 +67,18 @@ const PlannedExitsMetrics: React.FC<PlannedExitsMetricsProps> = ({ context }) =>
           return true;
         });
 
+        // Extract currency code from the first investment that has currency data
+        let currencyCode = 'EUR'; // Default to EUR
+        for (const inv of filteredInvestments) {
+          if (inv.investmentCurrency?.id) {
+            currencyCode = extractCurrencyCode(inv.investmentCurrency.id);
+            break;
+          } else if (inv.currency?.id) {
+            currencyCode = extractCurrencyCode(inv.currency.id);
+            break;
+          }
+        }
+
         const totalCount = filteredInvestments.length;
         const totalMarketValue = filteredInvestments.reduce(
           (sum: number, inv: any) => sum + (inv.investmentMarketValue || 0), 
@@ -82,7 +97,7 @@ const PlannedExitsMetrics: React.FC<PlannedExitsMetricsProps> = ({ context }) =>
             }, 0) / totalCount
           : 0;
 
-        return { totalCount, totalMarketValue, totalInvestmentValue, averagePerformance };
+        return { totalCount, totalMarketValue, totalInvestmentValue, averagePerformance, currencyCode };
       };
 
       // Calculate current and historical metrics
@@ -115,6 +130,7 @@ const PlannedExitsMetrics: React.FC<PlannedExitsMetricsProps> = ({ context }) =>
         totalMarketValue: 0,
         totalInvestmentValue: 0,
         averagePerformance: 0,
+        currencyCode: 'EUR',
         countChange: 0,
         marketValueChange: 0,
         investmentValueChange: 0,
@@ -131,14 +147,7 @@ const PlannedExitsMetrics: React.FC<PlannedExitsMetricsProps> = ({ context }) =>
     }
   }, [fetchMetrics, context.accessToken]);
 
-  const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat("en-US", {
-      style: "currency",
-      currency: "USD",
-      minimumFractionDigits: 0,
-      maximumFractionDigits: 0,
-    }).format(amount);
-  };
+  // Removed formatCurrency - now using formatCurrencyCompact utility
 
   // Helper function to format percentage change
   const formatPercentageChange = (change: number): string => {
@@ -166,7 +175,7 @@ const PlannedExitsMetrics: React.FC<PlannedExitsMetricsProps> = ({ context }) =>
     {
       key: "total-investment-value", 
       title: getTranslationFromI18nKeyAndLabel("total_investment_value", "Total Investment Value"),
-      value: formatCurrency(metrics.totalInvestmentValue),
+      value: formatCurrencyCompact(metrics.totalInvestmentValue, metrics.currencyCode),
       valueIsString: true,
       prefix: <TrendingUp className="gba:h-5 gba:w-5 gba:text-blue-600" />,
       color: '#1677ff', // Blue theme for investments
@@ -181,7 +190,7 @@ const PlannedExitsMetrics: React.FC<PlannedExitsMetricsProps> = ({ context }) =>
     {
       key: "total-market-value", 
       title: getTranslationFromI18nKeyAndLabel("total_market_value", "Total Market Value"),
-      value: formatCurrency(metrics.totalMarketValue),
+      value: formatCurrencyCompact(metrics.totalMarketValue, metrics.currencyCode),
       valueIsString: true,
       prefix: <DollarSign className="gba:h-5 gba:w-5 gba:text-green-600" />,
       color: '#52c41a', // Green theme for money
