@@ -3,17 +3,15 @@ import { Spin, Alert, Timeline, Typography, message, Tag } from 'antd';
 import { Button } from '@newwork/nw-design-system';
 import { PlusCircleOutlined, CloseOutlined, UserOutlined } from '@ant-design/icons';
 import { Clock, Calendar } from 'lucide-react';
-// import { startProcess } from '@/common/utils/start-process';
 import { AppAction } from '@/components/app-action';
 import { FlowContextName } from '@/common/types/FlowRegistryTypes';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
-// import { useRestClient } from '@/common/network/rest/useRestClient';
-// import { env } from '@/common/env/EnvUtils';
 import dayjs from 'dayjs';
 // import { useEmployeeData } from '@/business-apps/crm/common/hooks/useEmployeeData';
 import { useGetInvestmentTasksByLeadId } from '@/common/data/investment/hooks/useInvestmentLeads';
 import type { InvestmentTask } from '@/common/data/investment/types';
 import { DeleteConfirmPopup } from '@/common/components/common-relations/popups/delete-confirm-popup';
+import { isApprovalTask } from '../../utils/taskUtils';
 
 const { Text } = Typography;
 
@@ -30,7 +28,9 @@ export const TasksSection: React.FC<TasksSectionProps> = ({ leadId, context }) =
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const { fetchInvestmentTasksByLeadId } = useGetInvestmentTasksByLeadId(context);
-  const [deleteTaskPopup, setDeleteTaskPopup] = useState<{ open: boolean; task?: SimpleTaskData }>({ open: false });
+  const [deleteTaskPopup, setDeleteTaskPopup] = useState<{ open: boolean; task?: SimpleTaskData }>({
+    open: false,
+  });
 
   // Helper function to get timing type icon
   const getTimingTypeIcon = (taskTiming?: string) => {
@@ -48,22 +48,15 @@ export const TasksSection: React.FC<TasksSectionProps> = ({ leadId, context }) =
     }
   };
 
-  const isApprovalTask = (task: SimpleTaskData): boolean => {
-    const typeVal = (task as any)?.taskType?.code || (task as any)?.taskType?.value || (task as any)?.typeRef;
-    if (!typeVal) return false;
-    const val = String(typeVal);
-    return val.toLowerCase() === 'approval' || val.toUpperCase().endsWith(':APPROVAL');
-  };
-
   const loadTasks = async () => {
     if (!leadId) return;
-    
+
     setLoading(true);
     setError(null);
-    
+
     try {
       const tasksData = await fetchInvestmentTasksByLeadId(leadId);
-      const nonApprovalTasks = tasksData.filter(t => !isApprovalTask(t));
+      const nonApprovalTasks = tasksData.filter((t) => !isApprovalTask(t));
       setTasks(nonApprovalTasks);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load tasks');
@@ -104,7 +97,7 @@ export const TasksSection: React.FC<TasksSectionProps> = ({ leadId, context }) =
           loadTasks();
           return;
         }
-        
+
         // Also check for different event structure
         const response = event.detail?.response;
         if (response?.detail?.resolution === 'success') {
@@ -134,16 +127,16 @@ export const TasksSection: React.FC<TasksSectionProps> = ({ leadId, context }) =
       'taskCompleted',
       'processCompleted',
       'task-completion',
-      'process-completion'
+      'process-completion',
     ];
 
-    eventNames.forEach(eventName => {
+    eventNames.forEach((eventName) => {
       window.addEventListener(eventName, handleProcessCompletion as EventListener);
     });
 
     // Add a universal listener for debugging (like activities)
     const originalDispatchEvent = window.dispatchEvent;
-    window.dispatchEvent = function(event: Event) {
+    window.dispatchEvent = function (event: Event) {
       if (event.type && (event.type.includes('process') || event.type.includes('task'))) {
         console.log('Custom Event dispatched:', event.type, event);
         handleAllEvents(event);
@@ -152,10 +145,10 @@ export const TasksSection: React.FC<TasksSectionProps> = ({ leadId, context }) =
     };
 
     return () => {
-      eventNames.forEach(eventName => {
+      eventNames.forEach((eventName) => {
         window.removeEventListener(eventName, handleProcessCompletion as EventListener);
       });
-      
+
       // Restore original dispatchEvent
       window.dispatchEvent = originalDispatchEvent;
     };
@@ -163,16 +156,15 @@ export const TasksSection: React.FC<TasksSectionProps> = ({ leadId, context }) =
 
   // Add task handled by AppAction component
 
-
   const handleDeleteTask = (task: SimpleTaskData) => {
     setDeleteTaskPopup({ open: true, task });
   };
 
   const getPriorityColor = (priority?: any) => {
     if (!priority) return 'default';
-    
+
     const priorityValue = typeof priority === 'string' ? priority : priority?.description;
-    
+
     switch (priorityValue?.toLowerCase()) {
       case 'high':
         return 'red';
@@ -187,9 +179,9 @@ export const TasksSection: React.FC<TasksSectionProps> = ({ leadId, context }) =
 
   const getStatusColor = (status?: any) => {
     if (!status) return 'default';
-    
+
     const statusValue = typeof status === 'string' ? status : status?.description;
-    
+
     switch (statusValue?.toLowerCase()) {
       case 'completed':
         return 'green';
@@ -237,7 +229,7 @@ export const TasksSection: React.FC<TasksSectionProps> = ({ leadId, context }) =
         border: '1px solid #f0f0f0',
         overflow: 'hidden',
         marginBottom: '24px',
-        height: 'fit-content'
+        height: 'fit-content',
       }}
       data-testid="lead-tasks-section"
     >
@@ -247,7 +239,7 @@ export const TasksSection: React.FC<TasksSectionProps> = ({ leadId, context }) =
           display: 'flex',
           justifyContent: 'space-between',
           alignItems: 'center',
-          padding: '16px 24px'
+          padding: '16px 24px',
         }}
       >
         <div>
@@ -258,10 +250,10 @@ export const TasksSection: React.FC<TasksSectionProps> = ({ leadId, context }) =
         </div>
         <AppAction
           contextsArray={[FlowContextName.investmentTaskCreate]}
-          externalContextData={{ 
+          externalContextData={{
             leadId,
             lead: leadId,
-            investmentTask: { lead: leadId }
+            investmentTask: { lead: leadId },
           }}
           staticFlowData={[]}
           prefixDataTestId="add-task"
@@ -269,9 +261,7 @@ export const TasksSection: React.FC<TasksSectionProps> = ({ leadId, context }) =
           emptyStateBehavior="enable"
           deferMainContextRequestsUntilClick
         >
-          <Button
-            variant="default"
-          >
+          <Button variant="default">
             <PlusCircleOutlined />
             Add Task
           </Button>
@@ -288,11 +278,11 @@ export const TasksSection: React.FC<TasksSectionProps> = ({ leadId, context }) =
         ) : (
           <Timeline>
             {tasks.map((task) => (
-                           <Timeline.Item
-                 key={task.id}
-                 dot={getTimingTypeIcon(task.taskTiming)}
-                 className="gba:pb-6"
-               >
+              <Timeline.Item
+                key={task.id}
+                dot={getTimingTypeIcon(task.taskTiming)}
+                className="gba:pb-6"
+              >
                 <div className="gba:bg-white gba:border gba:border-gray-200 gba:rounded-lg gba:p-4 gba:shadow-sm">
                   <div className="gba:flex gba:justify-between gba:items-start gba:mb-3">
                     <div className="gba:flex-1">
@@ -300,20 +290,20 @@ export const TasksSection: React.FC<TasksSectionProps> = ({ leadId, context }) =
                         <Text strong className="gba:text-base">
                           {task.name || 'Untitled Task'}
                         </Text>
-                                               <Tag color={getPriorityColor(task.taskPriority)}>
-                           {task.taskPriorityLabel || 'No Priority'}
-                         </Tag>
-                         <Tag color={getStatusColor(task.taskStatus)}>
-                           {task.taskStatusLabel || 'No Status'}
-                         </Tag>
+                        <Tag color={getPriorityColor(task.taskPriority)}>
+                          {task.taskPriorityLabel || 'No Priority'}
+                        </Tag>
+                        <Tag color={getStatusColor(task.taskStatus)}>
+                          {task.taskStatusLabel || 'No Status'}
+                        </Tag>
                       </div>
-                      
+
                       {task.description && (
                         <Text className="gba:text-gray-600 gba:block gba:mb-2">
                           {task.description}
                         </Text>
                       )}
-                      
+
                       <div className="gba:flex gba:items-center gba:gap-4 gba:text-sm gba:text-gray-500">
                         {task.dueDate && (
                           <span className="gba:flex gba:items-center gba:gap-1">
@@ -321,21 +311,21 @@ export const TasksSection: React.FC<TasksSectionProps> = ({ leadId, context }) =
                             Due: {dayjs(task.dueDate).format('MMM D, YYYY')}
                           </span>
                         )}
-                        
-                                               {task.assignedDisplayName && (
-                           <span className="gba:flex gba:items-center gba:gap-1">
-                             <UserOutlined />
-                             Assigned: {task.assignedDisplayName}
-                           </span>
-                         )}
-                        
+
+                        {task.assignedDisplayName && (
+                          <span className="gba:flex gba:items-center gba:gap-1">
+                            <UserOutlined />
+                            Assigned: {task.assignedDisplayName}
+                          </span>
+                        )}
+
                         <span className="gba:flex gba:items-center gba:gap-1">
                           <Clock className="gba:w-4 gba:h-4" />
                           Created: {dayjs(task.createdAt).format('MMM D, YYYY')}
                         </span>
                       </div>
                     </div>
-                    
+
                     <div className="gba:flex gba:gap-2 gba:ml-4">
                       <Button
                         size="icon"
@@ -371,7 +361,7 @@ export const TasksSection: React.FC<TasksSectionProps> = ({ leadId, context }) =
           }}
           onFlowSuccess={() => {
             const id = deleteTaskPopup.task!.id;
-            setTasks(prev => prev.filter(t => t.id !== id));
+            setTasks((prev) => prev.filter((t) => t.id !== id));
             setDeleteTaskPopup({ open: false });
             message.success('Task deleted successfully');
           }}
@@ -382,7 +372,6 @@ export const TasksSection: React.FC<TasksSectionProps> = ({ leadId, context }) =
           data-testid={`delete-task-popup`}
         />
       ) : null}
-
     </div>
   );
-}; 
+};

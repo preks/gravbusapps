@@ -3,12 +3,9 @@ import { Spin, Alert, Timeline, Typography, message } from 'antd';
 import { Button } from '@newwork/nw-design-system';
 import { PlusCircleOutlined, CloseOutlined } from '@ant-design/icons';
 import { Clock, Calendar } from 'lucide-react';
-// import { startProcess } from '@/common/utils/start-process';
 import { AppAction } from '@/components/app-action';
 import { FlowContextName } from '@/common/types/FlowRegistryTypes';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
-// import { useRestClient } from '@/common/network/rest/useRestClient';
-// import { env } from '@/common/env/EnvUtils';
 import dayjs from 'dayjs';
 import { useGetInvestmentTasksByAccountId } from '@/common/data/investment/hooks/useInvestmentAccounts';
 import type { InvestmentTask } from '@/common/data/investment/types';
@@ -28,11 +25,12 @@ export const TasksSection: React.FC<TasksSectionProps> = ({ accountId, context }
   const [tasks, setTasks] = useState<TaskData[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  // const restClient = useRestClient(env('NEXT_PUBLIC_KOGITO_PROCESSES_ENDPOINT'));
-  
+
   // Use the centralized investment data hook
   const { fetchInvestmentTasksByAccountId } = useGetInvestmentTasksByAccountId(context);
-  const [deleteTaskPopup, setDeleteTaskPopup] = useState<{ open: boolean; task?: TaskData }>({ open: false });
+  const [deleteTaskPopup, setDeleteTaskPopup] = useState<{ open: boolean; task?: TaskData }>({
+    open: false,
+  });
 
   // Helper function to get timing type icon
   const getTimingTypeIcon = (timingType?: string) => {
@@ -52,24 +50,24 @@ export const TasksSection: React.FC<TasksSectionProps> = ({ accountId, context }
 
   const loadTasks = async () => {
     if (!accountId) return;
-    
+
     setLoading(true);
     setError(null);
-    
+
     try {
       const tasks = await fetchInvestmentTasksByAccountId(accountId);
-      
+
       // Filter out approval tasks - they should only appear in the Approvals tab
-      const nonApprovalTasks = tasks.filter(task => {
+      const nonApprovalTasks = tasks.filter((task) => {
         const isApprovalTask = task.taskType?.code?.toLowerCase() === 'approval';
         return !isApprovalTask;
       });
-      
+
       // Sort tasks by createdAt in descending order (newest first)
-      const sortedTasks = nonApprovalTasks.sort((a, b) => 
-        new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+      const sortedTasks = nonApprovalTasks.sort(
+        (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
       );
-      
+
       setTasks(sortedTasks);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load tasks');
@@ -109,7 +107,7 @@ export const TasksSection: React.FC<TasksSectionProps> = ({ accountId, context }
           loadTasks();
           return;
         }
-        
+
         // Also check for different event structure
         const response = event.detail?.response;
         if (response?.detail?.resolution === 'success') {
@@ -138,15 +136,15 @@ export const TasksSection: React.FC<TasksSectionProps> = ({ accountId, context }
       'taskCompleted',
       'processCompleted',
       'task-completion',
-      'process-completion'
+      'process-completion',
     ];
 
-    eventNames.forEach(eventName => {
+    eventNames.forEach((eventName) => {
       window.addEventListener(eventName, handleProcessCompletion as EventListener);
     });
 
     const originalDispatchEvent = window.dispatchEvent;
-    window.dispatchEvent = function(event: Event) {
+    window.dispatchEvent = function (event: Event) {
       if (event.type && (event.type.includes('process') || event.type.includes('task'))) {
         handleAllEvents(event);
       }
@@ -154,7 +152,7 @@ export const TasksSection: React.FC<TasksSectionProps> = ({ accountId, context }
     };
 
     return () => {
-      eventNames.forEach(eventName => {
+      eventNames.forEach((eventName) => {
         window.removeEventListener(eventName, handleProcessCompletion as EventListener);
       });
       window.dispatchEvent = originalDispatchEvent;
@@ -171,47 +169,48 @@ export const TasksSection: React.FC<TasksSectionProps> = ({ accountId, context }
 
   const getPriorityColor = (priority: string) => {
     switch (priority?.toLowerCase()) {
-      case 'high': return 'red';
-      case 'medium': return 'orange';
-      case 'low': return 'green';
-      default: return 'blue';
+      case 'high':
+        return 'red';
+      case 'medium':
+        return 'orange';
+      case 'low':
+        return 'green';
+      default:
+        return 'blue';
     }
   };
 
   // Removed unused helpers from legacy data shape
 
   return (
-    <div 
+    <div
       style={{
         backgroundColor: 'white',
         borderRadius: '8px',
         border: '1px solid #f0f0f0',
         overflow: 'hidden',
         marginBottom: '24px',
-        height: 'fit-content'
+        height: 'fit-content',
       }}
       data-testid="investment-account-tasks-section"
     >
-      <div 
+      <div
         style={{
           display: 'flex',
           justifyContent: 'space-between',
           alignItems: 'center',
-          padding: '16px 24px'
+          padding: '16px 24px',
         }}
       >
-        <div 
-          className="gba:tasks-title" 
-          style={{ fontSize: '18px', fontWeight: '500' }}
-        >
+        <div className="gba:tasks-title" style={{ fontSize: '18px', fontWeight: '500' }}>
           Tasks
         </div>
         <AppAction
           contextsArray={[FlowContextName.investmentTaskCreate]}
-          externalContextData={{ 
+          externalContextData={{
             accountId,
             account: accountId,
-            investmentTask: { account: accountId }
+            investmentTask: { account: accountId },
           }}
           staticFlowData={[]}
           prefixDataTestId="add-task"
@@ -219,10 +218,7 @@ export const TasksSection: React.FC<TasksSectionProps> = ({ accountId, context }
           emptyStateBehavior="enable"
           deferMainContextRequestsUntilClick
         >
-          <Button
-            variant="default"
-            data-testid="investment-account-add-task-button"
-          >
+          <Button variant="default" data-testid="investment-account-add-task-button">
             <PlusCircleOutlined />
             Add Task
           </Button>
@@ -253,34 +249,61 @@ export const TasksSection: React.FC<TasksSectionProps> = ({ accountId, context }
 
         {!loading && !error && tasks.length === 0 && (
           <div style={{ textAlign: 'center', padding: '40px 0' }}>
-            <div style={{ fontSize: '14px', color: '#8c8c8c' }}>
-              No tasks yet
-            </div>
+            <div style={{ fontSize: '14px', color: '#8c8c8c' }}>No tasks yet</div>
           </div>
         )}
 
         {!loading && !error && tasks.length > 0 && (
-              <Timeline style={{ marginTop: '16px' }}>
+          <Timeline style={{ marginTop: '16px' }}>
             {tasks.map((task, index) => (
-              <Timeline.Item key={task.id || index} color={getPriorityColor(task.taskPriorityLabel || 'Normal')}>
+              <Timeline.Item
+                key={task.id || index}
+                color={getPriorityColor(task.taskPriorityLabel || 'Normal')}
+              >
                 <div style={{ position: 'relative' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
+                  <div
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '8px',
+                      marginBottom: '4px',
+                    }}
+                  >
                     <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                       {getTimingTypeIcon(task.taskTiming)}
                       <Text strong>{task.name}</Text>
                     </div>
                     <div style={{ display: 'flex', gap: '4px' }}>
-                      <span style={{ background: '#f0f0f0', color: '#333', padding: '2px 6px', borderRadius: '4px', fontSize: '12px', fontWeight: 500 }}>
+                      <span
+                        style={{
+                          background: '#f0f0f0',
+                          color: '#333',
+                          padding: '2px 6px',
+                          borderRadius: '4px',
+                          fontSize: '12px',
+                          fontWeight: 500,
+                        }}
+                      >
                         {task.taskPriorityLabel || 'Normal'}
                       </span>
-                      <span style={{ background: '#f0f0f0', color: '#333', padding: '2px 6px', borderRadius: '4px', fontSize: '12px', fontWeight: 500 }}>
+                      <span
+                        style={{
+                          background: '#f0f0f0',
+                          color: '#333',
+                          padding: '2px 6px',
+                          borderRadius: '4px',
+                          fontSize: '12px',
+                          fontWeight: 500,
+                        }}
+                      >
                         {task.taskStatusLabel || 'Open'}
                       </span>
                     </div>
                   </div>
                   <div>
                     <Text type="secondary">
-                      {dayjs(task.createdAt).format('MMM D, YYYY [at] h:mm A')} - {task.creatorDisplayName || 'Unknown'}
+                      {dayjs(task.createdAt).format('MMM D, YYYY [at] h:mm A')} -{' '}
+                      {task.creatorDisplayName || 'Unknown'}
                     </Text>
                     {task.dueDate && (
                       <Text type="secondary" style={{ marginLeft: '16px' }}>
@@ -291,16 +314,34 @@ export const TasksSection: React.FC<TasksSectionProps> = ({ accountId, context }
                   <div style={{ marginTop: '4px' }}>
                     <div>{task.description}</div>
                     <div style={{ marginTop: '8px', display: 'flex', gap: '8px' }}>
-                      <span style={{ backgroundColor: '#f0f0f0', color: '#333', padding: '2px 8px', borderRadius: '4px', fontSize: '12px' }}>
+                      <span
+                        style={{
+                          backgroundColor: '#f0f0f0',
+                          color: '#333',
+                          padding: '2px 8px',
+                          borderRadius: '4px',
+                          fontSize: '12px',
+                        }}
+                      >
                         {task.taskPriorityLabel || 'Normal'}
                       </span>
-                      <span style={{ backgroundColor: '#f0f0f0', color: '#333', padding: '2px 8px', borderRadius: '4px', fontSize: '12px' }}>
+                      <span
+                        style={{
+                          backgroundColor: '#f0f0f0',
+                          color: '#333',
+                          padding: '2px 8px',
+                          borderRadius: '4px',
+                          fontSize: '12px',
+                        }}
+                      >
                         {task.taskTypeLabel || 'General'}
                       </span>
                     </div>
                   </div>
-                  <div style={{ position: 'absolute', right: 0, top: 0, display: 'flex', gap: '4px' }}>
-                    <Button 
+                  <div
+                    style={{ position: 'absolute', right: 0, top: 0, display: 'flex', gap: '4px' }}
+                  >
+                    <Button
                       variant="ghost"
                       size="icon"
                       style={{ padding: '4px', lineHeight: 1 }}
@@ -336,7 +377,7 @@ export const TasksSection: React.FC<TasksSectionProps> = ({ accountId, context }
           }}
           onFlowSuccess={() => {
             const id = deleteTaskPopup.task!.id;
-            setTasks(prev => prev.filter(t => t.id !== id));
+            setTasks((prev) => prev.filter((t) => t.id !== id));
             setDeleteTaskPopup({ open: false });
             message.success('Task deleted successfully');
           }}
@@ -347,7 +388,6 @@ export const TasksSection: React.FC<TasksSectionProps> = ({ accountId, context }
           data-testid={`delete-task-popup`}
         />
       ) : null}
-
     </div>
   );
-}; 
+};

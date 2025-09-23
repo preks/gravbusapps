@@ -6,7 +6,7 @@ import type { NoteSegmentSchema } from '@/common/components/common-relations/for
 export const buildActivityPayload = (
   activity: Activity,
   businessAppContext: BusinessAppContextProps,
-  options: { isUpdate?: boolean } = {}
+  options: { isUpdate?: boolean } = {},
 ) => {
   // Helper to build entity references
   const getEntityRef = () => {
@@ -15,7 +15,7 @@ export const buildActivityPayload = (
     if (activity.contact) refs.contact = activity.contact.id;
     if (activity.opportunity) refs.opportunity = activity.opportunity.id;
     if (activity.lead) refs.lead = activity.lead.id;
-    
+
     // Always include parent investment when provided via additional/external context
     const additional: any = (businessAppContext as any)?.additionalData || {};
     const external: any = additional.externalContextData || {};
@@ -29,7 +29,11 @@ export const buildActivityPayload = (
     if (investmentId) {
       refs.investment = investmentId;
       // Also include the investment's account if available and not already set
-      const accountId = additional.accountId || external.accountId || external.account?.id || additional.account?.id;
+      const accountId =
+        additional.accountId ||
+        external.accountId ||
+        external.account?.id ||
+        additional.account?.id;
       if (accountId && !refs.account) {
         refs.account = accountId;
       }
@@ -37,33 +41,27 @@ export const buildActivityPayload = (
     return refs;
   };
 
-
-
   // Get owner employee ID from business app context
   const getOwnerEmployee = () => {
-    console.log('🔍 Activity payload debug:', {
-      'activity.ownerEmployee': activity.ownerEmployee,
-      'activity.ownerEmployeeId': (activity as any)?.ownerEmployeeId,
-      'fallbackUserId': businessAppContext.userInfo?.employeeDetails?.employeeId
-    });
-    
+    // Activity payload debug (sensitive data removed)
+
     if (activity.ownerEmployee?.id) {
-      console.log('✅ Using activity.ownerEmployee.id:', activity.ownerEmployee.id);
+      // Using activity.ownerEmployee.id
       return activity.ownerEmployee.id;
     }
     // Also support flat field from UI segment
     const ownerId = (activity as any)?.ownerEmployeeId;
     if (ownerId) {
-      console.log('✅ Using activity.ownerEmployeeId:', ownerId);
+      // Using activity.ownerEmployeeId
       return ownerId;
     }
-    
+
     // Fallback to current user's employee ID from context
     if (businessAppContext.userInfo?.employeeDetails?.employeeId) {
-      console.log('⚠️ Falling back to current user:', businessAppContext.userInfo.employeeDetails.employeeId);
+      // Falling back to current user employee ID
       return businessAppContext.userInfo.employeeDetails.employeeId;
     }
-    
+
     return undefined;
   };
 
@@ -74,10 +72,11 @@ export const buildActivityPayload = (
     activityTypeRef: activity.activityTypeRef || undefined,
     ownerEmployee: getOwnerEmployee(),
     ...getEntityRef(),
-    ...(options.isUpdate && activity.id && {
-      id: activity.id,
-      version: activity.version,
-    }),
+    ...(options.isUpdate &&
+      activity.id && {
+        id: activity.id,
+        version: activity.version,
+      }),
   };
 
   const finalPayload = {
@@ -120,7 +119,7 @@ export interface InvestmentTaskFormData {
 export const buildInvestmentTaskPayload = (
   task: InvestmentTaskFormData,
   businessAppContext: BusinessAppContextProps,
-  options: { isUpdate?: boolean } = {}
+  options: { isUpdate?: boolean } = {},
 ) => {
   const getEntityRef = () => {
     const refs: Record<string, any> = {};
@@ -145,15 +144,9 @@ export const buildInvestmentTaskPayload = (
       additional.investmentTask?.investment ||
       additional.investmentTask?.investmentId;
     if (investmentId) refs.investment = investmentId;
-    console.log('🔍 Task Payload Debug - Investment search:', {
-      externalContextData: external,
-      additionalData: additional,
-      foundInvestmentId: investmentId,
-      finalRefs: refs
-    });
+    // Task payload debug - Investment search (sensitive data removed)
     return refs;
   };
-
 
   const payloadBody: any = {
     name: task.title,
@@ -167,7 +160,10 @@ export const buildInvestmentTaskPayload = (
     templateStartDate: task.templateStartDate ? toISOFormat(task.templateStartDate) : undefined,
     startDate: task.startDate ? toISOFormat(task.startDate) : undefined,
     endDate: task.endDate ? toISOFormat(task.endDate) : undefined,
-    assignedEmployee: task.assignedEmployeeId || businessAppContext.userInfo?.employeeDetails?.employeeId || undefined,
+    assignedEmployee:
+      task.assignedEmployeeId ||
+      businessAppContext.userInfo?.employeeDetails?.employeeId ||
+      undefined,
     assignedUserId: task.assignedUserId || businessAppContext.userInfo?.id || undefined,
     ...getEntityRef(),
   };
@@ -202,7 +198,7 @@ export const buildInvestmentTaskPayload = (
 export const buildInvestmentNotePayload = (
   note: NoteSegmentSchema,
   businessAppContext: BusinessAppContextProps,
-  options: { isUpdate?: boolean } = {}
+  options: { isUpdate?: boolean } = {},
 ) => {
   // Helper to build entity references (same pattern as activity)
   const getEntityRef = () => {
@@ -239,16 +235,43 @@ export const buildInvestmentNotePayload = (
     }
 
     // If related entity was not set via NoteSegment, try to infer from additional/external context
-    if (!refs.account && (additional.accountId || additional.account?.id || external.accountId || external.account?.id)) {
-      refs.account = additional.accountId || additional.account?.id || external.accountId || external.account?.id;
+    if (
+      !refs.account &&
+      (additional.accountId || additional.account?.id || external.accountId || external.account?.id)
+    ) {
+      refs.account =
+        additional.accountId ||
+        additional.account?.id ||
+        external.accountId ||
+        external.account?.id;
     }
-    if (!refs.contact && (additional.contactId || additional.contact?.id || external.contactId || external.contact?.id)) {
-      refs.contact = additional.contactId || additional.contact?.id || external.contactId || external.contact?.id;
+    if (
+      !refs.contact &&
+      (additional.contactId || additional.contact?.id || external.contactId || external.contact?.id)
+    ) {
+      refs.contact =
+        additional.contactId ||
+        additional.contact?.id ||
+        external.contactId ||
+        external.contact?.id;
     }
-    if (!refs.opportunity && (additional.opportunityId || additional.opportunity?.id || external.opportunityId || external.opportunity?.id)) {
-      refs.opportunity = additional.opportunityId || additional.opportunity?.id || external.opportunityId || external.opportunity?.id;
+    if (
+      !refs.opportunity &&
+      (additional.opportunityId ||
+        additional.opportunity?.id ||
+        external.opportunityId ||
+        external.opportunity?.id)
+    ) {
+      refs.opportunity =
+        additional.opportunityId ||
+        additional.opportunity?.id ||
+        external.opportunityId ||
+        external.opportunity?.id;
     }
-    if (!refs.lead && (additional.leadId || additional.lead?.id || external.leadId || external.lead?.id)) {
+    if (
+      !refs.lead &&
+      (additional.leadId || additional.lead?.id || external.leadId || external.lead?.id)
+    ) {
       refs.lead = additional.leadId || additional.lead?.id || external.leadId || external.lead?.id;
     }
     return refs;
@@ -259,12 +282,12 @@ export const buildInvestmentNotePayload = (
     if (note.authorEmployee?.id) {
       return note.authorEmployee.id;
     }
-    
+
     // Fallback to current user's employee ID from context
     if (businessAppContext.userInfo?.employeeDetails?.employeeId) {
       return businessAppContext.userInfo.employeeDetails.employeeId;
     }
-    
+
     console.warn('No author employee ID found in note data or business context');
     return undefined;
   };
@@ -282,7 +305,7 @@ export const buildInvestmentNotePayload = (
     const noteId = (businessAppContext as any)?.additionalData?.noteId;
     if (noteId) {
       payloadBody.id = noteId;
-      
+
       // Include version if available (same pattern as activity)
       const version = (businessAppContext as any)?.additionalData?.noteVersion || note.version;
       if (version !== undefined) {
