@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
-import { useGetInvestmentReports } from '@/common/data/investment/hooks/useInvestmentReports';
+import { useGetInvestmentReports } from '@/common/data/investment-report/hooks/useInvestmentReports';
+import dayjs from 'dayjs';
 import {
   AnalyticsRowData,
   AnalyticsTotals,
@@ -54,16 +55,20 @@ export const useLiquidFundAnalyticsIntegration = ({
   ): AnalyticsRowData[] => {
     const liquidFundReports = investmentReport.liquidFundInvestmentReport || [];
     
+    if (liquidFundReports.length === 0) {
+      return [];
+    }
+    
     return liquidFundReports.map((liquidFundReport: any) => {
       const investment = investmentReport.investment;
       const liquidFundInvestment = liquidFundReport.liquidFundInvestment;
       
-      // FIXED: Get proprietor name and investment name properly
+      // Get proprietor name and investment name properly
       const proprietorName = liquidFundInvestment?.investment?.investmentAccount?.name || 
                            investment?.investmentAccount?.name || 
                            'Unknown Proprietor';
       
-      // FIXED: Use investment name as the primary identifier
+      // Use investment name as the primary identifier
       const investmentName = liquidFundInvestment?.investment?.name || 
                            investment?.name || 
                            proprietorName ||
@@ -87,6 +92,8 @@ export const useLiquidFundAnalyticsIntegration = ({
         cashBankIdentifier: cashBankIdentifier,
         proprietorName: proprietorName,
         originalCurrency: targetCurrency || 'EUR',
+        // Report date for display
+        reportDate: investmentReport.date,
         maturityDate: liquidFundReport.maturityDate || liquidFundInvestment?.maturityDate,
         interestRate: liquidFundReport.interestRate || liquidFundInvestment?.interestRate,
         // Investment navigation fields
@@ -112,8 +119,6 @@ export const useLiquidFundAnalyticsIntegration = ({
         liquidFundInvestment: liquidFundInvestment ? [liquidFundInvestment] : [],
         liquidFundReport: liquidFundReport
       };
-      
-      // Include liquid fund type data for dynamic column detection
       
       return result;
     });
@@ -159,41 +164,72 @@ export const useLiquidFundAnalyticsIntegration = ({
     return fieldMapping[field] || 'createdAt';
   }, []);
 
-  // Load analytics data - FIXED: Query all liquid fund investments and get latest reports
+  // Load analytics data - Query all liquid fund investments and get latest reports
   const loadLiquidFundAnalyticsData = useCallback(async () => {
     if (!accessToken) return;
 
     setState(prev => ({ ...prev, isLoading: true, error: null }));
 
     try {
-      // FIXED: Query all investment reports and filter for liquid fund investments
-      // Get latest reports within the selected date range
+      // Query all investment reports and filter for liquid fund investments
+      // Use the same pattern as equity and real estate reports
       const filterParams = {
-        reportDateFrom: filters.startDate,
-        reportDateTo: filters.endDate,
-        // Get all liquid fund investments by querying investment groups
-        liquidFundInvestmentIds: [], // Empty array means get all liquid fund investments
-        limit: 1000, // Large limit to get all data for aggregation
+        limit: 10000, // Increase limit to handle larger datasets
         offset: 0,
         orderBy: [{
           field: 'date', 
           direction: 'DESC' as const // Get latest reports first
         }]
       };
+      
+      // Add date filters based on user selection
+      if (filters.startDate) {
+        filterParams.reportDateFrom = filters.startDate;
+      }
+      if (filters.endDate) {
+        filterParams.reportDateTo = filters.endDate;
+      }
+      
+      // Don't filter by investmentType at the GraphQL level - we'll filter by liquid fund type client-side
+      // This is because the tabs represent liquid fund types, not general investment types
 
       const response = await fetchInvestmentReports(filterParams);
 
       const investmentReports = response.InvestmentReport || [];
       
-      // FIXED: Group by investment ID and get the latest report for each investment
+      // Filter to only liquid fund investments and group by investment ID to get latest per investment
       const latestReportsByInvestment = new Map<string, any>();
       
-      investmentReports.forEach(investmentReport => {
-        const investmentId = investmentReport.investment?.id;
-        if (investmentId && investmentReport.liquidFundInvestmentReport?.length > 0) {
-          // Only keep the latest report for each investment (since we sorted by date DESC)
-          if (!latestReportsByInvestment.has(investmentId)) {
-            latestReportsByInvestment.set(investmentId, investmentReport);
+      investmentReports.forEach((report) => {
+        const investmentId = report.investment?.id;
+        const investmentGroupCode = report.investment?.investmentGroup?.code;
+        const isLiquidFundInvestment = investmentGroupCode === 'LIQUID_FUND';
+        const hasLiquidFundReport = report.liquidFundInvestmentReport?.length > 0;
+        
+        if (investmentId && isLiquidFundInvestment && hasLiquidFundReport) {
+          // Skip future reports (reports dated in the future)
+          const reportDate = dayjs(report.date);
+          const now = dayjs();
+          
+          // Validate date and skip if invalid or in the future
+          if (!reportDate.isValid() || reportDate.isAfter(now)) {
+            return; // Skip this future or invalid report
+          }
+          
+          const existingReport = latestReportsByInvestment.get(investmentId);
+          
+          if (!existingReport) {
+            // First report for this investment
+            latestReportsByInvestment.set(investmentId, report);
+          } else {
+            // Compare dates to ensure we keep the absolute latest report
+            const currentReportDate = dayjs(report.date);
+            const existingReportDate = dayjs(existingReport.date);
+            
+            // Only update if current report date is valid and after existing report date
+            if (currentReportDate.isValid() && existingReportDate.isValid() && currentReportDate.isAfter(existingReportDate)) {
+              latestReportsByInvestment.set(investmentId, report);
+            }
           }
         }
       });
@@ -201,16 +237,34 @@ export const useLiquidFundAnalyticsIntegration = ({
       // Transform latest reports to analytics data
       const allAnalyticsData: AnalyticsRowData[] = [];
       latestReportsByInvestment.forEach(investmentReport => {
-        const liquidFundData = transformLiquidFundToAnalyticsRow(investmentReport, filters.currency || 'EUR');
+        const liquidFundData = transformLiquidFundToAnalyticsRow(investmentReport, 'EUR');
         allAnalyticsData.push(...liquidFundData);
       });
       
-      // Filter by investment type if specified
-      const filteredData = filters.investmentType && filters.investmentType !== 'all'
+      // Filter by liquid fund type if specified (using the tab mapping)
+      const tabToTypeMapping: Record<string, string> = {
+        'Bank Deposit': 'BANK_DEPOSITE',
+        'Fixed-Term Deposit': 'FIXED_TERM_DEPOSIT', 
+        'Money Market Funds': 'MONEY_MARKET_FUNDS',
+        'Pension Fund': 'PENSION_FUNDS',
+        'Equity': 'EQUITY',
+        'Bond': 'BONDS'
+      };
+      
+      const filteredData = filters.investmentType && filters.investmentType !== 'all' && !filters.investmentType.includes(',')
         ? allAnalyticsData.filter(item => {
-            const typeMatches = item.investmentType?.toLowerCase().includes(filters.investmentType!.toLowerCase());
-            const nameMatches = item.depositName?.toLowerCase().includes(filters.investmentType!.toLowerCase());
-            return typeMatches || nameMatches;
+            // Map the display name to the liquid fund type code
+            const targetLiquidFundTypeCode = tabToTypeMapping[filters.investmentType!];
+            
+            // Get the liquid fund type code from the item
+            const itemLiquidFundTypeCode = 
+              item.liquidFundInvestment?.[0]?.investmentLiquidFundType?.code ||
+              item.liquidFundReport?.investmentLiquidFundType?.code ||
+              item.investment?.liquidFundInvestment?.[0]?.investmentLiquidFundType?.code;
+            
+            const matches = itemLiquidFundTypeCode === targetLiquidFundTypeCode;
+            
+            return matches || !targetLiquidFundTypeCode; // If no mapping found, include the item
           })
         : allAnalyticsData;
       
@@ -234,6 +288,7 @@ export const useLiquidFundAnalyticsIntegration = ({
 
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Failed to load liquid fund analytics data';
+      console.error('Error loading liquid fund analytics data:', err);
       setState(prev => ({
         ...prev,
         isLoading: false,
@@ -248,7 +303,6 @@ export const useLiquidFundAnalyticsIntegration = ({
           closingBalance: 0
         }
       }));
-      console.error('Error loading liquid fund analytics data:', err);
     }
   }, [
     fetchInvestmentReports,
