@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import {
   Card,
   CardContent,
@@ -14,17 +14,22 @@ import {
   Tabs,
   TabsContent,
   TabsList,
-  TabsTrigger
+  TabsTrigger,
+  Alert
 } from '@newwork/nw-design-system';
+import { toast } from 'sonner';
 import { DatePicker } from 'antd';
 import { 
   FilterIcon
 } from 'lucide-react';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
+import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
 import { EquityAnalyticsFilters } from './types';
 import dayjs from 'dayjs';
 import { EquityAnalyticsTable } from './components/EquityAnalyticsTable';
 import { useEquityInvestmentTypes } from './hooks/useEquityInvestmentTypes';
+import { useGetInvestmentCatalogData } from '@/business-apps/crm/investments/forms/investment-form/queries/InvestmentCatalogQueries';
+import { buildPlatformUrl } from '@/common/utils/navigationUtils';
 
 // Using individual DatePicker components for start and end dates
 
@@ -40,32 +45,119 @@ export const EquityReport: React.FC<EquityReportProps> = ({
   // Fetch dynamic equity investment types from catalog
   const { investmentTypes, loading: typesLoading, error: typesError } = useEquityInvestmentTypes(accessToken);
   
+  // Fetch catalog data for dynamic columns
+  const { fetchInvestmentCatalogData } = useGetInvestmentCatalogData({ accessToken, userInfo });
+  const [catalogData, setCatalogData] = useState<any>(null);
+  
+  useEffect(() => {
+    const loadCatalogData = async () => {
+      try {
+        const data = await fetchInvestmentCatalogData();
+        setCatalogData(data);
+      } catch (error) {
+        console.error('Error loading catalog data:', error);
+      }
+    };
+    
+    if (accessToken) {
+      loadCatalogData();
+    }
+  }, [accessToken, fetchInvestmentCatalogData]);
+  
   // Use catalog types if available, otherwise use empty array (only Overview tab)
   const effectiveInvestmentTypes = typesError || investmentTypes.length === 0 ? [] : investmentTypes;
-  
-
   
   // Sub-tab management - start with first investment type
   const [activeSubTab, setActiveSubTab] = useState<string>('');
 
-  // Set initial tab when investment types are loaded
+  // Get initial investment type from URL parameter
+  const getInitialInvestmentType = useCallback(() => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const investmentTypeFromUrl = urlParams.get('investmentType');
+    
+    if (effectiveInvestmentTypes.length === 0) {
+      return '';
+    }
+    
+    // Validate against available investment types
+    if (investmentTypeFromUrl && effectiveInvestmentTypes.some(type => type.code === investmentTypeFromUrl)) {
+      return investmentTypeFromUrl;
+    }
+    
+    // Fall back to first available investment type
+    return effectiveInvestmentTypes[0].code;
+  }, [effectiveInvestmentTypes]);
+
+  // Update URL when activeSubTab changes using platform navigation utilities
+  const updateUrl = useCallback((investmentType: string) => {
+    try {
+      const currentUrl = new URL(window.location.href);
+      const params: Record<string, string> = {};
+      
+      // Preserve existing query parameters
+      currentUrl.searchParams.forEach((value, key) => {
+        params[key] = value;
+      });
+      
+      // Update investmentType parameter
+      params.investmentType = investmentType;
+      
+      // Use platform URL builder for safe navigation
+      const newUrl = buildPlatformUrl(currentUrl.pathname, params);
+      
+      // Use safe history manipulation
+      if (window.history && window.history.replaceState) {
+        window.history.replaceState({}, '', newUrl);
+      } else {
+        // Browser doesn't support history manipulation
+        throw new Error('Browser does not support history manipulation');
+      }
+    } catch (error) {
+      console.error('Failed to update URL:', error);
+      
+      // Provide user feedback about the navigation issue
+      toast.warning('Unable to update the page URL. The view will still function normally, but bookmarking may not work as expected.', {
+        duration: 5000,
+        description: 'Navigation error occurred'
+      });
+      
+      // Continue with state updates - application should remain functional
+      // even if URL manipulation fails
+    }
+  }, []);
+
+  // Unified handler for activeSubTab changes
+  const handleSetActiveSubTab = useCallback((code: string) => {
+    setActiveSubTab(code);
+    updateUrl(code);
+  }, [updateUrl]);
+
+  // Initialize tab from URL when investment types are loaded
   useEffect(() => {
     if (effectiveInvestmentTypes.length > 0 && !activeSubTab) {
-      setActiveSubTab(effectiveInvestmentTypes[0].code);
+      const initialType = getInitialInvestmentType();
+      if (initialType) {
+        setActiveSubTab(initialType);
+        updateUrl(initialType);
+      }
     }
-  }, [effectiveInvestmentTypes, activeSubTab]);
+  }, [effectiveInvestmentTypes, activeSubTab, getInitialInvestmentType, updateUrl]);
 
-  // FIXED: Filter states - Use same pattern as individual investment record reports
+  // Restore tab from URL on browser navigation
+  useEffect(() => {
+    const handlePopState = () => {
+      const currentType = getInitialInvestmentType();
+      if (currentType) setActiveSubTab(currentType);
+    };
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, [getInitialInvestmentType]);
+
+  // Filter states - Only time period filtering
   const [timeFilter, setTimeFilter] = useState<string>('all');
   const [dateRange, setDateRange] = useState<[dayjs.Dayjs | null, dayjs.Dayjs | null] | null>(null);
-  const [selectedCurrency, setSelectedCurrency] = useState<string>('EUR');
-  const [selectedFundManager, setSelectedFundManager] = useState<string>('');
 
-  // Available currencies and fund managers
-  const availableCurrencies = ['EUR', 'USD', 'GBP', 'CHF'];
-  const availableFundManagers = ['All', 'Centauri Partners', 'Ionis Capital'];
-
-  // FIXED: Calculate date strings using same logic as individual investment record reports
+  // Calculate date strings using same logic as individual investment record reports
   const { startDateString, endDateString } = useMemo(() => {
     if (dateRange && dateRange[0] && dateRange[1]) {
       return {
@@ -91,14 +183,14 @@ export const EquityReport: React.FC<EquityReportProps> = ({
       }
     }
     
-    // Default to show recent data if no filter is set
+    // Default to show all data if no filter is set (same as individual reports)
     return {
-      startDateString: dayjs().subtract(1, 'year').format('YYYY-MM-DD'),
-      endDateString: dayjs().format('YYYY-MM-DD')
+      startDateString: undefined,
+      endDateString: undefined
     };
   }, [dateRange, timeFilter]);
 
-  // FIXED: Filter change handlers matching record reports pattern
+  // Filter change handlers matching record reports pattern
   const handleTimeFilterChange = (value: string) => {
     setTimeFilter(value);
     if (value !== 'all') {
@@ -129,13 +221,11 @@ export const EquityReport: React.FC<EquityReportProps> = ({
     const filters = {
       startDate: startDateString,
       endDate: endDateString,
-      currency: selectedCurrency,
-      investmentType: selectedInvestmentType?.code || undefined,
-      fundManagerName: selectedFundManager && selectedFundManager !== 'All' ? selectedFundManager : undefined
+      investmentType: selectedInvestmentType?.code || undefined
     };
 
     return filters;
-  }, [startDateString, endDateString, selectedCurrency, selectedFundManager, selectedInvestmentType, activeSubTab]);
+  }, [startDateString, endDateString, selectedInvestmentType, activeSubTab]);
 
 
 
@@ -147,25 +237,15 @@ export const EquityReport: React.FC<EquityReportProps> = ({
     <div className="gba:space-y-6 gba:p-6" data-testid={dataTestId}>
       {/* Warning messages */}
       {showLoadingWarning && (
-        <Card className="gba:border-yellow-200 gba:bg-yellow-50">
-          <CardContent className="gba:p-4">
-            <div className="gba:text-sm gba:text-yellow-800">
-              ⚠️ Loading investment types from catalog... Showing Overview only.
-            </div>
-          </CardContent>
-        </Card>
+        <Alert variant="default" data-testid={`${dataTestId}-types-loading-alert`}>
+          {getTranslationFromI18nKeyAndLabel('equity.analytics.loadingTypes', 'Loading investment types from catalog... Showing Overview only.')}
+        </Alert>
       )}
       
       {showErrorWarning && (
-        <Card className="gba:border-orange-200 gba:bg-orange-50">
-          <CardContent className="gba:p-4">
-            <div className="gba:text-sm gba:text-orange-800">
-              ⚠️ Unable to load investment types from catalog. Showing Overview only. 
-              <br />
-              <span className="gba:text-xs">Error: {typesError}</span>
-            </div>
-          </CardContent>
-        </Card>
+        <Alert variant="destructive" data-testid={`${dataTestId}-types-error-alert`}>
+          {getTranslationFromI18nKeyAndLabel('equity.analytics.typesError', 'Unable to load investment types from catalog. Showing Overview only.')}
+        </Alert>
       )}
 
       {/* Filters Section */}
@@ -173,72 +253,43 @@ export const EquityReport: React.FC<EquityReportProps> = ({
         <CardHeader>
           <CardTitle className="gba:flex gba:items-center gba:gap-2">
             <FilterIcon className="gba:h-5 gba:w-5" />
-            Filters
+            {getTranslationFromI18nKeyAndLabel('filters.title', 'Filters')}
           </CardTitle>
           <CardDescription>
-            Configure time period and currency for the equity analytics view
+            {getTranslationFromI18nKeyAndLabel('equity.analytics.filters.description', 'Configure time period for the equity analytics view')}
           </CardDescription>
         </CardHeader>
         <CardContent>
           <div className="gba:flex gba:flex-wrap gba:items-center gba:gap-4 gba:mb-4">
             <div className="gba:flex gba:items-center gba:gap-2">
-              <label className="gba:text-sm gba:font-medium">Time Period:</label>
-              <Select value={timeFilter} onValueChange={handleTimeFilterChange}>
-                <SelectTrigger className="gba:w-[150px]">
+              <label className="gba:text-sm gba:font-medium">{getTranslationFromI18nKeyAndLabel('filters.timePeriod', 'Time Period:')}</label>
+              <Select value={timeFilter} onValueChange={handleTimeFilterChange} data-testid={`${dataTestId}-time-period-select`}>
+                <SelectTrigger className="gba:w-[150px]" data-testid={`${dataTestId}-time-period-trigger`}>
                   <SelectValue />
                 </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Time</SelectItem>
-                  <SelectItem value="last7days">Last 7 Days</SelectItem>
-                  <SelectItem value="last30days">Last 30 Days</SelectItem>
-                  <SelectItem value="last3months">Last 3 Months</SelectItem>
-                  <SelectItem value="last6months">Last 6 Months</SelectItem>
-                  <SelectItem value="lastyear">Last Year</SelectItem>
+                <SelectContent data-testid={`${dataTestId}-time-period-content`}>
+                  <SelectItem value="all" data-testid={`${dataTestId}-time-period-item-all`}>{getTranslationFromI18nKeyAndLabel('filters.timePeriod.allTime', 'All Time')}</SelectItem>
+                  <SelectItem value="last7days" data-testid={`${dataTestId}-time-period-item-last7days`}>{getTranslationFromI18nKeyAndLabel('filters.timePeriod.last7Days', 'Last 7 Days')}</SelectItem>
+                  <SelectItem value="last30days" data-testid={`${dataTestId}-time-period-item-last30days`}>{getTranslationFromI18nKeyAndLabel('filters.timePeriod.last30Days', 'Last 30 Days')}</SelectItem>
+                  <SelectItem value="last3months" data-testid={`${dataTestId}-time-period-item-last3months`}>{getTranslationFromI18nKeyAndLabel('filters.timePeriod.last3Months', 'Last 3 Months')}</SelectItem>
+                  <SelectItem value="last6months" data-testid={`${dataTestId}-time-period-item-last6months`}>{getTranslationFromI18nKeyAndLabel('filters.timePeriod.last6Months', 'Last 6 Months')}</SelectItem>
+                  <SelectItem value="lastyear" data-testid={`${dataTestId}-time-period-item-lastyear`}>{getTranslationFromI18nKeyAndLabel('filters.timePeriod.lastYear', 'Last Year')}</SelectItem>
                 </SelectContent>
               </Select>
             </div>
             
             <div className="gba:flex gba:items-center gba:gap-2">
-              <label className="gba:text-sm gba:font-medium">Date Range:</label>
+              <label className="gba:text-sm gba:font-medium">{getTranslationFromI18nKeyAndLabel('filters.dateRange', 'Date Range:')}</label>
               <DatePicker.RangePicker
                 value={dateRange}
                 onChange={handleDateRangeChange}
                 format="DD/MM/YYYY"
-                placeholder={['Start Date', 'End Date']}
+                placeholder={[
+                  getTranslationFromI18nKeyAndLabel('filters.dateRange.startDate', 'Start Date'),
+                  getTranslationFromI18nKeyAndLabel('filters.dateRange.endDate', 'End Date')
+                ]}
                 allowClear={true}
               />
-            </div>
-            
-            <div className="gba:flex gba:items-center gba:gap-2">
-              <label className="gba:text-sm gba:font-medium">Currency:</label>
-              <Select value={selectedCurrency} onValueChange={setSelectedCurrency}>
-                <SelectTrigger className="gba:w-[120px]">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {availableCurrencies.map((currency) => (
-                    <SelectItem key={currency} value={currency}>
-                      {currency}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            
-            <div className="gba:flex gba:items-center gba:gap-2">
-              <label className="gba:text-sm gba:font-medium">Fund Manager:</label>
-              <Select value={selectedFundManager} onValueChange={setSelectedFundManager}>
-                <SelectTrigger className="gba:w-[200px]">
-                  <SelectValue placeholder="All Fund Managers" />
-                </SelectTrigger>
-                <SelectContent>
-                  {availableFundManagers.map((manager) => (
-                    <SelectItem key={manager} value={manager}>
-                      {manager}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
             </div>
             
             <Button 
@@ -247,20 +298,20 @@ export const EquityReport: React.FC<EquityReportProps> = ({
               className="gba:ml-auto"
               data-testid={`${dataTestId}-clear-filters`}
             >
-              Clear Filters
+              {getTranslationFromI18nKeyAndLabel('filters.clearFilters', 'Clear Filters')}
             </Button>
           </div>
         </CardContent>
       </Card>
 
       {/* Equity Analytics Tables with Sub-tabs */}
-      <Tabs value={activeSubTab} onValueChange={setActiveSubTab} className="gba:w-full">
-        <TabsList className="gba:grid gba:w-full" style={{ gridTemplateColumns: `repeat(${effectiveInvestmentTypes.length}, minmax(0, 1fr))` }}>
+      <Tabs value={activeSubTab} onValueChange={handleSetActiveSubTab} className="gba:w-full" data-testid={`${dataTestId}-tabs`}>
+        <TabsList className="gba:grid gba:w-full" style={{ gridTemplateColumns: `repeat(${effectiveInvestmentTypes.length}, minmax(0, 1fr))` }} data-testid={`${dataTestId}-tabs-list`}>
           {effectiveInvestmentTypes.map((type) => (
             <TabsTrigger 
               key={type.code} 
               value={type.code} 
-              data-testid={`${dataTestId}-${type.code.toLowerCase()}-tab`}
+              data-testid={`${dataTestId}-${type.code.toLowerCase()}-tab-trigger`}
             >
               {type.value}
             </TabsTrigger>
@@ -268,13 +319,15 @@ export const EquityReport: React.FC<EquityReportProps> = ({
         </TabsList>
         
         {effectiveInvestmentTypes.map((type) => (
-          <TabsContent key={type.code} value={type.code} className="gba:mt-6">
+          <TabsContent key={type.code} value={type.code} className="gba:mt-6" data-testid={`${dataTestId}-${type.code.toLowerCase()}-tab-panel`}>
             <EquityAnalyticsTable
               accessToken={accessToken}
               userInfo={userInfo}
               filters={equityAnalyticsFilters}
-              investmentType={type.value}
+              investmentType={type.code}
+              investmentTypeValue={type.value}
               title={`${type.value} Analytics`}
+              catalogData={catalogData}
               data-testid={`${dataTestId}-${type.code.toLowerCase()}-table`}
             />
           </TabsContent>
