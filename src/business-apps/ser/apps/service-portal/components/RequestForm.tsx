@@ -963,6 +963,38 @@ Please try again in a few moments, or proceed with submitting your request.`);
                               required={field.required}
                             />
                           )}
+                          
+                          {field.type === 'CHECKBOX' && (
+                            <div className="gba:space-y-3">
+                              {field.options?.map(option => (
+                                <label key={option.value} className="gba:flex gba:items-center gba:space-x-3 gba:cursor-pointer">
+                                  <input
+                                    type="checkbox"
+                                    value={option.value}
+                                    checked={Array.isArray(formData[field.name]) ? formData[field.name].includes(option.value) : false}
+                                    onChange={(e) => {
+                                      const currentValue = Array.isArray(formData[field.name]) ? formData[field.name] : [];
+                                      let newValue;
+                                      if (e.target.checked) {
+                                        newValue = [...currentValue, option.value];
+                                      } else {
+                                        newValue = currentValue.filter(v => v !== option.value);
+                                      }
+                                      handleFieldChange(field.name, newValue);
+                                    }}
+                                    className="gba:h-4 gba:w-4 gba:text-primary gba:border-input gba:rounded gba:focus:ring-2 gba:focus:ring-primary/20"
+                                    data-testid={`checkbox-${field.name}-${option.value}`}
+                                  />
+                                  <span className="gba:text-sm gba:text-foreground gba:select-none">
+                                    {option.label}
+                                  </span>
+                                </label>
+                              ))}
+                              {field.description && (
+                                <p className="gba:text-xs gba:text-muted-foreground gba:mt-2">{field.description}</p>
+                              )}
+                            </div>
+                          )}
                         </div>
                       ))}
                     </div>

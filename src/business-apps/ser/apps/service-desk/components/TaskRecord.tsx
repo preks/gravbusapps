@@ -16,6 +16,11 @@ import {
   Spinner,
   Timeline,
   TimelineItem,
+  TimelineHeader,
+  TimelineSeparator,
+  TimelineTitle,
+  TimelineIndicator,
+  TimelineContent,
   Select,
   SelectContent,
   SelectItem,
@@ -243,7 +248,6 @@ export const TaskRecord: React.FC<TaskRecordProps> = ({
     try {
       const workflowEngine = createConductorWorkflowEngine({ accessToken, userInfo });
       const requestDetails = await workflowEngine.getRequest(workflowId);
-      
       
       setFullRequest(requestDetails);
     } catch (error) {
@@ -716,16 +720,28 @@ export const TaskRecord: React.FC<TaskRecordProps> = ({
                   Fill out the required information to complete this ticket.
                 </p>
                 
-                <DynamicFormGenerator
-                  schema={transformTaskFormFields(getTaskFormFields())}
-                  initialValues={taskFormData}
-                  onValuesChange={setTaskFormData}
-                  onSubmit={handleTaskFormSubmit}
-                  isSubmitting={isSubmittingTaskForm}
-                  submitButtonText="Complete Ticket"
-                  title="" // No title since we have card header
-                  showCard={false} // Don't wrap in card since we're already in one
-                />
+                {/* Note when ticket is not claimed */}
+                {!ticket.claimedByUserId && (
+                  <div className="gba:mb-4 gba:flex gba:items-center gba:gap-2 gba:text-sm gba:text-amber-700 gba:bg-amber-50 gba:p-3 gba:rounded-lg gba:border gba:border-amber-200">
+                    <InfoIcon className="gba:w-4 gba:h-4" />
+                    <span>
+                      <strong>Note:</strong> You must claim this ticket before completion.
+                    </span>
+                  </div>
+                )}
+                
+                <div className={!ticket.claimedByUserId ? "gba:opacity-60 gba:pointer-events-none" : ""}>
+                  <DynamicFormGenerator
+                    schema={transformTaskFormFields(getTaskFormFields())}
+                    initialValues={taskFormData}
+                    onValuesChange={setTaskFormData}
+                    onSubmit={handleTaskFormSubmit}
+                    isSubmitting={isSubmittingTaskForm}
+                    submitButtonText="Complete Ticket"
+                    title="" // No title since we have card header
+                    showCard={false} // Don't wrap in card since we're already in one
+                  />
+                </div>
               </CardContent>
             </Card>
           )}
@@ -1083,25 +1099,6 @@ export const TaskRecord: React.FC<TaskRecordProps> = ({
                     </div>
                   )}
 
-
-                  {/* Recent Activity */}
-                  {fullRequest.timeline && fullRequest.timeline.length > 0 && (
-                    <div>
-                      <h4 className="gba:font-semibold gba:mb-3">Recent Activity</h4>
-                      <Timeline size="sm">
-                        {fullRequest.timeline.slice(-3).map((item, idx) => (
-                          <TimelineItem
-                            key={idx}
-                            title={item.message}
-                            date={new Date(item.at).toLocaleDateString()}
-                            actor={item.userName}
-                            status="completed"
-                            iconColor="primary"
-                          />
-                        ))}
-                      </Timeline>
-                    </div>
-                  )}
                 </div>
               ) : (
                 <div className="gba:text-center gba:py-8 gba:text-muted-foreground">
@@ -1123,51 +1120,108 @@ export const TaskRecord: React.FC<TaskRecordProps> = ({
               </CardHeader>
               <CardContent>
                 <p className="gba:text-sm gba:text-muted-foreground gba:mb-6">
-                  This request follows {((fullRequest as any).originalSteps || fullRequest.steps).length} workflow steps:
+                  Track the progress of this request through {((fullRequest as any).originalSteps || fullRequest.steps).length} workflow steps:
                 </p>
                 
-                <Timeline size="md" className="gba:max-w-none">
+                <Timeline progressive={false} className="gba:max-w-none gba:mt-6 gba:px-2">
                   {((fullRequest as any).originalSteps || fullRequest.steps).map((step: any, index: number) => {
                     const isCompleted = step.status === 'COMPLETED';
                     const isInProgress = step.status === 'IN_PROGRESS';
+                    const isFailed = step.status === 'FAILED' || step.status === 'ERROR';
                     const stepNumber = (step.stepIndex ?? index) + 1;
                     
-                    
-                    // Map status to timeline status
-                    const timelineStatus = isCompleted ? 'completed' : isInProgress ? 'in-progress' : 'pending';
-                    
-                    // Map status to icon color
-                    const iconColor = isCompleted ? 'success' : isInProgress ? 'primary' : 'muted';
-                    
-                    // Create step description with details
+                    // Create step description with rich details
                     const stepDetails = [];
-                    if (step.type) stepDetails.push(`Type: ${step.type}`);
-                    if (step.assignmentMode) stepDetails.push(`Assignment: ${step.assignmentMode}`);
-                    if (step.totalTasks > 0 || step.completedTasks > 0) {
-                      stepDetails.push(`Progress: ${step.completedTasks} of ${step.totalTasks} tasks completed`);
+                    if (step.type && step.type !== 'UNKNOWN') {
+                      stepDetails.push(`${step.type.replace('_', ' ')}`);
                     }
-                    if (step.totalForks > 0) {
-                      const forkText = `Forks: ${step.completedForks} of ${step.totalForks} completed`;
-                      if (step.inProgressForks > 0) {
-                        stepDetails.push(`${forkText} (${step.inProgressForks} in progress)`);
-                      } else {
-                        stepDetails.push(forkText);
-                      }
+                    if (step.assignmentMode && step.assignmentMode !== 'UNKNOWN') {
+                      stepDetails.push(`${step.assignmentMode} assignment`);
+                    }
+                    if (step.totalTasks > 0 || step.completedTasks > 0) {
+                      const taskProgress = `${step.completedTasks || 0} of ${step.totalTasks || 1} tasks completed`;
+                      stepDetails.push(taskProgress);
                     }
                     
-                    // Create a simple text description
-                    const description = stepDetails.length > 0 ? stepDetails.join(' • ') : `Status: ${step.status.replace('_', ' ').toLowerCase()}`;
+                    // Create a rich description
+                    const description = stepDetails.length > 0 
+                      ? stepDetails.join(' • ') 
+                      : `Current status: ${step.status.replace('_', ' ').toLowerCase()}`;
+                    
+                    // Choose appropriate icon based on status with beautiful styling
+                    const getStatusIcon = () => {
+                      if (isCompleted) return <CheckCircleIcon className="gba:w-5 gba:h-5 gba:text-white gba:drop-shadow-sm" />;
+                      if (isInProgress) return <ClockIcon className="gba:w-5 gba:h-5 gba:text-white gba:drop-shadow-sm" />;
+                      if (isFailed) return <WarningIcon className="gba:w-5 gba:h-5 gba:text-white gba:drop-shadow-sm" />;
+                      return <TargetIcon className="gba:w-5 gba:h-5 gba:text-white gba:drop-shadow-sm" />;
+                    };
+                    
+                    // Get elegant indicator background colors with subtle gradients
+                    const getIndicatorStyle = () => {
+                      if (isCompleted) return "gba:bg-gradient-to-br gba:from-emerald-400 gba:to-emerald-500 gba:border-emerald-300 gba:shadow-md gba:shadow-emerald-200/40";
+                      if (isInProgress) return "gba:bg-gradient-to-br gba:from-sky-400 gba:to-sky-500 gba:border-sky-300 gba:shadow-md gba:shadow-sky-200/40";
+                      if (isFailed) return "gba:bg-gradient-to-br gba:from-rose-400 gba:to-rose-500 gba:border-rose-300 gba:shadow-md gba:shadow-rose-200/40";
+                      return "gba:bg-gradient-to-br gba:from-slate-300 gba:to-slate-400 gba:border-slate-200 gba:shadow-md gba:shadow-slate-200/40";
+                    };
+                    
+                    // Elegant status badge colors
+                    const getStatusBadge = () => {
+                      if (isCompleted) return (
+                        <Badge variant="secondary" className="gba:bg-emerald-50 gba:text-emerald-700 gba:border-emerald-200 gba:ml-3 gba:px-2.5 gba:py-0.5 gba:text-xs gba:font-medium">
+                          Completed
+                        </Badge>
+                      );
+                      if (isInProgress) return (
+                        <Badge variant="default" className="gba:bg-sky-50 gba:text-sky-700 gba:border-sky-200 gba:ml-3 gba:px-2.5 gba:py-0.5 gba:text-xs gba:font-medium">
+                          In Progress
+                        </Badge>
+                      );
+                      if (isFailed) return (
+                        <Badge variant="destructive" className="gba:bg-rose-50 gba:text-rose-700 gba:border-rose-200 gba:ml-3 gba:px-2.5 gba:py-0.5 gba:text-xs gba:font-medium">
+                          Failed
+                        </Badge>
+                      );
+                      return (
+                        <Badge variant="outline" className="gba:bg-slate-50 gba:text-slate-600 gba:border-slate-200 gba:ml-3 gba:px-2.5 gba:py-0.5 gba:text-xs gba:font-medium">
+                          Pending
+                        </Badge>
+                      );
+                    };
                     
                     return (
-                      <TimelineItem
-                        key={step.stepIndex || index}
-                        title={step.title || step.name || `Step ${stepNumber}`}
-                        description={description}
-                        status={timelineStatus}
-                        iconColor={iconColor}
-                        icon={isCompleted ? <CheckCircleIcon className="gba:w-4 gba:h-4" /> : undefined}
-                        date={`Step ${stepNumber}`}
-                      />
+                      <TimelineItem key={step.stepIndex || index} step={stepNumber}>
+                        <TimelineHeader>
+                          <TimelineSeparator />
+                          <TimelineTitle className="gba:flex gba:items-center gba:gap-2 gba:font-semibold">
+                            {step.title || step.name || `Step ${stepNumber}`}
+                            {getStatusBadge()}
+                          </TimelineTitle>
+                          <TimelineIndicator className={`gba:border gba:flex gba:items-center gba:justify-center gba:w-9 gba:h-9 gba:rounded-full gba:transition-all gba:duration-200 gba:hover:scale-105 ${getIndicatorStyle()}`}>
+                            {getStatusIcon()}
+                          </TimelineIndicator>
+                        </TimelineHeader>
+                        <TimelineContent className="gba:text-sm gba:text-slate-600 gba:leading-relaxed gba:pb-6 gba:pr-4">
+                          <div className="gba:mb-3">
+                            {description}
+                          </div>
+                          {(step.startedAt || step.finishedAt) && (
+                            <div className="gba:mt-3 gba:pt-2 gba:border-t gba:border-slate-100 gba:text-xs gba:text-slate-500 gba:flex gba:gap-6">
+                              {step.startedAt && (
+                                <span className="gba:flex gba:items-center gba:gap-1">
+                                  <ClockIcon className="gba:w-3 gba:h-3" />
+                                  Started: {new Date(step.startedAt).toLocaleDateString()}
+                                </span>
+                              )}
+                              {step.finishedAt && (
+                                <span className="gba:flex gba:items-center gba:gap-1">
+                                  <CheckCircleIcon className="gba:w-3 gba:h-3" />
+                                  Finished: {new Date(step.finishedAt).toLocaleDateString()}
+                                </span>
+                              )}
+                            </div>
+                          )}
+                        </TimelineContent>
+                      </TimelineItem>
                     );
                   })}
                 </Timeline>
