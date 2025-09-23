@@ -31,7 +31,11 @@ export interface UseDocumentCatalogsReturn {
 
 export const useDocumentCatalogs = (
   accessToken: string,
-  selectedGroupId?: string
+  selectedGroupId?: string,
+  options?: {
+    groupCatalogIdentifier?: string;
+    typeCatalogIdentifier?: string;
+  }
 ): UseDocumentCatalogsReturn => {
   const [documentGroups, setDocumentGroups] = useState<DocumentGroup[]>([]);
   const [documentTypes, setDocumentTypes] = useState<DocumentType[]>([]);
@@ -55,7 +59,7 @@ export const useDocumentCatalogs = (
     try {
       const response = await catalogClient.getCatalogEntriesList(
         {
-          catalogIdentifier: 'DocumentGroup',
+          catalogIdentifier: options?.groupCatalogIdentifier || 'DocumentGroup',
           version: 'v1'
         },
         {
@@ -92,7 +96,7 @@ export const useDocumentCatalogs = (
     try {
       const response = await catalogClient.getCatalogEntriesList(
         {
-          catalogIdentifier: 'DocumentType',
+          catalogIdentifier: options?.typeCatalogIdentifier || 'DocumentType',
           version: 'v1'
         },
         {

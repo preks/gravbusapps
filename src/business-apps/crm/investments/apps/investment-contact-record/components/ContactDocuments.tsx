@@ -567,11 +567,11 @@ export const ContactDocuments: React.FC<ContactDocumentsProps> = ({
     // Check if document.file already has an extension
     if (document.file && document.file.includes('.')) {
       // File already has extension, use as is
-      return `/files/api/v1/public/downloads/crm/contacts/${contactId}/documents/${document.file}`;
+      return `/files/api/v1/public/downloads/irm/contacts/${contactId}/documents/${document.file}`;
     } else {
       // File doesn't have extension, add one
       const fileExtension = getFileExtension(document);
-      return `/files/api/v1/public/downloads/crm/contacts/${contactId}/documents/${document.file}.${fileExtension}`;
+      return `/files/api/v1/public/downloads/irm/contacts/${contactId}/documents/${document.file}.${fileExtension}`;
     }
   };
 
