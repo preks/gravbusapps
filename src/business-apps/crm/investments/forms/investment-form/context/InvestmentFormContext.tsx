@@ -10,6 +10,7 @@ import { useRealEstateTypes } from '../hooks/useRealEstateTypeCatalog';
 import { useInvestmentOwnershipStructures } from '../hooks/useInvestmentOwnershipStructureCatalog';
 import { useInterestPaymentFrequencies } from '../hooks/useInterestPaymentFrequencyCatalog';
 import { useInvestmentTypeCatalog } from '../hooks/useInvestmentTypeCatalog';
+import { useInvestmentLiquidFundTypeCatalog } from '../hooks/useInvestmentLiquidFundTypeCatalog';
 // validation handled via zod resolver in the form component
 // Note: Using centralized investment queries but with form-specific data transformation
 import { useGetInvestmentCatalogData, InvestmentCatalogData, FormFieldsDefinition } from '../queries/InvestmentCatalogQueries';
@@ -82,6 +83,11 @@ interface InvestmentFormContextValue extends InvestmentContextState {
   searchInterestPaymentFrequencies: (search: string) => void;
   loadMoreInterestPaymentFrequencies: () => void;
   
+  // Investment liquid fund types (based on selected investment type)
+  investmentLiquidFundTypes: SelectOption[];
+  investmentLiquidFundTypesLoading: boolean;
+  investmentLiquidFundTypesError: string | null;
+  
   // Account data (centralized)
   fetchInvestmentAccounts: (variables?: any) => Promise<any>;
   
@@ -95,7 +101,7 @@ interface InvestmentFormContextValue extends InvestmentContextState {
   investmentCatalogError: string | null;
   
   // Helper to get form fields for current selection
-  getFormFieldsDefinition: () => FormFieldsDefinition | null;
+  getFormFieldsDefinition: (overrideFormValues?: Partial<InvestmentFormValues>) => FormFieldsDefinition | null;
 }
 
 interface InvestmentFormProviderProps {
@@ -149,13 +155,32 @@ export const InvestmentFormProvider: React.FC<InvestmentFormProviderProps> = ({
     setFormValuesState(prev => {
       const newValues = { ...prev, ...updates };
       
-      // If group is changing, clear investment type only when no explicit type is provided
+      // If group is changing, clear downstream selections
       if (
         updates.group !== undefined &&
         updates.group !== prev.group &&
         updates.investmentTypeRef === undefined
       ) {
         newValues.investmentTypeRef = '';
+      }
+      
+      // If group is changing, clear liquid fund type
+      if (
+        updates.group !== undefined &&
+        updates.group !== prev.group &&
+        updates.investmentLiquidFundTypeRef === undefined
+      ) {
+        newValues.investmentLiquidFundTypeRef = '';
+      }
+      
+      // If investment type is changing for liquid funds, clear liquid fund type
+      if (
+        updates.investmentTypeRef !== undefined &&
+        updates.investmentTypeRef !== prev.investmentTypeRef &&
+        prev.group === 'LIQUID_FUND' &&
+        updates.investmentLiquidFundTypeRef === undefined
+      ) {
+        newValues.investmentLiquidFundTypeRef = '';
       }
       
       return newValues;
@@ -225,14 +250,29 @@ export const InvestmentFormProvider: React.FC<InvestmentFormProviderProps> = ({
   }, [businessAppContext.accessToken, fetchInvestmentCatalogData]);
 
   // Helper function to get form fields for current selection
-  const getFormFieldsDefinition = useCallback((): FormFieldsDefinition | null => {
+  const getFormFieldsDefinition = useCallback((overrideFormValues?: Partial<InvestmentFormValues>): FormFieldsDefinition | null => {
     if (!investmentCatalogData) return null;
 
-    // Extract codes
-    const groupCode = formValues.group ? formValues.group.split(':').pop() : null;
-    const typeCode = formValues.investmentTypeRef ? formValues.investmentTypeRef.split(':').pop() : null;
+    // Use override values if provided, otherwise use current formValues
+    const effectiveFormValues = overrideFormValues ? { ...formValues, ...overrideFormValues } : formValues;
 
-    // First, try to get from investment type
+    // Extract codes
+    const groupCode = effectiveFormValues.group ? effectiveFormValues.group.split(':').pop() : null;
+    const typeCode = effectiveFormValues.investmentTypeRef ? effectiveFormValues.investmentTypeRef.split(':').pop() : null;
+    const liquidFundTypeCode = effectiveFormValues.investmentLiquidFundTypeRef ? 
+      effectiveFormValues.investmentLiquidFundTypeRef.split(':').pop() : null;
+
+    // PRIORITY 1: Investment Liquid Fund Type (highest priority for liquid funds)
+    if (groupCode === 'LIQUID_FUND' && liquidFundTypeCode) {
+      const liquidFundTypeEntry = investmentCatalogData.investmentLiquidFundTypes?.find(
+        entry => entry.code === liquidFundTypeCode
+      );
+      if (liquidFundTypeEntry?.objectValue?.formFields?.length > 0) {
+        return liquidFundTypeEntry.objectValue;
+      }
+    }
+
+    // PRIORITY 2: Investment Type
     if (typeCode) {
       const typeEntry = investmentCatalogData.investmentTypes.find(type => type.code === typeCode);
       if (typeEntry && typeEntry.objectValue && typeEntry.objectValue.formFields?.length > 0) {
@@ -240,7 +280,7 @@ export const InvestmentFormProvider: React.FC<InvestmentFormProviderProps> = ({
       }
     }
 
-    // Fallback to investment group
+    // PRIORITY 3: Investment Group (fallback)
     if (groupCode) {
       const groupEntry = investmentCatalogData.investmentGroups.find(group => group.code === groupCode);
       if (groupEntry && groupEntry.objectValue && groupEntry.objectValue.formFields?.length > 0) {
@@ -249,7 +289,7 @@ export const InvestmentFormProvider: React.FC<InvestmentFormProviderProps> = ({
     }
 
     return null;
-  }, [investmentCatalogData, formValues.group, formValues.investmentTypeRef]);
+  }, [investmentCatalogData, formValues.group, formValues.investmentTypeRef, formValues.investmentLiquidFundTypeRef]);
 
   // Current user employee hook - for ensuring current user is always available in the list
   const currentUserEmployeeId = businessAppContext.userInfo?.employeeDetails?.employeeId;
@@ -283,6 +323,12 @@ export const InvestmentFormProvider: React.FC<InvestmentFormProviderProps> = ({
 
   // Investment types hook (based on selected group)
   const investmentTypesHook = useInvestmentTypeCatalog(businessAppContext.accessToken, formValues.group);
+
+  // Investment liquid fund types hook (based on selected investment type)
+  const investmentLiquidFundTypesHook = useInvestmentLiquidFundTypeCatalog(
+    businessAppContext.accessToken, 
+    formValues.investmentTypeRef
+  );
 
   // Accounts data hook for account autocomplete  
   const { fetchInvestmentAccounts } = useGetInvestmentAccounts(businessAppContext);
@@ -506,6 +552,11 @@ export const InvestmentFormProvider: React.FC<InvestmentFormProviderProps> = ({
     investmentTypes: investmentTypesHook.options,
     investmentTypesLoading: investmentTypesHook.loading,
     investmentTypesError: investmentTypesHook.error,
+    
+    // Investment liquid fund types (based on selected investment type)
+    investmentLiquidFundTypes: investmentLiquidFundTypesHook.options,
+    investmentLiquidFundTypesLoading: investmentLiquidFundTypesHook.loading,
+    investmentLiquidFundTypesError: investmentLiquidFundTypesHook.error,
     
     // Account autocomplete (migrated to centralized)
     fetchInvestmentAccounts,

@@ -1,14 +1,14 @@
 import React, { useCallback, useState } from 'react';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
-import { TaskSegment, TaskSegmentSchema } from '@/common/components/common-relations/form-segments';
+import TaskSegment, { TaskSegmentSchema } from '@/common/components/common-relations/form-segments/task-segment/TaskSegment';
 import { AppActionForm } from '@/components/app-action-form';
 import { buildInvestmentTaskPayload } from '@/common/data/investment/payloads';
 import type { InvestmentTaskFormData } from '@/common/data/investment/payloads/investmentRelationPayloads';
 import { useInvestmentEntities, useInvestmentTasks } from '@/common/data/investment/hooks';
 import { useEmployeeSearch } from '@/common/data/employee/useEmployeeSearch';
 import { useForm } from 'react-hook-form';
-import { createTaskSegmentResolver } from '@/common/components/common-relations/form-segments';
+import { createTaskSegmentResolver } from '@/common/components/common-relations/form-segments/task-segment/TaskSegment';
 
 type TaskFormData = TaskSegmentSchema & { id?: string; version?: number; code?: string };
 
@@ -63,7 +63,6 @@ const InvestmentTaskForm: React.FC<InvestmentTaskFormProps> = ({ accessToken, us
   const contactId = platformParams.contactId;
   const opportunityId = platformParams.opportunityId;
   const leadId = platformParams.leadId;
-  const hasEntityFromContext = Boolean(accountId || contactId || opportunityId || leadId);
   // Load existing task when taskId is provided via additionalData
   React.useEffect(() => {
     const taskId = platformParams.taskId as string | undefined;
@@ -215,6 +214,14 @@ const InvestmentTaskForm: React.FC<InvestmentTaskFormProps> = ({ accessToken, us
     searchEntities(q);
   }, [searchEntities]);
 
+  // Trigger initial search to load some default entities
+  React.useEffect(() => {
+    if (accessToken && !platformParams.taskId) {
+      // Only trigger initial search in create mode
+      searchEntities('');
+    }
+  }, [accessToken, platformParams.taskId, searchEntities]);
+
   // Detect approval mode from additionalData.typeRef
   const isApprovalMode = React.useMemo(() => {
     const t = (additionalData as any)?.typeRef || (additionalData as any)?.psi_taskPayload?.psi_initialParameters?.typeRef;
@@ -235,7 +242,9 @@ const InvestmentTaskForm: React.FC<InvestmentTaskFormProps> = ({ accessToken, us
     >
       <TaskSegment
         // labels
-        titleLabel={getTranslationFromI18nKeyAndLabel('crm:salesTask.title', 'Title')}
+        titleLabel={isApprovalMode 
+          ? getTranslationFromI18nKeyAndLabel('crm:salesTask.title', 'Approval Name')
+          : getTranslationFromI18nKeyAndLabel('crm:salesTask.title', 'Task Name')}
         descriptionLabel={getTranslationFromI18nKeyAndLabel('crm:salesTask.description', 'Description')}
         deadlineLabel={getTranslationFromI18nKeyAndLabel('crm:salesTask.deadline', 'Deadline')}
         typeLabel={getTranslationFromI18nKeyAndLabel('crm:salesTask.type', 'Type')}
@@ -243,7 +252,8 @@ const InvestmentTaskForm: React.FC<InvestmentTaskFormProps> = ({ accessToken, us
         statusLabel={getTranslationFromI18nKeyAndLabel('crm:salesTask.status', 'Status')}
         assigneeLabel={getTranslationFromI18nKeyAndLabel('crm:salesTask.assignedTo', 'Assigned To')}
         entityLabel={getTranslationFromI18nKeyAndLabel('crm:salesTask.relatedEntity', 'Related Entity')}
-        uploadFileLabel={getTranslationFromI18nKeyAndLabel('crm:salesTask.uploadFile', 'Upload File')}
+        uploadFileLabel={getTranslationFromI18nKeyAndLabel('crm:salesTask.uploadFile', 'Attach Documents')}
+        onFilesChange={() => {/* File upload handling */}}
         timingTypeLabel={getTranslationFromI18nKeyAndLabel('crm:salesTask.timingType', 'Timing Type')}
         // catalogs
         accessToken={accessToken}
@@ -251,9 +261,9 @@ const InvestmentTaskForm: React.FC<InvestmentTaskFormProps> = ({ accessToken, us
         priorityCatalog={{ identifier: TASK_PRIORITY_CATALOG, version: 'v1' }}
         statusCatalog={{ identifier: TASK_STATUS_CATALOG, version: 'v1' }}
         // entity search
-        // In investment context we always hide both Assigned To and Related Entity
-        showEntitySelection={false}
-        showAssigneeSelection={false}
+        // Show entity selection for investment-relations page tasks
+        showEntitySelection={true}
+        showAssigneeSelection={true}
         entities={entities}
         entitiesLoading={entitiesLoading}
         entitiesError={Boolean(entitiesError)}

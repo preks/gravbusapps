@@ -14,7 +14,7 @@ export interface OptionItem {
 export interface EntityOption {
   id: string;
   name: string;
-  type: "account" | "contact" | "opportunity" | "lead";
+  type: "account" | "contact" | "opportunity" | "lead" | "investment";
   subtitle?: string;
   pictureThumbnail?: string;
 }

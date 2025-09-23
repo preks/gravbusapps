@@ -81,7 +81,7 @@ export const useLiquidFundAnalyticsIntegration = ({
       // Create cash bank identifier using investment name and bank info
       const cashBankIdentifier = `${investmentName} - ${liquidFundReport.bankName || 'Unknown Bank'}`;
 
-      return {
+      const result = {
         id: liquidFundReport.id,
         portfolioId: liquidFundReport.id,
         cashBankIdentifier: cashBankIdentifier,
@@ -104,8 +104,18 @@ export const useLiquidFundAnalyticsIntegration = ({
         closingBalance,
         timeWeightedPerformance,
         investmentType: liquidFundReport.investmentLiquidFundType?.value || 'Liquid Fund',
-        reportCount: 1
+        reportCount: 1,
+        
+        // IMPORTANT: Include the full data structures for dynamic column access
+        // This ensures the getValue functions in dynamic columns can access all nested data
+        investment: liquidFundInvestment?.investment || investment,
+        liquidFundInvestment: liquidFundInvestment ? [liquidFundInvestment] : [],
+        liquidFundReport: liquidFundReport
       };
+      
+      // Include liquid fund type data for dynamic column detection
+      
+      return result;
     });
   }, []);
 
@@ -171,10 +181,7 @@ export const useLiquidFundAnalyticsIntegration = ({
         }]
       };
 
-      console.log('LiquidFund Reports Query Parameters:', filterParams);
-
       const response = await fetchInvestmentReports(filterParams);
-      console.log('LiquidFund Reports Response:', response);
 
       const investmentReports = response.InvestmentReport || [];
       

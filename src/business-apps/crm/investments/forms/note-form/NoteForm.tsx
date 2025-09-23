@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
-import { NoteSegment, NoteSegmentSchema, createNoteSegmentResolver } from '@/common/components/common-relations/form-segments';
+import NoteSegment, { NoteSegmentSchema, createNoteSegmentResolver } from '@/common/components/common-relations/form-segments/note-segment/NoteSegment';
 import { buildInvestmentNotePayload } from '@/common/data/investment/payloads';
 import { useInvestmentEntities } from '@/common/data/investment/hooks';
 import { AppActionForm } from '@/components/app-action-form';
