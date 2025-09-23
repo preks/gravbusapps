@@ -528,10 +528,9 @@ const RealEstateInvestmentsList: React.FC<RealEstateInvestmentsListProps> = (con
                       <div className="gba:flex gba:items-center gba:gap-2">
                         <User className="gba:w-4 gba:h-4 gba:text-gray-600" />
                         <span>
-                          {investment.ownerEmployee?.displayName || 
-                           investment.ownerEmployee?.firstName && investment.ownerEmployee?.lastName
-                             ? `${investment.ownerEmployee.firstName} ${investment.ownerEmployee.lastName}`
-                             : "N/A"}
+                          {investment.ownerEmployee 
+                            ? investment.ownerEmployee.displayName || `${investment.ownerEmployee.firstName || ''} ${investment.ownerEmployee.lastName || ''}`.trim() || '-'
+                            : '-'}
                         </span>
                       </div>
                     </TableCell>

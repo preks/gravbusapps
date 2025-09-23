@@ -3,7 +3,8 @@ import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
 import { AppActionForm } from '@/components/app-action-form';
 import { useForm } from 'react-hook-form';
-import { ContactSegment, createContactSegmentResolver, type ContactSegmentSchema } from '@/common/components/common-relations/form-segments/contact-segment';
+import ContactSegment from '@/common/components/common-relations/form-segments/contact-segment/ContactSegment';
+import { createContactSegmentResolver, type ContactSegmentSchema } from '@/common/components/common-relations/form-segments/contact-segment/schema';
 import { useInvestmentEntities } from '@/common/data/investment/hooks';
 import { useEmployeeSearch } from '@/common/data/employee/useEmployeeSearch';
 

@@ -1,72 +1,132 @@
-import React from 'react';
-import { Card, CardContent, CardHeader, CardTitle, Button, Badge } from '@newwork/nw-design-system';
-import { Building2, TrendingUp, TrendingDown, ExternalLink } from 'lucide-react';
-import { buildPlatformUrl, navigateTo } from '@/common/utils/navigationUtils';
-import { 
+import React, { useCallback, useMemo } from 'react';
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
   Table,
-  TableHeader,
   TableBody,
-  TableRow,
+  TableCell,
   TableHead,
-  TableCell
+  TableHeader,
+  TableRow,
+  Badge,
+  Button,
+  Spinner
 } from '@newwork/nw-design-system';
-import type { RealEstateAnalyticsTableProps } from '../types';
-import { useRealEstateAnalyticsIntegration } from '../hooks/useRealEstateAnalyticsIntegration';
+import { 
+  RefreshCw,
+  Building2
+} from 'lucide-react';
+import { BusinessAppContextProps } from '@/common/BusinessAppContext';
+import { useRealEstateReportsData } from "../hooks/useRealEstateReportsData";
+import { RealEstateReportFilters } from '../types';
+import { buildPlatformUrl, navigateTo } from '@/common/utils/navigationUtils';
+import { createInvestmentReportColumns } from '@/business-apps/crm/investments/apps/investment-record/components/shared/columnDefinitions';
+import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
+
+interface RealEstateAnalyticsTableProps extends BusinessAppContextProps {
+  'data-testid'?: string;
+  filters: RealEstateReportFilters;
+  investmentType: string;
+  investmentTypeValue: string; // User-friendly name for display
+  title: string;
+  catalogData: any; // Required for dynamic columns
+}
 
 export const RealEstateAnalyticsTable: React.FC<RealEstateAnalyticsTableProps> = ({
   accessToken,
   userInfo,
+  'data-testid': dataTestId = 'real-estate-analytics-table',
   filters,
-  propertyType,
+  investmentType,
+  investmentTypeValue,
   title,
-  'data-testid': dataTestId = 'real-estate-analytics-table'
+  catalogData
 }) => {
+  // Create stable filters object to prevent infinite loops
+  const stableFilters = useMemo(() => ({
+    startDate: filters.startDate,
+    endDate: filters.endDate,
+    investmentType: investmentType
+  }), [filters.startDate, filters.endDate, investmentType]);
+
+  // Use the new data source
   const {
-    data,
-    loading,
-    error,
+    reports,
     totalCount,
+    isLoading,
+    error,
     refetch
-  } = useRealEstateAnalyticsIntegration({
+  } = useRealEstateReportsData({
     accessToken,
     userInfo,
-    filters
+    filters: stableFilters,
+    additionalData: {}
   });
 
-  // Format currency
-  const formatCurrency = (amount: number, currency: string = 'EUR'): string => {
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: currency,
-      minimumFractionDigits: 0,
-      maximumFractionDigits: 0,
-    }).format(amount);
-  };
+  // Create dynamic columns using the same pattern as EquityAnalyticsTable
+  const columns = useMemo(() => {
+    // First add the static Investment column
+    const staticColumns = [
+      {
+        key: 'investment',
+        title: 'Investment',
+        width: '200px',
+        render: (record: any) => (
+          <div className="gba:flex gba:items-center gba:gap-2">
+            <Building2 className="gba:w-4 gba:h-4 gba:text-gray-500" />
+            <span className="gba:font-medium">{record.investment?.name || 'N/A'}</span>
+          </div>
+        )
+      }
+    ];
 
-  // Format percentage
-  const formatPercentage = (value: number): string => {
-    return `${value.toFixed(1)}%`;
-  };
+    // Don't create dynamic columns if catalog data isn't ready
+    if (!catalogData) {
+      return staticColumns;
+    }
 
-  // Format number
-  const formatNumber = (value: number | undefined): string => {
-    if (value === undefined || value === null) return 'N/A';
-    return new Intl.NumberFormat('en-US').format(value);
-  };
+    // Then add dynamic columns from catalog data
+    // For reports-view, we don't have a specific mainInvestment/typeSpecificData
+    // since we're showing multiple investments, so we pass undefined for those parameters
 
-  // Handle investment navigation
-  const handleInvestmentClick = (investmentId: string, investmentName: string) => {
-    console.log('Investment clicked:', { investmentId, investmentName });
-    const url = buildPlatformUrl('/platform/irm/investment-record', { investmentId });
-    console.log('Navigating to:', url);
-    navigateTo(url);
-  };
+    // For reports-view, provide investment group context for correct column logic
+    // Real estate investments should use group-level form fields
+    const mockInvestmentForContext = {
+      investmentGroup: { code: 'REAL_ESTATE' } // Provide real estate group context for correct column logic
+    };
+    
+    const dynamicColumns = createInvestmentReportColumns(
+      investmentType, // investment type code
+      undefined, // liquidFundTypeCode - not applicable for real estate
+      catalogData,
+      accessToken,
+      mockInvestmentForContext, // Provide investment group context
+      undefined  // mainTypeSpecificData - not applicable for reports-view
+    );
 
-  // Check if we have data to display
-  const hasData = data.length > 0;
-  
-  // Check if filters have been applied (at least one date filter)
-  const hasAppliedFilters = filters.startDate || filters.endDate;
+    return [...staticColumns, ...dynamicColumns];
+  }, [investmentType, catalogData, accessToken]);
+
+  // Handle row click navigation
+  const handleRowClick = useCallback((investmentId: string) => {
+    const detailsUrl = buildPlatformUrl('/platform/irm/investment-record', { 
+      investmentId,
+      fromView: 'reports',
+      fromSubView: 'real-estate'
+    });
+    navigateTo(detailsUrl);
+  }, []);
+
+  if (isLoading) {
+    return (
+      <div className="gba:flex gba:justify-center gba:items-center gba:h-64" data-testid={`${dataTestId}-loading`}>
+        <Spinner data-testid={`${dataTestId}-loading-spinner`} />
+      </div>
+    );
+  }
 
   if (error) {
     return (
@@ -75,6 +135,10 @@ export const RealEstateAnalyticsTable: React.FC<RealEstateAnalyticsTableProps> =
           <div className="gba:text-center gba:text-red-600">
             <Building2 className="gba:h-12 gba:w-12 gba:mx-auto gba:mb-4" />
             <p className="gba:font-medium">{error}</p>
+            <Button onClick={refetch} className="gba:mt-4">
+              <RefreshCw className="gba:w-4 gba:h-4 gba:mr-2" />
+              Retry
+            </Button>
           </div>
         </CardContent>
       </Card>
@@ -82,118 +146,78 @@ export const RealEstateAnalyticsTable: React.FC<RealEstateAnalyticsTableProps> =
   }
 
   return (
-    <Card data-testid={dataTestId}>
+    <Card>
       <CardHeader>
-        <CardTitle className="gba:flex gba:items-center gba:gap-2">
-          <Building2 className="gba:h-5 gba:w-5" />
+        <CardTitle className="gba:flex gba:items-center" style={{ gap: 'var(--nw-spacing-2)' }}>
+          <Building2 style={{ height: 'var(--nw-spacing-5)', width: 'var(--nw-spacing-5)', color: 'var(--nw-color-success-500)' }} />
           {title}
-          <Badge variant="outline">{totalCount} investments</Badge>
+          <Badge variant="outline">{getTranslationFromI18nKeyAndLabel('real-estate-analytics.properties-count', `${totalCount} properties`)}</Badge>
         </CardTitle>
-        <div className="gba:text-sm gba:text-gray-600">
-          Showing {data.length} of {totalCount} real estate reports for {propertyType.toLowerCase()}
-        </div>
+        <CardDescription>
+          {getTranslationFromI18nKeyAndLabel('real-estate-analytics.description', `Property analysis for ${investmentTypeValue.toLowerCase()} real estate investments`)}
+        </CardDescription>
       </CardHeader>
       <CardContent>
         <div className="gba:overflow-x-auto">
           <Table data-testid={`${dataTestId}-table`}>
-              <TableHeader>
-                <TableRow className="gba:border-b gba:bg-gray-50">
-                  <TableHead className="gba:font-semibold gba:text-gray-700 gba:text-left gba:py-3 gba:px-4">Property</TableHead>
-                  <TableHead className="gba:font-semibold gba:text-gray-700 gba:text-left gba:py-3 gba:px-4">Date</TableHead>
-                  <TableHead className="gba:font-semibold gba:text-gray-700 gba:text-right gba:py-3 gba:px-4">Annual Net Rent</TableHead>
-                  <TableHead className="gba:font-semibold gba:text-gray-700 gba:text-center gba:py-3 gba:px-4">Occupancy</TableHead>
-                  <TableHead className="gba:font-semibold gba:text-gray-700 gba:text-center gba:py-3 gba:px-4">Units</TableHead>
-                  <TableHead className="gba:font-semibold gba:text-gray-700 gba:text-right gba:py-3 gba:px-4">Expenses</TableHead>
-                  <TableHead className="gba:font-semibold gba:text-gray-700 gba:text-right gba:py-3 gba:px-4">Funding</TableHead>
+            <TableHeader>
+              <TableRow style={{ borderBottom: 'var(--nw-border-width-thin) solid var(--nw-color-border-default)', backgroundColor: 'var(--nw-color-surface-secondary)' }}>
+                {columns.map((column) => (
+                  <TableHead 
+                    key={column.key}
+                    className="gba:text-left"
+                    style={{ 
+                      width: column.width,
+                      fontWeight: 'var(--nw-font-weight-semibold)', 
+                      fontFamily: 'var(--nw-font-family-base)', 
+                      color: 'var(--nw-color-text-primary)', 
+                      padding: 'var(--nw-spacing-3) var(--nw-spacing-4)' 
+                    }}
+                  >
+                    {column.title}
+                  </TableHead>
+                ))}
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {reports.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={columns.length} className="gba:text-center" style={{ padding: 'var(--nw-spacing-12) 0', color: 'var(--nw-color-text-secondary)' }}>
+                    <div className="gba:flex gba:flex-col gba:items-center" style={{ gap: 'var(--nw-spacing-2)' }}>
+                      <Building2 style={{ height: 'var(--nw-spacing-12)', width: 'var(--nw-spacing-12)', color: 'var(--nw-muted-foreground)' }} />
+                      <p style={{ fontSize: 'var(--nw-text-lg)', fontWeight: 'var(--nw-font-weight-medium)' }}>No {investmentTypeValue} Data Found</p>
+                      <p style={{ fontSize: 'var(--nw-text-sm)' }}>No real estate investment reports are available for {investmentTypeValue.toLowerCase()} in the selected time period.</p>
+                    </div>
+                  </TableCell>
                 </TableRow>
-              </TableHeader>
-              <TableBody>
-                {data.length === 0 ? (
-                  <TableRow>
-                    <TableCell colSpan={7} className="gba:text-center gba:py-12 gba:text-gray-500">
-                      <div className="gba:flex gba:flex-col gba:items-center gba:gap-2">
-                        <Building2 className="gba:h-12 gba:w-12 gba:text-gray-300" />
-                        <p className="gba:text-lg gba:font-medium">No {propertyType} Data Found</p>
-                        <p className="gba:text-sm">No real estate reports are available for {propertyType.toLowerCase()} in the selected time period.</p>
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                ) : (
-                  data.map((report) => (
-                  <TableRow key={report.id} className="gba:border-b gba:hover:bg-gray-50">
-                    <TableCell className="gba:py-3 gba:px-4">
-                      <div className="gba:font-medium">
-                        <div>{report.propertyName}</div>
-                        {report.investmentId ? (
-                          <button
-                            onClick={() => handleInvestmentClick(report.investmentId!, report.investmentName!)}
-                            className="gba:text-xs gba:text-blue-600 hover:gba:text-blue-800 hover:gba:underline gba:cursor-pointer gba:bg-transparent gba:border-none gba:p-0 gba:text-left"
-                            data-testid={`${dataTestId}-investment-link-${report.id}`}
-                          >
-                            🔗 {report.investmentName} <ExternalLink className="gba:inline gba:h-3 gba:w-3 gba:ml-1" />
-                          </button>
-                        ) : (
-                          <div className="gba:text-xs gba:text-gray-500">
-                            ❌ {report.investmentName || 'Unknown Investment'} (No ID: {JSON.stringify(report.investmentId)})
-                          </div>
-                        )}
-                      </div>
-                    </TableCell>
-                    <TableCell className="gba:py-3 gba:px-4">
-                      <span className="gba:text-sm">{report.date}</span>
-                    </TableCell>
-                    <TableCell className="gba:py-3 gba:px-4 gba:text-right">
-                      <div className="gba:font-mono gba:font-medium gba:text-green-600">
-                        {formatCurrency(report.annualNetColdRent, report.currency)}
-                      </div>
-                    </TableCell>
-                    <TableCell className="gba:py-3 gba:px-4 gba:text-center">
-                      <div className="gba:flex gba:items-center gba:justify-center gba:gap-1">
-                        {report.occupancyPercent >= 95 ? (
-                          <TrendingUp className="gba:h-3 gba:w-3 gba:text-green-600" />
-                        ) : report.occupancyPercent >= 85 ? (
-                          <TrendingUp className="gba:h-3 gba:w-3 gba:text-yellow-600" />
-                        ) : (
-                          <TrendingDown className="gba:h-3 gba:w-3 gba:text-red-600" />
-                        )}
-                        <span className={`gba:font-medium ${
-                          report.occupancyPercent >= 95 ? 'gba:text-green-600' : 
-                          report.occupancyPercent >= 85 ? 'gba:text-yellow-600' : 'gba:text-red-600'
-                        }`}>
-                          {formatPercentage(report.occupancyPercent)}
-                        </span>
-                      </div>
-                    </TableCell>
-                    <TableCell className="gba:py-3 gba:px-4 gba:text-center">
-                      <span className="gba:text-sm">{formatNumber(report.numberOfUnits)}</span>
-                    </TableCell>
-                    <TableCell className="gba:py-3 gba:px-4 gba:text-right">
-                      {report.actualAnnualExpenses !== undefined ? (
-                        <span className="gba:font-mono gba:font-medium gba:text-red-600">
-                          -{formatCurrency(report.actualAnnualExpenses, report.currency)}
-                        </span>
-                      ) : (
-                        <span className="gba:font-mono gba:text-gray-400">N/A</span>
-                      )}
-                    </TableCell>
-                    <TableCell className="gba:py-3 gba:px-4 gba:text-right">
-                      {report.funding !== undefined ? (
-                        <span className="gba:font-mono gba:font-medium gba:text-blue-600">
-                          {formatCurrency(report.funding, report.currency)}
-                        </span>
-                      ) : (
-                        <span className="gba:font-mono gba:text-gray-400">N/A</span>
-                      )}
-                    </TableCell>
-                  </TableRow>
-                  ))
-                )}
-              </TableBody>
-            </Table>
+              ) : (
+                <>
+                  {reports.map((report) => (
+                    <TableRow
+                      key={report.id}
+                      className="gba:cursor-pointer"
+                      style={{ borderBottom: 'var(--nw-border-width-thin) solid var(--nw-color-border-default)' }}
+                      onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'var(--nw-color-surface-secondary)'}
+                      onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
+                      onClick={() => report.investment?.id && handleRowClick(report.investment.id)}
+                      data-testid={`${dataTestId}-row-${report.id}`}
+                    >
+                      {columns.map((column) => (
+                        <TableCell 
+                          key={column.key}
+                          style={{ padding: 'var(--nw-spacing-3) var(--nw-spacing-4)' }}
+                        >
+                          {column.render(report)}
+                        </TableCell>
+                      ))}
+                    </TableRow>
+                  ))}
+                </>
+              )}
+            </TableBody>
+          </Table>
         </div>
       </CardContent>
     </Card>
   );
 };
-
-export default RealEstateAnalyticsTable;

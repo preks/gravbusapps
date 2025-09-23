@@ -700,10 +700,9 @@ const Sales: React.FC<SalesProps> = ({ accessToken, userInfo }) => {
                       <div className="gba:flex gba:items-center gba:gap-2">
                         <User className="gba:w-4 gba:h-4 gba:text-gray-600" />
                         <span>
-                          {opportunity.ownerEmployee?.displayName || 
-                           opportunity.ownerEmployee?.firstName && opportunity.ownerEmployee?.lastName
-                             ? `${opportunity.ownerEmployee.firstName} ${opportunity.ownerEmployee.lastName}`
-                             : "N/A"}
+                          {opportunity.ownerEmployee 
+                            ? opportunity.ownerEmployee.displayName || `${opportunity.ownerEmployee.firstName || ''} ${opportunity.ownerEmployee.lastName || ''}`.trim() || '-'
+                            : '-'}
                         </span>
                       </div>
                     </TableCell>)}
