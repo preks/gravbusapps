@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
-import { Button } from '@newwork/nw-design-system';
-import { SettingOutlined } from '@ant-design/icons';
+import { Button, Icon } from '@newwork/nw-design-system';
+import { Gear } from '@phosphor-icons/react';
+import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 
 interface ColumnConfig {
   id: string;
@@ -9,14 +10,15 @@ interface ColumnConfig {
   disabled?: boolean;
 }
 
-interface ColumnVisibilityDropdownProps {
+interface ColumnVisibilityDropdownProps extends BusinessAppContextProps {
   columnConfig: ColumnConfig[];
   onColumnVisibilityChange: (columnId: string, visible: boolean) => void;
 }
 
 export const ColumnVisibilityDropdown: React.FC<ColumnVisibilityDropdownProps> = ({
   columnConfig,
-  onColumnVisibilityChange
+  onColumnVisibilityChange,
+  ...context
 }) => {
   const [isOpen, setIsOpen] = useState(false);
 
@@ -29,7 +31,7 @@ export const ColumnVisibilityDropdown: React.FC<ColumnVisibilityDropdownProps> =
         className="gba:flex gba:items-center gba:gap-2"
         data-testid="column-visibility-dropdown"
       >
-        <SettingOutlined />
+        <Icon icon={Gear} size="sm" decorative />
         <span className="gba:text-sm">Columns</span>
       </Button>
       {isOpen && (
@@ -40,16 +42,7 @@ export const ColumnVisibilityDropdown: React.FC<ColumnVisibilityDropdownProps> =
           {columnConfig.map((column) => (
             <label
               key={column.id}
-              className="gba:flex gba:items-center gba:gap-2 gba:p-2 gba:cursor-pointer"
-              style={{ 
-                ':hover': { backgroundColor: 'var(--nw-color-background-hover)' }
-              }}
-              onMouseEnter={(e: React.MouseEvent<HTMLLabelElement>) => 
-                (e.target as HTMLElement).style.backgroundColor = 'var(--nw-color-background-hover)'
-              }
-              onMouseLeave={(e: React.MouseEvent<HTMLLabelElement>) => 
-                (e.target as HTMLElement).style.backgroundColor = 'transparent'
-              }
+              className="gba:flex gba:items-center gba:gap-2 gba:p-2 gba:cursor-pointer gba:hover:bg-[var(--nw-color-background-hover)]"
             >
               <input
                 type="checkbox"

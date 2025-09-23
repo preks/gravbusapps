@@ -1,11 +1,12 @@
 import { useState, useCallback } from 'react';
-import { Modal } from 'antd';
+// Modal removed - using state-based confirmation dialogs instead
 import { toast } from 'sonner';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 import { useRestClient } from '@/common/network/rest/useRestClient';
 import { env } from '@/common/env/EnvUtils';
 import { startProcess } from '@/common/utils/start-process';
 import { useGetInvestmentDocumentsByOpportunityId } from '@/common/data/investment/hooks/useInvestmentOpportunities';
+import { buildDocumentUrls } from '../utils/documentUrlUtils';
 
 interface Document {
   id: string;
@@ -106,27 +107,47 @@ export const useDocumentOperations = ({
       toast.success('Document deleted (mock)');
       return;
     }
-    Modal.confirm({
-      title: 'Confirm Deletion',
-      content: `Are you sure you want to delete "${document.name}"?`,
-      onOk: async () => {
-        try {
-          await restClient.post('/investments/saveInvestmentDocument', {
-            changeMode: 'DELETE',
-            investmentDocument: { id: document.id, version: document.version, opportunity: opportunityId },
-          }, { headers: { Authorization: `Bearer ${context.accessToken}` } });
-          toast.success('Document deleted');
-          await fetchDocuments();
-        } catch (e: any) {
-          console.error('Error deleting document', e);
-          toast.error(e?.message || 'Failed to delete document');
-        }
-      }
-    });
+    // Note: This function signature maintained for compatibility
+    // but Modal.confirm replaced with state-based confirmation in the component
+    console.warn('handleDeleteDocument called but Modal.confirm removed. Use component state-based confirmation instead.');
   }, [restClient, context.accessToken, opportunityId, fetchDocuments, setDocuments]);
 
   const hasDescendantFiles = useCallback((folderId: string): boolean => {
-    return documents.some(doc => doc.parentDocument === folderId && !doc.folder);
+    if (!folderId) return false;
+    
+    // Use a breadth-first search to traverse all descendants
+    const toVisit: string[] = [folderId];
+    const visited = new Set<string>();
+    const maxIterations = 1000; // Safety limit to prevent infinite loops
+    let iterations = 0;
+    
+    while (toVisit.length > 0 && iterations < maxIterations) {
+      const currentId = toVisit.shift()!;
+      
+      if (visited.has(currentId)) {
+        continue; // Skip already visited to prevent cycles
+      }
+      visited.add(currentId);
+      
+      // Check all documents that have this folder as parent
+      for (const doc of documents) {
+        if (doc.parentDocument === currentId) {
+          if (!doc.folder) {
+            // Found a file as descendant
+            return true;
+          } else {
+            // Found a subfolder, add it to the queue
+            if (!visited.has(doc.id)) {
+              toVisit.push(doc.id);
+            }
+          }
+        }
+      }
+      
+      iterations++;
+    }
+    
+    return false;
   }, [documents]);
 
   const handleDeleteFolder = useCallback((node: DocumentFolder) => {
@@ -139,43 +160,45 @@ export const useDocumentOperations = ({
       toast.warning('Cannot delete a folder that contains files.');
       return;
     }
-    Modal.confirm({
-      title: 'Confirm Deletion',
-      content: `Are you sure you want to delete the folder "${node.name}"?`,
-      onOk: async () => {
-        try {
-          await restClient.post('/investments/saveInvestmentDocument', {
-            changeMode: 'DELETE',
-            investmentDocument: { id: node.folderId, version: node.folderVersion, opportunity: opportunityId },
-          }, { headers: { Authorization: `Bearer ${context.accessToken}` } });
-          toast.success('Folder deleted');
-          await fetchDocuments();
-        } catch (e: any) {
-          console.error('Error deleting folder', e);
-          toast.error(e?.message || 'Failed to delete folder');
-        }
-      }
-    });
+    // Note: This function signature maintained for compatibility
+    // but Modal.confirm replaced with state-based confirmation in the component
+    console.warn('handleDeleteFolder called but Modal.confirm removed. Use component state-based confirmation instead.');
   }, [restClient, context.accessToken, opportunityId, fetchDocuments, hasDescendantFiles]);
 
   const handleView = useCallback((document: Document) => {
-    if (document.file) {
-      window.open(document.file, '_blank');
-    } else {
+    if (!document.file) {
       toast.warning('No file available to view');
+      return;
     }
-  }, []);
+    
+    try {
+      const { viewUrl } = buildDocumentUrls(document, opportunityId);
+      window.open(viewUrl, '_blank', 'rel=noopener noreferrer');
+    } catch (error) {
+      console.error('Error building document URL for view:', error);
+      toast.error('Failed to open document');
+    }
+  }, [opportunityId]);
 
   const handleDownload = useCallback((document: Document) => {
-    if (document.file) {
-      const link = window.document.createElement('a');
-      link.href = document.file;
-      link.download = document.name || 'download';
-      link.click();
-    } else {
+    if (!document.file) {
       toast.warning('No file available to download');
+      return;
     }
-  }, []);
+    
+    try {
+      const { downloadUrl, downloadFilename } = buildDocumentUrls(document, opportunityId);
+      const link = window.document.createElement('a');
+      link.href = downloadUrl;
+      link.download = downloadFilename;
+      window.document.body.appendChild(link);
+      link.click();
+      window.document.body.removeChild(link);
+    } catch (error) {
+      console.error('Error building document URL for download:', error);
+      toast.error('Failed to download document');
+    }
+  }, [opportunityId]);
 
   const persistParentDocumentUpdate = useCallback(async (docId: string, newParentId: string | null) => {
     try {
