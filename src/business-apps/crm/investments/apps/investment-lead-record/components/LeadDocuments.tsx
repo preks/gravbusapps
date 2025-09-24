@@ -714,8 +714,20 @@ export const LeadDocuments: React.FC<LeadDocumentsProps> = ({
     return (
       <div ref={setNodeRef} className={`gba:relative ${combinedClass}`} data-over={isOver}>
         {showDropIndicator && (isFolder || id.includes('root')) && (
-          <div className="gba:absolute gba:left-0 gba:right-0 gba:top-1/2 gba:-translate-y-1/2 gba:flex gba:items-center gba:justify-center gba:bg-blue-50 gba:bg-opacity-90 gba:rounded gba:border-2 gba:border-dashed gba:border-blue-400 gba:pointer-events-none gba:z-10 gba:py-2 gba:mx-4">
-            <span className="gba:text-blue-600 gba:font-medium gba:text-sm">
+          <div 
+            className="gba:absolute gba:left-0 gba:right-0 gba:top-1/2 gba:-translate-y-1/2 gba:flex gba:items-center gba:justify-center gba:rounded gba:border-2 gba:border-dashed gba:pointer-events-none gba:z-10"
+            style={{
+              backgroundColor: 'var(--nw-color-surface-primary)',
+              opacity: '0.9',
+              borderColor: 'var(--nw-color-primary-500)',
+              padding: 'var(--nw-spacing-sm) 0',
+              margin: '0 var(--nw-spacing-md)'
+            }}
+          >
+            <span 
+              className="gba:font-medium gba:text-sm"
+              style={{ color: 'var(--nw-color-primary-600)' }}
+            >
               {id.includes('root') ? 'Drop to move to root level' : 'Drop into folder'}
             </span>
           </div>

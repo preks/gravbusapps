@@ -66,24 +66,16 @@ const InvestmentTaskForm: React.FC<InvestmentTaskFormProps> = ({ accessToken, us
   // Load existing task when taskId is provided via additionalData
   React.useEffect(() => {
     const taskId = platformParams.taskId as string | undefined;
-    console.log('🔍 Investment Task Form loading effect:', {
-      taskId,
-      additionalData,
-      platformParams
-    });
     
     if (!taskId) {
-      console.log('⚠️ No taskId found for loading existing task');
       return;
     }
     
     (async () => {
       try {
-        console.log('🚀 Fetching investment task by ID:', taskId);
         const task = await fetchInvestmentTaskById(taskId);
         
         if (!task) {
-          console.warn('⚠️ No task data returned for ID:', taskId);
           return;
         }
         
@@ -237,14 +229,7 @@ const InvestmentTaskForm: React.FC<InvestmentTaskFormProps> = ({ accessToken, us
     // Only pass id/version when updating
     const mapped: InvestmentTaskFormData = formData.id ? { ...base, id: formData.id, version: formData.version } : base;
 
-    console.log('🔍 Building investment task payload:', {
-      mapped,
-      isUpdate: Boolean(formData.id)
-    });
-
     const payload = buildInvestmentTaskPayload(mapped, { accessToken, userInfo, additionalData }, { isUpdate: Boolean(formData.id) });
-    
-    console.log('🔍 Built investment task payload:', payload);
     
     return payload;
     } catch (error) {
@@ -254,24 +239,15 @@ const InvestmentTaskForm: React.FC<InvestmentTaskFormProps> = ({ accessToken, us
   }, [accessToken, userInfo, additionalData, formData, employees, form]);
 
   const handleSuccess = useCallback(() => {
-    console.log('✅ Investment Task Form handleSuccess called:', formData);
     onSuccess?.(formData);
   }, [formData, onSuccess]);
 
   const handleFormSubmit = useCallback(async (data: any) => {
-    console.log('🚀 AppActionForm onSubmit triggered with data:', data);
-    console.log('🔍 Current form state:', {
-      formData,
-      hasFormId: Boolean(formData.id),
-      processType: formData.id ? 'update' : 'create'
-    });
-    
     try {
       const result = await handleSubmit(data);
-      console.log('✅ handleSubmit completed with result:', result);
       return result;
     } catch (error) {
-      console.error('❌ handleSubmit failed:', error);
+      console.error('handleSubmit failed:', error);
       throw error;
     }
   }, [handleSubmit, formData]);
