@@ -82,8 +82,9 @@ interface RequestTimelineProps {
 const CommentCountIndicator: React.FC<{
   flowId: string;
   contextProps: BusinessAppContextProps;
-}> = ({ flowId, contextProps }) => {
-  const { comments, totalComments, isLoading, error } = useFlowComments(flowId, contextProps);
+  workflowEngine: WorkflowEngine;
+}> = ({ flowId, contextProps, workflowEngine }) => {
+  const { comments, totalComments, isLoading, error } = useFlowComments(flowId, contextProps, workflowEngine);
 
 
   // Get the latest comment for tooltip
@@ -192,7 +193,7 @@ const RequestTimeline: React.FC<RequestTimelineProps> = ({ request: initialReque
     isLoading: isLoadingComments,
     postComment: postFlowComment,
     refreshComments: refreshFlowComments
-  } = useFlowComments(request.id, contextProps);
+  } = useFlowComments(request.id, contextProps, contextProps.workflowEngine);
 
   // Create comment context for the request
   const commentContext = {
@@ -1156,7 +1157,8 @@ export const MyRequests: React.FC<MyRequestsProps> = ({
               {/* Show comment count using flow ID */}
               <CommentCountIndicator 
                 flowId={record.id} 
-                contextProps={contextProps} 
+                contextProps={contextProps}
+                workflowEngine={workflowEngine}
               />
             </div>
           </div>

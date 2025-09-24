@@ -58,6 +58,16 @@ export type Comment = {
   action?: string; // Action that triggered this comment (COMMENT, COMPLETE, REJECT, etc.)
 };
 
+export type FlowComment = {
+  stepIndex: number;
+  stepTitle: string;
+  commentedBy: string;
+  commentedAt: string;
+  comment: string;
+  visibility: string;
+  action: string;
+};
+
 export type StepInstance = {
   id: string;
   defId: string;
@@ -159,8 +169,12 @@ export interface WorkflowEngine {
   claim(stepId: string): Promise<void>;
   assign(stepId: string, userId: string): Promise<void>;
   advance(stepId: string, payload?: any): Promise<void>;
-  comment(stepId: string, body: string): Promise<Comment>;
+  comment(stepId: string, userId: string, body: string, visibility?: string): Promise<Comment>;
   getTaskStepComments(taskId: string): Promise<{ comments: any[]; totalComments: number }>; // ✅ NEW: Get comments for task step
+  
+  // ✅ NEW: Flow-level comment methods
+  getFlowComments(flowId: string): Promise<FlowComment[]>;
+  postFlowComment?(flowId: string, userId: string, comment: string, visibility?: string, stepIndex?: number): Promise<Comment>;
   
   // ✅ NEW: Two-step template execution (execute template + complete first task with form data)
   executeTemplate?(templateId: string, formData: any): Promise<string>;

@@ -1,18 +1,19 @@
 import { useState, useEffect, useCallback } from 'react';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
+import type { WorkflowEngine, FlowComment } from '../../types';
 import { 
-  FlowComment,
   FlowCommentsResponse,
   ServicePortalComment,
   ServicePortalCommentVisibility
 } from '../types/comments';
 
 /**
- * Hook for fetching comments from /api/flows/{flowId}/comments endpoint
+ * Hook for fetching comments using WorkflowEngine adapter
  */
 export const useFlowComments = (
   flowId: string,
-  contextProps: BusinessAppContextProps
+  contextProps: BusinessAppContextProps,
+  workflowEngine: WorkflowEngine
 ) => {
   const [comments, setComments] = useState<ServicePortalComment[]>([]);
   const [totalComments, setTotalComments] = useState(0);
@@ -39,37 +40,25 @@ export const useFlowComments = (
   };
 
   /**
-   * Fetch comments for the flow
+   * Fetch comments for the flow using WorkflowEngine adapter
    */
   const fetchComments = useCallback(async (requesterId?: string): Promise<void> => {
-    if (!flowId) return;
+    if (!flowId || !workflowEngine) return;
 
     setIsLoading(true);
     setError(null);
 
     try {
-      
-      const response = await fetch(`http://localhost:3000/api/flows/${flowId}/comments`, {
-        method: 'GET',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${contextProps.accessToken}`
-        }
-      });
-
-      if (!response.ok) {
-        throw new Error(`Failed to fetch comments: ${response.statusText}`);
-      }
-
-      const data: FlowCommentsResponse = await response.json();
+      // Use WorkflowEngine adapter to get flow comments
+      const flowComments = await workflowEngine.getFlowComments(flowId);
       
       // Convert flow comments to service portal format
-      const convertedComments = data.comments.map(comment => 
+      const convertedComments = flowComments.map((comment: FlowComment) => 
         convertFlowComment(comment, requesterId)
       );
 
       setComments(convertedComments);
-      setTotalComments(data.totalComments);
+      setTotalComments(flowComments.length);
       
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Failed to fetch comments';
@@ -80,36 +69,29 @@ export const useFlowComments = (
     } finally {
       setIsLoading(false);
     }
-  }, [flowId, contextProps.accessToken]);
+  }, [flowId, workflowEngine]);
 
   /**
-   * Post a new comment to the flow
+   * Post a new comment to the flow using WorkflowEngine adapter
    */
   const postComment = useCallback(async (
     comment: string, 
     visibility: ServicePortalCommentVisibility,
     stepIndex?: number
   ): Promise<void> => {
+    if (!workflowEngine) {
+      throw new Error('WorkflowEngine not available');
+    }
 
     try {
-      const response = await fetch(`http://localhost:3000/api/flows/${flowId}/comments`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${contextProps.accessToken}`
-        },
-        body: JSON.stringify({
-          comment,
-          visibility,
-          stepIndex,
-          userId: contextProps.userInfo?.id || 'anonymous'
-        })
-      });
-
-      if (!response.ok) {
-        throw new Error(`Failed to post comment: ${response.statusText}`);
+      // Use WorkflowEngine adapter to post flow comment
+      // Check if the adapter has a postFlowComment method, otherwise fall back to comment method
+      if ('postFlowComment' in workflowEngine && typeof workflowEngine.postFlowComment === 'function') {
+        await (workflowEngine as any).postFlowComment(flowId, contextProps.userInfo?.id || 'anonymous', comment, visibility, stepIndex);
+      } else {
+        // Fallback to generic comment method (treating flowId as stepId)
+        await workflowEngine.comment(flowId, contextProps.userInfo?.id || 'anonymous', comment, visibility);
       }
-
       
       // Refresh comments to show the new one
       await fetchComments();
@@ -119,7 +101,7 @@ export const useFlowComments = (
       console.error('[useFlowComments] Error posting comment:', err);
       throw new Error(errorMessage);
     }
-  }, [flowId, contextProps.accessToken, contextProps.userInfo?.id, fetchComments]);
+  }, [flowId, workflowEngine, contextProps.userInfo?.id, fetchComments]);
 
   /**
    * Refresh comments (alias for fetchComments)
@@ -130,10 +112,10 @@ export const useFlowComments = (
 
   // Auto-fetch comments when hook is initialized
   useEffect(() => {
-    if (flowId) {
+    if (flowId && workflowEngine) {
       fetchComments();
     }
-  }, [flowId, fetchComments]);
+  }, [flowId, workflowEngine, fetchComments]);
 
   return {
     comments,

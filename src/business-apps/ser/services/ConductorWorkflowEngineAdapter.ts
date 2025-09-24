@@ -1779,6 +1779,41 @@ export class ConductorWorkflowEngineAdapter implements WorkflowEngine {
   }
 
   /**
+   * Post a comment to a flow (flow-level comment)
+   */
+  async postFlowComment(flowId: string, userId: string, comment: string, visibility?: string, stepIndex?: number): Promise<Comment> {
+    try {
+      console.log(`[ConductorAdapter] Adding flow comment to: ${flowId} by user: ${userId} with visibility: ${visibility || 'EXTERNAL'}`);
+
+      const result = await this.makeRequest(`/flows/${flowId}/comments`, {
+        method: 'POST',
+        body: JSON.stringify({
+          comment,
+          visibility: visibility || 'EXTERNAL',
+          stepIndex,
+          userId
+        }),
+      });
+      
+      console.log(`[ConductorAdapter] ✅ Flow comment added to ${flowId} with visibility ${visibility || 'EXTERNAL'}`);
+      
+      return {
+        id: result.commentId || Date.now().toString(),
+        stepId: flowId, // Use flowId as stepId for flow-level comments
+        authorId: userId,
+        createdAt: new Date().toISOString(),
+        body: comment,
+        visibility: visibility || 'EXTERNAL',
+        action: 'COMMENT'
+      };
+
+    } catch (error) {
+      console.error('[ConductorAdapter] Error adding flow comment:', error);
+      throw new Error(`Failed to add flow comment: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
+  }
+
+  /**
    * Get a specific task with enhanced details
    */
   async getTask(stepId: string, userId?: string): Promise<StepInstance> {
