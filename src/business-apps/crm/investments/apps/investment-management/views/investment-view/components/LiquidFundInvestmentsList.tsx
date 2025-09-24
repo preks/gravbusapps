@@ -22,7 +22,7 @@ import { DataContainer } from "@/components/layout/dataContainer/DataContainer";
 import { AppAction } from "@/components/app-action/AppAction";
 import { AppActionButton } from "@/components/app-action-button/AppActionButton";
 import { FlowContextName } from "@/common/types/FlowRegistryTypes";
-import { Building2, Calendar, User, ChevronUp, ChevronDown } from "lucide-react";
+import { Building2, Calendar, ChevronUp, ChevronDown } from "lucide-react";
 import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils';
 import { ColumnConfig } from "@/components/dataController";
 import { useInvestmentListController } from "../hooks/useInvestmentListController";
@@ -394,6 +394,12 @@ const LiquidFundInvestmentsList: React.FC<LiquidFundInvestmentsListProps> = (con
         actions: (
           <AppAction
             contextsArray={[FlowContextName.createInvestment]}
+            externalContextData={{ 
+              investmentGroup: 'LIQUID_FUND',
+              investmentGroupRef: 'InvestmentGroup:v1:LIQUID_FUND',
+              fromView: 'investments',
+              fromSubView: 'liquid-funds'
+            }}
             accessToken={accessToken}
             data-testid="liquid-fund-investments-add-action"
             emptyStateBehavior="hide"
