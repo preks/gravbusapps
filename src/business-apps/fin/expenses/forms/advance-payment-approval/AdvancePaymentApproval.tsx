@@ -54,6 +54,8 @@ const AdvancePaymentApproval: React.FC<
       fetchPaymentData();
     }
   }, [extractedPaymentId]);
+
+  const fetchPaymentData = async () => {
     if (!extractedPaymentId) {
       return;
     }

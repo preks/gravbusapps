@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
-import { env } from '@/common/env/EnvUtils';
 import { GET_USED_PLAN_CURRENCIES_BY_EMPLOYEE } from '../queries/expensePlans';
 import { DEFAULT_CURRENCY_REF } from '../utils/currencyUtils';
 import { fetchEmployeeCurrencyStats } from '../utils/currencyDataService';
