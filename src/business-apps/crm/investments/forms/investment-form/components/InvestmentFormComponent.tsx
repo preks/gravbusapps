@@ -185,6 +185,7 @@ export const InvestmentFormComponent: React.FC = () => {
   const preSelectedGroup = getInvestmentGroupFromContext(businessAppContext.additionalData);
   const isUpdate = Boolean(externalInvestmentId);
 
+
   // Liquid fund flow states
   const isLiquidFund = formValues.group === 'LIQUID_FUND';
   const hasInvestmentType = Boolean(formValues.investmentTypeRef);
@@ -467,7 +468,10 @@ export const InvestmentFormComponent: React.FC = () => {
   if (currentStep === 'select') {
     return (
       <div data-testid={`${prefixDataTestId}-group-selection`}>
-        <GroupSelectSegment onGroupSelect={handleGroupSelect} />
+        <GroupSelectSegment 
+          onGroupSelect={handleGroupSelect} 
+          businessAppContext={businessAppContext}
+        />
       </div>
     );
   }

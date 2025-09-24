@@ -1,5 +1,5 @@
-import React from 'react';
-import { Card } from '@newwork/nw-design-system';
+import React, { useEffect, useState } from 'react';
+import { Card, Spinner } from '@newwork/nw-design-system';
 import { formatDataTestId } from '@/common/utils/formatDataTestId';
 import { useInvestmentFormContext } from '../../context/InvestmentFormContext';
 import { getCatalogValue } from '@/common/utils/windowUtils';
@@ -9,16 +9,192 @@ const prefixDataTestId = 'InvestmentForm-GroupSelectSegment';
 export interface GroupSelectSegmentProps {
   onGroupSelect: (group: string) => void;
   isLoading?: boolean;
+  businessAppContext?: any; // Add context to access additionalData
 }
 
 const GroupSelectSegment: React.FC<GroupSelectSegmentProps> = ({
   onGroupSelect,
+  businessAppContext,
 }) => {
   const {
     investmentCatalogData,
     investmentCatalogLoading,
     investmentCatalogError,
   } = useInvestmentFormContext();
+
+  // Immediately check if we should auto-detect (before first render)
+  const shouldAutoDetect = (() => {
+    try {
+      // Check URL parameters first
+      const urlParams = new URLSearchParams(window.location.search);
+      const fromSubView = urlParams.get('fromSubView');
+      
+      // Check businessAppContext.additionalData as fallback
+      const additionalData = businessAppContext?.additionalData;
+      const contextFromSubView = additionalData?.fromSubView || additionalData?.subView;
+      const investmentGroup = additionalData?.investmentGroup;
+      
+      // Map investmentGroup to subView
+      let mappedSubView = contextFromSubView;
+      if (investmentGroup && !contextFromSubView) {
+        switch (investmentGroup.toUpperCase()) {
+          case 'LIQUID_FUND':
+          case 'LIQUID-FUND':
+            mappedSubView = 'liquid-funds';
+            break;
+          case 'REAL_ESTATE':
+          case 'REAL-ESTATE':
+            mappedSubView = 'real-estate';
+            break;
+          case 'EQUITY':
+            mappedSubView = 'equity';
+            break;
+        }
+      }
+      
+      const detectedSubView = fromSubView || mappedSubView;
+      return detectedSubView && detectedSubView !== 'overview' && detectedSubView !== 'all';
+    } catch {
+      return false;
+    }
+  })();
+
+  // Track context detection state  
+  const [isDetectingContext, setIsDetectingContext] = useState(shouldAutoDetect);
+  const [contextDetectionComplete, setContextDetectionComplete] = useState(!shouldAutoDetect);
+
+  // Auto-detect investment group from URL context
+  useEffect(() => {
+    // Check if we're in a specific investment context based on URL or referrer
+    const detectInvestmentGroupFromContext = () => {
+      try {
+        // Check URL parameters
+        const urlParams = new URLSearchParams(window.location.search);
+        const fromView = urlParams.get('fromView');
+        const fromSubView = urlParams.get('fromSubView');
+        
+        // Check businessAppContext.additionalData as primary source
+        // The data might be nested in different structures, so check multiple paths
+        const additionalData = businessAppContext?.additionalData;
+        
+        const contextFromView = additionalData?.fromView || additionalData?.view;
+        const contextFromSubView = additionalData?.fromSubView || additionalData?.subView;
+        const investmentGroup = additionalData?.investmentGroup;
+        let mappedFromSubView = contextFromSubView;
+        
+        if (investmentGroup && !contextFromSubView) {
+          switch (investmentGroup.toUpperCase()) {
+            case 'LIQUID_FUND':
+            case 'LIQUID-FUND':
+              mappedFromSubView = 'liquid-funds';
+              break;
+            case 'REAL_ESTATE':
+            case 'REAL-ESTATE':
+              mappedFromSubView = 'real-estate';
+              break;
+            case 'EQUITY':
+              mappedFromSubView = 'equity';
+              break;
+          }
+        }
+        
+        // Use context data if available, fallback to URL params
+        const detectedFromView = contextFromView || fromView;
+        const detectedFromSubView = mappedFromSubView || fromSubView;
+        
+        // Check referrer URL for context
+        const referrer = document.referrer;
+        
+
+        
+        // Special case: If we're in overview or no specific context, show manual selection
+        if (detectedFromSubView === 'overview' || detectedFromSubView === null || detectedFromSubView === 'all') {
+          setIsDetectingContext(false);
+          setContextDetectionComplete(true);
+          return false;
+        }
+        
+        // Auto-select based on subView context
+        if (detectedFromSubView === 'liquid-funds') {
+          setIsDetectingContext(false);
+          setContextDetectionComplete(true);
+          onGroupSelect('InvestmentGroup:v1:LIQUID_FUND');
+          return true;
+        }
+        
+        if (detectedFromSubView === 'real-estate') {
+          setIsDetectingContext(false);
+          setContextDetectionComplete(true);
+          onGroupSelect('InvestmentGroup:v1:REAL_ESTATE');
+          return true;
+        }
+        
+        if (detectedFromSubView === 'equity') {
+          setIsDetectingContext(false);
+          setContextDetectionComplete(true);
+          onGroupSelect('InvestmentGroup:v1:EQUITY');
+          return true;
+        }
+        
+        // Check referrer URL for investment type indicators
+        if (referrer.includes('liquid-funds') || referrer.includes('liquid-fund')) {
+          setIsDetectingContext(false);
+          setContextDetectionComplete(true);
+          onGroupSelect('InvestmentGroup:v1:LIQUID_FUND');
+          return true;
+        }
+        
+        if (referrer.includes('real-estate')) {
+          setIsDetectingContext(false);
+          setContextDetectionComplete(true);
+          onGroupSelect('InvestmentGroup:v1:REAL_ESTATE');
+          return true;
+        }
+        
+        if (referrer.includes('equity')) {
+          setIsDetectingContext(false);
+          setContextDetectionComplete(true);
+          onGroupSelect('InvestmentGroup:v1:EQUITY');
+          return true;
+        }
+        
+        // Check current URL for context
+        const currentUrl = window.location.href;
+        if (currentUrl.includes('liquid-fund')) {
+          setIsDetectingContext(false);
+          setContextDetectionComplete(true);
+          onGroupSelect('InvestmentGroup:v1:LIQUID_FUND');
+          return true;
+        }
+        
+        if (currentUrl.includes('real-estate')) {
+          setIsDetectingContext(false);
+          setContextDetectionComplete(true);
+          onGroupSelect('InvestmentGroup:v1:REAL_ESTATE');
+          return true;
+        }
+        
+        if (currentUrl.includes('equity')) {
+          setIsDetectingContext(false);
+          setContextDetectionComplete(true);
+          onGroupSelect('InvestmentGroup:v1:EQUITY');
+          return true;
+        }
+        
+        setIsDetectingContext(false);
+        setContextDetectionComplete(true);
+        return false;
+      } catch (error) {
+        console.error('Error detecting investment context:', error);
+        setIsDetectingContext(false);
+        setContextDetectionComplete(true);
+        return false;
+      }
+    };
+    
+    // Run detection immediately, no delay
+    detectInvestmentGroupFromContext();
+  }, [onGroupSelect, businessAppContext]);
 
   // Transform catalog data into display format
   const investmentGroups = investmentCatalogData?.investmentGroups?.map(group => {
@@ -39,34 +215,64 @@ const GroupSelectSegment: React.FC<GroupSelectSegmentProps> = ({
       data-testid={formatDataTestId(prefixDataTestId, 'Container')}
       style={{ padding: 'var(--nw-spacing-lg)' }}
     >
-      <div style={{ textAlign: 'center', marginBottom: 'var(--nw-spacing-xl)' }}>
-        <h2 style={{ 
-          margin: 0, 
-          marginBottom: 'var(--nw-spacing-sm)',
-          color: 'var(--nw-color-text-primary)', 
-          fontSize: '1.5rem', 
-          fontWeight: 600 
-        }}>
-          Select Investment Group
-        </h2>
-        <p style={{ 
-          margin: 0, 
-          color: 'var(--nw-color-text-secondary)', 
-          fontSize: '1rem' 
-        }}>
-          Choose the investment group you want to create
-        </p>
-      </div>
+      {/* Only show title when we're not detecting context or when showing manual selection */}
+      {(!isDetectingContext && contextDetectionComplete) && (
+        <div style={{ textAlign: 'center', marginBottom: 'var(--nw-spacing-xl)' }}>
+          <h2 style={{ 
+            margin: 0, 
+            marginBottom: 'var(--nw-spacing-sm)',
+            color: 'var(--nw-color-text-primary)', 
+            fontSize: '1.5rem', 
+            fontWeight: 600 
+          }}>
+            Select Investment Group
+          </h2>
+          <p style={{ 
+            margin: 0, 
+            color: 'var(--nw-color-text-secondary)', 
+            fontSize: '1rem' 
+          }}>
+            Choose the investment group you want to create
+          </p>
+        </div>
+      )}
 
-      {/* Loading State */}
-      {investmentCatalogLoading && (
-        <div style={{ textAlign: 'center', padding: 'var(--nw-spacing-xl)' }}>
-          Loading investment groups...
+      {/* Context Detection Loading State */}
+      {isDetectingContext && (
+        <div style={{ 
+          textAlign: 'center', 
+          padding: 'var(--nw-spacing-xl)',
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          gap: 'var(--nw-spacing-md)'
+        }}>
+          <Spinner size="lg" />
+          <p style={{ margin: 0, color: 'var(--nw-color-text-secondary)' }}>
+            Detecting investment context...
+          </p>
+        </div>
+      )}
+
+      {/* Catalog Loading State */}
+      {!isDetectingContext && investmentCatalogLoading && (
+        <div style={{ 
+          textAlign: 'center', 
+          padding: 'var(--nw-spacing-xl)',
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          gap: 'var(--nw-spacing-md)'
+        }}>
+          <Spinner size="lg" />
+          <p style={{ margin: 0, color: 'var(--nw-color-text-secondary)' }}>
+            Loading investment groups...
+          </p>
         </div>
       )}
 
       {/* Error State */}
-      {investmentCatalogError && (
+      {!isDetectingContext && investmentCatalogError && (
         <div style={{ 
           textAlign: 'center', 
           padding: 'var(--nw-spacing-xl)',
@@ -77,7 +283,7 @@ const GroupSelectSegment: React.FC<GroupSelectSegmentProps> = ({
         </div>
       )}
 
-      {!investmentCatalogLoading && !investmentCatalogError && (
+      {!isDetectingContext && !investmentCatalogLoading && !investmentCatalogError && contextDetectionComplete && (
         <div style={{ 
           display: 'grid',
           gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))',
