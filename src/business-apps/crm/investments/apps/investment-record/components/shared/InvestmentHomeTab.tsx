@@ -83,7 +83,7 @@ export const InvestmentHomeTab: React.FC<InvestmentHomeTabProps> = ({
     }
   }, [investmentId, fetchInvestmentNotesByInvestmentId]);
 
-  const loadApprovals = async () => {
+  const loadApprovals = useCallback(async () => {
     if (!investmentId) return;
     
     try {
@@ -97,14 +97,33 @@ export const InvestmentHomeTab: React.FC<InvestmentHomeTabProps> = ({
     } catch (err) {
       // Failed to load approvals
     }
-  };
+  }, [investmentId, fetchInvestmentTasksByInvestmentId]);
 
   useEffect(() => {
     loadTasks();
     loadActivities();
     loadNotes();
     loadApprovals();
-  }, [investmentId, loadTasks, loadActivities, loadNotes]);
+  }, [loadTasks, loadActivities, loadNotes, loadApprovals]);
+
+  // Listen for process events
+  useEffect(() => {
+    const eventTypes = [
+      'com.newwork.process.continue',
+      'com.newwork.process.processCompletion',
+      'processCompletion',
+    ];
+    
+    eventTypes.forEach(eventType => {
+      window.addEventListener(eventType, handleProcessEvent);
+    });
+    
+    return () => {
+      eventTypes.forEach(eventType => {
+        window.removeEventListener(eventType, handleProcessEvent);
+      });
+    };
+  }, [handleProcessEvent]);
 
   return (
     <div data-testid="investment-home-tab">

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
-import { Card, CardHeader, CardTitle, CardContent, Spinner, Alert, Badge, Button, Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, Input } from '@newwork/nw-design-system';
+import { Card, CardHeader, CardTitle, CardContent, Spinner, Alert, Badge, Button } from '@newwork/nw-design-system';
 import { 
   FileTextOutlined,
   FilePdfOutlined,
@@ -20,6 +20,7 @@ import {
   EditOutlined,
   DeleteOutlined
 } from '@ant-design/icons';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, Input } from '@newwork/nw-design-system';
 import { toast } from 'sonner';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient';
@@ -36,6 +37,54 @@ import { env } from '@/common/env/EnvUtils';
 
 // Use the actual investment document type
 type Document = InvestmentDocument;
+
+/**
+ * Helper function to determine if a document is a folder based on multiple detection criteria
+ * @param doc - The document to analyze
+ * @param enableLogging - Whether to log the analysis details (default: false)
+ * @returns boolean - true if the document is determined to be a folder
+ */
+const isDocumentFolder = (doc: Document, enableLogging: boolean = false): boolean => {
+  // Multiple ways to detect a folder:
+  // 1. folder field is true (when backend works correctly)
+  // 2. has no file characteristics but has a name (common folder pattern)
+  // 3. documentType indicates it's a folder
+  // 4. has no documentType AND no file content (created as folder but backend bug)
+  const isFolderByField = doc.folder === true;
+  const isFolderByContent = !doc.mimeType && !doc.file && !!doc.name && !doc.documentType;
+  const isFolderByType = doc.documentType?.value?.toLowerCase().includes('folder') || 
+                       doc.documentGroup?.value?.toLowerCase().includes('folder');
+  
+  // Backend bug workaround: if it has no file data, no document type, but has a name, it's likely a folder
+  const isFolderByPattern = !doc.mimeType && !doc.file && !doc.fileSize && 
+                           !doc.documentType && !!doc.name && doc.name.trim() !== '';
+  
+  const isFolder = isFolderByField || isFolderByContent || isFolderByType || isFolderByPattern;
+  const looksLikeFile = !!doc.mimeType || !!doc.file || !!doc.fileSize;
+  
+  // A folder should not have file characteristics
+  const result = isFolder && !looksLikeFile;
+  
+  if (enableLogging) {
+    console.log(`Document "${doc.name}" analysis:`, {
+      folder: doc.folder,
+      mimeType: doc.mimeType,
+      file: doc.file,
+      fileSize: doc.fileSize,
+      documentType: doc.documentType?.value,
+      documentGroup: doc.documentGroup?.value,
+      isFolderByField,
+      isFolderByContent,
+      isFolderByType,
+      isFolderByPattern,
+      isFolder,
+      looksLikeFile,
+      result
+    });
+  }
+  
+  return result;
+};
 
 interface DocumentFolder {
   name: string;
@@ -340,13 +389,27 @@ export const LeadDocuments: React.FC<LeadDocumentsProps> = ({
   };
 
   useEffect(() => {
-    fetchDocuments();
+    const loadDocuments = async () => {
+      try {
+        await fetchDocuments();
+      } catch (error) {
+        console.error('Error loading documents in useEffect:', error);
+        toast.error('Failed to load documents. Please refresh the page.');
+      }
+    };
+    loadDocuments();
   }, [leadId, context.accessToken]);
 
   // Listen for process completion to refetch documents after upload
   useProcessCompletion({
-    onSuccess: () => {
-      fetchDocuments();
+    onSuccess: async () => {
+      console.log('Process completed, refreshing lead documents');
+      try {
+        await fetchDocuments();
+      } catch (error) {
+        console.error('Error refreshing documents after process completion:', error);
+        toast.error('Failed to refresh documents after upload.');
+      }
     },
     onFailure: () => {
       // Document upload process failed
@@ -620,7 +683,7 @@ export const LeadDocuments: React.FC<LeadDocumentsProps> = ({
     return false;
   };
 
-  const handleDeleteFolder = (node: DocumentFolder) => {
+  const handleDeleteFolder = async (node: DocumentFolder) => {
     if (!node.folderId || node.folderVersion == null) return;
     if (hasDescendantFiles(node.folderId)) {
       toast.warning('Cannot delete a folder that contains files. Move or delete files first.');
@@ -735,7 +798,7 @@ export const LeadDocuments: React.FC<LeadDocumentsProps> = ({
     }
   };
 
-  const handleDragEnd = (event: DragEndEvent) => {
+  const handleDragEnd = async (event: DragEndEvent) => {
     setActiveDragItem(null);
     const active = event.active?.data?.current as any;
     const over = event.over?.data?.current as any;
@@ -763,6 +826,10 @@ export const LeadDocuments: React.FC<LeadDocumentsProps> = ({
         return;
       }
       
+      // Get item name for feedback
+      const itemName = documents.find(d => d.id === active.id)?.name || 'Item';
+      const targetName = targetFolderId ? (documents.find(d => d.id === targetFolderId)?.name || 'folder') : 'root';
+      
       // Update local state immediately for responsive UI
       updateParentDocumentLocal(active.id, targetFolderId);
       if (typeof targetFolderId === 'string') {
@@ -776,7 +843,12 @@ export const LeadDocuments: React.FC<LeadDocumentsProps> = ({
       }
       
       // Persist to backend
-      void persistParentDocumentUpdate(active.id, active.version, targetFolderId, previousParentId);
+      try {
+        await persistParentDocumentUpdate(active.id, active.version, targetFolderId, previousParentId);
+      } catch (error) {
+        console.error('Error in handleDragEnd while moving document:', error);
+        toast.error('Failed to move the document. Please try again.');
+      }
     }
   };
 

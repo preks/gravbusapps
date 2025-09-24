@@ -9,6 +9,7 @@ import {
 // import type { InvestmentAccount } from "@/common/data/investment/types";
 import { BusinessAppContextProps } from "@/common/BusinessAppContext";
 import { useAccountStatisticsQueries } from "../queries/AccountStatisticsQueries";
+import { formatCurrencyLarge } from "@/business-apps/crm/common/utils/currencyUtils";
 
 interface AccountStatisticsProps extends BusinessAppContextProps {}
 
@@ -56,43 +57,6 @@ export const AccountStatistics: React.FC<AccountStatisticsProps> = ({ ...context
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Custom formatter that only abbreviates millions and billions, not thousands
-  const formatCurrency = (amount: number): string => {
-    if (amount === undefined || amount === null || !isFinite(amount)) return "-";
-    
-    const abs = Math.abs(amount);
-    const sign = amount < 0 ? '-' : '';
-    
-    if (abs >= 1_000_000_000) {
-      // Billions
-      const formatted = new Intl.NumberFormat('en-US', {
-        style: 'currency',
-        currency: currencyCode,
-        maximumFractionDigits: 1,
-        minimumFractionDigits: 0
-      }).format(abs / 1_000_000_000);
-      return `${sign}${formatted}B`;
-    }
-    
-    if (abs >= 1_000_000) {
-      // Millions
-      const formatted = new Intl.NumberFormat('en-US', {
-        style: 'currency',
-        currency: currencyCode,
-        maximumFractionDigits: 1,
-        minimumFractionDigits: 0
-      }).format(abs / 1_000_000);
-      return `${sign}${formatted}M`;
-    }
-    
-    // Thousands and below - show as normal currency
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: currencyCode,
-      maximumFractionDigits: 0,
-      minimumFractionDigits: 0
-    }).format(amount);
-  };
 
   // Helper function to format trend percentage with proper sign
   const formatTrendPercent = (changePercent: number): string => {
@@ -147,7 +111,7 @@ export const AccountStatistics: React.FC<AccountStatisticsProps> = ({ ...context
     {
       key: "total-revenue",
       title: "Total Revenue",
-      value: formatCurrency(totalRevenue),
+      value: formatCurrencyLarge(totalRevenue, currencyCode),
       prefix: <DollarOutlined />,
       color: "#eb2f96",
       valueIsString: true,

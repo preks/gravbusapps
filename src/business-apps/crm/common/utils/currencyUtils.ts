@@ -78,7 +78,7 @@ export const formatCurrencyLarge = (amount: number | undefined, currencyCode: st
   
   if (abs >= 1_000_000_000) {
     // Billions
-    const formatted = new Intl.NumberFormat('en-US', {
+    const formatted = new Intl.NumberFormat(getCurrentActiveUserLocale() || 'en-US', {
       style: 'currency',
       currency: currencyCode,
       maximumFractionDigits: 1,
@@ -89,7 +89,7 @@ export const formatCurrencyLarge = (amount: number | undefined, currencyCode: st
   
   if (abs >= 1_000_000) {
     // Millions
-    const formatted = new Intl.NumberFormat('en-US', {
+    const formatted = new Intl.NumberFormat(getCurrentActiveUserLocale() || 'en-US', {
       style: 'currency',
       currency: currencyCode,
       maximumFractionDigits: 1,
@@ -99,7 +99,7 @@ export const formatCurrencyLarge = (amount: number | undefined, currencyCode: st
   }
   
   // Thousands and below - show as normal currency
-  return new Intl.NumberFormat('en-US', {
+  return new Intl.NumberFormat(getCurrentActiveUserLocale() || 'en-US', {
     style: 'currency',
     currency: currencyCode,
     maximumFractionDigits: 0,
