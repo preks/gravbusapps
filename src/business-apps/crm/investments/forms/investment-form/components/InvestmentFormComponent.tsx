@@ -470,7 +470,7 @@ export const InvestmentFormComponent: React.FC = () => {
       <div data-testid={`${prefixDataTestId}-group-selection`}>
         <GroupSelectSegment 
           onGroupSelect={handleGroupSelect} 
-          businessAppContext={businessAppContext}
+          {...businessAppContext}
         />
       </div>
     );
