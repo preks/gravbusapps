@@ -5,9 +5,50 @@
 import { useCallback } from 'react';
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
-import type { 
-  BaseInvestmentReport
-} from '../types';
+// Types are now defined locally as shared interfaces
+
+// Shared interfaces for investment report structure
+interface InvestmentReportInvestment {
+  id: string;
+  name: string;
+}
+
+interface InvestmentReportTag {
+  id: string;
+  name: string;
+}
+
+interface InvestmentReportItem {
+  id: string;
+  title?: string;
+  date?: string;
+  fileUrl?: string;
+  fileName?: string;
+  mimeType?: string;
+  size?: number;
+  investment?: InvestmentReportInvestment;
+  tags?: Array<InvestmentReportTag>;
+  isDeleted: boolean;
+  createdAt: string;
+  updatedAt: string;
+  createdBy: string;
+  updatedBy: string;
+  version: number;
+}
+
+// GraphQL response interfaces
+interface InvestmentReportResponse {
+  InvestmentReport?: Array<InvestmentReportItem>;
+  InvestmentReportAggregate?: {
+    aggregate?: {
+      count?: number;
+    };
+  };
+}
+
+interface InvestmentReportByIdResponse {
+  InvestmentReport?: Array<InvestmentReportItem>;
+}
 
 // MIGRATION NOTE: This hook now uses the centralized investment-report queries
 import {
@@ -33,10 +74,10 @@ export const useGetInvestmentReports = (context: BusinessAppContextProps) => {
     const query = GET_INVESTMENT_REPORTS(variables);
     
     try {
-      const result = await graphqlClient.request<any>(query);
+      const result = await graphqlClient.request<InvestmentReportResponse>(query);
       
       // Map the results using the existing mapper
-      const reports = (result.InvestmentReport || []).map((report: any) => 
+      const reports = (result.InvestmentReport || []).map((report) => 
         toInvestmentReport(report)
       );
       
@@ -61,7 +102,7 @@ export const useGetInvestmentReportById = (context: BusinessAppContextProps) => 
     const query = GET_INVESTMENT_REPORT_BY_ID(id);
     
     try {
-      const result = await graphqlClient.request<any>(query);
+      const result = await graphqlClient.request<InvestmentReportByIdResponse>(query);
       const reportData = result?.InvestmentReport?.[0];
       
       if (!reportData) {

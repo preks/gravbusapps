@@ -538,6 +538,7 @@ const OpportunityTable: React.FC<OpportunityTableProps> = ({
                       {record.ownerEmployee ? (
                         <div
                           className="gba:flex gba:items-center gba:gap-3 gba:cursor-pointer hover:gba:bg-transparent focus:gba:bg-transparent gba:group"
+                          data-testid={`${DATA_TEST_ID_PREFIX}-owner-link-${record.id}`}
                           onClick={(e) => {
                             e.stopPropagation();
                             const empId = record.ownerEmployee?.id;

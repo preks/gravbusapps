@@ -1,9 +1,10 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 import { TaskSection, ActivitySection, NoteSection, ApprovalSection } from '@/common/components/common-relations/record-sections';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@newwork/nw-design-system';
 import { useGetInvestmentTasksByInvestmentId } from '../../hooks/useInvestmentTasksByInvestmentId';
 import { useGetInvestmentActivitiesByInvestmentId } from '../../hooks/useInvestmentActivitiesByInvestmentId';
+import { useGetInvestmentNotesByInvestmentId } from '../../hooks/useInvestmentNotesByInvestmentId';
 import { FlowContextName } from '@/common/types/FlowRegistryTypes';
 import { ChartLine, PencilSimple, CheckCircle } from '@phosphor-icons/react';
 
@@ -20,12 +21,14 @@ export const InvestmentHomeTab: React.FC<InvestmentHomeTabProps> = ({
   const [activities, setActivities] = useState<any[]>([]);
   const [activitiesLoading, setActivitiesLoading] = useState(false);
   const [activitiesError, setActivitiesError] = useState<string | null>(null);
+  const [notes, setNotes] = useState<any[]>([]);
   const [approvals, setApprovals] = useState<any[]>([]);
   
   const { fetchInvestmentTasksByInvestmentId } = useGetInvestmentTasksByInvestmentId(context);
   const { fetchInvestmentActivitiesByInvestmentId } = useGetInvestmentActivitiesByInvestmentId(context);
+  const { fetchInvestmentNotesByInvestmentId } = useGetInvestmentNotesByInvestmentId(context);
 
-  const loadTasks = async () => {
+  const loadTasks = useCallback(async () => {
     if (!investmentId) return;
     
     try {
@@ -39,9 +42,9 @@ export const InvestmentHomeTab: React.FC<InvestmentHomeTabProps> = ({
     } catch (err) {
       // Failed to load tasks
     }
-  };
+  }, [investmentId, fetchInvestmentTasksByInvestmentId]);
 
-  const loadActivities = async () => {
+  const loadActivities = useCallback(async () => {
     if (!investmentId) return;
     
     setActivitiesLoading(true);
@@ -55,9 +58,32 @@ export const InvestmentHomeTab: React.FC<InvestmentHomeTabProps> = ({
     } finally {
       setActivitiesLoading(false);
     }
-  };
+  }, [investmentId, fetchInvestmentActivitiesByInvestmentId]);
 
-  const loadApprovals = async () => {
+  const loadNotes = useCallback(async () => {
+    if (!investmentId) return;
+    
+    try {
+      const notesData = await fetchInvestmentNotesByInvestmentId(investmentId);
+      // Transform the data to match the expected format of NoteSection
+      const transformedNotes = notesData.map((note: any) => ({
+        id: note.id,
+        noteTitle: note.title,
+        noteText: note.text,
+        createdAt: note.createdAt,
+        createdBy: note.authorEmployee?.displayName || 
+                   `${note.authorEmployee?.firstName || ''} ${note.authorEmployee?.lastName || ''}`.trim() ||
+                   'Unknown',
+        assigneeEmployee: note.authorEmployee,
+        reminderAt: note.reminderDate
+      }));
+      setNotes(transformedNotes);
+    } catch (err) {
+      console.error('Failed to load notes:', err);
+    }
+  }, [investmentId, fetchInvestmentNotesByInvestmentId]);
+
+  const loadApprovals = useCallback(async () => {
     if (!investmentId) return;
     
     try {
@@ -71,13 +97,33 @@ export const InvestmentHomeTab: React.FC<InvestmentHomeTabProps> = ({
     } catch (err) {
       // Failed to load approvals
     }
-  };
+  }, [investmentId, fetchInvestmentTasksByInvestmentId]);
 
   useEffect(() => {
     loadTasks();
     loadActivities();
+    loadNotes();
     loadApprovals();
-  }, [investmentId]);
+  }, [loadTasks, loadActivities, loadNotes, loadApprovals]);
+
+  // Listen for process events
+  useEffect(() => {
+    const eventTypes = [
+      'com.newwork.process.continue',
+      'com.newwork.process.processCompletion',
+      'processCompletion',
+    ];
+    
+    eventTypes.forEach(eventType => {
+      window.addEventListener(eventType, handleProcessEvent);
+    });
+    
+    return () => {
+      eventTypes.forEach(eventType => {
+        window.removeEventListener(eventType, handleProcessEvent);
+      });
+    };
+  }, [handleProcessEvent]);
 
   return (
     <div data-testid="investment-home-tab">

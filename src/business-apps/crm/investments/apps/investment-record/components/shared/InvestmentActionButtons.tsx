@@ -23,6 +23,7 @@ interface InvestmentData {
   investmentType?: {
     code: string;
   };
+  type?: string;
 }
 
 interface CatalogData {
@@ -76,6 +77,27 @@ export interface GenerateOnePagerButtonProps extends BusinessAppContextProps {
    */
   size?: 'sm' | 'default' | 'lg';
 }
+
+/**
+ * Helper function to get the correct FlowContextName based on investment type
+ */
+const getInvestmentFlowContext = (type?: string): FlowContextName => {
+  switch (type?.toLowerCase()) {
+    case 'equity':
+      return FlowContextName.equityInvestmentEntity;
+    case 'private equity':
+    case 'privateequity':
+      return FlowContextName.privateEquityInvestmentEntity;
+    case 'liquid fund':
+    case 'liquidfund':
+      return FlowContextName.liquidFundInvestmentEntity;
+    case 'real estate':
+    case 'realestate':
+      return FlowContextName.realEstateInvestmentEntity;
+    default:
+      return FlowContextName.investmentReportGenerate; // Safe default for backward compatibility
+  }
+};
 
 /**
  * Helper function to check if investment has tiles defined in catalog objectValue
@@ -139,7 +161,7 @@ export const GenerateOnePagerButton: React.FC<GenerateOnePagerButtonProps> = ({
 
   return (
     <AppAction
-      contextsArray={[FlowContextName.investmentReportGenerate]}
+      contextsArray={[getInvestmentFlowContext(investment?.type)]}
       externalContextData={{ investmentId }}
       accessToken={accessToken}
       emptyStateBehavior="enable"
@@ -169,6 +191,11 @@ export interface UploadReportButtonProps extends BusinessAppContextProps {
   investmentId?: string;
   
   /**
+   * Investment data to determine entity-specific context
+   */
+  investment?: InvestmentData;
+  
+  /**
    * Button variant
    */
   variant?: 'default' | 'outline' | 'secondary';
@@ -185,6 +212,7 @@ export interface UploadReportButtonProps extends BusinessAppContextProps {
  */
 export const UploadReportButton: React.FC<UploadReportButtonProps> = ({
   investmentId,
+  investment,
   variant = 'outline',
   size = 'default',
   accessToken
@@ -195,7 +223,7 @@ export const UploadReportButton: React.FC<UploadReportButtonProps> = ({
 
   return (
     <AppAction
-      contextsArray={[FlowContextName.investmentReportUpload]}
+      contextsArray={[getInvestmentFlowContext(investment?.type)]}
       externalContextData={{ investmentId }}
       accessToken={accessToken}
       emptyStateBehavior="enable"

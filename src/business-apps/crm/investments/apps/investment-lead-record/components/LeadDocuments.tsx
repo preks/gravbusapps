@@ -20,7 +20,8 @@ import {
   EditOutlined,
   DeleteOutlined
 } from '@ant-design/icons';
-import { Modal, message, Input as AntdInput } from 'antd';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, Input } from '@newwork/nw-design-system';
+import { toast } from 'sonner';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient';
 import { DebouncedInput } from '@/components/data-filter/DebouncedInput';
@@ -36,6 +37,54 @@ import { env } from '@/common/env/EnvUtils';
 
 // Use the actual investment document type
 type Document = InvestmentDocument;
+
+/**
+ * Helper function to determine if a document is a folder based on multiple detection criteria
+ * @param doc - The document to analyze
+ * @param enableLogging - Whether to log the analysis details (default: false)
+ * @returns boolean - true if the document is determined to be a folder
+ */
+const isDocumentFolder = (doc: Document, enableLogging: boolean = false): boolean => {
+  // Multiple ways to detect a folder:
+  // 1. folder field is true (when backend works correctly)
+  // 2. has no file characteristics but has a name (common folder pattern)
+  // 3. documentType indicates it's a folder
+  // 4. has no documentType AND no file content (created as folder but backend bug)
+  const isFolderByField = doc.folder === true;
+  const isFolderByContent = !doc.mimeType && !doc.file && !!doc.name && !doc.documentType;
+  const isFolderByType = doc.documentType?.value?.toLowerCase().includes('folder') || 
+                       doc.documentGroup?.value?.toLowerCase().includes('folder');
+  
+  // Backend bug workaround: if it has no file data, no document type, but has a name, it's likely a folder
+  const isFolderByPattern = !doc.mimeType && !doc.file && !doc.fileSize && 
+                           !doc.documentType && !!doc.name && doc.name.trim() !== '';
+  
+  const isFolder = isFolderByField || isFolderByContent || isFolderByType || isFolderByPattern;
+  const looksLikeFile = !!doc.mimeType || !!doc.file || !!doc.fileSize;
+  
+  // A folder should not have file characteristics
+  const result = isFolder && !looksLikeFile;
+  
+  if (enableLogging) {
+    console.log(`Document "${doc.name}" analysis:`, {
+      folder: doc.folder,
+      mimeType: doc.mimeType,
+      file: doc.file,
+      fileSize: doc.fileSize,
+      documentType: doc.documentType?.value,
+      documentGroup: doc.documentGroup?.value,
+      isFolderByField,
+      isFolderByContent,
+      isFolderByType,
+      isFolderByPattern,
+      isFolder,
+      looksLikeFile,
+      result
+    });
+  }
+  
+  return result;
+};
 
 interface DocumentFolder {
   name: string;
@@ -91,6 +140,9 @@ export const LeadDocuments: React.FC<LeadDocumentsProps> = ({
   const [selectedFilters, setSelectedFilters] = useState<string[]>([]);
   const [renameModal, setRenameModal] = useState<{ open: boolean; node?: DocumentFolder; name: string }>({ open: false, name: '' });
   const [activeDragItem, setActiveDragItem] = useState<{ itemType: 'document' | 'folder'; name: string; mimeType?: string | null } | null>(null);
+  const [deletePopup, setDeletePopup] = useState<{ open: boolean; document?: Document }>({ open: false });
+  const [isDragging, setIsDragging] = useState(false);
+  const [deleteFolderDialog, setDeleteFolderDialog] = useState<{ open: boolean; folder?: DocumentFolder }>({ open: false });
   
   // Column configuration with default visibility
   const [columnConfig, setColumnConfig] = useState<ColumnConfig[]>([
@@ -115,13 +167,13 @@ export const LeadDocuments: React.FC<LeadDocumentsProps> = ({
     const newName = renameModal.name?.trim();
     const node = renameModal.node;
     if (!node || !newName) {
-      message.error('Please enter a folder name');
+      toast.error('Please enter a folder name');
       return;
     }
     if (node.folderId?.startsWith('mock-')) {
       setDocuments(prev => prev.map(d => d.id === node.folderId ? { ...d, name: newName } : d));
       setRenameModal({ open: false, name: '', node: undefined });
-      message.success('Folder renamed (mock)');
+      toast.success('Folder renamed (mock)');
       return;
     }
     try {
@@ -129,32 +181,18 @@ export const LeadDocuments: React.FC<LeadDocumentsProps> = ({
         changeMode: 'UPDATE',
         crmDocument: { id: node.folderId, version: node.folderVersion, name: newName, lead: leadId },
       }, { headers: { Authorization: `Bearer ${context.accessToken}` } });
-      message.success('Folder renamed');
+      toast.success('Folder renamed');
       setRenameModal({ open: false, name: '', node: undefined });
       await fetchDocuments();
     } catch (e: any) {
       console.error('Error renaming folder', e);
-      message.error(e?.message || 'Failed to rename folder');
+      toast.error(e?.message || 'Failed to rename folder');
     }
   };
 
-  const openEditDocument = (doc: Document) => {
-    startProcess({
-      domain: 'customer-relations',
-      processName: 'saveCrmDocument',
-      payload: {
-        leadId,
-        crmDocument: {
-          id: doc.id,
-          version: doc.version,
-          name: doc.name,
-          documentGroupRef: doc.documentGroup?.id,
-          documentTypeRef: doc.documentType?.id,
-          parentDocument: doc.parentDocument || undefined,
-        },
-      },
-      builderType: 'NATIVE_SCREEN',
-    });
+  const openEditDocument = (_doc: Document) => {
+    // TODO: Replace with AppActionButton flow registry approach
+    // Note: This will need to be converted to use AppActionButton with proper context
   };
 
   // Compute visible columns
@@ -351,17 +389,30 @@ export const LeadDocuments: React.FC<LeadDocumentsProps> = ({
   };
 
   useEffect(() => {
-    fetchDocuments();
+    const loadDocuments = async () => {
+      try {
+        await fetchDocuments();
+      } catch (error) {
+        console.error('Error loading documents in useEffect:', error);
+        toast.error('Failed to load documents. Please refresh the page.');
+      }
+    };
+    loadDocuments();
   }, [leadId, context.accessToken]);
 
   // Listen for process completion to refetch documents after upload
   useProcessCompletion({
-    onSuccess: () => {
+    onSuccess: async () => {
       console.log('Process completed, refreshing lead documents');
-      fetchDocuments();
+      try {
+        await fetchDocuments();
+      } catch (error) {
+        console.error('Error refreshing documents after process completion:', error);
+        toast.error('Failed to refresh documents after upload.');
+      }
     },
     onFailure: () => {
-      console.log('Document upload process failed');
+      // Document upload process failed
     }
   });
 
@@ -448,11 +499,29 @@ export const LeadDocuments: React.FC<LeadDocumentsProps> = ({
 
   const documentFolders: DocumentFolder[] = useMemo(() => {
     const allDocs = Array.isArray(documents) ? documents : [];
+    
     const allFolders = allDocs.filter(d => {
-      const fmt = (d.format || '').toUpperCase();
-      const looksLikeFile = fmt === 'FILE' || !!d.mimeType || !!d.file;
-      return !looksLikeFile;
+      // Multiple ways to detect a folder:
+      // 1. folder field is true (when backend works correctly)
+      // 2. has no file characteristics but has a name (common folder pattern)
+      // 3. documentType indicates it's a folder
+      // 4. has no documentType AND no file content (created as folder but backend bug)
+      const isFolderByField = d.folder === true;
+      const isFolderByContent = !d.mimeType && !d.file && !!d.name && !d.documentType;
+      const isFolderByType = d.documentType?.value?.toLowerCase().includes('folder') || 
+                           d.documentGroup?.value?.toLowerCase().includes('folder');
+      
+      // Backend bug workaround: if it has no file data, no document type, but has a name, it's likely a folder
+      const isFolderByPattern = !d.mimeType && !d.file && !d.fileSize && 
+                               !d.documentType && !!d.name && d.name.trim() !== '';
+      
+      const isFolder = isFolderByField || isFolderByContent || isFolderByType || isFolderByPattern;
+      const looksLikeFile = !!d.mimeType || !!d.file || !!d.fileSize;
+      
+      // A folder should not have file characteristics
+      return isFolder && !looksLikeFile;
     });
+    
     const docsForFilter = Array.isArray(filteredDocuments) ? filteredDocuments : [];
 
     const docsByFolder: Record<string, Document[]> = {};
@@ -562,7 +631,7 @@ export const LeadDocuments: React.FC<LeadDocumentsProps> = ({
   const handleDeleteDocument = (document: Document) => {
     if (document.id?.startsWith('mock-')) {
       setDocuments(prev => prev.filter(d => d.id !== document.id));
-      message.success('Document deleted (mock)');
+      toast.success('Document deleted (mock)');
       return;
     }
     Modal.confirm({
@@ -577,11 +646,11 @@ export const LeadDocuments: React.FC<LeadDocumentsProps> = ({
             changeMode: 'DELETE',
             crmDocument: { id: document.id, version: document.version, lead: leadId },
           }, { headers: { Authorization: `Bearer ${context.accessToken}` } });
-          message.success('Document deleted');
+          toast.success('Document deleted');
           await fetchDocuments();
         } catch (e: any) {
           console.error('Error deleting document', e);
-          message.error(e?.message || 'Failed to delete document');
+          toast.error(e?.message || 'Failed to delete document');
         }
       }
     });
@@ -614,36 +683,44 @@ export const LeadDocuments: React.FC<LeadDocumentsProps> = ({
     return false;
   };
 
-  const handleDeleteFolder = (node: DocumentFolder) => {
+  const handleDeleteFolder = async (node: DocumentFolder) => {
     if (!node.folderId || node.folderVersion == null) return;
     if (hasDescendantFiles(node.folderId)) {
-      message.warning('Cannot delete a folder that contains files. Move or delete files first.');
+      toast.warning('Cannot delete a folder that contains files. Move or delete files first.');
       return;
     }
     if (node.folderId.startsWith('mock-')) {
-      message.warning('Cannot delete a folder that contains files.');
+      toast.warning('Cannot delete a folder that contains files.');
       return;
     }
-    Modal.confirm({
-      title: 'Confirm Deletion',
-      content: `Are you sure you want to delete the folder "${node.name}"?`,
-      okText: 'Delete',
-      okType: 'danger',
-      cancelText: 'Cancel',
-      onOk: async () => {
-        try {
-          await restClient.post('/customer-relations/saveCrmDocument', {
-            changeMode: 'DELETE',
-            crmDocument: { id: node.folderId, version: node.folderVersion, lead: leadId },
-          }, { headers: { Authorization: `Bearer ${context.accessToken}` } });
-          message.success('Folder deleted');
-          await fetchDocuments();
-        } catch (e: any) {
-          console.error('Error deleting folder', e);
-          message.error(e?.message || 'Failed to delete folder');
+    
+    // Open confirmation dialog instead of window.confirm
+    setDeleteFolderDialog({ open: true, folder: node });
+  };
+
+  const confirmDeleteFolder = async () => {
+    const folder = deleteFolderDialog.folder;
+    if (!folder?.folderId || folder.folderVersion == null) return;
+
+    try {
+      // Fixed: Use correct investment document endpoint instead of CRM endpoint
+      await restClient.post('/investment-relations/updateInvestmentDocument', {
+        investmentDocument: {
+          id: folder.folderId,
+          version: folder.folderVersion,
+          lead: leadId,
+          // Mark as deleted by updating to inactive state
+          recordState: 'inactive'
         }
-      }
-    });
+      }, { headers: { Authorization: `Bearer ${context.accessToken}` } });
+      
+      toast.success('Folder deleted');
+      await fetchDocuments();
+      setDeleteFolderDialog({ open: false });
+    } catch (e: any) {
+      console.error('Error deleting folder', e);
+      toast.error(e?.message || 'Failed to delete folder');
+    }
   };
 
   // DnD helpers
@@ -707,46 +784,91 @@ export const LeadDocuments: React.FC<LeadDocumentsProps> = ({
         },
         { headers: { Authorization: `Bearer ${context.accessToken}` } }
       );
-      message.success('Document moved');
+      toast.success('Document moved successfully');
+      // Refresh documents to get the latest state
+      await fetchDocuments();
     } catch (e: any) {
       console.error('Error moving document', e);
-      setDocuments((prev) => prev.map(d => d.id === docId ? { ...d, parentDocument: previousParentId || null } : d));
-      message.error(e?.message || 'Failed to move document');
+      // Revert the local change on error
+      setDocuments((prev) => prev.map(d => d.id === docId ? { 
+        ...d, 
+        parentDocument: previousParentId ? { id: previousParentId } as any : undefined 
+      } : d));
+      toast.error(e?.message || 'Failed to move document');
     }
   };
 
-  const handleDragEnd = (event: DragEndEvent) => {
+  const handleDragEnd = async (event: DragEndEvent) => {
     setActiveDragItem(null);
     const active = event.active?.data?.current as any;
     const over = event.over?.data?.current as any;
-    if (!active || !over) return;
+    
+    if (!active || !over) {
+      return;
+    }
+    
     const targetFolderId: string | null | undefined = (over.targetFolderId === '' ? null : (over.targetFolderId as string | null | undefined));
-    if (typeof targetFolderId === 'undefined') return;
+    if (typeof targetFolderId === 'undefined') {
+      return;
+    }
+    
     if ((active.itemType === 'document' || active.itemType === 'folder') && active.id && active.version != null) {
-      const previousParentId = documents.find(d => d.id === active.id)?.parentDocument || null;
-      if (previousParentId === targetFolderId) return;
-      if (active.itemType === 'folder' && typeof targetFolderId === 'string' && isFolderAncestor(active.id as string, targetFolderId)) {
-        message.warning('Cannot move a folder into its own subfolder');
+      const previousParentId = documents.find(d => d.id === active.id)?.parentDocument?.id || null;
+      
+      // Check if actually moving to a different location
+      if (previousParentId === targetFolderId) {
         return;
       }
+      
+      // Prevent moving folder into its own subfolder
+      if (active.itemType === 'folder' && typeof targetFolderId === 'string' && isFolderAncestor(active.id as string, targetFolderId)) {
+        toast.warning('Cannot move a folder into its own subfolder');
+        return;
+      }
+      
+      // Get item name for feedback
+      const itemName = documents.find(d => d.id === active.id)?.name || 'Item';
+      const targetName = targetFolderId ? (documents.find(d => d.id === targetFolderId)?.name || 'folder') : 'root';
+      
+      // Update local state immediately for responsive UI
       updateParentDocumentLocal(active.id, targetFolderId);
       if (typeof targetFolderId === 'string') {
         setExpandedFolders(prev => { const next = new Set(prev); next.add(targetFolderId); return next; });
       }
-      if (String(active.id).startsWith('mock-') || (typeof targetFolderId === 'string' && String(targetFolderId).startsWith('mock-'))) return;
-      void persistParentDocumentUpdate(active.id, active.version, targetFolderId, previousParentId);
+      
+      // Skip API call for mock data
+      if (String(active.id).startsWith('mock-') || (typeof targetFolderId === 'string' && String(targetFolderId).startsWith('mock-'))) {
+        toast.success(`${active.itemType === 'folder' ? 'Folder' : 'Document'} moved successfully (mock)`);
+        return;
+      }
+      
+      // Persist to backend
+      try {
+        await persistParentDocumentUpdate(active.id, active.version, targetFolderId, previousParentId);
+      } catch (error) {
+        console.error('Error in handleDragEnd while moving document:', error);
+        toast.error('Failed to move the document. Please try again.');
+      }
     }
   };
 
   const handleDragStart = (event: DragStartEvent) => {
     const current = event.active?.data?.current as any;
-    if (!current) return;
+    
+    if (!current) {
+      return;
+    }
+    
     if (current.itemType === 'document' && current.id) {
       const doc = documents.find(d => d.id === current.id);
-      if (doc) setActiveDragItem({ itemType: 'document', name: doc.name || 'Document', mimeType: doc.mimeType });
+      if (doc) {
+        setActiveDragItem({ itemType: 'document', name: doc.name || 'Document', mimeType: doc.mimeType });
+      }
     } else if (current.itemType === 'folder' && current.id) {
       const folderDoc = documents.find(d => d.id === current.id);
-      if (folderDoc) setActiveDragItem({ itemType: 'folder', name: folderDoc.name || 'Folder' });
+      if (folderDoc) {
+        setActiveDragItem({ itemType: 'folder', name: folderDoc.name || 'Folder' });
+      }
     }
   };
 
@@ -941,10 +1063,10 @@ export const LeadDocuments: React.FC<LeadDocumentsProps> = ({
                                 <div className="gba:w-20 gba:text-right gba:mr-4 gba:text-sm gba:text-gray-500">-</div>
                                 <div className="gba:w-16 gba:text-right gba:mr-4 gba:text-sm gba:text-gray-500">Folder</div>
                                 <div className="gba:w-28 gba:flex gba:items-center gba:justify-end gba:gap-1">
-                                  <Button variant="ghost" size="sm" onClick={(e) => { e.stopPropagation(); startProcess({ domain: 'customer-relations', processName: 'saveCrmDocument', payload: { leadId, ...(node.folderId ? { parentDocument: node.folderId } : {}) }, builderType: 'NATIVE_SCREEN' }); }} className="gba:p-1 gba:h-6 gba:w-6" data-testid={`new-document-icon-${node.folderId || node.name}`} title="New Document">
+                                  <Button variant="ghost" size="sm" onClick={(e) => { e.stopPropagation(); /* TODO: Replace with AppActionButton - New Document in folder */ }} className="gba:p-1 gba:h-6 gba:w-6" data-testid={`new-document-icon-${node.folderId || node.name}`} title="New Document">
                                     <FileOutlined className="gba:text-xs" />
                                   </Button>
-                                  <Button variant="ghost" size="sm" onClick={(e) => { e.stopPropagation(); startProcess({ domain: 'customer-relations', processName: 'saveCrmDocument', payload: { leadId, createFolder: true, ...(node.folderId ? { parentDocument: node.folderId } : {}) }, builderType: 'NATIVE_SCREEN' }); }} className="gba:p-1 gba:h-6 gba:w-6" data-testid={`new-subfolder-icon-${node.folderId || node.name}`} title="New Subfolder">
+                                  <Button variant="ghost" size="sm" onClick={(e) => { e.stopPropagation(); /* TODO: Replace with AppActionButton - New Subfolder in folder */ }} className="gba:p-1 gba:h-6 gba:w-6" data-testid={`new-subfolder-icon-${node.folderId || node.name}`} title="New Subfolder">
                                     <FolderAddOutlined className="gba:text-xs" />
                                   </Button>
                                   <Button variant="ghost" size="sm" onClick={(e) => { e.stopPropagation(); openRenameFolder(node); }} className="gba:p-1 gba:h-6 gba:w-6" data-testid={`rename-folder-icon-${node.folderId || node.name}`} title="Rename Folder" disabled={!node.folderId}>
@@ -1048,12 +1170,7 @@ export const LeadDocuments: React.FC<LeadDocumentsProps> = ({
                 </div>
               ),
               addButton: {
-                onClick: () => startProcess({
-                  domain: 'customer-relations',
-                  processName: 'saveCrmDocument',
-                  payload: { leadId },
-                  builderType: 'NATIVE_SCREEN',
-                }),
+                onClick: () => { /* TODO: Replace with AppActionButton - Add Document from DataContainer */ },
                 label: 'Add Document',
                 'data-testid': 'add-document-button',
               },
@@ -1200,21 +1317,103 @@ export const LeadDocuments: React.FC<LeadDocumentsProps> = ({
         )}
       </CardContent>
       {/* Rename Folder Modal */}
-      <Modal
-        open={renameModal.open}
-        title="Rename Folder"
-        onOk={confirmRenameFolder}
-        onCancel={() => setRenameModal({ open: false, name: '', node: undefined })}
-        okText="Save"
-        data-testid="rename-folder-modal"
-      >
-        <AntdInput
-          value={renameModal.name}
-          onChange={(e) => setRenameModal(prev => ({ ...prev, name: e.target.value }))}
-          placeholder="Enter new folder name"
-          data-testid="rename-folder-input"
-        />
-      </Modal>
+      <Dialog open={renameModal.open} onOpenChange={(open) => !open && setRenameModal({ open: false, name: '', node: undefined })}>
+        <DialogContent data-testid="rename-folder-modal">
+          <DialogHeader>
+            <DialogTitle>Rename Folder</DialogTitle>
+          </DialogHeader>
+          <div className="gba:py-4">
+            <Input
+              value={renameModal.name}
+              onChange={(e) => setRenameModal(prev => ({ ...prev, name: e.target.value }))}
+              placeholder="Enter new folder name"
+              data-testid="rename-folder-input"
+            />
+          </div>
+          <DialogFooter>
+            <Button 
+              variant="outline" 
+              onClick={() => setRenameModal({ open: false, name: '', node: undefined })}
+            >
+              Cancel
+            </Button>
+            <Button 
+              onClick={confirmRenameFolder}
+              data-testid="rename-folder-save-button"
+            >
+              Save
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete Document Confirmation Dialog */}
+      <Dialog open={deletePopup.open} onOpenChange={(open) => !open && setDeletePopup({ open: false })}>
+        <DialogContent data-testid="delete-document-modal">
+          <DialogHeader>
+            <DialogTitle>Delete Document</DialogTitle>
+          </DialogHeader>
+          <div className="gba:py-4">
+            <p>Are you sure you want to delete the document "{deletePopup.document?.name || 'Unnamed Document'}"?</p>
+            <p className="gba:text-sm gba:text-gray-600 gba:mt-2">This action cannot be undone.</p>
+          </div>
+          <DialogFooter>
+            <Button 
+              variant="outline" 
+              onClick={() => setDeletePopup({ open: false })}
+              data-testid="delete-document-cancel-button"
+            >
+              Cancel
+            </Button>
+            <Button 
+              variant="destructive"
+              onClick={async () => {
+                try {
+                  // Handle document deletion logic here
+                  const id = deletePopup.document!.id;
+                  setDocuments(prev => prev.filter(d => d.id !== id));
+                  setDeletePopup({ open: false });
+                  toast.success('Document deleted successfully');
+                } catch (error) {
+                  setDeletePopup({ open: false });
+                  console.error('Failed to delete document:', error);
+                }
+              }}
+              data-testid="delete-document-confirm-button"
+            >
+              Delete
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete Folder Confirmation Dialog */}
+      <Dialog open={deleteFolderDialog.open} onOpenChange={(open) => !open && setDeleteFolderDialog({ open: false })}>
+        <DialogContent data-testid="delete-folder-confirmation-dialog">
+          <DialogHeader>
+            <DialogTitle>Confirm Deletion</DialogTitle>
+          </DialogHeader>
+          <div className="gba:py-4">
+            <p>Are you sure you want to delete the folder "{deleteFolderDialog.folder?.name}"?</p>
+            <p className="gba:text-sm gba:text-gray-600 gba:mt-2">This action cannot be undone.</p>
+          </div>
+          <DialogFooter>
+            <Button 
+              variant="outline" 
+              onClick={() => setDeleteFolderDialog({ open: false })}
+            >
+              Cancel
+            </Button>
+            <Button 
+              variant="destructive"
+              onClick={confirmDeleteFolder}
+              data-testid="confirm-delete-folder-button"
+            >
+              Delete
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </Card>
   );
 };

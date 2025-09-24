@@ -1,23 +1,19 @@
 import { useState, useCallback, useEffect } from 'react';
 import { useCatalogManagerClient } from '@/common/network/catalogs/useCatalogManagerClient';
 
-export interface DocumentGroup {
+export interface CatalogOption {
   id: string;
   value: string;
-  code?: string;
-}
-
-export interface DocumentType {
-  id: string;
-  value: string;
+  label: string;
+  name: string;
   code?: string;
   parentId?: string;
 }
 
 export interface UseDocumentCatalogsReturn {
-  documentGroups: DocumentGroup[];
-  documentTypes: DocumentType[];
-  filteredDocumentTypes: DocumentType[];
+  documentGroups: CatalogOption[];
+  documentTypes: CatalogOption[];
+  filteredDocumentTypes: CatalogOption[];
   loading: {
     groups: boolean;
     types: boolean;
@@ -31,10 +27,14 @@ export interface UseDocumentCatalogsReturn {
 
 export const useDocumentCatalogs = (
   accessToken: string,
-  selectedGroupId?: string
+  selectedGroupId?: string,
+  options?: {
+    groupCatalogIdentifier?: string;
+    typeCatalogIdentifier?: string;
+  }
 ): UseDocumentCatalogsReturn => {
-  const [documentGroups, setDocumentGroups] = useState<DocumentGroup[]>([]);
-  const [documentTypes, setDocumentTypes] = useState<DocumentType[]>([]);
+  const [documentGroups, setDocumentGroups] = useState<CatalogOption[]>([]);
+  const [documentTypes, setDocumentTypes] = useState<CatalogOption[]>([]);
   const [loading, setLoading] = useState({
     groups: false,
     types: false
@@ -55,7 +55,7 @@ export const useDocumentCatalogs = (
     try {
       const response = await catalogClient.getCatalogEntriesList(
         {
-          catalogIdentifier: 'DocumentGroup',
+          catalogIdentifier: options?.groupCatalogIdentifier || 'DocumentGroup',
           version: 'v1'
         },
         {
@@ -69,6 +69,8 @@ export const useDocumentCatalogs = (
       const groupData = response.data?.map((entry: any) => ({
         id: entry.id,
         value: entry.value || entry.label || 'Unknown',
+        label: entry.value || entry.label || 'Unknown',
+        name: entry.value || entry.label || 'Unknown',
         code: entry.code
       })) || [];
 
@@ -92,7 +94,7 @@ export const useDocumentCatalogs = (
     try {
       const response = await catalogClient.getCatalogEntriesList(
         {
-          catalogIdentifier: 'DocumentType',
+          catalogIdentifier: options?.typeCatalogIdentifier || 'DocumentType',
           version: 'v1'
         },
         {
@@ -105,6 +107,8 @@ export const useDocumentCatalogs = (
       const typeData = response.data?.map((entry: any) => ({
         id: entry.id,
         value: entry.value || entry.label || 'Unknown',
+        label: entry.value || entry.label || 'Unknown',
+        name: entry.value || entry.label || 'Unknown',
         code: entry.code,
         parentId: entry.parentEntryId || null, // Use the correct field name
       })) || [];
