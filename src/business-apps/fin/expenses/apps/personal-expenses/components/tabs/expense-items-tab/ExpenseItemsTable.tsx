@@ -23,7 +23,6 @@ import { PiFileText, PiImage, PiArrowUp, PiArrowDown } from 'react-icons/pi';
 import { AppActionButton } from '@/components/app-action-button/AppActionButton';
 import { useGetExpenseItems, ExpenseFilter } from '../../../hooks/useGetExpenseItems';
 import { useExpenseCurrencies } from '../../../hooks/useExpenseCurrencies';
-// removed env import; handled in hook
 import { DataContainer } from '@/components/layout/dataContainer/DataContainer';
 import { DataFilterGroup } from '@/components/data-filter/DataFilter';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
@@ -50,6 +49,7 @@ export interface ExpenseItemsTableProps extends BusinessAppContextProps {
   availableStatuses: string[];
   amountRange?: { min?: number; max?: number } | null;
   tableRefreshTrigger?: number;
+  activeWidgetKey?: string;
 }
 
 const ExpenseItemsTable: React.FC<ExpenseItemsTableProps> = React.memo((props) => {
@@ -106,12 +106,28 @@ const ExpenseItemsTable: React.FC<ExpenseItemsTableProps> = React.memo((props) =
   // currency fetching now handled by useExpenseCurrencies
 
   useEffect(() => {
-    const apiFilters = { ...getFilters(allSelectedFilters) };
+    const apiFilters = { ...getFilters(allSelectedFilters) } as ExpenseFilter;
     if (selectedCurrencyRef) {
-      (apiFilters as ExpenseFilter).currencyRef = selectedCurrencyRef;
+      apiFilters.currencyRef = selectedCurrencyRef;
+    }
+    // Apply widget-driven filters directly to API request
+    if (props.activeWidgetKey === 'total-expenses') {
+      const start = new Date();
+      start.setDate(1);
+      const end = new Date(start.getFullYear(), start.getMonth() + 1, 0);
+      apiFilters.expenseDateStart = start.toISOString().split('T')[0];
+      apiFilters.expenseDateEnd = end.toISOString().split('T')[0];
+      apiFilters.status = ['PAID', 'CLOSED'];
+    } else if (props.activeWidgetKey === 'pending-reimbursement') {
+      const start = new Date();
+      start.setDate(1);
+      const end = new Date(start.getFullYear(), start.getMonth() + 1, 0);
+      apiFilters.expenseDateStart = start.toISOString().split('T')[0];
+      apiFilters.expenseDateEnd = end.toISOString().split('T')[0];
+      apiFilters.status = ['PENDING'];
     }
     fetchItems(search, currentPage, pageSize, apiFilters, sortField, sortOrder);
-  }, [fetchItems, currentPage, pageSize, search, allSelectedFilters, getFilters, sortField, sortOrder, selectedCurrencyRef]);
+  }, [fetchItems, currentPage, pageSize, search, allSelectedFilters, getFilters, sortField, sortOrder, selectedCurrencyRef, props.activeWidgetKey]);
 
   // Refresh data when tableRefreshTrigger changes (triggered from parent tab)
   useEffect(() => {

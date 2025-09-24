@@ -8,7 +8,7 @@ import { useExpenseRequestFilters } from '../../../hooks/useExpenseRequestFilter
 import { useExpenseCurrencies } from '../../../hooks/useExpenseCurrencies';
 import { getSelectedCurrencyRef } from '../../../utils/currencyUtils';
 import { message } from 'antd';
-import dayjs from 'dayjs';
+import { getRequestCardStrategies, preserveCurrencyAndReset } from './cardStrategies';
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
 
 export interface ExpenseRequestsTabProps extends BusinessAppContextProps {
@@ -60,78 +60,28 @@ const ExpenseRequestsTab: React.FC<ExpenseRequestsTabProps> = (props) => {
   const { currencyStats } = useExpenseCurrencies(contextProps, selectedFilters, setFilters);
 
   // Helper function to get current month date range
-  const getCurrentMonthRange = useCallback(() => {
-    const today = dayjs();
-    const currentMonthStart = today.startOf('month').toDate();
-    const currentMonthEnd = today.endOf('month').toDate();
-    return [currentMonthStart, currentMonthEnd] as [Date, Date];
-  }, []);
+  // Removed local getCurrentMonthRange; card strategy handles current month range
 
   // Handle widget clicks with immediate visual feedback
   const handleWidgetClick = useCallback((widgetKey: string) => {
+    const strategies = getRequestCardStrategies({
+      setRequestDateRange,
+      setStartDateRange,
+      setEndDateRange,
+      handleFilterChange
+    });
+
     const isDeactivating = activeWidget === widgetKey;
-    const newActiveWidget = isDeactivating ? null : widgetKey;
-    setActiveWidget(newActiveWidget);
-    
-    // If deactivating (clicking the same widget again), clear all filters
     if (isDeactivating) {
-      clearFilters();
+      strategies[widgetKey]?.remove();
+      setActiveWidget(null);
       return;
     }
-    
-    // Clear existing filters when switching to a different widget
-    clearFilters();
-    
-    // Apply widget-specific filter logic
-    switch (newActiveWidget) {
-      case 'total-requests':
-        const currentMonthRange = getCurrentMonthRange();
-        setRequestDateRange(currentMonthRange);
-        handleFilterChange('PAID', true);
-        handleFilterChange('CLOSED', true);
-        handleFilterChange('TRANSFERRED', true);
-        break;
-      case 'total-amount':
-        const today = dayjs();
-        const currentMonthStart = today.startOf('month').toDate();
-        const currentMonthEnd = today.endOf('month').toDate();
-        setRequestDateRange([currentMonthStart, currentMonthEnd]);
-        handleFilterChange('PAID', true);
-        handleFilterChange('CLOSED', true);
-        handleFilterChange('TRANSFERRED', true);
-        break;
-      case 'pending-approval':
-        // Clear any existing date range filters
-        setRequestDateRange(null);
-        setStartDateRange(null);
-        setEndDateRange(null);
-        // Set status filter to only show PENDING requests
-        const allStatusesForPending = ['PREPARED', 'CREATED', 'ASSIGNED', 'PENDING', 'APPROVED', 'REJECTED', 'VERIFIED', 'BOOKED', 'PAID', 'CLOSED', 'TRANSFERRED'];
-        allStatusesForPending.forEach(status => {
-          handleFilterChange(status, false);
-        });
-        handleFilterChange('PENDING', true);
-        break;
-      case 'reimbursable':
-        // Clear any existing date range filters
-        setRequestDateRange(null);
-        setStartDateRange(null);
-        setEndDateRange(null);
-        // Set status filters to exclude PAID, CLOSED, TRANSFERRED
-        const allStatusesForReimbursable = ['PREPARED', 'CREATED', 'ASSIGNED', 'PENDING', 'APPROVED', 'REJECTED', 'VERIFIED', 'BOOKED', 'PAID', 'CLOSED', 'TRANSFERRED'];
-        allStatusesForReimbursable.forEach(status => {
-          if (['PAID', 'CLOSED', 'TRANSFERRED'].includes(status)) {
-            handleFilterChange(status, false);
-          } else {
-            handleFilterChange(status, true);
-          }
-        });
-        break;
-      case null:
-        // Widget deactivated - filters already cleared above
-        break;
-    }
-  }, [activeWidget, clearFilters, handleFilterChange, setRequestDateRange, getCurrentMonthRange, setStartDateRange, setEndDateRange]);
+
+    preserveCurrencyAndReset(selectedFilters, clearFilters, addFilter);
+    strategies[widgetKey]?.apply();
+    setActiveWidget(widgetKey);
+  }, [activeWidget, clearFilters, handleFilterChange, setRequestDateRange, setStartDateRange, setEndDateRange, selectedFilters, addFilter]);
 
   // Memoize the filters to prevent unnecessary API calls
   const memoizedFilters = useMemo(() => {
@@ -183,12 +133,6 @@ const ExpenseRequestsTab: React.FC<ExpenseRequestsTabProps> = (props) => {
       }
     };
 
-    const handleAllEvents = (event: any) => {
-      if (event.type && (event.type.includes('process') || event.type.includes('task'))) {
-        handleProcessCompletion(event);
-      }
-    };
-
     const eventNames = [
       'com.newwork.process.taskCompletion',
       'com.newwork.process.completion',
@@ -206,20 +150,10 @@ const ExpenseRequestsTab: React.FC<ExpenseRequestsTabProps> = (props) => {
       window.addEventListener(eventName, handleProcessCompletion as EventListener);
     });
 
-    const originalDispatchEvent = window.dispatchEvent;
-    window.dispatchEvent = function(event: Event) {
-      if (event.type && (event.type.includes('process') || event.type.includes('task'))) {
-        handleAllEvents(event);
-      }
-      return originalDispatchEvent.call(this, event);
-    };
-
     return () => {
       eventNames.forEach(eventName => {
         window.removeEventListener(eventName, handleProcessCompletion as EventListener);
       });
-      
-      window.dispatchEvent = originalDispatchEvent;
     };
   }, [fetchItems, currentPage, pageSize, memoizedFilters, sortField, sortOrder, contextProps.accessToken, contextProps.userInfo?.employeeDetails?.employeeId]);
 

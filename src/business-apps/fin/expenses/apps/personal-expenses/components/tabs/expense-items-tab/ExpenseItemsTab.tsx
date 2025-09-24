@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef, ReactNode } from 'react';
 import dayjs from 'dayjs';
+import { getItemsCardStrategies, preserveCurrencyAndReset } from './cardStrategies';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 import { GET_EXPENSE_ITEMS_BY_EMPLOYEE, GET_EXPENSE_ITEM_STATISTICS, GET_PENDING_ITEMS, GET_PENDING_ITEMS_WITH_DATE_RANGE } from '../../../queries/expenseItems';
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient';
@@ -171,60 +172,19 @@ const ExpenseItemsTab: React.FC<ExpenseItemsTabProps> = (props) => {
   }, [selectedFilters]);
 
   const handleWidgetClick = useCallback((widgetKey: string) => {
+    const strategies = getItemsCardStrategies({ setExpenseDateRange, onStatusFilterChange });
+
     const isDeactivating = activeCard === widgetKey;
-    const newActiveCard = isDeactivating ? null : widgetKey;
-    setActiveCard(newActiveCard);
-    
-    // If deactivating (clicking the same widget again), clear all filters
     if (isDeactivating) {
-      clearFilters();
-      // Clear expense date range
-      setExpenseDateRange(null);
+      strategies[widgetKey]?.remove();
+      setActiveCard(null);
       return;
     }
-    
-    // Clear existing filters when switching to a different widget
-    clearFilters();
-    
-    // Apply widget-specific filter logic
-    switch (newActiveCard) {
-      case 'total-expenses':
-        const today = dayjs();
-        const currentMonthStart = today.startOf('month').toDate();
-        const currentMonthEnd = today.endOf('month').toDate();
-        
-        // Set expense date range to current month
-        setExpenseDateRange([currentMonthStart, currentMonthEnd]);
-        
-        // Set status filters to only show PAID and CLOSED items
-        const allStatuses = ['CREATED', 'ASSIGNED', 'PREPARED', 'PENDING', 'APPROVED', 'RETURNED', 'REJECTED', 'VERIFIED', 'BOOKED', 'TRANSFERRED'];
-        allStatuses.forEach(status => {
-          onStatusFilterChange(status, false);
-        });
-        onStatusFilterChange('PAID', true);
-        onStatusFilterChange('CLOSED', true);
-        break;
-        
-      case 'pending-reimbursement':
-        const currentMonthRange = dayjs().startOf('month').toDate();
-        const currentMonthEndRange = dayjs().endOf('month').toDate();
-        
-        // Set expense date range to current month
-        setExpenseDateRange([currentMonthRange, currentMonthEndRange]);
-        
-        // Set status filter to only show PENDING items
-        const allStatusesForPending = ['CREATED', 'ASSIGNED', 'PREPARED', 'PENDING', 'APPROVED', 'RETURNED', 'REJECTED', 'VERIFIED', 'BOOKED', 'PAID', 'CLOSED', 'TRANSFERRED'];
-        allStatusesForPending.forEach(status => {
-          onStatusFilterChange(status, false);
-        });
-        onStatusFilterChange('PENDING', true);
-        break;
-        
-      case null:
-        // Widget deactivated - filters already cleared above
-        break;
-    }
-  }, [activeCard, clearFilters, setExpenseDateRange, onStatusFilterChange]);
+
+    preserveCurrencyAndReset(selectedFilters, clearFilters, addFilter);
+    strategies[widgetKey]?.apply();
+    setActiveCard(widgetKey);
+  }, [activeCard, clearFilters, setExpenseDateRange, onStatusFilterChange, selectedFilters, addFilter]);
 
   // Handle status filter changes - use the hook's function (direct usage in handlers)
 
@@ -233,16 +193,14 @@ const ExpenseItemsTab: React.FC<ExpenseItemsTabProps> = (props) => {
     const isNoReceiptFilterActive = selectedFilters.includes('noreceiptfilter');
     
     if (isNoReceiptFilterActive) {
-      // If filter is already active, remove it
+      // Deactivate missing receipts → remove only that filter
       removeFilter('noreceiptfilter');
-      
     } else {
-      // Clear existing filters first to avoid multiple filters
+      // Preserve currency filters while activating the missing receipts filter
+      const currencyFilters = selectedFilters.filter((f) => f.startsWith('currency:'));
       clearFilters();
-      
-      // Add the no receipt filter
+      currencyFilters.forEach((cf) => addFilter(cf));
       addFilter('noreceiptfilter');
-      
     }
   }, [addFilter, removeFilter, selectedFilters, clearFilters]);
 
@@ -614,6 +572,7 @@ const ExpenseItemsTab: React.FC<ExpenseItemsTabProps> = (props) => {
       availableStatuses={availableStatuses}
       amountRange={amountRange}
       tableRefreshTrigger={tableRefreshTrigger}
+      activeWidgetKey={activeCard ?? undefined}
     />
   );
 };
