@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Card, Spinner } from '@newwork/nw-design-system';
+import { Spinner } from '@newwork/nw-design-system';
 import { formatDataTestId } from '@/common/utils/formatDataTestId';
 import { useInvestmentFormContext } from '../../context/InvestmentFormContext';
 import { getCatalogValue, getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
@@ -282,47 +282,65 @@ const GroupSelectSegment: React.FC<GroupSelectSegmentProps> = ({
         <div
           data-testid={formatDataTestId(prefixDataTestId, 'InvestmentGroups-Container')}
           style={{ 
-            display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))',
-            gap: 'var(--nw-spacing-lg)',
-            marginBottom: 'var(--nw-spacing-lg)'
+            display: 'flex',
+            flexDirection: 'column',
+            gap: 'var(--nw-spacing-sm)', // Very minimal gap between cards
+            marginBottom: 'var(--nw-spacing-xl)',
+            padding: 'calc(var(--nw-spacing-xl) * 5)'
           }}>
           {investmentGroups.map((group) => (
-            <Card
+            <div
               key={group.id}
               data-testid={formatDataTestId(prefixDataTestId, `InvestmentGroup-Card-${group.id}`)}
               style={{
                 cursor: 'pointer',
-                transition: 'all 0.2s ease-in-out',
-                border: '2px solid var(--nw-color-border-default)',
-                boxShadow: 'var(--nw-shadow-sm)'
+                transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                border: '1px solid var(--nw-color-border-subtle)',
+                borderRadius: 'calc(var(--nw-border-radius-lg) * 3)', // Maximum border radius for smooth curves
+                backgroundColor: 'var(--nw-card)',
+                boxShadow: '0 4px 12px -2px rgba(0, 0, 0, 0.08), 0 2px 6px -2px rgba(0, 0, 0, 0.05)',
+                padding: 'calc(var(--nw-spacing-xl) * 4)', // Maximum padding for bigger cards
+                margin: '0', // Remove margin - gap handles spacing between borders
+                textAlign: 'left',
+                position: 'relative',
+                overflow: 'hidden',
+                maxWidth: '750px', // Maximum width for bigger cards
+                width: '100%',
+                minHeight: '100px' // Increased minimum height for bigger cards
               }}
-              className="hover:border-primary-500 hover:shadow-md"
               onClick={() => onGroupSelect(group.value)}
+              onMouseEnter={(e) => {
+                const card = e.currentTarget;
+                card.style.boxShadow = '0 8px 24px -4px rgba(0, 0, 0, 0.12), 0 4px 12px -4px rgba(0, 0, 0, 0.08)';
+                card.style.transform = 'translateY(-4px) scale(1.02)';
+              }}
+              onMouseLeave={(e) => {
+                const card = e.currentTarget;
+                card.style.boxShadow = '0 4px 12px -2px rgba(0, 0, 0, 0.08), 0 2px 6px -2px rgba(0, 0, 0, 0.05)';
+                card.style.transform = 'translateY(0px) scale(1)';
+              }}
             >
-              <div style={{
-                padding: 'var(--nw-spacing-lg)',
-                textAlign: 'left'
-              }}>
+              <div>
                 <h3 style={{
                   margin: 0,
-                  marginBottom: 'var(--nw-spacing-sm)',
-                  fontSize: '1.125rem',
-                  fontWeight: 600,
-                  color: 'var(--nw-color-text-primary)'
+                  marginBottom: 'var(--nw-spacing-md)',
+                  fontSize: '1.375rem',
+                  fontWeight: 700,
+                  color: 'var(--nw-foreground)',
+                  letterSpacing: '-0.025em'
                 }}>
                   {group.title}
                 </h3>
                 <p style={{
                   margin: 0,
-                  fontSize: '0.875rem',
-                  color: 'var(--nw-color-text-secondary)',
-                  lineHeight: 1.5
+                  fontSize: '1rem',
+                  color: 'var(--nw-muted-foreground)',
+                  lineHeight: 1.6
                 }}>
                   {group.description}
                 </p>
               </div>
-            </Card>
+            </div>
           ))}
           {investmentGroups.length === 0 && (
             <div
@@ -350,6 +368,8 @@ const GroupSelectSegment: React.FC<GroupSelectSegmentProps> = ({
           style={{ 
             textAlign: 'center',
             padding: 'var(--nw-spacing-md)',
+            paddingTop: 'var(--nw-spacing-xl)',
+            marginTop: 'var(--nw-spacing-lg)',
             backgroundColor: 'var(--nw-color-surface-secondary)',
             borderRadius: 'var(--nw-border-radius-md)',
             border: '1px solid var(--nw-color-border-default)'
