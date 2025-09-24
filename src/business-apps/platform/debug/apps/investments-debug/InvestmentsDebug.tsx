@@ -548,13 +548,13 @@ const InvestmentsDebug: React.FC<InvestmentsDebugProps> = (context) => {
                 </div>
               )}
               <pre style={{ 
-                background: '#f5f5f5', 
-                padding: 12, 
-                borderRadius: 4, 
-                fontSize: 12,
-                maxHeight: 200,
+                background: 'var(--nw-color-surface-secondary)', 
+                padding: 'var(--nw-spacing-sm)', 
+                borderRadius: 'var(--nw-border-radius-sm)', 
+                fontSize: 'var(--nw-text-xs)',
+                maxHeight: '200px',
                 overflow: 'auto',
-                marginTop: 8
+                marginTop: 'var(--nw-spacing-sm)'
               }}>
                 {JSON.stringify(data, null, 2)}
               </pre>
@@ -563,25 +563,25 @@ const InvestmentsDebug: React.FC<InvestmentsDebugProps> = (context) => {
               <Panel header="📝 Query Information" key="query">
                 <Text strong>Query:</Text>
                 <pre style={{ 
-                  background: '#f0f8ff', 
-                  padding: 12, 
-                  borderRadius: 4, 
-                  fontSize: 12,
-                  marginTop: 8,
-                  border: '1px solid #d1ecf1'
+                  background: 'var(--nw-color-surface-secondary)', 
+                  padding: 'var(--nw-spacing-sm)', 
+                  borderRadius: 'var(--nw-border-radius-sm)', 
+                  fontSize: 'var(--nw-text-xs)',
+                  marginTop: 'var(--nw-spacing-sm)',
+                  border: 'var(--nw-border-width-thin) solid var(--nw-color-border-default)'
                 }}>
                   {query}
                 </pre>
                 {variables && Object.keys(variables).length > 0 && (
-                  <div style={{ marginTop: 12 }}>
+                  <div style={{ marginTop: 'var(--nw-spacing-sm)' }}>
                     <Text strong>Variables:</Text>
                     <pre style={{ 
-                      background: '#f8f9fa', 
-                      padding: 8, 
-                      borderRadius: 4, 
-                      fontSize: 12,
-                      marginTop: 4,
-                      border: '1px solid #dee2e6'
+                      background: 'var(--nw-color-surface-secondary)', 
+                      padding: 'var(--nw-spacing-xs)', 
+                      borderRadius: 'var(--nw-border-radius-sm)', 
+                      fontSize: 'var(--nw-text-xs)',
+                      marginTop: 'var(--nw-spacing-xs)',
+                      border: 'var(--nw-border-width-thin) solid var(--nw-color-border-default)'
                     }}>
                       {JSON.stringify(variables, null, 2)}
                     </pre>
@@ -599,18 +599,18 @@ const InvestmentsDebug: React.FC<InvestmentsDebugProps> = (context) => {
     <div
       data-testid="investments-debug-container"
       style={{ 
-        background: 'linear-gradient(to bottom, #f9fafb, #f3f4f6)',
-        minHeight: '100%',
-        padding: '24px',
-        borderRadius: '8px'
+        background: 'var(--nw-color-surface-primary)',
+        minHeight: '100vh',
+        padding: 'var(--nw-spacing-lg)',
+        borderRadius: 'var(--nw-border-radius-md)'
       }}
     >
       {/* Header */}
-      <div style={{ marginBottom: '24px' }}>
-        <Title level={2} style={{ margin: 0, color: '#1f2937' }}>
+      <div style={{ marginBottom: 'var(--nw-spacing-lg)' }}>
+        <Title level={2} style={{ margin: 0, color: 'var(--nw-color-text-primary)' }}>
           <BugOutlined /> Investment Data Foundation Debug
         </Title>
-        <Paragraph style={{ color: '#6b7280', margin: '8px 0 0 0' }}>
+        <Paragraph style={{ color: 'var(--nw-color-text-secondary)', margin: 'var(--nw-spacing-sm) 0 0 0' }}>
           Test all aspects of the newly created investment data system with enhanced types and computed fields
         </Paragraph>
         <Alert 

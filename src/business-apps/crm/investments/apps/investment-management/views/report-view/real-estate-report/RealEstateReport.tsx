@@ -15,11 +15,15 @@ import {
   TabsContent,
   TabsList,
   TabsTrigger,
-  Alert
+  Alert,
+  Calendar,
+  Popover,
+  PopoverContent,
+  PopoverTrigger
 } from '@newwork/nw-design-system';
-import { DatePicker } from 'antd';
 import { 
-  FilterIcon
+  FilterIcon,
+  CalendarIcon
 } from 'lucide-react';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 import dayjs from 'dayjs';
@@ -141,14 +145,14 @@ export const RealEstateReport: React.FC<RealEstateReportProps> = ({
 
   // Filter states - Use same pattern as individual investment record reports
   const [timeFilter, setTimeFilter] = useState<string>('all');
-  const [dateRange, setDateRange] = useState<[dayjs.Dayjs | null, dayjs.Dayjs | null] | null>(null);
+  const [dateRange, setDateRange] = useState<{from?: Date, to?: Date} | undefined>(undefined);
 
   // Calculate date strings using same logic as individual investment record reports
   const { startDateString, endDateString } = useMemo(() => {
-    if (dateRange && dateRange[0] && dateRange[1]) {
+    if (dateRange && dateRange.from && dateRange.to) {
       return {
-        startDateString: dateRange[0].format('YYYY-MM-DD'),
-        endDateString: dateRange[1].format('YYYY-MM-DD')
+        startDateString: dayjs(dateRange.from).format('YYYY-MM-DD'),
+        endDateString: dayjs(dateRange.to).format('YYYY-MM-DD')
       };
     } else if (timeFilter !== 'all') {
       const now = dayjs();
@@ -196,20 +200,20 @@ export const RealEstateReport: React.FC<RealEstateReportProps> = ({
   const handleTimeFilterChange = (value: string) => {
     setTimeFilter(value);
     if (value !== 'all') {
-      setDateRange(null); // Clear date range when using time filter
+      setDateRange(undefined); // Clear date range when using time filter
     }
   };
 
-  const handleDateRangeChange = (dates: [dayjs.Dayjs | null, dayjs.Dayjs | null] | null) => {
-    setDateRange(dates);
-    if (dates && dates[0] && dates[1]) {
+  const handleDateRangeChange = (range: {from?: Date, to?: Date} | undefined) => {
+    setDateRange(range);
+    if (range && range.from && range.to) {
       setTimeFilter('all'); // Clear time filter when using date range
     }
   };
 
   const handleClearFilters = () => {
     setTimeFilter('all');
-    setDateRange(null);
+    setDateRange(undefined);
   };
 
   // Show loading state while investment types are being fetched
@@ -263,13 +267,28 @@ export const RealEstateReport: React.FC<RealEstateReportProps> = ({
             
             <div className="gba:flex gba:items-center gba:gap-2">
               <label className="gba:text-sm gba:font-medium">Date Range:</label>
-              <DatePicker.RangePicker
-                value={dateRange}
-                onChange={handleDateRangeChange}
-                format="DD/MM/YYYY"
-                placeholder={['Start Date', 'End Date']}
-                allowClear={true}
-              />
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    className="gba:w-[280px] gba:justify-start gba:text-left gba:font-normal"
+                    data-testid={`${dataTestId}-date-range-trigger`}
+                  >
+                    <CalendarIcon className="gba:mr-2 gba:h-4 gba:w-4" />
+                    {dateRange && dateRange.from && dateRange.to
+                      ? `${dayjs(dateRange.from).format('DD/MM/YYYY')} - ${dayjs(dateRange.to).format('DD/MM/YYYY')}`
+                      : 'Select date range'}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="gba:w-auto gba:p-0" align="start">
+                  <Calendar
+                    mode="range"
+                    selected={dateRange}
+                    onSelect={handleDateRangeChange}
+                    data-testid={`${dataTestId}-date-range-calendar`}
+                  />
+                </PopoverContent>
+              </Popover>
             </div>
             
             

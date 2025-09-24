@@ -11,7 +11,7 @@ import dayjs from 'dayjs';
 import { useGetInvestmentTasksByLeadId } from '@/common/data/investment/hooks/useInvestmentLeads';
 import type { InvestmentTask } from '@/common/data/investment/types';
 import { DeleteConfirmPopup } from '@/common/components/common-relations/popups/delete-confirm-popup';
-import { isApprovalTask } from '../../utils/taskUtils';
+import { isApprovalTask } from '../../../utils/taskUtils';
 
 const { Text } = Typography;
 
