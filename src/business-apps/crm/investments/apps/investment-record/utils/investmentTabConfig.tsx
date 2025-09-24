@@ -1,5 +1,4 @@
 // Investment Tab Configuration Utilities
-import React from 'react';
 import { Home, BarChart3, Folder, FileText } from 'lucide-react';
 import { DocumentSection } from '@/common/components/common-relations/record-sections/document-section';
 import { AccountSection } from '@/common/components/common-relations/record-sections/account-section';
@@ -85,7 +84,10 @@ export const createInvestmentTabsConfig = (
       content: (
         <div className="gba:col-span-12 gba:space-y-6">
           {/* Generate One-Pager Action */}
-          <div className="gba:flex gba:justify-end gba:mb-4">
+          <div 
+            className="gba:flex gba:justify-end gba:mb-4" 
+            data-testid="investment-generate-onepager-section"
+          >
             <GenerateOnePagerButton
               investmentId={investment?.id}
               accessToken={props.accessToken}
@@ -162,7 +164,10 @@ export const createInvestmentTabsConfig = (
       content: (
         <div className="gba:col-span-12 gba:space-y-6">
           {/* Upload Report Action */}
-          <div className="gba:flex gba:justify-end gba:mb-4">
+          <div 
+            className="gba:flex gba:justify-end gba:mb-4" 
+            data-testid="investment-upload-report-section"
+          >
             <UploadReportButton
               investmentId={investment?.id}
               accessToken={props.accessToken}

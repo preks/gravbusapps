@@ -106,12 +106,55 @@ export const InvestmentHomeTab: React.FC<InvestmentHomeTabProps> = ({
     loadApprovals();
   }, [loadTasks, loadActivities, loadNotes, loadApprovals]);
 
-  // Listen for process events
+  // Listen for process events to refresh data
   useEffect(() => {
+    const handleProcessEvent = (event: any) => {
+      try {
+        console.log('InvestmentHomeTab: Process event received:', event.type, event);
+        
+        // Check for successful completion
+        if (event.detail?.resolution === 'success') {
+          console.log('InvestmentHomeTab: Process completed successfully, refreshing data');
+          loadTasks();
+          loadActivities();
+          loadNotes();
+          loadApprovals();
+          return;
+        }
+        
+        // Check for different event structures
+        const response = event.detail?.response;
+        if (response?.detail?.resolution === 'success' || response?.investment) {
+          console.log('InvestmentHomeTab: Investment data detected, refreshing data');
+          loadTasks();
+          loadActivities();
+          loadNotes();
+          loadApprovals();
+          return;
+        }
+        
+        // Check for continue events with payload (task/activity/note creation/update)
+        if (event.type === 'com.newwork.process.continue' && event.detail?.payload) {
+          console.log('InvestmentHomeTab: Continue event with payload detected, refreshing data');
+          loadTasks();
+          loadActivities();
+          loadNotes();
+          loadApprovals();
+        }
+      } catch (err) {
+        console.error('Error handling process event in InvestmentHomeTab:', err);
+      }
+    };
+
     const eventTypes = [
       'com.newwork.process.continue',
       'com.newwork.process.processCompletion',
+      'com.newwork.process.taskCompletion',
+      'com.newwork.process.completion',
       'processCompletion',
+      'taskCompletion',
+      'taskCompleted',
+      'processCompleted'
     ];
     
     eventTypes.forEach(eventType => {
@@ -123,7 +166,7 @@ export const InvestmentHomeTab: React.FC<InvestmentHomeTabProps> = ({
         window.removeEventListener(eventType, handleProcessEvent);
       });
     };
-  }, [handleProcessEvent]);
+  }, [loadTasks, loadActivities, loadNotes, loadApprovals]);
 
   return (
     <div data-testid="investment-home-tab">
@@ -186,6 +229,7 @@ export const InvestmentHomeTab: React.FC<InvestmentHomeTabProps> = ({
             <TabsContent value="notes" className="gba:p-4">
               <NoteSection
                 investmentId={investmentId}
+                notes={notes}
                 accessToken={context.accessToken}
                 userInfo={context.userInfo}
                 noteActionProps={{

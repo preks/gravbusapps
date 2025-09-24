@@ -1,7 +1,13 @@
 import { useCallback } from 'react';
+import dayjs from 'dayjs';
+import weekday from 'dayjs/plugin/weekday';
+import localeData from 'dayjs/plugin/localeData';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 import { useGetInvestmentById } from '@/common/data/investment';
 import { GenerateInvestmentReportRequest } from '@/common/network/investment-reports';
+
+dayjs.extend(weekday);
+dayjs.extend(localeData);
 
 // ==========================================
 // TYPE DEFINITIONS
@@ -284,13 +290,10 @@ const getTemplateNameByInvestmentType = (investment: BaseInvestment): string => 
 };
 
 /**
- * Transform investment data to report payload format
+ * Transform base investment data
  */
-const transformInvestmentToReportPayload = (investmentData: BaseInvestment): GenerateInvestmentReportRequest => {
-  const investment = investmentData;
-  
-  // Base investment data
-  const baseInvestment = {
+const transformBaseInvestmentData = (investment: BaseInvestment) => {
+  return {
     id: investment.id,
     version: investment.version || 0,
     businessKey: investment.code || '',
@@ -333,8 +336,12 @@ const transformInvestmentToReportPayload = (investmentData: BaseInvestment): Gen
     ownerEmployee: investment.ownerEmployee?.id || null,
     loanRecipientInvestmentAccount: investment.loanRecipientInvestmentAccount?.id || null
   };
+};
 
-  // 🔥 EQUITY INVESTMENT DATA - Handle array structure correctly
+/**
+ * Transform equity investment data and rounds
+ */
+const transformEquityInvestmentData = (investment: BaseInvestment) => {
   const equityInvestmentData: EquityInvestment | null = Array.isArray(investment.equityInvestment) && investment.equityInvestment.length > 0 
     ? investment.equityInvestment[0] 
     : null;
@@ -351,12 +358,9 @@ const transformInvestmentToReportPayload = (investmentData: BaseInvestment): Gen
     investment: investment.id
   } : null;
 
-  // 🔥 EQUITY INVESTMENT ROUNDS - Get from first equity record
   const equityInvestmentRounds = equityInvestmentData?.equityInvestmentRound?.map((round: any) => ({
     id: round.id,
     version: round.version || 0,
-    // Note: businessKey and additionalProperties are NOT included in the GraphQL query
-    // But we include them in case they're needed by the API (will be empty/default)
     businessKey: round.businessKey || '',
     additionalProperties: round.additionalProperties || {},
     name: round.name || '',
@@ -367,7 +371,6 @@ const transformInvestmentToReportPayload = (investmentData: BaseInvestment): Gen
     roundSharePercentage: round.roundSharePercentage || 0,
     currencyRef: extractCurrencyRef(round.currency),
     equityInvestment: equityInvestmentData.id,
-    // Include additional audit fields that ARE available
     createdAt: round.createdAt || null,
     createdBy: round.createdBy || null,
     updatedAt: round.updatedAt || null,
@@ -378,22 +381,27 @@ const transformInvestmentToReportPayload = (investmentData: BaseInvestment): Gen
     activeTo: round.activeTo || null
   })) || [];
 
-  // 🔥 INVESTMENT ROLE - Handle array structure correctly (similar to equityInvestment)
+  return { equityInvestment, equityInvestmentRounds };
+};
+
+/**
+ * Transform investment role data
+ */
+const transformInvestmentRoleData = (investment: BaseInvestment) => {
   const investmentRoleData: InvestmentRole | null = Array.isArray(investment.investmentRole) && investment.investmentRole.length > 0 
     ? investment.investmentRole[0] 
     : null;
     
-  const investmentRole = investmentRoleData ? {
+  return investmentRoleData ? {
     id: investmentRoleData.id,
     version: investmentRoleData.version || 0,
     businessKey: investmentRoleData.businessKey || '',
     recordState: investmentRoleData.recordState || '',
     activeTo: investmentRoleData.activeTo || null,
     additionalProperties: investmentRoleData.additionalProperties || {},
-    investmentRoleRef: formatCatalogRef(investmentRoleData.investmentRole), // The catalog entry
+    investmentRoleRef: formatCatalogRef(investmentRoleData.investmentRole),
     displayOrder: investmentRoleData.displayOrder || 0,
     investment: investment.id,
-    // Include all audit fields that are available
     createdAt: investmentRoleData.createdAt || null,
     createdBy: investmentRoleData.createdBy || null,
     updatedAt: investmentRoleData.updatedAt || null,
@@ -403,13 +411,17 @@ const transformInvestmentToReportPayload = (investmentData: BaseInvestment): Gen
     processInstanceId: investmentRoleData.processInstanceId || '',
     synchronizedAt: investmentRoleData.synchronizedAt || null
   } : null;
+};
 
-  // 🔥 REAL ESTATE INVESTMENT DATA - Handle array structure correctly
+/**
+ * Transform real estate investment data
+ */
+const transformRealEstateInvestmentData = (investment: BaseInvestment) => {
   const realEstateInvestmentData: RealEstateInvestment | null = Array.isArray(investment.realEstateInvestment) && investment.realEstateInvestment.length > 0 
     ? investment.realEstateInvestment[0] 
     : null;
     
-  const realEstateInvestment = realEstateInvestmentData ? {
+  return realEstateInvestmentData ? {
     id: realEstateInvestmentData.id,
     version: realEstateInvestmentData.version || 0,
     businessKey: realEstateInvestmentData.businessKey || '',
@@ -428,103 +440,163 @@ const transformInvestmentToReportPayload = (investmentData: BaseInvestment): Gen
     funding: realEstateInvestmentData.funding || 0,
     actualAnnualExpenses: realEstateInvestmentData.actualAnnualExpenses || 0,
     targetAnnualExpenses: realEstateInvestmentData.targetAnnualExpenses || 0,
-    // 🔥 LIQUIDITY FORECAST - Properly mapped from GraphQL jsonb field
     liquidityForecast: realEstateInvestmentData.liquidityForecast || {},
     investment: investment.id
   } : null;
+};
 
-  // 🔥 OWNER EMPLOYEE NAME - Prioritize fullName as requested
-  const ownerEmployeeName = investment.ownerEmployee ? 
-    investment.ownerEmployee.fullName || 
-    investment.ownerEmployee.displayName || 
-    `${investment.ownerEmployee.firstName || ''} ${investment.ownerEmployee.lastName || ''}`.trim() : '';
+/**
+ * Helper function to find tile content by matching label patterns
+ */
+const findTileContent = (labelPatterns: string[], tiles: Record<string, string>, tileKeys: string[]): string => {
+  // First try exact key matches
+  for (const pattern of labelPatterns) {
+    if (tiles[pattern]) {
+      return tiles[pattern];
+    }
+  }
+  
+  // Then try matching against tile keys (case insensitive)
+  for (const tileKey of tileKeys) {
+    const lowerKey = tileKey.toLowerCase();
+    for (const pattern of labelPatterns) {
+      if (lowerKey.includes(pattern.toLowerCase()) || pattern.toLowerCase().includes(lowerKey)) {
+        return tiles[tileKey] || '';
+      }
+    }
+  }
+  
+  return '';
+};
 
-  // Calculate holding period (if acquisition date is available)
-  const holdingPeriod = investment.acquisitionDate ? 
-    Math.floor((new Date().getTime() - new Date(investment.acquisitionDate).getTime()) / (1000 * 60 * 60 * 24 * 365.25)) : 0;
+/**
+ * Process text into array items - split by lines, semicolons, or bullet points
+ */
+const processListItems = (text: string): string[] => {
+  if (!text) return [];
+  
+  return text
+    .split(/[;\n\r•\-]+/)
+    .map(item => item.trim())
+    .filter(item => item.length > 0)
+    .filter(item => !item.match(/^[\s\-•]*$/));
+};
+
+/**
+ * Extract and process tile content from investment
+ */
+const extractTileContent = (investment: BaseInvestment) => {
   const additionalProps = investment.additionalProperties || {};
   const tiles = additionalProps.tiles || {};
-  
-  // Create a helper function to find tile content by matching label patterns
-  const findTileContent = (labelPatterns: string[], tileKeys: string[]): string => {
-    // First try exact key matches
-    for (const pattern of labelPatterns) {
-      if (tiles[pattern]) {
-        return tiles[pattern];
-      }
-    }
-    
-    // Then try matching against tile keys (case insensitive)
-    for (const tileKey of tileKeys) {
-      const lowerKey = tileKey.toLowerCase();
-      for (const pattern of labelPatterns) {
-        if (lowerKey.includes(pattern.toLowerCase()) || pattern.toLowerCase().includes(lowerKey)) {
-          return tiles[tileKey] || '';
-        }
-      }
-    }
-    
-    return '';
-  };
-  
   const tileKeys = Object.keys(tiles);
   
-  // Extract content using semantic matching instead of hardcoded keys
   const aboutInvestmentText = findTileContent([
     'aboutInvestment', 'description', 'about', 'investment-description', 'summary'
-  ], tileKeys) || investment.description || '';
+  ], tiles, tileKeys) || investment.description || '';
                              
   const motivationText = findTileContent([
     'motivation', 'rationale', 'reasoning', 'investment-motivation', 'why'
-  ], tileKeys);
+  ], tiles, tileKeys);
                         
   const topicsText = findTileContent([
     'topicsAndOutlook', 'topics', 'outlook', 'current-topics', 'trends'
-  ], tileKeys);
+  ], tiles, tileKeys);
                     
   const reviewText = findTileContent([
     'review', 'assessment', 'evaluation', 'performance', 'analysis'
-  ], tileKeys);
+  ], tiles, tileKeys);
                     
   const potentialText = findTileContent([
     'potential', 'growth', 'investment-potential', 'opportunity', 'upside'
-  ], tileKeys);
+  ], tiles, tileKeys);
                        
   const developmentText = findTileContent([
     'development', 'project-development', 'progress', 'roadmap'
-  ], tileKeys);
+  ], tiles, tileKeys);
   
   const mainActionItemsText = findTileContent([
     'actions', 'action-items', 'main-actions', 'tasks', 'next-steps'
-  ], tileKeys);
+  ], tiles, tileKeys);
   
   const aboutPropertyText = findTileContent([
     'property', 'about-property', 'real-estate', 'building', 'asset'
-  ], tileKeys);
+  ], tiles, tileKeys);
   
   const aboutAreaText = findTileContent([
-    'area', 'location', 'neighborhood', 'region', 'geography'
-  ], tileKeys);
+    'area', 'location', 'neighborhood', 'region', 'geography',
+    'real-estate-description', 'realEstateDescription', 'real-estate',
+    'description', 'areaDescription', 'area-description'
+  ], tiles, tileKeys);
   
   const outlookText = findTileContent([
     'outlook', 'forecast', 'future', 'projection', 'market-outlook'
-  ], tileKeys);
-  
-  // Process topics and outlook - split by lines, semicolons, or bullet points if it's a string
-  const processListItems = (text: string): string[] => {
-    if (!text) return [];
-    
-    // Split by common delimiters and clean up
-    return text
-      .split(/[;\n\r•\-]+/) // Split by semicolon, newlines, bullets, or dashes
-      .map(item => item.trim())
-      .filter(item => item.length > 0)
-      .filter(item => !item.match(/^[\s\-•]*$/)); // Remove lines with only whitespace/bullets
-  };
+  ], tiles, tileKeys);
   
   const topicsArray = processListItems(topicsText);
   const outlookArray = processListItems(outlookText);
   const mainActionItemsArray = processListItems(mainActionItemsText);
+  
+  return {
+    aboutInvestmentText,
+    motivationText,
+    reviewText,
+    potentialText,
+    developmentText,
+    aboutPropertyText,
+    aboutAreaText,
+    topicsArray,
+    outlookArray,
+    mainActionItemsArray
+  };
+};
+
+/**
+ * Calculate holding period from acquisition date
+ */
+const calculateHoldingPeriod = (acquisitionDate: string | null | undefined): number => {
+  return acquisitionDate
+    ? dayjs().diff(dayjs(acquisitionDate), 'year')
+    : 0;
+};
+
+/**
+ * Get formatted owner employee name
+ */
+const getOwnerEmployeeName = (ownerEmployee: EmployeeRef | null | undefined): string => {
+  return ownerEmployee ? 
+    ownerEmployee.fullName || 
+    ownerEmployee.displayName || 
+    `${ownerEmployee.firstName || ''} ${ownerEmployee.lastName || ''}`.trim() : '';
+};
+
+/**
+ * Transform investment data to report payload format
+ */
+const transformInvestmentToReportPayload = (investmentData: BaseInvestment): GenerateInvestmentReportRequest => {
+  const investment = investmentData;
+  
+  // Transform all data sections
+  const baseInvestment = transformBaseInvestmentData(investment);
+  const { equityInvestment, equityInvestmentRounds } = transformEquityInvestmentData(investment);
+  const investmentRole = transformInvestmentRoleData(investment);
+  const realEstateInvestment = transformRealEstateInvestmentData(investment);
+  
+  // Extract tile content and metadata
+  const {
+    aboutInvestmentText,
+    motivationText,
+    reviewText,
+    potentialText,
+    developmentText,
+    aboutPropertyText,
+    aboutAreaText,
+    topicsArray,
+    outlookArray,
+    mainActionItemsArray
+  } = extractTileContent(investment);
+  
+  const ownerEmployeeName = getOwnerEmployeeName(investment.ownerEmployee);
+  const holdingPeriod = calculateHoldingPeriod(investment.acquisitionDate);
   
   return {
     reportPath: '/reports/investment-one-pager',
@@ -537,20 +609,16 @@ const transformInvestmentToReportPayload = (investmentData: BaseInvestment): Gen
       ...(realEstateInvestment && { realEstateInvestment }),
       ownerEmployeeName,
       holdingPeriod,
-      // 🔥 POPULATED FROM INVESTMENT DESCRIPTION CARDS (Overview Tab Tiles)
-      // Map the extracted data to the exact payload fields you requested:
-      aboutInvestment: aboutInvestmentText,        // From "Investment Description" card
-      motivation: motivationText,                  // From "Motivation" card  
-      topicsAndOutlook: topicsArray,              // From "Current topics and outlook" card
-      aboutProjectDevelopment: developmentText,   // From "Project Development" card
-      review: reviewText,                         // From "Review" card
-      outlook: outlookArray.length > 0 ? outlookArray : topicsArray, // From "Outlook" card or fallback to topics
-      mainActionItems: mainActionItemsArray,      // From "Main Action Items" card
-      investmentPotential: potentialText,         // From "Investment Potential" card
-      aboutProperty: aboutPropertyText ||         // From "About Property" card (Real Estate)
-                    (realEstateInvestment ? realEstateInvestmentData?.description || '' : ''),
-      aboutArea: aboutAreaText ||                 // From "About Area" card (Real Estate)
-                (realEstateInvestment ? realEstateInvestmentData?.areaDescription || '' : '')
+      aboutInvestment: aboutInvestmentText,
+      motivation: motivationText,
+      topicsAndOutlook: topicsArray,
+      aboutProjectDevelopment: developmentText,
+      review: reviewText,
+      outlook: outlookArray.length > 0 ? outlookArray : topicsArray,
+      mainActionItems: mainActionItemsArray,
+      investmentPotential: potentialText,
+      aboutProperty: aboutPropertyText || (realEstateInvestment ? investmentData.realEstateInvestment?.[0]?.description || '' : ''),
+      aboutArea: aboutAreaText || (realEstateInvestment ? investmentData.realEstateInvestment?.[0]?.areaDescription || '' : '')
     }
   };
 };
