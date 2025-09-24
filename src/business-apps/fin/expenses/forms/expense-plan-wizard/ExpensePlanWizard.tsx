@@ -77,7 +77,7 @@ const ExpensePlanWizardContent: React.FC<BusinessAppContextProps> = ({ accessTok
         expensePlanData.ExpensePlanByPk?.expenseRuleId,
         currentTitle,
         expensePlanData,
-        EVENTS.SUBMIT,  
+        EVENTS.DISCARD,  
         false
       );
       dispatchProcessContinueEventIfEnabled(
