@@ -22,7 +22,8 @@ import { useGenericPipelineStages } from '@/components/kanban-board/hooks/useGen
 import { useGetInvestmentOpportunities } from '@/common/data/investment/hooks/useInvestmentOpportunities';
 import type { InvestmentOpportunityQueryVariables } from '@/common/data/investment/queries/investmentOpportunityQueries';
 
-import { formatCurrency } from '../../utils';
+
+import { formatCurrencyCompact } from '../../../../../investment-management/utils/currencyUtils';
 import { Calendar, Building2, Clock, FileText } from 'lucide-react';
 import { UserOutlined } from '@ant-design/icons';
 import { EmployeeSelector } from './EmployeeSelector';
@@ -205,7 +206,7 @@ export const OpportunityBoard: React.FC<OpportunityBoardProps> = ({
 
           <div className="gba:flex gba:items-center gba:justify-between">
             <span className="gba:text-md gba:font-bold gba:text-gray-900 gba:dark:text-gray-100">
-              {formatCurrency(amount)}
+              {formatCurrencyCompact(amount)}
             </span>
             {formattedCloseDate && (
               <div className="gba:flex gba:items-center gba:text-xs gba:text-gray-500 gba:dark:text-gray-400">
@@ -265,7 +266,7 @@ export const OpportunityBoard: React.FC<OpportunityBoardProps> = ({
         <div className="gba:flex gba:justify-between gba:text-xs gba:text-gray-500 gba:dark:text-gray-400 gba:pt-1">
           <div>
             <span className="gba:font-medium" data-testid={`stage-total-${stage.id}`}>
-              {formatCurrency(totalAmount)}
+              {formatCurrencyCompact(totalAmount)}
             </span>
           </div>
           <div>

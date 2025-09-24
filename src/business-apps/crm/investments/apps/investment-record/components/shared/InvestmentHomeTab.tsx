@@ -22,8 +22,6 @@ export const InvestmentHomeTab: React.FC<InvestmentHomeTabProps> = ({
   const [activitiesLoading, setActivitiesLoading] = useState(false);
   const [activitiesError, setActivitiesError] = useState<string | null>(null);
   const [notes, setNotes] = useState<any[]>([]);
-  const [notesLoading, setNotesLoading] = useState(false);
-  const [notesError, setNotesError] = useState<string | null>(null);
   const [approvals, setApprovals] = useState<any[]>([]);
   
   const { fetchInvestmentTasksByInvestmentId } = useGetInvestmentTasksByInvestmentId(context);
@@ -35,25 +33,14 @@ export const InvestmentHomeTab: React.FC<InvestmentHomeTabProps> = ({
     
     try {
       const tasksData = await fetchInvestmentTasksByInvestmentId(investmentId);
-      
       // Filter out approval tasks - they should only appear in the Approvals tab
       const nonApprovalTasks = (tasksData || []).filter((task: any) => {
-        const typeValue = task?.taskType?.value || '';
-        const typeCode = task?.taskType?.code || '';
-        const typeRef = task?.taskTypeRef || '';
-        
-        // Check if any of the task type fields contain "approval" (case insensitive)
-        const isApproval = 
-          String(typeValue).toLowerCase().includes('approval') ||
-          String(typeCode).toLowerCase().includes('approval') ||
-          String(typeRef).toLowerCase().includes('approval');
-        
-        return !isApproval;
+        const typeVal = task?.taskType?.value || task?.taskType?.code || task?.taskTypeRef || '';
+        return String(typeVal).toLowerCase() !== 'approval' && !String(typeVal).toUpperCase().endsWith(':APPROVAL');
       });
-      
       setTasks(nonApprovalTasks);
     } catch (err) {
-      console.error('Failed to load tasks:', err);
+      // Failed to load tasks
     }
   }, [investmentId, fetchInvestmentTasksByInvestmentId]);
 
@@ -76,9 +63,6 @@ export const InvestmentHomeTab: React.FC<InvestmentHomeTabProps> = ({
   const loadNotes = useCallback(async () => {
     if (!investmentId) return;
     
-    setNotesLoading(true);
-    setNotesError(null);
-    
     try {
       const notesData = await fetchInvestmentNotesByInvestmentId(investmentId);
       // Transform the data to match the expected format of NoteSection
@@ -95,9 +79,7 @@ export const InvestmentHomeTab: React.FC<InvestmentHomeTabProps> = ({
       }));
       setNotes(transformedNotes);
     } catch (err) {
-      setNotesError(err instanceof Error ? err.message : 'Failed to load notes');
-    } finally {
-      setNotesLoading(false);
+      console.error('Failed to load notes:', err);
     }
   }, [investmentId, fetchInvestmentNotesByInvestmentId]);
 
@@ -106,47 +88,16 @@ export const InvestmentHomeTab: React.FC<InvestmentHomeTabProps> = ({
     
     try {
       const tasksData = await fetchInvestmentTasksByInvestmentId(investmentId);
-      
       // Filter only approval tasks
       const approvalTasks = (tasksData || []).filter((task: any) => {
-        const typeValue = task?.taskType?.value || '';
-        const typeCode = task?.taskType?.code || '';
-        const typeRef = task?.taskTypeRef || '';
-        
-        // Check if any of the task type fields contain "approval" (case insensitive)
-        const isApproval = 
-          String(typeValue).toLowerCase().includes('approval') ||
-          String(typeCode).toLowerCase().includes('approval') ||
-          String(typeRef).toLowerCase().includes('approval');
-        
-        return isApproval;
+        const typeVal = task?.taskType?.value || task?.taskType?.code || task?.taskTypeRef || '';
+        return String(typeVal).toLowerCase() === 'approval' || String(typeVal).toUpperCase().endsWith(':APPROVAL');
       });
-      
       setApprovals(approvalTasks);
     } catch (err) {
-      console.error('Failed to load approvals:', err);
+      // Failed to load approvals
     }
   }, [investmentId, fetchInvestmentTasksByInvestmentId]);
-
-  // Process event handler for refreshing data after process completion
-  const handleProcessEvent = useCallback((event: any) => {
-    console.log('Investment home tab process event received:', event.type, event);
-    
-    // Check if this is a note creation event
-    if (event.detail?.investmentNote) {
-      console.log('Note creation detected, refreshing notes');
-      loadNotes();
-      return;
-    }
-    
-    // Check for successful completion
-    if (event.detail?.resolution === 'success') {
-      console.log('Success resolution detected, refreshing data');
-      loadNotes();
-      loadActivities();
-      loadTasks();
-    }
-  }, [loadNotes, loadActivities, loadTasks]);
 
   useEffect(() => {
     loadTasks();
@@ -237,7 +188,6 @@ export const InvestmentHomeTab: React.FC<InvestmentHomeTabProps> = ({
                 investmentId={investmentId}
                 accessToken={context.accessToken}
                 userInfo={context.userInfo}
-                notes={notes}
                 noteActionProps={{
                   contextsArray: [FlowContextName.createInvestmentNote],
                   externalContextData: { investmentId },
@@ -265,12 +215,7 @@ export const InvestmentHomeTab: React.FC<InvestmentHomeTabProps> = ({
                   externalContextData: { 
                     investmentId,
                     investment: investmentId,
-                    investmentTask: { 
-                      investment: investmentId, 
-                      investmentId, 
-                      taskTypeRef: 'InvestmentTaskType:v1:APPROVAL'
-                    },
-                    typeRef: 'InvestmentTaskType:v1:APPROVAL'
+                    investmentTask: { investment: investmentId, investmentId, taskType: 'approval' }
                   },
                   prefixDataTestId: 'request-approval',
                   emptyStateBehavior: 'enable'

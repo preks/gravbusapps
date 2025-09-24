@@ -106,7 +106,7 @@ export function useHrSettingsCards(): HrSettingsCardProps[] {
       entries: [
         {
           label: t('hr.position_termination', 'Position Termination'),
-          url: '/?app=PositionTermination&jobPositionId=test-position-123'
+          url: '/platform/hr/human-resources?view=positions'
         }
       ]
     }

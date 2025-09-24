@@ -9,29 +9,32 @@ import {
 // import type { InvestmentAccount } from "@/common/data/investment/types";
 import { BusinessAppContextProps } from "@/common/BusinessAppContext";
 import { useAccountStatisticsQueries } from "../queries/AccountStatisticsQueries";
+import { formatCurrencyLarge } from "@/business-apps/crm/common/utils/currencyUtils";
 
 interface AccountStatisticsProps extends BusinessAppContextProps {}
 
 export const AccountStatistics: React.FC<AccountStatisticsProps> = ({ ...context }) => {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<Error | null>(null);
-  const { fetchRecentAccountsWithTrend, fetchActiveAccountsWithTrend, fetchAccountsThisYearWithTrend, fetchTotalRevenueApprox } = useAccountStatisticsQueries(context);
+  const { fetchRecentAccountsWithTrend, fetchActiveAccountsWithTrend, fetchAccountsThisYearWithTrend, fetchTotalRevenueApprox, fetchCurrencyInfo } = useAccountStatisticsQueries(context);
 
   const [recent, setRecent] = useState<{ current: number; changePercent: number; isPositive: boolean }>({ current: 0, changePercent: 0, isPositive: true });
   const [active, setActive] = useState<{ current: number; changePercent: number; isPositive: boolean }>({ current: 0, changePercent: 0, isPositive: true });
   const [thisYear, setThisYear] = useState<{ current: number; changePercent: number; isPositive: boolean }>({ current: 0, changePercent: 0, isPositive: true });
   const [totalRevenue, setTotalRevenue] = useState<number>(0);
+  const [currencyCode, setCurrencyCode] = useState<string>('USD'); // Default fallback
 
   useEffect(() => {
     const load = async () => {
       setIsLoading(true);
       setError(null);
       try {
-        const [r, a, y, rev] = await Promise.all([
+        const [r, a, y, rev, currency] = await Promise.all([
           fetchRecentAccountsWithTrend(),
           fetchActiveAccountsWithTrend(),
           fetchAccountsThisYearWithTrend(),
           fetchTotalRevenueApprox(),
+          fetchCurrencyInfo(),
         ]);
         const calc = (t: { current: number; previous: number }) => ({
           current: t.current,
@@ -42,6 +45,7 @@ export const AccountStatistics: React.FC<AccountStatisticsProps> = ({ ...context
         setActive(calc(a));
         setThisYear(calc(y));
         setTotalRevenue(rev);
+        setCurrencyCode(currency || 'USD'); // Use extracted currency or fallback to USD
       } catch (e) {
         setError(e instanceof Error ? e : new Error('Failed to load account statistics'));
       } finally {
@@ -53,14 +57,6 @@ export const AccountStatistics: React.FC<AccountStatisticsProps> = ({ ...context
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const formatCurrency = (amount: number): string => {
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: 'USD',
-      minimumFractionDigits: 0,
-      maximumFractionDigits: 0
-    }).format(amount);
-  };
 
   // Helper function to format trend percentage with proper sign
   const formatTrendPercent = (changePercent: number): string => {
@@ -115,7 +111,7 @@ export const AccountStatistics: React.FC<AccountStatisticsProps> = ({ ...context
     {
       key: "total-revenue",
       title: "Total Revenue",
-      value: formatCurrency(totalRevenue),
+      value: formatCurrencyLarge(totalRevenue, currencyCode),
       prefix: <DollarOutlined />,
       color: "#eb2f96",
       valueIsString: true,
