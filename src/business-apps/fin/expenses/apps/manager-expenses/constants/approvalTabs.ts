@@ -27,13 +27,13 @@ export const APPROVAL_TABS: ApprovalTabConfig[] = [
   {
     key: 'handout-payment',
     label: 'Handout Payment',
-    processName: 'approveHandoutPayment',
+    processName: 'handOutAdvancePayment',
     description: 'Review and approve handout payment requests from your team',
   },
   {
     key: 'transfer-payment',
     label: 'Transfer Payment',
-    processName: 'approveTransferPayment',
+    processName: 'transferAdvancePayment',
     description: 'Review and approve transfer payment requests from your team',
   },
 ];

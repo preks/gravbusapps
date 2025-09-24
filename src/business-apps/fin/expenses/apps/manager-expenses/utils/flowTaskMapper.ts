@@ -53,10 +53,6 @@ export const mapFlowTaskToApprovalRequest = (task: FlowExecutionTask): ApprovalR
     if (taskName.includes('AdvancePayment')) return 'Advance Payment Request';
     if (taskName.includes('Transfer')) return 'Transfer';
     if (taskName.includes('Handout')) return 'Handout';
-    if (taskName.includes('SickLeave')) return 'Sick Leave';
-    if (taskName.includes('PersonalInformation')) return 'Personal Information';
-    if (taskName.includes('Address')) return 'Address Change';
-    if (taskName.includes('Document')) return 'Document Upload';
     return 'Other';
   };
 

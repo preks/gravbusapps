@@ -17,8 +17,8 @@ export interface UseFlowExecutionTasksResult {
   setPageSize: (size: number) => void;
   searchTerm: string;
   setSearchTerm: (term: string) => void;
-  filterProcessName: string | null;
-  setFilterProcessName: (processName: string | null) => void;
+  filterTaskName: string | null;
+  setFilterTaskName: (taskName: string | null) => void;
   refresh: () => Promise<void>;
   completing: boolean;
   completeTask: (taskId: string, variables?: Record<string, any>) => Promise<void>;
@@ -55,7 +55,7 @@ export const useFlowExecutionTasks = (
   const setSearchTerm = externalPagination ? () => {} : setInternalSearchTerm;
 
   // Filter state
-  const [filterProcessName, setFilterProcessName] = useState<string | null>(null);
+  const [filterTaskName, setFilterTaskName] = useState<string | null>(null);
 
   // Action states
   const [completing, setCompleting] = useState<boolean>(false);
@@ -82,7 +82,7 @@ export const useFlowExecutionTasks = (
         direction: 'DESC',
         ...(searchTerm && { search: searchTerm }),
         ...(context?.userInfo?.id && { userId: context.userInfo.id }),
-        ...(filterProcessName && { filterProcessName }),
+        ...(filterTaskName && { filterTaskName: filterTaskName }),
       };
 
       const response = await flowMetricsClient.getFlowExecutionTasks(params);
@@ -111,7 +111,7 @@ export const useFlowExecutionTasks = (
     } finally {
       setIsLoading(false);
     }
-  }, [accessToken, currentPage, pageSize, searchTerm, filterProcessName, context?.userInfo?.id]);
+  }, [accessToken, currentPage, pageSize, searchTerm, filterTaskName, context?.userInfo?.id]);
 
   // Complete a task
   const completeTask = useCallback(
@@ -153,8 +153,8 @@ export const useFlowExecutionTasks = (
     setPageSize,
     searchTerm,
     setSearchTerm,
-    filterProcessName,
-    setFilterProcessName,
+    filterTaskName,
+    setFilterTaskName,
     refresh: fetchTasks,
     completing,
     completeTask,

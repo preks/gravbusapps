@@ -54,6 +54,7 @@ export interface FlowExecutionTasksParams {
   userId?: string;
   taskName?: string;
   filterProcessName?: string;
+  filterTaskName?: string;
 }
 
 export class FlowMetricsClient extends RestClient {
@@ -82,12 +83,13 @@ export class FlowMetricsClient extends RestClient {
       cockpitPage = 'INBOX',
       size = 20,
       page = 0,
-      field = 'PRIORITY',
+      field = 'CREATION_DATE',
       direction = 'DESC',
       search,
       userId,
       taskName,
       filterProcessName,
+      filterTaskName,
     } = params;
 
     const queryParams: Record<string, string | number> = {
@@ -109,6 +111,10 @@ export class FlowMetricsClient extends RestClient {
 
     if (filterProcessName) {
       queryParams.filterProcessName = filterProcessName;
+    }
+
+    if (filterTaskName) {
+      queryParams.filterTaskName = filterTaskName;
     }
 
     return this.get<FlowExecutionTasksResponse>('/flow-executions/tasks', {
