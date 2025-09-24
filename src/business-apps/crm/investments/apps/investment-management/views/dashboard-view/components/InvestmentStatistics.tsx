@@ -8,17 +8,11 @@ import {
 } from "@ant-design/icons";
 import { BusinessAppContextProps } from "@/common/BusinessAppContext";
 import { useInvestmentKPIIntegration } from "../hooks/useInvestmentKPIIntegration";
+import { formatCurrencyCompact } from "../../../utils/currencyUtils";
 
 interface InvestmentStatisticsProps extends BusinessAppContextProps {}
 
-const formatCurrency = (amount: number): string => {
-  return new Intl.NumberFormat("en-US", {
-    style: "currency",
-    currency: "EUR",
-    minimumFractionDigits: 0,
-    maximumFractionDigits: 0,
-  }).format(amount);
-};
+// Removed formatCurrency - now using formatCurrencyCompact utility
 
 const formatPercentage = (value: number): string => {
   return `${value.toFixed(1)}%`;
@@ -69,7 +63,7 @@ export const InvestmentStatistics: React.FC<InvestmentStatisticsProps> = ({ ...c
     {
       key: "total-invested",
       title: "Total Invested",
-      value: formatCurrency(totalInvested),
+      value: formatCurrencyCompact(totalInvested),
       prefix: <DollarOutlined />,
       color: "#52c41a",
       valueIsString: true,
@@ -99,7 +93,7 @@ export const InvestmentStatistics: React.FC<InvestmentStatisticsProps> = ({ ...c
     {
       key: "total-market-value",
       title: "Total Market Value",
-      value: formatCurrency(totalMarketValue),
+      value: formatCurrencyCompact(totalMarketValue),
       prefix: <RiseOutlined />,
       color: "#722ed1",
       valueIsString: true,

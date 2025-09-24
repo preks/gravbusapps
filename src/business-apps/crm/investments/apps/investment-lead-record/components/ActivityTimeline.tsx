@@ -22,7 +22,7 @@ import { FlowContextName } from '@/common/types/FlowRegistryTypes';
 import { Button } from '@newwork/nw-design-system';
 import { ActivityDeletePopup } from '@/common/components/common-relations/popups/activity-delete-popup';
 import { DeleteConfirmPopup } from '@/common/components/common-relations/popups/delete-confirm-popup';
-import { isApprovalTask } from '../../utils/taskUtils';
+import { isApprovalTask } from '../../../utils/taskUtils';
 
 const { Text } = Typography;
 

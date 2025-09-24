@@ -19,15 +19,43 @@ export const extractCurrencyCode = (currencyId: string): string => {
 };
 
 /**
- * Format currency value for display
+ * Format currency value for display with compact formatting for large numbers
  */
 export const formatCurrency = (amount: number, currencyCode: string = 'EUR'): string => {
   try {
+    if (amount === undefined || amount === null || !isFinite(amount)) return "-";
+    
+    const abs = Math.abs(amount);
+    const sign = amount < 0 ? '-' : '';
+    
+    if (abs >= 1_000_000_000) {
+      // Billions
+      const formatted = new Intl.NumberFormat('en-US', {
+        style: 'currency',
+        currency: currencyCode,
+        maximumFractionDigits: 1,
+        minimumFractionDigits: 0
+      }).format(abs / 1_000_000_000);
+      return `${sign}${formatted}B`;
+    }
+    
+    if (abs >= 1_000_000) {
+      // Millions
+      const formatted = new Intl.NumberFormat('en-US', {
+        style: 'currency',
+        currency: currencyCode,
+        maximumFractionDigits: 1,
+        minimumFractionDigits: 0
+      }).format(abs / 1_000_000);
+      return `${sign}${formatted}M`;
+    }
+    
+    // Thousands and below - show as normal currency
     return new Intl.NumberFormat('en-US', {
       style: 'currency',
       currency: currencyCode,
-      minimumFractionDigits: 0,
-      maximumFractionDigits: 0
+      maximumFractionDigits: 0,
+      minimumFractionDigits: 0
     }).format(amount);
   } catch (error) {
     return `${currencyCode} ${amount.toLocaleString()}`;

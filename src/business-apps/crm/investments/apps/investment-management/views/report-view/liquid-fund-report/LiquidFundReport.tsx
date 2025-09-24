@@ -14,11 +14,15 @@ import {
   Tabs,
   TabsContent,
   TabsList,
-  TabsTrigger
+  TabsTrigger,
+  Calendar,
+  Popover,
+  PopoverContent,
+  PopoverTrigger
 } from '@newwork/nw-design-system';
-import { DatePicker } from 'antd';
 import { 
-  FilterIcon
+  FilterIcon,
+  CalendarIcon
 } from 'lucide-react';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 import { AnalyticsFilters } from './types';
@@ -39,20 +43,16 @@ export const LiquidFundReport: React.FC<LiquidFundReportProps> = ({
   // Sub-tab management - Start with Bank Deposits since Overview is removed
   const [activeSubTab, setActiveSubTab] = useState<string>('tab1');
 
-  // FIXED: Filter states - Use same pattern as individual investment record reports
+  // Filter states - Use same pattern as individual investment record reports
   const [timeFilter, setTimeFilter] = useState<string>('all');
-  const [dateRange, setDateRange] = useState<[dayjs.Dayjs | null, dayjs.Dayjs | null] | null>(null);
-  const [selectedCurrency, setSelectedCurrency] = useState<string>('EUR');
+  const [dateRange, setDateRange] = useState<{from?: Date, to?: Date} | undefined>(undefined);
 
-  // Available currencies
-  const availableCurrencies = ['EUR', 'USD', 'GBP', 'CHF'];
-
-  // FIXED: Calculate date strings using same logic as individual investment record reports
+  // Calculate date strings using same logic as individual investment record reports
   const { startDateString, endDateString } = useMemo(() => {
-    if (dateRange && dateRange[0] && dateRange[1]) {
+    if (dateRange && dateRange.from && dateRange.to) {
       return {
-        startDateString: dateRange[0].format('YYYY-MM-DD'),
-        endDateString: dateRange[1].format('YYYY-MM-DD')
+        startDateString: dayjs(dateRange.from).format('YYYY-MM-DD'),
+        endDateString: dayjs(dateRange.to).format('YYYY-MM-DD')
       };
     } else if (timeFilter !== 'all') {
       const now = dayjs();
@@ -84,42 +84,39 @@ export const LiquidFundReport: React.FC<LiquidFundReportProps> = ({
   const bankDepositFilters = useMemo((): AnalyticsFilters => ({
     startDate: startDateString,
     endDate: endDateString,
-    currency: selectedCurrency,
     investmentType: 'Bank Deposit'
-  }), [startDateString, endDateString, selectedCurrency]);
+  }), [startDateString, endDateString]);
 
   const fixedTermDepositFilters = useMemo((): AnalyticsFilters => ({
     startDate: startDateString,
     endDate: endDateString,
-    currency: selectedCurrency,
     investmentType: 'Fixed-Term Deposit'
-  }), [startDateString, endDateString, selectedCurrency]);
+  }), [startDateString, endDateString]);
 
   const multipleTypesFilters = useMemo((): AnalyticsFilters => ({
     startDate: startDateString,
     endDate: endDateString,
-    currency: selectedCurrency,
     investmentType: 'Money Market Funds,Pension Fund,Equity,Bond' // Multiple types separated by comma
-  }), [startDateString, endDateString, selectedCurrency]);
+  }), [startDateString, endDateString]);
 
-  // FIXED: Filter change handlers matching record reports pattern
+  // Filter change handlers matching record reports pattern
   const handleTimeFilterChange = (value: string) => {
     setTimeFilter(value);
     if (value !== 'all') {
-      setDateRange(null); // Clear date range when using time filter
+      setDateRange(undefined); // Clear date range when using time filter
     }
   };
 
-  const handleDateRangeChange = (dates: [dayjs.Dayjs | null, dayjs.Dayjs | null] | null) => {
-    setDateRange(dates);
-    if (dates && dates[0] && dates[1]) {
+  const handleDateRangeChange = (range: {from?: Date, to?: Date} | undefined) => {
+    setDateRange(range);
+    if (range && range.from && range.to) {
       setTimeFilter('all'); // Clear time filter when using date range
     }
   };
 
   const handleClearFilters = () => {
     setTimeFilter('all');
-    setDateRange(null);
+    setDateRange(undefined);
   };
 
 
@@ -127,7 +124,7 @@ export const LiquidFundReport: React.FC<LiquidFundReportProps> = ({
 
   return (
     <div className="gba:space-y-6 gba:p-6" data-testid={dataTestId}>
-      {/* FIXED: Filters Section - Using same pattern as record reports */}
+      {/* Filters Section - Using same pattern as record reports */}
       <div className="gba:bg-white gba:rounded-lg gba:border gba:shadow-sm gba:mb-6">
         <div className="gba:p-4 gba:border-b">
           <div className="gba:flex gba:items-center gba:gap-2">
@@ -156,28 +153,28 @@ export const LiquidFundReport: React.FC<LiquidFundReportProps> = ({
             
             <div className="gba:flex gba:items-center gba:gap-2">
               <label className="gba:text-sm gba:font-medium">Date Range:</label>
-              <DatePicker.RangePicker
-                value={dateRange}
-                onChange={handleDateRangeChange}
-                format="DD/MM/YYYY"
-                placeholder={["Start Date", "End Date"]}
-              />
-            </div>
-            
-            <div className="gba:flex gba:items-center gba:gap-2">
-              <label className="gba:text-sm gba:font-medium">Currency:</label>
-              <Select value={selectedCurrency} onValueChange={setSelectedCurrency}>
-                <SelectTrigger className="gba:w-[120px]">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {availableCurrencies.map((currency) => (
-                    <SelectItem key={currency} value={currency}>
-                      {currency}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    className="gba:w-[280px] gba:justify-start gba:text-left gba:font-normal"
+                    data-testid={`${dataTestId}-date-range-trigger`}
+                  >
+                    <CalendarIcon className="gba:mr-2 gba:h-4 gba:w-4" />
+                    {dateRange && dateRange.from && dateRange.to
+                      ? `${dayjs(dateRange.from).format('DD/MM/YYYY')} - ${dayjs(dateRange.to).format('DD/MM/YYYY')}`
+                      : 'Select date range'}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="gba:w-auto gba:p-0" align="start">
+                  <Calendar
+                    mode="range"
+                    selected={dateRange}
+                    onSelect={handleDateRangeChange}
+                    data-testid={`${dataTestId}-date-range-calendar`}
+                  />
+                </PopoverContent>
+              </Popover>
             </div>
             
             <Button 
