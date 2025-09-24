@@ -28,7 +28,7 @@ import { DeleteConfirmPopup } from '@/common/components/common-relations/popups/
 import dayjs from 'dayjs';
 import { LanguageDropdown } from './LanguageDropdown';
 import { translateMultipleTexts } from '../utils/translationService';
-import { isApprovalTask } from '../../utils/taskUtils';
+import { isApprovalTask } from '../../../utils/taskUtils';
 // import { useSalesManagerEmployees } from '../../opportunity-record/hooks/useSalesManagerEmployees';
 
 const { Text } = Typography;

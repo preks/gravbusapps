@@ -712,9 +712,9 @@ export const LeadDocuments: React.FC<LeadDocumentsProps> = ({
     const combinedClass = `${className || ''} ${showDropIndicator ? 'gba:ring-2 gba:ring-blue-500 gba:bg-blue-50 gba:transition-all gba:duration-200' : ''} ${showBorder ? 'gba:border-dashed gba:border-2 gba:border-blue-300' : ''}`;
     
     return (
-      <div ref={setNodeRef} className={combinedClass} data-over={isOver}>
+      <div ref={setNodeRef} className={`gba:relative ${combinedClass}`} data-over={isOver}>
         {showDropIndicator && (isFolder || id.includes('root')) && (
-          <div className="gba:absolute gba:inset-0 gba:flex gba:items-center gba:justify-center gba:bg-blue-50 gba:bg-opacity-50 gba:rounded gba:pointer-events-none gba:z-10">
+          <div className="gba:absolute gba:left-0 gba:right-0 gba:top-1/2 gba:-translate-y-1/2 gba:flex gba:items-center gba:justify-center gba:bg-blue-50 gba:bg-opacity-90 gba:rounded gba:border-2 gba:border-dashed gba:border-blue-400 gba:pointer-events-none gba:z-10 gba:py-2 gba:mx-4">
             <span className="gba:text-blue-600 gba:font-medium gba:text-sm">
               {id.includes('root') ? 'Drop to move to root level' : 'Drop into folder'}
             </span>
