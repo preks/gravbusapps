@@ -754,6 +754,11 @@ export interface UploadReportButtonProps extends BusinessAppContextProps {
   investmentId?: string;
   
   /**
+   * Investment data to determine entity-specific context
+   */
+  investment?: InvestmentData;
+  
+  /**
    * Button variant
    */
   variant?: 'default' | 'outline' | 'secondary';
@@ -771,6 +776,7 @@ export interface UploadReportButtonProps extends BusinessAppContextProps {
  */
 export const UploadReportButton: React.FC<UploadReportButtonProps> = ({
   investmentId,
+  investment,
   variant = 'outline',
   size = 'default',
   accessToken
@@ -781,7 +787,7 @@ export const UploadReportButton: React.FC<UploadReportButtonProps> = ({
 
   return (
     <AppAction
-      contextsArray={[FlowContextName.investmentReportUpload]}
+      contextsArray={[getInvestmentFlowContext(investment?.type)]}
       externalContextData={{ investmentId }}
       accessToken={accessToken}
       emptyStateBehavior="enable"

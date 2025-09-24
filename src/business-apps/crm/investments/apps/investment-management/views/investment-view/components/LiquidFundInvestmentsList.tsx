@@ -27,6 +27,7 @@ import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils';
 import { ColumnConfig } from "@/components/dataController";
 import { useInvestmentListController } from "../hooks/useInvestmentListController";
 import { useLiquidFundInvestmentsFilters } from "../hooks/useLiquidFundInvestmentsFilters";
+import { OwnerDisplay } from "../utils/ownerDisplayUtils";
 
 
 export interface LiquidFundInvestmentsListProps extends BusinessAppContextProps {}
@@ -547,14 +548,11 @@ const LiquidFundInvestmentsList: React.FC<LiquidFundInvestmentsListProps> = (con
                   )}
                   {visibleColumns.includes('owner') && (
                     <TableCell>
-                      <div className="gba:flex gba:items-center gba:gap-2">
-                        <User className="gba:w-4 gba:h-4 gba:text-gray-600" />
-                        <span>
-                          {inv.ownerEmployee 
-                            ? inv.ownerEmployee.displayName || `${inv.ownerEmployee.firstName || ''} ${inv.ownerEmployee.lastName || ''}`.trim() || '-'
-                            : '-'}
-                        </span>
-                      </div>
+                      <OwnerDisplay 
+                        ownerEmployee={inv.ownerEmployee}
+                        entityId={inv.id}
+                        testIdPrefix="liquid-fund-investment"
+                      />
                     </TableCell>
                   )}
                   {visibleColumns.includes('status') && (

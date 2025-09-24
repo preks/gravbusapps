@@ -35,10 +35,14 @@ const DocumentPopup: React.FC<DocumentPopupProps> = ({ initialValues = {}, ...pr
     const payload = ad?.payload || ad?.psi_taskPayload?.psi_initialParameters?.payload || ad?.psi_taskPayload?.initialParameters?.payload || {};
     const invFromAd = ad?.investmentDocument || ad?.psi_taskPayload?.psi_initialParameters?.investmentDocument || ad?.psi_taskPayload?.initialParameters?.investmentDocument || payload?.investmentDocument;
     const inv = src?.investmentDocument || invFromAd || {};
-    const accountId = src?.accountId || src?.account || inv?.account || '';
-    const contactId = src?.contactId || src?.contact || inv?.contact || '';
-    const leadId = src?.leadId || src?.lead || inv?.lead || '';
-    const opportunityId = src?.opportunityId || src?.opportunity || inv?.opportunity || '';
+    
+    // Also check URL parameters for entity IDs
+    const urlParams = new URLSearchParams(window.location.search);
+    
+    const accountId = src?.accountId || src?.account || inv?.account || urlParams.get('accountId') || '';
+    const contactId = src?.contactId || src?.contact || inv?.contact || urlParams.get('contactId') || '';
+    const leadId = src?.leadId || src?.lead || inv?.lead || urlParams.get('leadId') || '';
+    const opportunityId = src?.opportunityId || src?.opportunity || inv?.opportunity || urlParams.get('opportunityId') || '';
 
     let entityType: InvestmentDocumentEntityType = 'account';
     let entityId = '';
@@ -81,7 +85,14 @@ const DocumentPopup: React.FC<DocumentPopupProps> = ({ initialValues = {}, ...pr
   const watchedDocumentGroupRef = form.watch('documentGroupRef');
   const watchedFolder = form.watch('folder');
   
-  const { documentGroups, filteredDocumentTypes } = useDocumentCatalogs(props.accessToken || '', watchedDocumentGroupRef || '');
+  // For IRM (investments), use the Investment-specific catalogs
+  const { documentGroups, filteredDocumentTypes } = useDocumentCatalogs(
+    props.accessToken || '',
+    watchedDocumentGroupRef || '',
+    { groupCatalogIdentifier: 'InvestmentDocumentGroup', typeCatalogIdentifier: 'InvestmentDocumentType' }
+  );
+
+  // Note: renameMode is defined later; we'll set defaults after renameMode is computed in a later effect
   const [parentFolders, setParentFolders] = useState<{ id: string; name: string }[]>([]);
   const [parentLoading, setParentLoading] = useState<boolean>(false);
   const graphqlClient = useGraphQLClient(props.accessToken || '');
@@ -94,6 +105,24 @@ const DocumentPopup: React.FC<DocumentPopupProps> = ({ initialValues = {}, ...pr
     const modeFromAd = ad?.mode || ad?.psi_taskPayload?.psi_initialParameters?.mode || ad?.psi_taskPayload?.initialParameters?.mode;
     return (src?.mode === 'rename') || (payload?.mode === 'rename') || (modeFromAd === 'rename');
   }, [initialValues, props]);
+
+  // Auto-select defaults when catalogs and renameMode state are known
+  useEffect(() => {
+    if (renameMode || watchedFolder) return;
+    const currentGroup = form.getValues('documentGroupRef');
+    if (!currentGroup && Array.isArray(documentGroups) && documentGroups.length > 0) {
+      form.setValue('documentGroupRef', documentGroups[0].id);
+    }
+  }, [documentGroups, form, renameMode, watchedFolder]);
+
+  useEffect(() => {
+    if (renameMode || watchedFolder) return;
+    const currentType = form.getValues('documentTypeRef');
+    const hasGroup = !!form.getValues('documentGroupRef');
+    if (hasGroup && !currentType && Array.isArray(filteredDocumentTypes) && filteredDocumentTypes.length > 0) {
+      form.setValue('documentTypeRef', filteredDocumentTypes[0].id);
+    }
+  }, [filteredDocumentTypes, form, renameMode, watchedFolder]);
 
   useEffect(() => {
     if (renameMode) return; // no need to load folders for simple rename
@@ -206,6 +235,16 @@ const DocumentPopup: React.FC<DocumentPopupProps> = ({ initialValues = {}, ...pr
           default: return null;
         }
       })();
+      // Debug entity resolution (development only)
+      if (process.env.NODE_ENV === 'development') {
+        console.debug('DocumentPopup: Entity resolution -', {
+          entityType: contextValues.entityType,
+          hasEntityId: !!contextValues.entityId,
+          bindingKey: entityBindingKey,
+          hasUrlId: !!idFromUrl
+        });
+      }
+      
       const resolvedId = contextValues.entityId || source?.investmentDocument?.[entityBindingKey] || source?.[entityBindingKey] || source?.accountId || source?.contactId || source?.leadId || source?.opportunityId || source?.account || source?.contact || source?.lead || source?.opportunity || idFromUrl || '';
       
       const folderEntity = (() => {
@@ -218,11 +257,45 @@ const DocumentPopup: React.FC<DocumentPopupProps> = ({ initialValues = {}, ...pr
         }
       })();
 
+      // Sanitize the resolvedId to match the required regex pattern ^(/[\w_-]{1,256})+$
+      
+      // Ensure resolvedId exists and sanitize it
+      if (!resolvedId || resolvedId.trim() === '') {
+        throw new Error('Entity ID is required for file upload');
+      }
+      
+      const sanitizedId = resolvedId.replace(/[^\w-]/g, '_'); // Replace non-word/non-hyphen chars with underscore
+      const folderPath = `/${folderEntity}/${sanitizedId}/documents`;
+      
+      // Log folder path validation in development
+      if (process.env.NODE_ENV === 'development') {
+        console.debug('DocumentPopup: Folder path generation completed', { 
+          pathValid: /^(\/[\w_-]{1,256})+$/.test(folderPath) 
+        });
+      }
+      
+      // Validate the folder path matches the expected regex
+      const folderPathRegex = /^(\/[\w_-]{1,256})+$/;
+      if (!folderPathRegex.test(folderPath)) {
+        console.error('ERROR: folderPath does not match regex:', folderPath);
+        throw new Error(`Invalid folder path format: ${folderPath}`);
+      }
+      
       const pathParams = { accessScope: 'public' } as const;
-      const queryParams = { appName: 'irm', folderPath: `/${folderEntity}/${resolvedId}/documents` } as const;
+      const queryParams = { appName: 'irm', folderPath } as const;
       return await fileClient.uploadFile(formData.file, pathParams, queryParams);
     }
     return null;
+  };
+
+  // Pre-submit handler to upload the file and attach fileInfo to form data
+  const handlePreSubmit = async (formData: DocumentPopupValues) => {
+    const uploadResponse = await handleFileUpload(formData);
+    if (uploadResponse) {
+      // Attach full fileInfo so submit can pass it to the process payload
+      return { ...(formData as any), _fileUploadResponse: uploadResponse } as any;
+    }
+    return formData;
   };
 
   // Submit handler for AppActionForm
@@ -273,12 +346,18 @@ const DocumentPopup: React.FC<DocumentPopupProps> = ({ initialValues = {}, ...pr
       if (formData.description) investmentDocument.description = formData.description;
     }
 
-    // Handle file upload if needed
-    const uploadResponse = await handleFileUpload(formData);
-    if (uploadResponse) {
+    // Use pre-uploaded file response when available (preferred)
+    const uploadResponse = (formData as any)._fileUploadResponse;
+    if (uploadResponse?.fileInfo) {
+      investmentDocument.fileInfo = uploadResponse.fileInfo;
+      // Keep "file" for backward compatibility (will become obsolete)
       investmentDocument.file = uploadResponse.fileInfo.fileId;
-      investmentDocument.fileSize = formData.file?.size;
-      investmentDocument.mimeType = formData.file?.type || undefined;
+      investmentDocument.fileSize = uploadResponse.fileInfo.fileMetadata?.size || formData.file?.size;
+      investmentDocument.mimeType = uploadResponse.fileInfo.fileMetadata?.mimeType || formData.file?.type || undefined;
+      // If name is empty, fallback to original file name from metadata
+      if (!investmentDocument.name) {
+        investmentDocument.name = uploadResponse.fileInfo.fileMetadata?.originalFileName || formData.name?.trim();
+      }
     }
 
     return {
@@ -309,6 +388,7 @@ const DocumentPopup: React.FC<DocumentPopupProps> = ({ initialValues = {}, ...pr
     <AppActionForm
       processType={renameMode ? 'update' : (isUpdateMode ? 'update' : 'create')}
       onSubmit={handleSubmit}
+      handlePreSubmit={handlePreSubmit}
       formData={form.getValues()}
       validateForm={validateForm}
       submitButtonText={actionLabel}
@@ -402,7 +482,7 @@ const DocumentPopup: React.FC<DocumentPopupProps> = ({ initialValues = {}, ...pr
                       <SelectTrigger>
                         <SelectValue placeholder="Select group..." />
                       </SelectTrigger>
-                      <SelectContent>
+                      <SelectContent position="popper" className="gba:z-[9999]" style={{ zIndex: 9999 }}>
                         {documentGroups.map(g => (
                           <SelectItem key={g.id} value={g.id}>{g.value}</SelectItem>
                         ))}
@@ -429,7 +509,7 @@ const DocumentPopup: React.FC<DocumentPopupProps> = ({ initialValues = {}, ...pr
                       <SelectTrigger disabled={!watchedDocumentGroupRef}>
                         <SelectValue placeholder="Select type..." />
                       </SelectTrigger>
-                      <SelectContent>
+                      <SelectContent position="popper" className="gba:z-[9999]" style={{ zIndex: 9999 }}>
                         {filteredDocumentTypes.map(t => (
                           <SelectItem key={t.id} value={t.id}>{t.value}</SelectItem>
                         ))}
@@ -456,7 +536,7 @@ const DocumentPopup: React.FC<DocumentPopupProps> = ({ initialValues = {}, ...pr
                       <SelectTrigger>
                         <SelectValue placeholder={parentLoading ? 'Loading...' : 'Select parent...'} />
                       </SelectTrigger>
-                      <SelectContent>
+                      <SelectContent position="popper" className="gba:z-[9999]" style={{ zIndex: 9999 }}>
                         {parentFolders.map(p => (
                           <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
                         ))}
