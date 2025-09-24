@@ -103,6 +103,11 @@ export const TaskTable: React.FC<TaskTableProps> = ({
   }, [sourceApp]);
 
   const handleRowClick = useCallback((record: Task) => {
+    console.log('🔍 Investment TaskTable handleRowClick called:', {
+      taskId: record.id,
+      taskName: record.name,
+      hasOnSelectTask: !!onSelectTask
+    });
     onSelectTask?.(record);
   }, [onSelectTask]);
 
@@ -169,7 +174,15 @@ export const TaskTable: React.FC<TaskTableProps> = ({
             </TableHeader>
             <TableBody>
               {tasks.map((record) => (
-                <TableRow key={record.id} className={`gba:border-b gba:hover:bg-gray-50 gba:transition-colors ${selectedTaskId === record.id ? 'gba:bg-blue-50' : ''}`} data-testid={`${DATA_TEST_ID_PREFIX}-row-${record.id}`}>
+                <TableRow 
+                  key={record.id} 
+                  className={`gba:border-b gba:hover:bg-gray-50 gba:transition-colors gba:cursor-pointer ${selectedTaskId === record.id ? 'gba:bg-blue-50' : ''}`} 
+                  onClick={() => {
+                    console.log('🔍 Investment TableRow clicked:', record.id);
+                    handleRowClick(record);
+                  }}
+                  data-testid={`${DATA_TEST_ID_PREFIX}-row-${record.id}`}
+                >
                   <TableCell className="gba:py-4 gba:px-6" data-testid={`${DATA_TEST_ID_PREFIX}-task-cell-${record.id}`}>
                     <div className="gba:flex gba:items-center gba:gap-3" data-testid={`${DATA_TEST_ID_PREFIX}-task-name-${record.id}`}>
                       <div><div className="gba:font-medium gba:text-sm">{record.name}</div></div>

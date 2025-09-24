@@ -9,7 +9,6 @@ import {
   CardContent, 
   CardHeader, 
   CardTitle,
-  Icon,
   Progress,
   ScrollArea,
   Separator,
@@ -61,7 +60,7 @@ interface FieldRowProps {
 const FieldRow: React.FC<FieldRowProps> = ({ icon: IconComponent, label, children, testId }) => (
   <div className="gba:flex gba:items-start gba:gap-3 gba:py-2" data-testid={testId}>
     <div className="gba:flex gba:items-center gba:gap-2 gba:min-w-[100px] gba:text-sm gba:text-muted-foreground">
-      <Icon icon={IconComponent} size="xs" />
+      <IconComponent size={14} className="gba:text-muted-foreground" />
       <span>{label}</span>
     </div>
     <div className="gba:flex-1">
@@ -75,6 +74,13 @@ export const TaskDetails: React.FC<TaskDetailsProps> = ({
   onClose,
   sourceApp
 }) => {
+  console.log('🔍 TaskDetails rendering:', {
+    taskId: task?.id,
+    taskName: task?.name,
+    hasAssignedTo: !!task?.assignedTo,
+    hasReference: !!task?.reference,
+    sourceApp
+  });
   const formatDate = (dateString: string) => {
     if (!dateString) return '-';
     const date = dayjs(dateString);
@@ -106,48 +112,65 @@ export const TaskDetails: React.FC<TaskDetailsProps> = ({
 
   // Handle employee profile navigation
   const handleEmployeeClick = () => {
-    const url = buildPlatformUrl('/platform/employee-record', { employeeId: task.assignedTo.id });
-    navigateTo(url);
+    try {
+      const url = buildPlatformUrl('/platform/employee-record', { employeeId: task.assignedTo.id });
+      navigateTo(url);
+    } catch (error) {
+      console.error('Error navigating to employee profile:', error);
+    }
   };
 
   // Handle reference record navigation
   const handleReferenceClick = () => {
-    // Determine source based on sourceApp
-    const source = (sourceApp === 'investment-relations' || sourceApp === 'IRM') ? 'investments' : 'customer-relations';
-    
-    let url: string;
-    switch (task.reference.type) {
-      case 'lead':
-        url = buildPlatformUrl('/platform/crm/lead-record', { 
-          leadId: task.reference.id, 
-          source: source 
-        });
-        break;
-      case 'account':
-        url = buildPlatformUrl('/platform/crm/account-record', { 
-          accountId: task.reference.id, 
-          source: source 
-        });
-        break;
-      case 'contact':
-        url = buildPlatformUrl('/platform/crm/contact-record', { 
-          contactId: task.reference.id, 
-          source: source 
-        });
-        break;
-      case 'opportunity':
-        url = buildPlatformUrl('/platform/crm/opportunity-record', { 
-          opportunityId: task.reference.id, 
-          source: source 
-        });
-        break;
-      default:
-        console.warn('Unknown reference type:', task.reference.type);
-        return;
+    try {
+      // Determine source based on sourceApp
+      const source = (sourceApp === 'investment-relations' || sourceApp === 'IRM') ? 'investments' : 'customer-relations';
+      
+      let url: string;
+      switch (task.reference.type) {
+        case 'lead':
+          url = buildPlatformUrl('/platform/crm/lead-record', { 
+            leadId: task.reference.id, 
+            source: source 
+          });
+          break;
+        case 'account':
+          url = buildPlatformUrl('/platform/crm/account-record', { 
+            accountId: task.reference.id, 
+            source: source 
+          });
+          break;
+        case 'contact':
+          url = buildPlatformUrl('/platform/crm/contact-record', { 
+            contactId: task.reference.id, 
+            source: source 
+          });
+          break;
+        case 'opportunity':
+          url = buildPlatformUrl('/platform/crm/opportunity-record', { 
+            opportunityId: task.reference.id, 
+            source: source 
+          });
+          break;
+        default:
+          console.warn('Unknown reference type:', task.reference.type);
+          return;
+      }
+      
+      navigateTo(url);
+    } catch (error) {
+      console.error('Error navigating to reference record:', error);
     }
-    
-    navigateTo(url);
   };
+
+  // Safety check for task data
+  if (!task) {
+    return (
+      <div className="gba:p-4 gba:text-center gba:text-muted-foreground">
+        No task data available
+      </div>
+    );
+  }
 
   return (
     <ScrollArea className="gba:h-full gba:w-full" data-testid={`${DATA_TEST_ID_PREFIX}-scroll-area`}>
@@ -183,26 +206,30 @@ export const TaskDetails: React.FC<TaskDetailsProps> = ({
               label="Assignee" 
               testId={`${DATA_TEST_ID_PREFIX}-assignee-field`}
             >
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <div 
-                    className="gba:flex gba:items-center gba:gap-2 gba:cursor-pointer gba:hover:bg-accent gba:p-2 gba:rounded gba:transition-colors gba:w-fit"
-                    onClick={handleEmployeeClick}
-                  >
-                    <Avatar size="sm">
-                      <AvatarFallback>
-                        {getInitials(task.assignedTo.firstName, task.assignedTo.lastName)}
-                      </AvatarFallback>
-                    </Avatar>
-                    <div className="gba:flex gba:flex-col">
-                      <span className="gba:text-sm gba:font-medium">{task.assignedTo.displayName}</span>
-                      <span className="gba:text-xs gba:text-muted-foreground">{task.assignedTo.department}</span>
+              {task.assignedTo ? (
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <div 
+                      className="gba:flex gba:items-center gba:gap-2 gba:cursor-pointer gba:hover:bg-accent gba:p-2 gba:rounded gba:transition-colors gba:w-fit"
+                      onClick={handleEmployeeClick}
+                    >
+                      <Avatar size="sm">
+                        <AvatarFallback>
+                          {getInitials(task.assignedTo.firstName || '', task.assignedTo.lastName || '')}
+                        </AvatarFallback>
+                      </Avatar>
+                      <div className="gba:flex gba:flex-col">
+                        <span className="gba:text-sm gba:font-medium">{task.assignedTo.displayName || 'Unknown User'}</span>
+                        <span className="gba:text-xs gba:text-muted-foreground">{task.assignedTo.department || '-'}</span>
+                      </div>
+                      <ArrowSquareOut size={14} className="gba:text-muted-foreground" />
                     </div>
-                    <Icon icon={ArrowSquareOut} size="xs" className="gba:text-muted-foreground" />
-                  </div>
-                </TooltipTrigger>
-                <TooltipContent>View employee profile</TooltipContent>
-              </Tooltip>
+                  </TooltipTrigger>
+                  <TooltipContent>View employee profile</TooltipContent>
+                </Tooltip>
+              ) : (
+                <span className="gba:text-sm gba:text-muted-foreground">Not assigned</span>
+              )}
             </FieldRow>
 
             {/* Priority */}
@@ -233,32 +260,36 @@ export const TaskDetails: React.FC<TaskDetailsProps> = ({
               label="Reference" 
               testId={`${DATA_TEST_ID_PREFIX}-reference-field`}
             >
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <div 
-                    className="gba:cursor-pointer gba:hover:bg-accent gba:p-2 gba:rounded gba:transition-colors gba:w-fit"
-                    onClick={handleReferenceClick}
-                  >
-                    <div className="gba:flex gba:items-center gba:gap-2">
-                      <div>
-                        <div className="gba:text-sm gba:font-medium gba:mb-1">{task.reference.name}</div>
-                        <div className="gba:flex gba:items-center gba:gap-2">
-                          <Badge variant={getReferenceTypeBadgeVariant(task.reference.type)} className="gba:text-xs">
-                            {task.reference.type.charAt(0).toUpperCase() + task.reference.type.slice(1)}
-                          </Badge>
-                          {task.reference.description && (
-                            <span className="gba:text-xs gba:text-muted-foreground">
-                              {task.reference.description}
-                            </span>
-                          )}
+              {task.reference ? (
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <div 
+                      className="gba:cursor-pointer gba:hover:bg-accent gba:p-2 gba:rounded gba:transition-colors gba:w-fit"
+                      onClick={handleReferenceClick}
+                    >
+                      <div className="gba:flex gba:items-center gba:gap-2">
+                        <div>
+                          <div className="gba:text-sm gba:font-medium gba:mb-1">{task.reference.name || 'Unknown Reference'}</div>
+                          <div className="gba:flex gba:items-center gba:gap-2">
+                            <Badge variant={getReferenceTypeBadgeVariant(task.reference.type)} className="gba:text-xs">
+                              {task.reference.type?.charAt(0).toUpperCase() + (task.reference.type?.slice(1) || '')}
+                            </Badge>
+                            {task.reference.description && (
+                              <span className="gba:text-xs gba:text-muted-foreground">
+                                {task.reference.description}
+                              </span>
+                            )}
+                          </div>
                         </div>
+                        <ArrowSquareOut size={14} className="gba:text-muted-foreground" />
                       </div>
-                      <Icon icon={ArrowSquareOut} size="xs" className="gba:text-muted-foreground" />
                     </div>
-                  </div>
-                </TooltipTrigger>
-                <TooltipContent>View {task.reference.type} record</TooltipContent>
-              </Tooltip>
+                  </TooltipTrigger>
+                  <TooltipContent>View {task.reference.type} record</TooltipContent>
+                </Tooltip>
+              ) : (
+                <span className="gba:text-sm gba:text-muted-foreground">No reference</span>
+              )}
             </FieldRow>
 
             {/* Progress */}

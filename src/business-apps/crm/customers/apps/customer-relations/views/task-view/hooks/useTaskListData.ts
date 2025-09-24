@@ -261,9 +261,11 @@ export const useTaskListData = (props: UseTaskListDataProps): UseTaskListDataRet
 
     try {
       const variables = buildQueryVariables(page, size);
+      console.log('🔍 Loading tasks with variables:', variables);
       
       // Fetch both data and count in a single API call (like LeadList)
       const result = await fetchSalesTasksWithCount(variables);
+      console.log('📊 Raw GraphQL result:', result);
 
       // Filter out approval tasks first, then transform and filter out null values
       const nonApprovalTasks = result.SalesTask.filter(salesTask => {
@@ -271,6 +273,13 @@ export const useTaskListData = (props: UseTaskListDataProps): UseTaskListDataRet
         const isApprovalTask = salesTask.typeRef === 'SalesTaskType:v1:APPROVAL' || 
                               salesTask.typeRef?.toLowerCase() === 'approval' ||
                               salesTask.typeRef?.split(':').pop()?.toLowerCase() === 'approval';
+        console.log('🔍 Task filtering check:', {
+          taskId: salesTask.id,
+          name: salesTask.name,
+          typeRef: salesTask.typeRef,
+          isApprovalTask,
+          assignedEmployeeId: salesTask.assignedEmployeeId
+        });
         return !isApprovalTask;
       });
 
@@ -279,6 +288,14 @@ export const useTaskListData = (props: UseTaskListDataProps): UseTaskListDataRet
         .filter((task): task is Task => task !== null);
       
       const totalCount = result.SalesTaskAggregate.aggregate.count;
+      
+      console.log('✅ Processed tasks:', {
+        totalRawTasks: result.SalesTask.length,
+        nonApprovalTasks: nonApprovalTasks.length,
+        transformedTasks: transformedTasks.length,
+        totalCount,
+        sample: transformedTasks.slice(0, 2)
+      });
       
       setTasks(transformedTasks);
       setTotal(totalCount);

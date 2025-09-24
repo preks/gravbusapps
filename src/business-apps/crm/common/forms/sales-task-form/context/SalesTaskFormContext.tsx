@@ -127,12 +127,30 @@ export const SalesTaskFormProvider: React.FC<SalesTaskFormProviderProps> = ({
   
   // Fetch task data when in update mode
   useEffect(() => {
+    console.log('🔍 SalesTaskForm Update Mode Debug:', {
+      isUpdateMode,
+      taskId,
+      fetchedTaskData: !!fetchedTaskData,
+      fetchingTask,
+      additionalData,
+      actualTaskData: !!actualTaskData
+    });
+    
     if (isUpdateMode && taskId && !fetchedTaskData && !fetchingTask) {
+      console.log('🚀 Fetching task data for ID:', taskId);
       setFetchingTask(true);
       fetchCustomerTaskById(taskId)
         .then((taskData) => {
           if (taskData) {
-            console.log('✅ Fetched task data for update:', taskData);
+            console.log('✅ Fetched task data for update:', {
+              id: taskData.id,
+              name: taskData.name,
+              description: taskData.description,
+              taskTypeRef: taskData.taskType,
+              taskStatusRef: taskData.taskStatus,
+              assignedEmployee: taskData.assignedEmployee,
+              fullTaskData: taskData
+            });
             setFetchedTaskData(taskData);
           } else {
             console.warn('⚠️ No task data found for ID:', taskId);
@@ -235,11 +253,15 @@ export const SalesTaskFormProvider: React.FC<SalesTaskFormProviderProps> = ({
   useEffect(() => {
     if (isUpdateMode && actualTaskData) {
       console.log('🔍 UPDATE MODE - Task Data:', {
+        id: actualTaskData.id,
+        name: actualTaskData.name,
         assignedEmployeeId: actualTaskData.assignedEmployeeId,
         assignedEmployee: actualTaskData.assignedEmployee,
         dueDate: actualTaskData.dueDate,
         priorityRef: actualTaskData.priorityRef,
-        statusRef: actualTaskData.statusRef
+        statusRef: actualTaskData.statusRef,
+        typeRef: actualTaskData.typeRef,
+        description: actualTaskData.description
       });
 
       const assignedId = actualTaskData.assignedEmployeeId || actualTaskData.assignedEmployee?.id || '';
@@ -314,7 +336,12 @@ export const SalesTaskFormProvider: React.FC<SalesTaskFormProviderProps> = ({
         });
       }
       
-      setFormValuesState(prev => ({ ...prev, ...updateValues }));
+      console.log('📝 Setting form values:', updateValues);
+      setFormValuesState(prev => {
+        const newValues = { ...prev, ...updateValues };
+        console.log('📋 New form values:', newValues);
+        return newValues;
+      });
     }
   }, [isUpdateMode, actualTaskData, mappedTaskTypes, mappedPriorities, mappedEmployees]);
   

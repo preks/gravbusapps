@@ -177,6 +177,11 @@ export const TaskTable: React.FC<TaskTableProps> = ({
   // Handle row click - opens task details in side panel
   const handleRowClick = useCallback(
     (record: Task) => {
+      console.log('🔍 TaskTable handleRowClick called:', {
+        taskId: record.id,
+        taskName: record.name,
+        hasOnSelectTask: !!onSelectTask
+      });
       // Call the selection callback to open side panel
       onSelectTask?.(record);
     },
@@ -328,9 +333,13 @@ export const TaskTable: React.FC<TaskTableProps> = ({
               {tasks.map((record) => (
                 <TableRow
                   key={record.id}
-                  className={`gba:border-b gba:hover:bg-gray-50 gba:transition-colors ${
+                  className={`gba:border-b gba:hover:bg-gray-50 gba:transition-colors gba:cursor-pointer ${
                     selectedTaskId === record.id ? "gba:bg-blue-50" : ""
                   }`}
+                  onClick={() => {
+                    console.log('🔍 TableRow clicked:', record.id);
+                    handleRowClick(record);
+                  }}
                   data-testid={`${DATA_TEST_ID_PREFIX}-row-${record.id}`}
                 >
                   <TableCell
@@ -338,11 +347,7 @@ export const TaskTable: React.FC<TaskTableProps> = ({
                     data-testid={`${DATA_TEST_ID_PREFIX}-task-cell-${record.id}`}
                   >
                     <div
-                      className="gba:flex gba:items-center gba:gap-3 gba:cursor-pointer gba:hover:bg-gray-50 gba:p-2 gba:rounded gba:transition-colors"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleRowClick(record);
-                      }}
+                      className="gba:flex gba:items-center gba:gap-3"
                       data-testid={`${DATA_TEST_ID_PREFIX}-task-name-${record.id}`}
                     >
                       <div>
