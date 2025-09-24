@@ -57,7 +57,7 @@ const AdvancePaymentsTable = React.forwardRef<HTMLDivElement, AdvancePaymentsTab
     userInfo: props.userInfo
   }), [props.accessToken, props.userInfo]);
   
-  const { items, isLoading, error: _error, totalCount, fetchItems } = useGetAdvancePayments(contextProps);
+  const { items, isLoading, totalCount, fetchItems } = useGetAdvancePayments(contextProps);
   const { currencyStats, selectedCurrencyRef } = useAdvancePaymentCurrencies(contextProps, props.selectedFilters || [], props.onFilterChange as any);
   const [searchText, setSearchText] = useState<string>(props.search ?? '');
   const [selectedItem, setSelectedItem] = useState<AdvancePayment | null>(null);

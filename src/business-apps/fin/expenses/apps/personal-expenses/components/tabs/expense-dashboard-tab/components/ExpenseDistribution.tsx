@@ -36,7 +36,6 @@ export const ExpenseDistribution: React.FC<ExpenseDistributionProps> = ({ stats,
   };
 
   const expensesByType = getExpensesByType();
-  console.log('expensesByType', expensesByType);
 
   // Transform data for chart
   const chartData = useMemo(() => {

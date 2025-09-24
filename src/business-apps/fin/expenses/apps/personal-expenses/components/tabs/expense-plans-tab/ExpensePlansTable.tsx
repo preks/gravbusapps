@@ -671,8 +671,7 @@ const ExpensePlansTable: React.FC<ExpensePlansTableProps> = React.memo((props) =
         }}
         dataFilterProps={{
           filterGroups: useMemo(() => {
-            const currencyFilters = (props as any).currencyStats?.map((cs: any) => ({
-              id: `currency:${cs.ref}`,
+            const currencyFilters = props.currencyStats?.map((cs) => ({              id: `currency:${cs.ref}`,
               label: cs.code,
               selected: (props.selectedFilters || []).includes(`currency:${cs.ref}`)
             })) || [];

@@ -72,31 +72,17 @@ export const useExpensePlanCurrencies = (
 
     (async () => {
       try {
-        const response = await fetch(env('NEXT_PUBLIC_GRAPHQL_ENDPOINT_NEWWORK')!, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${accessToken}`,
-          },
-          body: JSON.stringify({
-            query: GET_USED_PLAN_CURRENCIES_BY_EMPLOYEE,
-            variables: { employeeId, limit: 2000 },
-          }),
-        });
-        if (!response.ok) return;
-        await response.json();
-        const stats = await fetchEmployeeCurrencyStats({
-          accessToken,
-          query: GET_USED_PLAN_CURRENCIES_BY_EMPLOYEE,
-          variables: { employeeId, limit: 2000 },
-          dataPath: ['ExpensePlan'],
-          mapRow: (r: any) => ({
-            currencyRef: r.currencyRef || r.expenseRequest?.[0]?.currencyRef || DEFAULT_CURRENCY_REF,
-            currency: { code: r.currency?.code || r.expenseRequest?.[0]?.currency?.code || 'EUR' }
-          }),
-        });
-        setCurrencyStats(stats as PlanCurrencyStat[]);
-        preselectMostUsedOnce(stats as PlanCurrencyStat[]);
+const stats = await fetchEmployeeCurrencyStats({
+  accessToken,
+  query: GET_USED_PLAN_CURRENCIES_BY_EMPLOYEE,
+  variables: { employeeId, limit: 2000 },
+  dataPath: ['ExpensePlan'],
+  mapRow: (r: any) => ({
+    currencyRef: r.currencyRef || r.expenseRequest?.[0]?.currencyRef || DEFAULT_CURRENCY_REF,
+    currency: { code: r.currency?.code || r.expenseRequest?.[0]?.currency?.code || 'EUR' }
+  }),
+});
+setCurrencyStats(stats as PlanCurrencyStat[]);        preselectMostUsedOnce(stats as PlanCurrencyStat[]);
       } catch (_e) {
         // ignore
       } finally {

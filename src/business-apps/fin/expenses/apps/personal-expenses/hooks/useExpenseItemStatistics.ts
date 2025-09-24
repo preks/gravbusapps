@@ -1,7 +1,7 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import dayjs from 'dayjs';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
-import { env } from '@/common/env/EnvUtils';
+import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient';
 import { GET_EXPENSE_ITEM_STATISTICS, GET_PENDING_ITEMS, GET_PENDING_ITEMS_WITH_DATE_RANGE, GET_EXPENSE_ITEMS_BY_EMPLOYEE } from '../queries/expenseItems';
 import { ExpenseStatus } from '../utils';
 
@@ -33,6 +33,8 @@ export const useExpenseItemStatistics = (context: BusinessAppContextProps, curre
 
   useEffect(() => () => { isMounted.current = false; }, []);
 
+  const graphqlClient = useGraphQLClient(context?.accessToken || '');
+
   const fetchItemStatistics = useCallback(async () => {
     setStats((s) => ({ ...s, isLoading: true, error: null }));
     try {
@@ -47,29 +49,21 @@ export const useExpenseItemStatistics = (context: BusinessAppContextProps, curre
       const previousMonthStart = lastMonth.startOf('month').format('YYYY-MM-DD HH:mm:ss');
       const previousMonthEnd = lastMonth.endOf('month').format('YYYY-MM-DD HH:mm:ss');
 
-      const fetchStatsForPeriod = async (startDate: string, endDate: string) => {
-        const res = await fetch(env('NEXT_PUBLIC_GRAPHQL_ENDPOINT_NEWWORK')!, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${accessToken}` },
-          body: JSON.stringify({ query: GET_EXPENSE_ITEM_STATISTICS, variables: { employeeId, currencyRef, startDate, endDate } }),
-        });
-        if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
-        const result = await res.json();
-        if (result.errors) throw new Error(result.errors.map((e: any) => e.message).join(', '));
-        return result.data?.totalExpenses?.aggregate?.sum?.totalAmount ?? 0;
-      };
+			const fetchStatsForPeriod = async (startDate: string, endDate: string) => {
+				const result: any = await graphqlClient.request(
+					GET_EXPENSE_ITEM_STATISTICS,
+					{ employeeId, currencyRef, startDate, endDate }
+				);
+				return result?.totalExpenses?.aggregate?.sum?.totalAmount ?? 0;
+			};
 
-      const fetchPendingStatsForPeriod = async (startDate: string, endDate: string) => {
-        const res = await fetch(env('NEXT_PUBLIC_GRAPHQL_ENDPOINT_NEWWORK')!, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${accessToken}` },
-          body: JSON.stringify({ query: GET_PENDING_ITEMS_WITH_DATE_RANGE, variables: { employeeId, currencyRef, startDate, endDate } }),
-        });
-        if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
-        const result = await res.json();
-        if (result.errors) throw new Error(result.errors.map((e: any) => e.message).join(', '));
-        return result.data?.pendingExcludingAllowance?.aggregate?.sum?.reimbursableAmount;
-      };
+			const fetchPendingStatsForPeriod = async (startDate: string, endDate: string) => {
+				const result: any = await graphqlClient.request(
+					GET_PENDING_ITEMS_WITH_DATE_RANGE,
+					{ employeeId, currencyRef, startDate, endDate }
+				);
+				return result?.pendingExcludingAllowance?.aggregate?.sum?.reimbursableAmount ?? 0;
+			};
 
       const [currentMonthTotal, previousMonthTotal, currentMonthPending, previousMonthPending] = await Promise.all([
         fetchStatsForPeriod(currentMonthStart, currentMonthEnd),
@@ -100,67 +94,62 @@ export const useExpenseItemStatistics = (context: BusinessAppContextProps, curre
     const accessToken = context?.accessToken;
     if (!employeeId || !accessToken) return;
 
-    const response = await fetch(env('NEXT_PUBLIC_GRAPHQL_ENDPOINT_NEWWORK')!, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${accessToken}`, 'Origin': window.location.origin },
-      credentials: 'include',
-      mode: 'cors',
-      body: JSON.stringify({
-        query: GET_EXPENSE_ITEMS_BY_EMPLOYEE,
-        variables: {
-          employeeId,
-          searchTerm: '%',
-          limit: 1000,
-          offset: 0,
-          status: Object.values(ExpenseStatus),
-          expenseDateStart: null,
-          expenseDateEnd: null,
-          totalAmountMin: null,
-          totalAmountMax: null,
-          currencyRef,
-        },
-      }),
-    });
-    if (!response.ok) return;
-    const result = await response.json();
-    if (result.errors) return;
-    const responseItems = result.data?.ExpenseItem ?? [];
-    const mappedItems = responseItems.map((item: any) => ({
-      id: item.id,
-      description: item.description,
-      date: item.date,
-      status: item.status,
-      totalAmount: item.totalAmount,
-      reimbursableAmount: item.reimbursableAmount,
-      nonReimbursableAmount: (item.totalAmount ?? 0) - (item.deductibleAmount ?? 0),
-      deductibleAmount: item.deductibleAmount,
-      currencyRef: item.currencyRef,
-      costCenter: item.costCenter,
-      expenseClass: item.expenseClass,
-      additionalProperties: item.additionalProperties,
-      expenseItemFile: item.expenseItemFile,
-      employee: item.employee,
-    }));
-    if (!isMounted.current) return;
-    setStats((s) => ({ ...s, allItems: mappedItems, hasLoadedAllItems: true }));
-  }, [context?.userInfo?.employeeDetails?.employeeId, context?.accessToken, currencyRef]);
+    try {
+      const variables = {
+        employeeId,
+        searchTerm: '%',
+        limit: 1000,
+        offset: 0,
+        status: Object.values(ExpenseStatus),
+        expenseDateStart: null,
+        expenseDateEnd: null,
+        totalAmountMin: null,
+        totalAmountMax: null,
+        currencyRef,
+      };
+      const result: any = await graphqlClient.request(GET_EXPENSE_ITEMS_BY_EMPLOYEE, variables);
+      const responseItems = result?.ExpenseItem ?? [];
+      const mappedItems = responseItems.map((item: any) => ({
+        id: item.id,
+        description: item.description,
+        date: item.date,
+        status: item.status,
+        totalAmount: item.totalAmount,
+        reimbursableAmount: item.reimbursableAmount,
+        nonReimbursableAmount: (item.totalAmount ?? 0) - (item.deductibleAmount ?? 0),
+        deductibleAmount: item.deductibleAmount,
+        currencyRef: item.currencyRef,
+        costCenter: item.costCenter,
+        expenseClass: item.expenseClass,
+        additionalProperties: item.additionalProperties,
+        expenseItemFile: item.expenseItemFile,
+        employee: item.employee,
+      }));
+      if (!isMounted.current) return;
+      setStats((s) => ({ ...s, allItems: mappedItems, hasLoadedAllItems: true }));
+    } catch (e) {
+      return;
+    }
+  }, [context?.userInfo?.employeeDetails?.employeeId, context?.accessToken, currencyRef, graphqlClient]);
 
   const refreshPendingCount = useCallback(async () => {
     const employeeId = context?.userInfo?.employeeDetails?.employeeId;
     const accessToken = context?.accessToken;
     if (!employeeId || !accessToken) return;
     try {
-      const response = await fetch(env('NEXT_PUBLIC_GRAPHQL_ENDPOINT_NEWWORK')!, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${accessToken}` },
-        body: JSON.stringify({ query: GET_PENDING_ITEMS, variables: { employeeId, currencyRef } }),
-      });
-      if (!response.ok) return;
-      const result = await response.json();
-      const count = result?.data?.pendingExcludingAllowance?.aggregate?.count ?? 0;
+      const result: any = await graphqlClient.request(
+        GET_PENDING_ITEMS,
+        { employeeId, currencyRef }
+      );
+      const count = result?.pendingExcludingAllowance?.aggregate?.count ?? 0;
       if (!isMounted.current) return;
       setStats((s) => ({ ...s, pendingItemCountFromApi: count }));
-    } catch {
+    } catch (error) {
+      console.error('Error refreshing pending item count', {
+        employeeId,
+        currencyRef,
+        error,
+      });
       if (!isMounted.current) return;
       setStats((s) => ({ ...s, pendingItemCountFromApi: 0 }));
     }

@@ -28,13 +28,12 @@ const PersonalExpenseFilterBar: React.FC<PersonalExpenseFilterBarProps> = ({ acc
         changed = true;
       }
       if (changed) {
-        onFiltersChange(next as any);
+        onFiltersChange(next);
       }
     }
-  }, [loading, mostUsedCurrency]);
-
+  }, [loading, mostUsedCurrency, onFiltersChange, currentFilters]);
   const handleChange = (key: 'currency' | 'period', value: string) => {
-    onFiltersChange({ ...currentFilters, [key]: value } as any);
+    onFiltersChange({ ...currentFilters, [key]: value });
   };
 
   const clear = (key: 'currency' | 'period') => {

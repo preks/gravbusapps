@@ -77,7 +77,7 @@ export const useGetExpenseDashboard = (
   const [stats, setStats] = useState<ExpenseDashboard | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [error, setError] = useState<Error | null>(null);
-  const graphqlClient = useGraphQLClient(context?.accessToken ?? '');
+  const graphqlClient = useGraphQLClient(context?.accessToken || '');
 
   useEffect(() => {
     const employeeId = context?.userInfo?.employeeDetails?.employeeId;

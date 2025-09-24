@@ -124,6 +124,22 @@ const ExpensePlansTab: React.FC<ExpensePlansTabProps> = (props) => {
     setDestinationFilter(null);
   }, [setFilters]);
 
+  // Helper to persist currency selection in session storage
+  const persistCurrencySelection = (employeeId: string | undefined, filters: string[]) => {
+    if (!employeeId) return;
+    try {
+      const storageKey = `personal-expenses:plans:currencyRef:${employeeId}`;
+      const newCurrency = (filters.find((f) => f.startsWith('currency:')) || '').replace('currency:', '');
+      if (newCurrency) {
+        sessionStorage.setItem(storageKey, newCurrency);
+      } else {
+        sessionStorage.removeItem(storageKey);
+      }
+    } catch (_e) {
+      // ignore storage errors
+    }
+  };
+
   // Helper function to build widget-specific filters
   const buildWidgetFilters = useCallback((baseFilters: any) => {
     const filtersObj = { ...baseFilters };
@@ -326,20 +342,7 @@ const ExpensePlansTab: React.FC<ExpensePlansTabProps> = (props) => {
       selectedFilters={selectedFilters}
       setFilters={(filters: string[]) => {
         // keep currency filter persisted
-        const employeeId = props.userInfo?.employeeDetails?.employeeId;
-        if (employeeId) {
-          try {
-            const storageKey = `personal-expenses:plans:currencyRef:${employeeId}`;
-            const newCurrency = (filters.find((f) => f.startsWith('currency:')) || '').replace('currency:', '');
-            if (newCurrency) {
-              sessionStorage.setItem(storageKey, newCurrency);
-            } else {
-              sessionStorage.removeItem(storageKey);
-            }
-          } catch (_e) {
-            // ignore storage errors
-          }
-        }
+        persistCurrencySelection(props.userInfo?.employeeDetails?.employeeId, filters);
         // manage auto-select suppression
         if (filters.length === 0) {
           setSuppressCurrencyAutoSelect(true);
@@ -354,21 +357,9 @@ const ExpensePlansTab: React.FC<ExpensePlansTabProps> = (props) => {
           const nonCurrency = selectedFilters.filter(f => !f.startsWith('currency:'));
           const newFilters = selected ? [...nonCurrency, filterId] : nonCurrency;
           // persist currency change
-          const employeeId = props.userInfo?.employeeDetails?.employeeId;
-          if (employeeId) {
-            try {
-              const storageKey = `personal-expenses:plans:currencyRef:${employeeId}`;
-              const newCurrency = (newFilters.find((f) => f.startsWith('currency:')) || '').replace('currency:', '');
-              if (newCurrency) {
-                sessionStorage.setItem(storageKey, newCurrency);
-              } else {
-                sessionStorage.removeItem(storageKey);
-              }
-            } catch (_e) {
-              // ignore
-            }
-          }
-          setSuppressCurrencyAutoSelect(false);
+          persistCurrencySelection(props.userInfo?.employeeDetails?.employeeId, newFilters);
+          // If user deselects the currency, suppress auto-selection (persisted or default)
+          setSuppressCurrencyAutoSelect(!selected);
           setFilters(newFilters);
         } else {
           handleFilterChange(filterId, selected);
