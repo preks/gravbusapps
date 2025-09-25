@@ -67,29 +67,6 @@ export const InvestmentHomeTab: React.FC<InvestmentHomeTabProps> = ({
     }
   }, [investmentId, fetchInvestmentNotesByInvestmentId]);
 
-  // Handle process events
-  const handleProcessEvent = useCallback((event: Event) => {
-    const customEvent = event as CustomEvent;
-    // Safe logging - only event type and investmentId (no PII)
-    console.log('Process event received:', { 
-      type: customEvent.type, 
-      investmentId: customEvent.detail?.investmentId 
-    });
-    
-    // Detailed logging only in development (may contain PII)
-    if (process.env.NODE_ENV !== 'production') {
-      console.log('Process event detail (dev only):', customEvent.detail);
-    }
-    
-    // Handle process completion events here
-    if (customEvent.detail?.investmentId === investmentId) {
-      // Refresh data when process completes
-      loadTasks();
-      loadActivities();
-      loadNotes();
-    }
-  }, [investmentId, loadTasks, loadActivities, loadNotes]);
-
   const loadApprovals = useCallback(async () => {
     if (!investmentId) return;
     
@@ -106,6 +83,51 @@ export const InvestmentHomeTab: React.FC<InvestmentHomeTabProps> = ({
     }
   }, [investmentId, fetchInvestmentTasksByInvestmentId]);
 
+  // Handle process events
+  const handleProcessEvent = useCallback((event: Event) => {
+    try {
+      const customEvent = event as CustomEvent;
+      
+      // Check for successful completion
+      if (customEvent.detail?.resolution === 'success') {
+        loadTasks();
+        loadActivities();
+        loadNotes();
+        loadApprovals();
+        return;
+      }
+      
+      // Check for different event structures
+      const response = customEvent.detail?.response;
+      if (response?.detail?.resolution === 'success' || response?.investment) {
+        loadTasks();
+        loadActivities();
+        loadNotes();
+        loadApprovals();
+        return;
+      }
+      
+      // Check for continue events with payload (task/activity/note creation/update)
+      if (customEvent.type === 'com.newwork.process.continue' && customEvent.detail?.payload) {
+        loadTasks();
+        loadActivities();
+        loadNotes();
+        loadApprovals();
+        return;
+      }
+      
+      // Handle process completion events by investmentId (legacy support)
+      if (customEvent.detail?.investmentId === investmentId) {
+        loadTasks();
+        loadActivities();
+        loadNotes();
+        loadApprovals();
+      }
+    } catch (err) {
+      console.error('Error handling process event in InvestmentHomeTab:', err);
+    }
+  }, [investmentId, loadTasks, loadActivities, loadNotes, loadApprovals]);
+
   useEffect(() => {
     loadTasks();
     loadActivities();
@@ -115,40 +137,6 @@ export const InvestmentHomeTab: React.FC<InvestmentHomeTabProps> = ({
 
   // Listen for process events to refresh data
   useEffect(() => {
-    const handleProcessEvent = (event: any) => {
-      try {
-        
-        // Check for successful completion
-        if (event.detail?.resolution === 'success') {
-          loadTasks();
-          loadActivities();
-          loadNotes();
-          loadApprovals();
-          return;
-        }
-        
-        // Check for different event structures
-        const response = event.detail?.response;
-        if (response?.detail?.resolution === 'success' || response?.investment) {
-          loadTasks();
-          loadActivities();
-          loadNotes();
-          loadApprovals();
-          return;
-        }
-        
-        // Check for continue events with payload (task/activity/note creation/update)
-        if (event.type === 'com.newwork.process.continue' && event.detail?.payload) {
-          loadTasks();
-          loadActivities();
-          loadNotes();
-          loadApprovals();
-        }
-      } catch (err) {
-        console.error('Error handling process event in InvestmentHomeTab:', err);
-      }
-    };
-
     const eventTypes = [
       'com.newwork.process.continue',
       'com.newwork.process.processCompletion',
@@ -169,7 +157,7 @@ export const InvestmentHomeTab: React.FC<InvestmentHomeTabProps> = ({
         window.removeEventListener(eventType, handleProcessEvent);
       });
     };
-  }, [loadTasks, loadActivities, loadNotes, loadApprovals]);
+  }, [handleProcessEvent]);
 
   return (
     <div data-testid="investment-home-tab">
