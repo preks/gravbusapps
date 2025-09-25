@@ -91,12 +91,62 @@ export const Tickets: React.FC<TicketsProps> = ({
     offset: 0,
   });
 
-  // Get all desk keys from catalog entries for dynamic ticket count fetching
-  const allDeskKeys = catalogEntries ? catalogEntries.map(entry => entry.code) : [];
+  // Filter catalog entries based on user capabilities FIRST
+  const getFilteredCatalogEntries = () => {
+    if (!catalogEntries) return [];
+
+    // If capability filtering is disabled, return all entries
+    if (!ENABLE_CAPABILITY_FILTERING) {
+      console.log('[Tickets] Capability filtering is disabled, showing all tabs');
+      return catalogEntries;
+    }
+
+    // If no capabilities are loaded yet, return empty array to avoid unnecessary fetching
+    if (!capabilities || capabilities.length === 0) {
+      console.log('[Tickets] No user capabilities found yet, waiting...');
+      return [];
+    }
+
+    console.log('[Tickets] Filtering catalog entries based on capabilities...');
+    console.log('[Tickets] User capabilities:', capabilities.map(c => c.name));
+    console.log('[Tickets] Catalog entries:', catalogEntries.map(e => ({ code: e.code, additionalValue2: e.additionalValue2 })));
+
+    // Filter entries based on capability matching
+    const filteredEntries = catalogEntries.filter((entry) => {
+      // Always show "Under desk" - it's for uncategorized tickets
+      if (entry.code === 'Under desk') {
+        return true;
+      }
+
+      // Check if user has capability matching this desk
+      // Match capability name with additionalValue2 (manager role) from catalog
+      const hasCapability = capabilities.some((capability) => {
+        // Direct name match with additionalValue2
+        const directMatch = capability.name === entry.additionalValue2;
+        
+        // Also check for common variations (e.g., HR_Manager vs HR_MANAGER)
+        const normalizedCapability = capability.name.toLowerCase().replace(/_/g, '');
+        const normalizedEntry = (entry.additionalValue2 || '').toLowerCase().replace(/_/g, '');
+        const normalizedMatch = normalizedCapability === normalizedEntry;
+        
+        return directMatch || normalizedMatch;
+      });
+
+      console.log(`[Tickets] Entry "${entry.code}" (${entry.additionalValue2}): ${hasCapability ? '✅ ALLOWED' : '❌ FILTERED'}`);
+      return hasCapability;
+    });
+
+    console.log('[Tickets] Filtered entries:', filteredEntries.map(e => e.code));
+    return filteredEntries;
+  };
+
+  // Get filtered desk keys ONLY for desks the user can see
+  const filteredCatalogEntries = getFilteredCatalogEntries();
+  const visibleDeskKeys = filteredCatalogEntries.map(entry => entry.code);
   
-  // Get ticket counts for all desk types dynamically
+  // Get ticket counts ONLY for visible desks (major optimization!)
   const { counts: deskCounts, isLoading: countsLoading } = useMultipleDeskCounts({
-    deskKeys: allDeskKeys,
+    deskKeys: visibleDeskKeys,
     accessToken,
     userInfo,
   });
@@ -212,63 +262,6 @@ export const Tickets: React.FC<TicketsProps> = ({
     }
   };
 
-  // Filter catalog entries based on user capabilities
-  const getFilteredCatalogEntries = () => {
-    if (!catalogEntries) return [];
-
-    // If capability filtering is disabled, return all entries
-    if (!ENABLE_CAPABILITY_FILTERING) {
-      console.log('[Tickets] Capability filtering is disabled, showing all tabs');
-      return catalogEntries;
-    }
-
-    // If no capabilities are loaded yet, show all entries (loading state)
-    if (!capabilities || capabilities.length === 0) {
-      console.log('[Tickets] No user capabilities found, showing all tabs');
-      return catalogEntries;
-    }
-
-    console.log('[Tickets] Filtering catalog entries based on capabilities...');
-    console.log('[Tickets] User capabilities:', capabilities.map(c => c.name));
-    console.log('[Tickets] Catalog entries:', catalogEntries.map(e => ({ code: e.code, additionalValue2: e.additionalValue2 })));
-
-    // Filter entries based on capability matching
-    const filteredEntries = catalogEntries.filter((entry) => {
-      // Always show "Under desk" - it's for uncategorized tickets
-      if (entry.code === 'Under desk') {
-        return true;
-      }
-
-      // Check if user has capability matching this desk
-      // Match capability name with additionalValue2 (manager role) from catalog
-      const hasCapability = capabilities.some((capability) => {
-        // Direct name match with additionalValue2
-        const directMatch = capability.name === entry.additionalValue2;
-        
-        // Also check for common variations (e.g., HR_Manager vs HR_MANAGER)
-        const normalizedCapability = capability.name.toLowerCase().replace(/_/g, '');
-        const normalizedAdditionalValue2 = entry.additionalValue2?.toLowerCase().replace(/_/g, '') || '';
-        const normalizedMatch = normalizedCapability === normalizedAdditionalValue2;
-
-        const matches = directMatch || normalizedMatch;
-        
-        if (matches) {
-          console.log(`[Tickets] ✅ User has capability "${capability.name}" for desk "${entry.code}" (additionalValue2: "${entry.additionalValue2}")`);
-        }
-
-        return matches;
-      });
-
-      if (!hasCapability) {
-        console.log(`[Tickets] ❌ User does not have capability for desk "${entry.code}" (requires: "${entry.additionalValue2}")`);
-      }
-
-      return hasCapability;
-    });
-
-    console.log(`[Tickets] Filtered ${catalogEntries.length} entries down to ${filteredEntries.length} based on capabilities`);
-    return filteredEntries;
-  };
 
   // Loading state
   if (isLoading || catalogLoading || countsLoading) {
@@ -305,8 +298,7 @@ export const Tickets: React.FC<TicketsProps> = ({
     );
   }
 
-  // Get filtered catalog entries
-  const filteredCatalogEntries = getFilteredCatalogEntries();
+  // filteredCatalogEntries is already defined above
 
   // No catalog entries available after filtering
   if (!filteredCatalogEntries || filteredCatalogEntries.length === 0) {
