@@ -27,7 +27,7 @@ import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils';
 import { ColumnConfig } from "@/components/dataController";
 import { useInvestmentListController } from "../hooks/useInvestmentListController";
 import { useLiquidFundInvestmentsFilters } from "../hooks/useLiquidFundInvestmentsFilters";
-import { OwnerDisplay } from "../utils/ownerDisplayUtils";
+import { OwnerDisplay } from "../../../../../components/shared";
 
 
 export interface LiquidFundInvestmentsListProps extends BusinessAppContextProps {}

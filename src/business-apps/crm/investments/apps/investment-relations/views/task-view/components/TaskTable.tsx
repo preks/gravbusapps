@@ -17,6 +17,7 @@ import {
 } from '../utils/taskBadgeUtils';
 import dayjs from 'dayjs';
 import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils';
+import { OwnerDisplay } from '../../../../../components/shared';
 
 interface TaskTableProps {
   tasks: Task[];
@@ -43,7 +44,6 @@ interface TaskTableProps {
 const DATA_TEST_ID_PREFIX = 'TaskTable';
 
 const formatDate = (dateString: string) => dayjs(dateString).format('MM/DD/YYYY');
-const getInitials = (firstName: string, lastName: string) => `${firstName.charAt(0)}${lastName.charAt(0)}`.toUpperCase();
 
 const getTimingTypeIcon = (timingType?: string) => {
   if (!timingType) return { icon: <Clock className="gba:h-4 gba:w-4 gba:text-gray-400" />, tooltip: 'No timing type specified' };
@@ -80,10 +80,6 @@ export const TaskTable: React.FC<TaskTableProps> = ({
 }) => {
   const { t } = useTranslation();
 
-  const handleEmployeeClick = useCallback((employee: Task['assignedTo']) => {
-    const url = buildPlatformUrl('/platform/employee-record', { employeeId: employee.id });
-    navigateTo(url);
-  }, []);
 
   const handleUpdateTask = useCallback((task: Task) => {
     startProcess({ domain: 'customer-relations', processName: 'saveSalesTask', payload: { taskData: task.rawSalesTask }, builderType: 'NATIVE_SCREEN' });
@@ -97,17 +93,12 @@ export const TaskTable: React.FC<TaskTableProps> = ({
       case 'account': url = buildPlatformUrl('/platform/crm/account-record', { accountId: reference.id, source }); break;
       case 'contact': url = buildPlatformUrl('/platform/crm/contact-record', { contactId: reference.id, source }); break;
       case 'opportunity': url = buildPlatformUrl('/platform/crm/opportunity-record', { opportunityId: reference.id, source }); break;
-      default: console.warn('Unknown reference type:', reference.type); return;
+      default: return;
     }
     navigateTo(url);
   }, [sourceApp]);
 
   const handleRowClick = useCallback((record: Task) => {
-    console.log('🔍 Investment TaskTable handleRowClick called:', {
-      taskId: record.id,
-      taskName: record.name,
-      hasOnSelectTask: !!onSelectTask
-    });
     onSelectTask?.(record);
   }, [onSelectTask]);
 
@@ -181,7 +172,6 @@ export const TaskTable: React.FC<TaskTableProps> = ({
                   key={record.id} 
                   className={`gba:border-b gba:hover:bg-gray-50 gba:transition-colors gba:cursor-pointer ${selectedTaskId === record.id ? 'gba:bg-blue-50' : ''}`} 
                   onClick={() => {
-                    console.log('🔍 Investment TableRow clicked:', record.id);
                     handleRowClick(record);
                   }}
                   data-testid={`${DATA_TEST_ID_PREFIX}-row-${record.id}`}
@@ -193,13 +183,11 @@ export const TaskTable: React.FC<TaskTableProps> = ({
                   </TableCell>
                   {!hideAssignedTo && (
                     <TableCell className="gba:py-4 gba:px-6" data-testid={`${DATA_TEST_ID_PREFIX}-assigned-to-cell-${record.id}`}>
-                      <div className="gba:flex gba:items-center gba:gap-3 gba:cursor-pointer gba:hover:bg-gray-50 gba:p-2 gba:rounded gba:transition-colors" onClick={(e) => { e.stopPropagation(); handleEmployeeClick(record.assignedTo); }} data-testid={`${DATA_TEST_ID_PREFIX}-assigned-to-link-${record.id}`}>
-                        <Avatar size="sm"><AvatarFallback>{getInitials(record.assignedTo.firstName, record.assignedTo.lastName)}</AvatarFallback></Avatar>
-                        <div className="gba:flex gba:flex-col">
-                          <span className="gba:font-medium gba:text-sm">{record.assignedTo.displayName}</span>
-                          <span className="gba:text-xs gba:text-gray-500">{record.assignedTo.department}</span>
-                        </div>
-                      </div>
+                      <OwnerDisplay 
+                        ownerEmployee={record.assignedTo}
+                        entityId={record.id}
+                        testIdPrefix="task-assigned-to"
+                      />
                     </TableCell>
                   )}
                   <TableCell className="gba:py-4 gba:px-6" data-testid={`${DATA_TEST_ID_PREFIX}-type-cell-${record.id}`}>
@@ -237,13 +225,11 @@ export const TaskTable: React.FC<TaskTableProps> = ({
                   </TableCell>
                   <TableCell className="gba:py-4 gba:px-6" data-testid={`${DATA_TEST_ID_PREFIX}-created-by-cell-${record.id}`}>
                     {record.creatorEmployee ? (
-                      <div className="gba:flex gba:items-center gba:gap-3 gba:cursor-pointer gba:hover:bg-gray-50 gba:p-2 gba:rounded gba:transition-colors" onClick={(e) => { e.stopPropagation(); handleEmployeeClick(record.creatorEmployee!); }} data-testid={`${DATA_TEST_ID_PREFIX}-creator-link-${record.id}`}>
-                        <Avatar size="sm"><AvatarFallback>{getInitials(record.creatorEmployee.firstName, record.creatorEmployee.lastName)}</AvatarFallback></Avatar>
-                        <div className="gba:flex gba:flex-col">
-                          <span className="gba:font-medium gba:text-sm">{record.creatorEmployee.displayName}</span>
-                          <span className="gba:text-xs gba:text-gray-500">{record.creatorEmployee.department}</span>
-                        </div>
-                      </div>
+                      <OwnerDisplay 
+                        ownerEmployee={record.creatorEmployee}
+                        entityId={record.id}
+                        testIdPrefix="task-creator"
+                      />
                     ) : (
                       <span className="gba:text-sm gba:text-gray-400">Unknown</span>
                     )}

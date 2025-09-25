@@ -36,7 +36,7 @@ import { FlowContextName } from "@/common/types/FlowRegistryTypes";
 import { OpportunityBoard } from "@/business-apps/crm/investments/apps/investment-relations/views/opportunity-view/components/opportunity-board/OpportunityBoard";
 import { getTranslationFromI18nKeyAndLabel } from "@/common/utils/windowUtils";
 import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils';
-import { OwnerDisplay } from "../../../investment-view/utils/ownerDisplayUtils";
+import { OwnerDisplay } from "../../../../../../components/shared";
 import { formatDate } from "../../utils";
 import { formatCurrencyLarge } from "@/business-apps/crm/common/utils/currencyUtils";
 
