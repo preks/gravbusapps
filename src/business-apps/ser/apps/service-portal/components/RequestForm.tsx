@@ -21,221 +21,182 @@ import {
   DialogDescription,
   type KpiCardData
 } from '@newwork/nw-design-system';
-import { ServiceRequestTemplate, WorkflowEngine, FlowTemplate, DynamicFormValues } from '../../../types';
+import { WorkflowEngine, FlowTemplate } from '../../../types';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 import { 
-  FileText, 
-  Clock, 
-  CheckCircle, 
-  Users,
-  Warning,
-  Sparkle,
-  Calendar,
-  CurrencyDollar,
-  User,
-  Building,
-  Star,
-  Robot,
-  Brain,
-  Copy,
-  X,
-  ThumbsUp,
-  Lightbulb,
-  Target,
-  ShieldCheck
+  FileTextIcon, 
+  CheckCircleIcon, 
+  UsersIcon,
+  WarningIcon,
+  SparkleIcon,
+  UserIcon,
+  StarIcon,
+  RobotIcon,
+  BrainIcon,
+  CopyIcon,
+  ThumbsUpIcon,
+  LightbulbIcon,
+  TargetIcon,
+  ShieldCheckIcon
 } from '@phosphor-icons/react';
 import { ArrowLeftOutlined } from '@ant-design/icons';
-import { getCategoryById } from '../../../data';
 import { getCategoryIcon } from '../../../utils/iconMapping';
-import { useRealEmployeeData, getEmployeeOptions, getJobPositionOptions, getDepartmentOptions } from '../hooks/useRealEmployeeData';
-import { useEmploymentTypeCatalog } from '../hooks/useEmploymentTypeCatalog';
-import { DynamicFormGenerator } from '../../../components/DynamicFormGenerator';
+import { useRealEmployeeData, getEmployeeOptions } from '../hooks/useRealEmployeeData';
 import { flowbotClient } from '@/common/network/flowbot';
 import { parseMarkdownForReact } from '@/common/utils/markdownUtils';
 
 export interface RequestFormProps extends BusinessAppContextProps {
-  template?: ServiceRequestTemplate;
-  flowTemplate?: FlowTemplate;
+  flowTemplate: FlowTemplate;
   workflowEngine: WorkflowEngine;
   onSuccess: (requestId: string) => void;
   onCancel: () => void;
 }
 
-interface FormFieldProps {
-  field: string;
-  value: any;
-  onChange: (field: string, value: any) => void;
+// FormField component removed - only using dynamic form generation from flow templates
+
+// ProcessStepPreview component removed - only using flow template steps preview
+
+interface MultiSelectProps {
+  id: string;
+  value: string[];
+  onChange: (values: string[]) => void;
+  options: Array<{ value: string; label: string }>;
+  placeholder?: string;
   required?: boolean;
-  type?: 'text' | 'textarea' | 'select' | 'date' | 'number';
-  options?: string[];
-  isEmployeeSelect?: boolean;
-  isDepartmentSelect?: boolean;
-  isJobPositionSelect?: boolean;
-  employees?: any[];
-  departments?: any[];
-  jobPositions?: any[];
-  selectedDepartmentId?: string | null;
+  className?: string;
 }
 
-const FormField: React.FC<FormFieldProps> = ({ 
-  field, 
-  value, 
-  onChange, 
+const MultiSelect: React.FC<MultiSelectProps> = ({
+  id,
+  value = [],
+  onChange,
+  options,
+  placeholder = "Select options...",
   required = false,
-  type = 'text',
-  options = [],
-  isEmployeeSelect = false,
-  isDepartmentSelect = false,
-  isJobPositionSelect = false,
-  employees = [],
-  departments = [],
-  jobPositions = [],
-  selectedDepartmentId = null
+  className = ""
 }) => {
-  const fieldName = field.charAt(0).toUpperCase() + field.slice(1).replace(/([A-Z])/g, ' $1');
-  
-  // Get appropriate icon for field type
-  const getFieldIcon = () => {
-    if (field.toLowerCase().includes('name') || field.toLowerCase().includes('employee')) return User;
-    if (field.toLowerCase().includes('date')) return Calendar;
-    if (field.toLowerCase().includes('salary') || field.toLowerCase().includes('budget')) return CurrencyDollar;
-    if (field.toLowerCase().includes('department') || field.toLowerCase().includes('position')) return Building;
-    return FileText;
+  const [isOpen, setIsOpen] = useState(false);
+  const [searchTerm, setSearchTerm] = useState('');
+
+  const filteredOptions = options.filter(option =>
+    option.label.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+
+  const handleToggleOption = (optionValue: string) => {
+    const newValue = value.includes(optionValue)
+      ? value.filter(v => v !== optionValue)
+      : [...value, optionValue];
+    onChange(newValue);
   };
 
-  const FieldIcon = getFieldIcon();
-  
+  const handleRemoveOption = (optionValue: string) => {
+    onChange(value.filter(v => v !== optionValue));
+  };
+
+  const getSelectedLabels = () => {
+    return value.map(v => options.find(opt => opt.value === v)?.label || v);
+  };
+
   return (
-    <div className="gba:space-y-3">
-      <label className="gba:flex gba:items-center gba:text-sm gba:font-semibold gba:text-foreground">
-        <FieldIcon className="gba:mr-2 gba:h-4 gba:w-4 gba:text-primary" />
-        {fieldName}
-        {required && <span className="gba:text-destructive gba:ml-1">*</span>}
-      </label>
-      
-      {type === 'textarea' ? (
-        <Textarea
-          placeholder={`Enter ${fieldName.toLowerCase()}...`}
-          value={value || ''}
-          onChange={(e) => onChange(field, e.target.value)}
-          className="gba:min-h-[100px] gba:resize-none"
-          required={required}
-        />
-      ) : type === 'select' ? (
-        <Select 
-          value={value || ''} 
-          onValueChange={(val) => onChange(field, val)}
-          disabled={isJobPositionSelect && !selectedDepartmentId}
-        >
-          <SelectTrigger>
-            <SelectValue 
-              placeholder={
-                isJobPositionSelect && !selectedDepartmentId 
-                  ? "First select a department" 
-                  : `Select ${fieldName.toLowerCase()}`
-              } 
+    <div className={`gba:relative ${className}`}>
+      {/* Selected values display */}
+      <div
+        className="gba:min-h-[40px] gba:w-full gba:rounded-md gba:border gba:border-input gba:bg-background gba:px-3 gba:py-2 gba:text-sm gba:cursor-pointer gba:flex gba:flex-wrap gba:gap-1 gba:items-center"
+        onClick={() => setIsOpen(!isOpen)}
+        data-testid={`multiselect-${id}`}
+      >
+        {value.length === 0 ? (
+          <span className="gba:text-muted-foreground">{placeholder}</span>
+        ) : (
+          <>
+            {getSelectedLabels().map((label, index) => (
+              <span
+                key={value[index]}
+                className="gba:inline-flex gba:items-center gba:gap-1 gba:rounded gba:bg-primary gba:px-2 gba:py-1 gba:text-xs gba:text-primary-foreground"
+              >
+                {label}
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleRemoveOption(value[index]);
+                  }}
+                  className="gba:ml-1 gba:hover:gba:bg-primary/80 gba:rounded-full gba:p-0.5"
+                  data-testid={`remove-${value[index]}`}
+                >
+                  ×
+                </button>
+              </span>
+            ))}
+          </>
+        )}
+        <div className="gba:ml-auto gba:flex gba:items-center">
+          <span className="gba:text-muted-foreground">
+            {isOpen ? '▲' : '▼'}
+          </span>
+        </div>
+      </div>
+
+      {/* Dropdown */}
+      {isOpen && (
+        <div className="gba:absolute gba:top-full gba:left-0 gba:right-0 gba:z-50 gba:mt-1 gba:max-h-60 gba:overflow-auto gba:rounded-md gba:border gba:bg-popover gba:shadow-md">
+          {/* Search input */}
+          <div className="gba:p-2 gba:border-b">
+            <Input
+              type="text"
+              placeholder="Search options..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="gba:h-8"
+              data-testid={`multiselect-search-${id}`}
             />
-          </SelectTrigger>
-          <SelectContent>
-            {/* Handle employee select */}
-            {isEmployeeSelect && employees.map((emp) => (
-              <SelectItem key={emp.value} value={emp.value}>
-                <div className="gba:flex gba:flex-col">
-                  <span className="gba:font-medium">{emp.label}</span>
-                  {emp.jobTitle && <span className="gba:text-xs gba:text-muted-foreground">{emp.jobTitle} • {emp.department}</span>}
+          </div>
+
+          {/* Options list */}
+          <div className="gba:max-h-48 gba:overflow-auto">
+            {filteredOptions.length === 0 ? (
+              <div className="gba:p-2 gba:text-sm gba:text-muted-foreground gba:text-center">
+                No options found
+              </div>
+            ) : (
+              filteredOptions.map((option) => (
+                <div
+                  key={option.value}
+                  className={`gba:flex gba:items-center gba:gap-2 gba:px-3 gba:py-2 gba:text-sm gba:cursor-pointer gba:hover:gba:bg-accent gba:hover:gba:text-accent-foreground ${
+                    value.includes(option.value) ? 'gba:bg-accent' : ''
+                  }`}
+                  onClick={() => handleToggleOption(option.value)}
+                  data-testid={`option-${option.value}`}
+                >
+                  <div className={`gba:w-4 gba:h-4 gba:border gba:rounded gba:flex gba:items-center gba:justify-center ${
+                    value.includes(option.value) 
+                      ? 'gba:bg-primary gba:border-primary gba:text-primary-foreground' 
+                      : 'gba:border-input'
+                  }`}>
+                    {value.includes(option.value) && (
+                      <CheckCircleIcon className="gba:w-3 gba:h-3" />
+                    )}
+                  </div>
+                  <span>{option.label}</span>
                 </div>
-              </SelectItem>
-            ))}
-            
-            {/* Handle department select - Simple display like other apps */}
-            {isDepartmentSelect && departments.map((dept) => (
-              <SelectItem key={dept.value} value={dept.value}>
-                {dept.label}
-              </SelectItem>
-            ))}
-            
-            {/* Handle job position select - Clean display like HR forms, filtered by department */}
-            {isJobPositionSelect && jobPositions
-              .filter(pos => !selectedDepartmentId || pos.departmentId === selectedDepartmentId)
-              .map((pos) => (
-              <SelectItem key={pos.value} value={pos.value}>
-                {pos.label}
-              </SelectItem>
-            ))}
-            
-            {/* Handle regular options */}
-            {!isEmployeeSelect && !isDepartmentSelect && !isJobPositionSelect && options.map((option) => (
-              <SelectItem key={option} value={option}>
-                {option}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      ) : (
-        <Input
-          type={type === 'date' ? 'date' : type === 'number' ? 'number' : 'text'}
-          placeholder={`Enter ${fieldName.toLowerCase()}...`}
-          value={value || ''}
-          onChange={(e) => onChange(field, e.target.value)}
-          required={required}
-          className="gba:transition-all gba:duration-200 focus:gba:ring-2 focus:gba:ring-primary/20"
+              ))
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Click outside to close */}
+      {isOpen && (
+        <div
+          className="gba:fixed gba:inset-0 gba:z-40"
+          onClick={() => setIsOpen(false)}
         />
       )}
     </div>
   );
 };
 
-const ProcessStepPreview: React.FC<{ template: ServiceRequestTemplate }> = ({ template }) => {
-  return (
-    <Card className="gba:p-6 gba:bg-gradient-to-r gba:from-primary-50 gba:to-blue-50 gba:border-primary/20">
-      <h3 className="gba:text-lg gba:font-bold gba:text-foreground gba:mb-4 gba:flex gba:items-center">
-        <Sparkle className="gba:mr-2 gba:text-primary" size={20} />
-        Your Request Journey
-      </h3>
-      
-      <p className="gba:text-sm gba:text-muted-foreground gba:mb-6">
-        Here's what will happen after you submit your request:
-      </p>
-      
-      <div className="gba:space-y-4">
-        {template.steps.map((step, index) => (
-          <div key={step.id} className="gba:flex gba:items-start gba:space-x-4">
-            <div className="gba:flex gba:items-center gba:justify-center gba:w-8 gba:h-8 gba:rounded-full gba:bg-primary gba:text-white gba:text-sm gba:font-bold gba:flex-shrink-0 gba:shadow-md">
-              {index + 1}
-            </div>
-            <div className="gba:flex-1 gba:min-w-0">
-              <div className="gba:flex gba:items-center gba:justify-between gba:mb-1">
-                <h4 className="gba:font-semibold gba:text-foreground">{step.name}</h4>
-                <Badge variant="outline" className="gba:text-xs">
-                  {step.receiver}
-                </Badge>
-              </div>
-              <p className="gba:text-sm gba:text-muted-foreground">
-                Processing time: ~{Math.ceil((index + 1) * 0.5)}-{(index + 1)} business day{(index + 1) > 1 ? 's' : ''}
-              </p>
-            </div>
-          </div>
-        ))}
-      </div>
-
-      <Separator className="gba:my-4" />
-      
-      <div className="gba:flex gba:items-center gba:justify-between gba:text-sm">
-        <div className="gba:flex gba:items-center gba:text-muted-foreground">
-          <Clock className="gba:mr-2" size={16} />
-          Total estimated time: {template.steps.length * 1}-{template.steps.length * 2} business days
-        </div>
-        <div className="gba:flex gba:items-center gba:text-green-600">
-          <CheckCircle className="gba:mr-1" size={16} />
-          98% success rate
-        </div>
-      </div>
-    </Card>
-  );
-};
-
 export const RequestForm: React.FC<RequestFormProps> = ({
-  template,
   flowTemplate,
   workflowEngine,
   onSuccess,
@@ -245,7 +206,6 @@ export const RequestForm: React.FC<RequestFormProps> = ({
   const [formData, setFormData] = useState<any>({});
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<{ message: string; payload?: any } | null>(null);
-  const [selectedDepartmentId, setSelectedDepartmentId] = useState<string | null>(null);
   const [stepsRequiringAssignment, setStepsRequiringAssignment] = useState<Array<{
     stepId: string;
     stepIndex: number;
@@ -261,14 +221,13 @@ export const RequestForm: React.FC<RequestFormProps> = ({
   const [aiLoading, setAILoading] = useState(false);
   const [aiResponseType, setAIResponseType] = useState<'suggestion' | 'validation' | 'optimization'>('suggestion');
   
-  // Determine if we're using a flow template or mock template
-  const isFlowTemplate = !!flowTemplate;
-  const currentTemplate = flowTemplate || template;
+  // Only using flow templates now
+  const currentTemplate = flowTemplate;
   
   // 🌐 UNIVERSAL: Load steps requiring assignment for any template
   React.useEffect(() => {
     const loadRequiredAssignments = async () => {
-      if (!isFlowTemplate || !flowTemplate?.id || !workflowEngine.getStepsRequiringAssignment) {
+      if (!flowTemplate?.id || !workflowEngine.getStepsRequiringAssignment) {
         setStepsRequiringAssignment([]);
         return;
       }
@@ -304,12 +263,12 @@ export const RequestForm: React.FC<RequestFormProps> = ({
     };
 
     loadRequiredAssignments();
-  }, [isFlowTemplate, flowTemplate?.id, workflowEngine]);
+  }, [flowTemplate?.id, workflowEngine]);
   
   if (!currentTemplate) {
     return (
       <Alert variant="destructive" className="gba:mb-4" style={{ display: 'block' }}>
-        <Warning className="gba:h-4 gba:w-4" />
+        <WarningIcon className="gba:h-4 gba:w-4" />
         <h4 className="gba:font-semibold">Invalid Template</h4>
         <div style={{ display: 'block', wordWrap: 'break-word', whiteSpace: 'normal' }} className="gba:text-sm gba:mt-2">
           No valid template provided for this request form.
@@ -321,21 +280,11 @@ export const RequestForm: React.FC<RequestFormProps> = ({
   // Load real employee data
   const {
     employees,
-    jobPositions,
-    departments,
     isLoading: dataLoading,
-    error: dataError,
-    fetchJobPositions
+    error: dataError
   } = useRealEmployeeData(contextProps);
 
-  // Load employment types from catalog
-  const {
-    employmentTypes,
-    isLoading: employmentTypesLoading,
-    error: employmentTypesError
-  } = useEmploymentTypeCatalog(contextProps);
-
-  // Handle form field changes with cascading dropdown logic
+  // Handle form field changes
   const handleFieldChange = (field: string, value: any) => {
     setFormData((prev: any) => ({ ...prev, [field]: value }));
     
@@ -350,26 +299,11 @@ export const RequestForm: React.FC<RequestFormProps> = ({
         }
       }));
     }
-    
-    // Handle cascading dropdown logic
-    if (field === 'department') {
-      setSelectedDepartmentId(value);
-      // Clear position when department changes
-      setFormData((prev: any) => ({ ...prev, position: '' }));
-      // Fetch positions for the selected department
-      if (value) {
-        fetchJobPositions('', value);
-      } else {
-        fetchJobPositions(''); // Fetch all positions if no department selected
-      }
-    }
   };
 
-  // Get category and icon based on template type
-  const category = isFlowTemplate 
-    ? { id: 'flow-templates', name: 'Flow Template', description: 'Dynamic workflow template' }
-    : getCategoryById((template as ServiceRequestTemplate).categoryId);
-  const IconComponent = (category ? getCategoryIcon(category.id) : null) || FileText;
+  // Get category and icon for flow template
+  const category = { id: 'flow-templates', name: 'Flow Template', description: 'Dynamic workflow template' };
+  const IconComponent = getCategoryIcon(category.id) || FileTextIcon;
 
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
@@ -381,7 +315,7 @@ export const RequestForm: React.FC<RequestFormProps> = ({
     let completePayload: any = {};
 
     try {
-      if (isFlowTemplate && flowTemplate) {
+      if (flowTemplate) {
         // For flow templates, we need to execute the template with the form data
         // The workflowEngine should have a method to execute templates by ID
         if (typeof workflowEngine.executeTemplate === 'function') {
@@ -423,27 +357,8 @@ export const RequestForm: React.FC<RequestFormProps> = ({
           const newRequestId = await workflowEngine.startRequest(flowTemplate.name, formData);
           onSuccess(newRequestId);
         }
-      } else if (template) {
-        // For mock templates, use the existing logic
-        completePayload = {
-          apiEndpoint: `POST /api/templates/{mappedFlowTemplateId}/execute`,
-          expectedCustomFlowEnginePayload: {
-            initiatorId: contextProps.userInfo?.id || 'unknown-user',
-            input: formData,
-            correlationId: `REQ-${Date.now()}`
-          },
-          actualPayloadSent: 'Check browser console for ConductorWorkflowEngineAdapter logs',
-          formData: formData,
-          templateInfo: {
-            key: template.key,
-            title: template.title,
-            categoryId: template.categoryId
-          }
-        };
-        const newRequestId = await workflowEngine.startRequest(template.key, formData);
-        onSuccess(newRequestId);
       } else {
-        throw new Error('No valid template provided');
+        throw new Error('No valid flow template provided');
       }
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Failed to submit request';
@@ -460,86 +375,14 @@ export const RequestForm: React.FC<RequestFormProps> = ({
     }
   };
 
-  // Enhanced form fields configuration with better UX
-  const formFieldsConfig = useMemo(() => {
-    // Get employment types from catalog (with fallback to common types)
-    const employmentTypeOptions = employmentTypes.length > 0 
-      ? employmentTypes.map(type => type.name)
-      : ['Full-time', 'Part-time', 'Contract', 'Intern', 'Temporary'];
-
-    const configs: Record<string, Array<{
-      field: string;
-      required: boolean;
-      type: 'text' | 'textarea' | 'select' | 'date' | 'number';
-      options?: string[];
-      isEmployeeSelect?: boolean;
-      isDepartmentSelect?: boolean;
-      isJobPositionSelect?: boolean;
-    }>> = {
-      'hr-onboard': [
-        { field: 'employeeName', required: true, type: 'text' },
-        { field: 'employeeEmail', required: true, type: 'text' },
-        { field: 'startDate', required: true, type: 'date' },
-        { field: 'department', required: true, type: 'select', isDepartmentSelect: true },
-        { field: 'position', required: true, type: 'select', isJobPositionSelect: true },
-        { field: 'reportingManager', required: true, type: 'select', isEmployeeSelect: true },
-        { field: 'employmentType', required: true, type: 'select', options: employmentTypeOptions },
-        { field: 'workLocation', required: false, type: 'select', options: ['Office', 'Remote', 'Hybrid'] },
-        { field: 'equipmentNeeded', required: false, type: 'textarea' },
-        { field: 'specialRequirements', required: false, type: 'textarea' }
-      ],
-      'hr-contract-change': [
-        { field: 'currentSalary', required: true, type: 'number' },
-        { field: 'requestedSalary', required: true, type: 'number' },
-        { field: 'changeReason', required: true, type: 'textarea' },
-        { field: 'effectiveDate', required: true, type: 'date' },
-        { field: 'changeType', required: true, type: 'select', options: ['Salary Adjustment', 'Role Change', 'Department Transfer', 'Benefits Change'] },
-        { field: 'additionalBenefits', required: false, type: 'textarea' },
-        { field: 'justification', required: true, type: 'textarea' }
-      ],
-      'it-hardware': [
-        { field: 'hardwareType', required: true, type: 'select', options: ['Laptop', 'Desktop', 'Monitor', 'Keyboard', 'Mouse', 'Other'] },
-        { field: 'specifications', required: true, type: 'textarea' },
-        { field: 'businessJustification', required: true, type: 'textarea' },
-        { field: 'urgency', required: true, type: 'select', options: ['Low', 'Medium', 'High', 'Critical'] },
-        { field: 'estimatedBudget', required: false, type: 'number' },
-        { field: 'preferredBrand', required: false, type: 'text' },
-        { field: 'deliveryLocation', required: true, type: 'text' }
-      ],
-      'it-software-access': [
-        { field: 'softwareName', required: true, type: 'text' },
-        { field: 'accessLevel', required: true, type: 'select', options: ['Read Only', 'Standard User', 'Power User', 'Administrator'] },
-        { field: 'businessJustification', required: true, type: 'textarea' },
-        { field: 'duration', required: true, type: 'select', options: ['30 days', '90 days', '6 months', '1 year', 'Permanent'] },
-        { field: 'teamMembers', required: false, type: 'textarea' },
-        { field: 'projectCode', required: false, type: 'text' }
-      ]
-    };
-
-    // For flow templates, return empty array since we use dynamic fields
-    if (isFlowTemplate) {
-      return [];
-    }
-
-    return configs[(template as ServiceRequestTemplate).key] || [
-      { field: 'serviceDetails', required: true, type: 'textarea' },
-      { field: 'businessJustification', required: true, type: 'textarea' },
-      { field: 'priority', required: true, type: 'select', options: ['Low', 'Medium', 'High', 'Critical'] },
-      { field: 'expectedDate', required: false, type: 'date' }
-    ];
-  }, [isFlowTemplate, template, employees, jobPositions, departments, employmentTypes]);
+  // No more form field configuration needed - only using dynamic flow templates
 
   // Future: Could implement multi-step form here
 
   // KPI cards for the form
   const kpiCards: KpiCardData[] = useMemo(() => {
-    const stepCount = isFlowTemplate 
-      ? (flowTemplate?.stepCount || flowTemplate?.steps?.length || 0)
-      : (template as ServiceRequestTemplate)?.steps?.length || 0;
-    
-    const estimatedTime = isFlowTemplate
-      ? (flowTemplate?.estimatedDuration || `${stepCount}-${stepCount * 2} days`)
-      : '2-5 days';
+    const stepCount = flowTemplate?.stepCount || flowTemplate?.steps?.length || 0;
+    const estimatedTime = flowTemplate?.estimatedDuration || `${stepCount}-${stepCount * 2} days`;
 
     return [
     {
@@ -557,8 +400,8 @@ export const RequestForm: React.FC<RequestFormProps> = ({
       {
         id: 'template-type',
         title: 'Template Type',
-        value: isFlowTemplate ? 'Live' : 'Mock',
-        description: isFlowTemplate ? 'Workflow engine' : 'Development'
+        value: 'Live',
+        description: 'Workflow engine'
       },
     {
       id: 'success-rate',
@@ -567,21 +410,17 @@ export const RequestForm: React.FC<RequestFormProps> = ({
       description: 'Completion rate'
       }
     ];
-  }, [isFlowTemplate, flowTemplate, template]);
+  }, [flowTemplate]);
 
   // Calculate form completion percentage (including step assignments)
   const completionPercentage = useMemo(() => {
     let totalRequired = 0;
     let completedRequired = 0;
 
-    if (isFlowTemplate && flowTemplate?.formSchema) {
-      // Flow template form fields
+    // Only handle flow templates - no more mock templates
+    if (flowTemplate?.formSchema) {
       totalRequired = flowTemplate.formSchema.filter(f => f.required).length;
-      completedRequired = flowTemplate.formSchema.filter(f => f.required && formData[f.name]).length;
-    } else {
-      // Mock template form fields
-      totalRequired = formFieldsConfig.filter(f => f.required).length;
-      completedRequired = formFieldsConfig.filter(f => f.required && formData[f.field]).length;
+      completedRequired = flowTemplate.formSchema.filter(f => f.required && (formData[f.name] !== undefined && formData[f.name] !== '')).length;
     }
 
     // 🌐 UNIVERSAL: Add step assignments to completion calculation
@@ -600,7 +439,7 @@ export const RequestForm: React.FC<RequestFormProps> = ({
     }
 
     return totalRequired > 0 ? Math.round((completedRequired / totalRequired) * 100) : (totalRequired === 0 ? 100 : 0);
-  }, [isFlowTemplate, flowTemplate, formFieldsConfig, formData, stepsRequiringAssignment]);
+  }, [flowTemplate, formData, stepsRequiringAssignment]);
 
   // Handle AI button click - collect form data and call real AI API
   const handleAskAI = async () => {
@@ -621,18 +460,16 @@ export const RequestForm: React.FC<RequestFormProps> = ({
       const ticketData = {
         timestamp: new Date().toISOString(),
         templateInfo: {
-          type: isFlowTemplate ? 'flow-template' : 'mock-template',
-          id: isFlowTemplate ? flowTemplate?.id : (template as ServiceRequestTemplate)?.key,
-          name: isFlowTemplate ? flowTemplate?.name : (template as ServiceRequestTemplate)?.title,
+          type: 'flow-template',
+          id: flowTemplate?.id,
+          name: flowTemplate?.name,
           description: currentTemplate?.description
         },
         formData: { ...formData },
         formCompletion: {
           percentage: completionPercentage,
-          totalFields: isFlowTemplate 
-            ? (flowTemplate?.formSchema?.length || 0)
-            : formFieldsConfig.length,
-          filledFields: Object.keys(formData).filter(key => formData[key] && formData[key] !== '').length
+          totalFields: flowTemplate?.formSchema?.length || 0,
+          filledFields: Object.keys(formData).filter(key => formData[key] !== undefined && formData[key] !== '').length
         },
         stepAssignments: formData.stepAssignments || {},
         requiredAssignments: stepsRequiringAssignment.map(step => ({
@@ -755,12 +592,12 @@ Please try again in a few moments, or proceed with submitting your request.`);
           icon: IconComponent,
           variant: "strategy",
           size: "lg",
-          label: currentTemplate.name || (currentTemplate as ServiceRequestTemplate).title
+          label: currentTemplate?.name || 'Service Request'
         }}
-        headerTitle={`Request: ${currentTemplate.name || (currentTemplate as ServiceRequestTemplate).title}`}
-        headerDescription={currentTemplate.description || 'Complete the form below to submit your service request'}
+        headerTitle={`Request: ${currentTemplate?.name || 'Service Request'}`}
+        headerDescription={currentTemplate?.description || 'Complete the form below to submit your service request'}
         sectionTitle="Service Request Form"
-        sectionDescription={`Fill out the required information to submit your ${(currentTemplate.name || (currentTemplate as ServiceRequestTemplate).title).toLowerCase()}`}
+        sectionDescription={`Fill out the required information to submit your ${currentTemplate?.name?.toLowerCase() || 'service request'}`}
         kpiCardsData={kpiCards}
       >
         <div className="gba:grid gba:grid-cols-1 gba:lg:grid-cols-3 gba:gap-8">
@@ -834,7 +671,7 @@ Please try again in a few moments, or proceed with submitting your request.`);
             <Card className="gba:p-6">
               <div className="gba:flex gba:items-center gba:justify-between gba:mb-4">
                 <h3 className="gba:text-lg gba:font-semibold gba:flex gba:items-center">
-                  <CheckCircle className="gba:mr-2 gba:text-primary" />
+                  <CheckCircleIcon className="gba:mr-2 gba:text-primary" />
                   Form Progress
                 </h3>
                 <span className="gba:text-sm gba:font-medium gba:text-muted-foreground">
@@ -853,7 +690,7 @@ Please try again in a few moments, or proceed with submitting your request.`);
             <Card className="gba:p-8">
               <form onSubmit={handleSubmit} className="gba:space-y-8">
                 {/* Show loading state for data */}
-                {(dataLoading || employmentTypesLoading) && !dataError && !employmentTypesError && (
+                {dataLoading && !dataError && (
                   <div className="gba:flex gba:items-center gba:justify-center gba:p-8">
                     <Spinner size="sm" className="gba:mr-3" />
                     <span className="gba:text-sm gba:text-muted-foreground">Loading form data...</span>
@@ -861,19 +698,18 @@ Please try again in a few moments, or proceed with submitting your request.`);
                 )}
                 
                 {/* Show data error */}
-                {(dataError || employmentTypesError) && (
+                {dataError && (
                   <Alert variant="destructive" className="gba:mb-6" style={{ display: 'block' }}>
-                    <Warning className="gba:h-4 gba:w-4" />
+                    <WarningIcon className="gba:h-4 gba:w-4" />
                     <h4 className="gba:font-semibold">Data Loading Error</h4>
                     <div style={{ display: 'block', wordWrap: 'break-word', whiteSpace: 'normal' }} className="gba:text-sm gba:mt-2">
-                      {dataError || employmentTypesError}
+                      {dataError}
                     </div>
                   </Alert>
                 )}
 
-                {/* Conditional Form Rendering */}
-                {isFlowTemplate && flowTemplate?.formSchema ? (
-                  /* Dynamic Form Generation from Flow Template */
+                {/* Dynamic Form Generation from Flow Template */}
+                {flowTemplate?.formSchema && (
                   <div className="gba:space-y-6">
                     <div className="gba:border-b gba:pb-4">
                       <h3 className="gba:text-lg gba:font-semibold gba:text-gray-900">{flowTemplate.name} Details</h3>
@@ -946,8 +782,16 @@ Please try again in a few moments, or proceed with submitting your request.`);
                             <Input
                               id={field.name}
                               type="number"
-                              value={formData[field.name] || ''}
-                              onChange={(e) => handleFieldChange(field.name, parseFloat(e.target.value) || '')}
+                              value={formData[field.name] ?? ''}
+                              onChange={(e) => {
+                                const value = e.target.value;
+                                if (value === '') {
+                                  handleFieldChange(field.name, '');
+                                } else {
+                                  const numValue = parseFloat(value);
+                                  handleFieldChange(field.name, isNaN(numValue) ? '' : numValue);
+                                }
+                              }}
                               placeholder={field.placeholder}
                               required={field.required}
                             />
@@ -978,7 +822,7 @@ Please try again in a few moments, or proceed with submitting your request.`);
                                       if (e.target.checked) {
                                         newValue = [...currentValue, option.value];
                                       } else {
-                                        newValue = currentValue.filter(v => v !== option.value);
+                                        newValue = currentValue.filter((v: any) => v !== option.value);
                                       }
                                       handleFieldChange(field.name, newValue);
                                     }}
@@ -995,32 +839,20 @@ Please try again in a few moments, or proceed with submitting your request.`);
                               )}
                             </div>
                           )}
+                          
+                          {field.type === 'MULTISELECT' && (
+                            <MultiSelect
+                              id={field.name}
+                              value={Array.isArray(formData[field.name]) ? formData[field.name] : []}
+                              onChange={(values) => handleFieldChange(field.name, values)}
+                              options={field.options || []}
+                              placeholder={field.placeholder || `Select ${field.label}`}
+                              required={field.required}
+                            />
+                          )}
                         </div>
                       ))}
                     </div>
-                  </div>
-                ) : (
-                  /* Static Form Configuration for Mock Templates */
-                <div className="gba:grid gba:gap-6 gba:md:grid-cols-2">
-                  {formFieldsConfig.map((fieldConfig) => (
-                    <div key={fieldConfig.field} className={fieldConfig.type === 'textarea' ? 'gba:md:col-span-2' : ''}>
-                      <FormField
-                        field={fieldConfig.field}
-                        value={formData[fieldConfig.field]}
-                        onChange={handleFieldChange}
-                        required={fieldConfig.required}
-                        type={fieldConfig.type}
-                        options={fieldConfig.options}
-                        isEmployeeSelect={fieldConfig.isEmployeeSelect}
-                        isDepartmentSelect={fieldConfig.isDepartmentSelect}
-                        isJobPositionSelect={fieldConfig.isJobPositionSelect}
-                        employees={getEmployeeOptions(employees)}
-                        departments={getDepartmentOptions(departments)}
-                        jobPositions={getJobPositionOptions(jobPositions)}
-                        selectedDepartmentId={selectedDepartmentId}
-                      />
-                    </div>
-                  ))}
                 </div>
                 )}
 
@@ -1031,7 +863,7 @@ Please try again in a few moments, or proceed with submitting your request.`);
                   <div className="gba:space-y-6">
                     <div className="gba:border-l-4 gba:border-blue-500 gba:pl-4 gba:py-2 gba:bg-blue-50">
                       <h4 className="gba:text-base gba:font-semibold gba:flex gba:items-center gba:text-blue-900">
-                        <Users className="gba:mr-2" size={16} />
+                        <UsersIcon className="gba:mr-2" size={16} />
                         Step Assignments
                       </h4>
                       <p className="gba:text-sm gba:text-blue-700 gba:mt-1">
@@ -1075,13 +907,13 @@ Please try again in a few moments, or proceed with submitting your request.`);
                             {step.assignmentMode === 'ASSIGN' ? (
                               <div className="gba:space-y-3">
                                 <label className="gba:flex gba:items-center gba:text-sm gba:font-semibold gba:text-foreground">
-                                  <User className="gba:mr-2 gba:h-4 gba:w-4 gba:text-green-600" />
+                                  <UserIcon className="gba:mr-2 gba:h-4 gba:w-4 gba:text-green-600" />
                                   Assigned to
                                 </label>
                                 
                                 <div className="gba:p-3 gba:bg-green-50 gba:border gba:border-green-200 gba:rounded">
                                   <div className="gba:flex gba:items-center">
-                                    <User className="gba:mr-2 gba:h-4 gba:w-4 gba:text-green-600" />
+                                    <UserIcon className="gba:mr-2 gba:h-4 gba:w-4 gba:text-green-600" />
                                     <div>
                                       <span className="gba:font-medium gba:text-green-900">
                                         You (Current User)
@@ -1097,7 +929,7 @@ Please try again in a few moments, or proceed with submitting your request.`);
                               /* CLAIM Mode - Allow assignment selection */
                               <div className="gba:space-y-3">
                                 <label className="gba:flex gba:items-center gba:text-sm gba:font-semibold gba:text-foreground">
-                                  <User className="gba:mr-2 gba:h-4 gba:w-4 gba:text-primary" />
+                                  <UserIcon className="gba:mr-2 gba:h-4 gba:w-4 gba:text-primary" />
                                   Assign to User
                                   <span className="gba:text-destructive gba:ml-1">*</span>
                                 </label>
@@ -1149,14 +981,14 @@ Please try again in a few moments, or proceed with submitting your request.`);
                 {/* Additional Information Section */}
                 <div className="gba:space-y-4">
                   <h4 className="gba:text-base gba:font-semibold gba:flex gba:items-center">
-                    <FileText className="gba:mr-2" size={16} />
+                    <FileTextIcon className="gba:mr-2" size={16} />
                     Additional Information
                   </h4>
-                  <FormField
-                    field="additionalComments"
-                    value={formData.additionalComments}
-                    onChange={handleFieldChange}
-                    type="textarea"
+                  <Textarea
+                    placeholder="Enter any additional comments or information..."
+                    value={formData.additionalComments || ''}
+                    onChange={(e) => handleFieldChange('additionalComments', e.target.value)}
+                    className="gba:min-h-[100px] gba:resize-none"
                   />
                 </div>
 
@@ -1197,13 +1029,13 @@ Please try again in a few moments, or proceed with submitting your request.`);
                         <>
                           <Spinner size="sm" className="gba:w-6 gba:h-6" />
                           <span className="gba:text-lg gba:font-bold gba:tracking-wide gba:filter gba:drop-shadow-sm">AI is thinking...</span>
-                          <Brain className="gba:w-5 gba:h-5 gba:filter gba:drop-shadow-lg gba:animate-pulse" />
+                          <BrainIcon className="gba:w-5 gba:h-5 gba:filter gba:drop-shadow-lg gba:animate-pulse" />
                         </>
                       ) : (
                         <>
-                          <Robot className="gba:w-6 gba:h-6 gba:filter gba:drop-shadow-lg group-hover:gba:animate-bounce" />
+                          <RobotIcon className="gba:w-6 gba:h-6 gba:filter gba:drop-shadow-lg group-hover:gba:animate-bounce" />
                           <span className="gba:text-lg gba:font-bold gba:tracking-wide gba:filter gba:drop-shadow-sm">Ask AI for quick solution</span>
-                          <Sparkle className="gba:w-5 gba:h-5 gba:filter gba:drop-shadow-lg gba:animate-pulse" />
+                          <SparkleIcon className="gba:w-5 gba:h-5 gba:filter gba:drop-shadow-lg gba:animate-pulse" />
                         </>
                       )}
                     </div>
@@ -1231,7 +1063,7 @@ Please try again in a few moments, or proceed with submitting your request.`);
                         </>
                       ) : (
                         <>
-                          <CheckCircle className="gba:mr-2" size={16} />
+                          <CheckCircleIcon className="gba:mr-2" size={16} />
                           Submit Request
                         </>
                       )}
@@ -1252,7 +1084,7 @@ Please try again in a few moments, or proceed with submitting your request.`);
                 {/* Help Text */}
                 <div className="gba:bg-muted gba:p-4 gba:rounded-lg gba:border gba:border-border">
                   <div className="gba:flex gba:items-start gba:space-x-3">
-                    <Warning className="gba:text-blue-500 gba:mt-0.5 gba:flex-shrink-0" size={16} />
+                    <WarningIcon className="gba:text-blue-500 gba:mt-0.5 gba:flex-shrink-0" size={16} />
                     <div className="gba:text-sm gba:text-muted-foreground gba:space-y-1">
                       <p className="gba:font-medium gba:text-foreground">Important Information:</p>
                       <ul className="gba:list-disc gba:list-inside gba:space-y-1">
@@ -1270,16 +1102,11 @@ Please try again in a few moments, or proceed with submitting your request.`);
 
           {/* Sidebar Column */}
           <div className="gba:space-y-6">
-            {/* Process Preview - Only show for mock templates that have steps */}
-            {!isFlowTemplate && template && (template as ServiceRequestTemplate).steps && (
-              <ProcessStepPreview template={template as ServiceRequestTemplate} />
-            )}
-
             {/* Flow Steps Preview - Show for flow templates */}
-            {isFlowTemplate && flowTemplate && flowTemplate.steps && (
+            {flowTemplate && flowTemplate.steps && (
               <Card className="gba:p-6 gba:bg-gradient-to-r gba:from-indigo-50 gba:to-blue-50 gba:border-indigo-200">
                 <h3 className="gba:text-lg gba:font-bold gba:text-foreground gba:mb-4 gba:flex gba:items-center">
-                  <Sparkle className="gba:mr-2 gba:text-indigo-600" size={20} />
+                  <SparkleIcon className="gba:mr-2 gba:text-indigo-600" size={20} />
                   Workflow Steps
                 </h3>
                 
@@ -1393,24 +1220,24 @@ Please try again in a few moments, or proceed with submitting your request.`);
             {/* Quick Tips */}
             <Card className="gba:p-6">
               <h3 className="gba:text-lg gba:font-semibold gba:mb-4 gba:flex gba:items-center">
-                <Star className="gba:mr-2 gba:text-yellow-500" />
+                <StarIcon className="gba:mr-2 gba:text-yellow-500" />
                 Quick Tips
               </h3>
               <div className="gba:space-y-3 gba:text-sm">
                 <div className="gba:flex gba:items-start gba:space-x-2">
-                  <CheckCircle className="gba:text-green-500 gba:mt-0.5 gba:flex-shrink-0" size={16} />
+                  <CheckCircleIcon className="gba:text-green-500 gba:mt-0.5 gba:flex-shrink-0" size={16} />
                   <span>Provide detailed information to speed up processing</span>
                 </div>
                 <div className="gba:flex gba:items-start gba:space-x-2">
-                  <CheckCircle className="gba:text-green-500 gba:mt-0.5 gba:flex-shrink-0" size={16} />
+                  <CheckCircleIcon className="gba:text-green-500 gba:mt-0.5 gba:flex-shrink-0" size={16} />
                   <span>Include business justification for faster approval</span>
                 </div>
                 <div className="gba:flex gba:items-start gba:space-x-2">
-                  <CheckCircle className="gba:text-green-500 gba:mt-0.5 gba:flex-shrink-0" size={16} />
+                  <CheckCircleIcon className="gba:text-green-500 gba:mt-0.5 gba:flex-shrink-0" size={16} />
                   <span>Check "My Requests" for real-time status updates</span>
                 </div>
                 <div className="gba:flex gba:items-start gba:space-x-2">
-                  <CheckCircle className="gba:text-green-500 gba:mt-0.5 gba:flex-shrink-0" size={16} />
+                  <CheckCircleIcon className="gba:text-green-500 gba:mt-0.5 gba:flex-shrink-0" size={16} />
                   <span>Contact your manager if urgent approval is needed</span>
                 </div>
               </div>
@@ -1423,7 +1250,7 @@ Please try again in a few moments, or proceed with submitting your request.`);
                 If you need assistance with this request, our support team is here to help.
               </p>
               <Button variant="outline" className="gba:w-full gba:border-blue-300 gba:text-blue-700 hover:gba:bg-blue-100">
-                <Users className="gba:mr-2" size={16} />
+                <UsersIcon className="gba:mr-2" size={16} />
                 Contact Support
               </Button>
             </Card>
@@ -1437,12 +1264,12 @@ Please try again in a few moments, or proceed with submitting your request.`);
           <DialogHeader>
             <DialogTitle className="gba:flex gba:items-center gba:gap-3 gba:text-2xl">
               <div className="gba:p-2 gba:rounded-full gba:bg-gradient-to-r gba:from-purple-500 gba:to-blue-500">
-                <Brain className="gba:w-6 gba:h-6 gba:text-white" />
+                <BrainIcon className="gba:w-6 gba:h-6 gba:text-white" />
               </div>
               AI Assistant Response
-              {aiResponseType === 'validation' && <ShieldCheck className="gba:w-5 gba:h-5 gba:text-orange-500" />}
-              {aiResponseType === 'optimization' && <Target className="gba:w-5 gba:h-5 gba:text-green-500" />}
-              {aiResponseType === 'suggestion' && <Lightbulb className="gba:w-5 gba:h-5 gba:text-blue-500" />}
+              {aiResponseType === 'validation' && <ShieldCheckIcon className="gba:w-5 gba:h-5 gba:text-orange-500" />}
+              {aiResponseType === 'optimization' && <TargetIcon className="gba:w-5 gba:h-5 gba:text-green-500" />}
+              {aiResponseType === 'suggestion' && <LightbulbIcon className="gba:w-5 gba:h-5 gba:text-blue-500" />}
             </DialogTitle>
             <DialogDescription className="gba:text-gray-600">
               AI-powered analysis of your service request form
@@ -1455,7 +1282,7 @@ Please try again in a few moments, or proceed with submitting your request.`);
               <div className="gba:flex gba:flex-col gba:items-center gba:justify-center gba:py-12 gba:space-y-4">
                 <div className="gba:relative">
                   <div className="gba:w-16 gba:h-16 gba:border-4 gba:border-purple-200 gba:border-t-purple-500 gba:rounded-full gba:animate-spin"></div>
-                  <Brain className="gba:absolute gba:top-1/2 gba:left-1/2 gba:transform gba:-translate-x-1/2 gba:-translate-y-1/2 gba:w-6 gba:h-6 gba:text-purple-500" />
+                  <BrainIcon className="gba:absolute gba:top-1/2 gba:left-1/2 gba:transform gba:-translate-x-1/2 gba:-translate-y-1/2 gba:w-6 gba:h-6 gba:text-purple-500" />
                 </div>
                 <div className="gba:text-center">
                   <h3 className="gba:text-lg gba:font-semibold gba:text-gray-800">AI is analyzing your form...</h3>
@@ -1508,7 +1335,7 @@ Please try again in a few moments, or proceed with submitting your request.`);
                     variant="outline"
                     className="gba:flex gba:items-center gba:gap-2"
                   >
-                    <Copy className="gba:w-4 gba:h-4" />
+                    <CopyIcon className="gba:w-4 gba:h-4" />
                     Copy Response
                   </Button>
                   
@@ -1520,7 +1347,7 @@ Please try again in a few moments, or proceed with submitting your request.`);
                     variant="outline"
                     className="gba:flex gba:items-center gba:gap-2 gba:text-green-600 hover:gba:bg-green-50"
                   >
-                    <ThumbsUp className="gba:w-4 gba:h-4" />
+                    <ThumbsUpIcon className="gba:w-4 gba:h-4" />
                     Helpful
                   </Button>
 
@@ -1535,7 +1362,7 @@ Please try again in a few moments, or proceed with submitting your request.`);
                 {/* Pro Tip */}
                 <div className="gba:bg-blue-50 gba:border gba:border-blue-200 gba:rounded-lg gba:p-4">
                   <div className="gba:flex gba:items-start gba:gap-3">
-                    <Lightbulb className="gba:w-5 gba:h-5 gba:text-blue-500 gba:mt-0.5 gba:flex-shrink-0" />
+                    <LightbulbIcon className="gba:w-5 gba:h-5 gba:text-blue-500 gba:mt-0.5 gba:flex-shrink-0" />
                     <div>
                       <h4 className="gba:font-semibold gba:text-blue-800 gba:text-sm">Pro Tip</h4>
                       <p className="gba:text-blue-700 gba:text-sm gba:mt-1">
