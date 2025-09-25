@@ -7,7 +7,7 @@ import { useEffect } from 'react';
 interface ReportGenerationMonitorProps {
   onReportGenerated: (downloadPath: string, fileName: string) => void;
   setIsGenerating: (isGenerating: boolean) => void;
-  extractFilePathFromReportPath: (reportPath: string) => string | null;
+  extractFilePathFromReportPath: (reportPath: string) => string;
   extractFileNameFromReportPath: (reportPath: string) => string;
 }
 
@@ -48,7 +48,7 @@ export const useReportGenerationMonitor = ({
              const downloadPath = extractFilePathFromReportPath(result.reportPath);
              const fileName = extractFileNameFromReportPath(result.reportPath);
              
-             if (downloadPath) {
+             if (downloadPath && downloadPath.trim() !== '') {
                onReportGenerated(downloadPath, fileName);
                setIsGenerating(false);
              } else {
@@ -133,7 +133,7 @@ export const useReportGenerationMonitor = ({
                const downloadPath = extractFilePathFromReportPath(reportData.reportPath);
                const fileName = extractFileNameFromReportPath(reportData.reportPath);
                
-               if (downloadPath) {
+               if (downloadPath && downloadPath.trim() !== '') {
                  setIsGenerating(false);
                  onReportGenerated(downloadPath, fileName);
                } else {
@@ -209,9 +209,11 @@ export const useReportGenerationMonitor = ({
               const downloadPath = extractFilePathFromReportPath(responseData.reportPath);
               const fileName = extractFileNameFromReportPath(responseData.reportPath);
               
-              if (downloadPath) {
+              if (downloadPath && downloadPath.trim() !== '') {
+                setIsGenerating(false);
                 onReportGenerated(downloadPath, fileName);
               } else {
+                setIsGenerating(false);
                 console.error('❌ Could not extract download path from XHR reportPath');
               }
             }

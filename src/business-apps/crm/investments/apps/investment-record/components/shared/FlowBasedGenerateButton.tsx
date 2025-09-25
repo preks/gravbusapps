@@ -42,7 +42,7 @@ export const FlowBasedGenerateButton: React.FC<FlowBasedGenerateButtonProps> = (
   } as BusinessAppContextProps);
 
   // Extract file path from FileInfo string and construct proper URL
-  const extractFilePathFromReportPath = (reportPath: string): string | null => {
+  const extractFilePathFromReportPath = (reportPath: string): string => {
     try {
       // Parse FileInfo string to get the path
       // Example: "FileInfo(appName=investment_relations, fileId=investment-report-Co-Investments-1758641093671.pdf, folderPath=/generated-reports, accessScope=null, path=/api/v1/tenant/downloads/investment_relations/generated-reports/investment-report-Co-Investments-1758641093671.pdf, fileMetadata=null)"
@@ -54,9 +54,11 @@ export const FlowBasedGenerateButton: React.FC<FlowBasedGenerateButtonProps> = (
         return extractedPath;
       }
       
-      return null;
+      // Return empty string instead of null for consistent type
+      return '';
     } catch (error) {
-      return null;
+      // Return empty string instead of null for consistent type
+      return '';
     }
   };
 
@@ -131,7 +133,7 @@ export const FlowBasedGenerateButton: React.FC<FlowBasedGenerateButtonProps> = (
 
   return (
     <>
-      <div onClick={handleAppActionClick}>
+      <div onClick={handleAppActionClick} data-testid="investment-record-generate-one-pager-wrapper">
         <AppAction
           contextsArray={[FlowContextName.investmentReportGenerate]}
           externalContextData={getFlowContextData()}

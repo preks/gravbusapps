@@ -73,13 +73,19 @@ export const GenerateOnePagerButton: React.FC<GenerateOnePagerButtonProps> = ({
     return null;
   }
 
-  if (!investmentId && !investmentData) {
-    console.warn('⚠️ GenerateOnePagerButton: Missing required investmentId or investmentData');
+  const resolvedInvestmentId = investmentId ?? investmentData?.id;
+
+  if (!resolvedInvestmentId) {
+    console.warn('⚠️ GenerateOnePagerButton: Missing required investmentId and no ID in investmentData');
     return null;
   }
 
   // NEW DIRECT API APPROACH (opt-in with useDirectApi=true)
   if (useDirectApi) {
+    if (!investmentData) {
+      console.warn('⚠️ GenerateOnePagerButton: Direct API requires investmentData');
+      return null;
+    }
     return (
       <DirectApiGenerateButton
         variant={variant}
@@ -94,7 +100,7 @@ export const GenerateOnePagerButton: React.FC<GenerateOnePagerButtonProps> = ({
   // ORIGINAL FLOW-BASED APPROACH (default behavior) - Enhanced with complete payload
   return (
     <FlowBasedGenerateButton
-      investmentId={investmentId!}
+      investmentId={resolvedInvestmentId}
       variant={variant}
       size={size}
       accessToken={accessToken}

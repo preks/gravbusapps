@@ -117,11 +117,9 @@ export const InvestmentHomeTab: React.FC<InvestmentHomeTabProps> = ({
   useEffect(() => {
     const handleProcessEvent = (event: any) => {
       try {
-        console.log('InvestmentHomeTab: Process event received:', event.type, event);
         
         // Check for successful completion
         if (event.detail?.resolution === 'success') {
-          console.log('InvestmentHomeTab: Process completed successfully, refreshing data');
           loadTasks();
           loadActivities();
           loadNotes();
@@ -132,7 +130,6 @@ export const InvestmentHomeTab: React.FC<InvestmentHomeTabProps> = ({
         // Check for different event structures
         const response = event.detail?.response;
         if (response?.detail?.resolution === 'success' || response?.investment) {
-          console.log('InvestmentHomeTab: Investment data detected, refreshing data');
           loadTasks();
           loadActivities();
           loadNotes();
@@ -142,7 +139,6 @@ export const InvestmentHomeTab: React.FC<InvestmentHomeTabProps> = ({
         
         // Check for continue events with payload (task/activity/note creation/update)
         if (event.type === 'com.newwork.process.continue' && event.detail?.payload) {
-          console.log('InvestmentHomeTab: Continue event with payload detected, refreshing data');
           loadTasks();
           loadActivities();
           loadNotes();
