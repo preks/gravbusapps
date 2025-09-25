@@ -66,6 +66,18 @@ interface MultiSelectProps {
   className?: string;
 }
 
+interface FileUploadProps {
+  id: string;
+  value: File[];
+  onChange: (files: File[]) => void;
+  accept?: string;
+  multiple?: boolean;
+  maxSize?: number; // in MB
+  maxFiles?: number;
+  required?: boolean;
+  className?: string;
+}
+
 const MultiSelect: React.FC<MultiSelectProps> = ({
   id,
   value = [],
@@ -196,6 +208,231 @@ const MultiSelect: React.FC<MultiSelectProps> = ({
   );
 };
 
+const FileUpload: React.FC<FileUploadProps> = ({
+  id,
+  value = [],
+  onChange,
+  accept = "*/*",
+  multiple = false,
+  maxSize = 10, // 10MB default
+  maxFiles = 5,
+  required = false,
+  className = ""
+}) => {
+  const [dragOver, setDragOver] = useState(false);
+  const [error, setError] = useState<string>('');
+  const fileInputRef = React.useRef<HTMLInputElement>(null);
+
+  const formatFileSize = (bytes: number): string => {
+    if (bytes === 0) return '0 Bytes';
+    const k = 1024;
+    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+  };
+
+  const validateFile = (file: File): string | null => {
+    // Check file size
+    if (file.size > maxSize * 1024 * 1024) {
+      return `File size exceeds ${maxSize}MB limit`;
+    }
+
+    // Check file type if accept is specified and not wildcard
+    if (accept !== "*/*" && accept) {
+      const acceptedTypes = accept.split(',').map(type => type.trim());
+      const fileType = file.type;
+      const fileExtension = '.' + file.name.split('.').pop()?.toLowerCase();
+      
+      const isValidType = acceptedTypes.some(acceptedType => {
+        if (acceptedType.startsWith('.')) {
+          return acceptedType.toLowerCase() === fileExtension;
+        }
+        if (acceptedType.includes('*')) {
+          const baseType = acceptedType.split('/')[0];
+          return fileType.startsWith(baseType);
+        }
+        return acceptedType === fileType;
+      });
+
+      if (!isValidType) {
+        return `File type not allowed. Accepted types: ${accept}`;
+      }
+    }
+
+    return null;
+  };
+
+  const handleFiles = (files: FileList | null) => {
+    if (!files) return;
+
+    setError('');
+    const fileArray = Array.from(files);
+    const validFiles: File[] = [];
+    let errorMessage = '';
+
+    // Check total file count
+    if (!multiple && fileArray.length > 1) {
+      setError('Only one file is allowed');
+      return;
+    }
+
+    if (multiple && value.length + fileArray.length > maxFiles) {
+      setError(`Maximum ${maxFiles} files allowed`);
+      return;
+    }
+
+    // Validate each file
+    for (const file of fileArray) {
+      const validationError = validateFile(file);
+      if (validationError) {
+        errorMessage = validationError;
+        break;
+      }
+      validFiles.push(file);
+    }
+
+    if (errorMessage) {
+      setError(errorMessage);
+      return;
+    }
+
+    // Update files
+    if (multiple) {
+      onChange([...value, ...validFiles]);
+    } else {
+      onChange(validFiles);
+    }
+  };
+
+  const removeFile = (index: number) => {
+    const newFiles = value.filter((_, i) => i !== index);
+    onChange(newFiles);
+    setError('');
+  };
+
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    setDragOver(true);
+  };
+
+  const handleDragLeave = (e: React.DragEvent) => {
+    e.preventDefault();
+    setDragOver(false);
+  };
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    setDragOver(false);
+    handleFiles(e.dataTransfer.files);
+  };
+
+  const handleFileInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    handleFiles(e.target.files);
+    // Reset input value to allow selecting the same file again
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
+  };
+
+  const openFileDialog = () => {
+    fileInputRef.current?.click();
+  };
+
+  return (
+    <div className={`gba:space-y-3 ${className}`}>
+      {/* File Drop Zone */}
+      <div
+        className={`gba:border-2 gba:border-dashed gba:rounded-lg gba:p-6 gba:text-center gba:cursor-pointer gba:transition-colors ${
+          dragOver
+            ? 'gba:border-primary gba:bg-primary/5'
+            : error
+            ? 'gba:border-destructive gba:bg-destructive/5'
+            : 'gba:border-border gba:hover:gba:border-primary gba:hover:gba:bg-primary/5'
+        }`}
+        onDragOver={handleDragOver}
+        onDragLeave={handleDragLeave}
+        onDrop={handleDrop}
+        onClick={openFileDialog}
+        data-testid={`file-upload-${id}`}
+      >
+        <div className="gba:space-y-2">
+          <div className="gba:mx-auto gba:w-12 gba:h-12 gba:rounded-full gba:bg-muted gba:flex gba:items-center gba:justify-center">
+            <FileTextIcon className="gba:w-6 gba:h-6 gba:text-muted-foreground" />
+          </div>
+          <div>
+            <p className="gba:text-sm gba:font-medium gba:text-foreground">
+              Click to upload or drag and drop
+            </p>
+            <p className="gba:text-xs gba:text-muted-foreground">
+              {accept !== "*/*" ? `Accepted types: ${accept}` : 'Any file type'}
+              {maxSize && ` • Max size: ${maxSize}MB`}
+              {multiple && ` • Max files: ${maxFiles}`}
+            </p>
+          </div>
+        </div>
+      </div>
+
+      {/* Hidden File Input */}
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept={accept}
+        multiple={multiple}
+        onChange={handleFileInputChange}
+        className="gba:hidden"
+        data-testid={`file-input-${id}`}
+      />
+
+      {/* Error Message */}
+      {error && (
+        <div className="gba:text-sm gba:text-destructive gba:bg-destructive/10 gba:border gba:border-destructive/20 gba:rounded gba:p-2">
+          {error}
+        </div>
+      )}
+
+      {/* Selected Files List */}
+      {value.length > 0 && (
+        <div className="gba:space-y-2">
+          <p className="gba:text-sm gba:font-medium gba:text-foreground">
+            Selected Files ({value.length})
+          </p>
+          <div className="gba:space-y-2 gba:max-h-32 gba:overflow-y-auto">
+            {value.map((file, index) => (
+              <div
+                key={`${file.name}-${index}`}
+                className="gba:flex gba:items-center gba:justify-between gba:p-2 gba:bg-muted gba:rounded gba:border"
+              >
+                <div className="gba:flex gba:items-center gba:space-x-2 gba:min-w-0 gba:flex-1">
+                  <FileTextIcon className="gba:w-4 gba:h-4 gba:text-muted-foreground gba:flex-shrink-0" />
+                  <div className="gba:min-w-0 gba:flex-1">
+                    <p className="gba:text-sm gba:font-medium gba:text-foreground gba:truncate">
+                      {file.name}
+                    </p>
+                    <p className="gba:text-xs gba:text-muted-foreground">
+                      {formatFileSize(file.size)}
+                    </p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    removeFile(index);
+                  }}
+                  className="gba:ml-2 gba:p-1 gba:text-muted-foreground gba:hover:gba:text-destructive gba:hover:gba:bg-destructive/10 gba:rounded gba:transition-colors"
+                  data-testid={`remove-file-${index}`}
+                >
+                  ×
+                </button>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
 export const RequestForm: React.FC<RequestFormProps> = ({
   flowTemplate,
   workflowEngine,
@@ -203,6 +440,14 @@ export const RequestForm: React.FC<RequestFormProps> = ({
   onCancel,
   ...contextProps
 }) => {
+  // Check URL query parameter to show first step assignment (for debugging)
+  const [showFirstStepAssignment] = useState(() => {
+    if (typeof window !== 'undefined') {
+      const urlParams = new URLSearchParams(window.location.search);
+      return urlParams.get('showFirstStepAssignment') === 'true';
+    }
+    return false;
+  });
   const [formData, setFormData] = useState<any>({});
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<{ message: string; payload?: any } | null>(null);
@@ -420,12 +665,29 @@ export const RequestForm: React.FC<RequestFormProps> = ({
     // Only handle flow templates - no more mock templates
     if (flowTemplate?.formSchema) {
       totalRequired = flowTemplate.formSchema.filter(f => f.required).length;
-      completedRequired = flowTemplate.formSchema.filter(f => f.required && (formData[f.name] !== undefined && formData[f.name] !== '')).length;
+      completedRequired = flowTemplate.formSchema.filter(f => {
+        if (!f.required) return false;
+        
+        const value = formData[f.name];
+        
+        // Handle file fields - consider filled if at least one file is selected
+        if (f.type?.toUpperCase() === 'FILE') {
+          return Array.isArray(value) && value.length > 0;
+        }
+        
+        // Handle other field types
+        return value !== undefined && value !== '';
+      }).length;
     }
 
     // 🌐 UNIVERSAL: Add step assignments to completion calculation
     if (stepsRequiringAssignment.length > 0) {
-      const claimStepsRequiringInput = stepsRequiringAssignment.filter(step => step.assignmentMode === 'CLAIM');
+      // Filter out first step (always assigned to initiator) unless query param is set
+      const visibleSteps = stepsRequiringAssignment.filter(step => 
+        showFirstStepAssignment || step.stepIndex !== 0
+      );
+      
+      const claimStepsRequiringInput = visibleSteps.filter(step => step.assignmentMode === 'CLAIM');
       
       // Only count CLAIM steps as requiring user input (ASSIGN steps are auto-completed)
       totalRequired += claimStepsRequiringInput.length;
@@ -439,7 +701,7 @@ export const RequestForm: React.FC<RequestFormProps> = ({
     }
 
     return totalRequired > 0 ? Math.round((completedRequired / totalRequired) * 100) : (totalRequired === 0 ? 100 : 0);
-  }, [flowTemplate, formData, stepsRequiringAssignment]);
+  }, [flowTemplate, formData, stepsRequiringAssignment, showFirstStepAssignment]);
 
   // Handle AI button click - collect form data and call real AI API
   const handleAskAI = async () => {
@@ -469,7 +731,15 @@ export const RequestForm: React.FC<RequestFormProps> = ({
         formCompletion: {
           percentage: completionPercentage,
           totalFields: flowTemplate?.formSchema?.length || 0,
-          filledFields: Object.keys(formData).filter(key => formData[key] !== undefined && formData[key] !== '').length
+          filledFields: Object.keys(formData).filter(key => {
+            const value = formData[key];
+            // Handle file fields
+            if (Array.isArray(value) && value.length > 0 && value[0] instanceof File) {
+              return true;
+            }
+            // Handle other field types
+            return value !== undefined && value !== '';
+          }).length
         },
         stepAssignments: formData.stepAssignments || {},
         requiredAssignments: stepsRequiringAssignment.map(step => ({
@@ -729,7 +999,7 @@ Please try again in a few moments, or proceed with submitting your request.`);
                           )}
                           
                           {/* Render field based on type */}
-                          {field.type === 'TEXT' && (
+                          {field.type?.toUpperCase() === 'TEXT' && (
                             <Input
                               id={field.name}
                               value={formData[field.name] || ''}
@@ -739,7 +1009,7 @@ Please try again in a few moments, or proceed with submitting your request.`);
                             />
                           )}
                           
-                          {field.type === 'TEXTAREA' && (
+                          {field.type?.toUpperCase() === 'TEXTAREA' && (
                             <Textarea
                               id={field.name}
                               value={formData[field.name] || ''}
@@ -750,7 +1020,7 @@ Please try again in a few moments, or proceed with submitting your request.`);
                             />
                           )}
                           
-                          {field.type === 'SELECT' && (
+                          {field.type?.toUpperCase() === 'SELECT' && (
                             <Select
                               value={formData[field.name] || ''}
                               onValueChange={(value) => handleFieldChange(field.name, value)}
@@ -768,7 +1038,7 @@ Please try again in a few moments, or proceed with submitting your request.`);
                             </Select>
                           )}
                           
-                          {field.type === 'DATE' && (
+                          {field.type?.toUpperCase() === 'DATE' && (
                             <Input
                               id={field.name}
                               type="date"
@@ -778,7 +1048,7 @@ Please try again in a few moments, or proceed with submitting your request.`);
                             />
                           )}
                           
-                          {field.type === 'NUMBER' && (
+                          {field.type?.toUpperCase() === 'NUMBER' && (
                             <Input
                               id={field.name}
                               type="number"
@@ -797,7 +1067,7 @@ Please try again in a few moments, or proceed with submitting your request.`);
                             />
                           )}
                           
-                          {field.type === 'EMAIL' && (
+                          {field.type?.toUpperCase() === 'EMAIL' && (
                             <Input
                               id={field.name}
                               type="email"
@@ -808,7 +1078,7 @@ Please try again in a few moments, or proceed with submitting your request.`);
                             />
                           )}
                           
-                          {field.type === 'CHECKBOX' && (
+                          {field.type?.toUpperCase() === 'CHECKBOX' && (
                             <div className="gba:space-y-3">
                               {field.options?.map(option => (
                                 <label key={option.value} className="gba:flex gba:items-center gba:space-x-3 gba:cursor-pointer">
@@ -840,7 +1110,7 @@ Please try again in a few moments, or proceed with submitting your request.`);
                             </div>
                           )}
                           
-                          {field.type === 'MULTISELECT' && (
+                          {field.type?.toUpperCase() === 'MULTISELECT' && (
                             <MultiSelect
                               id={field.name}
                               value={Array.isArray(formData[field.name]) ? formData[field.name] : []}
@@ -851,7 +1121,7 @@ Please try again in a few moments, or proceed with submitting your request.`);
                             />
                           )}
                           
-                          {field.type === 'RADIO' && (
+                          {field.type?.toUpperCase() === 'RADIO' && (
                             <div className="gba:space-y-3">
                               {field.options?.map(option => (
                                 <label key={option.value} className="gba:flex gba:items-center gba:space-x-3 gba:cursor-pointer">
@@ -875,6 +1145,19 @@ Please try again in a few moments, or proceed with submitting your request.`);
                               )}
                             </div>
                           )}
+                          
+                          {field.type?.toUpperCase() === 'FILE' && (
+                            <FileUpload
+                              id={field.name}
+                              value={Array.isArray(formData[field.name]) ? formData[field.name] : []}
+                              onChange={(files) => handleFieldChange(field.name, files)}
+                              accept={field.accept || "*/*"}
+                              multiple={field.multiple || false}
+                              maxSize={field.maxSize || 10}
+                              maxFiles={field.maxFiles || 5}
+                              required={field.required}
+                            />
+                          )}
                         </div>
                       ))}
                     </div>
@@ -884,7 +1167,7 @@ Please try again in a few moments, or proceed with submitting your request.`);
                 <Separator />
 
                 {/* 🌐 UNIVERSAL: Step Assignment Section */}
-                {stepsRequiringAssignment.length > 0 && (
+                {stepsRequiringAssignment.filter(step => showFirstStepAssignment || step.stepIndex !== 0).length > 0 && (
                   <div className="gba:space-y-6">
                     <div className="gba:border-l-4 gba:border-blue-500 gba:pl-4 gba:py-2 gba:bg-blue-50">
                       <h4 className="gba:text-base gba:font-semibold gba:flex gba:items-center gba:text-blue-900">
@@ -893,6 +1176,11 @@ Please try again in a few moments, or proceed with submitting your request.`);
                       </h4>
                       <p className="gba:text-sm gba:text-blue-700 gba:mt-1">
                         This template requires specific step assignments. Steps marked as "ASSIGN" are automatically assigned to you. You can assign "CLAIM" steps to others if needed.
+                        {!showFirstStepAssignment && (
+                          <span className="gba:block gba:text-xs gba:text-blue-600 gba:mt-1">
+                            Note: First step assignment is hidden (always assigned to you). Add ?showFirstStepAssignment=true to URL to see it.
+                          </span>
+                        )}
                       </p>
                     </div>
 
@@ -903,7 +1191,9 @@ Please try again in a few moments, or proceed with submitting your request.`);
                       </div>
                     ) : (
                       <div className="gba:space-y-4">
-                        {stepsRequiringAssignment.map((step) => (
+                        {stepsRequiringAssignment
+                          .filter(step => showFirstStepAssignment || step.stepIndex !== 0)
+                          .map((step) => (
                           <div key={step.stepId} className="gba:p-4 gba:border gba:rounded-lg gba:bg-gray-50">
                             <div className="gba:flex gba:items-start gba:justify-between gba:mb-3">
                               <div>
@@ -1001,7 +1291,7 @@ Please try again in a few moments, or proceed with submitting your request.`);
                   </div>
                 )}
 
-                {stepsRequiringAssignment.length > 0 && <Separator />}
+                {stepsRequiringAssignment.filter(step => showFirstStepAssignment || step.stepIndex !== 0).length > 0 && <Separator />}
 
                 {/* Additional Information Section */}
                 <div className="gba:space-y-4">
