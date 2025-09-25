@@ -403,18 +403,16 @@ const LiquidFundInvestmentsList: React.FC<LiquidFundInvestmentsListProps> = (con
             data-testid="liquid-fund-investments-add-action"
             emptyStateBehavior="hide"
           >
-            <button
-              className="gba:flex gba:flex-row gba:justify-center gba:items-center gba:px-3 gba:py-0 gba:h-8 gba:rounded gba:gap-1"
+            <Button
+              variant="ghost"
+              size="sm"
               data-testid="liquid-fund-investments-add-button"
               type="button"
+              className="gba:gap-1"
             >
-              <span className="gba:w-5 gba:h-5 gba:flex gba:items-center gba:justify-center gba:flex-none order-0 gba:grow-0">
-                <PlusSquare className="gba:w-4 gba:h-4" />
-              </span>
-              <span className="gba:h-4 gba:font-normal gba:text-sm gba:leading-4 gba:flex gba:items-center gba:text-black gba:flex-none order-1 gba:grow-0">
-                Add
-              </span>
-            </button>
+              <PlusSquare className="gba:w-4 gba:h-4" />
+              Add
+            </Button>
           </AppAction>
         ),
         columnVisibility: {
