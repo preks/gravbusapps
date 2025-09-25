@@ -156,7 +156,18 @@ const transformSalesTaskToTask = (salesTask: SalesTask): Task | null => {
     createdAt: salesTask.createdAt,
     updatedAt: salesTask.updatedAt || salesTask.createdAt,
     version: salesTask.version,
-    rawSalesTask: salesTask
+    rawSalesTask: salesTask,
+    createdBy: salesTask.creatorUserId,
+    creatorEmployee: salesTask.creatorEmployee ? {
+      id: salesTask.creatorEmployee.id,
+      firstName: salesTask.creatorEmployee.firstName || '',
+      lastName: salesTask.creatorEmployee.lastName || '',
+      displayName: salesTask.creatorEmployee.displayName || 
+                   `${salesTask.creatorEmployee.firstName || ''} ${salesTask.creatorEmployee.lastName || ''}`.trim() || 'Unknown',
+      department: '', // No department data available from GraphQL
+      initials: `${(salesTask.creatorEmployee.firstName || 'U').charAt(0)}${(salesTask.creatorEmployee.lastName || 'U').charAt(0)}`.toUpperCase(),
+      avatar: salesTask.creatorEmployee.pictureThumbnail || undefined
+    } : undefined
   };
 };
 

@@ -169,6 +169,9 @@ export const TaskTable: React.FC<TaskTableProps> = ({
                 <TableHead className="gba:w-[15%] gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6 gba:cursor-pointer gba:select-none hover:gba:bg-gray-100" onClick={() => handleSort('dueDate')} data-testid={`${DATA_TEST_ID_PREFIX}-schedule-header`}>
                   <div className="gba:flex gba:items-center">{t('task.schedule', 'Schedule / Due Date')}{renderSortIcon('dueDate')}</div>
                 </TableHead>
+                <TableHead className="gba:w-[15%] gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6 gba:cursor-pointer gba:select-none hover:gba:bg-gray-100" onClick={() => handleSort('createdBy')} data-testid={`${DATA_TEST_ID_PREFIX}-created-by-header`}>
+                  <div className="gba:flex gba:items-center">{t('task.createdBy', 'Created By')}{renderSortIcon('createdBy')}</div>
+                </TableHead>
                 <TableHead className="gba:w-[60px] gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6" data-testid={`${DATA_TEST_ID_PREFIX}-actions-header`}>ACTIONS</TableHead>
               </TableRow>
             </TableHeader>
@@ -231,6 +234,19 @@ export const TaskTable: React.FC<TaskTableProps> = ({
                       </TooltipProvider>
                       <span className="gba:text-sm">{formatDate(record.dueDate)}</span>
                     </div>
+                  </TableCell>
+                  <TableCell className="gba:py-4 gba:px-6" data-testid={`${DATA_TEST_ID_PREFIX}-created-by-cell-${record.id}`}>
+                    {record.creatorEmployee ? (
+                      <div className="gba:flex gba:items-center gba:gap-3 gba:cursor-pointer gba:hover:bg-gray-50 gba:p-2 gba:rounded gba:transition-colors" onClick={(e) => { e.stopPropagation(); handleEmployeeClick(record.creatorEmployee!); }} data-testid={`${DATA_TEST_ID_PREFIX}-creator-link-${record.id}`}>
+                        <Avatar size="sm"><AvatarFallback>{getInitials(record.creatorEmployee.firstName, record.creatorEmployee.lastName)}</AvatarFallback></Avatar>
+                        <div className="gba:flex gba:flex-col">
+                          <span className="gba:font-medium gba:text-sm">{record.creatorEmployee.displayName}</span>
+                          <span className="gba:text-xs gba:text-gray-500">{record.creatorEmployee.department}</span>
+                        </div>
+                      </div>
+                    ) : (
+                      <span className="gba:text-sm gba:text-gray-400">Unknown</span>
+                    )}
                   </TableCell>
                   <TableCell className="gba:py-4 gba:px-6" data-testid={`${DATA_TEST_ID_PREFIX}-actions-cell-${record.id}`}>
                     <div className="gba:flex gba:justify-start gba:gap-2">
