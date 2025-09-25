@@ -26,6 +26,13 @@ import { useEmployeeData } from '@/business-apps/crm/common/hooks/useEmployeeDat
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient';
 import { DeleteConfirmPopup } from '@/common/components/common-relations/popups/delete-confirm-popup';
 import dayjs from 'dayjs';
+import weekday from 'dayjs/plugin/weekday';
+import localeData from 'dayjs/plugin/localeData';
+
+// Configure dayjs with required plugins
+dayjs.extend(weekday);
+dayjs.extend(localeData);
+dayjs.locale('en');
 import { LanguageDropdown } from './LanguageDropdown';
 import { translateMultipleTexts } from '../utils/translationService';
 import { isApprovalTask } from '../../../utils/taskUtils';
