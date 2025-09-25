@@ -1,9 +1,11 @@
 // Investment Report Column Definitions Factory
 import React from 'react';
-import dayjs from 'dayjs';
 import { AppActionButton } from '@/components/app-action-button/AppActionButton';
 import { FlowContextName } from '@/common/types/FlowRegistryTypes';
 import { getTranslationFromI18nKeyAndLabel, formatNumberFunction, formatDate } from '@/common/utils/windowUtils';
+import { getInvestmentTypeFieldDefinition, getLiquidFundTypeFieldDefinition, formatFieldValue } from '../../utils/investmentHeaderConfig';
+import { getValueByPath } from '@/common/utils/objectUtils';
+import { FormFieldsDefinition, FormFieldDefinition } from '@/business-apps/crm/investments/forms/investment-form/queries/InvestmentCatalogQueries';
 
 export interface ColumnDefinition {
   key: string;
@@ -13,311 +15,182 @@ export interface ColumnDefinition {
   render: (record: any) => React.ReactElement;
 }
 
-// Helper functions using central windowUtils formatters
-const formatCurrency = (amount: number | null | undefined): string => {
-  if (amount === null || amount === undefined) return '-';
-  return formatNumberFunction(amount, '€ 0,0');
-};
 
-const formatDateDisplay = (date: string | null | undefined): string => {
-  if (!date) return '-';
-  try {
-    const formatted = formatDate(date, 'date.short');
-    if (formatted && !formatted.includes('T')) {
-      return formatted;
-    }
-    const dateObj = new Date(date);
-    if (isNaN(dateObj.getTime())) return '-';
-    return dateObj.toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric'
-    });
-  } catch {
-    return '-';
-  }
-};
-
-const calculateHoldingPeriod = (acquisitionDate: string | null): string => {
-  if (!acquisitionDate) return '-';
-  try {
-    const startDate = dayjs(acquisitionDate);
-    const today = dayjs();
-    const diffDays = today.diff(startDate, 'days');
-    
-    if (diffDays < 30) {
-      return `${diffDays} days`;
-    } else if (diffDays < 365) {
-      const months = Math.floor(diffDays / 30);
-      return `${months} month${months > 1 ? 's' : ''}`;
-    } else {
-      const years = Math.floor(diffDays / 365);
-      const remainingMonths = Math.floor((diffDays % 365) / 30);
-      if (remainingMonths > 0) {
-        return `${years} year${years > 1 ? 's' : ''}, ${remainingMonths} month${remainingMonths > 1 ? 's' : ''}`;
-      }
-      return `${years} year${years > 1 ? 's' : ''}`;
-    }
-  } catch {
-    return '-';
-  }
-};
-
+/**
+ * Creates investment report columns using dynamic catalog-based field definitions
+ * REPORTS CONTEXT: We're dealing with InvestmentReport entities from report tables
+ */
 export const createInvestmentReportColumns = (
-  investmentType?: string,
-  accessToken?: string
+  investmentTypeCode: string,
+  liquidFundTypeCode: string | undefined,
+  catalogData: any,
+  accessToken?: string,
+  mainInvestment?: any,
+  mainTypeSpecificData?: any
 ): ColumnDefinition[] => {
-  // Base columns that all investment types have
-  const baseColumns: ColumnDefinition[] = [
-    {
-      key: 'date',
-      title: getTranslationFromI18nKeyAndLabel('crm.investments.reports.columns.date', 'Date'),
-      sortable: true,
-      render: (record: any) => React.createElement('span', null, formatDateDisplay(record.date)),
+  const columns: ColumnDefinition[] = [];
+  
+  // Always add date as first column
+  columns.push({
+    key: 'date',
+    title: getTranslationFromI18nKeyAndLabel('crm.investments.reports.columns.date', 'Date'),
+    sortable: true,
+    render: (record: any) => {
+      const date = record.date;
+      if (!date) return React.createElement('span', null, '-');
+      try {
+        const formatted = formatDate(date, 'date.short');
+        if (formatted && !formatted.includes('T')) {
+          return React.createElement('span', null, formatted);
+        }
+        const dateObj = new Date(date);
+        if (isNaN(dateObj.getTime())) return React.createElement('span', null, '-');
+        return React.createElement('span', null, dateObj.toLocaleDateString('en-US', {
+          year: 'numeric',
+          month: 'short',
+          day: 'numeric'
+        }));
+      } catch {
+        return React.createElement('span', null, '-');
+      }
+    },
+  });
+
+  // Get form field definition using the correct logic based on investment group
+  let formFieldsDefinition: FormFieldsDefinition | null = null;
+  
+  // Determine investment group from either mainInvestment or investmentTypeCode
+  const investmentGroup = mainInvestment?.investmentGroup?.code;
+  
+  
+  // Apply the correct rules:
+  // 1) For equity, check the group catalog's object value
+  // 2) For real estate, check the type
+  // 3) For liquid funds, check the investmentliquidfundtype
+  
+  if (investmentGroup === 'EQUITY') {
+    // RULE 1: For equity, check the EQUITY group's object value
+    formFieldsDefinition = getInvestmentTypeFieldDefinition(investmentTypeCode, catalogData);
+  } else if (investmentGroup === 'LIQUID_FUND' && liquidFundTypeCode) {
+    // RULE 3: For liquid funds, check the investmentliquidfundtype
+    formFieldsDefinition = getLiquidFundTypeFieldDefinition(liquidFundTypeCode, catalogData);
+  } else if (investmentGroup === 'REAL_ESTATE') {
+    // RULE 2: For real estate, check the TYPE
+    formFieldsDefinition = getInvestmentTypeFieldDefinition(investmentTypeCode, catalogData);
+  } else {
+    // Fallback: Use investment type
+    if (liquidFundTypeCode) {
+      formFieldsDefinition = getLiquidFundTypeFieldDefinition(liquidFundTypeCode, catalogData);
     }
-  ];
-
-  // Add investment-type-specific columns
-  switch (investmentType?.toLowerCase()) {
-    case 'real_estate_general':
-      baseColumns.push(
-        {
-          key: 'buildingYear',
-          title: 'Building Year',
-          sortable: true,
-          render: (record: any) => React.createElement('span', null, record.realEstateInvestmentReport?.[0]?.realEstateInvestment?.buildingYear || '-'),
-        },
-        {
-          key: 'size',
-          title: 'Size',
-          sortable: true,
-          render: (record: any) => {
-            const size = record.realEstateInvestmentReport?.[0]?.realEstateInvestment?.size;
-            const unit = record.realEstateInvestmentReport?.[0]?.realEstateInvestment?.sizeMeasurementUnit?.value;
-            return React.createElement('span', null, size ? `${size} ${unit || ''}` : '-');
-          },
-        },
-        {
-          key: 'occupancyPercent',
-          title: 'Occupancy Percent',
-          sortable: true,
-          render: (record: any) => {
-            const occupancy = record.realEstateInvestmentReport?.[0]?.occupancyPercent;
-            return React.createElement('span', null, (occupancy !== null && occupancy !== undefined) ? `${occupancy}%` : '-');
-          },
-        },
-        {
-          key: 'totalInvestmentAmount',
-          title: 'Total Investment Amount',
-          sortable: true,
-          render: (record: any) => React.createElement('span', null, formatCurrency(record.investment?.totalInvestmentAmount)),
-        },
-        {
-          key: 'annualNetColdRent',
-          title: 'Annual Net Cold Rent',
-          sortable: true,
-          render: (record: any) => React.createElement('span', null, formatCurrency(record.realEstateInvestmentReport?.[0]?.annualNetColdRent)),
-        },
-        {
-          key: 'funding',
-          title: 'Funding',
-          sortable: true,
-          render: (record: any) => React.createElement('span', null, formatCurrency(record.realEstateInvestmentReport?.[0]?.funding)),
-        },
-        {
-          key: 'investmentRole',
-          title: 'Investment Role',
-          sortable: true,
-          render: (record: any) => React.createElement('span', null, record.investment?.investmentRole?.value || '-'),
-        },
-        {
-          key: 'stakePercentage',
-          title: 'Stake Percentage',
-          sortable: true,
-          render: (record: any) => {
-            const stake = record.investment?.stakePercentage;
-            return React.createElement('span', null, (stake !== null && stake !== undefined) ? `${stake.toFixed(1)}%` : '-');
-          },
-        },
-        {
-          key: 'holdingPeriod',
-          title: 'Holding Period',
-          sortable: false,
-          render: (record: any) => React.createElement('span', null, record.investment?.acquisitionDate ? calculateHoldingPeriod(record.investment.acquisitionDate) : '-'),
-        }
-      );
-      break;
-      
-    case 'equity':
-      baseColumns.push(
-        {
-          key: 'foundationDate',
-          title: 'Foundation Date',
-          sortable: true,
-          render: (record: any) => React.createElement('span', null, formatDateDisplay(record.equityInvestmentReport?.[0]?.equityInvestment?.foundationDate)),
-        },
-        {
-          key: 'acquisitionDate',
-          title: 'Acquisition Date',
-          sortable: true,
-          render: (record: any) => React.createElement('span', null, formatDateDisplay(record.investment?.acquisitionDate)),
-        },
-        {
-          key: 'initialInvestmentAmount',
-          title: 'Initial Investment',
-          sortable: true,
-          render: (record: any) => React.createElement('span', null, formatCurrency(record.investment?.initialInvestmentAmount)),
-        },
-        {
-          key: 'totalInvestmentAmount',
-          title: 'Total Investment Amount',
-          sortable: true,
-          render: (record: any) => React.createElement('span', null, formatCurrency(record.investment?.totalInvestmentAmount)),
-        },
-        {
-          key: 'marketValue',
-          title: 'Market Value',
-          sortable: true,
-          render: (record: any) => React.createElement('span', null, formatCurrency(record.investmentMarketValue || record.equityInvestmentReport?.[0]?.marketValue)),
-        },
-        {
-          key: 'stakePercentage',
-          title: 'Stake Percentage',
-          sortable: true,
-          render: (record: any) => {
-            const stake = record.investment?.stakePercentage;
-            return React.createElement('span', null, (stake !== null && stake !== undefined) ? `${stake.toFixed(1)}%` : '-');
-          },
-        },
-        {
-          key: 'turnoverAmount',
-          title: 'Turnover Amount',
-          sortable: true,
-          render: (record: any) => React.createElement('span', null, formatCurrency(record.equityInvestmentReport?.[0]?.turnoverAmount)),
-        },
-        {
-          key: 'ebitdaAmount',
-          title: 'EBITDA Amount',
-          sortable: true,
-          render: (record: any) => React.createElement('span', null, formatCurrency(record.equityInvestmentReport?.[0]?.ebitdaAmount)),
-        },
-        {
-          key: 'investmentRole',
-          title: 'Investment Role',
-          sortable: true,
-          render: (record: any) => React.createElement('span', null, record.investment?.investmentRole?.value || '-'),
-        }
-      );
-      break;
-
-    case 'liquid_fund':
-      baseColumns.push(
-        {
-          key: 'fundType',
-          title: 'Fund Type',
-          sortable: true,
-          render: (record: any) => React.createElement('span', null, record.liquidFundInvestmentReport?.[0]?.investmentLiquidFundType?.value || '-'),
-        },
-        {
-          key: 'isinCode',
-          title: 'ISIN Code',
-          sortable: true,
-          render: (record: any) => React.createElement('span', null, record.investment?.isin || '-'),
-        },
-        {
-          key: 'bankName',
-          title: 'Bank',
-          sortable: true,
-          render: (record: any) => React.createElement('span', null, record.liquidFundInvestmentReport?.[0]?.bankName || '-'),
-        },
-        {
-          key: 'proprietorName',
-          title: 'Proprietor Name',
-          sortable: true,
-          render: (record: any) => React.createElement('span', null, record.investment?.investmentAccount?.name || '-'),
-        },
-        {
-          key: 'initialInvestmentAmount',
-          title: 'Initial Investment',
-          sortable: true,
-          render: (record: any) => React.createElement('span', null, formatCurrency(record.investment?.initialInvestmentAmount)),
-        },
-        {
-          key: 'totalInvestmentAmount',
-          title: 'Total Investment Amount',
-          sortable: true,
-          render: (record: any) => React.createElement('span', null, formatCurrency(record.investment?.totalInvestmentAmount)),
-        },
-        {
-          key: 'marketValue',
-          title: 'Market Value',
-          sortable: true,
-          render: (record: any) => React.createElement('span', null, formatCurrency(record.investmentMarketValue)),
-        },
-        {
-          key: 'currency',
-          title: 'Currency',
-          sortable: true,
-          render: (record: any) => React.createElement('span', null, record.investment?.currency?.code || '-'),
-        },
-        {
-          key: 'bankAccountNumber',
-          title: 'Bank Account Number',
-          sortable: true,
-          render: (record: any) => React.createElement('span', null, record.liquidFundInvestmentReport?.[0]?.bankAccountNumber || '-'),
-        },
-        {
-          key: 'interestRate',
-          title: 'Interest Rate',
-          sortable: true,
-          render: (record: any) => {
-            const rate = record.liquidFundInvestmentReport?.[0]?.interestRate;
-            return React.createElement('span', null, (rate !== null && rate !== undefined) ? `${rate.toFixed(2)}%` : '-');
-          },
-        },
-        {
-          key: 'maturityDate',
-          title: 'Maturity Date',
-          sortable: true,
-          render: (record: any) => React.createElement('span', null, formatDateDisplay(record.liquidFundInvestmentReport?.[0]?.maturityDate)),
-        },
-        {
-          key: 'acquisitionDate',
-          title: 'Acquisition Date',
-          sortable: true,
-          render: (record: any) => React.createElement('span', null, formatDateDisplay(record.investment?.acquisitionDate)),
-        },
-        {
-          key: 'investmentStatus',
-          title: 'Investment Status',
-          sortable: true,
-          render: (record: any) => React.createElement('span', null, record.investment?.investmentStatus?.value || '-'),
-        }
-      );
-      break;
-        
-    default:
-      // Default columns for backward compatibility
-      baseColumns.push(
-        {
-          key: 'totalInvestmentAmount',
-          title: 'Total Investment Amount',
-          sortable: true,
-          render: (record: any) => React.createElement('span', null, formatCurrency(record.investment?.totalInvestmentAmount)),
-        },
-        {
-          key: 'marketValue',
-          title: 'Market Value',
-          sortable: true,
-          render: (record: any) => React.createElement('span', null, formatCurrency(record.investmentMarketValue)),
-        }
-      );
-      break;
+    if (!formFieldsDefinition) {
+      formFieldsDefinition = getInvestmentTypeFieldDefinition(investmentTypeCode, catalogData);
+    }
   }
 
-  // Add Actions column as the last column
+
+  if (formFieldsDefinition?.formFields) {
+    // Get all fields and sort by display order (same as header)
+    const allFields: FormFieldDefinition[] = [];
+    formFieldsDefinition.formFields.forEach(group => {
+      allFields.push(...group.fields);
+    });
+    
+    allFields.sort((a, b) => {
+      const orderA = parseFloat(a.displayOrder || '999');
+      const orderB = parseFloat(b.displayOrder || '999');
+      return orderA - orderB;
+    });
+    
+    // Transform each field to a table column
+    allFields.forEach(field => {
+      columns.push({
+        key: field.property.replace(/\./g, '_'),
+        title: field.label,
+        width: getReportColumnWidth(field.type),
+        sortable: isReportFieldSortable(field.type),
+        render: (record: any) => {
+          // REPORTS DATA STRUCTURE: record is InvestmentReport from report tables
+          // Fields are stored in type-specific nested arrays (realEstateInvestmentReport, etc.)
+          
+          let value;
+          
+          if (field.property.startsWith('investment.')) {
+            // INVESTMENT FIELDS: First try the nested investment object path from GraphQL
+            value = getValueByPath(record, field.property);
+            
+            // If not found, try without the investment prefix (for fields moved to report level)
+            if (value === undefined) {
+              const fieldName = field.property.replace('investment.', '');
+              value = getValueByPath(record, fieldName);
+            }
+            
+            // If still not found, fallback to main investment data source (for individual reports context)
+            if (value === undefined && mainInvestment) {
+              const fieldName = field.property.replace('investment.', '');
+              value = getValueByPath(mainInvestment, fieldName);
+              
+              if (value === undefined && mainTypeSpecificData) {
+                value = getValueByPath(mainTypeSpecificData, fieldName);
+              }
+            }
+          } else if (field.property.startsWith('equityInvestment.')) {
+            // EQUITY INVESTMENT FIELDS: Map to correct paths in equityInvestmentReport
+            const fieldName = field.property.replace('equityInvestment.', '');
+            
+            // First try direct equityInvestmentReport fields (marketValue, ebitdaAmount, etc.)
+            value = getValueByPath(record.equityInvestmentReport, fieldName);
+            
+            // If not found, try nested equityInvestment fields (foundationDate, etc.)
+            if (value === undefined) {
+              value = getValueByPath(record.equityInvestmentReport?.equityInvestment, fieldName);
+            }
+            
+            // Fallback to mainTypeSpecificData for individual reports context
+            if (value === undefined && mainTypeSpecificData) {
+              value = getValueByPath(mainTypeSpecificData, fieldName);
+            }
+          } else if (field.property.startsWith('liquidFundInvestment.')) {
+            // LIQUID FUND INVESTMENT FIELDS: Map to correct paths in liquidFundInvestmentReport
+            const fieldName = field.property.replace('liquidFundInvestment.', '');
+            
+            // First try direct liquidFundInvestmentReport fields 
+            value = getValueByPath(record.liquidFundInvestmentReport, fieldName);
+            
+            // If not found, try nested liquidFundInvestment fields
+            if (value === undefined) {
+              value = getValueByPath(record.liquidFundInvestmentReport?.liquidFundInvestment, fieldName);
+            }
+            
+            // Fallback to mainTypeSpecificData for individual reports context
+            if (value === undefined && mainTypeSpecificData) {
+              value = getValueByPath(mainTypeSpecificData, fieldName);
+            }
+          } else {
+            // For other paths, try multiple locations
+            value = getValueByPath(record, field.property) ||
+                    getValueByPath(record.investment, field.property) ||
+                    getValueByPath(record.realEstateInvestmentReport, field.property) ||
+                    getValueByPath(record.liquidFundInvestmentReport, field.property) ||
+                    getValueByPath(record.equityInvestmentReport, field.property);
+          }
+          
+          const currencyCode = record.investment?.currency?.code?.split(':').pop() || 'EUR';
+          const formattedValue = formatFieldValue(value, field.type, currencyCode);
+          
+          
+          return React.createElement(
+            'span', 
+            { className: getReportColumnClassName(field.type) },
+            formattedValue
+          );
+        }
+      });
+    });
+  }
+
+  // Add actions column
   if (accessToken) {
-    baseColumns.push({
+    columns.push({
       key: 'actions',
       title: 'ACTIONS',
       width: '60px',
@@ -339,5 +212,41 @@ export const createInvestmentReportColumns = (
     });
   }
 
-  return baseColumns;
+  return columns;
+};
+
+/**
+ * Helper functions for report column configuration
+ */
+const getReportColumnWidth = (fieldType: string): string => {
+  switch (fieldType) {
+    case 'DATE':
+    case 'DATETIME':
+      return '120px';
+    case 'AMOUNT':
+      return '140px';
+    case 'PERCENTAGE':
+    case 'NUMBER':
+      return '100px';
+    default:
+      return 'auto';
+  }
+};
+
+const getReportColumnClassName = (fieldType: string): string => {
+  switch (fieldType) {
+    case 'AMOUNT':
+    case 'PERCENTAGE':
+    case 'NUMBER':
+      return 'gba:text-right';
+    case 'DATE':
+    case 'DATETIME':
+      return 'gba:text-center';
+    default:
+      return 'gba:text-left';
+  }
+};
+
+const isReportFieldSortable = (fieldType: string): boolean => {
+  return ['DATE', 'DATETIME', 'AMOUNT', 'PERCENTAGE', 'NUMBER', 'TEXT'].includes(fieldType);
 };

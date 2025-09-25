@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
-import { NoteSegment, NoteSegmentSchema, createNoteSegmentResolver } from '@/common/components/common-relations/form-segments';
+import NoteSegment, { NoteSegmentSchema, createNoteSegmentResolver } from '@/common/components/common-relations/form-segments/note-segment/NoteSegment';
 import { buildInvestmentNotePayload } from '@/common/data/investment/payloads';
 import { useInvestmentEntities } from '@/common/data/investment/hooks';
 import { AppActionForm } from '@/components/app-action-form';
@@ -119,20 +119,6 @@ const NoteForm: React.FC<NoteFormProps> = ({
       cancelButtonText={getTranslationFromI18nKeyAndLabel('crm:common.cancel', 'Cancel')}
       data-testid="investment-note-process-dialog"
     >
-      {isInvestmentContext && (
-        <div className="gba:mb-4 gba:p-4 gba:bg-blue-50 gba:border gba:border-blue-200 gba:rounded-md" data-testid="investment-context-header">
-          <h3 className="gba:text-sm gba:font-medium gba:text-blue-900 gba:mb-1">
-            {getTranslationFromI18nKeyAndLabel('crm:investmentNote.title', 'Investment Note')}
-          </h3>
-          <p className="gba:text-xs gba:text-blue-700">
-            {getTranslationFromI18nKeyAndLabel(
-              'crm:investmentNote.description', 
-              'This note will be associated with the current investment and its related account.'
-            )}
-          </p>
-        </div>
-      )}
-      
       <NoteSegment
         // Use controlled entity search from hook
         entities={entities}

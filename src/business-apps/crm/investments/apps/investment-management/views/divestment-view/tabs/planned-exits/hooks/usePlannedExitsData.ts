@@ -18,6 +18,12 @@ export interface PlannedExitInvestment {
     value: string;
     description: string;
   };
+  investmentType?: {
+    id: string;
+    code: string;
+    value: string;
+    description: string;
+  };
   ownerEmployee?: {
     id: string;
     displayName: string;
@@ -79,6 +85,12 @@ const PLANNED_EXITS_QUERY = `
       debtFinancingAmount
       investmentMarketValue
       investmentGroup {
+        id
+        code
+        value
+        description
+      }
+      investmentType {
         id
         code
         value

@@ -1,9 +1,10 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 import { TaskSection, ActivitySection, NoteSection, ApprovalSection } from '@/common/components/common-relations/record-sections';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@newwork/nw-design-system';
 import { useGetInvestmentTasksByInvestmentId } from '../../hooks/useInvestmentTasksByInvestmentId';
 import { useGetInvestmentActivitiesByInvestmentId } from '../../hooks/useInvestmentActivitiesByInvestmentId';
+import { useGetInvestmentNotesByInvestmentId } from '../../hooks/useInvestmentNotesByInvestmentId';
 import { FlowContextName } from '@/common/types/FlowRegistryTypes';
 import { ChartLine, PencilSimple, CheckCircle } from '@phosphor-icons/react';
 
@@ -20,28 +21,25 @@ export const InvestmentHomeTab: React.FC<InvestmentHomeTabProps> = ({
   const [activities, setActivities] = useState<any[]>([]);
   const [activitiesLoading, setActivitiesLoading] = useState(false);
   const [activitiesError, setActivitiesError] = useState<string | null>(null);
+  const [notes, setNotes] = useState<any[]>([]);
   const [approvals, setApprovals] = useState<any[]>([]);
   
   const { fetchInvestmentTasksByInvestmentId } = useGetInvestmentTasksByInvestmentId(context);
   const { fetchInvestmentActivitiesByInvestmentId } = useGetInvestmentActivitiesByInvestmentId(context);
+  const { fetchInvestmentNotesByInvestmentId } = useGetInvestmentNotesByInvestmentId(context);
 
-  const loadTasks = async () => {
+  const loadTasks = useCallback(async () => {
     if (!investmentId) return;
     
     try {
       const tasksData = await fetchInvestmentTasksByInvestmentId(investmentId);
-      // Filter out approval tasks - they should only appear in the Approvals tab
-      const nonApprovalTasks = (tasksData || []).filter((task: any) => {
-        const typeVal = task?.taskType?.value || task?.taskType?.code || task?.taskTypeRef || '';
-        return String(typeVal).toLowerCase() !== 'approval' && !String(typeVal).toUpperCase().endsWith(':APPROVAL');
-      });
-      setTasks(nonApprovalTasks);
-    } catch (err) {
-      // Failed to load tasks
+      setTasks(tasksData || []);
+    } catch (error) {
+      console.error('Error loading tasks:', error);
     }
-  };
+  }, [investmentId, fetchInvestmentTasksByInvestmentId]);
 
-  const loadActivities = async () => {
+  const loadActivities = useCallback(async () => {
     if (!investmentId) return;
     
     setActivitiesLoading(true);
@@ -50,14 +48,49 @@ export const InvestmentHomeTab: React.FC<InvestmentHomeTabProps> = ({
     try {
       const activitiesData = await fetchInvestmentActivitiesByInvestmentId(investmentId);
       setActivities(activitiesData || []);
-    } catch (err) {
-      setActivitiesError(err instanceof Error ? err.message : 'Failed to load activities');
+    } catch (error) {
+      console.error('Error loading activities:', error);
+      setActivitiesError(error instanceof Error ? error.message : 'Failed to load activities');
     } finally {
       setActivitiesLoading(false);
     }
-  };
+  }, [investmentId, fetchInvestmentActivitiesByInvestmentId]);
 
-  const loadApprovals = async () => {
+  const loadNotes = useCallback(async () => {
+    if (!investmentId) return;
+    
+    try {
+      const notesData = await fetchInvestmentNotesByInvestmentId(investmentId);
+      setNotes(notesData || []);
+    } catch (error) {
+      console.error('Error loading notes:', error);
+    }
+  }, [investmentId, fetchInvestmentNotesByInvestmentId]);
+
+  // Handle process events
+  const handleProcessEvent = useCallback((event: Event) => {
+    const customEvent = event as CustomEvent;
+    // Safe logging - only event type and investmentId (no PII)
+    console.log('Process event received:', { 
+      type: customEvent.type, 
+      investmentId: customEvent.detail?.investmentId 
+    });
+    
+    // Detailed logging only in development (may contain PII)
+    if (process.env.NODE_ENV !== 'production') {
+      console.log('Process event detail (dev only):', customEvent.detail);
+    }
+    
+    // Handle process completion events here
+    if (customEvent.detail?.investmentId === investmentId) {
+      // Refresh data when process completes
+      loadTasks();
+      loadActivities();
+      loadNotes();
+    }
+  }, [investmentId, loadTasks, loadActivities, loadNotes]);
+
+  const loadApprovals = useCallback(async () => {
     if (!investmentId) return;
     
     try {
@@ -71,13 +104,33 @@ export const InvestmentHomeTab: React.FC<InvestmentHomeTabProps> = ({
     } catch (err) {
       // Failed to load approvals
     }
-  };
+  }, [investmentId, fetchInvestmentTasksByInvestmentId]);
 
   useEffect(() => {
     loadTasks();
     loadActivities();
+    loadNotes();
     loadApprovals();
-  }, [investmentId]);
+  }, [loadTasks, loadActivities, loadNotes, loadApprovals]);
+
+  // Listen for process events
+  useEffect(() => {
+    const eventTypes = [
+      'com.newwork.process.continue',
+      'com.newwork.process.processCompletion',
+      'processCompletion',
+    ];
+    
+    eventTypes.forEach(eventType => {
+      window.addEventListener(eventType, handleProcessEvent);
+    });
+    
+    return () => {
+      eventTypes.forEach(eventType => {
+        window.removeEventListener(eventType, handleProcessEvent);
+      });
+    };
+  }, [handleProcessEvent]);
 
   return (
     <div data-testid="investment-home-tab">

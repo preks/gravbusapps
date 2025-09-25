@@ -9,15 +9,15 @@ import { DataContainer } from "@/components/layout/dataContainer/DataContainer";
 import { AppAction } from "@/components/app-action/AppAction";
 import { AppActionButton } from "@/components/app-action-button/AppActionButton";
 import { FlowContextName } from "@/common/types/FlowRegistryTypes";
-import { Building2, Calendar, User } from "lucide-react";
+import { Building2, Calendar } from "lucide-react";
 import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils';
 import { formatDate } from "@/common/data/investment";
 import { formatCurrencyParts } from '@/common/utils/numberFormatter';
 import { useEquityInvestmentsFilters } from "../hooks/useEquityInvestmentsFilters";
 import { ColumnConfig } from "@/components/dataController";
 import { useInvestmentListController } from "../hooks/useInvestmentListController";
+import { OwnerDisplay } from "../utils/ownerDisplayUtils";
 import { useProcessCompletion } from "@/common/hooks/useProcessCompletion";
-import { formatCurrency } from "@/business-apps/crm/common/utils/currencyUtils";
 
 export interface EquityInvestmentsListProps extends BusinessAppContextProps {
   sourceApp?: string;
@@ -295,6 +295,12 @@ const EquityInvestmentsList: React.FC<EquityInvestmentsListProps> = (props) => {
         actions: (
           <AppAction
             contextsArray={[FlowContextName.createInvestment]}
+            externalContextData={{ 
+              investmentGroup: 'EQUITY',
+              investmentGroupRef: 'InvestmentGroup:v1:EQUITY',
+              fromView: 'investments',
+              fromSubView: 'equity'
+            }}
             accessToken={accessToken}
             data-testid="equity-investments-add-action"
             emptyStateBehavior="hide"
@@ -463,15 +469,11 @@ const EquityInvestmentsList: React.FC<EquityInvestmentsListProps> = (props) => {
                   )}
                   {visibleColumns.includes('owner') && (
                     <TableCell>
-                      <div className="gba:flex gba:items-center gba:gap-2">
-                        <User className="gba:w-4 gba:h-4 gba:text-gray-600" />
-                        <span>
-                          {investment.ownerEmployee?.displayName || 
-                           investment.ownerEmployee?.firstName && investment.ownerEmployee?.lastName
-                             ? `${investment.ownerEmployee.firstName} ${investment.ownerEmployee.lastName}`
-                             : "N/A"}
-                        </span>
-                      </div>
+                      <OwnerDisplay 
+                        ownerEmployee={investment.ownerEmployee}
+                        entityId={investment.id}
+                        testIdPrefix="equity-investment"
+                      />
                     </TableCell>
                   )}
                   {visibleColumns.includes('status') && (

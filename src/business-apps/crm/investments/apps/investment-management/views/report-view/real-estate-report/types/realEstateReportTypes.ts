@@ -119,7 +119,6 @@ export interface RealEstateReportFilters {
   investmentType?: string;
   startDate?: string;
   endDate?: string;
-  currency?: string;
   search?: string;
   limit?: number;
   offset?: number;

@@ -45,9 +45,19 @@ export interface InvestmentTypeEntry {
   objectValue: FormFieldsDefinition;
 }
 
+export interface InvestmentLiquidFundTypeEntry {
+  id: string;
+  code: string;
+  parentEntryId: string;
+  value: string;
+  translations: CatalogEntryTranslation[];
+  objectValue: FormFieldsDefinition;
+}
+
 export interface InvestmentCatalogData {
   investmentGroups: InvestmentGroupEntry[];
   investmentTypes: InvestmentTypeEntry[];
+  investmentLiquidFundTypes: InvestmentLiquidFundTypeEntry[];
 }
 
 // GraphQL query to fetch all investment groups and types with their form fields
@@ -95,6 +105,31 @@ export const GET_INVESTMENT_CATALOG_DATA = (): string => {
         }
         objectValue
         # Also get parent entries (investment groups) to handle flipped relationships
+        parentEntry {
+          id
+          code
+          value
+          translations(where: {localeCode: {_eq: $activeUserLocale}}) {
+            localeCode
+            value
+          }
+        }
+      }
+      
+      # Investment Liquid Fund Types with form fields
+      investmentLiquidFundTypes: CatalogEntry(where: {
+        catalog: {identifier: {_eq: "InvestmentLiquidFundType"}, version: {_eq: "v1"}}
+        isDeleted: {_eq: false}
+      }) {
+        id
+        code
+        parentEntryId
+        value
+        translations(where: {localeCode: {_eq: $activeUserLocale}}) {
+          localeCode
+          value
+        }
+        objectValue
         parentEntry {
           id
           code

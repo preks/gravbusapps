@@ -132,15 +132,13 @@ export const SalesTaskFormProvider: React.FC<SalesTaskFormProviderProps> = ({
       fetchCustomerTaskById(taskId)
         .then((taskData) => {
           if (taskData) {
-            console.log('✅ Fetched task data for update:', taskData);
             setFetchedTaskData(taskData);
           } else {
-            console.warn('⚠️ No task data found for ID:', taskId);
             setError('Task not found');
           }
         })
         .catch((error) => {
-          console.error('❌ Error fetching task data:', error);
+          console.error('Error fetching task data for taskId:', taskId, error);
           setError('Failed to load task data');
         })
         .finally(() => {
@@ -234,13 +232,6 @@ export const SalesTaskFormProvider: React.FC<SalesTaskFormProviderProps> = ({
   // Populate form with existing task data in UPDATE mode
   useEffect(() => {
     if (isUpdateMode && actualTaskData) {
-      console.log('🔍 UPDATE MODE - Task Data:', {
-        assignedEmployeeId: actualTaskData.assignedEmployeeId,
-        assignedEmployee: actualTaskData.assignedEmployee,
-        dueDate: actualTaskData.dueDate,
-        priorityRef: actualTaskData.priorityRef,
-        statusRef: actualTaskData.statusRef
-      });
 
       const assignedId = actualTaskData.assignedEmployeeId || actualTaskData.assignedEmployee?.id || '';
       // Robust deadline mapping: support multiple possible fields and validate date
@@ -249,11 +240,6 @@ export const SalesTaskFormProvider: React.FC<SalesTaskFormProviderProps> = ({
         ? dayjs(rawDeadline).format('YYYY-MM-DDTHH:mm')
         : null;
       
-      console.log('🔍 MAPPING VALUES:', {
-        assignedId,
-        formattedDeadline,
-        availableEmployees: mappedEmployees.length
-      });
 
       const updateValues: Partial<SalesTaskFormValues> = {
         title: actualTaskData.name || '',

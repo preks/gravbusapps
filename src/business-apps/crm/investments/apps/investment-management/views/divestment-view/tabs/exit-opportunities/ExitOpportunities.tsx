@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
 import { 
   Tabs, 
   TabsContent, 
@@ -36,25 +36,17 @@ import { FlowContextName } from "@/common/types/FlowRegistryTypes";
 import { OpportunityBoard } from "@/business-apps/crm/investments/apps/investment-relations/views/opportunity-view/components/opportunity-board/OpportunityBoard";
 import { getTranslationFromI18nKeyAndLabel } from "@/common/utils/windowUtils";
 import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils';
-import { formatCurrency, formatDate } from "../../utils";
+import { OwnerDisplay } from "../../../investment-view/utils/ownerDisplayUtils";
+import { formatDate } from "../../utils";
+import { formatCurrencyLarge } from "@/business-apps/crm/common/utils/currencyUtils";
+
 import { useExitOpportunitiesData } from "./hooks/useExitOpportunitiesData";
 import { DateRangeFilter } from '@/business-apps/crm/customers/apps/customer-relations/views/lead-view/components/DateRangeFilter';
 import { useEmployeeSearch } from '@/common/data/employee/useEmployeeSearch';
 import { useGetInvestmentOpportunities, InvestmentOpportunity, InvestmentOpportunityQueryVariables } from "@/common/data/investment";
+import { useExitOpportunityMetrics } from './hooks/useExitOpportunityMetrics';
 
-interface ExitOpportunitiesMetrics {
-  totalCount: number;
-  totalValue: number;
-  averageValue: number;
-  averageWinRate: number;
-  totalWonValue: number;
-  wonCount: number;
-  // Percentage changes
-  countChange: number;
-  totalValueChange: number;
-  averageValueChange: number;
-  winRateChange: number;
-}
+// Note: ExitOpportunitiesMetrics interface is now imported from the hook as ExitOpportunityMetrics
 
 interface ExitOpportunitiesProps extends BusinessAppContextProps {
   initialSubTab?: string;
@@ -81,13 +73,30 @@ const ExitOpportunities: React.FC<ExitOpportunitiesProps> = ({
 
   // State for exit opportunities data
   const [opportunities, setOpportunities] = useState<InvestmentOpportunity[]>([]);
-  const [metrics, setMetrics] = useState<ExitOpportunitiesMetrics | null>(null);
+  // Note: metrics now handled by useExitOpportunityMetrics hook
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<Error | null>(null);
 
+  // Ref to track last owner search term for debounce protection
+  const lastOwnerSearchRef = useRef<string>('');
+  
+  // Ref to store loadMetrics function to avoid dependency issues
+  const loadMetricsRef = useRef<typeof loadMetrics>();
+
   const context = { accessToken, userInfo };
   const { fetchInvestmentOpportunities } = useGetInvestmentOpportunities(context);
+  
+  // Use optimized metrics hook for historical comparisons
+  const { 
+    metrics: optimizedMetrics, 
+    isLoading: metricsLoading, 
+    error: metricsError,
+    loadMetrics 
+  } = useExitOpportunityMetrics({ accessToken });
+  
+  // Update ref when loadMetrics changes
+  loadMetricsRef.current = loadMetrics;
 
   // Data fetching function using central resources
   const loadPage = useCallback(async (
@@ -127,78 +136,24 @@ const ExitOpportunities: React.FC<ExitOpportunitiesProps> = ({
       // Get current data
       const currentResult = await fetchInvestmentOpportunities(variables);
 
-      // Get historical data (30 days ago)
-      const currentDate = new Date();
-      const thirtyDaysAgo = new Date();
-      thirtyDaysAgo.setDate(currentDate.getDate() - 30);
-
-      // Fetch historical data by removing time-based filters and getting larger dataset
-      const historicalVariables = { ...variables, limit: 1000, offset: 0 };
-      const historicalResult = await fetchInvestmentOpportunities(historicalVariables);
-
       if (currentResult?.InvestmentOpportunity) {
         setOpportunities(currentResult.InvestmentOpportunity);
         
         const totalCount = currentResult.InvestmentOpportunityAggregate?.aggregate?.count || 0;
         setTotal(totalCount);
 
-        // Helper function to calculate metrics for a dataset
-        const calculateMetrics = (opportunities: InvestmentOpportunity[], beforeDate?: Date) => {
-          let filteredOpportunities = opportunities;
-          
-          // Filter by date if provided
-          if (beforeDate) {
-            filteredOpportunities = opportunities.filter(opp => {
-              const updatedAt = new Date(opp.updatedAt);
-              return updatedAt <= beforeDate;
-            });
-          }
-
-          const totalValue = filteredOpportunities.reduce((sum, opp) => sum + (opp.estimatedAmount || 0), 0);
-          const averageValue = filteredOpportunities.length > 0 ? totalValue / filteredOpportunities.length : 0;
-          
-          // For won opportunities, check status
-          const wonOpportunities = filteredOpportunities.filter(opp => 
-            opp.opportunityStatus?.alternativeCode?.toUpperCase() === "WON" ||
-            opp.opportunityStatus?.value?.toUpperCase() === "WON"
-          );
-          
-          return {
-            totalCount: filteredOpportunities.length,
-            totalValue,
-            averageValue,
-            averageWinRate: filteredOpportunities.length > 0 ? 
-              filteredOpportunities.reduce((sum, opp) => sum + (opp.probability || 0), 0) / filteredOpportunities.length : 0,
-            wonCount: wonOpportunities.length,
-            totalWonValue: wonOpportunities.reduce((sum, opp) => sum + (opp.estimatedAmount || 0), 0),
-          };
+        // Load optimized metrics with the same filters used for the data
+        // Build the metrics filters using the exact same logic as the additionalFilters parameter
+        const metricsFilters = {
+          search: variables.search,
+          dealType: variables.dealType,
+          ownerEmployeeIds: additionalFilters?.ownerEmployeeIds,
+          createdAfter: additionalFilters?.createdAfter,
+          createdBefore: additionalFilters?.createdBefore,
         };
-
-        // Calculate current and historical metrics
-        const current = calculateMetrics(currentResult.InvestmentOpportunity);
-        const historical = historicalResult?.InvestmentOpportunity ? 
-          calculateMetrics(historicalResult.InvestmentOpportunity, thirtyDaysAgo) : 
-          { totalCount: 0, totalValue: 0, averageValue: 0, averageWinRate: 0, wonCount: 0, totalWonValue: 0 };
-
-        // Calculate percentage changes
-        const calculatePercentageChange = (current: number, previous: number): number => {
-          if (previous === 0) return current > 0 ? 100 : 0;
-          return ((current - previous) / previous) * 100;
-        };
-
-        const countChange = calculatePercentageChange(current.totalCount, historical.totalCount);
-        const totalValueChange = calculatePercentageChange(current.totalValue, historical.totalValue);
-        const averageValueChange = calculatePercentageChange(current.averageValue, historical.averageValue);
-        const winRateChange = calculatePercentageChange(current.averageWinRate, historical.averageWinRate);
-
-        const metricsData: ExitOpportunitiesMetrics = {
-          ...current,
-          countChange,
-          totalValueChange,
-          averageValueChange,
-          winRateChange,
-        };
-        setMetrics(metricsData);
+        
+        // Trigger optimized metrics calculation in the background
+        loadMetricsRef.current?.(metricsFilters);
       }
     } catch (err) {
       setError(
@@ -207,7 +162,7 @@ const ExitOpportunities: React.FC<ExitOpportunitiesProps> = ({
     } finally {
       setLoading(false);
     }
-  }, [fetchInvestmentOpportunities, searchTerm, sortField, sortOrder, accessToken]);
+  }, [fetchInvestmentOpportunities, searchTerm, sortField, sortOrder, accessToken]); // Removed loadMetrics to prevent infinite loop
 
   const handleSearch = useCallback((value: string) => {
     setSearchTerm(value);
@@ -249,7 +204,7 @@ const ExitOpportunities: React.FC<ExitOpportunitiesProps> = ({
         createdBefore,
       }
     );
-  }, [loadPage, currentPage, searchTerm, sortField, sortOrder, selectedFilters, createdAfter, createdBefore]);
+  }, [currentPage, pageSize, searchTerm, sortField, sortOrder, selectedFilters, createdAfter, createdBefore]); // Removed loadPage from dependencies
 
   // Listen for process completion events to refresh data
   useEffect(() => {
@@ -275,7 +230,11 @@ const ExitOpportunities: React.FC<ExitOpportunitiesProps> = ({
           loadPage(currentPage, pageSize);
         }
       } catch (err) {
-        // Error handling process completion
+        // Log process completion event handling errors
+        console.error('Error handling process completion event:', err);
+        
+        // Note: Not setting component error state since this is a non-critical 
+        // background process event listener that shouldn't disrupt the UI
       }
     };
 
@@ -302,7 +261,7 @@ const ExitOpportunities: React.FC<ExitOpportunitiesProps> = ({
         window.removeEventListener(eventName, handleProcessCompletion);
       });
     };
-  }, [loadPage, currentPage, pageSize]);
+  }, [currentPage, pageSize]); // Removed loadPage from dependencies
 
   const handleTabChange = (value: string) => {
     onSubTabChange?.(value);
@@ -353,7 +312,22 @@ const ExitOpportunities: React.FC<ExitOpportunitiesProps> = ({
   };
 
   const renderMetrics = () => {
-    if (!metrics) return null;
+    // Use optimized metrics from the hook with defaults for loading state
+    const metricsToUse = optimizedMetrics;
+    if (!metricsToUse) {
+      // Show loading state while metrics are being calculated
+      return (
+        <WidgetGroup
+          widgets={[]}
+          isLoading={true}
+          error={null}
+          skeletonCount={4}
+          defaultSpan={{ xs: 24, sm: 12, md: 12, lg: 6 }}
+          emptyText={getTranslationFromI18nKeyAndLabel("loading_metrics", "Loading metrics...")}
+          data-testid="exit-opportunities-metrics-loading"
+        />
+      );
+    }
 
     // Helper function to format percentage change
     const formatPercentageChange = (change: number): string => {
@@ -365,56 +339,56 @@ const ExitOpportunities: React.FC<ExitOpportunitiesProps> = ({
       {
         key: "total-opportunities",
         title: getTranslationFromI18nKeyAndLabel("total_opportunities", "Total Opportunities"),
-        value: metrics.totalCount,
+        value: metricsToUse.totalCount,
         prefix: <TrendingUp className="gba:h-5 gba:w-5 gba:text-blue-600" />,
         color: '#1890ff', // Blue theme for opportunities
         span: { xs: 24, sm: 12, md: 12, lg: 6 },
         description: getTranslationFromI18nKeyAndLabel("active_exit_opportunities", "Active exit opportunities"),
         trend: {
-          value: formatPercentageChange(metrics.countChange),
-          positive: metrics.countChange >= 0,
+          value: formatPercentageChange(metricsToUse.countChange),
+          positive: metricsToUse.countChange >= 0,
           description: getTranslationFromI18nKeyAndLabel("vs_previous_period", "vs previous period")
         }
       },
       {
         key: "total-value",
         title: getTranslationFromI18nKeyAndLabel("total_value", "Total Value"),
-        value: formatCurrency(metrics.totalValue),
+        value: formatCurrencyLarge(metricsToUse.totalValue),
         prefix: <TrendingUp className="gba:h-5 gba:w-5 gba:text-green-600" />,
         color: '#52c41a', // Green theme for value
         span: { xs: 24, sm: 12, md: 12, lg: 6 },
         description: getTranslationFromI18nKeyAndLabel("estimated_opportunity_value", "Estimated opportunity value"),
         trend: {
-          value: formatPercentageChange(metrics.totalValueChange),
-          positive: metrics.totalValueChange >= 0,
+          value: formatPercentageChange(metricsToUse.totalValueChange),
+          positive: metricsToUse.totalValueChange >= 0,
           description: getTranslationFromI18nKeyAndLabel("vs_previous_period", "vs previous period")
         }
       },
       {
         key: "average-value",
         title: getTranslationFromI18nKeyAndLabel("average_value", "Average Value"),
-        value: formatCurrency(metrics.averageValue),
+        value: formatCurrencyLarge(metricsToUse.averageValue),
         prefix: <Target className="gba:h-5 gba:w-5 gba:text-purple-600" />,
         color: '#722ed1', // Purple theme for averages
         span: { xs: 24, sm: 12, md: 12, lg: 6 },
         description: getTranslationFromI18nKeyAndLabel("average_opportunity_size", "Average opportunity size"),
         trend: {
-          value: formatPercentageChange(metrics.averageValueChange),
-          positive: metrics.averageValueChange >= 0,
+          value: formatPercentageChange(metricsToUse.averageValueChange),
+          positive: metricsToUse.averageValueChange >= 0,
           description: getTranslationFromI18nKeyAndLabel("vs_previous_period", "vs previous period")
         }
       },
       {
         key: "average-win-rate",
         title: getTranslationFromI18nKeyAndLabel("average_win_rate", "Average Win Rate"),
-        value: `${metrics.averageWinRate.toFixed(1)}%`,
+        value: `${metricsToUse.averageWinRate.toFixed(1)}%`,
         prefix: <CheckCircle className="gba:h-5 gba:w-5 gba:text-orange-600" />,
         color: '#fa8c16', // Orange theme for win rate
         span: { xs: 24, sm: 12, md: 12, lg: 6 },
         description: getTranslationFromI18nKeyAndLabel("success_probability", "Success probability"),
         trend: {
-          value: formatPercentageChange(metrics.winRateChange),
-          positive: metrics.winRateChange >= 0,
+          value: formatPercentageChange(metricsToUse.winRateChange),
+          positive: metricsToUse.winRateChange >= 0,
           description: getTranslationFromI18nKeyAndLabel("vs_previous_period", "vs previous period")
         }
       }
@@ -423,8 +397,8 @@ const ExitOpportunities: React.FC<ExitOpportunitiesProps> = ({
     return (
       <WidgetGroup
         widgets={widgets}
-        isLoading={loading}
-        error={error}
+        isLoading={loading || metricsLoading}
+        error={error || (metricsError ? new Error(metricsError) : null)}
         skeletonCount={4}
         defaultSpan={{ xs: 24, sm: 12, md: 12, lg: 6 }}
         emptyText={getTranslationFromI18nKeyAndLabel("no_metrics_available", "No metrics available")}
@@ -563,7 +537,7 @@ const ExitOpportunities: React.FC<ExitOpportunitiesProps> = ({
             },
             {
               id: 'opportunityStatus',
-              title: 'Investment Group',
+              title: 'Opportunity status',
               filters: [
                 { id: 'OpportunityStatus:v1:OPEN', label: 'Open', selected: selectedFilters.includes('OpportunityStatus:v1:OPEN') },
                 { id: 'OpportunityStatus:v1:QUALIFIED', label: 'Qualified', selected: selectedFilters.includes('OpportunityStatus:v1:QUALIFIED') },
@@ -576,11 +550,21 @@ const ExitOpportunities: React.FC<ExitOpportunitiesProps> = ({
               filters: [],
               backendSearch: (q: string) => {
                 const term = (q || '').trim();
-                if (term.length >= 2) {
+                
+                // Clear/reset ref and return empty array if term is too short
+                if (term.length < 2) {
+                  lastOwnerSearchRef.current = '';
+                  return { filters: [], loading: loadingEmployees, error: employeeError } as any;
+                }
+                
+                // Only invoke searchEmployees if term is different from last searched term
+                if (term !== lastOwnerSearchRef.current) {
+                  lastOwnerSearchRef.current = term;
                   void searchEmployees(term);
                 }
+                
                 const opts = (employeeOptions || []).map((e) => ({ id: e.id, label: e.displayName, value: e.id, selected: selectedFilters.includes(e.id) }));
-                return { filters: term.length >= 2 ? opts : [], loading: loadingEmployees, error: employeeError } as any;
+                return { filters: opts, loading: loadingEmployees, error: employeeError } as any;
               },
             },
             {
@@ -649,7 +633,7 @@ const ExitOpportunities: React.FC<ExitOpportunitiesProps> = ({
                     </TableCell>)}
                     {visibleColumns.includes('amount') && (<TableCell>
                       <span className="gba:font-medium">
-                        {opportunity.estimatedAmount ? formatCurrency(opportunity.estimatedAmount) : "N/A"}
+                        {opportunity.estimatedAmount ? formatCurrencyLarge(opportunity.estimatedAmount) : "N/A"}
                       </span>
                     </TableCell>)}
                     {visibleColumns.includes('stage') && (<TableCell>
@@ -679,15 +663,11 @@ const ExitOpportunities: React.FC<ExitOpportunitiesProps> = ({
                       )}
                     </TableCell>)}
                     {visibleColumns.includes('owner') && (<TableCell>
-                      <div className="gba:flex gba:items-center gba:gap-2">
-                        <User className="gba:w-4 gba:h-4 gba:text-gray-600" />
-                        <span>
-                          {opportunity.ownerEmployee?.displayName || 
-                           opportunity.ownerEmployee?.firstName && opportunity.ownerEmployee?.lastName
-                             ? `${opportunity.ownerEmployee.firstName} ${opportunity.ownerEmployee.lastName}`
-                             : "N/A"}
-                        </span>
-                      </div>
+                      <OwnerDisplay 
+                        ownerEmployee={opportunity.ownerEmployee}
+                        entityId={opportunity.id}
+                        testIdPrefix="exit-opportunity"
+                      />
                     </TableCell>)}
                     {visibleColumns.includes('created') && (
                       <TableCell>

@@ -3,7 +3,7 @@ import { PlusCircleOutlined, CloseOutlined } from '@ant-design/icons';
 import { Spin, Alert, Empty, Timeline, Typography } from 'antd';
 import { Button } from '@newwork/nw-design-system';
 import { NoteDeletePopup } from '@/common/components/common-relations/popups/note-delete-popup';
-import { startProcess } from '@/common/utils/start-process';
+// import { startProcess } from '@/common/utils/start-process';
 import { AppAction } from '@/components/app-action/AppAction';
 import { FlowContextName } from '@/common/types/FlowRegistryTypes';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
@@ -186,22 +186,13 @@ export const NotesSection: React.FC<NotesSectionProps> = ({ accountId, context }
           </div>
         </div>
         <AppAction
-          contextsArray={[FlowContextName.investmentNoteEntity]}
+          contextsArray={[FlowContextName.createInvestmentNote]}
           externalContextData={{
             accountId,
             account: accountId,
             investmentNote: { account: accountId }
           }}
-          staticFlowData={accountId ? [{
-            key: 'create-investment-note-fallback',
-            label: 'Add Note',
-            onClick: () => startProcess({
-              domain: 'investments',
-              processName: 'createInvestmentNote',
-              payload: { accountId },
-              builderType: 'NATIVE_SCREEN'
-            })
-          }] : []}
+          staticFlowData={[]}
           prefixDataTestId="add-note"
           accessToken={context.accessToken}
           emptyStateBehavior="enable"
@@ -232,7 +223,7 @@ export const NotesSection: React.FC<NotesSectionProps> = ({ accountId, context }
             showIcon
             style={{ marginBottom: '16px' }}
             action={
-              <Button size="small" onClick={loadNotes}>
+              <Button size="sm" onClick={loadNotes}>
                 Retry
               </Button>
             }
@@ -252,16 +243,7 @@ export const NotesSection: React.FC<NotesSectionProps> = ({ accountId, context }
                 account: accountId,
                 investmentNote: { account: accountId }
               }}
-              staticFlowData={accountId ? [{
-                key: 'create-investment-note-fallback',
-                label: 'Add First Note',
-                onClick: () => startProcess({
-                  domain: 'investments',
-                  processName: 'createInvestmentNote',
-                  payload: { accountId },
-                  builderType: 'NATIVE_SCREEN'
-                })
-              }] : []}
+              staticFlowData={[]}
               prefixDataTestId="add-first-note"
               accessToken={context.accessToken}
               emptyStateBehavior="enable"
@@ -296,9 +278,8 @@ export const NotesSection: React.FC<NotesSectionProps> = ({ accountId, context }
                     {note.text}
                   </div>
                   <Button 
-                    type="text" 
-                    icon={<CloseOutlined />} 
-                    size="small"
+                    variant="ghost"
+                    size="icon"
                     style={{ 
                       position: 'absolute', 
                       right: 0, 
@@ -308,7 +289,9 @@ export const NotesSection: React.FC<NotesSectionProps> = ({ accountId, context }
                     }}
                     onClick={() => handleDeleteNote(note)}
                     data-testid={`delete-note-${note.id}`}
-                  />
+                  >
+                    <CloseOutlined />
+                  </Button>
                 </div>
               </Timeline.Item>
             ))}
