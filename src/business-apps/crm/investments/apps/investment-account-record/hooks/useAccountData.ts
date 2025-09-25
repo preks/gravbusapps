@@ -133,7 +133,7 @@ export const useAccountData = (accountId: string, accessToken: string) => {
         setAccountStatuses(sortedStatuses);
       }
     } catch (err) {
-      console.error('Error fetching investment account statuses:', err);
+      // Silently handle catalog errors
     } finally {
       setLoadingStatuses(false);
     }

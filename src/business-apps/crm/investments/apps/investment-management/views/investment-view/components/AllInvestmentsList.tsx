@@ -27,7 +27,7 @@ import { formatCurrencyParts } from '@/common/utils/numberFormatter';
 import { ColumnConfig } from "@/components/dataController";
 import { useInvestmentListController } from "../hooks/useInvestmentListController";
 import { useAllInvestmentsFilters } from "../hooks/useAllInvestmentsFilters";
-import { OwnerDisplay } from "../utils/ownerDisplayUtils";
+import { OwnerDisplay } from "../../../../../components/shared";
 
 
 // Helper function to format group names for display
