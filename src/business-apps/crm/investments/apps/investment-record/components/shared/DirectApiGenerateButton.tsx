@@ -44,7 +44,12 @@ export const DirectApiGenerateButton: React.FC<DirectApiGenerateButtonProps> = (
     try {
       // 🔥 ALWAYS USE PRE-LOADED DATA - NO ADDITIONAL API CALLS
       if (!investmentData) {
-        throw new Error('Investment data not available. Please refresh the page.');
+        throw new Error(
+          getTranslationFromI18nKeyAndLabel(
+            'investment.reports.noInvestmentData',
+            'Investment data not available. Please refresh the page.'
+          )
+        );
       }
       
       // Use existing investment data instead of fetching
@@ -60,11 +65,21 @@ export const DirectApiGenerateButton: React.FC<DirectApiGenerateButtonProps> = (
           navigateTo(url);
         }
       } else {
-        throw new Error(response.message || 'Report generation failed');
+        throw new Error(
+          response.message ||
+            getTranslationFromI18nKeyAndLabel(
+              'investment.reports.generateFailed',
+              'Report generation failed'
+            )
+        );
       }
     } catch (err) {
       
-      const errorMessage = err instanceof Error ? err.message : 'Unknown error occurred';
+      const unknownError = getTranslationFromI18nKeyAndLabel(
+        'common.unknownError',
+        'Unknown error occurred'
+      );
+      const errorMessage = err instanceof Error ? err.message : unknownError;
       setError(errorMessage);
       console.error('❌ Report generation failed:', getTranslationFromI18nKeyAndLabel('investment.reports.generateError', 'Failed to generate report: ') + errorMessage);
     } finally {
