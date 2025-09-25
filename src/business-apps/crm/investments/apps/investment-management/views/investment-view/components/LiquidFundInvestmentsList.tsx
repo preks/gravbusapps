@@ -11,7 +11,6 @@ import {
   Alert,
   Button
 } from "@newwork/nw-design-system";
-import { PlusOutlined } from "@ant-design/icons";
 import { BusinessAppContextProps } from "@/common/BusinessAppContext";
 import { useGetInvestments } from "@/common/data/investment/hooks/useInvestments";
 import { formatDate } from "@/common/data/investment";
@@ -22,7 +21,7 @@ import { DataContainer } from "@/components/layout/dataContainer/DataContainer";
 import { AppAction } from "@/components/app-action/AppAction";
 import { AppActionButton } from "@/components/app-action-button/AppActionButton";
 import { FlowContextName } from "@/common/types/FlowRegistryTypes";
-import { Building2, Calendar, ChevronUp, ChevronDown } from "lucide-react";
+import { Building2, Calendar, ChevronUp, ChevronDown, PlusSquare } from "lucide-react";
 import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils';
 import { ColumnConfig } from "@/components/dataController";
 import { useInvestmentListController } from "../hooks/useInvestmentListController";
@@ -404,15 +403,18 @@ const LiquidFundInvestmentsList: React.FC<LiquidFundInvestmentsListProps> = (con
             data-testid="liquid-fund-investments-add-action"
             emptyStateBehavior="hide"
           >
-            <Button
-              variant="default"
-              size="sm"
-              className="gba:flex gba:items-center gba:gap-2"
+            <button
+              className="gba:flex gba:flex-row gba:justify-center gba:items-center gba:px-3 gba:py-0 gba:h-8 gba:rounded gba:gap-1"
               data-testid="liquid-fund-investments-add-button"
+              type="button"
             >
-              <PlusOutlined />
-              Add Liquid Fund
-            </Button>
+              <span className="gba:w-5 gba:h-5 gba:flex gba:items-center gba:justify-center gba:flex-none order-0 gba:grow-0">
+                <PlusSquare className="gba:w-4 gba:h-4" />
+              </span>
+              <span className="gba:h-4 gba:font-normal gba:text-sm gba:leading-4 gba:flex gba:items-center gba:text-black gba:flex-none order-1 gba:grow-0">
+                Add
+              </span>
+            </button>
           </AppAction>
         ),
         columnVisibility: {
