@@ -23,6 +23,7 @@ import { getExpenseRequestStatusDisplay } from '../utils';
 import Pill from '@/components/pill';
 import { getTabByKey } from '../constants/approvalTabs';
 import { env } from '@/common/env/EnvUtils';
+import { toast } from 'sonner';
 
 interface ApprovalTableProps extends BusinessAppContextProps {
   tasks: any[];
@@ -58,7 +59,6 @@ const ApprovalTable: React.FC<ApprovalTableProps> = ({
   tabKey,
   userInfo,
   accessToken,
-  additionalData,
 }) => {
   // Map flow execution tasks to approval requests for UI compatibility
   // Keep raw tasks for entity ID extraction and map for display
@@ -135,7 +135,11 @@ const ApprovalTable: React.FC<ApprovalTableProps> = ({
             throw new Error(`Could not find original task data for ${task.id}`);
           }
 
-          const domain = 'employee-expense';
+          // Use different domain for transfer payment and handout payment
+          const domain =
+            tabConfig.key === 'transfer-payment' || tabConfig.key === 'handout-payment'
+              ? 'cs-selgros'
+              : 'employee-expense';
           const processName = tabConfig.processName;
 
           const taskInstanceId = task.id;
@@ -148,10 +152,23 @@ const ApprovalTable: React.FC<ApprovalTableProps> = ({
 
           if (!processInstanceId && originalTask.endpoint) {
             const endpointParts = originalTask.endpoint.split('/');
-            const processNameIndex = endpointParts.findIndex((part) => part === processName);
 
-            if (processNameIndex !== -1 && endpointParts[processNameIndex + 1]) {
-              processInstanceId = endpointParts[processNameIndex + 1];
+            if (tabConfig.key === 'handout-payment') {
+              // For handout payment, look for 'payAdvancePayment' in the endpoint
+              const processNameIndex = endpointParts.findIndex(
+                (part: string) => part === 'payAdvancePayment',
+              );
+              if (processNameIndex !== -1 && endpointParts[processNameIndex + 1]) {
+                processInstanceId = endpointParts[processNameIndex + 1];
+              }
+            } else {
+              // For other tabs, use the dynamic process name
+              const processNameIndex = endpointParts.findIndex(
+                (part: string) => part === processName,
+              );
+              if (processNameIndex !== -1 && endpointParts[processNameIndex + 1]) {
+                processInstanceId = endpointParts[processNameIndex + 1];
+              }
             }
           }
 
@@ -170,7 +187,14 @@ const ApprovalTable: React.FC<ApprovalTableProps> = ({
           const baseUrl = env('NEXT_PUBLIC_BASE_URL') ?? '';
 
           // First, make a GET call to get the actual entity ID
-          const getUrl = `${baseUrl}/processes/${domain}/${processName}/${processInstanceId}/${taskName}/${taskInstanceId}?user=${userId}`;
+          let getUrl: string;
+          if (tabConfig.key === 'handout-payment') {
+            // For handout payment, hardcode payAdvancePayment in the URL
+            getUrl = `${baseUrl}/processes/${domain}/payAdvancePayment/${processInstanceId}/${taskName}/${taskInstanceId}?user=${userId}`;
+          } else {
+            // For other tabs, use the dynamic process name
+            getUrl = `${baseUrl}/processes/${domain}/${processName}/${processInstanceId}/${taskName}/${taskInstanceId}?user=${userId}`;
+          }
 
           const getResponse = await fetch(getUrl, {
             method: 'GET',
@@ -208,16 +232,12 @@ const ApprovalTable: React.FC<ApprovalTableProps> = ({
                   taskData.parameters.expensePlanId;
                 break;
               case 'handout-payment':
-                actualEntityId =
-                  taskData.parameters.handoutPayment?.id ||
-                  taskData.parameters.handout?.id ||
-                  taskData.parameters.handoutPaymentId;
+                // For handout payment, use the advance payment ID from the response
+                actualEntityId = taskData.parameters.advancePayment?.id;
                 break;
               case 'transfer-payment':
-                actualEntityId =
-                  taskData.parameters.transferPayment?.id ||
-                  taskData.parameters.transfer?.id ||
-                  taskData.parameters.transferPaymentId;
+                // For transfer advance payment, use the advance payment ID from the response
+                actualEntityId = taskData.parameters.advancePayment?.id;
                 break;
             }
           }
@@ -234,16 +254,23 @@ const ApprovalTable: React.FC<ApprovalTableProps> = ({
             updatedPayload.expenseRequestComment.expenseRequest = actualEntityId;
           } else if (tabConfig.key === 'expense-plan' && updatedPayload.expensePlanComment) {
             updatedPayload.expensePlanComment.expensePlan = actualEntityId;
-          } else if (tabConfig.key === 'handout-payment' && updatedPayload.handoutPaymentComment) {
-            updatedPayload.handoutPaymentComment.handoutPayment = actualEntityId;
-          } else if (
-            tabConfig.key === 'transfer-payment' &&
-            updatedPayload.transferPaymentComment
-          ) {
-            updatedPayload.transferPaymentComment.transferPayment = actualEntityId;
+          } else if (tabConfig.key === 'handout-payment' && updatedPayload.advancePaymentComment) {
+            // Handout payment uses the same payload structure as advance payment
+            updatedPayload.advancePaymentComment.advancePayment = actualEntityId;
+          } else if (tabConfig.key === 'transfer-payment' && updatedPayload.advancePaymentComment) {
+            // Transfer advance payment uses the same payload structure as advance payment
+            updatedPayload.advancePaymentComment.advancePayment = actualEntityId;
           }
 
-          const postUrl = `${baseUrl}/processes/${domain}/${processName}/${processInstanceId}/${taskName}/${taskInstanceId}?phase=complete&user=${userId}`;
+          // Now make the POST call with the correct entity ID
+          let postUrl: string;
+          if (tabConfig.key === 'handout-payment') {
+            // For handout payment, hardcode payAdvancePayment in the URL
+            postUrl = `${baseUrl}/processes/${domain}/payAdvancePayment/${processInstanceId}/${taskName}/${taskInstanceId}?phase=complete&user=${userId}`;
+          } else {
+            // For other tabs, use the dynamic process name
+            postUrl = `${baseUrl}/processes/${domain}/${processName}/${processInstanceId}/${taskName}/${taskInstanceId}?phase=complete&user=${userId}`;
+          }
 
           const postResponse = await fetch(postUrl, {
             method: 'POST',
@@ -267,10 +294,24 @@ const ApprovalTable: React.FC<ApprovalTableProps> = ({
         }
       }
 
-      // Clear selection
+      // Clear selection and show success toast
       setSelectedTasks([]);
+      setApprovalError(null);
+
+      // Show success toast notification
+      toast.success('FLOW is complete', {
+        description: 'Task approved successfully',
+        duration: 4000,
+      });
     } catch (error) {
-      setApprovalError(error instanceof Error ? error.message : 'Failed to approve tasks');
+      const errorMessage = error instanceof Error ? error.message : 'Failed to approve tasks';
+      setApprovalError(errorMessage);
+
+      // Show error toast notification
+      toast.error('Approval failed', {
+        description: errorMessage,
+        duration: 5000,
+      });
     } finally {
       setIsApproving(false);
     }

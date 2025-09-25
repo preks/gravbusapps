@@ -31,6 +31,7 @@ export const useFlowExecutionTasks = (
     currentPage?: number;
     pageSize?: number;
     searchTerm?: string;
+    filterTaskName?: string | null;
   },
 ): UseFlowExecutionTasksResult => {
   // State for tasks data
@@ -43,19 +44,19 @@ export const useFlowExecutionTasks = (
   const [internalCurrentPage, setInternalCurrentPage] = useState<number>(1);
   const [internalPageSize, setInternalPageSize] = useState<number>(20);
   const [internalSearchTerm, setInternalSearchTerm] = useState<string>('');
+  const [internalFilterTaskName, setInternalFilterTaskName] = useState<string | null>(null);
 
   // Use external pagination if provided, otherwise use internal state
   const currentPage = externalPagination?.currentPage ?? internalCurrentPage;
   const pageSize = externalPagination?.pageSize ?? internalPageSize;
   const searchTerm = externalPagination?.searchTerm ?? internalSearchTerm;
+  const filterTaskName = externalPagination?.filterTaskName ?? internalFilterTaskName;
 
   // Setters - use internal setters if no external pagination provided
   const setCurrentPage = externalPagination ? () => {} : setInternalCurrentPage;
   const setPageSize = externalPagination ? () => {} : setInternalPageSize;
   const setSearchTerm = externalPagination ? () => {} : setInternalSearchTerm;
-
-  // Filter state
-  const [filterTaskName, setFilterTaskName] = useState<string | null>(null);
+  const setFilterTaskName = externalPagination ? () => {} : setInternalFilterTaskName;
 
   // Action states
   const [completing, setCompleting] = useState<boolean>(false);

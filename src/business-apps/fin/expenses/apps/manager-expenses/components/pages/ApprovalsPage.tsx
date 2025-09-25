@@ -7,6 +7,7 @@ import {
   TabsBadge,
   PageLayout,
 } from '@newwork/nw-design-system';
+import { Toaster } from 'sonner';
 import { PiArrowLeft } from 'react-icons/pi';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 import { ApprovalRequest, ApprovalTabKey } from '../../types';
@@ -59,10 +60,13 @@ const ApprovalsPage: React.FC<ApprovalsPageProps> = ({ onNavigateBack, ...props 
   // Get current tab's pagination state
   const currentTabPagination = tabPagination[activeTab];
 
-  const { tasks, totalCount, isLoading, error, setFilterTaskName } = useFlowExecutionTasks(props, {
+  const currentTab = getTabByKey(activeTab);
+
+  const { tasks, totalCount, isLoading, error } = useFlowExecutionTasks(props, {
     currentPage: currentTabPagination.currentPage,
     pageSize: currentTabPagination.pageSize,
     searchTerm: currentTabPagination.searchTerm,
+    filterTaskName: currentTab?.processName || null,
   });
 
   // Function to refresh tab counts
@@ -114,14 +118,6 @@ const ApprovalsPage: React.FC<ApprovalsPageProps> = ({ onNavigateBack, ...props 
     refreshTabCounts();
     // The useFlowExecutionTasks hook will automatically refresh when the component re-renders
   }, [refreshTabCounts]);
-
-  // Update filter when tab changes
-  useEffect(() => {
-    const currentTab = getTabByKey(activeTab);
-    if (currentTab) {
-      setFilterTaskName(currentTab.processName);
-    }
-  }, [activeTab, setFilterTaskName]);
 
   // Fetch counts for all tabs on mount
   useEffect(() => {
@@ -260,6 +256,7 @@ const ApprovalsPage: React.FC<ApprovalsPageProps> = ({ onNavigateBack, ...props 
           </Tabs>
         </div>
       </PageLayout>
+      <Toaster position="bottom-right" />
     </div>
   );
 };
