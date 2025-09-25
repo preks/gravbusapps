@@ -271,6 +271,8 @@ export const TripScreen: React.FC<TripScreenProps> = (props) => {
     endTime: Date | undefined,
     isEndLocation: boolean = false
   ) => {
+    setStartLocationOverlap(null);
+    setEndLocationOverlap(null);
     if (!startDate) {
       return;
     }

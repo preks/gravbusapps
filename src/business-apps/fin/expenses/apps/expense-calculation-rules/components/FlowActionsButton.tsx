@@ -8,6 +8,8 @@ import {
 } from '@newwork/nw-design-system';
 import { getTranslationFromI18nKeyAndLabel as t } from '@/common/utils/windowUtils';
 import { env } from '@/common/env/EnvUtils';
+import { LightningIcon } from '@phosphor-icons/react';
+import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils';
 
 export interface FlowActionItem {
   nameKey: string;
@@ -36,19 +38,20 @@ const FlowActionsButton: React.FC<FlowActionsButtonProps> = ({ actions, onAction
     <DropdownMenu open={open} onOpenChange={setOpen}>
       <DropdownMenuTrigger asChild>
         <Button
-          variant="outline"
-          className="gba:flex gba:items-center gba:justify-center gba:gap-2 gba:pl-3 gba:pr-3 gba:h-8 gba:w-[100px] gba:rounded-full gba:shadow-none gba:mb-5"
+          variant="secondary"
+          className="gba:shadow-none gba:flex gba:items-center gba:justify-center gba:gap-2 gba:pl-3 gba:pr-3 gba:h-8 gba:w-[100px] gba:rounded-full gba:shadow-none gba:mb-5"
           style={{ border: '2px solid #EFEFEF' }}
           data-testid={dataTestId ? `${dataTestId}-flows-button` : 'flows-button'}
           onMouseEnter={() => setOpen(true)}
           
         >
-          <img
+          {/* <img
             src={`${baseUrl}/_next/static/media/lowcoder-icons/newwork/flow_min_20x20.svg`}
             alt="flows"
             className="gba:w-4 gba:h-4"
-          />
-          <span className="gba:font-bold gba:text-xs">{t('lowcoder:employee_list.flows_button.title', 'FLOWS')}</span>
+          /> */}
+          <LightningIcon color={open ? '#6c7fee' : '#000000'} weight={open ? 'fill' : 'regular'}></LightningIcon>
+          <span className="gba:font-bold gba:text-xs">{t('lowcoder:employee_list.flows_button.actions', 'Actions')}</span>
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent
@@ -75,11 +78,20 @@ const FlowActionsButton: React.FC<FlowActionsButtonProps> = ({ actions, onAction
                 // Use onSelect to prevent closing/triggering when "disabled" semantics apply
                 onSelect={(e) => {
                   if (action.disabled) { e.preventDefault(); return; }
-                  if (action.link) { window.location.href = action.link; return; }
-                  onAction?.(action);
+                  setOpen(false);
+                  if (action.link) {
+                    const link = action.link;
+                    if (link.startsWith('/platform/')) {
+                      navigateTo(link);
+                      return;
+                    }
+                    navigateTo(buildPlatformUrl(link));
+                    return;
+                  }
+                  setTimeout(() => { onAction?.(action); }, 0);
                 }}
               >
-                {iconUrl ? <img src={iconUrl} alt="icon" className="gba:w-4 gba:h-4" /> : <span className="gba:w-4" />}
+                {/* {iconUrl ? <img src={iconUrl} alt="icon" className="gba:w-4 gba:h-4" /> : <span className="gba:w-4" />} */}
                 <span className={action.disabled ? 'gba:font-bold gba:text-black' : ''}>{label}</span>
               </DropdownMenuItem>
             );

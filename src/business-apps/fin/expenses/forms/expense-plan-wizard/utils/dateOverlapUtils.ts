@@ -14,7 +14,6 @@ export const getOverlapWarningMessage = (
 ): { message: string; isError: boolean } | null => {
   // Handle different response structures
   const data = queryResponse.data || queryResponse;
-  
   if (!data) {
     return null;
   }
@@ -85,7 +84,7 @@ export const getOverlapWarningMessage = (
   ) {
     const expensePlan = data.ExpensePlan[0];
     const expensePlanTimeStampStart =dayjs(expensePlan.startDate).format(getDateFormat('date-long'))
-    const expensePlanTimeStampEnd = dayjs(expensePlan.startDate).format(getDateFormat('date-long'))
+    const expensePlanTimeStampEnd = dayjs(expensePlan.endDate).format(getDateFormat('date-long'))
     const message = getTranslationFromI18nKeyAndLabel(
       'lowcoder:add_items_to_plan.add_trip_info_to_plan.period_overlapping_planned_event_plan',
       `The selected date overlaps with a planned event: Expense Plan ${expensePlan.title} from ${expensePlanTimeStampStart} to ${expensePlanTimeStampEnd}. Please review before submitting if adjustments are needed.`,

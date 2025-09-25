@@ -20,7 +20,7 @@ import { DataContainer } from "@/components/layout/dataContainer/DataContainer";
 import { AppAction } from "@/components/app-action/AppAction";
 import { AppActionButton } from "@/components/app-action-button/AppActionButton";
 import { FlowContextName } from "@/common/types/FlowRegistryTypes";
-import { Building2, Calendar, User, Target, ChevronUp, ChevronDown } from "lucide-react";
+import { Building2, Calendar, Target, ChevronUp, ChevronDown } from "lucide-react";
 import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils';
 import { formatDate } from "@/common/data/investment";
 import { formatCurrencyParts } from '@/common/utils/numberFormatter';
@@ -341,6 +341,12 @@ const RealEstateInvestmentsList: React.FC<RealEstateInvestmentsListProps> = (con
         actions: (
           <AppAction
             contextsArray={[FlowContextName.createInvestment]}
+            externalContextData={{ 
+              investmentGroup: 'REAL_ESTATE',
+              investmentGroupRef: 'InvestmentGroup:v1:REAL_ESTATE',
+              fromView: 'investments',
+              fromSubView: 'real-estate'
+            }}
             accessToken={accessToken}
             data-testid="real-estate-investments-add-action"
             emptyStateBehavior="hide"
