@@ -1,6 +1,5 @@
 import React, { useCallback, useMemo } from 'react';
 import {
-  Card,
   CardContent,
   CardDescription,
   CardHeader,
@@ -11,16 +10,11 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-  Badge,
-  Button,
-  Spinner
+  Badge
 } from '@newwork/nw-design-system';
-import { 
-  RefreshCw,
-  Building2
-} from 'lucide-react';
+import { Building2 } from 'lucide-react';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
-import { useRealEstateReportsData } from "../hooks/useRealEstateReportsData";
+import { useUniversalInvestmentReportsAnalytics, TableStateWrapper } from "../../components/shared";
 import { RealEstateReportFilters } from '../types';
 import { buildPlatformUrl, navigateTo } from '@/common/utils/navigationUtils';
 import { createInvestmentReportColumns } from '@/business-apps/crm/investments/apps/investment-record/components/shared/columnDefinitions';
@@ -52,18 +46,18 @@ export const RealEstateAnalyticsTable: React.FC<RealEstateAnalyticsTableProps> =
     investmentType: investmentType
   }), [filters.startDate, filters.endDate, investmentType]);
 
-  // Use the new data source
+  // Use the universal reports data hook for Real Estate
   const {
     reports,
     totalCount,
     isLoading,
     error,
     refetch
-  } = useRealEstateReportsData({
+  } = useUniversalInvestmentReportsAnalytics({
     accessToken,
     userInfo,
     filters: stableFilters,
-    additionalData: {}
+    investmentGroup: 'REAL_ESTATE'
   });
 
   // Create dynamic columns using the same pattern as EquityAnalyticsTable
@@ -75,8 +69,16 @@ export const RealEstateAnalyticsTable: React.FC<RealEstateAnalyticsTableProps> =
         title: 'Investment',
         width: '200px',
         render: (record: any) => (
-          <div className="gba:flex gba:items-center gba:gap-2">
-            <Building2 className="gba:w-4 gba:h-4 gba:text-gray-500" />
+          <div style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: 'var(--nw-spacing-2)'
+          }}>
+            <Building2 style={{
+              width: 'var(--nw-spacing-4)',
+              height: 'var(--nw-spacing-4)',
+              color: 'var(--nw-muted-foreground)'
+            }} />
             <span className="gba:font-medium">{record.investment?.name || 'N/A'}</span>
           </div>
         )
@@ -102,7 +104,7 @@ export const RealEstateAnalyticsTable: React.FC<RealEstateAnalyticsTableProps> =
       investmentType, // investment type code
       undefined, // liquidFundTypeCode - not applicable for real estate
       catalogData,
-      accessToken,
+      undefined, // Remove accessToken to exclude actions column
       mockInvestmentForContext, // Provide investment group context
       undefined  // mainTypeSpecificData - not applicable for reports-view
     );
@@ -120,33 +122,14 @@ export const RealEstateAnalyticsTable: React.FC<RealEstateAnalyticsTableProps> =
     navigateTo(detailsUrl);
   }, []);
 
-  if (isLoading) {
-    return (
-      <div className="gba:flex gba:justify-center gba:items-center gba:h-64" data-testid={`${dataTestId}-loading`}>
-        <Spinner data-testid={`${dataTestId}-loading-spinner`} />
-      </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <Card>
-        <CardContent className="gba:p-6">
-          <div className="gba:text-center gba:text-red-600">
-            <Building2 className="gba:h-12 gba:w-12 gba:mx-auto gba:mb-4" />
-            <p className="gba:font-medium">{error}</p>
-            <Button onClick={refetch} className="gba:mt-4">
-              <RefreshCw className="gba:w-4 gba:h-4 gba:mr-2" />
-              Retry
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
-    );
-  }
-
   return (
-    <Card>
+    <TableStateWrapper
+      isLoading={isLoading}
+      error={error}
+      onRetry={refetch}
+      dataTestId={dataTestId}
+      icon={<Building2 />}
+    >
       <CardHeader>
         <CardTitle className="gba:flex gba:items-center" style={{ gap: 'var(--nw-spacing-2)' }}>
           <Building2 style={{ height: 'var(--nw-spacing-5)', width: 'var(--nw-spacing-5)', color: 'var(--nw-color-success-500)' }} />
@@ -165,8 +148,8 @@ export const RealEstateAnalyticsTable: React.FC<RealEstateAnalyticsTableProps> =
                 {columns.map((column) => (
                   <TableHead 
                     key={column.key}
-                    className="gba:text-left"
                     style={{ 
+                      textAlign: 'left',
                       width: column.width,
                       fontWeight: 'var(--nw-font-weight-semibold)', 
                       fontFamily: 'var(--nw-font-family-base)', 
@@ -182,7 +165,11 @@ export const RealEstateAnalyticsTable: React.FC<RealEstateAnalyticsTableProps> =
             <TableBody>
               {reports.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={columns.length} className="gba:text-center" style={{ padding: 'var(--nw-spacing-12) 0', color: 'var(--nw-color-text-secondary)' }}>
+                  <TableCell colSpan={columns.length} style={{
+                    textAlign: 'center',
+                    padding: 'var(--nw-spacing-12) 0',
+                    color: 'var(--nw-muted-foreground)'
+                  }}>
                     <div className="gba:flex gba:flex-col gba:items-center" style={{ gap: 'var(--nw-spacing-2)' }}>
                       <Building2 style={{ height: 'var(--nw-spacing-12)', width: 'var(--nw-spacing-12)', color: 'var(--nw-muted-foreground)' }} />
                       <p style={{ fontSize: 'var(--nw-text-lg)', fontWeight: 'var(--nw-font-weight-medium)' }}>No {investmentTypeValue} Data Found</p>
@@ -218,6 +205,6 @@ export const RealEstateAnalyticsTable: React.FC<RealEstateAnalyticsTableProps> =
           </Table>
         </div>
       </CardContent>
-    </Card>
+    </TableStateWrapper>
   );
 };

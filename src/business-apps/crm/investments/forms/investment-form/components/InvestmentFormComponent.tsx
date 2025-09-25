@@ -130,28 +130,6 @@ const formatDateForInput = (dateValue: any): string => {
 };
 
 
-// Helper function to get group display name from catalog data
-const getGroupDisplayName = (
-  groupRef: string | undefined, 
-  investmentCatalogData: any
-): string => {
-  if (!groupRef || !investmentCatalogData?.investmentGroups) {
-      return 'Investment Group';
-  }
-  
-  // Handle both full catalog references and short codes
-  const groupCode = groupRef.includes(':') ? groupRef.split(':')[2] : groupRef;
-  
-  // Find the group in catalog data
-  const group = investmentCatalogData.investmentGroups.find((g: any) => g.code === groupCode);
-  if (group) {
-    // Use translated value if available, otherwise use the value or code
-    return group.translations?.[0]?.value || group.value || group.code;
-  }
-  
-  // Fallback to formatted code
-  return groupCode ? groupCode.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase()) : 'Investment Group';
-};
 
 
 type FormStep = 'select' | 'form';
@@ -184,6 +162,14 @@ export const InvestmentFormComponent: React.FC = () => {
     businessAppContext.additionalData?.psi_taskPayload?.psi_initialParameters?.investmentId;
   const preSelectedGroup = getInvestmentGroupFromContext(businessAppContext.additionalData);
   const isUpdate = Boolean(externalInvestmentId);
+  
+  // Helper function to detect if current context is Overview tab
+  const isOverviewContext = () => {
+    const additionalData = businessAppContext.additionalData;
+    const fromSubView = additionalData?.fromSubView || additionalData?.subView;
+    return fromSubView === 'overview' || fromSubView === 'all' || (!fromSubView && !preSelectedGroup);
+  };
+
 
   // Liquid fund flow states
   const isLiquidFund = formValues.group === 'LIQUID_FUND';
@@ -467,7 +453,10 @@ export const InvestmentFormComponent: React.FC = () => {
   if (currentStep === 'select') {
     return (
       <div data-testid={`${prefixDataTestId}-group-selection`}>
-        <GroupSelectSegment onGroupSelect={handleGroupSelect} />
+        <GroupSelectSegment 
+          onGroupSelect={handleGroupSelect} 
+          {...businessAppContext}
+        />
       </div>
     );
   }
@@ -521,8 +510,8 @@ export const InvestmentFormComponent: React.FC = () => {
       >
       <div data-testid={`${prefixDataTestId}-content`} className="gba:space-y-6">
         
-        {/* Group Display Header (if group is selected) */}
-        {formValues.group && (
+        {/* Group Display Header (only show for overview context) */}
+        {formValues.group && isOverviewContext() && (
           <div 
             data-testid={`${prefixDataTestId}-selected-group`}
             style={{ 
@@ -535,8 +524,8 @@ export const InvestmentFormComponent: React.FC = () => {
               border: '1px solid var(--nw-color-border-default)'
             }}
           >
-            {/* Clickable Badge with pencil icon for group changing (only in create mode without pre-selected group) */}
-            {!isUpdate && !preSelectedGroup ? (
+            {/* Back Button for overview context (only in create mode) */}
+            {!isUpdate ? (
               <Badge 
                 variant="secondary" 
                 style={{ 
@@ -549,7 +538,7 @@ export const InvestmentFormComponent: React.FC = () => {
                   transition: 'background-color 0.2s ease',
                 }}
                 onClick={handleBack}
-                data-testid={formatDataTestId(`${prefixDataTestId}-change-group-badge`)}
+                data-testid={formatDataTestId(`${prefixDataTestId}-back-badge`)}
                 onMouseEnter={(e) => {
                   e.currentTarget.style.backgroundColor = 'var(--nw-color-surface-primary)';
                 }}
@@ -557,23 +546,10 @@ export const InvestmentFormComponent: React.FC = () => {
                   e.currentTarget.style.backgroundColor = '';
                 }}
               >
-                {getGroupDisplayName(formValues.group, investmentCatalogData)}
+                Back
                 <PiSwap style={{ width: '14px', height: '14px', opacity: 0.7 }} />
               </Badge>
-            ) : (
-              <Badge 
-                variant="secondary" 
-                style={{ 
-                  display: 'flex', 
-                  alignItems: 'center', 
-                  gap: 'var(--nw-spacing-xs)',
-                  fontSize: '0.875rem',
-                  fontWeight: 500
-                }}
-              >
-                {getGroupDisplayName(formValues.group, investmentCatalogData)}
-              </Badge>
-            )}
+            ) : null}
             </div>
           )}
 

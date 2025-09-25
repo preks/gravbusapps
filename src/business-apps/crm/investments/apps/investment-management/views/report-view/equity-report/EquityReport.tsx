@@ -1,37 +1,23 @@
 import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-  Button,
   Tabs,
   TabsContent,
   TabsList,
   TabsTrigger,
-  Alert
+  Alert,
+  Spinner
 } from '@newwork/nw-design-system';
 import { toast } from 'sonner';
-import { DatePicker } from 'antd';
-import { 
-  FilterIcon
-} from 'lucide-react';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
 import { EquityAnalyticsFilters } from './types';
-import dayjs from 'dayjs';
 import { EquityAnalyticsTable } from './components/EquityAnalyticsTable';
 import { useEquityInvestmentTypes } from './hooks/useEquityInvestmentTypes';
 import { useGetInvestmentCatalogData } from '@/business-apps/crm/investments/forms/investment-form/queries/InvestmentCatalogQueries';
 import { buildPlatformUrl } from '@/common/utils/navigationUtils';
+import { ReportFilterPanel, useReportFilters } from '../components/shared';
 
-// Using individual DatePicker components for start and end dates
+// Using separate DatePicker components for start and end dates
 
 interface EquityReportProps extends BusinessAppContextProps {
   'data-testid'?: string;
@@ -153,62 +139,8 @@ export const EquityReport: React.FC<EquityReportProps> = ({
     return () => window.removeEventListener('popstate', handlePopState);
   }, [getInitialInvestmentType]);
 
-  // Filter states - Only time period filtering
-  const [timeFilter, setTimeFilter] = useState<string>('all');
-  const [dateRange, setDateRange] = useState<[dayjs.Dayjs | null, dayjs.Dayjs | null] | null>(null);
-
-  // Calculate date strings using same logic as individual investment record reports
-  const { startDateString, endDateString } = useMemo(() => {
-    if (dateRange && dateRange[0] && dateRange[1]) {
-      return {
-        startDateString: dateRange[0].format('YYYY-MM-DD'),
-        endDateString: dateRange[1].format('YYYY-MM-DD')
-      };
-    } else if (timeFilter !== 'all') {
-      const now = dayjs();
-      let calculatedStartDate: dayjs.Dayjs | null = null;
-      switch (timeFilter) {
-        case 'last7days': calculatedStartDate = now.subtract(7, 'days'); break;
-        case 'last30days': calculatedStartDate = now.subtract(30, 'days'); break;
-        case 'last3months': calculatedStartDate = now.subtract(3, 'months'); break;
-        case 'last6months': calculatedStartDate = now.subtract(6, 'months'); break;
-        case 'lastyear': calculatedStartDate = now.subtract(1, 'year'); break;
-        default: calculatedStartDate = null;
-      }
-      if (calculatedStartDate) {
-        return {
-          startDateString: calculatedStartDate.format('YYYY-MM-DD'),
-          endDateString: now.format('YYYY-MM-DD')
-        };
-      }
-    }
-    
-    // Default to show all data if no filter is set (same as individual reports)
-    return {
-      startDateString: undefined,
-      endDateString: undefined
-    };
-  }, [dateRange, timeFilter]);
-
-  // Filter change handlers matching record reports pattern
-  const handleTimeFilterChange = (value: string) => {
-    setTimeFilter(value);
-    if (value !== 'all') {
-      setDateRange(null); // Clear date range when using time filter
-    }
-  };
-
-  const handleDateRangeChange = (dates: [dayjs.Dayjs | null, dayjs.Dayjs | null] | null) => {
-    setDateRange(dates);
-    if (dates && dates[0] && dates[1]) {
-      setTimeFilter('all'); // Clear time filter when using date range
-    }
-  };
-
-  const handleClearFilters = () => {
-    setTimeFilter('all');
-    setDateRange(null);
-  };
+  // Shared filter state and logic
+  const reportFilters = useReportFilters();
 
   // Find the selected investment type from catalog
   const selectedInvestmentType = useMemo(() => {
@@ -219,19 +151,28 @@ export const EquityReport: React.FC<EquityReportProps> = ({
   // Create filters for equity analytics (with investment type filtering)
   const equityAnalyticsFilters = useMemo((): EquityAnalyticsFilters => {
     const filters = {
-      startDate: startDateString,
-      endDate: endDateString,
+      startDate: reportFilters.computedFilters.startDate,
+      endDate: reportFilters.computedFilters.endDate,
       investmentType: selectedInvestmentType?.code || undefined
     };
 
     return filters;
-  }, [startDateString, endDateString, selectedInvestmentType, activeSubTab]);
+  }, [reportFilters.computedFilters.startDate, reportFilters.computedFilters.endDate, selectedInvestmentType, activeSubTab]);
 
 
 
   // Show loading state while investment types are being fetched
   const showLoadingWarning = typesLoading && !typesError;
   const showErrorWarning = typesError && effectiveInvestmentTypes.length === 0;
+
+  // Don't render filter-dependent content until filters are initialized
+  if (!reportFilters.filtersInitialized) {
+    return (
+      <div className="gba:flex gba:justify-center gba:items-center" style={{ height: 'var(--nw-spacing-64)' }}>
+        <Spinner data-testid={`${dataTestId}-loading-spinner`} />
+      </div>
+    );
+  }
 
   return (
     <div className="gba:space-y-6 gba:p-6" data-testid={dataTestId}>
@@ -249,60 +190,13 @@ export const EquityReport: React.FC<EquityReportProps> = ({
       )}
 
       {/* Filters Section */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="gba:flex gba:items-center gba:gap-2">
-            <FilterIcon className="gba:h-5 gba:w-5" />
-            {getTranslationFromI18nKeyAndLabel('filters.title', 'Filters')}
-          </CardTitle>
-          <CardDescription>
-            {getTranslationFromI18nKeyAndLabel('equity.analytics.filters.description', 'Configure time period for the equity analytics view')}
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="gba:flex gba:flex-wrap gba:items-center gba:gap-4 gba:mb-4">
-            <div className="gba:flex gba:items-center gba:gap-2">
-              <label className="gba:text-sm gba:font-medium">{getTranslationFromI18nKeyAndLabel('filters.timePeriod', 'Time Period:')}</label>
-              <Select value={timeFilter} onValueChange={handleTimeFilterChange} data-testid={`${dataTestId}-time-period-select`}>
-                <SelectTrigger className="gba:w-[150px]" data-testid={`${dataTestId}-time-period-trigger`}>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent data-testid={`${dataTestId}-time-period-content`}>
-                  <SelectItem value="all" data-testid={`${dataTestId}-time-period-item-all`}>{getTranslationFromI18nKeyAndLabel('filters.timePeriod.allTime', 'All Time')}</SelectItem>
-                  <SelectItem value="last7days" data-testid={`${dataTestId}-time-period-item-last7days`}>{getTranslationFromI18nKeyAndLabel('filters.timePeriod.last7Days', 'Last 7 Days')}</SelectItem>
-                  <SelectItem value="last30days" data-testid={`${dataTestId}-time-period-item-last30days`}>{getTranslationFromI18nKeyAndLabel('filters.timePeriod.last30Days', 'Last 30 Days')}</SelectItem>
-                  <SelectItem value="last3months" data-testid={`${dataTestId}-time-period-item-last3months`}>{getTranslationFromI18nKeyAndLabel('filters.timePeriod.last3Months', 'Last 3 Months')}</SelectItem>
-                  <SelectItem value="last6months" data-testid={`${dataTestId}-time-period-item-last6months`}>{getTranslationFromI18nKeyAndLabel('filters.timePeriod.last6Months', 'Last 6 Months')}</SelectItem>
-                  <SelectItem value="lastyear" data-testid={`${dataTestId}-time-period-item-lastyear`}>{getTranslationFromI18nKeyAndLabel('filters.timePeriod.lastYear', 'Last Year')}</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            
-            <div className="gba:flex gba:items-center gba:gap-2">
-              <label className="gba:text-sm gba:font-medium">{getTranslationFromI18nKeyAndLabel('filters.dateRange', 'Date Range:')}</label>
-              <DatePicker.RangePicker
-                value={dateRange}
-                onChange={handleDateRangeChange}
-                format="DD/MM/YYYY"
-                placeholder={[
-                  getTranslationFromI18nKeyAndLabel('filters.dateRange.startDate', 'Start Date'),
-                  getTranslationFromI18nKeyAndLabel('filters.dateRange.endDate', 'End Date')
-                ]}
-                allowClear={true}
-              />
-            </div>
-            
-            <Button 
-              onClick={handleClearFilters}
-              variant="outline"
-              className="gba:ml-auto"
-              data-testid={`${dataTestId}-clear-filters`}
-            >
-              {getTranslationFromI18nKeyAndLabel('filters.clearFilters', 'Clear Filters')}
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
+      <ReportFilterPanel
+        filters={reportFilters}
+        variant="card"
+        title={getTranslationFromI18nKeyAndLabel('filters.title', 'Filters')}
+        description={getTranslationFromI18nKeyAndLabel('equity.analytics.filters.description', 'Configure time period for the equity analytics view')}
+        data-testid={`${dataTestId}-filters`}
+      />
 
       {/* Equity Analytics Tables with Sub-tabs */}
       <Tabs value={activeSubTab} onValueChange={handleSetActiveSubTab} className="gba:w-full" data-testid={`${dataTestId}-tabs`}>

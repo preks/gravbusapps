@@ -10,13 +10,34 @@ import {
 import { useFormContext } from 'react-hook-form';
 import { EmployeeSelect } from '@/components/employee-select';
 import { formatDataTestId } from '@/common/utils/formatDataTestId';
+import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
 import { useInvestmentFormContext } from '../../context/InvestmentFormContext';
 
 const prefixDataTestId = 'InvestmentForm-InvestmentSegment';
 
+// Helper function to get investment type display name
+const getInvestmentTypeName = (group: string): string => {
+  if (!group) return 'Investment';
+  
+  const groupCode = group.split(':').pop() || group;
+  
+  switch (groupCode) {
+    case 'LIQUID_FUND':
+      return 'Liquid Fund';
+    case 'REAL_ESTATE':
+      return 'Real Estate';
+    case 'EQUITY':
+      return 'Equity';
+    default:
+      return 'Investment';
+  }
+};
+
 const InvestmentSegment: React.FC = () => {
   const { control } = useFormContext(); // Get form control from react-hook-form context
   const {
+    // Form values to get selected group
+    formValues,
     // Employee positions for owner selection
     employeePositions,
     employeePositionsLoading,
@@ -34,6 +55,9 @@ const InvestmentSegment: React.FC = () => {
     jobPositionName: emp.extraInfo?.jobPosition,
   })), [employeePositions]);
 
+  // Get dynamic investment type name
+  const investmentTypeName = getInvestmentTypeName(formValues.group);
+
   return (
     <div 
       data-testid={formatDataTestId(prefixDataTestId, 'Container')}
@@ -47,14 +71,14 @@ const InvestmentSegment: React.FC = () => {
           fontWeight: 600,
           marginBottom: 'var(--nw-spacing-xs)'
         }}>
-          Investment Information
+          {getTranslationFromI18nKeyAndLabel('investment.form.typeInformation', `${investmentTypeName} Information`)}
         </h3>
         <p style={{
           margin: 0,
           color: 'var(--nw-color-text-secondary)',
           fontSize: '0.875rem'
         }}>
-          Basic information about the investment
+          {getTranslationFromI18nKeyAndLabel('investment.form.basicInformation', `Basic information about the ${investmentTypeName.toLowerCase()}`)}
         </p>
       </div>
 
@@ -66,7 +90,7 @@ const InvestmentSegment: React.FC = () => {
           render={({ field }) => (
             <FormItem>
               <FormLabel>
-                Investment Owner <span style={{ color: 'var(--nw-color-danger-500)' }}>*</span>
+                {getTranslationFromI18nKeyAndLabel('investment.form.typeOwner', `${investmentTypeName} Owner`)} <span style={{ color: 'var(--nw-color-danger-500)' }}>*</span>
               </FormLabel>
               <FormControl>
                 <EmployeeSelect
@@ -77,7 +101,7 @@ const InvestmentSegment: React.FC = () => {
                   loading={Boolean(employeePositionsLoading)}
                   onLoadMore={loadMoreEmployeePositions}
                   hasMore={Boolean(employeePositionsHasMore)}
-                  placeholder="Select investment owner"
+                  placeholder={getTranslationFromI18nKeyAndLabel('investment.form.selectTypeOwner', `Select ${investmentTypeName.toLowerCase()} owner`)}
                   data-testid={formatDataTestId(prefixDataTestId, 'OwnerSelect')}
                 />
               </FormControl>
@@ -93,13 +117,13 @@ const InvestmentSegment: React.FC = () => {
           render={({ field }) => (
             <FormItem>
               <FormLabel>
-                Investment Name <span style={{ color: 'var(--nw-color-danger-500)' }}>*</span>
+                {getTranslationFromI18nKeyAndLabel('investment.form.typeName', `${investmentTypeName} Name`)} <span style={{ color: 'var(--nw-color-danger-500)' }}>*</span>
               </FormLabel>
               <FormControl>
                 <Input
                   {...field}
                   value={field.value || ''}
-                  placeholder="Enter investment name"
+                  placeholder={getTranslationFromI18nKeyAndLabel('investment.form.enterTypeName', `Enter ${investmentTypeName.toLowerCase()} name`)}
                   data-testid={formatDataTestId(prefixDataTestId, 'NameInput')}
                 />
               </FormControl>
