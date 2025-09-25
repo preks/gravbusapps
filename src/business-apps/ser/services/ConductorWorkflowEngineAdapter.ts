@@ -1712,14 +1712,12 @@ export class ConductorWorkflowEngineAdapter implements WorkflowEngine {
    */
   async postFlowComment(flowId: string, userId: string, comment: string, visibility?: string, stepIndex?: number): Promise<Comment> {
     try {
-      console.log(`[ConductorAdapter] Adding flow comment to: ${flowId} by user: ${userId} with visibility: ${visibility || 'EXTERNAL'}`);
+      console.log(`[ConductorAdapter] Adding flow comment to: ${flowId} by user: ${userId}`);
 
-      const result = await this.makeRequest(`/flows/${flowId}/comments`, {
+      const result = await this.makeRequest(`/flows/${flowId}/comment`, {
         method: 'POST',
         body: JSON.stringify({
           comment,
-          visibility: visibility || 'EXTERNAL',
-          stepIndex,
           userId
         }),
       });
