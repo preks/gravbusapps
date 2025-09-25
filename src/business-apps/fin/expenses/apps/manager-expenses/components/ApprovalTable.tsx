@@ -168,25 +168,100 @@ const ApprovalTable: React.FC<ApprovalTableProps> = ({
           }
 
           const baseUrl = env('NEXT_PUBLIC_BASE_URL') ?? '';
-          const url = `${baseUrl}/processes/${domain}/${processName}/${processInstanceId}/${taskName}/${taskInstanceId}?phase=complete&user=${userId}`;
 
-          const response = await fetch(url, {
+          // First, make a GET call to get the actual entity ID
+          const getUrl = `${baseUrl}/processes/${domain}/${processName}/${processInstanceId}/${taskName}/${taskInstanceId}?user=${userId}`;
+
+          const getResponse = await fetch(getUrl, {
+            method: 'GET',
+            headers: {
+              'Content-Type': 'application/json',
+              Authorization: `Bearer ${accessToken}`,
+            },
+          });
+
+          if (!getResponse.ok) {
+            throw new Error(`GET request failed: ${getResponse.status} ${getResponse.statusText}`);
+          }
+
+          const taskData = await getResponse.json();
+
+          // Extract the actual entity ID from the response
+          let actualEntityId = null;
+          if (taskData.parameters) {
+            switch (tabConfig.key) {
+              case 'advance-payment':
+                actualEntityId = taskData.parameters.advancePayment?.id;
+                break;
+              case 'expense-request':
+                // Try different possible parameter names for expense request
+                actualEntityId =
+                  taskData.parameters.expenseRequest?.id ||
+                  taskData.parameters.request?.id ||
+                  taskData.parameters.expenseRequestId;
+                break;
+              case 'expense-plan':
+                // Try different possible parameter names for expense plan
+                actualEntityId =
+                  taskData.parameters.expensePlan?.id ||
+                  taskData.parameters.plan?.id ||
+                  taskData.parameters.expensePlanId;
+                break;
+              case 'handout-payment':
+                actualEntityId =
+                  taskData.parameters.handoutPayment?.id ||
+                  taskData.parameters.handout?.id ||
+                  taskData.parameters.handoutPaymentId;
+                break;
+              case 'transfer-payment':
+                actualEntityId =
+                  taskData.parameters.transferPayment?.id ||
+                  taskData.parameters.transfer?.id ||
+                  taskData.parameters.transferPaymentId;
+                break;
+            }
+          }
+
+          if (!actualEntityId) {
+            throw new Error(`Could not find entity ID in task data for ${tabConfig.key}`);
+          }
+
+          // Update the approval payload with the actual entity ID
+          const updatedPayload = { ...approvalPayload };
+          if (tabConfig.key === 'advance-payment' && updatedPayload.advancePaymentComment) {
+            updatedPayload.advancePaymentComment.advancePayment = actualEntityId;
+          } else if (tabConfig.key === 'expense-request' && updatedPayload.expenseRequestComment) {
+            updatedPayload.expenseRequestComment.expenseRequest = actualEntityId;
+          } else if (tabConfig.key === 'expense-plan' && updatedPayload.expensePlanComment) {
+            updatedPayload.expensePlanComment.expensePlan = actualEntityId;
+          } else if (tabConfig.key === 'handout-payment' && updatedPayload.handoutPaymentComment) {
+            updatedPayload.handoutPaymentComment.handoutPayment = actualEntityId;
+          } else if (
+            tabConfig.key === 'transfer-payment' &&
+            updatedPayload.transferPaymentComment
+          ) {
+            updatedPayload.transferPaymentComment.transferPayment = actualEntityId;
+          }
+
+          const postUrl = `${baseUrl}/processes/${domain}/${processName}/${processInstanceId}/${taskName}/${taskInstanceId}?phase=complete&user=${userId}`;
+
+          const postResponse = await fetch(postUrl, {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
               Authorization: `Bearer ${accessToken}`,
             },
-            body: JSON.stringify(approvalPayload),
+            body: JSON.stringify(updatedPayload),
           });
 
-          if (!response.ok) {
-            const responseText = await response.text();
+          if (!postResponse.ok) {
+            const responseText = await postResponse.text();
             throw new Error(
-              `API request failed: ${response.status} - ${response.statusText} - ${responseText}`,
+              `POST request failed: ${postResponse.status} - ${postResponse.statusText} - ${responseText}`,
             );
           }
 
-          await response.json();
+          await postResponse.json();
         } catch (taskError) {
           throw taskError; // Re-throw to be caught by the outer try-catch
         }
