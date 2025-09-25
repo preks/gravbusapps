@@ -21,15 +21,15 @@ import {
   DeleteOutlined
 } from '@ant-design/icons';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, Input } from '@newwork/nw-design-system';
+import { Modal } from 'antd';
 import { toast } from 'sonner';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
-import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient';
 import { DebouncedInput } from '@/components/data-filter/DebouncedInput';
 import { DataContainer } from '@/components/layout/dataContainer';
 import { useEmployeeData } from '@/business-apps/crm/common/hooks/useEmployeeData';
 import { startProcess } from '@/common/utils/start-process';
 import { useGetInvestmentDocumentsByLeadId } from '@/common/data/investment/hooks/useInvestmentLeads';
-import type { InvestmentDocument } from '@/common/data/investment/types';
+import type { InvestmentDocument, BaseInvestmentDocument } from '@/common/data/investment/types';
 import { useProcessCompletion } from '@/common/hooks/useProcessCompletion';
 import { DndContext, PointerSensor, useSensor, useSensors, DragEndEvent, DragStartEvent, DragOverlay, useDraggable, useDroppable } from '@dnd-kit/core';
 import { useRestClient } from '@/common/network/rest/useRestClient';
@@ -41,10 +41,9 @@ type Document = InvestmentDocument;
 /**
  * Helper function to determine if a document is a folder based on multiple detection criteria
  * @param doc - The document to analyze
- * @param enableLogging - Whether to log the analysis details (default: false)
  * @returns boolean - true if the document is determined to be a folder
  */
-const isDocumentFolder = (doc: Document, enableLogging: boolean = false): boolean => {
+const isDocumentFolder = (doc: Document): boolean => {
   // Multiple ways to detect a folder:
   // 1. folder field is true (when backend works correctly)
   // 2. has no file characteristics but has a name (common folder pattern)
@@ -63,27 +62,7 @@ const isDocumentFolder = (doc: Document, enableLogging: boolean = false): boolea
   const looksLikeFile = !!doc.mimeType || !!doc.file || !!doc.fileSize;
   
   // A folder should not have file characteristics
-  const result = isFolder && !looksLikeFile;
-  
-  if (enableLogging) {
-    console.log(`Document "${doc.name}" analysis:`, {
-      folder: doc.folder,
-      mimeType: doc.mimeType,
-      file: doc.file,
-      fileSize: doc.fileSize,
-      documentType: doc.documentType?.value,
-      documentGroup: doc.documentGroup?.value,
-      isFolderByField,
-      isFolderByContent,
-      isFolderByType,
-      isFolderByPattern,
-      isFolder,
-      looksLikeFile,
-      result
-    });
-  }
-  
-  return result;
+  return isFolder && !looksLikeFile;
 };
 
 interface DocumentFolder {
@@ -156,7 +135,6 @@ export const LeadDocuments: React.FC<LeadDocumentsProps> = ({
     { id: "actions", label: "Actions", visible: true, disabled: true }, // Always visible
   ]);
 
-  const graphQLClient = useGraphQLClient(context.accessToken);
   const { getEmployeeDisplayName } = useEmployeeData(context.accessToken);
 
   const openRenameFolder = (node: DocumentFolder) => {
@@ -526,9 +504,12 @@ export const LeadDocuments: React.FC<LeadDocumentsProps> = ({
 
     const docsByFolder: Record<string, Document[]> = {};
     for (const doc of docsForFilter) {
-      if ((doc.format || '').toUpperCase() === 'FILE' && doc.parentDocument) {
-        if (!docsByFolder[doc.parentDocument]) docsByFolder[doc.parentDocument] = [];
-        docsByFolder[doc.parentDocument].push(doc);
+      // Check if it's a file document (not a folder) and has a parent
+      const isFileDoc = !!doc.mimeType || !!doc.file || !!doc.fileSize;
+      const parentId = doc.parentDocument?.id;
+      if (isFileDoc && parentId) {
+        if (!docsByFolder[parentId]) docsByFolder[parentId] = [];
+        docsByFolder[parentId].push(doc);
       }
     }
 
@@ -544,7 +525,7 @@ export const LeadDocuments: React.FC<LeadDocumentsProps> = ({
         children: [],
       };
       folderNodeCache[f.id] = node;
-      const childFolders = allFolders.filter(cf => cf.parentDocument === f.id);
+      const childFolders = allFolders.filter(cf => cf.parentDocument?.id === f.id);
       node.children = childFolders.map(cf => buildNode(cf));
       return node;
     };
@@ -557,8 +538,8 @@ export const LeadDocuments: React.FC<LeadDocumentsProps> = ({
   const rootLevelFiles: Document[] = useMemo(() => {
     const docsForFilter = Array.isArray(filteredDocuments) ? filteredDocuments : [];
     return docsForFilter.filter(d => {
-      const fmt = (d.format || '').toUpperCase();
-      const isFile = fmt === 'FILE' || !!d.mimeType || !!d.file;
+      // Check if it's a file document (not a folder) and has no parent
+      const isFile = !!d.mimeType || !!d.file || !!d.fileSize;
       return isFile && !d.parentDocument;
     });
   }, [filteredDocuments]);
@@ -656,13 +637,12 @@ export const LeadDocuments: React.FC<LeadDocumentsProps> = ({
     });
   };
 
-  const isFile = (doc: Document) => (doc.format || '').toUpperCase() === 'FILE';
+  const isFile = (doc: Document) => !!doc.mimeType || !!doc.file || !!doc.fileSize;
   const totalDocuments = documents.filter(isFile).length;
   const totalSize = documents.filter(isFile).reduce((sum, doc) => sum + (doc.fileSize || 0), 0);
 
   const isFileDocument = (d: Document): boolean => {
-    const fmt = (d.format || '').toUpperCase();
-    return fmt === 'FILE' || !!d.mimeType || !!d.file;
+    return !!d.mimeType || !!d.file || !!d.fileSize;
   };
 
   const hasDescendantFiles = (startFolderId: string): boolean => {
@@ -672,12 +652,12 @@ export const LeadDocuments: React.FC<LeadDocumentsProps> = ({
     let visited = 0;
     while (toVisit.length && visited < safetyLimit) {
       const currentId = toVisit.pop() as string;
-      for (const d of documents) {
-        if (d.parentDocument === currentId) {
-          if (isFileDocument(d)) return true;
-          toVisit.push(d.id);
+        for (const d of documents) {
+          if (d.parentDocument?.id === currentId) {
+            if (isFileDocument(d)) return true;
+            toVisit.push(d.id);
+          }
         }
-      }
       visited += 1;
     }
     return false;
@@ -736,16 +716,40 @@ export const LeadDocuments: React.FC<LeadDocumentsProps> = ({
 
   const Droppable: React.FC<{ id: string; data: any; className?: string; children: React.ReactNode; disabled?: boolean }> = ({ id, data, className, children, disabled }) => {
     const { setNodeRef, isOver } = useDroppable({ id, data, disabled });
+    const showDropIndicator = isDragging && isOver && !disabled;
+    const isFolder = data?.targetFolderId !== undefined; // Check if this is a folder drop zone
     const combinedClass = `${className || ''} ${isOver ? 'gba:ring-2 gba:ring-blue-500 gba:bg-blue-50' : ''}`;
     return (
-      <div ref={setNodeRef} className={combinedClass} data-over={isOver}>
+      <div ref={setNodeRef} className={`gba:relative ${combinedClass}`} data-over={isOver}>
+        {showDropIndicator && (isFolder || id.includes('root')) && (
+          <div 
+            className="gba:absolute gba:left-0 gba:right-0 gba:top-1/2 gba:-translate-y-1/2 gba:flex gba:items-center gba:justify-center gba:rounded gba:border-2 gba:border-dashed gba:pointer-events-none gba:z-10"
+            style={{
+              backgroundColor: 'var(--nw-color-surface-primary)',
+              opacity: '0.9',
+              borderColor: 'var(--nw-color-primary-500)',
+              padding: 'var(--nw-spacing-sm) 0',
+              margin: '0 var(--nw-spacing-md)'
+            }}
+          >
+            <span 
+              className="gba:font-medium gba:text-sm"
+              style={{ color: 'var(--nw-color-primary-600)' }}
+            >
+              {id.includes('root') ? 'Drop to move to root level' : 'Drop into folder'}
+            </span>
+          </div>
+        )}
         {children}
       </div>
     );
   };
 
   const updateParentDocumentLocal = (docId: string, parentId: string | null) => {
-    setDocuments((prev) => prev.map(d => d.id === docId ? { ...d, parentDocument: parentId } : d));
+    setDocuments((prev) => prev.map(d => d.id === docId ? { 
+      ...d, 
+      parentDocument: parentId ? { id: parentId } as BaseInvestmentDocument : undefined 
+    } : d));
   };
 
   const isFolderAncestor = useCallback((ancestorId: string, folderId: string): boolean => {
@@ -755,7 +759,7 @@ export const LeadDocuments: React.FC<LeadDocumentsProps> = ({
     const maxHops = 1000;
     let hops = 0;
     while (current && hops < maxHops) {
-      const currentParentId: string | undefined = current.parentDocument || undefined;
+      const currentParentId: string | undefined = current.parentDocument?.id;
       if (!currentParentId) return false;
       if (currentParentId === ancestorId) return true;
       current = docById[currentParentId];
@@ -792,7 +796,7 @@ export const LeadDocuments: React.FC<LeadDocumentsProps> = ({
       // Revert the local change on error
       setDocuments((prev) => prev.map(d => d.id === docId ? { 
         ...d, 
-        parentDocument: previousParentId ? { id: previousParentId } as any : undefined 
+        parentDocument: previousParentId ? { id: previousParentId } as BaseInvestmentDocument : undefined 
       } : d));
       toast.error(e?.message || 'Failed to move document');
     }
@@ -800,6 +804,7 @@ export const LeadDocuments: React.FC<LeadDocumentsProps> = ({
 
   const handleDragEnd = async (event: DragEndEvent) => {
     setActiveDragItem(null);
+    setIsDragging(false);
     const active = event.active?.data?.current as any;
     const over = event.over?.data?.current as any;
     
@@ -826,9 +831,9 @@ export const LeadDocuments: React.FC<LeadDocumentsProps> = ({
         return;
       }
       
-      // Get item name for feedback
-      const itemName = documents.find(d => d.id === active.id)?.name || 'Item';
-      const targetName = targetFolderId ? (documents.find(d => d.id === targetFolderId)?.name || 'folder') : 'root';
+      // Get item name for feedback (currently unused but kept for potential future use)
+      // const itemName = documents.find(d => d.id === active.id)?.name || 'Item';
+      // const targetName = targetFolderId ? (documents.find(d => d.id === targetFolderId)?.name || 'folder') : 'root';
       
       // Update local state immediately for responsive UI
       updateParentDocumentLocal(active.id, targetFolderId);
@@ -853,6 +858,7 @@ export const LeadDocuments: React.FC<LeadDocumentsProps> = ({
   };
 
   const handleDragStart = (event: DragStartEvent) => {
+    setIsDragging(true);
     const current = event.active?.data?.current as any;
     
     if (!current) {

@@ -31,6 +31,8 @@ export interface Task {
   version?: number;
   // Raw sales task data for updates
   rawSalesTask?: any;
+  createdBy?: string;
+  creatorEmployee?: TaskEmployee;
 }
 
 export interface TaskStatisticItem {

@@ -1,30 +1,13 @@
 import React, { useState, useMemo, useCallback, useEffect } from 'react';
+import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
 import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-  Button,
   Tabs,
   TabsContent,
   TabsList,
   TabsTrigger,
   Alert,
-  Calendar,
-  Popover,
-  PopoverContent,
-  PopoverTrigger
+  Spinner
 } from '@newwork/nw-design-system';
-import { 
-  FilterIcon,
-  CalendarIcon
-} from 'lucide-react';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 import dayjs from 'dayjs';
 import { RealEstateAnalyticsTable } from './components/RealEstateAnalyticsTable';
@@ -32,9 +15,9 @@ import { useRealEstateInvestmentTypes } from './hooks/useRealEstateInvestmentTyp
 import { useGetInvestmentCatalogData } from '@/business-apps/crm/investments/forms/investment-form/queries/InvestmentCatalogQueries';
 import type { RealEstateReportFilters } from './types';
 import { buildPlatformUrl } from '@/common/utils/navigationUtils';
-import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
+import { ReportFilterPanel, useReportFilters } from '../components/shared';
 
-// Using individual DatePicker components for start and end dates
+// Using separate DatePicker components for start and end dates
 
 interface RealEstateReportProps extends BusinessAppContextProps {
   'data-testid'?: string;
@@ -143,42 +126,8 @@ export const RealEstateReport: React.FC<RealEstateReportProps> = ({
     };
   }, [getInitialInvestmentType]);
 
-  // Filter states - Use same pattern as individual investment record reports
-  const [timeFilter, setTimeFilter] = useState<string>('all');
-  const [dateRange, setDateRange] = useState<{from?: Date, to?: Date} | undefined>(undefined);
-
-  // Calculate date strings using same logic as individual investment record reports
-  const { startDateString, endDateString } = useMemo(() => {
-    if (dateRange && dateRange.from && dateRange.to) {
-      return {
-        startDateString: dayjs(dateRange.from).format('YYYY-MM-DD'),
-        endDateString: dayjs(dateRange.to).format('YYYY-MM-DD')
-      };
-    } else if (timeFilter !== 'all') {
-      const now = dayjs();
-      let calculatedStartDate: dayjs.Dayjs | null = null;
-      switch (timeFilter) {
-        case 'last7days': calculatedStartDate = now.subtract(7, 'days'); break;
-        case 'last30days': calculatedStartDate = now.subtract(30, 'days'); break;
-        case 'last3months': calculatedStartDate = now.subtract(3, 'months'); break;
-        case 'last6months': calculatedStartDate = now.subtract(6, 'months'); break;
-        case 'lastyear': calculatedStartDate = now.subtract(1, 'year'); break;
-        default: calculatedStartDate = null;
-      }
-      if (calculatedStartDate) {
-        return {
-          startDateString: calculatedStartDate.format('YYYY-MM-DD'),
-          endDateString: now.format('YYYY-MM-DD')
-        };
-      }
-    }
-    
-    // Default to show recent data if no filter is set
-    return {
-      startDateString: dayjs().subtract(1, 'year').format('YYYY-MM-DD'),
-      endDateString: dayjs().format('YYYY-MM-DD')
-    };
-  }, [dateRange, timeFilter]);
+  // Shared filter state and logic
+  const reportFilters = useReportFilters();
 
   // Find the selected investment type from catalog
   const selectedInvestmentType = useMemo(() => {
@@ -188,37 +137,27 @@ export const RealEstateReport: React.FC<RealEstateReportProps> = ({
   // Create filters for real estate analytics (with investment type filtering)
   const realEstateAnalyticsFilters = useMemo((): RealEstateReportFilters => {
     const filters = {
-      startDate: startDateString,
-      endDate: endDateString,
+      startDate: reportFilters.computedFilters.startDate,
+      endDate: reportFilters.computedFilters.endDate,
       investmentType: selectedInvestmentType?.code || undefined
     };
 
     return filters;
-  }, [startDateString, endDateString, selectedInvestmentType]);
+  }, [reportFilters.computedFilters.startDate, reportFilters.computedFilters.endDate, selectedInvestmentType]);
 
-  // Filter change handlers matching record reports pattern
-  const handleTimeFilterChange = (value: string) => {
-    setTimeFilter(value);
-    if (value !== 'all') {
-      setDateRange(undefined); // Clear date range when using time filter
-    }
-  };
-
-  const handleDateRangeChange = (range: {from?: Date, to?: Date} | undefined) => {
-    setDateRange(range);
-    if (range && range.from && range.to) {
-      setTimeFilter('all'); // Clear time filter when using date range
-    }
-  };
-
-  const handleClearFilters = () => {
-    setTimeFilter('all');
-    setDateRange(undefined);
-  };
 
   // Show loading state while investment types are being fetched
   const showLoadingWarning = typesLoading && !typesError;
   const showErrorWarning = typesError && effectiveInvestmentTypes.length === 0;
+
+  // Don't render filter-dependent content until filters are initialized
+  if (!reportFilters.filtersInitialized) {
+    return (
+      <div className="gba:flex gba:justify-center gba:items-center" style={{ height: 'var(--nw-spacing-64)' }}>
+        <Spinner data-testid={`${dataTestId}-loading-spinner`} />
+      </div>
+    );
+  }
 
   return (
     <div className="gba:space-y-6 gba:p-6" data-testid={dataTestId}>
@@ -236,73 +175,13 @@ export const RealEstateReport: React.FC<RealEstateReportProps> = ({
       )}
 
       {/* Filters Section */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="gba:flex gba:items-center gba:gap-2">
-            <FilterIcon className="gba:h-5 gba:w-5" />
-            Filters
-          </CardTitle>
-          <CardDescription>
-            Configure time period and currency for the real estate analytics view
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="gba:flex gba:flex-wrap gba:items-center gba:gap-4 gba:mb-4">
-            <div className="gba:flex gba:items-center gba:gap-2">
-              <label className="gba:text-sm gba:font-medium">Time Period:</label>
-              <Select value={timeFilter} onValueChange={handleTimeFilterChange}>
-                <SelectTrigger className="gba:w-[150px]">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Time</SelectItem>
-                  <SelectItem value="last7days">Last 7 Days</SelectItem>
-                  <SelectItem value="last30days">Last 30 Days</SelectItem>
-                  <SelectItem value="last3months">Last 3 Months</SelectItem>
-                  <SelectItem value="last6months">Last 6 Months</SelectItem>
-                  <SelectItem value="lastyear">Last Year</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            
-            <div className="gba:flex gba:items-center gba:gap-2">
-              <label className="gba:text-sm gba:font-medium">Date Range:</label>
-              <Popover>
-                <PopoverTrigger asChild>
-                  <Button
-                    variant="outline"
-                    className="gba:w-[280px] gba:justify-start gba:text-left gba:font-normal"
-                    data-testid={`${dataTestId}-date-range-trigger`}
-                  >
-                    <CalendarIcon className="gba:mr-2 gba:h-4 gba:w-4" />
-                    {dateRange && dateRange.from && dateRange.to
-                      ? `${dayjs(dateRange.from).format('DD/MM/YYYY')} - ${dayjs(dateRange.to).format('DD/MM/YYYY')}`
-                      : 'Select date range'}
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="gba:w-auto gba:p-0" align="start">
-                  <Calendar
-                    mode="range"
-                    selected={dateRange}
-                    onSelect={handleDateRangeChange}
-                    data-testid={`${dataTestId}-date-range-calendar`}
-                  />
-                </PopoverContent>
-              </Popover>
-            </div>
-            
-            
-            <Button 
-              onClick={handleClearFilters}
-              variant="outline"
-              className="gba:ml-auto"
-              data-testid={`${dataTestId}-clear-filters`}
-            >
-              Clear Filters
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
+      <ReportFilterPanel
+        filters={reportFilters}
+        variant="card"
+        title={getTranslationFromI18nKeyAndLabel('filters.title', 'Filters')}
+        description={getTranslationFromI18nKeyAndLabel('realEstate.analytics.filters.description', 'Configure time period for the real estate analytics view')}
+        data-testid={`${dataTestId}-filters`}
+      />
 
       {/* Real Estate Analytics Tables with Dynamic Sub-tabs */}
       {/*
