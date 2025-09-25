@@ -10,6 +10,7 @@ import { getCategoryIcon } from '../../../utils/iconMapping';
 import { useDesksForUser, useServicePortalCategories, useSharedFlowTemplates } from '../../../hooks';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 import { SERVICE_PORTAL_CONFIG } from '../../../config/servicePortalConfig';
+import { navigateTo } from '@/common/utils/navigationUtils';
 import { 
   ClockCounterClockwise,
   Notepad,
@@ -187,8 +188,9 @@ export const ServiceCatalog: React.FC<ServiceCatalogProps> = ({
         label: 'Service Desk',
         icon: ClockCounterClockwise,
         onClick: onServiceDeskClick || (() => {
-          // Navigate to Service Desk app using platform navigation with proper app parameter
-          window.location.href = '/ser/apps/service-desk?app=ServiceDesk';
+          // Navigate to Service Desk app using URL from navigationUtils.ts mapping
+          // This URL exists in PLATFORM_URL_TO_APP_MAPPING: '/platform/sales-demo/service-desk': 'ser/apps/service-desk'
+          navigateTo('/platform/sales-demo/service-desk');
         }),
         variant: 'ext2'
       });
