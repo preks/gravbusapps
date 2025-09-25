@@ -26,7 +26,7 @@ import { formatCurrencyParts } from '@/common/utils/numberFormatter';
 import { ColumnConfig } from "@/components/dataController";
 import { useInvestmentListController } from "../hooks/useInvestmentListController";
 import { useRealEstateInvestmentsFilters } from "../hooks/useRealEstateInvestmentsFilters";
-import { OwnerDisplay } from "../utils/ownerDisplayUtils";
+import { OwnerDisplay } from "../../../../../components/shared";
 
 
 export interface RealEstateInvestmentsListProps extends BusinessAppContextProps {}

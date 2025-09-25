@@ -15,7 +15,7 @@ import { formatCurrencyParts } from '@/common/utils/numberFormatter';
 import { useEquityInvestmentsFilters } from "../hooks/useEquityInvestmentsFilters";
 import { ColumnConfig } from "@/components/dataController";
 import { useInvestmentListController } from "../hooks/useInvestmentListController";
-import { OwnerDisplay } from "../utils/ownerDisplayUtils";
+import { OwnerDisplay } from "../../../../../components/shared";
 import { useProcessCompletion } from "@/common/hooks/useProcessCompletion";
 
 export interface EquityInvestmentsListProps extends BusinessAppContextProps {
