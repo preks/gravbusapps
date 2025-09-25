@@ -9,6 +9,7 @@ import {
 import { getTranslationFromI18nKeyAndLabel as t } from '@/common/utils/windowUtils';
 import { env } from '@/common/env/EnvUtils';
 import { LightningIcon } from '@phosphor-icons/react';
+import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils';
 
 export interface FlowActionItem {
   nameKey: string;
@@ -78,7 +79,15 @@ const FlowActionsButton: React.FC<FlowActionsButtonProps> = ({ actions, onAction
                 onSelect={(e) => {
                   if (action.disabled) { e.preventDefault(); return; }
                   setOpen(false);
-                  if (action.link) { window.location.href = action.link; return; }
+                  if (action.link) {
+                    const link = action.link;
+                    if (link.startsWith('/platform/')) {
+                      navigateTo(link);
+                      return;
+                    }
+                    navigateTo(buildPlatformUrl(link));
+                    return;
+                  }
                   setTimeout(() => { onAction?.(action); }, 0);
                 }}
               >
