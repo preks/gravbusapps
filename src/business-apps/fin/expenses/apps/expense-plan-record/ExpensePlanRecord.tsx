@@ -37,8 +37,8 @@ const ExpensePlanRecord: React.FC<BusinessAppContextProps> = ({ accessToken, add
     const hasAllowances = expensePlan?.expenseAllowance && expensePlan.expenseAllowance.length > 0;
     const hasTrips = expensePlan?.expenseRequestTrip && expensePlan.expenseRequestTrip.length > 0;
     const hasAdvancePayments = expensePlan?.advancePayment && expensePlan.advancePayment.length > 0;
-    const hasComments = expensePlan?.expensePlanComment && expensePlan.expensePlanComment.length > 0;
-    
+    const hasComments = (expensePlan?.expensePlanComment && expensePlan.expensePlanComment.length > 0) || 
+                       (expensePlan?.advancePayment && expensePlan.advancePayment.some(ap => ap.advancePaymentComment && ap.advancePaymentComment.length > 0));
     // Map tabs to their data availability
     const availableTabs: Record<string, boolean> = {
       'items': true, // Always available
@@ -100,7 +100,8 @@ const ExpensePlanRecord: React.FC<BusinessAppContextProps> = ({ accessToken, add
       const hasAllowances = expensePlan?.expenseAllowance && expensePlan.expenseAllowance.length > 0;
       const hasTrips = expensePlan?.expenseRequestTrip && expensePlan.expenseRequestTrip.length > 0;
       const hasAdvancePayments = expensePlan?.advancePayment && expensePlan.advancePayment.length > 0;
-      const hasComments = expensePlan?.expensePlanComment && expensePlan.expensePlanComment.length > 0;
+      const hasComments = (expensePlan?.expensePlanComment && expensePlan.expensePlanComment.length > 0) || 
+                         (expensePlan?.advancePayment && expensePlan.advancePayment.some(ap => ap.advancePaymentComment && ap.advancePaymentComment.length > 0));
       
       // Map tabs to their data availability
       const availableTabs: Record<string, boolean> = {
@@ -184,7 +185,10 @@ const ExpensePlanRecord: React.FC<BusinessAppContextProps> = ({ accessToken, add
           <span>{getTranslationFromI18nKeyAndLabel('lowcoder:expense_records.plan.comments', 'Comments')}</span>
         </div>
       ),
-      children: <ExpensePlanComments comments={expensePlan.expensePlanComment} />,
+      children: <ExpensePlanComments 
+        comments={expensePlan.expensePlanComment} 
+        advancePaymentComments={expensePlan.advancePayment?.flatMap(ap => ap.advancePaymentComment) || []}
+      />,
     }] : []),
   ];
   // Render header with expense plan summary
