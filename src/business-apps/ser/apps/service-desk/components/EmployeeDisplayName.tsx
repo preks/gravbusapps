@@ -2,6 +2,8 @@ import React from 'react';
 import { Spin, Tooltip } from 'antd';
 import { User } from 'lucide-react';
 import { useEmployeeName } from '../hooks/useEmployeeName';
+import { useEmployeeNameCache } from '../../../hooks/useEmployeeNameCache';
+import { useEmployeeNameCacheOptional } from '../../../services/employee-cache';
 
 export interface EmployeeDisplayNameProps {
   userId: string;
@@ -9,11 +11,15 @@ export interface EmployeeDisplayNameProps {
   showIcon?: boolean;
   fallback?: string;
   testId?: string;
+  /** Pre-fetched display name from batch operation (bypasses individual fetching) */
+  prefetchedDisplayName?: string;
+  /** Whether to use cache-aware hook (default: true) */
+  useCache?: boolean;
 }
 
 /**
  * Component to display employee name fetched from Employee table via GraphQL
- * Replaces UserDisplayName for service desk assignee display
+ * Now supports caching and pre-fetched names for better performance
  */
 export const EmployeeDisplayName: React.FC<EmployeeDisplayNameProps> = ({
   userId,
@@ -21,14 +27,33 @@ export const EmployeeDisplayName: React.FC<EmployeeDisplayNameProps> = ({
   showIcon = false,
   fallback = 'Unknown User',
   testId,
+  prefetchedDisplayName,
+  useCache = true,
 }) => {
-  const { displayName, isLoading, error } = useEmployeeName({
+  // Check if cache is available
+  const cacheContext = useEmployeeNameCacheOptional();
+  const shouldUseCache = useCache && cacheContext?.isInitialized;
+
+  // Always call both hooks but disable them appropriately
+  const cacheResult = useEmployeeNameCache({
     userId,
+    accessToken,
+    enabled: shouldUseCache && !prefetchedDisplayName, // Skip if we have prefetched data
+  });
+
+  const originalResult = useEmployeeName({
+    userId: shouldUseCache || prefetchedDisplayName ? '' : userId, // Empty userId to prevent API call
     accessToken,
   });
 
-  // Loading state
-  if (isLoading) {
+  // Determine which result to use
+  const { displayName, isLoading, error } = shouldUseCache ? cacheResult : originalResult;
+
+  // Use prefetched name if available
+  const finalDisplayName = prefetchedDisplayName || displayName;
+
+  // Don't show loading state if we have prefetched data
+  if (isLoading && !prefetchedDisplayName) {
     return (
       <div 
         className="gba:flex gba:items-center gba:gap-1 gba:text-xs gba:text-gray-400 gba:whitespace-nowrap" 
@@ -56,8 +81,8 @@ export const EmployeeDisplayName: React.FC<EmployeeDisplayNameProps> = ({
   }
 
   // Success state with name
-  const name = displayName || fallback;
-  const isUnknown = !displayName;
+  const name = finalDisplayName || fallback;
+  const isUnknown = !finalDisplayName;
 
   return (
     <Tooltip title={isUnknown ? `UserId: ${userId}` : `Employee: ${name} (${userId})`}>

@@ -11,6 +11,8 @@ import { TaskRecord } from './components/TaskRecord';
 import { ServiceDeskCatalogDiagnostic } from './components/ServiceDeskCatalogDiagnostic';
 import { getUserEmployeeId } from '../../utils/userUtils';
 import { PageLayout } from '@newwork/nw-design-system';
+import { EmployeeNameCacheProvider, enableCacheDebugConsole } from '../../services/employee-cache';
+import { ServiceDeskCatalogCacheProvider, enableCatalogCacheDebugConsole } from '../../services/catalog-cache';
 import { 
   HeadsetIcon,
   ChartBarIcon,
@@ -236,6 +238,12 @@ const ServiceDesk: React.FC<ServiceDeskProps> = ({
     employeeId: getUserEmployeeId(userInfo)
   });
 
+  // Enable cache debug console in development
+  React.useEffect(() => {
+    enableCacheDebugConsole();
+    enableCatalogCacheDebugConsole();
+  }, []);
+
   // Note: Access control is now handled by individual components (e.g., Tickets component)
 
   // Note: Default tab selection is now handled by the Tickets component
@@ -306,8 +314,24 @@ const ServiceDesk: React.FC<ServiceDeskProps> = ({
   };
 
   return (
-    <div data-testid="service-desk-container" className="gba:h-full">
-      <PageLayout
+    <EmployeeNameCacheProvider 
+      accessToken={accessToken}
+      config={{
+        enableDebugLogging: process.env.NODE_ENV === 'development',
+        ttl: 5 * 60 * 1000, // 5 minutes cache
+        maxEntries: 500, // Reasonable limit for service desk usage
+        batchTimeout: 50, // Faster batching for better UX
+      }}
+    >
+      <ServiceDeskCatalogCacheProvider
+        accessToken={accessToken}
+        config={{
+          enableDebugLogging: process.env.NODE_ENV === 'development',
+          ttl: 10 * 60 * 1000, // 10 minutes cache (catalog changes less frequently)
+        }}
+      >
+        <div data-testid="service-desk-container" className="gba:h-full">
+        <PageLayout
         headerTitle={getTranslationFromI18nKeyAndLabel(
           'services.desk.title',
           'Service Desk'
@@ -367,8 +391,10 @@ const ServiceDesk: React.FC<ServiceDeskProps> = ({
         className="gba:h-full"
       >
         {renderSubViewContent()}
-      </PageLayout>
-    </div>
+        </PageLayout>
+        </div>
+      </ServiceDeskCatalogCacheProvider>
+    </EmployeeNameCacheProvider>
   );
 };
 

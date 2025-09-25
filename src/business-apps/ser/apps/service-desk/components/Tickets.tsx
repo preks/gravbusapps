@@ -6,7 +6,7 @@ import { DeskQueue } from './DeskQueue';
 import { CompletedTickets } from './CompletedTickets';
 import { useUserCapabilities } from '../hooks/useUserCapabilities';
 import { useCompletedTickets } from '../hooks/useCompletedTickets';
-import { useServiceDeskCatalog } from '../hooks/useServiceDeskCatalog';
+import { useServiceDeskCatalogCache } from '../../../hooks/useServiceDeskCatalogCache';
 import { useMultipleDeskCounts } from '../hooks/useMultipleDeskCounts';
 import { getUserEmployeeId } from '../../../utils/userUtils';
 import type { StepReceiver } from 'packages/services-plus-core';
@@ -78,7 +78,7 @@ export const Tickets: React.FC<TicketsProps> = ({
     catalogEntries, 
     isLoading: catalogLoading, 
     error: catalogError 
-  } = useServiceDeskCatalog({
+  } = useServiceDeskCatalogCache({
     accessToken,
     userInfo,
   });

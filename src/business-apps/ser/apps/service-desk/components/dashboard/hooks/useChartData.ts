@@ -1,6 +1,6 @@
 import { useMemo } from 'react';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
-import { useServiceDeskCatalog } from '../../../hooks/useServiceDeskCatalog';
+import { useServiceDeskCatalogCache } from '../../../../../hooks/useServiceDeskCatalogCache';
 import { useMultipleDeskCounts } from '../../../hooks/useMultipleDeskCounts';
 import dayjs from 'dayjs';
 
@@ -28,7 +28,7 @@ export const useChartData = ({
   userInfo,
 }: UseChartDataProps): UseChartDataReturn => {
   // Get only the data we need for charts (avoid duplicate API calls)
-  const { catalogEntries } = useServiceDeskCatalog({ accessToken, userInfo });
+  const { catalogEntries } = useServiceDeskCatalogCache({ accessToken, userInfo });
   const deskKeys = catalogEntries.map(entry => entry.code);
   const { counts: deskCounts, isLoading: countsLoading } = useMultipleDeskCounts({ 
     deskKeys, 

@@ -3,7 +3,7 @@ import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 import { createConductorWorkflowEngine } from '../../../../../services';
 import { useMultipleDeskCounts } from '../../../hooks/useMultipleDeskCounts';
 import { useCompletedTickets } from '../../../hooks/useCompletedTickets';
-import { useServiceDeskCatalog } from '../../../hooks/useServiceDeskCatalog';
+import { useServiceDeskCatalogCache } from '../../../../../hooks/useServiceDeskCatalogCache';
 import { getUserEmployeeId } from '../../../../../utils/userUtils';
 import type { TaskStatistics } from 'packages/services-plus-core';
 import dayjs from 'dayjs';
@@ -47,7 +47,7 @@ export const useDashboardMetrics = ({
   const userId = getUserEmployeeId(userInfo);
 
   // Use existing hooks for data
-  const { catalogEntries } = useServiceDeskCatalog({ accessToken, userInfo });
+  const { catalogEntries } = useServiceDeskCatalogCache({ accessToken, userInfo });
   const deskKeys = catalogEntries.map(entry => entry.code);
   const { counts: deskCounts } = useMultipleDeskCounts({ deskKeys, accessToken, userInfo });
   const { tickets: completedTickets, totalCount: totalCompletedCount } = useCompletedTickets({ 

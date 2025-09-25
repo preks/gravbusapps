@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
 
@@ -45,6 +45,7 @@ import type { SubmittedRequest } from 'packages/services-plus-core';
 import { useTicketDetail } from '../hooks/useTicketDetail';
 import { useTicketActions } from '../hooks/useTicketActions';
 import { EmployeeDisplayName } from './EmployeeDisplayName';
+import { useEmployeeNamesBatch } from '../../../hooks/useEmployeeNamesBatch';
 import { formatRequestId, getSLAStatus } from '../../../utils';
 import { createConductorWorkflowEngine } from '../../../services';
 import { DynamicFormGenerator } from '../../../components/DynamicFormGenerator';
@@ -158,6 +159,24 @@ export const TaskRecord: React.FC<TaskRecordProps> = ({
       
       // Suggest user to refresh the queue to see updated tasks
     }
+  });
+
+  // Batch fetch employee names for all comment authors
+  const allCommentAuthorIds = useMemo(() => {
+    if (!ticket?.comments) return [];
+    
+    const userIds: string[] = [];
+    for (const comment of ticket.comments) {
+      const authorId = comment.authorId;
+      if (authorId) userIds.push(authorId);
+    }
+    return userIds;
+  }, [ticket?.comments]);
+
+  const { displayNames: batchedDisplayNames } = useEmployeeNamesBatch({
+    userIds: allCommentAuthorIds,
+    accessToken,
+    enabled: allCommentAuthorIds.length > 0,
   });
 
   // Calculate KPI cards data
@@ -792,11 +811,12 @@ export const TaskRecord: React.FC<TaskRecordProps> = ({
                           <div className="gba:flex gba:items-center gba:gap-2 gba:mb-1 gba:flex-wrap">
                             <span className="gba:text-sm gba:font-medium">
                               <EmployeeDisplayName
-                                userId={comment.commentedBy || comment.authorId || comment.userId}
+                                userId={comment.authorId}
                                 accessToken={accessToken}
                                 showIcon={false}
                                 fallback="Unknown User"
                                 testId={`comment-author-${comment.id}`}
+                                prefetchedDisplayName={batchedDisplayNames.get(comment.authorId)}
                               />
                             </span>
                             <span className="gba:text-xs gba:text-muted-foreground">

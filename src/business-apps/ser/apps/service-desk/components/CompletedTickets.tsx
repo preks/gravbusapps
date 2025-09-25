@@ -7,6 +7,7 @@ import type { StepInstance } from '../../../types';
 import { formatRequestId } from '../../../utils';
 import { useCompletedTickets } from '../hooks/useCompletedTickets';
 import { EmployeeDisplayName } from './EmployeeDisplayName';
+import { useEmployeeNamesBatch } from '../../../hooks/useEmployeeNamesBatch';
 import { CompletedTicketsKPICards } from './CompletedTicketsKPICards';
 
 // Import nw-design-system components
@@ -43,6 +44,27 @@ export const CompletedTickets: React.FC<CompletedTicketsProps> = ({
     userInfo,
     limit: pageSize,
     offset,
+  });
+
+  // Extract all userIds from tickets for batch fetching
+  const allUserIds = useMemo(() => {
+    if (!tickets) return [];
+    
+    const userIds: string[] = [];
+    for (const ticket of tickets) {
+      const ticketAny = ticket as any;
+      const completedBy = ticketAny.assignedTo || ticketAny.assignment?.assignedTo;
+      if (completedBy) userIds.push(completedBy);
+    }
+    
+    return userIds;
+  }, [tickets]);
+
+  // Batch fetch employee names for all users in the table
+  const { displayNames: batchedDisplayNames, isLoading: isBatchLoading } = useEmployeeNamesBatch({
+    userIds: allUserIds,
+    accessToken,
+    enabled: allUserIds.length > 0,
   });
 
   // Get status variant for badges with better color mapping
@@ -183,6 +205,7 @@ export const CompletedTickets: React.FC<CompletedTicketsProps> = ({
               showIcon={true}
               fallback="Completed User"
               testId={`completed-by-${record.id}`}
+              prefetchedDisplayName={batchedDisplayNames.get(completedBy)}
             />
           );
         }

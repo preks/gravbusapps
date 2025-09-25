@@ -11,6 +11,7 @@ import { DebugFlowModal } from './DebugFlowModal';
 import { useDeskTickets } from '../hooks/useDeskTickets';
 import { useTicketActions } from '../hooks/useTicketActions';
 import { EmployeeDisplayName } from './EmployeeDisplayName';
+import { useEmployeeNamesBatch } from '../../../hooks/useEmployeeNamesBatch';
 // Note: DebouncedInput would be preferred but using Input with onChange for now
 
 // Import nw-design-system components
@@ -117,9 +118,30 @@ export const DeskQueue: React.FC<DeskQueueProps> = ({
     userInfo,
   });
 
+  // Extract all userIds from tickets for batch fetching
+  const allUserIds = useMemo(() => {
+    if (!tickets) return [];
+    
+    const userIds: string[] = [];
+    for (const ticket of tickets) {
+      if (ticket.assignedToUserId) userIds.push(ticket.assignedToUserId);
+      if (ticket.claimedByUserId) userIds.push(ticket.claimedByUserId);
+    }
+    
+    return userIds;
+  }, [tickets]);
+
+  // Batch fetch employee names for all users in the table
+  const { displayNames: batchedDisplayNames, isLoading: isBatchLoading } = useEmployeeNamesBatch({
+    userIds: allUserIds,
+    accessToken,
+    enabled: allUserIds.length > 0,
+  });
+
   // Debug: Log tickets data whenever it changes
   useEffect(() => {
     console.log(`[ConductorAdapterRequester] 🔍 Received ${tickets?.length || 0} tickets for desk ${deskKey}:`);
+    console.log(`[ConductorAdapterRequester] 👥 Batch fetching ${allUserIds.length} unique employee names`);
     
     if (tickets && tickets.length > 0) {
       console.log(`[ConductorAdapterRequester] 📋 All tickets data:`, tickets.map(ticket => ({
@@ -134,7 +156,7 @@ export const DeskQueue: React.FC<DeskQueueProps> = ({
     } else {
       console.log(`[ConductorAdapterRequester] ❌ No tickets received or tickets is empty`);
     }
-  }, [tickets, deskKey]);
+  }, [tickets, deskKey, allUserIds.length]);
 
   // Ticket actions (claim, unclaim)
   const { 
@@ -441,6 +463,7 @@ export const DeskQueue: React.FC<DeskQueueProps> = ({
               showIcon={true}
               fallback="Assigned User"
               testId={`assigned-user-${record.id}`}
+              prefetchedDisplayName={batchedDisplayNames.get(assignedToUserId)}
             />
           );
         }
@@ -452,6 +475,7 @@ export const DeskQueue: React.FC<DeskQueueProps> = ({
               showIcon={true}
               fallback="Claimed User"
               testId={`claimed-user-${record.id}`}
+              prefetchedDisplayName={batchedDisplayNames.get(record.claimedByUserId)}
             />
           );
         }
