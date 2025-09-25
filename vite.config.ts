@@ -501,7 +501,23 @@ if (globalThis.__APP_BUILD_INFO__) {
         .relative(path.dirname(wrappedEntryPath), originalEntryPath)
         .replace(/\\/g, "/");
 
-      const wrapperContent = `// Auto-generated wrapper file
+      // Check if this is a types, queries, hooks, tabs, components, utils, views, pages, or services entry (contains any of these keywords in the path)
+      // These directories typically export multiple named exports but no single default export
+      const isNamedExportsOnlyEntry = entryKey.includes('/types') || entryKey.endsWith('/types') || 
+                                      entryKey.includes('/queries') || entryKey.endsWith('/queries') ||
+                                      entryKey.includes('/hooks') || entryKey.endsWith('/hooks') ||
+                                      entryKey.includes('/tabs') || entryKey.endsWith('/tabs') ||
+                                      entryKey.includes('/components') || entryKey.endsWith('/components') ||
+                                      entryKey.includes('/utils') || entryKey.endsWith('/utils') ||
+                                      entryKey.includes('/views') || entryKey.endsWith('/views') ||
+                                      entryKey.includes('/pages') || entryKey.endsWith('/pages') ||
+                                      entryKey.includes('/services') || entryKey.endsWith('/services');
+      
+      const wrapperContent = isNamedExportsOnlyEntry 
+        ? `// Auto-generated wrapper file for types/queries/hooks/tabs/components/utils/views/pages/services - re-export all named exports
+export * from '${relativeEntryPath.startsWith(".") ? relativeEntryPath : "./" + relativeEntryPath}';
+`
+        : `// Auto-generated wrapper file
 import { wrapWithUiCatalog } from '@/common/wrapWithUiCatalog';
 import OriginalComponent from '${
         relativeEntryPath.startsWith(".") ? relativeEntryPath : "./" + relativeEntryPath

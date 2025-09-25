@@ -20,13 +20,14 @@ import { DataContainer } from "@/components/layout/dataContainer/DataContainer";
 import { AppAction } from "@/components/app-action/AppAction";
 import { AppActionButton } from "@/components/app-action-button/AppActionButton";
 import { FlowContextName } from "@/common/types/FlowRegistryTypes";
-import { Building2, Calendar, User, Target, ChevronUp, ChevronDown } from "lucide-react";
+import { Building2, Calendar, Target, ChevronUp, ChevronDown } from "lucide-react";
 import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils';
 import { formatDate } from "@/common/data/investment";
 import { formatCurrencyParts } from '@/common/utils/numberFormatter';
 import { ColumnConfig } from "@/components/dataController";
 import { useInvestmentListController } from "../hooks/useInvestmentListController";
 import { useRealEstateInvestmentsFilters } from "../hooks/useRealEstateInvestmentsFilters";
+import { OwnerDisplay } from "../utils/ownerDisplayUtils";
 
 
 export interface RealEstateInvestmentsListProps extends BusinessAppContextProps {}
@@ -340,6 +341,12 @@ const RealEstateInvestmentsList: React.FC<RealEstateInvestmentsListProps> = (con
         actions: (
           <AppAction
             contextsArray={[FlowContextName.createInvestment]}
+            externalContextData={{ 
+              investmentGroup: 'REAL_ESTATE',
+              investmentGroupRef: 'InvestmentGroup:v1:REAL_ESTATE',
+              fromView: 'investments',
+              fromSubView: 'real-estate'
+            }}
             accessToken={accessToken}
             data-testid="real-estate-investments-add-action"
             emptyStateBehavior="hide"
@@ -525,15 +532,11 @@ const RealEstateInvestmentsList: React.FC<RealEstateInvestmentsListProps> = (con
                   )}
                   {visibleColumns.includes('owner') && (
                     <TableCell>
-                      <div className="gba:flex gba:items-center gba:gap-2">
-                        <User className="gba:w-4 gba:h-4 gba:text-gray-600" />
-                        <span>
-                          {investment.ownerEmployee?.displayName || 
-                           investment.ownerEmployee?.firstName && investment.ownerEmployee?.lastName
-                             ? `${investment.ownerEmployee.firstName} ${investment.ownerEmployee.lastName}`
-                             : "N/A"}
-                        </span>
-                      </div>
+                      <OwnerDisplay 
+                        ownerEmployee={investment.ownerEmployee}
+                        entityId={investment.id}
+                        testIdPrefix="real-estate-investment"
+                      />
                     </TableCell>
                   )}
                   {visibleColumns.includes('status') && (

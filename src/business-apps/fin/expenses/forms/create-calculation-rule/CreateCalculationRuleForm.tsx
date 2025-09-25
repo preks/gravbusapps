@@ -7,10 +7,9 @@ import OptionalCodesSection from './components/OptionalCodesSection';
 import { getTranslationFromI18nKeyAndLabel } from "@/common/utils/windowUtils";
 import { env } from '@/common/env/EnvUtils';
 import { BusinessAppContextProps } from '@/business-apps/types';
-import { plansAndRequestsInRangeQuery, buildGetAffectedExpensesQuery } from './queries/CreateCalculationRuleQueries';
+import { plansAndRequestsInRangeQuery } from './queries/CreateCalculationRuleQueries';
 import { useRestClient } from '@/common/network/rest/useRestClient';
 import FormHeader from './components/FormHeader';
-import AffectedExpensesModal from './components/AffectedExpensesModal';
 import { useCreateCalculationRuleForm } from './context/useCreateCalculationRuleForm';
 import { getCollidingDates, getDatesWithinRange } from './utils/validationUtils';
 import LabeledToggle from './components/LabeledToggle';
@@ -50,11 +49,6 @@ const CreateCalculationRuleForm: React.FC<CreateCalculationRuleFormProps> = ({ a
 
   const [showConfirmModal, setShowConfirmModal] = useState(false);
   const [collidingDatesState, setCollidingDatesState] = useState<any[]>([]);
-  const [affectedRows, setAffectedRows] = useState<any[]>([]);
-  const [affectedSort, setAffectedSort] = useState<{ field: 'createdAt' | 'title' | 'requestType' | 'type'; order: 'asc' | 'desc' } | null>(null);
-  const [affectedPage, setAffectedPage] = useState(1);
-  const [affectedTotal, setAffectedTotal] = useState(0);
-  const [showAffectedModal, setShowAffectedModal] = useState(false);
 
   const flowIconUrl = useMemo(() => {
     const base = (env && typeof env === 'function') ? (env('NEXT_PUBLIC_BASE_URL') || '') : '';
@@ -71,41 +65,6 @@ const CreateCalculationRuleForm: React.FC<CreateCalculationRuleFormProps> = ({ a
     initialSnapshotRef.current = { initialized: true } as any;
   }, [isUpdate, prefilledRule, flagsLoaded, initialSnapshotRef]);
 
-  const runDateValidation = React.useCallback(
-    async (from: Date | null, to: Date | null, page: number = 1, order: 'ASC' | 'DESC' = 'ASC') => {
-      if (!from || !to) { setShowAffectedModal(false); setAffectedRows([]); setAffectedTotal(0); return; }
-      try {
-        const query = buildGetAffectedExpensesQuery();
-        const limit = 5; // page size
-        const offset = (page - 1) * limit;
-        const res = await graphqlClient.request<any>(query, {
-          from: from.toISOString(),
-          to: to.toISOString(),
-          limit,
-          offset,
-          orderDirection: order,
-        });
-        const plans = (res?.ExpensePlan || []).map((r: any) => ({ createdAt: (r?.createdAt || '').split('T')[0], title: r?.title, requestType: r?.requestType?.value, type: 'Plan' as const }));
-        const requests = (res?.ExpenseRequest || []).map((r: any) => ({ createdAt: (r?.createdAt || '').split('T')[0], title: r?.title, requestType: r?.requestType?.value, type: 'Request' as const }));
-        const items = (res?.ExpenseItem || []).map((r: any) => ({ createdAt: (r?.createdAt || '').split('T')[0], title: r?.title, requestType: null, type: 'Item' as const }));
-        const merged = [...plans, ...requests, ...items].sort((a, b) => {
-          const cmp = new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
-          return order === 'ASC' ? cmp : -cmp;
-        });
-        const pageData = merged.slice(0, limit);
-        const total = (res?.ExpensePlanAggregate?.aggregate?.count || 0) + (res?.ExpenseRequestAggregate?.aggregate?.count || 0) + (res?.ExpenseItemAggregate?.aggregate?.count || 0);
-        setAffectedRows(pageData);
-        setAffectedTotal(total);
-        setAffectedPage(page);
-        setShowAffectedModal(total > 0);
-      } catch {
-        setShowAffectedModal(false);
-        setAffectedRows([]);
-        setAffectedTotal(0);
-      }
-    },
-    [graphqlClient]
-  );
 
   const handleStandardToggle = async (checked: boolean) => {
     dispatch({ type: 'SET_FIELD', field: 'isStandard', value: !!checked });
@@ -142,10 +101,6 @@ const CreateCalculationRuleForm: React.FC<CreateCalculationRuleFormProps> = ({ a
       ].sort((a, b) => new Date(a.createdAt as string).getTime() - new Date(b.createdAt as string).getTime());
 
       if (allMatching.length > 0 || collidingDates.length > 0) {
-        setAffectedRows(allMatching);
-        setAffectedTotal(allMatching.length);
-        setAffectedPage(1);
-        setAffectedSort(null);
         setShowConfirmModal(true);
         setStandardValidationFailed(true)
       }
@@ -278,23 +233,6 @@ const CreateCalculationRuleForm: React.FC<CreateCalculationRuleFormProps> = ({ a
       {/* Scrollable content container */}
       <div  data-testid="ccr-scroll-container">
 
-      {/* Affected expenses modal */}
-      <AffectedExpensesModal
-        open={showAffectedModal}
-        onOpenChange={setShowAffectedModal}
-        rows={affectedRows}
-            page={affectedPage}
-        total={affectedTotal}
-        sort={affectedSort}
-            onPageChange={async (p) => {
-              setAffectedPage(p);
-              await runDateValidation(formState.validFrom, formState.validTo, p, affectedSort?.order === 'asc' ? 'ASC' : 'DESC');
-            }}
-            onSortChange={async (next) => {
-              setAffectedSort(next);
-              await runDateValidation(formState.validFrom, formState.validTo, 1, next?.order === 'asc' ? 'ASC' : 'DESC');
-            }}
-      />
 
       <RuleIdentitySection
         isUpdate={isUpdate}
@@ -315,11 +253,9 @@ const CreateCalculationRuleForm: React.FC<CreateCalculationRuleFormProps> = ({ a
         validTo={formState.validTo}
         onChangeFrom={async (value) => {
           dispatch({ type: 'SET_FIELD', field: 'validFrom', value });
-          await runDateValidation(value, formState.validTo, 1, affectedSort?.order === 'asc' ? 'ASC' : 'DESC');
         }}
         onChangeTo={async (value) => {
           dispatch({ type: 'SET_FIELD', field: 'validTo', value });
-          await runDateValidation(formState.validFrom, value, 1, affectedSort?.order === 'asc' ? 'ASC' : 'DESC');
         }}
         onBlurFrom={() => dispatchTouched({ type: 'SET_TOUCHED', field: 'validFrom', value: true })}
         onBlurTo={() => dispatchTouched({ type: 'SET_TOUCHED', field: 'validTo', value: true })}
@@ -438,7 +374,7 @@ const CreateCalculationRuleForm: React.FC<CreateCalculationRuleFormProps> = ({ a
       <Dialog open={showConfirmModal} onOpenChange={setShowConfirmModal}>
         <DialogContent data-testid="ccr-standard-confirm-modal" onOpenAutoFocus={(e) => { e.preventDefault(); }}>
           <DialogHeader>
-            <DialogTitle data-testid="ccr-standard-confirm-title">
+            <DialogTitle data-testid="ccr-standard-confirm-title" className='gba:leading-[1.2]'>
               {(() => {
                 const count = collidingDatesState?.length || 0;
                 if (count === 1) {

@@ -59,7 +59,7 @@ const DocumentDeletePopup: React.FC<DocumentDeletePopupProps> = ({ initialValues
             InvestmentDocument(where: { id: { _eq: $id }, isDeleted: { _eq: false } }) {
               id
               name
-              format
+              folder
               description
               account {
                 id
@@ -107,7 +107,7 @@ const DocumentDeletePopup: React.FC<DocumentDeletePopupProps> = ({ initialValues
         setDocument({
           id: doc.id,
           name: doc.name || 'Unnamed Document',
-          format: doc.format || 'FILE',
+          format: doc.folder ? 'FOLDER' : 'FILE',
           description: doc.description,
           entityType,
           entityId

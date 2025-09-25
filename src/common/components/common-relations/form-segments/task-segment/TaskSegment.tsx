@@ -56,7 +56,7 @@ export interface TaskSegmentProps {
   entities?: Array<{
     id: string;
     name: string;
-    type: "account" | "contact" | "opportunity" | "lead";
+    type: "account" | "contact" | "opportunity" | "lead" | "investment";
     subtitle?: string;
   }>;
   entitiesLoading?: boolean;
@@ -505,6 +505,7 @@ const TaskSegment: React.FC<TaskSegmentProps> = ({
                     form.setValue("contact", undefined);
                     form.setValue("opportunity", undefined);
                     form.setValue("lead", undefined);
+                    form.setValue("investment", undefined);
                     if (e) {
                       form.setValue(e.type, { id: e.id });
                     }
@@ -541,8 +542,31 @@ const TaskSegment: React.FC<TaskSegmentProps> = ({
         )}
       />
 
-      {/* TODO: File upload field is intentionally hidden for now; review its necessity and integration. */}
-      {false && uploadFileLabel && onFilesChange && <div />}
+      {/* Attach Documents */}
+      {uploadFileLabel && onFilesChange && (
+        <FormField
+          control={form.control as any}
+          name="files"
+          render={() => (
+            <FormItem>
+              <FormLabel>{uploadFileLabel}</FormLabel>
+              <FormControl>
+                <Input
+                  type="file"
+                  multiple
+                  className="gba:w-full"
+                  data-testid={`${dataTestId}-attachments`}
+                  onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
+                    const files = Array.from(e.target.files || []);
+                    onFilesChange(files as any);
+                  }}
+                />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+      )}
     </>
   );
 };

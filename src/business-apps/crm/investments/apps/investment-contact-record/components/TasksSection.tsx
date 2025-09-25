@@ -1,17 +1,18 @@
 import React, { useState, useEffect } from 'react';
-import { Spin, Alert, Timeline, Typography, message, Modal } from 'antd';
+import { Spin, Alert, Timeline, Typography, message } from 'antd';
 import { Button } from '@newwork/nw-design-system';
-import { PlusCircleOutlined, CloseOutlined, EditOutlined } from '@ant-design/icons';
-import { Clock, Calendar } from 'lucide-react';
-import { startProcess } from '@/common/utils/start-process';
+import { PlusCircleOutlined, CloseOutlined } from '@ant-design/icons';
+// import { Clock, Calendar } from 'lucide-react';
+// import { startProcess } from '@/common/utils/start-process';
 import { AppAction } from '@/components/app-action';
 import { FlowContextName } from '@/common/types/FlowRegistryTypes';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 import { useGetInvestmentTasksByContactId } from '@/common/data/investment/hooks/useInvestmentContacts';
 import type { InvestmentTask } from '@/common/data/investment/types';
-import { useEmployeeData } from '@/business-apps/crm/common/hooks/useEmployeeData';
-import { useRestClient } from '@/common/network/rest/useRestClient';
-import { env } from '@/common/env/EnvUtils';
+// import { useEmployeeData } from '@/business-apps/crm/common/hooks/useEmployeeData';
+// import { useRestClient } from '@/common/network/rest/useRestClient';
+// import { env } from '@/common/env/EnvUtils';
+import { DeleteConfirmPopup } from '@/common/components/common-relations/popups/delete-confirm-popup';
 import dayjs from 'dayjs';
 
 const { Text } = Typography;
@@ -26,8 +27,9 @@ export const TasksSection: React.FC<TasksSectionProps> = ({ contactId, context }
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const { fetchInvestmentTasksByContactId } = useGetInvestmentTasksByContactId(context);
-  const { getEmployeeDisplayName } = useEmployeeData(context.accessToken);
-  const restClient = useRestClient(env('NEXT_PUBLIC_KOGITO_PROCESSES_ENDPOINT'));
+  // const { getEmployeeDisplayName } = useEmployeeData(context.accessToken);
+  // const restClient = useRestClient(env('NEXT_PUBLIC_KOGITO_PROCESSES_ENDPOINT'));
+  const [deleteTaskPopup, setDeleteTaskPopup] = useState<{ open: boolean; task?: InvestmentTask }>({ open: false });
 
   const loadTasks = async () => {
     if (!contactId) return;
@@ -40,7 +42,10 @@ export const TasksSection: React.FC<TasksSectionProps> = ({ contactId, context }
       
       // Filter out approval tasks - they should only appear in the Approvals tab
       const nonApprovalTasks = (result || []).filter(task => {
-        const isApprovalTask = task.type?.value?.toLowerCase() === 'approval';
+        const typeVal = (task as any)?.taskType?.code || (task as any)?.taskType?.value || (task as any)?.typeRef;
+        if (!typeVal) return true;
+        const val = String(typeVal);
+        const isApprovalTask = val.toLowerCase() === 'approval' || val.toUpperCase().endsWith(':APPROVAL');
         return !isApprovalTask;
       });
       
@@ -143,35 +148,7 @@ export const TasksSection: React.FC<TasksSectionProps> = ({ contactId, context }
   // Add task handled via AppAction below
 
   const handleDeleteTask = (task: InvestmentTask) => {
-    Modal.confirm({
-      title: 'Confirm Deletion',
-      content: `Are you sure you want to delete the task "${task.name || 'Untitled Task'}"?`,
-      okText: 'Delete',
-      okType: 'danger',
-      cancelText: 'Cancel',
-      onOk: async () => {
-        try {
-          await restClient.post('/investments/saveInvestmentTask', {
-            changeMode: "DELETE",
-            investmentTask: {
-              id: task.id,
-              version: task.version,
-              contact: contactId
-            }
-          }, {
-            headers: { Authorization: `Bearer ${context.accessToken}` }
-          });
-          
-          // Remove the task from local state
-          setTasks(prevTasks => prevTasks.filter(t => t.id !== task.id));
-          
-          message.success('Task deleted successfully');
-        } catch (error) {
-          console.error('Error deleting task:', error);
-          message.error('Failed to delete task');
-        }
-      },
-    });
+    setDeleteTaskPopup({ open: true, task });
   };
 
   const getPriorityColor = (priority: string) => {
@@ -220,11 +197,17 @@ export const TasksSection: React.FC<TasksSectionProps> = ({ contactId, context }
           Tasks
         </div>
         <AppAction
-          contextsArray={[FlowContextName.createCustomerTask]}
-          externalContextData={{ contactId }}
+          contextsArray={[FlowContextName.investmentTaskCreate]}
+          externalContextData={{ 
+            contactId,
+            contact: contactId,
+            investmentTask: { contact: contactId }
+          }}
+          staticFlowData={[]}
           accessToken={context.accessToken}
           prefixDataTestId="contact-tasks"
           emptyStateBehavior="enable"
+          deferMainContextRequestsUntilClick
         >
           <Button 
             variant="default"
@@ -269,14 +252,14 @@ export const TasksSection: React.FC<TasksSectionProps> = ({ contactId, context }
         {!loading && !error && tasks.length > 0 && (
           <Timeline style={{ marginTop: '16px' }}>
             {tasks.map((task, index) => (
-              <Timeline.Item key={task.id || index} color={getPriorityColor(getPriorityValue(task.priority))}>
+              <Timeline.Item key={task.id || index} color={getPriorityColor(task.taskPriorityLabel || 'Normal')}>
                 <div style={{ position: 'relative' }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                     <Text strong>{task.name}</Text>
                   </div>
                   <div>
                     <Text type="secondary">
-                      {dayjs(task.createdAt).format('MMM D, YYYY [at] h:mm A')} - {getEmployeeDisplayName(task.createdBy)}
+                      {dayjs(task.createdAt).format('MMM D, YYYY [at] h:mm A')} - {task.creatorDisplayName || 'Unknown'}
                     </Text>
                     {task.dueDate && (
                       <Text 
@@ -296,13 +279,13 @@ export const TasksSection: React.FC<TasksSectionProps> = ({ contactId, context }
                     <div>{task.description}</div>
                     <div style={{ marginTop: '8px', display: 'flex', gap: '8px' }}>
                       <span style={{ 
-                        backgroundColor: getPriorityColor(getPriorityValue(task.priority)), 
+                        backgroundColor: getPriorityColor(task.taskPriorityLabel || 'Normal'), 
                         color: 'white', 
                         padding: '2px 8px', 
                         borderRadius: '4px', 
                         fontSize: '12px' 
                       }}>
-                        {getPriorityValue(task.priority)}
+                        {task.taskPriorityLabel || 'Normal'}
                       </span>
                       <span style={{ 
                         backgroundColor: '#f0f0f0', 
@@ -311,7 +294,7 @@ export const TasksSection: React.FC<TasksSectionProps> = ({ contactId, context }
                         borderRadius: '4px', 
                         fontSize: '12px' 
                       }}>
-                        {getTypeValue(task.type)}
+                        {task.taskTypeLabel || 'General'}
                       </span>
                     </div>
                   </div>
@@ -336,6 +319,37 @@ export const TasksSection: React.FC<TasksSectionProps> = ({ contactId, context }
           </Timeline>
         )}
       </div>
+
+      {deleteTaskPopup.open && deleteTaskPopup.task ? (
+        <DeleteConfirmPopup
+          isOpen={deleteTaskPopup.open}
+          onClose={() => setDeleteTaskPopup({ open: false })}
+          accessToken={context.accessToken}
+          itemTitle={deleteTaskPopup.task?.name ? String(deleteTaskPopup.task.name) : 'Task'}
+          itemType="task"
+          flowContextName={FlowContextName.investmentTaskDelete}
+          externalContextData={{
+            taskId: deleteTaskPopup.task!.id,
+            investmentTask: {
+              id: deleteTaskPopup.task!.id,
+              version: deleteTaskPopup.task!.version,
+            },
+            contactId,
+          }}
+          onFlowSuccess={() => {
+            const id = deleteTaskPopup.task!.id;
+            setTasks(prev => prev.filter(t => t.id !== id));
+            setDeleteTaskPopup({ open: false });
+            message.success('Task deleted successfully');
+          }}
+          onFlowError={() => {
+            setDeleteTaskPopup({ open: false });
+            message.error('Failed to delete task');
+          }}
+          data-testid={`delete-task-popup`}
+        />
+      ) : null}
+
     </div>
   );
 }; 

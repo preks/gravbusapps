@@ -24,12 +24,21 @@ import {
   BarsOutlined,
   CalendarOutlined,
   UserOutlined,
-  SettingOutlined,
   FolderAddOutlined,
   EditOutlined,
   DeleteOutlined
 } from '@ant-design/icons';
-import { Modal, message, Input as AntdInput } from 'antd';
+import { 
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+  Input,
+  Icon
+} from '@newwork/nw-design-system';
+import { Gear } from '@phosphor-icons/react';
+import { toast } from 'sonner';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 import { DebouncedInput } from '@/components/data-filter/DebouncedInput';
 import { DataContainer } from '@/components/layout/dataContainer';
@@ -40,6 +49,7 @@ import { DndContext, PointerSensor, useSensor, useSensors, DragEndEvent, DragSta
 import { useRestClient } from '@/common/network/rest/useRestClient';
 import { env } from '@/common/env/EnvUtils';
 import { useGetInvestmentDocumentsByOpportunityId } from '@/common/data/investment/hooks/useInvestmentOpportunities';
+import { buildDocumentUrls } from '../utils/documentUrlUtils';
 
 interface Document {
   id: string;
@@ -47,6 +57,7 @@ interface Document {
   description?: string | null;
   createdAt: string;
   expirationDate?: string | null;
+  version?: number;
   documentType?: {
     id: string;
     value: string;
@@ -122,6 +133,7 @@ export const OpportunityDocuments: React.FC<OpportunityDocumentsProps> = ({
   const [viewMode, setViewMode] = useState<'icon' | 'list'>('icon');
   const [selectedFilters, setSelectedFilters] = useState<string[]>([]);
   const [renameModal, setRenameModal] = useState<{ open: boolean; node?: DocumentFolder; name: string }>({ open: false, name: '' });
+  const [deleteConfirm, setDeleteConfirm] = useState<{ open: boolean; item?: Document | DocumentFolder; type: 'document' | 'folder' }>({ open: false, type: 'document' });
   const [activeDragItem, setActiveDragItem] = useState<{ itemType: 'document' | 'folder'; name: string; mimeType?: string | null } | null>(null);
   
   // Column configuration with default visibility
@@ -146,13 +158,13 @@ export const OpportunityDocuments: React.FC<OpportunityDocumentsProps> = ({
     const newName = renameModal.name?.trim();
     const node = renameModal.node;
     if (!node || !newName) {
-      message.error('Please enter a folder name');
+      toast.error('Please enter a folder name');
       return;
     }
     if (node.folderId?.startsWith('mock-')) {
       setDocuments(prev => prev.map(d => d.id === node.folderId ? { ...d, name: newName } : d));
       setRenameModal({ open: false, name: '', node: undefined });
-      message.success('Folder renamed (mock)');
+      toast.success('Folder renamed (mock)');
       return;
     }
     try {
@@ -165,12 +177,12 @@ export const OpportunityDocuments: React.FC<OpportunityDocumentsProps> = ({
           opportunity: opportunityId,
         },
       }, { headers: { Authorization: `Bearer ${context.accessToken}` } });
-      message.success('Folder renamed');
+      toast.success('Folder renamed');
       setRenameModal({ open: false, name: '', node: undefined });
       await fetchDocuments();
     } catch (e: any) {
       console.error('Error renaming folder', e);
-      message.error(e?.message || 'Failed to rename folder');
+      toast.error(e?.message || 'Failed to rename folder');
     }
   };
 
@@ -424,15 +436,15 @@ export const OpportunityDocuments: React.FC<OpportunityDocumentsProps> = ({
           className="gba:flex gba:items-center gba:gap-2"
           data-testid="column-visibility-dropdown"
         >
-          <SettingOutlined />
+          <Icon icon={Gear} size="sm" decorative />
           <span className="gba:text-sm">Columns</span>
         </Button>
         {isOpen && (
-          <div className="gba:absolute gba:top-full gba:right-0 gba:mt-1 gba:bg-white gba:border gba:border-gray-200 gba:rounded-lg gba:shadow-lg gba:p-2 gba:min-w-[200px] gba:z-50">
+          <div className="gba:absolute gba:top-full gba:right-0 gba:mt-1 gba:rounded-lg gba:shadow-lg gba:p-2 gba:min-w-[200px] gba:z-50" style={{ backgroundColor: 'var(--nw-color-background)', border: '1px solid var(--nw-color-border)' }}>
             {columnConfig.map((column) => (
               <label
                 key={column.id}
-                className="gba:flex gba:items-center gba:gap-2 gba:p-2 gba:hover:bg-gray-50 gba:cursor-pointer"
+                className="gba:flex gba:items-center gba:gap-2 gba:p-2 gba:cursor-pointer gba:hover:bg-[var(--nw-color-background-hover)]"
               >
                 <input
                   type="checkbox"
@@ -540,91 +552,70 @@ export const OpportunityDocuments: React.FC<OpportunityDocumentsProps> = ({
     });
   }, [filteredDocuments]);
 
-  const getFileExtension = (document: Document) => {
-    // Try to get extension from file name first
-    if (document.name && document.name.includes('.')) {
-      return document.name.split('.').pop();
-    }
-    
-    // Fallback to mimeType mapping
-    const mimeTypeExtensions: Record<string, string> = {
-      'application/pdf': 'pdf',
-      'application/vnd.openxmlformats-officedocument.wordprocessingml.document': 'docx',
-      'application/msword': 'doc',
-      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': 'xlsx',
-      'application/vnd.ms-excel': 'xls',
-      'image/png': 'png',
-      'image/jpeg': 'jpg',
-      'image/jpg': 'jpg',
-      'text/plain': 'txt'
-    };
-    
-    return (document.mimeType && mimeTypeExtensions[document.mimeType]) || 'pdf';
-  };
-
-  const constructDocumentUrl = (document: Document) => {
-    // Check if document.file already has an extension
-    if (document.file && document.file.includes('.')) {
-      // File already has extension, use as is
-      return `/files/api/v1/public/downloads/crm/opportunities/${opportunityId}/documents/${document.file}`;
-    } else {
-      // File doesn't have extension, add one
-      const fileExtension = getFileExtension(document);
-      return `/files/api/v1/public/downloads/crm/opportunities/${opportunityId}/documents/${document.file}.${fileExtension}`;
-    }
-  };
+  // Document utility functions moved to separate utils file
 
   const handleViewDocument = (document: Document) => {
     if (!document.file) {
       console.error('No file ID available for document:', document);
+      toast.warning('No file available to view');
       return;
     }
 
-    const documentUrl = constructDocumentUrl(document);
-    window.open(documentUrl, '_blank');
+    try {
+      const { viewUrl } = buildDocumentUrls(document, opportunityId);
+      window.open(viewUrl, '_blank', 'rel=noopener noreferrer');
+    } catch (error) {
+      console.error('Error building document URL for view:', error);
+      toast.error('Failed to open document');
+    }
   };
 
   const handleDownloadDocument = (document: Document) => {
     if (!document.file) {
       console.error('No file ID available for document:', document);
+      toast.warning('No file available to download');
       return;
     }
 
-    const documentUrl = constructDocumentUrl(document);
-    const link = window.document.createElement('a');
-    link.href = documentUrl;
-    link.download = document.name || `document.${getFileExtension(document)}`;
-    window.document.body.appendChild(link);
-    link.click();
-    window.document.body.removeChild(link);
+    try {
+      const { downloadUrl, downloadFilename } = buildDocumentUrls(document, opportunityId);
+      const link = window.document.createElement('a');
+      link.href = downloadUrl;
+      link.download = downloadFilename;
+      window.document.body.appendChild(link);
+      link.click();
+      window.document.body.removeChild(link);
+    } catch (error) {
+      console.error('Error building document URL for download:', error);
+      toast.error('Failed to download document');
+    }
   };
 
   const handleDeleteDocument = (document: Document) => {
     if (document.id?.startsWith('mock-')) {
       setDocuments(prev => prev.filter(d => d.id !== document.id));
-      message.success('Document deleted (mock)');
+      toast.success('Document deleted (mock)');
       return;
     }
-    Modal.confirm({
-      title: 'Confirm Deletion',
-      content: `Are you sure you want to delete "${document.name}"?`,
-      okText: 'Delete',
-      okType: 'danger',
-      cancelText: 'Cancel',
-      onOk: async () => {
-        try {
-          await restClient.post('/investments/saveInvestmentDocument', {
-            changeMode: 'DELETE',
-            investmentDocument: { id: document.id, version: document.version, opportunity: opportunityId },
-          }, { headers: { Authorization: `Bearer ${context.accessToken}` } });
-          message.success('Document deleted');
-          await fetchDocuments();
-        } catch (e: any) {
-          console.error('Error deleting document', e);
-          message.error(e?.message || 'Failed to delete document');
-        }
-      }
-    });
+    setDeleteConfirm({ open: true, item: document, type: 'document' });
+  };
+
+  const confirmDeleteDocument = async () => {
+    const document = deleteConfirm.item as Document;
+    if (!document) return;
+    
+    try {
+      await restClient.post('/investments/saveInvestmentDocument', {
+        changeMode: 'DELETE',
+        investmentDocument: { id: document.id, version: document.version, opportunity: opportunityId },
+      }, { headers: { Authorization: `Bearer ${context.accessToken}` } });
+      toast.success('Document deleted');
+      await fetchDocuments();
+      setDeleteConfirm({ open: false, type: 'document' });
+    } catch (e: any) {
+      console.error('Error deleting document', e);
+      toast.error(e?.message || 'Failed to delete document');
+    }
   };
 
   const isFileDocument = (d: Document): boolean => {
@@ -652,33 +643,32 @@ export const OpportunityDocuments: React.FC<OpportunityDocumentsProps> = ({
   const handleDeleteFolder = (node: DocumentFolder) => {
     if (!node.folderId || node.folderVersion == null) return;
     if (hasDescendantFiles(node.folderId)) {
-      message.warning('Cannot delete a folder that contains files. Move or delete files first.');
+      toast.warning('Cannot delete a folder that contains files. Move or delete files first.');
       return;
     }
     if (node.folderId.startsWith('mock-')) {
-      message.warning('Cannot delete a folder that contains files.');
+      toast.warning('Cannot delete a folder that contains files.');
       return;
     }
-    Modal.confirm({
-      title: 'Confirm Deletion',
-      content: `Are you sure you want to delete the folder "${node.name}"?`,
-      okText: 'Delete',
-      okType: 'danger',
-      cancelText: 'Cancel',
-      onOk: async () => {
-        try {
-          await restClient.post('/investments/saveInvestmentDocument', {
-            changeMode: 'DELETE',
-            investmentDocument: { id: node.folderId, version: node.folderVersion, opportunity: opportunityId },
-          }, { headers: { Authorization: `Bearer ${context.accessToken}` } });
-          message.success('Folder deleted');
-          await fetchDocuments();
-        } catch (e: any) {
-          console.error('Error deleting folder', e);
-          message.error(e?.message || 'Failed to delete folder');
-        }
-      }
-    });
+    setDeleteConfirm({ open: true, item: node, type: 'folder' });
+  };
+
+  const confirmDeleteFolder = async () => {
+    const node = deleteConfirm.item as DocumentFolder;
+    if (!node.folderId || node.folderVersion == null) return;
+    
+    try {
+      await restClient.post('/investments/saveInvestmentDocument', {
+        changeMode: 'DELETE',
+        investmentDocument: { id: node.folderId, version: node.folderVersion, opportunity: opportunityId },
+      }, { headers: { Authorization: `Bearer ${context.accessToken}` } });
+      toast.success('Folder deleted');
+      await fetchDocuments();
+      setDeleteConfirm({ open: false, type: 'folder' });
+    } catch (e: any) {
+      console.error('Error deleting folder', e);
+      toast.error(e?.message || 'Failed to delete folder');
+    }
   };
 
   // DnD helpers
@@ -694,9 +684,13 @@ export const OpportunityDocuments: React.FC<OpportunityDocumentsProps> = ({
 
   const Droppable: React.FC<{ id: string; data: any; className?: string; children: React.ReactNode; disabled?: boolean }> = ({ id, data, className, children, disabled }) => {
     const { setNodeRef, isOver } = useDroppable({ id, data, disabled });
-    const combinedClass = `${className || ''} ${isOver ? 'gba:ring-2 gba:ring-blue-500 gba:bg-blue-50' : ''}`;
+    const combinedClass = `${className || ''} ${isOver ? 'gba:ring-2' : ''}`;
+    const dropZoneStyle = isOver ? {
+      backgroundColor: 'var(--nw-color-primary-background)',
+      borderColor: 'var(--nw-color-primary-500)'
+    } : {};
     return (
-      <div ref={setNodeRef} className={combinedClass} data-over={isOver}>
+      <div ref={setNodeRef} className={combinedClass} style={dropZoneStyle} data-over={isOver}>
         {children}
       </div>
     );
@@ -742,11 +736,11 @@ export const OpportunityDocuments: React.FC<OpportunityDocumentsProps> = ({
         },
         { headers: { Authorization: `Bearer ${context.accessToken}` } }
       );
-      message.success('Document moved');
+      toast.success('Document moved');
     } catch (e: any) {
       console.error('Error moving document', e);
       setDocuments((prev) => prev.map(d => d.id === docId ? { ...d, parentDocument: previousParentId || null } : d));
-      message.error(e?.message || 'Failed to move document');
+      toast.error(e?.message || 'Failed to move document');
     }
   };
 
@@ -761,7 +755,7 @@ export const OpportunityDocuments: React.FC<OpportunityDocumentsProps> = ({
       const previousParentId = documents.find(d => d.id === active.id)?.parentDocument || null;
       if (previousParentId === targetFolderId) return;
       if (active.itemType === 'folder' && typeof targetFolderId === 'string' && isFolderAncestor(active.id as string, targetFolderId)) {
-        message.warning('Cannot move a folder into its own subfolder');
+        toast.warning('Cannot move a folder into its own subfolder');
         return;
       }
       updateParentDocumentLocal(active.id, targetFolderId);
@@ -1333,21 +1327,66 @@ export const OpportunityDocuments: React.FC<OpportunityDocumentsProps> = ({
         )}
       </CardContent>
     {/* Rename Folder Modal */}
-    <Modal
-      open={renameModal.open}
-      title="Rename Folder"
-      onOk={confirmRenameFolder}
-      onCancel={() => setRenameModal({ open: false, name: '', node: undefined })}
-      okText="Save"
-      data-testid="rename-folder-modal"
+    <Dialog 
+      open={renameModal.open} 
+      onOpenChange={(open) => !open && setRenameModal({ open: false, name: '', node: undefined })}
     >
-      <AntdInput
-        value={renameModal.name}
-        onChange={(e) => setRenameModal(prev => ({ ...prev, name: e.target.value }))}
-        placeholder="Enter new folder name"
-        data-testid="rename-folder-input"
-      />
-    </Modal>
+      <DialogContent data-testid="rename-folder-modal">
+        <DialogHeader>
+          <DialogTitle>Rename Folder</DialogTitle>
+        </DialogHeader>
+        <div className="gba:space-y-4">
+          <Input
+            value={renameModal.name}
+            onChange={(e: React.ChangeEvent<HTMLInputElement>) => setRenameModal(prev => ({ ...prev, name: e.target.value }))}
+            placeholder="Enter new folder name"
+            data-testid="rename-folder-input"
+          />
+        </div>
+        <DialogFooter>
+          <Button 
+            variant="outline" 
+            onClick={() => setRenameModal({ open: false, name: '', node: undefined })}
+          >
+            Cancel
+          </Button>
+          <Button onClick={confirmRenameFolder}>
+            Save
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+
+    {/* Delete Confirmation Dialog */}
+    <Dialog 
+      open={deleteConfirm.open} 
+      onOpenChange={(open) => !open && setDeleteConfirm({ open: false, type: 'document' })}
+    >
+      <DialogContent data-testid="delete-confirm-modal">
+        <DialogHeader>
+          <DialogTitle>Confirm Deletion</DialogTitle>
+        </DialogHeader>
+        <div className="gba:space-y-4">
+          <p className="gba:text-sm gba:text-gray-600">
+            Are you sure you want to delete {deleteConfirm.type === 'document' ? '"' + (deleteConfirm.item as Document)?.name + '"' : 'the folder "' + (deleteConfirm.item as DocumentFolder)?.name + '"'}?
+          </p>
+        </div>
+        <DialogFooter>
+          <Button 
+            variant="outline" 
+            onClick={() => setDeleteConfirm({ open: false, type: 'document' })}
+          >
+            Cancel
+          </Button>
+          <Button 
+            variant="destructive" 
+            onClick={deleteConfirm.type === 'document' ? confirmDeleteDocument : confirmDeleteFolder}
+          >
+            Delete
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
     </Card>
   );
 };

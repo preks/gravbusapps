@@ -93,7 +93,7 @@ const ApproveExpensePlanContent: React.FC<BusinessAppContextProps> = ({
 
         // Create approval payload
         const approvalPayload = {
-          event: "pse_approve",
+          event: "pse_reject",
           expensePlanComment: {
             commentDate: new Date().toISOString().slice(0, 19), // Format: YYYY-MM-DDTHH:mm:ss (without timezone)
             comment: message.length > 0 ? message : "",
@@ -113,7 +113,7 @@ const ApproveExpensePlanContent: React.FC<BusinessAppContextProps> = ({
         };
   
         // Dispatch the approval event
-        dispatchProcessContinueEvent("pse_approve", approvalPayload);
+        dispatchProcessContinueEvent("pse_reject", approvalPayload);
     } catch (err) {
       console.error('Error returning expense plan:', err);
     } finally {

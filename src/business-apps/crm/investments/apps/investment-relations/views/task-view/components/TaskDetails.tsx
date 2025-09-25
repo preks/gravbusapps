@@ -9,7 +9,6 @@ import {
   CardContent, 
   CardHeader, 
   CardTitle,
-  Icon,
   Progress,
   ScrollArea,
   Separator,
@@ -60,7 +59,7 @@ interface FieldRowProps {
 const FieldRow: React.FC<FieldRowProps> = ({ icon: IconComponent, label, children, testId }) => (
   <div className="gba:flex gba:items-start gba:gap-3 gba:py-2" data-testid={testId}>
     <div className="gba:flex gba:items-center gba:gap-2 gba:min-w-[100px] gba:text-sm gba:text-muted-foreground">
-      <Icon icon={IconComponent} size="xs" />
+      <IconComponent size={14} className="gba:text-muted-foreground" />
       <span>{label}</span>
     </div>
     <div className="gba:flex-1">
@@ -70,6 +69,13 @@ const FieldRow: React.FC<FieldRowProps> = ({ icon: IconComponent, label, childre
 );
 
 export const TaskDetails: React.FC<TaskDetailsProps> = ({ task, sourceApp }) => {
+  console.log('🔍 Investment TaskDetails rendering:', {
+    taskId: task?.id,
+    taskName: task?.name,
+    hasAssignedTo: !!task?.assignedTo,
+    hasReference: !!task?.reference,
+    sourceApp
+  });
   const formatDate = (dateString: string) => {
     if (!dateString) return '-';
     const date = dayjs(dateString);
@@ -115,6 +121,15 @@ export const TaskDetails: React.FC<TaskDetailsProps> = ({ task, sourceApp }) => 
     navigateTo(url);
   };
 
+  // Safety check for task data
+  if (!task) {
+    return (
+      <div className="gba:p-4 gba:text-center gba:text-muted-foreground">
+        No task data available
+      </div>
+    );
+  }
+
   return (
     <ScrollArea className="gba:h-full gba:w-full" data-testid={`${DATA_TEST_ID_PREFIX}-scroll-area`}>
       <div className="gba:space-y-4 gba:p-1" data-testid={`${DATA_TEST_ID_PREFIX}-container`}>
@@ -143,7 +158,7 @@ export const TaskDetails: React.FC<TaskDetailsProps> = ({ task, sourceApp }) => 
                       <span className="gba:text-sm gba:font-medium">{task.assignedTo.displayName}</span>
                       <span className="gba:text-xs gba:text-muted-foreground">{task.assignedTo.department}</span>
                     </div>
-                    <Icon icon={ArrowSquareOut} size="xs" className="gba:text-muted-foreground" />
+                    <ArrowSquareOut size={14} className="gba:text-muted-foreground" />
                   </div>
                 </TooltipTrigger>
                 <TooltipContent>View employee profile</TooltipContent>
@@ -170,7 +185,7 @@ export const TaskDetails: React.FC<TaskDetailsProps> = ({ task, sourceApp }) => 
                           {task.reference.description && (<span className="gba:text-xs gba:text-muted-foreground">{task.reference.description}</span>)}
                         </div>
                       </div>
-                      <Icon icon={ArrowSquareOut} size="xs" className="gba:text-muted-foreground" />
+                      <ArrowSquareOut size={14} className="gba:text-muted-foreground" />
                     </div>
                   </div>
                 </TooltipTrigger>

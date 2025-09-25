@@ -78,39 +78,7 @@ export const buildGetAffectedExpensesQuery = (): string => {
   query getAffectedExpenses(
     $from: timestamptz!,
     $to: timestamptz!,
-    $limit: Int = 5,
-    $offset: Int = 0,
-    $orderDirection: OrderBy = DESC
   ) {
-    ExpensePlan(
-      where: { isDeleted: { _eq: false }, createdAt: { _gte: $from, _lte: $to } },
-      orderBy: { createdAt: $orderDirection },
-      limit: $limit,
-      offset: $offset
-    ) {
-      createdAt
-      title
-      requestType { value }
-    }
-    ExpenseRequest(
-      where: { isDeleted: { _eq: false }, createdAt: { _gte: $from, _lte: $to } },
-      orderBy: { createdAt: $orderDirection },
-      limit: $limit,
-      offset: $offset
-    ) {
-      createdAt
-      title
-      requestType { value }
-    }
-    ExpenseItem(
-      where: { isDeleted: { _eq: false }, createdAt: { _gte: $from, _lte: $to } },
-      orderBy: { createdAt: $orderDirection },
-      limit: $limit,
-      offset: $offset
-    ) {
-      createdAt
-      title
-    }
     ExpensePlanAggregate(where: { isDeleted: { _eq: false }, createdAt: { _gte: $from, _lte: $to } }) { aggregate { count } }
     ExpenseRequestAggregate(where: { isDeleted: { _eq: false }, createdAt: { _gte: $from, _lte: $to } }) { aggregate { count } }
     ExpenseItemAggregate(where: { isDeleted: { _eq: false }, createdAt: { _gte: $from, _lte: $to } }) { aggregate { count } }

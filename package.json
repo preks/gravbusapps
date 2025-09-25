@@ -67,6 +67,7 @@
     "globals": "^16.0.0",
     "http-proxy-middleware": "^2.0.6",
     "http-server": "^14.1.1",
+    "inquirer": "^8.2.5",
     "postcss": "^8.5.5",
     "tw-animate-css": "^1.3.6",
     "typescript-eslint": "^8.11.0",
