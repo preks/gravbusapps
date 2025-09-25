@@ -369,6 +369,10 @@ const AllInvestmentsList: React.FC<AllInvestmentsListProps> = (context) => {
         actions: (
           <AppAction
             contextsArray={[FlowContextName.createInvestment]}
+            externalContextData={{ 
+              fromView: 'investments',
+              fromSubView: 'overview'
+            }}
             accessToken={accessToken}
             data-testid="all-investments-add-action"
             emptyStateBehavior="hide"

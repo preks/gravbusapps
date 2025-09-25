@@ -33,14 +33,9 @@ export const InvestmentHomeTab: React.FC<InvestmentHomeTabProps> = ({
     
     try {
       const tasksData = await fetchInvestmentTasksByInvestmentId(investmentId);
-      // Filter out approval tasks - they should only appear in the Approvals tab
-      const nonApprovalTasks = (tasksData || []).filter((task: any) => {
-        const typeVal = task?.taskType?.value || task?.taskType?.code || task?.taskTypeRef || '';
-        return String(typeVal).toLowerCase() !== 'approval' && !String(typeVal).toUpperCase().endsWith(':APPROVAL');
-      });
-      setTasks(nonApprovalTasks);
-    } catch (err) {
-      // Failed to load tasks
+      setTasks(tasksData || []);
+    } catch (error) {
+      console.error('Error loading tasks:', error);
     }
   }, [investmentId, fetchInvestmentTasksByInvestmentId]);
 
@@ -53,8 +48,9 @@ export const InvestmentHomeTab: React.FC<InvestmentHomeTabProps> = ({
     try {
       const activitiesData = await fetchInvestmentActivitiesByInvestmentId(investmentId);
       setActivities(activitiesData || []);
-    } catch (err) {
-      setActivitiesError(err instanceof Error ? err.message : 'Failed to load activities');
+    } catch (error) {
+      console.error('Error loading activities:', error);
+      setActivitiesError(error instanceof Error ? error.message : 'Failed to load activities');
     } finally {
       setActivitiesLoading(false);
     }
@@ -65,23 +61,34 @@ export const InvestmentHomeTab: React.FC<InvestmentHomeTabProps> = ({
     
     try {
       const notesData = await fetchInvestmentNotesByInvestmentId(investmentId);
-      // Transform the data to match the expected format of NoteSection
-      const transformedNotes = notesData.map((note: any) => ({
-        id: note.id,
-        noteTitle: note.title,
-        noteText: note.text,
-        createdAt: note.createdAt,
-        createdBy: note.authorEmployee?.displayName || 
-                   `${note.authorEmployee?.firstName || ''} ${note.authorEmployee?.lastName || ''}`.trim() ||
-                   'Unknown',
-        assigneeEmployee: note.authorEmployee,
-        reminderAt: note.reminderDate
-      }));
-      setNotes(transformedNotes);
-    } catch (err) {
-      console.error('Failed to load notes:', err);
+      setNotes(notesData || []);
+    } catch (error) {
+      console.error('Error loading notes:', error);
     }
   }, [investmentId, fetchInvestmentNotesByInvestmentId]);
+
+  // Handle process events
+  const handleProcessEvent = useCallback((event: Event) => {
+    const customEvent = event as CustomEvent;
+    // Safe logging - only event type and investmentId (no PII)
+    console.log('Process event received:', { 
+      type: customEvent.type, 
+      investmentId: customEvent.detail?.investmentId 
+    });
+    
+    // Detailed logging only in development (may contain PII)
+    if (process.env.NODE_ENV !== 'production') {
+      console.log('Process event detail (dev only):', customEvent.detail);
+    }
+    
+    // Handle process completion events here
+    if (customEvent.detail?.investmentId === investmentId) {
+      // Refresh data when process completes
+      loadTasks();
+      loadActivities();
+      loadNotes();
+    }
+  }, [investmentId, loadTasks, loadActivities, loadNotes]);
 
   const loadApprovals = useCallback(async () => {
     if (!investmentId) return;

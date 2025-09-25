@@ -21,7 +21,7 @@ import {
   RefreshCw
 } from 'lucide-react';
 import { buildPlatformUrl, navigateTo } from '@/common/utils/navigationUtils';
-import { useLiquidFundAnalyticsIntegration } from '../hooks';
+import { useUniversalInvestmentReportsAnalytics } from "../../components/shared";
 import { useInvestmentLiquidFundReportCatalog } from '../hooks/useInvestmentLiquidFundReportCatalog';
 import { AnalyticsFilters } from '../types';
 import { DynamicTableColumn } from '../utils/liquidFundReportColumnTransformer';
@@ -57,21 +57,27 @@ export const AnalyticsTable: React.FC<AnalyticsTableProps> = ({
     }
   };
 
-  // Use real data integration hook
+  // Use the universal reports data hook for Liquid Fund with transformation
   const {
     analyticsData,
     isLoading,
     error,
     totalCount,
     refetch
-  } = useLiquidFundAnalyticsIntegration({
+  } = useUniversalInvestmentReportsAnalytics({
     accessToken,
     userInfo,
     filters,
-    currentPage: 1,
-    pageSize: 1000, // Load all available data without artificial limits
-    sortBy: 'proprietorName',
-    sortOrder: 'ASC'
+    investmentGroup: 'LIQUID_FUND',
+    options: {
+      page: 1,
+      pageSize: 1000, // Load all available data without artificial limits
+      sortBy: 'proprietorName',
+      sortOrder: 'ASC',
+      enableDataTransformation: true,
+      targetCurrency: 'EUR',
+      enableClientSideTypeFiltering: true
+    }
   });
 
   // Use catalog integration for dynamic columns - following existing pattern
@@ -93,10 +99,10 @@ export const AnalyticsTable: React.FC<AnalyticsTableProps> = ({
     if (!catalogData) return [];
 
     // Strategy 1: Try to detect from data if we have it
-    if (analyticsData.length > 0) {
+    if (analyticsData && analyticsData.length > 0) {
       const liquidFundTypeCodes = Array.from(
         new Set(
-          analyticsData
+          (analyticsData || [])
             .map(row => {
               return (
                 row.liquidFundInvestment?.[0]?.investmentLiquidFundType?.code ||
@@ -186,7 +192,10 @@ export const AnalyticsTable: React.FC<AnalyticsTableProps> = ({
             <div>
               <div style={{ fontWeight: 'var(--nw-font-weight-medium)' }}>Error Loading Analytics Data</div>
               {(error || catalogError) && (
-                <div style={{ fontSize: 'var(--nw-text-sm)', marginTop: 'var(--nw-spacing-1)', color: 'var(--nw-color-text-secondary)' }}>{error || catalogError}</div>
+                <div style={{ fontSize: 'var(--nw-text-sm)', marginTop: 'var(--nw-spacing-1)', color: 'var(--nw-color-text-secondary)' }}>
+                  {typeof error === 'string' ? error : error?.message || 'Unknown error'}
+                  {catalogError && ` | ${catalogError}`}
+                </div>
               )}
             </div>
             <Button variant="outline" size="sm" onClick={refetch}>
@@ -217,8 +226,8 @@ export const AnalyticsTable: React.FC<AnalyticsTableProps> = ({
               <TableRow style={{ borderBottom: 'var(--nw-border-width-thin) solid var(--nw-color-border-default)', backgroundColor: 'var(--nw-color-surface-secondary)' }}>
                 {/* Static columns that are consistent across all investment report tabs */}
                 <TableHead 
-                  className="gba:text-left" 
                   style={{ 
+                    textAlign: 'left',
                     fontWeight: 'var(--nw-font-weight-semibold)', 
                     fontFamily: 'var(--nw-font-family-base)', 
                     color: 'var(--nw-color-text-primary)', 
@@ -228,8 +237,8 @@ export const AnalyticsTable: React.FC<AnalyticsTableProps> = ({
                   Investment
                 </TableHead>
                 <TableHead 
-                  className="gba:text-center" 
                   style={{ 
+                    textAlign: 'center',
                     fontWeight: 'var(--nw-font-weight-semibold)', 
                     fontFamily: 'var(--nw-font-family-base)', 
                     color: 'var(--nw-color-text-primary)', 
@@ -239,29 +248,37 @@ export const AnalyticsTable: React.FC<AnalyticsTableProps> = ({
                   Date
                 </TableHead>
                 {/* Dynamic columns based on catalog configuration */}
-                {shouldShowDynamicColumns && dynamicColumns.map((column) => (
-                  <TableHead 
-                    key={column.id}
-                    className={column.className || 'gba:text-left'}
-                    style={{ 
-                      fontWeight: 'var(--nw-font-weight-semibold)', 
-                      fontFamily: 'var(--nw-font-family-base)', 
-                      color: 'var(--nw-color-text-primary)', 
-                      padding: 'var(--nw-spacing-3) var(--nw-spacing-4)' 
-                    }}
-                  >
-                    {column.label}
-                  </TableHead>
-                ))}
+                {shouldShowDynamicColumns && dynamicColumns.map((column) => {
+                  const textAlign = column.className?.includes('text-center') ? 'center' : column.className?.includes('text-right') ? 'right' : 'left';
+                  
+                  return (
+                    <TableHead 
+                      key={column.id}
+                      style={{ 
+                        textAlign,
+                        fontWeight: 'var(--nw-font-weight-semibold)', 
+                        fontFamily: 'var(--nw-font-family-base)', 
+                        color: 'var(--nw-color-text-primary)', 
+                        padding: 'var(--nw-spacing-3) var(--nw-spacing-4)' 
+                      }}
+                    >
+                      {column.label}
+                    </TableHead>
+                  );
+                })}
               </TableRow>
             </TableHeader>
             <TableBody>
-              {analyticsData.length === 0 ? (
+              {(!analyticsData || analyticsData.length === 0) ? (
                 <TableRow>
                   <TableCell colSpan={
                     // Static columns (Investment, Date) + dynamic columns
                     2 + (shouldShowDynamicColumns ? dynamicColumns.length : 0)
-                  } className="gba:text-center" style={{ padding: 'var(--nw-spacing-12) 0', color: 'var(--nw-color-text-secondary)' }}>
+                  } style={{
+                    textAlign: 'center',
+                    padding: 'var(--nw-spacing-12) 0',
+                    color: 'var(--nw-muted-foreground)'
+                  }}>
                     <div className="gba:flex gba:flex-col gba:items-center" style={{ gap: 'var(--nw-spacing-2)' }}>
                       <DollarSign style={{ height: 'var(--nw-spacing-12)', width: 'var(--nw-spacing-12)', color: 'var(--nw-muted-foreground)' }} />
                       <p style={{ fontSize: 'var(--nw-text-lg)', fontWeight: 'var(--nw-font-weight-medium)' }}>No {investmentType} Data Found</p>
@@ -271,7 +288,7 @@ export const AnalyticsTable: React.FC<AnalyticsTableProps> = ({
                 </TableRow>
               ) : (
                 <>
-                  {analyticsData.map((row, index) => (
+                  {(analyticsData || []).map((row, index) => (
                     <TableRow
                       key={row.id}
                       className="gba:cursor-pointer"
@@ -288,15 +305,20 @@ export const AnalyticsTable: React.FC<AnalyticsTableProps> = ({
                           <span style={{ fontWeight: 'var(--nw-font-weight-medium)' }}>{row.investmentName}</span>
                         </div>
                       </TableCell>
-                      <TableCell className="gba:text-center" style={{ padding: 'var(--nw-spacing-3) var(--nw-spacing-4)' }}>
+                      <TableCell style={{
+                        textAlign: 'center',
+                        padding: 'var(--nw-spacing-3) var(--nw-spacing-4)'
+                      }}>
                         {row.reportDate ? formatDate(row.reportDate) : '-'}
                       </TableCell>
                       {/* Dynamic columns based on catalog configuration */}
                       {shouldShowDynamicColumns && dynamicColumns.map((column) => (
                         <TableCell 
                           key={column.id}
-                          className={column.className || 'gba:text-left'}
-                          style={{ padding: 'var(--nw-spacing-3) var(--nw-spacing-4)' }}
+                          style={{ 
+                            textAlign: column.className?.includes('text-center') ? 'center' : column.className?.includes('text-right') ? 'right' : 'left',
+                            padding: 'var(--nw-spacing-3) var(--nw-spacing-4)' 
+                          }}
                         >
                           {column.getValue(row)}
                         </TableCell>
