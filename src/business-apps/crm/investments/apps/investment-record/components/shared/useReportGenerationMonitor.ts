@@ -170,12 +170,6 @@ export const useReportGenerationMonitor = ({
       window.addEventListener(eventName, globalEventHandler, true);
     });
 
-    // COMPREHENSIVE: Monitor ALL custom events for debugging
-    const originalDispatchEvent = window.dispatchEvent;
-    window.dispatchEvent = function(event: Event) {
-      return originalDispatchEvent.call(this, event);
-    };
-
     return () => {
       allEventNames.forEach(eventName => {
         window.removeEventListener(eventName, globalEventHandler, true);
@@ -183,9 +177,6 @@ export const useReportGenerationMonitor = ({
       
       // Restore fetch override
       window.fetch = originalFetch;
-      
-      // Restore dispatchEvent
-      window.dispatchEvent = originalDispatchEvent;
     };
   }, [onReportGenerated, setIsGenerating, extractFilePathFromReportPath, extractFileNameFromReportPath]);
 

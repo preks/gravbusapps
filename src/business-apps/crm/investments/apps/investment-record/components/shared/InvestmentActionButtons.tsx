@@ -13,7 +13,22 @@ import { FlowBasedGenerateButton } from './FlowBasedGenerateButton';
 // GENERATE ONE-PAGER BUTTON
 // =============================================================================
 
-export interface GenerateOnePagerButtonProps extends Partial<BusinessAppContextProps> {
+export interface GenerateOnePagerButtonProps {
+  /**
+   * Access token for API requests (required)
+   */
+  accessToken: string;
+
+  /**
+   * User information (optional)
+   */
+  userInfo?: BusinessAppContextProps['userInfo'];
+
+  /**
+   * Additional data (optional)
+   */
+  additionalData?: BusinessAppContextProps['additionalData'];
+
   /**
    * Investment ID to generate report for
    */
@@ -53,6 +68,11 @@ export const GenerateOnePagerButton: React.FC<GenerateOnePagerButtonProps> = ({
   investmentData
 }) => {
   // Validate required props
+  if (!accessToken) {
+    console.warn('⚠️ GenerateOnePagerButton: Missing required accessToken');
+    return null;
+  }
+
   if (!investmentId && !investmentData) {
     console.warn('⚠️ GenerateOnePagerButton: Missing required investmentId or investmentData');
     return null;
@@ -110,11 +130,6 @@ export interface UploadReportButtonProps extends BusinessAppContextProps {
   size?: 'sm' | 'default' | 'lg';
 }
 
-// Helper function to get investment flow context
-const getInvestmentFlowContext = (): FlowContextName => {
-  // Return the standard investment report upload flow context
-  return FlowContextName.investmentReportUpload;
-};
 
 export const UploadReportButton: React.FC<UploadReportButtonProps> = ({
   investmentId,

@@ -79,7 +79,7 @@ export const DirectApiGenerateButton: React.FC<DirectApiGenerateButtonProps> = (
       {error && (
         <Alert
           variant="destructive"
-          title="Report Generation Error"
+          title={getTranslationFromI18nKeyAndLabel('investment.reports.generationError', 'Report Generation Error')}
           data-testid="generate-investment-one-pager-error"
         >
           {error}
