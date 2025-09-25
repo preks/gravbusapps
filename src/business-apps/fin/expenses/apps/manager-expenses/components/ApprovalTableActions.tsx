@@ -1,6 +1,7 @@
 import React from 'react';
 import { Button, Alert, AlertDescription } from '@newwork/nw-design-system';
 import { ApprovalRequest } from '../types';
+import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
 
 interface ApprovalTableActionsProps {
   selectedTasks: ApprovalRequest[];
@@ -33,17 +34,6 @@ const ApprovalTableActions: React.FC<ApprovalTableActionsProps> = ({
 
       {selectedTasks.length > 0 && (
         <div className="gba:mb-4 gba:flex gba:justify-between gba:items-center">
-          <div className="gba:flex gba:items-center gba:gap-2">
-            <span className="gba:text-sm gba:text-gray-600">{selectedTasks.length} selected</span>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={onClearSelection}
-              data-testid={`${dataTestIdPrefix}-clear-selection-button`}
-            >
-              Clear Selection
-            </Button>
-          </div>
           <Button
             variant="default"
             size="sm"
@@ -53,7 +43,10 @@ const ApprovalTableActions: React.FC<ApprovalTableActionsProps> = ({
           >
             {isApproving
               ? 'Approving...'
-              : `Approve ${selectedTasks.length} Task${selectedTasks.length > 1 ? 's' : ''}`}
+              : `${getTranslationFromI18nKeyAndLabel(
+                  'lowcoder:approve_expense_request.approve_button',
+                  'Approve',
+                )} ${selectedTasks.length} Task${selectedTasks.length > 1 ? 's' : ''}`}
           </Button>
         </div>
       )}

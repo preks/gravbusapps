@@ -59,12 +59,9 @@ const ApprovalTable: React.FC<ApprovalTableProps> = ({
   userInfo,
   accessToken,
 }) => {
-  // Map flow execution tasks to approval requests for UI compatibility
-  // Keep raw tasks for entity ID extraction and map for display
-  const rawTasks = tasks; // Raw FlowExecutionTask[] from API
+  const rawTasks = tasks;
   const approvalRequests = mapFlowTasksToApprovalRequests(tasks);
 
-  // Use approval handling hook
   const { isApproving, approvalError, handleApproveClick } = useApprovalHandling({
     selectedTasks,
     setSelectedTasks,
@@ -106,7 +103,6 @@ const ApprovalTable: React.FC<ApprovalTableProps> = ({
     setValidationError(null);
   };
 
-  // Handle approval button click with validation
   const handleApproveClickWithValidation = async () => {
     if (selectedTasks.length === 0) {
       setValidationError('Please select at least one task to approve');
@@ -198,8 +194,18 @@ const ApprovalTable: React.FC<ApprovalTableProps> = ({
                   'Title',
                 )}
               </TableHead>
-              <TableHead className="gba:w-[20%]">Task Group</TableHead>
-              <TableHead className="gba:w-[15%]">Employee</TableHead>
+              <TableHead className="gba:w-[20%]">
+                {getTranslationFromI18nKeyAndLabel(
+                  'lowcoder:manager_expenses_landing_page.task_group',
+                  'Task Group',
+                )}
+              </TableHead>
+              <TableHead className="gba:w-[15%]">
+                {getTranslationFromI18nKeyAndLabel(
+                  'lowcoder:hr_absences.create_absence.employee',
+                  'Employee',
+                )}
+              </TableHead>
               <TableHead className="gba:w-[10%]">
                 {getTranslationFromI18nKeyAndLabel(
                   'lowcoder:expense_request_list.expense_plan_table.status',
