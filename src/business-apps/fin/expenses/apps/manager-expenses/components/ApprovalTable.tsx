@@ -91,7 +91,13 @@ const ApprovalTable: React.FC<ApprovalTableProps> = ({
     const validation = validateTaskSelection(selectedTasks, task);
 
     if (!validation.isValid) {
-      setValidationError(validation.errorMessage || 'Invalid task selection');
+      setValidationError(
+        validation.errorMessage ||
+          getTranslationFromI18nKeyAndLabel(
+            'lowcoder:manager_expenses_landing_page.invalid_task_selection',
+            'Invalid task selection',
+          ),
+      );
       return;
     }
 
@@ -105,7 +111,12 @@ const ApprovalTable: React.FC<ApprovalTableProps> = ({
 
   const handleApproveClickWithValidation = async () => {
     if (selectedTasks.length === 0) {
-      setValidationError('Please select at least one task to approve');
+      setValidationError(
+        getTranslationFromI18nKeyAndLabel(
+          'lowcoder:manager_expenses_landing_page.select_task_to_approve',
+          'Please select at least one task to approve',
+        ),
+      );
       return;
     }
 
@@ -127,9 +138,17 @@ const ApprovalTable: React.FC<ApprovalTableProps> = ({
     return (
       <div className="gba:flex gba:flex-col gba:items-center gba:justify-center gba:p-8 gba:text-center">
         <div className="gba:text-gray-500 gba:text-lg gba:font-medium gba:mb-2">
-          No pending approval requests found
+          {getTranslationFromI18nKeyAndLabel(
+            'lowcoder:manager_expenses_landing_page.no_pending_approvals',
+            'No pending approval requests found',
+          )}
         </div>
-        <div className="gba:text-gray-400 gba:mb-4">All approval requests have been processed.</div>
+        <div className="gba:text-gray-400 gba:mb-4">
+          {getTranslationFromI18nKeyAndLabel(
+            'lowcoder:manager_expenses_landing_page.all_approvals_processed',
+            'All approval requests have been processed.',
+          )}
+        </div>
       </div>
     );
   }
@@ -184,7 +203,7 @@ const ApprovalTable: React.FC<ApprovalTableProps> = ({
               </TableHead>
               <TableHead className="gba:w-[15%]">
                 {getTranslationFromI18nKeyAndLabel(
-                  'lowcoder:expense_request_list.expense_plan_table.date',
+                  'lowcoder:expense_plan_list.expense_plan_table.create_date',
                   'Date',
                 )}
               </TableHead>

@@ -12,7 +12,7 @@ import { PiArrowLeft } from 'react-icons/pi';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 import { ApprovalRequest, ApprovalTabKey } from '../../types';
 import { useFlowExecutionTasks } from '../../hooks/useFlowExecutionTasks';
-import { APPROVAL_TABS, getTabByKey } from '../../constants/approvalTabs';
+import { APPROVAL_TABS, getTabByKey, getTabLabel } from '../../constants/approvalTabs';
 import ApprovalTable from '../ApprovalTable';
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
 
@@ -219,7 +219,7 @@ const ApprovalsPage: React.FC<ApprovalsPageProps> = ({ onNavigateBack, ...props 
                   data-testid={`${DATA_TEST_ID_PREFIX}-tab-${tab.key}`}
                   className="gba:flex gba:flex-col gba:items-center gba:gap-1 gba:py-3"
                 >
-                  <span className="gba:text-sm gba:font-medium">{tab.label}</span>
+                  <span className="gba:text-sm gba:font-medium">{getTabLabel(tab.key)}</span>
                   <TabsBadge variant="accent" className="gba:text-xs">
                     {isLoadingCounts ? '...' : tabCounts[tab.key as ApprovalTabKey] || 0}
                   </TabsBadge>
