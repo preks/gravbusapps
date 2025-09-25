@@ -54,8 +54,6 @@ export const DirectApiGenerateButton: React.FC<DirectApiGenerateButtonProps> = (
       const response = await reportClient.generateInvestmentReport(reportPayload);
 
       if (response.success) {
-        console.info('✅ Report generated successfully:', getTranslationFromI18nKeyAndLabel('investment.reports.generateSuccess', 'One-pager report generated successfully!'));
-
         // If the API returns a download URL, open it using platform navigation
         if (response.reportUrl) {
           const url = buildPlatformUrl(response.reportUrl);

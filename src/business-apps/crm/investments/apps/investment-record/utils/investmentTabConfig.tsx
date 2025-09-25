@@ -85,7 +85,8 @@ export const createInvestmentTabsConfig = (
         <div className="gba:col-span-12 gba:space-y-6">
           {/* Generate One-Pager Action */}
           <div 
-            className="gba:flex gba:justify-end gba:mb-4" 
+            className="gba:flex gba:justify-end"
+            style={{ marginBottom: 'var(--nw-spacing-lg)' }}
             data-testid="investment-generate-onepager-section"
           >
             <GenerateOnePagerButton
@@ -112,7 +113,10 @@ export const createInvestmentTabsConfig = (
           {getTypeSpecificOverviewContent(investmentType, typeSpecificData)}
 
           {/* Common Account and Contact Information */}
-          <div className="gba:grid gba:gap-6 gba:grid-cols-1 gba:lg:grid-cols-2">
+          <div 
+            className="gba:grid gba:grid-cols-1 gba:lg:grid-cols-2"
+            style={{ gap: 'var(--nw-spacing-xl)' }}
+          >
             <AccountSection 
               account={investment?.investmentAccount}
               accessToken={props.accessToken}
@@ -165,7 +169,8 @@ export const createInvestmentTabsConfig = (
         <div className="gba:col-span-12 gba:space-y-6">
           {/* Upload Report Action */}
           <div 
-            className="gba:flex gba:justify-end gba:mb-4" 
+            className="gba:flex gba:justify-end"
+            style={{ marginBottom: 'var(--nw-spacing-lg)' }}
             data-testid="investment-upload-report-section"
           >
             <UploadReportButton
