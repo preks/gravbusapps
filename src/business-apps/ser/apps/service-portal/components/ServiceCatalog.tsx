@@ -9,6 +9,7 @@ import {
 import { getCategoryIcon } from '../../../utils/iconMapping';
 import { useDesksForUser, useServicePortalCategories, useSharedFlowTemplates } from '../../../hooks';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
+import { SERVICE_PORTAL_CONFIG } from '../../../config/servicePortalConfig';
 import { 
   ClockCounterClockwise,
   Notepad,
@@ -46,11 +47,10 @@ export const ServiceCatalog: React.FC<ServiceCatalogProps> = ({
   // Fetch all templates to count services per category
   const {
     templates: allFlowTemplates,
-    isLoading: templatesLoading,
-    error: templatesError,
   } = useSharedFlowTemplates({ accessToken, userInfo }, { 
     enabled: true,
-    limit: 100
+    limit: SERVICE_PORTAL_CONFIG.DEFAULT_TEMPLATE_LIMIT,
+    filterByApp: SERVICE_PORTAL_CONFIG.FILTER_BY_SERVICES_APP
   });
 
   // Function to count templates for a specific category

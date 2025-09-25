@@ -1,13 +1,15 @@
 import { useState, useEffect, useCallback } from 'react';
 import { FlowTemplate, FlowTemplateState, DynamicFormField } from '../../../types/flowTemplate';
-import { createTemplatesService, TemplateServiceOptions } from '../../../services/templatesService';
+import { createTemplatesService } from '../../../services/templatesService';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
+import { isServicesAppTemplate } from '../../../config/servicePortalConfig';
 
 interface UseFlowTemplatesOptions {
   categoryId?: string;
   enabled?: boolean;
   limit?: number;
   offset?: number;
+  filterByApp?: boolean; // New option to enable app filtering
 }
 
 interface UseFlowTemplatesResult extends FlowTemplateState {
@@ -24,7 +26,8 @@ export const useFlowTemplates = (
     categoryId,
     enabled = true,
     limit = 100,
-    offset = 0
+    offset = 0,
+    filterByApp = false
   } = options;
 
   const [state, setState] = useState<FlowTemplateState>({
@@ -96,7 +99,8 @@ export const useFlowTemplates = (
       console.log('🎭 [useFlowTemplates] Fetching templates with options:', {
         categoryId,
         limit,
-        offset: isLoadMore ? currentOffset : 0
+        offset: isLoadMore ? currentOffset : 0,
+        filterByApp
       });
 
       const templatesService = createTemplatesService(contextProps);
@@ -125,6 +129,13 @@ export const useFlowTemplates = (
         .filter((template: any) => template && typeof template === 'object')
         .map(transformTemplate)
         .filter((template: FlowTemplate) => {
+          // Filter by app if enabled
+          if (filterByApp) {
+            if (!isServicesAppTemplate(template.tags?.app)) {
+              return false;
+            }
+          }
+          
           // Filter by category if specified
           if (categoryId && template.category && template.category !== categoryId) {
             return false;
@@ -158,7 +169,7 @@ export const useFlowTemplates = (
         templates: isLoadMore ? prev.templates : []
       }));
     }
-  }, [contextProps, categoryId, enabled, limit, currentOffset, transformTemplate]);
+  }, [contextProps, categoryId, enabled, limit, currentOffset, transformTemplate, filterByApp]);
 
   const refetch = useCallback(async () => {
     setCurrentOffset(0);

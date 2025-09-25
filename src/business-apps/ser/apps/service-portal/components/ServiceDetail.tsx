@@ -14,6 +14,7 @@ import { useServicePortalCategories } from '../../../hooks';
 import { FlowTemplateCard } from './FlowTemplateCard';
 import { FlowTemplatesDetail } from './FlowTemplatesDetail';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
+import { SERVICE_PORTAL_CONFIG } from '../../../config/servicePortalConfig';
 import { 
   ArrowLeft, 
   Warning
@@ -50,7 +51,6 @@ export const ServiceDetail: React.FC<ServiceDetailProps> = ({
   const [category, setCategory] = useState<ServiceCategory | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-
   // Fetch dynamic categories from catalog (same as ServiceCatalog)
   const {
     categories: catalogCategories,
@@ -66,7 +66,8 @@ export const ServiceDetail: React.FC<ServiceDetailProps> = ({
     refetch: refetchFlowTemplates
   } = useSharedFlowTemplates(contextProps, { 
     enabled: true,
-    limit: 100
+    limit: SERVICE_PORTAL_CONFIG.DEFAULT_TEMPLATE_LIMIT,
+    filterByApp: SERVICE_PORTAL_CONFIG.FILTER_BY_SERVICES_APP
   });
 
   // Filter templates by category using tags
@@ -375,6 +376,7 @@ export const ServiceDetail: React.FC<ServiceDetailProps> = ({
           <span>Back to Catalog</span>
         </button>
       </div>
+
       
       <PageLayout
         headerPhosphorIcon={{

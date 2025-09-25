@@ -2,9 +2,11 @@ import { useState, useEffect, useCallback, useMemo } from 'react';
 import { FlowTemplate, DynamicFormField } from '../types/flowTemplate';
 import { createTemplatesService, TemplateServiceOptions } from '../services/templatesService';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
+import { isServicesAppTemplate } from '../config/servicePortalConfig';
 
 interface UseSharedFlowTemplatesOptions extends TemplateServiceOptions {
   enabled?: boolean;
+  filterByApp?: boolean; // New option to enable app filtering
 }
 
 interface UseSharedFlowTemplatesResult {
@@ -31,6 +33,7 @@ export const useSharedFlowTemplates = (
     enabled = true,
     limit = 100,
     offset = 0,
+    filterByApp = false,
     ...restOptions
   } = options;
 
@@ -116,7 +119,8 @@ export const useSharedFlowTemplates = (
       categoryId,
       enabled,
       isLoadMore,
-      currentOffset
+      currentOffset,
+      filterByApp
     });
 
     setState(prev => ({
@@ -147,7 +151,16 @@ export const useSharedFlowTemplates = (
       // Transform templates
       const transformedTemplates = result.templates
         .filter((template: any) => template && typeof template === 'object')
-        .map(transformTemplate);
+        .map(transformTemplate)
+        .filter((template: FlowTemplate) => {
+          // Filter by app if enabled
+          if (filterByApp) {
+            if (!isServicesAppTemplate(template.tags?.app)) {
+              return false;
+            }
+          }
+          return true;
+        });
 
       console.log('🎭 [useSharedFlowTemplates] Transformed templates:', transformedTemplates);
 
@@ -174,7 +187,7 @@ export const useSharedFlowTemplates = (
         templates: isLoadMore ? prev.templates : []
       }));
     }
-  }, [accessToken, userInfo, categoryId, enabled, limit, currentOffset, stableRestOptions, transformTemplate]);
+  }, [accessToken, userInfo, categoryId, enabled, limit, currentOffset, stableRestOptions, transformTemplate, filterByApp]);
 
   const refetch = useCallback(async () => {
     console.log('🎭 [useSharedFlowTemplates] Manual refetch requested');
