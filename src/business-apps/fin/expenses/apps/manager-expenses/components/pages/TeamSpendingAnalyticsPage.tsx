@@ -756,7 +756,9 @@ const TeamSpendingAnalyticsPage: React.FC<TeamSpendingAnalyticsPageProps> = ({
               )}
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="gba:pl-14 gba:h-10 gba:text-sm gba:border-input"
+              className="gba:h-10 gba:text-sm gba:border-input"
+              style={{ paddingLeft: "28px" }}
+              data-testid="team-analytics-location-search-input"
             />
           </div>
           <div className="gba:space-y-3 gba:max-h-40 gba:overflow-y-auto gba:pr-2">
@@ -832,7 +834,9 @@ const TeamSpendingAnalyticsPage: React.FC<TeamSpendingAnalyticsPageProps> = ({
               )}
               value={departmentSearchTerm}
               onChange={(e) => setDepartmentSearchTerm(e.target.value)}
-              className="gba:pl-14 gba:h-10 gba:text-sm gba:border-input"
+              className="gba:h-10 gba:text-sm gba:border-input"
+              style={{ paddingLeft: "28px" }}
+              data-testid="team-analytics-department-search-input"
             />
           </div>
           <div className="gba:space-y-3 gba:max-h-40 gba:overflow-y-auto gba:pr-2">
