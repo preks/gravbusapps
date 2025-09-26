@@ -228,3 +228,6 @@ export interface DynamicFormProps {
 
 // Navigation types
 export type ServiceRoute = '/services' | '/services/my-requests' | '/services/requests';
+
+// Table preferences types
+export * from './tablePreferences';
