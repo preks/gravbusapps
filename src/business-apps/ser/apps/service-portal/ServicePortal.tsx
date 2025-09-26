@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { ServiceCatalog, ServiceDetail, RequestForm, MyRequests } from './components';
+import { ServiceCatalog, ServiceDetail, RequestForm, MyRequests, AIOnboardingTooltip } from './components';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 import { ServiceRequestTemplate, FlowTemplate } from '../../types';
 import type { WorkflowEngine } from '../../services';
@@ -345,8 +345,13 @@ export const ServicePortal: React.FC<ServicePortalProps> = ({
   };
 
   return (
-    <div data-testid="service-portal-container">
+    <div data-testid="service-portal-container" className="gba:relative">
       {renderCurrentView()}
+      
+      {/* AI Onboarding Tooltip - only show on catalog view */}
+      {state.currentView === 'catalog' && (
+        <AIOnboardingTooltip />
+      )}
     </div>
   );
 };

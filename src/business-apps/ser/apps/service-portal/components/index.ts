@@ -9,6 +9,7 @@ export { MyRequests } from './MyRequests';
 export { EnhancedServiceCatalog } from './EnhancedServiceCatalog';
 export { EmployeeOnboardingForm } from './EmployeeOnboardingForm';
 export { RequestComments } from './RequestComments';
+export { AIOnboardingTooltip } from './AIOnboardingTooltip';
 
 // Dynamic form components (moved to shared components)
 export { DynamicFormGenerator } from '../../../components/DynamicFormGenerator';
