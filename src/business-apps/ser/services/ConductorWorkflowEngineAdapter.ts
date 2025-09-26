@@ -2392,6 +2392,58 @@ export class ConductorWorkflowEngineAdapter implements WorkflowEngine {
   }
 
   /**
+   * Get step data for a specific flow step
+   * Returns task information for a given step reference (e.g., step_0, step_1)
+   */
+  async getFlowStepData(flowId: string, stepReference: string): Promise<{
+    data: Array<{
+      flowId: string;
+      taskId: string;
+      userId: string;
+      userName: string;
+      timestamp: string;
+      stepTitle: string;
+      formData: any;
+    }>;
+    totalCount: number;
+    hasMore: boolean;
+    stepReference: string;
+    flowId: string;
+  }> {
+    try {
+      console.log(`[ConductorAdapter] 🚀 getFlowStepData called with flowId=${flowId}, stepReference=${stepReference}`);
+      console.log(`[ConductorAdapter] 🚀 API Base URL: ${this.flowEngineBaseUrl}`);
+      console.log(`[ConductorAdapter] 🚀 Full URL will be: ${this.flowEngineBaseUrl}/flows/${flowId}/steps/${stepReference}/data`);
+      console.log(`[ConductorAdapter] 🚀 Access token available: ${!!this.accessToken} (length: ${this.accessToken?.length || 0})`);
+
+      const result = await this.makeRequest(`/flows/${flowId}/steps/${stepReference}/data`, {
+        method: 'GET',
+      });
+
+      console.log(`[ConductorAdapter] ✅ Step data fetched successfully:`, {
+        flowId,
+        stepReference,
+        dataCount: result.data?.length || 0,
+        totalCount: result.totalCount,
+        fullResult: result
+      });
+
+      return result;
+
+    } catch (error) {
+      console.error(`[ConductorAdapter] ❌ Error getting step data for ${flowId}/${stepReference}:`, error);
+      console.error(`[ConductorAdapter] ❌ Error details:`, {
+        errorMessage: error instanceof Error ? error.message : String(error),
+        errorStack: error instanceof Error ? error.stack : undefined,
+        flowId,
+        stepReference,
+        apiUrl: `${this.flowEngineBaseUrl}/flows/${flowId}/steps/${stepReference}/data`
+      });
+      throw new Error(`Failed to get step data: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
+  }
+
+  /**
    * Get templates from custom-flow-engine
    * Implementation of optional WorkflowEngine.getTemplates method
    */

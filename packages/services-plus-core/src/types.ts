@@ -193,6 +193,21 @@ export interface WorkflowEngine {
   getTask(stepId: string, userId?: string): Promise<StepInstance>;
   getTicketDetail(ticketId: string): Promise<StepInstance | null>; // Added for ticket detail view
   getAvailableActions(stepId: string, userId: string): Promise<AvailableActions>;
+  getFlowStepData?(flowId: string, stepReference: string): Promise<{
+    data: Array<{
+      flowId: string;
+      taskId: string;
+      userId: string;
+      userName: string;
+      timestamp: string;
+      stepTitle: string;
+      formData: any;
+    }>;
+    totalCount: number;
+    hasMore: boolean;
+    stepReference: string;
+    flowId: string;
+  }>;
   
   // Sync and maintenance
   syncTasks?(): Promise<{ tasksSynced: number; message: string }>;

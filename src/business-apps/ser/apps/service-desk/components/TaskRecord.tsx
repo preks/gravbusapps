@@ -37,7 +37,7 @@ import {
   ArrowLeftIcon, UserIcon, ClockIcon, WarningIcon, CheckCircleIcon, 
   ChatCircleIcon, PaperPlaneRightIcon, UserCheckIcon, UserMinusIcon, 
   ArrowClockwiseIcon, TargetIcon, ClipboardIcon, InfoIcon, WarningCircleIcon,
-  TrendUpIcon, Link as LinkIcon, EyeIcon, UsersIcon, LockIcon
+  TrendUpIcon, Link as LinkIcon, EyeIcon, UsersIcon, LockIcon, CursorClickIcon
 } from '@phosphor-icons/react';
 
 // Import types and hooks
@@ -107,6 +107,7 @@ export interface TaskRecordProps extends BusinessAppContextProps {
   taskId: string;
   deskKey: string;
   onClose?: () => void;
+  onTaskChange?: (taskId: string) => void;
 }
 
 /**
@@ -118,6 +119,7 @@ export const TaskRecord: React.FC<TaskRecordProps> = ({
   accessToken,
   userInfo,
   onClose,
+  onTaskChange,
 }) => {
   const [newComment, setNewComment] = useState('');
   const [commentVisibility, setCommentVisibility] = useState<CommentVisibility>('INTERNAL_TASK');
@@ -126,6 +128,7 @@ export const TaskRecord: React.FC<TaskRecordProps> = ({
   const [availableActions, setAvailableActions] = useState<any>(null);
   const [taskFormData, setTaskFormData] = useState<DynamicFormValues>({});
   const [isSubmittingTaskForm, setIsSubmittingTaskForm] = useState(false);
+  const [isLoadingStepData, setIsLoadingStepData] = useState(false);
 
   // Load task data
   const { 
@@ -423,6 +426,84 @@ export const TaskRecord: React.FC<TaskRecordProps> = ({
       message.error(`Failed to complete ticket: ${error instanceof Error ? error.message : 'Unknown error'}`);
     } finally {
       setIsSubmittingTaskForm(false);
+    }
+  };
+
+  // Handle timeline step title click to open corresponding ticket
+  const handleStepTitleClick = async (stepIndex: number) => {
+    console.log(`[TaskRecord] 🔍 Step title clicked! stepIndex=${stepIndex}`);
+    console.log(`[TaskRecord] 🔍 fullRequest?.id=${fullRequest?.id}`);
+    console.log(`[TaskRecord] 🔍 isLoadingStepData=${isLoadingStepData}`);
+    console.log(`[TaskRecord] 🔍 accessToken available=${!!accessToken}`);
+    console.log(`[TaskRecord] 🔍 userInfo available=${!!userInfo}`);
+    
+    if (!fullRequest?.id) {
+      console.error(`[TaskRecord] ❌ No fullRequest.id available`);
+      message.error('No request ID available');
+      return;
+    }
+    
+    if (isLoadingStepData) {
+      console.log(`[TaskRecord] ⏳ Already loading step data, skipping`);
+      return;
+    }
+    
+    setIsLoadingStepData(true);
+    try {
+      const workflowEngine = createConductorWorkflowEngine({ accessToken, userInfo });
+      const stepReference = `step_${stepIndex}`;
+      
+      console.log(`[TaskRecord] 🚀 Getting step data for ${fullRequest.id}/${stepReference}`);
+      console.log(`[TaskRecord] 🚀 Calling workflowEngine.getFlowStepData...`);
+      
+      // Get step data using the new endpoint
+      const stepDataResponse = await workflowEngine.getFlowStepData?.(fullRequest.id, stepReference);
+      
+      if (!stepDataResponse) {
+        throw new Error('getFlowStepData method not available on workflow engine');
+      }
+      
+      console.log(`[TaskRecord] 📥 Step data response:`, stepDataResponse);
+      
+      if (stepDataResponse.data && stepDataResponse.data.length > 0) {
+        const stepData = stepDataResponse.data[0];
+        const taskId = stepData.taskId;
+        
+        console.log(`[TaskRecord] ✅ Found task ID for step ${stepIndex}: ${taskId}`);
+        
+        // Navigate to the task detail
+        if (onTaskChange) {
+          console.log(`[TaskRecord] 🔄 Using onTaskChange callback`);
+          onTaskChange(taskId);
+        } else {
+          console.log(`[TaskRecord] 🔄 Using URL parameter navigation to taskId=${taskId}`);
+          
+          // Update URL parameters to navigate to the new task
+          const url = new URL(window.location.href);
+          url.searchParams.set('taskId', taskId);
+          
+          console.log(`[TaskRecord] 🔄 Navigating to URL: ${url.toString()}`);
+          
+          // Use pushState to navigate without page reload
+          window.history.pushState({}, '', url.toString());
+          
+          // Trigger a popstate event to notify the ServiceDesk component
+          window.dispatchEvent(new PopStateEvent('popstate', { state: {} }));
+          
+          console.log(`[TaskRecord] 🔄 Navigation completed to task: ${taskId}`);
+        }
+        
+        message.success(`Opening ticket for ${stepData.stepTitle}`);
+      } else {
+        console.warn(`[TaskRecord] ⚠️ No task data found for step ${stepIndex}`);
+        message.warning(`No task data found for this step`);
+      }
+      
+    } catch (error) {
+      console.error('[TaskRecord] ❌ Failed to get step data:', error);
+      message.error(`Failed to open step ticket: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    } finally {
+      setIsLoadingStepData(false);
     }
   };
 
@@ -1130,7 +1211,26 @@ export const TaskRecord: React.FC<TaskRecordProps> = ({
           </Card>
 
           {/* Workflow Steps Card */}
-          {fullRequest && ((fullRequest as any).originalSteps || fullRequest.steps) && ((fullRequest as any).originalSteps || fullRequest.steps).length > 0 && (
+          {(() => {
+            const hasFullRequest = !!fullRequest;
+            const originalSteps = (fullRequest as any)?.originalSteps;
+            const steps = fullRequest?.steps;
+            const stepsToUse = originalSteps || steps;
+            const hasSteps = stepsToUse && stepsToUse.length > 0;
+            
+            console.log(`[TaskRecord] 🔍 Workflow Steps Card rendering check:`, {
+              hasFullRequest,
+              hasOriginalSteps: !!originalSteps,
+              originalStepsLength: originalSteps?.length || 0,
+              hasSteps: !!steps,
+              stepsLength: steps?.length || 0,
+              stepsToUse: stepsToUse?.length || 0,
+              shouldRender: hasFullRequest && hasSteps,
+              fullRequestId: fullRequest?.id
+            });
+            
+            return hasFullRequest && hasSteps;
+          })() && (
             <Card>
               <CardHeader>
                 <CardTitle className="gba:flex gba:items-center gba:gap-3">
@@ -1139,16 +1239,21 @@ export const TaskRecord: React.FC<TaskRecordProps> = ({
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                <p className="gba:text-sm gba:text-muted-foreground gba:mb-6">
-                  Track the progress of this request through {((fullRequest as any).originalSteps || fullRequest.steps).length} workflow steps:
+                <p className="gba:text-sm gba:text-muted-foreground gba:mb-4">
+                  Track the progress of this request through {((fullRequest as any)?.originalSteps || fullRequest?.steps)?.length || 0} workflow steps:
                 </p>
                 
+                
                 <Timeline progressive={false} className="gba:max-w-none gba:mt-6 gba:px-2">
-                  {((fullRequest as any).originalSteps || fullRequest.steps).map((step: any, index: number) => {
+                  {(((fullRequest as any)?.originalSteps || fullRequest?.steps) || []).map((step: any, index: number) => {
                     const isCompleted = step.status === 'COMPLETED';
                     const isInProgress = step.status === 'IN_PROGRESS';
                     const isFailed = step.status === 'FAILED' || step.status === 'ERROR';
+                    const isPending = step.status === 'PENDING' || step.status === 'SCHEDULED' || step.status === 'READY' || step.status === 'QUEUED';
                     const stepNumber = (step.stepIndex ?? index) + 1;
+                    
+                    // Only make steps clickable if they have been started (not pending/scheduled)
+                    const isClickable = !isPending;
                     
                     // Create step description with rich details
                     const stepDetails = [];
@@ -1213,7 +1318,31 @@ export const TaskRecord: React.FC<TaskRecordProps> = ({
                         <TimelineHeader>
                           <TimelineSeparator />
                           <TimelineTitle className="gba:flex gba:items-center gba:gap-2 gba:font-semibold">
-                            {step.title || step.name || `Step ${stepNumber}`}
+                            {isClickable ? (
+                              <button
+                                onClick={(e) => {
+                                  e.preventDefault();
+                                  e.stopPropagation();
+                                  console.log(`[TaskRecord] 🖱️ Button clicked! stepIndex=${step.stepIndex ?? index}`);
+                                  handleStepTitleClick(step.stepIndex ?? index);
+                                }}
+                                disabled={isLoadingStepData}
+                                className="gba:text-left gba:bg-transparent gba:border-none gba:p-0 gba:font-semibold gba:text-blue-600 hover:gba:text-blue-800 gba:cursor-pointer gba:transition-colors gba:duration-200 hover:gba:underline disabled:gba:opacity-50 disabled:gba:cursor-not-allowed gba:flex gba:items-center gba:gap-2"
+                                data-testid={`timeline-step-title-${step.stepIndex ?? index}`}
+                                title="Click to open this step's ticket details"
+                              >
+                                <span className="gba:underline gba:decoration-dotted gba:decoration-blue-400 hover:gba:decoration-solid hover:gba:decoration-blue-600 gba:transition-all gba:duration-200">
+                                  {step.title || step.name || `Step ${stepNumber}`}
+                                </span>
+                                {isLoadingStepData && (
+                                  <Spinner className="gba:w-4 gba:h-4" />
+                                )}
+                              </button>
+                            ) : (
+                              <span className="gba:text-foreground gba:flex gba:items-center gba:gap-2">
+                                {step.title || step.name || `Step ${stepNumber}`}
+                              </span>
+                            )}
                             {getStatusBadge()}
                           </TimelineTitle>
                           <TimelineIndicator className={`gba:border gba:flex gba:items-center gba:justify-center gba:w-9 gba:h-9 gba:rounded-full gba:transition-all gba:duration-200 gba:hover:scale-105 ${getIndicatorStyle()}`}>
