@@ -20,17 +20,53 @@ import {
 // Remove dependency on investmentTypeUtils - now using dynamic types
 
 /**
- * Gets type-specific overview content
+ * Gets type-specific overview content with enhanced equity detection
  */
-export const getTypeSpecificOverviewContent = (investmentType: string, typeSpecificData: any) => {
-  switch (investmentType) {
-    case 'equity':
-      return (
+export const getTypeSpecificOverviewContent = (investmentType: string, typeSpecificData: any, businessAppContext?: BusinessAppContextProps, onRefresh?: () => void) => {
+  // Enhanced equity detection - check multiple conditions
+  const isEquityInvestment = 
+    investmentType === 'equity' ||
+    (investmentType || '').toLowerCase().includes('equity') ||
+    (typeSpecificData?.investment?.investmentGroup?.code || '').includes('EQUITY') ||
+    (typeSpecificData?.investment?.investmentType?.code || '').toLowerCase().includes('equity') ||
+    typeSpecificData?.equityInvestment; // Has equity data
+
+  // Enhanced real estate detection - check multiple conditions
+  const isRealEstateInvestment = 
+    investmentType === 'real_estate' ||
+    (investmentType || '').toLowerCase().includes('real_estate') ||
+    (investmentType || '').toLowerCase().includes('realestate') ||
+    (typeSpecificData?.investment?.investmentGroup?.code || '').includes('REAL_ESTATE') ||
+    (typeSpecificData?.investment?.investmentType?.code || '').toLowerCase().includes('real_estate') ||
+    typeSpecificData?.realEstateInvestment; // Has real estate data
+
+  if (isEquityInvestment) {
+    return (
+      <div data-testid="equity-overview-section">
         <EquityInvestmentRounds 
           equityData={typeSpecificData}
           isLoading={false}
+          onRefresh={onRefresh}
+          data-testid="equity-investment-rounds-overview"
+          {...businessAppContext}
         />
-      );
+      </div>
+    );
+  }
+
+  if (isRealEstateInvestment) {
+    return (
+      <div data-testid="real-estate-overview-section">
+        <RealEstateLiquidityForecast 
+          realEstateData={typeSpecificData}
+          isLoading={false}
+          data-testid="real-estate-liquidity-forecast-overview"
+        />
+      </div>
+    );
+  }
+
+  switch (investmentType) {
     case 'real_estate':
       return (
         <RealEstateLiquidityForecast 
@@ -110,7 +146,7 @@ export const createInvestmentTabsConfig = (
           )}
 
           {/* Type-specific content */}
-          {getTypeSpecificOverviewContent(investmentType, typeSpecificData)}
+          {getTypeSpecificOverviewContent(investmentType, typeSpecificData, props, loadData)}
 
           {/* Common Account and Contact Information */}
           <div 
