@@ -13,7 +13,7 @@ export const KeyInsightsSection: React.FC<KeyInsightsSectionProps> = ({ data, co
   if (catalogsLoading || absenceGroups.length === 0) {
     return (
       <div className="gba:p-6 gba:text-center" data-testid="key-insights-section-loading">
-        Loading absence catalogs...
+        {getTranslationFromI18nKeyAndLabel('lowcoder:add_items_to_plan.loading_text', 'Loading...')}
       </div>
     );
   }

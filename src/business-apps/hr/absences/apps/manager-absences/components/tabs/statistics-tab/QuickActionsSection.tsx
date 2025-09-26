@@ -51,7 +51,8 @@ export const QuickActionsSection: React.FC<QuickActionsSectionProps> = ({
                   className="gba:text-2xl gba:font-bold gba:text-blue-600"
                   data-testid="average-work-streak-value"
                 >
-                  {statistics.averageWorkStreak || '0.0'} days
+                  {statistics.averageWorkStreak || '0.0'}{' '}
+                  {getTranslationFromI18nKeyAndLabel('lowcoder:absence_hub.days', 'days')}
                 </div>
                 <div
                   className="gba:text-xs gba:text-gray-500 gba:mt-1"
