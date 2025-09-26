@@ -13,17 +13,19 @@ export const createApprovalPayload = (
   const today = new Date().toISOString();
   const employeeId = userInfo?.employeeDetails?.employeeId;
 
-  // Get the original task data to access variables
-  // Find the original task from the tasks array that corresponds to the first selected task
-  const firstSelectedTask = tasks.find((task) => task.id === tasks[0].id);
+  // Check if tasks array is not empty
+  if (tasks.length === 0) {
+    throw new Error('Tasks array is empty - no tasks provided for approval');
+  }
+
+  const firstSelectedTaskId = tasks[0].id;
+  const firstSelectedTask = tasks.find((task) => task.id === firstSelectedTaskId);
 
   if (!firstSelectedTask) {
     throw new Error('Could not find original task data');
   }
 
-  // Extract entity ID from task data
   const getEntityId = (task: any, tabKey: string) => {
-    // Try to get the actual entity ID from task variables first
     let entityId = null;
     if (task.variables) {
       switch (tabKey) {

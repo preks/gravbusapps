@@ -210,8 +210,8 @@ const ApprovalsPage: React.FC<ApprovalsPageProps> = ({ onNavigateBack, ...props 
         className="gba:min-h-screen"
       >
         <div className="gba:px-6" data-testid="approvals-page">
-          <Tabs value={activeTab} onValueChange={handleTabChange} className="gba:w-full">
-            <TabsList className="gba:grid gba:w-full gba:grid-cols-5 gba:mb-6">
+          <Tabs value={activeTab} onValueChange={handleTabChange} className="gba:w-[100%]">
+            <TabsList className="gba:grid gba:w-[100%] gba:grid-cols-5 gba:mb-6">
               {APPROVAL_TABS.map((tab) => (
                 <TabsTrigger
                   key={tab.key}
