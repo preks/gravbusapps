@@ -26,6 +26,7 @@ export interface FlowExecutionTask {
   processDefinitionId?: string;
   taskDefinitionId?: string;
   variables?: Record<string, any>;
+  inputs?: Record<string, any>;
 }
 
 export interface FlowExecutionTasksResponse {

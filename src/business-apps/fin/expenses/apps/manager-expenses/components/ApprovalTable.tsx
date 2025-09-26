@@ -213,10 +213,16 @@ const ApprovalTable: React.FC<ApprovalTableProps> = ({
                   'Title',
                 )}
               </TableHead>
-              <TableHead className="gba:w-[20%]">
+              <TableHead className="gba:w-[15%]">
                 {getTranslationFromI18nKeyAndLabel(
                   'lowcoder:manager_expenses_landing_page.task_group',
                   'Task Group',
+                )}
+              </TableHead>
+              <TableHead className="gba:w-[15%]">
+                {getTranslationFromI18nKeyAndLabel(
+                  'lowcoder:expense_request_list.expense_plan_table.amount',
+                  'Amount',
                 )}
               </TableHead>
               <TableHead className="gba:w-[15%]">
@@ -266,6 +272,16 @@ const ApprovalTable: React.FC<ApprovalTableProps> = ({
                 </TableCell>
                 <TableCell>
                   <div className="gba:text-sm gba:text-gray-600">{request.taskGroup}</div>
+                </TableCell>
+                <TableCell>
+                  <div className="gba:text-sm gba:text-gray-900">
+                    {request.totalAmount > 0
+                      ? new Intl.NumberFormat(getCurrentActiveUserLocale(), {
+                          style: 'currency',
+                          currency: request.currency || 'EUR',
+                        }).format(request.totalAmount)
+                      : '-'}
+                  </div>
                 </TableCell>
                 <TableCell>
                   <div className="gba:text-sm gba:text-gray-900">{request.employee.fullName}</div>

@@ -5,9 +5,45 @@ import { ApprovalRequest } from '../types';
  * Maps FlowExecutionTask to ApprovalRequest for compatibility with existing UI
  */
 export const mapFlowTaskToApprovalRequest = (task: FlowExecutionTask): ApprovalRequest => {
-  // Extract amount from task variables if available
-  const totalAmount =
-    task.variables?.totalAmount || task.variables?.amount || task.variables?.expenseAmount || 0;
+  // Extract amount from task inputs based on the task type
+  let totalAmount = 0;
+  if (task.inputs) {
+    if (task.inputs.expenseRequest?.totalAmount) {
+      totalAmount = task.inputs.expenseRequest.totalAmount;
+    } else if (task.inputs.expensePlan?.totalAmount) {
+      totalAmount = task.inputs.expensePlan.totalAmount;
+    } else if (task.inputs.advancePayment?.amount) {
+      // This covers advance payment, handout payment, and transfer payment
+      totalAmount = task.inputs.advancePayment.amount;
+    }
+  }
+
+  // Fallback to variables if inputs don't have the amount
+  if (totalAmount === 0) {
+    totalAmount =
+      task.variables?.totalAmount || task.variables?.amount || task.variables?.expenseAmount || 0;
+  }
+
+  // Extract currency from task inputs
+  let currency = 'EUR'; // Default currency
+  if (task.inputs) {
+    if (task.inputs.expenseRequest?.currencyRef) {
+      currency = task.inputs.expenseRequest.currencyRef.split(':').pop() || 'EUR';
+    } else if (task.inputs.expensePlan?.currencyRef) {
+      currency = task.inputs.expensePlan.currencyRef.split(':').pop() || 'EUR';
+    } else if (task.inputs.advancePayment?.currencyRef) {
+      // This covers advance payment, handout payment, and transfer payment
+      currency = task.inputs.advancePayment.currencyRef.split(':').pop() || 'EUR';
+    }
+  }
+
+  // Fallback to variables if inputs don't have the currency
+  if (currency === 'EUR') {
+    const currencyFromVars = task.variables?.currencyRef || task.variables?.currency;
+    if (currencyFromVars) {
+      currency = currencyFromVars.split(':').pop() || 'EUR';
+    }
+  }
 
   // Extract status from task state or variables
   const status = task.state || task.variables?.status || task.variables?.requestStatus || 'PENDING';
@@ -61,6 +97,7 @@ export const mapFlowTaskToApprovalRequest = (task: FlowExecutionTask): ApprovalR
     title,
     description,
     totalAmount: typeof totalAmount === 'number' ? totalAmount : 0,
+    currency,
     status,
     requestDate: createdAt,
     createdAt: createdAt,

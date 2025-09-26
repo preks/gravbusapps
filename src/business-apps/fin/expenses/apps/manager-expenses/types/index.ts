@@ -3,6 +3,7 @@ export interface ApprovalRequest {
   title: string;
   description: string | null;
   totalAmount: number;
+  currency: string; // Currency code for formatting
   status: string;
   requestDate: string;
   createdAt: string;

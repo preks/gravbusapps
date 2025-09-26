@@ -27,7 +27,7 @@ export const getTabLabel = (key: string): string => {
       );
     case 'handout-payment':
       return getTranslationFromI18nKeyAndLabel(
-        'lowcoder:manager_expenses_landing_page.handout_payment',
+        'lowcoder:manager_expense_landing_page.handout_payment',
         'Handout Payment',
       );
     case 'transfer-payment':
