@@ -11,7 +11,6 @@ import {
   Alert,
   Button
 } from "@newwork/nw-design-system";
-import { PlusOutlined } from "@ant-design/icons";
 import { BusinessAppContextProps } from "@/common/BusinessAppContext";
 import { useGetInvestments } from "@/common/data/investment/hooks/useInvestments";
 import { formatDate } from "@/common/data/investment";
@@ -22,11 +21,12 @@ import { DataContainer } from "@/components/layout/dataContainer/DataContainer";
 import { AppAction } from "@/components/app-action/AppAction";
 import { AppActionButton } from "@/components/app-action-button/AppActionButton";
 import { FlowContextName } from "@/common/types/FlowRegistryTypes";
-import { Building2, Calendar, User, ChevronUp, ChevronDown } from "lucide-react";
+import { Building2, Calendar, ChevronUp, ChevronDown, PlusSquare } from "lucide-react";
 import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils';
 import { ColumnConfig } from "@/components/dataController";
 import { useInvestmentListController } from "../hooks/useInvestmentListController";
 import { useLiquidFundInvestmentsFilters } from "../hooks/useLiquidFundInvestmentsFilters";
+import { OwnerDisplay } from "../../../../../components/shared";
 
 
 export interface LiquidFundInvestmentsListProps extends BusinessAppContextProps {}
@@ -103,6 +103,7 @@ const LiquidFundInvestmentsList: React.FC<LiquidFundInvestmentsListProps> = (con
   // Define available columns with default visibility
   const [columnConfig, setColumnConfig] = useState<ColumnConfig[]>(() => [
     { id: "investment", label: "Investment", visible: true },
+    { id: "investmentType", label: "Investment Type", visible: true },
     { id: "fundType", label: "Fund Type", visible: true },
     { id: "bankName", label: "Bank", visible: true },
     { id: "interestRate", label: "Interest Rate", visible: true },
@@ -139,7 +140,7 @@ const LiquidFundInvestmentsList: React.FC<LiquidFundInvestmentsListProps> = (con
   const visibleFilterGroups = useMemo(() => {
     // Map each visible column to its filter group for liquid fund
     const columnToFilterMap: Record<string, string> = {
-      fundType: "investmentType",       // Fund Type column → Investment Type filter
+      investmentType: "investmentType", // Investment Type column → Investment Type filter
       status: "investmentStatus",       // Status column → Investment Status filter
       owner: "owner",                   // Owner column → Owner filter
       created: "creationDate",          // Created column → Creation Date filter
@@ -171,6 +172,10 @@ const LiquidFundInvestmentsList: React.FC<LiquidFundInvestmentsListProps> = (con
       bankAccountNumber?: string;
       interestRate?: number;
       earlyTerminationAllowed?: boolean;
+      investmentLiquidFundType?: {
+        value: string;
+        code?: string;
+      };
     }>;
   };
 
@@ -388,18 +393,25 @@ const LiquidFundInvestmentsList: React.FC<LiquidFundInvestmentsListProps> = (con
         actions: (
           <AppAction
             contextsArray={[FlowContextName.createInvestment]}
+            externalContextData={{ 
+              investmentGroup: 'LIQUID_FUND',
+              investmentGroupRef: 'InvestmentGroup:v1:LIQUID_FUND',
+              fromView: 'investments',
+              fromSubView: 'liquid-funds'
+            }}
             accessToken={accessToken}
             data-testid="liquid-fund-investments-add-action"
             emptyStateBehavior="hide"
           >
             <Button
-              variant="default"
+              variant="ghost"
               size="sm"
-              className="gba:flex gba:items-center gba:gap-2"
               data-testid="liquid-fund-investments-add-button"
+              type="button"
+              className="gba:gap-1"
             >
-              <PlusOutlined />
-              Add Liquid Fund
+              <PlusSquare className="gba:w-4 gba:h-4" />
+              Add
             </Button>
           </AppAction>
         ),
@@ -421,8 +433,11 @@ const LiquidFundInvestmentsList: React.FC<LiquidFundInvestmentsListProps> = (con
                 {visibleColumns.includes('investment') && (
                   <SortableTableHead field="name" currentSortField={sortField} currentSortOrder={sortOrder} onSort={handleSortingChange}>Investment</SortableTableHead>
                 )}
+                {visibleColumns.includes('investmentType') && (
+                  <SortableTableHead field="investmentType.value" currentSortField={sortField} currentSortOrder={sortOrder} onSort={handleSortingChange}>Investment Type</SortableTableHead>
+                )}
                 {visibleColumns.includes('fundType') && (
-                  <SortableTableHead field="investmentType.value" currentSortField={sortField} currentSortOrder={sortOrder} onSort={handleSortingChange}>Fund Type</SortableTableHead>
+                  <TableHead>Fund Type</TableHead>
                 )}
                 {visibleColumns.includes('bankName') && (
                   <SortableTableHead field="fundManagerName" currentSortField={sortField} currentSortOrder={sortOrder} onSort={handleSortingChange}>Bank</SortableTableHead>
@@ -467,9 +482,20 @@ const LiquidFundInvestmentsList: React.FC<LiquidFundInvestmentsListProps> = (con
                       </div>
                     </TableCell>
                   )}
-                  {visibleColumns.includes('fundType') && (
+                  {visibleColumns.includes('investmentType') && (
                     <TableCell>
                       <Badge variant="secondary">{inv?.investmentType?.value || 'Liquid Fund'}</Badge>
+                    </TableCell>
+                  )}
+                  {visibleColumns.includes('fundType') && (
+                    <TableCell>
+                      {inv.liquidFundInvestment?.[0]?.investmentLiquidFundType?.value ? (
+                        <Badge variant="default" className="gba:bg-blue-100 gba:text-blue-800">
+                          {inv.liquidFundInvestment[0].investmentLiquidFundType.value}
+                        </Badge>
+                      ) : (
+                        <span className="gba:text-gray-400">-</span>
+                      )}
                     </TableCell>
                   )}
                   {visibleColumns.includes('bankName') && (
@@ -528,10 +554,11 @@ const LiquidFundInvestmentsList: React.FC<LiquidFundInvestmentsListProps> = (con
                   )}
                   {visibleColumns.includes('owner') && (
                     <TableCell>
-                      <div className="gba:flex gba:items-center gba:gap-2">
-                        <User className="gba:w-4 gba:h-4 gba:text-gray-600" />
-                        <span>{inv.ownerEmployee?.displayName || '-'}</span>
-                      </div>
+                      <OwnerDisplay 
+                        ownerEmployee={inv.ownerEmployee}
+                        entityId={inv.id}
+                        testIdPrefix="liquid-fund-investment"
+                      />
                     </TableCell>
                   )}
                   {visibleColumns.includes('status') && (

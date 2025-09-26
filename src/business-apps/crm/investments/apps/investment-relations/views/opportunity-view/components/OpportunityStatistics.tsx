@@ -53,12 +53,41 @@ export const OpportunityStatistics: React.FC<OpportunityStatisticsProps> = ({ ..
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // Custom formatter that only abbreviates millions and billions, not thousands
   const formatCurrency = (amount: number): string => {
+    if (amount === undefined || amount === null || !isFinite(amount)) return "-";
+    
+    const abs = Math.abs(amount);
+    const sign = amount < 0 ? '-' : '';
+    
+    if (abs >= 1_000_000_000) {
+      // Billions
+      const formatted = new Intl.NumberFormat('en-US', {
+        style: 'currency',
+        currency: 'USD',
+        maximumFractionDigits: 1,
+        minimumFractionDigits: 0
+      }).format(abs / 1_000_000_000);
+      return `${sign}${formatted}B`;
+    }
+    
+    if (abs >= 1_000_000) {
+      // Millions
+      const formatted = new Intl.NumberFormat('en-US', {
+        style: 'currency',
+        currency: 'USD',
+        maximumFractionDigits: 1,
+        minimumFractionDigits: 0
+      }).format(abs / 1_000_000);
+      return `${sign}${formatted}M`;
+    }
+    
+    // Thousands and below - show as normal currency
     return new Intl.NumberFormat('en-US', {
       style: 'currency',
       currency: 'USD',
-      minimumFractionDigits: 0,
-      maximumFractionDigits: 0
+      maximumFractionDigits: 0,
+      minimumFractionDigits: 0
     }).format(amount);
   };
 

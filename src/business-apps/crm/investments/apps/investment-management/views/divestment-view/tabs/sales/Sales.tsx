@@ -29,7 +29,46 @@ import { AppAction } from "@/components/app-action/AppAction";
 import { AppActionButton } from "@/components/app-action-button/AppActionButton";
 import { FlowContextName } from "@/common/types/FlowRegistryTypes";
 import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils';
-import { formatCurrency, formatDate } from "../../utils";
+import { OwnerDisplay } from "../../../../../../components/shared";
+import { formatDate } from "../../utils";
+
+// Custom formatter that only abbreviates millions and billions, not thousands
+const formatCurrencyLarge = (amount: number | undefined, currencyCode: string = "EUR"): string => {
+  if (amount === undefined || amount === null || !isFinite(amount)) return "-";
+  
+  const abs = Math.abs(amount);
+  const sign = amount < 0 ? '-' : '';
+  
+  if (abs >= 1_000_000_000) {
+    // Billions
+    const formatted = new Intl.NumberFormat('en-US', {
+      style: 'currency',
+      currency: currencyCode,
+      maximumFractionDigits: 1,
+      minimumFractionDigits: 0
+    }).format(abs / 1_000_000_000);
+    return `${sign}${formatted}B`;
+  }
+  
+  if (abs >= 1_000_000) {
+    // Millions
+    const formatted = new Intl.NumberFormat('en-US', {
+      style: 'currency',
+      currency: currencyCode,
+      maximumFractionDigits: 1,
+      minimumFractionDigits: 0
+    }).format(abs / 1_000_000);
+    return `${sign}${formatted}M`;
+  }
+  
+  // Thousands and below - show as normal currency
+  return new Intl.NumberFormat('en-US', {
+    style: 'currency',
+    currency: currencyCode,
+    maximumFractionDigits: 0,
+    minimumFractionDigits: 0
+  }).format(amount);
+};
 import { useSalesData } from "./hooks/useSalesData";
 import { DateRangeFilter } from '@/business-apps/crm/customers/apps/customer-relations/views/lead-view/components/DateRangeFilter';
 import { useEmployeeSearch } from '@/common/data/employee/useEmployeeSearch';
@@ -387,7 +426,7 @@ const Sales: React.FC<SalesProps> = ({ accessToken, userInfo }) => {
       {
         key: "average-sale-amount",
         title: getTranslationFromI18nKeyAndLabel("average_sale_amount", "Average Sale Amount"),
-        value: formatCurrency(metrics.averageRevenue),
+        value: formatCurrencyLarge(metrics.averageRevenue),
         prefix: <Target className="gba:h-5 gba:w-5 gba:text-purple-600" />,
         color: '#722ed1', // Purple theme for average sale amount
         span: { xs: 24, sm: 12, md: 12, lg: 6 },
@@ -401,7 +440,7 @@ const Sales: React.FC<SalesProps> = ({ accessToken, userInfo }) => {
       {
         key: "total-revenue",
         title: getTranslationFromI18nKeyAndLabel("total_revenue", "Total Revenue"),
-        value: formatCurrency(metrics.totalRevenue),
+        value: formatCurrencyLarge(metrics.totalRevenue),
         prefix: <DollarSign className="gba:h-5 gba:w-5 gba:text-green-600" />,
         color: '#389e0d', // Darker green for revenue
         span: { xs: 24, sm: 12, md: 12, lg: 6 },
@@ -415,7 +454,7 @@ const Sales: React.FC<SalesProps> = ({ accessToken, userInfo }) => {
       {
         key: "average-revenue",
         title: getTranslationFromI18nKeyAndLabel("average_revenue", "Average Revenue"),
-        value: formatCurrency(metrics.averageRevenue),
+        value: formatCurrencyLarge(metrics.averageRevenue),
         prefix: <Award className="gba:h-5 gba:w-5 gba:text-blue-600" />,
         color: '#1890ff', // Blue theme for averages
         span: { xs: 24, sm: 12, md: 12, lg: 6 },
@@ -670,7 +709,7 @@ const Sales: React.FC<SalesProps> = ({ accessToken, userInfo }) => {
                     </TableCell>)}
                     {visibleColumns.includes('saleAmount') && (<TableCell>
                       <span className="gba:font-medium gba:text-green-600">
-                        {opportunity.estimatedAmount ? formatCurrency(opportunity.estimatedAmount) : "N/A"}
+                        {opportunity.estimatedAmount ? formatCurrencyLarge(opportunity.estimatedAmount) : "N/A"}
                       </span>
                     </TableCell>)}
                     {visibleColumns.includes('status') && (<TableCell>
@@ -682,7 +721,7 @@ const Sales: React.FC<SalesProps> = ({ accessToken, userInfo }) => {
                       <div className="gba:flex gba:items-center gba:gap-1">
                         <DollarSign className="gba:w-4 gba:h-4 gba:text-green-600" />
                         <span className="gba:font-medium gba:text-green-600">
-                          {opportunity.estimatedAmount ? formatCurrency(opportunity.estimatedAmount) : "N/A"}
+                          {opportunity.estimatedAmount ? formatCurrencyLarge(opportunity.estimatedAmount) : "N/A"}
                         </span>
                       </div>
                     </TableCell>)}
@@ -697,15 +736,11 @@ const Sales: React.FC<SalesProps> = ({ accessToken, userInfo }) => {
                       )}
                     </TableCell>)}
                     {visibleColumns.includes('owner') && (<TableCell>
-                      <div className="gba:flex gba:items-center gba:gap-2">
-                        <User className="gba:w-4 gba:h-4 gba:text-gray-600" />
-                        <span>
-                          {opportunity.ownerEmployee?.displayName || 
-                           opportunity.ownerEmployee?.firstName && opportunity.ownerEmployee?.lastName
-                             ? `${opportunity.ownerEmployee.firstName} ${opportunity.ownerEmployee.lastName}`
-                             : "N/A"}
-                        </span>
-                      </div>
+                      <OwnerDisplay 
+                        ownerEmployee={opportunity.ownerEmployee}
+                        entityId={opportunity.id}
+                        testIdPrefix="sales-opportunity"
+                      />
                     </TableCell>)}
                     {visibleColumns.includes('created') && (
                       <TableCell>

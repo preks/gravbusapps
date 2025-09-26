@@ -14,7 +14,6 @@ import {
   FormMessage
 } from '@newwork/nw-design-system';
 import { useFormContext } from 'react-hook-form';
-import { PiCurrencyDollar } from 'react-icons/pi';
 import { formatDataTestId } from '@/common/utils/formatDataTestId';
 import { useInvestmentFormContext } from '../../context/InvestmentFormContext';
 import FormattedNumberInput from '../FormattedNumberInput';
@@ -338,17 +337,11 @@ const DynamicGroupSegment: React.FC = () => {
                   {field.label} {field.required && <span style={{ color: 'var(--nw-color-danger-500)' }}>*</span>}
                 </FormLabel>
                 <FormControl>
-                  <div className="gba:relative">
-                    <div className="gba:absolute gba:inset-y-0 gba:left-0 gba:pl-3 gba:flex gba:items-center gba:pointer-events-none">
-                      <PiCurrencyDollar className="gba:h-4 gba:w-4 gba:text-gray-400" />
-                    </div>
-                    <FormattedNumberInput
-                      {...formField}
-                      placeholder="0.00"
-                      className="gba:pl-10"
-                      data-testid={formatDataTestId(prefixDataTestId, `${fieldName}Input`)}
-                    />
-                  </div>
+                  <FormattedNumberInput
+                    {...formField}
+                    placeholder="0.00"
+                    data-testid={formatDataTestId(prefixDataTestId, `${fieldName}Input`)}
+                  />
                 </FormControl>
                 <FormMessage />
               </FormItem>

@@ -22,6 +22,7 @@ import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils';
 import { formatCurrency, formatDate } from "../../utils";
 import PlannedExitsMetrics from "./components/PlannedExitsMetrics";
 import { usePlannedExitsData } from "./hooks/usePlannedExitsData";
+import { OwnerDisplay } from "../../../../../../components/shared";
 import { DateRangeFilter } from '@/business-apps/crm/customers/apps/customer-relations/views/lead-view/components/DateRangeFilter';
 import ExpenseAmountRangeFilter from '@/business-apps/fin/expenses/apps/personal-expenses/components/tabs/expense-items-tab/ExpenseAmountRangeFilter';
 import { useEmployeeSearch } from '@/common/data/employee/useEmployeeSearch';
@@ -178,7 +179,12 @@ const PlannedExits: React.FC<PlannedExitsProps> = ({ accessToken, userInfo }) =>
           refetch();
         }
       } catch (err) {
-        // Error handling process completion
+        console.error('Error handling process completion event:', {
+          eventType: event?.type,
+          eventDetail: event?.detail,
+          error: err
+        });
+        // Continue execution - don't let event processing errors break the component
       }
     };
 
@@ -485,15 +491,11 @@ const PlannedExits: React.FC<PlannedExitsProps> = ({ accessToken, userInfo }) =>
                       )}
                     </TableCell>)}
                     {visibleColumns.includes('owner') && (<TableCell>
-                      <div className="gba:flex gba:items-center gba:gap-2">
-                        <User className="gba:w-4 gba:h-4 gba:text-gray-600" />
-                        <span>
-                          {investment.ownerEmployee?.displayName || 
-                           investment.ownerEmployee?.firstName && investment.ownerEmployee?.lastName
-                             ? `${investment.ownerEmployee.firstName} ${investment.ownerEmployee.lastName}`
-                             : "N/A"}
-                        </span>
-                      </div>
+                      <OwnerDisplay 
+                        ownerEmployee={investment.ownerEmployee}
+                        entityId={investment.id}
+                        testIdPrefix="planned-exit-investment"
+                      />
                     </TableCell>)}
                     {visibleColumns.includes('created') && (
                       <TableCell>

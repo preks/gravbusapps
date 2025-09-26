@@ -1,9 +1,10 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 import { TaskSection, ActivitySection, NoteSection, ApprovalSection } from '@/common/components/common-relations/record-sections';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@newwork/nw-design-system';
 import { useGetInvestmentTasksByInvestmentId } from '../../hooks/useInvestmentTasksByInvestmentId';
 import { useGetInvestmentActivitiesByInvestmentId } from '../../hooks/useInvestmentActivitiesByInvestmentId';
+import { useGetInvestmentNotesByInvestmentId } from '../../hooks/useInvestmentNotesByInvestmentId';
 import { FlowContextName } from '@/common/types/FlowRegistryTypes';
 import { ChartLine, PencilSimple, CheckCircle } from '@phosphor-icons/react';
 
@@ -20,28 +21,25 @@ export const InvestmentHomeTab: React.FC<InvestmentHomeTabProps> = ({
   const [activities, setActivities] = useState<any[]>([]);
   const [activitiesLoading, setActivitiesLoading] = useState(false);
   const [activitiesError, setActivitiesError] = useState<string | null>(null);
+  const [notes, setNotes] = useState<any[]>([]);
   const [approvals, setApprovals] = useState<any[]>([]);
   
   const { fetchInvestmentTasksByInvestmentId } = useGetInvestmentTasksByInvestmentId(context);
   const { fetchInvestmentActivitiesByInvestmentId } = useGetInvestmentActivitiesByInvestmentId(context);
+  const { fetchInvestmentNotesByInvestmentId } = useGetInvestmentNotesByInvestmentId(context);
 
-  const loadTasks = async () => {
+  const loadTasks = useCallback(async () => {
     if (!investmentId) return;
     
     try {
       const tasksData = await fetchInvestmentTasksByInvestmentId(investmentId);
-      // Filter out approval tasks - they should only appear in the Approvals tab
-      const nonApprovalTasks = (tasksData || []).filter((task: any) => {
-        const typeVal = task?.taskType?.value || task?.taskType?.code || task?.taskTypeRef || '';
-        return String(typeVal).toLowerCase() !== 'approval' && !String(typeVal).toUpperCase().endsWith(':APPROVAL');
-      });
-      setTasks(nonApprovalTasks);
-    } catch (err) {
-      // Failed to load tasks
+      setTasks(tasksData || []);
+    } catch (error) {
+      console.error('Error loading tasks:', error);
     }
-  };
+  }, [investmentId, fetchInvestmentTasksByInvestmentId]);
 
-  const loadActivities = async () => {
+  const loadActivities = useCallback(async () => {
     if (!investmentId) return;
     
     setActivitiesLoading(true);
@@ -50,14 +48,26 @@ export const InvestmentHomeTab: React.FC<InvestmentHomeTabProps> = ({
     try {
       const activitiesData = await fetchInvestmentActivitiesByInvestmentId(investmentId);
       setActivities(activitiesData || []);
-    } catch (err) {
-      setActivitiesError(err instanceof Error ? err.message : 'Failed to load activities');
+    } catch (error) {
+      console.error('Error loading activities:', error);
+      setActivitiesError(error instanceof Error ? error.message : 'Failed to load activities');
     } finally {
       setActivitiesLoading(false);
     }
-  };
+  }, [investmentId, fetchInvestmentActivitiesByInvestmentId]);
 
-  const loadApprovals = async () => {
+  const loadNotes = useCallback(async () => {
+    if (!investmentId) return;
+    
+    try {
+      const notesData = await fetchInvestmentNotesByInvestmentId(investmentId);
+      setNotes(notesData || []);
+    } catch (error) {
+      console.error('Error loading notes:', error);
+    }
+  }, [investmentId, fetchInvestmentNotesByInvestmentId]);
+
+  const loadApprovals = useCallback(async () => {
     if (!investmentId) return;
     
     try {
@@ -71,13 +81,83 @@ export const InvestmentHomeTab: React.FC<InvestmentHomeTabProps> = ({
     } catch (err) {
       // Failed to load approvals
     }
-  };
+  }, [investmentId, fetchInvestmentTasksByInvestmentId]);
+
+  // Handle process events
+  const handleProcessEvent = useCallback((event: Event) => {
+    try {
+      const customEvent = event as CustomEvent;
+      
+      // Check for successful completion
+      if (customEvent.detail?.resolution === 'success') {
+        loadTasks();
+        loadActivities();
+        loadNotes();
+        loadApprovals();
+        return;
+      }
+      
+      // Check for different event structures
+      const response = customEvent.detail?.response;
+      if (response?.detail?.resolution === 'success' || response?.investment) {
+        loadTasks();
+        loadActivities();
+        loadNotes();
+        loadApprovals();
+        return;
+      }
+      
+      // Check for continue events with payload (task/activity/note creation/update)
+      if (customEvent.type === 'com.newwork.process.continue' && customEvent.detail?.payload) {
+        loadTasks();
+        loadActivities();
+        loadNotes();
+        loadApprovals();
+        return;
+      }
+      
+      // Handle process completion events by investmentId (legacy support)
+      if (customEvent.detail?.investmentId === investmentId) {
+        loadTasks();
+        loadActivities();
+        loadNotes();
+        loadApprovals();
+      }
+    } catch (err) {
+      console.error('Error handling process event in InvestmentHomeTab:', err);
+    }
+  }, [investmentId, loadTasks, loadActivities, loadNotes, loadApprovals]);
 
   useEffect(() => {
     loadTasks();
     loadActivities();
+    loadNotes();
     loadApprovals();
-  }, [investmentId]);
+  }, [loadTasks, loadActivities, loadNotes, loadApprovals]);
+
+  // Listen for process events to refresh data
+  useEffect(() => {
+    const eventTypes = [
+      'com.newwork.process.continue',
+      'com.newwork.process.processCompletion',
+      'com.newwork.process.taskCompletion',
+      'com.newwork.process.completion',
+      'processCompletion',
+      'taskCompletion',
+      'taskCompleted',
+      'processCompleted'
+    ];
+    
+    eventTypes.forEach(eventType => {
+      window.addEventListener(eventType, handleProcessEvent);
+    });
+    
+    return () => {
+      eventTypes.forEach(eventType => {
+        window.removeEventListener(eventType, handleProcessEvent);
+      });
+    };
+  }, [handleProcessEvent]);
 
   return (
     <div data-testid="investment-home-tab">
@@ -140,6 +220,7 @@ export const InvestmentHomeTab: React.FC<InvestmentHomeTabProps> = ({
             <TabsContent value="notes" className="gba:p-4">
               <NoteSection
                 investmentId={investmentId}
+                notes={notes}
                 accessToken={context.accessToken}
                 userInfo={context.userInfo}
                 noteActionProps={{

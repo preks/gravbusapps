@@ -112,8 +112,8 @@ export const buildInvestmentPayload = (
     return isNaN(num) ? undefined : num;
   };
 
-  // Helper to extract and build additionalProperties JSON from form data
-  const buildAdditionalProperties = (formData: any, entityPrefix: string): string | undefined => {
+  // Helper to extract and build additionalProperties object from form data
+  const buildAdditionalProperties = (formData: any, _entityPrefix: string): Record<string, any> | undefined => {
     const additionalProps: Record<string, any> = {};
     let hasAdditionalProps = false;
 
@@ -131,18 +131,19 @@ export const buildInvestmentPayload = (
       }
     });
 
-    // Return JSON string if we have additional properties, undefined otherwise
-    return hasAdditionalProps ? JSON.stringify(additionalProps) : undefined;
+    // Return object if we have additional properties, undefined otherwise
+    return hasAdditionalProps ? additionalProps : undefined;
   };
 
   // Extract investment-level additionalProperties
   const investmentAdditionalProperties = buildAdditionalProperties(investment, 'investment');
 
+  
   // Base investment payload
   const baseInvestmentPayload: any = {
-    ownerEmployeeId: investment.ownerEmployeeId,
+    ownerEmployee: investment.ownerEmployeeId,
     name: investment.name,
-    accountId: investment.accountId,
+    ...(investment.accountId && { accountId: investment.accountId }), // Only include if not empty
     initialInvestmentAmount: toNumber(investment.initialInvestmentAmount),
     
     // Investment group reference (required)
@@ -319,6 +320,7 @@ export const buildInvestmentPayload = (
       };
       break;
   }
+
 
   // Return the properly wrapped payload
   return {

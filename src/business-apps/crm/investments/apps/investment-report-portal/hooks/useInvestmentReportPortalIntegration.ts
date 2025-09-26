@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
+import { useGetInvestmentReports } from '@/common/data/investment-report/hooks/useInvestmentReports';
 import { 
-  useGetInvestmentReports,
   useGetInvestments,
   useGetInvestmentAccounts,
   useGetInvestmentContacts

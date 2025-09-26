@@ -30,6 +30,8 @@ export interface Task {
   updatedAt: string;
   version?: number;
   rawSalesTask?: any;
+  createdBy?: string;
+  creatorEmployee?: TaskEmployee;
 }
 
 export interface TaskStatisticItem {

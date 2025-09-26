@@ -11,7 +11,6 @@ import {
   Alert,
   Button
 } from "@newwork/nw-design-system";
-import { PlusOutlined } from "@ant-design/icons";
 import { BusinessAppContextProps } from "@/common/BusinessAppContext";
 import { useGetInvestments } from "@/common/data/investment/hooks/useInvestments";
 import type { Investment } from "@/common/data/investment/types";
@@ -20,13 +19,14 @@ import { DataContainer } from "@/components/layout/dataContainer/DataContainer";
 import { AppAction } from "@/components/app-action/AppAction";
 import { AppActionButton } from "@/components/app-action-button/AppActionButton";
 import { FlowContextName } from "@/common/types/FlowRegistryTypes";
-import { Building2, Calendar, User, Target, ChevronUp, ChevronDown } from "lucide-react";
+import { Building2, Calendar, Target, ChevronUp, ChevronDown, PlusSquare } from "lucide-react";
 import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils';
 import { formatDate } from "@/common/data/investment";
 import { formatCurrencyParts } from '@/common/utils/numberFormatter';
 import { ColumnConfig } from "@/components/dataController";
 import { useInvestmentListController } from "../hooks/useInvestmentListController";
 import { useRealEstateInvestmentsFilters } from "../hooks/useRealEstateInvestmentsFilters";
+import { OwnerDisplay } from "../../../../../components/shared";
 
 
 export interface RealEstateInvestmentsListProps extends BusinessAppContextProps {}
@@ -340,18 +340,25 @@ const RealEstateInvestmentsList: React.FC<RealEstateInvestmentsListProps> = (con
         actions: (
           <AppAction
             contextsArray={[FlowContextName.createInvestment]}
+            externalContextData={{ 
+              investmentGroup: 'REAL_ESTATE',
+              investmentGroupRef: 'InvestmentGroup:v1:REAL_ESTATE',
+              fromView: 'investments',
+              fromSubView: 'real-estate'
+            }}
             accessToken={accessToken}
             data-testid="real-estate-investments-add-action"
             emptyStateBehavior="hide"
           >
             <Button
-              variant="default"
+              variant="ghost"
               size="sm"
-              className="gba:flex gba:items-center gba:gap-2"
               data-testid="real-estate-investments-add-button"
+              type="button"
+              className="gba:gap-1"
             >
-              <PlusOutlined />
-              Add Real Estate
+              <PlusSquare className="gba:w-4 gba:h-4" />
+              Add
             </Button>
           </AppAction>
         ),
@@ -525,15 +532,11 @@ const RealEstateInvestmentsList: React.FC<RealEstateInvestmentsListProps> = (con
                   )}
                   {visibleColumns.includes('owner') && (
                     <TableCell>
-                      <div className="gba:flex gba:items-center gba:gap-2">
-                        <User className="gba:w-4 gba:h-4 gba:text-gray-600" />
-                        <span>
-                          {investment.ownerEmployee?.displayName || 
-                           investment.ownerEmployee?.firstName && investment.ownerEmployee?.lastName
-                             ? `${investment.ownerEmployee.firstName} ${investment.ownerEmployee.lastName}`
-                             : "N/A"}
-                        </span>
-                      </div>
+                      <OwnerDisplay 
+                        ownerEmployee={investment.ownerEmployee}
+                        entityId={investment.id}
+                        testIdPrefix="real-estate-investment"
+                      />
                     </TableCell>
                   )}
                   {visibleColumns.includes('status') && (

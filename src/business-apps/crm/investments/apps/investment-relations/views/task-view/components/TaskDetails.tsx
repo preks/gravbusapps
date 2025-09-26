@@ -9,8 +9,6 @@ import {
   CardContent, 
   CardHeader, 
   CardTitle,
-  Icon,
-  Progress,
   ScrollArea,
   Separator,
   Tooltip,
@@ -18,7 +16,6 @@ import {
   TooltipTrigger,
 } from '@newwork/nw-design-system';
 import { 
-  Clock, 
   Calendar, 
   User, 
   ArrowSquareOut,
@@ -28,8 +25,6 @@ import {
   Link,
   CalendarPlus,
   ClockCounterClockwise,
-  Target,
-  Hash,
   Icon as PhosphorIcon
 } from '@phosphor-icons/react';
 import { Task } from '../types/TaskTypes';
@@ -41,10 +36,10 @@ import {
 } from '../utils/taskBadgeUtils';
 import dayjs from 'dayjs';
 import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils';
+import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 
-interface TaskDetailsProps {
+interface TaskDetailsProps extends BusinessAppContextProps {
   task: Task;
-  onClose?: () => void;
   sourceApp?: string;
 }
 
@@ -58,12 +53,12 @@ interface FieldRowProps {
 }
 
 const FieldRow: React.FC<FieldRowProps> = ({ icon: IconComponent, label, children, testId }) => (
-  <div className="gba:flex gba:items-start gba:gap-3 gba:py-2" data-testid={testId}>
+  <div className="gba:flex gba:items-center gba:gap-3 gba:py-1.5" data-testid={testId}>
     <div className="gba:flex gba:items-center gba:gap-2 gba:min-w-[100px] gba:text-sm gba:text-muted-foreground">
-      <Icon icon={IconComponent} size="xs" />
+      <IconComponent size={14} className="gba:text-muted-foreground" />
       <span>{label}</span>
     </div>
-    <div className="gba:flex-1">
+    <div className="gba:flex-1 gba:min-h-[24px] gba:flex gba:items-center">
       {children}
     </div>
   </div>
@@ -86,16 +81,14 @@ export const TaskDetails: React.FC<TaskDetailsProps> = ({ task, sourceApp }) => 
     return `${firstName.charAt(0)}${lastName.charAt(0)}`.toUpperCase();
   };
 
-  const getTaskProgress = (status: string): number => {
-    switch (status) {
-      case 'completed': return 100;
-      case 'in_progress': return 60;
-      case 'pending': return 0;
-      default: return 0;
-    }
-  };
 
-  const isOverdue = task.dueDate && dayjs().isAfter(dayjs(task.dueDate)) && task.status !== 'completed';
+  // Determine if task is overdue based on timing type
+  const getTaskDate = () => {
+    return task.timingType?.toUpperCase() === 'SCHEDULED' && task.scheduleDate ? task.scheduleDate : task.dueDate;
+  };
+  
+  const taskDate = getTaskDate();
+  const isOverdue = !!taskDate && dayjs().isAfter(dayjs(taskDate)) && task.status !== 'completed';
 
   const handleEmployeeClick = () => {
     const url = buildPlatformUrl('/platform/employee-record', { employeeId: task.assignedTo.id });
@@ -110,10 +103,19 @@ export const TaskDetails: React.FC<TaskDetailsProps> = ({ task, sourceApp }) => 
       case 'account': url = buildPlatformUrl('/platform/crm/account-record', { accountId: task.reference.id, source }); break;
       case 'contact': url = buildPlatformUrl('/platform/crm/contact-record', { contactId: task.reference.id, source }); break;
       case 'opportunity': url = buildPlatformUrl('/platform/crm/opportunity-record', { opportunityId: task.reference.id, source }); break;
-      default: console.warn('Unknown reference type:', task.reference.type); return;
+      default: return;
     }
     navigateTo(url);
   };
+
+  // Safety check for task data
+  if (!task) {
+    return (
+      <div className="gba:p-4 gba:text-center gba:text-muted-foreground">
+        No task data available
+      </div>
+    );
+  }
 
   return (
     <ScrollArea className="gba:h-full gba:w-full" data-testid={`${DATA_TEST_ID_PREFIX}-scroll-area`}>
@@ -135,15 +137,16 @@ export const TaskDetails: React.FC<TaskDetailsProps> = ({ task, sourceApp }) => 
             <FieldRow icon={User} label="Assignee" testId={`${DATA_TEST_ID_PREFIX}-assignee-field`}>
               <Tooltip>
                 <TooltipTrigger asChild>
-                  <div className="gba:flex gba:items-center gba:gap-2 gba:cursor-pointer gba:hover:bg-accent gba:p-2 gba:rounded gba:transition-colors gba:w-fit" onClick={handleEmployeeClick}>
-                    <Avatar size="sm">
-                      <AvatarFallback>{getInitials(task.assignedTo.firstName, task.assignedTo.lastName)}</AvatarFallback>
+                  <div
+                    className="gba:flex gba:items-center gba:gap-2 gba:cursor-pointer gba:hover:bg-accent gba:px-2 gba:py-1 gba:rounded gba:transition-colors gba:w-fit gba:min-h-[24px]"
+                    onClick={handleEmployeeClick}
+                    data-testid={`${DATA_TEST_ID_PREFIX}-assignee-link`}
+                  >
+                    <Avatar size="sm" className="gba:size-6">
+                      <AvatarFallback className="gba:text-xs">{getInitials(task.assignedTo.firstName, task.assignedTo.lastName)}</AvatarFallback>
                     </Avatar>
-                    <div className="gba:flex gba:flex-col">
-                      <span className="gba:text-sm gba:font-medium">{task.assignedTo.displayName}</span>
-                      <span className="gba:text-xs gba:text-muted-foreground">{task.assignedTo.department}</span>
-                    </div>
-                    <Icon icon={ArrowSquareOut} size="xs" className="gba:text-muted-foreground" />
+                    <span className="gba:text-sm gba:font-medium">{task.assignedTo.displayName}</span>
+                    <ArrowSquareOut size={12} className="gba:text-muted-foreground" />
                   </div>
                 </TooltipTrigger>
                 <TooltipContent>View employee profile</TooltipContent>
@@ -161,16 +164,15 @@ export const TaskDetails: React.FC<TaskDetailsProps> = ({ task, sourceApp }) => 
             <FieldRow icon={Link} label="Reference" testId={`${DATA_TEST_ID_PREFIX}-reference-field`}>
               <Tooltip>
                 <TooltipTrigger asChild>
-                  <div className="gba:cursor-pointer gba:hover:bg-accent gba:p-2 gba:rounded gba:transition-colors gba:w-fit" onClick={handleReferenceClick}>
+                  <div
+                    className="gba:cursor-pointer gba:hover:bg-accent gba:px-2 gba:py-1 gba:rounded gba:transition-colors gba:w-fit gba:min-h-[24px]"
+                    onClick={handleReferenceClick}
+                    data-testid={`${DATA_TEST_ID_PREFIX}-reference-link`}
+                  >
                     <div className="gba:flex gba:items-center gba:gap-2">
-                      <div>
-                        <div className="gba:text-sm gba:font-medium gba:mb-1">{task.reference.name}</div>
-                        <div className="gba:flex gba:items-center gba:gap-2">
-                          <Badge variant={getReferenceTypeBadgeVariant(task.reference.type)} className="gba:text-xs">{task.reference.type.charAt(0).toUpperCase() + task.reference.type.slice(1)}</Badge>
-                          {task.reference.description && (<span className="gba:text-xs gba:text-muted-foreground">{task.reference.description}</span>)}
-                        </div>
-                      </div>
-                      <Icon icon={ArrowSquareOut} size="xs" className="gba:text-muted-foreground" />
+                      <Badge variant={getReferenceTypeBadgeVariant(task.reference.type)} className="gba:text-xs gba:shrink-0">{task.reference.type.charAt(0).toUpperCase() + task.reference.type.slice(1)}</Badge>
+                      <span className="gba:text-sm gba:font-medium gba:truncate">{task.reference.name}</span>
+                      <ArrowSquareOut size={12} className="gba:text-muted-foreground gba:shrink-0" />
                     </div>
                   </div>
                 </TooltipTrigger>
@@ -178,24 +180,44 @@ export const TaskDetails: React.FC<TaskDetailsProps> = ({ task, sourceApp }) => 
               </Tooltip>
             </FieldRow>
 
-            <FieldRow icon={Target} label="Progress" testId={`${DATA_TEST_ID_PREFIX}-progress-field`}>
-              <div className="gba:space-y-2">
-                <div className="gba:flex gba:items-center gba:gap-2">
-                  <Progress value={getTaskProgress(task.status)} className="gba:h-2 gba:flex-1" />
-                  <span className="gba:text-sm gba:font-medium gba:text-muted-foreground">{getTaskProgress(task.status)}%</span>
-                </div>
-              </div>
+            <FieldRow icon={User} label="Created By" testId={`${DATA_TEST_ID_PREFIX}-created-by-field`}>
+              {task.creatorEmployee ? (
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <div
+                      className="gba:flex gba:items-center gba:gap-2 gba:cursor-pointer gba:hover:bg-accent gba:px-2 gba:py-1 gba:rounded gba:transition-colors gba:w-fit gba:min-h-[24px]"
+                      onClick={() => {
+                        const url = buildPlatformUrl('/platform/employee-record', { employeeId: task.creatorEmployee.id });
+                        navigateTo(url);
+                      }}
+                      data-testid={`${DATA_TEST_ID_PREFIX}-creator-link`}
+                    >
+                      <Avatar size="sm" className="gba:size-6">
+                        <AvatarFallback className="gba:text-xs">{getInitials(task.creatorEmployee.firstName, task.creatorEmployee.lastName)}</AvatarFallback>
+                      </Avatar>
+                      <span className="gba:text-sm gba:font-medium">{task.creatorEmployee.displayName}</span>
+                      <ArrowSquareOut size={12} className="gba:text-muted-foreground" />
+                    </div>
+                  </TooltipTrigger>
+                  <TooltipContent>View employee profile</TooltipContent>
+                </Tooltip>
+              ) : (
+                <span className="gba:text-sm gba:text-muted-foreground">Unknown</span>
+              )}
             </FieldRow>
 
             <Separator className="gba:my-4" />
 
-            <FieldRow icon={Calendar} label="Due Date" testId={`${DATA_TEST_ID_PREFIX}-due-date-field`}>
-              <span className={`gba:text-sm ${isOverdue ? 'gba:text-destructive gba:font-medium' : 'gba:text-foreground'}`}>{formatDate(task.dueDate)}</span>
-            </FieldRow>
-
-            {task.scheduleDate && (
+            {/* Show either Due Date or Scheduled Date based on timing type */}
+            {task.timingType?.toUpperCase() === 'SCHEDULED' ? (
               <FieldRow icon={CalendarPlus} label="Scheduled" testId={`${DATA_TEST_ID_PREFIX}-schedule-date-field`}>
-                <span className="gba:text-sm gba:text-foreground">{formatDate(task.scheduleDate)}</span>
+                <span className={`gba:text-sm ${isOverdue ? 'gba:text-destructive gba:font-medium' : 'gba:text-foreground'}`}>
+                  {formatDate(task.scheduleDate || task.dueDate)}
+                </span>
+              </FieldRow>
+            ) : (
+              <FieldRow icon={Calendar} label="Due Date" testId={`${DATA_TEST_ID_PREFIX}-due-date-field`}>
+                <span className={`gba:text-sm ${isOverdue ? 'gba:text-destructive gba:font-medium' : 'gba:text-foreground'}`}>{formatDate(task.dueDate)}</span>
               </FieldRow>
             )}
 
@@ -205,18 +227,6 @@ export const TaskDetails: React.FC<TaskDetailsProps> = ({ task, sourceApp }) => 
               <span className="gba:text-sm gba:text-muted-foreground">{formatDateTime(task.createdAt)}</span>
             </FieldRow>
 
-            <FieldRow icon={Clock} label="Updated" testId={`${DATA_TEST_ID_PREFIX}-updated-field`}>
-              <span className="gba:text-sm gba:text-muted-foreground">{formatDateTime(task.updatedAt)}</span>
-            </FieldRow>
-
-            <FieldRow icon={Hash} label="Task ID" testId={`${DATA_TEST_ID_PREFIX}-id-field`}>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <span className="gba:text-xs gba:font-mono gba:bg-muted gba:px-2 gba:py-1 gba:rounded gba:cursor-help">{task.id}</span>
-                </TooltipTrigger>
-                <TooltipContent>Task identifier</TooltipContent>
-              </Tooltip>
-            </FieldRow>
           </CardContent>
         </Card>
 

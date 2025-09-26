@@ -1,6 +1,5 @@
 import React, { useCallback, useMemo } from 'react';
 import {
-  Card,
   CardContent,
   CardDescription,
   CardHeader,
@@ -11,26 +10,22 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-  Badge,
-  Button
+  Badge
 } from '@newwork/nw-design-system';
-import { Spin } from 'antd';
-import { 
-  TrendingUp,
-  TrendingDown,
-  RefreshCw,
-  PieChart
-} from 'lucide-react';
+import { PieChart } from 'lucide-react';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
-import { useEquityAnalyticsIntegration } from "../hooks/useEquityAnalyticsIntegration";
+import { useUniversalInvestmentReportsAnalytics, TableStateWrapper } from "../../components/shared";
 import { EquityAnalyticsFilters } from '../types';
 import { buildPlatformUrl, navigateTo } from '@/common/utils/navigationUtils';
+import { createInvestmentReportColumns } from '@/business-apps/crm/investments/apps/investment-record/components/shared/columnDefinitions';
 
 interface EquityAnalyticsTableProps extends BusinessAppContextProps {
   'data-testid'?: string;
   filters: EquityAnalyticsFilters;
   investmentType: string;
+  investmentTypeValue: string; // User-friendly name for display
   title: string;
+  catalogData: any; // Required for dynamic columns
 }
 
 export const EquityAnalyticsTable: React.FC<EquityAnalyticsTableProps> = ({
@@ -39,89 +34,82 @@ export const EquityAnalyticsTable: React.FC<EquityAnalyticsTableProps> = ({
   'data-testid': dataTestId = 'equity-analytics-table',
   filters,
   investmentType,
-  title
+  investmentTypeValue,
+  title,
+  catalogData
 }) => {
   // Create stable filters object to prevent infinite loops
   const stableFilters = useMemo(() => ({
     startDate: filters.startDate,
     endDate: filters.endDate,
-    currency: filters.currency,
-    fundManagerName: filters.fundManagerName,
     investmentType: investmentType
-  }), [filters.startDate, filters.endDate, filters.currency, filters.fundManagerName, investmentType]);
+  }), [filters.startDate, filters.endDate, investmentType]);
 
-  // Use the new report-based data source
+  // Use the new simplified data source
   const {
-    analyticsData,
+    reports,
     totalCount,
     isLoading,
     error,
     refetch
-  } = useEquityAnalyticsIntegration({
+  } = useUniversalInvestmentReportsAnalytics({
     accessToken,
     userInfo,
-    filters: stableFilters
+    filters: stableFilters,
+    investmentGroup: 'EQUITY'
   });
 
-  const formatCurrency = (amount: number, currency: string = filters.currency || 'EUR'): string => {
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: currency,
-      minimumFractionDigits: 0,
-      maximumFractionDigits: 0
-    }).format(amount);
-  };
+  // Create dynamic columns using the same pattern as InvestmentReportsTab
+  const columns = useMemo(() => {
+    // First add the static Investment column
+    const staticColumns = [
+      {
+        key: 'investment',
+        title: 'Investment',
+        width: '200px',
+        render: (record: any) => (
+          <div style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: 'var(--nw-spacing-2)'
+          }}>
+            <PieChart className="gba:w-4 gba:h-4" style={{ color: 'var(--nw-color-text-secondary)' }} />
+            <span className="gba:font-medium">{record.investment?.name || 'N/A'}</span>
+          </div>
+        )
+      }
+    ];
 
-  const formatPercentage = (value: number): React.ReactNode => {
-    if (value === 0) {
-      return <span className="gba:text-gray-500">0%</span>;
+    // Don't create dynamic columns if catalog data isn't ready
+    if (!catalogData) {
+      return staticColumns;
     }
 
-    const icon = value > 0 
-      ? <TrendingUp className="gba:h-3 gba:w-3 gba:text-green-600" />
-      : <TrendingDown className="gba:h-3 gba:w-3 gba:text-red-600" />;
+    // Then add dynamic columns from catalog data
+    // Note: For reports-view, we don't have a specific mainInvestment/typeSpecificData
+    // since we're showing multiple investments, so we pass undefined for those parameters
+
+    // For reports-view, provide investment group context for correct column logic
+    // Equity investments should use group-level form fields, not type-level
+    const mockInvestmentForContext = {
+      investmentGroup: { code: 'EQUITY' } // Provide equity group context for correct column logic
+    };
     
-    const colorClass = value > 0 
-      ? 'gba:text-green-600' 
-      : 'gba:text-red-600';
-
-    return (
-      <div className={`gba:flex gba:items-center gba:gap-1 ${colorClass}`}>
-        {icon}
-        <span>{Math.abs(value).toFixed(1)}%</span>
-      </div>
+    const dynamicColumns = createInvestmentReportColumns(
+      investmentType, // investment type code
+      undefined, // liquidFundTypeCode - not applicable for equity
+      catalogData,
+      undefined, // Remove accessToken to exclude actions column
+      mockInvestmentForContext, // Provide investment group context
+      undefined  // mainTypeSpecificData - not applicable for reports-view
     );
-  };
 
-  const formatDate = (dateString?: string): string => {
-    if (!dateString) return 'N/A';
-    try {
-      return new Date(dateString).toLocaleDateString('en-US', {
-        year: 'numeric',
-        month: 'short',
-        day: 'numeric'
-      });
-    } catch {
-      return 'Invalid Date';
-    }
-  };
+    return [...staticColumns, ...dynamicColumns];
+  }, [investmentType, catalogData, accessToken]);
 
-  const formatGain = (amount: number, currency: string = filters.currency || 'EUR'): React.ReactNode => {
-    const icon = amount >= 0 
-      ? <TrendingUp className="gba:h-3 gba:w-3 gba:text-green-600" />
-      : <TrendingDown className="gba:h-3 gba:w-3 gba:text-red-600" />;
-    
-    const colorClass = amount >= 0 
-      ? 'gba:text-green-600' 
-      : 'gba:text-red-600';
 
-    return (
-      <div className={`gba:flex gba:items-center gba:gap-1 ${colorClass}`}>
-        {icon}
-        <span>{formatCurrency(Math.abs(amount), currency)}</span>
-      </div>
-    );
-  };
+
+
 
   // Handle row click navigation
   const handleRowClick = useCallback((investmentId: string) => {
@@ -133,37 +121,21 @@ export const EquityAnalyticsTable: React.FC<EquityAnalyticsTableProps> = ({
     navigateTo(detailsUrl);
   }, []);
 
-  const hasData = !isLoading && !error && analyticsData.length > 0;
-
-  if (isLoading) {
-    return (
-      <div className="gba:flex gba:justify-center gba:items-center gba:h-64" data-testid={`${dataTestId}-loading`}>
-        <Spin size="large" />
-      </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <Card>
-        <CardContent className="gba:p-6">
-          <div className="gba:text-center gba:text-red-600">
-            <PieChart className="gba:h-12 gba:w-12 gba:mx-auto gba:mb-4" />
-            <p className="gba:font-medium">{error}</p>
-            <Button onClick={refetch} className="gba:mt-4">
-              <RefreshCw className="gba:w-4 gba:h-4 gba:mr-2" />
-              Retry
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
-    );
-  }
 
   return (
-    <Card>
+    <TableStateWrapper
+      isLoading={isLoading}
+      error={error}
+      onRetry={refetch}
+      dataTestId={dataTestId}
+      icon={<PieChart />}
+    >
       <CardHeader>
-        <CardTitle className="gba:flex gba:items-center gba:gap-2">
+        <CardTitle style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: 'var(--nw-spacing-sm)'
+        }}>
           <PieChart className="gba:h-5 gba:w-5" />
           {title}
           <Badge variant="outline">{totalCount} investments</Badge>
@@ -176,62 +148,79 @@ export const EquityAnalyticsTable: React.FC<EquityAnalyticsTableProps> = ({
         <div className="gba:overflow-x-auto">
           <Table data-testid={`${dataTestId}-table`}>
             <TableHeader>
-              <TableRow className="gba:border-b gba:bg-gray-50">
-                <TableHead className="gba:font-semibold gba:text-gray-700 gba:text-left gba:py-3 gba:px-4">Investment</TableHead>
-                <TableHead className="gba:font-semibold gba:text-gray-700 gba:text-left gba:py-3 gba:px-4">Fund Manager</TableHead>
-                <TableHead className="gba:font-semibold gba:text-gray-700 gba:text-left gba:py-3 gba:px-4">Currency</TableHead>
-                <TableHead className="gba:font-semibold gba:text-gray-700 gba:text-left gba:py-3 gba:px-4">Acquisition Date</TableHead>
-                <TableHead className="gba:font-semibold gba:text-gray-700 gba:text-right gba:py-3 gba:px-4">Market Value</TableHead>
-                <TableHead className="gba:font-semibold gba:text-gray-700 gba:text-right gba:py-3 gba:px-4">EBITDA</TableHead>
-                <TableHead className="gba:font-semibold gba:text-gray-700 gba:text-right gba:py-3 gba:px-4">Unrealized Gain</TableHead>
-                <TableHead className="gba:font-semibold gba:text-gray-700 gba:text-center gba:py-3 gba:px-4">EBITDA Margin</TableHead>
+              <TableRow style={{
+                borderBottom: 'var(--nw-border-width-thin) solid var(--nw-color-border-default)',
+                backgroundColor: 'var(--nw-color-surface-secondary)'
+              }}>
+                {columns.map((column) => (
+                <TableHead 
+                  key={column.key}
+                  style={{
+                    fontWeight: 'var(--nw-font-weight-semibold)',
+                    textAlign: 'left',
+                    padding: 'var(--nw-spacing-3) var(--nw-spacing-4)',
+                    width: column.width,
+                    color: 'var(--nw-color-text-primary)'
+                  }}
+                  >
+                    {column.title}
+                  </TableHead>
+                ))}
               </TableRow>
             </TableHeader>
             <TableBody>
-              {analyticsData.length === 0 ? (
+              {reports.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={8} className="gba:text-center gba:py-12 gba:text-gray-500">
-                    <div className="gba:flex gba:flex-col gba:items-center gba:gap-2">
-                      <PieChart className="gba:h-12 gba:w-12 gba:text-gray-300" />
-                      <p className="gba:text-lg gba:font-medium">No {investmentType} Data Found</p>
-                      <p className="gba:text-sm">No equity investment reports are available for {investmentType.toLowerCase()} in the selected time period.</p>
+                  <TableCell colSpan={columns.length} style={{
+                    textAlign: 'center',
+                    padding: 'var(--nw-spacing-12) 0',
+                    color: 'var(--nw-muted-foreground)'
+                  }}>
+                    <div style={{
+                      display: 'flex',
+                      flexDirection: 'column',
+                      alignItems: 'center',
+                      gap: 'var(--nw-spacing-2)'
+                    }}>
+                      <PieChart style={{
+                        height: 'var(--nw-spacing-12)',
+                        width: 'var(--nw-spacing-12)',
+                        color: 'var(--nw-muted-foreground)'
+                      }} />
+                      <p style={{
+                        fontSize: 'var(--nw-text-lg)',
+                        fontWeight: '500'
+                      }}>No {investmentTypeValue} Data Found</p>
+                      <p style={{
+                        fontSize: 'var(--nw-text-sm)'
+                      }}>No equity investment reports are available for {investmentTypeValue.toLowerCase()} in the selected time period.</p>
                     </div>
                   </TableCell>
                 </TableRow>
               ) : (
                 <>
-                  {analyticsData.map((row, index) => (
+                  {reports.map((report, index) => (
                     <TableRow
-                      key={row.id}
-                      className="gba:cursor-pointer gba:border-b gba:hover:gba:bg-gray-50"
-                      onClick={() => row.investmentId && handleRowClick(row.investmentId)}
-                      data-testid={`${dataTestId}-row-${index + 1}`}
+                      key={report.id}
+                      style={{
+                        cursor: 'pointer',
+                        borderBottom: 'var(--nw-border-width-thin) solid var(--nw-color-border-default)'
+                      }}
+                      onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'var(--nw-color-surface-secondary)'}
+                      onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
+                      onClick={() => report.investment?.id && handleRowClick(report.investment.id)}
+                      data-testid={report.id ? `${dataTestId}-row-${report.id}` : `${dataTestId}-row-${index + 1}`}
                     >
-                      <TableCell className="gba:font-medium gba:text-left gba:py-3 gba:px-4">
-                        <div className="gba:flex gba:items-center gba:gap-2">
-                          <TrendingUp className="gba:w-4 gba:h-4 gba:text-gray-500" />
-                          <span className="gba:font-medium">{row.investmentName}</span>
-                        </div>
-                      </TableCell>
-                      <TableCell className="gba:text-left gba:py-3 gba:px-4">{row.fundManagerName}</TableCell>
-                      <TableCell className="gba:text-left gba:py-3 gba:px-4">
-                        <Badge variant="outline">{row.currency}</Badge>
-                      </TableCell>
-                      <TableCell className="gba:text-left gba:py-3 gba:px-4">
-                        {formatDate(row.acquisitionDate)}
-                      </TableCell>
-                      <TableCell className="gba:text-right gba:font-mono gba:font-medium gba:py-3 gba:px-4">
-                        {formatCurrency(row.currentMarketValue, row.currency)}
-                      </TableCell>
-                      <TableCell className="gba:text-right gba:font-mono gba:py-3 gba:px-4">
-                        {formatCurrency(row.currentEbitda, row.currency)}
-                      </TableCell>
-                      <TableCell className="gba:text-right gba:font-mono gba:py-3 gba:px-4">
-                        {formatGain(row.unrealizedGain, row.currency)}
-                      </TableCell>
-                      <TableCell className="gba:text-center gba:py-3 gba:px-4">
-                        {formatPercentage(row.ebitdaMargin)}
-                      </TableCell>
+                      {columns.map((column) => (
+                        <TableCell 
+                          key={column.key}
+                          style={{
+                            padding: 'var(--nw-spacing-3) var(--nw-spacing-4)'
+                          }}
+                        >
+                          {column.render(report)}
+                        </TableCell>
+                      ))}
                     </TableRow>
                   ))}
                 </>
@@ -240,6 +229,6 @@ export const EquityAnalyticsTable: React.FC<EquityAnalyticsTableProps> = ({
           </Table>
         </div>
       </CardContent>
-    </Card>
+    </TableStateWrapper>
   );
 };

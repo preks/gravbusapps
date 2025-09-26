@@ -71,7 +71,10 @@ const ExpenseCalculationRules: React.FC<ExpenseCalculationRulesProps> = (props) 
   const [selectedRow, setSelectedRow] = React.useState<any | null>(null);
   const [deleteOpen, setDeleteOpen] = React.useState<boolean>(false);
   const [deleteBlocked, setDeleteBlocked] = React.useState<boolean>(false);
-  const openCalculationRuleModal = useCallback(() => setFlowModalOpen(true), []);
+  const openCalculationRuleModal = useCallback(() => {
+    setSelectedRow(null);
+    setFlowModalOpen(true);
+  }, []);
   const graphqlClient = useGraphqlClient(props.accessToken);
   const restClient = useRestClient(env('NEXT_PUBLIC_KOGITO_PROCESSES_ENDPOINT'));
   const handleHeaderSort = useCallback((field: string) => {
@@ -291,8 +294,8 @@ const ExpenseCalculationRules: React.FC<ExpenseCalculationRulesProps> = (props) 
                               </PopoverTrigger>
                                 <PopoverContent align="start" className="gba:p-0 gba:w-auto" onClick={(e) => e.stopPropagation()}>
                                   <div className="gba:flex gba:flex-col">
-                                    <button className="gba:px-4 gba:py-2 gba:text-left gba:text-[#000000] gba:text-[14px]" data-testid={`${PREFIX}-action-edit-${index}`} onClick={(e) => { e.stopPropagation(); setSelectedRow(row as any); setFlowModalOpen(true); }}>{getTranslationFromI18nKeyAndLabel('lowcoder:expense_calculation_rule.expense_table.edit', 'Edit')}</button>
-                                    <button className="gba:px-4 gba:py-2 gba:text-left gba:text-[#000000] gba:text-[14px]" data-testid={`${PREFIX}-action-delete-${index}`} onClick={async (e) => {
+                                    <Button variant='ghost' className="gba:px-4 gba:py-2 gba:text-left gba:justify-start gba:text-[14px]" data-testid={`${PREFIX}-action-edit-${index}`} onClick={(e) => { e.stopPropagation(); setSelectedRow(row as any); setFlowModalOpen(true); }}>{getTranslationFromI18nKeyAndLabel('lowcoder:expense_calculation_rule.expense_table.edit', 'Edit')}</Button>
+                                    <Button variant='ghost' className="gba:px-4 gba:py-2 gba:text-left gba:justify-start gba:text-[14px]" data-testid={`${PREFIX}-action-delete-${index}`} onClick={async (e) => {
                                       e.stopPropagation();
                                       setSelectedRow(row as any);
                                       try {
@@ -305,7 +308,7 @@ const ExpenseCalculationRules: React.FC<ExpenseCalculationRulesProps> = (props) 
                                         setDeleteBlocked(true);
                                       }
                                       setDeleteOpen(true);
-                                    }}>{getTranslationFromI18nKeyAndLabel('lowcoder:expense_calculation_rule.expense_table.delete', 'Delete')}</button>
+                                    }}>{getTranslationFromI18nKeyAndLabel('lowcoder:expense_calculation_rule.expense_table.delete', 'Delete')}</Button>
                                   </div>
                                 </PopoverContent>
                             </Popover>
@@ -421,6 +424,7 @@ const ExpenseCalculationRules: React.FC<ExpenseCalculationRulesProps> = (props) 
 
             {/* Create Calculation Rule Modal */}
             <CreateRuleDialog
+              key={selectedRow ? String(selectedRow.id) : 'create'}
               open={flowModalOpen}
               onOpenChange={(open) => {
                 setFlowModalOpen(open);
@@ -436,7 +440,12 @@ const ExpenseCalculationRules: React.FC<ExpenseCalculationRulesProps> = (props) 
             {/* Delete Calculation Rule Modal */}
             <DeleteRuleDialog
               open={deleteOpen}
-              onOpenChange={setDeleteOpen}
+              onOpenChange={(open) => {
+                setDeleteOpen(open);
+                if (!open) {
+                  setSelectedRow(null);
+                }
+              }}
               blocked={deleteBlocked}
               onConfirm={async () => {
                 try {

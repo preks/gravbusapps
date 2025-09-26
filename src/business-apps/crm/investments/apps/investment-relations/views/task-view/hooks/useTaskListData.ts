@@ -156,7 +156,16 @@ export const useTaskListData = (props: UseTaskListDataProps): UseTaskListDataRet
           createdAt: it.createdAt!,
           updatedAt: it.updatedAt || it.createdAt!,
           version: it.version as any,
-          rawSalesTask: undefined
+          rawSalesTask: undefined,
+          createdBy: it.creatorUserId,
+          creatorEmployee: it.creatorEmployee ? {
+            id: it.creatorEmployee.id,
+            firstName: it.creatorEmployee.firstName || '',
+            lastName: it.creatorEmployee.lastName || '',
+            displayName: it.creatorEmployee.displayName || 'Unknown',
+            department: '',
+            initials: ''
+          } : undefined
         } as Task;
       });
 

@@ -10,9 +10,7 @@ export interface EquityAnalyticsQueryVariables {
 export interface EquityAnalyticsFilters {
   startDate?: string;
   endDate?: string;
-  currency?: string;
   investmentType?: string;
-  fundManagerName?: string;
 }
 
 // Raw data from GraphQL for equity investments - ALIGNED WITH SCHEMA
@@ -29,7 +27,7 @@ export interface EquityInvestmentAnalyticsResponse {
     fundManagerName: string;
     acquisitionDate: string;
     forecastedProfitAmount: number;
-    forecastedRevenueAmount: number; // FIXED: Was forecastedRevenue
+    forecastedRevenueAmount: number;
     currencyRef: string;
     // Additional available fields from GraphQL
     debtFinancingAmount?: number;

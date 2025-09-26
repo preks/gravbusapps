@@ -1,5 +1,4 @@
 // Investment Tab Configuration Utilities
-import React from 'react';
 import { Home, BarChart3, Folder, FileText } from 'lucide-react';
 import { DocumentSection } from '@/common/components/common-relations/record-sections/document-section';
 import { AccountSection } from '@/common/components/common-relations/record-sections/account-section';
@@ -57,7 +56,8 @@ export const createInvestmentTabsConfig = (
   processedTiles: any[],
   documents: any[],
   loadData: () => void,
-  props: BusinessAppContextProps
+  props: BusinessAppContextProps,
+  catalogData?: any
 ) => ({
   defaultValue: activeTab,
   onValueChange: setActiveTab,
@@ -84,10 +84,16 @@ export const createInvestmentTabsConfig = (
       content: (
         <div className="gba:col-span-12 gba:space-y-6">
           {/* Generate One-Pager Action */}
-          <div className="gba:flex gba:justify-end gba:mb-4">
+          <div 
+            className="gba:flex gba:justify-end"
+            style={{ marginBottom: 'var(--nw-spacing-lg)' }}
+            data-testid="investment-generate-onepager-section"
+          >
             <GenerateOnePagerButton
               investmentId={investment?.id}
               accessToken={props.accessToken}
+              userInfo={props.userInfo}
+              investmentData={investment}
             />
           </div>
 
@@ -107,7 +113,10 @@ export const createInvestmentTabsConfig = (
           {getTypeSpecificOverviewContent(investmentType, typeSpecificData)}
 
           {/* Common Account and Contact Information */}
-          <div className="gba:grid gba:gap-6 gba:grid-cols-1 gba:lg:grid-cols-2">
+          <div 
+            className="gba:grid gba:grid-cols-1 gba:lg:grid-cols-2"
+            style={{ gap: 'var(--nw-spacing-xl)' }}
+          >
             <AccountSection 
               account={investment?.investmentAccount}
               accessToken={props.accessToken}
@@ -159,7 +168,11 @@ export const createInvestmentTabsConfig = (
       content: (
         <div className="gba:col-span-12 gba:space-y-6">
           {/* Upload Report Action */}
-          <div className="gba:flex gba:justify-end gba:mb-4">
+          <div 
+            className="gba:flex gba:justify-end"
+            style={{ marginBottom: 'var(--nw-spacing-lg)' }}
+            data-testid="investment-upload-report-section"
+          >
             <UploadReportButton
               investmentId={investment?.id}
               accessToken={props.accessToken}
@@ -171,6 +184,11 @@ export const createInvestmentTabsConfig = (
             investmentId={investmentId}
             investmentGroupIds={[investment?.investmentGroup?.id].filter(Boolean)}
             specificInvestmentId={investmentId}
+            catalogData={catalogData}
+            investmentTypeCode={investment?.investmentType?.code || ''}
+            liquidFundTypeCode={typeSpecificData?.liquidFundInvestment?.investmentLiquidFundType?.code}
+            investment={investment}
+            typeSpecificData={typeSpecificData}
             accessToken={props.accessToken}
             userInfo={props.userInfo}
             additionalData={props.additionalData}
