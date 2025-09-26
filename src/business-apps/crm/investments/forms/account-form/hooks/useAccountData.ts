@@ -63,7 +63,6 @@ export const mapInvestmentAccountToFormValues = (
     // ✅ REMOVED: currency: "", // Not available in InvestmentAccount schema
 
     // Additional Information (✅ UPDATED for InvestmentAccount)
-    timeZone: account.timeZone?.id || "", // ✅ RESTORED: Available in InvestmentAccount schema
     foundationDate: account.foundationDate || "",
     tickerSymbol: account.code || "", // ✅ UPDATED: Use code as ticker symbol
     // ✅ REMOVED: sicCode mapping - sicCode field removed from form
@@ -87,6 +86,14 @@ export const useInvestmentAccountData = (
   const { fetchInvestmentAccountData } =
     useGetInvestmentAccountData(businessAppContext);
 
+  // Function to map investment account data to form values (consistent with lead/contact pattern)
+  const mapAccountToFormValues = useCallback(
+    (accountData: InvestmentAccountDataResponse): Partial<AccountFormValues> => {
+      return mapInvestmentAccountToFormValues(accountData);
+    },
+    []
+  );
+
   // Extract accountId from businessAppContext
   const accountId =
     businessAppContext.additionalData?.accountId ||
@@ -95,17 +102,7 @@ export const useInvestmentAccountData = (
 
   useEffect(() => {
     const loadAccountData = async () => {
-      console.log("🔍 Investment Account Data Hook - Starting load:", {
-        accountId,
-        hasAccessToken: !!businessAppContext.accessToken,
-        additionalData: businessAppContext.additionalData,
-      });
-
       if (!accountId || !businessAppContext.accessToken) {
-        console.log("❌ Investment Account Data Hook - Missing requirements:", {
-          hasAccountId: !!accountId,
-          hasAccessToken: !!businessAppContext.accessToken,
-        });
         return;
       }
 
@@ -113,21 +110,7 @@ export const useInvestmentAccountData = (
         setLoading(true);
         setError(null);
 
-        console.log(
-          "🚀 Investment Account Data Hook - Fetching data for accountId:",
-          accountId
-        );
         const result = await fetchInvestmentAccountData({ accountId });
-        console.log(
-          "✅ Investment Account Data Hook - Data loaded successfully:",
-          {
-            hasResult: !!result,
-            investmentAccountCount: result?.InvestmentAccount?.length || 0,
-            firstAccountId: result?.InvestmentAccount?.[0]?.id,
-            firstAccountName: result?.InvestmentAccount?.[0]?.name,
-          }
-        );
-
         setAccountData(result);
       } catch (err) {
         const errorMessage =
@@ -143,17 +126,6 @@ export const useInvestmentAccountData = (
 
     if (accountId) {
       loadAccountData();
-    } else {
-      console.log(
-        "🔍 Investment Account Data Hook: No accountId found in additionalData:",
-        {
-          additionalData: businessAppContext.additionalData,
-          accountIdPath1: businessAppContext.additionalData?.accountId,
-          accountIdPath2:
-            businessAppContext.additionalData?.psi_taskPayload
-              ?.psi_initialParameters?.accountId,
-        }
-      );
     }
   }, [accountId, businessAppContext.accessToken]); // Removed fetchAccountData to prevent infinite loops
 
@@ -183,6 +155,7 @@ export const useInvestmentAccountData = (
     loading,
     error,
     refetch,
+    mapAccountToFormValues,
   };
 };
 

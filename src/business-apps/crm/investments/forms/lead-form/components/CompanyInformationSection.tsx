@@ -77,10 +77,6 @@ const CompanyInformationSection: React.FC = () => {
     revenueSizesTotalFetched,
     loadMoreRevenueSizes,
 
-    timeZones,
-    timeZonesLoading,
-    timeZonesHasMore,
-    loadMoreTimeZones,
   } = useLeadFormContext();
 
   // Simple effect to load more legal forms when needed
@@ -555,54 +551,6 @@ const CompanyInformationSection: React.FC = () => {
                   )}
                 </div>
 
-                {/* Time Zone - ✅ FIXED: Using standard Select like Legal Form */}
-                <div className="gba:space-y-2">
-                  <Label className="gba:text-sm gba:font-medium gba:text-gray-900">
-                    Time Zone
-                  </Label>
-                  <Select
-                    value={formValues.timeZone}
-                    onValueChange={(value) =>
-                      setFormValues({ timeZone: value })
-                    }
-                    data-testid={formatDataTestId(
-                      prefixDataTestId,
-                      "TimeZoneSelect"
-                    )}
-                  >
-                    <SelectTrigger className="gba:border-gray-300 gba:bg-white">
-                      <SelectValue placeholder="Please Select..." />
-                    </SelectTrigger>
-                    <SelectContent className="gba:max-h-[200px] gba:overflow-y-auto">
-                      {timeZones.map((option, index) => (
-                        <SelectItem
-                          key={`${option.id}-${index}`}
-                          value={option.value}
-                        >
-                          {option.label}
-                        </SelectItem>
-                      ))}
-
-                      {/* Load More button if needed */}
-                      {timeZonesLoading && (
-                        <div className="gba:p-2 gba:text-center gba:text-gray-500">
-                          Loading more time zones...
-                        </div>
-                      )}
-                      {timeZonesHasMore && !timeZonesLoading && (
-                        <div className="gba:p-1">
-                          <button
-                            type="button"
-                            onClick={loadMoreTimeZones}
-                            className="gba:w-full gba:px-3 gba:py-2 gba:text-sm gba:text-blue-600 gba:bg-blue-50 gba:border gba:border-blue-200 gba:rounded gba:hover:bg-blue-100 gba:transition-colors"
-                          >
-                            📥 Load More Time Zones
-                          </button>
-                        </div>
-                      )}
-                    </SelectContent>
-                  </Select>
-                </div>
 
                 {/* Number of Employees - ✅ FIXED: Using standard Select like Legal Form */}
                 <div className="gba:space-y-2">

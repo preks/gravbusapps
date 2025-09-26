@@ -92,12 +92,6 @@ export interface InvestmentLeadQueryResult {
     code: string;
     value: string;
   };
-  timeZoneRef?: string; // ✅ ADDED
-  timeZone?: {
-    id: string;
-    code: string;
-    value: string;
-  };
 
   // Address Information - Direct fields (NOT addresses relationship)
   addressLine?: any; // JSON field with lines array
@@ -273,13 +267,6 @@ export const GET_INVESTMENT_LEAD_BY_ID = `
       }
       accountAnnualRevenueBandRef
       accountAnnualRevenueBand {
-        id
-        code
-        value
-      }
-      # ✅ ADDED: Time Zone
-      timeZoneRef
-      timeZone {
         id
         code
         value
