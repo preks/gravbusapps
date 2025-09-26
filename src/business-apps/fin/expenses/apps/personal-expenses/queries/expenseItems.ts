@@ -201,23 +201,15 @@ export const GET_PENDING_ITEMS_WITH_DATE_RANGE = `
   query GetPendingItemsWithDateRange($employeeId: uuid!, $startDate: timestamp, $endDate: timestamp, $currencyRef: String!) {
     pendingExcludingAllowance: ExpenseItemAggregate(
       where: {
-        _and: [
-          { employeeId: {_eq: $employeeId} },
-          { isDeleted: {_eq: false} },
-          { status: {_eq: "PENDING", _nin: ["DISCARDED"]} },
-          { expenseClass: {_not: {code: {_eq: "ALLOWANCE"}}} },
-          { currencyRef: {_eq: $currencyRef} },
-          { _or: [
-              { _and: [
-                  { requestDate: { _gte: $startDate, _lte: $endDate } },
-                  { requestTypeRef: {_eq: "ExpenseRequestType:v1:EXPENSES"} }
-                ] },
-              { _and: [
-                  { requestTypeRef: {_eq: "ExpenseRequestType:v1:TRIP"} },
-                  { startDate: { _gte: $startDate, _lte: $endDate } }
-                ] }
-            ] }
-        ]
+        employeeId: {_eq: $employeeId},
+        isDeleted: {_eq: false},
+        status: {_eq: "PENDING",_nin: ["DISCARDED"]},
+        expenseClass: {_not: {code: {_eq: "ALLOWANCE"}}},
+        currencyRef: {_eq: $currencyRef},
+        expenseDate: {
+          _gte: $startDate,
+          _lte: $endDate
+        }
       }
     ) {
       aggregate {
@@ -275,23 +267,15 @@ export const GET_EXPENSE_ITEM_STATISTICS = `
   query GetExpenseItemStatistics($employeeId: uuid!, $startDate: timestamp, $endDate: timestamp, $currencyRef: String!) {
     totalExpenses: ExpenseItemAggregate(
       where: {
-        _and: [
-          { employeeId: {_eq: $employeeId} },
-          { isDeleted: {_eq: false} },
-          { status: {_in: ["PAID", "CLOSED"]} },
-          { currencyRef: {_eq: $currencyRef} },
-          { expenseClass: {_not: {code: {_eq: "ALLOWANCE"}}} },
-          { _or: [
-              { _and: [
-                  { requestDate: { _gte: $startDate, _lte: $endDate } },
-                  { requestTypeRef: {_eq: "ExpenseRequestType:v1:EXPENSES"} }
-                ] },
-              { _and: [
-                  { requestTypeRef: {_eq: "ExpenseRequestType:v1:TRIP"} },
-                  { startDate: { _gte: $startDate, _lte: $endDate } }
-                ] }
-            ] }
-        ]
+        employeeId: {_eq: $employeeId},
+        isDeleted: {_eq: false},
+        status: {_in: ["PAID", "CLOSED"]},
+        currencyRef: {_eq: $currencyRef},
+        expenseDate: {
+          _gte: $startDate,
+          _lte: $endDate
+        },
+         expenseClass: {_not: {code: {_eq: "ALLOWANCE"}}}
       }
     ) {
       aggregate {
