@@ -14,6 +14,7 @@ import type {
   EmployeeNameCacheEvent,
   EmployeeNameCacheEventType
 } from './types';
+import { env } from '@/common/env/EnvUtils';
 
 export class EmployeeNameCache {
   private cache = new Map<string, CacheEntry>();
@@ -223,7 +224,13 @@ export class EmployeeNameCache {
     }
 
     // Use the same GraphQL endpoint as the rest of the application
-    const endpoint = process.env.NEXT_PUBLIC_GRAPHQL_ENDPOINT_NEWWORK || 'https://newwork-dev.newwork.com/v1/graphql';
+    let endpoint: string;
+    try {
+      endpoint = env('NEXT_PUBLIC_GRAPHQL_ENDPOINT_NEWWORK') || 'https://newwork-dev.newwork.com/v1/graphql';
+    } catch (error) {
+      console.warn('[EmployeeNameCache] Could not access environment variable, using default endpoint:', error);
+      endpoint = 'https://newwork-dev.newwork.com/v1/graphql';
+    }
     
     const GET_EMPLOYEES_BY_USER_IDS = `
       query GetEmployeesByUserIds($userIds: [String!]!) {

@@ -6,6 +6,7 @@
 import { useState, useEffect } from 'react';
 import { useEmployeeNameCacheOptional } from '../services/employee-cache';
 import type { EmployeeData } from '../services/employee-cache/types';
+import { env } from '@/common/env/EnvUtils';
 
 export interface UseEmployeeNameCacheProps {
   userId: string;
@@ -111,7 +112,13 @@ async function fetchEmployeeIndividually(
   }
 
   // Use the same GraphQL approach as the rest of the application
-  const endpoint = process.env.NEXT_PUBLIC_GRAPHQL_ENDPOINT_NEWWORK || 'https://newwork-dev.newwork.com/v1/graphql';
+  let endpoint: string;
+  try {
+    endpoint = env('NEXT_PUBLIC_GRAPHQL_ENDPOINT_NEWWORK') || 'https://newwork-dev.newwork.com/v1/graphql';
+  } catch (error) {
+    console.warn('[useEmployeeNameCache] Could not access environment variable, using default endpoint:', error);
+    endpoint = 'https://newwork-dev.newwork.com/v1/graphql';
+  }
   
   const GET_EMPLOYEE_BY_USER_ID = `
     query GetEmployeeByUserId($userId: String!) {

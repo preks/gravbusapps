@@ -6,6 +6,7 @@
 import { useState, useEffect } from 'react';
 import { useServiceDeskCatalogCacheOptional } from '../services/catalog-cache/ServiceDeskCatalogCacheProvider';
 import { ServiceDeskCatalog, ServiceDeskCatalogEntry } from '../services/catalog-cache/types';
+import { env } from '@/common/env/EnvUtils';
 
 export interface UseServiceDeskCatalogCacheProps {
   accessToken: string;
@@ -102,7 +103,13 @@ async function fetchCatalogDirectly(accessToken: string): Promise<{
   catalog: ServiceDeskCatalog | null;
   catalogEntries: ServiceDeskCatalogEntry[];
 }> {
-  const endpoint = process.env.NEXT_PUBLIC_GRAPHQL_ENDPOINT_NEWWORK || 'https://newwork-dev.newwork.com/v1/graphql';
+  let endpoint: string;
+  try {
+    endpoint = env('NEXT_PUBLIC_GRAPHQL_ENDPOINT_NEWWORK') || 'https://newwork-dev.newwork.com/v1/graphql';
+  } catch (error) {
+    console.warn('[useServiceDeskCatalogCache] Could not access environment variable, using default endpoint:', error);
+    endpoint = 'https://newwork-dev.newwork.com/v1/graphql';
+  }
   
   const GET_SERVICE_DESK_CATALOG = `
     query GetServiceDeskCatalog {

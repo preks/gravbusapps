@@ -11,6 +11,7 @@ import type {
   CatalogCacheConfig,
   CatalogCacheStats 
 } from './types';
+import { env } from '@/common/env/EnvUtils';
 
 // GraphQL query for ServiceDeskCatalog
 const GET_SERVICE_DESK_CATALOG = `
@@ -131,7 +132,13 @@ class ServiceDeskCatalogCache {
     this.log('Fetching ServiceDeskCatalog from GraphQL API');
 
     // Use the same GraphQL endpoint as the rest of the application
-    const endpoint = process.env.NEXT_PUBLIC_GRAPHQL_ENDPOINT_NEWWORK || 'https://newwork-dev.newwork.com/v1/graphql';
+    let endpoint: string;
+    try {
+      endpoint = env('NEXT_PUBLIC_GRAPHQL_ENDPOINT_NEWWORK') || 'https://newwork-dev.newwork.com/v1/graphql';
+    } catch (error) {
+      console.warn('[ServiceDeskCatalogCache] Could not access environment variable, using default endpoint:', error);
+      endpoint = 'https://newwork-dev.newwork.com/v1/graphql';
+    }
     
     // Use fetch directly to avoid dependency issues
     const response = await fetch(endpoint, {
