@@ -1,12 +1,30 @@
-// Shared Investment Record Components
-// Consolidated and cleaned up for better maintainability
-// Note: CompanyInformation and ContactDetails replaced with standard AccountSection and ContactSection
-export { default as InvestmentHomeTab } from './InvestmentHomeTab';
-export { default as InvestmentTileSection } from './InvestmentTileSection';
-export { default as InvestmentReportsTab } from './InvestmentReportsTab';
+// =============================================================================
+// INVESTMENT SHARED COMPONENTS - EXPORTS
+// =============================================================================
 
-// Consolidated action buttons
+// Action Buttons
 export { GenerateOnePagerButton, UploadReportButton } from './InvestmentActionButtons';
+export { DirectApiGenerateButton } from './DirectApiGenerateButton';
+export { FlowBasedGenerateButton } from './FlowBasedGenerateButton';
 
-// Note: Group-specific components moved to ../group-specific/ directory
-// Import them directly from there: EquityInvestmentRounds, RealEstateLiquidityForecast
+// UI Components
+export { InvestmentReportPdfModal } from './InvestmentReportPdfModal';
+export { InvestmentHomeTab } from './InvestmentHomeTab'; // Named export available
+export { default as InvestmentReportsTab } from './InvestmentReportsTab';
+export { default as InvestmentTileSection } from './InvestmentTileSection';
+
+// Utilities and Hooks
+export { useReportGenerationMonitor } from './useReportGenerationMonitor';
+
+// Table Components
+export { default as TransposedTable } from './TransposedTable';
+export { default as ReportFilters } from './ReportFilters';
+
+// Other exports
+export * from './columnDefinitions';
+
+// Re-export types
+export type { GenerateOnePagerButtonProps, UploadReportButtonProps } from './InvestmentActionButtons';
+export type { InvestmentReportPdfModalProps } from './InvestmentReportPdfModal';
+export type { DirectApiGenerateButtonProps } from './DirectApiGenerateButton';
+export type { FlowBasedGenerateButtonProps } from './FlowBasedGenerateButton';

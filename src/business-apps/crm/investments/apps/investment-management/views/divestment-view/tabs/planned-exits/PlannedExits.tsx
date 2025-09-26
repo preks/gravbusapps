@@ -22,7 +22,7 @@ import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils';
 import { formatCurrency, formatDate } from "../../utils";
 import PlannedExitsMetrics from "./components/PlannedExitsMetrics";
 import { usePlannedExitsData } from "./hooks/usePlannedExitsData";
-import { OwnerDisplay } from "../../../investment-view/utils/ownerDisplayUtils";
+import { OwnerDisplay } from "../../../../../../components/shared";
 import { DateRangeFilter } from '@/business-apps/crm/customers/apps/customer-relations/views/lead-view/components/DateRangeFilter';
 import ExpenseAmountRangeFilter from '@/business-apps/fin/expenses/apps/personal-expenses/components/tabs/expense-items-tab/ExpenseAmountRangeFilter';
 import { useEmployeeSearch } from '@/common/data/employee/useEmployeeSearch';
