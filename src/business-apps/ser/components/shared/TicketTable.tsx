@@ -65,7 +65,11 @@ export interface TicketTableProps extends Omit<BusinessAppContextProps, 'childre
   
   // Callbacks
   onTicketSelect?: (ticket: StepInstance) => void;
+  onTaskSelect?: (taskId: string, deskKey: string) => void; // Original callback for title clicks
   onDebugTicket?: (ticket: StepInstance) => void;
+  
+  // Context for onTaskSelect
+  deskKey?: string;
   
   // Display options
   showDebug?: boolean;
@@ -162,7 +166,11 @@ export const TicketTable: React.FC<TicketTableProps> = ({
   
   // Callbacks
   onTicketSelect,
+  onTaskSelect,
   onDebugTicket,
+  
+  // Context for onTaskSelect
+  deskKey,
   
   // Display options
   showDebug = false,
@@ -726,7 +734,11 @@ export const TicketTable: React.FC<TicketTableProps> = ({
                               className="gba:font-medium gba:text-sm gba:text-blue-600 hover:gba:text-blue-800 gba:cursor-pointer gba:hover:underline gba:break-words"
                               onClick={(e) => {
                                 e.stopPropagation();
-                                onTicketSelect?.(ticket);
+                                if (onTaskSelect && deskKey) {
+                                  onTaskSelect(ticket.id, deskKey);
+                                } else {
+                                  onTicketSelect?.(ticket);
+                                }
                               }}
                               data-testid={`step-name-${ticket.id}`}
                             >

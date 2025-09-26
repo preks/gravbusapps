@@ -31,6 +31,7 @@ export const DeskQueue: React.FC<DeskQueueProps> = ({
   ticketId,
   accessToken,
   userInfo,
+  onTaskSelect,
 }) => {
   const [selectedTicketId, setSelectedTicketId] = useState<string | null>(ticketId || null);
   const [isDetailDrawerOpen, setIsDetailDrawerOpen] = useState<boolean>(!!ticketId);
@@ -217,7 +218,11 @@ export const DeskQueue: React.FC<DeskQueueProps> = ({
         
         // Callbacks
         onTicketSelect={handleViewTicket}
+        onTaskSelect={onTaskSelect}
         onDebugTicket={handleOpenDebugModal}
+        
+        // Context for onTaskSelect
+        deskKey={deskKey}
         
         // Display options
         showDebug={true}
