@@ -666,15 +666,21 @@ export const useTeamSpendingAnalytics = (
       .sort((a, b) => b.value - a.value); // Sort by value descending
     
     // Process time series data
-    const processTimeSeriesData = (items: any[], amountField: string = 'totalAmount') => {
+    const processTimeSeriesData = (
+      items: any[],
+      amountField: string = 'totalAmount',
+      dateField: string = 'createdAt'
+    ) => {
       if (!Array.isArray(items)) return [];
       
       const monthMap = new Map<string, number>();
       
       items.forEach(item => {
-        if (!item || !item.createdAt) return;
+        if (!item) return;
+        const dateSource = item[dateField] || item.createdAt;
+        if (!dateSource) return;
         
-        const date = dayjs(item.createdAt).format('YYYY-MM');
+        const date = dayjs(dateSource).format('YYYY-MM');
         const currentAmount = monthMap.get(date) || 0;
         monthMap.set(date, currentAmount + (item[amountField] || 0));
       });
@@ -771,7 +777,8 @@ export const useTeamSpendingAnalytics = (
       expenseRequestsByStatus: processStatusData(filteredExpenseRequests),
       expensePlansByMonth: processTimeSeriesData(filteredExpensePlans),
       expensePlansByStatus: processStatusData(filteredExpensePlans),
-      advancePaymentsByMonth: processTimeSeriesData(filteredAdvancePayments, 'amount'),
+      // For advance payments, prefer transactionDate for monthly grouping
+      advancePaymentsByMonth: processTimeSeriesData(filteredAdvancePayments, 'amount', 'transactionDate'),
       advancePaymentsByStatus: processStatusData(filteredAdvancePayments),
       expensesByOrgUnit: Array.from(orgUnitMap.entries()).map(([orgUnit, data]) => ({
         orgUnit,
