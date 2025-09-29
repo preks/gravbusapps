@@ -15,8 +15,7 @@ import {
 import { getExpensePlanStatusDisplay } from '../../../utils';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 import { PiCalendarDuotone, PiClock, PiPath, PiArrowRight } from 'react-icons/pi';
-import dayjs from 'dayjs';
-import { getTranslationFromI18nKeyAndLabel, getDateFormat, formatNumberFunction } from '@/common/utils/windowUtils';
+import { getTranslationFromI18nKeyAndLabel, formatDate } from '@/common/utils/windowUtils';
 import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils';
 import { formatCurrencyDisplay } from '../../../utils';
 
@@ -75,8 +74,8 @@ const ExpenseRequestDetails: React.FC<ExpenseRequestDetailsProps> = ({
               <PiCalendarDuotone className="gba:text-gray-500" />
               <span className="gba:text-sm gba:text-gray-700">
                 {getTranslationFromI18nKeyAndLabel('lowcoder:team_expenses_page.plan_details.duration', 'Duration')}: {' '}
-                {dayjs(selectedItem.startDate).format(getDateFormat('date.short'))} {' → '} 
-                {dayjs(selectedItem.endDate).format(getDateFormat('date.short'))}
+                {formatDate(selectedItem.startDate, 'date.short')} {' → '} 
+                {formatDate(selectedItem.endDate, 'date.short')}
               </span>
             </div>
           )}
@@ -86,7 +85,7 @@ const ExpenseRequestDetails: React.FC<ExpenseRequestDetailsProps> = ({
               <PiClock className="gba:text-gray-500" />
               <span className="gba:text-sm gba:text-gray-700">
                 {getTranslationFromI18nKeyAndLabel('lowcoder:confirm_transfer_advance_payment.request_date_label', 'Request Date')}: {' '}
-                {dayjs(selectedItem.requestDate).format(getDateFormat('date.short'))}
+                {formatDate(selectedItem.requestDate, 'date.short')}
               </span>
             </div>
           )}
@@ -96,7 +95,7 @@ const ExpenseRequestDetails: React.FC<ExpenseRequestDetailsProps> = ({
               <PiPath className="gba:text-gray-500" />
               <span className="gba:text-sm gba:text-gray-700">
                 {getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.decision_date', 'Decision Date')}: {' '}
-                {dayjs(selectedItem.decisionDate).format(getDateFormat('date.short'))}
+                {formatDate(selectedItem.decisionDate, 'date.short')}
               </span>
             </div>
           )}

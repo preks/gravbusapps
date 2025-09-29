@@ -12,6 +12,8 @@ import { getDayName } from '../utils/allowanceScreenUtils';
 import { createSummaryScreenLogObject } from '../utils/summaryScreenUtils';
 import { EVENTS } from '../../../utils/constants';
 import { useProcessEventState } from '@/business-apps/fin/expenses/utils/useProcessEventState';
+import { SUMMARY_SCREEN_ITEM_LIST_LIMIT } from '../constants/constants';
+import { getPlanCardData } from '../../expense-request/utils/planUtils';
 
 /**
  * SummaryScreen component props
@@ -94,7 +96,7 @@ const SummaryScreen: React.FC<SummaryScreenProps> = (props) => {
     });
   }
   // Pagination state
-  const itemListLimit = 4;
+  const itemListLimit = SUMMARY_SCREEN_ITEM_LIST_LIMIT;
   const [allowanceCurrentPage, setAllowanceCurrentPage] = useState(1);
   const [expenseCurrentPage, setExpenseCurrentPage] = useState(1);
   
@@ -177,19 +179,9 @@ const SummaryScreen: React.FC<SummaryScreenProps> = (props) => {
               <div className="gba:font-bold" data-testid="summary-plan-card-custom-container">
                 <PlanCard 
                   key={requestData.expensePlan.id} 
-                  plan={{
-                    id: requestData.expensePlan.id,
-                    planType: requestData.expensePlan.planType,
-                    title: requestData.expensePlan.title,
-                    creationDate: requestData.expensePlan.createdAt,
-                    tripStart: requestData.expensePlan.tripStart,
-                    tripEnd: requestData.expensePlan.tripEnd,
-                    tripInterval: requestData.expensePlan.tripInterval,
-                    paymentAmount: requestData.expensePlan.paymentAmount,
-                    paymentCurrency: requestData.expensePlan.paymentCurrency,
-                    planAmount: requestData.expensePlan.planAmount,
-                    planCurrency: requestData.expensePlan.planCurrency
-                  }} 
+                  plan={
+                    getPlanCardData(requestData.expensePlan,null)
+                  } 
                   selectable={false}
                   onClick={undefined}
                 />

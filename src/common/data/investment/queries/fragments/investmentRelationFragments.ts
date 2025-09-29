@@ -306,6 +306,25 @@ export const INVESTMENT_OPPORTUNITY = `
         ${INVESTMENT_CONTACT_REF}
       }
     }
+
+    # Stage conditions (embed current and historical statuses)
+    opportunityStageConditions: investmentOpportunityStageCondition(where: { isDeleted: { _eq: false } }, orderBy: [{ createdAt: DESC }]) {
+      id
+      completed
+      completedAt
+      deadlineAt
+      version
+      configSnapshot
+      completedByEmployee {
+        id
+        displayName
+        firstName
+        lastName
+      }
+      opportunityPipelineStageCondition {
+        ${CATALOG_ENTRY}
+      }
+    }
 `;
 
 export const INVESTMENT_TASK = `
@@ -408,6 +427,7 @@ export const INVESTMENT_DOCUMENT = `
     name
     description
     file
+    fileInfo
     fileSize
     mimeType
     verified
@@ -416,6 +436,7 @@ export const INVESTMENT_DOCUMENT = `
     authenticationDate
     mandatory
     expirationDate
+    version
     folder
     ${AUDIT_FIELDS}
     
@@ -426,10 +447,26 @@ export const INVESTMENT_DOCUMENT = `
     documentType {
       ${CATALOG_ENTRY}
     }
+    
     # Entity references
     parentDocument {
       id
       name
       description
+    }
+    investment {
+      ${INVESTMENT_REF}
+    }
+    account {
+      ${INVESTMENT_ACCOUNT_REF}
+    }
+    contact {
+      ${INVESTMENT_CONTACT_REF}
+    }
+    opportunity {
+      ${INVESTMENT_OPPORTUNITY_REF}
+    }
+    lead {
+      ${INVESTMENT_LEAD_REF}
     }
 `

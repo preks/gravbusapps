@@ -1,18 +1,17 @@
 import React, { useState, useEffect } from 'react';
-import { Spin, Alert, Timeline, Typography, message, Modal, Tag } from 'antd';
+import { Spin, Alert, Timeline, Typography, message, Tag } from 'antd';
 import { Button } from '@newwork/nw-design-system';
-import { PlusCircleOutlined, CloseOutlined, EditOutlined, UserOutlined } from '@ant-design/icons';
+import { PlusCircleOutlined, CloseOutlined, UserOutlined } from '@ant-design/icons';
 import { Clock, Calendar } from 'lucide-react';
-import { startProcess } from '@/common/utils/start-process';
 import { AppAction } from '@/components/app-action';
 import { FlowContextName } from '@/common/types/FlowRegistryTypes';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
-import { useRestClient } from '@/common/network/rest/useRestClient';
-import { env } from '@/common/env/EnvUtils';
 import dayjs from 'dayjs';
-import { useEmployeeData } from '@/business-apps/crm/common/hooks/useEmployeeData';
+// import { useEmployeeData } from '@/business-apps/crm/common/hooks/useEmployeeData';
 import { useGetInvestmentTasksByLeadId } from '@/common/data/investment/hooks/useInvestmentLeads';
 import type { InvestmentTask } from '@/common/data/investment/types';
+import { DeleteConfirmPopup } from '@/common/components/common-relations/popups/delete-confirm-popup';
+import { isApprovalTask } from '../../../utils/taskUtils';
 
 const { Text } = Typography;
 
@@ -28,9 +27,10 @@ export const TasksSection: React.FC<TasksSectionProps> = ({ leadId, context }) =
   const [tasks, setTasks] = useState<SimpleTaskData[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const restClient = useRestClient(env('NEXT_PUBLIC_KOGITO_PROCESSES_ENDPOINT'));
-  const { getEmployeeDisplayName } = useEmployeeData(context.accessToken);
   const { fetchInvestmentTasksByLeadId } = useGetInvestmentTasksByLeadId(context);
+  const [deleteTaskPopup, setDeleteTaskPopup] = useState<{ open: boolean; task?: SimpleTaskData }>({
+    open: false,
+  });
 
   // Helper function to get timing type icon
   const getTimingTypeIcon = (taskTiming?: string) => {
@@ -50,13 +50,14 @@ export const TasksSection: React.FC<TasksSectionProps> = ({ leadId, context }) =
 
   const loadTasks = async () => {
     if (!leadId) return;
-    
+
     setLoading(true);
     setError(null);
-    
+
     try {
       const tasksData = await fetchInvestmentTasksByLeadId(leadId);
-      setTasks(tasksData);
+      const nonApprovalTasks = tasksData.filter((t) => !isApprovalTask(t));
+      setTasks(nonApprovalTasks);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load tasks');
     } finally {
@@ -96,7 +97,7 @@ export const TasksSection: React.FC<TasksSectionProps> = ({ leadId, context }) =
           loadTasks();
           return;
         }
-        
+
         // Also check for different event structure
         const response = event.detail?.response;
         if (response?.detail?.resolution === 'success') {
@@ -126,16 +127,16 @@ export const TasksSection: React.FC<TasksSectionProps> = ({ leadId, context }) =
       'taskCompleted',
       'processCompleted',
       'task-completion',
-      'process-completion'
+      'process-completion',
     ];
 
-    eventNames.forEach(eventName => {
+    eventNames.forEach((eventName) => {
       window.addEventListener(eventName, handleProcessCompletion as EventListener);
     });
 
     // Add a universal listener for debugging (like activities)
     const originalDispatchEvent = window.dispatchEvent;
-    window.dispatchEvent = function(event: Event) {
+    window.dispatchEvent = function (event: Event) {
       if (event.type && (event.type.includes('process') || event.type.includes('task'))) {
         console.log('Custom Event dispatched:', event.type, event);
         handleAllEvents(event);
@@ -144,10 +145,10 @@ export const TasksSection: React.FC<TasksSectionProps> = ({ leadId, context }) =
     };
 
     return () => {
-      eventNames.forEach(eventName => {
+      eventNames.forEach((eventName) => {
         window.removeEventListener(eventName, handleProcessCompletion as EventListener);
       });
-      
+
       // Restore original dispatchEvent
       window.dispatchEvent = originalDispatchEvent;
     };
@@ -155,51 +156,15 @@ export const TasksSection: React.FC<TasksSectionProps> = ({ leadId, context }) =
 
   // Add task handled by AppAction component
 
-  const handleUpdateTask = (task: SimpleTaskData) => {
-    startProcess({
-      domain: 'investments', // Updated from 'customer-relations'
-      processName: 'createInvestmentTask', // Updated naming
-      payload: {
-        leadId: leadId,
-        typeRef: task.taskType?.code || 'InvestmentTaskType:v1:GENERAL', // Updated from 'SalesTaskType:v1:GENERAL'
-        taskData: task // Pass existing task data for update mode
-      },
-      builderType: 'NATIVE_SCREEN',
-    });
-  };
-
   const handleDeleteTask = (task: SimpleTaskData) => {
-    Modal.confirm({
-      title: 'Confirm Deletion',
-      content: `Are you sure you want to delete the task "${task.name || 'Untitled Task'}"?`,
-      okText: 'Delete',
-      okType: 'danger',
-      cancelText: 'Cancel',
-      onOk: async () => {
-        try {
-          await restClient.post('/investments/saveInvestmentTask', { // Updated from '/customer-relations/saveSalesTask'
-            changeMode: "DELETE",
-            investmentTask: { // Updated from 'salesTask'
-              id: task.id,
-              version: task.version || 1,
-            }
-          });
-          
-          message.success('Task deleted successfully');
-          loadTasks(); // Refresh the list
-        } catch (err) {
-          console.error('Error deleting task:', err);
-          message.error('Failed to delete task');
-        }
-      }
-    });
+    setDeleteTaskPopup({ open: true, task });
   };
 
   const getPriorityColor = (priority?: any) => {
     if (!priority) return 'default';
-    
+
     const priorityValue = typeof priority === 'string' ? priority : priority?.description;
-    
+
     switch (priorityValue?.toLowerCase()) {
       case 'high':
         return 'red';
@@ -214,9 +179,9 @@ export const TasksSection: React.FC<TasksSectionProps> = ({ leadId, context }) =
 
   const getStatusColor = (status?: any) => {
     if (!status) return 'default';
-    
+
     const statusValue = typeof status === 'string' ? status : status?.description;
-    
+
     switch (statusValue?.toLowerCase()) {
       case 'completed':
         return 'green';
@@ -257,9 +222,26 @@ export const TasksSection: React.FC<TasksSectionProps> = ({ leadId, context }) =
   }
 
   return (
-    <div className="gba:space-y-4">
+    <div
+      style={{
+        backgroundColor: 'white',
+        borderRadius: '8px',
+        border: '1px solid #f0f0f0',
+        overflow: 'hidden',
+        marginBottom: '24px',
+        height: 'fit-content',
+      }}
+      data-testid="lead-tasks-section"
+    >
       {/* Header */}
-      <div className="gba:flex gba:justify-between gba:items-center">
+      <div
+        style={{
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          padding: '16px 24px',
+        }}
+      >
         <div>
           <h3 className="gba:text-lg gba:font-medium gba:text-gray-900">Tasks</h3>
           <p className="gba:text-sm gba:text-gray-600">
@@ -268,29 +250,18 @@ export const TasksSection: React.FC<TasksSectionProps> = ({ leadId, context }) =
         </div>
         <AppAction
           contextsArray={[FlowContextName.investmentTaskCreate]}
-          externalContextData={{ 
+          externalContextData={{
             leadId,
             lead: leadId,
-            investmentTask: { lead: leadId }
+            investmentTask: { lead: leadId },
           }}
-          staticFlowData={leadId ? [{
-            key: 'create-investment-task-fallback',
-            label: 'Add Task',
-            onClick: () => startProcess({
-              domain: 'investments',
-              processName: 'createInvestmentTask',
-              payload: { leadId },
-              builderType: 'NATIVE_SCREEN'
-            })
-          }] : []}
+          staticFlowData={[]}
           prefixDataTestId="add-task"
           accessToken={context.accessToken}
           emptyStateBehavior="enable"
           deferMainContextRequestsUntilClick
         >
-          <Button
-            variant="default"
-          >
+          <Button variant="default">
             <PlusCircleOutlined />
             Add Task
           </Button>
@@ -298,87 +269,109 @@ export const TasksSection: React.FC<TasksSectionProps> = ({ leadId, context }) =
       </div>
 
       {/* Tasks List */}
-      {tasks.length === 0 ? (
-        <div className="gba:text-center gba:py-8 gba:text-gray-500">
-          <p>No tasks found for this investment lead.</p>
-          <p className="gba:text-sm">Create a new task to get started.</p>
-        </div>
-      ) : (
-        <Timeline>
-          {tasks.map((task) => (
-                         <Timeline.Item
-               key={task.id}
-               dot={getTimingTypeIcon(task.taskTiming)}
-               className="gba:pb-6"
-             >
-              <div className="gba:bg-white gba:border gba:border-gray-200 gba:rounded-lg gba:p-4 gba:shadow-sm">
-                <div className="gba:flex gba:justify-between gba:items-start gba:mb-3">
-                  <div className="gba:flex-1">
-                    <div className="gba:flex gba:items-center gba:gap-2 gba:mb-2">
-                      <Text strong className="gba:text-base">
-                        {task.name || 'Untitled Task'}
-                      </Text>
-                                             <Tag color={getPriorityColor(task.taskPriority)}>
-                         {task.taskPriorityLabel || 'No Priority'}
-                       </Tag>
-                       <Tag color={getStatusColor(task.taskStatus)}>
-                         {task.taskStatusLabel || 'No Status'}
-                       </Tag>
-                    </div>
-                    
-                    {task.description && (
-                      <Text className="gba:text-gray-600 gba:block gba:mb-2">
-                        {task.description}
-                      </Text>
-                    )}
-                    
-                    <div className="gba:flex gba:items-center gba:gap-4 gba:text-sm gba:text-gray-500">
-                      {task.dueDate && (
-                        <span className="gba:flex gba:items-center gba:gap-1">
-                          <Calendar className="gba:w-4 gba:h-4" />
-                          Due: {dayjs(task.dueDate).format('MMM D, YYYY')}
-                        </span>
+      <div style={{ padding: '0 24px 24px' }}>
+        {tasks.length === 0 ? (
+          <div className="gba:text-center gba:py-8 gba:text-gray-500">
+            <p>No tasks found for this investment lead.</p>
+            <p className="gba:text-sm">Create a new task to get started.</p>
+          </div>
+        ) : (
+          <Timeline>
+            {tasks.map((task) => (
+              <Timeline.Item
+                key={task.id}
+                dot={getTimingTypeIcon(task.taskTiming)}
+                className="gba:pb-6"
+              >
+                <div className="gba:bg-white gba:border gba:border-gray-200 gba:rounded-lg gba:p-4 gba:shadow-sm">
+                  <div className="gba:flex gba:justify-between gba:items-start gba:mb-3">
+                    <div className="gba:flex-1">
+                      <div className="gba:flex gba:items-center gba:gap-2 gba:mb-2">
+                        <Text strong className="gba:text-base">
+                          {task.name || 'Untitled Task'}
+                        </Text>
+                        <Tag color={getPriorityColor(task.taskPriority)}>
+                          {task.taskPriorityLabel || 'No Priority'}
+                        </Tag>
+                        <Tag color={getStatusColor(task.taskStatus)}>
+                          {task.taskStatusLabel || 'No Status'}
+                        </Tag>
+                      </div>
+
+                      {task.description && (
+                        <Text className="gba:text-gray-600 gba:block gba:mb-2">
+                          {task.description}
+                        </Text>
                       )}
-                      
-                                             {task.assignedDisplayName && (
-                         <span className="gba:flex gba:items-center gba:gap-1">
-                           <UserOutlined />
-                           Assigned: {task.assignedDisplayName}
-                         </span>
-                       )}
-                      
-                      <span className="gba:flex gba:items-center gba:gap-1">
-                        <Clock className="gba:w-4 gba:h-4" />
-                        Created: {dayjs(task.createdAt).format('MMM D, YYYY')}
-                      </span>
+
+                      <div className="gba:flex gba:items-center gba:gap-4 gba:text-sm gba:text-gray-500">
+                        {task.dueDate && (
+                          <span className="gba:flex gba:items-center gba:gap-1">
+                            <Calendar className="gba:w-4 gba:h-4" />
+                            Due: {dayjs(task.dueDate).format('MMM D, YYYY')}
+                          </span>
+                        )}
+
+                        {task.assignedDisplayName && (
+                          <span className="gba:flex gba:items-center gba:gap-1">
+                            <UserOutlined />
+                            Assigned: {task.assignedDisplayName}
+                          </span>
+                        )}
+
+                        <span className="gba:flex gba:items-center gba:gap-1">
+                          <Clock className="gba:w-4 gba:h-4" />
+                          Created: {dayjs(task.createdAt).format('MMM D, YYYY')}
+                        </span>
+                      </div>
                     </div>
-                  </div>
-                  
-                  <div className="gba:flex gba:gap-2 gba:ml-4">
-                    <Button
-                      size="sm"
-                      variant="ghost"
-                      onClick={() => handleUpdateTask(task)}
-                      className="gba:text-blue-600 gba:hover:text-blue-700"
-                    >
-                      <EditOutlined />
-                      Edit
-                    </Button>
-                    <Button
-                      size="sm"
-                      variant="destructive"
-                      onClick={() => handleDeleteTask(task)}
-                    >
-                      <CloseOutlined />
-                      Delete
-                    </Button>
+
+                    <div className="gba:flex gba:gap-2 gba:ml-4">
+                      <Button
+                        size="icon"
+                        variant="ghost"
+                        onClick={() => handleDeleteTask(task)}
+                        data-testid={`delete-task-${task.id}`}
+                      >
+                        <CloseOutlined />
+                      </Button>
+                    </div>
                   </div>
                 </div>
-              </div>
-            </Timeline.Item>
-          ))}
-        </Timeline>
-      )}
+              </Timeline.Item>
+            ))}
+          </Timeline>
+        )}
+      </div>
+      {deleteTaskPopup.open && deleteTaskPopup.task ? (
+        <DeleteConfirmPopup
+          isOpen={deleteTaskPopup.open}
+          onClose={() => setDeleteTaskPopup({ open: false })}
+          accessToken={context.accessToken}
+          itemTitle={deleteTaskPopup.task?.name ? String(deleteTaskPopup.task.name) : 'Task'}
+          itemType="task"
+          flowContextName={FlowContextName.investmentTaskDelete}
+          externalContextData={{
+            taskId: deleteTaskPopup.task!.id,
+            investmentTask: {
+              id: deleteTaskPopup.task!.id,
+              version: deleteTaskPopup.task!.version,
+            },
+            leadId,
+          }}
+          onFlowSuccess={() => {
+            const id = deleteTaskPopup.task!.id;
+            setTasks((prev) => prev.filter((t) => t.id !== id));
+            setDeleteTaskPopup({ open: false });
+            message.success('Task deleted successfully');
+          }}
+          onFlowError={() => {
+            setDeleteTaskPopup({ open: false });
+            message.error('Failed to delete task');
+          }}
+          data-testid={`delete-task-popup`}
+        />
+      ) : null}
     </div>
   );
-}; 
+};

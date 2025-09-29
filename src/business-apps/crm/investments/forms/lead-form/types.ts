@@ -33,7 +33,6 @@ export interface LeadFormValues {
   website: string;
   companyEmail: string;
   companyPhone: string;
-  timeZone: string;
   numberOfEmployees: string;
   annualRevenue: string;
 
@@ -153,16 +152,6 @@ export interface LeadContextState {
   loadMoreAcademicTitles: () => void;
   showMoreAcademicTitles: () => void;
 
-  timeZones: SelectOption[];
-  timeZonesLoading: boolean;
-  timeZonesError: string | null;
-  timeZonesHasMore: boolean;
-  timeZonesNeedsMoreData: boolean;
-  timeZonesDisplayCount: number;
-  timeZonesTotalFetched: number;
-  searchTimeZones: (search: string) => void;
-  loadMoreTimeZones: () => void;
-  showMoreTimeZones: () => void;
 
   // Investment Types (Searchable)
   investmentTypesSearchable: SelectOption[];

@@ -29,7 +29,14 @@ export interface ExpenseRequestWizardContextProps {
   setCurrentTitle: (title: string) => void;
   currentCurrency: string | null;
   setCurrentCurrency: (currency: string | null) => void;
-  submitActionTripData: (startLocation: LocationData, destinations: LocationData[], endLocation: LocationData, expenseRulesData: any,event:string) => boolean;
+  submitActionTripData: (
+    startLocation: LocationData,
+    destinations: LocationData[],
+    endLocation: LocationData,
+    expenseRulesData: any,
+    event: string,
+    overnightAccommodation?: boolean
+  ) => boolean;
   showExpenseItem: boolean;
   setShowExpenseItem: (show: boolean) => void;
   expenseItemParams: { expenseRequestId?: string; itemCurrency?: string; useSingleCurrency?: boolean };
@@ -241,7 +248,8 @@ export const ExpenseRequestWizardProvider: React.FC<ExpenseRequestWizardProvider
     destinations: LocationData[],
     endLocation: LocationData,
     expenseRulesData: any,
-    event:string
+    event:string,
+    overnightAccommodation?: boolean
   ): boolean => {
     // Determine currency based on trip data
     const determinedCurrency = getCurrencyWithFallback(
@@ -264,6 +272,7 @@ export const ExpenseRequestWizardProvider: React.FC<ExpenseRequestWizardProvider
       currentTitle,
       determinedCurrency,
       event,
+      overnightAccommodation,
       dispatchProcessContinueEventIfEnabled
     );
   };

@@ -3,6 +3,7 @@ import { Form, Pagination } from 'antd';
 import PlanCard from './PlanCard';
 import SearchBarWithLabel from './SearchBarWithLabel';
 import { useTranslation } from 'react-i18next';
+import { PLANS_PER_PAGE } from '../constants/constants';
 
 interface PlanFormContentProps {
   form: any;
@@ -32,7 +33,7 @@ const PlanFormContent: React.FC<PlanFormContentProps> = ({ form, planData, onPla
   const [searchTerm, setSearchTerm] = useState('');
   
   const [currentPage, setCurrentPage] = useState(1);
-  const plansPerPage = 5;
+  const plansPerPage = PLANS_PER_PAGE;
   
   const filteredPlans = useMemo(() => {
     if (!searchTerm) return planData;

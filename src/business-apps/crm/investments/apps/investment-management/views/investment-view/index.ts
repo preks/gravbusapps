@@ -1,7 +1,8 @@
-// Export the main InvestmentView component
-export { default as InvestmentView } from './InvestmentView';
+// Export the main InvestmentView component as default
+export { default } from './InvestmentView';
 
-// Hooks were removed in favor of central data hooks. Left intentionally empty.
+// Named export for compatibility
+export { default as InvestmentView } from './InvestmentView';
 
 // Export components
 export * from './components'; 

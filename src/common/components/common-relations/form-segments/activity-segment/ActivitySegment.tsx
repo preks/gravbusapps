@@ -29,7 +29,7 @@ export interface ActivityTypeOption {
 export interface EntityOption {
   id: string;
   name: string;
-  type: 'account' | 'contact' | 'opportunity' | 'lead';
+  type: 'account' | 'contact' | 'opportunity' | 'lead' | 'investment';
   subtitle?: string;
   pictureThumbnail?: string;
 }
@@ -47,6 +47,7 @@ export interface Activity {
   opportunity?: { id: string };
   lead?: { id: string };
   ownerEmployee?: { id: string };
+  ownerEmployeeId?: string; // Added to support form field
   version?: string;
 }
 
@@ -69,6 +70,8 @@ export interface ActivitySegmentProps {
   initialEntityFromContext?: { accountId?: string; contactId?: string; opportunityId?: string; leadId?: string };
 
   // Assignees (owner employee)
+  // Toggle owner/assignee selection visibility; default is true
+  showOwnerSelection?: boolean;
   assignees?: Array<{
     id: string;
     displayName: string;
@@ -118,6 +121,7 @@ const ActivitySegment: React.FC<ActivitySegmentProps> = ({
   entitiesHasMore,
   onEntityLoadMore,
   initialEntityFromContext,
+  showOwnerSelection = true,
   assignees = [],
   assigneesLoading = false,
   onAssigneeSearch,
@@ -195,10 +199,10 @@ const ActivitySegment: React.FC<ActivitySegmentProps> = ({
 
   // Prime assignee search when empty (similar to TaskSegment)
   React.useEffect(() => {
-    if (onAssigneeSearch && assignees.length === 0) {
+    if (showOwnerSelection && onAssigneeSearch && assignees.length === 0) {
       onAssigneeSearch('');
     }
-  }, [onAssigneeSearch, assignees.length]);
+  }, [showOwnerSelection, onAssigneeSearch, assignees.length]);
 
   // Render in Ant Design mode using render props
   if (isRenderPropsMode) {
@@ -384,32 +388,34 @@ const ActivitySegment: React.FC<ActivitySegmentProps> = ({
       />
 
       {/* Owner Employee */}
-      <FormField
-        control={form.control as any}
-        name="ownerEmployeeId"
-        render={({ field }) => (
-          <FormItem>
-            <FormLabel>Owner</FormLabel>
-            <FormControl>
-              <EmployeeSelect
-                className="gba:w-full gba:h-auto"
-                employees={assignees as any}
-                value={field.value || ''}
-                onValueChange={(v: string | null) => {
-                  field.onChange(v);
-                  // Optionally set owner user id if provided later
-                }}
-                onSearch={onAssigneeSearch}
-                loading={Boolean(assigneesLoading)}
-                onLoadMore={onAssigneeLoadMore}
-                hasMore={Boolean(assigneesHasMore)}
-                data-testid={`${dataTestId}-owner`}
-              />
-            </FormControl>
-            <FormMessage />
-          </FormItem>
-        )}
-      />
+      {showOwnerSelection !== false && (
+        <FormField
+          control={form.control as any}
+          name="ownerEmployeeId"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Owner</FormLabel>
+              <FormControl>
+                <EmployeeSelect
+                  className="gba:w-full gba:h-auto"
+                  employees={assignees as any}
+                  value={field.value || ''}
+                  onValueChange={(v: string | null) => {
+                    field.onChange(v);
+                    // Optionally set owner user id if provided later
+                  }}
+                  onSearch={onAssigneeSearch}
+                  loading={Boolean(assigneesLoading)}
+                  onLoadMore={onAssigneeLoadMore}
+                  hasMore={Boolean(assigneesHasMore)}
+                  data-testid={`${dataTestId}-owner`}
+                />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+      )}
 
       {/* TODO: File upload field is intentionally hidden for now; review its necessity and integration. */}
       {false && uploadFileLabel && onFilesChange && <div />}
@@ -427,6 +433,7 @@ export const activitySegmentSchema = z.object({
   description: z.string().min(1, 'Description is required'),
   files: z.any().optional(),
   relatedEntityId: z.string().optional(),
+  ownerEmployeeId: z.string().optional(), // Added to support owner selection
 });
 
 export type ActivitySegmentSchema = z.infer<typeof activitySegmentSchema>;

@@ -1,31 +1,19 @@
 import React, { useState, useMemo } from 'react';
+import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
 import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-  Button,
   Tabs,
   TabsContent,
   TabsList,
-  TabsTrigger
+  TabsTrigger,
+  Spinner
 } from '@newwork/nw-design-system';
-import { DatePicker } from 'antd';
-import { 
-  FilterIcon
-} from 'lucide-react';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 import { AnalyticsFilters } from './types';
 import dayjs from 'dayjs';
 import { AnalyticsTable } from './components/LiquidFundReportTable';
+import { ReportFilterPanel, useReportFilters } from '../components/shared';
 
-// Using individual DatePicker components for start and end dates
+// Using separate DatePicker components for start and end dates
 
 interface LiquidFundReportProps extends BusinessAppContextProps {
   'data-testid'?: string;
@@ -39,161 +27,50 @@ export const LiquidFundReport: React.FC<LiquidFundReportProps> = ({
   // Sub-tab management - Start with Bank Deposits since Overview is removed
   const [activeSubTab, setActiveSubTab] = useState<string>('tab1');
 
-  // Filter states - Updated to 2024 where actual data exists
-  const [startDate, setStartDate] = useState<dayjs.Dayjs | null>(
-    dayjs('2024-01-01') // January 1st, 2024 (where actual data exists)
-  );
-  const [endDate, setEndDate] = useState<dayjs.Dayjs | null>(
-    dayjs('2024-12-31') // December 31st, 2024
-  );
-  const [selectedCurrency, setSelectedCurrency] = useState<string>('EUR');
-  
-  // Applied filters state (only updates when Apply button is clicked)
-  // LOAD DATA IMMEDIATELY - Set default applied filters to show data on initial load
-  const [appliedStartDate, setAppliedStartDate] = useState<dayjs.Dayjs | null>(
-    dayjs('2024-01-01') // AUTO-APPLY: Show data immediately
-  );
-  const [appliedEndDate, setAppliedEndDate] = useState<dayjs.Dayjs | null>(
-    dayjs('2024-12-31') // AUTO-APPLY: Show data immediately
-  );
-  const [appliedCurrency, setAppliedCurrency] = useState<string>('EUR');
-
-  // Available currencies
-  const availableCurrencies = ['EUR', 'USD', 'GBP', 'CHF'];
-
-  // Create stable date strings from APPLIED filters (not current filter state)
-  const startDateString = useMemo(() => 
-    appliedStartDate?.format('YYYY-MM-DD') || '2024-01-01',
-    [appliedStartDate?.valueOf()]
-  );
-  const endDateString = useMemo(() => 
-    appliedEndDate?.format('YYYY-MM-DD') || '2024-12-31',
-    [appliedEndDate?.valueOf()]
-  );
-
-  // Apply filters handler
-  const handleApplyFilters = () => {
-    setAppliedStartDate(startDate);
-    setAppliedEndDate(endDate);
-    setAppliedCurrency(selectedCurrency);
-  };
-
-  // Check if filters have changed (to show/hide Apply button)
-  const filtersChanged = useMemo(() => {
-    const currentStart = startDate?.format('YYYY-MM-DD');
-    const currentEnd = endDate?.format('YYYY-MM-DD');
-    const appliedStart = appliedStartDate?.format('YYYY-MM-DD');
-    const appliedEnd = appliedEndDate?.format('YYYY-MM-DD');
-    
-    return currentStart !== appliedStart || 
-           currentEnd !== appliedEnd || 
-           selectedCurrency !== appliedCurrency;
-  }, [startDate, endDate, appliedStartDate, appliedEndDate, selectedCurrency, appliedCurrency]);
+  // Shared filter state and logic
+  const reportFilters = useReportFilters();
 
   // Create filters for specific investment types (Overview removed)
   const bankDepositFilters = useMemo((): AnalyticsFilters => ({
-    startDate: startDateString,
-    endDate: endDateString,
-    currency: appliedCurrency,
+    startDate: reportFilters.computedFilters.startDate,
+    endDate: reportFilters.computedFilters.endDate,
     investmentType: 'Bank Deposit'
-  }), [startDateString, endDateString, appliedCurrency]);
+  }), [reportFilters.computedFilters.startDate, reportFilters.computedFilters.endDate]);
 
   const fixedTermDepositFilters = useMemo((): AnalyticsFilters => ({
-    startDate: startDateString,
-    endDate: endDateString,
-    currency: appliedCurrency,
+    startDate: reportFilters.computedFilters.startDate,
+    endDate: reportFilters.computedFilters.endDate,
     investmentType: 'Fixed-Term Deposit'
-  }), [startDateString, endDateString, appliedCurrency]);
+  }), [reportFilters.computedFilters.startDate, reportFilters.computedFilters.endDate]);
 
   const multipleTypesFilters = useMemo((): AnalyticsFilters => ({
-    startDate: startDateString,
-    endDate: endDateString,
-    currency: appliedCurrency,
+    startDate: reportFilters.computedFilters.startDate,
+    endDate: reportFilters.computedFilters.endDate,
     investmentType: 'Money Market Funds,Pension Fund,Equity,Bond' // Multiple types separated by comma
-  }), [startDateString, endDateString, appliedCurrency]);
+  }), [reportFilters.computedFilters.startDate, reportFilters.computedFilters.endDate]);
 
 
 
-  const handleStartDateChange = (date: dayjs.Dayjs | null) => {
-    setStartDate(date);
-  };
-
-  const handleEndDateChange = (date: dayjs.Dayjs | null) => {
-    setEndDate(date);
-  };
-
-  const handleCurrencyChange = (currency: string) => {
-    setSelectedCurrency(currency);
-  };
 
 
+  // Don't render filter-dependent content until filters are initialized
+  if (!reportFilters.filtersInitialized) {
+    return (
+      <div className="gba:flex gba:justify-center gba:items-center" style={{ height: 'var(--nw-spacing-64)' }}>
+        <Spinner data-testid={`${dataTestId}-loading-spinner`} />
+      </div>
+    );
+  }
 
   return (
     <div className="gba:space-y-6 gba:p-6" data-testid={dataTestId}>
       {/* Filters Section */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="gba:flex gba:items-center gba:gap-2">
-            <FilterIcon className="gba:h-5 gba:w-5" />
-            Filters
-          </CardTitle>
-          <CardDescription>
-            Configure time period and currency for the analytics view
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="gba:flex gba:flex-wrap gba:items-center gba:gap-4 gba:mb-4">
-            <div className="gba:flex gba:items-center gba:gap-2">
-              <label className="gba:text-sm gba:font-medium">Start Date:</label>
-              <DatePicker
-                value={startDate}
-                onChange={handleStartDateChange}
-                format="DD/MM/YYYY"
-                placeholder="Start Date"
-                allowClear={false}
-              />
-            </div>
-            
-            <div className="gba:flex gba:items-center gba:gap-2">
-              <label className="gba:text-sm gba:font-medium">End Date:</label>
-              <DatePicker
-                value={endDate}
-                onChange={handleEndDateChange}
-                format="DD/MM/YYYY"
-                placeholder="End Date"
-                allowClear={false}
-              />
-            </div>
-            
-            <div className="gba:flex gba:items-center gba:gap-2">
-              <label className="gba:text-sm gba:font-medium">Currency:</label>
-              <Select value={selectedCurrency} onValueChange={handleCurrencyChange}>
-                <SelectTrigger className="gba:w-[120px]">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {availableCurrencies.map((currency) => (
-                    <SelectItem key={currency} value={currency}>
-                      {currency}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
-          
-          {/* Apply Filter Button - main button style */}
-          <div className="gba:flex gba:justify-end gba:gap-2">
-            <Button 
-              onClick={handleApplyFilters}
-              className="gba:bg-black hover:gba:bg-gray-800 gba:text-white gba:border-black"
-              data-testid={`${dataTestId}-apply-filters`}
-            >
-              Apply Filter
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
+      <ReportFilterPanel
+        filters={reportFilters}
+        variant="simple"
+        title={getTranslationFromI18nKeyAndLabel('filters.title', 'Filters')}
+        data-testid={`${dataTestId}-filters`}
+      />
 
       {/* Analytics Tables with Sub-tabs - Overview removed */}
       <Tabs value={activeSubTab} onValueChange={setActiveSubTab} className="gba:w-full">

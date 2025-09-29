@@ -14,22 +14,23 @@ export interface Lead {
   updatedAt?: string;
   version?: number;
   sensitive?: boolean;
-  countryRef?: string;
-  country?: {
-    id: string;
-    code: string;
-    value: string;
-  };
-  regionRef?: string;
-  region?: {
-    id: string;
-    code: string;
-    value: string;
-    additionalValue1?: string;
-  };
-  city?: string;
-  addressLine?: string;
-  postalCode?: string;
+  addresses?: Array<{
+    addressLine?: any;
+    city?: string;
+    postalCode?: string;
+    country?: {
+      id: string;
+      code: string;
+      value: string;
+    };
+    region?: {
+      id: string;
+      code: string;
+      value: string;
+      additionalValue1?: string;
+    };
+    addressType?: string;
+  }>;
   leadSource?: {
     id: string;
     code: string;

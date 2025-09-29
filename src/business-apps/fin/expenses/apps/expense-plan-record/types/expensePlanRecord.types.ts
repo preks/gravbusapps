@@ -10,6 +10,9 @@ export interface ExpensePlanRecordProps {
 export interface ExpensePlanItem {
   code: string | null;
   title: string;
+  currency: {
+    code: string;
+  };
   expenseGroup: {
     value: string;
   };
@@ -71,6 +74,12 @@ export interface ExpensePlanComment {
   comment: string;
   commentDate: string;
   commentType: string;
+  authorEmployee: {
+    fullName: string; 
+    firstName: string;
+    lastName: string;
+    pictureThumbnail: string;
+  };
 }
 
 export interface ExpensePlanRecord {
@@ -96,9 +105,13 @@ export interface ExpensePlanRecord {
   status: string;
   employee: {
     fullName: string;
+    firstName: string;
+    lastName: string;
     pictureThumbnail?: string;
     employeePosition?: {
       supervisor?: {
+        firstName: string;
+        lastName: string;
         fullName: string;
       };
     };

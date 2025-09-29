@@ -88,6 +88,10 @@ export interface InvestmentFormData {
   bankAccountNumber?: string;
   bankName?: string;
   investmentLiquidFundTypeRef?: string;
+
+  // Support for dynamic additional properties fields
+  // These fields are dynamically generated from the catalog with additionalProperties_ prefix
+  [key: string]: any; // Allow dynamic additional properties fields
 }
 
 // ==============================
@@ -108,11 +112,38 @@ export const buildInvestmentPayload = (
     return isNaN(num) ? undefined : num;
   };
 
+  // Helper to extract and build additionalProperties object from form data
+  const buildAdditionalProperties = (formData: any, _entityPrefix: string): Record<string, any> | undefined => {
+    const additionalProps: Record<string, any> = {};
+    let hasAdditionalProps = false;
+
+    // Find all fields that start with "additionalProperties_"
+    Object.keys(formData).forEach(key => {
+      if (key.startsWith('additionalProperties_')) {
+        const fieldName = key.replace('additionalProperties_', '');
+        const value = formData[key];
+        
+        // Only include non-empty values
+        if (value !== undefined && value !== null && value !== '') {
+          additionalProps[fieldName] = value;
+          hasAdditionalProps = true;
+        }
+      }
+    });
+
+    // Return object if we have additional properties, undefined otherwise
+    return hasAdditionalProps ? additionalProps : undefined;
+  };
+
+  // Extract investment-level additionalProperties
+  const investmentAdditionalProperties = buildAdditionalProperties(investment, 'investment');
+
+  
   // Base investment payload
   const baseInvestmentPayload: any = {
-    ownerEmployeeId: investment.ownerEmployeeId,
+    ownerEmployee: investment.ownerEmployeeId,
     name: investment.name,
-    accountId: investment.accountId,
+    ...(investment.accountId && { accountId: investment.accountId }), // Only include if not empty
     initialInvestmentAmount: toNumber(investment.initialInvestmentAmount),
     
     // Investment group reference (required)
@@ -143,6 +174,9 @@ export const buildInvestmentPayload = (
     ...(investment.loanStartDate && { loanStartDate: toISOFormat(investment.loanStartDate) }),
     ...(investment.loanEndDate && { loanEndDate: toISOFormat(investment.loanEndDate) }),
     ...(investment.loanInterestClaim && { loanInterestClaim: toNumber(investment.loanInterestClaim) }),
+    
+    // Investment additionalProperties as JSON string
+    ...(investmentAdditionalProperties && { additionalProperties: investmentAdditionalProperties }),
   };
 
   // Add update fields if updating
@@ -183,6 +217,8 @@ export const buildInvestmentPayload = (
       // Always create equityInvestment object (required by API)
       // Start with existing data and override with form changes
       const existingEquity = rawInvestmentData?.equityInvestment || {};
+      const equityAdditionalProperties = buildAdditionalProperties(investment, 'equityInvestment');
+      
       investmentRequest.equityInvestment = {
         // Preserve all existing data
         ...existingEquity,
@@ -193,6 +229,8 @@ export const buildInvestmentPayload = (
         ...(investment.lastReportedEbitda !== undefined && { lastReportedEbitda: toNumber(investment.lastReportedEbitda) }),
         ...(investment.foundationDate !== undefined && { foundationDate: toISOFormat(investment.foundationDate) }),
         ...(investment.marketValue !== undefined && { marketValue: toNumber(investment.marketValue) }),
+        // Additional properties as JSON string
+        ...(equityAdditionalProperties && { additionalProperties: equityAdditionalProperties }),
         // Always include id and version for updates (these should not be overridden by form)
         ...(options.isUpdate && existingEquity.id && { 
           id: existingEquity.id,
@@ -205,11 +243,15 @@ export const buildInvestmentPayload = (
       // Always create privateEquityInvestment object (required by API)
       // Start with existing data and override with form changes
       const existingPrivateEquity = rawInvestmentData?.privateEquityInvestment || {};
+      const privateEquityAdditionalProperties = buildAdditionalProperties(investment, 'privateEquityInvestment');
+      
       investmentRequest.privateEquityInvestment = {
         // Preserve all existing data
         ...existingPrivateEquity,
         // Override with form changes (only if provided)
         ...(investment.privateEquityRole !== undefined && { investmentRoleRef: investment.privateEquityRole }),
+        // Additional properties as JSON string
+        ...(privateEquityAdditionalProperties && { additionalProperties: privateEquityAdditionalProperties }),
         // Always include id and version for updates (these should not be overridden by form)
         ...(options.isUpdate && existingPrivateEquity.id && { 
           id: existingPrivateEquity.id,
@@ -222,6 +264,8 @@ export const buildInvestmentPayload = (
       // Always create realEstateInvestment object (required by API)
       // Start with existing data and override with form changes
       const existingRealEstate = rawInvestmentData?.realEstateInvestment || {};
+      const realEstateAdditionalProperties = buildAdditionalProperties(investment, 'realEstateInvestment');
+      
       investmentRequest.realEstateInvestment = {
         // Preserve all existing data
         ...existingRealEstate,
@@ -238,6 +282,8 @@ export const buildInvestmentPayload = (
         ...(investment.sizeMeasurementUnitRef !== undefined && { sizeMeasurementUnitRef: investment.sizeMeasurementUnitRef }),
         ...(investment.occupancyPercent !== undefined && { occupancyPercent: toNumber(investment.occupancyPercent) }),
         ...(investment.targetAnnualExpenses !== undefined && { targetAnnualExpenses: toNumber(investment.targetAnnualExpenses) }),
+        // Additional properties as JSON string
+        ...(realEstateAdditionalProperties && { additionalProperties: realEstateAdditionalProperties }),
         // Always include id and version for updates (these should not be overridden by form)
         ...(options.isUpdate && existingRealEstate.id && { 
           id: existingRealEstate.id,
@@ -250,6 +296,8 @@ export const buildInvestmentPayload = (
       // Always create liquidFundInvestment object (required by API)
       // Start with existing data and override with form changes
       const existingLiquidFund = rawInvestmentData?.liquidFundInvestment || {};
+      const liquidFundAdditionalProperties = buildAdditionalProperties(investment, 'liquidFundInvestment');
+      
       investmentRequest.liquidFundInvestment = {
         // Preserve all existing data
         ...existingLiquidFund,
@@ -262,6 +310,8 @@ export const buildInvestmentPayload = (
         ...(investment.bankAccountNumber !== undefined && { bankAccountNumber: investment.bankAccountNumber }),
         ...(investment.bankName !== undefined && { bankName: investment.bankName }),
         ...(investment.investmentLiquidFundTypeRef !== undefined && { investmentLiquidFundTypeRef: investment.investmentLiquidFundTypeRef }),
+        // Additional properties as JSON string
+        ...(liquidFundAdditionalProperties && { additionalProperties: liquidFundAdditionalProperties }),
         // Always include id and version for updates (these should not be overridden by form)
         ...(options.isUpdate && existingLiquidFund.id && { 
           id: existingLiquidFund.id,
@@ -270,6 +320,7 @@ export const buildInvestmentPayload = (
       };
       break;
   }
+
 
   // Return the properly wrapped payload
   return {

@@ -202,11 +202,13 @@ export const setOnePositionItem = async (
     const newPosition = {
       id: positionId,
       expenseGroup: position.expenseGroup?.id,
-      expenseType: position.expenseRuleGeneralExpenseId,
+      expenseType: undefined as string | undefined,
       amount: position.totalAmount,
       isReimbursable: position.reimbursable !== undefined ? position.reimbursable : true,
       costCenter: position.costCenter?.id || item.costCenter?.id,
       customField: "",
+      persistedId: position.id,
+      persistedVersion: position.version,
     };
     if (position.additionalProperties?.customFields && 
         Array.isArray(position.additionalProperties.customFields) && 
@@ -226,7 +228,7 @@ export const setOnePositionItem = async (
     
     if (position.expenseGroup?.id) {
       try {
-        await fetchExpenseTypes(
+        const fetchedTypes = await fetchExpenseTypes(
           position.expenseGroup.id,
           [newPosition],
           employeeRuleId,
@@ -248,15 +250,24 @@ export const setOnePositionItem = async (
           form
         );
         
-        setTimeout(() => {
+         setTimeout(() => {
           if (position.expenseRuleGeneralExpenseId) {
-            form.setFieldsValue({
-              [`expenseType-0`]: position.expenseRuleGeneralExpenseId
-            });
-            
-            const updatedPositions = [...form.getFieldValue('positions') || [newPosition]];
-            updatedPositions[0].expenseType = position.expenseRuleGeneralExpenseId;
-            setPositions(updatedPositions);
+             const allowedTypeIds = (fetchedTypes || []).map((typeItem: ExpenseType) => typeItem.id);
+             if (allowedTypeIds.includes(position.expenseRuleGeneralExpenseId)) {
+               form.setFieldsValue({ [`expenseType-0`]: position.expenseRuleGeneralExpenseId });
+               const updatedPositions = [...(form.getFieldValue('positions') || [newPosition])];
+               if (updatedPositions[0]) {
+                 (updatedPositions[0] as any).expenseType = position.expenseRuleGeneralExpenseId;
+                 setPositions(updatedPositions as any);
+               }
+            } else {
+              form.setFieldsValue({ [`expenseType-0`]: undefined });
+              const updatedPositions = [...(form.getFieldValue('positions') || [newPosition])];
+              if (updatedPositions[0]) {
+                (updatedPositions[0] as any).expenseType = undefined;
+                setPositions(updatedPositions as any);
+              }
+            }
             
             if (newPosition.customField) {
               form.setFieldsValue({
@@ -357,6 +368,8 @@ export const setMultiPositionItem = async (
         costCenter: position.costCenter?.id || item.costCenter?.id,
         customField: customFieldValue,
         id: position.id || `pos-${Math.random().toString(36).substring(2, 9)}`, // Ensure each position has an ID
+        persistedId: position.id,
+        persistedVersion: position.version,
       };
     });
 
@@ -411,9 +424,11 @@ export const setMultiPositionItem = async (
         for (let i = 0; i < originalPositions.length; i++) {
           const position = originalPositions[i];
           if (position.expenseRuleGeneralExpenseId) {
-            form.setFieldsValue({
-              [`expenseType-${i}`]: position.expenseRuleGeneralExpenseId
-            });
+            const currentGroup = form.getFieldValue(`expenseGroup-${i}`);
+            const availableTypeIds = currentGroup && expenseTypes[currentGroup]
+              ? expenseTypes[currentGroup].map((t:any) => t.id)
+              : [];
+            form.setFieldsValue({ [`expenseType-${i}`]: availableTypeIds.includes(position.expenseRuleGeneralExpenseId) ? position.expenseRuleGeneralExpenseId : undefined });
             
 
             if (position.additionalProperties?.customFields && 

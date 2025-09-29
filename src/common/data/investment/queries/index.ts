@@ -21,8 +21,8 @@ export * from './investmentQueries';
 
 // Investment Relations Queries - now split into individual entity queries above
 
-// Investment Report Queries
-export * from './investmentReportQueries';
+// Investment Report Queries - MIGRATED to @/common/data/investment-report/
+// export * from './investmentReportQueries'; // DEPRECATED - use @/common/data/investment-report/ instead
 
 // Investment Task Queries
 export * from './investmentTaskQueries';

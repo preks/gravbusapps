@@ -100,13 +100,13 @@ query MyQuery($expenseId: uuid!, $activeUserLocale: String, $employeeId: uuid!) 
     createdAt
     description
     expenseRuleId
+    overnightAccommodation
     code
     processInstanceId
     additionalProperties
     project{
       id
       validTo
-      validFrom
       name
     }
     costCenterId
@@ -330,6 +330,21 @@ query MyQuery($expenseId: uuid!, $activeUserLocale: String, $employeeId: uuid!) 
     type
     locality
     addressLine
+  }
+     TravelBreakdown(where: {expenseRequestId: {_eq: $expenseId}, isDeleted: {_eq: false}, employeeId: {_eq: $employeeId}}) {
+    id
+    version
+    breakfast
+    lunch
+    dinner
+    overnight
+    expenseDate
+    travelRegionRef
+    projectId
+    expenseRuleId
+    expensePlanId
+    costCenterId
+    expenseRequestId
   }
     }`
 
@@ -680,8 +695,23 @@ export const getUserProjects =`query MyQuery($structureIdArray: [uuid!]) {
     id
     name
     structureId
-    validFrom
     validTo
+  }
+}
+`
+
+export const getRuleAllowancePeriod = `query getExpenseRuleAllowancePeriod($expenseRuleId: uuid!) {
+  ExpenseRuleAllowancePeriod(where: {expenseRuleId: {_eq: $expenseRuleId}, isDeleted: {_eq: false},  overnightAccomodation: {_eq: true}}) {
+    id
+    version
+    activeTo
+    activeFrom
+    midnightRule
+    minHours
+    startAfter
+    returnBefore
+    expenseRuleId
+    overnightAccomodation
   }
 }
 `

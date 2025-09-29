@@ -3,7 +3,7 @@ import { PlusCircleOutlined, FileTextOutlined, CloseOutlined, EditOutlined, Load
 import { Button, List, Spin, Alert, Empty, message, Timeline, Typography, Modal } from 'antd';
 import { AppAction } from '@/components/app-action/AppAction';
 import { FlowContextName } from '@/common/types/FlowRegistryTypes';
-import { ActivityDeletionPopup } from '@/common/components';
+import { ActivityDeletePopup } from '@/common/components/common-relations/popups/activity-delete-popup';
 import { Clock, Calendar } from 'lucide-react';
 import { startProcess } from '@/common/utils/start-process';
 import { useProcessCompletion } from '@/common/hooks/useProcessCompletion';
@@ -1071,7 +1071,7 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({ leadId, cont
       )}
 
       {deletePopup.open && deletePopup.activity ? (
-        <ActivityDeletionPopup
+        <ActivityDeletePopup
           isOpen={deletePopup.open}
           onClose={() => setDeletePopup({ open: false })}
           accessToken={context.accessToken}

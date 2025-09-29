@@ -14,7 +14,6 @@ import {
   FormMessage
 } from '@newwork/nw-design-system';
 import { useFormContext } from 'react-hook-form';
-import { PiCurrencyDollar } from 'react-icons/pi';
 import { formatDataTestId } from '@/common/utils/formatDataTestId';
 import { useInvestmentFormContext } from '../../context/InvestmentFormContext';
 import FormattedNumberInput from '../FormattedNumberInput';
@@ -193,8 +192,20 @@ const DynamicGroupSegment: React.FC = () => {
   });
 
   // Extract property name from full property path (e.g., "investment.acquisitionDate" -> "acquisitionDate")
+  // For additionalProperties, we flatten the path: "investment.additionalProperties.openingBalance" -> "additionalProperties_openingBalance"
   const getPropertyName = (property: string, fieldType?: string): string => {
-    const baseName = property.split('.').pop() || property;
+    const parts = property.split('.');
+    
+    // Handle additionalProperties fields with special naming
+    if (parts.includes('additionalProperties') && parts.length >= 3) {
+      const additionalPropsIndex = parts.indexOf('additionalProperties');
+      // Create flattened name: additionalProperties_fieldName
+      const fieldName = parts.slice(additionalPropsIndex + 1).join('_');
+      return `additionalProperties_${fieldName}`;
+    }
+    
+    // Default behavior for regular fields
+    const baseName = parts.pop() || property;
     
     // For REF_ types, if the property points to a relationship, add "Id" suffix for form field
     if (fieldType?.startsWith('REF_') && !baseName.endsWith('Id')) {
@@ -326,17 +337,66 @@ const DynamicGroupSegment: React.FC = () => {
                   {field.label} {field.required && <span style={{ color: 'var(--nw-color-danger-500)' }}>*</span>}
                 </FormLabel>
                 <FormControl>
+                  <FormattedNumberInput
+                    {...formField}
+                    placeholder="0.00"
+                    data-testid={formatDataTestId(prefixDataTestId, `${fieldName}Input`)}
+                  />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+        );
+
+      case 'PERCENTAGE':
+        return (
+          <FormField
+            key={fieldName}
+            control={control as any}
+            name={fieldName}
+            render={({ field: formField }) => (
+              <FormItem>
+                <FormLabel>
+                  {field.label} {field.required && <span style={{ color: 'var(--nw-color-danger-500)' }}>*</span>}
+                </FormLabel>
+                <FormControl>
                   <div className="gba:relative">
-                    <div className="gba:absolute gba:inset-y-0 gba:left-0 gba:pl-3 gba:flex gba:items-center gba:pointer-events-none">
-                      <PiCurrencyDollar className="gba:h-4 gba:w-4 gba:text-gray-400" />
-                    </div>
                     <FormattedNumberInput
                       {...formField}
-                      placeholder="0.00"
-                      className="gba:pl-10"
+                      placeholder="0"
+                      min={0}
+                      max={100}
                       data-testid={formatDataTestId(prefixDataTestId, `${fieldName}Input`)}
                     />
+                    <div className="gba:absolute gba:inset-y-0 gba:right-0 gba:pr-3 gba:flex gba:items-center gba:pointer-events-none">
+                      <span className="gba:text-gray-400 gba:text-sm">%</span>
+                    </div>
                   </div>
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+        );
+
+      case 'NUMBER':
+        return (
+          <FormField
+            key={fieldName}
+            control={control as any}
+            name={fieldName}
+            render={({ field: formField }) => (
+              <FormItem>
+                <FormLabel>
+                  {field.label} {field.required && <span style={{ color: 'var(--nw-color-danger-500)' }}>*</span>}
+                </FormLabel>
+                <FormControl>
+                  <FormattedNumberInput
+                    {...formField}
+                    placeholder="Enter number"
+                    data-testid={formatDataTestId(prefixDataTestId, `${fieldName}Input`)}
+                  />
                 </FormControl>
                 <FormMessage />
               </FormItem>

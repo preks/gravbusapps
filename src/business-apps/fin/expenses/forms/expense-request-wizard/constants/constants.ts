@@ -85,9 +85,26 @@ export const DEDUCTIONS_TYPES_ENUM ={
   OVERNIGHT: "Overnight Allowance"
 }
 
+export const DEDUCTIONS_TYPES_ENUM_V2 ={
+  BREAKFAST: "BREAKFAST_DEDUCTION",
+  LUNCH: "LUNCH_DEDUCTION",
+  DINNER: "DINNER_DEDUCTION",
+  OVERNIGHT: "OVERNIGHT_DEDUCTION"
+}
+
 export const DEDUCTION_KEYS = {
   BREAKFAST: 'breakfast',
   LUNCH: 'lunch',
   DINNER: 'dinner',
   OVERNIGHT: 'overnight'
 };
+
+export const REQUEST_STATUS = {
+  CREATED: "CREATED",
+} as const;
+
+export const DEFAULT_ITEM_LIST_LIMIT = 3;
+export const DEFAULT_CURRENCY_FALLBACK = "RON" as const;
+
+export const SUMMARY_SCREEN_ITEM_LIST_LIMIT = 4;
+export const PLAN_SUMMARY_SCREEN_ITEM_LIST_LIMIT = 4;

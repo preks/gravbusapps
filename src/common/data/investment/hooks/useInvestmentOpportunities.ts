@@ -11,12 +11,17 @@ import type {
   BaseInvestmentDocument
 } from '../types';
 
-// Use the new query imports
+// Use the new query imports (import directly from the concrete file to avoid barrel re-exports and dynamic chunks)
 import {
   GET_INVESTMENT_OPPORTUNITIES,
   GET_INVESTMENT_OPPORTUNITY_BY_ID,
+  GET_INVESTMENT_OPPORTUNITY_AGGREGATES,
+  GET_INVESTMENT_TASKS_BY_OPPORTUNITY_ID,
+  GET_INVESTMENT_ACTIVITIES_BY_OPPORTUNITY_ID,
+  GET_INVESTMENT_NOTES_BY_OPPORTUNITY_ID,
+  GET_INVESTMENT_DOCUMENTS_BY_OPPORTUNITY_ID,
   type InvestmentOpportunityQueryVariables
-} from '../queries';
+} from '../queries/investmentOpportunityQueries';
 
 // Use the mapper function
 import { 
@@ -41,6 +46,28 @@ export interface InvestmentOpportunityQueryResponse {
 
 export interface InvestmentOpportunityByIdData {
   opportunity?: InvestmentOpportunity;
+}
+
+export interface InvestmentOpportunityAggregateResponse {
+  InvestmentOpportunityAggregate: {
+    aggregate: {
+      count: number;
+      sum: {
+        estimatedAmount: number;
+      };
+      avg: {
+        estimatedAmount: number;
+      };
+    };
+  };
+  InvestmentOpportunityWonAggregate: {
+    aggregate: {
+      count: number;
+      sum: {
+        estimatedAmount: number;
+      };
+    };
+  };
 }
 
 // Hook for getting investment opportunities with full details
@@ -119,6 +146,25 @@ export const useSearchInvestmentOpportunities = (context: BusinessAppContextProp
   return { searchInvestmentOpportunities };
 };
 
+// Hook for getting investment opportunity aggregates for metrics
+export const useGetInvestmentOpportunityAggregates = (context: BusinessAppContextProps) => {
+  const graphqlClient = useGraphQLClient(context.accessToken);
+  
+  const fetchInvestmentOpportunityAggregates = useCallback(async (variables: InvestmentOpportunityQueryVariables = {}) => {
+    const query = GET_INVESTMENT_OPPORTUNITY_AGGREGATES(variables);
+    
+    try {
+      const result = await graphqlClient.request<InvestmentOpportunityAggregateResponse>(query);
+      return result;
+    } catch (error) {
+      console.error('Error fetching investment opportunity aggregates:', error);
+      throw error;
+    }
+  }, [graphqlClient]);
+
+  return { fetchInvestmentOpportunityAggregates };
+};
+
 // =====================================================
 // INVESTMENT OPPORTUNITY RELATED ENTITIES HOOKS
 // =====================================================
@@ -128,7 +174,6 @@ export const useGetInvestmentTasksByOpportunityId = (context: BusinessAppContext
   const graphqlClient = useGraphQLClient(context.accessToken);
   
   const fetchInvestmentTasksByOpportunityId = useCallback(async (opportunityId: string) => {
-    const { GET_INVESTMENT_TASKS_BY_OPPORTUNITY_ID } = await import('../queries');
     const query = GET_INVESTMENT_TASKS_BY_OPPORTUNITY_ID(opportunityId);
     
     try {
@@ -148,7 +193,6 @@ export const useGetInvestmentActivitiesByOpportunityId = (context: BusinessAppCo
   const graphqlClient = useGraphQLClient(context.accessToken);
   
   const fetchInvestmentActivitiesByOpportunityId = useCallback(async (opportunityId: string) => {
-    const { GET_INVESTMENT_ACTIVITIES_BY_OPPORTUNITY_ID } = await import('../queries');
     const query = GET_INVESTMENT_ACTIVITIES_BY_OPPORTUNITY_ID(opportunityId);
     
     try {
@@ -168,7 +212,6 @@ export const useGetInvestmentNotesByOpportunityId = (context: BusinessAppContext
   const graphqlClient = useGraphQLClient(context.accessToken);
   
   const fetchInvestmentNotesByOpportunityId = useCallback(async (opportunityId: string) => {
-    const { GET_INVESTMENT_NOTES_BY_OPPORTUNITY_ID } = await import('../queries');
     const query = GET_INVESTMENT_NOTES_BY_OPPORTUNITY_ID(opportunityId);
     
     try {
@@ -188,7 +231,6 @@ export const useGetInvestmentDocumentsByOpportunityId = (context: BusinessAppCon
   const graphqlClient = useGraphQLClient(context.accessToken);
   
   const fetchInvestmentDocumentsByOpportunityId = useCallback(async (opportunityId: string) => {
-    const { GET_INVESTMENT_DOCUMENTS_BY_OPPORTUNITY_ID } = await import('../queries');
     const query = GET_INVESTMENT_DOCUMENTS_BY_OPPORTUNITY_ID(opportunityId);
     
     try {

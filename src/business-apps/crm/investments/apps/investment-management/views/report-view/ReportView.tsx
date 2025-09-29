@@ -3,17 +3,14 @@ import {
   Tabs,
   TabsContent,
   TabsList,
-  TabsTrigger,
-  Button
+  TabsTrigger
 } from '@newwork/nw-design-system';
-import { BarChart3, TrendingUp, Building2, PieChart, Upload } from 'lucide-react';
+import { BarChart3, TrendingUp, Building2, PieChart } from 'lucide-react';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
-import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
+import { buildPlatformUrl } from '@/common/utils/navigationUtils';
 import { LiquidFundReport } from './liquid-fund-report/LiquidFundReport';
 import { RealEstateReport } from './real-estate-report/RealEstateReport';
 import { EquityReport } from './equity-report/EquityReport';
-import { AppAction } from '@/components/app-action/AppAction';
-import { FlowContextName } from '@/common/types/FlowRegistryTypes';
 
 export interface ReportViewProps extends BusinessAppContextProps {
   initialSubTab?: string;
@@ -28,14 +25,33 @@ export const ReportView: React.FC<ReportViewProps> = ({
   onSubTabChange
 }) => {
   const [activeSubTab, setActiveSubTab] = useState(initialSubTab);
-  const [uploadDialogOpen, setUploadDialogOpen] = useState(false);
 
-  // Update URL when tab changes
+  // Update URL when tab changes using safe navigation
   useEffect(() => {
     const updateURL = () => {
-      const url = new URL(window.location.href);
-      url.searchParams.set('analyticsSubView', activeSubTab);
-      window.history.replaceState({}, '', url.toString());
+      try {
+        const currentUrl = new URL(window.location.href);
+        const params: Record<string, string> = {};
+        
+        // Preserve existing query parameters
+        currentUrl.searchParams.forEach((value, key) => {
+          params[key] = value;
+        });
+        
+        // Update the analytics sub view parameter
+        params.analyticsSubView = activeSubTab;
+        
+        // Use platform URL builder for safe navigation
+        const newUrl = buildPlatformUrl(currentUrl.pathname, params);
+        
+        // Use safe history manipulation
+        if (window.history && window.history.replaceState) {
+          window.history.replaceState({}, '', newUrl);
+        }
+      } catch (error) {
+        console.warn('Failed to update URL:', error);
+        // Fallback: just update the state without URL manipulation
+      }
     };
 
     updateURL();
@@ -54,32 +70,14 @@ export const ReportView: React.FC<ReportViewProps> = ({
     <div className="gba:h-full" data-testid="analytics-container">
       <Tabs value={activeSubTab} onValueChange={handleTabChange} className="gba:h-full">
         <div className="gba:border-b gba:border-gray-200 gba:bg-white gba:px-6 gba:py-4">
-          <div className="gba:flex gba:items-center gba:justify-between">
-            <div>
-              <h2 className="gba:text-xl gba:font-semibold gba:text-gray-900 gba:flex gba:items-center gba:gap-2">
-                <BarChart3 className="gba:h-6 gba:w-6" />
-                Investment Analytics
-              </h2>
-              <p className="gba:text-sm gba:text-gray-600 gba:mt-1">
-                Analyze investment performance and portfolio metrics
-              </p>
-            </div>
-            <div>
-              <AppAction
-                contextsArray={[FlowContextName.investmentReportUpload]}
-                accessToken={accessToken}
-                emptyStateBehavior="hide"
-                prefixDataTestId="investment-upload-report"
-              >
-                <Button
-                  className="gba:flex gba:items-center gba:gap-2"
-                  data-testid="upload-document-button"
-                >
-                  <Upload className="gba:h-4 gba:w-4" />
-                  {getTranslationFromI18nKeyAndLabel('investment.reports.uploadDocument', 'Upload Report')}
-                </Button>
-              </AppAction>
-            </div>
+          <div>
+            <h2 className="gba:text-xl gba:font-semibold gba:text-gray-900 gba:flex gba:items-center gba:gap-2">
+              <BarChart3 className="gba:h-6 gba:w-6" />
+              Investment Analytics
+            </h2>
+            <p className="gba:text-sm gba:text-gray-600 gba:mt-1">
+              Analyze investment performance and portfolio metrics
+            </p>
           </div>
           
           <TabsList className="gba:mt-4 gba:grid gba:w-full gba:grid-cols-3 gba:max-w-2xl">

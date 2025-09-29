@@ -19,13 +19,6 @@ import {
   useGetInvestmentOpportunityById,
   useGetInvestmentReports,
   useGetInvestmentReportById,
-  useGetInvestmentTransactions,
-  useGetInvestmentTransactionById,
-  useGetEquityInvestmentReports,
-  useGetEquityInvestmentRounds,
-  useGetRealEstateInvestmentReports,
-  useGetRealEstateInvestmentRentalUnits,
-  useGetLiquidFundInvestmentReports,
   useInvestmentDataIntegration
 } from '@/common/data/investment';
 
@@ -68,13 +61,14 @@ const InvestmentsDebug: React.FC<InvestmentsDebugProps> = (context) => {
   // Report hooks
   const { fetchInvestmentReports } = useGetInvestmentReports(context);
   const { fetchInvestmentReportById } = useGetInvestmentReportById(context);
-  const { fetchInvestmentTransactions } = useGetInvestmentTransactions(context);
-  const { fetchInvestmentTransactionById } = useGetInvestmentTransactionById(context);
-  const { fetchEquityInvestmentReports } = useGetEquityInvestmentReports(context);
-  const { fetchEquityInvestmentRounds } = useGetEquityInvestmentRounds(context);
-  const { fetchRealEstateInvestmentReports } = useGetRealEstateInvestmentReports(context);
-  const { fetchRealEstateInvestmentRentalUnits } = useGetRealEstateInvestmentRentalUnits(context);
-  const { fetchLiquidFundInvestmentReports } = useGetLiquidFundInvestmentReports(context);
+  // MIGRATION NOTE: Following hooks disabled during migration to centralized approach
+  // const { fetchInvestmentTransactions } = useGetInvestmentTransactions(context);
+  // const { fetchInvestmentTransactionById } = useGetInvestmentTransactionById(context);
+  // const { fetchEquityInvestmentReports } = useGetEquityInvestmentReports(context);
+  // const { fetchEquityInvestmentRounds } = useGetEquityInvestmentRounds(context);
+  // const { fetchRealEstateInvestmentReports } = useGetRealEstateInvestmentReports(context);
+  // const { fetchRealEstateInvestmentRentalUnits } = useGetRealEstateInvestmentRentalUnits(context);
+  // const { fetchLiquidFundInvestmentReports } = useGetLiquidFundInvestmentReports(context);
   
   // Integration hooks
   const { 
@@ -233,96 +227,103 @@ const InvestmentsDebug: React.FC<InvestmentsDebugProps> = (context) => {
     );
   };
 
-  const testInvestmentTransactions = () => {
-    const variables = { 
-      limit: 10,
-      search: searchTerm || undefined
-    };
-    return executeTest(
-      'investment-transactions', 
-      () => fetchInvestmentTransactions(variables),
-      'Investment Transactions Query - GET_INVESTMENT_TRANSACTIONS',
-      variables
-    );
-  };
+  // MIGRATION NOTE: Disabled during migration to centralized approach
+  // const testInvestmentTransactions = () => {
+  //   const variables = { 
+  //     limit: 10,
+  //     search: searchTerm || undefined
+  //   };
+  //   return executeTest(
+  //     'investment-transactions', 
+  //     () => fetchInvestmentTransactions(variables),
+  //     'Investment Transactions Query - GET_INVESTMENT_TRANSACTIONS',
+  //     variables
+  //   );
+  // };
 
-  const testEquityInvestmentReportsTest = () => {
-    const variables = { 
-      limit: 10,
-      search: searchTerm || undefined
-    };
-    return executeTest(
-      'equity-investment-reports', 
-      () => fetchEquityInvestmentReports(variables),
-      'Investment Reports Query - GET_INVESTMENT_REPORTS (includes Equity)',
-      variables
-    );
-  };
+  // MIGRATION NOTE: Disabled during migration to centralized approach
+  // const testEquityInvestmentReportsTest = () => {
+  //   const variables = { 
+  //     limit: 10,
+  //     search: searchTerm || undefined
+  //   };
+  //   return executeTest(
+  //     'equity-investment-reports', 
+  //     () => fetchEquityInvestmentReports(variables),
+  //     'Investment Reports Query - GET_INVESTMENT_REPORTS (includes Equity)',
+  //     variables
+  //   );
+  // };
 
-  const testRealEstateInvestmentReportsTest = () => {
-    const variables = { 
-      limit: 10,
-      search: searchTerm || undefined
-    };
-    return executeTest(
-      'real-estate-investment-reports', 
-      () => fetchRealEstateInvestmentReports(variables),
-      'Investment Reports Query - GET_INVESTMENT_REPORTS (includes Real Estate)',
-      variables
-    );
-  };
+  // MIGRATION NOTE: Disabled during migration to centralized approach
+  // const testRealEstateInvestmentReportsTest = () => {
+  //   const variables = { 
+  //     limit: 10,
+  //     search: searchTerm || undefined
+  //   };
+  //   return executeTest(
+  //     'real-estate-investment-reports', 
+  //     () => fetchRealEstateInvestmentReports(variables),
+  //     'Investment Reports Query - GET_INVESTMENT_REPORTS (includes Real Estate)',
+  //     variables
+  //   );
+  // };
 
-  const testEquityReports = () => {
-    const variables = { 
-      limit: 10,
-      search: searchTerm || undefined
-    };
-    return executeTest(
-      'equity-reports', 
-      () => fetchEquityInvestmentReports(variables),
-      'Investment Reports Query - GET_INVESTMENT_REPORTS (Enhanced)',
-      variables
-    );
-  };
+  // MIGRATION NOTE: Disabled during migration to centralized approach
+  // const testEquityReports = () => {
+  //   const variables = { 
+  //     limit: 10,
+  //     search: searchTerm || undefined
+  //   };
+  //   return executeTest(
+  //     'equity-reports', 
+  //     () => fetchEquityInvestmentReports(variables),
+  //     'Investment Reports Query - GET_INVESTMENT_REPORTS (Enhanced)',
+  //     variables
+  //   );
+  // };
 
-  const testEquityRounds = () => {
-    const variables = { 
-      limit: 10,
-      search: searchTerm || undefined
-    };
-    return executeTest(
-      'equity-rounds', 
-      () => fetchEquityInvestmentRounds(variables),
-      'Equity Investment Rounds Query - GET_EQUITY_INVESTMENT_ROUNDS',
-      variables
-    );
-  };
+  // MIGRATION NOTE: Disabled during migration to centralized approach
+  // const testEquityRounds = () => {
+  //   const variables = { 
+  //     limit: 10,
+  //     search: searchTerm || undefined
+  //   };
+  //   return executeTest(
+  //     'equity-rounds', 
+  //     () => fetchEquityInvestmentRounds(variables),
+  //     'Equity Investment Rounds Query - GET_EQUITY_INVESTMENT_ROUNDS',
+  //     variables
+  //   );
+  // };
 
-  const testRealEstateRentalUnits = () => {
-    const variables = { 
-      limit: 10,
-      search: searchTerm || undefined
-    };
-    return executeTest(
-      'real-estate-rental-units', 
-      () => fetchRealEstateInvestmentRentalUnits(variables),
-      'Real Estate Investment Rental Units Query - GET_REAL_ESTATE_INVESTMENT_RENTAL_UNITS',
-      variables
-    );
-  };
+  // MIGRATION NOTE: Disabled during migration to centralized approach
+  // const testRealEstateRentalUnits = () => {
+  //   const variables = { 
+  //     limit: 10,
+  //     search: searchTerm || undefined
+  //   };
+  //   return executeTest(
+  //     'real-estate-rental-units', 
+  //     () => fetchRealEstateInvestmentRentalUnits(variables),
+  //     'Real Estate Investment Rental Units Query - GET_REAL_ESTATE_INVESTMENT_RENTAL_UNITS',
+  //     variables
+  //   );
+  // };
 
-  const testLiquidFundReports = () => {
-    const variables = { 
-      limit: 10,
-      search: searchTerm || undefined
-    };
-    return executeTest(
-      'liquid-fund-reports', 
-      () => fetchLiquidFundInvestmentReports(variables),
-      'Investment Reports Query - GET_INVESTMENT_REPORTS (includes Liquid Fund)',
-      variables
-    );
-  };
+  // MIGRATION NOTE: Disabled during migration to centralized approach
+  // const testLiquidFundReports = () => {
+  //   const variables = { 
+  //     limit: 10,
+  //     search: searchTerm || undefined
+  //   };
+  //   return executeTest(
+  //     'liquid-fund-reports', 
+  //     () => fetchLiquidFundInvestmentReports(variables),
+  //     'Investment Reports Query - GET_INVESTMENT_REPORTS (includes Liquid Fund)',
+  //     variables
+  //   );
+  // };
 
   // Test by ID functions (using selected test ID)
   const testInvestmentById = () => {
@@ -385,15 +386,16 @@ const InvestmentsDebug: React.FC<InvestmentsDebugProps> = (context) => {
     );
   };
 
-  const testInvestmentTransactionById = () => {
-    const testId = selectedTestId || '00000000-0000-0000-0000-000000000001';
-    return executeTest(
-      'investment-transaction-by-id', 
-      () => fetchInvestmentTransactionById(testId),
-      `Investment Transaction By ID Query - GET_INVESTMENT_TRANSACTION_BY_ID`,
-      { id: testId }
-    );
-  };
+  // MIGRATION NOTE: Disabled during migration to centralized approach
+  // const testInvestmentTransactionById = () => {
+  //   const testId = selectedTestId || '00000000-0000-0000-0000-000000000001';
+  //   return executeTest(
+  //     'investment-transaction-by-id', 
+  //     () => fetchInvestmentTransactionById(testId),
+  //     `Investment Transaction By ID Query - GET_INVESTMENT_TRANSACTION_BY_ID`,
+  //     { id: testId }
+  //   );
+  // };
 
   // Clear all results
   const clearResults = () => {
@@ -412,9 +414,10 @@ const InvestmentsDebug: React.FC<InvestmentsDebugProps> = (context) => {
   // Run all specific type tests
   const runAllSpecificTests = async () => {
     await testInvestmentReports();
-    await testInvestmentTransactions();
-    await testEquityInvestmentReportsTest();
-    await testRealEstateInvestmentReportsTest();
+    // MIGRATION NOTE: Disabled during migration to centralized approach
+    // await testInvestmentTransactions();
+    // await testEquityInvestmentReportsTest();
+    // await testRealEstateInvestmentReportsTest();
     // Note: Performance metrics test removed - hook not implemented
   };
 
@@ -434,13 +437,15 @@ const InvestmentsDebug: React.FC<InvestmentsDebugProps> = (context) => {
     
     // Run all specific tests
     await testInvestmentReports();
-    await testInvestmentTransactions();
-    await testEquityInvestmentReportsTest();
-    await testRealEstateInvestmentReportsTest();
-    await testEquityReports();
-    await testEquityRounds();
-    await testRealEstateRentalUnits();
-    await testLiquidFundReports();
+    // MIGRATION NOTE: Disabled during migration to centralized approach
+    // await testInvestmentTransactions();
+    // await testEquityInvestmentReportsTest();
+    // await testRealEstateInvestmentReportsTest();
+    // MIGRATION NOTE: Disabled during migration to centralized approach
+    // await testEquityReports();
+    // await testEquityRounds();
+    // await testRealEstateRentalUnits();
+    // await testLiquidFundReports();
   };
 
   // Get result component with query display
@@ -543,13 +548,13 @@ const InvestmentsDebug: React.FC<InvestmentsDebugProps> = (context) => {
                 </div>
               )}
               <pre style={{ 
-                background: '#f5f5f5', 
-                padding: 12, 
-                borderRadius: 4, 
-                fontSize: 12,
-                maxHeight: 200,
+                background: 'var(--nw-color-surface-secondary)', 
+                padding: 'var(--nw-spacing-sm)', 
+                borderRadius: 'var(--nw-border-radius-sm)', 
+                fontSize: 'var(--nw-text-xs)',
+                maxHeight: '200px',
                 overflow: 'auto',
-                marginTop: 8
+                marginTop: 'var(--nw-spacing-sm)'
               }}>
                 {JSON.stringify(data, null, 2)}
               </pre>
@@ -558,25 +563,25 @@ const InvestmentsDebug: React.FC<InvestmentsDebugProps> = (context) => {
               <Panel header="📝 Query Information" key="query">
                 <Text strong>Query:</Text>
                 <pre style={{ 
-                  background: '#f0f8ff', 
-                  padding: 12, 
-                  borderRadius: 4, 
-                  fontSize: 12,
-                  marginTop: 8,
-                  border: '1px solid #d1ecf1'
+                  background: 'var(--nw-color-surface-secondary)', 
+                  padding: 'var(--nw-spacing-sm)', 
+                  borderRadius: 'var(--nw-border-radius-sm)', 
+                  fontSize: 'var(--nw-text-xs)',
+                  marginTop: 'var(--nw-spacing-sm)',
+                  border: 'var(--nw-border-width-thin) solid var(--nw-color-border-default)'
                 }}>
                   {query}
                 </pre>
                 {variables && Object.keys(variables).length > 0 && (
-                  <div style={{ marginTop: 12 }}>
+                  <div style={{ marginTop: 'var(--nw-spacing-sm)' }}>
                     <Text strong>Variables:</Text>
                     <pre style={{ 
-                      background: '#f8f9fa', 
-                      padding: 8, 
-                      borderRadius: 4, 
-                      fontSize: 12,
-                      marginTop: 4,
-                      border: '1px solid #dee2e6'
+                      background: 'var(--nw-color-surface-secondary)', 
+                      padding: 'var(--nw-spacing-xs)', 
+                      borderRadius: 'var(--nw-border-radius-sm)', 
+                      fontSize: 'var(--nw-text-xs)',
+                      marginTop: 'var(--nw-spacing-xs)',
+                      border: 'var(--nw-border-width-thin) solid var(--nw-color-border-default)'
                     }}>
                       {JSON.stringify(variables, null, 2)}
                     </pre>
@@ -594,18 +599,18 @@ const InvestmentsDebug: React.FC<InvestmentsDebugProps> = (context) => {
     <div
       data-testid="investments-debug-container"
       style={{ 
-        background: 'linear-gradient(to bottom, #f9fafb, #f3f4f6)',
-        minHeight: '100%',
-        padding: '24px',
-        borderRadius: '8px'
+        background: 'var(--nw-color-surface-primary)',
+        minHeight: '100vh',
+        padding: 'var(--nw-spacing-lg)',
+        borderRadius: 'var(--nw-border-radius-md)'
       }}
     >
       {/* Header */}
-      <div style={{ marginBottom: '24px' }}>
-        <Title level={2} style={{ margin: 0, color: '#1f2937' }}>
+      <div style={{ marginBottom: 'var(--nw-spacing-lg)' }}>
+        <Title level={2} style={{ margin: 0, color: 'var(--nw-color-text-primary)' }}>
           <BugOutlined /> Investment Data Foundation Debug
         </Title>
-        <Paragraph style={{ color: '#6b7280', margin: '8px 0 0 0' }}>
+        <Paragraph style={{ color: 'var(--nw-color-text-secondary)', margin: 'var(--nw-spacing-sm) 0 0 0' }}>
           Test all aspects of the newly created investment data system with enhanced types and computed fields
         </Paragraph>
         <Alert 
@@ -656,7 +661,7 @@ const InvestmentsDebug: React.FC<InvestmentsDebugProps> = (context) => {
             />
             {searchTerm && (
               <Text type="secondary" style={{ fontSize: '12px', marginTop: '4px' }}>
-                🔍 Search will be applied to: Investments, Accounts, Contacts, Leads, Opportunities, Transactions, Reports, Rounds, and Rental Units
+                🔍 Search will be applied to: Investments, Accounts, Contacts, Leads, Opportunities, Reports, Rounds, and Rental Units
               </Text>
             )}
           </Col>
@@ -886,11 +891,12 @@ const InvestmentsDebug: React.FC<InvestmentsDebugProps> = (context) => {
           </Row>
         </Panel>
 
-        {/* Investment Reports & Transactions Tests */}
-        <Panel header="Investment Reports & Transactions Tests" key="specific">
+        {/* Investment Reports Tests */}
+        <Panel header="Investment Reports Tests" key="specific">
           <Row gutter={[16, 16]}>
             <Col span={8}>
-              <Button 
+              {/* MIGRATION NOTE: Disabled during migration to centralized approach */}
+              {/* <Button 
                 data-testid="debug-test-investment-transactions-button"
                 onClick={testInvestmentTransactions}
                 loading={testResults['investment-transactions']?.status === 'loading'}
@@ -899,8 +905,9 @@ const InvestmentsDebug: React.FC<InvestmentsDebugProps> = (context) => {
               >
                 Test Investment Transactions
               </Button>
-              {getResultComponent('investment-transactions')}
+              {getResultComponent('investment-transactions')} */}
             </Col>
+            {/* MIGRATION NOTE: Disabled during migration to centralized approach
             <Col span={8}>
               <Button 
                 data-testid="debug-test-equity-reports-detailed-button"
@@ -912,8 +919,9 @@ const InvestmentsDebug: React.FC<InvestmentsDebugProps> = (context) => {
                 Test Equity Reports
               </Button>
               {getResultComponent('equity-investment-reports')}
-            </Col>
-            <Col span={8}>
+            </Col> */}
+            {/* MIGRATION NOTE: Disabled during migration to centralized approach */}
+            {/* <Col span={8}>
               <Button 
                 data-testid="debug-test-real-estate-reports-detailed-button"
                 onClick={testRealEstateInvestmentReportsTest}
@@ -924,12 +932,13 @@ const InvestmentsDebug: React.FC<InvestmentsDebugProps> = (context) => {
                 Test Real Estate Reports
               </Button>
               {getResultComponent('real-estate-investment-reports')}
-            </Col>
+            </Col> */}
           </Row>
 
           <Divider />
 
-          <Row gutter={[16, 16]}>
+          {/* MIGRATION NOTE: Disabled during migration to centralized approach */}
+          {/* <Row gutter={[16, 16]}>
             <Col span={6}>
               <Button 
                 data-testid="debug-test-equity-reports-button"
@@ -978,7 +987,7 @@ const InvestmentsDebug: React.FC<InvestmentsDebugProps> = (context) => {
               </Button>
               {getResultComponent('liquid-fund-reports')}
             </Col>
-          </Row>
+          </Row> */}
         </Panel>
 
         {/* By ID Tests */}
@@ -1049,7 +1058,8 @@ const InvestmentsDebug: React.FC<InvestmentsDebugProps> = (context) => {
               </Button>
               {getResultComponent('investment-report-by-id')}
             </Col>
-            <Col span={12}>
+            {/* MIGRATION NOTE: Disabled during migration to centralized approach */}
+            {/* <Col span={12}>
               <Button 
                 data-testid="debug-test-investment-transaction-by-id-button"
                 onClick={testInvestmentTransactionById}
@@ -1060,7 +1070,7 @@ const InvestmentsDebug: React.FC<InvestmentsDebugProps> = (context) => {
                 Investment Transaction By ID
               </Button>
               {getResultComponent('investment-transaction-by-id')}
-            </Col>
+            </Col> */}
           </Row>
         </Panel>
 

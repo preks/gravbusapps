@@ -1,36 +1,23 @@
-import React, { useState, useMemo, useCallback } from 'react';
+import React, { useState, useMemo, useCallback, useEffect } from 'react';
+import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
 import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-  Button,
   Tabs,
   TabsContent,
   TabsList,
-  TabsTrigger
+  TabsTrigger,
+  Alert,
+  Spinner
 } from '@newwork/nw-design-system';
-import { DatePicker } from 'antd';
-import { 
-  FilterIcon
-} from 'lucide-react';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 import dayjs from 'dayjs';
-import { ExistingPropertiesTable } from './components/ExistingPropertiesTable';
-import { ProjectDevelopmentTable } from './components/ProjectDevelopmentTable';
-import { MezzanineLoansTable } from './components/MezzanineLoansTable';
-import { OthersTable } from './components/OthersTable';
+import { RealEstateAnalyticsTable } from './components/RealEstateAnalyticsTable';
+import { useRealEstateInvestmentTypes } from './hooks/useRealEstateInvestmentTypes';
+import { useGetInvestmentCatalogData } from '@/business-apps/crm/investments/forms/investment-form/queries/InvestmentCatalogQueries';
 import type { RealEstateReportFilters } from './types';
-// Removed separate catalog hook - using central data source instead
-// import { useInvestmentTypeCatalog } from './hooks/useInvestmentTypeCatalog';
+import { buildPlatformUrl } from '@/common/utils/navigationUtils';
+import { ReportFilterPanel, useReportFilters } from '../components/shared';
 
-// Using individual DatePicker components for start and end dates
+// Using separate DatePicker components for start and end dates
 
 interface RealEstateReportProps extends BusinessAppContextProps {
   'data-testid'?: string;
@@ -41,258 +28,202 @@ export const RealEstateReport: React.FC<RealEstateReportProps> = ({
   userInfo,
   'data-testid': dataTestId = 'real-estate-analytics'
 }) => {
-  // TODO: Replace with central data source approach
-  // For now, use hardcoded real estate types until we implement the centralized approach
-  const realEstateTypes = [
-    { id: 'InvestmentType:v1:EXISTING_PROPERTY', value: 'Existing Properties', additionalValue1: '1' },
-    { id: 'InvestmentType:v1:PROJECT_DEVELOPMENT', value: 'Project Development', additionalValue1: '2' },
-    { id: 'InvestmentType:v1:MEZZANINE_LOANS', value: 'Mezzanine Loans', additionalValue1: '3' },
-    { id: 'InvestmentType:v1:OTHER_REAL_ESTATE', value: 'Others', additionalValue1: '4' }
-  ];
-  const typesLoading = false;
-  const typesError = null;
+  // Fetch dynamic real estate investment types from catalog
+  const { investmentTypes, loading: typesLoading, error: typesError, catalogData } = useRealEstateInvestmentTypes(accessToken);
+
+  // Use catalog types if available, otherwise use empty array (only Overview tab)
+  const effectiveInvestmentTypes = typesError || investmentTypes.length === 0 ? [] : investmentTypes;
   
-  // Sub-tab management
-  const [activeSubTab, setActiveSubTab] = useState<string>('existing-properties');
+  // Sub-tab management - start with first investment type
+  const [activeSubTab, setActiveSubTab] = useState<string>('');
 
-  // Filter states - Updated to 2024 where actual data exists
-  const [startDate, setStartDate] = useState<dayjs.Dayjs | null>(
-    dayjs('2024-01-01') // January 1st, 2024 (where actual data exists)
-  );
-  const [endDate, setEndDate] = useState<dayjs.Dayjs | null>(
-    dayjs('2024-12-31') // December 31st, 2024
-  );
-  const [selectedCurrency, setSelectedCurrency] = useState<string>('EUR');
-  
-  // Applied filters state (only updates when Apply button is clicked)
-  // LOAD DATA IMMEDIATELY - Set default applied filters to show data on initial load
-  const [appliedStartDate, setAppliedStartDate] = useState<dayjs.Dayjs | null>(
-    dayjs('2024-01-01') // AUTO-APPLY: Show data immediately
-  );
-  const [appliedEndDate, setAppliedEndDate] = useState<dayjs.Dayjs | null>(
-    dayjs('2024-12-31') // AUTO-APPLY: Show data immediately  
-  );
-  const [appliedCurrency, setAppliedCurrency] = useState<string>('EUR');
+  // Get initial investment type from URL parameter
+  const getInitialInvestmentType = useCallback(() => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const investmentTypeFromUrl = urlParams.get('investmentType');
+    
+    if (effectiveInvestmentTypes.length === 0) {
+      return '';
+    }
+    
+    // Validate against available investment types
+    if (investmentTypeFromUrl && effectiveInvestmentTypes.some(type => type.code === investmentTypeFromUrl)) {
+      return investmentTypeFromUrl;
+    }
+    
+    // Fall back to first available investment type
+    return effectiveInvestmentTypes[0].code;
+  }, [effectiveInvestmentTypes]);
 
-  // Available currencies
-  const availableCurrencies = ['EUR', 'USD', 'GBP', 'CHF'];
+  // Update URL when activeSubTab changes using platform navigation utilities
+  const updateUrl = useCallback((investmentType: string) => {
+    try {
+      const currentUrl = new URL(window.location.href);
+      const params: Record<string, string> = {};
+      
+      // Preserve existing query parameters
+      currentUrl.searchParams.forEach((value, key) => {
+        params[key] = value;
+      });
+      
+      // Update investmentType parameter
+      params.investmentType = investmentType;
+      
+      // Use platform URL builder for safe navigation
+      const newUrl = buildPlatformUrl(currentUrl.pathname, params);
+      
+      // Use safe history manipulation
+      if (window.history && window.history.replaceState) {
+        window.history.replaceState({}, '', newUrl);
+      }
+    } catch (error) {
+      console.warn('Failed to update URL:', error);
+      // Fallback: just update the state without URL manipulation
+    }
+  }, []);
 
-  // Create stable date strings from APPLIED filters
-  // Return undefined if no applied filters - this prevents data loading until user applies filters
-  const startDateString = useMemo(() => 
-    appliedStartDate?.format('YYYY-MM-DD'),
-    [appliedStartDate?.valueOf()]
-  );
-  const endDateString = useMemo(() => 
-    appliedEndDate?.format('YYYY-MM-DD'),
-    [appliedEndDate?.valueOf()]
-  );
+  // Unified handler for activeSubTab changes
+  const handleSetActiveSubTab = useCallback((code: string) => {
+    setActiveSubTab(code);
+    updateUrl(code);
+  }, [updateUrl]);
 
-  // Create dynamic filters for each investment type
-  const createInvestmentTypeFilters = useCallback((investmentTypeValue: string): RealEstateReportFilters => ({
-    startDate: startDateString,
-    endDate: endDateString,
-    currency: appliedCurrency,
-    investmentType: investmentTypeValue
-  }), [startDateString, endDateString, appliedCurrency]);
+  // Initialize tab from URL when investment types are loaded
+  useEffect(() => {
+    if (!activeSubTab) {
+      // Wait for loading to complete before making decisions
+      if (typesLoading) {
+        return;
+      }
+      
+      if (effectiveInvestmentTypes.length === 0) {
+        setActiveSubTab('overview');
+        updateUrl('overview');
+        return;
+      }
+      const initialType = getInitialInvestmentType();
+      if (initialType) {
+        setActiveSubTab(initialType);
+        updateUrl(initialType);
+      }
+    }
+  }, [effectiveInvestmentTypes, activeSubTab, getInitialInvestmentType, updateUrl, typesLoading]);
 
-  // Apply filters handler
-  const handleApplyFilters = () => {
-    setAppliedStartDate(startDate);
-    setAppliedEndDate(endDate);
-    setAppliedCurrency(selectedCurrency);
-  };
+  // Handle browser back/forward navigation
+  useEffect(() => {
+    const handlePopState = () => {
+      const currentType = getInitialInvestmentType();
+      if (currentType) {
+        setActiveSubTab(currentType);
+        // Do not call updateUrl when handling popstate to avoid creating additional history entries
+      }
+    };
 
-  // Check if filters have changed (to show/hide Apply button)
-  // const filtersChanged = useMemo(() => {
-  //   const currentStart = startDate?.format('YYYY-MM-DD');
-  //   const currentEnd = endDate?.format('YYYY-MM-DD');
-  //   const appliedStart = appliedStartDate?.format('YYYY-MM-DD');
-  //   const appliedEnd = appliedEndDate?.format('YYYY-MM-DD');
-  //   
-  //   return currentStart !== appliedStart || 
-  //          currentEnd !== appliedEnd || 
-  //          selectedCurrency !== appliedCurrency;
-  // }, [startDate, endDate, appliedStartDate, appliedEndDate, selectedCurrency, appliedCurrency]);
+    window.addEventListener('popstate', handlePopState);
+    
+    return () => {
+      window.removeEventListener('popstate', handlePopState);
+    };
+  }, [getInitialInvestmentType]);
 
-  const handleStartDateChange = (date: dayjs.Dayjs | null) => {
-    setStartDate(date);
-  };
+  // Shared filter state and logic
+  const reportFilters = useReportFilters();
 
-  const handleEndDateChange = (date: dayjs.Dayjs | null) => {
-    setEndDate(date);
-  };
+  // Find the selected investment type from catalog
+  const selectedInvestmentType = useMemo(() => {
+    return effectiveInvestmentTypes.find(type => type.code === activeSubTab);
+  }, [activeSubTab, effectiveInvestmentTypes]);
 
-  const handleCurrencyChange = (currency: string) => {
-    setSelectedCurrency(currency);
-  };
+  // Create filters for real estate analytics (with investment type filtering)
+  const realEstateAnalyticsFilters = useMemo((): RealEstateReportFilters => {
+    const filters = {
+      startDate: reportFilters.computedFilters.startDate,
+      endDate: reportFilters.computedFilters.endDate,
+      investmentType: selectedInvestmentType?.code || undefined
+    };
+
+    return filters;
+  }, [reportFilters.computedFilters.startDate, reportFilters.computedFilters.endDate, selectedInvestmentType]);
+
+
+  // Show loading state while investment types are being fetched
+  const showLoadingWarning = typesLoading && !typesError;
+  const showErrorWarning = typesError && effectiveInvestmentTypes.length === 0;
+
+  // Don't render filter-dependent content until filters are initialized
+  if (!reportFilters.filtersInitialized) {
+    return (
+      <div className="gba:flex gba:justify-center gba:items-center" style={{ height: 'var(--nw-spacing-64)' }}>
+        <Spinner data-testid={`${dataTestId}-loading-spinner`} />
+      </div>
+    );
+  }
 
   return (
     <div className="gba:space-y-6 gba:p-6" data-testid={dataTestId}>
+      {/* Warning messages */}
+      {showLoadingWarning && (
+        <Alert variant="default" data-testid={`${dataTestId}-types-loading-alert`}>
+          {getTranslationFromI18nKeyAndLabel('realEstate.analytics.loadingTypes', 'Loading investment types from catalog... Showing Overview only.')}
+        </Alert>
+      )}
+      
+      {showErrorWarning && (
+        <Alert variant="destructive" data-testid={`${dataTestId}-types-error-alert`}>
+          {getTranslationFromI18nKeyAndLabel('realEstate.analytics.typesError', 'Unable to load investment types from catalog. Showing Overview only.')}
+        </Alert>
+      )}
+
       {/* Filters Section */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="gba:flex gba:items-center gba:gap-2">
-            <FilterIcon className="gba:h-5 gba:w-5" />
-            Filters
-          </CardTitle>
-          <CardDescription>
-            Configure time period and currency for the real estate analytics view
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="gba:flex gba:flex-wrap gba:items-center gba:gap-4 gba:mb-4">
-            <div className="gba:flex gba:items-center gba:gap-2">
-              <label className="gba:text-sm gba:font-medium">Start Date:</label>
-              <DatePicker
-                value={startDate}
-                onChange={handleStartDateChange}
-                format="DD/MM/YYYY"
-                placeholder="Start Date"
-                allowClear={false}
-              />
-            </div>
-            
-            <div className="gba:flex gba:items-center gba:gap-2">
-              <label className="gba:text-sm gba:font-medium">End Date:</label>
-              <DatePicker
-                value={endDate}
-                onChange={handleEndDateChange}
-                format="DD/MM/YYYY"
-                placeholder="End Date"
-                allowClear={false}
-              />
-            </div>
-            
-            <div className="gba:flex gba:items-center gba:gap-2">
-              <label className="gba:text-sm gba:font-medium">Currency:</label>
-              <Select value={selectedCurrency} onValueChange={handleCurrencyChange}>
-                <SelectTrigger className="gba:w-[120px]">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {availableCurrencies.map((currency) => (
-                    <SelectItem key={currency} value={currency}>
-                      {currency}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
-          
-          {/* Apply Filter Button - main button style */}
-          <div className="gba:flex gba:justify-end gba:gap-2">
-            <Button 
-              onClick={handleApplyFilters}
-              className="gba:bg-black hover:gba:bg-gray-800 gba:text-white gba:border-black"
-              data-testid={`${dataTestId}-apply-filters`}
-            >
-              Apply Filter
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
+      <ReportFilterPanel
+        filters={reportFilters}
+        variant="card"
+        title={getTranslationFromI18nKeyAndLabel('filters.title', 'Filters')}
+        description={getTranslationFromI18nKeyAndLabel('realEstate.analytics.filters.description', 'Configure time period for the real estate analytics view')}
+        data-testid={`${dataTestId}-filters`}
+      />
 
       {/* Real Estate Analytics Tables with Dynamic Sub-tabs */}
-      {typesLoading ? (
-        <div className="gba:flex gba:justify-center gba:items-center gba:h-64">
-          <div className="gba:text-gray-500">Loading investment types...</div>
-        </div>
-      ) : typesError ? (
-        <div className="gba:flex gba:justify-center gba:items-center gba:h-64">
-          <div className="gba:text-red-500">Error loading investment types: {typesError}</div>
-        </div>
-      ) : (
-        <Tabs value={activeSubTab} onValueChange={setActiveSubTab} className="gba:w-full">
-          <TabsList className="gba:grid gba:w-full" style={{ gridTemplateColumns: `repeat(${realEstateTypes.length}, minmax(0, 1fr))` }}>
-            {realEstateTypes.map((type) => {
-              const tabValue = type.value.toLowerCase().replace(/\s+/g, '-');
-              return (
-                <TabsTrigger 
-                  key={type.id} 
-                  value={tabValue} 
-                  data-testid={`${dataTestId}-${tabValue}-tab`}
-                >
-                  {type.value}
-                </TabsTrigger>
-              );
-            })}
-          </TabsList>
-          
-          {realEstateTypes.map((type) => {
-            const tabValue = type.value.toLowerCase().replace(/\s+/g, '-');
-            const typeFilters = createInvestmentTypeFilters(type.value);
-            
-            // Select the appropriate table component based on investment type
-            const getTableComponent = () => {
-              switch (type.value) {
-                case 'Existing Properties':
-                  return (
-                    <ExistingPropertiesTable
-                      accessToken={accessToken}
-                      userInfo={userInfo}
-                      filters={typeFilters}
-                      propertyType={`${type.value} Properties`}
-                      title={`Real Estate Analytics - ${type.value}`}
-                      data-testid={`${dataTestId}-${tabValue}-table`}
-                    />
-                  );
-                case 'Project Development':
-                  return (
-                    <ProjectDevelopmentTable
-                      accessToken={accessToken}
-                      userInfo={userInfo}
-                      filters={typeFilters}
-                      propertyType={`${type.value} Properties`}
-                      title={`Real Estate Analytics - ${type.value}`}
-                      data-testid={`${dataTestId}-${tabValue}-table`}
-                    />
-                  );
-                case 'Mezzanine Loans':
-                  return (
-                    <MezzanineLoansTable
-                      accessToken={accessToken}
-                      userInfo={userInfo}
-                      filters={typeFilters}
-                      propertyType={`${type.value} Properties`}
-                      title={`Real Estate Analytics - ${type.value}`}
-                      data-testid={`${dataTestId}-${tabValue}-table`}
-                    />
-                  );
-                case 'Others':
-                  return (
-                    <OthersTable
-                      accessToken={accessToken}
-                      userInfo={userInfo}
-                      filters={typeFilters}
-                      propertyType={`${type.value} Properties`}
-                      title={`Real Estate Analytics - ${type.value}`}
-                      data-testid={`${dataTestId}-${tabValue}-table`}
-                    />
-                  );
-                default:
-                  return (
-                    <ExistingPropertiesTable
-                      accessToken={accessToken}
-                      userInfo={userInfo}
-                      filters={typeFilters}
-                      propertyType={`${type.value} Properties`}
-                      title={`Real Estate Analytics - ${type.value}`}
-                      data-testid={`${dataTestId}-${tabValue}-table`}
-                    />
-                  );
-              }
-            };
-            
-            return (
-              <TabsContent key={type.id} value={tabValue} className="gba:mt-6">
-                {getTableComponent()}
-              </TabsContent>
-            );
-          })}
+      {/*
+        Use a synthetic "overview" tab if no catalog types are available.
+      */}
+      <Tabs value={activeSubTab} onValueChange={handleSetActiveSubTab} className="gba:w-full" data-testid={`${dataTestId}-tabs`}>
+        {(() => {
+          const typesForTabs =
+            effectiveInvestmentTypes.length > 0
+              ? effectiveInvestmentTypes
+              : [{ code: 'overview', value: getTranslationFromI18nKeyAndLabel('common.overview', 'Overview') }];
+          return (
+            <>
+              <TabsList className="gba:grid gba:w-full" style={{ gridTemplateColumns: `repeat(${Math.max(typesForTabs.length, 1)}, minmax(0, 1fr))` }}>
+                {typesForTabs.map((type) => (
+                  <TabsTrigger 
+                    key={type.code}
+                    value={type.code}
+                    data-testid={`${dataTestId}-${type.code.toLowerCase()}-tab`}
+                  >
+                    {type.value}
+                  </TabsTrigger>
+                ))}
+              </TabsList>
+              {typesForTabs.map((type) => (
+                <TabsContent key={type.code} value={type.code} className="gba:mt-6">
+                  <RealEstateAnalyticsTable
+                    accessToken={accessToken}
+                    userInfo={userInfo}
+                    filters={realEstateAnalyticsFilters}
+                    investmentType={type.code === 'overview' ? '' : type.code}
+                    investmentTypeValue={type.value}
+                    title={`${type.value} Analytics`}
+                    catalogData={catalogData}
+                    data-testid={`${dataTestId}-${type.code.toLowerCase()}-table`}
+                  />
+                </TabsContent>
+              ))}
+            </>
+          );
+        })()}
         </Tabs>
-      )}
     </div>
   );
 };

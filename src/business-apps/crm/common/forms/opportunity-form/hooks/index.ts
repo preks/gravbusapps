@@ -17,3 +17,13 @@ export type {
   UseCurrencyCatalogReturn,
 } from "./useCurrencyCatalog";
 export type { UseOpportunityDataReturn } from "./useOpportunityData";
+
+// Default export for wrapper compatibility
+const hooks = {
+  useOpportunityStatusCatalog,
+  usePipelineCatalogs,
+  useCurrencyCatalog,
+  useOpportunityData,
+};
+
+export default hooks as unknown as any;

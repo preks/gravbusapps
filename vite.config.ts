@@ -24,15 +24,11 @@ function getDynamicEntries(projectRootDir: string): Record<string, string> {
       (product) =>
         fs.statSync(path.join(businessAppsDir, product)).isDirectory() &&
         !product.startsWith(".") &&
-        product !== "node_modules"
+        product !== "node_modules",
     );
 
   // Function to recursively find index.ts files in a directory
-  function findIndexFiles(
-    dir: string,
-    product: string,
-    pathParts: string[] = []
-  ) {
+  function findIndexFiles(dir: string, product: string, pathParts: string[] = []) {
     const items = fs.readdirSync(dir);
 
     for (const item of items) {
@@ -63,16 +59,38 @@ function getDynamicEntries(projectRootDir: string): Record<string, string> {
     findIndexFiles(productPath, product);
   });
 
+  // Also include example entries from src/common/examples (apps, forms, popups)
+  const examplesDir = path.join(projectRootDir, "src", "common", "examples");
+  if (fs.existsSync(examplesDir)) {
+    const findExampleIndexFiles = (dir: string) => {
+      const items = fs.readdirSync(dir);
+      for (const item of items) {
+        const itemPath = path.join(dir, item);
+        const stats = fs.statSync(itemPath);
+        if (stats.isDirectory()) {
+          findExampleIndexFiles(itemPath);
+        } else if (item === "index.ts" && stats.isFile()) {
+          // Compute relative path from examples root to the directory containing index.ts
+          const relativeDir = path
+            .relative(examplesDir, path.dirname(itemPath))
+            .replace(/\\/g, "/");
+          if (relativeDir) {
+            // Screen key pattern: examples/<relativeDir>
+            const entryKey = `examples/${relativeDir}`;
+            entries[entryKey] = itemPath;
+          }
+        }
+      }
+    };
+    findExampleIndexFiles(examplesDir);
+  }
+
   return entries;
 }
 
 // Helper function for SHA256
 function getSha256(data: Buffer): string {
-  return crypto
-    .createHash("sha256")
-    .update(data)
-    .digest("hex")
-    .substring(0, 16); // 16-char hash
+  return crypto.createHash("sha256").update(data).digest("hex").substring(0, 16); // 16-char hash
 }
 
 // Custom plugin for SHA256 content hashing
@@ -83,9 +101,7 @@ function sha256ContentHashPlugin(shouldApply: boolean) {
   return {
     name: "sha256-content-hash",
     async writeBundle(options: any, bundle: any) {
-      console.log(
-        "[sha256-plugin] Processing bundle for SHA256 content hashing..."
-      );
+      console.log("[sha256-plugin] Processing bundle for SHA256 content hashing...");
       const outputDir = options.dir;
       if (!outputDir) {
         console.error("[sha256-plugin] Output directory not found in options.");
@@ -114,9 +130,7 @@ function sha256ContentHashPlugin(shouldApply: boolean) {
 
             if (originalFilePath !== newFilePath) {
               await fsRename(originalFilePath, newFilePath); // Using fsRename from 'fs/promises'
-              console.log(
-                `[sha256-plugin] Renamed: ${chunk.fileName} -> ${newChunkFileName}`
-              );
+              console.log(`[sha256-plugin] Renamed: ${chunk.fileName} -> ${newChunkFileName}`);
               chunk.fileName = newChunkFileName;
               newBundleEntries[newChunkFileName] = chunk;
               oldKeys.push(originalChunkFileName);
@@ -124,10 +138,7 @@ function sha256ContentHashPlugin(shouldApply: boolean) {
               newBundleEntries[originalChunkFileName] = chunk;
             }
           } catch (error) {
-            console.error(
-              `[sha256-plugin] Error processing file ${originalFilePath}:`,
-              error
-            );
+            console.error(`[sha256-plugin] Error processing file ${originalFilePath}:`, error);
             newBundleEntries[originalChunkFileName] = chunk;
           }
         } else {
@@ -149,7 +160,7 @@ export default defineConfig(({ command, mode }) => {
   if (command === "build") {
     if (!projectRootDirFromEnv) {
       console.error(
-        '[vite.config.ts] FATAL ERROR: PROJECT_ROOT_DIR environment variable must be set by the calling script for "build" commands.'
+        '[vite.config.ts] FATAL ERROR: PROJECT_ROOT_DIR environment variable must be set by the calling script for "build" commands.',
       );
       process.exit(1);
     }
@@ -158,12 +169,8 @@ export default defineConfig(({ command, mode }) => {
     // For 'serve' or other commands, default to process.cwd() if PROJECT_ROOT_DIR is not set.
     projectRootDir = projectRootDirFromEnv || process.cwd();
   }
-  console.log(
-    `[vite.config.ts] Running in mode: "${mode}", command: "${command}"`
-  );
-  console.log(
-    `[vite.config.ts] Using project root directory: ${projectRootDir}`
-  );
+  console.log(`[vite.config.ts] Running in mode: "${mode}", command: "${command}"`);
+  console.log(`[vite.config.ts] Using project root directory: ${projectRootDir}`);
 
   // Load environment variables using the determined projectRootDir
   const env = loadEnv(mode, projectRootDir, "");
@@ -175,21 +182,17 @@ export default defineConfig(({ command, mode }) => {
 
   let dynamicEntries = {};
   const isProduction = mode === "production";
-  const shouldHashFilesForDeployment =
-    isProduction && env.VITE_BUILD_FOR_DEPLOYMENT === "true";
+  const shouldHashFilesForDeployment = isProduction && env.VITE_BUILD_FOR_DEPLOYMENT === "true";
   const isBuildCommand = command === "build";
   const isSingleBuild = targetEntryKey && targetEntryFile;
 
   if (isBuildCommand && isSingleBuild) {
-    console.log(
-      `[vite.config.ts] Single build detected for: ${targetEntryKey}`
-    );
+    console.log(`[vite.config.ts] Single build detected for: ${targetEntryKey}`);
   }
 
   // Define content for the __APP_BUILD_INFO__ banner
   const gitUserForBanner = env.VITE_GIT_USER || "N/A";
-  const publishTimeForBanner =
-    env.VITE_PUBLISH_TIME || new Date().toISOString();
+  const publishTimeForBanner = env.VITE_PUBLISH_TIME || new Date().toISOString();
   const appBuildInfoObject = {
     gitUser: gitUserForBanner,
     publishTime: publishTimeForBanner,
@@ -249,7 +252,7 @@ if (globalThis.__APP_BUILD_INFO__) {
         chunk.exports.length > 0
       ) {
         console.log(
-          `[vite.config.ts prependBannerPlugin] Prepending build info banner to: ${chunk.name}`
+          `[vite.config.ts prependBannerPlugin] Prepending build info banner to: ${chunk.name}`,
         );
         return injectedBannerString + code;
       }
@@ -259,34 +262,30 @@ if (globalThis.__APP_BUILD_INFO__) {
 
   // Get all possible entries using our flexible pattern finder
   const allPossibleEntriesRaw = getDynamicEntries(projectRootDir);
-  
+
   // Convert absolute paths to relative paths for dynamic imports
   const allPossibleEntries: Record<string, string> = {};
   Object.entries(allPossibleEntriesRaw).forEach(([key, absolutePath]) => {
-    const relativePath = path.relative(projectRootDir, absolutePath).replace(/\\/g, '/');
+    const relativePath = path.relative(projectRootDir, absolutePath).replace(/\\/g, "/");
     allPossibleEntries[key] = relativePath;
   });
 
   if (isBuildCommand && isSingleBuild) {
     // Single build mode - use only the specified entry
     dynamicEntries[targetEntryKey] = resolve(projectRootDir, targetEntryFile);
-    console.log(
-      `[vite.config.ts] Single build: Targeting entry: ${targetEntryKey}`
-    );
+    console.log(`[vite.config.ts] Single build: Targeting entry: ${targetEntryKey}`);
   } else if (command === "serve") {
     // Development server mode - optimize for speed
     if (targetEntryKey && targetEntryFile) {
       // If a specific entry is requested, use only that one
       dynamicEntries[targetEntryKey] = resolve(projectRootDir, targetEntryFile);
-      console.log(
-        `[vite.config.ts] Dev server targeting specific entry: ${targetEntryKey}`
-      );
+      console.log(`[vite.config.ts] Dev server targeting specific entry: ${targetEntryKey}`);
     } else {
       // For faster dev server startup, only load essential entries
       // Business app screens will be loaded on-demand
       console.log("[vite.config.ts] Dev server using minimal entries for fast startup");
       console.log("[vite.config.ts] Business app screens will be loaded on-demand");
-      
+
       // Don't load any business app entries initially - they'll be loaded dynamically
       // This significantly improves dev server startup time
       dynamicEntries = {};
@@ -295,10 +294,7 @@ if (globalThis.__APP_BUILD_INFO__) {
     // Multi-build mode (default build) - use all discovered entries
     dynamicEntries = allPossibleEntriesRaw;
     console.log("[vite.config.ts] Multi-build: Generating all entries.");
-    console.log(
-      "[vite.config.ts] Generated entries for multi-build:",
-      dynamicEntries
-    );
+    console.log("[vite.config.ts] Generated entries for multi-build:", dynamicEntries);
   }
 
   const extraPlugins: PluginOption[] = [
@@ -343,9 +339,7 @@ if (globalThis.__APP_BUILD_INFO__) {
         // For each entry in our dynamic entries, create an import and export
         Object.keys(dynamicEntries).forEach((entryKey) => {
           const entryPath = dynamicEntries[entryKey];
-          const relativePath = path
-            .relative(projectRootDir, entryPath)
-            .replace(/\\/g, "/");
+          const relativePath = path.relative(projectRootDir, entryPath).replace(/\\/g, "/");
           // Use a unique variable name for each import based on entryKey
           const cleanEntryKey = entryKey.replace(/[^a-zA-Z0-9]/g, "_");
           code += `import ${cleanEntryKey}Original from './${relativePath}';
@@ -354,16 +348,14 @@ if (globalThis.__APP_BUILD_INFO__) {
 `;
         });
 
-        console.log(
-          "[UiCatalogWrapper] Created virtual module with wrapped components"
-        );
+        console.log("[UiCatalogWrapper] Created virtual module with wrapped components");
         return code;
       }
-      
+
       if (id === "virtual:dynamic-screen-loader") {
         // Generate a module that can dynamically load any business app screen
         const availableScreensJson = JSON.stringify(allPossibleEntries, null, 2);
-        
+
         let code = "import { wrapWithUiCatalog } from '@/common/wrapWithUiCatalog';\n\n";
         code += "// Available screen entries for dynamic loading\n";
         code += "const availableScreens = " + availableScreensJson + ";\n\n";
@@ -381,13 +373,15 @@ if (globalThis.__APP_BUILD_INFO__) {
         code += "  \n";
         code += "  // Check if already loading to prevent duplicate requests\n";
         code += "  if (loadingPromises.has(screenKey)) {\n";
-        code += "    console.log(`[Dynamic Screen Loader] Waiting for existing load: ${screenKey}`);\n";
+        code +=
+          "    console.log(`[Dynamic Screen Loader] Waiting for existing load: ${screenKey}`);\n";
         code += "    return loadingPromises.get(screenKey);\n";
         code += "  }\n";
         code += "  \n";
         code += "  const screenPath = availableScreens[screenKey];\n";
         code += "  if (!screenPath) {\n";
-        code += "    throw new Error(`Screen \"${screenKey}\" not found. Available screens: ${Object.keys(availableScreens).join(', ')}`);\n";
+        code +=
+          "    throw new Error(`Screen \"${screenKey}\" not found. Available screens: ${Object.keys(availableScreens).join(', ')}`);\n";
         code += "  }\n";
         code += "  \n";
         code += "  // Create loading promise\n";
@@ -395,16 +389,20 @@ if (globalThis.__APP_BUILD_INFO__) {
         code += "    try {\n";
         code += "      const startTime = performance.now();\n";
         code += "      \n";
-        code += "      // Dynamic import the screen (screenPath is already relative to project root)\n";
-        code += "      const importPath = screenPath.startsWith('./') ? screenPath : './' + screenPath;\n";
+        code +=
+          "      // Dynamic import the screen (screenPath is already relative to project root)\n";
+        code +=
+          "      const importPath = screenPath.startsWith('./') ? screenPath : './' + screenPath;\n";
         code += "      \n";
-        code += "      console.log(`[Dynamic Screen Loader] Loading screen: ${screenKey} from ${importPath}`);\n";
+        code +=
+          "      console.log(`[Dynamic Screen Loader] Loading screen: ${screenKey} from ${importPath}`);\n";
         code += "      \n";
         code += "      const module = await import(/* @vite-ignore */ importPath);\n";
         code += "      const component = module.default;\n";
         code += "      \n";
         code += "      if (!component) {\n";
-        code += "        throw new Error(`Screen \"${screenKey}\" does not have a default export`);\n";
+        code +=
+          '        throw new Error(`Screen "${screenKey}" does not have a default export`);\n';
         code += "      }\n";
         code += "      \n";
         code += "      // Wrap with UI catalog\n";
@@ -419,10 +417,12 @@ if (globalThis.__APP_BUILD_INFO__) {
         code += "        loadedAt: Date.now()\n";
         code += "      });\n";
         code += "      \n";
-        code += "      console.log(`[Dynamic Screen Loader] Successfully loaded screen: ${screenKey} in ${loadTime.toFixed(2)}ms`);\n";
+        code +=
+          "      console.log(`[Dynamic Screen Loader] Successfully loaded screen: ${screenKey} in ${loadTime.toFixed(2)}ms`);\n";
         code += "      return wrappedComponent;\n";
         code += "    } catch (error) {\n";
-        code += "      console.error(`[Dynamic Screen Loader] Failed to load screen \"${screenKey}\":`, error);\n";
+        code +=
+          '      console.error(`[Dynamic Screen Loader] Failed to load screen "${screenKey}":`, error);\n';
         code += "      throw error;\n";
         code += "    } finally {\n";
         code += "      // Remove from loading promises\n";
@@ -461,7 +461,7 @@ if (globalThis.__APP_BUILD_INFO__) {
         console.log("[Dynamic Screen Loader] Created virtual module for on-demand screen loading");
         return code;
       }
-      
+
       return null;
     },
   };
@@ -484,14 +484,11 @@ if (globalThis.__APP_BUILD_INFO__) {
 
   // Create wrapped versions of all entries (only for non-development builds)
   const wrappedEntries: Record<string, string> = {};
-  
+
   if (command !== "serve" || Object.keys(dynamicEntries).length > 0) {
     Object.keys(dynamicEntries).forEach((entryKey) => {
       // Create a virtual entry file that imports the original component, wraps it, and re-exports it
-      const wrappedEntryPath = path.join(
-        projectRootDir,
-        `src/wrapped-entries/${entryKey}.ts`
-      );
+      const wrappedEntryPath = path.join(projectRootDir, `src/wrapped-entries/${entryKey}.ts`);
       // Ensure the directory exists
       const wrappedEntryDir = path.dirname(wrappedEntryPath);
       if (!fs.existsSync(wrappedEntryDir)) {
@@ -504,12 +501,26 @@ if (globalThis.__APP_BUILD_INFO__) {
         .relative(path.dirname(wrappedEntryPath), originalEntryPath)
         .replace(/\\/g, "/");
 
-      const wrapperContent = `// Auto-generated wrapper file
+      // Check if this is a types, queries, hooks, tabs, components, utils, views, pages, or services entry (contains any of these keywords in the path)
+      // These directories typically export multiple named exports but no single default export
+      const isNamedExportsOnlyEntry = entryKey.includes('/types') || entryKey.endsWith('/types') || 
+                                      entryKey.includes('/queries') || entryKey.endsWith('/queries') ||
+                                      entryKey.includes('/hooks') || entryKey.endsWith('/hooks') ||
+                                      entryKey.includes('/tabs') || entryKey.endsWith('/tabs') ||
+                                      entryKey.includes('/components') || entryKey.endsWith('/components') ||
+                                      entryKey.includes('/utils') || entryKey.endsWith('/utils') ||
+                                      entryKey.includes('/views') || entryKey.endsWith('/views') ||
+                                      entryKey.includes('/pages') || entryKey.endsWith('/pages') ||
+                                      entryKey.includes('/services') || entryKey.endsWith('/services');
+      
+      const wrapperContent = isNamedExportsOnlyEntry 
+        ? `// Auto-generated wrapper file for types/queries/hooks/tabs/components/utils/views/pages/services - re-export all named exports
+export * from '${relativeEntryPath.startsWith(".") ? relativeEntryPath : "./" + relativeEntryPath}';
+`
+        : `// Auto-generated wrapper file
 import { wrapWithUiCatalog } from '@/common/wrapWithUiCatalog';
 import OriginalComponent from '${
-        relativeEntryPath.startsWith(".")
-          ? relativeEntryPath
-          : "./" + relativeEntryPath
+        relativeEntryPath.startsWith(".") ? relativeEntryPath : "./" + relativeEntryPath
       }';
 
 // Re-export wrapped component
@@ -529,26 +540,26 @@ export default wrapWithUiCatalog(OriginalComponent);
   return {
     optimizeDeps: {
       include: [
-          'antd', 
-          'recharts', 
-          '@newwork/nw-design-system', 
-          'dayjs', 
-          'react-i18next', 
-          '@newwork/gravity-ui-catalog',
-          '@phosphor-icons/react',
-          'lucide-react',
-          '@dnd-kit/core',
-          '@dnd-kit/sortable',
-          '@dnd-kit/utilities',
-          'zustand',
-          'react',
-          'react-icons',
-          'react-dom'
-        ],
+        "antd",
+        "recharts",
+        "@newwork/nw-design-system",
+        "dayjs",
+        "react-i18next",
+        "@newwork/gravity-ui-catalog",
+        "@phosphor-icons/react",
+        "lucide-react",
+        "@dnd-kit/core",
+        "@dnd-kit/sortable",
+        "@dnd-kit/utilities",
+        "zustand",
+        "react",
+        "react-icons",
+        "react-dom",
+      ],
       // Optimize caching strategy
       esbuildOptions: {
-        target: 'es2020'
-      }
+        target: "es2020",
+      },
       // Let Vite automatically handle all other dependencies including React, antd, etc.
     },
     plugins: [

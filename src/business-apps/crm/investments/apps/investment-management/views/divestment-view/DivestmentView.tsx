@@ -7,6 +7,7 @@ import {
 } from "lucide-react";
 import { BusinessAppContextProps } from "@/common/BusinessAppContext";
 import { getTranslationFromI18nKeyAndLabel } from "@/common/utils/windowUtils";
+import { buildPlatformUrl } from "@/common/utils/navigationUtils";
 import PlannedExits from "./tabs/planned-exits";
 import ExitOpportunities from "./tabs/exit-opportunities";
 import Sales from "./tabs/sales";
@@ -85,8 +86,20 @@ export const DivestmentView: React.FC<DivestmentViewProps> = (
       }
     }
 
-    const newUrl = `${window.location.pathname}?${urlParams.toString()}`;
-    window.history.replaceState({}, "", newUrl);
+    try {
+      const params: Record<string, string> = {};
+      urlParams.forEach((value, key) => {
+        params[key] = value;
+      });
+      
+      const newUrl = buildPlatformUrl(window.location.pathname, params);
+      
+      if (window.history && window.history.replaceState) {
+        window.history.replaceState({}, "", newUrl);
+      }
+    } catch (error) {
+      console.warn('Failed to update URL in divestment view:', error);
+    }
   };
 
   const handleTabChange = (key: string) => {

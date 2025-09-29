@@ -44,7 +44,12 @@ export interface Account {
     code: string;
   };
   numberOfEmployeesRef: string;
-  addressLine: string;
+  addresses?: Array<{
+    addressLine?: string;
+    city?: string;
+    region?: { id: string; value: string; code: string };
+    country?: { id: string; value: string; code: string };
+  }>;
   foundationDate: string;
   annualRevenueRef: string;
   annualRevenue: {
@@ -213,4 +218,6 @@ export interface OpportunityMetrics {
   winRate: number;
   averageDealSize: number;
   pipelineVelocity: number;
-} 
+}
+
+// No default export; types are exported by name only 

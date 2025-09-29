@@ -1,5 +1,5 @@
 export { useEquityInvestmentTypes } from './useEquityInvestmentTypes';
 export type { EquityInvestmentType } from './useEquityInvestmentTypes';
 
-export { useEquityAnalyticsIntegration } from './useEquityAnalyticsIntegration';
-export type { UseEquityAnalyticsIntegrationProps } from './useEquityAnalyticsIntegration';
+// Note: useEquityReportsData has been replaced by useUniversalInvestmentReportsAnalytics
+// Import from: '../real-estate-report/hooks/useUniversalInvestmentReportsAnalytics'

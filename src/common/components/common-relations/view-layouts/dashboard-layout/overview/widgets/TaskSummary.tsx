@@ -1,6 +1,7 @@
-import React from "react";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription, Badge, Button } from "@newwork/nw-design-system";
+import React, { useCallback } from "react";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription, Badge } from "@newwork/nw-design-system";
 import { CheckSquare } from "lucide-react";
+import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils';
 
 export interface TaskItem {
   id: string;
@@ -12,16 +13,85 @@ export interface TaskItem {
   isOverdue?: boolean;
   priority: 'High' | 'Normal' | 'Low' | string;
   status: string;
+  relatedEntity?: {
+    type: 'opportunity' | 'lead' | 'contact' | 'account';
+    id: string;
+    name: string;
+  };
 }
 
 export interface TaskSummaryProps {
   tasks: TaskItem[];
   moduleColor?: string;
+  source?: 'investments' | 'customer-relations';
 }
 
-export const TaskSummary: React.FC<TaskSummaryProps> = ({ tasks, moduleColor = "default" }) => {
-  // Remove unused variable warning
-  const _ = moduleColor;
+export const TaskSummary: React.FC<TaskSummaryProps> = ({ 
+  tasks, 
+  moduleColor: _moduleColor = "default",
+  source = 'investments'
+}) => {
+  // Navigation handler for task clicks
+  const handleTaskClick = useCallback((task: TaskItem) => {
+    if (!task.relatedEntity) {
+      return;
+    }
+
+    const { type, id } = task.relatedEntity;
+    const isInvestmentSource = source === 'investments';
+    let url: string;
+
+    switch (type) {
+      case 'opportunity':
+        url = buildPlatformUrl(
+          isInvestmentSource ? '/platform/irm/opportunity-record' : '/platform/crm/opportunity-record',
+          { 
+            opportunityId: id,
+            source: source,
+            fromView: 'dashboard',
+            fromTask: task.id
+          }
+        );
+        break;
+      case 'lead':
+        url = buildPlatformUrl(
+          isInvestmentSource ? '/platform/irm/lead-record' : '/platform/crm/lead-record',
+          { 
+            leadId: id,
+            source: source,
+            fromView: 'dashboard',
+            fromTask: task.id
+          }
+        );
+        break;
+      case 'contact':
+        url = buildPlatformUrl(
+          isInvestmentSource ? '/platform/irm/contact-record' : '/platform/crm/contact-record',
+          { 
+            contactId: id,
+            source: source,
+            fromView: 'dashboard',
+            fromTask: task.id
+          }
+        );
+        break;
+      case 'account':
+        url = buildPlatformUrl(
+          isInvestmentSource ? '/platform/irm/account-record' : '/platform/crm/account-record',
+          { 
+            accountId: id,
+            source: source,
+            fromView: 'dashboard',
+            fromTask: task.id
+          }
+        );
+        break;
+      default:
+        return;
+    }
+    
+    navigateTo(url);
+  }, [source]);
   return (
     <Card className="gba:h-full">
       <CardHeader>
@@ -38,8 +108,12 @@ export const TaskSummary: React.FC<TaskSummaryProps> = ({ tasks, moduleColor = "
             {tasks.slice(0, 5).map((task) => (
               <Card
                 key={task.id}
-                className="gba:transition-colors hover:gba:shadow-md"
+                className="gba:transition-all gba:duration-200 hover:gba:shadow-md hover:gba:bg-gray-50 gba:cursor-pointer"
                 data-testid={`task-item-${task.id}`}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleTaskClick(task);
+                }}
               >
                 <CardHeader className="gba:pb-2">
                   <div className="gba:flex gba:items-center gba:gap-3">
@@ -105,11 +179,6 @@ export const TaskSummary: React.FC<TaskSummaryProps> = ({ tasks, moduleColor = "
                 </CardContent>
               </Card>
             ))}
-            <div className="gba:text-center gba:pt-2">
-              <Button variant="link" size="sm" className="gba:text-green-600">
-                View All Tasks
-              </Button>
-            </div>
           </div>
         ) : (
           <div className="gba:h-64 gba:flex gba:items-center gba:justify-center">
@@ -119,11 +188,6 @@ export const TaskSummary: React.FC<TaskSummaryProps> = ({ tasks, moduleColor = "
               </div>
               <div className="gba:text-gray-600 gba:text-lg">
                 No active tasks. All caught up!
-              </div>
-              <div className="gba:mt-4">
-                <Button variant="link" size="sm" className="gba:text-green-600">
-                  View All Tasks
-                </Button>
               </div>
             </div>
           </div>

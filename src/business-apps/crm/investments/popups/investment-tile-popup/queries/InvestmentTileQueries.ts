@@ -60,7 +60,7 @@ export const useGetInvestmentAdditionalProperties = (context: BusinessAppContext
 
       return investment;
     } catch (error) {
-      console.error('Error fetching investment additional properties:', error);
+      // Keep minimal logging to avoid noisy console in popups
       throw error;
     }
   }, [graphqlClient]);

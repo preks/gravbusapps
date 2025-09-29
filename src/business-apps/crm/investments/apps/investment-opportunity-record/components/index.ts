@@ -1,18 +1,14 @@
-import { OpportunityHeader } from './OpportunityHeader';
-import { ActivityTimeline } from './ActivityTimeline';
+import { OpportunityHeader } from '@/business-apps/crm/common/apps/opportunity-record/components/OpportunityHeader';
+import { ActivityTimeline } from '@/business-apps/crm/common/apps/opportunity-record/components/ActivityTimeline';
 import { TasksSection } from './TasksSection';
 import { OpportunityStageProgression } from './OpportunityStageProgression';
 import { OpportunityDocuments } from './OpportunityDocuments';
-import InvestmentSection from './InvestmentSection';
-import DynamicInvestmentFields from './DynamicInvestmentFields';
 
 export { OpportunityHeader };
 export { ActivityTimeline };
 export { TasksSection };
 export { OpportunityStageProgression };
 export { OpportunityDocuments };
-export { InvestmentSection };
-export { DynamicInvestmentFields };
 
 export default {
   OpportunityHeader,
@@ -20,6 +16,4 @@ export default {
   TasksSection,
   OpportunityStageProgression,
   OpportunityDocuments,
-  InvestmentSection,
-  DynamicInvestmentFields
 }; 

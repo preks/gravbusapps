@@ -103,6 +103,44 @@ export const useAccountStatisticsQueries = (context: BusinessAppContextProps) =>
     return { current: result.current.aggregate.count, previous: result.previous.aggregate.count };
   }, [graphqlClient]);
 
+  const fetchCurrencyInfo = useCallback(async (): Promise<string | null> => {
+    try {
+      // Get currency from the first investment account that has currency data
+      const result = await graphqlClient.request<{
+        InvestmentAccount: Array<{
+          investment: Array<{
+            currency: { code: string } | null;
+          }>;
+        }>;
+      }>(`
+        query GetCurrencyInfo {
+          InvestmentAccount(where: { isDeleted: { _eq: false } }, limit: 1) {
+            investment {
+              currency {
+                code
+              }
+            }
+          }
+        }
+      `);
+
+      // Extract the first available currency code
+      for (const account of result.InvestmentAccount) {
+        for (const investment of account.investment) {
+          if (investment.currency?.code) {
+            return investment.currency.code;
+          }
+        }
+      }
+      
+      // Return null if no currency found (will fallback to USD)
+      return null;
+    } catch (error) {
+      console.error('Error fetching currency info:', error);
+      return null;
+    }
+  }, [graphqlClient]);
+
   const fetchTotalRevenueApprox = useCallback(async (): Promise<number> => {
     try {
       // First, try to get actual revenue data from investments
@@ -184,6 +222,7 @@ export const useAccountStatisticsQueries = (context: BusinessAppContextProps) =>
     fetchActiveAccountsWithTrend,
     fetchAccountsThisYearWithTrend,
     fetchTotalRevenueApprox,
+    fetchCurrencyInfo,
   };
 };
 

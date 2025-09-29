@@ -301,8 +301,7 @@ export const OpportunityFormProvider: React.FC<
           opportunityStatusRef: values.opportunityStatus,
           status: values.status,
           stage: values.stage,
-          pipelineRef: values.pipeline,
-          salesPipelineRef: values.pipeline, // Map to salesPipelineRef for backward compatibility
+          salesPipelineRef: values.pipeline, // Use salesPipelineRef instead of deprecated pipelineRef
           salesPipelineStageRef: values.salesPipelineStage,
 
           // Relationship fields

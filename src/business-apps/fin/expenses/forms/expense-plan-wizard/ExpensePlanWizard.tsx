@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Typography, Input } from 'antd';
 import { Button } from '@newwork/gravity-ui-catalog';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
@@ -7,7 +7,7 @@ import { useProcessEventState } from '@/business-apps/fin/expenses/utils/useProc
 import { showToast } from '../../utils/notificationUtils';
 import { EVENTS } from '../../utils/constants';
 import { ICONS } from '../../utils/icons';
-
+import dayjs from "dayjs";
 
 import { SCREEN_NAMES_ENUM } from './constants/constants';
 
@@ -23,24 +23,22 @@ import PlanSummaryScreen from './screens/PlanSummaryScreen';
 // Import context provider and hook
 import { ExpensePlanWizardProvider, useExpensePlanWizardContext } from './context/ExpensePlanWizardContext';
 
-// Import date validation hook
-import { useExpensePlanDateValidation } from './utils/dateValidationUtils';
 
 import { setInitialScreen } from './utils/tripScreenUtils';
 import ExpensePlanItem from '../expense-plan-item';
+import { PLAN_TYPES } from '../expense-plan/constants/constants';
+import { TITLE_MAX_LENGTH } from '../expense-request/constants/constants';
+import { createSummaryScreenLogObject } from './utils/summaryScreenUtils';
 
 const { Title } = Typography;
 
-interface ExpensePlanWizardContentProps extends BusinessAppContextProps {
-  onCancel: () => void;
-}
 
 /**
  * Expense Plan Wizard Content component
  * @param props - Component props
  * @returns Expense Plan Wizard Content component
  */
-const ExpensePlanWizardContent: React.FC<ExpensePlanWizardContentProps> = ({ onCancel, accessToken, userInfo, additionalData }) => {
+const ExpensePlanWizardContent: React.FC<BusinessAppContextProps> = ({ accessToken, userInfo, additionalData }) => {
   const { 
     loading, 
     expenseRuleError, 
@@ -54,6 +52,7 @@ const ExpensePlanWizardContent: React.FC<ExpensePlanWizardContentProps> = ({ onC
     hideExpenseItem,
     setRequestAdvancePayment
   } = useExpensePlanWizardContext();
+  const { dispatchProcessContinueEventIfEnabled } = useProcessEventState(additionalData);
   const [currentScreen, setCurrentScreen] = useState<string>(SCREEN_NAMES_ENUM.LOAD_TAB);
   const [isEditingTitle, setIsEditingTitle] = useState<boolean>(false);
   const [titleValue, setTitleValue] = useState<string>('');
@@ -62,7 +61,7 @@ const ExpensePlanWizardContent: React.FC<ExpensePlanWizardContentProps> = ({ onC
   const [itemsCount, setItemsCount] = useState<number>(0);
   const [selectedItemCount, setSelectedItemCount] = useState<number>(0);
 
-  const isTrip = expensePlanData?.ExpensePlanByPk?.requestTypeRef?.toLowerCase().includes('trip');
+  const isTrip = expensePlanData?.ExpensePlanByPk?.requestTypeRef?.toLowerCase().includes(PLAN_TYPES.TRIP);
   // Update title and titleValue when expensePlanData changes
   useEffect(() => {
     if (expensePlanData?.ExpensePlanByPk) {
@@ -70,6 +69,34 @@ const ExpensePlanWizardContent: React.FC<ExpensePlanWizardContentProps> = ({ onC
       setTitleValue(expensePlanData.ExpensePlanByPk.title || '');
     }
   }, [expensePlanData, setCurrentTitle, additionalData]);
+
+  const handleCancel =useMemo(() => {
+    return () => {
+      const logObject = createSummaryScreenLogObject(
+        expensePlanData.ExpensePlanByPk,
+        expensePlanData.ExpensePlanByPk?.expenseRuleId,
+        currentTitle,
+        expensePlanData,
+        EVENTS.DISCARD,  
+        false
+      );
+      dispatchProcessContinueEventIfEnabled(
+        EVENTS.DISCARD, {
+          "event": EVENTS.DISCARD,
+          pso_completeNotification: {
+            type: 'error',
+            messageKey: getTranslationFromI18nKeyAndLabel(
+              'lowcoder:absence_module.toast_notification_cancel_create_absence',
+              'The action has been canceled.'
+              )
+          },
+          expensePlan:logObject.expensePlan,
+          expensePlanItems: logObject.expensePlanItems,
+          expenseRequestTrips: logObject.expensePlanTrips,
+          advancePayment: logObject.advancePayment
+        });
+    };
+  }, [expensePlanData?.ExpensePlanByPk]);
 
   // Update currency when expensePlanData changes: prefer plan currency, fallback to item currency
   useEffect(() => {
@@ -119,7 +146,7 @@ const ExpensePlanWizardContent: React.FC<ExpensePlanWizardContentProps> = ({ onC
     if (!value.trim()) {
       return getTranslationFromI18nKeyAndLabel('lowcoder:create_expense_request.expense_request_container.current_title_custom_rule', 'Please enter a title');
     }
-    if (value.length > 50) {
+    if (value.length > TITLE_MAX_LENGTH) {
       return getTranslationFromI18nKeyAndLabel('lowcoder:create_expense_request.maximum_characters_title_error_message',
         'Maximum limit reached: The title can be up to 50 characters only.');
     }
@@ -329,7 +356,7 @@ const ExpensePlanWizardContent: React.FC<ExpensePlanWizardContentProps> = ({ onC
                     value={titleValue}
                     onChange={handleTitleChange}
                     placeholder={getTranslationFromI18nKeyAndLabel('lowcoder:create_expense_plan.title_placeholder', 'Enter title')}
-                    maxLength={50}
+                    maxLength={TITLE_MAX_LENGTH}
                     autoFocus
                   />
                 </div>
@@ -485,7 +512,7 @@ const ExpensePlanWizardContent: React.FC<ExpensePlanWizardContentProps> = ({ onC
                 variant="outline" 
                 style={{ minWidth: '100px', borderWidth: '2px', fontSize: '16px', fontWeight: 600, height: '40px', padding: '0px 16px', borderRadius: '22px' }}
                 data-testid="expense-plan-wizard-cancel-button"
-                onClick={onCancel}
+                onClick={handleCancel}
               >
                 {getTranslationFromI18nKeyAndLabel('lowcoder:add_items_to_plan.cancel_items_button', 'Cancel')}
               </Button>
@@ -564,28 +591,7 @@ const ExpensePlanWizardContent: React.FC<ExpensePlanWizardContentProps> = ({ onC
  */
 const ExpensePlanWizard: React.FC<BusinessAppContextProps> = (props) => {
   const { accessToken, userInfo, additionalData } = props;
-  const { dispatchProcessContinueEventIfEnabled } = useProcessEventState(additionalData);
-  
-  const handleCancel = () => {
-    try {
-      dispatchProcessContinueEventIfEnabled(
-        EVENTS.DISCARD, {
-          "event": EVENTS.DISCARD,
-          pso_completeNotification: {
-            type: 'error',
-            messageKey: getTranslationFromI18nKeyAndLabel(
-              'lowcoder:absence_module.toast_notification_cancel_create_absence',
-              'The action has been canceled.'
-              )
-          }
-        });
-    } catch (processError) {
-      showToast(
-        getTranslationFromI18nKeyAndLabel("lowcoder:create_expense_type_item.error_flows_message", "Error in flow process"),
-        "error"
-      );
-    }
-  };
+
   
   return (
     <ExpensePlanWizardProvider
@@ -594,8 +600,7 @@ const ExpensePlanWizard: React.FC<BusinessAppContextProps> = (props) => {
       additionalData={additionalData}
     >
       <div className="gba:flex gba:flex-col" style={{ height: '100%' }} data-testid="expense-plan-wizard-wrapper">
-        <ExpensePlanWizardContent 
-          onCancel={handleCancel} 
+        <ExpensePlanWizardContent
           accessToken={accessToken} 
           userInfo={userInfo}
           additionalData={additionalData}

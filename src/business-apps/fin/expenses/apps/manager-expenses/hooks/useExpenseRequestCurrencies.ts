@@ -48,7 +48,7 @@ const GET_CURRENCY_DISTRIBUTION = `
 
 export const useExpenseRequestCurrencies = (
   context: BusinessAppContextProps,
-  managerId: string
+  managerId: string,
 ) => {
   const [mostUsedCurrency, setMostUsedCurrency] = useState<string>("EUR"); // Default fallback
   const [isLoading, setIsLoading] = useState(true);
@@ -68,14 +68,12 @@ export const useExpenseRequestCurrencies = (
     try {
       const result = await graphqlClient.request<CurrencyDetectionResponse>(
         GET_CURRENCY_DISTRIBUTION,
-        { managerId }
+        { managerId },
       );
 
       if (result?.managerRequests && result?.allRequests) {
         // Helper function to count currencies from requests
-        const countCurrencies = (
-          requests: { currencyRef: string }[]
-        ): CurrencyCount[] => {
+        const countCurrencies = (requests: { currencyRef: string }[]): CurrencyCount[] => {
           const currencyMap = new Map<string, number>();
 
           requests.forEach((request) => {
@@ -91,27 +89,16 @@ export const useExpenseRequestCurrencies = (
           }));
         };
 
-        const managerRequestsCurrencyCounts = countCurrencies(
-          result.managerRequests
-        );
-        const allRequestsCurrencyCounts = countCurrencies(result.allRequests);
+        const managerRequestsCurrencyCounts = countCurrencies(result.managerRequests);
 
         // Sort by count (descending) and get the most used currency
         if (managerRequestsCurrencyCounts.length > 0) {
           managerRequestsCurrencyCounts.sort((a, b) => b.count - a.count);
           const detectedCurrency = managerRequestsCurrencyCounts[0].currency;
 
-          console.log("Currency detection results:", {
-            managerRequestsCurrencyCounts,
-            detectedCurrency,
-            managerRequestsCount: result.managerRequests.length,
-            allRequestsCount: result.allRequests.length,
-          });
-
           // The detectedCurrency is already the extracted currency code
           setMostUsedCurrency(detectedCurrency);
         } else {
-          console.log("No manager requests found, using EUR as fallback");
           setMostUsedCurrency("EUR");
         }
       } else {
@@ -119,9 +106,7 @@ export const useExpenseRequestCurrencies = (
       }
     } catch (err) {
       console.error("Error detecting most used currency:", err);
-      setError(
-        err instanceof Error ? err : new Error("Failed to detect currency")
-      );
+      setError(err instanceof Error ? err : new Error("Failed to detect currency"));
       setMostUsedCurrency("EUR"); // Fallback to EUR on error
     } finally {
       setIsLoading(false);

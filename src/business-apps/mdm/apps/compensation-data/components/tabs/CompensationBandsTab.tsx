@@ -51,21 +51,16 @@ const CompensationBandsTab: React.FC<CompensationBandsTabProps> = (context) => {
   const dataTestId = formatDataTestId(prefixDataTestId, DATA_TEST_ID_PREFIX);
 
   // Use real data integration
-  const { payGrades, isLoading, error, refetch } =
-    useCompensationDataIntegration(context);
+  const { payGrades, isLoading, error, refetch } = useCompensationDataIntegration(context);
   const [selectedBand, setSelectedBand] = useState<PayGrade | null>(null);
   const [drawerVisible, setDrawerVisible] = useState<boolean>(false);
   const [searchTerm, setSearchTerm] = useState("");
 
-  const restClient = useRestClient(
-    env("NEXT_PUBLIC_KOGITO_PROCESSES_ENDPOINT")
-  );
+  const restClient = useRestClient(env("NEXT_PUBLIC_KOGITO_PROCESSES_ENDPOINT"));
 
   useEffect(() => {
     if (selectedBand) {
-      const updatedSelectedBand = payGrades.find(
-        (payGrade) => payGrade.id === selectedBand.id
-      );
+      const updatedSelectedBand = payGrades.find((payGrade) => payGrade.id === selectedBand.id);
 
       if (updatedSelectedBand) {
         setSelectedBand(updatedSelectedBand);
@@ -75,8 +70,7 @@ const CompensationBandsTab: React.FC<CompensationBandsTabProps> = (context) => {
 
   const formatCurrency = useCallback(
     (amount: number, currency?: { id: string; value: string } | string) => {
-      let currencyCode =
-        typeof currency === "string" ? currency : currency?.id || "EUR";
+      let currencyCode = typeof currency === "string" ? currency : currency?.id || "EUR";
 
       // Extract currency code from format like "Currency:v1:EUR" -> "EUR"
       if (currencyCode.includes(":")) {
@@ -90,16 +84,12 @@ const CompensationBandsTab: React.FC<CompensationBandsTabProps> = (context) => {
         minimumFractionDigits: 2,
       }).format(amount);
     },
-    [userLocale]
+    [userLocale],
   );
 
   // Filter data based on search term
   const filteredData = useMemo(() => {
-    return payGrades.filter(
-      (band) =>
-        band.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        band.code?.toLowerCase().includes(searchTerm.toLowerCase())
-    );
+    return payGrades.filter((band) => band.name.toLowerCase().includes(searchTerm.toLowerCase()));
   }, [payGrades, searchTerm]);
 
   const handleRowClick = useCallback((record: PayGrade) => {
@@ -119,7 +109,7 @@ const CompensationBandsTab: React.FC<CompensationBandsTabProps> = (context) => {
       },
       {
         headers: { Authorization: `Bearer ${context.accessToken}` },
-      }
+      },
     );
 
     await refetch();
@@ -138,10 +128,6 @@ const CompensationBandsTab: React.FC<CompensationBandsTabProps> = (context) => {
             value: selectedBand.name,
           },
           {
-            label: "Code",
-            value: selectedBand.code,
-          },
-          {
             label: "Pay Grade",
             value: selectedBand.payGrade,
           },
@@ -150,9 +136,7 @@ const CompensationBandsTab: React.FC<CompensationBandsTabProps> = (context) => {
             value:
               typeof selectedBand.currency === "string"
                 ? selectedBand.currency
-                : selectedBand.currency?.value ||
-                  selectedBand.currency?.id ||
-                  "-",
+                : selectedBand.currency?.value || selectedBand.currency?.id || "-",
           },
         ],
       },
@@ -162,46 +146,22 @@ const CompensationBandsTab: React.FC<CompensationBandsTabProps> = (context) => {
         items: [
           {
             label: "Minimum Salary",
-            value: formatCurrency(
-              selectedBand.minSalary,
-              selectedBand.currency
-            ),
+            value: formatCurrency(selectedBand.minSalary, selectedBand.currency),
           },
           {
             label: "Standard Salary",
-            value: formatCurrency(
-              selectedBand.standardSalary,
-              selectedBand.currency
-            ),
+            value: formatCurrency(selectedBand.standardSalary, selectedBand.currency),
           },
           {
             label: "Maximum Salary",
-            value: formatCurrency(
-              selectedBand.maxSalary,
-              selectedBand.currency
-            ),
+            value: formatCurrency(selectedBand.maxSalary, selectedBand.currency),
           },
           {
             label: "Salary Range",
             value: formatCurrency(
               selectedBand.maxSalary - selectedBand.minSalary,
-              selectedBand.currency
+              selectedBand.currency,
             ),
-          },
-        ],
-      },
-      {
-        icon: <InfoIcon />,
-        title: "System Information",
-        items: [
-          {
-            label: "ID",
-            value: selectedBand.id,
-          },
-          {
-            label: "Version",
-            value:
-              selectedBand.version !== undefined ? selectedBand.version : "-",
           },
         ],
       },
@@ -210,33 +170,11 @@ const CompensationBandsTab: React.FC<CompensationBandsTabProps> = (context) => {
 
   const dataTable = useMemo(
     () => filteredData.map((compensationBand) => compensationBand),
-    [filteredData]
+    [filteredData],
   );
 
   const renderCompensationBandsTable = () => {
     const columns: ColumnDef<PayGrade>[] = [
-      {
-        accessorKey: "code",
-        header: ({ column }) => (
-          <Button
-            variant="ghost"
-            onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
-            className="gba:h-auto gba:p-0 gba:font-semibold gba:hover:bg-transparent gba:justify-start"
-          >
-            Code
-            <ArrowsDownUpIcon className="gba:ml-2 gba:h-4 gba:w-4" />
-          </Button>
-        ),
-        enableSorting: true,
-        cell: ({ getValue }) => {
-          const code = getValue();
-          return (
-            <div className="gba:flex gba:items-center">
-              <Badge variant="info">{(code as string) ?? "N/A"}</Badge>
-            </div>
-          );
-        },
-      },
       {
         accessorKey: "name",
         header: ({ column }) => (
@@ -493,12 +431,13 @@ const CompensationBandsTab: React.FC<CompensationBandsTabProps> = (context) => {
           <div className="gba:flex-1 gba:overflow-auto gba:px-4 gba:pb-4">
             {selectedBand && (
               <div className="gba:space-y-6">
-                {drawerItems.map((item) => {
+                {drawerItems.map((item, index) => {
                   return (
                     <VerticalTable
                       icon={item.icon}
                       title={item.title}
                       items={item.items}
+                      key={item.title + index}
                     />
                   );
                 })}

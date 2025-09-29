@@ -1,11 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { Spin, Alert, Timeline, Typography, message, Modal, Input } from 'antd';
 import { Button } from '@newwork/nw-design-system';
-import { NoteDeletionPopup } from '@/common/components';
-import { PlusCircleOutlined, CloseOutlined, EditOutlined, UserOutlined } from '@ant-design/icons';
+import { NoteDeletePopup } from '@/common/components/common-relations/popups/note-delete-popup';
+import { PlusCircleOutlined, CloseOutlined, UserOutlined } from '@ant-design/icons';
 import { AppAction } from '@/components/app-action/AppAction';
 import { FlowContextName } from '@/common/types/FlowRegistryTypes';
-import { startProcess } from '@/common/utils/start-process';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 import { useRestClient } from '@/common/network/rest/useRestClient';
 import { env } from '@/common/env/EnvUtils';
@@ -26,26 +25,30 @@ interface NotesSectionProps {
 // Use the actual investment note type
 type SimpleNoteData = InvestmentNote;
 
-export const NotesSection: React.FC<NotesSectionProps> = ({ leadId, context, showHeader = true }) => {
+export const NotesSection: React.FC<NotesSectionProps> = ({
+  leadId,
+  context,
+  showHeader = true,
+}) => {
   const [notes, setNotes] = useState<SimpleNoteData[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
   const [isModalVisible, setIsModalVisible] = useState(false);
   const [editingNote, setEditingNote] = useState<SimpleNoteData | null>(null);
   const [noteTitle, setNoteTitle] = useState('');
   const [noteText, setNoteText] = useState('');
-  const [saving, setSaving] = useState(false);
-  
+
   const restClient = useRestClient(env('NEXT_PUBLIC_KOGITO_PROCESSES_ENDPOINT'));
   // const { getEmployeeDisplayName } = useEmployeeData(context.accessToken);
   const { fetchInvestmentNotesByLeadId } = useGetInvestmentNotesByLeadId(context);
 
   const loadNotes = async () => {
     if (!leadId) return;
-    
+
     setLoading(true);
     setError(null);
-    
+
     try {
       const notesData = await fetchInvestmentNotesByLeadId(leadId);
       setNotes(notesData);
@@ -88,7 +91,7 @@ export const NotesSection: React.FC<NotesSectionProps> = ({ leadId, context, sho
           loadNotes();
           return;
         }
-        
+
         // Also check for different event structure
         const response = event.detail?.response;
         if (response?.detail?.resolution === 'success') {
@@ -115,16 +118,16 @@ export const NotesSection: React.FC<NotesSectionProps> = ({ leadId, context, sho
       'processCompletion',
       'noteCompletion',
       'noteCompleted',
-      'processCompleted'
+      'processCompleted',
     ];
 
-    eventNames.forEach(eventName => {
+    eventNames.forEach((eventName) => {
       window.addEventListener(eventName, handleProcessCompletion as EventListener);
     });
 
     // Add a universal listener for debugging
     const originalDispatchEvent = window.dispatchEvent;
-    window.dispatchEvent = function(event: Event) {
+    window.dispatchEvent = function (event: Event) {
       if (event.type && (event.type.includes('process') || event.type.includes('note'))) {
         console.log('Custom Event dispatched:', event.type, event);
         handleAllEvents(event);
@@ -133,10 +136,10 @@ export const NotesSection: React.FC<NotesSectionProps> = ({ leadId, context, sho
     };
 
     return () => {
-      eventNames.forEach(eventName => {
+      eventNames.forEach((eventName) => {
         window.removeEventListener(eventName, handleProcessCompletion as EventListener);
       });
-      
+
       // Restore original dispatchEvent
       window.dispatchEvent = originalDispatchEvent;
     };
@@ -149,13 +152,6 @@ export const NotesSection: React.FC<NotesSectionProps> = ({ leadId, context, sho
   //   setIsModalVisible(true);
   // };
 
-  const handleEditNote = (note: SimpleNoteData) => {
-    setEditingNote(note);
-    setNoteTitle(note.title || '');
-    setNoteText(note.text || '');
-    setIsModalVisible(true);
-  };
-
   const handleSaveNote = async () => {
     if (!noteTitle.trim() || !noteText.trim()) {
       message.error('Please fill in both title and text');
@@ -166,29 +162,33 @@ export const NotesSection: React.FC<NotesSectionProps> = ({ leadId, context, sho
     try {
       if (editingNote) {
         // Update existing note
-        await restClient.post('/investments/saveInvestmentNote', { // Updated from '/customer-relations/saveCrmNote'
-          changeMode: "UPDATE",
-          investmentNote: { // Updated from 'crmNote'
+        await restClient.post('/investments/saveInvestmentNote', {
+          // Updated from '/customer-relations/saveCrmNote'
+          changeMode: 'UPDATE',
+          investmentNote: {
+            // Updated from 'crmNote'
             id: editingNote.id,
             title: noteTitle.trim(),
             text: noteText.trim(),
-            version: editingNote.version || 1
-          }
+            version: editingNote.version || 1,
+          },
         });
         message.success('Note updated successfully');
       } else {
         // Create new note
-        await restClient.post('/investments/saveInvestmentNote', { // Updated from '/customer-relations/saveCrmNote'
-          changeMode: "CREATE",
-          investmentNote: { // Updated from 'crmNote'
+        await restClient.post('/investments/saveInvestmentNote', {
+          // Updated from '/customer-relations/saveCrmNote'
+          changeMode: 'CREATE',
+          investmentNote: {
+            // Updated from 'crmNote'
             title: noteTitle.trim(),
             text: noteText.trim(),
-            leadId: leadId
-          }
+            leadId: leadId,
+          },
         });
         message.success('Note created successfully');
       }
-      
+
       setIsModalVisible(false);
       loadNotes(); // Refresh the list
     } catch (err) {
@@ -199,7 +199,9 @@ export const NotesSection: React.FC<NotesSectionProps> = ({ leadId, context, sho
     }
   };
 
-  const [deletePopup, setDeletePopup] = useState<{ open: boolean; note?: SimpleNoteData }>({ open: false });
+  const [deletePopup, setDeletePopup] = useState<{ open: boolean; note?: SimpleNoteData }>({
+    open: false,
+  });
   const handleDeleteNote = (note: SimpleNoteData) => {
     setDeletePopup({ open: true, note });
   };
@@ -228,7 +230,7 @@ export const NotesSection: React.FC<NotesSectionProps> = ({ leadId, context, sho
         showIcon
         className="gba:mb-4"
         action={
-          <Button size="small" onClick={loadNotes}>
+          <Button size="sm" onClick={loadNotes}>
             Retry
           </Button>
         }
@@ -248,31 +250,20 @@ export const NotesSection: React.FC<NotesSectionProps> = ({ leadId, context, sho
             </p>
           </div>
           <AppAction
-            contextsArray={[FlowContextName.investmentNoteEntity]}
+            contextsArray={[FlowContextName.createInvestmentNote]}
             externalContextData={{
               leadId,
               lead: leadId,
-              investmentNote: { lead: leadId }
+              investmentNote: { lead: leadId },
             }}
-            staticFlowData={leadId ? [{
-              key: 'create-investment-note-fallback',
-              label: 'Add Note',
-              onClick: () => startProcess({
-                domain: 'investments',
-                processName: 'createInvestmentNote',
-                payload: { leadId },
-                builderType: 'NATIVE_SCREEN'
-              })
-            }] : []}
+            staticFlowData={[]}
             prefixDataTestId="add-note"
             accessToken={context.accessToken}
             emptyStateBehavior="enable"
             deferMainContextRequestsUntilClick
           >
-            <Button
-              variant="default"
-              icon={<PlusCircleOutlined />}
-            >
+            <Button variant="default">
+              <PlusCircleOutlined />
               Add Note
             </Button>
           </AppAction>
@@ -295,41 +286,31 @@ export const NotesSection: React.FC<NotesSectionProps> = ({ leadId, context, sho
                     <Text strong className="gba:text-base gba:block gba:mb-2">
                       {note.title || 'Untitled Note'}
                     </Text>
-                    
-                    <Text className="gba:text-gray-600 gba:block gba:mb-3">
-                      {note.text}
-                    </Text>
-                    
+
+                    <Text className="gba:text-gray-600 gba:block gba:mb-3">{note.text}</Text>
+
                     <div className="gba:flex gba:items-center gba:gap-4 gba:text-sm gba:text-gray-500">
-                                             {note.authorDisplayName && (
-                         <span className="gba:flex gba:items-center gba:gap-1">
-                           <UserOutlined />
-                           By: {note.authorDisplayName}
-                         </span>
-                       )}
-                      
+                      {note.authorDisplayName && (
+                        <span className="gba:flex gba:items-center gba:gap-1">
+                          <UserOutlined />
+                          By: {note.authorDisplayName}
+                        </span>
+                      )}
+
                       <span>
                         Created: {dayjs(note.createdAt).format('MMM D, YYYY [at] h:mm A')}
                       </span>
                     </div>
                   </div>
-                  
+
                   <div className="gba:flex gba:gap-2 gba:ml-4">
                     <Button
-                      size="small"
-                      icon={<EditOutlined />}
-                      onClick={() => handleEditNote(note)}
-                      className="gba:text-blue-600 gba:border-blue-600 gba:hover:text-blue-700 gba:hover:border-blue-700"
-                    >
-                      Edit
-                    </Button>
-                    <Button
-                      size="small"
-                      danger
-                      icon={<CloseOutlined />}
+                      size="icon"
+                      variant="ghost"
                       onClick={() => handleDeleteNote(note)}
+                      data-testid={`delete-note-${note.id}`}
                     >
-                      Delete
+                      <CloseOutlined />
                     </Button>
                   </div>
                 </div>
@@ -362,7 +343,7 @@ export const NotesSection: React.FC<NotesSectionProps> = ({ leadId, context, sho
               maxLength={100}
             />
           </div>
-          
+
           <div>
             <label className="gba:block gba:text-sm gba:font-medium gba:text-gray-700 gba:mb-2">
               Note Text
@@ -380,7 +361,7 @@ export const NotesSection: React.FC<NotesSectionProps> = ({ leadId, context, sho
       </Modal>
 
       {deletePopup.open && deletePopup.note && (
-        <NoteDeletionPopup
+        <NoteDeletePopup
           isOpen={deletePopup.open}
           onClose={() => setDeletePopup({ open: false })}
           accessToken={context.accessToken}
@@ -390,7 +371,7 @@ export const NotesSection: React.FC<NotesSectionProps> = ({ leadId, context, sho
           domain="investments"
           onSuccess={() => {
             const id = deletePopup.note!.id;
-            setNotes(prev => prev.filter(n => n.id !== id));
+            setNotes((prev) => prev.filter((n) => n.id !== id));
             setDeletePopup({ open: false });
           }}
           onError={() => setDeletePopup({ open: false })}
@@ -398,4 +379,4 @@ export const NotesSection: React.FC<NotesSectionProps> = ({ leadId, context, sho
       )}
     </div>
   );
-}; 
+};

@@ -23,7 +23,6 @@ export const GET_EXPENSE_ITEMS_BY_EMPLOYEE = `
         _or: [
           {title: {_ilike: $searchTerm}},
           {code: {_ilike: $searchTerm}},
-          {description: {_ilike: $searchTerm}},
           {status: {_ilike: $searchTerm}},
           {expenseClass: {value: {_ilike: $searchTerm}}},
           {expenseClass: {translations: {value: {_ilike: $searchTerm}}}},
@@ -56,7 +55,6 @@ export const GET_EXPENSE_ITEMS_BY_EMPLOYEE = `
         _or: [
           {title: {_ilike: $searchTerm}},
           {code: {_ilike: $searchTerm}},
-          {description: {_ilike: $searchTerm}},
           {status: {_ilike: $searchTerm}},
           {expenseClass: {value: {_ilike: $searchTerm}}},
           {expenseClass: {translations: {value: {_ilike: $searchTerm}}}},
@@ -76,7 +74,6 @@ export const GET_EXPENSE_ITEMS_BY_EMPLOYEE = `
       id
       code
       title
-      description
       status
       expenseDate
       totalAmount
@@ -194,7 +191,6 @@ export const GET_EXPENSE_ITEM_BY_ID = `
       id
       code
       title
-      description
       expenseDate
       reimbursableAmount
       nonReimbursableAmount

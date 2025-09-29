@@ -53,21 +53,10 @@ export interface InvestmentAccountDataResponse {
       code: string;
       objectValue?: any;
     };
-    timeZone?: {
-      id: string;
-      value: string;
-      code: string;
-      objectValue?: any;
-    };
     // Audit fields
     createdAt: string;
     createdBy: string;
-    updatedAt: string;
-    updatedBy: string;
     // System fields
-    acl?: any;
-    activeFrom?: string;
-    activeTo?: string;
     additionalProperties?: any;
   }>;
 }
@@ -125,23 +114,12 @@ export const GET_INVESTMENT_ACCOUNT_BY_ID = `
         code
         objectValue
       }
-      timeZone {
-        id
-        value
-        code
-        objectValue
-      }
       
       # Audit fields
       createdAt
       createdBy
-      updatedAt
-      updatedBy
       
       # System fields
-      acl
-      activeFrom
-      activeTo
       additionalProperties
     }
   }

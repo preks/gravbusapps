@@ -154,11 +154,36 @@ export const TaskView: React.FC<TaskViewProps> = (props: TaskViewProps) => {
     if (activeTab === 'my') {
       // For "My Tasks", filter by current user's employee ID
       const currentUserEmployeeId = userInfo?.employeeDetails?.employeeId;
+      console.log('🔍 My Tasks Filter Debug:', {
+        userInfo,
+        employeeDetails: userInfo?.employeeDetails,
+        currentUserEmployeeId,
+        alternativeId: userInfo?.id,
+        alternativeEmployeeId: (userInfo as any)?.employeeId
+      });
+      
       if (currentUserEmployeeId) {
+        console.log('✅ Using employeeDetails.employeeId:', currentUserEmployeeId);
         return {
           ...baseFilters,
           assignedEmployeeIds: [currentUserEmployeeId]
         };
+      } else if ((userInfo as any)?.employeeId) {
+        // Fallback to direct employeeId if employeeDetails.employeeId is not available
+        console.log('⚠️ Fallback to userInfo.employeeId:', (userInfo as any).employeeId);
+        return {
+          ...baseFilters,
+          assignedEmployeeIds: [(userInfo as any).employeeId]
+        };
+      } else if (userInfo?.id) {
+        // Last fallback to user ID
+        console.log('⚠️ Fallback to userInfo.id:', userInfo.id);
+        return {
+          ...baseFilters,
+          assignedEmployeeIds: [userInfo.id]
+        };
+      } else {
+        console.warn('❌ No user ID found for My Tasks filter. User info:', userInfo);
       }
     }
     
@@ -345,8 +370,13 @@ export const TaskView: React.FC<TaskViewProps> = (props: TaskViewProps) => {
 
   // Handle task selection
   const handleSelectTask = useCallback((task: Task) => {
+    console.log('🔍 TaskView handleSelectTask called:', {
+      taskId: task.id,
+      taskName: task.name,
+      currentSelectedTask: selectedTask?.id
+    });
     setSelectedTask(task);
-  }, []);
+  }, [selectedTask]);
 
 
 
@@ -592,20 +622,30 @@ export const TaskView: React.FC<TaskViewProps> = (props: TaskViewProps) => {
       </div>
 
       {/* Task Details Sheet */}
-      <Sheet open={!!selectedTask} onOpenChange={(open) => !open && setSelectedTask(null)}>
+      <Sheet 
+        open={!!selectedTask} 
+        onOpenChange={(open) => {
+          console.log('🔍 Sheet onOpenChange:', { open, selectedTask: !!selectedTask });
+          if (!open) setSelectedTask(null);
+        }}
+      >
         <SheetContent className="gba:w-[450px] gba:sm:w-[600px] gba:max-w-[90vw] gba:p-0 gba:flex gba:flex-col">
           <SheetHeader className="gba:px-6 gba:py-6 gba:border-b gba:border-border gba:shrink-0">
             <SheetTitle className="gba:text-xl gba:font-semibold gba:text-left">
-              {selectedTask?.name}
+              {selectedTask?.name || 'Task Details'}
             </SheetTitle>
           </SheetHeader>
           <div className="gba:flex-1 gba:overflow-hidden gba:px-6">
-            {selectedTask && (
+            {selectedTask ? (
               <TaskDetails
                 task={selectedTask}
                 sourceApp={sourceApp}
                 onClose={() => setSelectedTask(null)}
               />
+            ) : (
+              <div className="gba:p-4 gba:text-center gba:text-muted-foreground">
+                No task selected
+              </div>
             )}
           </div>
         </SheetContent>

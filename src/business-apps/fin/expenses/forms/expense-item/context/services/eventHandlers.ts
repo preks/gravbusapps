@@ -4,7 +4,7 @@ import { fetchExpenseTypes, fetchCustomFields } from "./dataFetchers";
 import { initiateFlow, getOpenedTaskFlow, completeTaskFlow } from "./flowHandlers";
 import { dispatchProcessContinueEvent } from "@/common/utils/processEventUtils";
 import { EMPLOYEE_FILES_LOCATION, EVENTS, FILES_ENDPOINT } from "@/business-apps/fin/expenses/utils/constants";
-import { DEFAULT_POSITION, DEFAULT_EXPENSE_STATUS, DEFAULT_EXPENSE_SOURCE } from "../../constants/constants";
+import { DEFAULT_POSITION, DEFAULT_EXPENSE_STATUS, DEFAULT_EXPENSE_SOURCE, DEFAULT_CURRENCY_ID, DEFAULT_EXPENSE_CLASS_ID, FORM_STEPS } from "../../constants/constants";
 import { showToast } from "@/business-apps/fin/expenses/utils/notificationUtils";
 import { FLOW_DOMAIN, FLOW_PROCESS_NAME } from "../constants";
 
@@ -353,6 +353,9 @@ export const handleSubmit = async (
       }
 
       return {
+        ...(itemValues?.id && { expenseItem: itemValues.id }),
+        ...(position.persistedId && { id: position.persistedId }),
+        ...(position.persistedId && { version: position.persistedVersion }),
         expenseGroupRef: position.expenseGroup,
         expenseTypeRef: position.expenseType,
         totalAmount: position.amount || 0,
@@ -377,10 +380,10 @@ export const handleSubmit = async (
           : formatDateToISOString(new Date()),
         totalAmount: calculateTotalAmount(positions),
         source: DEFAULT_EXPENSE_SOURCE,
-        currencyRef: values.currency || "Currency:v1:EUR",
+        currencyRef: values.currency || DEFAULT_CURRENCY_ID,
         costCenter: positions[0]?.costCenter || "",
         reimbursable: positions[0]?.isReimbursable || false,
-        expenseClassRef: "ExpenseClass:v1:EXPENSE",
+        expenseClassRef: DEFAULT_EXPENSE_CLASS_ID,
         status: DEFAULT_EXPENSE_STATUS,
         multiplePositions: multiPosition,
         expenseRequest: values.expenseRequest || additionalData?.expenseRequestId || "",
@@ -447,7 +450,7 @@ export const handleSubmit = async (
       form.resetFields();
       setPositions([DEFAULT_POSITION]);
       setFileList([]);
-      setCurrentStep("start");
+      setCurrentStep(FORM_STEPS.START);
     }
   } catch (error) {
     showToast(

@@ -197,8 +197,8 @@ export const TeamCoverageOptimizerPage: React.FC<TeamCoverageOptimizerPageProps>
               Team Capabilities
             </h4>
             <div className="gba:grid gba:grid-cols-1 gba:md:grid-cols-2 gba:lg:grid-cols-3 gba:gap-3">
-              {matrixTeam.capabilities.map((capability: any) => (
-                <div key={capability.capabilityId} className="gba:border gba:border-gray-200 gba:rounded-lg gba:p-3" data-testid={`capability-card-${capability.capabilityId}`}>
+              {matrixTeam.capabilities.map((capability: any, idx: number) => (
+                <div key={capability.capabilityId ?? `cap-${idx}`} className="gba:border gba:border-gray-200 gba:rounded-lg gba:p-3" data-testid={`capability-card-${capability.capabilityId ?? `cap-${idx}`}`}>
                   <div className="gba:flex gba:items-center gba:justify-between gba:mb-2">
                     <h5 className="gba:text-sm gba:font-medium gba:text-gray-900" data-testid={`capability-name-${capability.capabilityId}`}>
                       {capability.capabilityName}

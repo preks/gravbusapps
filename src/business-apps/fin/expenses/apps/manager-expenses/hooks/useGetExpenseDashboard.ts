@@ -178,7 +178,7 @@ export const useGetExpenseDashboard = (
           requestDate: request.requestDate
             ? new Date(request.requestDate).toISOString().split("T")[0]
             : "N/A",
-          employeeName: request.employee?.fullName ?? "Unknown Employee",
+          employeeName: request.employee?.firstName + " " + request.employee?.lastName,
         })),
         // Using hardcoded values for team budget (TeamBudget query commented out)
         teamBudget: {

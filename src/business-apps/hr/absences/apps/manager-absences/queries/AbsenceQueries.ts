@@ -1,10 +1,10 @@
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
-import { 
-  AbsenceQueryVariables, 
-  AbsenceOverviewResponse, 
+import {
+  AbsenceQueryVariables,
+  AbsenceOverviewResponse,
   AbsenceListResponse,
-  EmployeeAbsence 
+  EmployeeAbsence,
 } from '../types';
 
 // Base GraphQL query fragments for reusability
@@ -132,7 +132,7 @@ export const GET_SUPERVISOR_ABSENCES = (variables: { supervisorId: string }): st
   return `
     query GetSupervisorAbsences($offset: Int!, $limit: Int!, $supervisorId: uuid!) {
       EmployeeAbsenceAggregate(
-        where: {employee: {employeePosition: {supervisor: {id: {_eq: $supervisorId}}}}}
+        where: {employee: {employeePosition: {supervisorEmployeeId: {_eq: $supervisorId}}}}
       ) {
         aggregate {
           count
@@ -141,7 +141,7 @@ export const GET_SUPERVISOR_ABSENCES = (variables: { supervisorId: string }): st
       EmployeeAbsence(
         offset: $offset
         limit: $limit
-        where: {employee: {employeePosition: {supervisor: {id: {_eq: $supervisorId}}}}}
+        where: {employee: {employeePosition: {supervisorEmployeeId: {_eq: $supervisorId}}}}
         orderBy: {startDate: ASC}
       ) {
         ...EmployeeAbsenceDetails
@@ -152,12 +152,12 @@ export const GET_SUPERVISOR_ABSENCES = (variables: { supervisorId: string }): st
 };
 
 // Supervisor Absences List Query with filtering and sorting (for table view)
-export const GET_SUPERVISOR_ABSENCES_WITH_FILTERS = (variables: { 
-  supervisorId: string; 
-  offset?: number; 
-  limit?: number; 
-  where?: any; 
-  orderBy?: any[] 
+export const GET_SUPERVISOR_ABSENCES_WITH_FILTERS = (variables: {
+  supervisorId: string;
+  offset?: number;
+  limit?: number;
+  where?: any;
+  orderBy?: any[];
 }): string => {
   return `
     query GetSupervisorAbsencesWithFilters($offset: Int!, $limit: Int!, $where: EmployeeAbsenceBoolExp, $orderBy: [EmployeeAbsenceOrderBy!]) {
@@ -178,6 +178,50 @@ export const GET_SUPERVISOR_ABSENCES_WITH_FILTERS = (variables: {
       }
     }
     ${EMPLOYEE_ABSENCE_FRAGMENT}
+  `;
+};
+
+// Simple query for calendar timeline (matches your provided structure)
+export const GET_ABSENCES_FOR_CALENDAR = (supervisorId: string): string => {
+  return `
+    query GetAbsences($supervisorId: uuid!) {
+      Employee(
+        where: { employeePosition: { supervisorEmployeeId: { _eq: $supervisorId } } }
+        orderBy: { firstName: ASC }
+      ) {
+        id
+        firstName
+        lastName
+        employeePosition {
+          organizationalUnit {
+            name
+          }
+        }
+      }
+      EmployeeAbsence(
+        where: {
+          _and: [
+            { employee: { employeePosition: { supervisorEmployeeId: { _eq: $supervisorId } } } },
+            { isDeleted: { _eq: false } }
+          ]
+        }
+        orderBy: { startDate: ASC }
+      ) {
+        id
+        startDate
+        endDate
+        status
+        effectiveDays
+        employee {
+          id
+          firstName
+          lastName
+        }
+        type {
+          value
+        }
+      }
+    }
   `;
 };
 
@@ -208,13 +252,13 @@ export const useGetAbsenceOverview = (context: BusinessAppContextProps) => {
     const todayDate = new Date().toISOString().split('T')[0] + ' 00:00:00+00';
     const currentYear = new Date().getFullYear();
     const lastDayOfYear = `${currentYear}-12-31 23:59:59+00`;
-    
+
     const query = GET_ABSENCE_OVERVIEW({ orgUnitId });
     try {
-      const result = await graphqlClient.request<AbsenceOverviewResponse>(query, { 
+      const result = await graphqlClient.request<AbsenceOverviewResponse>(query, {
         orgUnitId,
         todayDate,
-        lastDayOfYear
+        lastDayOfYear,
       });
       return result;
     } catch (error) {
@@ -230,21 +274,23 @@ export const useGetAbsenceOverview = (context: BusinessAppContextProps) => {
 export const useGetEmployeeAbsences = (context: BusinessAppContextProps) => {
   const graphqlClient = useGraphQLClient(context.accessToken);
 
-  const fetchEmployeeAbsences = async (variables: AbsenceQueryVariables): Promise<AbsenceListResponse> => {
+  const fetchEmployeeAbsences = async (
+    variables: AbsenceQueryVariables,
+  ): Promise<AbsenceListResponse> => {
     // Build where clause
-    const baseWhere = { 
+    const baseWhere = {
       isDeleted: { _eq: false },
-      employee: { employeePosition: { organizationalUnitId: { _eq: variables.orgUnitId } } }
+      employee: { employeePosition: { organizationalUnitId: { _eq: variables.orgUnitId } } },
     };
 
     const whereClause = variables.where ? { _and: [baseWhere, variables.where] } : baseWhere;
-    
+
     const query = GET_EMPLOYEE_ABSENCES(variables);
     try {
       const result = await graphqlClient.request<AbsenceListResponse>(query, {
         ...variables,
         where: whereClause,
-        orderBy: variables.orderBy || [{ startDate: 'DESC_NULLS_LAST' }]
+        orderBy: variables.orderBy || [{ startDate: 'DESC_NULLS_LAST' }],
       });
       return result;
     } catch (error) {
@@ -260,10 +306,18 @@ export const useGetEmployeeAbsences = (context: BusinessAppContextProps) => {
 export const useGetSupervisorAbsences = (context: BusinessAppContextProps) => {
   const graphqlClient = useGraphQLClient(context.accessToken);
 
-  const fetchSupervisorAbsences = async (variables: AbsenceQueryVariables): Promise<{ EmployeeAbsenceAggregate: { aggregate: { count: number } }, EmployeeAbsence: EmployeeAbsence[] }> => {
+  const fetchSupervisorAbsences = async (
+    variables: AbsenceQueryVariables,
+  ): Promise<{
+    EmployeeAbsenceAggregate: { aggregate: { count: number } };
+    EmployeeAbsence: EmployeeAbsence[];
+  }> => {
     const query = GET_SUPERVISOR_ABSENCES({ supervisorId: variables.supervisorId! });
     try {
-      const result = await graphqlClient.request<{ EmployeeAbsenceAggregate: { aggregate: { count: number } }, EmployeeAbsence: EmployeeAbsence[] }>(query, variables);
+      const result = await graphqlClient.request<{
+        EmployeeAbsenceAggregate: { aggregate: { count: number } };
+        EmployeeAbsence: EmployeeAbsence[];
+      }>(query, variables);
       return result;
     } catch (error) {
       console.error('Error fetching supervisor absences:', error);
@@ -278,10 +332,14 @@ export const useGetSupervisorAbsences = (context: BusinessAppContextProps) => {
 export const useGetAbsenceKPIData = (context: BusinessAppContextProps) => {
   const graphqlClient = useGraphQLClient(context.accessToken);
 
-  const fetchAbsenceKPIData = async (orgUnitId: string): Promise<{ EmployeeAbsence: EmployeeAbsence[] }> => {
+  const fetchAbsenceKPIData = async (
+    orgUnitId: string,
+  ): Promise<{ EmployeeAbsence: EmployeeAbsence[] }> => {
     const query = GET_ABSENCE_KPI_DATA({ orgUnitId });
     try {
-      const result = await graphqlClient.request<{ EmployeeAbsence: EmployeeAbsence[] }>(query, { orgUnitId });
+      const result = await graphqlClient.request<{ EmployeeAbsence: EmployeeAbsence[] }>(query, {
+        orgUnitId,
+      });
       return result;
     } catch (error) {
       console.error('Error fetching absence KPI data:', error);
@@ -291,4 +349,3 @@ export const useGetAbsenceKPIData = (context: BusinessAppContextProps) => {
 
   return { fetchAbsenceKPIData };
 };
-
