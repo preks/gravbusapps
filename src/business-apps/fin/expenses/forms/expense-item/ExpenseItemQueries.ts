@@ -143,18 +143,7 @@ export const fetchExpenseData =`query MyQuery($expenseId:uuid! ,$activeUserLocal
       expenseRuleGeneralExpenseId
       expenseRuleMileageId
       id
-      measurementUnit {
-        id
-        code
-        value
-    translations(where: {localeCode: {_eq: $activeUserLocale}}) {
-      localeCode
-      value
-    }
-    catalog {
-      defaultLocale
-    }
-      }
+      expenseItemId
       positionOrder
       totalAmount
       version
@@ -174,7 +163,7 @@ export const fetchExpenseData =`query MyQuery($expenseId:uuid! ,$activeUserLocal
     additionalProperties
     multiplePositions
     source
-  }
+}
 }`
 export const fetchExpenseRuleGeneralData =`query fetchExpenseRuleGeneralData ($objectFilter: jsonb!,$activeUserLocale:String!,$expenseRuleId: uuid) {
 ExpenseRuleGeneralExpense(

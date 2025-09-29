@@ -537,9 +537,9 @@ export const ExpenseItemProvider: React.FC<ExpenseItemProviderProps> = ({
     try {
       const data = receiptData.data;
 
-      if (additionalData?.psi_taskPayload?.psi_initialParameters?.currencyData) {
+      if (additionalData?.itemCurrency) {
         const requestCurrency = currencies.find(
-          (c) => (c.id === additionalData?.psi_taskPayload.psi_initialParameters.currencyData)
+          (c) => (c.id === additionalData?.itemCurrency)
         );
         if (requestCurrency && requestCurrency.code !== data.currencyCode) {
           showToast(
