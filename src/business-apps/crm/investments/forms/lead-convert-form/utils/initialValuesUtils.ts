@@ -45,8 +45,6 @@ export const getAccountInitialValues = (leadData: any): Partial<AccountFormValue
     state: '', // Not available in InvestmentLead
     address: leadData.locality || '', // Legacy field
     
-    // ===== TIME ZONE (from InvestmentLead) =====
-    timeZone: leadData.timeZoneRef || leadData.timeZone?.id || '',
     
     // ===== ADDITIONAL FIELDS (from InvestmentLead) =====
     foundationDate: '', // Not available in InvestmentLead, user will fill
@@ -84,8 +82,6 @@ export const getAccountInitialValues = (leadData: any): Partial<AccountFormValue
     countryValue: leadData.country?.value,
     regionRef: leadData.regionRef || leadData.region?.id,
     regionValue: leadData.region?.value,
-    timeZoneRef: leadData.timeZoneRef,
-    timeZoneValue: leadData.timeZone?.value,
     locality: leadData.locality,
     postalCode: leadData.postalCode,
     addressLine: extractAddressFromObject(leadData.addressLine),

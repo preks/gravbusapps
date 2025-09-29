@@ -15,7 +15,6 @@ export const INDUSTRY_CATALOG = "IndustryClass";
 export const COUNTRY_CATALOG = "Country";
 export const EMPLOYEE_SIZE_CATALOG = "CompanySize"; // ✅ FIXED: Changed from EmployeeSize to CompanySize to match database format
 export const REVENUE_SIZE_CATALOG = "AccountAnnualRevenueBand"; // ✅ FIXED: Changed from RevenueSize to AccountAnnualRevenueBand to match database format
-export const TIMEZONE_CATALOG = "TimeZone";
 export const INVESTMENT_TYPE_CATALOG = "InvestmentType";
 export const INVESTMENT_GROUP_CATALOG = "InvestmentGroup";
 export const INVESTMENT_ROLE_CATALOG = "InvestmentRole";

@@ -49,7 +49,6 @@ export interface AccountFormValues {
   // ✅ REMOVED: currency: string; // Not available in InvestmentAccount schema
 
   // Additional Information
-  timeZone: string; // ✅ RESTORED: Available in InvestmentAccount schema as timeZoneRef
   foundationDate: string;
   tickerSymbol: string;
   // ✅ REMOVED: sicCode: string; // Not available in InvestmentAccount schema
@@ -90,6 +89,5 @@ export interface AccountContextState {
   industries: SelectOption[];
   countries: SelectOption[];
   // ✅ REMOVED: currencies: SelectOption[]; // Not available in InvestmentAccount schema
-  timeZones: SelectOption[]; // ✅ RESTORED: Available in InvestmentAccount schema as timeZoneRef
   numberOfEmployeesOptions: SelectOption[];
 }

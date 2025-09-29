@@ -353,6 +353,9 @@ export const handleSubmit = async (
       }
 
       return {
+        ...(itemValues?.id && { expenseItem: itemValues.id }),
+        ...(position.persistedId && { id: position.persistedId }),
+        ...(position.persistedId && { version: position.persistedVersion }),
         expenseGroupRef: position.expenseGroup,
         expenseTypeRef: position.expenseType,
         totalAmount: position.amount || 0,

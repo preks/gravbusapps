@@ -29,7 +29,7 @@ import { AppAction } from "@/components/app-action/AppAction";
 import { AppActionButton } from "@/components/app-action-button/AppActionButton";
 import { FlowContextName } from "@/common/types/FlowRegistryTypes";
 import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils';
-import { OwnerDisplay } from "../../../investment-view/utils/ownerDisplayUtils";
+import { OwnerDisplay } from "../../../../../../components/shared";
 import { formatDate } from "../../utils";
 
 // Custom formatter that only abbreviates millions and billions, not thousands

@@ -77,7 +77,6 @@ const LeadFormComponent: React.FC = () => {
         accountAnnualRevenueBandRef: toStringOrUndefined(
           formValues.annualRevenue
         ), // ✅ FIXED: annualRevenueRef → accountAnnualRevenueBandRef
-        timeZoneRef: toStringOrUndefined(formValues.timeZone), // ✅ ADDED: Time zone support
 
         // ✅ FIXED: Owner Information with correct API field name
         ownerEmployee: toStringOrUndefined(formValues.owner), // ✅ FIXED: API expects 'ownerEmployee' not 'ownerEmployeeId'

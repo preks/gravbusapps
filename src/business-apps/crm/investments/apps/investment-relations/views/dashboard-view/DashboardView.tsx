@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import { Alert, AlertTitle, AlertDescription, Button, Spinner } from '@newwork/nw-design-system';
 import { LineChart } from 'lucide-react';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
@@ -8,6 +8,7 @@ import { usePipelineData } from './hooks/usePipelineData';
 import EmptyState from '@/components/empty-state/EmptyState';
 import { formatCurrency } from './utils/dashboardUtils';
 import { DashboardLayout } from '@/common/components/common-relations/view-layouts/dashboard-layout/DashboardLayout';
+import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils';
 
 export interface DashboardViewProps extends BusinessAppContextProps {
   pipelines: PipelineInfo[];
@@ -33,6 +34,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
   );
 
   const selectedPipeline = pipelines.find(p => p.id === selectedPipelineId);
+
   const { pipelineData, isLoading: pipelineLoading, error: pipelineError } = usePipelineData(
     context, 
     selectedPipeline || null, 
@@ -42,6 +44,25 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
   const handlePipelineChange = (pipelineId: string) => {
     setSelectedPipelineId(pipelineId);
   };
+
+  // Ensure selectedPipelineId is always set when pipelines are available
+  useEffect(() => {
+    if (pipelines.length > 0) {
+      // If no pipeline is selected or the selected pipeline doesn't exist, select the first one
+      if (!selectedPipelineId || !pipelines.find(p => p.id === selectedPipelineId)) {
+        setSelectedPipelineId(pipelines[0].id);
+      }
+    }
+  }, [pipelines, selectedPipelineId]);
+
+  const handleDealClick = useCallback((opportunityId: string) => {
+    const url = buildPlatformUrl('/platform/irm/opportunity-record', {
+      opportunityId,
+      source: 'investments',
+      fromView: 'dashboard'
+    });
+    navigateTo(url);
+  }, []);
 
   if (isLoading) {
     return (
@@ -88,6 +109,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
         aggregatedFunnel: overviewData.aggregatedFunnel,
         revenueBySource: overviewData.revenueBySource,
         totalRevenue: overviewData.totalRevenue,
+        totalLeadCount: overviewData.totalLeadCount,
         recentRecords: overviewData.recentRecords,
         activeTasks: overviewData.activeTasks.map(t => ({
           id: t.id,
@@ -99,6 +121,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
           isOverdue: t.isOverdue,
           priority: t.priority,
           status: t.status,
+          relatedEntity: t.relatedEntity, // Add the missing relatedEntity field
         })),
         todaysActivities: overviewData.todaysActivities.map(a => ({
           id: a.id,
@@ -108,10 +131,13 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
           relatedTo: a.relatedTo,
           createdAt: a.createdAt,
           completedAt: a.completedAt ?? undefined,
+          relatedEntity: a.relatedEntity,
         })),
         keyDeals: overviewData.keyDeals,
+        onDealClick: handleDealClick,
+        source: 'investments' as const,
       } : undefined}
-      pipelineProps={selectedPipeline ? {
+      pipelineProps={(selectedPipeline && pipelines.length > 0) ? {
         headerLeft: (
           <div className="gba:p-3 gba:rounded-xl gba:shadow-sm gba:bg-blue-100">
             <LineChart className="gba:h-6 gba:w-6 gba:text-blue-600" />
