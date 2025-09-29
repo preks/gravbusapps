@@ -128,4 +128,20 @@ export function getSalesPipelineStageBadgeVariant(pipelineStage?: {
   objectValue?: any; 
 } | null): BadgeProps['variant'] {
   return getBadgeVariantFromCatalog(pipelineStage);
+}
+
+/**
+ * Returns the appropriate badge variant based on quality level
+ * @param qualityLevel - The quality level ('high', 'low', 'medium', etc.)
+ * @returns Badge variant based on the quality level
+ */
+export function getQualityLevelBadgeVariant(qualityLevel?: string): BadgeProps['variant'] {
+  switch (qualityLevel) {
+    case 'high':
+      return 'success';
+    case 'low':
+      return 'destructive';
+    default:
+      return 'secondary';
+  }
 } 
