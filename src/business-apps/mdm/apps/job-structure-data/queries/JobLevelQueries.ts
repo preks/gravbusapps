@@ -51,7 +51,7 @@ export const GET_JOB_LEVEL_DATA = (variables: QueryVariablesJobLevel): string =>
       payGrade
     }
     compensationBandId
-    heirarchyOrder
+    hierarchyOrder
     version
   }
   JobLevelAggregate(
@@ -75,7 +75,7 @@ export type JobLevelByJobLevelGroupIdData = {
     code?: string
     description?: string
     descriptionI18n?: { [key: string]: string }
-    heirarchyOrder?: number
+    hierarchyOrder?: number
     jobLevelGroup?: { id: string; value: string }
     compensationBand?: { id: string; name: string; payGrade?: number }
     compensationBandId?: string

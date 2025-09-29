@@ -5,13 +5,7 @@ import { BusinessAppContextProps } from "@/common/BusinessAppContext";
 import { BriefcaseIcon } from "@phosphor-icons/react";
 import { EmploymentTypesTab } from "./components/tabs/EmploymentTypesTab";
 import { ContractTypesTab } from "./components/tabs/ContractTypesTab";
-import {
-  Tabs,
-  TabsList,
-  TabsTrigger,
-  TabsContent,
-  Toaster,
-} from "@newwork/nw-design-system";
+import { Tabs, TabsList, TabsTrigger, TabsContent, Toaster } from "@newwork/nw-design-system";
 
 export enum EmploymentDataTabs {
   EMPLOYMENT_TYPES = "employment-types",
@@ -31,10 +25,7 @@ const getInitialTab = (): EmploymentDataTabs => {
     const urlParams = new URLSearchParams(window.location.search);
     const tabParam = urlParams.get("tab");
 
-    if (
-      tabParam &&
-      Object.values(EmploymentDataTabs).includes(tabParam as EmploymentDataTabs)
-    ) {
+    if (tabParam && Object.values(EmploymentDataTabs).includes(tabParam as EmploymentDataTabs)) {
       return tabParam as EmploymentDataTabs;
     }
   }
@@ -47,8 +38,7 @@ const EmploymentData: React.FC<EmploymentDataProps> = ({
   ...contextProps
 }) => {
   const { t } = useTranslation();
-  const [selectedTab, setSelectedTab] =
-    useState<EmploymentDataTabs>(getInitialTab);
+  const [selectedTab, setSelectedTab] = useState<EmploymentDataTabs>(getInitialTab);
 
   useEffect(() => {
     const setTabFromUrl = () => {
@@ -56,12 +46,7 @@ const EmploymentData: React.FC<EmploymentDataProps> = ({
       const urlParams = new URLSearchParams(window.location.search);
       const tabParam = urlParams.get("tab");
 
-      if (
-        tabParam &&
-        Object.values(EmploymentDataTabs).includes(
-          tabParam as EmploymentDataTabs
-        )
-      ) {
+      if (tabParam && Object.values(EmploymentDataTabs).includes(tabParam as EmploymentDataTabs)) {
         setSelectedTab(tabParam as EmploymentDataTabs);
       }
     };
@@ -87,13 +72,9 @@ const EmploymentData: React.FC<EmploymentDataProps> = ({
       headerLabel={t("hr.employment_data", "Employment Data")}
       className={`${className ? className : ""} gba:!overflow-y-visible`}
       contentContainer={
-        <div className="gba:w-full gba:h-full" style={{ padding: "24px" }}>
+        <div className="gba:w-full gba:h-full gba:!overflow-y-auto" style={{ padding: "24px" }}>
           <div data-testid={`${prefixDataTestId || ""}-${DATA_TEST_ID}-Tabs`}>
-            <Tabs
-              value={selectedTab}
-              onValueChange={onChangeTab}
-              className="gba:w-full"
-            >
+            <Tabs value={selectedTab} onValueChange={onChangeTab} className="gba:w-full">
               <TabsList className="gba:w-full">
                 <TabsTrigger value={EmploymentDataTabs.EMPLOYMENT_TYPES}>
                   {t("hr.employment_types", "Employment Types")}

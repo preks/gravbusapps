@@ -19,7 +19,7 @@ const GET_JOB_LEVELS_QUERY = `
       },
       limit: $limit,
       offset: $offset,
-      orderBy: { heirarchyOrder: ASC, name: ASC }
+      orderBy: { hierarchyOrder: ASC, name: ASC }
     ) {
       id
       name
