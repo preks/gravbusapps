@@ -161,7 +161,7 @@ const OrganizationalData: React.FC<OrganizationalDataProps> = ({
       headerLabel={t("hr.organizational_data", "Organizational Data")}
       className={className}
       contentContainer={
-        <div className="gba:w-full gba:h-full" style={{ padding: "24px" }}>
+        <div className="gba:w-full gba:h-full gba:!overflow-y-auto" style={{ padding: "24px" }}>
           <div data-testid={`${prefixDataTestId || ""}-${DATA_TEST_ID}-Tabs`}>
             <Tabs value={selectedTab} onValueChange={onChangeTab} className="gba:w-full">
               <TabsList className="gba:w-full">

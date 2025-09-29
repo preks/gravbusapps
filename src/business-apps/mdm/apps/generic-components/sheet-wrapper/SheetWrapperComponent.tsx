@@ -12,7 +12,6 @@ import { formatDataTestId } from "@/common/utils/formatDataTestId";
 import { VerticalTable, VerticalTableProps } from "../table/VerticalTable";
 import { NavigationLinkCards, NavigationLinkCardsProps } from "../card/NavigationLinkCards";
 import { LinkIcon } from "@phosphor-icons/react";
-import React from "react";
 
 type SheetWrapperComponentProps = {
   prefixDataTestId: string;
