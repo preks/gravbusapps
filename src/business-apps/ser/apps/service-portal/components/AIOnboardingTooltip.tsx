@@ -5,7 +5,7 @@ import { RobotIcon, SparkleIcon } from '@phosphor-icons/react';
 const DEV_CONFIG = {
   SHOW_IMMEDIATELY: false, // Set to true to show tooltip immediately (for development)
   DELAY_MS: 10000, // Delay in milliseconds when SHOW_IMMEDIATELY is false
-  CLEAR_STORAGE_ON_LOAD: true // Set to true to clear localStorage on component load (for testing)
+  CLEAR_STORAGE_ON_LOAD: false // Set to true to clear localStorage on component load (for testing)
 };
 
 export const AIOnboardingTooltip: React.FC = () => {
@@ -56,7 +56,17 @@ export const AIOnboardingTooltip: React.FC = () => {
     }
   }, []);
 
-  const handleDismiss = () => {
+  const handleClose = () => {
+    // Just close for this session, don't save to localStorage
+    setIsAnimating(false);
+    setTimeout(() => {
+      setIsVisible(false);
+      setIsDismissed(true);
+    }, 300);
+  };
+
+  const handleDismissPermanently = () => {
+    // Permanently dismiss and save to localStorage
     setIsAnimating(false);
     setTimeout(() => {
       setIsVisible(false);
@@ -328,13 +338,13 @@ export const AIOnboardingTooltip: React.FC = () => {
               <div className="gba:flex-1 gba:space-y-4">
                 <div>
                   <h3 className="gba:text-xl gba:font-bold gba:text-gray-800 gba:mb-2">
-                    Hey! 👋 <br />
+                    Hey!<br />
                     AI can help you find the solution!
                   </h3>
                   <p className="gba:text-gray-700 gba:leading-relaxed">
                     I noticed you're browsing service categories. Instead of searching through all options, 
                     <span className="gba:font-semibold gba:text-blue-700"> just tell me what issue you're facing</span> and 
-                    I'll try to help you or find the exact template for you in seconds! 🚀
+                    I'll try to help you or find the exact template for you in seconds!
                   </p>
                 </div>
 
@@ -378,7 +388,7 @@ export const AIOnboardingTooltip: React.FC = () => {
                       <div className="gba:relative gba:z-10 gba:flex gba:items-center gba:space-x-2">
                         <RobotIcon className="gba:w-5 gba:h-5 group-hover:gba:animate-bounce" />
                         <span className="gba:relative">
-                          💬 Ask AI Now
+                          Ask AI Now
                           {/* Sparkle on hover */}
                           <SparkleIcon className="gba:absolute gba:-top-1 gba:-right-1 gba:w-3 gba:h-3 gba:text-yellow-300 gba:opacity-0 group-hover:gba:opacity-100 gba:transition-opacity gba:duration-300 gba:animate-ping" />
                         </span>
@@ -390,7 +400,7 @@ export const AIOnboardingTooltip: React.FC = () => {
                         console.log('🔍 [Browse More] Button clicked!');
                         e.preventDefault();
                         e.stopPropagation();
-                        handleDismiss();
+                        handleClose();
                       }}
                       className="gba:relative gba:z-10 gba:px-6 gba:py-3 gba:bg-white/70 gba:text-gray-700 gba:font-medium gba:rounded-full gba:border gba:border-gray-300 gba:hover:gba:bg-white gba:hover:gba:border-gray-400 gba:hover:gba:scale-105 gba:active:gba:scale-95 gba:transition-all gba:duration-300 gba:cursor-pointer"
                       data-testid="ai-tooltip-browse-more"
@@ -412,8 +422,8 @@ export const AIOnboardingTooltip: React.FC = () => {
                   <div className="gba:text-center">
                     <button
                       onClick={() => {
-                        localStorage.setItem('ai-tooltip-dismissed', 'true');
-                        handleDismiss();
+                        console.log('🚫 [Don\'t Show Again] Button clicked!');
+                        handleDismissPermanently();
                       }}
                       className="gba:text-xs gba:text-gray-500 gba:hover:gba:text-gray-700 gba:underline gba:transition-colors"
                       data-testid="ai-tooltip-dont-show-again"
