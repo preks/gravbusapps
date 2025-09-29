@@ -162,7 +162,6 @@ export const fetchExpenseData =`query MyQuery($expenseId:uuid! ,$activeUserLocal
     expenseRuleGeneralExpenseId
     additionalProperties
     multiplePositions
-    source
 }
 }`
 export const fetchExpenseRuleGeneralData =`query fetchExpenseRuleGeneralData ($objectFilter: jsonb!,$activeUserLocale:String!,$expenseRuleId: uuid) {
