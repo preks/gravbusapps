@@ -58,6 +58,7 @@ export interface AdvancePaymentComment {
   commentType?: string;
   commentDate: string;
   comment: string;
+  id: string;
   authorEmployee: {
     fullName: string;
     firstName: string;

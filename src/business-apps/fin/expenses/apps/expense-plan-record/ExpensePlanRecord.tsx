@@ -10,6 +10,7 @@ import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
 import { formatCurrencyDisplay } from './utils/currency';
 import { useGetExpensePlanRecord } from './hooks/useGetExpensePlanRecord';
 import { getExpensePlanStatusDisplay } from './utils';
+import { BackButton } from '@/components/back-button';
 
 // Import tab components
 import ExpensePlanItems from './components/ExpensePlanItems.tsx';
@@ -83,7 +84,7 @@ const ExpensePlanRecord: React.FC<BusinessAppContextProps> = ({ accessToken, add
     url.searchParams.set('tab', key);
     window.history.pushState({}, '', url.toString());
   };
-
+  console.log('expensePlan', expensePlan);
   // Handle browser back/forward navigation
   useEffect(() => {
     const handlePopState = () => {
@@ -102,8 +103,8 @@ const ExpensePlanRecord: React.FC<BusinessAppContextProps> = ({ accessToken, add
       const hasAdvancePayments = expensePlan?.advancePayment && expensePlan.advancePayment.length > 0;
       const hasComments = (expensePlan?.expensePlanComment && expensePlan.expensePlanComment.length > 0) || 
                          (expensePlan?.advancePayment && expensePlan.advancePayment.some(ap => ap.advancePaymentComment && ap.advancePaymentComment.length > 0));
-      
-      // Map tabs to their data availability
+    console.log('expensePlan inside', expensePlan?.advancePayment);
+                         // Map tabs to their data availability
       const availableTabs: Record<string, boolean> = {
         'items': true, // Always available
         'allowances': Boolean(hasAllowances),
@@ -285,8 +286,13 @@ const ExpensePlanRecord: React.FC<BusinessAppContextProps> = ({ accessToken, add
   if (loading) {
     return (
       <PageLayout 
-      headerIcon={<PiWalletDuotone color="#c92559"/>}
+        headerIcon={<PiWalletDuotone color="#c92559"/>}
         headerLabel={getTranslationFromI18nKeyAndLabel('lowcoder:expense_records.plan.title', 'Expense Plan Record')}
+        headerTopLeft={
+          <BackButton 
+            dataTestId="expense-plan-record-back-button"
+          />
+        }
         contentContainer={
           <div className="gba:flex gba:justify-center gba:items-center gba:h-64" data-testid="expense-plan-record-loading">
             <Spinner />
@@ -318,8 +324,13 @@ const ExpensePlanRecord: React.FC<BusinessAppContextProps> = ({ accessToken, add
     
     return (
       <PageLayout 
-      headerIcon={<PiWalletDuotone color="#c92559"/>}
+        headerIcon={<PiWalletDuotone color="#c92559"/>}
         headerLabel={getTranslationFromI18nKeyAndLabel('lowcoder:expense_records.plan.title', 'Expense Plan Record')}
+        headerTopLeft={
+          <BackButton 
+            dataTestId="expense-plan-record-back-button"
+          />
+        }
         contentContainer={
           <Alert variant="destructive" data-testid="expense-plan-record-error">
             <AlertTitle>{errorTitle}</AlertTitle>
@@ -334,6 +345,12 @@ const ExpensePlanRecord: React.FC<BusinessAppContextProps> = ({ accessToken, add
     <PageLayout 
       headerIcon={<PiWalletDuotone color="#c92559"/>}
       headerLabel={getTranslationFromI18nKeyAndLabel('lowcoder:expense_records.plan.title', 'Expense Plan Record')}
+      headerTopLeft={
+        <BackButton 
+          dataTestId="expense-plan-record-back-button"
+          customBackText={getTranslationFromI18nKeyAndLabel('lowcoder:modify_expense_request.back_text', 'Back')}
+        />
+      }
       contentContainer={
         <div className="gba:overflow-y-auto gba:overflow-x-hidden" style={{ maxHeight: 'calc(100vh - 160px)' }}>
           <div className="gba:p-3 gba:flex gba:flex-row gba:gap-3" data-testid="expense-plan-record-container">

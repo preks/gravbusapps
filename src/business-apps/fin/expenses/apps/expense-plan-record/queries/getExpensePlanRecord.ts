@@ -104,6 +104,7 @@ export const getExpensePlanRecordQuery = `
         }
         advancePayment(orderBy:{decisionDate:ASC}){
         advancePaymentComment{
+            id
             commentType
             commentDate
             comment
