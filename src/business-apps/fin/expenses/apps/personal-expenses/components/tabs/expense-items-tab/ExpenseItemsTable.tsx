@@ -395,7 +395,7 @@ const ExpenseItemsTable: React.FC<ExpenseItemsTableProps> = React.memo((props) =
       }}
       contentBackground="white"
       dataBody={
-        <div className="gba:pr-6">
+        <div className="">
           <Card data-testid={`${DATA_TEST_ID_PREFIX}-container`}>
             <CardContent className="gba:p-0">
               {isLoading && (
@@ -707,6 +707,7 @@ const ExpenseItemsTable: React.FC<ExpenseItemsTableProps> = React.memo((props) =
           </Card>
         </div>
       }
+      addLeftPaddingWhenNoFilter={true}
     />
 
     {/* Sheet for details */}

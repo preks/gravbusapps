@@ -99,6 +99,12 @@ export interface DataContainerProps<T extends DataControllerProps = DataControll
    * Optional callback function to be invoked when the details panel's close button is clicked.
    */
   onDetailsPanelClose?: () => void;
+
+  /**
+   * If true (default), applies left padding to the main content when the filter is hidden.
+   * Set to false to avoid adding 'gba:pl-6' even when the filter is not shown.
+   */
+  addLeftPaddingWhenNoFilter?: boolean;
 }
 
 export const DataContainer = <T extends DataControllerProps = DataControllerProps>({
@@ -112,6 +118,7 @@ export const DataContainer = <T extends DataControllerProps = DataControllerProp
   contentBackground = 'gray',
   floatingDetails = false,
   onDetailsPanelClose = () => {},
+  addLeftPaddingWhenNoFilter = false,
 }: DataContainerProps<T>): JSX.Element => {
   // Sidebar open/close state
   const [showDataFilter, setShowDataFilter] = React.useState(false);
@@ -166,7 +173,7 @@ export const DataContainer = <T extends DataControllerProps = DataControllerProp
       {/* Main + Details wrapper */}
       <div className="gba:flex gba:flex-row gba:flex-1 gba:min-w-0" ref={mainContentRef}>
         {/* Main Content - controller above body */}
-        <div className={cn("gba:flex gba:flex-col gba:flex-1 gba:min-w-0", !showDataFilter && "gba:pl-6")} data-testid="data-container-main-content">
+        <div className={cn("gba:flex gba:flex-col gba:flex-1 gba:min-w-0", !addLeftPaddingWhenNoFilter && !showDataFilter && "gba:pl-6")} data-testid="data-container-main-content">
           {CustomDataController ? (
             <CustomDataController
               showDataFilter={showDataFilter}

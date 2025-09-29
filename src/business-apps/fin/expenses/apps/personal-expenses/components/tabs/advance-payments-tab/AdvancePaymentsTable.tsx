@@ -256,7 +256,7 @@ const AdvancePaymentsTable = React.forwardRef<HTMLDivElement, AdvancePaymentsTab
   // Render the data body with memoization
   const renderDataBody = useCallback(() => {
     return (
-      <div className="gba:pr-6">
+      <div className="">
         <Card data-testid={`${DATA_TEST_ID_PREFIX}-container`}>
           <CardContent className="gba:p-0">
             {isLoading && (
@@ -575,6 +575,7 @@ const AdvancePaymentsTable = React.forwardRef<HTMLDivElement, AdvancePaymentsTab
         hideFilter={false}
         dataBody={renderDataBody()}
         contentBackground="white"
+        addLeftPaddingWhenNoFilter={true}
       />
 
       {/* Advance Payment Details Sheet */}

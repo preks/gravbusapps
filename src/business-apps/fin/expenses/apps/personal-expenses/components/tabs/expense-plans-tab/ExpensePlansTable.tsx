@@ -235,7 +235,7 @@ const ExpensePlansTable: React.FC<ExpensePlansTableProps> = React.memo((props) =
 
   const renderDataBody = useMemo(() => {
     return (
-      <div className="gba:pr-6">
+      <div className="">
         <Card data-testid={`${DATA_TEST_ID_PREFIX}-container`}>
           <CardContent className="gba:p-0">
             {isLoading && (
@@ -668,6 +668,7 @@ const ExpensePlansTable: React.FC<ExpensePlansTableProps> = React.memo((props) =
         hideFilter={false}
         dataBody={renderDataBody}
         contentBackground="white"
+        addLeftPaddingWhenNoFilter={true}
       />
 
       {/* Expense Plan Details Sheet */}
