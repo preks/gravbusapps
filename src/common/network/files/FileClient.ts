@@ -100,6 +100,51 @@ export class FileClient extends RestClient {
       throw error;
     }
   }
+
+  /**
+   * Download a file using a complete API path (e.g., from reportPath)
+   * This method handles pre-constructed file paths like those from investment reports
+   *
+   * @param filePath - Complete API path to the file (e.g., '/api/v1/tenant/downloads/...')
+   * @param accessToken - Access token for authentication
+   * @param options - Additional request options
+   * @returns A Promise that resolves to a Blob containing the file data
+   */
+  public async downloadFileByPath(
+    filePath: string,
+    accessToken: string,
+    options: Omit<RequestOptions, "body"> = {}
+  ): Promise<Blob> {
+    if (!accessToken) {
+      throw new Error("accessToken is required for downloadFileByPath");
+    }
+    if (!filePath) {
+      throw new Error("filePath is required for downloadFileByPath");
+    }
+
+    // Prepare headers with authentication
+    const headers = {
+      ...this.headers,
+      ...options.headers,
+      Authorization: setAccessTokenToAuthorizationHeader(accessToken),
+      Accept: 'application/pdf, application/octet-stream, */*',
+    };
+
+    // Remove leading slash if present since RestClient will add it
+    const path = filePath.startsWith('/') ? filePath.substring(1) : filePath;
+    
+    try {
+      // Always force BLOB response type for file downloads
+      return await this.get(path, {
+        ...options,
+        headers,
+        responseType: ResponseType.BLOB
+      });
+    } catch (error) {
+      console.error('FileClient: Error downloading file by path:', error);
+      throw error;
+    }
+  }
 }
 
 export const fileClient = new FileClient();

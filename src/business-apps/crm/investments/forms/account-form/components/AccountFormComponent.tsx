@@ -67,7 +67,6 @@ const AccountFormComponent: React.FC = () => {
         ), // ✅ FIXED: annualRevenue → accountAnnualRevenueBandRef
         companySizeRef: toStringOrUndefined(formValues.numberOfEmployees), // ✅ FIXED: numberOfEmployeesRef → companySizeRef
         foundationDate: toStringOrUndefined(formValues.foundationDate),
-        // timeZoneRef: toStringOrUndefined(formValues.timeZone), // ✅ RE-ENABLED: TimeZone works with v1 format, dropdown now sends catalog ID
         ownerEmployee: toStringOrUndefined(formValues.owner), // ✅ CORRECT: Keep as ownerEmployee (relationship field)
       };
 

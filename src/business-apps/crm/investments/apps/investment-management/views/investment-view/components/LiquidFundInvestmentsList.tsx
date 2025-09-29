@@ -11,7 +11,6 @@ import {
   Alert,
   Button
 } from "@newwork/nw-design-system";
-import { PlusOutlined } from "@ant-design/icons";
 import { BusinessAppContextProps } from "@/common/BusinessAppContext";
 import { useGetInvestments } from "@/common/data/investment/hooks/useInvestments";
 import { formatDate } from "@/common/data/investment";
@@ -22,7 +21,7 @@ import { DataContainer } from "@/components/layout/dataContainer/DataContainer";
 import { AppAction } from "@/components/app-action/AppAction";
 import { AppActionButton } from "@/components/app-action-button/AppActionButton";
 import { FlowContextName } from "@/common/types/FlowRegistryTypes";
-import { Building2, Calendar, ChevronUp, ChevronDown } from "lucide-react";
+import { Building2, Calendar, ChevronUp, ChevronDown, PlusSquare } from "lucide-react";
 import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils';
 import { ColumnConfig } from "@/components/dataController";
 import { useInvestmentListController } from "../hooks/useInvestmentListController";
@@ -405,13 +404,14 @@ const LiquidFundInvestmentsList: React.FC<LiquidFundInvestmentsListProps> = (con
             emptyStateBehavior="hide"
           >
             <Button
-              variant="default"
+              variant="ghost"
               size="sm"
-              className="gba:flex gba:items-center gba:gap-2"
               data-testid="liquid-fund-investments-add-button"
+              type="button"
+              className="gba:gap-1"
             >
-              <PlusOutlined />
-              Add Liquid Fund
+              <PlusSquare className="gba:w-4 gba:h-4" />
+              Add
             </Button>
           </AppAction>
         ),

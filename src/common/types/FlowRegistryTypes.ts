@@ -116,6 +116,11 @@ export enum FlowContextName {
   realEstateInvestmentEntity = "realEstateInvestmentEntity", // TODO: Check
   liquidFundInvestmentEntity = "liquidFundInvestmentEntity", // TODO: Check
 
+  /// Investment Equity Round
+  investmentEquityInvestmentRoundCreate = "investmentEquityInvestmentRoundCreate",
+  investmentEquityInvestmentRoundUpdate = "investmentEquityInvestmentRoundUpdate",
+  investmentEquityInvestmentRoundDelete = "investmentEquityInvestmentRoundDelete",
+
   /// Investment Reports
   investmentReportUpload = "investmentReportUpload",
   investmentReportEntity = "investmentReportEntity", // Integrate

@@ -3,7 +3,6 @@ export const LEGAL_FORM_CATALOG = "LegalForm";
 export const INDUSTRY_CATALOG = "IndustryClass"; // ✅ FIXED: Industry -> IndustryClass for InvestmentAccount
 export const EMPLOYEE_SIZE_CATALOG = "CompanySize"; // Already correct
 export const REVENUE_SIZE_CATALOG = "AccountAnnualRevenueBand"; // ✅ FIXED: RevenueSize -> AccountAnnualRevenueBand for InvestmentAccount
-export const TIMEZONE_CATALOG = "TimeZone";
 
 // ✅ ADDED: Additional catalogs specific to InvestmentAccount (these might be used in future)
 export const INVESTMENT_TYPE_CATALOG = "InvestmentType";

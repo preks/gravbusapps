@@ -1,12 +1,13 @@
-import React from "react";
-import { BusinessAppContextProps } from "@/common/BusinessAppContext";
-import { useAbsenceStatisticsSimple } from "../../../hooks/useAbsenceStatisticsSimple";
-import { KeyInsightsSection } from "./KeyInsightsSection";
-import { QuickActionsSection } from "./QuickActionsSection";
-import { UsagePatternsSection } from "./UsagePatternsSection";
-import { YearComparisonSection } from "./YearComparisonSection";
-import { AbsenceDistributionSection } from "./AbsenceDistributionSection";
-import { AbsenceTrendsSection } from "./AbsenceTrendsSection";
+import React from 'react';
+import { BusinessAppContextProps } from '@/common/BusinessAppContext';
+import { useAbsenceStatisticsSimple } from '../../../hooks/useAbsenceStatisticsSimple';
+import { KeyInsightsSection } from './KeyInsightsSection';
+import { QuickActionsSection } from './QuickActionsSection';
+import { UsagePatternsSection } from './UsagePatternsSection';
+import { YearComparisonSection } from './YearComparisonSection';
+import { AbsenceDistributionSection } from './AbsenceDistributionSection';
+import { AbsenceTrendsSection } from './AbsenceTrendsSection';
+import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
 
 export interface StatisticsTabProps extends BusinessAppContextProps {
   onNavigateToWorkLifeBalance?: () => void;
@@ -14,12 +15,12 @@ export interface StatisticsTabProps extends BusinessAppContextProps {
 }
 
 export const StatisticsTab: React.FC<StatisticsTabProps> = (props) => {
-  const { statistics, isLoading, error, refetch } = useAbsenceStatisticsSimple(props);
+  const { statistics, isLoading, error } = useAbsenceStatisticsSimple(props);
 
   if (isLoading) {
     return (
       <div className="gba:p-6 gba:text-center" data-testid="statistics-tab-loading">
-        Loading statistics...
+        {getTranslationFromI18nKeyAndLabel('lowcoder:add_items_to_plan.loading_text', 'Loading...')}
       </div>
     );
   }
@@ -46,8 +47,8 @@ export const StatisticsTab: React.FC<StatisticsTabProps> = (props) => {
         <KeyInsightsSection data={statistics} context={props} />
       </div>
       <div className="gba:pb-6" data-testid="statistics-tab-quick-actions">
-        <QuickActionsSection 
-          data={statistics} 
+        <QuickActionsSection
+          data={statistics}
           onNavigateToWorkLifeBalance={props.onNavigateToWorkLifeBalance}
           onNavigateToTeamCoverage={props.onNavigateToTeamCoverage}
         />
@@ -70,4 +71,4 @@ export const StatisticsTab: React.FC<StatisticsTabProps> = (props) => {
       </div>
     </div>
   );
-}; 
+};

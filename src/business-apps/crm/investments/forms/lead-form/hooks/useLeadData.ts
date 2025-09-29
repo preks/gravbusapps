@@ -50,7 +50,7 @@ export const useInvestmentLeadData = ({
         phone: lead.phoneNumber || "",
         jobPosition: lead.position || "",
 
-        // Company Information - ✅ ADDED: timeZone
+        // Company Information
         company: lead.companyName || "",
         companyEmail: lead.companyEmail || "",
         companyPhone: lead.companyPhone || "",
@@ -62,7 +62,6 @@ export const useInvestmentLeadData = ({
           lead.accountAnnualRevenueBand?.id ||
           "",
         numberOfEmployees: lead.companySizeRef || lead.companySize?.id || "",
-        timeZone: lead.timeZoneRef || lead.timeZone?.id || "", // ✅ ADDED
 
         // Lead Information - ✅ FIXED: Use ownerEmployeeId OR ownerEmployee.id
         owner: lead.ownerEmployeeId || lead.ownerEmployee?.id || "",
