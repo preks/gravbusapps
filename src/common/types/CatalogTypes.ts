@@ -41,6 +41,7 @@ export type GetCatalogsParams = {
   code?: string;
   name?: string;
   searchCriteria?: string;
+  parentEntryId?: string;
   limit?: number;
   offset?: number;
   value?: string;

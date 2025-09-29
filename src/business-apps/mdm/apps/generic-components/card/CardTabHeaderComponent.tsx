@@ -1,12 +1,9 @@
-import {
-  CardHeader,
-  CardTitle,
-  CardDescription,
-} from "@newwork/nw-design-system";
+import { CardHeader, CardTitle, CardDescription } from "@newwork/nw-design-system";
+import React from "react";
 
 type CardTabHeaderComponentProps = {
   addButton?: React.ReactNode;
-  cardTitle: string;
+  cardTitle: string | React.ReactNode;
   cardDescription: string;
 };
 
