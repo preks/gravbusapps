@@ -41,16 +41,12 @@ export interface JobFunctionsTabProps extends BusinessAppContextProps {
   prefixDataTestId?: string;
 }
 
-type TranslationKey = Record<string, string>;
-
 const JobFunctionsTab: React.FC<JobFunctionsTabProps> = (context) => {
   const { t } = useTranslation();
   const { prefixDataTestId } = context;
   const dataTestId = formatDataTestId(prefixDataTestId, "");
 
-  const restClient = useRestClient(
-    env("NEXT_PUBLIC_KOGITO_PROCESSES_ENDPOINT")
-  );
+  const restClient = useRestClient(env("NEXT_PUBLIC_KOGITO_PROCESSES_ENDPOINT"));
 
   const {
     jobFunctions,
@@ -63,15 +59,13 @@ const JobFunctionsTab: React.FC<JobFunctionsTabProps> = (context) => {
   } = useJobFunctions(context);
 
   const [searchTerm, setSearchTerm] = useState("");
-  const [selectedFunction, setSelectedFunction] = useState<JobFunction | null>(
-    null
-  );
+  const [selectedFunction, setSelectedFunction] = useState<JobFunction | null>(null);
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
 
   useEffect(() => {
     if (selectedFunction) {
       const newJobFunction = jobFunctions.find(
-        (jobFunction) => jobFunction.id === selectedFunction.id
+        (jobFunction) => jobFunction.id === selectedFunction.id,
       );
 
       if (newJobFunction) {
@@ -80,14 +74,10 @@ const JobFunctionsTab: React.FC<JobFunctionsTabProps> = (context) => {
     }
   }, [jobFunctions]);
 
-  const filteredFunctions = searchTerm
-    ? searchJobFunctions(searchTerm)
-    : jobFunctions;
+  const filteredFunctions = searchTerm ? searchJobFunctions(searchTerm) : jobFunctions;
 
   const handleView = (record: JobFunction) => {
-    const targetJobFunction = jobFunctions.find(
-      (jobFunction) => jobFunction.id === record.id
-    );
+    const targetJobFunction = jobFunctions.find((jobFunction) => jobFunction.id === record.id);
 
     if (targetJobFunction) {
       setSelectedFunction(targetJobFunction);
@@ -107,28 +97,10 @@ const JobFunctionsTab: React.FC<JobFunctionsTabProps> = (context) => {
       },
       {
         headers: { Authorization: `Bearer ${context.accessToken}` },
-      }
+      },
     );
 
     await refetch();
-  };
-
-  // Function to render translations
-  const renderTranslationItems = (
-    i18nData: TranslationKey | null | undefined
-  ) => {
-    if (!i18nData || Object.keys(i18nData).length === 0)
-      return <Badge variant="warning">No translations</Badge>;
-
-    return (
-      <div className="gba:space-y-2">
-        {Object.entries(i18nData).map(([locale, value]) => (
-          <Badge key={locale} variant="secondary" className="gba:mr-2 gba:mb-2">
-            <span className="gba:font-medium">{locale}:</span> {value}
-          </Badge>
-        ))}
-      </div>
-    );
   };
 
   const renderJobFunctionsTable = () => {
@@ -230,11 +202,8 @@ const JobFunctionsTab: React.FC<JobFunctionsTabProps> = (context) => {
           const description = getValue();
           return (
             <div className="gba:flex gba:items-center">
-              <div
-                className="gba:max-w-xs gba:truncate"
-                title={description as string}
-              >
-                {(description as string) ?? "No description"}
+              <div className="gba:max-w-xs gba:truncate" title={description as string}>
+                {(description as string) ?? "-"}
               </div>
             </div>
           );
@@ -315,42 +284,40 @@ const JobFunctionsTab: React.FC<JobFunctionsTabProps> = (context) => {
     // Conditionally add Job Family Details if jobFamilyRef exists
     if (selectedFunction.jobFamilyRef) {
       items.push({
-        redirectLink: `/mdm/job-structure-data/job-families/${selectedFunction.jobFamilyRef}`,
+        redirectLink: `/platform/mdm/job-structure-data/job-families/${selectedFunction.jobFamilyRef}`,
         color: "green",
         icon: UsersIcon,
         title: selectedFunction.jobFamily?.value ?? "Job Family Details",
-        description:
-          "View complete job family information, structure and related positions",
+        description: "View complete job family information, structure and related positions",
       });
     }
 
     // Conditionally add Level Group Details if jobLevelGroupRef exists
     if (selectedFunction.jobLevelGroupRef) {
       items.push({
-        redirectLink: `/mdm/job-structure-data/job-level-groups/${selectedFunction.jobLevelGroupRef}`,
+        redirectLink: `/platform/mdm/job-structure-data/job-level-groups/${selectedFunction.jobLevelGroupRef}`,
         color: "blue",
         icon: UserListIcon,
         title: selectedFunction.jobLevelGroup?.value ?? "Level Group Details",
-        description:
-          "View job level grouping, career progression paths and categorization",
+        description: "View job level grouping, career progression paths and categorization",
       });
     }
 
     items.push(
       {
-        redirectLink: `/mdm/job-structure-data/job-profiles?function=${selectedFunction.id}`,
+        redirectLink: `/platform/mdm/job-structure-data/job-profiles?function=${selectedFunction.id}`,
         color: "purple",
         icon: BookOpenIcon,
         title: "Related Job Profiles",
         description: `View all job profiles using the ${selectedFunction.name} function`,
       },
       {
-        redirectLink: `/mdm/competencies-data/skills?jobFunction=${selectedFunction.id}`,
+        redirectLink: `/platform/mdm/competencies-data/skills?jobFunction=${selectedFunction.id}`,
         color: "orange",
         icon: WrenchIcon,
         title: "Skills & Competencies",
         description: `Explore skills and competencies associated with ${selectedFunction.name}`,
-      }
+      },
     );
 
     return items;
@@ -363,6 +330,7 @@ const JobFunctionsTab: React.FC<JobFunctionsTabProps> = (context) => {
       {
         icon: <InfoIcon />,
         title: "Basic Information",
+        verticalTable: true,
         items: [
           {
             label: "Name",
@@ -371,21 +339,6 @@ const JobFunctionsTab: React.FC<JobFunctionsTabProps> = (context) => {
           {
             label: "Code",
             value: selectedFunction.code ?? "-",
-          },
-          {
-            label: "Version",
-            value:
-              selectedFunction.version !== undefined ? (
-                <Badge variant="secondary" className="gba:px-2">
-                  v{selectedFunction.version}
-                </Badge>
-              ) : (
-                "-"
-              ),
-          },
-          {
-            label: "ID",
-            value: selectedFunction.id ?? "-",
           },
           {
             label: "Description",
@@ -404,20 +357,6 @@ const JobFunctionsTab: React.FC<JobFunctionsTabProps> = (context) => {
           {
             label: "Job Level Group",
             value: selectedFunction.jobLevelGroup?.value ?? "-",
-          },
-        ],
-      },
-      {
-        icon: <InfoIcon />,
-        title: "Translations",
-        items: [
-          {
-            label: "Name Translations",
-            value: renderTranslationItems(selectedFunction.nameI18n),
-          },
-          {
-            label: "Description Translations",
-            value: renderTranslationItems(selectedFunction.descriptionI18n),
           },
         ],
       },
@@ -475,9 +414,7 @@ const JobFunctionsTab: React.FC<JobFunctionsTabProps> = (context) => {
               jobLevelGroups={jobLevelGroups}
             />
           }
-          cardTitle={`${t("hr.job_functions", "Job Functions")} (${
-            jobFunctions.length
-          })`}
+          cardTitle={`${t("hr.job_functions", "Job Functions")} (${jobFunctions.length})`}
           cardDescription="Manage and explore job functions across the organization"
         />
       )}
@@ -496,9 +433,7 @@ const JobFunctionsTab: React.FC<JobFunctionsTabProps> = (context) => {
         {isLoading ? (
           <div className="gba:text-center gba:py-8">
             <div className="gba:animate-spin gba:inline-block gba:w-8 gba:h-8 gba:border-4 gba:border-blue-600 gba:border-t-transparent gba:rounded-full"></div>
-            <p className="gba:mt-2 gba:text-gray-600">
-              Loading job functions...
-            </p>
+            <p className="gba:mt-2 gba:text-gray-600">Loading job functions...</p>
           </div>
         ) : (
           renderJobFunctionsTable()

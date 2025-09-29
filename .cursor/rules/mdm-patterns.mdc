@@ -105,7 +105,7 @@ export interface EnhancedJobLevel {
   id: string;
   name: string;
   code?: string;
-  level: number; // from heirarchyOrder
+  level: number; // from hierarchyOrder
   jobLevelGroupId: string; // from jobLevelGroupRef
   compensationBandId?: string;
   // Computed fields

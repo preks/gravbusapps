@@ -25,11 +25,7 @@ import PayGradeForm from "@/business-apps/mdm/forms/pay-grade-form";
 import { DeleteButton } from "../../../generic-components/delete-button/DeleteButton";
 import JobLevelForm from "@/business-apps/mdm/forms/job-level-form";
 import { formatDataTestId } from "@/common/utils/formatDataTestId";
-import {
-  XCircleIcon,
-  PlusIcon,
-  PencilSimpleLineIcon,
-} from "@phosphor-icons/react";
+import { XCircleIcon, PlusIcon, PencilSimpleLineIcon } from "@phosphor-icons/react";
 
 // Re-export types from integration hook for consistency
 export type PayGrade = EnhancedPayGrade;
@@ -51,16 +47,10 @@ const PayGradesTab: React.FC<PayGradesTabProps> = (context) => {
   // Use real data integration
   const { payGrades, jobLevelGroups, jobLevels, isLoading, error, refetch } =
     useCompensationDataIntegration(context);
-  const restClient = useRestClient(
-    env("NEXT_PUBLIC_KOGITO_PROCESSES_ENDPOINT")
-  );
+  const restClient = useRestClient(env("NEXT_PUBLIC_KOGITO_PROCESSES_ENDPOINT"));
 
-  const formatCurrency = (
-    amount: number,
-    currency?: { id: string; value: string } | string
-  ) => {
-    let currencyCode =
-      typeof currency === "string" ? currency : currency?.id || "EUR";
+  const formatCurrency = (amount: number, currency?: { id: string; value: string } | string) => {
+    let currencyCode = typeof currency === "string" ? currency : currency?.id || "EUR";
 
     // Extract currency code from format like "Currency:v1:EUR" -> "EUR"
     if (currencyCode.includes(":")) {
@@ -90,10 +80,7 @@ const PayGradesTab: React.FC<PayGradesTabProps> = (context) => {
     return lookup;
   }, [jobLevels]);
 
-  const getJobLevelsByPayGradeAndGroup = (
-    payGradeId: string,
-    groupId: string
-  ) => {
+  const getJobLevelsByPayGradeAndGroup = (payGradeId: string, groupId: string) => {
     const key = `${payGradeId}-${groupId}`;
     return jobLevelsByPayGradeAndGroup.get(key) || [];
   };
@@ -110,7 +97,7 @@ const PayGradesTab: React.FC<PayGradesTabProps> = (context) => {
       },
       {
         headers: { Authorization: `Bearer ${context.accessToken}` },
-      }
+      },
     );
 
     await refetch();
@@ -119,12 +106,12 @@ const PayGradesTab: React.FC<PayGradesTabProps> = (context) => {
   // Memoize sorted data to prevent unnecessary re-renders
   const sortedPayGrades = useMemo(
     () => [...payGrades].sort((a, b) => a.minSalary - b.minSalary),
-    [payGrades]
+    [payGrades],
   ); // Lowest grades first, will be at bottom with flex-reverse
 
   const sortedJobLevelGroups = useMemo(
     () => [...jobLevelGroups].sort((a, b) => a.order - b.order),
-    [jobLevelGroups]
+    [jobLevelGroups],
   );
 
   if (sortedPayGrades.length === 0 && isLoading) {
@@ -170,7 +157,7 @@ const PayGradesTab: React.FC<PayGradesTabProps> = (context) => {
               refetch={refetch}
               childAddButton={
                 <Button className="gba:flex gba:justify-center gba:items-center">
-                  <PlusIcon /> Add Pay Grade
+                  <PlusIcon /> Add Compensation Band
                 </Button>
               }
               payGradeLevel={sortedPayGrades.length + 1}
@@ -192,10 +179,7 @@ const PayGradesTab: React.FC<PayGradesTabProps> = (context) => {
                 {/* Pay Grade Label */}
                 <div className="gba:w-40 gba:flex gba:items-center gba:justify-start gba:pr-4">
                   <div className="gba:text-sm gba:font-medium gba:text-gray-700 gba:flex gba:items-center gba:gap-2 gba:min-w-0 gba:flex-1">
-                    <span
-                      className="gba:truncate gba:flex-1"
-                      title={payGrade.name}
-                    >
+                    <span className="gba:truncate gba:flex-1" title={payGrade.name}>
                       {payGrade.name}
                     </span>
                     <div className="gba:flex gba:gap-1 gba:flex-shrink-0">
@@ -204,11 +188,7 @@ const PayGradesTab: React.FC<PayGradesTabProps> = (context) => {
                         accessToken={context.accessToken}
                         refetch={refetch}
                         childAddButton={
-                          <Button
-                            size="sm"
-                            variant="ghost"
-                            className="gba:!p-0 gba:h-6 gba:w-6"
-                          >
+                          <Button size="sm" variant="ghost" className="gba:!p-0 gba:h-6 gba:w-6">
                             <PencilSimpleLineIcon />
                           </Button>
                         }
@@ -217,7 +197,7 @@ const PayGradesTab: React.FC<PayGradesTabProps> = (context) => {
                       />
                       <DeleteButton
                         onDelete={() => handleDeletePayGrade(payGrade)}
-                        itemName={`${payGrade.name} ${payGrade.code}`}
+                        itemName={payGrade.name}
                         itemTitle="Pay Grade"
                       />
                     </div>
@@ -227,10 +207,7 @@ const PayGradesTab: React.FC<PayGradesTabProps> = (context) => {
                 {/* Job Level Group Cells */}
                 <div className="gba:flex-1 gba:flex gba:justify-around gba:gap-2">
                   {sortedJobLevelGroups.map((group) => {
-                    const jobLevelsInCell = getJobLevelsByPayGradeAndGroup(
-                      payGrade.id,
-                      group.id
-                    );
+                    const jobLevelsInCell = getJobLevelsByPayGradeAndGroup(payGrade.id, group.id);
                     const hasJobLevels = jobLevelsInCell.length > 0;
 
                     return (
@@ -240,50 +217,35 @@ const PayGradesTab: React.FC<PayGradesTabProps> = (context) => {
                       >
                         {hasJobLevels ? (
                           <div className="gba:flex gba:gap-1 gba:w-full gba:h-full">
-                            {jobLevelsInCell.map(
-                              (jobLevel: EnhancedJobLevel) => (
-                                <Tooltip key={jobLevel.id}>
-                                  <TooltipTrigger asChild>
-                                    <div
-                                      className={`${group.color} gba:rounded gba:flex-1 gba:flex gba:items-center gba:justify-center gba:text-white gba:text-xs gba:font-medium gba:transition-colors hover:gba:opacity-80`}
-                                    >
-                                      <span className="gba:text-center gba:leading-tight gba:drop-shadow-sm">
-                                        {jobLevel.name}
-                                      </span>
+                            {jobLevelsInCell.map((jobLevel: EnhancedJobLevel) => (
+                              <Tooltip key={jobLevel.id}>
+                                <TooltipTrigger asChild>
+                                  <div
+                                    className={`${group.color} gba:rounded gba:flex-1 gba:flex gba:items-center gba:justify-center gba:text-white gba:text-xs gba:font-medium gba:transition-colors hover:gba:opacity-80`}
+                                  >
+                                    <span className="gba:text-center gba:leading-tight gba:drop-shadow-sm">
+                                      {jobLevel.name}
+                                    </span>
+                                  </div>
+                                </TooltipTrigger>
+                                <TooltipContent side="top">
+                                  <div className="gba:flex gba:flex-col gba:gap-0.5 gba:text-sm">
+                                    <div className="gba:font-bold">{jobLevel.name}</div>
+                                    <div>Pay Grade: {payGrade.name}</div>
+                                    <div>
+                                      Min: {formatCurrency(payGrade.minSalary, payGrade.currency)}
                                     </div>
-                                  </TooltipTrigger>
-                                  <TooltipContent side="top">
-                                    <div className="gba:flex gba:flex-col gba:gap-0.5 gba:text-sm">
-                                      <div className="gba:font-bold">
-                                        {jobLevel.name}
-                                      </div>
-                                      <div>Pay Grade: {payGrade.code}</div>
-                                      <div>
-                                        Min:{" "}
-                                        {formatCurrency(
-                                          payGrade.minSalary,
-                                          payGrade.currency
-                                        )}
-                                      </div>
-                                      <div className="gba:font-bold">
-                                        Std:{" "}
-                                        {formatCurrency(
-                                          payGrade.standardSalary,
-                                          payGrade.currency
-                                        )}
-                                      </div>
-                                      <div>
-                                        Max:{" "}
-                                        {formatCurrency(
-                                          payGrade.maxSalary,
-                                          payGrade.currency
-                                        )}
-                                      </div>
+                                    <div className="gba:font-bold">
+                                      Std:{" "}
+                                      {formatCurrency(payGrade.standardSalary, payGrade.currency)}
                                     </div>
-                                  </TooltipContent>
-                                </Tooltip>
-                              )
-                            )}
+                                    <div>
+                                      Max: {formatCurrency(payGrade.maxSalary, payGrade.currency)}
+                                    </div>
+                                  </div>
+                                </TooltipContent>
+                              </Tooltip>
+                            ))}
                           </div>
                         ) : (
                           <JobLevelForm
@@ -320,11 +282,7 @@ const PayGradesTab: React.FC<PayGradesTabProps> = (context) => {
                       {formatCurrency(payGrade.maxSalary, payGrade.currency)}
                     </div>
                     <div className="gba:text-gray-500">
-                      Std:{" "}
-                      {formatCurrency(
-                        payGrade.standardSalary,
-                        payGrade.currency
-                      )}
+                      Std: {formatCurrency(payGrade.standardSalary, payGrade.currency)}
                     </div>
                   </div>
                 </div>
@@ -334,8 +292,7 @@ const PayGradesTab: React.FC<PayGradesTabProps> = (context) => {
 
           {/* Bottom Labels */}
           <div className="gba:flex gba:items-center gba:mt-4 gba:px-4">
-            <div className="gba:w-40"></div>{" "}
-            {/* Empty space for pay grade column */}
+            <div className="gba:w-40"></div> {/* Empty space for pay grade column */}
             <div className="gba:flex-1 gba:flex gba:justify-around gba:gap-2">
               {sortedJobLevelGroups.map((group) => (
                 <div
@@ -346,8 +303,7 @@ const PayGradesTab: React.FC<PayGradesTabProps> = (context) => {
                 </div>
               ))}
             </div>
-            <div className="gba:w-48"></div>{" "}
-            {/* Empty space for salary range column */}
+            <div className="gba:w-48"></div> {/* Empty space for salary range column */}
           </div>
         </CardContent>
       </Card>

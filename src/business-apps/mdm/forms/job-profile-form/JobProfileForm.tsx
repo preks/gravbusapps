@@ -10,6 +10,7 @@ import {
   FormMessage,
   Textarea,
   Combobox,
+  Switch,
 } from "@newwork/nw-design-system";
 import {
   JobFunction,
@@ -51,9 +52,7 @@ const JobProfileForm: React.FC<JobProfileFormProps> = ({
   isDrawerActive = false,
 }) => {
   const dataTestId = formatDataTestId(prefixDataTestId, DATA_TEST_ID_PREFIX);
-  const restClient = useRestClient(
-    env("NEXT_PUBLIC_KOGITO_PROCESSES_ENDPOINT")
-  );
+  const restClient = useRestClient(env("NEXT_PUBLIC_KOGITO_PROCESSES_ENDPOINT"));
   const [loading, setLoading] = useState(false);
   const [selectedJobFunction, setSelectedJobFunction] = useState<{
     id: string;
@@ -66,7 +65,7 @@ const JobProfileForm: React.FC<JobProfileFormProps> = ({
 
   const jobLevels = useMemo(() => {
     const targetJobFunction = jobFunctions.find(
-      (jobFunction) => jobFunction.id === selectedJobFunction?.id
+      (jobFunction) => jobFunction.id === selectedJobFunction?.id,
     );
 
     if (!targetJobFunction) {
@@ -74,16 +73,13 @@ const JobProfileForm: React.FC<JobProfileFormProps> = ({
     }
 
     const targetJobLevelGroup = jobLevelGroups.find(
-      (jobLevelGroup) =>
-        jobLevelGroup.id === targetJobFunction?.jobLevelGroupRef
+      (jobLevelGroup) => jobLevelGroup.id === targetJobFunction?.jobLevelGroupRef,
     );
 
-    const jobLevels = (targetJobLevelGroup?.jobLevels ?? []).map(
-      (jobLevel) => ({
-        id: jobLevel.id,
-        name: jobLevel.name,
-      })
-    );
+    const jobLevels = (targetJobLevelGroup?.jobLevels ?? []).map((jobLevel) => ({
+      id: jobLevel.id,
+      name: jobLevel.name,
+    }));
 
     return jobLevels;
   }, [jobLevelGroups, selectedJobFunction, jobProfile, jobFunctions]);
@@ -98,17 +94,12 @@ const JobProfileForm: React.FC<JobProfileFormProps> = ({
           code: values.code,
           name: values.name,
           description: values.description,
-          contractTypeRef:
-            values.contractTypeRef?.length > 0 ? values.contractTypeRef : null,
-          employmentTypeRef:
-            values.employmentTypeRef?.length > 0
-              ? values.employmentTypeRef
-              : null,
+          contractTypeRef: values.contractTypeRef?.length > 0 ? values.contractTypeRef : null,
+          employmentTypeRef: values.employmentTypeRef?.length > 0 ? values.employmentTypeRef : null,
           jobFunction: values.jobFunctionId,
           jobLevel: values.jobLevelId?.length > 0 ? values.jobLevelId : null,
-          ...(jobProfile
-            ? { version: jobProfile.version, id: jobProfile.id }
-            : {}),
+          recordState: values.active,
+          ...(jobProfile ? { version: jobProfile.version, id: jobProfile.id } : {}),
         },
       };
 
@@ -136,9 +127,10 @@ const JobProfileForm: React.FC<JobProfileFormProps> = ({
             jobLevelId: jobProfile.jobLevelId,
             contractTypeRef: jobProfile.contractTypeRef,
             employmentTypeRef: jobProfile.employmentTypeRef,
+            active: jobProfile.recordState ? "active" : "inactive",
           }
         : {},
-    [jobProfile]
+    [jobProfile],
   );
 
   return (
@@ -229,7 +221,7 @@ const JobProfileForm: React.FC<JobProfileFormProps> = ({
                   field.onChange(value);
 
                   const targetJobFunction = jobFunctions.find(
-                    (jobFunction) => jobFunction.id === value
+                    (jobFunction) => jobFunction.id === value,
                   );
 
                   if (targetJobFunction) {
@@ -267,9 +259,7 @@ const JobProfileForm: React.FC<JobProfileFormProps> = ({
                 value={selectedJobLevel?.id || ""}
                 onValueChange={(value) => {
                   field.onChange(value);
-                  const targetLevel = jobLevels.find(
-                    (jobLevel) => jobLevel.id === value
-                  );
+                  const targetLevel = jobLevels.find((jobLevel) => jobLevel.id === value);
 
                   if (targetLevel) {
                     setSelectedJobLevel({
@@ -335,6 +325,23 @@ const JobProfileForm: React.FC<JobProfileFormProps> = ({
                 emptyText="No employment types found"
                 className="gba:!w-full"
                 data-testid={`${dataTestId}-employment-type-combobox`}
+              />
+            </FormControl>
+            <FormMessage />
+          </FormItem>
+        )}
+      />
+
+      <FormField
+        name="active"
+        render={({ field }) => (
+          <FormItem>
+            <FormLabel>Active</FormLabel>
+            <FormControl>
+              <Switch
+                checked={field.value === "active"}
+                onCheckedChange={(checked) => field.onChange(checked ? "active" : "inactive")}
+                data-testid={`${dataTestId}-active-switch`}
               />
             </FormControl>
             <FormMessage />

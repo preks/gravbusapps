@@ -12,6 +12,7 @@ import {
   Spinner,
   Accordion,
   DataTable,
+  Input,
 } from "@newwork/nw-design-system";
 import { CardTabHeaderComponent } from "../../../generic-components/card/CardTabHeaderComponent";
 import { formatDataTestId } from "@/common/utils/formatDataTestId";
@@ -44,7 +45,7 @@ interface JobLevelDetail extends JobLevel {
   jobLevelGroupId: string;
   code: string;
   level: number;
-  heirarchyOrder: number;
+  hierarchyOrder: number;
   displayName: string;
 }
 
@@ -55,10 +56,10 @@ const CareerBandsTab: React.FC<CareerBandsTabProps> = (context) => {
   const dataTestId = formatDataTestId(prefixDataTestId, DATA_TEST_ID_PREFIX);
 
   // State for drawer
-  const [selectedJobLevelDetail, setSelectedJobLevelDetail] =
-    useState<JobLevelDetail | null>(null);
+  const [selectedJobLevelDetail, setSelectedJobLevelDetail] = useState<JobLevelDetail | null>(null);
   const [drawerVisible, setDrawerVisible] = useState<boolean>(false);
   const [accordionValue, setAccordionValue] = useState<string | string[]>([]);
+  const [searchTerm, setSearchTerm] = useState("");
 
   // Use real data integration
   const { payGrades, jobLevelGroups, jobLevels, isLoading, error, refetch } =
@@ -66,24 +67,16 @@ const CareerBandsTab: React.FC<CareerBandsTabProps> = (context) => {
 
   useEffect(() => {
     if (selectedJobLevelDetail) {
-      const newJobLevel = getJobLevelDetails(
-        selectedJobLevelDetail.jobLevelGroupId
-      );
-      const targetJobLevel = newJobLevel.find(
-        (jl) => jl.id === selectedJobLevelDetail.id
-      );
+      const newJobLevel = getJobLevelDetails(selectedJobLevelDetail.jobLevelGroupId);
+      const targetJobLevel = newJobLevel.find((jl) => jl.id === selectedJobLevelDetail.id);
       if (targetJobLevel) {
         setSelectedJobLevelDetail(targetJobLevel);
       }
     }
   }, [jobLevels]);
 
-  const formatCurrency = (
-    amount: number,
-    currency?: { id: string; value: string } | string
-  ) => {
-    let currencyCode =
-      typeof currency === "string" ? currency : currency?.id ?? "EUR";
+  const formatCurrency = (amount: number, currency?: { id: string; value: string } | string) => {
+    let currencyCode = typeof currency === "string" ? currency : (currency?.id ?? "EUR");
 
     // Extract currency code from format like "Currency:v1:EUR" -> "EUR"
     if (currencyCode.includes(":")) {
@@ -97,6 +90,14 @@ const CareerBandsTab: React.FC<CareerBandsTabProps> = (context) => {
       minimumFractionDigits: 2,
     }).format(amount);
   };
+
+  const filteredData = useMemo(() => {
+    return jobLevelGroups.filter(
+      (group) =>
+        group.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        group.code?.toLowerCase().includes(searchTerm.toLowerCase()),
+    );
+  }, [jobLevelGroups, searchTerm]);
 
   const getJobLevelDetails = (groupId: string): JobLevelDetail[] => {
     const group = jobLevelGroups.find((g) => g.id === groupId);
@@ -130,7 +131,7 @@ const CareerBandsTab: React.FC<CareerBandsTabProps> = (context) => {
       groupCount: details.length,
       salaryRange: `${formatCurrency(minSalary, currency)} - ${formatCurrency(
         maxSalary,
-        currency
+        currency,
       )}`,
     };
   };
@@ -176,28 +177,28 @@ const CareerBandsTab: React.FC<CareerBandsTabProps> = (context) => {
             label: "Minimum Salary",
             value: formatCurrency(
               selectedJobLevelDetail.payGrade?.minSalary ?? 0,
-              selectedJobLevelDetail.payGrade?.currency
+              selectedJobLevelDetail.payGrade?.currency,
             ),
           },
           {
             label: "Standard Salary",
             value: formatCurrency(
               selectedJobLevelDetail.payGrade?.standardSalary ?? 0,
-              selectedJobLevelDetail.payGrade?.currency
+              selectedJobLevelDetail.payGrade?.currency,
             ),
           },
           {
             label: "Maximum Salary",
             value: formatCurrency(
               selectedJobLevelDetail.payGrade?.maxSalary ?? 0,
-              selectedJobLevelDetail.payGrade?.currency
+              selectedJobLevelDetail.payGrade?.currency,
             ),
           },
           {
             label: "Salary Range",
             value: formatCurrency(
               selectedJobLevelDetail.range ?? 0,
-              selectedJobLevelDetail.payGrade?.currency
+              selectedJobLevelDetail.payGrade?.currency,
             ),
           },
         ],
@@ -212,42 +213,11 @@ const CareerBandsTab: React.FC<CareerBandsTabProps> = (context) => {
           },
           {
             label: "Hierarchy Order",
-            value:
-              selectedJobLevelDetail.heirarchyOrder !== undefined
-                ? selectedJobLevelDetail.heirarchyOrder
-                : "-",
+            value: selectedJobLevelDetail.hierarchyOrder ?? "-",
           },
           {
             label: "Level",
-            value:
-              selectedJobLevelDetail.level !== undefined
-                ? selectedJobLevelDetail.level
-                : "-",
-          },
-        ],
-      },
-      {
-        icon: <InfoIcon />,
-        title: "System Information",
-        items: [
-          {
-            label: "ID",
-            value: selectedJobLevelDetail.id,
-          },
-          {
-            label: "Pay Grade ID",
-            value: selectedJobLevelDetail.payGradeId ?? "-",
-          },
-          {
-            label: "Job Level Group ID",
-            value: selectedJobLevelDetail.jobLevelGroupId ?? "-",
-          },
-          {
-            label: "Version",
-            value:
-              selectedJobLevelDetail.version !== undefined
-                ? selectedJobLevelDetail.version
-                : "-",
+            value: selectedJobLevelDetail.level ?? "-",
           },
         ],
       },
@@ -305,7 +275,7 @@ const CareerBandsTab: React.FC<CareerBandsTabProps> = (context) => {
             onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
             className="gba:h-auto gba:p-0 gba:font-semibold gba:hover:bg-transparent gba:justify-start"
           >
-            Levels
+            Name
             <ArrowsDownUpIcon className="gba:ml-2 gba:h-4 gba:w-4" />
           </Button>
         ),
@@ -316,7 +286,7 @@ const CareerBandsTab: React.FC<CareerBandsTabProps> = (context) => {
         },
       },
       {
-        accessorKey: "paygrade",
+        accessorKey: "payGrade",
         header: ({ column }) => (
           <Button
             variant="ghost"
@@ -451,7 +421,7 @@ const CareerBandsTab: React.FC<CareerBandsTabProps> = (context) => {
 
   const groupItems = useMemo(
     () =>
-      jobLevelGroups.map((group) => {
+      filteredData.map((group) => {
         const summary = getGroupSummary(group.id);
 
         return {
@@ -461,21 +431,18 @@ const CareerBandsTab: React.FC<CareerBandsTabProps> = (context) => {
           badgeText: `${summary?.groupCount ?? 0} levels`,
           badgeVariant: "info" as const,
           contentDescription: group.description,
-          content: (
-            <div className="gba:space-y-4">
-              {renderJobLevelsTable(group.id)}
-            </div>
-          ),
+          content: <div className="gba:space-y-4">{renderJobLevelsTable(group.id)}</div>,
         };
       }),
     [
       jobLevelGroups,
+      filteredData,
       userInfo?.employeeDetails.employeeId,
       refetch,
       context.accessToken,
       dataTestId,
       payGrades,
-    ]
+    ],
   );
 
   if (jobLevelGroups.length === 0 && isLoading) {
@@ -491,10 +458,7 @@ const CareerBandsTab: React.FC<CareerBandsTabProps> = (context) => {
 
   if (error) {
     return (
-      <div
-        data-testid={`${prefixDataTestId}-CareerBandsTab`}
-        className="gba:p-4"
-      >
+      <div data-testid={`${prefixDataTestId}-CareerBandsTab`} className="gba:p-4">
         <Alert
           className="gba:w-full gba:!flex gba:justify-between gba:!items-center"
           variant="destructive"
@@ -528,12 +492,20 @@ const CareerBandsTab: React.FC<CareerBandsTabProps> = (context) => {
       />
 
       <CardContent>
+        <div className="gba:mb-6 gba:relative gba:max-w-sm">
+          <Input
+            placeholder="Search career bands..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="gba:pl-10"
+            data-testid={`${dataTestId}-search-input`}
+          />
+        </div>
+
         {jobLevelGroups.length === 0 && !isLoading ? (
           <div className="gba:text-center gba:flex gba:flex-col gba:items-center gba:justify-center gba:py-8">
             <UsersIcon className="gba:text-4xl gba:text-gray-400 gba:mb-4" />
-            <h1 className="gba:font-bold gba:text-xl">
-              No Job Level Groups Found
-            </h1>
+            <h1 className="gba:font-bold gba:text-xl">No Job Level Groups Found</h1>
           </div>
         ) : (
           <Accordion

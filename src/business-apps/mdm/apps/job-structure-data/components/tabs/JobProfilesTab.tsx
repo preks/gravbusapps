@@ -79,6 +79,27 @@ const JobProfilesTab: React.FC<JobProfilesTabProps> = (context) => {
     error: jobLevelError,
   } = useJobLevels(context);
 
+  useEffect(() => {
+    if (selectedProfile) {
+      const newProfile = jobProfiles.find((profile) => profile.id === selectedProfile.id);
+
+      if (newProfile) {
+        setSelectedProfile(newProfile);
+      }
+    }
+  }, [jobProfiles]);
+
+  const selectedJobLevelGroup = useMemo(() => {
+    const targetFunction = jobFunctions.find(
+      (jobFunction) => jobFunction.id === selectedProfile?.jobFunctionId,
+    );
+    const targetJobLevelGroup = jobLevelGroups.find(
+      (jobLevelGroup) => jobLevelGroup.id === targetFunction?.jobLevelGroupRef,
+    );
+
+    return targetJobLevelGroup;
+  }, [jobLevelGroups, selectedProfile, jobFunctions]);
+
   const loadAllTypes = async () => {
     try {
       setAllTypesLoading(true);
@@ -95,7 +116,7 @@ const JobProfilesTab: React.FC<JobProfilesTabProps> = (context) => {
       if (contractTypes) {
         setContractTypes(contractTypes);
       }
-    } catch (error) {
+    } catch {
       console.error("Failed to load employment types");
     } finally {
       setAllTypesLoading(false);
@@ -104,7 +125,7 @@ const JobProfilesTab: React.FC<JobProfilesTabProps> = (context) => {
 
   useEffect(() => {
     loadAllTypes();
-  }, [searchTerm, userLocale]);
+  }, [userLocale]);
 
   const filteredProfiles = searchTerm ? searchJobProfiles(searchTerm) : jobProfiles;
 
@@ -300,8 +321,8 @@ const JobProfilesTab: React.FC<JobProfilesTabProps> = (context) => {
           const description = getValue();
           return (
             <div className="gba:flex gba:items-center">
-              <div className="gba:max-w-xs gba:truncate" title={description as string}>
-                {(description as string) ?? "No description"}
+              <div className="gba:max-w-[200px] gba:truncate" title={description as string}>
+                {(description as string) ?? "-"}
               </div>
             </div>
           );
@@ -393,17 +414,6 @@ const JobProfilesTab: React.FC<JobProfilesTabProps> = (context) => {
             value: selectedProfile.code ?? "-",
           },
           {
-            label: "Version",
-            value:
-              selectedProfile.version !== undefined ? (
-                <Badge variant="secondary" className="gba:px-2">
-                  v{selectedProfile.version}
-                </Badge>
-              ) : (
-                "-"
-              ),
-          },
-          {
             label: "Status",
             value: (
               <Badge variant={getStatusColor(selectedProfile.recordState)}>
@@ -413,10 +423,6 @@ const JobProfilesTab: React.FC<JobProfilesTabProps> = (context) => {
                   : "Unknown"}
               </Badge>
             ),
-          },
-          {
-            label: "ID",
-            value: selectedProfile.id ?? "-",
           },
           {
             label: "Description",
@@ -434,32 +440,16 @@ const JobProfilesTab: React.FC<JobProfilesTabProps> = (context) => {
             value: selectedProfile.jobFunction ? selectedProfile.jobFunction.name : "-",
           },
           {
-            label: "Job Function ID",
-            value: selectedProfile.jobFunction ? selectedProfile.jobFunctionId : "-",
-          },
-          {
             label: "Job Level Name",
             value: selectedProfile.jobLevel ? selectedProfile.jobLevel.name : "-",
-          },
-          {
-            label: "Job Level ID",
-            value: selectedProfile.jobLevel ? selectedProfile.jobLevel.id : "-",
           },
           {
             label: "Contract Type Name",
             value: selectedProfile.contractType ? selectedProfile.contractType.value : "-",
           },
           {
-            label: "Contract Type Ref",
-            value: selectedProfile.contractType ? selectedProfile.contractTypeRef : "-",
-          },
-          {
             label: "Employment Type Name",
             value: selectedProfile.employmentType ? selectedProfile.employmentType.value : "-",
-          },
-          {
-            label: "Employment Type Ref",
-            value: selectedProfile.employmentType ? selectedProfile.employmentTypeRef : "-",
           },
         ],
       },
@@ -633,6 +623,27 @@ const JobProfilesTab: React.FC<JobProfilesTabProps> = (context) => {
             titleIcon={FileCodeIcon}
             drawerItems={drawerItems}
             navigationItems={navigationItems}
+            footerButtons={[
+              <JobProfileForm
+                childAddButton={
+                  <Button>
+                    <PencilSimpleLineIcon /> Edit
+                  </Button>
+                }
+                prefixDataTestId={dataTestId}
+                accessToken={context.accessToken}
+                refetch={refetch}
+                jobProfile={selectedProfile}
+                jobFunctions={jobFunctions}
+                jobLevelGroups={jobLevelGroups}
+                contractTypes={contractTypes}
+                employmentTypes={employmentTypes}
+                defaultJobLevels={selectedJobLevelGroup?.jobLevels}
+                jobLevelGroupRef={selectedJobLevelGroup?.id}
+                isDrawerActive={isDrawerVisible}
+                key={selectedProfile.id}
+              />,
+            ]}
           />
         )}
       </CardContent>
