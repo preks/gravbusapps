@@ -138,11 +138,9 @@ export const useCurrencyData = (accessToken: string, managerId: string) => {
         // Mark as initialized in the store
         setInitialized(true);
       } catch (error) {
+        // Surface the error and avoid silently forcing fallback currencies
         console.error('Error fetching currency data:', error);
-        // Use fallback currencies on error
-        const fallbackCurrencies = ['EUR', 'USD'];
-        setLocalCurrencies(fallbackCurrencies);
-        setStoreCurrencies(fallbackCurrencies);
+        setLocalCurrencies([]);
       } finally {
         setIsLoading(false);
       }

@@ -132,6 +132,19 @@ const TeamSpendingAnalyticsPage: React.FC<TeamSpendingAnalyticsPageProps> = ({
     setDateRange(value);
   };
 
+  // Create widgets for summary statistics (force two decimals in KPI formatting)
+  const kpiCurrencyCode = currencyFilter || primaryCurrency;
+  const formatKpiAmount = (amount: number | null | undefined): string => {
+    const safe = typeof amount === 'number' ? amount : 0;
+    const userLocale = getCurrentActiveUserLocale();
+    const formatted = new Intl.NumberFormat(userLocale, {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    }).format(safe);
+    const lang = userLocale.split('-')[0].toLowerCase();
+    return lang === 'en' ? `${kpiCurrencyCode} ${formatted}` : `${formatted} ${kpiCurrencyCode}`;
+  };
+
   // Create widgets for summary statistics
   const widgets: WidgetItem[] = [
     {
@@ -140,9 +153,7 @@ const TeamSpendingAnalyticsPage: React.FC<TeamSpendingAnalyticsPageProps> = ({
         "lowcoder:team_expenses_page.dashboard_tab.total_expense_items",
         "Total Expense Items",
       ),
-      value: data?.totalExpenseAmount
-        ? formatCurrencyDisplay(data.totalExpenseAmount, currencyFilter || primaryCurrency)
-        : formatCurrencyDisplay(0, currencyFilter || primaryCurrency),
+      value: formatKpiAmount(data?.totalExpenseAmount),
       color: "#1890ff",
       valueIsString: true,
       description: getTranslationFromI18nKeyAndLabel(
@@ -156,9 +167,7 @@ const TeamSpendingAnalyticsPage: React.FC<TeamSpendingAnalyticsPageProps> = ({
         "lowcoder:team_expenses_page.dashboard_tab.total_expense_requests",
         "Total Expense Requests",
       ),
-      value: data?.totalRequestAmount
-        ? formatCurrencyDisplay(data.totalRequestAmount, currencyFilter || primaryCurrency)
-        : formatCurrencyDisplay(0, currencyFilter || primaryCurrency),
+      value: formatKpiAmount(data?.totalRequestAmount),
       color: "#52c41a",
       valueIsString: true,
       description: getTranslationFromI18nKeyAndLabel(
@@ -172,9 +181,7 @@ const TeamSpendingAnalyticsPage: React.FC<TeamSpendingAnalyticsPageProps> = ({
         "lowcoder:team_expenses_page.dashboard_tab.total_expense_plans",
         "Total Expense Plans",
       ),
-      value: data?.totalPlanAmount
-        ? formatCurrencyDisplay(data.totalPlanAmount, currencyFilter || primaryCurrency)
-        : formatCurrencyDisplay(0, currencyFilter || primaryCurrency),
+      value: formatKpiAmount(data?.totalPlanAmount),
       color: "#722ed1",
       valueIsString: true,
       description: getTranslationFromI18nKeyAndLabel(
@@ -188,9 +195,7 @@ const TeamSpendingAnalyticsPage: React.FC<TeamSpendingAnalyticsPageProps> = ({
         "lowcoder:team_expenses_page.advance_payments_tab.total_advance_payments",
         "Total Advance Payments",
       ),
-      value: data?.totalAdvanceAmount
-        ? formatCurrencyDisplay(data.totalAdvanceAmount, currencyFilter || primaryCurrency)
-        : formatCurrencyDisplay(0, currencyFilter || primaryCurrency),
+      value: formatKpiAmount(data?.totalAdvanceAmount),
       color: "#fa8c16",
       valueIsString: true,
       description: getTranslationFromI18nKeyAndLabel(
@@ -580,13 +585,16 @@ const TeamSpendingAnalyticsPage: React.FC<TeamSpendingAnalyticsPageProps> = ({
           <CardContent>
             <BarChartComponent
               data={
-                data?.advancePaymentsByStatus.map((item) => ({
+                data?.advancePaymentsByStatus.map((item: any) => ({
                   name: getAdvancePaymentStatusDisplay(item.status).label,
-                  value: item.count,
+                  value: item.amount ?? 0,
+                  // Pass count through payload so tooltip can show it
+                  count: item.count ?? 0,
                 })) || []
               }
               title=""
               barColor="#13c2c2"
+              currency={currencyFilter || primaryCurrency}
             />
           </CardContent>
         </Card>
@@ -605,13 +613,16 @@ const TeamSpendingAnalyticsPage: React.FC<TeamSpendingAnalyticsPageProps> = ({
           <CardContent>
             <PieChartComponent
               data={
-                data?.advancePaymentsByStatus.map((item) => ({
+                data?.advancePaymentsByStatus.map((item: any) => ({
                   name: getAdvancePaymentStatusDisplay(item.status).label,
-                  value: item.count,
+                  value: item.amount ?? 0,
+                  // Pass count through payload so tooltip can show it
+                  count: item.count ?? 0,
                 })) || []
               }
               title=""
               colors={["#13c2c2", "#52c41a", "#1890ff", "#f5222d", "#fa8c16"]}
+              currency={currencyFilter || primaryCurrency}
             />
           </CardContent>
         </Card>

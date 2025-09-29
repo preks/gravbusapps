@@ -82,7 +82,14 @@ const PieChartComponent: React.FC<PieChartProps> = ({
                 ))}
               </Pie>
               <Tooltip
-                formatter={(value) => [formatCurrencyDisplay(value, currency), "Amount"]}
+                formatter={(value: any, _name: any, props: any) => {
+                  const count = props?.payload?.count ?? null;
+                  const amountText = formatCurrencyDisplay(value, currency);
+                  return [
+                    count !== null ? `${amountText} (Count: ${count})` : amountText,
+                    "Amount",
+                  ];
+                }}
                 labelFormatter={(name) => `${name}`}
               />
               <Legend />

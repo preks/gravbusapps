@@ -76,7 +76,14 @@ const BarChartComponent: React.FC<BarChartProps> = ({
               <XAxis dataKey={xAxisDataKey} />
               <YAxis />
               <Tooltip
-                formatter={(value) => [formatCurrencyDisplay(value, currency), "Amount"]}
+                formatter={(value: any, _name: any, props: any) => {
+                  const count = props?.payload?.count ?? null;
+                  const amountText = formatCurrencyDisplay(value, currency);
+                  return [
+                    count !== null ? `${amountText} (Count: ${count})` : amountText,
+                    "Amount",
+                  ];
+                }}
                 labelFormatter={(label) => `${label}`}
               />
               <Bar dataKey={barDataKey} fill={barColor} />
