@@ -55,6 +55,9 @@ export interface ExpensePlansTableProps extends BusinessAppContextProps {
   tableRefreshTrigger?: number;
   // injected from tab: computed currency stats for building currency group and pills
   currencyStats?: Array<{ ref: string; code: string; count: number }>;
+  // Sorting state from parent
+  sortField?: string;
+  sortOrder?: 'ascend' | 'descend' | null;
 }
 
 const ExpensePlansTable: React.FC<ExpensePlansTableProps> = React.memo((props) => {
@@ -68,6 +71,8 @@ const ExpensePlansTable: React.FC<ExpensePlansTableProps> = React.memo((props) =
     onTableChange,
     search,
     selectedFilters,
+    sortField,
+    sortOrder,
     ...contextProps
   } = props;
 
@@ -81,8 +86,7 @@ const ExpensePlansTable: React.FC<ExpensePlansTableProps> = React.memo((props) =
   }, [search, selectedFilters]);
 
   // Server-side sorting state - managed by parent component
-  const [sortField, setSortField] = useState<string>('createdAt');
-  const [sortOrder, setSortOrder] = useState<'ascend' | 'descend' | undefined>('descend');
+  // Remove local sorting state as it should be managed by parent
 
   const [selectedItem, setSelectedItem] = useState<ExpensePlan | null>(null);
   const [selectedExpenseRequest, setSelectedExpenseRequest] = useState<any>(null);
@@ -104,25 +108,11 @@ const ExpensePlansTable: React.FC<ExpensePlansTableProps> = React.memo((props) =
 
   // Enhanced server-side sorting handler
   const handleSort = useCallback((field: string) => {
-    if (sortField === field) {
-      // Cycle through: ascend -> descend -> clear
-      if (sortOrder === 'ascend') {
-        setSortOrder('descend');
-      } else if (sortOrder === 'descend') {
-        setSortField('');
-        setSortOrder(undefined);
-      } else {
-        setSortOrder('ascend');
-      }
-    } else {
-      setSortField(field);
-      setSortOrder('ascend');
-    }
-    // Reset to first page when sorting changes
+    // Call parent's onTableChange with proper sorting parameters
     if (onTableChange) {
-      onTableChange({ current: 1, pageSize }, {}, { field, order: sortOrder === 'ascend' ? 'descend' : 'ascend' });
+      onTableChange({ current: 1, pageSize }, {}, { field, order: 'ascend' });
     }
-  }, [sortField, sortOrder, onTableChange, pageSize]);
+  }, [onTableChange, pageSize]);
 
   // Helper function to render sort icon
   const renderSortIcon = useCallback((field: string) => {
@@ -189,11 +179,6 @@ const ExpensePlansTable: React.FC<ExpensePlansTableProps> = React.memo((props) =
   // Enhanced table change handler for server-side sorting
   const handleEnhancedTableChange = useCallback((pagination: any, _filters: any, sorter: any) => {
     if (onTableChange) {
-      // Update sorting state if sorter is provided
-      if (sorter && sorter.field) {
-        setSortField(sorter.field);
-        setSortOrder(sorter.order);
-      }
       onTableChange(pagination, _filters, sorter);
     }
   }, [onTableChange]);

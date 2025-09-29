@@ -312,20 +312,33 @@ const ExpensePlansTab: React.FC<ExpensePlansTabProps> = (props) => {
   }, [props.onContentHeaderChange, contentHeader]);
 
   // Enhanced table change handler for server-side sorting
-  const handleTableChange = useCallback((pagination: any, sorter: any) => {
+  const handleTableChange = useCallback((pagination: any, _filters: any, sorter: any) => {
     setCurrentPage(pagination.current);
     setPageSize(pagination.pageSize);
     
     // Handle sorting for server-side sorting
     if (sorter && sorter.field) {
-      setSortField(sorter.field);
-      setSortOrder(sorter.order);
+      // If clicking the same field, cycle through: ascend -> descend -> clear
+      if (sortField === sorter.field) {
+        if (sortOrder === 'ascend') {
+          setSortOrder('descend');
+        } else if (sortOrder === 'descend') {
+          setSortField('createdAt');
+          setSortOrder('descend');
+        } else {
+          setSortOrder('ascend');
+        }
+      } else {
+        // New field - start with ascend
+        setSortField(sorter.field);
+        setSortOrder('ascend');
+      }
     } else {
       // Reset to default sorting (creation date descending)
       setSortField('createdAt');
       setSortOrder('descend');
     }
-  }, []);
+  }, [sortField, sortOrder]);
 
   return (
     <ExpensePlansTable
@@ -370,6 +383,8 @@ const ExpensePlansTab: React.FC<ExpensePlansTabProps> = (props) => {
       addFilter={addFilter}
       removeFilter={removeFilter}
       tableRefreshTrigger={tableRefreshTrigger}
+      sortField={sortField}
+      sortOrder={sortOrder}
       {...({ currencyStats } as any)}
     />
   );
