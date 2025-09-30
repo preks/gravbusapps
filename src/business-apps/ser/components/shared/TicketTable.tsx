@@ -6,10 +6,10 @@ import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
 import type { StepStatus } from 'packages/services-plus-core';
 import type { StepInstance } from '../../types';
 import { formatRequestId } from '../../utils';
-import { EmployeeDisplayName } from '../../apps/service-desk/components/EmployeeDisplayName';
 import { useEmployeeNamesBatch } from '../../hooks/useEmployeeNamesBatch';
 import { DataContainer } from '@/components/layout/dataContainer/DataContainer';
 import { useDeskTablePreferencesSimple } from '../../hooks/useDeskTablePreferencesSimple';
+import { navigateTo } from '@/common/utils/navigationUtils';
 import type { ColumnConfig } from '@/components/dataController';
 
 // Import nw-design-system components
@@ -22,7 +22,13 @@ import {
   TableRow,
   Button, 
   Badge,
-  Spinner
+  Spinner,
+  Avatar,
+  AvatarFallback,
+  Tooltip,
+  TooltipProvider,
+  TooltipContent,
+  TooltipTrigger,
 } from '@newwork/nw-design-system';
 
 // Filter group interface
@@ -150,6 +156,67 @@ const SortableTableHead: React.FC<{
   );
 };
 
+// Enhanced Employee Display Component with Avatar (similar to investment lead view)
+const EnhancedEmployeeDisplay: React.FC<{
+  userId: string;
+  displayName: string;
+  testId?: string;
+  showTooltip?: boolean;
+}> = ({ userId, displayName, testId, showTooltip = true }) => {
+  // Helper function to get employee initials
+  const getInitials = (name: string) => {
+    if (!name || name === "-") return "U";
+    return name
+      .split(" ")
+      .map((n: string) => n[0])
+      .join("")
+      .toUpperCase()
+      .slice(0, 2); // Max 2 characters
+  };
+
+  // Handle click to navigate to employee record
+  const handleEmployeeClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (userId && userId !== 'unknown') {
+      navigateTo(`/platform/employee-record?employeeId=${userId}`);
+    }
+  };
+
+  const avatarDisplay = (
+    <div
+      className="gba:flex gba:items-center gba:gap-2 gba:cursor-pointer hover:gba:bg-transparent focus:gba:bg-transparent gba:group gba:p-1 gba:rounded gba:transition-colors hover:gba:bg-gray-100"
+      data-testid={testId}
+      onClick={handleEmployeeClick}
+    >
+      <Avatar size="sm" className="gba:outline gba:outline-2 gba:outline-offset-2 gba:outline-transparent gba:group-hover:[outline-color:var(--nw-color-primary-500)] gba:rounded-full">
+        {/* Note: We don't have pictureThumbnail in ticket data, so we'll use fallback */}
+        <AvatarFallback>
+          {getInitials(displayName)}
+        </AvatarFallback>
+      </Avatar>
+      <span className="gba:text-sm gba:group-hover:gba:text-blue-600 gba:transition-colors">
+        {displayName}
+      </span>
+    </div>
+  );
+
+  if (showTooltip && userId && userId !== 'unknown') {
+    return (
+      <TooltipProvider>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            {avatarDisplay}
+          </TooltipTrigger>
+          <TooltipContent>
+            <p>Click to view employee profile</p>
+          </TooltipContent>
+        </Tooltip>
+      </TooltipProvider>
+    );
+  }
+
+  return avatarDisplay;
+};
 
 export const TicketTable: React.FC<TicketTableProps> = ({
   // Data
@@ -752,14 +819,24 @@ export const TicketTable: React.FC<TicketTableProps> = ({
                       )}
                       {visibleColumns.includes('requester') && (
                         <TableCell className="gba:align-top">
-                          <EmployeeDisplayName
-                            userId={ticket.flowInitiatedBy || ticket.requesterId || ''}
-                            accessToken={accessToken}
-                            showIcon={true}
-                            fallback={ticket.requesterName || "Unknown User"}
-                            testId={`requester-${ticket.id}`}
-                            prefetchedDisplayName={batchedDisplayNames.get(ticket.flowInitiatedBy || ticket.requesterId || '')}
-                          />
+                          {(() => {
+                            const requesterUserId = ticket.flowInitiatedBy || ticket.requesterId;
+                            const requesterName = requesterUserId ? batchedDisplayNames.get(requesterUserId) : null;
+                            const displayName = requesterName || ticket.requesterName || "Unknown User";
+                            
+                            if (!requesterUserId || requesterUserId === 'unknown') {
+                              return <span className="gba:text-gray-400">{displayName}</span>;
+                            }
+                            
+                            return (
+                                <EnhancedEmployeeDisplay
+                                  userId={requesterUserId}
+                                  displayName={displayName}
+                                  testId={`requester-${ticket.id}`}
+                                  showTooltip={true}
+                                />
+                            );
+                          })()}
                         </TableCell>
                       )}
                       {visibleColumns.includes('status') && (
@@ -823,29 +900,32 @@ export const TicketTable: React.FC<TicketTableProps> = ({
                       )}
                       {visibleColumns.includes('assignee') && (
                         <TableCell className="gba:align-top">
-                          {ticket.assignedToUserId ? (
-                            <EmployeeDisplayName
-                              userId={ticket.assignedToUserId}
-                              accessToken={accessToken}
-                              showIcon={true}
-                              fallback="Assigned User"
-                              testId={`assigned-user-${ticket.id}`}
-                              prefetchedDisplayName={batchedDisplayNames.get(ticket.assignedToUserId)}
-                            />
-                          ) : ticket.claimedByUserId ? (
-                            <EmployeeDisplayName
-                              userId={ticket.claimedByUserId}
-                              accessToken={accessToken}
-                              showIcon={true}
-                              fallback="Claimed User"
-                              testId={`claimed-user-${ticket.id}`}
-                              prefetchedDisplayName={batchedDisplayNames.get(ticket.claimedByUserId)}
-                            />
-                          ) : (
-                            <span className="gba:text-muted-foreground gba:text-sm">
-                              {getTranslationFromI18nKeyAndLabel('services.queue.unassigned', 'Unassigned')}
-                            </span>
-                          )}
+                          {(() => {
+                            // Priority: claimedByUserId > assignedToUserId
+                            const assigneeUserId = ticket.claimedByUserId || ticket.assignedToUserId;
+                            const assigneeName = assigneeUserId ? batchedDisplayNames.get(assigneeUserId) : null;
+                            
+                            if (!assigneeUserId) {
+                              return (
+                                <span className="gba:text-muted-foreground gba:text-sm">
+                                  {getTranslationFromI18nKeyAndLabel('services.queue.unassigned', 'Unassigned')}
+                                </span>
+                              );
+                            }
+                            
+                            const displayName = assigneeName || (ticket.claimedByUserId ? "Claimed User" : "Assigned User");
+                            
+                            return (
+                              <div className="gba:flex gba:flex-col gba:gap-1">
+                                <EnhancedEmployeeDisplay
+                                  userId={assigneeUserId}
+                                  displayName={displayName}
+                                  testId={`assignee-${ticket.id}`}
+                                  showTooltip={true}
+                                />
+                              </div>
+                            );
+                          })()}
                         </TableCell>
                       )}
                       {visibleColumns.includes('updated') && (

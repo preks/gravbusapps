@@ -230,7 +230,7 @@ export const DeskQueue: React.FC<DeskQueueProps> = ({
       <Sheet open={isDetailDrawerOpen} onOpenChange={handleCloseDetail}>
         <SheetContent 
           side="right" 
-          className="gba:w-[800px] sm:gba:max-w-[800px]"
+          className="gba:w-[1200px] sm:gba:max-w-[1200px] gba:max-w-[90vw]"
           data-testid="ticket-detail-sheet"
         >
           <SheetHeader>
