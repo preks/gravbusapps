@@ -28,6 +28,10 @@ interface Employee {
 
 interface ExpensePosition {
   expenseGroupRef: string;
+  expenseGroup?: {
+    value?: string;
+    translations?: Array<{ value?: string; localeCode?: string }>;
+  };
 }
 
 interface ExpenseItem {
@@ -639,7 +643,13 @@ export const useTeamSpendingAnalytics = (
         if (positions.length > 0) {
           // Group amounts by category
           positions.forEach((position: ExpensePosition) => {
-            const category = position.expenseGroupRef || 'Uncategorized';
+            // Prefer catalog display value when available
+            const catalog = position.expenseGroup;
+            const locale = (window?.lowcoder?.i18n?.selectedLocale || 'en-US').toLowerCase();
+            const translated = catalog?.translations?.find((t) => t?.localeCode?.toLowerCase() === locale)?.value;
+            const display = translated || catalog?.value;
+            const codeKey = position.expenseGroupRef || 'Uncategorized';
+            const category = display || codeKey;
             const currentAmount = categoryMap.get(category) || 0;
             // For array positions, we need to divide the total amount proportionally
             // Here we're simply dividing equally among positions, which may need refinement

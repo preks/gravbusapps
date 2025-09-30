@@ -101,28 +101,10 @@ const TeamSpendingAnalyticsPage: React.FC<TeamSpendingAnalyticsPageProps> = ({
 
   // Transform expense items by category data to use actual category names
   const expenseItemsByCategoryWithNames = useMemo(() => {
-    if (!data?.expenseItemsByCategory || !expenseGroups) return data?.expenseItemsByCategory || [];
-
-    const extractCode = (raw: string): string => {
-      if (typeof raw !== "string") return "";
-      const last = raw.split(":").pop() || raw;
-      return last.trim().toUpperCase().replace(/\s+/g, "_");
-    };
-
-    return data.expenseItemsByCategory.map((item) => {
-      const code = extractCode(String(item.name));
-      const fromCatalog =
-        expenseGroups[`ExpenseGroup:v1:${code}`]?.name ||
-        expenseGroups[code]?.name ||
-        expenseGroups[String(item.name)]?.name;
-
-      return {
-        // Strictly use catalog display when available, otherwise fall back to CODE only
-        name: fromCatalog || code,
-        value: item.value,
-      };
-    });
-  }, [data?.expenseItemsByCategory, expenseGroups]);
+    if (!data?.expenseItemsByCategory) return [];
+    // Names are now computed in the hook using catalog display
+    return data.expenseItemsByCategory as any;
+  }, [data?.expenseItemsByCategory]);
 
   // Handle date range change
   const handleDateRangeChange = (value: DateRangeOption) => {
