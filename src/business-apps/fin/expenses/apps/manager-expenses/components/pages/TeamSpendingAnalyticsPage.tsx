@@ -103,25 +103,22 @@ const TeamSpendingAnalyticsPage: React.FC<TeamSpendingAnalyticsPageProps> = ({
   const expenseItemsByCategoryWithNames = useMemo(() => {
     if (!data?.expenseItemsByCategory || !expenseGroups) return data?.expenseItemsByCategory || [];
 
-    return data.expenseItemsByCategory.map((item) => {
-      // Get the friendly name from the catalog
-      let friendlyName = expenseGroups[item.name]?.name;
+    const extractCode = (raw: string): string => {
+      if (typeof raw !== "string") return "";
+      const last = raw.split(":").pop() || raw;
+      return last.trim().toUpperCase().replace(/\s+/g, "_");
+    };
 
-      // If no friendly name found, try to extract it from the reference format
-      if (!friendlyName && typeof item.name === "string" && item.name.includes(":")) {
-        // Format is typically ExpenseGroup:v1:CATEGORY_NAME
-        const parts = item.name.split(":");
-        if (parts.length >= 3) {
-          // Use the last part and make it more readable
-          friendlyName = parts[parts.length - 1]
-            .replace(/_/g, " ")
-            .toLowerCase()
-            .replace(/\b\w/g, (c) => c.toUpperCase());
-        }
-      }
+    return data.expenseItemsByCategory.map((item) => {
+      const code = extractCode(String(item.name));
+      const fromCatalog =
+        expenseGroups[`ExpenseGroup:v1:${code}`]?.name ||
+        expenseGroups[code]?.name ||
+        expenseGroups[String(item.name)]?.name;
 
       return {
-        name: friendlyName || item.name,
+        // Strictly use catalog display when available, otherwise fall back to CODE only
+        name: fromCatalog || code,
         value: item.value,
       };
     });
