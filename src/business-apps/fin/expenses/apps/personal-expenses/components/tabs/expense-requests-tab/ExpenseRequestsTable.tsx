@@ -650,6 +650,7 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = React.memo((pr
           onFilterChange: handleFilterChangeCallback,
         }}
         dataBody={renderDataBody()}
+        addLeftPaddingWhenNoFilter={true}
       />
 
       {/* Expense Request Details Sheet */}

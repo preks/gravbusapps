@@ -1,6 +1,7 @@
 import React from "react";
 import { Card, CardContent, CardHeader, CardTitle, Badge, Button } from "@newwork/nw-design-system";
 import { TrendingUp } from "lucide-react";
+import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
 
 export interface DealItem {
   id: string;
@@ -14,32 +15,40 @@ export interface DealItem {
 export interface DealSummaryProps {
   deals: DealItem[];
   moduleColor?: string;
+  onDealClick?: (dealId: string) => void;
 }
 
-export const DealSummary: React.FC<DealSummaryProps> = ({ deals, moduleColor = "default" }) => {
+export const DealSummary: React.FC<DealSummaryProps> = ({ 
+  deals, 
+  moduleColor = "default",
+  onDealClick 
+}) => {
   // Remove unused variable warning
   const _ = moduleColor;
+  
+  const handleDealClick = (dealId: string) => {
+    onDealClick?.(dealId);
+  };
   return (
-    <Card className="gba:h-full">
+    <Card className="gba:h-full" data-testid="overview-deal-summary-container">
       <CardHeader>
-        <div className="gba:flex gba:items-center gba:justify-between">
-          <div className="gba:flex gba:items-center gba:gap-3">
-            <div className="gba:p-2 gba:bg-indigo-100 gba:rounded-lg">
-              <TrendingUp className="gba:text-indigo-600 gba:h-6 gba:w-6" />
-            </div>
-            <CardTitle>Key Deals - Recent Opportunities</CardTitle>
+        <div className="gba:flex gba:items-center gba:gap-3">
+          <div className="gba:p-2 gba:bg-indigo-100 gba:rounded-lg">
+            <TrendingUp className="gba:text-indigo-600 gba:h-6 gba:w-6" />
           </div>
-          <Button variant="link" size="sm" className="gba:text-blue-600">
-            View All Key Deals
-          </Button>
+          <CardTitle>
+            {getTranslationFromI18nKeyAndLabel('dealSummary.keyDealsTitle', 'Key Deals - Recent Opportunities')}
+          </CardTitle>
         </div>
       </CardHeader>
       <CardContent>
-        <div className="gba:grid gba:grid-cols-1 md:gba:grid-cols-2 lg:gba:grid-cols-3 gba:gap-4">
+        <div className="gba:grid gba:grid-cols-1 md:gba:grid-cols-2 lg:gba:grid-cols-3 gba:gap-4" data-testid="key-deals-grid">
           {deals.slice(0, 6).map((deal) => (
             <div
               key={deal.id}
-              className="gba:p-4 gba:rounded-lg gba:border gba:border-gray-200 hover:gba:shadow-md gba:transition-all"
+              data-testid={`key-deal-item-${deal.id}`}
+              className="gba:p-4 gba:rounded-lg gba:border gba:border-gray-200 hover:gba:shadow-md gba:transition-all gba:cursor-pointer hover:gba:bg-gray-50"
+              onClick={() => handleDealClick(deal.id)}
             >
               <div className="gba:flex gba:items-start gba:justify-between gba:mb-2">
                 <div className="gba:text-sm gba:font-semibold gba:text-gray-900">
