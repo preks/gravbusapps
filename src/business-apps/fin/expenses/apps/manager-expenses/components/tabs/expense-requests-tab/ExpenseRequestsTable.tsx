@@ -316,7 +316,7 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = (props) => {
               <Spinner className="gba:h-8 gba:w-8" />
             </div>
           )}
-          <Table data-testid="expense-requests-table">
+          <Table data-testid="expense-requests-table" className="gba:w-max">
             <TableHeader>
               <TableRow>
                 <TableHead className="gba:w-[60px]"></TableHead>

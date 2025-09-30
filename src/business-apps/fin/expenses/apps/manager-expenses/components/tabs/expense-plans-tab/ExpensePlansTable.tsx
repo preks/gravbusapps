@@ -267,7 +267,7 @@ const ExpensePlansTable: React.FC<ExpensePlansTableProps> = (props) => {
       <div className="gba:border gba:border-gray-200 gba:rounded-md gba:shadow-sm">
         {/* Table with horizontal scrolling and fixed height */}
         <div className="gba:overflow-x-auto gba:max-h-[600px] gba:overflow-y-auto gba:border-b gba:border-gray-200">
-          <Table data-testid={`${DATA_TEST_ID_PREFIX}-table`} className="gba:w-full">
+          <Table data-testid={`${DATA_TEST_ID_PREFIX}-table`} className="gba:w-max">
             <TableHeader className="gba:sticky gba:top-0 gba:bg-white gba:z-10 gba:border-b gba:border-gray-200">
               <TableRow>
                 <TableHead
