@@ -22,6 +22,7 @@ import { startProcess } from '@/common/utils/start-process';
 import { DataContainer } from '@/components/layout/dataContainer/DataContainer';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 import { useGetAdvancePayments, AdvancePayment } from '../../../hooks/useGetAdvancePayments';
+import { useAdvancePaymentCurrencies } from '../../../hooks/useAdvancePaymentCurrencies';
 import { getAdvancePaymentStatusDisplay, formatCurrencyDisplay } from '../../../utils';
 import AdvancePaymentDetails from './AdvancePaymentDetails';
 import ExpensePlanDetails from '../expense-plans-tab/ExpensePlanDetails';
@@ -56,7 +57,8 @@ const AdvancePaymentsTable = React.forwardRef<HTMLDivElement, AdvancePaymentsTab
     userInfo: props.userInfo
   }), [props.accessToken, props.userInfo]);
   
-  const { items, isLoading, error, totalCount, fetchItems } = useGetAdvancePayments(contextProps);
+  const { items, isLoading, totalCount, fetchItems } = useGetAdvancePayments(contextProps);
+  const { currencyStats, selectedCurrencyRef } = useAdvancePaymentCurrencies(contextProps, props.selectedFilters || [], props.onFilterChange as any);
   const [searchText, setSearchText] = useState<string>(props.search ?? '');
   const [selectedItem, setSelectedItem] = useState<AdvancePayment | null>(null);
   const [selectedExpensePlan, setSelectedExpensePlan] = useState<any>(null);
@@ -78,6 +80,13 @@ const AdvancePaymentsTable = React.forwardRef<HTMLDivElement, AdvancePaymentsTab
   const currentAdvanceRange = useMemo(() => props.advanceRange || null, [props.advanceRange]);
   const filterGroups = useMemo(() => props.filterGroups || [], [props.filterGroups]);
   const filterLabelMap = useMemo(() => props.filterLabelMap || {}, [props.filterLabelMap]);
+  const currencyLabelMap = useMemo(() => {
+    const map: Record<string, string> = {};
+    currencyStats.forEach(cs => {
+      map[`currency:${cs.ref}`] = cs.code;
+    });
+    return map;
+  }, [currencyStats]);
 
   // Track if any filters are active to show conditional messages
   const hasActiveFilters = useMemo(() => {
@@ -95,8 +104,9 @@ const AdvancePaymentsTable = React.forwardRef<HTMLDivElement, AdvancePaymentsTab
     currentAmountRange,
     currentAdvanceRange,
     sortField,
-    sortOrder
-  }), [searchText, currentPage, pageSize, currentStatusFilter, currentAmountRange, currentAdvanceRange, sortField, sortOrder]);
+    sortOrder,
+    selectedCurrencyRef
+  }), [searchText, currentPage, pageSize, currentStatusFilter, currentAmountRange, currentAdvanceRange, sortField, sortOrder, selectedCurrencyRef]);
 
   // Sync search with parent prop
   useEffect(() => {
@@ -116,7 +126,8 @@ const AdvancePaymentsTable = React.forwardRef<HTMLDivElement, AdvancePaymentsTab
         fetchParams.currentAmountRange,
         fetchParams.currentAdvanceRange,
         fetchParams.sortField,
-        fetchParams.sortOrder
+        fetchParams.sortOrder,
+        fetchParams.selectedCurrencyRef
       );
     } else {
       console.warn('Cannot fetch advance payments: Missing accessToken or employeeId');
@@ -136,7 +147,8 @@ const AdvancePaymentsTable = React.forwardRef<HTMLDivElement, AdvancePaymentsTab
           fetchParams.currentAmountRange,
           fetchParams.currentAdvanceRange,
           fetchParams.sortField,
-          fetchParams.sortOrder
+          fetchParams.sortOrder,
+          fetchParams.selectedCurrencyRef
         );
       }
     }
@@ -270,7 +282,7 @@ const AdvancePaymentsTable = React.forwardRef<HTMLDivElement, AdvancePaymentsTab
                 <TableHeader>
                   <TableRow className="gba:border-b gba:bg-gray-50">
                     <TableHead
-                      className="gba:w-[50px] gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-3"
+                      className="gba:w-[50px] gba:min-w-[50px] gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-3"
                       data-testid={`${DATA_TEST_ID_PREFIX}-actions-header`}
                     />
                     <TableHead
@@ -555,17 +567,31 @@ const AdvancePaymentsTable = React.forwardRef<HTMLDivElement, AdvancePaymentsTab
     },
     listTitle: getTranslationFromI18nKeyAndLabel('lowcoder:advance_lists.my_advance_payments.title', 'My Advance Payments'),
     listAmount: totalCount ? `${totalCount}` : undefined,
-    filterLabelMap: filterLabelMap,
-  }), [searchText, props.selectedFilters, currentStatusFilter, handleSearchChange, props.onFilterChange, handleAddAdvancePayment, totalCount, filterLabelMap]);
+    filterLabelMap: { ...filterLabelMap, ...currencyLabelMap },
+  }), [searchText, props.selectedFilters, currentStatusFilter, handleSearchChange, props.onFilterChange, handleAddAdvancePayment, totalCount, filterLabelMap, currencyLabelMap]);
+
+  const currencyAugmentedFilterGroups = useMemo(() => {
+    const currencyGroup = currencyStats.length > 0 ? [{
+      id: 'currency',
+      title: getTranslationFromI18nKeyAndLabel('lowcoder:expense_item_list.currency','Currency'),
+      filters: currencyStats.map(cs => ({
+        id: `currency:${cs.ref}`,
+        label: cs.code,
+        selected: (props.selectedFilters || []).includes(`currency:${cs.ref}`)
+      })),
+      selectionMode: 'single'
+    }] : [];
+    return [...currencyGroup, ...filterGroups];
+  }, [currencyStats, filterGroups, props.selectedFilters]);
 
   const dataFilterProps = useMemo(() => ({
-    filterGroups: filterGroups,
+    filterGroups: currencyAugmentedFilterGroups,
     onFilterChange: (filterId: string, selected: boolean) => {
       if (props.handleFilterChange) {
         props.handleFilterChange(filterId, selected);
       }
     }
-  }), [filterGroups, props.handleFilterChange]);
+  }), [currencyAugmentedFilterGroups, props.handleFilterChange]);
 
   return (
     <div ref={ref}>

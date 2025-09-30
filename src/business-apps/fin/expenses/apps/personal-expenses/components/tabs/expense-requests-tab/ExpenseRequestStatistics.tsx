@@ -17,6 +17,7 @@ interface ExpenseRequestStatisticsProps extends BusinessAppContextProps {
   fetchRequestStatistics?: () => Promise<void>;
   onWidgetClick?: (widgetKey: string) => void;
   activeWidgetKey?: string;
+  currencyCode?: string;
 }
 
 const ExpenseRequestStatistics: React.FC<ExpenseRequestStatisticsProps> = ({ 
@@ -34,7 +35,7 @@ const ExpenseRequestStatistics: React.FC<ExpenseRequestStatisticsProps> = ({
   }), [contextProps.accessToken, contextProps.userInfo]);
 
   // Use the statistics hook
-  const { statistics, isLoading: hookLoading, error: hookError, fetchStatistics } = useGetExpenseRequestStatistics(stableContextProps);
+  const { statistics, isLoading: hookLoading, error: hookError, fetchStatistics } = useGetExpenseRequestStatistics(stableContextProps, ((contextProps as any).selectedCurrencyRef as string) || 'Currency:v1:EUR');
   
   // Combine loading states
   const isLoading = statsLoading || hookLoading;
@@ -141,7 +142,7 @@ const ExpenseRequestStatistics: React.FC<ExpenseRequestStatisticsProps> = ({
     {
       key: 'total-amount',
       title: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.total_amount_for_month_requests',`Total Amount for`) + " " + currentMonthName,
-      value: `${formatCurrencyDisplay(String(statistics.currentMonthAmount || '0'), 'EUR')}`,
+      value: `${formatCurrencyDisplay(String(statistics.currentMonthAmount || '0'), (contextProps as any).currencyCode || 'EUR')}`,
       prefix: <DollarOutlined />,
       color: '#3f8600',
       precision: 2,
@@ -163,7 +164,7 @@ const ExpenseRequestStatistics: React.FC<ExpenseRequestStatisticsProps> = ({
     {
       key: 'reimbursable',
       title: getTranslationFromI18nKeyAndLabel('lowcoder:expense_item_list.expense_table.reimbursable','Reimbursable'),
-      value: formatCurrencyDisplay(statistics.reimbursableAmount, 'EUR'),
+      value: formatCurrencyDisplay(statistics.reimbursableAmount, (contextProps as any).currencyCode || 'EUR'),
       prefix: <DollarOutlined />,
       color: '#722ed1',
       precision: 2,
