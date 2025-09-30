@@ -3,6 +3,7 @@ import React, {
   useContext,
   useState,
   useEffect,
+  useRef,
   ReactNode,
   useMemo,
 } from "react";
@@ -204,6 +205,8 @@ export const ExpenseItemProvider: React.FC<ExpenseItemProviderProps> = ({
         additionalData?.psi_taskPayload?.psi_initialParameters?.expenseRequest;
       if (expenseRequestId) {
         form.setFieldsValue({ expenseRequestId });
+      } else if (!isEditMode) {
+        form.setFieldsValue({ expenseRequestId: "0" });
       }
       
       // Handle itemCurrency and useSingleCurrency if provided from wizard
@@ -220,16 +223,31 @@ export const ExpenseItemProvider: React.FC<ExpenseItemProviderProps> = ({
     }
   }, [catalogueDataResponse, accessToken, additionalData, currencies]);
 
+  // Avoid refetch loops: track attempted (requestId|currency) hydrations
+  const attemptedLabelHydrationsRef = useRef<Set<string>>(new Set());
+
   // Ensure expense request labels are available after edits/flows
   useEffect(() => {
-    try {
-      const selectedRequestId = form.getFieldValue('expenseRequestId');
-      const currencyId = form.getFieldValue('currency');
-      const hasLabel = Array.isArray(expenseRequests) && expenseRequests.some((r: any) => r?.id === selectedRequestId);
-      if (selectedRequestId && selectedRequestId !== '0' && currencyId && !hasLabel) {
-        handleCurrencyChangeWrapper(currencyId);
-      }
-    } catch {}
+    const selectedRequestId = form.getFieldValue('expenseRequestId');
+    const currencyId = form.getFieldValue('currency');
+    const hasLabel = Array.isArray(expenseRequests) && expenseRequests.some((r: any) => r?.id === selectedRequestId);
+
+    if (!selectedRequestId || selectedRequestId === '0' || !currencyId || hasLabel) {
+      return;
+    }
+
+    const hydrateKey = `${selectedRequestId}|${currencyId}`;
+    if (attemptedLabelHydrationsRef.current.has(hydrateKey)) {
+      return;
+    }
+    attemptedLabelHydrationsRef.current.add(hydrateKey);
+
+    handleCurrencyChangeWrapper(currencyId).catch(() => {
+      showToast(
+        t("lowcoder:create_expense_type_item.process_error_expense_requests_fetch", "Error fetching expense requests"),
+        "error"
+      );
+    });
   }, [expenseRequests]);
 
   useEffect(()=>{

@@ -285,7 +285,9 @@ export const handleSubmit = async (
     await form.validateFields();
 
     const values = form.getFieldsValue();
-    const existingExpenseRequestId = form.getFieldValue('expenseRequestId');
+    const rawExpenseRequestId: string | undefined = form.getFieldValue('expenseRequestId');
+    const coerceRequestId = (id?: string) => (id && id !== '0' ? id : undefined);
+    const normalizedExpenseRequestId = coerceRequestId(rawExpenseRequestId);
 
     let uploadedFiles: Array<{ fileType: string; fileUrl: string; fileName: string }> = [];
     if (fileList && fileList.length > 0 && accessToken && employeeId) {
@@ -387,7 +389,11 @@ export const handleSubmit = async (
         expenseClassRef: DEFAULT_EXPENSE_CLASS_ID,
         status: itemValues?.id ? REQUEST_STATUS.ASSIGNED : DEFAULT_EXPENSE_STATUS,
         multiplePositions: multiPosition,
-        expenseRequest: existingExpenseRequestId || values.expenseRequest || additionalData?.expenseRequestId || "",
+        expenseRequest:
+          normalizedExpenseRequestId ??
+          coerceRequestId(values?.expenseRequestId) ??
+          additionalData?.expenseRequestId ??
+          "",
         employee: generalDataResponse?.data?.Employee?.[0]?.id || employeeId || "",
         expenseRule: employeeRuleId as string,
       },
