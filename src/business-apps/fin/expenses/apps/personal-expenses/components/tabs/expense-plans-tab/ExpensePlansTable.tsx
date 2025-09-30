@@ -108,11 +108,27 @@ const ExpensePlansTable: React.FC<ExpensePlansTableProps> = React.memo((props) =
 
   // Enhanced server-side sorting handler
   const handleSort = useCallback((field: string) => {
+    let newOrder: 'ascend' | 'descend' | undefined;
+    
+    if (sortField === field) {
+      // Cycle through: ascend -> descend -> clear
+      if (sortOrder === 'ascend') {
+        newOrder = 'descend';
+      } else if (sortOrder === 'descend') {
+        newOrder = undefined;
+      } else {
+        newOrder = 'ascend';
+      }
+    } else {
+      // New field - start with ascend
+      newOrder = 'ascend';
+    }
+    
     // Call parent's onTableChange with proper sorting parameters
     if (onTableChange) {
-      onTableChange({ current: 1, pageSize }, {}, { field, order: 'ascend' });
+      onTableChange({ current: 1, pageSize }, {}, { field, order: newOrder });
     }
-  }, [onTableChange, pageSize]);
+  }, [onTableChange, pageSize, sortField, sortOrder]);
 
   // Helper function to render sort icon
   const renderSortIcon = useCallback((field: string) => {
