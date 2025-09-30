@@ -249,7 +249,7 @@ const ExpensePlansTable: React.FC<ExpensePlansTableProps> = React.memo((props) =
                 <TableHeader>
                   <TableRow className="gba:border-b gba:bg-gray-50">
                     <TableHead
-                      className="gba:w-[50px] gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-3"
+                      className="gba:w-[72px] gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-3"
                       data-testid={`${DATA_TEST_ID_PREFIX}-actions-header`}
                     />
                     <TableHead

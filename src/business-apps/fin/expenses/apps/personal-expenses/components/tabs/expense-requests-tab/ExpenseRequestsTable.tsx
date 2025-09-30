@@ -331,7 +331,7 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = React.memo((pr
               <Table data-testid="expense-requests-data-table">
                 <TableHeader>
                   <TableRow className="gba:border-b gba:bg-gray-50">
-                    <TableHead className="gba:w-[60px] gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-3"/>
+                    <TableHead className="gba:w-[72px] gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-3"/>
                     <TableHead 
                       className="gba:w-[15%] gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6 gba:cursor-pointer gba:select-none hover:gba:bg-gray-100"
                       onClick={() => handleSort('code')}
