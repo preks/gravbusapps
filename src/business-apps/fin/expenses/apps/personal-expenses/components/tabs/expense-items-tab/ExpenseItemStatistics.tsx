@@ -12,13 +12,12 @@ interface ExpenseItemStatisticsProps {
   pendingReimbursementTotal?: number;
   previousMonthPendingReimbursementTotal?: number;
   pendingItemCountFromApi?: number;
-  onMissingReceiptsClick?: () => void;
   onWidgetClick?: (widgetKey: string) => void;
   activeWidgetKey?: string;
-  isNoReceiptFilterActive?: boolean;
   statsLoading?: boolean;
   statsError?: string | null;
   fetchItemStatistics?: () => Promise<void>;
+  currencyCode?: string;
 }
 
 const ExpenseItemStatistics: React.FC<ExpenseItemStatisticsProps> = ({ 
@@ -28,20 +27,20 @@ const ExpenseItemStatistics: React.FC<ExpenseItemStatisticsProps> = ({
   pendingReimbursementTotal,
   previousMonthPendingReimbursementTotal,
   pendingItemCountFromApi,
-  onMissingReceiptsClick,
-  isNoReceiptFilterActive = false,
   onWidgetClick,
   activeWidgetKey,
   statsLoading = false,
   statsError = null,
-  fetchItemStatistics = () => Promise.resolve()
+  fetchItemStatistics = () => Promise.resolve(),
+  currencyCode: currencyCodeOverride
 }) => {
   const currentMonthName = dayjs().format('MMMM');
-  // Resolve a currency code from items (fallback to EUR)
+  // Resolve a currency code override or fallback to first item or EUR
   const currencyCode = useMemo(() => {
+    if (currencyCodeOverride) return currencyCodeOverride;
     const code = items?.find((it) => it?.currency?.code)?.currency?.code as string | undefined;
-    return (code?.split(':').pop()) || 'EUR';
-  }, [items]);
+    return code || 'EUR';
+  }, [items, currencyCodeOverride]);
   
   // Use backend aggregate for pending reimbursement total
   const pendingReimbursement = pendingReimbursementTotal ?? 0;

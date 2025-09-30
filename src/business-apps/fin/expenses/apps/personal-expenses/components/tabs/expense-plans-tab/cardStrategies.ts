@@ -1,0 +1,131 @@
+import dayjs from 'dayjs';
+import { ExpenseStatus } from '../../../utils';
+
+export type PlanCardContext = {
+  setPlanDateRange: (range: [Date | null, Date | null] | null) => void;
+  setStartDateRange: (range: [Date | null, Date | null] | null) => void;
+  setEndDateRange: (range: [Date | null, Date | null] | null) => void;
+  handleFilterChange: (filterId: string, selected: boolean) => void;
+  setDestinationFilter: (value: string | null) => void;
+  topDestination: string | null | undefined;
+};
+
+export type CardStrategy = {
+  apply: () => void;
+  remove: () => void;
+};
+
+const currentMonthRange = (): [Date, Date] => {
+  const start = dayjs().startOf('month').toDate();
+  const end = dayjs().endOf('month').toDate();
+  return [start, end];
+};
+
+export const getPlanCardStrategies = (ctx: PlanCardContext): Record<string, CardStrategy> => ({
+  'total-plans': {
+    apply: () => {
+      ctx.setPlanDateRange(currentMonthRange());
+      ctx.handleFilterChange(ExpenseStatus.CLOSED, true);
+      ctx.handleFilterChange(ExpenseStatus.PAID, true);
+    },
+    remove: () => {
+      ctx.setPlanDateRange(null);
+      ctx.handleFilterChange(ExpenseStatus.CLOSED, false);
+      ctx.handleFilterChange(ExpenseStatus.PAID, false);
+    }
+  },
+  'total-estimated': {
+    apply: () => {
+      ctx.setPlanDateRange(currentMonthRange());
+      const statuses = [
+        ExpenseStatus.PREPARED,
+        ExpenseStatus.ASSIGNED,
+        ExpenseStatus.PENDING,
+        ExpenseStatus.APPROVED,
+        ExpenseStatus.REJECTED,
+        ExpenseStatus.VERIFIED,
+        ExpenseStatus.BOOKED,
+        ExpenseStatus.TRANSFERRED,
+      ];
+      statuses.forEach(s => ctx.handleFilterChange(s, true));
+    },
+    remove: () => {
+      ctx.setPlanDateRange(null);
+      const statuses = [
+        ExpenseStatus.PREPARED,
+        ExpenseStatus.ASSIGNED,
+        ExpenseStatus.PENDING,
+        ExpenseStatus.APPROVED,
+        ExpenseStatus.REJECTED,
+        ExpenseStatus.VERIFIED,
+        ExpenseStatus.BOOKED,
+        ExpenseStatus.TRANSFERRED,
+      ];
+      statuses.forEach(s => ctx.handleFilterChange(s, false));
+    }
+  },
+  'pending-approval': {
+    apply: () => {
+      ctx.setStartDateRange(null);
+      ctx.setEndDateRange(null);
+      const statuses = [
+        ExpenseStatus.PREPARED,
+        ExpenseStatus.ASSIGNED,
+        ExpenseStatus.PENDING,
+        ExpenseStatus.APPROVED,
+        ExpenseStatus.REJECTED,
+        ExpenseStatus.VERIFIED,
+        ExpenseStatus.BOOKED,
+        ExpenseStatus.CLOSED,
+        ExpenseStatus.TRANSFERRED,
+      ];
+      statuses.forEach(s => ctx.handleFilterChange(s, false));
+      ctx.handleFilterChange(ExpenseStatus.PENDING, true);
+    },
+    remove: () => {
+      ctx.handleFilterChange(ExpenseStatus.PENDING, false);
+    }
+  },
+  'top-destinations': {
+    apply: () => {
+      ctx.setStartDateRange(null);
+      ctx.setEndDateRange(null);
+      const statuses = [
+        ExpenseStatus.PREPARED,
+        ExpenseStatus.ASSIGNED,
+        ExpenseStatus.PENDING,
+        ExpenseStatus.APPROVED,
+        ExpenseStatus.REJECTED,
+        ExpenseStatus.VERIFIED,
+        ExpenseStatus.BOOKED,
+        ExpenseStatus.CLOSED,
+        ExpenseStatus.TRANSFERRED,
+      ];
+      statuses.forEach(s => ctx.handleFilterChange(s, false));
+      if (ctx.topDestination && ctx.topDestination !== 'N/A') {
+        ctx.setDestinationFilter(ctx.topDestination);
+      } else {
+        ctx.setDestinationFilter(null);
+      }
+    },
+    remove: () => {
+      ctx.setStartDateRange(null);
+      ctx.setEndDateRange(null);
+      ctx.setDestinationFilter(null);
+    }
+  }
+});
+
+export const preserveCurrencyAndResetPlans = (
+  selectedFilters: string[],
+  clearFilters: () => void,
+  setFilters: (filters: string[]) => void
+) => {
+  const currencies = selectedFilters.filter((f) => f.startsWith('currency:'));
+  clearFilters();
+  if (currencies.length > 0) {
+    setFilters(currencies);
+  }
+};
+
+

@@ -108,24 +108,10 @@ const QuickActionCards: React.FC<BusinessAppContextProps> = (props) => {
       buttonIcon: <SendOutlined />,
       buttonAction: handleSubmitRequest
     },
-    {
-      id: 'view-reports',
-      title: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.view_reports','View Reports'),
-      description: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.view_reports_description','Access and review your expense reports and analytics to track your spending patterns.'),
-      icon: <ExperimentOutlined className="gba:text-2xl gba:text-green-500" />,
-      features: [
-        getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.view_trends_over_time','View trends over time'),
-        getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.export_custom_reports','Export custom reports'),
-        getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.analyze_spending_data','Analyze spending data')
-      ],
-      buttonText: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.view_reports','View Reports'),
-      buttonIcon: <ExperimentOutlined />,
-      buttonAction: () => console.log('View reports clicked')
-    }
   ];
 
   return (
-    <div className="gba:grid gba:grid-cols-4 gba:gap-4">
+    <div className="gba:grid gba:grid-cols-3 gba:gap-4">
       {actionCards.map(card => (
         <Card 
           key={card.id} 

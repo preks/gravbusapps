@@ -25,6 +25,7 @@ interface ExpensePlanStatisticsProps {
   // Add closed plans data
   currentMonthClosedPlans?: number;
   previousMonthClosedPlans?: number;
+  currencyCode?: string;
 }
 
 const ExpensePlanStatistics: React.FC<ExpensePlanStatisticsProps> = ({ 
@@ -39,7 +40,8 @@ const ExpensePlanStatistics: React.FC<ExpensePlanStatisticsProps> = ({
   onWidgetClick,
   activeWidgetKey,
   currentMonthClosedPlans = 0,
-  previousMonthClosedPlans = 0
+  previousMonthClosedPlans = 0,
+  currencyCode = 'EUR'
 }) => {
   // Calculate summary statistics with memoization
   const currentMonthName = dayjs().format('MMMM');
@@ -140,7 +142,7 @@ const ExpensePlanStatistics: React.FC<ExpensePlanStatisticsProps> = ({
     {
       key: 'total-estimated',
       title: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.total_estimated_for_month','Total Estimated for') + ' ' + currentMonthName,
-      value: `${formatCurrencyDisplay(String(totalEstimated ?? '0'), 'EUR')}`,
+      value: `${formatCurrencyDisplay(String(totalEstimated ?? '0'), currencyCode)}`,
       prefix: <DollarOutlined />,
       color: '#3f8600',
       span: { xs: 24, sm: 12, md: 6 },
