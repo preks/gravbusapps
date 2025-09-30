@@ -208,6 +208,9 @@ export const useAbsenceListDataSimple = ({
             orderBy.push({ status: graphqlSortOrder });
           } else if (sortField === 'effectiveDays') {
             orderBy.push({ effectiveDays: graphqlSortOrder });
+          } else if (sortField === 'employee' || sortField === 'employee.firstName') {
+            orderBy.push({ employee: { firstName: graphqlSortOrder } });
+            orderBy.push({ employee: { lastName: graphqlSortOrder } });
           } else if (
             sortField === 'startDate' ||
             sortField === 'endDate' ||
