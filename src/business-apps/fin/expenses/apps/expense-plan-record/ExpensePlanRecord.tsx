@@ -19,7 +19,19 @@ import ExpensePlanTrip from './components/ExpensePlanTrip.tsx';
 import ExpensePlanAdvancePayments from './components/ExpensePlanAdvancePayments.tsx';
 import ExpensePlanComments from './components/ExpensePlanComments.tsx';
 
- 
+// Helper function to check if expense plan has comments
+const hasComments = (expensePlan: any): boolean => {
+  if (!expensePlan) return false;
+  
+  // Check if expense plan has comments
+  const hasPlanComments = expensePlan.expensePlanComment && expensePlan.expensePlanComment.length > 0;
+  
+  // Check if any advance payment has comments
+  const hasAdvancePaymentComments = expensePlan.advancePayment && 
+    expensePlan.advancePayment.some((ap: any) => ap.advancePaymentComment && ap.advancePaymentComment.length > 0);
+  
+  return hasPlanComments || hasAdvancePaymentComments;
+};
 
 const ExpensePlanRecord: React.FC<BusinessAppContextProps> = ({ accessToken, additionalData = {} }) => {
   const expensePlanId = additionalData.expensePlanId  || new URLSearchParams(window.location.search).get('expensePlanId') || 'd64d1b89-148e-462d-9add-534722eefe95';
@@ -38,15 +50,14 @@ const ExpensePlanRecord: React.FC<BusinessAppContextProps> = ({ accessToken, add
     const hasAllowances = expensePlan?.expenseAllowance && expensePlan.expenseAllowance.length > 0;
     const hasTrips = expensePlan?.expenseRequestTrip && expensePlan.expenseRequestTrip.length > 0;
     const hasAdvancePayments = expensePlan?.advancePayment && expensePlan.advancePayment.length > 0;
-    const hasComments = (expensePlan?.expensePlanComment && expensePlan.expensePlanComment.length > 0) || 
-                       (expensePlan?.advancePayment && expensePlan.advancePayment.some(ap => ap.advancePaymentComment && ap.advancePaymentComment.length > 0));
+    const hasCommentsResult = hasComments(expensePlan);
     // Map tabs to their data availability
     const availableTabs: Record<string, boolean> = {
       'items': true, // Always available
       'allowances': Boolean(hasAllowances),
       'trip': Boolean(hasTrips),
       'advance-payments': Boolean(hasAdvancePayments),
-      'comments': Boolean(hasComments)
+      'comments': Boolean(hasCommentsResult)
     };
     
     // Return the requested tab if it's valid and has data, otherwise default
@@ -101,8 +112,7 @@ const ExpensePlanRecord: React.FC<BusinessAppContextProps> = ({ accessToken, add
       const hasAllowances = expensePlan?.expenseAllowance && expensePlan.expenseAllowance.length > 0;
       const hasTrips = expensePlan?.expenseRequestTrip && expensePlan.expenseRequestTrip.length > 0;
       const hasAdvancePayments = expensePlan?.advancePayment && expensePlan.advancePayment.length > 0;
-      const hasComments = (expensePlan?.expensePlanComment && expensePlan.expensePlanComment.length > 0) || 
-                         (expensePlan?.advancePayment && expensePlan.advancePayment.some(ap => ap.advancePaymentComment && ap.advancePaymentComment.length > 0));
+      const hasCommentsResult = hasComments(expensePlan);
     console.log('expensePlan inside', expensePlan?.advancePayment);
                          // Map tabs to their data availability
       const availableTabs: Record<string, boolean> = {
@@ -110,7 +120,7 @@ const ExpensePlanRecord: React.FC<BusinessAppContextProps> = ({ accessToken, add
         'allowances': Boolean(hasAllowances),
         'trip': Boolean(hasTrips),
         'advance-payments': Boolean(hasAdvancePayments),
-        'comments': Boolean(hasComments)
+        'comments': Boolean(hasCommentsResult)
       };
       
       // Set the requested tab if it's available, otherwise default
