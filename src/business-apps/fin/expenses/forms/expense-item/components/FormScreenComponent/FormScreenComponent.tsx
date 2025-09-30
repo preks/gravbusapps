@@ -47,6 +47,7 @@ interface FormScreenComponentProps {
   handleRemovePosition: (positionId: string) => void;
   loading: boolean;
   calculateTotal: () => number;
+  isEmbeddedInRequestWizard?: boolean;
 }
 
 export const FormScreenComponent: React.FC<FormScreenComponentProps> = ({
@@ -71,6 +72,7 @@ export const FormScreenComponent: React.FC<FormScreenComponentProps> = ({
   handleAddPosition,
   handleRemovePosition,
   calculateTotal,
+  isEmbeddedInRequestWizard = false,
 }) => {
   const { t } = useTranslation();
   const {
@@ -339,8 +341,8 @@ export const FormScreenComponent: React.FC<FormScreenComponentProps> = ({
         </Row>
       )}
       
-      {/* Only show expense request select if not embedded in ExpenseRequestWizard */}
-      {!form.getFieldValue('expenseRequestId') ? (
+      {/* Only show expense request select if NOT embedded in ExpenseRequestWizard */}
+      {!isEmbeddedInRequestWizard ? (
         <Form.Item
           name="expenseRequestId"
           rules={[{ required: true, message: t('lowcoder:create_expense_item.change_expense_item_container.current_request_custom_rule', 'Please select a request') }]}

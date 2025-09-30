@@ -202,11 +202,8 @@ export const ExpenseItemProvider: React.FC<ExpenseItemProviderProps> = ({
       const expenseRequestId = 
         additionalData?.expenseRequestId || 
         additionalData?.psi_taskPayload?.psi_initialParameters?.expenseRequest;
-      // Set expenseRequestId in form
       if (expenseRequestId) {
-        form.setFieldsValue({ expenseRequestId: expenseRequestId });
-      } else {
-        form.setFieldsValue({ expenseRequestId: "0" });
+        form.setFieldsValue({ expenseRequestId });
       }
       
       // Handle itemCurrency and useSingleCurrency if provided from wizard
@@ -222,6 +219,18 @@ export const ExpenseItemProvider: React.FC<ExpenseItemProviderProps> = ({
 
     }
   }, [catalogueDataResponse, accessToken, additionalData, currencies]);
+
+  // Ensure expense request labels are available after edits/flows
+  useEffect(() => {
+    try {
+      const selectedRequestId = form.getFieldValue('expenseRequestId');
+      const currencyId = form.getFieldValue('currency');
+      const hasLabel = Array.isArray(expenseRequests) && expenseRequests.some((r: any) => r?.id === selectedRequestId);
+      if (selectedRequestId && selectedRequestId !== '0' && currencyId && !hasLabel) {
+        handleCurrencyChangeWrapper(currencyId);
+      }
+    } catch {}
+  }, [expenseRequests]);
 
   useEffect(()=>{
     if(firstRunVariable===true)
@@ -416,7 +425,7 @@ export const ExpenseItemProvider: React.FC<ExpenseItemProviderProps> = ({
         if (expenseIdValue) {
           setCurrentStep("form");
           
-          await setByEdit(
+          const editData = await setByEdit(
             expenseIdValue,
             graphqlClient,
             form,
@@ -433,6 +442,12 @@ export const ExpenseItemProvider: React.FC<ExpenseItemProviderProps> = ({
             t,
             setInitialItemValues
           );
+          try {
+            const itemCurrencyId = editData?.ExpenseItemByPk?.currency?.id || form.getFieldValue('currency');
+            if (itemCurrencyId) {
+              await handleCurrencyChangeWrapper(itemCurrencyId);
+            }
+          } catch {}
           setIsEditMode(true);
         }
           let costCenterData;
