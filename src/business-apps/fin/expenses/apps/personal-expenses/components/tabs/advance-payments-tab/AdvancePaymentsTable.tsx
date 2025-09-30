@@ -256,7 +256,7 @@ const AdvancePaymentsTable = React.forwardRef<HTMLDivElement, AdvancePaymentsTab
   // Render the data body with memoization
   const renderDataBody = useCallback(() => {
     return (
-      <div className="">
+      <div>
         <Card data-testid={`${DATA_TEST_ID_PREFIX}-container`}>
           <CardContent className="gba:p-0">
             {isLoading && (
