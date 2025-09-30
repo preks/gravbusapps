@@ -73,9 +73,6 @@ const PieChartComponent: React.FC<PieChartProps> = ({
                 innerRadius={60}
                 fill="#8884d8"
                 dataKey={dataKey}
-                label={(entry) =>
-                  `${entry[nameKey]}: ${formatCurrencyDisplay(entry[dataKey], currency)}`
-                }
               >
                 {data.map((entry, index) => (
                   <Cell key={`cell-${index}`} fill={colors[index % colors.length]} />

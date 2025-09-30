@@ -81,7 +81,7 @@ const BarChartComponent: React.FC<BarChartProps> = ({
                   const amountText = formatCurrencyDisplay(value, currency);
                   return [
                     count !== null ? `${amountText} (Count: ${count})` : amountText,
-                    "Amount",
+                    "",
                   ];
                 }}
                 labelFormatter={(label) => `${label}`}
