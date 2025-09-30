@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useMemo } from 'react';
+import { useState, useCallback, useMemo } from 'react';
 import type { DataFilterGroup, DataFilter } from '@/components/data-filter/DataFilter';
 import { useDebounce } from '@/common/hooks/useDebounce';
 import { ExpenseStatus, getAdvancePaymentStatusDisplay } from '../utils';
@@ -22,6 +22,7 @@ export interface UseAdvancePaymentFiltersReturn {
   setFilters: (filters: string[]) => void;
   removeFilter: (filterId: string) => void;
   clearFilters: () => void;
+  filtersVersion: number;
 }
 
 // Move these outside the component to make them truly stable
@@ -55,11 +56,31 @@ const STATUS_DISPLAY_MAP: Partial<Record<ExpenseStatus, string>> = {
 };
 
 export const useAdvancePaymentFilters = (): UseAdvancePaymentFiltersReturn => {
-  const [searchTerm, setSearchTerm] = useState<string>('');
+  const [searchTerm, _setSearchTerm] = useState<string>('');
   // Active prefiltering: Start with PREPARED and PENDING statuses
   const [statusFilter, setStatusFilter] = useState<string[]>([ExpenseStatus.PREPARED, ExpenseStatus.PENDING]);
-  const [amountRange, setAmountRange] = useState<{ min?: number; max?: number } | null>(null);
-  const [advanceRange, setAdvanceRange] = useState<{ min?: number; max?: number } | null>(null);
+  const [amountRange, _setAmountRange] = useState<{ min?: number; max?: number } | null>(null);
+  const [advanceRange, _setAdvanceRange] = useState<{ min?: number; max?: number } | null>(null);
+  // Track currency filter tokens separately to avoid polluting statusFilter
+  const [currencyTokens, setCurrencyTokens] = useState<string[]>([]);
+  // Version to signal any change to consumers (for refresh triggers)
+  const [filtersVersion, setFiltersVersion] = useState<number>(0);
+
+  // Wrapped setters to bump version
+  const setSearchTerm = useCallback((term: string) => {
+    _setSearchTerm(term);
+    setFiltersVersion(v => v + 1);
+  }, []);
+
+  const setAmountRange = useCallback((range: { min?: number; max?: number } | null) => {
+    _setAmountRange(range);
+    setFiltersVersion(v => v + 1);
+  }, []);
+
+  const setAdvanceRange = useCallback((range: { min?: number; max?: number } | null) => {
+    _setAdvanceRange(range);
+    setFiltersVersion(v => v + 1);
+  }, []);
 
   const debouncedSearchTerm = useDebounce(searchTerm, 300);
 
@@ -77,6 +98,7 @@ export const useAdvancePaymentFilters = (): UseAdvancePaymentFiltersReturn => {
           return prevFilter.filter(s => s !== status);
         }
       });
+      setFiltersVersion(v => v + 1);
     }
     // Note: Amount and advance ranges are now handled by custom components
   }, []);
@@ -98,7 +120,8 @@ export const useAdvancePaymentFilters = (): UseAdvancePaymentFiltersReturn => {
 
   // Get all selected filters including active ranges
   const getAllSelectedFilters = useMemo(() => {
-    const filters = [...statusFilter]; // Use the status filter state
+    // Combine status filters, currency tokens and active range markers
+    const filters = [...statusFilter, ...currencyTokens];
     
     // Add range filters if they're active
     if (amountRange && (amountRange.min !== undefined || amountRange.max !== undefined)) {
@@ -109,7 +132,7 @@ export const useAdvancePaymentFilters = (): UseAdvancePaymentFiltersReturn => {
     }
     
     return filters;
-  }, [statusFilter, amountRange, advanceRange]);
+  }, [statusFilter, currencyTokens, amountRange, advanceRange]);
 
   // Create a mapping of filter IDs to their display labels
   const filterLabelMap = useMemo(() => {
@@ -143,46 +166,57 @@ export const useAdvancePaymentFilters = (): UseAdvancePaymentFiltersReturn => {
     // If the filters array is empty, clear everything including ranges
     if (filters.length === 0) {
       setStatusFilter([]);
-      setAmountRange(null);
-      setAdvanceRange(null);
-      setSearchTerm('');
+      _setAmountRange(null);
+      _setAdvanceRange(null);
+      _setSearchTerm('');
+      setCurrencyTokens([]);
+      setFiltersVersion(v => v + 1);
       return;
     }
     
-    // Separate range filters from status filters
+    // Separate range filters, currency tokens and status filters
     const rangeFilters = ['amountRange', 'advanceRange'];
-    const statusFilters = filters.filter(f => !rangeFilters.includes(f));
+    const currencyFilterTokens = filters.filter(f => f.startsWith('currency:'));
+    const statusFilters = filters.filter(f => !rangeFilters.includes(f) && !f.startsWith('currency:'));
     const newRangeFilters = filters.filter(f => rangeFilters.includes(f));
     
     // Set status filters
     setStatusFilter(statusFilters);
+    // Set currency tokens (enforce single selection upstream if desired)
+    setCurrencyTokens(currencyFilterTokens);
     
     // Clear ranges that are not in the new filter list
     if (!newRangeFilters.includes('amountRange')) {
-      setAmountRange(null);
+      _setAmountRange(null);
     }
     if (!newRangeFilters.includes('advanceRange')) {
-      setAdvanceRange(null);
+      _setAdvanceRange(null);
     }
+    setFiltersVersion(v => v + 1);
   }, []);
 
   // Remove filter function that handles all filter types
   const removeFilter = useCallback((filterId: string) => {
     if (filterId === 'amountRange') {
-      setAmountRange(null);
+      _setAmountRange(null);
     } else if (filterId === 'advanceRange') {
-      setAdvanceRange(null);
+      _setAdvanceRange(null);
+    } else if (filterId.startsWith('currency:')) {
+      setCurrencyTokens(prev => prev.filter(id => id !== filterId));
     } else {
       setStatusFilter(prev => prev.filter(id => id !== filterId));
     }
+    setFiltersVersion(v => v + 1);
   }, []);
 
   // Clear all filters including ranges and search
   const clearFilters = useCallback(() => {
     setStatusFilter([]);
-    setAmountRange(null);
-    setAdvanceRange(null);
-    setSearchTerm('');
+    _setAmountRange(null);
+    _setAdvanceRange(null);
+    _setSearchTerm('');
+    setCurrencyTokens([]);
+    setFiltersVersion(v => v + 1);
   }, []);
 
   // Create the custom components for range filters
@@ -253,5 +287,6 @@ export const useAdvancePaymentFilters = (): UseAdvancePaymentFiltersReturn => {
     setFilters,
     removeFilter,
     clearFilters,
+    filtersVersion,
   };
 }; 
