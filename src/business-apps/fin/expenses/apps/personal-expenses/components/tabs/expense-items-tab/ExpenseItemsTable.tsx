@@ -395,7 +395,7 @@ const ExpenseItemsTable: React.FC<ExpenseItemsTableProps> = React.memo((props) =
       }}
       contentBackground="white"
       dataBody={
-        <div className="gba:pr-6">
+        <div className="">
           <Card data-testid={`${DATA_TEST_ID_PREFIX}-container`}>
             <CardContent className="gba:p-0">
               {isLoading && (
@@ -419,7 +419,7 @@ const ExpenseItemsTable: React.FC<ExpenseItemsTableProps> = React.memo((props) =
                         />
                       </TableHead>
                       <TableHead
-                        className="gba:w-[50px] gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-3"
+                        className="gba:w-[72px] gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-3"
                         data-testid={`${DATA_TEST_ID_PREFIX}-actions-header`}
                       >
                         {getTranslationFromI18nKeyAndLabel('lowcoder:expense_plan_list.expense_plan_flows.actions','Actions')}
@@ -707,6 +707,7 @@ const ExpenseItemsTable: React.FC<ExpenseItemsTableProps> = React.memo((props) =
           </Card>
         </div>
       }
+      addLeftPaddingWhenNoFilter={true}
     />
 
     {/* Sheet for details */}

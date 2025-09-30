@@ -1,5 +1,5 @@
-import React, { useState, useEffect, useMemo } from "react";
-import { useTranslation } from "react-i18next";
+import React, { useState, useEffect, useMemo } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
   Button,
   Card,
@@ -9,7 +9,7 @@ import {
   DataTable,
   Icon,
   Badge,
-} from "@newwork/nw-design-system";
+} from '@newwork/nw-design-system';
 import {
   EyeIcon,
   ArrowsDownUpIcon,
@@ -18,22 +18,22 @@ import {
   FileCodeIcon,
   TagIcon,
   InfoIcon,
-} from "@phosphor-icons/react";
-import { ColumnDef } from "@tanstack/react-table";
-import { BusinessAppContextProps } from "@/common/BusinessAppContext";
-import { useCatalogManagerClient } from "@/common/network/catalogs/useCatalogManagerClient";
-import { useUserLocale } from "@/common/locale/useUserLocale";
-import CardTabHeaderComponent from "../../../generic-components/card";
-import { formatDataTestId } from "@/common/utils/formatDataTestId";
-import { DeleteButton } from "../../../generic-components/delete-button/DeleteButton";
-import ContractTypeForm from "@/business-apps/mdm/forms/contract-type-form/ContractTypeForm";
-import SheetWrapperComponent from "../../../generic-components/sheet-wrapper/SheetWrapperComponent";
-import { useGetContractTypesData } from "../../queries/ContractTypesQueries";
-import { toast } from "sonner";
+} from '@phosphor-icons/react';
+import { ColumnDef, SortingState } from '@tanstack/react-table';
+import { BusinessAppContextProps } from '@/common/BusinessAppContext';
+import { useCatalogManagerClient } from '@/common/network/catalogs/useCatalogManagerClient';
+import { useUserLocale } from '@/common/locale/useUserLocale';
+import CardTabHeaderComponent from '../../../generic-components/card';
+import { formatDataTestId } from '@/common/utils/formatDataTestId';
+import { DeleteButton } from '../../../generic-components/delete-button/DeleteButton';
+import ContractTypeForm from '@/business-apps/mdm/forms/contract-type-form/ContractTypeForm';
+import SheetWrapperComponent from '../../../generic-components/sheet-wrapper/SheetWrapperComponent';
+import { useGetContractTypesData } from '../../queries/ContractTypesQueries';
+import { toast } from 'sonner';
 import {
   CONTRACT_TYPE_CATALOG,
   CONTRACT_TYPE_VERSION,
-} from "@/business-apps/hr/core/forms/job-position/hooks/useContractTypes";
+} from '@/business-apps/hr/core/forms/job-position/hooks/useContractTypes';
 
 export interface ContractType {
   id: string;
@@ -60,11 +60,11 @@ export interface ContractTypesTabProps extends BusinessAppContextProps {
   prefixDataTestId?: string;
 }
 
-const DATA_TEST_ID_PREFIX = "ContractTypesTab";
+const DATA_TEST_ID_PREFIX = 'ContractTypesTab';
 
 const ContractTypesTab: React.FC<ContractTypesTabProps> = ({ accessToken, prefixDataTestId }) => {
   const { t } = useTranslation();
-  const userLocale = useUserLocale() ?? "en-US";
+  const userLocale = useUserLocale() ?? 'en-US';
   const catalogClient = useCatalogManagerClient(accessToken);
   const dataTestId = formatDataTestId(prefixDataTestId, DATA_TEST_ID_PREFIX);
 
@@ -72,9 +72,11 @@ const ContractTypesTab: React.FC<ContractTypesTabProps> = ({ accessToken, prefix
 
   const [contractTypes, setContractTypes] = useState<ContractType[]>([]);
   const [loading, setLoading] = useState(false);
-  const [searchTerm, setSearchTerm] = useState("");
+  const [searchTerm, setSearchTerm] = useState('');
   const [selectedType, setSelectedType] = useState<ContractType | null>(null);
   const [isDrawerVisible, setIsDrawerVisible] = useState(false);
+  const [sorting, setSorting] = useState<SortingState>([]);
+  const [selectedRows, setSelectedRows] = useState<ContractTypeTable[]>([]);
 
   const loadContractTypes = async () => {
     try {
@@ -83,7 +85,7 @@ const ContractTypesTab: React.FC<ContractTypesTabProps> = ({ accessToken, prefix
       const types = (await fetchContractTypes()) ?? [];
       setContractTypes(types);
     } catch {
-      toast.error("Failed to load contract types");
+      toast.error('Failed to load contract types');
     } finally {
       setLoading(false);
     }
@@ -135,19 +137,19 @@ const ContractTypesTab: React.FC<ContractTypesTabProps> = ({ accessToken, prefix
     const items = [
       {
         icon: <InfoIcon />,
-        title: "Basic Information",
+        title: 'Basic Information',
         items: [
           {
-            label: "Name",
+            label: 'Name',
             value: selectedType.value,
           },
           {
-            label: "Code",
-            value: selectedType.code || "-",
+            label: 'Code',
+            value: selectedType.code || '-',
           },
           {
-            label: "Description",
-            value: selectedType.additionalValue1 ?? "-",
+            label: 'Description',
+            value: selectedType.additionalValue1 ?? '-',
           },
         ],
         verticalTable: true,
@@ -160,11 +162,11 @@ const ContractTypesTab: React.FC<ContractTypesTabProps> = ({ accessToken, prefix
   const renderContractTypesTable = () => {
     const columns: ColumnDef<ContractTypeTable>[] = [
       {
-        accessorKey: "code",
+        accessorKey: 'code',
         header: ({ column }) => (
           <Button
             variant="ghost"
-            onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+            onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}
             className="gba:h-auto gba:p-0 gba:font-semibold gba:hover:bg-transparent gba:justify-start"
           >
             Code
@@ -176,17 +178,17 @@ const ContractTypesTab: React.FC<ContractTypesTabProps> = ({ accessToken, prefix
           const code = getValue();
           return (
             <div className="gba:flex gba:items-center">
-              <Badge variant="info">{(code as string) ?? "N/A"}</Badge>
+              <Badge variant="info">{(code as string) ?? 'N/A'}</Badge>
             </div>
           );
         },
       },
       {
-        accessorKey: "value",
+        accessorKey: 'value',
         header: ({ column }) => (
           <Button
             variant="ghost"
-            onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+            onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}
             className="gba:h-auto gba:p-0 gba:font-semibold gba:hover:bg-transparent gba:justify-start"
           >
             Name
@@ -204,11 +206,11 @@ const ContractTypesTab: React.FC<ContractTypesTabProps> = ({ accessToken, prefix
         },
       },
       {
-        accessorKey: "description",
+        accessorKey: 'description',
         header: ({ column }) => (
           <Button
             variant="ghost"
-            onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+            onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}
             className="gba:h-auto gba:font-semibold gba:hover:bg-transparent gba:justify-start"
           >
             Description
@@ -221,15 +223,15 @@ const ContractTypesTab: React.FC<ContractTypesTabProps> = ({ accessToken, prefix
           return (
             <div className="gba:flex gba:items-center">
               <div className="gba:max-w-[300px] gba:truncate" title={description as string}>
-                {(description as string) ?? "-"}
+                {(description as string) ?? '-'}
               </div>
             </div>
           );
         },
       },
       {
-        id: "actions",
-        header: () => <div className="gba:flex gba:w-[20px]">Actions</div>,
+        id: 'actions',
+        header: () => <div className="gba:flex gba:w-[115px]">Actions</div>,
         enableSorting: false,
         enableHiding: true,
         cell: ({ row }) => (
@@ -278,15 +280,15 @@ const ContractTypesTab: React.FC<ContractTypesTabProps> = ({ accessToken, prefix
 
     return (
       <DataTable
-        defaultDataSetId="contract-types"
-        dataSets={[
-          {
-            id: "contract-types",
-            label: "Contract Types",
-            data: dataTable,
-            columns: columns,
-          },
-        ]}
+        data={dataTable}
+        columns={columns as ColumnDef<ContractTypeTable>[]}
+        sorting={sorting}
+        onSortingChange={setSorting}
+        selectedRows={selectedRows}
+        onSelectionChange={setSelectedRows}
+        enableSorting
+        enableSelection
+        enablePagination
       />
     );
   };
@@ -313,7 +315,7 @@ const ContractTypesTab: React.FC<ContractTypesTabProps> = ({ accessToken, prefix
               prefixDataTestId={prefixDataTestId}
             />
           }
-          cardTitle={`${t("hr.contract_types", "Contract Types")} (${contractTypes.length})`}
+          cardTitle={`${t('hr.contract_types', 'Contract Types')} (${contractTypes.length})`}
           cardDescription="Manage contract types and their classifications. Contract types define the employment agreements and terms."
         />
       )}
