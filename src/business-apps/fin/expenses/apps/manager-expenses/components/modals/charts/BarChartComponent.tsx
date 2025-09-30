@@ -14,6 +14,8 @@ interface BarChartProps {
   barColor?: string;
   height?: number;
   currency?: string;
+  valueType?: 'amount' | 'count';
+  countLabel?: string;
 }
 
 /**
@@ -27,6 +29,8 @@ const BarChartComponent: React.FC<BarChartProps> = ({
   barColor = "#1890ff",
   height = 300,
   currency = "EUR",
+  valueType = 'amount',
+  countLabel = 'items',
 }) => {
   if (!data || data.length === 0) {
     return (
@@ -77,12 +81,13 @@ const BarChartComponent: React.FC<BarChartProps> = ({
               <YAxis />
               <Tooltip
                 formatter={(value: any, _name: any, props: any) => {
+                  if (valueType === 'count') {
+                    const num = typeof value === 'number' ? value : Number(value ?? 0);
+                    return [`${num} ${countLabel}`,''];
+                  }
                   const count = props?.payload?.count ?? null;
                   const amountText = formatCurrencyDisplay(value, currency);
-                  return [
-                    count !== null ? `${amountText} (Count: ${count})` : amountText,
-                    "",
-                  ];
+                  return [count !== null ? `${amountText} (Count: ${count})` : amountText, ''];
                 }}
                 labelFormatter={(label) => `${label}`}
               />

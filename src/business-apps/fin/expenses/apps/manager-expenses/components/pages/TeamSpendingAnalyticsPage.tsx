@@ -246,7 +246,11 @@ const TeamSpendingAnalyticsPage: React.FC<TeamSpendingAnalyticsPageProps> = ({
               }
               title=""
               barColor="#1890ff"
-              currency={currencyFilter || primaryCurrency}
+              valueType="count"
+              countLabel={getTranslationFromI18nKeyAndLabel(
+                "lowcoder:team_expenses_page.dashboard_tab.items",
+                "items",
+              )}
             />
           </CardContent>
         </Card>
