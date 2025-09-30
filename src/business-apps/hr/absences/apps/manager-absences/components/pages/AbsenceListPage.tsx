@@ -1,6 +1,6 @@
 import React, { useState, useCallback, useEffect, useRef } from 'react';
 import { Button } from '@newwork/nw-design-system';
-import { PiArrowLeft, PiListBullets } from 'react-icons/pi';
+import { PiArrowLeft } from 'react-icons/pi';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 import { DataContainer } from '@/components/layout/dataContainer';
 import { AbsenceTable } from '../AbsenceTable';
@@ -145,6 +145,8 @@ export const AbsenceListPage: React.FC<AbsenceListPageProps> = (props) => {
   const { absences, total, loading, error, hasMore, loadMore, loadPage, retry } =
     useAbsenceListDataSimple({
       ...filters,
+      sortField,
+      sortOrder,
       accessToken,
       orgUnitId: supervisorId,
     });
@@ -182,6 +184,14 @@ export const AbsenceListPage: React.FC<AbsenceListPageProps> = (props) => {
     preFiltersApplied,
   ]);
 
+  // Handle sorting changes - separate useEffect for cleaner separation
+  useEffect(() => {
+    if (initialLoadDone.current) {
+      setCurrentPage(1);
+      loadPage(1, pageSize);
+    }
+  }, [sortField, sortOrder, loadPage, pageSize]);
+
   // Handle filter changes from the filter sidebar
   const handleFilterChange = useCallback(
     (filterId: string, selected: boolean) => {
@@ -217,10 +227,16 @@ export const AbsenceListPage: React.FC<AbsenceListPageProps> = (props) => {
   );
 
   // Handle sorting changes
-  const handleSortChange = useCallback((field: string, order: 'ASC' | 'DESC') => {
-    setSortField(field);
-    setSortOrder(order);
-    setCurrentPage(1);
+  const handleSortChange = useCallback((field: string, order: '' | 'ASC' | 'DESC') => {
+    if (order === '') {
+      setSortField('');
+      setSortOrder('DESC');
+      setCurrentPage(1);
+    } else {
+      setSortField(field);
+      setSortOrder(order);
+      setCurrentPage(1);
+    }
   }, []);
 
   // Handle page size changes
@@ -327,6 +343,7 @@ export const AbsenceListPage: React.FC<AbsenceListPageProps> = (props) => {
           dataControllerProps={{
             search: search,
             setSearch: handleSearchChange,
+            debounceDelay: 500,
             placeholder: 'Search absences...',
             filter: selectedFilters,
             setFilter: handleSetFilter,
@@ -357,7 +374,7 @@ export const AbsenceListPage: React.FC<AbsenceListPageProps> = (props) => {
                 handlePageChange(page);
                 if (size) handlePageSizeChange(size);
               }}
-              onSortingChange={(field, order) => handleSortChange(field, order as 'ASC' | 'DESC')}
+              onSortingChange={handleSortChange}
               selectedAbsenceId={selectedAbsence?.id}
             />
           }
