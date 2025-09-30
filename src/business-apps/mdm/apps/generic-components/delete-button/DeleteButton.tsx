@@ -55,24 +55,18 @@ const DeleteButton = ({
     <Dialog open={open} onOpenChange={setOpen}>
       {showCancelButton && (
         <DialogTrigger asChild>
-          <Button
-            size="sm"
-            variant={triggerButtonText ? "outline" : "ghost"}
-            className="gba:!text-destructive gba:!border-destructive"
-          >
+          <Button size="sm" variant={triggerButtonText ? "outline" : "ghost"}>
             <Icon icon={TrashIcon} /> {triggerButtonText}
           </Button>
         </DialogTrigger>
       )}
       <DialogContent>
         <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
+          <DialogTitle className="gba:flex gba:items-center gba:gap-2">
             <Icon icon={WarningIcon} color="#ef4444" />
             Delete {itemTitle}
           </DialogTitle>
-          <DialogDescription>
-            {`Are you sure you want to delete ${itemName}?`}
-          </DialogDescription>
+          <DialogDescription>{`Are you sure you want to delete ${itemName}?`}</DialogDescription>
         </DialogHeader>
         <DialogFooter>
           <DialogClose asChild>

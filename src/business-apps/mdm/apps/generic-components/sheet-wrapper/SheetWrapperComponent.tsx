@@ -1,3 +1,4 @@
+import React from "react";
 import {
   Button,
   Sheet,
@@ -9,10 +10,7 @@ import {
 } from "@newwork/nw-design-system";
 import { formatDataTestId } from "@/common/utils/formatDataTestId";
 import { VerticalTable, VerticalTableProps } from "../table/VerticalTable";
-import {
-  NavigationLinkCards,
-  NavigationLinkCardsProps,
-} from "../card/NavigationLinkCards";
+import { NavigationLinkCards, NavigationLinkCardsProps } from "../card/NavigationLinkCards";
 import { LinkIcon } from "@phosphor-icons/react";
 
 type SheetWrapperComponentProps = {
@@ -26,6 +24,7 @@ type SheetWrapperComponentProps = {
   extraContent?: React.ReactNode;
   footerButtons?: React.ReactNode[];
   navigationItems?: NavigationLinkCardsProps[];
+  showNavigationItems?: boolean;
 };
 
 const DATA_TEST_ID_PREFIX = "SheetWrapperComponent";
@@ -41,6 +40,7 @@ const SheetWrapperComponent = ({
   extraContent,
   footerButtons,
   navigationItems,
+  showNavigationItems = false,
 }: SheetWrapperComponentProps) => {
   const dataTestId = formatDataTestId(prefixDataTestId, DATA_TEST_ID_PREFIX);
   const TitleIcon = titleIcon;
@@ -79,13 +79,11 @@ const SheetWrapperComponent = ({
               );
             })}
           </div>
-          {navigationItems && (
+          {navigationItems && showNavigationItems && (
             <div className="gba:mt-6">
               <div className="gba:flex gba:items-center gba:gap-2 gba:pb-4">
                 <LinkIcon className="gba:h-4 gba:w-4 gba:inline gba:mr-2" />
-                <span className="gba:text-base gba:font-semibold">
-                  Related Resources
-                </span>
+                <span className="gba:text-base gba:font-semibold">Related Resources</span>
               </div>
 
               <div className="gba:grid gba:grid-cols-1 gba:gap-4">
@@ -96,9 +94,7 @@ const SheetWrapperComponent = ({
             </div>
           )}
           {extraContent && (
-            <div className="gba:bg-gray-50 gba:rounded-md gba:p-4 gba:mt-4">
-              {extraContent}
-            </div>
+            <div className="gba:bg-gray-50 gba:rounded-md gba:p-4 gba:mt-4">{extraContent}</div>
           )}
         </div>
         {isFooterVisible && (

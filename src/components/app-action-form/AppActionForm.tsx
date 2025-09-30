@@ -247,7 +247,10 @@ export const AppActionForm: React.FC<AppActionFormProps> = ({
     }
   }, [cancelEventType, onCancel]);
 
-  const internalForm = !disableFormSubmission ? useForm<any>({ defaultValues: formData, resolver }) : null;
+  // IMPORTANT: Hooks must not be called conditionally. Always create an internal form instance
+  // and choose layout behavior via props. This prevents crashes when disableFormSubmission flips
+  // after async prefill/reset operations.
+  const internalForm = useForm<any>({ defaultValues: formData, resolver });
   const form = externalForm || internalForm;
 
 

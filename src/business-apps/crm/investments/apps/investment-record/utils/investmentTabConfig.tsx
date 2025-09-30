@@ -1,5 +1,4 @@
 // Investment Tab Configuration Utilities
-import React from 'react';
 import { Home, BarChart3, Folder, FileText } from 'lucide-react';
 import { DocumentSection } from '@/common/components/common-relations/record-sections/document-section';
 import { AccountSection } from '@/common/components/common-relations/record-sections/account-section';
@@ -21,17 +20,53 @@ import {
 // Remove dependency on investmentTypeUtils - now using dynamic types
 
 /**
- * Gets type-specific overview content
+ * Gets type-specific overview content with enhanced equity detection
  */
-export const getTypeSpecificOverviewContent = (investmentType: string, typeSpecificData: any) => {
-  switch (investmentType) {
-    case 'equity':
-      return (
+export const getTypeSpecificOverviewContent = (investmentType: string, typeSpecificData: any, businessAppContext?: BusinessAppContextProps, onRefresh?: () => void) => {
+  // Enhanced equity detection - check multiple conditions
+  const isEquityInvestment = 
+    investmentType === 'equity' ||
+    (investmentType || '').toLowerCase().includes('equity') ||
+    (typeSpecificData?.investment?.investmentGroup?.code || '').includes('EQUITY') ||
+    (typeSpecificData?.investment?.investmentType?.code || '').toLowerCase().includes('equity') ||
+    typeSpecificData?.equityInvestment; // Has equity data
+
+  // Enhanced real estate detection - check multiple conditions
+  const isRealEstateInvestment = 
+    investmentType === 'real_estate' ||
+    (investmentType || '').toLowerCase().includes('real_estate') ||
+    (investmentType || '').toLowerCase().includes('realestate') ||
+    (typeSpecificData?.investment?.investmentGroup?.code || '').includes('REAL_ESTATE') ||
+    (typeSpecificData?.investment?.investmentType?.code || '').toLowerCase().includes('real_estate') ||
+    typeSpecificData?.realEstateInvestment; // Has real estate data
+
+  if (isEquityInvestment) {
+    return (
+      <div data-testid="equity-overview-section">
         <EquityInvestmentRounds 
           equityData={typeSpecificData}
           isLoading={false}
+          onRefresh={onRefresh}
+          data-testid="equity-investment-rounds-overview"
+          {...businessAppContext}
         />
-      );
+      </div>
+    );
+  }
+
+  if (isRealEstateInvestment) {
+    return (
+      <div data-testid="real-estate-overview-section">
+        <RealEstateLiquidityForecast 
+          realEstateData={typeSpecificData}
+          isLoading={false}
+          data-testid="real-estate-liquidity-forecast-overview"
+        />
+      </div>
+    );
+  }
+
+  switch (investmentType) {
     case 'real_estate':
       return (
         <RealEstateLiquidityForecast 
@@ -85,13 +120,17 @@ export const createInvestmentTabsConfig = (
       content: (
         <div className="gba:col-span-12 gba:space-y-6">
           {/* Generate One-Pager Action */}
-          <div className="gba:flex gba:justify-end gba:mb-4">
-          <GenerateOnePagerButton
-            investmentId={investment?.id}
-            investment={investment}
-            catalogData={catalogData}
-            accessToken={props.accessToken}
-          />
+          <div 
+            className="gba:flex gba:justify-end"
+            style={{ marginBottom: 'var(--nw-spacing-lg)' }}
+            data-testid="investment-generate-onepager-section"
+          >
+            <GenerateOnePagerButton
+              investmentId={investment?.id}
+              accessToken={props.accessToken}
+              userInfo={props.userInfo}
+              investmentData={investment}
+            />
           </div>
 
           {/* Investment Tile Section - only show if tile fields are configured */}
@@ -107,10 +146,13 @@ export const createInvestmentTabsConfig = (
           )}
 
           {/* Type-specific content */}
-          {getTypeSpecificOverviewContent(investmentType, typeSpecificData)}
+          {getTypeSpecificOverviewContent(investmentType, typeSpecificData, props, loadData)}
 
           {/* Common Account and Contact Information */}
-          <div className="gba:grid gba:gap-6 gba:grid-cols-1 gba:lg:grid-cols-2">
+          <div 
+            className="gba:grid gba:grid-cols-1 gba:lg:grid-cols-2"
+            style={{ gap: 'var(--nw-spacing-xl)' }}
+          >
             <AccountSection 
               account={investment?.investmentAccount}
               accessToken={props.accessToken}
@@ -162,7 +204,11 @@ export const createInvestmentTabsConfig = (
       content: (
         <div className="gba:col-span-12 gba:space-y-6">
           {/* Upload Report Action */}
-          <div className="gba:flex gba:justify-end gba:mb-4">
+          <div 
+            className="gba:flex gba:justify-end"
+            style={{ marginBottom: 'var(--nw-spacing-lg)' }}
+            data-testid="investment-upload-report-section"
+          >
             <UploadReportButton
               investmentId={investment?.id}
               accessToken={props.accessToken}

@@ -67,29 +67,6 @@ export const InvestmentHomeTab: React.FC<InvestmentHomeTabProps> = ({
     }
   }, [investmentId, fetchInvestmentNotesByInvestmentId]);
 
-  // Handle process events
-  const handleProcessEvent = useCallback((event: Event) => {
-    const customEvent = event as CustomEvent;
-    // Safe logging - only event type and investmentId (no PII)
-    console.log('Process event received:', { 
-      type: customEvent.type, 
-      investmentId: customEvent.detail?.investmentId 
-    });
-    
-    // Detailed logging only in development (may contain PII)
-    if (process.env.NODE_ENV !== 'production') {
-      console.log('Process event detail (dev only):', customEvent.detail);
-    }
-    
-    // Handle process completion events here
-    if (customEvent.detail?.investmentId === investmentId) {
-      // Refresh data when process completes
-      loadTasks();
-      loadActivities();
-      loadNotes();
-    }
-  }, [investmentId, loadTasks, loadActivities, loadNotes]);
-
   const loadApprovals = useCallback(async () => {
     if (!investmentId) return;
     
@@ -106,6 +83,51 @@ export const InvestmentHomeTab: React.FC<InvestmentHomeTabProps> = ({
     }
   }, [investmentId, fetchInvestmentTasksByInvestmentId]);
 
+  // Handle process events
+  const handleProcessEvent = useCallback((event: Event) => {
+    try {
+      const customEvent = event as CustomEvent;
+      
+      // Check for successful completion
+      if (customEvent.detail?.resolution === 'success') {
+        loadTasks();
+        loadActivities();
+        loadNotes();
+        loadApprovals();
+        return;
+      }
+      
+      // Check for different event structures
+      const response = customEvent.detail?.response;
+      if (response?.detail?.resolution === 'success' || response?.investment) {
+        loadTasks();
+        loadActivities();
+        loadNotes();
+        loadApprovals();
+        return;
+      }
+      
+      // Check for continue events with payload (task/activity/note creation/update)
+      if (customEvent.type === 'com.newwork.process.continue' && customEvent.detail?.payload) {
+        loadTasks();
+        loadActivities();
+        loadNotes();
+        loadApprovals();
+        return;
+      }
+      
+      // Handle process completion events by investmentId (legacy support)
+      if (customEvent.detail?.investmentId === investmentId) {
+        loadTasks();
+        loadActivities();
+        loadNotes();
+        loadApprovals();
+      }
+    } catch (err) {
+      console.error('Error handling process event in InvestmentHomeTab:', err);
+    }
+  }, [investmentId, loadTasks, loadActivities, loadNotes, loadApprovals]);
+
   useEffect(() => {
     loadTasks();
     loadActivities();
@@ -113,12 +135,17 @@ export const InvestmentHomeTab: React.FC<InvestmentHomeTabProps> = ({
     loadApprovals();
   }, [loadTasks, loadActivities, loadNotes, loadApprovals]);
 
-  // Listen for process events
+  // Listen for process events to refresh data
   useEffect(() => {
     const eventTypes = [
       'com.newwork.process.continue',
       'com.newwork.process.processCompletion',
+      'com.newwork.process.taskCompletion',
+      'com.newwork.process.completion',
       'processCompletion',
+      'taskCompletion',
+      'taskCompleted',
+      'processCompleted'
     ];
     
     eventTypes.forEach(eventType => {
@@ -193,6 +220,7 @@ export const InvestmentHomeTab: React.FC<InvestmentHomeTabProps> = ({
             <TabsContent value="notes" className="gba:p-4">
               <NoteSection
                 investmentId={investmentId}
+                notes={notes}
                 accessToken={context.accessToken}
                 userInfo={context.userInfo}
                 noteActionProps={{

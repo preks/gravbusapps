@@ -12,14 +12,9 @@ import {
 } from "@/business-apps/hr/core/apps/human-resources/components/views/job-position-view/hooks/useJobFamilyFilters";
 
 // Transform catalog entry to JobFamily interface
-const transformJobFamily = (
-  catalogEntry: CatalogEntry,
-  allFamilies: CatalogEntry[]
-): JobFamily => {
+const transformJobFamily = (catalogEntry: CatalogEntry, allFamilies: CatalogEntry[]): JobFamily => {
   // Find children for this family
-  const children = allFamilies.filter(
-    (entry) => entry.parentEntryId === catalogEntry.id
-  );
+  const children = allFamilies.filter((entry) => entry.parentEntryId === catalogEntry.id);
 
   // Calculate hierarchy level
   let level = 0;
@@ -44,11 +39,7 @@ const transformJobFamily = (
     id: catalogEntry.id,
     name: catalogEntry.value || catalogEntry.code || "Unknown",
     code: catalogEntry.code,
-    description:
-      typeof catalogEntry.objectValue === "object" &&
-      catalogEntry.objectValue !== null
-        ? (catalogEntry.objectValue as any)?.description
-        : undefined,
+    description: catalogEntry.additionalValue1 || undefined,
     parentEntryId: catalogEntry.parentEntryId,
     isActive: true, // Catalog entries are generally active
     translations: translationsObj,
@@ -74,13 +65,11 @@ export const useGetAllJobFamilies = (catalogClient: CatalogManagerClient) => {
           offset: 0,
           returnTotalRecords: true,
           includeChildCatalogEntries: false, // We'll build hierarchy ourselves
-        }
+        },
       );
 
       const catalogEntries = response.data;
-      return catalogEntries.map((entry) =>
-        transformJobFamily(entry, catalogEntries)
-      );
+      return catalogEntries.map((entry) => transformJobFamily(entry, catalogEntries));
     } catch (error) {
       console.error("Error fetching job families:", error);
       throw new Error("Failed to fetch job families from catalog");
@@ -102,10 +91,7 @@ const GROUP_COLORS = [
   "gba:bg-red-400",
 ];
 
-const transformJobLevelGroup = (
-  catalogEntry: CatalogEntry,
-  index: number
-): JobLevelGroup => {
+const transformJobLevelGroup = (catalogEntry: CatalogEntry, index: number): JobLevelGroup => {
   return {
     id: catalogEntry.id,
     name: catalogEntry.value || catalogEntry.code || "Unknown",
@@ -136,7 +122,7 @@ export const useGetJobLevelGroups = (catalogClient: CatalogManagerClient) => {
           offset: 0,
           returnTotalRecords: true,
           includeChildCatalogEntries: true,
-        }
+        },
       );
 
       return response.data.map(transformJobLevelGroup);

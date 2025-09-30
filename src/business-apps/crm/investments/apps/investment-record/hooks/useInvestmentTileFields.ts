@@ -86,8 +86,6 @@ export const useInvestmentTileFields = (
       // Extract both group and type codes from investment
       const { groupCode, typeCode } = getInvestmentCodes(investment);
       
-      console.log('Loading tile fields for:', { groupCode, typeCode });
-
       // Fetch catalog data
       const catalogData = await fetchInvestmentCatalogData();
       
@@ -99,8 +97,7 @@ export const useInvestmentTileFields = (
           (type: any) => type.code === typeCode
         );
         
-        if (typeEntry && typeEntry.objectValue && typeEntry.objectValue.tileFields?.length > 0) {
-          console.log('Found tile fields in investment type:', typeCode);
+        if (typeEntry && typeEntry.objectValue && typeEntry.objectValue?.tileFields?.length > 0) {
           tileFieldsDefinition = typeEntry.objectValue as TileFieldsDefinition;
         }
       }
@@ -111,8 +108,7 @@ export const useInvestmentTileFields = (
           (group: any) => group.code === groupCode
         );
         
-        if (groupEntry && groupEntry.objectValue && groupEntry.objectValue.tileFields?.length > 0) {
-          console.log('Fallback to tile fields in investment group:', groupCode);
+        if (groupEntry && groupEntry.objectValue && groupEntry.objectValue?.tileFields?.length > 0) {
           tileFieldsDefinition = groupEntry.objectValue as TileFieldsDefinition;
         }
       }
@@ -123,7 +119,6 @@ export const useInvestmentTileFields = (
         // Sort by displayOrder
         const sortedFields = [...fields].sort((a, b) => a.displayOrder - b.displayOrder);
         
-        console.log('Loaded tile fields:', sortedFields);
         setTileFields(sortedFields);
       } else {
         console.warn(`No tileFields found for investment. Group: ${groupCode}, Type: ${typeCode}`);

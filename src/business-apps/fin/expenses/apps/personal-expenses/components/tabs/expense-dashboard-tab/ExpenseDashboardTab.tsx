@@ -148,11 +148,11 @@ const ExpenseDashboardTab: React.FC<ExpenseDashboardTabProps> = (props) => {
         />
       </div>
       
-      <div data-testid="quick-action-cards-section" className="gba:px-6">
+      <div data-testid="quick-action-cards-section">
         <QuickActionCards {...props} />
       </div>
 
-      <div data-testid="spending-overview-section" className="gba:px-6">
+      <div data-testid="spending-overview-section">
         <SpendingOverview
           stats={stats ?? undefined}
           isLoading={isLoading}
@@ -162,7 +162,7 @@ const ExpenseDashboardTab: React.FC<ExpenseDashboardTabProps> = (props) => {
         />
       </div>
 
-      <div data-testid="action-feed-section" className="gba:px-6">
+      <div data-testid="action-feed-section">
         <ActionFeed stats={stats ?? undefined} isLoading={isLoading} error={error ? new Error(error) : null} />
       </div>
     </div>

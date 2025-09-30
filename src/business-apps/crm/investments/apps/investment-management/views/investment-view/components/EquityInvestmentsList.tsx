@@ -1,6 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow, Badge, Button } from "@newwork/nw-design-system";
-import { PlusOutlined } from "@ant-design/icons";
 import { BusinessAppContextProps } from "@/common/BusinessAppContext";
 import { useGetInvestments } from "@/common/data/investment/hooks/useInvestments";
 import type { Investment } from "@/common/data/investment/types";
@@ -9,14 +8,14 @@ import { DataContainer } from "@/components/layout/dataContainer/DataContainer";
 import { AppAction } from "@/components/app-action/AppAction";
 import { AppActionButton } from "@/components/app-action-button/AppActionButton";
 import { FlowContextName } from "@/common/types/FlowRegistryTypes";
-import { Building2, Calendar } from "lucide-react";
+import { Building2, Calendar, PlusSquare } from "lucide-react";
 import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils';
 import { formatDate } from "@/common/data/investment";
 import { formatCurrencyParts } from '@/common/utils/numberFormatter';
 import { useEquityInvestmentsFilters } from "../hooks/useEquityInvestmentsFilters";
 import { ColumnConfig } from "@/components/dataController";
 import { useInvestmentListController } from "../hooks/useInvestmentListController";
-import { OwnerDisplay } from "../utils/ownerDisplayUtils";
+import { OwnerDisplay } from "../../../../../components/shared";
 import { useProcessCompletion } from "@/common/hooks/useProcessCompletion";
 
 export interface EquityInvestmentsListProps extends BusinessAppContextProps {
@@ -306,13 +305,14 @@ const EquityInvestmentsList: React.FC<EquityInvestmentsListProps> = (props) => {
             emptyStateBehavior="hide"
           >
             <Button
-              variant="default"
+              variant="ghost"
               size="sm"
-              className="gba:flex gba:items-center gba:gap-2"
               data-testid="equity-investments-add-button"
+              type="button"
+              className="gba:gap-1"
             >
-              <PlusOutlined />
-              Add Equity Investment
+              <PlusSquare className="gba:w-4 gba:h-4" />
+              Add
             </Button>
           </AppAction>
         ),

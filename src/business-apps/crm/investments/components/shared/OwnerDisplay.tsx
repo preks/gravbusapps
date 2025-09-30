@@ -1,6 +1,6 @@
 import React from 'react';
 import { Avatar, AvatarImage, AvatarFallback } from '@newwork/nw-design-system';
-import { navigateTo } from '@/common/utils/navigationUtils';
+import { buildPlatformUrl, navigateTo } from '@/common/utils/navigationUtils';
 
 interface OwnerEmployee {
   id?: string;
@@ -50,11 +50,14 @@ export const OwnerDisplay: React.FC<OwnerDisplayProps> = ({
 
   if (!ownerEmployee) {
     return (
-      <div className="gba:flex gba:items-center gba:gap-2">
+      <div
+        className="gba:flex gba:items-center gba:gap-2"
+        data-testid={`${testIdPrefix}-owner-placeholder-${entityId}`}
+      >
         <Avatar size="sm" className="gba:opacity-50">
           <AvatarFallback>NA</AvatarFallback>
         </Avatar>
-        <span className="gba:text-gray-400">N/A</span>
+        <span className="gba:text-[color:var(--nw-color-text-disabled)]">N/A</span>
       </div>
     );
   }
@@ -67,7 +70,8 @@ export const OwnerDisplay: React.FC<OwnerDisplayProps> = ({
         e.stopPropagation();
         const empId = ownerEmployee?.id;
         if (empId) {
-          navigateTo(`/platform/employee-record?employeeId=${empId}`);
+          const employeeUrl = buildPlatformUrl('/platform/employee-record', { employeeId: empId });
+          navigateTo(employeeUrl);
         }
       }}
     >
@@ -83,7 +87,7 @@ export const OwnerDisplay: React.FC<OwnerDisplayProps> = ({
         )}
         <AvatarFallback>{getOwnerInitials(ownerEmployee)}</AvatarFallback>
       </Avatar>
-      <span className="gba:text-gray-900 group-hover:gba:text-blue-600">
+      <span className="gba:text-[color:var(--nw-color-text-primary)] group-hover:gba:text-[color:var(--nw-color-primary-500)]">
         {getOwnerName(ownerEmployee)}
       </span>
     </div>
