@@ -1,7 +1,7 @@
-import React, { useMemo, useState } from "react";
-import { BusinessAppContextProps } from "@/common/BusinessAppContext";
-import { useJobLevels } from "../../hooks";
-import { JobLevel, JobLevelGroup } from "../../types";
+import React, { useMemo, useState } from 'react';
+import { BusinessAppContextProps } from '@/common/BusinessAppContext';
+import { useJobLevels } from '../../hooks';
+import { JobLevel, JobLevelGroup } from '../../types';
 import {
   CardContent,
   Card,
@@ -17,55 +17,58 @@ import {
   Badge,
   Icon,
   Input,
-} from "@newwork/nw-design-system";
-import { CardTabHeaderComponent } from "../../../generic-components/card/CardTabHeaderComponent";
-import JobLevelForm from "@/business-apps/mdm/forms/job-level-form";
-import { formatDataTestId } from "@/common/utils/formatDataTestId";
-import { DeleteButton } from "../../../generic-components/delete-button/DeleteButton";
-import { useRestClient } from "@/common/network/rest/useRestClient";
-import { env } from "@/common/env/EnvUtils";
-import { ColumnDef } from "@tanstack/react-table";
-import JobLevelGroupForm from "@/business-apps/mdm/forms/job-level-group-form";
-import { useCatalogManagerClient } from "@/common/network/catalogs/useCatalogManagerClient";
+} from '@newwork/nw-design-system';
+import { CardTabHeaderComponent } from '../../../generic-components/card/CardTabHeaderComponent';
+import JobLevelForm from '@/business-apps/mdm/forms/job-level-form';
+import { formatDataTestId } from '@/common/utils/formatDataTestId';
+import { DeleteButton } from '../../../generic-components/delete-button/DeleteButton';
+import { useRestClient } from '@/common/network/rest/useRestClient';
+import { env } from '@/common/env/EnvUtils';
+import { ColumnDef, SortingState } from '@tanstack/react-table';
+import JobLevelGroupForm from '@/business-apps/mdm/forms/job-level-group-form';
+import { useCatalogManagerClient } from '@/common/network/catalogs/useCatalogManagerClient';
 import {
   XCircleIcon,
   ArrowsDownUpIcon,
   UsersIcon,
   PlusIcon,
   PencilSimpleLineIcon,
-} from "@phosphor-icons/react";
+} from '@phosphor-icons/react';
 import {
   JOB_LEVEL_GROUP_CATALOG,
   JOB_LEVEL_GROUP_VERSION,
-} from "../../../compensation-data/hooks/useJobLevelGroups";
+} from '../../../compensation-data/hooks/useJobLevelGroups';
 
-const DATA_TEST_ID_PREFIX = "JobLevelGroupDetails";
+const DATA_TEST_ID_PREFIX = 'JobLevelGroupDetails';
 
 export interface JobLevelGroupDetailsProps extends BusinessAppContextProps {
   prefixDataTestId?: string;
 }
 
 // Re-export types for external usage
-export type { JobLevel, JobLevelGroup } from "../../types";
+export type { JobLevel, JobLevelGroup } from '../../types';
 
 const JobLevelGroupDetails: React.FC<JobLevelGroupDetailsProps> = (context) => {
   const { prefixDataTestId, userInfo, accessToken } = context;
   const dataTestId = formatDataTestId(prefixDataTestId, DATA_TEST_ID_PREFIX);
-  const restClient = useRestClient(env("NEXT_PUBLIC_KOGITO_PROCESSES_ENDPOINT"));
+  const restClient = useRestClient(env('NEXT_PUBLIC_KOGITO_PROCESSES_ENDPOINT'));
   const catalogClient = useCatalogManagerClient(accessToken);
 
   const { jobLevelGroups, compensationBands, isLoading, error, refetch } = useJobLevels(context);
   const [accordionValue, setAccordionValue] = useState<string | string[]>([]);
-  const [searchTerm, setSearchTerm] = useState("");
+  const [searchTerm, setSearchTerm] = useState('');
+  const [sorting, setSorting] = useState<SortingState>([]);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const [selectedRows, setSelectedRows] = useState<any[]>([]);
 
-  const handleDelete = async (type: "group" | "level", item: JobLevelGroup | JobLevel) => {
-    const isJobLevel = type === "level";
+  const handleDelete = async (type: 'group' | 'level', item: JobLevelGroup | JobLevel) => {
+    const isJobLevel = type === 'level';
 
     if (isJobLevel) {
       await restClient.post(
-        `/employee/${isJobLevel ? "saveJobLevel" : ""}`,
+        `/employee/${isJobLevel ? 'saveJobLevel' : ''}`,
         {
-          changeMode: "DELETE",
+          changeMode: 'DELETE',
           jobLevel: {
             id: item.id,
             version: item.version ?? 0,
@@ -95,13 +98,13 @@ const JobLevelGroupDetails: React.FC<JobLevelGroupDetailsProps> = (context) => {
   }, [jobLevelGroups, searchTerm]);
 
   const renderJobLevelTable = (group: JobLevelGroup) => {
-    const columns: ColumnDef<any>[] = [
+    const columns: ColumnDef<JobLevel>[] = [
       {
-        accessorKey: "level",
+        accessorKey: 'level',
         header: ({ column }) => (
           <Button
             variant="ghost"
-            onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+            onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}
             className="gba:h-auto gba:p-0 gba:font-semibold gba:hover:bg-transparent gba:justify-start"
           >
             Level
@@ -121,11 +124,11 @@ const JobLevelGroupDetails: React.FC<JobLevelGroupDetailsProps> = (context) => {
         },
       },
       {
-        accessorKey: "code",
+        accessorKey: 'code',
         header: ({ column }) => (
           <Button
             variant="ghost"
-            onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+            onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}
             className="gba:h-auto gba:p-0 gba:font-semibold gba:hover:bg-transparent gba:justify-start"
           >
             Code
@@ -137,17 +140,17 @@ const JobLevelGroupDetails: React.FC<JobLevelGroupDetailsProps> = (context) => {
           const code = getValue();
           return (
             <div className="gba:flex gba:items-center">
-              <Badge variant="info">{(code as string) ?? "N/A"}</Badge>
+              <Badge variant="info">{(code as string) ?? 'N/A'}</Badge>
             </div>
           );
         },
       },
       {
-        accessorKey: "name",
+        accessorKey: 'name',
         header: ({ column }) => (
           <Button
             variant="ghost"
-            onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+            onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}
             className="gba:h-auto gba:p-0 gba:font-semibold gba:hover:bg-transparent gba:justify-start"
           >
             Name
@@ -165,11 +168,11 @@ const JobLevelGroupDetails: React.FC<JobLevelGroupDetailsProps> = (context) => {
         },
       },
       {
-        accessorKey: "compensationBand",
+        accessorKey: 'compensationBand',
         header: ({ column }) => (
           <Button
             variant="ghost"
-            onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+            onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}
             className="gba:h-auto gba:p-0 gba:font-semibold gba:hover:bg-transparent gba:justify-start"
           >
             Compensation Band
@@ -189,11 +192,11 @@ const JobLevelGroupDetails: React.FC<JobLevelGroupDetailsProps> = (context) => {
         },
       },
       {
-        accessorKey: "experienceYears",
+        accessorKey: 'experienceYears',
         header: ({ column }) => (
           <Button
             variant="ghost"
-            onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+            onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}
             className="gba:h-auto gba:p-0 gba:font-semibold gba:hover:bg-transparent gba:justify-start"
           >
             Experience Required
@@ -203,7 +206,7 @@ const JobLevelGroupDetails: React.FC<JobLevelGroupDetailsProps> = (context) => {
         enableSorting: true,
         cell: ({ getValue }) => {
           const years = getValue();
-          return years !== undefined && typeof years === "number" ? (
+          return years !== undefined && typeof years === 'number' ? (
             <Tooltip>
               <TooltipTrigger>
                 <Badge variant="warning">{years} years</Badge>
@@ -216,8 +219,8 @@ const JobLevelGroupDetails: React.FC<JobLevelGroupDetailsProps> = (context) => {
         },
       },
       {
-        id: "actions",
-        header: "Actions",
+        id: 'actions',
+        header: () => <div className="gba:flex gba:w-[85px]">Actions</div>,
         enableSorting: false,
         enableHiding: true,
         cell: ({ row }) => {
@@ -246,9 +249,9 @@ const JobLevelGroupDetails: React.FC<JobLevelGroupDetailsProps> = (context) => {
               />
 
               <DeleteButton
-                onDelete={() => handleDelete("level", record)}
+                onDelete={() => handleDelete('level', record)}
                 itemName={record.name}
-                itemTitle={"Job Level"}
+                itemTitle={'Job Level'}
               />
             </div>
           );
@@ -270,15 +273,15 @@ const JobLevelGroupDetails: React.FC<JobLevelGroupDetailsProps> = (context) => {
 
     return (
       <DataTable
-        defaultDataSetId="simple-users"
-        dataSets={[
-          {
-            id: "simple-users",
-            label: "Job Levels",
-            data: dataTable,
-            columns: columns,
-          },
-        ]}
+        data={dataTable}
+        columns={columns as ColumnDef<(typeof dataTable)[number]>[]}
+        sorting={sorting}
+        onSortingChange={setSorting}
+        selectedRows={selectedRows}
+        onSelectionChange={setSelectedRows}
+        enableSorting
+        enableSelection
+        enablePagination
       />
     );
   };
@@ -356,7 +359,7 @@ const JobLevelGroupDetails: React.FC<JobLevelGroupDetailsProps> = (context) => {
     <Tooltip>
       <TooltipTrigger>
         <DeleteButton
-          onDelete={() => handleDelete("group", group)}
+          onDelete={() => handleDelete('group', group)}
           itemName={group.name}
           itemTitle="Job Level Group"
         />
@@ -372,7 +375,7 @@ const JobLevelGroupDetails: React.FC<JobLevelGroupDetailsProps> = (context) => {
         title: group.name,
         description: `Code: ${group.code}`,
         badgeText: `${group.jobLevelCount} levels`,
-        badgeVariant: "info" as const,
+        badgeVariant: 'info' as const,
         buttons: [
           {
             icon: () => createAddJobLevelButton(group.id),
