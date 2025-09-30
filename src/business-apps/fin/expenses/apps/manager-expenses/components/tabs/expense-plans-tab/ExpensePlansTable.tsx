@@ -271,7 +271,7 @@ const ExpensePlansTable: React.FC<ExpensePlansTableProps> = (props) => {
             <TableHeader className="gba:sticky gba:top-0 gba:bg-white gba:z-10 gba:border-b gba:border-gray-200">
               <TableRow>
                 <TableHead
-                  className="gba:w-[8%] gba:bg-gray-50 gba:font-semibold"
+                  className="gba:w-[60px] gba:bg-gray-50 gba:font-semibold"
                   data-testid={`${DATA_TEST_ID_PREFIX}-actions-header`}
                 ></TableHead>
                 <TableHead
@@ -379,12 +379,12 @@ const ExpensePlansTable: React.FC<ExpensePlansTableProps> = (props) => {
                   >
                     <TableCell data-testid={`${DATA_TEST_ID_PREFIX}-actions-cell-${plan.id}`}>
                       <div
-                        className="gba:flex gba:justify-center gba:gap-2"
+                        className="gba:flex gba:justify-start gba:gap-2"
                         onClick={(e) => e.stopPropagation()}
                       >
                         <AppActionButton
                           data-testid={`${DATA_TEST_ID_PREFIX}-update-plan-button-${plan.id}`}
-                          size="sm"
+                          size="icon"
                           staticFlowData={[
                             // Print action - only available if document exists
                             ...(plan.employeeDocument?.file

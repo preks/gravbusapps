@@ -127,7 +127,7 @@ const AdvancePaymentsTable: React.FC<AdvancePaymentsTableProps> = (props) => {
           <Table data-testid="advance-payments-table" className="gba:min-w-[1296px] gba:w-full">
             <TableHeader>
               <TableRow>
-                <TableHead className="gba:w-[8%]"></TableHead>
+                <TableHead className="gba:w-[60px]"></TableHead>
                 <TableHead
                   className="gba:w-[17%] gba:cursor-pointer"
                   onClick={() => updateSorting("expensePlan.title")}
@@ -283,12 +283,12 @@ const AdvancePaymentsTable: React.FC<AdvancePaymentsTableProps> = (props) => {
                 >
                   <TableCell data-testid={`advance-payments-actions-cell-${record.id}`}>
                     <div
-                      className="gba:flex gba:justify-center gba:gap-2"
+                      className="gba:flex gba:justify-start gba:gap-2"
                       onClick={(e) => e.stopPropagation()}
                     >
                       <AppActionButton
                         data-testid={`advance-payments-update-button-${record.id}`}
-                        size="sm"
+                        size="icon"
                         staticFlowData={[
                           {
                             category: getTranslationFromI18nKeyAndLabel(

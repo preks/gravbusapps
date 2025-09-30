@@ -319,7 +319,7 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = (props) => {
           <Table data-testid="expense-requests-table" className="gba:min-w-[1296px] gba:w-full">
             <TableHeader className="gba:sticky gba:top-0 gba:bg-white gba:z-10 gba:border-b gba:border-gray-200">
               <TableRow>
-                <TableHead className="gba:w-[8%]"></TableHead>
+                <TableHead className="gba:w-[60px]"></TableHead>
                 <TableHead
                   className="gba:w-[17%] gba:cursor-pointer gba:select-none"
                   onClick={() => handleSort("title")}
@@ -439,7 +439,7 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = (props) => {
                   >
                     <TableCell data-testid={`expense-requests-actions-cell-${record.id}`}>
                       <div
-                        className="gba:flex gba:justify-center gba:gap-2"
+                        className="gba:flex gba:justify-start gba:gap-2"
                         onClick={(e) => e.stopPropagation()}
                       >
                         <AppActionButton
