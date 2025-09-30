@@ -84,7 +84,11 @@ const LineChartComponent: React.FC<LineChartProps> = ({
               <XAxis dataKey={xAxisDataKey} />
               <YAxis />
               <Tooltip
-                formatter={(value) => [formatCurrencyDisplay(value, currency), "Amount"]}
+                formatter={(value) => {
+                  const num = typeof value === 'number' ? value : Number(value ?? 0);
+                  const fixed = Number.isFinite(num) ? Number(num.toFixed(2)) : 0;
+                  return [formatCurrencyDisplay(fixed, currency), "Amount"];
+                }}
                 labelFormatter={(label) => `${label}`}
               />
               <Line

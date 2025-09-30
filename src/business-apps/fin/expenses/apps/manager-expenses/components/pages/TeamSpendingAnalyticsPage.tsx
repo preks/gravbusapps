@@ -276,12 +276,7 @@ const TeamSpendingAnalyticsPage: React.FC<TeamSpendingAnalyticsPageProps> = ({
               <Separator />
               <div className="gba:text-center">
                 <div className="gba:text-2xl gba:font-bold gba:text-blue-600">
-                  {data?.totalExpenseAmount
-                    ? formatCurrencyDisplay(
-                        data.totalExpenseAmount,
-                        currencyFilter || primaryCurrency,
-                      )
-                    : formatCurrencyDisplay(0, currencyFilter || primaryCurrency)}
+                  {formatKpiAmount(Number((data?.totalExpenseAmount ?? 0).toFixed?.(2) ?? data?.totalExpenseAmount ?? 0))}
                 </div>
                 <div className="gba:text-sm gba:text-muted-foreground">
                   {getTranslationFromI18nKeyAndLabel(
