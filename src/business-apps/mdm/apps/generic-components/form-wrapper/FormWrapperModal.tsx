@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, SetStateAction, Dispatch } from "react";
 import {
   Dialog,
   DialogContent,
@@ -16,15 +16,17 @@ interface FormWrapperModalProps {
   children: React.ReactNode;
   title?: string;
   description?: string;
-  onSubmit?: (data: any) => void | Promise<void>;
+  onSubmit?: (_data: Record<string, string | undefined> | undefined) => void | Promise<void>;
   onCancel?: () => void;
-  defaultValues?: Record<string, any>;
+  defaultValues?: Record<string, string>;
   isEditing?: boolean;
   loading?: boolean;
   dataTestId?: string;
   isDrawerActive?: boolean;
   open?: boolean;
-  setOpen?: (open: boolean) => void;
+  setOpen?: Dispatch<SetStateAction<boolean>>;
+  isValid?: boolean;
+  setCodeError?: Dispatch<SetStateAction<string>>;
 }
 
 const FormWrapperModal = ({
@@ -41,6 +43,8 @@ const FormWrapperModal = ({
   dataTestId = "form-wrapper-modal",
   open,
   setOpen,
+  isValid = true,
+  setCodeError,
 }: FormWrapperModalProps) => {
   const [isOpen, setIsOpen] = useState(open);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -51,9 +55,10 @@ const FormWrapperModal = ({
 
   useEffect(() => {
     form.reset(defaultValues);
+    form.clearErrors();
   }, [form, defaultValues]);
 
-  const handleSubmit = async (data: any) => {
+  const handleSubmit = async (data: Record<string, string>) => {
     if (!onSubmit) return;
 
     setIsSubmitting(true);
@@ -67,8 +72,7 @@ const FormWrapperModal = ({
       console.error("Form submission error:", error);
 
       const defaultErrorMessage = "Something went wrong";
-      const errorMsg =
-        error instanceof Error ? error.message : defaultErrorMessage;
+      const errorMsg = error instanceof Error ? error.message : defaultErrorMessage;
       toast.error(errorMsg);
     } finally {
       setIsSubmitting(false);
@@ -78,6 +82,7 @@ const FormWrapperModal = ({
   const handleCancel = () => {
     setIsOpen(false);
     setOpen?.(false);
+    setCodeError?.("");
     form.reset();
     if (onCancel) {
       onCancel();
@@ -87,6 +92,7 @@ const FormWrapperModal = ({
   const handleOpenChange = (open: boolean) => {
     setIsOpen(open);
     setOpen?.(open);
+    setCodeError?.("");
     if (!open) {
       form.reset();
       if (onCancel) {
@@ -97,34 +103,22 @@ const FormWrapperModal = ({
 
   return (
     <Dialog open={isOpen} onOpenChange={handleOpenChange}>
-      {childAddButton && (
-        <DialogTrigger asChild>{childAddButton}</DialogTrigger>
-      )}
-      <DialogContent
-        data-testid={dataTestId}
-        className={cn({ "gba:!z-[1002]": isDrawerActive })}
-      >
+      {childAddButton && <DialogTrigger asChild>{childAddButton}</DialogTrigger>}
+      <DialogContent data-testid={dataTestId} className={cn({ "gba:!z-[1002]": isDrawerActive })}>
         <DialogTitle>{title}</DialogTitle>
         <div className="gba:space-y-4">
           <div className="gba:space-y-2">
-            {description && (
-              <p className="gba:text-sm gba:text-muted-foreground">
-                {description}
-              </p>
-            )}
+            {description && <p className="gba:text-sm gba:text-muted-foreground">{description}</p>}
           </div>
 
           <Form {...form}>
-            <form
-              onSubmit={form.handleSubmit(handleSubmit)}
-              className="gba:space-y-4"
-            >
+            <form onSubmit={form.handleSubmit(handleSubmit)} className="gba:space-y-4">
               {children}
 
               <div className="gba:flex gba:justify-end gba:gap-2 gba:pt-4">
                 <Button
                   type="submit"
-                  disabled={loading || isSubmitting}
+                  disabled={loading || isSubmitting || !isValid}
                   data-testid={`${dataTestId}-submit-button`}
                 >
                   {isSubmitting ? "Saving..." : isEditing ? "Update" : "Create"}

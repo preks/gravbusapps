@@ -3,13 +3,7 @@ import { useTranslation } from "react-i18next";
 import { PageLayout } from "@/components/layout/pageLayout/PageLayout";
 import { BusinessAppContextProps } from "@/common/BusinessAppContext";
 import { TreeStructureIcon } from "@phosphor-icons/react";
-import {
-  Tabs,
-  TabsList,
-  TabsTrigger,
-  TabsContent,
-  Toaster,
-} from "@newwork/nw-design-system";
+import { Tabs, TabsList, TabsTrigger, TabsContent, Toaster } from "@newwork/nw-design-system";
 import {
   JobFamiliesTab,
   JobLevelGroupDetails,
@@ -39,9 +33,7 @@ const getInitialTab = (): JobStructureDataTabs => {
 
     if (
       tabParam &&
-      Object.values(JobStructureDataTabs).includes(
-        tabParam as JobStructureDataTabs
-      )
+      Object.values(JobStructureDataTabs).includes(tabParam as JobStructureDataTabs)
     ) {
       return tabParam as JobStructureDataTabs;
     }
@@ -55,8 +47,7 @@ const JobStructureData: React.FC<JobStructureDataProps> = ({
   ...contextProps
 }) => {
   const { t } = useTranslation();
-  const [selectedTab, setSelectedTab] =
-    useState<JobStructureDataTabs>(getInitialTab);
+  const [selectedTab, setSelectedTab] = useState<JobStructureDataTabs>(getInitialTab);
 
   useEffect(() => {
     const setTabFromUrl = () => {
@@ -65,9 +56,7 @@ const JobStructureData: React.FC<JobStructureDataProps> = ({
 
       if (
         tabParam &&
-        Object.values(JobStructureDataTabs).includes(
-          tabParam as JobStructureDataTabs
-        )
+        Object.values(JobStructureDataTabs).includes(tabParam as JobStructureDataTabs)
       ) {
         setSelectedTab(tabParam as JobStructureDataTabs);
       }
@@ -93,13 +82,9 @@ const JobStructureData: React.FC<JobStructureDataProps> = ({
       headerLabel={t("hr.job_structure_data", "Job Structure Data")}
       className={`${className ? className : ""} gba:!overflow-y-visible`}
       contentContainer={
-        <div className="gba:w-full gba:h-full" style={{ padding: "24px" }}>
+        <div className="gba:w-full gba:h-full gba:!overflow-y-auto" style={{ padding: "24px" }}>
           <div data-testid={`${prefixDataTestId || ""}-${DATA_TEST_ID}-Tabs`}>
-            <Tabs
-              value={selectedTab}
-              onValueChange={onChangeTab}
-              className="gba:w-full"
-            >
+            <Tabs value={selectedTab} onValueChange={onChangeTab} className="gba:w-full">
               <TabsList className="gba:w-full">
                 <TabsTrigger value={JobStructureDataTabs.JOB_FAMILIES}>
                   {t("hr.job_families", "Job Families")}
