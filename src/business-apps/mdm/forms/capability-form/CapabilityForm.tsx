@@ -156,6 +156,11 @@ const CapabilityForm: React.FC<CapabilityFormProps> = ({
         )}
       />
 
+      <style jsx>{`
+        [data-slot="popover-content"] {
+          z-index: 1002 !important;
+        }
+      `}</style>
       <FormField
         name="layerId"
         rules={{
