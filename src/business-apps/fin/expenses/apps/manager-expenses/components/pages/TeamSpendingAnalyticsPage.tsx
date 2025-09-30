@@ -26,7 +26,7 @@ import { BusinessAppContextProps } from "@/common/BusinessAppContext";
 import { useTeamSpendingAnalytics, DateRangeOption } from "../../hooks/useTeamSpendingAnalytics";
 import { useExpenseGroupCatalog } from "../../hooks/useExpenseGroupCatalog";
 import { LineChartComponent, PieChartComponent, BarChartComponent } from "../modals/charts";
-import { getTranslationFromI18nKeyAndLabel } from "@/common/utils/windowUtils";
+import { getTranslationFromI18nKeyAndLabel, getCurrentActiveUserLocale } from "@/common/utils/windowUtils";
 import { formatCurrencyDisplay } from "../../../personal-expenses/utils";
 import {
   getExpenseRequestStatusDisplay,

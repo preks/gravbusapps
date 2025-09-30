@@ -28,7 +28,7 @@ const GET_EXPENSE_GROUPS = `
       id
       name: additionalValue1
       description: additionalValue2
-      translations(where: { locale: { _eq: $activeUserLocale } }) {
+      translations(where: { localeCode: { _eq: $activeUserLocale } }) {
         name: additionalValue1
         description: additionalValue2
       }
