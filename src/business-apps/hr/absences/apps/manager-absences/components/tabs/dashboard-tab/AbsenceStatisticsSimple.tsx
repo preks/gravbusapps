@@ -30,7 +30,7 @@ export const AbsenceStatisticsSimple: React.FC<AbsenceStatisticsSimpleProps> = (
         'Employees away today',
       ),
       onClick: () => {
-        const today = new Date().toISOString().split('T')[0];
+        const today = dayjs().format('YYYY-MM-DD');
         props.onNavigateToAbsenceListPage?.({
           type: 'team-away',
           status: ['APPROVED'],

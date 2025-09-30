@@ -257,7 +257,7 @@ export const useAbsenceListDataSimple = ({
         }
 
         const shouldFetchAllData = sortField === 'groupName';
-        const fetchLimit = shouldFetchAllData ? 10000 : newPageSize;
+        const fetchLimit = shouldFetchAllData ? Math.min(2000, newPageSize) : newPageSize;
         const fetchOffset = shouldFetchAllData ? 0 : page;
 
         const query = GET_SUPERVISOR_ABSENCES_WITH_FILTERS({
