@@ -21,7 +21,7 @@ import { PiArrowUp, PiArrowDown } from "react-icons/pi";
 import { BusinessAppContextProps } from "@/common/BusinessAppContext";
 import Pill from "@/components/pill/Pill";
 import { ExpensePlan, SortField } from "../../../hooks/useMainViewExpensePlans";
-import { getExpensePlanStatusDisplay, ExpenseStatus } from "../../../../personal-expenses/utils";
+import { getExpensePlanStatusDisplay, ExpenseStatus } from "../../../utils";
 import {
   getTranslationFromI18nKeyAndLabel,
   getCurrentActiveUserLocale,

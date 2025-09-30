@@ -14,6 +14,9 @@ interface PieChartProps {
   height?: number;
   colors?: string[];
   currency?: string;
+  valueType?: 'amount' | 'count';
+  countLabel?: string;
+  getColor?: (entry: any, index: number) => string | undefined;
 }
 
 /**
@@ -27,6 +30,9 @@ const PieChartComponent: React.FC<PieChartProps> = ({
   height = 300,
   colors = ["#1890ff", "#52c41a", "#faad14", "#f5222d", "#722ed1", "#13c2c2", "#fa8c16"],
   currency = "EUR",
+  valueType = 'amount',
+  countLabel = 'items',
+  getColor,
 }) => {
   if (!data || data.length === 0) {
     return (
@@ -75,17 +81,20 @@ const PieChartComponent: React.FC<PieChartProps> = ({
                 dataKey={dataKey}
               >
                 {data.map((entry, index) => (
-                  <Cell key={`cell-${index}`} fill={colors[index % colors.length]} />
+                  <Cell key={`cell-${index}`} fill={getColor ? (getColor(entry, index) || colors[index % colors.length]) : colors[index % colors.length]} />
                 ))}
               </Pie>
               <Tooltip
                 formatter={(value: any, _name: any, props: any) => {
+                  if (valueType === 'count') {
+                    const num = typeof value === 'number' ? value : Number(value ?? 0);
+                    return [`${num} ${countLabel}`, 'Count'];
+                  }
+                  const num = typeof value === 'number' ? value : Number(value ?? 0);
+                  const fixed = Number.isFinite(num) ? Number(num.toFixed(2)) : 0;
                   const count = props?.payload?.count ?? null;
-                  const amountText = formatCurrencyDisplay(value, currency);
-                  return [
-                    count !== null ? `${amountText} (Count: ${count})` : amountText,
-                    "Amount",
-                  ];
+                  const amountText = formatCurrencyDisplay(fixed, currency);
+                  return [count !== null ? `${amountText} (Count: ${count})` : amountText, 'Amount'];
                 }}
                 labelFormatter={(name) => `${name}`}
               />

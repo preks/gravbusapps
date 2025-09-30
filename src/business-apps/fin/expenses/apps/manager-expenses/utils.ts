@@ -35,6 +35,16 @@ export interface StatusDisplayConfig {
  */
 export const getExpensePlanStatusDisplay = (status: string): StatusDisplayConfig => {
   switch (status) {
+    case 'IN_APPROVAL':
+      return {
+        label: getTranslationFromI18nKeyAndLabel('lowcoder:expense_statuses.in_approval', 'In Approval'),
+        type: 'task',
+      };
+    case 'VERIFICATION_REQUIRED':
+      return {
+        label: getTranslationFromI18nKeyAndLabel('lowcoder:expense_statuses.verification_required', 'Verification Required'),
+        type: 'waiting',
+      };
     case ExpenseStatus.PREPARED:
       return {
         label: getTranslationFromI18nKeyAndLabel('lowcoder:expense_statuses.prepared', 'Prepared'),
@@ -56,7 +66,7 @@ export const getExpensePlanStatusDisplay = (status: string): StatusDisplayConfig
           'lowcoder:expense_statuses.in_approval',
           'In Approval',
         ),
-        type: 'waiting',
+        type: 'task',
       };
     case ExpenseStatus.APPROVED:
       return {
@@ -127,6 +137,16 @@ export const getExpensePlanStatusDisplay = (status: string): StatusDisplayConfig
  */
 export const getExpenseRequestStatusDisplay = (status: string): StatusDisplayConfig => {
   switch (status) {
+    case 'IN_APPROVAL':
+      return {
+        label: getTranslationFromI18nKeyAndLabel('lowcoder:expense_statuses.in_approval', 'In Approval'),
+        type: 'task',
+      };
+    case 'VERIFICATION_REQUIRED':
+      return {
+        label: getTranslationFromI18nKeyAndLabel('lowcoder:expense_statuses.verification_required', 'Verification Required'),
+        type: 'waiting',
+      };
     case ExpenseStatus.PREPARED:
       return {
         label: getTranslationFromI18nKeyAndLabel('lowcoder:expense_statuses.prepared', 'Prepared'),
@@ -224,6 +244,16 @@ export const getExpenseRequestStatusDisplay = (status: string): StatusDisplayCon
  */
 export const getAdvancePaymentStatusDisplay = (status: string): StatusDisplayConfig => {
   switch (status) {
+    case 'IN_APPROVAL':
+      return {
+        label: getTranslationFromI18nKeyAndLabel('lowcoder:expense_statuses.in_approval', 'In Approval'),
+        type: 'task',
+      };
+    case 'VERIFICATION_REQUIRED':
+      return {
+        label: getTranslationFromI18nKeyAndLabel('lowcoder:expense_statuses.verification_required', 'Verification Required'),
+        type: 'waiting',
+      };
     case ExpenseStatus.PREPARED:
       return {
         label: getTranslationFromI18nKeyAndLabel('lowcoder:expense_statuses.prepared', 'Prepared'),

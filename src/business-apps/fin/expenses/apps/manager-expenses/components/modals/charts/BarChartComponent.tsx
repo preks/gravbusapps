@@ -1,6 +1,6 @@
 import React from "react";
 import { Card, CardHeader, CardTitle, CardContent } from "@newwork/nw-design-system";
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from "recharts";
 import { formatCurrencyDisplay } from "../../../../personal-expenses/utils";
 
 interface BarChartProps {
@@ -16,6 +16,7 @@ interface BarChartProps {
   currency?: string;
   valueType?: 'amount' | 'count';
   countLabel?: string;
+  getColor?: (entry: any, index: number) => string | undefined;
 }
 
 /**
@@ -31,6 +32,7 @@ const BarChartComponent: React.FC<BarChartProps> = ({
   currency = "EUR",
   valueType = 'amount',
   countLabel = 'items',
+  getColor,
 }) => {
   if (!data || data.length === 0) {
     return (
@@ -91,7 +93,11 @@ const BarChartComponent: React.FC<BarChartProps> = ({
                 }}
                 labelFormatter={(label) => `${label}`}
               />
-              <Bar dataKey={barDataKey} fill={barColor} />
+              <Bar dataKey={barDataKey} fill={barColor}>
+                {data.map((entry, index) => (
+                  <Cell key={`cell-${index}`} fill={getColor ? (getColor(entry, index) || barColor) : barColor} />
+                ))}
+              </Bar>
             </BarChart>
           </ResponsiveContainer>
         </div>

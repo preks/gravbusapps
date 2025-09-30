@@ -26,6 +26,8 @@ import { BusinessAppContextProps } from "@/common/BusinessAppContext";
 import { useTeamSpendingAnalytics, DateRangeOption } from "../../hooks/useTeamSpendingAnalytics";
 import { useExpenseGroupCatalog } from "../../hooks/useExpenseGroupCatalog";
 import { LineChartComponent, PieChartComponent, BarChartComponent } from "../modals/charts";
+import { PillType } from '@/components/pill/Pill';
+import { getPillColor } from '@/components/pill/pillColors';
 import { getTranslationFromI18nKeyAndLabel, getCurrentActiveUserLocale } from "@/common/utils/windowUtils";
 import { formatCurrencyDisplay } from "../../../personal-expenses/utils";
 import {
@@ -45,6 +47,39 @@ const TeamSpendingAnalyticsPage: React.FC<TeamSpendingAnalyticsPageProps> = ({
   accessToken,
   userInfo,
 }) => {
+  // Exact Pill palette (copied from Pill.tsx to keep charts consistent with pills)
+  const pillTypeColorMap = {
+    draft: getPillColor('draft'),
+    completed: getPillColor('completed'),
+    waiting: getPillColor('waiting'),
+    task: getPillColor('task'),
+    error: getPillColor('error'),
+    preparing: getPillColor('preparing'),
+  } as const;
+
+  const pillTypeLabelMap: Record<PillType, string> = {
+    draft: getTranslationFromI18nKeyAndLabel('lowcoder:status_legend.draft', 'Draft'),
+    completed: getTranslationFromI18nKeyAndLabel('lowcoder:status_legend.completed', 'Completed'),
+    waiting: getTranslationFromI18nKeyAndLabel('lowcoder:status_legend.waiting', 'Waiting'),
+    task: getTranslationFromI18nKeyAndLabel('lowcoder:status_legend.task', 'Task'),
+    error: getTranslationFromI18nKeyAndLabel('lowcoder:status_legend.error', 'Error'),
+    preparing: getTranslationFromI18nKeyAndLabel('lowcoder:status_legend.preparing', 'Preparing'),
+  };
+
+  const StatusLegend: React.FC<{ id?: string }> = ({ id }) => (
+    <div className="gba:mt-3 gba:flex gba:flex-wrap gba:gap-3" data-testid={id ? `${id}-status-legend` : 'status-legend'}>
+      {(Object.keys(pillTypeColorMap) as PillType[]).map((type) => (
+        <div key={type} className="gba:flex gba:items-center gba:gap-2">
+          <span
+            aria-hidden="true"
+            className="gba:inline-block gba:h-3 gba:w-3 gba:rounded-full"
+            style={{ backgroundColor: pillTypeColorMap[type] }}
+          />
+          <span className="gba:text-xs gba:text-muted-foreground">{pillTypeLabelMap[type]}</span>
+        </div>
+      ))}
+    </div>
+  );
   // Use the global currency store
   const { primaryCurrency } = useCurrencyStore();
   const [activeTab, setActiveTab] = React.useState<string>("expense-items");
@@ -205,25 +240,6 @@ const TeamSpendingAnalyticsPage: React.FC<TeamSpendingAnalyticsPageProps> = ({
             />
           </CardContent>
         </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle>
-              {getTranslationFromI18nKeyAndLabel(
-                "lowcoder:team_expenses_page.dashboard_tab.expense_items_by_category",
-                "Expense Items by Category",
-              )}
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <PieChartComponent
-              data={expenseItemsByCategoryWithNames}
-              title=""
-              currency={currencyFilter || primaryCurrency}
-              colors={["#1890ff", "#52c41a", "#722ed1", "#f5222d", "#fa8c16"]}
-            />
-          </CardContent>
-        </Card>
       </div>
 
       <div className="gba:grid gba:grid-cols-1 lg:gba:grid-cols-2 gba:gap-6">
@@ -239,10 +255,11 @@ const TeamSpendingAnalyticsPage: React.FC<TeamSpendingAnalyticsPageProps> = ({
           <CardContent>
             <BarChartComponent
               data={
-                data?.expenseItemsByStatus.map((item) => ({
-                  name: getExpenseRequestStatusDisplay(item.status).label,
-                  value: item.count,
-                })) || []
+              data?.expenseItemsByStatus.map((item) => ({
+                name: getExpenseRequestStatusDisplay(item.status).label,
+                value: item.count,
+                status: item.status,
+              })) || []
               }
               title=""
               barColor="#1890ff"
@@ -251,9 +268,38 @@ const TeamSpendingAnalyticsPage: React.FC<TeamSpendingAnalyticsPageProps> = ({
                 "lowcoder:team_expenses_page.dashboard_tab.items",
                 "items",
               )}
+            getColor={(entry) => {
+              const code = entry.status || entry.name;
+              const config = getExpenseRequestStatusDisplay(code);
+              const type = (config?.type as PillType) || 'draft';
+              return pillTypeColorMap[type] || '#1890ff';
+            }}
             />
+            <StatusLegend id="expense-items-by-status" />
           </CardContent>
         </Card>
+
+        {/* Move category chart under the status chart and make it full width on large screens */}
+        <div className="lg:gba:col-span-2">
+          <Card>
+            <CardHeader>
+              <CardTitle>
+                {getTranslationFromI18nKeyAndLabel(
+                  "lowcoder:team_expenses_page.dashboard_tab.expense_items_by_category",
+                  "Expense Items by Category",
+                )}
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <PieChartComponent
+                data={expenseItemsByCategoryWithNames}
+                title=""
+                currency={currencyFilter || primaryCurrency}
+                colors={["#1890ff", "#52c41a", "#722ed1", "#f5222d", "#fa8c16"]}
+              />
+            </CardContent>
+          </Card>
+        </div>
 
         <Card>
           <CardHeader>
@@ -324,21 +370,37 @@ const TeamSpendingAnalyticsPage: React.FC<TeamSpendingAnalyticsPageProps> = ({
               {getTranslationFromI18nKeyAndLabel(
                 "lowcoder:team_expenses_page.dashboard_tab.expense_requests_by_status",
                 "Expense Requests by Status",
-              )}
+              )}{" "}
+              ({getTranslationFromI18nKeyAndLabel(
+                "lowcoder:common.counts",
+                "Counts",
+              )})
             </CardTitle>
           </CardHeader>
           <CardContent>
             <BarChartComponent
               data={
-                data?.expenseRequestsByStatus.map((item) => ({
-                  name: getExpenseRequestStatusDisplay(item.status).label,
-                  value: item.count,
-                })) || []
+              data?.expenseRequestsByStatus.map((item) => ({
+                name: getExpenseRequestStatusDisplay(item.status).label,
+                value: item.count,
+                status: item.status,
+              })) || []
               }
               title=""
               barColor="#52c41a"
-              currency={currencyFilter || primaryCurrency}
+              valueType="count"
+              countLabel={getTranslationFromI18nKeyAndLabel(
+                "lowcoder:team_expenses_page.dashboard_tab.requests",
+                "Requests",
+              )}
+            getColor={(entry) => {
+              const code = entry.status || entry.name;
+              const config = getExpenseRequestStatusDisplay(code);
+              const type = (config?.type as PillType) || 'draft';
+              return pillTypeColorMap[type] || '#52c41a';
+            }}
             />
+            <StatusLegend id="expense-requests-by-status-counts" />
           </CardContent>
         </Card>
       </div>
@@ -350,21 +412,33 @@ const TeamSpendingAnalyticsPage: React.FC<TeamSpendingAnalyticsPageProps> = ({
               {getTranslationFromI18nKeyAndLabel(
                 "lowcoder:team_expenses_page.dashboard_tab.expense_requests_by_status",
                 "Expense Requests by Status",
-              )}
+              )}{" "}
+              ({getTranslationFromI18nKeyAndLabel(
+                "lowcoder:common.amounts",
+                "Amounts",
+              )})
             </CardTitle>
           </CardHeader>
           <CardContent>
             <PieChartComponent
               data={
-                data?.expenseRequestsByStatus.map((item) => ({
-                  name: getExpenseRequestStatusDisplay(item.status).label,
-                  value: item.count,
-                })) || []
+              data?.expenseRequestsByStatus.map((item) => ({
+                name: getExpenseRequestStatusDisplay(item.status).label,
+                value: item.amount ?? 0,
+                status: item.status,
+              })) || []
               }
               title=""
               currency={currencyFilter || primaryCurrency}
               colors={["#52c41a", "#1890ff", "#722ed1", "#f5222d", "#fa8c16"]}
+            getColor={(entry) => {
+              const code = entry.status || entry.name;
+              const config = getExpenseRequestStatusDisplay(code);
+              const type = (config?.type as PillType) || 'draft';
+              return pillTypeColorMap[type];
+            }}
             />
+            <StatusLegend id="expense-requests-by-status-amounts" />
           </CardContent>
         </Card>
 
@@ -393,12 +467,7 @@ const TeamSpendingAnalyticsPage: React.FC<TeamSpendingAnalyticsPageProps> = ({
               <Separator />
               <div className="gba:text-center">
                 <div className="gba:text-2xl gba:font-bold gba:text-green-600">
-                  {data?.totalRequestAmount
-                    ? formatCurrencyDisplay(
-                        data.totalRequestAmount,
-                        currencyFilter || primaryCurrency,
-                      )
-                    : formatCurrencyDisplay(0, currencyFilter || primaryCurrency)}
+                  {formatKpiAmount(Number((data?.totalRequestAmount ?? 0).toFixed?.(2) ?? data?.totalRequestAmount ?? 0))}
                 </div>
                 <div className="gba:text-sm gba:text-muted-foreground">
                   {getTranslationFromI18nKeyAndLabel(
@@ -442,21 +511,36 @@ const TeamSpendingAnalyticsPage: React.FC<TeamSpendingAnalyticsPageProps> = ({
               {getTranslationFromI18nKeyAndLabel(
                 "lowcoder:team_expenses_page.dashboard_tab.expense_plans_by_status",
                 "Expense Plans by Status",
-              )}
+              )} {`(${getTranslationFromI18nKeyAndLabel(
+                "lowcoder:common.counts",
+                "Counts",
+              )})`}
             </CardTitle>
           </CardHeader>
           <CardContent>
             <BarChartComponent
               data={
-                data?.expensePlansByStatus.map((item) => ({
-                  name: getExpensePlanStatusDisplay(item.status).label,
-                  value: item.count,
-                })) || []
+              data?.expensePlansByStatus.map((item) => ({
+                name: getExpensePlanStatusDisplay(item.status).label,
+                value: item.count,
+                status: item.status,
+              })) || []
               }
               title=""
               barColor="#722ed1"
-              currency={currencyFilter || primaryCurrency}
+              valueType="count"
+              countLabel={getTranslationFromI18nKeyAndLabel(
+                "lowcoder:team_expenses_page.dashboard_tab.plans",
+                "Plans",
+              )}
+            getColor={(entry) => {
+              const code = entry.status || entry.name;
+              const config = getExpensePlanStatusDisplay(code);
+              const type = (config?.type as PillType) || 'draft';
+              return pillTypeColorMap[type] || '#722ed1';
+            }}
             />
+            <StatusLegend id="expense-plans-by-status-counts" />
           </CardContent>
         </Card>
       </div>
@@ -468,21 +552,32 @@ const TeamSpendingAnalyticsPage: React.FC<TeamSpendingAnalyticsPageProps> = ({
               {getTranslationFromI18nKeyAndLabel(
                 "lowcoder:team_expenses_page.dashboard_tab.expense_plans_by_status",
                 "Expense Plans by Status",
-              )}
+              )} {`(${getTranslationFromI18nKeyAndLabel(
+                "lowcoder:common.amounts",
+                "Amounts",
+              )})`}
             </CardTitle>
           </CardHeader>
           <CardContent>
             <PieChartComponent
               data={
-                data?.expensePlansByStatus.map((item) => ({
-                  name: getExpensePlanStatusDisplay(item.status).label,
-                  value: item.count,
-                })) || []
+              data?.expensePlansByStatus.map((item) => ({
+                name: getExpensePlanStatusDisplay(item.status).label,
+                value: item.amount ?? 0,
+                status: item.status,
+              })) || []
               }
               title=""
               currency={currencyFilter || primaryCurrency}
               colors={["#722ed1", "#52c41a", "#1890ff", "#f5222d", "#fa8c16"]}
+            getColor={(entry) => {
+              const code = entry.status || entry.name;
+              const config = getExpensePlanStatusDisplay(code);
+              const type = (config?.type as PillType) || 'draft';
+              return pillTypeColorMap[type];
+            }}
             />
+            <StatusLegend id="expense-plans-by-status-amounts" />
           </CardContent>
         </Card>
 
@@ -511,9 +606,7 @@ const TeamSpendingAnalyticsPage: React.FC<TeamSpendingAnalyticsPageProps> = ({
               <Separator />
               <div className="gba:text-center">
                 <div className="gba:text-2xl gba:font-bold gba:text-purple-600">
-                  {data?.totalPlanAmount
-                    ? formatCurrencyDisplay(data.totalPlanAmount, currencyFilter || primaryCurrency)
-                    : formatCurrencyDisplay(0, currencyFilter || primaryCurrency)}
+                  {formatKpiAmount(Number((data?.totalPlanAmount ?? 0).toFixed?.(2) ?? data?.totalPlanAmount ?? 0))}
                 </div>
                 <div className="gba:text-sm gba:text-muted-foreground">
                   {getTranslationFromI18nKeyAndLabel(
@@ -557,23 +650,36 @@ const TeamSpendingAnalyticsPage: React.FC<TeamSpendingAnalyticsPageProps> = ({
               {getTranslationFromI18nKeyAndLabel(
                 "lowcoder:team_expenses_page.dashboard_tab.advance_payments_by_status",
                 "Advance Payments by Status",
-              )}
+              )} {`(${getTranslationFromI18nKeyAndLabel(
+                "lowcoder:common.counts",
+                "Counts",
+              )})`}
             </CardTitle>
           </CardHeader>
           <CardContent>
             <BarChartComponent
               data={
-                data?.advancePaymentsByStatus.map((item: any) => ({
-                  name: getAdvancePaymentStatusDisplay(item.status).label,
-                  value: item.amount ?? 0,
-                  // Pass count through payload so tooltip can show it
-                  count: item.count ?? 0,
-                })) || []
+              data?.advancePaymentsByStatus.map((item: any) => ({
+                name: getAdvancePaymentStatusDisplay(item.status).label,
+                value: item.count ?? 0,
+                status: item.status,
+              })) || []
               }
               title=""
               barColor="#13c2c2"
-              currency={currencyFilter || primaryCurrency}
+              valueType="count"
+              countLabel={getTranslationFromI18nKeyAndLabel(
+                "lowcoder:team_expenses_page.dashboard_tab.payments",
+                "Payments",
+              )}
+            getColor={(entry) => {
+              const code = entry.status || entry.name;
+              const config = getAdvancePaymentStatusDisplay(code);
+              const type = (config?.type as PillType) || 'draft';
+              return pillTypeColorMap[type] || '#13c2c2';
+            }}
             />
+            <StatusLegend id="advance-payments-by-status-counts" />
           </CardContent>
         </Card>
       </div>
@@ -585,23 +691,32 @@ const TeamSpendingAnalyticsPage: React.FC<TeamSpendingAnalyticsPageProps> = ({
               {getTranslationFromI18nKeyAndLabel(
                 "lowcoder:team_expenses_page.dashboard_tab.advance_payments_by_status",
                 "Advance Payments by Status",
-              )}
+              )} {`(${getTranslationFromI18nKeyAndLabel(
+                "lowcoder:common.amounts",
+                "Amounts",
+              )})`}
             </CardTitle>
           </CardHeader>
           <CardContent>
             <PieChartComponent
               data={
-                data?.advancePaymentsByStatus.map((item: any) => ({
-                  name: getAdvancePaymentStatusDisplay(item.status).label,
-                  value: item.amount ?? 0,
-                  // Pass count through payload so tooltip can show it
-                  count: item.count ?? 0,
-                })) || []
+              data?.advancePaymentsByStatus.map((item: any) => ({
+                name: getAdvancePaymentStatusDisplay(item.status).label,
+                value: item.amount ?? 0,
+                status: item.status,
+              })) || []
               }
               title=""
               colors={["#13c2c2", "#52c41a", "#1890ff", "#f5222d", "#fa8c16"]}
               currency={currencyFilter || primaryCurrency}
+            getColor={(entry) => {
+              const code = entry.status || entry.name;
+              const config = getAdvancePaymentStatusDisplay(code);
+              const type = (config?.type as PillType) || 'draft';
+              return pillTypeColorMap[type];
+            }}
             />
+            <StatusLegend id="advance-payments-by-status-amounts" />
           </CardContent>
         </Card>
 
@@ -630,12 +745,7 @@ const TeamSpendingAnalyticsPage: React.FC<TeamSpendingAnalyticsPageProps> = ({
               <Separator />
               <div className="gba:text-center">
                 <div className="gba:text-2xl gba:font-bold gba:text-cyan-600">
-                  {data?.totalAdvanceAmount
-                    ? formatCurrencyDisplay(
-                        data.totalAdvanceAmount,
-                        currencyFilter || primaryCurrency,
-                      )
-                    : formatCurrencyDisplay(0, currencyFilter || primaryCurrency)}
+                  {formatKpiAmount(Number((data?.totalAdvanceAmount ?? 0).toFixed?.(2) ?? data?.totalAdvanceAmount ?? 0))}
                 </div>
                 <div className="gba:text-sm gba:text-muted-foreground">
                   {getTranslationFromI18nKeyAndLabel(

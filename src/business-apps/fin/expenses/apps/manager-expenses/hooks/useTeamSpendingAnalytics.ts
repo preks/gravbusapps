@@ -513,6 +513,12 @@ export const useTeamSpendingAnalytics = (
       return true;
     };
 
+    // Define status exclusion lists to align with Manager Expenses tabs
+    const EXCLUDE_ITEM_STATUSES = new Set<string>(['DISCARDED']);
+    const EXCLUDE_REQUEST_STATUSES = new Set<string>(['REJECTED', 'DISCARDED', 'CREATED']);
+    const EXCLUDE_PLAN_STATUSES = new Set<string>(['DISCARDED', 'REJECTED']);
+    const EXCLUDE_ADV_PAYMENT_STATUSES = new Set<string>(['CREATED', 'RETURNED', 'REJECTED', 'DISCARDED']);
+
     // Filter expense items
     const filteredExpenseItems = rawData.expenseItems ? rawData.expenseItems.filter(item => {
       // Check if date is within range
@@ -538,6 +544,11 @@ export const useTeamSpendingAnalytics = (
         if (standardizedItemRef !== standardizedFilter) {
           return false;
         }
+      }
+
+      // Exclude specific statuses to match list screens
+      if (item.status && EXCLUDE_ITEM_STATUSES.has(item.status)) {
+        return false;
       }
 
       return true;
@@ -570,6 +581,11 @@ export const useTeamSpendingAnalytics = (
         }
       }
 
+      // Exclude statuses as in manager expenses request lists
+      if (item.status && EXCLUDE_REQUEST_STATUSES.has(item.status)) {
+        return false;
+      }
+
       return true;
     }) : [];
 
@@ -600,6 +616,11 @@ export const useTeamSpendingAnalytics = (
         }
       }
 
+      // Exclude statuses as in manager expenses plan lists
+      if (item.status && EXCLUDE_PLAN_STATUSES.has(item.status)) {
+        return false;
+      }
+
       return true;
     }) : [];
 
@@ -628,6 +649,11 @@ export const useTeamSpendingAnalytics = (
         if (standardizedItemRef !== standardizedFilter) {
           return false;
         }
+      }
+
+      // Exclude statuses as in manager expenses advance payment lists
+      if (item.status && EXCLUDE_ADV_PAYMENT_STATUSES.has(item.status)) {
+        return false;
       }
 
       return true;
@@ -703,8 +729,9 @@ export const useTeamSpendingAnalytics = (
       
       items.forEach(item => {
         if (!item) return;
-        
-        const status = item.status || 'Unknown';
+        // Normalize to the canonical statuses used in Personal/Backoffice Expenses
+        const rawStatus = item.status || 'Unknown';
+        const status = rawStatus === 'IN_APPROVAL' ? 'PENDING' : rawStatus;
         const prev = statusMap.get(status) || { count: 0, amount: 0 };
         const addAmount = Number(item?.[amountField] ?? 0);
         statusMap.set(status, {
