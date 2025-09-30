@@ -235,7 +235,7 @@ const ExpensePlansTable: React.FC<ExpensePlansTableProps> = React.memo((props) =
 
   const renderDataBody = useMemo(() => {
     return (
-      <div className="gba:pr-6">
+      <div className="">
         <Card data-testid={`${DATA_TEST_ID_PREFIX}-container`}>
           <CardContent className="gba:p-0">
             {isLoading && (
@@ -249,7 +249,7 @@ const ExpensePlansTable: React.FC<ExpensePlansTableProps> = React.memo((props) =
                 <TableHeader>
                   <TableRow className="gba:border-b gba:bg-gray-50">
                     <TableHead
-                      className="gba:w-[50px] gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-3"
+                      className="gba:w-[72px] gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-3"
                       data-testid={`${DATA_TEST_ID_PREFIX}-actions-header`}
                     />
                     <TableHead
@@ -668,6 +668,7 @@ const ExpensePlansTable: React.FC<ExpensePlansTableProps> = React.memo((props) =
         hideFilter={false}
         dataBody={renderDataBody}
         contentBackground="white"
+        addLeftPaddingWhenNoFilter={true}
       />
 
       {/* Expense Plan Details Sheet */}

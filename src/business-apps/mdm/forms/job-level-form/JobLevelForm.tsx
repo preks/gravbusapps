@@ -44,9 +44,7 @@ const JobLevelForm: React.FC<JobLevelFormProps> = ({
   isDrawerActive = false,
 }) => {
   const dataTestId = formatDataTestId(prefixDataTestId, DATA_TEST_ID_PREFIX);
-  const restClient = useRestClient(
-    env("NEXT_PUBLIC_KOGITO_PROCESSES_ENDPOINT")
-  );
+  const restClient = useRestClient(env("NEXT_PUBLIC_KOGITO_PROCESSES_ENDPOINT"));
 
   const [loading, setLoading] = useState(false);
 
@@ -62,8 +60,9 @@ const JobLevelForm: React.FC<JobLevelFormProps> = ({
           jobLevelGroupRef: groupId,
           ...(values.description ? { description: values.description } : {}),
           ...(values.experienceYears
-            ? { heirarchyOrder: values.experienceYears }
+            ? { additionalProperties: { additionalProp1: values.experienceYears } }
             : {}),
+          hierarchyOrder: values.level,
           compensationBand:
             values.compensationBandId && values.compensationBandId.trim() !== ""
               ? values.compensationBandId
@@ -76,7 +75,9 @@ const JobLevelForm: React.FC<JobLevelFormProps> = ({
         headers: { Authorization: `Bearer ${accessToken}` },
       });
 
-      refetch();
+      setTimeout(() => {
+        refetch();
+      }, 2000);
     } catch (error) {
       console.error("Form validation error:", error);
     } finally {
@@ -95,10 +96,7 @@ const JobLevelForm: React.FC<JobLevelFormProps> = ({
         jobLevel
           ? {
               ...jobLevel,
-              compensationBand:
-                jobLevel.compensationBandId ||
-                jobLevel.compensationBand?.id ||
-                "",
+              compensationBand: jobLevel.compensationBandId || jobLevel.compensationBand?.id || "",
             }
           : {
               ...defaultValues,
@@ -116,10 +114,7 @@ const JobLevelForm: React.FC<JobLevelFormProps> = ({
           <FormItem>
             <FormLabel>Job Level Name</FormLabel>
             <FormControl>
-              <Input
-                placeholder="e.g., Senior Software Engineer, Engineering Manager"
-                {...field}
-              />
+              <Input placeholder="e.g., Senior Software Engineer, Engineering Manager" {...field} />
             </FormControl>
             <FormMessage />
           </FormItem>
@@ -201,7 +196,7 @@ const JobLevelForm: React.FC<JobLevelFormProps> = ({
       />
 
       <FormField
-        name="compensationBand"
+        name="compensationBandId"
         render={({ field }) => (
           <FormItem>
             <FormLabel>Compensation Band</FormLabel>

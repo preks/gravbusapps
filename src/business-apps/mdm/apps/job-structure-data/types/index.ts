@@ -9,7 +9,7 @@ export interface JobLevel {
   code?: string;
   description?: string;
   descriptionI18n?: { [key: string]: string };
-  level: number; // derived from heirarchyOrder
+  level: number; // derived from hierarchyOrder
   jobLevelGroupId: string; // from jobLevelGroupRef
   compensationBandId?: string;
   compensationBand?: {
@@ -90,7 +90,7 @@ export interface JobProfile {
   id: string;
   name: string;
   nameI18n?: { [key: string]: string };
-  code?: string;
+  code: string;
   description?: string;
   descriptionI18n?: { [key: string]: string };
   jobFunction?: {
@@ -149,6 +149,4 @@ export interface JobFamilyCatalogResponse {
   totalRecords?: number;
 }
 
-
-
-export {}; 
+export {};

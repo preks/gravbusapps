@@ -125,6 +125,6 @@ export interface JobLevelVisualization {
   payGradeId: string;
   compensationBandId: string;
   level: number;
-  heirarchyOrder: number;
+  hierarchyOrder: number;
   version: number;
 }

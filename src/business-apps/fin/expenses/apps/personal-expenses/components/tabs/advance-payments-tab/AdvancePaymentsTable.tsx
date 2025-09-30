@@ -256,7 +256,7 @@ const AdvancePaymentsTable = React.forwardRef<HTMLDivElement, AdvancePaymentsTab
   // Render the data body with memoization
   const renderDataBody = useCallback(() => {
     return (
-      <div className="gba:pr-6">
+      <div>
         <Card data-testid={`${DATA_TEST_ID_PREFIX}-container`}>
           <CardContent className="gba:p-0">
             {isLoading && (
@@ -270,7 +270,7 @@ const AdvancePaymentsTable = React.forwardRef<HTMLDivElement, AdvancePaymentsTab
                 <TableHeader>
                   <TableRow className="gba:border-b gba:bg-gray-50">
                     <TableHead
-                      className="gba:w-[50px] gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-3"
+                      className="gba:w-[72px] gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-3"
                       data-testid={`${DATA_TEST_ID_PREFIX}-actions-header`}
                     />
                     <TableHead
@@ -575,6 +575,7 @@ const AdvancePaymentsTable = React.forwardRef<HTMLDivElement, AdvancePaymentsTab
         hideFilter={false}
         dataBody={renderDataBody()}
         contentBackground="white"
+        addLeftPaddingWhenNoFilter={true}
       />
 
       {/* Advance Payment Details Sheet */}
