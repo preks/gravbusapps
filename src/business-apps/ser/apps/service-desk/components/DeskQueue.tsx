@@ -141,11 +141,7 @@ export const DeskQueue: React.FC<DeskQueueProps> = ({
   const handleViewTicket = useCallback((ticket: StepInstance) => {
     setSelectedTicketId(ticket.id);
     setIsDetailDrawerOpen(true);
-    
-    // Update URL to reflect ticket detail view
-    const newPath = `/desk/${deskKey}/tickets/${ticket.id}`;
-    window.history.pushState({}, '', newPath);
-  }, [deskKey]);
+  }, []);
 
   // Define ticket actions
   const ticketActions: TicketAction[] = useMemo(() => [
@@ -190,10 +186,6 @@ export const DeskQueue: React.FC<DeskQueueProps> = ({
     setIsDetailDrawerOpen(open);
     if (!open) {
       setSelectedTicketId(null);
-      
-      // Update URL to go back to queue
-      const newPath = `/desk/${deskKey}`;
-      window.history.pushState({}, '', newPath);
     }
   };
 
