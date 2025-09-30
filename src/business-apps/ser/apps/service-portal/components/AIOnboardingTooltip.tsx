@@ -257,18 +257,19 @@ export const AIOnboardingTooltip: React.FC = () => {
         <div className="gba:relative">
           {/* Main Cloud Body */}
           <div 
-            className="gba:relative gba:backdrop-blur-xl gba:border-2 gba:border-white/30"
+            className="gba:relative gba:backdrop-blur-xl gba:border-2 gba:border-white/30 gba:overflow-hidden"
             style={{
               borderRadius: '60px 60px 60px 20px',
               padding: '2.5rem',
-              background: 'linear-gradient(135deg, rgba(255, 255, 255, 0.9) 0%, rgba(240, 248, 255, 0.95) 30%, rgba(243, 244, 246, 0.9) 70%, rgba(249, 250, 251, 0.95) 100%)',
+              background: 'linear-gradient(-45deg, #6366f1, #9333ea, #ec4899, #14b8a6)',
+              backgroundSize: '400% 400%',
               boxShadow: `
                 0 32px 64px -12px rgba(59, 130, 246, 0.15),
                 0 25px 50px -12px rgba(139, 92, 246, 0.1),
                 0 0 0 1px rgba(255, 255, 255, 0.8) inset,
                 0 1px 0 0 rgba(255, 255, 255, 0.9) inset
               `,
-              animation: 'cloud-float 6s ease-in-out infinite'
+              animation: 'cloud-float 6s ease-in-out infinite, gradient-shift 15s ease infinite'
             }}
           >
             {/* Enhanced floating particles animation */}
@@ -310,26 +311,29 @@ export const AIOnboardingTooltip: React.FC = () => {
               ))}
             </div>
 
+            {/* Semi-transparent overlay for better text readability */}
+            <div className="gba:absolute gba:inset-0 gba:bg-black/20 gba:rounded-[60px_60px_60px_20px]"></div>
 
             {/* AI Avatar */}
-            <div className="gba:flex gba:items-start gba:space-x-4">
+            <div className="gba:relative gba:z-10 gba:flex gba:items-start gba:space-x-4">
               <div className="gba:relative">
                 <div 
-                  className="gba:w-16 gba:h-16 gba:bg-gradient-to-br gba:from-blue-500 gba:to-purple-600 gba:rounded-full gba:flex gba:items-center gba:justify-center gba:shadow-lg gba:animate-pulse"
+                  className="gba:w-16 gba:h-16 gba:bg-white/20 gba:backdrop-blur-sm gba:rounded-full gba:flex gba:items-center gba:justify-center gba:shadow-2xl gba:border-2 gba:border-white/30"
                   style={{
-                    animation: 'gentle-bounce 2s ease-in-out infinite'
+                    animation: 'gentle-bounce 2s ease-in-out infinite',
+                    boxShadow: '0 8px 32px rgba(0, 0, 0, 0.3), 0 0 0 1px rgba(255, 255, 255, 0.2) inset'
                   }}
                 >
-                  <RobotIcon className="gba:w-8 gba:h-8 gba:text-white" />
+                  <RobotIcon className="gba:w-8 gba:h-8 gba:text-white gba:drop-shadow-lg" />
                 </div>
                 
                 {/* Sparkle effects around avatar */}
                 <SparkleIcon 
-                  className="gba:absolute gba:-top-1 gba:-right-1 gba:w-4 gba:h-4 gba:text-yellow-400 gba:animate-ping" 
+                  className="gba:absolute gba:-top-1 gba:-right-1 gba:w-4 gba:h-4 gba:text-yellow-300 gba:animate-ping gba:drop-shadow-lg" 
                   style={{ animationDelay: '0.5s' }}
                 />
                 <SparkleIcon 
-                  className="gba:absolute gba:-bottom-1 gba:-left-1 gba:w-3 gba:h-3 gba:text-blue-400 gba:animate-ping" 
+                  className="gba:absolute gba:-bottom-1 gba:-left-1 gba:w-3 gba:h-3 gba:text-white gba:animate-ping gba:drop-shadow-lg" 
                   style={{ animationDelay: '1s' }}
                 />
               </div>
@@ -337,13 +341,13 @@ export const AIOnboardingTooltip: React.FC = () => {
               {/* Message Content */}
               <div className="gba:flex-1 gba:space-y-4">
                 <div>
-                  <h3 className="gba:text-xl gba:font-bold gba:text-gray-800 gba:mb-2">
+                  <h3 className="gba:text-xl gba:font-bold gba:text-white gba:mb-2 gba:drop-shadow-sm">
                     Hey!<br />
                     AI can help you find the solution!
                   </h3>
-                  <p className="gba:text-gray-700 gba:leading-relaxed">
+                  <p className="gba:text-white/90 gba:leading-relaxed gba:drop-shadow-sm">
                     I noticed you're browsing service categories. Instead of searching through all options, 
-                    <span className="gba:font-semibold gba:text-blue-700"> just tell me what issue you're facing</span> and 
+                    <span className="gba:font-semibold gba:text-yellow-200"> just tell me what issue you're facing</span> and 
                     I'll try to help you or find the exact template for you in seconds!
                   </p>
                 </div>
@@ -353,17 +357,19 @@ export const AIOnboardingTooltip: React.FC = () => {
                   <div className="gba:flex gba:space-x-3">
                     <button
                       onClick={handleAskAI}
-                      className="gba:group gba:relative gba:px-6 gba:py-3 gba:bg-gradient-to-r gba:from-blue-500 gba:to-purple-600 gba:text-white gba:font-semibold gba:rounded-full gba:shadow-lg gba:hover:gba:shadow-2xl gba:transform gba:hover:gba:scale-105 gba:active:gba:scale-95 gba:transition-all gba:duration-300 gba:flex gba:items-center gba:space-x-2 gba:overflow-hidden gba:cursor-pointer"
+                      className="gba:group gba:relative gba:px-6 gba:py-3 gba:bg-white/20 gba:backdrop-blur-sm gba:text-white gba:font-semibold gba:rounded-full gba:border-2 gba:border-white/30 gba:shadow-2xl gba:hover:gba:shadow-2xl gba:transform gba:hover:gba:scale-105 gba:active:gba:scale-95 gba:transition-all gba:duration-300 gba:flex gba:items-center gba:space-x-2 gba:overflow-hidden gba:cursor-pointer"
                       data-testid="ai-tooltip-ask-ai"
                       style={{
-                        background: 'linear-gradient(135deg, #3B82F6 0%, #8B5CF6 50%, #EC4899 100%)',
+                        boxShadow: '0 8px 32px rgba(0, 0, 0, 0.3), 0 0 0 1px rgba(255, 255, 255, 0.2) inset',
                         transition: 'all 0.3s ease, box-shadow 0.3s ease'
                       }}
                       onMouseEnter={(e) => {
-                        e.currentTarget.style.boxShadow = '0 20px 40px rgba(139, 92, 246, 0.4), 0 15px 25px rgba(59, 130, 246, 0.3), 0 5px 15px rgba(236, 72, 153, 0.2)';
+                        e.currentTarget.style.boxShadow = '0 12px 40px rgba(0, 0, 0, 0.4), 0 0 0 1px rgba(255, 255, 255, 0.3) inset, 0 0 20px rgba(255, 255, 255, 0.2)';
+                        e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.3)';
                       }}
                       onMouseLeave={(e) => {
-                        e.currentTarget.style.boxShadow = '0 10px 25px rgba(0, 0, 0, 0.1)';
+                        e.currentTarget.style.boxShadow = '0 8px 32px rgba(0, 0, 0, 0.3), 0 0 0 1px rgba(255, 255, 255, 0.2) inset';
+                        e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.2)';
                       }}
                     >
                       {/* Shimmer effect on hover */}
@@ -402,16 +408,19 @@ export const AIOnboardingTooltip: React.FC = () => {
                         e.stopPropagation();
                         handleClose();
                       }}
-                      className="gba:relative gba:z-10 gba:px-6 gba:py-3 gba:bg-white/70 gba:text-gray-700 gba:font-medium gba:rounded-full gba:border gba:border-gray-300 gba:hover:gba:bg-white gba:hover:gba:border-gray-400 gba:hover:gba:scale-105 gba:active:gba:scale-95 gba:transition-all gba:duration-300 gba:cursor-pointer"
+                      className="gba:relative gba:z-10 gba:px-6 gba:py-3 gba:bg-white/10 gba:backdrop-blur-sm gba:text-white gba:font-medium gba:rounded-full gba:border-2 gba:border-white/20 gba:hover:gba:bg-white/20 gba:hover:gba:border-white/40 gba:hover:gba:scale-105 gba:active:gba:scale-95 gba:transition-all gba:duration-300 gba:cursor-pointer"
                       data-testid="ai-tooltip-browse-more"
-                      style={{ pointerEvents: 'auto' }}
+                      style={{ 
+                        pointerEvents: 'auto',
+                        boxShadow: '0 4px 16px rgba(0, 0, 0, 0.2), 0 0 0 1px rgba(255, 255, 255, 0.1) inset'
+                      }}
                       onMouseEnter={(e) => {
                         console.log('🔍 [Browse More] Mouse enter');
-                        e.currentTarget.style.boxShadow = '0 15px 30px rgba(0, 0, 0, 0.15), 0 5px 15px rgba(0, 0, 0, 0.1)';
+                        e.currentTarget.style.boxShadow = '0 8px 24px rgba(0, 0, 0, 0.3), 0 0 0 1px rgba(255, 255, 255, 0.2) inset, 0 0 15px rgba(255, 255, 255, 0.1)';
                       }}
                       onMouseLeave={(e) => {
                         console.log('🔍 [Browse More] Mouse leave');
-                        e.currentTarget.style.boxShadow = '0 4px 6px rgba(0, 0, 0, 0.05)';
+                        e.currentTarget.style.boxShadow = '0 4px 16px rgba(0, 0, 0, 0.2), 0 0 0 1px rgba(255, 255, 255, 0.1) inset';
                       }}
                     >
                       Browse More
@@ -425,7 +434,7 @@ export const AIOnboardingTooltip: React.FC = () => {
                         console.log('🚫 [Don\'t Show Again] Button clicked!');
                         handleDismissPermanently();
                       }}
-                      className="gba:text-xs gba:text-gray-500 gba:hover:gba:text-gray-700 gba:underline gba:transition-colors"
+                      className="gba:text-xs gba:text-white/70 gba:hover:gba:text-white gba:underline gba:transition-colors gba:drop-shadow-sm"
                       data-testid="ai-tooltip-dont-show-again"
                     >
                       Don't show this again
@@ -468,9 +477,16 @@ export const AIOnboardingTooltip: React.FC = () => {
         }
         
         
+        .hero-gradient {
+          background: linear-gradient(-45deg, #6366f1, #9333ea, #ec4899, #14b8a6);
+          background-size: 400% 400%;
+          animation: gradient-shift 15s ease infinite;
+        }
+        
         @keyframes gradient-shift {
-          0%, 100% { background-position: 0% 50%; }
+          0% { background-position: 0% 50%; }
           50% { background-position: 100% 50%; }
+          100% { background-position: 0% 50%; }
         }
         
         @keyframes shimmer {
