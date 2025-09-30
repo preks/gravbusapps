@@ -32,9 +32,9 @@ const ExpenseReportsPage: React.FC<ExpenseReportsPageProps> = ({
   userInfo,
 }) => {
   // State
-  const [searchTerm, setSearchTerm] = useState("");
-  const [selectedReportType, setSelectedReportType] = useState<ReportType>(ReportType.EXPENSE_ITEM);
+  // search term handled by hook; keep local for type search only
   const [reportTypeSearchTerm, setReportTypeSearchTerm] = useState("");
+  // remove duplicate selectedReportType; use hook state
 
   // Extract only the necessary props to prevent unnecessary re-renders
   const contextProps = useMemo(
@@ -46,12 +46,27 @@ const ExpenseReportsPage: React.FC<ExpenseReportsPageProps> = ({
   );
 
   // Hook to get expense report data
-  const { reportData, isLoading, error, fetchReportData } = useExpenseReportData(contextProps);
+  const {
+    reportData,
+    isLoading,
+    error,
+    totalCount,
+    currentPage,
+    setCurrentPage,
+    pageSize,
+    setPageSize,
+    searchTerm,
+    setSearchTerm,
+    selectedReportType,
+    setSelectedReportType,
+    fetchReportData,
+    fetchAllForExport,
+  } = useExpenseReportData(contextProps);
 
   // Load initial data
   useEffect(() => {
     fetchReportData();
-  }, [selectedReportType, fetchReportData]);
+  }, [selectedReportType, currentPage, pageSize, searchTerm, fetchReportData]);
 
   // Define report types with display names
   const reportTypes: Array<{ key: ReportType; name: string; description: string }> = [
@@ -109,30 +124,74 @@ const ExpenseReportsPage: React.FC<ExpenseReportsPageProps> = ({
   );
 
   // Define columns based on report type
-  const getColumns = () => {
+  type ColumnDef = { key: string; title: React.ReactNode; widthClass?: string };
+  // Augment export with virtual columns not shown in UI
+  const getExportColumns = (): ColumnDef[] => {
+    const uiCols = getColumns();
+
+    const insertCurrencyAfter = (afterKey: string) => {
+      const alreadyHasCurrency = uiCols.some((c) => c.key === "currency");
+      if (alreadyHasCurrency) return uiCols;
+      const idx = uiCols.findIndex((c) => c.key === afterKey);
+      if (idx === -1) return uiCols;
+      const currencyCol: ColumnDef = {
+        key: "currency",
+        title: getTranslationFromI18nKeyAndLabel(
+          "lowcoder:personal_expenses.currency",
+          "Currency",
+        ),
+      };
+      const next = [...uiCols];
+      next.splice(idx + 1, 0, currencyCol);
+      return next;
+    };
+
+    switch (selectedReportType) {
+      case ReportType.EXPENSE_ITEM:
+        return insertCurrencyAfter("amount");
+      case ReportType.EXPENSE_REQUEST:
+        return insertCurrencyAfter("totalAmount");
+      case ReportType.ADVANCE_PAYMENT:
+        return insertCurrencyAfter("amount");
+      default:
+        return uiCols;
+    }
+  };
+  const getColumns = (): ColumnDef[] => {
     switch (selectedReportType) {
       case ReportType.EXPENSE_ITEM:
         return [
-          {
-            key: "date",
-            title: getTranslationFromI18nKeyAndLabel(
-              "lowcoder:expense_request_list.expense_plan_table.date",
-              "Date",
-            ),
-          },
           {
             key: "title",
             title: getTranslationFromI18nKeyAndLabel(
               "lowcoder:expense_request_list.expense_plan_table.title",
               "Title",
             ),
+            widthClass: "gba:w-[20%]",
           },
           {
-            key: "description",
+            key: "code",
             title: getTranslationFromI18nKeyAndLabel(
-              "lowcoder:personal_expenses.description",
-              "Description",
+              "lowcoder:expense_request_list.expense_request_filter.request_number_input",
+              "Expense Code",
             ),
+            widthClass: "gba:w-[8%]",
+          },
+          {
+            key: "employeeName",
+            title: getTranslationFromI18nKeyAndLabel(
+              "lowcoder:hr_absences.create_absence.employee",
+              "Employee",
+            ),
+            widthClass: "gba:w-[13%]",
+          },
+          {
+            key: "date",
+            title: getTranslationFromI18nKeyAndLabel(
+              "lowcoder:acknowledge_sick_leave.submission_date",
+              "Submission Date",
+            ),
+            widthClass: "gba:w-[8%]",
           },
           {
             key: "amount",
@@ -155,29 +214,55 @@ const ExpenseReportsPage: React.FC<ExpenseReportsPageProps> = ({
               "Status",
             ),
           },
-          {
-            key: "employeeName",
-            title: getTranslationFromI18nKeyAndLabel(
-              "lowcoder:hr_absences.create_absence.employee",
-              "Employee",
-            ),
-          },
         ];
       case ReportType.EXPENSE_PLAN:
         return [
-          {
-            key: "code",
-            title: getTranslationFromI18nKeyAndLabel(
-              "lowcoder:expense_calculation_rule.expense_table.code",
-              "Code",
-            ),
-          },
           {
             key: "title",
             title: getTranslationFromI18nKeyAndLabel(
               "lowcoder:expense_request_list.expense_plan_table.title",
               "Title",
             ),
+            widthClass: "gba:w-[18%]",
+          },
+          {
+            key: "code",
+            title: getTranslationFromI18nKeyAndLabel(
+              "lowcoder:expense_calculation_rule.expense_table.code",
+              "Plan Code",
+            ),
+          },
+          {
+            key: "expenseRequestCode",
+            title: getTranslationFromI18nKeyAndLabel(
+              "lowcoder:expense_request_list.expense_request_filter.request_number_input",
+              "Request Code",
+            ),
+            widthClass: "gba:w-[8%]",
+          },
+          {
+            key: "employeeName",
+            title: getTranslationFromI18nKeyAndLabel(
+              "lowcoder:hr_absences.create_absence.employee",
+              "Employee",
+            ),
+            widthClass: "gba:w-[15%]",
+          },
+          {
+            key: "createdAt",
+            title: getTranslationFromI18nKeyAndLabel(
+              "lowcoder:acknowledge_sick_leave.submission_date",
+              "Submission Date",
+            ),
+            widthClass: "gba:w-[8%]",
+          },
+          {
+            key: "status",
+            title: getTranslationFromI18nKeyAndLabel(
+              "lowcoder:expense_request_list.expense_plan_table.status",
+              "Status",
+            ),
+            widthClass: "gba:w-[13%]",
           },
           {
             key: "startDate",
@@ -193,96 +278,27 @@ const ExpenseReportsPage: React.FC<ExpenseReportsPageProps> = ({
               "End Date",
             ),
           },
-          {
-            key: "status",
-            title: getTranslationFromI18nKeyAndLabel(
-              "lowcoder:expense_request_list.expense_plan_table.status",
-              "Status",
-            ),
-          },
         ];
       case ReportType.EXPENSE_REQUEST:
         return [
-          {
-            key: "requestNumber",
-            title: getTranslationFromI18nKeyAndLabel(
-              "lowcoder:expense_request_list.expense_request_filter.request_number_input",
-              "Request Number",
-            ),
-          },
-          {
-            key: "title",
-            title: getTranslationFromI18nKeyAndLabel(
-              "lowcoder:expense_request_list.expense_plan_table.title",
-              "Title",
-            ),
-          },
-          {
-            key: "submissionDate",
-            title: getTranslationFromI18nKeyAndLabel(
-              "lowcoder:acknowledge_sick_leave.submission_date",
-              "Submission Date",
-            ),
-          },
-          {
-            key: "totalAmount",
-            title: getTranslationFromI18nKeyAndLabel(
-              "lowcoder:expense_request_list.expense_plan_table.amount",
-              "Total Amount",
-            ),
-          },
-          {
-            key: "status",
-            title: getTranslationFromI18nKeyAndLabel(
-              "lowcoder:expense_request_list.expense_plan_table.status",
-              "Status",
-            ),
-          },
-          {
-            key: "employeeName",
-            title: getTranslationFromI18nKeyAndLabel(
-              "lowcoder:hr_absences.create_absence.employee",
-              "Employee",
-            ),
-          },
+          { key: "title", title: getTranslationFromI18nKeyAndLabel("lowcoder:expense_request_list.expense_plan_table.title", "Title"), widthClass: "gba:w-[25%]" },
+          { key: "code", title: getTranslationFromI18nKeyAndLabel("lowcoder:expense_request_list.expense_request_filter.request_number_input", "Request Code") },
+          { key: "planCode", title: getTranslationFromI18nKeyAndLabel("lowcoder:expense_calculation_rule.expense_table.code", "Plan Code") },
+          { key: "employeeName", title: getTranslationFromI18nKeyAndLabel("lowcoder:hr_absences.create_absence.employee", "Employee") },
+          { key: "createdAt", title: getTranslationFromI18nKeyAndLabel("lowcoder:acknowledge_sick_leave.submission_date", "Submission Date") },
+          { key: "status", title: getTranslationFromI18nKeyAndLabel("lowcoder:expense_request_list.expense_plan_table.status", "Status") },
+          { key: "totalAmount", title: getTranslationFromI18nKeyAndLabel("lowcoder:expense_request_list.expense_plan_table.amount", "Total Amount") },
         ];
       case ReportType.ADVANCE_PAYMENT:
         return [
-          {
-            key: "requestDate",
-            title: getTranslationFromI18nKeyAndLabel(
-              "lowcoder:expense_request_list.expense_plan_table.date",
-              "Request Date",
-            ),
-          },
-          {
-            key: "amount",
-            title: getTranslationFromI18nKeyAndLabel(
-              "lowcoder:expense_request_list.expense_plan_table.amount",
-              "Amount",
-            ),
-          },
-          {
-            key: "purpose",
-            title: getTranslationFromI18nKeyAndLabel(
-              "lowcoder:team_expenses_page.dashboard_tab.purpose_label",
-              "Purpose",
-            ),
-          },
-          {
-            key: "status",
-            title: getTranslationFromI18nKeyAndLabel(
-              "lowcoder:expense_request_list.expense_plan_table.status",
-              "Status",
-            ),
-          },
-          {
-            key: "employeeName",
-            title: getTranslationFromI18nKeyAndLabel(
-              "lowcoder:hr_absences.create_absence.employee",
-              "Employee",
-            ),
-          },
+          { key: "title", title: getTranslationFromI18nKeyAndLabel("lowcoder:expense_request_list.expense_plan_table.title", "Title"), widthClass: "gba:w-[19%]" },
+          { key: "employeeName", title: getTranslationFromI18nKeyAndLabel("lowcoder:hr_absences.create_absence.employee", "Employee"), widthClass: "gba:w-[18%]" },
+          { key: "code", title: getTranslationFromI18nKeyAndLabel("lowcoder:expense_calculation_rule.expense_table.code", "Plan Code") },
+          { key: "requestDate", title: getTranslationFromI18nKeyAndLabel("lowcoder:acknowledge_sick_leave.submission_date", "Submission Date"), widthClass: "gba:w-[10%]" },
+          { key: "status", title: getTranslationFromI18nKeyAndLabel("lowcoder:expense_request_list.expense_plan_table.status", "Status"), widthClass: "gba:w-[11%]" },
+          { key: "amount", title: getTranslationFromI18nKeyAndLabel("lowcoder:expense_request_list.expense_plan_table.amount", "Amount") },
+          { key: "paymentMethod", title: getTranslationFromI18nKeyAndLabel("lowcoder:payment_method", "Payment Method"), widthClass: "gba:w-[8%]" },
+          { key: "costCenter", title: getTranslationFromI18nKeyAndLabel("lowcoder:cost_center", "Cost Center"), widthClass: "gba:w-[8%]" },
         ];
       default:
         return [];
@@ -300,10 +316,145 @@ const ExpenseReportsPage: React.FC<ExpenseReportsPageProps> = ({
     });
   }, [reportData, searchTerm]);
 
-  // Handle download action
-  const handleDownload = () => {
-    console.log("Downloading report:", selectedReportType);
-    // TODO: Implement actual download functionality
+  // Handle download action (CSV export)
+  const handleDownload = async () => {
+    const cols = getExportColumns();
+    if (!cols || cols.length === 0) {
+      return;
+    }
+
+    const dateKeys = [
+      "date",
+      "startDate",
+      "endDate",
+      "submissionDate",
+      "requestDate",
+      "createdAt",
+      "planDate",
+    ];
+
+    const escapeCsv = (value: string) => {
+      const needsQuotes = /[",\r\n]/.test(value);
+      let out = value.replace(/"/g, '""');
+      return needsQuotes ? `"${out}"` : out;
+    };
+
+    const header = cols.map((c) => {
+      const title = typeof c.title === "string" ? c.title : String(c.key);
+      return escapeCsv(title);
+    });
+
+    const allRows = await fetchAllForExport();
+    const rows = (allRows as any[]).map((row) => {
+      return cols.map((c) => {
+        const key = c.key as string;
+        const raw = row[key];
+        let val: string = "";
+        if (raw == null) {
+          val = "";
+        } else if (dateKeys.includes(key)) {
+          val = raw ? ensureShortDateFormat(raw) : "";
+        } else if (typeof raw === "number") {
+          val = String(raw);
+        } else {
+          val = String(raw);
+        }
+        return escapeCsv(val);
+      });
+    });
+
+    const csvLines = [header.join(","), ...rows.map((r) => r.join(","))];
+    const csvContent = csvLines.join("\n");
+    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const ts = new Date();
+    const pad = (n: number) => String(n).padStart(2, "0");
+    const filename = `expense-report-${selectedReportType}-${ts.getFullYear()}${pad(
+      ts.getMonth() + 1,
+    )}${pad(ts.getDate())}-${pad(ts.getHours())}${pad(ts.getMinutes())}${pad(ts.getSeconds())}.csv`;
+
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = filename;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  };
+
+  // Handle download action (Excel .xls via HTML table)
+  const handleDownloadExcel = async () => {
+    const cols = getExportColumns();
+    if (!cols || cols.length === 0) {
+      return;
+    }
+
+    const dateKeys = [
+      "date",
+      "startDate",
+      "endDate",
+      "submissionDate",
+      "requestDate",
+      "createdAt",
+      "planDate",
+    ];
+
+    const htmlEscape = (value: string) =>
+      value
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/\"/g, "&quot;")
+        .replace(/'/g, "&#39;");
+
+    const headerCells = cols
+      .map((c) => {
+        const title = typeof c.title === "string" ? c.title : String(c.key);
+        return `<th>${htmlEscape(title)}</th>`;
+      })
+      .join("");
+
+    const allRows = await fetchAllForExport();
+    const bodyRows = (allRows as any[])
+      .map((row) => {
+        const tds = cols
+          .map((c) => {
+            const key = c.key as string;
+            const raw = row[key];
+            let val: string = "";
+            if (raw == null) {
+              val = "";
+            } else if (dateKeys.includes(key)) {
+              val = raw ? ensureShortDateFormat(raw) : "";
+            } else if (typeof raw === "number") {
+              val = String(raw);
+            } else {
+              val = String(raw);
+            }
+            return `<td>${htmlEscape(val)}</td>`;
+          })
+          .join("");
+        return `<tr>${tds}</tr>`;
+      })
+      .join("");
+
+    const html = `<!DOCTYPE html><html><head><meta charset="utf-8" /></head><body><table>${`<thead><tr>${headerCells}</tr></thead>`}<tbody>${bodyRows}</tbody></table></body></html>`;
+
+    const blob = new Blob([html], { type: "application/vnd.ms-excel" });
+    const url = URL.createObjectURL(blob);
+    const ts = new Date();
+    const pad = (n: number) => String(n).padStart(2, "0");
+    const filename = `expense-report-${selectedReportType}-${ts.getFullYear()}${pad(
+      ts.getMonth() + 1,
+    )}${pad(ts.getDate())}-${pad(ts.getHours())}${pad(ts.getMinutes())}${pad(ts.getSeconds())}.xls`;
+
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = filename;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
   };
 
   const columns = getColumns();
@@ -327,18 +478,32 @@ const ExpenseReportsPage: React.FC<ExpenseReportsPageProps> = ({
             </span>
           </button>
 
-          <Button
-            variant="outline"
-            onClick={handleDownload}
-            className="gba:flex gba:items-center gba:gap-2"
-            data-testid="expense-reports-download-button"
-          >
-            <PiDownload className="gba:text-sm" />
-            {getTranslationFromI18nKeyAndLabel(
-              "lowcoder:team_expenses_page.dashboard_tab.download_report",
-              "Download Report",
-            )}
-          </Button>
+          <div className="gba:flex gba:items-center gba:gap-2">
+            <Button
+              variant="outline"
+              onClick={handleDownload}
+              className="gba:flex gba:items-center gba:gap-2"
+              data-testid="expense-reports-download-button"
+            >
+              <PiDownload className="gba:text-sm" />
+              {getTranslationFromI18nKeyAndLabel(
+                "lowcoder:team_expenses_page.dashboard_tab.download_report",
+                "Download CSV",
+              )}
+            </Button>
+            <Button
+              variant="outline"
+              onClick={handleDownloadExcel}
+              className="gba:flex gba:items-center gba:gap-2"
+              data-testid="expense-reports-download-excel-button"
+            >
+              <PiDownload className="gba:text-sm" />
+              {getTranslationFromI18nKeyAndLabel(
+                "lowcoder:team_expenses_page.dashboard_tab.download_report_excel",
+                "Download Excel",
+              )}
+            </Button>
+          </div>
         </div>
       </div>
 
@@ -422,7 +587,10 @@ const ExpenseReportsPage: React.FC<ExpenseReportsPageProps> = ({
                     "lowcoder:team_expenses_page.dashboard_tab.search_report_data",
                     "Search report data...",
                   )}
-                  onChange={(e) => setSearchTerm(e.target.value)}
+                  onChange={(e) => {
+                    setSearchTerm(e.target.value);
+                    setCurrentPage(1);
+                  }}
                   value={searchTerm}
                   className="gba:pl-10"
                   data-testid="expense-reports-data-search-input"
@@ -435,18 +603,18 @@ const ExpenseReportsPage: React.FC<ExpenseReportsPageProps> = ({
               <div className="gba:flex gba:justify-center gba:p-8">
                 <Spinner data-testid="expense-reports-loading-spinner" />
               </div>
-            ) : filteredData && filteredData.length > 0 ? (
-              <div className="gba:overflow-x-auto gba:flex-1">
+            ) : reportData && reportData.length > 0 ? (
+              <div className="gba:overflow-x-auto gba:flex-1 gba:min-w-[115%] gba:pr-4">
                 <Table data-testid="expense-reports-table">
                   <TableHeader>
                     <TableRow>
                       {columns.map((column) => (
-                        <TableHead key={column.key}>{column.title}</TableHead>
+                        <TableHead key={column.key} className={column.widthClass}>{column.title}</TableHead>
                       ))}
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {filteredData.map((row: any, index: number) => (
+                    {reportData.map((row: any, index: number) => (
                       <TableRow key={`${selectedReportType}-${index}`}>
                         {columns.map((column) => (
                           <TableCell
@@ -455,9 +623,17 @@ const ExpenseReportsPage: React.FC<ExpenseReportsPageProps> = ({
                           >
                             {column.key.includes("amount") || column.key.includes("Amount") ? (
                               <span className="gba:text-sm">
-                                {formatCurrencyDisplay(row[column.key] || 0, "EUR")}
+                                {formatCurrencyDisplay(row[column.key] || 0, row.currency || "EUR")}
                               </span>
-                            ) : column.key === "date" ? (
+                            ) : [
+                                "date",
+                                "startDate",
+                                "endDate",
+                                "submissionDate",
+                                "requestDate",
+                                "createdAt",
+                                "planDate",
+                              ].includes(column.key) ? (
                               <span className="gba:text-sm">
                                 {row[column.key] ? ensureShortDateFormat(row[column.key]) : "-"}
                               </span>
@@ -470,6 +646,43 @@ const ExpenseReportsPage: React.FC<ExpenseReportsPageProps> = ({
                     ))}
                   </TableBody>
                 </Table>
+                {/* Pagination Footer */}
+                {totalCount > 0 && (
+                  <div className="gba:flex gba:items-center gba:justify-between gba:px-2 gba:py-4" data-testid="expense-reports-pagination">
+                    <div className="gba:text-sm gba:text-gray-600" data-testid="expense-reports-pagination-info">
+                      {`${(currentPage - 1) * pageSize + 1}-${Math.min(currentPage * pageSize, totalCount)} ${getTranslationFromI18nKeyAndLabel("lowcoder:personal_expenses.of", "of")} ${totalCount}`}
+                    </div>
+                    <div className="gba:flex gba:items-center gba:space-x-6 gba:lg:space-x-8">
+                      <div className="gba:flex gba:items-center gba:space-x-2">
+                        <p className="gba:text-sm gba:font-medium">{getTranslationFromI18nKeyAndLabel("lowcoder:personal_expenses.rows_per_page", "Rows per page")}</p>
+                        <select
+                          value={pageSize}
+                          onChange={(e) => {
+                            const size = Number(e.target.value);
+                            setPageSize(size);
+                            setCurrentPage(1);
+                          }}
+                          className="gba:h-8 gba:w-[70px] gba:rounded gba:border gba:border-input gba:px-3 gba:py-1 gba:text-sm"
+                          data-testid="expense-reports-page-size-select"
+                        >
+                          <option value={10}>10</option>
+                          <option value={20}>20</option>
+                          <option value={50}>50</option>
+                          <option value={100}>100</option>
+                        </select>
+                      </div>
+                      <div className="gba:flex gba:w-[100px] gba:items-center gba:justify-center gba:text-sm gba:font-medium" data-testid="expense-reports-page-info">
+                        {getTranslationFromI18nKeyAndLabel("lowcoder:personal_expenses.page", "Page")} {currentPage} {getTranslationFromI18nKeyAndLabel("lowcoder:personal_expenses.of", "of")} {Math.ceil(totalCount / pageSize)}
+                      </div>
+                      <div className="gba:flex gba:items-center gba:space-x-2">
+                        <Button variant="outline" className="gba:h-8 gba:w-8 gba:p-0" onClick={() => setCurrentPage(1)} disabled={currentPage === 1} data-testid="expense-reports-first-page-button">⟪⟪</Button>
+                        <Button variant="outline" className="gba:h-8 gba:w-8 gba:p-0" onClick={() => setCurrentPage(Math.max(1, currentPage - 1))} disabled={currentPage === 1} data-testid="expense-reports-previous-page-button">⟪</Button>
+                        <Button variant="outline" className="gba:h-8 gba:w-8 gba:p-0" onClick={() => setCurrentPage(Math.min(Math.ceil(totalCount / pageSize), currentPage + 1))} disabled={currentPage >= Math.ceil(totalCount / pageSize)} data-testid="expense-reports-next-page-button">⟫</Button>
+                        <Button variant="outline" className="gba:h-8 gba:w-8 gba:p-0" onClick={() => setCurrentPage(Math.ceil(totalCount / pageSize))} disabled={currentPage >= Math.ceil(totalCount / pageSize)} data-testid="expense-reports-last-page-button">⟫⟫</Button>
+                      </div>
+                    </div>
+                  </div>
+                )}
               </div>
             ) : (
               <div className="gba:flex gba:flex-col gba:items-center gba:justify-center gba:p-8 gba:text-center">

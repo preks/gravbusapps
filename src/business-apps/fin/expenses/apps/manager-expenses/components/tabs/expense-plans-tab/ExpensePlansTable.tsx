@@ -266,8 +266,8 @@ const ExpensePlansTable: React.FC<ExpensePlansTableProps> = (props) => {
       {/* Table with border containing both table and pagination */}
       <div className="gba:border gba:border-gray-200 gba:rounded-md gba:shadow-sm">
         {/* Table with horizontal scrolling and fixed height */}
-        <div className="gba:overflow-x-auto gba:max-h-[600px] gba:overflow-y-auto gba:border-b gba:border-gray-200">
-          <Table data-testid={`${DATA_TEST_ID_PREFIX}-table`} className="gba:w-max">
+        <div className="gba:overflow-x-auto gba:pr-4 gba:border-b gba:border-gray-200">
+          <Table data-testid={`${DATA_TEST_ID_PREFIX}-table`} className="gba:min-w-[1296px] gba:w-full">
             <TableHeader className="gba:sticky gba:top-0 gba:bg-white gba:z-10 gba:border-b gba:border-gray-200">
               <TableRow>
                 <TableHead
@@ -275,20 +275,20 @@ const ExpensePlansTable: React.FC<ExpensePlansTableProps> = (props) => {
                   data-testid={`${DATA_TEST_ID_PREFIX}-actions-header`}
                 ></TableHead>
                 <TableHead
-                  className="gba:w-[25%] gba:cursor-pointer gba:select-none gba:bg-gray-50 gba:font-semibold"
+                  className="gba:w-[27%] gba:cursor-pointer gba:select-none gba:bg-gray-50 gba:font-semibold"
                   onClick={() => handleSort("title")}
                   data-testid={`${DATA_TEST_ID_PREFIX}-title-header`}
                 >
                   <div className="gba:flex gba:items-center">
                     {getTranslationFromI18nKeyAndLabel(
-                      "lowcoder:backoffice_expense_landing_page.plan_info_pl",
-                      "Plans",
+                      "lowcoder:expense_item_list.expense_table.title",
+                      "Title",
                     )}
                     {renderSortIndicator("title")}
                   </div>
                 </TableHead>
                 <TableHead
-                  className="gba:w-[15%] gba:cursor-pointer gba:select-none gba:bg-gray-50 gba:font-semibold"
+                  className="gba:w-[8%] gba:cursor-pointer gba:select-none gba:bg-gray-50 gba:font-semibold"
                   onClick={() => handleSort("startDate")}
                   data-testid={`${DATA_TEST_ID_PREFIX}-start-date-header`}
                 >
@@ -301,7 +301,7 @@ const ExpensePlansTable: React.FC<ExpensePlansTableProps> = (props) => {
                   </div>
                 </TableHead>
                 <TableHead
-                  className="gba:w-[15%] gba:cursor-pointer gba:select-none gba:bg-gray-50 gba:font-semibold"
+                  className="gba:w-[8%] gba:cursor-pointer gba:select-none gba:bg-gray-50 gba:font-semibold"
                   onClick={() => handleSort("endDate")}
                   data-testid={`${DATA_TEST_ID_PREFIX}-end-date-header`}
                 >
@@ -328,7 +328,7 @@ const ExpensePlansTable: React.FC<ExpensePlansTableProps> = (props) => {
                   </div>
                 </TableHead>
                 <TableHead
-                  className="gba:w-[15%] gba:cursor-pointer gba:select-none gba:bg-gray-50 gba:font-semibold"
+                  className="gba:w-[8%] gba:cursor-pointer gba:select-none gba:bg-gray-50 gba:font-semibold"
                   onClick={() => handleSort("createdAt")}
                   data-testid={`${DATA_TEST_ID_PREFIX}-creation-date-header`}
                 >
@@ -341,17 +341,17 @@ const ExpensePlansTable: React.FC<ExpensePlansTableProps> = (props) => {
                   </div>
                 </TableHead>
                 <TableHead
-                  className="gba:w-[18%] gba:text-right gba:cursor-pointer gba:select-none gba:bg-gray-50 gba:font-semibold"
+                  className="gba:w-[12%] gba:cursor-pointer gba:select-none gba:bg-gray-50 gba:font-semibold"
                   onClick={() => handleSort("totalAmount")}
                   data-testid={`${DATA_TEST_ID_PREFIX}-amount-header`}
                 >
-                  <div className="gba:flex gba:items-center gba:justify-end">
+                  <div className="gba:flex gba:items-center gba:justify-start">
                     {getTranslationFromI18nKeyAndLabel("lowcoder:sales_hub.amount", "Amount")}
                     {renderSortIndicator("totalAmount")}
                   </div>
                 </TableHead>
                 <TableHead
-                  className="gba:w-[18%] gba:cursor-pointer gba:select-none gba:bg-gray-50 gba:font-semibold"
+                  className="gba:w-[45%] gba:cursor-pointer gba:select-none gba:bg-gray-50 gba:font-semibold gba:pr-6"
                   onClick={() => handleSort("status")}
                   data-testid={`${DATA_TEST_ID_PREFIX}-status-header`}
                 >
@@ -384,7 +384,7 @@ const ExpensePlansTable: React.FC<ExpensePlansTableProps> = (props) => {
                       >
                         <AppActionButton
                           data-testid={`${DATA_TEST_ID_PREFIX}-update-plan-button-${plan.id}`}
-                          size="icon"
+                          size="sm"
                           staticFlowData={[
                             // Print action - only available if document exists
                             ...(plan.employeeDocument?.file
@@ -518,7 +518,7 @@ const ExpensePlansTable: React.FC<ExpensePlansTableProps> = (props) => {
                             )}
                       </span>
                     </TableCell>
-                    <TableCell>
+                    <TableCell className="gba:pr-6 gba:w-[45%]">
                       <Pill type={display.type as any} label={display.label} />
                     </TableCell>
                   </TableRow>

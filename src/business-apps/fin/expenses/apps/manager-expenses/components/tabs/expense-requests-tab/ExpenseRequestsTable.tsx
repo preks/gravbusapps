@@ -307,7 +307,7 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = (props) => {
 
     return (
       <div>
-        <div className="gba:overflow-x-auto gba:border gba:border-gray-200 gba:rounded-md gba:shadow-sm gba:relative">
+        <div className="gba:overflow-x-auto gba:pr-4 gba:border gba:border-gray-200 gba:rounded-md gba:shadow-sm gba:relative">
           {isLoading && requests.length > 0 && (
             <div
               className="gba:absolute gba:inset-0 gba:bg-white/50 gba:flex gba:items-center gba:justify-center gba:z-10"
@@ -316,27 +316,27 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = (props) => {
               <Spinner className="gba:h-8 gba:w-8" />
             </div>
           )}
-          <Table data-testid="expense-requests-table" className="gba:w-max">
-            <TableHeader>
+          <Table data-testid="expense-requests-table" className="gba:min-w-[1296px] gba:w-full">
+            <TableHeader className="gba:sticky gba:top-0 gba:bg-white gba:z-10 gba:border-b gba:border-gray-200">
               <TableRow>
-                <TableHead className="gba:w-[60px]"></TableHead>
+                <TableHead className="gba:w-[8%]"></TableHead>
                 <TableHead
-                  className="gba:cursor-pointer gba:select-none"
+                  className="gba:w-[17%] gba:cursor-pointer gba:select-none"
                   onClick={() => handleSort("title")}
                   data-testid="expense-requests-title-header"
                 >
                   <div className="gba:flex gba:items-center">
                     <span>
                       {getTranslationFromI18nKeyAndLabel(
-                        "lowcoder:employee_list.flows_button.expense_requests",
-                        "Expense Requests",
+                        "lowcoder:expense_item_list.expense_table.title",
+                        "Title",
                       )}
                     </span>
                     {renderSortIndicator("title")}
                   </div>
                 </TableHead>
                 <TableHead
-                  className="gba:cursor-pointer gba:select-none"
+                  className="gba:w-[8%] gba:cursor-pointer gba:select-none"
                   onClick={() => handleSort("startDate")}
                   data-testid="expense-requests-start-date-header"
                 >
@@ -351,7 +351,7 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = (props) => {
                   </div>
                 </TableHead>
                 <TableHead
-                  className="gba:cursor-pointer gba:select-none"
+                  className="gba:w-[8%] gba:cursor-pointer gba:select-none"
                   onClick={() => handleSort("endDate")}
                   data-testid="expense-requests-end-date-header"
                 >
@@ -366,7 +366,7 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = (props) => {
                   </div>
                 </TableHead>
                 <TableHead
-                  className="gba:cursor-pointer gba:select-none"
+                  className="gba:w-[20%] gba:cursor-pointer gba:select-none"
                   onClick={() => handleSort("employee.fullName")}
                   data-testid="expense-requests-employee-header"
                 >
@@ -381,7 +381,7 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = (props) => {
                   </div>
                 </TableHead>
                 <TableHead
-                  className="gba:cursor-pointer gba:select-none"
+                  className="gba:w-[8%] gba:cursor-pointer gba:select-none"
                   onClick={() => handleSort("requestDate")}
                   data-testid="expense-requests-request-date-header"
                 >
@@ -396,11 +396,11 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = (props) => {
                   </div>
                 </TableHead>
                 <TableHead
-                  className="gba:text-right gba:cursor-pointer gba:select-none"
+                  className="gba:w-[12%] gba:cursor-pointer gba:select-none"
                   onClick={() => handleSort("amount")}
                   data-testid="expense-requests-amount-header"
                 >
-                  <div className="gba:flex gba:items-center gba:justify-end">
+                  <div className="gba:flex gba:items-center gba:justify-start">
                     <span>
                       {getTranslationFromI18nKeyAndLabel(
                         "lowcoder:manager_expense_request_list.expense_table.amount",
@@ -411,7 +411,7 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = (props) => {
                   </div>
                 </TableHead>
                 <TableHead
-                  className="gba:cursor-pointer gba:select-none"
+                  className="gba:w-[45%] gba:cursor-pointer gba:select-none gba:pr-6"
                   onClick={() => handleSort("status")}
                   data-testid="expense-requests-status-header"
                 >
@@ -444,7 +444,7 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = (props) => {
                       >
                         <AppActionButton
                           data-testid={`expense-requests-update-button-${record.id}`}
-                          size="icon"
+                          size="sm"
                           staticFlowData={[
                             ...(record.employeeDocument?.file
                               ? [
@@ -579,7 +579,7 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = (props) => {
                         ? formatCurrencyDisplay(record.amount, record.currency)
                         : formatCurrencyDisplay(0, record.currency || "EUR")}
                     </TableCell>
-                    <TableCell>
+                    <TableCell className="gba:pr-6 gba:w-[45%]">
                       <Pill
                         type={type as any}
                         label={label}
@@ -795,7 +795,17 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = (props) => {
       />
 
       {/* Expense Request Details Sheet */}
-      <Sheet open={!!selectedRequest} onOpenChange={(open) => !open && setSelectedRequest(null)}>
+      <Sheet
+        open={!!selectedRequest}
+        onOpenChange={(open) => !open && setSelectedRequest(null)}
+        title={
+          selectedRequest?.title ||
+          getTranslationFromI18nKeyAndLabel(
+            "lowcoder:expense_request_details.title",
+            "Expense Request Details",
+          )
+        }
+      >
         <SheetContent className="gba:w-[500px] gba:sm:gba:w-[500px] gba:max-w-none">
           <SheetHeader>
             <SheetTitle className="gba:text-xl gba:font-semibold gba:text-gray-900">

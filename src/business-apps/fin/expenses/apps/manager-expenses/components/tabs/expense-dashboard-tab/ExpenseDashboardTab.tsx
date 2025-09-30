@@ -323,11 +323,16 @@ const ExpenseDashboardTab: React.FC<ExpenseDashboardTabProps> = (props) => {
                               )}
                         </p>
                         <p className="gba:text-sm gba:text-muted-foreground">
-                          {new Date(request.requestDate).toLocaleDateString(userLocale, {
-                            month: "2-digit",
-                            day: "2-digit",
-                            year: "2-digit",
-                          })}
+                          {request.requestDate && request.requestDate !== "N/A"
+                            ? new Date(request.requestDate).toLocaleDateString(userLocale, {
+                                month: "2-digit",
+                                day: "2-digit",
+                                year: "2-digit",
+                              })
+                            : getTranslationFromI18nKeyAndLabel(
+                                "lowcoder:common.not_available",
+                                "N/A",
+                              )}
                         </p>
                       </div>
                     </div>

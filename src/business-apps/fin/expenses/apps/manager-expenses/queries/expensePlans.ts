@@ -47,6 +47,7 @@ export const GET_EXPENSE_PLANS_BY_MANAGER = `
       id
       code
       title
+      expenseRequest { id code }
       startDate
       endDate
       status

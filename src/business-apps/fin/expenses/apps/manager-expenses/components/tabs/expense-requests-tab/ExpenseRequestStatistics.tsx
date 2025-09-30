@@ -86,7 +86,7 @@ const ExpenseRequestStatistics: React.FC<ExpenseRequestStatisticsProps> = ({
           span: { xs: 24, sm: 12, md: 6, lg: 6 },
           description: getTranslationFromI18nKeyAndLabel(
             "lowcoder:team_expenses_page.expense_requests_tab.total_pending_funds",
-            "Total Pending Funds",
+            "Total Pending Reimbursement",
           ),
           valueIsString: true,
           // This card shows amount, not clickable for filtering

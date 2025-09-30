@@ -66,6 +66,34 @@ query GetExpenseDashboardByManager($managerId: uuid!, $startDate: timestamp, $ye
     }
   }
 
+  # Get total planned budget (Expense Plans) excluding draft/created, rejected, discarded
+  ExpensePlansTotalAggregate: ExpensePlanAggregate(
+    where: {
+      employee: { employeePosition: { supervisorEmployeeId: { _eq: $managerId } } },
+      status: { _nin: ["CREATED", "REJECTED", "DISCARDED"] },
+      isDeleted: { _eq: false },
+      currencyRef: { _eq: $currencyRef }
+    }
+  ) {
+    aggregate {
+      sum { totalAmount }
+    }
+  }
+
+  # Get total used amount (Expense Requests) excluding draft/created, returned, rejected, discarded
+  ExpenseRequestsUsedAggregate: ExpenseRequestAggregate(
+    where: {
+      employee: { employeePosition: { supervisorEmployeeId: { _eq: $managerId } } },
+      status: { _nin: ["CREATED", "RETURNED", "REJECTED", "DISCARDED"] },
+      isDeleted: { _eq: false },
+      currencyRef: { _eq: $currencyRef }
+    }
+  ) {
+    aggregate {
+      sum { totalAmount }
+    }
+  }
+
   # Get recent expense requests
   RecentExpenseRequests: ExpenseRequest(
     limit: 5,
@@ -123,7 +151,7 @@ query GetExpenseDashboardByManager($managerId: uuid!, $startDate: timestamp, $ye
           supervisorEmployeeId: {_eq: $managerId}
         }
       },
-      status: {_eq: "APPROVED"},
+      status: {_nin: ["CREATED", "PENDING", "REJECTED", "DISCARDED"]},
       requestDate: {_gte: $yearStart},
       isDeleted: {_eq: false},
       currencyRef: {_eq: $currencyRef}

@@ -15,7 +15,6 @@ export const GET_EXPENSE_ITEMS_BY_MANAGER = `
         },
         isDeleted: {_eq: false},
         _or: [
-          {description: {_ilike: $searchTerm}},
           {expensePosition: {expenseGroupRef: {_ilike: $searchTerm}}},
           {employee: {fullName: {_ilike: $searchTerm}}}
         ]
@@ -37,7 +36,6 @@ export const GET_EXPENSE_ITEMS_BY_MANAGER = `
         },
         isDeleted: {_eq: false},
         _or: [
-          {description: {_ilike: $searchTerm}},
           {expensePosition: {expenseGroupRef: {_ilike: $searchTerm}}},
           {employee: {fullName: {_ilike: $searchTerm}}}
         ]
@@ -45,7 +43,6 @@ export const GET_EXPENSE_ITEMS_BY_MANAGER = `
     ) {
       id
       title
-      description
       expensePosition {
         expenseGroupRef
       }
@@ -54,7 +51,9 @@ export const GET_EXPENSE_ITEMS_BY_MANAGER = `
       expenseRequestId
       expenseRequest {
         id
+        code
         createdAt
+        currencyRef
         status
       }
       employee {

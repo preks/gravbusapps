@@ -182,8 +182,11 @@ export const useGetExpenseDashboard = (
         })),
         // Using hardcoded values for team budget (TeamBudget query commented out)
         teamBudget: {
-          used: data?.MonthlyExpensesAggregate?.aggregate?.sum?.totalAmount ?? 0,
-          total: 10000, // Default budget value
+          used:
+            data?.ExpenseRequestsUsedAggregate?.aggregate?.sum?.totalAmount ??
+            data?.MonthlyExpensesAggregate?.aggregate?.sum?.totalAmount ??
+            0,
+          total: data?.ExpensePlansTotalAggregate?.aggregate?.sum?.totalAmount ?? 0,
         },
         // Monthly expense trends data
         monthlyTrends,
@@ -197,7 +200,7 @@ export const useGetExpenseDashboard = (
     } finally {
       setIsLoading(false);
     }
-  }, [context?.userInfo?.employeeDetails?.employeeId, graphQLClient]);
+  }, [context?.userInfo?.employeeDetails?.employeeId, context?.userInfo?.id, graphQLClient, currencyFilter]);
 
   // Initial fetch of dashboard data
   useEffect(() => {
