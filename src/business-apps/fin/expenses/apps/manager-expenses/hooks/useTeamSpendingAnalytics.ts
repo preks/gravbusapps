@@ -601,8 +601,8 @@ export const useTeamSpendingAnalytics = (
 
     // Filter advance payments
     const filteredAdvancePayments = rawData.advancePayments ? rawData.advancePayments.filter(item => {
-      // Check if date is within range
-      if (!isDateInRange(item.transactionDate || item.createdAt)) return false;
+      // Check if date is within range (revert to createdAt only)
+      if (!isDateInRange(item.createdAt)) return false;
 
       // Check if employee's location is selected
       const locationId = item.expensePlan?.employee?.employeePosition?.siteLocation?.id;
