@@ -81,6 +81,13 @@ export const TaskDetails: React.FC<TaskDetailsProps> = ({ task, sourceApp }) => 
     return `${firstName.charAt(0)}${lastName.charAt(0)}`.toUpperCase();
   };
 
+  // Simple truncation to first 7 characters + "..."
+  const getTruncatedText = (text: string) => {
+    if (!text) return text;
+    if (text.length <= 7) return text;
+    return text.substring(0, 7) + '...';
+  };
+
 
   // Determine if task is overdue based on timing type
   const getTaskDate = () => {
