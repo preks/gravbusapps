@@ -1,10 +1,5 @@
 import React from 'react';
 import { 
-  Sheet,
-  SheetContent,
-  SheetHeader,
-  SheetTitle,
-  Badge,
   Separator,
   Button,
   Card,
@@ -12,11 +7,14 @@ import {
   CardHeader,
   CardTitle
 } from '@newwork/nw-design-system';
+import Pill from '@/components/pill';
 import { getExpensePlanStatusDisplay, formatCurrencyDisplay } from '../../../utils';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 import { PiCalendarDuotone, PiClock, PiPath, PiArrowRight } from 'react-icons/pi';
 import { getTranslationFromI18nKeyAndLabel, formatDate } from '@/common/utils/windowUtils';
 import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils';
+import { AppActionButton } from '@/components/app-action-button/AppActionButton';
+import { generateExpensePlanActions } from '../../../utils/expensePlanActions';
 
 export interface ExpensePlanDetailsProps extends BusinessAppContextProps {
   selectedItem: any;
@@ -25,7 +23,8 @@ export interface ExpensePlanDetailsProps extends BusinessAppContextProps {
 
 const ExpensePlanDetails: React.FC<ExpensePlanDetailsProps> = ({
   selectedItem,
-  onClose
+  onClose,
+  ...contextProps
 }) => {
   if (!selectedItem) return null;
   
@@ -51,18 +50,45 @@ const ExpensePlanDetails: React.FC<ExpensePlanDetailsProps> = ({
             {selectedItem.code}
           </p>
         </div>
-        <Badge 
-          variant={
-            getExpensePlanStatusDisplay(selectedItem.status).type === 'completed' ? 'success' : 
-            getExpensePlanStatusDisplay(selectedItem.status).type === 'error' ? 'destructive' : 
-            getExpensePlanStatusDisplay(selectedItem.status).type === 'task' ? 'warning' : 
-            getExpensePlanStatusDisplay(selectedItem.status).type === 'waiting' ? 'secondary' : 'default'
-          }
-          className="gba:text-sm"
-          data-testid="expense-plan-status-badge"
-        >
-          {getExpensePlanStatusDisplay(selectedItem.status).label}
-        </Badge>
+        <div className="gba:flex gba:items-center gba:gap-3">
+          {(() => {
+            const statusConfig = getExpensePlanStatusDisplay(selectedItem.status);
+            return <Pill type={statusConfig.type} label={statusConfig.label} color={statusConfig.color} data-testid="expense-plan-status-badge" />;
+          })()}
+          {(() => {
+            const availableActions = generateExpensePlanActions(
+              selectedItem,
+              {
+                employeeId: contextProps.userInfo?.employeeDetails?.employeeId || '',
+                accessToken: contextProps.accessToken || ''
+              },
+              {
+                includeDetails: false
+              }
+            );
+            
+            // Only show action button if there are available actions
+            if (availableActions.length > 0) {
+              return (
+                <div 
+                  className="gba:flex gba:justify-start gba:gap-2"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <AppActionButton
+                    data-testid="expense-plan-details-action-button"
+                    size="icon"
+                    staticFlowData={availableActions}
+                    prefixDataTestId="expense-plan-details-action"
+                    accessToken={contextProps.accessToken}
+                    emptyStateBehavior="disable"
+                    deferMainContextRequestsUntilClick={true}
+                  />
+                </div>
+              );
+            }
+            return null;
+          })()}
+        </div>
       </div>
       
       {/* Date Information */}
