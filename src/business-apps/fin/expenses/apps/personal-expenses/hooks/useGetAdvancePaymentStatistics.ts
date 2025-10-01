@@ -20,7 +20,7 @@ export interface AdvancePaymentStatisticsDataView {
   fetchStatistics: () => Promise<void>;
 }
 
-export const useGetAdvancePaymentStatistics = (context?: BusinessAppContextProps): AdvancePaymentStatisticsDataView => {
+export const useGetAdvancePaymentStatistics = (context?: BusinessAppContextProps, currencyRef: string = 'Currency:v1:EUR'): AdvancePaymentStatisticsDataView => {
   const accessToken = context?.accessToken;
   const employeeId = context?.userInfo?.employeeDetails?.employeeId;
   const [statistics, setStatistics] = useState<AdvancePaymentStatisticsData>({ 
@@ -63,7 +63,8 @@ export const useGetAdvancePaymentStatistics = (context?: BusinessAppContextProps
             variables: { 
               employeeId, 
               startDate, 
-              endDate
+              endDate,
+              currencyRef
             },
           }),
         });
@@ -106,7 +107,7 @@ export const useGetAdvancePaymentStatistics = (context?: BusinessAppContextProps
     } finally {
       setIsLoading(false);
     }
-  }, [employeeId, accessToken]);
+  }, [employeeId, accessToken, currencyRef]);
 
   // Automatically fetch statistics when the hook is initialized
   useEffect(() => {

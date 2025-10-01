@@ -13,6 +13,8 @@ interface AdvancePaymentStatisticsProps extends BusinessAppContextProps {
   fetchAdvancePaymentStatistics?: () => Promise<void>;
   onWidgetClick?: (widgetKey: string) => void;
   activeWidgetKey?: string;
+  selectedCurrencyRef?: string;
+  refreshKey?: string | number;
 }
 
 const AdvancePaymentStatistics: React.FC<AdvancePaymentStatisticsProps> = ({ 
@@ -21,6 +23,8 @@ const AdvancePaymentStatistics: React.FC<AdvancePaymentStatisticsProps> = ({
   fetchAdvancePaymentStatistics = () => Promise.resolve(),
   onWidgetClick,
   activeWidgetKey,
+  selectedCurrencyRef = 'Currency:v1:EUR',
+  refreshKey,
   ...contextProps
 }) => {
   // Memoize context props to ensure stable reference
@@ -30,7 +34,7 @@ const AdvancePaymentStatistics: React.FC<AdvancePaymentStatisticsProps> = ({
   }), [contextProps.accessToken, contextProps.userInfo]);
 
   // Use the statistics hook
-  const { statistics, isLoading: hookLoading, error: hookError, fetchStatistics } = useGetAdvancePaymentStatistics(stableContextProps);
+  const { statistics, isLoading: hookLoading, error: hookError, fetchStatistics } = useGetAdvancePaymentStatistics(stableContextProps, selectedCurrencyRef);
   
   // Combine loading states
   const isLoading = statsLoading || hookLoading;
@@ -38,12 +42,12 @@ const AdvancePaymentStatistics: React.FC<AdvancePaymentStatisticsProps> = ({
   
 
   
-  // Ensure statistics are fetched when component mounts
+  // Ensure statistics are fetched when component mounts or currency changes
   useEffect(() => {
     if (stableContextProps.accessToken && stableContextProps.userInfo?.employeeDetails?.employeeId) {
       fetchStatistics();
     }
-  }, [stableContextProps.accessToken, stableContextProps.userInfo?.employeeDetails?.employeeId, fetchStatistics]);
+  }, [stableContextProps.accessToken, stableContextProps.userInfo?.employeeDetails?.employeeId, selectedCurrencyRef, refreshKey, fetchStatistics]);
   
   // Calculate current month name
   const currentMonthName = dayjs().format('MMMM');
@@ -138,7 +142,7 @@ const AdvancePaymentStatistics: React.FC<AdvancePaymentStatisticsProps> = ({
     {
       key: 'total-amount',
       title: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.total_amount_for_month','Total Amount for') + ' ' + currentMonthName,
-      value: `${formatCurrencyDisplay(String(statistics.currentMonthAmount || '0'), 'EUR')}`,
+      value: `${formatCurrencyDisplay(String(statistics.currentMonthAmount || '0'), (selectedCurrencyRef?.split(':').pop()) || 'EUR')}`,
       prefix: <DollarOutlined />,
       color: '#3f8600',
       span: { xs: 24, sm: 12, md: 6 },

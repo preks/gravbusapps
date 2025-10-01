@@ -316,7 +316,7 @@ const ExpenseCalendarTab: React.FC<BusinessAppContextProps> = (props) => {
   };
 
   return (
-    <div className="gba-expense-calendar-tab">
+    <div style={{ padding: '20px', border: '1px solid #f0f0f0', borderRadius: '4px' }} className="gba-expense-calendar-tab">
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px', marginTop: '8px', padding: '0 8px' }}>
         <Typography.Title level={3} style={{ margin: 0 }}>{getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.expense_calendar','Expense Calendar')}</Typography.Title>
         <Space direction="horizontal" wrap>

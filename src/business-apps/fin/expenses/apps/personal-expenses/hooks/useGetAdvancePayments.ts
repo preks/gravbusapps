@@ -1,11 +1,11 @@
 import { useCallback, useState } from 'react';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 import { env } from '@/common/env/EnvUtils';
-import { 
+import {
   buildAdvancePaymentsQuery,
   validateFilters,
   AdvancePaymentFilters
-} from '../queries/advancePayments';
+} from '../../personal-expenses/utils/advancePaymentsQueryBuilder';
 
 export interface AdvancePayment {
   id: string;
@@ -161,7 +161,7 @@ export interface AdvancePaymentsDataView {
   isLoading: boolean;
   error: string | null;
   totalCount: number;
-  fetchItems: (searchTerm?: string, page?: number, pageSize?: number, statusFilter?: string[], amountRange?: { min?: number; max?: number } | null, advanceRange?: { min?: number; max?: number } | null, sortField?: string | null, sortOrder?: 'ascend' | 'descend' | null) => Promise<void>;
+  fetchItems: (searchTerm?: string, page?: number, pageSize?: number, statusFilter?: string[], amountRange?: { min?: number; max?: number } | null, advanceRange?: { min?: number; max?: number } | null, sortField?: string | null, sortOrder?: 'ascend' | 'descend' | null, currencyRef?: string | null) => Promise<void>;
 }
 
 export const useGetAdvancePayments = (context?: BusinessAppContextProps): AdvancePaymentsDataView => {
@@ -178,7 +178,8 @@ export const useGetAdvancePayments = (context?: BusinessAppContextProps): Advanc
     amountRange: { min?: number; max?: number } | null = null,
     advanceRange: { min?: number; max?: number } | null = null,
     sortField?: string | null,
-    sortOrder?: 'ascend' | 'descend' | null
+    sortOrder?: 'ascend' | 'descend' | null,
+    currencyRef?: string | null
   ) => {
     const employeeId = context?.userInfo?.employeeDetails?.employeeId;
     const accessToken = context?.accessToken;
@@ -200,7 +201,8 @@ export const useGetAdvancePayments = (context?: BusinessAppContextProps): Advanc
       const filters: AdvancePaymentFilters = {
         statusFilter: statusFilter.length > 0 ? statusFilter : undefined,
         amountRange: amountRange || undefined,
-        advanceRange: advanceRange || undefined
+        advanceRange: advanceRange || undefined,
+        currencyRef: currencyRef || undefined
       };
       
       // Get active filters using utility function
@@ -260,6 +262,10 @@ export const useGetAdvancePayments = (context?: BusinessAppContextProps): Advanc
         if (max !== undefined) {
           variables.advanceMax = max;
         }
+      }
+      
+      if (filterState.hasCurrencyRef && filters.currencyRef) {
+        variables.currencyRef = filters.currencyRef;
       }
       
       

@@ -46,7 +46,7 @@ const ABSENCE_STATUSES = [
   { id: 'PENDING', name: 'Pending' },
   { id: 'APPROVED', name: 'Approved' },
   { id: 'REJECTED', name: 'Rejected' },
-  { id: 'CANCELLED', name: 'Cancelled' }
+  { id: 'CANCELLED', name: 'Cancelled' },
 ];
 
 // Team employee interface
@@ -66,15 +66,20 @@ export const useAbsenceFilters = (context: BusinessAppContextProps): UseAbsenceF
   const [selectedFilters, setSelectedFilters] = useState<string[]>([]);
   const [teamEmployees, setTeamEmployees] = useState<TeamEmployee[]>([]);
   const [employeesLoading, setEmployeesLoading] = useState(false);
-  
+
   const [startDate, setStartDate] = useState<string | undefined>(undefined);
   const [endDate, setEndDate] = useState<string | undefined>(undefined);
   const [creationStartDate, setCreationStartDate] = useState<string | undefined>(undefined);
   const [creationEndDate, setCreationEndDate] = useState<string | undefined>(undefined);
 
   // Get catalog data (following leads pattern)
-  const { absenceTypes, absenceGroups, isLoading: catalogsLoading, error: catalogsError } = useAbsenceCatalogs(context);
-  
+  const {
+    absenceTypes,
+    absenceGroups,
+    isLoading: catalogsLoading,
+    error: catalogsError,
+  } = useAbsenceCatalogs(context);
+
   // GraphQL client for team employees
   const graphqlClient = useGraphQLClient(context.accessToken);
   const supervisorId = context.userInfo?.employeeDetails?.employeeId;
@@ -82,7 +87,7 @@ export const useAbsenceFilters = (context: BusinessAppContextProps): UseAbsenceF
   // Fetch team employees
   const fetchTeamEmployees = useCallback(async () => {
     if (!supervisorId) return;
-    
+
     setEmployeesLoading(true);
     try {
       const directReportsQuery = `
@@ -121,11 +126,11 @@ export const useAbsenceFilters = (context: BusinessAppContextProps): UseAbsenceF
   }, [fetchTeamEmployees]);
 
   const addFilter = useCallback((filterId: string) => {
-    setSelectedFilters(prev => [...prev, filterId]);
+    setSelectedFilters((prev) => [...prev, filterId]);
   }, []);
 
   const removeFilter = useCallback((filterId: string) => {
-    setSelectedFilters(prev => prev.filter(id => id !== filterId));
+    setSelectedFilters((prev) => prev.filter((id) => id !== filterId));
   }, []);
 
   const resetFilters = useCallback(() => {
@@ -155,112 +160,128 @@ export const useAbsenceFilters = (context: BusinessAppContextProps): UseAbsenceF
   }, []);
 
   // Wrapper for CreationDateFilter component
-  const handleCreationDateRangeChangeForFilter = useCallback((start: string | null, end: string | null) => {
-    setCreationStartDate(start || undefined);
-    setCreationEndDate(end || undefined);
-  }, []);
+  const handleCreationDateRangeChangeForFilter = useCallback(
+    (start: string | null, end: string | null) => {
+      setCreationStartDate(start || undefined);
+      setCreationEndDate(end || undefined);
+    },
+    [],
+  );
 
   // Backend search functions (following leads pattern exactly)
-    const getStatusFilters = useCallback((search: string) => {
-    const filteredStatuses = search 
-      ? ABSENCE_STATUSES.filter(status =>
-          status.name.toLowerCase().includes(search.toLowerCase())
-        )
-      : ABSENCE_STATUSES;
+  const getStatusFilters = useCallback(
+    (search: string) => {
+      const filteredStatuses = search
+        ? ABSENCE_STATUSES.filter((status) =>
+            status.name.toLowerCase().includes(search.toLowerCase()),
+          )
+        : ABSENCE_STATUSES;
 
-    return {
-      filters: filteredStatuses.map(status => ({
-        id: status.id,
-        label: status.name,
-        selected: selectedFilters.includes(status.id)
-      })),
-      loading: false,
-      error: null
-    };
-  }, [selectedFilters]);
+      return {
+        filters: filteredStatuses.map((status) => ({
+          id: status.id,
+          label: status.name,
+          selected: selectedFilters.includes(status.id),
+        })),
+        loading: false,
+        error: null,
+      };
+    },
+    [selectedFilters],
+  );
 
-  const getTypeFilters = useCallback((search: string) => {
-    const filteredTypes = search 
-      ? absenceTypes.filter(type => 
-          type.name.toLowerCase().includes(search.toLowerCase())
-        )
-      : absenceTypes;
+  const getTypeFilters = useCallback(
+    (search: string) => {
+      const filteredTypes = search
+        ? absenceTypes.filter((type) => type.name.toLowerCase().includes(search.toLowerCase()))
+        : absenceTypes;
 
-    return {
-      filters: filteredTypes.map(type => ({
-        id: type.id,
-        label: type.name,
-        selected: selectedFilters.includes(type.id)
-      })),
-      loading: catalogsLoading,
-      error: catalogsError
-    };
-  }, [absenceTypes, selectedFilters, catalogsLoading, catalogsError]);
+      return {
+        filters: filteredTypes.map((type) => ({
+          id: type.id,
+          label: type.name,
+          selected: selectedFilters.includes(type.id),
+        })),
+        loading: catalogsLoading,
+        error: catalogsError,
+      };
+    },
+    [absenceTypes, selectedFilters, catalogsLoading, catalogsError],
+  );
 
-  const getGroupFilters = useCallback((search: string) => {
-    const filteredGroups = search 
-      ? absenceGroups.filter(group => 
-          group.name.toLowerCase().includes(search.toLowerCase())
-        )
-      : absenceGroups;
+  const getGroupFilters = useCallback(
+    (search: string) => {
+      const filteredGroups = search
+        ? absenceGroups.filter((group) => group.name.toLowerCase().includes(search.toLowerCase()))
+        : absenceGroups;
 
-    return {
-      filters: filteredGroups.map(group => ({
-        id: group.id,
-        label: group.name,
-        selected: selectedFilters.includes(group.id)
-      })),
-      loading: catalogsLoading,
-      error: catalogsError
-    };
-  }, [absenceGroups, selectedFilters, catalogsLoading, catalogsError]);
+      return {
+        filters: filteredGroups.map((group) => ({
+          id: group.id,
+          label: group.name,
+          selected: selectedFilters.includes(group.id),
+        })),
+        loading: catalogsLoading,
+        error: catalogsError,
+      };
+    },
+    [absenceGroups, selectedFilters, catalogsLoading, catalogsError],
+  );
 
-  const getEmployeeFilters = useCallback((search: string) => {
-    const filteredEmployees = search 
-      ? teamEmployees.filter(employee => {
-          const firstName = employee.firstName || '';
-          const lastName = employee.lastName || '';
-          const fullName = `${firstName} ${lastName}`.toLowerCase();
-          const orgUnit = (employee.employeePosition?.organizationalUnit?.name || '').toLowerCase();
-          return fullName.includes(search.toLowerCase()) || orgUnit.includes(search.toLowerCase());
-        })
-      : teamEmployees;
+  const getEmployeeFilters = useCallback(
+    (search: string) => {
+      const filteredEmployees = search
+        ? teamEmployees.filter((employee) => {
+            const firstName = employee.firstName || '';
+            const lastName = employee.lastName || '';
+            const fullName = `${firstName} ${lastName}`.toLowerCase();
+            const orgUnit = (
+              employee.employeePosition?.organizationalUnit?.name || ''
+            ).toLowerCase();
+            return (
+              fullName.includes(search.toLowerCase()) || orgUnit.includes(search.toLowerCase())
+            );
+          })
+        : teamEmployees;
 
-    return {
-      filters: filteredEmployees.map(employee => ({
-        id: employee.id,
-        label: `${employee.firstName || ''} ${employee.lastName || ''}`.trim() || 'Unknown Employee',
-        selected: selectedFilters.includes(employee.id)
-      })),
-      loading: employeesLoading,
-      error: null
-    };
-  }, [teamEmployees, selectedFilters, employeesLoading]);
+      return {
+        filters: filteredEmployees.map((employee) => ({
+          id: employee.id,
+          label:
+            `${employee.firstName || ''} ${employee.lastName || ''}`.trim() || 'Unknown Employee',
+          selected: selectedFilters.includes(employee.id),
+        })),
+        loading: employeesLoading,
+        error: null,
+      };
+    },
+    [teamEmployees, selectedFilters, employeesLoading],
+  );
 
   // Convert catalog options to filter options for static display (following leads pattern exactly)
   const statusFilterOptions: DataFilter[] = ABSENCE_STATUSES.map((status) => ({
     id: status.id,
     label: status.name,
-    selected: selectedFilters.includes(status.id)
-    }));
+    selected: selectedFilters.includes(status.id),
+  }));
 
   const typeFilterOptions: DataFilter[] = absenceTypes.map((type) => ({
     id: type.id,
     label: type.name,
-    selected: selectedFilters.includes(type.id)
-    }));
+    selected: selectedFilters.includes(type.id),
+  }));
 
   const groupFilterOptions: DataFilter[] = absenceGroups.map((group) => ({
     id: group.id,
     label: group.name,
-    selected: selectedFilters.includes(group.id)
-    }));
+    selected: selectedFilters.includes(group.id),
+  }));
 
   const employeeFilterOptions: DataFilter[] = teamEmployees.map((employee) => ({
     id: employee.id,
     label: `${employee.firstName || ''} ${employee.lastName || ''}`.trim() || 'Unknown Employee',
-    selected: selectedFilters.includes(employee.id)
-    }));
+    selected: selectedFilters.includes(employee.id),
+  }));
 
   // Create filter groups with backend search functions (following leads pattern exactly)
   const filterGroups: DataFilterGroup[] = [
@@ -271,9 +292,9 @@ export const useAbsenceFilters = (context: BusinessAppContextProps): UseAbsenceF
         key: `absenceDateRange-${startDate}-${endDate}`, // Force re-render when dates change
         initialStartDate: startDate,
         initialEndDate: endDate,
-        onDateRangeChange: handleDateRangeChangeForFilter
+        onDateRangeChange: handleDateRangeChangeForFilter,
       }),
-      hideSearch: true
+      hideSearch: true,
     } as any, // Temporary type assertion to bypass interface issue
     {
       id: 'creationDateRange',
@@ -282,62 +303,123 @@ export const useAbsenceFilters = (context: BusinessAppContextProps): UseAbsenceF
         key: `creationDateRange-${creationStartDate}-${creationEndDate}`, // Force re-render when dates change
         initialStartDate: creationStartDate,
         initialEndDate: creationEndDate,
-        onCreationDateRangeChange: handleCreationDateRangeChangeForFilter
+        onCreationDateRangeChange: handleCreationDateRangeChangeForFilter,
       }),
-      hideSearch: true
+      hideSearch: true,
     } as any, // Temporary type assertion to bypass interface issue
     {
       id: 'employee',
       title: 'Employee',
       filters: employeeFilterOptions,
-      backendSearch: getEmployeeFilters
+      backendSearch: getEmployeeFilters,
     },
     {
       id: 'status',
       title: 'Status',
       filters: statusFilterOptions,
-      backendSearch: getStatusFilters
+      backendSearch: getStatusFilters,
     },
     {
       id: 'type',
       title: 'Type',
       filters: typeFilterOptions,
-      backendSearch: getTypeFilters
+      backendSearch: getTypeFilters,
     },
     {
       id: 'group',
       title: 'Group',
       filters: groupFilterOptions,
-      backendSearch: getGroupFilters
-    }
+      backendSearch: getGroupFilters,
+    },
   ];
 
   // Create filter label map (following leads pattern exactly)
   const filterLabelMap = {
-    ...Object.fromEntries(ABSENCE_STATUSES.map(status => [status.id, status.name])),
-    ...Object.fromEntries(absenceTypes.map(type => [type.id, type.name])),
-    ...Object.fromEntries(absenceGroups.map(group => [group.id, group.name])),
-    ...Object.fromEntries(teamEmployees.map(employee => {
-      const firstName = employee.firstName || '';
-      const lastName = employee.lastName || '';
-      const fullName = `${firstName} ${lastName}`.trim();
-      return [employee.id, fullName || 'Unknown Employee'];
-    })),
+    ...Object.fromEntries(ABSENCE_STATUSES.map((status) => [status.id, status.name])),
+    // Add prefixed status IDs for pre-filter compatibility
+    ...Object.fromEntries(
+      ABSENCE_STATUSES.map((status) => [`status-${status.id.toLowerCase()}`, status.name]),
+    ),
+    ...Object.fromEntries(absenceTypes.map((type) => [type.id, type.name])),
+    ...Object.fromEntries(absenceGroups.map((group) => [group.id, group.name])),
+    // Add prefixed group IDs for pre-filter compatibility
+    ...Object.fromEntries(absenceGroups.map((group) => [`group-${group.id}`, group.name])),
+    ...Object.fromEntries(
+      teamEmployees.map((employee) => {
+        const firstName = employee.firstName || '';
+        const lastName = employee.lastName || '';
+        const fullName = `${firstName} ${lastName}`.trim();
+        return [employee.id, fullName || 'Unknown Employee'];
+      }),
+    ),
     // Add date range labels
-    ...(startDate && endDate ? { 'absenceDateRange': `Start - End Date: ${startDate} to ${endDate}` } : {}),
-    ...(startDate && !endDate ? { 'absenceDateRange': `Start - End Date: From ${startDate}` } : {}),
-    ...(!startDate && endDate ? { 'absenceDateRange': `Start - End Date: Until ${endDate}` } : {}),
-    ...(creationStartDate && creationEndDate ? { 'creationDateRange': `Creation Date: ${creationStartDate} to ${creationEndDate}` } : {}),
-    ...(creationStartDate && !creationEndDate ? { 'creationDateRange': `Creation Date: From ${creationStartDate}` } : {}),
-    ...(!creationStartDate && creationEndDate ? { 'creationDateRange': `Creation Date: Until ${creationEndDate}` } : {})
+    ...(startDate && endDate
+      ? { absenceDateRange: `Start - End Date: ${startDate} to ${endDate}` }
+      : {}),
+    ...(startDate && !endDate ? { absenceDateRange: `Start - End Date: From ${startDate}` } : {}),
+    ...(!startDate && endDate ? { absenceDateRange: `Start - End Date: Until ${endDate}` } : {}),
+    ...(creationStartDate && creationEndDate
+      ? { creationDateRange: `Creation Date: ${creationStartDate} to ${creationEndDate}` }
+      : {}),
+    ...(creationStartDate && !creationEndDate
+      ? { creationDateRange: `Creation Date: From ${creationStartDate}` }
+      : {}),
+    ...(!creationStartDate && creationEndDate
+      ? { creationDateRange: `Creation Date: Until ${creationEndDate}` }
+      : {}),
   };
 
   // Get current filters for API calls
   const getFilters = useCallback((): AbsenceFilters => {
-    const statuses = selectedFilters.filter(f => ABSENCE_STATUSES.map(s => s.id).includes(f));
-    const types = selectedFilters.filter(f => absenceTypes.map(t => t.id).includes(f));
-    const groups = selectedFilters.filter(f => absenceGroups.map(g => g.id).includes(f));
-    const employees = selectedFilters.filter(f => teamEmployees.map(e => e.id).includes(f));
+    // Handle both original status IDs and prefixed status IDs
+    const statuses = selectedFilters
+      .filter((f) => {
+        // Check if it's an original status ID
+        if (ABSENCE_STATUSES.map((s) => s.id).includes(f)) {
+          return true;
+        }
+        // Check if it's a prefixed status ID (status-pending, status-approved, etc.)
+        const prefixedStatus = f.startsWith('status-');
+        if (prefixedStatus) {
+          const statusId = f.replace('status-', '').toUpperCase();
+          return ABSENCE_STATUSES.map((s) => s.id).includes(statusId);
+        }
+        return false;
+      })
+      .map((f) => {
+        // Convert prefixed status IDs back to original format for the API
+        if (f.startsWith('status-')) {
+          return f.replace('status-', '').toUpperCase();
+        }
+        return f;
+      });
+
+    const types = selectedFilters.filter((f) => absenceTypes.map((t) => t.id).includes(f));
+
+    // Handle both original group IDs and prefixed group IDs
+    const groups = selectedFilters
+      .filter((f) => {
+        // Check if it's an original group ID
+        if (absenceGroups.map((g) => g.id).includes(f)) {
+          return true;
+        }
+        // Check if it's a prefixed group ID (group-absencegroup:v1:health, etc.)
+        const prefixedGroup = f.startsWith('group-');
+        if (prefixedGroup) {
+          const groupId = f.replace('group-', '');
+          return absenceGroups.map((g) => g.id).includes(groupId);
+        }
+        return false;
+      })
+      .map((f) => {
+        // Convert prefixed group IDs back to original format for the API
+        if (f.startsWith('group-')) {
+          return f.replace('group-', '');
+        }
+        return f;
+      });
+
+    const employees = selectedFilters.filter((f) => teamEmployees.map((e) => e.id).includes(f));
 
     const filters = {
       search,
@@ -348,17 +430,26 @@ export const useAbsenceFilters = (context: BusinessAppContextProps): UseAbsenceF
       startDate,
       endDate,
       creationStartDate,
-      creationEndDate
+      creationEndDate,
     };
 
-  
     return filters;
-  }, [search, selectedFilters, absenceTypes, absenceGroups, teamEmployees, startDate, endDate, creationStartDate, creationEndDate]);
+  }, [
+    search,
+    selectedFilters,
+    absenceTypes,
+    absenceGroups,
+    teamEmployees,
+    startDate,
+    endDate,
+    creationStartDate,
+    creationEndDate,
+  ]);
 
   // Compute selectedFilters including date ranges for display
   const computedSelectedFilters = useMemo(() => {
     const allSelectedFilters = [...selectedFilters];
-    
+
     // Add absence date range filter if active
     if (startDate || endDate) {
       if (!allSelectedFilters.includes('absenceDateRange')) {
@@ -371,7 +462,7 @@ export const useAbsenceFilters = (context: BusinessAppContextProps): UseAbsenceF
         allSelectedFilters.splice(index, 1);
       }
     }
-    
+
     // Add creation date range filter if active
     if (creationStartDate || creationEndDate) {
       if (!allSelectedFilters.includes('creationDateRange')) {
@@ -384,7 +475,7 @@ export const useAbsenceFilters = (context: BusinessAppContextProps): UseAbsenceF
         allSelectedFilters.splice(index, 1);
       }
     }
-    
+
     return allSelectedFilters;
   }, [selectedFilters, startDate, endDate, creationStartDate, creationEndDate]);
 
@@ -403,6 +494,6 @@ export const useAbsenceFilters = (context: BusinessAppContextProps): UseAbsenceF
     resetFilters,
     handleDateRangeChange,
     handleCreationDateRangeChange,
-    getFilters
+    getFilters,
   };
-}; 
+};

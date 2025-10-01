@@ -22,6 +22,7 @@ import Pill from '@/components/pill';
 import { PiFileText, PiImage, PiArrowUp, PiArrowDown } from 'react-icons/pi';
 import { AppActionButton } from '@/components/app-action-button/AppActionButton';
 import { useGetExpenseItems, ExpenseFilter } from '../../../hooks/useGetExpenseItems';
+import { useExpenseCurrencies } from '../../../hooks/useExpenseCurrencies';
 import { DataContainer } from '@/components/layout/dataContainer/DataContainer';
 import { DataFilterGroup } from '@/components/data-filter/DataFilter';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
@@ -48,6 +49,7 @@ export interface ExpenseItemsTableProps extends BusinessAppContextProps {
   availableStatuses: string[];
   amountRange?: { min?: number; max?: number } | null;
   tableRefreshTrigger?: number;
+  activeWidgetKey?: string;
 }
 
 const ExpenseItemsTable: React.FC<ExpenseItemsTableProps> = React.memo((props) => {
@@ -84,12 +86,48 @@ const ExpenseItemsTable: React.FC<ExpenseItemsTableProps> = React.memo((props) =
   // Preserve the page index before user starts searching, so we can restore it after clearing search
   const savedPageBeforeSearchRef = useRef<number | null>(null);
 
-  const { items, isLoading, error, totalCount, fetchItems } = useGetExpenseItems(contextProps);
+  const { items, isLoading, error, totalCount, fetchItems } = useGetExpenseItems(contextProps, { autoFetch: false });
+
+  const { currencyStats, selectedCurrencyRef } = useExpenseCurrencies(contextProps, allSelectedFilters, setFilters);
+
+  const currencyLabelMap = useMemo(() => {
+    const map: Record<string, string> = {};
+    currencyStats.forEach(cs => {
+      map[`currency:${cs.ref}`] = cs.code;
+    });
+    return map;
+  }, [currencyStats]);
+
+  const combinedFilterLabelMap = useMemo(() => ({
+    ...filterLabelMap,
+    ...currencyLabelMap,
+  }), [filterLabelMap, currencyLabelMap]);
+
+  // currency fetching now handled by useExpenseCurrencies
 
   useEffect(() => {
-    const apiFilters = getFilters(allSelectedFilters);
+    const apiFilters = { ...getFilters(allSelectedFilters) } as ExpenseFilter;
+    if (selectedCurrencyRef) {
+      apiFilters.currencyRef = selectedCurrencyRef;
+    }
+    // Apply widget-driven filters directly to API request
+    if (props.activeWidgetKey === 'total-expenses') {
+      const start = new Date();
+      start.setDate(1);
+      const end = new Date(start.getFullYear(), start.getMonth() + 1, 0);
+      apiFilters.expenseDateStart = start.toISOString().split('T')[0];
+      apiFilters.expenseDateEnd = end.toISOString().split('T')[0];
+      apiFilters.status = ['PAID', 'CLOSED'];
+    } else if (props.activeWidgetKey === 'pending-reimbursement') {
+      const start = new Date();
+      start.setDate(1);
+      const end = new Date(start.getFullYear(), start.getMonth() + 1, 0);
+      apiFilters.expenseDateStart = start.toISOString().split('T')[0];
+      apiFilters.expenseDateEnd = end.toISOString().split('T')[0];
+      apiFilters.status = ['PENDING'];
+    }
     fetchItems(search, currentPage, pageSize, apiFilters, sortField, sortOrder);
-  }, [fetchItems, currentPage, pageSize, search, allSelectedFilters, getFilters, sortField, sortOrder]);
+  }, [fetchItems, currentPage, pageSize, search, allSelectedFilters, getFilters, sortField, sortOrder, selectedCurrencyRef, props.activeWidgetKey]);
 
   // Refresh data when tableRefreshTrigger changes (triggered from parent tab)
   useEffect(() => {
@@ -132,13 +170,23 @@ const ExpenseItemsTable: React.FC<ExpenseItemsTableProps> = React.memo((props) =
   }, [search, currentPage]);
 
   const handleFilterChange = useCallback((filterId: string, selected: boolean) => {
-    if (selected) {
-      addFilter(filterId);
+    if (filterId.startsWith('currency:')) {
+      if (selected) {
+        // Allow only a single currency at a time
+        const nonCurrency = allSelectedFilters.filter(f => !f.startsWith('currency:'));
+        setFilters([...nonCurrency, filterId]);
+      } else {
+        removeFilter(filterId);
+      }
     } else {
-      removeFilter(filterId);
+      if (selected) {
+        addFilter(filterId);
+      } else {
+        removeFilter(filterId);
+      }
     }
     setCurrentPage(1);
-  }, [addFilter, removeFilter]);
+  }, [addFilter, removeFilter, setFilters, allSelectedFilters]);
 
   const handleAddExpenseItem = useCallback(() => {
     onAddExpenseItem();
@@ -358,7 +406,7 @@ const ExpenseItemsTable: React.FC<ExpenseItemsTableProps> = React.memo((props) =
             removedFilters.forEach(filterId => removeFilter(filterId));
           }
         },
-        filterLabelMap: filterLabelMap,
+        filterLabelMap: combinedFilterLabelMap,
         addButton: {
           onClick: handleAddExpenseItem,
           label: getTranslationFromI18nKeyAndLabel('lowcoder:expense_calculation_rule_details.calculation_allowance_setup_list.calculation_allowance_setup_modal.btn_add','Add'),
@@ -390,7 +438,18 @@ const ExpenseItemsTable: React.FC<ExpenseItemsTableProps> = React.memo((props) =
         ],
       }}
       dataFilterProps={{
-        filterGroups: filterGroups,
+        filterGroups: useMemo(() => {
+          const currencyGroup: DataFilterGroup | null = currencyStats.length > 0 ? {
+            id: 'currency',
+            title: getTranslationFromI18nKeyAndLabel('lowcoder:expense_item_list.currency','Currency'),
+            filters: currencyStats.map(cs => ({
+              id: `currency:${cs.ref}`,
+              label: cs.code,
+              selected: allSelectedFilters.includes(`currency:${cs.ref}`)
+            }))
+          } : null;
+          return currencyGroup ? [currencyGroup, ...filterGroups] : filterGroups;
+        }, [currencyStats, filterGroups, allSelectedFilters]),
         onFilterChange: handleFilterChange as (filterId: string, selected: boolean) => void,
       }}
       contentBackground="white"
@@ -419,7 +478,7 @@ const ExpenseItemsTable: React.FC<ExpenseItemsTableProps> = React.memo((props) =
                         />
                       </TableHead>
                       <TableHead
-                        className="gba:w-[72px] gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-3"
+                        className="gba:w-[50px] gba:min-w-[50px] gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-3"
                         data-testid={`${DATA_TEST_ID_PREFIX}-actions-header`}
                       >
                         {getTranslationFromI18nKeyAndLabel('lowcoder:expense_plan_list.expense_plan_flows.actions','Actions')}

@@ -2,7 +2,7 @@ import React, { useMemo } from 'react';
 import { Card, CardHeader, CardContent, CardTitle } from '@newwork/nw-design-system';
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from '@newwork/nw-design-system';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid } from 'recharts';
-import { formatCurrency } from '../utils/formatters';
+// import { formatCurrency } from '../utils/formatters';
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
 import { formatCurrencyDisplay } from '../../../../utils';
 
@@ -12,6 +12,7 @@ interface ComparisonCardProps {
   previousValue: number;
   currentLabel: string;
   previousLabel: string;
+  currencyCode?: string;
 }
 
 export const ComparisonCard: React.FC<ComparisonCardProps> = ({
@@ -20,6 +21,7 @@ export const ComparisonCard: React.FC<ComparisonCardProps> = ({
   previousValue,
   currentLabel,
   previousLabel,
+  currencyCode = 'EUR',
 }) => {
   // Transform data for chart
   const chartData = useMemo(() => [
@@ -58,13 +60,13 @@ export const ComparisonCard: React.FC<ComparisonCardProps> = ({
       <div className="gba:grid gba:grid-cols-2 gba:gap-4 gba:mb-6 gba:items-start">
         <div className="gba:text-center">
           <div className="gba:text-2xl gba:font-bold gba:text-blue-600 gba:min-h-[2.5rem] gba:flex gba:items-center gba:justify-center" data-testid="current-period-statistic">
-            {formatCurrencyDisplay(currentValue, 'EUR')}
+            {formatCurrencyDisplay(currentValue, currencyCode)}
           </div>
           <div className="gba:text-sm gba:text-gray-500 gba:mt-2">{currentLabel}</div>
         </div>
         <div className="gba:text-center">
           <div className="gba:text-2xl gba:font-bold gba:text-gray-500 gba:min-h-[2.5rem] gba:flex gba:items-center gba:justify-center" data-testid="previous-period-statistic">
-            {formatCurrencyDisplay(previousValue, 'EUR')}
+            {formatCurrencyDisplay(previousValue, currencyCode)}
           </div>
           <div className="gba:text-sm gba:text-gray-500 gba:mt-2">{previousLabel}</div>
         </div>
@@ -86,12 +88,12 @@ export const ComparisonCard: React.FC<ComparisonCardProps> = ({
                 tickLine={false}
                 axisLine={false}
                 tickMargin={8}
-                tickFormatter={(value) => formatCurrencyDisplay(value, 'EUR')}
+                tickFormatter={(value) => formatCurrencyDisplay(value, currencyCode)}
                 width={80}
               />
               <ChartTooltip 
                 content={<ChartTooltipContent 
-                  formatter={(value: any) => [formatCurrencyDisplay(Number(value), 'EUR'), getTranslationFromI18nKeyAndLabel('lowcoder:expense_request_list.expense_plan_table.amount','Amount')]}
+                  formatter={(value: any) => [formatCurrencyDisplay(Number(value), currencyCode), getTranslationFromI18nKeyAndLabel('lowcoder:expense_request_list.expense_plan_table.amount','Amount')]}
                 />}
               />
               <Bar 
