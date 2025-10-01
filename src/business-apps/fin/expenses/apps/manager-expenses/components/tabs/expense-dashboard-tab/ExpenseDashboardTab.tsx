@@ -67,6 +67,8 @@ const ExpenseDashboardTab: React.FC<ExpenseDashboardTabProps> = (props) => {
   // Use the currency filter hook with dynamic data
   const { currencyFilter, setCurrencyFilter } = useCurrencyFilter(accessToken, managerId);
 
+  // If needed, currencies can be refreshed manually via useCurrencyData().refetch
+
   // Get dashboard data
   const { dashboardData, isLoading, error } = useGetExpenseDashboard(props, currencyFilter);
 
@@ -249,7 +251,7 @@ const ExpenseDashboardTab: React.FC<ExpenseDashboardTabProps> = (props) => {
               "Quick Actions",
             )}
           </h3>
-          <div className="gba:grid gba:grid-cols-1 sm:gba:grid-cols-2 lg:gba:grid-cols-3 gba:gap-4">
+          <div className="gba:grid gba:grid-cols-3 gba:gap-4">
             {quickActions.map((action) => {
               return (
                 <Card

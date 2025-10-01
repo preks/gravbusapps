@@ -8,9 +8,7 @@ import dayjs from "dayjs";
  * Process raw expense data into monthly trends
  * @param data Raw expense request data from GraphQL
  * @returns Array of monthly expense trends with month name and total amount
- * @note Currently unused - will be used when real data queries are re-enabled
  */
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
 const processMonthlyTrends = (data: any[]): { month: string; amount: number }[] => {
   // Initialize an object to hold monthly totals
   const monthlyTotals: Record<string, number> = {};
@@ -101,8 +99,6 @@ export const useGetExpenseDashboard = (
       context?.userInfo?.employeeDetails?.employeeId ||
       context?.userInfo?.id ||
       "00000000-0000-0000-0000-000000000000";
-    const accessToken = context?.accessToken;
-
     if (!accessToken) {
       setError("Access token not found. Cannot fetch dashboard data.");
       setDashboardData(null);

@@ -316,12 +316,12 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = (props) => {
               <Spinner className="gba:h-8 gba:w-8" />
             </div>
           )}
-          <Table data-testid="expense-requests-table" className="gba:min-w-[1296px] gba:w-full">
+          <Table data-testid="expense-requests-table" className="gba:min-w-[1296px] gba:w-full gba:table-fixed">
             <TableHeader className="gba:sticky gba:top-0 gba:bg-white gba:z-10 gba:border-b gba:border-gray-200">
               <TableRow>
                 <TableHead className="gba:w-[60px]"></TableHead>
                 <TableHead
-                  className="gba:w-[17%] gba:cursor-pointer gba:select-none"
+                  className="gba:w-[13%] gba:cursor-pointer gba:select-none"
                   onClick={() => handleSort("title")}
                   data-testid="expense-requests-title-header"
                 >
@@ -334,6 +334,18 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = (props) => {
                     </span>
                     {renderSortIndicator("title")}
                   </div>
+                </TableHead>
+                <TableHead className="gba:w-[10%]">
+                  {getTranslationFromI18nKeyAndLabel(
+                    "lowcoder:expense_request_list.expense_request_filter.request_number_input",
+                    "Expense Code",
+                  )}
+                </TableHead>
+                <TableHead className="gba:w-[10%]">
+                  {getTranslationFromI18nKeyAndLabel(
+                    "lowcoder:expense_calculation_rule.expense_table.code",
+                    "Plan Code",
+                  )}
                 </TableHead>
                 <TableHead
                   className="gba:w-[8%] gba:cursor-pointer gba:select-none"
@@ -411,7 +423,7 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = (props) => {
                   </div>
                 </TableHead>
                 <TableHead
-                  className="gba:w-[45%] gba:cursor-pointer gba:select-none gba:pr-6"
+                  className="gba:w-[25%] gba:cursor-pointer gba:select-none gba:pr-6"
                   onClick={() => handleSort("status")}
                   data-testid="expense-requests-status-header"
                 >
@@ -437,14 +449,14 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = (props) => {
                     onClick={() => handleSelectRequest(record)}
                     data-testid={`expense-requests-row-${record.id}`}
                   >
-                    <TableCell data-testid={`expense-requests-actions-cell-${record.id}`}>
+                    <TableCell className="gba:w-[60px] gba:py-4 gba:px-3" data-testid={`expense-requests-actions-cell-${record.id}`}>
                       <div
                         className="gba:flex gba:justify-start gba:gap-2"
                         onClick={(e) => e.stopPropagation()}
                       >
                         <AppActionButton
                           data-testid={`expense-requests-update-button-${record.id}`}
-                          size="sm"
+                          size="icon"
                           staticFlowData={[
                             ...(record.employeeDocument?.file
                               ? [
@@ -487,11 +499,16 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = (props) => {
                         />
                       </div>
                     </TableCell>
-                    <TableCell className="gba:text-left">
+                    <TableCell className="gba:text-left gba:w-[13%] gba:py-4 gba:px-3">
                       <div className="gba:font-medium gba:text-sm">
                         {record.title ?? "Untitled Request"}
                       </div>
-                      <div className="gba:text-xs gba:text-gray-500">{record.code ?? "N/A"}</div>
+                    </TableCell>
+                    <TableCell className="gba:w-[10%] gba:py-4 gba:px-3 gba:text-sm">
+                      {record.code ?? "N/A"}
+                    </TableCell>
+                    <TableCell className="gba:w-[10%] gba:py-4 gba:px-3 gba:text-sm">
+                      {(record as any)?.expensePlan?.code ?? "N/A"}
                     </TableCell>
                     <TableCell className="gba:text-sm">
                       {record.startDate
@@ -579,7 +596,7 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = (props) => {
                         ? formatCurrencyDisplay(record.amount, record.currency)
                         : formatCurrencyDisplay(0, record.currency || "EUR")}
                     </TableCell>
-                    <TableCell className="gba:pr-6 gba:w-[45%]">
+                    <TableCell className="gba:pr-6 gba:w-[35%]">
                       <Pill
                         type={type as any}
                         label={label}

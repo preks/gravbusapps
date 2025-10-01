@@ -124,12 +124,12 @@ const AdvancePaymentsTable: React.FC<AdvancePaymentsTableProps> = (props) => {
         <div className="gba:border gba:border-gray-200 gba:rounded-md gba:shadow-sm">
         {/* Table with horizontal scrolling */}
         <div className="gba:overflow-x-auto gba:pr-4">
-          <Table data-testid="advance-payments-table" className="gba:min-w-[1296px] gba:w-full">
+          <Table data-testid="advance-payments-table" className="gba:min-w-[1296px] gba:w-full gba:table-fixed">
             <TableHeader>
               <TableRow>
                 <TableHead className="gba:w-[60px]"></TableHead>
                 <TableHead
-                  className="gba:w-[17%] gba:cursor-pointer"
+                  className="gba:w-[12%] gba:cursor-pointer"
                   onClick={() => updateSorting("expensePlan.title")}
                   data-testid="advance-payments-title-header"
                 >
@@ -148,6 +148,12 @@ const AdvancePaymentsTable: React.FC<AdvancePaymentsTableProps> = (props) => {
                         <PiArrowDown className="gba:inline gba:ml-1" size={12} />
                       ))}
                   </div>
+                </TableHead>
+                <TableHead className="gba:w-[10%]">
+                  {getTranslationFromI18nKeyAndLabel(
+                    "lowcoder:expense_calculation_rule.expense_table.code",
+                    "Plan Code",
+                  )}
                 </TableHead>
                 <TableHead
                   className="gba:w-[8%] gba:cursor-pointer"
@@ -252,7 +258,7 @@ const AdvancePaymentsTable: React.FC<AdvancePaymentsTableProps> = (props) => {
                   </div>
                 </TableHead>
                 <TableHead
-                  className="gba:w-[45%] gba:cursor-pointer gba:pr-6"
+                  className="gba:w-[20%] gba:cursor-pointer gba:pr-6"
                   onClick={() => updateSorting("status")}
                   data-testid="advance-payments-status-header"
                 >
@@ -281,7 +287,7 @@ const AdvancePaymentsTable: React.FC<AdvancePaymentsTableProps> = (props) => {
                   className="gba:cursor-pointer gba:hover:bg-gray-50"
                   onClick={() => setSelectedPayment(record)}
                 >
-                  <TableCell data-testid={`advance-payments-actions-cell-${record.id}`}>
+                  <TableCell className="gba:w-[60px] gba:py-4 gba:px-3" data-testid={`advance-payments-actions-cell-${record.id}`}>
                     <div
                       className="gba:flex gba:justify-start gba:gap-2"
                       onClick={(e) => e.stopPropagation()}
@@ -318,13 +324,16 @@ const AdvancePaymentsTable: React.FC<AdvancePaymentsTableProps> = (props) => {
                       />
                     </div>
                   </TableCell>
-                  <TableCell className="gba:text-left">
+                  <TableCell className="gba:text-left gba:w-[12%] gba:py-4 gba:px-3">
                     <div className="gba:font-medium gba:text-sm">
                       {record.expensePlan?.title ?? "N/A"}
                     </div>
                     <div className="gba:text-xs gba:text-gray-500">
                       {record.expensePlan?.code ?? "N/A"}
                     </div>
+                  </TableCell>
+                  <TableCell className="gba:w-[10%] gba:py-4 gba:px-3 gba:text-sm">
+                    {record.expensePlan?.code ?? "N/A"}
                   </TableCell>
                   <TableCell className="gba:text-sm">
                     {record.expensePlan?.startDate
@@ -415,7 +424,7 @@ const AdvancePaymentsTable: React.FC<AdvancePaymentsTableProps> = (props) => {
                         : formatCurrencyDisplay(0, "EUR")}
                     </span>
                   </TableCell>
-                  <TableCell className="gba:pr-6 gba:w-[45%]">
+                  <TableCell className="gba:pr-6 gba:w-[35%]">
                     <Pill
                       label={getAdvancePaymentStatusDisplay(record.status).label}
                       type={getAdvancePaymentStatusDisplay(record.status).type as any}
@@ -557,7 +566,17 @@ const AdvancePaymentsTable: React.FC<AdvancePaymentsTableProps> = (props) => {
       />
 
       {/* Advance Payment Details Sheet */}
-      <Sheet open={!!selectedPayment} onOpenChange={(open) => !open && setSelectedPayment(null)}>
+      <Sheet
+        open={!!selectedPayment}
+        onOpenChange={(open) => !open && setSelectedPayment(null)}
+        title={
+          selectedPayment?.expensePlan?.title ||
+          getTranslationFromI18nKeyAndLabel(
+            "lowcoder:advance_payment_details.title",
+            "Advance Payment Details",
+          )
+        }
+      >
         <SheetContent className="gba:w-[500px] gba:sm:gba:w-[500px] gba:max-w-none">
           <SheetHeader>
             <SheetTitle className="gba:text-xl gba:font-semibold gba:text-gray-900">

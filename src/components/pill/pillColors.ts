@@ -9,10 +9,14 @@ export const PILL_TYPE_COLOR_MAP = {
 
 export type PillTypeKey = keyof typeof PILL_TYPE_COLOR_MAP;
 
-export const getPillColor = (type?: string, fallback: string = '#CCCCCC'): string => {
+export const getPillColor = (
+  type?: string,
+  fallback: string = 'var(--nw-color-neutral-300)'
+): string => {
   if (!type) return fallback;
-  const map = PILL_TYPE_COLOR_MAP as Record<string, string>;
-  return map[type] ?? fallback;
+  return type in PILL_TYPE_COLOR_MAP
+    ? PILL_TYPE_COLOR_MAP[type as PillTypeKey]
+    : fallback;
 };
 
 

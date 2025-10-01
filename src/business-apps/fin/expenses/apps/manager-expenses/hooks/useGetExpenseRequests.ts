@@ -203,6 +203,8 @@ export const useGetExpenseRequests = ({
               additionalProperties: request.employee.additionalProperties,
             }
           : undefined,
+        // expose linked plan code for table column
+        expensePlan: request.expensePlan ? { code: request.expensePlan.code } : undefined,
       };
     });
   };

@@ -78,16 +78,22 @@ export const useExpenseGroupCatalog = (accessToken: string): UseExpenseGroupCata
 
             // Also store by reference format mapped by CODE (additionalValue1/name), not DB id
             // Example incoming ref: ExpenseGroup:v1:ACCOMMODATION
-            const codeKey = (group.name || "").toString().toUpperCase().replace(/\s+/g, "_");
-            const refKey = `ExpenseGroup:v1:${codeKey}`;
-            groupsMap[refKey] = {
-              id: group.id,
-              name: translatedName || group.name || group.id,
-              description: translatedDescription || group.description,
-            };
+            const codeKey = (group.name || "")
+              .toString()
+              .trim()
+              .toUpperCase()
+              .replace(/\s+/g, "_");
 
-            // Store by plain CODE as well for convenience lookups
+            // Only store ref/CODE keys when we have a non-empty code
             if (codeKey) {
+              const refKey = `ExpenseGroup:v1:${codeKey}`;
+              groupsMap[refKey] = {
+                id: group.id,
+                name: translatedName || group.name || group.id,
+                description: translatedDescription || group.description,
+              };
+
+              // Store by plain CODE as well for convenience lookups
               groupsMap[codeKey] = {
                 id: group.id,
                 name: translatedName || group.name || group.id,

@@ -12,12 +12,18 @@ import {
 } from "@/common/hooks/useAppActionData";
 import { formatDataTestId } from "@/common/utils/formatDataTestId";
 
-export type AppActionButtonProps = Omit<ActionButtonProps, "actions"> & AppActionCommonProps & {
+// Extend size to allow 'icon' for parity with Personal/Backoffice tables
+export type AppActionButtonProps = Omit<ActionButtonProps, "actions" | "size"> & AppActionCommonProps & {
   /**
    * Controls how the button behaves when no flow items are available
    * @default 'disable'
    */
   emptyStateBehavior?: 'disable' | 'hide' | 'enable';
+  /**
+   * Visual size of the action trigger
+   * Allow 'icon' to match existing screens using icon-only triggers
+   */
+  size?: ActionButtonProps['size'] | 'icon';
 };
 
 const DATA_TEST_ID_PREFIX = "AppActionButton";

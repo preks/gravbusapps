@@ -267,7 +267,7 @@ const ExpensePlansTable: React.FC<ExpensePlansTableProps> = (props) => {
       <div className="gba:border gba:border-gray-200 gba:rounded-md gba:shadow-sm">
         {/* Table with horizontal scrolling and fixed height */}
         <div className="gba:overflow-x-auto gba:pr-4 gba:border-b gba:border-gray-200">
-          <Table data-testid={`${DATA_TEST_ID_PREFIX}-table`} className="gba:min-w-[1296px] gba:w-full">
+          <Table data-testid={`${DATA_TEST_ID_PREFIX}-table`} className="gba:min-w-[1296px] gba:w-full gba:table-fixed">
             <TableHeader className="gba:sticky gba:top-0 gba:bg-white gba:z-10 gba:border-b gba:border-gray-200">
               <TableRow>
                 <TableHead
@@ -275,7 +275,7 @@ const ExpensePlansTable: React.FC<ExpensePlansTableProps> = (props) => {
                   data-testid={`${DATA_TEST_ID_PREFIX}-actions-header`}
                 ></TableHead>
                 <TableHead
-                  className="gba:w-[27%] gba:cursor-pointer gba:select-none gba:bg-gray-50 gba:font-semibold"
+                  className="gba:w-[18%] gba:cursor-pointer gba:select-none gba:bg-gray-50 gba:font-semibold"
                   onClick={() => handleSort("title")}
                   data-testid={`${DATA_TEST_ID_PREFIX}-title-header`}
                 >
@@ -286,6 +286,18 @@ const ExpensePlansTable: React.FC<ExpensePlansTableProps> = (props) => {
                     )}
                     {renderSortIndicator("title")}
                   </div>
+                </TableHead>
+                <TableHead className="gba:w-[10%] gba:bg-gray-50 gba:font-semibold">
+                  {getTranslationFromI18nKeyAndLabel(
+                    "lowcoder:expense_calculation_rule.expense_table.code",
+                    "Plan Code",
+                  )}
+                </TableHead>
+                <TableHead className="gba:w-[10%] gba:bg-gray-50 gba:font-semibold">
+                  {getTranslationFromI18nKeyAndLabel(
+                    "lowcoder:expense_request_list.expense_request_filter.request_number_input",
+                    "Request Code",
+                  )}
                 </TableHead>
                 <TableHead
                   className="gba:w-[8%] gba:cursor-pointer gba:select-none gba:bg-gray-50 gba:font-semibold"
@@ -351,7 +363,7 @@ const ExpensePlansTable: React.FC<ExpensePlansTableProps> = (props) => {
                   </div>
                 </TableHead>
                 <TableHead
-                  className="gba:w-[45%] gba:cursor-pointer gba:select-none gba:bg-gray-50 gba:font-semibold gba:pr-6"
+                  className="gba:w-[20%] gba:cursor-pointer gba:select-none gba:bg-gray-50 gba:font-semibold gba:pr-6"
                   onClick={() => handleSort("status")}
                   data-testid={`${DATA_TEST_ID_PREFIX}-status-header`}
                 >
@@ -377,7 +389,7 @@ const ExpensePlansTable: React.FC<ExpensePlansTableProps> = (props) => {
                     }`}
                     onClick={() => handleSelectItem(plan)}
                   >
-                    <TableCell data-testid={`${DATA_TEST_ID_PREFIX}-actions-cell-${plan.id}`}>
+                    <TableCell className="gba:w-[60px] gba:py-4 gba:px-3" data-testid={`${DATA_TEST_ID_PREFIX}-actions-cell-${plan.id}`}>
                       <div
                         className="gba:flex gba:justify-start gba:gap-2"
                         onClick={(e) => e.stopPropagation()}
@@ -430,9 +442,16 @@ const ExpensePlansTable: React.FC<ExpensePlansTableProps> = (props) => {
                         />
                       </div>
                     </TableCell>
-                    <TableCell className="gba:text-left">
+                    <TableCell className="gba:text-left gba:w-[18%] gba:py-4 gba:px-3">
                       <div className="gba:font-medium gba:text-sm">{plan.title}</div>
-                      <div className="gba:text-xs gba:text-gray-500">{plan.code}</div>
+                    </TableCell>
+                    <TableCell className="gba:w-[10%] gba:py-4 gba:px-3 gba:text-sm">
+                      {plan.code || "N/A"}
+                    </TableCell>
+                    <TableCell className="gba:w-[10%] gba:py-4 gba:px-3 gba:text-sm">
+                      {(plan as any).expenseRequest && Array.isArray((plan as any).expenseRequest) && (plan as any).expenseRequest.length > 0
+                        ? ((plan as any).expenseRequest[0]?.code || "N/A")
+                        : "N/A"}
                     </TableCell>
                     <TableCell className="gba:text-sm">
                       {plan.startDate
@@ -518,7 +537,7 @@ const ExpensePlansTable: React.FC<ExpensePlansTableProps> = (props) => {
                             )}
                       </span>
                     </TableCell>
-                    <TableCell className="gba:pr-6 gba:w-[45%]">
+                    <TableCell className="gba:pr-6 gba:w-[35%]">
                       <Pill type={display.type as any} label={display.label} />
                     </TableCell>
                   </TableRow>
@@ -654,7 +673,17 @@ const ExpensePlansTable: React.FC<ExpensePlansTableProps> = (props) => {
       </Modal>
 
       {/* Expense Plan Details Sheet */}
-      <Sheet open={!!selectedItem} onOpenChange={(open) => !open && handleCloseDetails()}>
+      <Sheet
+        open={!!selectedItem}
+        onOpenChange={(open) => !open && handleCloseDetails()}
+        title={
+          selectedItem?.title ||
+          getTranslationFromI18nKeyAndLabel(
+            "lowcoder:approve_expense_plan.expense_subtitle_details",
+            "Expense Plan Details",
+          )
+        }
+      >
         <SheetContent className="gba:w-[600px] gba:sm:gba:w-[600px] gba:max-w-none">
           <SheetHeader>
             <SheetTitle className="gba:text-xl gba:font-semibold gba:text-gray-900">
