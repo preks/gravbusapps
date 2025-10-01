@@ -27,7 +27,7 @@ const BasicInformationSection: React.FC = () => {
             placeholder="Please Enter..."
             required
             className="gba:border-gray-300 gba:bg-white"
-            data-testid={formatDataTestId(prefixDataTestId, "FirstNameInput")}
+            data-testid={formatDataTestId(prefixDataTestId, "first-name-input")}
           />
         </div>
 
@@ -46,7 +46,7 @@ const BasicInformationSection: React.FC = () => {
             placeholder="Please Enter..."
             required
             className="gba:border-gray-300 gba:bg-white"
-            data-testid={formatDataTestId(prefixDataTestId, "LastNameInput")}
+            data-testid={formatDataTestId(prefixDataTestId, "last-name-input")}
           />
         </div>
       </div>
@@ -67,7 +67,7 @@ const BasicInformationSection: React.FC = () => {
           placeholder="Please Enter..."
           required
           className="gba:border-gray-300 gba:bg-white"
-          data-testid={formatDataTestId(prefixDataTestId, "CompanyInput")}
+          data-testid={formatDataTestId(prefixDataTestId, "company-input")}
         />
       </div>
     </div>

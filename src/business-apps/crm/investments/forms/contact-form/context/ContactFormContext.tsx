@@ -134,16 +134,6 @@ export const ContactFormProvider: React.FC<ContactFormProviderProps> = ({
   });
 
   // 🎯 DEBUG: Log initial values and form state for owner field debugging
-  console.log('🎯 ContactFormContext - Initialization:', {
-    initialValues: initialValues,
-    initialValuesOwner: initialValues?.owner,
-    initialValuesOwnerEmployeeId: initialValues?.ownerEmployeeId,
-    formValuesOwner: formValues.owner,
-    formValuesOwnerEmployeeId: formValues.ownerEmployeeId,
-    isLeadConversion: businessAppContext.additionalData?.isLeadConversion,
-    leadOwnerId: businessAppContext.additionalData?.leadOwnerId,
-    note: 'Check if initialValues.owner is being properly set in form state'
-  });
 
   // Global state
   const [isLoading, setIsLoading] = useState(false);
@@ -156,13 +146,6 @@ export const ContactFormProvider: React.FC<ContactFormProviderProps> = ({
   const contactId = businessAppContext.additionalData?.contactId;
 
   // Get current user as employee (for auto-owner selection)
-  console.log("🔍 Investment Contact Context: Current user info:", {
-    hasUserInfo: !!businessAppContext.userInfo,
-    employeeId: businessAppContext.userInfo?.employeeId,
-    employeeDetailsEmployeeId:
-      businessAppContext.userInfo?.employeeDetails?.employeeId,
-    hasAccessToken: !!businessAppContext.accessToken,
-  });
 
   const { employee: currentUserEmployee } = useEmployeeById({
     employeeId:

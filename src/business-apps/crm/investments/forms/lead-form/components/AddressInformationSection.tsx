@@ -128,7 +128,7 @@ const AddressInformationSection: React.FC = () => {
           e.currentTarget.style.background =
             "linear-gradient(to right, #fed7aa, #fdba74)";
         }}
-        data-testid={formatDataTestId(prefixDataTestId, "AddressInfoToggle")}
+        data-testid={formatDataTestId(prefixDataTestId, "address-info-toggle")}
       >
         <div className="gba:flex gba:items-center gba:gap-2 gba:flex-1">
           <div className="gba:w-2 gba:h-2 gba:bg-orange-500 gba:rounded-full"></div>
@@ -197,7 +197,7 @@ const AddressInformationSection: React.FC = () => {
                 onChange={handleRegionChange}
                 error={regionsError}
                 disabled={!selectedCountryCode || regions.length === 0}
-                data-testid={formatDataTestId(prefixDataTestId, "RegionSelect")}
+                data-testid={formatDataTestId(prefixDataTestId, "region-select")}
               />
               {selectedCountryCode && regions.length === 0 && (
                 <p className="gba:text-xs gba:text-gray-500 gba:mt-1">
@@ -223,7 +223,7 @@ const AddressInformationSection: React.FC = () => {
                     className="gba:text-red-700 gba:border-gray-300 gba:bg-white gba:hover:bg-red-50 gba:text-xs gba:px-2 gba:py-1"
                     data-testid={formatDataTestId(
                       prefixDataTestId,
-                      "RemoveAddressLineButton"
+                      "remove-address-line-button"
                     )}
                   >
                     <PiMinus className="gba:w-3 gba:h-3 gba:mr-1" />
@@ -239,7 +239,7 @@ const AddressInformationSection: React.FC = () => {
                     className="gba:text-blue-700 gba:border-gray-300 gba:bg-white gba:hover:bg-blue-50 gba:text-xs gba:px-2 gba:py-1"
                     data-testid={formatDataTestId(
                       prefixDataTestId,
-                      "AddAddressLineButton"
+                      "add-address-line-button"
                     )}
                   >
                     <PiPlus className="gba:w-3 gba:h-3 gba:mr-1" />

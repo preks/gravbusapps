@@ -695,10 +695,6 @@ export const AccountFormProvider: React.FC<AccountFormProviderProps> = ({
       !currentAccountId && // Don't auto-select when editing existing account
       !accountData // Don't auto-select when we have account data
     ) {
-      console.log(
-        "✅ Auto-selecting current user as owner:",
-        currentUserEmployee.employeeId
-      );
       setFormValuesState((prev) => ({
         ...prev,
         owner: currentUserEmployee.employeeId,

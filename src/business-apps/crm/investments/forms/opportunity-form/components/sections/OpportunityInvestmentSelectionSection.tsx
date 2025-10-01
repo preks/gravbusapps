@@ -1,5 +1,5 @@
 import React from "react";
-import { Label } from "@newwork/nw-design-system";
+import { Label, Input } from "@newwork/nw-design-system";
 import { formatDataTestId } from "@/common/utils/formatDataTestId";
 import { useOpportunityFormContext } from "../../context/OpportunityFormContext";
 import { useOpportunitySearchHandling } from "../../hooks/useOpportunitySearchHandling";
@@ -31,6 +31,21 @@ const OpportunityInvestmentSelectionSection: React.FC = () => {
 
   return (
     <div className="gba:space-y-6">
+      {/* Investment Name - Full width */}
+      <div className="gba:space-y-2">
+        <Label className="gba:block gba:text-sm gba:font-medium gba:text-gray-900">
+          Investment Name
+        </Label>
+        <Input
+          type="text"
+          value={formValues.investmentName || ""}
+          onChange={(e) => handleInputChange("investmentName", e.target.value)}
+          placeholder="Enter investment name..."
+          className="gba:border-gray-300 gba:bg-white"
+          data-testid={formatDataTestId(prefixDataTestId, "investment-name")}
+        />
+      </div>
+
       {/* Investment Group and Investment Type - Side by Side */}
       <div className="gba:grid gba:grid-cols-1 gba:gap-6 gba:md:grid-cols-2">
         {/* Investment Group */}

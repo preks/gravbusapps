@@ -137,6 +137,7 @@ export const InvestmentFormProvider: React.FC<InvestmentFormProviderProps> = ({
       ownerEmployeeId: initialValues.ownerEmployeeId || businessAppContext.userInfo?.employeeDetails?.employeeId || '',
       name: initialValues.name || '',
       accountId: initialValues.accountId || '',
+      contactId: initialValues.contactId || '',
       initialInvestmentAmount: initialValues.initialInvestmentAmount || '',
       group: initialValues.group || '',
       id: initialValues.id,

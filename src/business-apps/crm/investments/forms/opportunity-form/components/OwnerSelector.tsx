@@ -135,7 +135,7 @@ const OwnerSelector: React.FC<OwnerSelectorProps> = ({
         size="sm"
         onClick={handleChangeClick}
         className="gba:ml-3 gba:flex gba:items-center gba:gap-1"
-        data-testid={formatDataTestId(prefixDataTestId, "ChangeButton")}
+        data-testid={formatDataTestId(prefixDataTestId, "change-button")}
       >
         <PiPencilSimple size={14} />
         {selectedEmployee ? "Change" : "Select"}

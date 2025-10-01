@@ -1,12 +1,48 @@
+import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
+
 export interface Address {
   id: string; // Unique identifier for the address
-  addressType: string; // "BILLING", "SHIPPING", "OFFICE", "UNKNOWN_ADDRESS", etc.
-  addressLines: string[]; // Dynamic array of address lines
+  addressType: string; // "PRIMARY_ADDRESS", "SECONDARY_ADDRESS", "UNKNOWN_ADDRESS", etc.
+  addressLines: string[]; // Dynamic array of address lines (stored in additional properties)
   postalCode: string;
-  city: string;
-  region: string;
-  country: string;
+  locality: string; // City field (renamed to match API)
+  regionRef: string; // Region catalog reference ID
+  countryRef: string; // Country catalog reference ID
 }
+
+// Address Type enum values based on API model
+export const ADDRESS_TYPE_OPTIONS = [
+  {
+    value: "UNKNOWN_ADDRESS",
+    label:
+      typeof window === "undefined"
+        ? "Unknown Address"
+        : getTranslationFromI18nKeyAndLabel(
+            "address.type.unknown",
+            "Unknown Address"
+          ),
+  },
+  {
+    value: "PRIMARY_ADDRESS",
+    label:
+      typeof window === "undefined"
+        ? "Primary Address"
+        : getTranslationFromI18nKeyAndLabel(
+            "address.type.primary",
+            "Primary Address"
+          ),
+  },
+  {
+    value: "SECONDARY_ADDRESS",
+    label:
+      typeof window === "undefined"
+        ? "Secondary Address"
+        : getTranslationFromI18nKeyAndLabel(
+            "address.type.secondary",
+            "Secondary Address"
+          ),
+  },
+] as const;
 
 export interface AccountFormValues {
   // Account Information
@@ -31,8 +67,10 @@ export interface AccountFormValues {
   // Geographic Presence (simplified for InvestmentAccount)
   geographicPresence: string;
 
-  // ✅ REMOVED: Complex address handling - InvestmentAccount only has geographicPresence field
-  // Legacy fields kept for form compatibility but not used in payload
+  // Address Information (updated to match API model)
+  addresses: Address[]; // Array of addresses with proper structure
+  
+  // Legacy fields kept for form compatibility but made optional
   country?: string;
   region?: string;
   addressLine1?: string;
@@ -41,7 +79,6 @@ export interface AccountFormValues {
   addressLine4?: string;
   postalCode?: string;
   city?: string;
-  addresses?: Address[]; // Dynamic addresses array - not used
 
   // Financial Information
   annualRevenue: string;

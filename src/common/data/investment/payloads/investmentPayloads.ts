@@ -12,6 +12,7 @@ export interface InvestmentFormData {
   ownerEmployeeId: string;
   name: string;
   accountId: string;
+  contactId?: string; // Related contact
   initialInvestmentAmount: number | string;
   group: string; // Used for determining group type
   investmentGroupRef?: string; // The full catalog reference
@@ -35,6 +36,7 @@ export interface InvestmentFormData {
   
   // Mezzanine Loan fields (at Investment level)
   loanRecipientName?: string;
+  loanRecipientInvestmentAccountId?: string;
   loanAmount?: number | string;
   loanOpenCommitmentAmount?: number | string;
   loanInterestRate?: number | string;
@@ -143,11 +145,15 @@ export const buildInvestmentPayload = (
   const baseInvestmentPayload: any = {
     ownerEmployee: investment.ownerEmployeeId,
     name: investment.name,
-    ...(investment.accountId && { accountId: investment.accountId }), // Only include if not empty
+    ...(investment.accountId && { investmentAccount: investment.accountId }), // Only include if not empty
+    ...(investment.contactId && { contactId: investment.contactId }), // Only include if not empty
     initialInvestmentAmount: toNumber(investment.initialInvestmentAmount),
     
     // Investment group reference (required)
     investmentGroupRef: investment.investmentGroupRef || investment.group, // Use explicit ref or construct from group
+    
+    // Always set status to ACTIVE for new investments
+    ...(!options.isUpdate && { investmentStatusRef: 'InvestmentStatus:v1:ACTIVE' }),
     
     // Additional investment fields
     ...(investment.acquisitionDate && { acquisitionDate: toISOFormat(investment.acquisitionDate) }),
@@ -168,6 +174,7 @@ export const buildInvestmentPayload = (
     
     // Mezzanine Loan fields (at Investment level)
     ...(investment.loanRecipientName && { loanRecipientName: investment.loanRecipientName }),
+    ...(investment.loanRecipientInvestmentAccountId && { loanRecipientInvestmentAccount: investment.loanRecipientInvestmentAccountId }),
     ...(investment.loanAmount && { loanAmount: toNumber(investment.loanAmount) }),
     ...(investment.loanOpenCommitmentAmount && { loanOpenCommitmentAmount: toNumber(investment.loanOpenCommitmentAmount) }),
     ...(investment.loanInterestRate && { loanInterestRate: toNumber(investment.loanInterestRate) }),

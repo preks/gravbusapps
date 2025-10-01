@@ -13,7 +13,6 @@ export interface LeadFormValues {
   owner: string;
   leadStatus: string;
   leadSource: string;
-  leadSourceType?: string; // ✅ ADDED: Additional lead source type
   rating: string;
 
   // Contact Information

@@ -85,7 +85,7 @@ const EmployeeSelectionModal: React.FC<EmployeeSelectionModalProps> = ({
             size="sm"
             onClick={handleClose}
             className="gba:p-2"
-            data-testid={formatDataTestId(prefixDataTestId, "CloseButton")}
+            data-testid={formatDataTestId(prefixDataTestId, "close-button")}
           >
             <PiX size={16} />
           </Button>
@@ -110,7 +110,7 @@ const EmployeeSelectionModal: React.FC<EmployeeSelectionModalProps> = ({
                 style={{
                   paddingLeft: "32px",
                 }}
-                data-testid={formatDataTestId(prefixDataTestId, "SearchInput")}
+                data-testid={formatDataTestId(prefixDataTestId, "search-input")}
               />
             </div>
           </div>
@@ -224,7 +224,7 @@ const EmployeeSelectionModal: React.FC<EmployeeSelectionModalProps> = ({
           <Button
             variant="secondary"
             onClick={handleClose}
-            data-testid={formatDataTestId(prefixDataTestId, "CancelButton")}
+            data-testid={formatDataTestId(prefixDataTestId, "cancel-button")}
           >
             Cancel
           </Button>
