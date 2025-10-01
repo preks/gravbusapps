@@ -16,7 +16,7 @@ import { ContactView } from "./views/contact-view";
 import { OpportunityView } from "./views/opportunity-view";
 import { AnalyticsView } from "./views/analytics-view";
 import { DashboardView } from "./views/dashboard-view";
-import { TaskView } from "./views/task-view";
+import { TaskView } from "./views/task-view-new";
 import { navigateTo } from "@/common/utils/navigationUtils";
 import { useDashboardQueries } from "./views/dashboard-view/queries/DashboardQueries";
 import { PipelineInfo } from "./views/dashboard-view/types/dashboardTypes";
