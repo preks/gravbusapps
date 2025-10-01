@@ -402,7 +402,7 @@ const AdvancePaymentsTable = React.forwardRef<HTMLDivElement, AdvancePaymentsTab
                                 }] : [])
                               ]}
                               accessToken={contextProps.accessToken}
-                              emptyStateBehavior="disable"
+                              emptyStateBehavior="enable"
                               deferMainContextRequestsUntilClick={true}
                             />
                           </div>
@@ -605,7 +605,7 @@ const AdvancePaymentsTable = React.forwardRef<HTMLDivElement, AdvancePaymentsTab
       />
 
       {/* Advance Payment Details Sheet */}
-      <Sheet open={!!selectedItem} onOpenChange={(open) => !open && handleCloseDetails()}>
+      <Sheet open={!!selectedItem} onOpenChange={(open) => !open && handleCloseDetails()} title={selectedItem?.expensePlan?.title || getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.advance_payment_details', 'Advance Payment Details')}>
         <SheetContent className="gba:w-[600px] gba:sm:gba:w-[600px] gba:max-w-none">
           <SheetHeader>
             <SheetTitle className="gba:text-xl gba:font-semibold gba:text-gray-900">
@@ -625,7 +625,7 @@ const AdvancePaymentsTable = React.forwardRef<HTMLDivElement, AdvancePaymentsTab
       </Sheet>
 
       {/* Expense Plan Details Sheet */}
-      <Sheet open={!!selectedExpensePlan} onOpenChange={(open) => !open && handleCloseDetails()}>
+      <Sheet open={!!selectedExpensePlan} onOpenChange={(open) => !open && handleCloseDetails()} title={selectedExpensePlan?.title || getTranslationFromI18nKeyAndLabel('lowcoder:approve_expense_plan.expense_subtitle_details', 'Expense Plan Details')}>
         <SheetContent className="gba:w-[600px] gba:sm:gba:w-[600px] gba:max-w-none">
           <SheetHeader>
             <SheetTitle className="gba:text-xl gba:font-semibold gba:text-gray-900">
@@ -646,7 +646,7 @@ const AdvancePaymentsTable = React.forwardRef<HTMLDivElement, AdvancePaymentsTab
       </Sheet>
 
       {/* Expense Request Details Sheet */}
-      <Sheet open={!!selectedExpenseRequest} onOpenChange={(open) => !open && handleCloseDetails()}>
+      <Sheet open={!!selectedExpenseRequest} onOpenChange={(open) => !open && handleCloseDetails()} title={selectedExpenseRequest?.title || getTranslationFromI18nKeyAndLabel('lowcoder:expense_request_list.modal_list_or_flow_button.view_request_details', 'Expense Request Details')}>
         <SheetContent className="gba:w-[600px] gba:sm:gba:w-[600px] gba:max-w-none">
           <SheetHeader>
             <SheetTitle className="gba:text-xl gba:font-semibold gba:text-gray-900">
