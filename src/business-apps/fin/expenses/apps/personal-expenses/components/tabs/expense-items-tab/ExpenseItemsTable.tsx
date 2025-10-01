@@ -233,12 +233,12 @@ const ExpenseItemsTable: React.FC<ExpenseItemsTableProps> = React.memo((props) =
     });
     if (!allCreated) {
       const errorMessage = getTranslationFromI18nKeyAndLabel(
-        'gba.expenseItems.createRequestDraftOnly',
+        'lowcoder:personal_expenses.error_message_item',
         'An Expense Request can be started only with items in status DRAFT.'
       );
       notification.error({
         message: getTranslationFromI18nKeyAndLabel(
-          'gba.expenseItems.createRequestError',
+          'lowcoder:personal_expenses.error_message_create_request',
           'Cannot Create Expense Request'
         ),
         description: errorMessage,
@@ -254,12 +254,12 @@ const ExpenseItemsTable: React.FC<ExpenseItemsTableProps> = React.memo((props) =
     const uniqueCurrencies = [...new Set(currencies)];
     if (uniqueCurrencies.length > 1) {
       const errorMessage = getTranslationFromI18nKeyAndLabel(
-        'gba.expenseItems.createRequestCurrencyMismatch',
-        'All selected items must have the same currency to create an expense request.'
+        'lowcoder:expense_item_list.multiple_currencies_error_text',
+        'The selected expense items must have the same currency to proceed.'
       );
       notification.error({
         message: getTranslationFromI18nKeyAndLabel(
-          'gba.expenseItems.createRequestError',
+          'lowcoder:personal_expenses.error_message_create_request',
           'Cannot Create Expense Request'
         ),
         description: errorMessage,
@@ -294,12 +294,12 @@ const ExpenseItemsTable: React.FC<ExpenseItemsTableProps> = React.memo((props) =
     const allAllowed = selectedItems.every((item: any) => item.status === 'CREATED' || item.status === 'ASSIGNED');
     if (!allAllowed) {
       const errorMessage = getTranslationFromI18nKeyAndLabel(
-        'gba.expenseItems.deleteSelectionStatusError',
+        'lowcoder:personal_expenses.error_message_delete_selectiondiscard_error',
         'You can only discard items with status "Created" or "Assigned".'
       );
       notification.error({
         message: getTranslationFromI18nKeyAndLabel(
-          'gba.expenseItems.deleteSelectionError',
+          'lowcoder:personal_expenses.delete_selection_error',
           'Cannot Delete Selection'
         ),
         description: errorMessage,
