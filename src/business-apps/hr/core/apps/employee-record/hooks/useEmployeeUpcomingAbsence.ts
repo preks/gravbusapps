@@ -10,19 +10,21 @@ interface EmployeeAbsence {
   status: string;
   type: {
     value: string;
+    parentEntryId?: string;
   };
 }
 
 const getEmployeeUpcomingAbsence = `
-  query GetEmployeeUpcomingAbsence($employeeId: uuid!) {
+  query GetEmployeeUpcomingAbsence($employeeId: uuid!, $startDate: timestamp!) {
     EmployeeAbsence(
-      where: {
-        employee: {
-          id: { _eq: $employeeId }
-        },
-        startDate: { _gte: "${new Date().toISOString().split('T')[0]}" }
-      },
-      limit: 1
+     where: {
+        employeeId: { _eq: $employeeId },
+        isDeleted: { _eq: false },
+        _and: [
+          { startDate: { _gte: $startDate } }
+        ]
+      }
+      orderBy: { startDate: ASC }
     ) {
       id
       startDate
@@ -32,6 +34,7 @@ const getEmployeeUpcomingAbsence = `
       status
       type {
         value
+        parentEntryId
       }
     }
   }
@@ -40,7 +43,7 @@ const getEmployeeUpcomingAbsence = `
 export const useEmployeeUpcomingAbsence = (accessToken: string, employeeId: string) => {
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
-  const [upcomingAbsence, setUpcomingAbsence] = useState<EmployeeAbsence | null>(null);
+  const [upcomingAbsence, setUpcomingAbsence] = useState<EmployeeAbsence[] | null>(null);
 
   const graphqlClient = useGraphqlClient(accessToken);
 
@@ -50,17 +53,15 @@ export const useEmployeeUpcomingAbsence = (accessToken: string, employeeId: stri
 
       setLoading(true);
       setError(null);
-      
+
       try {
         const variables = {
-          employeeId
+          employeeId,
+          startDate: '2025-10-01',
         };
 
-        const response = await graphqlClient.request(
-          getEmployeeUpcomingAbsence,
-          variables
-        );
-        
+        const response = await graphqlClient.request(getEmployeeUpcomingAbsence, variables);
+
         // Check if we have data and sort by startDate to get the most immediate upcoming absence
         if (response?.EmployeeAbsence && response.EmployeeAbsence.length > 0) {
           // If we have multiple absences, sort them by startDate (ascending)
@@ -69,7 +70,7 @@ export const useEmployeeUpcomingAbsence = (accessToken: string, employeeId: stri
               return new Date(a.startDate).getTime() - new Date(b.startDate).getTime();
             });
           }
-          setUpcomingAbsence(response.EmployeeAbsence[0]);
+          setUpcomingAbsence(response.EmployeeAbsence);
         } else {
           setUpcomingAbsence(null);
         }
@@ -88,6 +89,6 @@ export const useEmployeeUpcomingAbsence = (accessToken: string, employeeId: stri
   return {
     loading,
     error,
-    upcomingAbsence
+    upcomingAbsence,
   };
 };
