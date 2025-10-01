@@ -23,6 +23,7 @@ const OpportunityFormWrapper: React.FC<OpportunityFormWrapperProps> = ({
   userInfo,
   additionalData,
 }) => {
+
   if (!accessToken) {
     return (
       <div className="gba:p-6 gba:text-center">

@@ -164,7 +164,7 @@ const PersonalInformationSection: React.FC = () => {
           e.currentTarget.style.background =
             "linear-gradient(to right, #bbf7d0, #6ee7b7)";
         }}
-        data-testid={formatDataTestId(prefixDataTestId, "PersonalInfoToggle")}
+        data-testid={formatDataTestId(prefixDataTestId, "personal-info-toggle")}
       >
         <div className="gba:flex gba:items-center gba:gap-2 gba:flex-1">
           <div className="gba:w-2 gba:h-2 gba:bg-green-500 gba:rounded-full"></div>
@@ -216,7 +216,7 @@ const PersonalInformationSection: React.FC = () => {
                 onOpenChange={setIsAcademicTitleOpen}
                 data-testid={formatDataTestId(
                   prefixDataTestId,
-                  "AcademicTitleSelect"
+                  "academic-title-select"
                 )}
               >
                 <SelectTrigger className="gba:border-gray-300 gba:bg-white">
@@ -254,7 +254,7 @@ const PersonalInformationSection: React.FC = () => {
                 onOpenChange={setIsLanguageOpen}
                 data-testid={formatDataTestId(
                   prefixDataTestId,
-                  "LanguageSelect"
+                  "language-select"
                 )}
               >
                 <SelectTrigger className="gba:border-gray-300 gba:bg-white">
@@ -293,7 +293,7 @@ const PersonalInformationSection: React.FC = () => {
               value={formValues.birthDate}
               onChange={(e) => setFormValues({ birthDate: e.target.value })}
               className="gba:border-gray-300 gba:bg-white"
-              data-testid={formatDataTestId(prefixDataTestId, "BirthDateInput")}
+              data-testid={formatDataTestId(prefixDataTestId, "birth-date-input")}
             />
           </div>
 
@@ -310,7 +310,7 @@ const PersonalInformationSection: React.FC = () => {
               className="gba:border-gray-300 gba:bg-white gba:h-24"
               data-testid={formatDataTestId(
                 prefixDataTestId,
-                "DescriptionInput"
+                "description-input"
               )}
             />
           </div>

@@ -56,7 +56,7 @@ const ContactInformationSection: React.FC = () => {
           e.currentTarget.style.background =
             "linear-gradient(to right, #bbf7d0, #6ee7b7)";
         }}
-        data-testid={formatDataTestId(prefixDataTestId, "ContactInfoToggle")}
+        data-testid={formatDataTestId(prefixDataTestId, "contact-info-toggle")}
       >
         <div className="gba:flex gba:items-center gba:gap-2 gba:flex-1">
           <div className="gba:w-2 gba:h-2 gba:bg-green-500 gba:rounded-full"></div>
@@ -97,7 +97,7 @@ const ContactInformationSection: React.FC = () => {
                 onChange={(e) => setFormValues({ phone: e.target.value })}
                 placeholder="Please Enter..."
                 className="gba:border-gray-300 gba:bg-white"
-                data-testid={formatDataTestId(prefixDataTestId, "PhoneInput")}
+                data-testid={formatDataTestId(prefixDataTestId, "phone-input")}
               />
             </div>
 
@@ -111,7 +111,7 @@ const ContactInformationSection: React.FC = () => {
                 onChange={(e) => setFormValues({ email: e.target.value })}
                 placeholder="Please Enter..."
                 className="gba:border-gray-300 gba:bg-white"
-                data-testid={formatDataTestId(prefixDataTestId, "EmailInput")}
+                data-testid={formatDataTestId(prefixDataTestId, "email-input")}
               />
             </div>
           </div>

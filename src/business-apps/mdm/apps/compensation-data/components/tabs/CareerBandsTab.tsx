@@ -1,7 +1,7 @@
-import React, { useState, useMemo, useEffect } from "react";
-import { BusinessAppContextProps } from "@/common/BusinessAppContext";
-import { PayGrade, JobLevelGroup, JobLevel } from "./PayGradesTab";
-import { useCompensationDataIntegration } from "../../hooks/useCompensationDataIntegration";
+import React, { useState, useMemo, useEffect } from 'react';
+import { BusinessAppContextProps } from '@/common/BusinessAppContext';
+import { PayGrade, JobLevelGroup, JobLevel } from './PayGradesTab';
+import { useCompensationDataIntegration } from '../../hooks/useCompensationDataIntegration';
 import {
   Card,
   CardContent,
@@ -13,9 +13,9 @@ import {
   Accordion,
   DataTable,
   Input,
-} from "@newwork/nw-design-system";
-import { CardTabHeaderComponent } from "../../../generic-components/card/CardTabHeaderComponent";
-import { formatDataTestId } from "@/common/utils/formatDataTestId";
+} from '@newwork/nw-design-system';
+import { CardTabHeaderComponent } from '../../../generic-components/card/CardTabHeaderComponent';
+import { formatDataTestId } from '@/common/utils/formatDataTestId';
 import {
   UsersIcon,
   ArrowsDownUpIcon,
@@ -26,9 +26,10 @@ import {
   SquaresFourIcon,
   InfoIcon,
   XCircleIcon,
-} from "@phosphor-icons/react";
-import { ColumnDef } from "@tanstack/react-table";
-import SheetWrapperComponent from "../../../generic-components/sheet-wrapper/SheetWrapperComponent";
+} from '@phosphor-icons/react';
+import { ColumnDef } from '@tanstack/react-table';
+import SheetWrapperComponent from '../../../generic-components/sheet-wrapper/SheetWrapperComponent';
+import { SortingState } from '@tanstack/react-table';
 
 export interface CareerBandsTabProps extends BusinessAppContextProps {
   prefixDataTestId?: string;
@@ -49,7 +50,7 @@ interface JobLevelDetail extends JobLevel {
   displayName: string;
 }
 
-const DATA_TEST_ID_PREFIX = "CareerBandsTab";
+const DATA_TEST_ID_PREFIX = 'CareerBandsTab';
 
 const CareerBandsTab: React.FC<CareerBandsTabProps> = (context) => {
   const { prefixDataTestId, userInfo } = context;
@@ -59,7 +60,10 @@ const CareerBandsTab: React.FC<CareerBandsTabProps> = (context) => {
   const [selectedJobLevelDetail, setSelectedJobLevelDetail] = useState<JobLevelDetail | null>(null);
   const [drawerVisible, setDrawerVisible] = useState<boolean>(false);
   const [accordionValue, setAccordionValue] = useState<string | string[]>([]);
-  const [searchTerm, setSearchTerm] = useState("");
+  const [searchTerm, setSearchTerm] = useState('');
+  const [sorting, setSorting] = useState<SortingState>([]);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const [selectedRows, setSelectedRows] = useState<any[]>([]);
 
   // Use real data integration
   const { payGrades, jobLevelGroups, jobLevels, isLoading, error, refetch } =
@@ -76,16 +80,16 @@ const CareerBandsTab: React.FC<CareerBandsTabProps> = (context) => {
   }, [jobLevels]);
 
   const formatCurrency = (amount: number, currency?: { id: string; value: string } | string) => {
-    let currencyCode = typeof currency === "string" ? currency : (currency?.id ?? "EUR");
+    let currencyCode = typeof currency === 'string' ? currency : (currency?.id ?? 'EUR');
 
     // Extract currency code from format like "Currency:v1:EUR" -> "EUR"
-    if (currencyCode.includes(":")) {
-      const parts = currencyCode.split(":");
+    if (currencyCode.includes(':')) {
+      const parts = currencyCode.split(':');
       currencyCode = parts[parts.length - 1]; // Get the last part
     }
 
-    return new Intl.NumberFormat("en-US", {
-      style: "currency",
+    return new Intl.NumberFormat('en-US', {
+      style: 'currency',
       currency: currencyCode,
       minimumFractionDigits: 2,
     }).format(amount);
@@ -125,7 +129,7 @@ const CareerBandsTab: React.FC<CareerBandsTabProps> = (context) => {
 
     const minSalary = Math.min(...details.map((d) => d.payGrade.minSalary));
     const maxSalary = Math.max(...details.map((d) => d.payGrade.maxSalary));
-    const currency = details[0]?.payGrade.currency ?? "EUR";
+    const currency = details[0]?.payGrade.currency ?? 'EUR';
 
     return {
       groupCount: details.length,
@@ -142,60 +146,60 @@ const CareerBandsTab: React.FC<CareerBandsTabProps> = (context) => {
     return [
       {
         icon: <InfoIcon />,
-        title: "Basic Information",
+        title: 'Basic Information',
         items: [
           {
-            label: "Name",
-            value: selectedJobLevelDetail.name ?? "-",
+            label: 'Name',
+            value: selectedJobLevelDetail.name ?? '-',
           },
           {
-            label: "Code",
-            value: selectedJobLevelDetail.code ?? "-",
+            label: 'Code',
+            value: selectedJobLevelDetail.code ?? '-',
           },
           {
-            label: "Pay Grade",
-            value: selectedJobLevelDetail.payGrade?.code ?? "-",
+            label: 'Pay Grade',
+            value: selectedJobLevelDetail.payGrade?.code ?? '-',
           },
           {
-            label: "Job Group",
-            value: selectedJobLevelDetail.jobLevelGroup?.name ?? "-",
+            label: 'Job Group',
+            value: selectedJobLevelDetail.jobLevelGroup?.name ?? '-',
           },
         ],
       },
       {
         icon: <InfoIcon />,
-        title: "Compensation Details",
+        title: 'Compensation Details',
         items: [
           {
-            label: "Currency",
+            label: 'Currency',
             value:
               selectedJobLevelDetail.payGrade?.currency?.value ??
               selectedJobLevelDetail.payGrade?.currency?.id ??
-              "-",
+              '-',
           },
           {
-            label: "Minimum Salary",
+            label: 'Minimum Salary',
             value: formatCurrency(
               selectedJobLevelDetail.payGrade?.minSalary ?? 0,
               selectedJobLevelDetail.payGrade?.currency,
             ),
           },
           {
-            label: "Standard Salary",
+            label: 'Standard Salary',
             value: formatCurrency(
               selectedJobLevelDetail.payGrade?.standardSalary ?? 0,
               selectedJobLevelDetail.payGrade?.currency,
             ),
           },
           {
-            label: "Maximum Salary",
+            label: 'Maximum Salary',
             value: formatCurrency(
               selectedJobLevelDetail.payGrade?.maxSalary ?? 0,
               selectedJobLevelDetail.payGrade?.currency,
             ),
           },
           {
-            label: "Salary Range",
+            label: 'Salary Range',
             value: formatCurrency(
               selectedJobLevelDetail.range ?? 0,
               selectedJobLevelDetail.payGrade?.currency,
@@ -205,19 +209,19 @@ const CareerBandsTab: React.FC<CareerBandsTabProps> = (context) => {
       },
       {
         icon: <InfoIcon />,
-        title: "Additional Details",
+        title: 'Additional Details',
         items: [
           {
-            label: "Category",
-            value: selectedJobLevelDetail.jobLevelGroup?.category ?? "-",
+            label: 'Category',
+            value: selectedJobLevelDetail.jobLevelGroup?.category ?? '-',
           },
           {
-            label: "Hierarchy Order",
-            value: selectedJobLevelDetail.hierarchyOrder ?? "-",
+            label: 'Hierarchy Order',
+            value: selectedJobLevelDetail.hierarchyOrder ?? '-',
           },
           {
-            label: "Level",
-            value: selectedJobLevelDetail.level ?? "-",
+            label: 'Level',
+            value: selectedJobLevelDetail.level ?? '-',
           },
         ],
       },
@@ -230,34 +234,34 @@ const CareerBandsTab: React.FC<CareerBandsTabProps> = (context) => {
     return [
       {
         redirectLink: `/mdm/compensation-data/pay-grades/${selectedJobLevelDetail.payGradeId}`,
-        color: "blue",
+        color: 'blue',
         icon: CurrencyCircleDollarIcon,
-        title: selectedJobLevelDetail.payGrade?.name ?? "Pay Grade Details",
+        title: selectedJobLevelDetail.payGrade?.name ?? 'Pay Grade Details',
         description:
-          "View complete pay grade information, salary structures and related job positions",
+          'View complete pay grade information, salary structures and related job positions',
       },
       {
         redirectLink: `/mdm/compensation-data/compensation-bands/${selectedJobLevelDetail.compensationBandId}`,
-        color: "green",
+        color: 'green',
         icon: BankIcon,
-        title: "Compensation Band Details",
+        title: 'Compensation Band Details',
         description:
-          "View complete compensation band structure, range analysis and market comparisons",
+          'View complete compensation band structure, range analysis and market comparisons',
       },
       {
         redirectLink: `/mdm/compensation-data/job-level-groups/${selectedJobLevelDetail.jobLevelGroupId}`,
-        color: "purple",
+        color: 'purple',
         icon: UsersIcon,
-        title: selectedJobLevelDetail.jobLevelGroup?.name ?? "Job Level Group",
+        title: selectedJobLevelDetail.jobLevelGroup?.name ?? 'Job Level Group',
         description: `View all positions within ${
-          selectedJobLevelDetail.jobLevelGroup?.name ?? "this group"
+          selectedJobLevelDetail.jobLevelGroup?.name ?? 'this group'
         }, career progression paths, and requirements`,
       },
       {
         redirectLink: `/mdm/organizational-data?structure=${selectedJobLevelDetail.id}`,
-        color: "orange",
+        color: 'orange',
         icon: SquaresFourIcon,
-        title: "Organizational Positions",
+        title: 'Organizational Positions',
         description: ` View organizational units and positions with ${selectedJobLevelDetail.name} level`,
       },
     ];
@@ -268,11 +272,11 @@ const CareerBandsTab: React.FC<CareerBandsTabProps> = (context) => {
 
     const columns: ColumnDef<JobLevelDetail>[] = [
       {
-        accessorKey: "name",
+        accessorKey: 'name',
         header: ({ column }) => (
           <Button
             variant="ghost"
-            onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+            onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}
             className="gba:h-auto gba:p-0 gba:font-semibold gba:hover:bg-transparent gba:justify-start"
           >
             Name
@@ -282,15 +286,15 @@ const CareerBandsTab: React.FC<CareerBandsTabProps> = (context) => {
         enableSorting: true,
         cell: ({ getValue }) => {
           const levelName = getValue();
-          return (levelName as string) ?? "N/A";
+          return (levelName as string) ?? 'N/A';
         },
       },
       {
-        accessorKey: "payGrade",
+        accessorKey: 'payGrade',
         header: ({ column }) => (
           <Button
             variant="ghost"
-            onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+            onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}
             className="gba:h-auto gba:p-0 gba:font-semibold gba:hover:bg-transparent gba:justify-start"
           >
             Pay Grade
@@ -300,15 +304,15 @@ const CareerBandsTab: React.FC<CareerBandsTabProps> = (context) => {
         enableSorting: true,
         cell: ({ getValue }) => {
           const payGrade = getValue();
-          return (payGrade as string) ?? "N/A";
+          return (payGrade as string) ?? 'N/A';
         },
       },
       {
-        accessorKey: "minSalary",
+        accessorKey: 'minSalary',
         header: ({ column }) => (
           <Button
             variant="ghost"
-            onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+            onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}
             className="gba:h-auto gba:p-0 gba:font-semibold gba:hover:bg-transparent gba:justify-start"
           >
             Minimum
@@ -318,15 +322,15 @@ const CareerBandsTab: React.FC<CareerBandsTabProps> = (context) => {
         enableSorting: true,
         cell: ({ getValue }) => {
           const minSalary = getValue();
-          return (minSalary as string) ?? "N/A";
+          return (minSalary as string) ?? 'N/A';
         },
       },
       {
-        accessorKey: "standardSalary",
+        accessorKey: 'standardSalary',
         header: ({ column }) => (
           <Button
             variant="ghost"
-            onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+            onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}
             className="gba:h-auto gba:p-0 gba:font-semibold gba:hover:bg-transparent gba:justify-start"
           >
             Standard
@@ -336,15 +340,15 @@ const CareerBandsTab: React.FC<CareerBandsTabProps> = (context) => {
         enableSorting: true,
         cell: ({ getValue }) => {
           const standardSalary = getValue();
-          return (standardSalary as string) ?? "N/A";
+          return (standardSalary as string) ?? 'N/A';
         },
       },
       {
-        accessorKey: "maxSalary",
+        accessorKey: 'maxSalary',
         header: ({ column }) => (
           <Button
             variant="ghost"
-            onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+            onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}
             className="gba:h-auto gba:p-0 gba:font-semibold gba:hover:bg-transparent gba:justify-start"
           >
             Maximum
@@ -354,15 +358,15 @@ const CareerBandsTab: React.FC<CareerBandsTabProps> = (context) => {
         enableSorting: true,
         cell: ({ getValue }) => {
           const maxSalary = getValue();
-          return (maxSalary as string) ?? "N/A";
+          return (maxSalary as string) ?? 'N/A';
         },
       },
       {
-        accessorKey: "range",
+        accessorKey: 'range',
         header: ({ column }) => (
           <Button
             variant="ghost"
-            onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+            onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}
             className="gba:h-auto gba:p-0 gba:font-semibold gba:hover:bg-transparent gba:justify-start"
           >
             Range
@@ -372,12 +376,12 @@ const CareerBandsTab: React.FC<CareerBandsTabProps> = (context) => {
         enableSorting: true,
         cell: ({ getValue }) => {
           const range = getValue();
-          return (range as string) ?? "N/A";
+          return (range as string) ?? 'N/A';
         },
       },
       {
-        id: "actions",
-        header: () => <div className="gba:flex gba:w-[20px]">Actions</div>,
+        id: 'actions',
+        header: () => <div className="gba:flex gba:w-[65px]">Actions</div>,
         enableSorting: false,
         enableHiding: true,
         cell: ({ row }) => (
@@ -406,15 +410,15 @@ const CareerBandsTab: React.FC<CareerBandsTabProps> = (context) => {
 
     return (
       <DataTable
-        defaultDataSetId="job-levels"
-        dataSets={[
-          {
-            id: "job-levels",
-            label: "Job Levels",
-            data: dataTable,
-            columns: columns,
-          },
-        ]}
+        data={dataTable}
+        columns={columns as ColumnDef<(typeof dataTable)[number]>[]}
+        sorting={sorting}
+        onSortingChange={setSorting}
+        selectedRows={selectedRows}
+        onSelectionChange={setSelectedRows}
+        enableSorting
+        enableSelection
+        enablePagination
       />
     );
   };
@@ -427,9 +431,9 @@ const CareerBandsTab: React.FC<CareerBandsTabProps> = (context) => {
         return {
           id: group.id,
           title: group.name,
-          description: summary ? summary.salaryRange : "No data",
+          description: summary ? summary.salaryRange : 'No data',
           badgeText: `${summary?.groupCount ?? 0} levels`,
-          badgeVariant: "info" as const,
+          badgeVariant: 'info' as const,
           contentDescription: group.description,
           content: <div className="gba:space-y-4">{renderJobLevelsTable(group.id)}</div>,
         };

@@ -208,17 +208,20 @@ export const InvestmentFormComponent: React.FC = () => {
             const groupRef = `InvestmentGroup:v1:${groupCode}`;
             const typeRef = typeCode ? `InvestmentType:v1:${typeCode}` : '';
             
-            // Prepare base form data
-            const baseFormData = {
-              id: rawInvestment.id,
-              name: rawInvestment.name || '',
-              code: rawInvestment.code || '',
-              ownerEmployeeId: rawInvestment.ownerEmployee?.id || '',
-              version: (rawInvestment as any).version || 1,
-              group: groupCode,
-              investmentGroupRef: groupRef,
-              investmentTypeRef: typeRef,
-              // Basic investment fields
+             // Prepare base form data
+             const baseFormData = {
+               id: rawInvestment.id,
+               name: rawInvestment.name || '',
+               code: rawInvestment.code || '',
+               ownerEmployeeId: rawInvestment.ownerEmployee?.id || '',
+               version: (rawInvestment as any).version || 1,
+               group: groupCode,
+               investmentGroupRef: groupRef,
+               investmentTypeRef: typeRef,
+               // Related entities - extract from investment data
+               accountId: rawInvestment.investmentAccount?.id || '',
+               contactId: rawInvestment.investmentAccount?.investmentAccountContact?.[0]?.contact?.id || '',
+               // Basic investment fields
               initialInvestmentAmount: rawInvestment.initialInvestmentAmount?.toString() || '',
               totalInvestmentAmount: rawInvestment.totalInvestmentAmount?.toString() || '',
               stakePercentage: rawInvestment.stakePercentage?.toString() || '',
@@ -469,6 +472,7 @@ export const InvestmentFormComponent: React.FC = () => {
         form={form} 
         formData={unifiedFormValues}
         processType={isUpdate ? 'update' : 'create'}
+        submitButtonText={isUpdate ? 'Update' : 'Create'}
         validateForm={() => {
           // Use react-hook-form validation state instead of bypassing validation entirely
           const errors = form.formState.errors;
@@ -489,8 +493,7 @@ export const InvestmentFormComponent: React.FC = () => {
               investmentGroupRef: formData.investmentGroupRef || (formData.group ? `InvestmentGroup:v1:${formData.group}` : ''),
               // Ensure ownerEmployeeId is present (should already be from unified data)
               ownerEmployeeId: formData.ownerEmployeeId || businessAppContext.userInfo?.employeeDetails?.employeeId || '',
-              // Ensure accountId is present - use empty string if not provided (backend may auto-assign)
-              accountId: formData.accountId || '', // Let backend handle missing accountId
+              // Don't override accountId and contactId - let validation handle missing value
             };
             
             // Build payload directly - no manual field injection needed

@@ -133,10 +133,8 @@ export const useEmployeeById = ({
   // Auto-fetch if employeeId is provided
   useEffect(() => {
     if (employeeId) {
-      console.log("👤 Employee by ID hook auto-fetching for:", employeeId);
       fetchEmployee(employeeId);
     } else {
-      console.log("⚠️ Employee by ID hook: No employeeId provided");
     }
   }, [employeeId, fetchEmployee]);
 

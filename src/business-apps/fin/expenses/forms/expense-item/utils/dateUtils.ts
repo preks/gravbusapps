@@ -38,12 +38,12 @@ export const formatDateToISOString = (date: Date | string | undefined): string =
     return getCurrentDateAsISOString();
   }
   
-  if (date instanceof Date) {
-    return date.toISOString().split("T")[0];
-  }
-  
   try {
-    return new Date(date).toISOString().split("T")[0];
+    const parsed = dayjs(date);
+    if (!parsed.isValid()) {
+      return getCurrentDateAsISOString();
+    }
+    return parsed.format('YYYY-MM-DD');
   } catch (error) {
     return getCurrentDateAsISOString();
   }

@@ -11,7 +11,6 @@ import { useContactFormContext } from "../context/ContactFormContext";
 import PersonalInformationSection from "./PersonalInformationSection";
 import ProfessionalInformationSection from "./ProfessionalInformationSection";
 import OwnerInformationSection from "./OwnerInformationSection";
-import AdditionalInformationSection from "./AdditionalInformationSection";
 
 const prefixDataTestId = "ContactForm";
 
@@ -45,8 +44,6 @@ const ContactFormComponent: React.FC = () => {
   // Handle form submission
   const handleSubmit = async () => {
     try {
-      await onSubmit(formValues);
-
       // Determine if this is an update or create operation
       const isUpdate = formValues.id;
 
@@ -97,14 +94,6 @@ const ContactFormComponent: React.FC = () => {
 
       const isolatedPayload = JSON.parse(JSON.stringify(cleanPayload));
 
-      console.log(
-        "✅ Investment Contact form dispatching pse_submit event with ISOLATED payload:",
-        isolatedPayload
-      );
-      console.log(
-        "🔍 Contact Payload keys before dispatch:",
-        Object.keys(isolatedPayload)
-      );
 
       dispatchProcessContinueEvent("pse_submit", isolatedPayload);
 
@@ -152,8 +141,6 @@ const ContactFormComponent: React.FC = () => {
           {/* Professional Information Section */}
           <ProfessionalInformationSection />
 
-          {/* Additional Information Section */}
-          <AdditionalInformationSection />
 
           {/* Error Display */}
           {error && (
@@ -172,7 +159,7 @@ const ContactFormComponent: React.FC = () => {
               className="gba:flex-1"
               size="lg"
               onClick={handleCancel}
-              data-testid={formatDataTestId(prefixDataTestId, "CancelButton")}
+              data-testid={formatDataTestId(prefixDataTestId, "cancel-button")}
             >
               Cancel
             </Button>
@@ -183,7 +170,7 @@ const ContactFormComponent: React.FC = () => {
               className="gba:flex-1"
               size="lg"
               onClick={handleSubmit}
-              data-testid={formatDataTestId(prefixDataTestId, "SubmitButton")}
+              data-testid={formatDataTestId(prefixDataTestId, "submit-button")}
             >
               {isLoading && <Spinner size="sm" className="gba:mr-2" />}
               {formValues.id ? "Update Contact" : "Create Contact"}

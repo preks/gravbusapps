@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useCallback, useEffect } from "react";
+import React, { useState, useMemo, useCallback, useEffect } from 'react';
 import {
   Card,
   CardContent,
@@ -15,19 +15,18 @@ import {
   SheetTitle,
   SheetClose,
   DataTable,
-  Badge,
-} from "@newwork/nw-design-system";
-import { BusinessAppContextProps } from "@/common/BusinessAppContext";
-import { useUserLocale } from "@/common/locale/useUserLocale";
-import { useCompensationDataIntegration } from "../../hooks/useCompensationDataIntegration";
-import { ColumnDef } from "@tanstack/react-table";
-import { PayGrade } from "./PayGradesTab";
-import { formatDataTestId } from "@/common/utils/formatDataTestId";
-import CardTabHeaderComponent from "../../../generic-components/card";
-import PayGradeForm from "@/business-apps/mdm/forms/pay-grade-form";
-import { DeleteButton } from "../../../generic-components/delete-button/DeleteButton";
-import { useRestClient } from "@/common/network/rest/useRestClient";
-import { env } from "@/common/env/EnvUtils";
+} from '@newwork/nw-design-system';
+import { BusinessAppContextProps } from '@/common/BusinessAppContext';
+import { useUserLocale } from '@/common/locale/useUserLocale';
+import { useCompensationDataIntegration } from '../../hooks/useCompensationDataIntegration';
+import type { ColumnDef, SortingState } from '@tanstack/react-table';
+import { PayGrade } from './PayGradesTab';
+import { formatDataTestId } from '@/common/utils/formatDataTestId';
+import CardTabHeaderComponent from '../../../generic-components/card';
+import PayGradeForm from '@/business-apps/mdm/forms/pay-grade-form';
+import { DeleteButton } from '../../../generic-components/delete-button/DeleteButton';
+import { useRestClient } from '@/common/network/rest/useRestClient';
+import { env } from '@/common/env/EnvUtils';
 import {
   EyeIcon,
   ArrowsDownUpIcon,
@@ -36,10 +35,11 @@ import {
   CurrencyCircleDollarIcon,
   XCircleIcon,
   InfoIcon,
-} from "@phosphor-icons/react";
-import { VerticalTable } from "../../../generic-components/table/VerticalTable";
+} from '@phosphor-icons/react';
+import { VerticalTable } from '../../../generic-components/table/VerticalTable';
+import type { PayGradeVisualization } from '../../types';
 
-const DATA_TEST_ID_PREFIX = "CompensationBandsTab";
+const DATA_TEST_ID_PREFIX = 'CompensationBandsTab';
 
 export interface CompensationBandsTabProps extends BusinessAppContextProps {
   prefixDataTestId?: string;
@@ -47,16 +47,18 @@ export interface CompensationBandsTabProps extends BusinessAppContextProps {
 
 const CompensationBandsTab: React.FC<CompensationBandsTabProps> = (context) => {
   const { prefixDataTestId } = context;
-  const userLocale = useUserLocale() ?? "en-US";
+  const userLocale = useUserLocale() ?? 'en-US';
   const dataTestId = formatDataTestId(prefixDataTestId, DATA_TEST_ID_PREFIX);
 
   // Use real data integration
   const { payGrades, isLoading, error, refetch } = useCompensationDataIntegration(context);
   const [selectedBand, setSelectedBand] = useState<PayGrade | null>(null);
   const [drawerVisible, setDrawerVisible] = useState<boolean>(false);
-  const [searchTerm, setSearchTerm] = useState("");
+  const [searchTerm, setSearchTerm] = useState('');
+  const [sorting, setSorting] = useState<SortingState>([]);
+  const [selectedRows, setSelectedRows] = useState<PayGradeVisualization[]>([]);
 
-  const restClient = useRestClient(env("NEXT_PUBLIC_KOGITO_PROCESSES_ENDPOINT"));
+  const restClient = useRestClient(env('NEXT_PUBLIC_KOGITO_PROCESSES_ENDPOINT'));
 
   useEffect(() => {
     if (selectedBand) {
@@ -70,16 +72,16 @@ const CompensationBandsTab: React.FC<CompensationBandsTabProps> = (context) => {
 
   const formatCurrency = useCallback(
     (amount: number, currency?: { id: string; value: string } | string) => {
-      let currencyCode = typeof currency === "string" ? currency : currency?.id || "EUR";
+      let currencyCode = typeof currency === 'string' ? currency : currency?.id || 'EUR';
 
       // Extract currency code from format like "Currency:v1:EUR" -> "EUR"
-      if (currencyCode.includes(":")) {
-        const parts = currencyCode.split(":");
+      if (currencyCode.includes(':')) {
+        const parts = currencyCode.split(':');
         currencyCode = parts[parts.length - 1]; // Get the last part
       }
 
       return new Intl.NumberFormat(userLocale, {
-        style: "currency",
+        style: 'currency',
         currency: currencyCode,
         minimumFractionDigits: 2,
       }).format(amount);
@@ -99,9 +101,9 @@ const CompensationBandsTab: React.FC<CompensationBandsTabProps> = (context) => {
 
   const handleDeletePayGrade = async (payGrade: PayGrade) => {
     await restClient.post(
-      "/employee/saveCompensationBand",
+      '/employee/saveCompensationBand',
       {
-        changeMode: "DELETE",
+        changeMode: 'DELETE',
         compensationBand: {
           id: payGrade.id,
           version: payGrade.version,
@@ -121,43 +123,43 @@ const CompensationBandsTab: React.FC<CompensationBandsTabProps> = (context) => {
     return [
       {
         icon: <InfoIcon />,
-        title: "Basic Information",
+        title: 'Basic Information',
         items: [
           {
-            label: "Name",
+            label: 'Name',
             value: selectedBand.name,
           },
           {
-            label: "Pay Grade",
+            label: 'Pay Grade',
             value: selectedBand.payGrade,
           },
           {
-            label: "Currency",
+            label: 'Currency',
             value:
-              typeof selectedBand.currency === "string"
+              typeof selectedBand.currency === 'string'
                 ? selectedBand.currency
-                : selectedBand.currency?.value || selectedBand.currency?.id || "-",
+                : selectedBand.currency?.value || selectedBand.currency?.id || '-',
           },
         ],
       },
       {
         icon: <InfoIcon />,
-        title: "Salary Information",
+        title: 'Salary Information',
         items: [
           {
-            label: "Minimum Salary",
+            label: 'Minimum Salary',
             value: formatCurrency(selectedBand.minSalary, selectedBand.currency),
           },
           {
-            label: "Standard Salary",
+            label: 'Standard Salary',
             value: formatCurrency(selectedBand.standardSalary, selectedBand.currency),
           },
           {
-            label: "Maximum Salary",
+            label: 'Maximum Salary',
             value: formatCurrency(selectedBand.maxSalary, selectedBand.currency),
           },
           {
-            label: "Salary Range",
+            label: 'Salary Range',
             value: formatCurrency(
               selectedBand.maxSalary - selectedBand.minSalary,
               selectedBand.currency,
@@ -176,11 +178,11 @@ const CompensationBandsTab: React.FC<CompensationBandsTabProps> = (context) => {
   const renderCompensationBandsTable = () => {
     const columns: ColumnDef<PayGrade>[] = [
       {
-        accessorKey: "name",
+        accessorKey: 'name',
         header: ({ column }) => (
           <Button
             variant="ghost"
-            onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+            onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}
             className="gba:h-auto gba:p-0 gba:font-semibold gba:hover:bg-transparent gba:justify-start"
           >
             Name
@@ -198,11 +200,11 @@ const CompensationBandsTab: React.FC<CompensationBandsTabProps> = (context) => {
         },
       },
       {
-        accessorKey: "minSalary",
+        accessorKey: 'minSalary',
         header: ({ column }) => (
           <Button
             variant="ghost"
-            onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+            onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}
             className="gba:h-auto gba:p-0 gba:font-semibold gba:hover:bg-transparent gba:justify-start"
           >
             Minimum Salary
@@ -217,11 +219,11 @@ const CompensationBandsTab: React.FC<CompensationBandsTabProps> = (context) => {
         },
       },
       {
-        accessorKey: "standardSalary",
+        accessorKey: 'standardSalary',
         header: ({ column }) => (
           <Button
             variant="ghost"
-            onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+            onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}
             className="gba:h-auto gba:p-0 gba:font-semibold gba:hover:bg-transparent gba:justify-start"
           >
             Standard Salary
@@ -236,11 +238,11 @@ const CompensationBandsTab: React.FC<CompensationBandsTabProps> = (context) => {
         },
       },
       {
-        accessorKey: "maxSalary",
+        accessorKey: 'maxSalary',
         header: ({ column }) => (
           <Button
             variant="ghost"
-            onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+            onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}
             className="gba:h-auto gba:p-0 gba:font-semibold gba:hover:bg-transparent gba:justify-start"
           >
             Maximum Salary
@@ -255,11 +257,11 @@ const CompensationBandsTab: React.FC<CompensationBandsTabProps> = (context) => {
         },
       },
       {
-        accessorKey: "range",
+        accessorKey: 'range',
         header: ({ column }) => (
           <Button
             variant="ghost"
-            onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+            onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}
             className="gba:h-auto gba:p-0 gba:font-semibold gba:hover:bg-transparent gba:justify-start"
           >
             Range
@@ -275,8 +277,8 @@ const CompensationBandsTab: React.FC<CompensationBandsTabProps> = (context) => {
         },
       },
       {
-        id: "actions",
-        header: "Actions",
+        id: 'actions',
+        header: () => <div className="gba:flex gba:w-[115px]">Actions</div>,
         enableSorting: false,
         enableHiding: true,
         cell: ({ row }) => {
@@ -307,7 +309,7 @@ const CompensationBandsTab: React.FC<CompensationBandsTabProps> = (context) => {
               <DeleteButton
                 onDelete={() => handleDeletePayGrade(row.original)}
                 itemName={row.original.name}
-                itemTitle={"Job Function"}
+                itemTitle={'Job Function'}
               />
             </div>
           );
@@ -317,15 +319,15 @@ const CompensationBandsTab: React.FC<CompensationBandsTabProps> = (context) => {
 
     return (
       <DataTable
-        defaultDataSetId="compensation-bands"
-        dataSets={[
-          {
-            id: "compensation-bands",
-            label: "Compensation Bands",
-            data: dataTable,
-            columns: columns,
-          },
-        ]}
+        data={dataTable}
+        columns={columns}
+        sorting={sorting}
+        onSortingChange={setSorting}
+        selectedRows={selectedRows}
+        onSelectionChange={setSelectedRows}
+        enableSorting
+        enableSelection
+        enablePagination
       />
     );
   };
@@ -401,6 +403,7 @@ const CompensationBandsTab: React.FC<CompensationBandsTabProps> = (context) => {
 
       {/* Compensation Band Details Sheet */}
       <Sheet
+        title="Compensation Band Details"
         open={drawerVisible}
         onOpenChange={(openStatus) => {
           if (!openStatus) {
@@ -410,13 +413,13 @@ const CompensationBandsTab: React.FC<CompensationBandsTabProps> = (context) => {
         }}
       >
         <style jsx>{`
-          [data-slot="sheet-overlay"] {
+          [data-slot='sheet-overlay'] {
             z-index: 1000 !important;
           }
-          [data-slot="sheet-content"] {
+          [data-slot='sheet-content'] {
             z-index: 1001 !important;
           }
-          [data-slot="select-content"] {
+          [data-slot='select-content'] {
             z-index: 1002 !important;
           }
         `}</style>

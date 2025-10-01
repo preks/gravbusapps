@@ -156,13 +156,9 @@ export const useSearchableCatalog = ({
   // Initial load - simplified version that works
   const initialize = useCallback(() => {
     if (state.initialized || state.loading) {
-      console.log(
-        `${catalogIdentifier} already initialized or loading, skipping...`
-      );
       return;
     }
 
-    console.log(`Initializing ${catalogIdentifier}...`);
     fetchCatalogEntries("", 0, false);
   }, [
     fetchCatalogEntries,

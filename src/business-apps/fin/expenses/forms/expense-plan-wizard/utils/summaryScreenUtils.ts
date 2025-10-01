@@ -82,7 +82,7 @@ export const createSummaryScreenLogObject = (
         expensePlan: initialAdvancePayment.expensePlanId,
         costCenter: initialAdvancePayment.costCenterId,
       } : null,
-      createBusinessTrip: true,
+      createBusinessTrip: false,
       employeeAbsence: {  
         typeRef: "AbsenceType:v1:A101",
         employeeId: initialPlan.employeeId,

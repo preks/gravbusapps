@@ -20,6 +20,7 @@ import type { InvestmentAccount } from "@/common/data/investment/types";
 import { AppActionButton } from "@/components/app-action-button/AppActionButton";
 import { FlowContextName } from "@/common/types/FlowRegistryTypes";
 import { formatDate } from "../utils";
+import { formatAddress } from "@/common/utils/addressFormatter";
 import { formatCurrencyParts } from '@/common/utils/numberFormatter';
 import { navigateTo } from "@/common/utils/navigationUtils";
 import type { SortInput } from "@/common/network/graphql/queryHelpers";
@@ -316,15 +317,63 @@ export const AccountList: React.FC<AccountListProps> = ({
                       </TableCell>
                     )}
                     {visibleColumns.includes("location") && (
-                      <TableCell>
-                        {account.geographicPresence && (
-                          <div className="gba:flex gba:items-center gba:gap-2">
-                            <MapPin className="gba:h-4 gba:w-4 gba:text-gray-400" />
-                            <span className="gba:text-sm">
-                              {account.geographicPresence}
-                            </span>
-                          </div>
-                        )}
+                      <TableCell data-testid={`investment-account-location-cell-${account.id}`}>
+                        <div className="gba:min-w-[200px]">
+                          {(() => {
+                            // Get the primary address from the investmentAddress array
+                            const primaryAddress = account.investmentAddress?.find(addr => 
+                              addr.addressType === 'PRIMARY_ADDRESS'
+                            ) || account.investmentAddress?.[0];
+                            
+                            if (primaryAddress) {
+                              const addressString = formatAddress({
+                                addressLine: primaryAddress.addressLine,
+                                locality: primaryAddress.locality,
+                                postalCode: primaryAddress.postalCode,
+                                country: primaryAddress.country?.value,
+                                region: primaryAddress.region?.value,
+                              });
+                              
+                              if (addressString) {
+                                const addressParts = addressString.split('\n');
+                                return (
+                                  <div className="gba:flex gba:items-start gba:gap-2">
+                                    <MapPin className="gba:w-4 gba:h-4 gba:text-gray-500 gba:mt-0.5" />
+                                    <div className="gba:flex gba:flex-col gba:gap-1">
+                                      {addressParts.map((part, index) => (
+                                        <div key={index} className="gba:text-sm gba:leading-snug">
+                                          {part}
+                                        </div>
+                                      ))}
+                                    </div>
+                                  </div>
+                                );
+                              }
+                            }
+                            
+                            // Fallback to geographicPresence if no address relationship
+                            if (account.geographicPresence) {
+                              return (
+                                <div className="gba:flex gba:items-start gba:gap-2">
+                                  <MapPin className="gba:w-4 gba:h-4 gba:text-gray-500 gba:mt-0.5" />
+                                  <div className="gba:flex gba:flex-col gba:gap-1">
+                                    <div className="gba:text-sm gba:leading-snug">
+                                      {account.geographicPresence}
+                                    </div>
+                                  </div>
+                                </div>
+                              );
+                            }
+                            
+                            // No address data available
+                            return (
+                              <div className="gba:flex gba:items-start gba:gap-2">
+                                <MapPin className="gba:w-4 gba:h-4 gba:text-gray-500 gba:mt-0.5" />
+                                <span className="gba:text-sm gba:text-gray-400">No address</span>
+                              </div>
+                            );
+                          })()}
+                        </div>
                       </TableCell>
                     )}
                     {visibleColumns.includes("industry") && (
