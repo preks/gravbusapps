@@ -11,6 +11,7 @@ export interface EmployeeData {
   fullName: string | null;
   displayName: string | null;
   preferredName: string | null;
+  pictureThumbnail?: string | null;
 }
 
 export interface CacheEntry {

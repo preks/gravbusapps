@@ -202,9 +202,9 @@ export const AIOnboardingTooltip: React.FC = () => {
 
       if (chatOpened) {
         console.log('🤖 ✅ Chat integration successful with gravity-platform!');
-        // Dismiss tooltip after successful chat opening
+        // Close tooltip after successful chat opening (temporary close, not permanent)
         setTimeout(() => {
-          handleDismiss();
+          handleClose();
         }, 500);
       } else {
         console.log('🤖 ❌ No chat button found, showing fallback message');
@@ -232,7 +232,7 @@ export const AIOnboardingTooltip: React.FC = () => {
         onClick={(e) => {
           // Only close if clicking the backdrop itself, not child elements
           if (e.target === e.currentTarget) {
-            handleDismiss();
+            handleClose();
           }
         }}
       />

@@ -242,6 +242,7 @@ export class EmployeeNameCache {
           fullName
           displayName
           preferredName
+          pictureThumbnail
         }
       }
     `;

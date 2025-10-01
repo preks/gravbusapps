@@ -24,6 +24,7 @@ import {
   Badge,
   Spinner,
   Avatar,
+  AvatarImage,
   AvatarFallback,
   Tooltip,
   TooltipProvider,
@@ -160,9 +161,10 @@ const SortableTableHead: React.FC<{
 const EnhancedEmployeeDisplay: React.FC<{
   userId: string;
   displayName: string;
+  employeeData?: any; // Full employee data from batch fetch (for future profile picture support)
   testId?: string;
   showTooltip?: boolean;
-}> = ({ userId, displayName, testId, showTooltip = true }) => {
+}> = ({ userId, displayName, employeeData, testId, showTooltip = true }) => {
   // Helper function to get employee initials
   const getInitials = (name: string) => {
     if (!name || name === "-") return "U";
@@ -189,7 +191,13 @@ const EnhancedEmployeeDisplay: React.FC<{
       onClick={handleEmployeeClick}
     >
       <Avatar size="sm" className="gba:outline gba:outline-2 gba:outline-offset-2 gba:outline-transparent gba:group-hover:[outline-color:var(--nw-color-primary-500)] gba:rounded-full">
-        {/* Note: We don't have pictureThumbnail in ticket data, so we'll use fallback */}
+        {/* Future: Profile picture support when available in employee data */}
+        {employeeData?.pictureThumbnail && (
+          <AvatarImage
+            src={`data:image/gif;base64,${employeeData.pictureThumbnail}`}
+            alt={displayName}
+          />
+        )}
         <AvatarFallback>
           {getInitials(displayName)}
         </AvatarFallback>
@@ -310,8 +318,8 @@ export const TicketTable: React.FC<TicketTableProps> = ({
     return [...new Set(userIds)];
   }, [tickets]);
 
-  // Batch fetch employee names for all users in the table
-  const { displayNames: batchedDisplayNames } = useEmployeeNamesBatch({
+  // Batch fetch employee names and data for all users in the table
+  const { displayNames: batchedDisplayNames, employees: batchedEmployees } = useEmployeeNamesBatch({
     userIds: allUserIds,
     accessToken,
     enabled: allUserIds.length > 0,
@@ -832,6 +840,7 @@ export const TicketTable: React.FC<TicketTableProps> = ({
                                 <EnhancedEmployeeDisplay
                                   userId={requesterUserId}
                                   displayName={displayName}
+                                  employeeData={batchedEmployees.get(requesterUserId)}
                                   testId={`requester-${ticket.id}`}
                                   showTooltip={true}
                                 />
@@ -920,6 +929,7 @@ export const TicketTable: React.FC<TicketTableProps> = ({
                                 <EnhancedEmployeeDisplay
                                   userId={assigneeUserId}
                                   displayName={displayName}
+                                  employeeData={batchedEmployees.get(assigneeUserId)}
                                   testId={`assignee-${ticket.id}`}
                                   showTooltip={true}
                                 />
