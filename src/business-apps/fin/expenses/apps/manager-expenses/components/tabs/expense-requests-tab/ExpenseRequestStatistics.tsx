@@ -1,6 +1,7 @@
-import React, { useCallback } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import { ExpenseRequestStatisticsData } from "../../../hooks/useGetExpenseRequests";
 import { WidgetGroup, WidgetItem } from "@/components/widget-group";
+import { Spinner } from "@newwork/nw-design-system";
 import { formatCurrencyDisplay } from "../../../../personal-expenses/utils";
 import { getTranslationFromI18nKeyAndLabel } from "@/common/utils/windowUtils";
 
@@ -151,21 +152,42 @@ const ExpenseRequestStatistics: React.FC<ExpenseRequestStatisticsProps> = ({
     [handleCardClick, selectedFilters, removeFilter],
   );
 
+  // Preserve last widgets to prevent flicker
+  const [lastWidgets, setLastWidgets] = useState<WidgetItem[] | null>(null);
+  useEffect(() => {
+    if (widgets && widgets.length > 0) setLastWidgets(widgets);
+  }, [widgets]);
+  const renderWidgets = widgets.length > 0 ? widgets : lastWidgets || [];
+
+  const [hasLoadedOnce, setHasLoadedOnce] = useState(false);
+  useEffect(() => {
+    if (!requestStatsLoading) setHasLoadedOnce(true);
+  }, [requestStatsLoading]);
+
   return (
-    <WidgetGroup
-      widgets={widgets}
-      isLoading={requestStatsLoading}
-      error={requestStatsError ? "Failed to load statistics" : undefined}
-      onRetry={fetchRequestStatistics}
-      onWidgetClick={handleWidgetClick}
-      skeletonCount={4}
-      emptyText={getTranslationFromI18nKeyAndLabel(
-        "lowcoder:personal_expenses.no_expense_request_statistics_available",
-        "No expense request statistics available.",
+    <div className="gba:relative gba:min-h-[160px]">
+      {(!hasLoadedOnce || requestStatsLoading) && (
+        <div className="gba:absolute gba:inset-0 gba:flex gba:items-center gba:justify-center">
+          <Spinner />
+        </div>
       )}
-      cardBackground="transparent"
-      className="gba:py-0"
-    />
+      <div className={!hasLoadedOnce || requestStatsLoading ? "gba:opacity-0" : "gba:opacity-100"}>
+        <WidgetGroup
+          widgets={renderWidgets}
+          isLoading={false}
+          error={hasLoadedOnce && requestStatsError ? "Failed to load statistics" : undefined}
+          onRetry={fetchRequestStatistics}
+          onWidgetClick={handleWidgetClick}
+          skeletonCount={4}
+          emptyText={hasLoadedOnce ? getTranslationFromI18nKeyAndLabel(
+            "lowcoder:personal_expenses.no_expense_request_statistics_available",
+            "No expense request statistics available.",
+          ) : undefined}
+          cardBackground="transparent"
+          className="gba:py-0"
+        />
+      </div>
+    </div>
   );
 };
 

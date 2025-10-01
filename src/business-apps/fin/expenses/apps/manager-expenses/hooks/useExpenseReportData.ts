@@ -399,24 +399,7 @@ export const useExpenseReportData = ({
         searchTerm: searchTerm ? `%${searchTerm}%` : "%%",
       });
 
-      const rows: AdvancePaymentReport[] = (result?.AdvancePayment || []).map((p: any) => {
-        const statusDisplay = p.status
-          ? getAdvancePaymentStatusDisplay(p.status)
-          : { label: "", type: "draft" };
-        const currencyCode = p?.currencyRef ? String(p.currencyRef).split(":").pop() || "" : "";
-        return {
-          id: p.id,
-          code: p.expensePlan?.code || p.code || "",
-          title: p.expensePlan?.title || "",
-          requestDate: p.createdAt ? formatDate(p.createdAt, "date.short") || "-" : "-",
-          status: statusDisplay.label,
-          amount: p.amount || 0,
-          employeeName: p.expensePlan?.employee?.fullName || "",
-          paymentMethod: p.paymentMethod || undefined,
-          costCenter: p.costCenter?.name || p.costCenter?.code || undefined,
-          currency: currencyCode,
-        };
-      });
+      const rows: AdvancePaymentReport[] = (result?.AdvancePayment || []).map(mapAdvancePaymentToReport);
 
       setReportData(rows);
       setTotalCount(result?.AdvancePaymentAggregate?.aggregate?.count || 0);
@@ -428,6 +411,25 @@ export const useExpenseReportData = ({
     }
   }, [graphqlClient, pageSize, currentPage, searchTerm, managerId]);
 
+  const mapAdvancePaymentToReport = useCallback((p: any): AdvancePaymentReport => {
+    const statusDisplay = p.status
+      ? getAdvancePaymentStatusDisplay(p.status)
+      : { label: "", type: "draft" };
+    const currencyCode = p?.currencyRef ? String(p.currencyRef).split(":").pop() || "" : "";
+    return {
+      id: p.id,
+      code: p.expensePlan?.code || p.code || "",
+      title: p.expensePlan?.title || "",
+      requestDate: p.createdAt ? formatDate(p.createdAt, "date.short") || "-" : "-",
+      status: statusDisplay.label,
+      amount: p.amount || 0,
+      employeeName: p.expensePlan?.employee?.fullName || "",
+      paymentMethod: p.paymentMethod || undefined,
+      costCenter: p.costCenter?.name || p.costCenter?.code || undefined,
+      currency: currencyCode,
+    };
+  }, []);
+
   // Fetch all rows for export (bypassing pagination) for the currently selected report and filters
   const fetchAllForExport = useCallback(async (): Promise<ReportItem[]> => {
     if (!graphqlClient || !selectedReportType) return [];
@@ -438,35 +440,45 @@ export const useExpenseReportData = ({
         case ReportType.EXPENSE_ITEM: {
           const all: ReportItem[] = [];
           let offset = 0;
-          // Loop until fewer than batchLimit items are returned
-          while (true) {
-            const result = await graphqlClient.request(GET_EXPENSE_ITEMS_BY_MANAGER, {
-              managerId: managerId,
-              limit: batchLimit,
-              offset,
-              searchTerm: searchTerm ? `%${searchTerm}%` : "%%",
-            });
-            const processed = processExpenseItemsData(result);
-            all.push(...processed);
-            if (!Array.isArray(processed) || processed.length < batchLimit) break;
-            offset += batchLimit;
+          try {
+            // Loop until fewer than batchLimit items are returned
+            while (true) {
+              const result = await graphqlClient.request(GET_EXPENSE_ITEMS_BY_MANAGER, {
+                managerId: managerId,
+                limit: batchLimit,
+                offset,
+                searchTerm: searchTerm ? `%${searchTerm}%` : "%%",
+              });
+              const processed = processExpenseItemsData(result);
+              all.push(...processed);
+              if (!Array.isArray(processed) || processed.length < batchLimit) break;
+              offset += batchLimit;
+            }
+          } catch (error) {
+            console.error('Error fetching batch for export (items):', error);
+            setError('Partial export: some items could not be fetched');
           }
           return all;
         }
         case ReportType.EXPENSE_PLAN: {
           const all: ReportItem[] = [];
           let offset = 0;
-          while (true) {
-            const result = await graphqlClient.request(GET_EXPENSE_PLANS_BY_MANAGER, {
-              managerId: managerId,
-              limit: batchLimit,
-              offset,
-              searchTerm: searchTerm ? `%${searchTerm}%` : "%%",
-            });
-            const processed = processExpensePlansData(result);
-            all.push(...processed);
-            if (!Array.isArray(processed) || processed.length < batchLimit) break;
-            offset += batchLimit;
+          try {
+            while (true) {
+              const result = await graphqlClient.request(GET_EXPENSE_PLANS_BY_MANAGER, {
+                managerId: managerId,
+                limit: batchLimit,
+                offset,
+                searchTerm: searchTerm ? `%${searchTerm}%` : "%%",
+              });
+              const processed = processExpensePlansData(result);
+              all.push(...processed);
+              if (!Array.isArray(processed) || processed.length < batchLimit) break;
+              offset += batchLimit;
+            }
+          } catch (error) {
+            console.error('Error fetching batch for export (plans):', error);
+            setError('Partial export: some plans could not be fetched');
           }
           return all;
         }
@@ -483,53 +495,46 @@ export const useExpenseReportData = ({
             ],
           } as any;
 
-          while (true) {
-            const result = await graphqlClient.request(GET_EXPENSE_REQUESTS_BY_MANAGER, {
-              where,
-              limit: batchLimit,
-              offset,
-              orderBy: [{ requestDate: "DESC" }],
-            });
-            const processed = processExpenseRequestsData(result);
-            all.push(...processed);
-            if (!Array.isArray(processed) || processed.length < batchLimit) break;
-            offset += batchLimit;
+          try {
+            while (true) {
+              const result = await graphqlClient.request(GET_EXPENSE_REQUESTS_BY_MANAGER, {
+                where,
+                limit: batchLimit,
+                offset,
+                orderBy: [{ requestDate: "DESC" }],
+              });
+              const processed = processExpenseRequestsData(result);
+              all.push(...processed);
+              if (!Array.isArray(processed) || processed.length < batchLimit) break;
+              offset += batchLimit;
+            }
+          } catch (error) {
+            console.error('Error fetching batch for export (requests):', error);
+            setError('Partial export: some requests could not be fetched');
           }
           return all;
         }
         case ReportType.ADVANCE_PAYMENT: {
           const all: ReportItem[] = [];
           let offset = 0;
-          while (true) {
-            const result = await graphqlClient.request(GET_ADVANCE_PAYMENTS_REPORT_BY_MANAGER, {
-              managerId: managerId,
-              limit: batchLimit,
-              offset,
-              searchTerm: searchTerm ? `%${searchTerm}%` : "%%",
-            });
+          try {
+            while (true) {
+              const result = await graphqlClient.request(GET_ADVANCE_PAYMENTS_REPORT_BY_MANAGER, {
+                managerId: managerId,
+                limit: batchLimit,
+                offset,
+                searchTerm: searchTerm ? `%${searchTerm}%` : "%%",
+              });
 
-            const rows: AdvancePaymentReport[] = (result?.AdvancePayment || []).map((p: any) => {
-              const statusDisplay = p.status
-                ? getAdvancePaymentStatusDisplay(p.status)
-                : { label: "", type: "draft" };
-              const currencyCode = p?.currencyRef ? String(p.currencyRef).split(":").pop() || "" : "";
-              return {
-                id: p.id,
-                code: p.expensePlan?.code || p.code || "",
-                title: p.expensePlan?.title || "",
-                requestDate: p.createdAt ? formatDate(p.createdAt, "date.short") || "-" : "-",
-                status: statusDisplay.label,
-                amount: p.amount || 0,
-                employeeName: p.expensePlan?.employee?.fullName || "",
-                paymentMethod: p.paymentMethod || undefined,
-                costCenter: p.costCenter?.name || p.costCenter?.code || undefined,
-                currency: currencyCode,
-              };
-            });
+              const rows: AdvancePaymentReport[] = (result?.AdvancePayment || []).map(mapAdvancePaymentToReport);
 
-            all.push(...rows);
-            if (!Array.isArray(rows) || rows.length < batchLimit) break;
-            offset += batchLimit;
+              all.push(...rows);
+              if (!Array.isArray(rows) || rows.length < batchLimit) break;
+              offset += batchLimit;
+            }
+          } catch (error) {
+            console.error('Error fetching batch for export (advance payments):', error);
+            setError('Partial export: some advance payments could not be fetched');
           }
           return all;
         }

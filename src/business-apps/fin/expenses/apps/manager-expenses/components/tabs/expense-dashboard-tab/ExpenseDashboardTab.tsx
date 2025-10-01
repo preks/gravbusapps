@@ -1,5 +1,5 @@
 import React from "react";
-import { Card, CardContent, CardHeader, CardTitle, IconAvatar } from "@newwork/nw-design-system";
+import { Card, CardContent, CardHeader, CardTitle, IconAvatar, Spinner } from "@newwork/nw-design-system";
 import {
   PiListChecks,
   PiChartLineUp,
@@ -20,7 +20,7 @@ import {
 } from "@/common/utils/windowUtils";
 import { WidgetGroup, WidgetItem } from "@/components/widget-group";
 import { formatCurrencyDisplay } from "../../../../personal-expenses/utils";
-import { getExpenseRequestStatusDisplay } from "../../../utils";
+import { getExpenseRequestStatusDisplay, getNormalizedErrorMessage } from "../../../utils";
 
 export interface ExpenseDashboardTabProps extends BusinessAppContextProps {
   onNavigateToApprovals?: () => void;
@@ -40,20 +40,7 @@ interface RecentRequestItem {
   currency?: string; // Add currency field for display purposes
 }
 
-const getErrorMessage = (err: unknown): string => {
-  if (
-    typeof err === "object" &&
-    err !== null &&
-    "message" in err &&
-    typeof (err as { message: unknown }).message === "string"
-  ) {
-    return (err as { message: string }).message;
-  }
-  if (typeof err === "string") {
-    return err;
-  }
-  return "An unknown error occurred";
-};
+const getErrorMessage = getNormalizedErrorMessage;
 
 const ExpenseDashboardTab: React.FC<ExpenseDashboardTabProps> = (props) => {
   const { moduleColor } = props;
@@ -66,8 +53,6 @@ const ExpenseDashboardTab: React.FC<ExpenseDashboardTabProps> = (props) => {
 
   // Use the currency filter hook with dynamic data
   const { currencyFilter, setCurrencyFilter } = useCurrencyFilter(accessToken, managerId);
-
-  // If needed, currencies can be refreshed manually via useCurrencyData().refetch
 
   // Get dashboard data
   const { dashboardData, isLoading, error } = useGetExpenseDashboard(props, currencyFilter);
@@ -226,19 +211,28 @@ const ExpenseDashboardTab: React.FC<ExpenseDashboardTabProps> = (props) => {
         </div>
       </div>
       {/* Statistics Cards using WidgetGroup */}
-      <div className="gba:mb-6">
-        <WidgetGroup
-          widgets={widgets}
-          isLoading={isLoading}
-          error={error ? getErrorMessage(error) : null}
-          onRetry={() => window.location.reload()}
-          skeletonCount={4}
-          emptyText={getTranslationFromI18nKeyAndLabel(
-            "lowcoder:team_expenses_page.dashboard_tab.no_statistics_available",
-            "No dashboard statistics available.",
-          )}
-          data-testid="expense-dashboard-statistics"
-        />
+      <div className="gba:mb-6 gba:relative gba:min-h-[160px]">
+        {/* Persist last widgets to avoid flicker */}
+        {(() => {
+          return null;
+        })()}
+        {isLoading && (
+          <div className="gba:absolute gba:inset-0 gba:flex gba:items-center gba:justify-center">
+            <Spinner />
+          </div>
+        )}
+        {/* Keep content mounted; hide overlay only on initial load */}
+        <div className={isLoading ? "gba:opacity-0" : "gba:opacity-100"}>
+          <WidgetGroup
+            widgets={widgets}
+            isLoading={false}
+            error={error ? getErrorMessage(error) : null}
+            onRetry={() => window.location.reload()}
+            skeletonCount={4}
+            emptyText={undefined}
+            data-testid="expense-dashboard-statistics"
+          />
+        </div>
       </div>
 
       {/* Main Content Area */}

@@ -21,6 +21,10 @@ export interface ExpensePlan {
   currency: string;
   createdAt: string;
   updatedAt: string;
+  expenseRequest?: Array<{
+    id: string;
+    code?: string;
+  }>;
   employeeDocument?: {
     file: string;
     fileSize: number;

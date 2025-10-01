@@ -1,5 +1,6 @@
-import React, { useCallback, useMemo } from "react";
+import React, { useCallback, useMemo, useEffect, useState } from "react";
 import { WidgetGroup, WidgetItem } from "@/components/widget-group";
+import { Spinner } from "@newwork/nw-design-system";
 import { PiCalendar, PiFileText } from "react-icons/pi";
 import { ExpenseStatus } from "../../../utils";
 import { formatCurrencyDisplay } from "../../../../personal-expenses/utils";
@@ -201,26 +202,49 @@ const ExpensePlanStatisticsDisplay: React.FC<ExpensePlanStatisticsProps> = ({
     ];
   }, [planStats, activeFilter, handleCardClick, displayCurrency]);
 
+  // Preserve last widgets to avoid flicker during loading
+  const [lastWidgets, setLastWidgets] = useState<WidgetItem[] | null>(null);
+  useEffect(() => {
+    if (widgets && widgets.length > 0) setLastWidgets(widgets);
+  }, [widgets]);
+  const renderWidgets = widgets.length > 0 ? widgets : lastWidgets || [];
+
   if (statsError) {
     console.error("Error loading expense plan statistics:", statsError);
   }
 
+  const [hasLoadedOnce, setHasLoadedOnce] = useState(false);
+  useEffect(() => {
+    if (!statsLoading) setHasLoadedOnce(true);
+  }, [statsLoading]);
+
+  const showOverlay = !hasLoadedOnce || statsLoading;
+
   return (
-    <WidgetGroup
-      widgets={widgets}
-      isLoading={statsLoading}
-      error={statsError ? "Failed to load statistics" : undefined}
-      onRetry={fetchPlanStatistics}
-      skeletonCount={4}
-      emptyText={getTranslationFromI18nKeyAndLabel(
-        "lowcoder:team_expenses_page.expense_plans_tab.no_expense_plan_statistics_available",
-        "No expense plan statistics available.",
+    <div className="gba:relative gba:min-h-[160px]">
+      {showOverlay && (
+        <div className="gba:absolute gba:inset-0 gba:flex gba:items-center gba:justify-center">
+          <Spinner />
+        </div>
       )}
-      cardBackground="transparent"
-      className="gba:py-0 gba:bg-transparent"
-      onWidgetClick={handleWidgetClick}
-      hoverable={true}
-    />
+      <div className={showOverlay ? "gba:opacity-0" : "gba:opacity-100"}>
+        <WidgetGroup
+          widgets={renderWidgets}
+          isLoading={false}
+          error={hasLoadedOnce && statsError ? "Failed to load statistics" : undefined}
+          onRetry={fetchPlanStatistics}
+          skeletonCount={4}
+          emptyText={hasLoadedOnce ? getTranslationFromI18nKeyAndLabel(
+            "lowcoder:team_expenses_page.expense_plans_tab.no_expense_plan_statistics_available",
+            "No expense plan statistics available.",
+          ) : undefined}
+          cardBackground="transparent"
+          className="gba:py-0 gba:bg-transparent"
+          onWidgetClick={handleWidgetClick}
+          hoverable={true}
+        />
+      </div>
+    </div>
   );
 };
 

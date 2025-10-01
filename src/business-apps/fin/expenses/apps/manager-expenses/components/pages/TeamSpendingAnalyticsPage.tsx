@@ -1,6 +1,6 @@
 import React, { useMemo, useState, useEffect } from "react";
 import { useCurrencyStore } from "../../store/useCurrencyStore";
-import { useCurrencyData } from "../../hooks/useCurrencyData";
+import { useCurrencyData, standardizeCurrencyRef } from "../../hooks/useCurrencyData";
 import {
   Card,
   CardContent,
@@ -57,7 +57,6 @@ const TeamSpendingAnalyticsPage: React.FC<TeamSpendingAnalyticsPageProps> = ({
     availableCurrencies,
     defaultCurrency,
     isLoading: isCurrencyLoading,
-    standardizeCurrencyRef,
   } = useCurrencyData(
     accessToken,
     userInfo?.employeeDetails?.employeeId || "00000000-0000-0000-0000-000000000000",
@@ -69,7 +68,7 @@ const TeamSpendingAnalyticsPage: React.FC<TeamSpendingAnalyticsPageProps> = ({
   // Create a standardized currency reference for GraphQL queries
   const standardizedCurrencyRef = useMemo(() => {
     return currencyFilter ? standardizeCurrencyRef(currencyFilter) : null;
-  }, [currencyFilter, standardizeCurrencyRef]);
+  }, [currencyFilter]);
 
   // Use the team spending analytics hook
   const {

@@ -338,3 +338,14 @@ export const getAdvancePaymentStatusDisplay = (status: string): StatusDisplayCon
       };
   }
 };
+
+/**
+ * Normalizes unknown error values into a user-friendly string message
+ */
+export const getNormalizedErrorMessage = (err: unknown): string => {
+  if (typeof err === 'string') return err;
+  if (err && typeof err === 'object' && 'message' in err && typeof (err as any).message === 'string') {
+    return (err as any).message as string;
+  }
+  return 'An unknown error occurred';
+};

@@ -144,30 +144,31 @@ const ManagerExpenses: React.FC<ManagerExpensesProps> = (props) => {
     // Currency is now managed globally via the store, no need to pass it explicitly
   };
 
-  // Render tab content based on active tab
-  const renderTabContent = () => {
-    switch (activeTab) {
-      case "dashboard":
-        return (
-          <ExpenseDashboardTab
-            {...tabProps}
-            onNavigateToApprovals={handleNavigateToApprovals}
-            onNavigateToReports={handleNavigateToReports}
-            onNavigateToAnalytics={handleNavigateToAnalytics}
-          />
-        );
-      case "expense-plans":
-        return <ExpensePlansTab {...tabProps} />;
-      case "advance-payments":
-        return <AdvancePaymentsTab {...tabProps} />;
-      case "expense-requests":
-        return <ExpenseRequestsTab {...tabProps} />;
-      case "expense-calendar":
-        return <ExpenseCalendarTab {...tabProps} />;
-      default:
-        return null;
-    }
-  };
+  // Keep tab contents mounted to prefetch and avoid layout flicker
+  const renderAllTabsKeptMounted = () => (
+    <div>
+      <div className={activeTab === "dashboard" ? "" : "gba:hidden"}>
+        <ExpenseDashboardTab
+          {...tabProps}
+          onNavigateToApprovals={handleNavigateToApprovals}
+          onNavigateToReports={handleNavigateToReports}
+          onNavigateToAnalytics={handleNavigateToAnalytics}
+        />
+      </div>
+      <div className={activeTab === "expense-plans" ? "" : "gba:hidden"}>
+        <ExpensePlansTab {...tabProps} />
+      </div>
+      <div className={activeTab === "advance-payments" ? "" : "gba:hidden"}>
+        <AdvancePaymentsTab {...tabProps} />
+      </div>
+      <div className={activeTab === "expense-requests" ? "" : "gba:hidden"}>
+        <ExpenseRequestsTab {...tabProps} />
+      </div>
+      <div className={activeTab === "expense-calendar" ? "" : "gba:hidden"}>
+        <ExpenseCalendarTab {...tabProps} />
+      </div>
+    </div>
+  );
 
   // Render based on current view
   if (currentView === "approvals") {
@@ -205,7 +206,7 @@ const ManagerExpenses: React.FC<ManagerExpensesProps> = (props) => {
         }}
         className="gba:min-h-screen"
       >
-        {renderTabContent()}
+        {renderAllTabsKeptMounted()}
       </PageLayout>
     </div>
   );

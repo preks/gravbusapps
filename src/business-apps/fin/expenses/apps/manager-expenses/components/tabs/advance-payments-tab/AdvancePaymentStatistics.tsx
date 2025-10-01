@@ -1,6 +1,7 @@
-import React from "react";
+import React, { useEffect, useState } from "react";
 import { AdvancePaymentStatistics as AdvancePaymentStatisticsData } from "../../../hooks/useMainViewAdvancePayments";
 import { WidgetGroup, WidgetItem } from "@/components/widget-group";
+import { Spinner } from "@newwork/nw-design-system";
 import { getTranslationFromI18nKeyAndLabel } from "@/common/utils/windowUtils";
 import { useCurrencyStore } from "../../../store/useCurrencyStore";
 import { formatCurrencyDisplay } from "../../../../personal-expenses/utils";
@@ -59,17 +60,37 @@ const AdvancePaymentStatistics: React.FC<AdvancePaymentStatisticsProps> = ({
       ]
     : [];
 
+  const [lastWidgets, setLastWidgets] = useState<WidgetItem[] | null>(null);
+  useEffect(() => {
+    if (widgets && widgets.length > 0) setLastWidgets(widgets);
+  }, [widgets]);
+  const renderWidgets = widgets.length > 0 ? widgets : lastWidgets || [];
+
+  const [hasLoadedOnce, setHasLoadedOnce] = useState(false);
+  useEffect(() => {
+    if (!statsLoading) setHasLoadedOnce(true);
+  }, [statsLoading]);
+
   return (
-    <WidgetGroup
-      widgets={widgets}
-      isLoading={statsLoading}
-      error={statsError ? "Failed to load statistics" : undefined}
-      onRetry={fetchAdvancePaymentStatistics}
-      skeletonCount={4}
-      emptyText="No advance payment statistics available."
-      cardBackground="transparent"
-      className="gba:py-0"
-    />
+    <div className="gba:relative gba:min-h-[160px]">
+      {(!hasLoadedOnce || statsLoading) && (
+        <div className="gba:absolute gba:inset-0 gba:flex gba:items-center gba:justify-center">
+          <Spinner />
+        </div>
+      )}
+      <div className={!hasLoadedOnce || statsLoading ? "gba:opacity-0" : "gba:opacity-100"}>
+        <WidgetGroup
+          widgets={renderWidgets}
+          isLoading={false}
+          error={hasLoadedOnce && statsError ? "Failed to load statistics" : undefined}
+          onRetry={fetchAdvancePaymentStatistics}
+          skeletonCount={4}
+          emptyText={hasLoadedOnce ? "No advance payment statistics available." : undefined}
+          cardBackground="transparent"
+          className="gba:py-0"
+        />
+      </div>
+    </div>
   );
 };
 

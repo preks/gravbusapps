@@ -145,7 +145,8 @@ export const useCurrencyData = (accessToken: string, managerId: string) => {
     error,
     mostUsedCurrency: localMostUsedCurrency || storeMostUsedCurrency,
     defaultCurrency,
-    standardizeCurrencyRef,
-    refetch: useCallback(() => fetchCurrencyData(), [fetchCurrencyData])
+    refetch: fetchCurrencyData
   };
 };
+
+export { standardizeCurrencyRef };
