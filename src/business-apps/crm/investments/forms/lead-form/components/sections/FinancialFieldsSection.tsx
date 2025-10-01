@@ -57,7 +57,7 @@ const FinancialFieldsSection: React.FC = () => {
               onSearch={searchInvestmentRoles}
               onChange={(value) => setFormValues({ investmentRole: value })}
               error={null}
-              data-testid={formatDataTestId(prefixDataTestId, "InvestmentRoleSelect")}
+              data-testid={formatDataTestId(prefixDataTestId, "investment-role-select")}
               className="gba:w-full"
             />
           </div>
@@ -103,7 +103,7 @@ const FinancialFieldsSection: React.FC = () => {
                 onSearch={searchInvestmentStakeTypes}
                 onChange={(value) => setFormValues({ investmentStakeType: value })}
                 error={null}
-                data-testid={formatDataTestId(prefixDataTestId, "InvestmentStakeTypeSelect")}
+                data-testid={formatDataTestId(prefixDataTestId, "investment-stake-type-select")}
                 className="gba:w-full"
               />
             </div>
@@ -225,7 +225,7 @@ const FinancialFieldsSection: React.FC = () => {
                 onSearch={searchMeasurementUnits}
                 onChange={(value) => setFormValues({ measurementUnit: value })}
                 error={null}
-                data-testid={formatDataTestId(prefixDataTestId, "MeasurementUnitSelect")}
+                data-testid={formatDataTestId(prefixDataTestId, "measurement-unit-select")}
                 className="gba:w-full"
               />
             </div>

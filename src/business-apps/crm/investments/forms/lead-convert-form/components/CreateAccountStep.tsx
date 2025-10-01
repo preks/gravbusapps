@@ -39,17 +39,6 @@ export const CreateAccountStep: React.FC<CreateAccountStepProps> = ({
           </div>
         ) : (
           (() => {
-            console.log('🔍 Rendering AccountFormWrapper with initial values:', accountInitialValues);
-            console.log('🔍 Lead data available:', !!leadData);
-            console.log('🔍 Form key:', `account-form-${actualLeadId}-${leadData?.id || 'no-data'}`);
-            console.log('🎯 OWNER FIELD DEBUG - Account:', {
-              leadDataOwnerEmployeeId: leadData?.ownerEmployeeId,
-              leadDataOwnerEmployee: leadData?.ownerEmployee,
-              accountInitialValuesOwner: accountInitialValues.owner,
-              accountInitialValuesOwnerEmployeeId: accountInitialValues.ownerEmployeeId,
-              hasLeadData: !!leadData,
-              note: 'Owner field should be set to leadData.ownerEmployeeId'
-            });
             
             return (
               <AccountFormWrapper

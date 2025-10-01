@@ -1,21 +1,17 @@
 import React from 'react';
 import {
-  Sheet,
-  SheetContent,
-  SheetHeader,
-  SheetTitle,
-  Badge,
+  
   Separator,
-  Button,
   Card,
   CardContent,
   CardHeader,
   CardTitle
 } from '@newwork/nw-design-system';
+import Pill from '@/components/pill';
 import { AdvancePayment } from '../../../hooks/useGetAdvancePayments';
 import { getAdvancePaymentStatusDisplay } from '../../../utils';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
-import { getTranslationFromI18nKeyAndLabel, formatNumberFunction } from '@/common/utils/windowUtils';
+import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
 import { formatCurrencyDisplay } from '../../../utils';
 
 interface AdvancePaymentDetailsProps extends BusinessAppContextProps {
@@ -36,18 +32,10 @@ const AdvancePaymentDetails: React.FC<AdvancePaymentDetailsProps> = ({ payment, 
             {payment.code}
           </p>
         </div>
-        <Badge
-          variant={
-            getAdvancePaymentStatusDisplay(payment.status).type === 'completed' ? 'success' :
-            getAdvancePaymentStatusDisplay(payment.status).type === 'error' ? 'destructive' :
-            getAdvancePaymentStatusDisplay(payment.status).type === 'task' ? 'warning' :
-            getAdvancePaymentStatusDisplay(payment.status).type === 'waiting' ? 'secondary' : 'default'
-          }
-          className="gba:text-sm"
-          data-testid="advance-payment-status-badge"
-        >
-          {getAdvancePaymentStatusDisplay(payment.status).label}
-        </Badge>
+        {(() => {
+          const statusConfig = getAdvancePaymentStatusDisplay(payment.status);
+          return <Pill type={statusConfig.type} label={statusConfig.label} color={statusConfig.color} data-testid="advance-payment-status-badge" />;
+        })()}
       </div>
 
       {/* Details Information */}

@@ -16,6 +16,9 @@ const AccountSelectionSection: React.FC = () => {
 
   const { handleInputChange } = useOpportunityFormFieldClearing();
 
+  // Hide account selection when creating opportunity from lead conversion
+  const isLeadConversion = businessAppContext.additionalData?.leadId;
+
   // Simple accounts hook
   const {
     options: simpleAccounts,
@@ -27,6 +30,11 @@ const AccountSelectionSection: React.FC = () => {
   } = useAccountsGraphQL({
     accessToken: businessAppContext.accessToken,
   });
+
+  // Hide account selection when creating opportunity from lead conversion
+  if (isLeadConversion) {
+    return null;
+  }
 
   return (
     <div className="gba:space-y-6">

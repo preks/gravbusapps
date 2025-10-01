@@ -103,7 +103,7 @@ const StatusSourceSection: React.FC = () => {
           onLoadMore={loadMoreLeadStatuses}
           onChange={(value) => setFormValues({ leadStatus: value })}
           error={null}
-          data-testid={formatDataTestId(prefixDataTestId, "LeadStatusSelect")}
+          data-testid={formatDataTestId(prefixDataTestId, "lead-status-select")}
           className="gba:w-full"
         />
 
@@ -124,48 +124,10 @@ const StatusSourceSection: React.FC = () => {
           onLoadMore={loadMoreLeadSources}
           onChange={(value) => setFormValues({ leadSource: value })}
           error={null}
-          data-testid={formatDataTestId(prefixDataTestId, "LeadSourceSelect")}
+          data-testid={formatDataTestId(prefixDataTestId, "lead-source-select")}
           className="gba:w-full"
         />
 
-        {/* Lead Source Type */}
-        <div className="gba:space-y-2">
-          <Label className="gba:text-sm gba:font-medium gba:text-gray-900">
-            Source Type
-          </Label>
-          <Select
-            value={
-              typeof formValues.leadSourceType === "string"
-                ? formValues.leadSourceType
-                : ""
-            }
-            onValueChange={(value) =>
-              setFormValues({ leadSourceType: value || "" })
-            }
-            data-testid={formatDataTestId(
-              prefixDataTestId,
-              "LeadSourceTypeSelect"
-            )}
-          >
-            <SelectTrigger className="gba:border-gray-300 gba:bg-white">
-              <SelectValue placeholder="Please Select Source Type..." />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="UNKNOWN_LEAD_SOURCE_TYPE">
-                Unknown Lead Source Type
-              </SelectItem>
-              <SelectItem value="INDIVIDUAL_LEAD_SOURCE">
-                Individual Lead Source
-              </SelectItem>
-              <SelectItem value="COMPANY_LEAD_SOURCE">
-                Company Lead Source
-              </SelectItem>
-              <SelectItem value="INDIVIDUAL_COMPANY_LEAD_SOURCE">
-                Individual Company Lead Source
-              </SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
       </div>
 
       {/* Rating and Sensitive - Same Row */}
@@ -188,7 +150,7 @@ const StatusSourceSection: React.FC = () => {
             onLoadMore={loadMoreLeadRatings}
             onChange={(value) => setFormValues({ rating: value })}
             error={null}
-            data-testid={formatDataTestId(prefixDataTestId, "RatingSelect")}
+            data-testid={formatDataTestId(prefixDataTestId, "rating-select")}
             className="gba:w-full"
           />
         </div>

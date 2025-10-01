@@ -190,12 +190,6 @@ export const setOnePositionItem = async (
     });
   }
   
-  if (item.expenseRequest) {
-    form.setFieldsValue({
-      expenseRequestId: item.expenseRequest.id
-    });
-  }
-  
   if (position) {
     const positionId = `position-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
     
@@ -341,11 +335,6 @@ export const setMultiPositionItem = async (
     });
   }
   
-  if (item.expenseRequest) {
-    form.setFieldsValue({
-      expenseRequestId: item.expenseRequest.id
-    });
-  }
   
 
   if (item.expensePosition && item.expensePosition.length > 0) {
@@ -544,6 +533,12 @@ export const setByEdit = async (
           t
         );
       }
+      try {
+        if (item?.expenseRequest?.id) {
+          form.setFieldsValue({ expenseRequestId: item.expenseRequest.id });
+        }
+        else form.setFieldsValue({ expenseRequestId: "0" });
+      } catch {}
     }
     
     return response.data;

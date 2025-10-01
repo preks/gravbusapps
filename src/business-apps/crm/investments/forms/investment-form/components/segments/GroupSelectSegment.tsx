@@ -1,11 +1,11 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { Spinner } from '@newwork/nw-design-system';
 import { formatDataTestId } from '@/common/utils/formatDataTestId';
 import { useInvestmentFormContext } from '../../context/InvestmentFormContext';
 import { getCatalogValue, getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 
-const prefixDataTestId = 'InvestmentForm-GroupSelectSegment';
+const prefixDataTestId = 'investment-form-group-select-segment';
 
 // Normalized map for investment group detection
 const INVESTMENT_GROUP_MAP: Record<string, string> = {
@@ -87,8 +87,11 @@ const detectInvestmentGroup = (
       const detectedGroup = detectGroupFromString(source);
       if (detectedGroup) {
         // Special case: Skip auto-detection for overview/all contexts
-        if (source && ['overview', 'all'].some(skip => source.includes(skip))) {
-          continue;
+        if (source) {
+          const normalized = source.trim().toLowerCase();
+          if (['overview', 'all'].some(skip => normalized === skip)) {
+            continue;
+          }
         }
         
         // Valid group found - complete selection
@@ -141,8 +144,11 @@ const GroupSelectSegment: React.FC<GroupSelectSegmentProps> = ({
       for (const source of sources) {
         if (detectGroupFromString(source)) {
           // Skip auto-detection for overview/all contexts
-          if (source && ['overview', 'all'].some(skip => source.includes(skip))) {
-            return false;
+          if (source) {
+            const normalized = source.trim().toLowerCase();
+            if (['overview', 'all'].some(skip => normalized === skip)) {
+              return false;
+            }
           }
           return true;
         }
@@ -157,9 +163,21 @@ const GroupSelectSegment: React.FC<GroupSelectSegmentProps> = ({
   // Track context detection state  
   const [isDetectingContext, setIsDetectingContext] = useState(shouldAutoDetect);
   const [contextDetectionComplete, setContextDetectionComplete] = useState(!shouldAutoDetect);
+  
+  // Guard to prevent duplicate detection calls
+  const isDetectingLocal = useRef(false);
+  const hasDetected = useRef(!shouldAutoDetect);
 
   // Auto-detect investment group from URL context
   useEffect(() => {
+    // Guard: Only run detection if not already detecting and not already completed
+    if (isDetectingLocal.current || hasDetected.current) {
+      return;
+    }
+
+    // Set guard before detection
+    isDetectingLocal.current = true;
+
     // Use consolidated detection function
     detectInvestmentGroup(
       businessAppContext,
@@ -167,6 +185,10 @@ const GroupSelectSegment: React.FC<GroupSelectSegmentProps> = ({
       setIsDetectingContext,
       setContextDetectionComplete
     );
+
+    // Update guards after detection
+    hasDetected.current = true;
+    isDetectingLocal.current = false;
   }, [onGroupSelect, businessAppContext]);
 
   // Transform catalog data into display format
@@ -179,32 +201,22 @@ const GroupSelectSegment: React.FC<GroupSelectSegmentProps> = ({
       code: group.code,
       title: displayTitle || group.value || group.code, // Use translated value, fallback to value, then code
       value: `InvestmentGroup:v1:${group.code}`,
-      description: `Investment opportunities in ${displayTitle || group.value}`,
+      // Remove description - no longer needed for button design
     };
   }) || [];
 
   return (
     <div 
-      data-testid={formatDataTestId(prefixDataTestId, 'Container')}
-      style={{ padding: 'var(--nw-spacing-lg)' }}
+      data-testid={formatDataTestId(prefixDataTestId, 'container')}
+      className="gba:p-6"
     >
       {/* Only show title when we're not detecting context or when showing manual selection */}
       {(!isDetectingContext && contextDetectionComplete) && (
-        <div style={{ textAlign: 'center', marginBottom: 'var(--nw-spacing-xl)' }}>
-          <h2 style={{ 
-            margin: 0, 
-            marginBottom: 'var(--nw-spacing-sm)',
-            color: 'var(--nw-color-text-primary)', 
-            fontSize: '1.5rem', 
-            fontWeight: 600 
-          }}>
+        <div className="gba:text-center gba:mb-8">
+          <h2 className="gba:m-0 gba:mb-2 gba:text-xl gba:font-semibold" style={{ color: 'var(--nw-color-text-primary)' }}>
             {getTranslationFromI18nKeyAndLabel('investment.form.selectGroup', 'Select Investment Group')}
           </h2>
-          <p style={{ 
-            margin: 0, 
-            color: 'var(--nw-color-text-secondary)', 
-            fontSize: '1rem' 
-          }}>
+          <p className="gba:m-0 gba:text-base gba:text-secondary-foreground">
             {getTranslationFromI18nKeyAndLabel('investment.form.chooseGroup', 'Choose the investment group you want to create')}
           </p>
         </div>
@@ -213,21 +225,15 @@ const GroupSelectSegment: React.FC<GroupSelectSegmentProps> = ({
       {/* Context Detection Loading State */}
       {isDetectingContext && (
         <div
-          data-testid={formatDataTestId(prefixDataTestId, 'ContextDetection-Loading')}
-          style={{ 
-            textAlign: 'center', 
-            padding: 'var(--nw-spacing-xl)',
-            display: 'flex',
-            flexDirection: 'column',
-            alignItems: 'center',
-            gap: 'var(--nw-spacing-md)'
-          }}>
-          <Spinner size="lg" data-testid={formatDataTestId(prefixDataTestId, 'ContextDetection-Spinner')} />
+          data-testid={formatDataTestId(prefixDataTestId, 'context-detection-container')}
+          className="gba:text-center gba:p-8 gba:flex gba:flex-col gba:items-center gba:gap-4"
+        >
+          <Spinner size="lg" data-testid={formatDataTestId(prefixDataTestId, 'context-detection-spinner')} />
           <p 
-            data-testid={formatDataTestId(prefixDataTestId, 'ContextDetection-Message')}
-            style={{ margin: 0, color: 'var(--nw-color-text-secondary)' }}
+            data-testid={formatDataTestId(prefixDataTestId, 'context-detection-message')}
+            className="gba:m-0 gba:text-secondary-foreground"
           >
-{getTranslationFromI18nKeyAndLabel('investment.form.detectingContext', 'Detecting investment context...')}
+            {getTranslationFromI18nKeyAndLabel('investment.form.detectingContext', 'Detecting investment context...')}
           </p>
         </div>
       )}
@@ -235,19 +241,13 @@ const GroupSelectSegment: React.FC<GroupSelectSegmentProps> = ({
       {/* Catalog Loading State */}
       {!isDetectingContext && investmentCatalogLoading && (
         <div
-          data-testid={formatDataTestId(prefixDataTestId, 'CatalogLoading-Container')}
-          style={{ 
-            textAlign: 'center', 
-            padding: 'var(--nw-spacing-xl)',
-            display: 'flex',
-            flexDirection: 'column',
-            alignItems: 'center',
-            gap: 'var(--nw-spacing-md)'
-          }}>
-          <Spinner size="lg" data-testid={formatDataTestId(prefixDataTestId, 'CatalogLoading-Spinner')} />
+          data-testid={formatDataTestId(prefixDataTestId, 'catalog-loading-container')}
+          className="gba:text-center gba:p-8 gba:flex gba:flex-col gba:items-center gba:gap-4"
+        >
+          <Spinner size="lg" data-testid={formatDataTestId(prefixDataTestId, 'catalog-loading-spinner')} />
           <p 
-            data-testid={formatDataTestId(prefixDataTestId, 'CatalogLoading-Message')}
-            style={{ margin: 0, color: 'var(--nw-color-text-secondary)' }}
+            data-testid={formatDataTestId(prefixDataTestId, 'catalog-loading-message')}
+            className="gba:m-0 gba:text-secondary-foreground"
           >
             {getTranslationFromI18nKeyAndLabel('investment.form.loadingGroups', 'Loading investment groups...')}
           </p>
@@ -257,21 +257,19 @@ const GroupSelectSegment: React.FC<GroupSelectSegmentProps> = ({
       {/* Error State */}
       {!isDetectingContext && investmentCatalogError && (
         <div
-          data-testid={formatDataTestId(prefixDataTestId, 'Error-Container')}
-          style={{ 
-            textAlign: 'center', 
-            padding: 'var(--nw-spacing-xl)',
-            color: 'var(--nw-color-danger-500)'
-          }}>
+          data-testid={formatDataTestId(prefixDataTestId, 'error-container')}
+          className="gba:text-center gba:p-8"
+          style={{ color: 'var(--nw-color-danger-500)' }}
+        >
           <p 
-            data-testid={formatDataTestId(prefixDataTestId, 'Error-Message')}
-            style={{ margin: 0, marginBottom: 'var(--nw-spacing-sm)' }}
+            data-testid={formatDataTestId(prefixDataTestId, 'error-message')}
+            className="gba:m-0 gba:mb-2"
           >
             {getTranslationFromI18nKeyAndLabel('investment.form.loadFailed', 'Failed to load investment groups')}
           </p>
           <p 
-            data-testid={formatDataTestId(prefixDataTestId, 'Error-Details')}
-            style={{ margin: 0, fontSize: '0.875rem' }}
+            data-testid={formatDataTestId(prefixDataTestId, 'error-details')}
+            className="gba:m-0 gba:text-sm"
           >
             {investmentCatalogError}
           </p>
@@ -279,81 +277,30 @@ const GroupSelectSegment: React.FC<GroupSelectSegmentProps> = ({
       )}
 
       {!isDetectingContext && !investmentCatalogLoading && !investmentCatalogError && contextDetectionComplete && (
-        <div
-          data-testid={formatDataTestId(prefixDataTestId, 'InvestmentGroups-Container')}
-          style={{ 
-            display: 'flex',
-            flexDirection: 'column',
-            gap: 'var(--nw-spacing-sm)', // Very minimal gap between cards
-            marginBottom: 'var(--nw-spacing-xl)',
-            padding: 'calc(var(--nw-spacing-xl) * 5)'
-          }}>
-          {investmentGroups.map((group) => (
-            <div
-              key={group.id}
-              data-testid={formatDataTestId(prefixDataTestId, `InvestmentGroup-Card-${group.id}`)}
-              style={{
-                cursor: 'pointer',
-                transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
-                border: '1px solid var(--nw-color-border-subtle)',
-                borderRadius: 'calc(var(--nw-border-radius-lg) * 3)', // Maximum border radius for smooth curves
-                backgroundColor: 'var(--nw-card)',
-                boxShadow: '0 4px 12px -2px rgba(0, 0, 0, 0.08), 0 2px 6px -2px rgba(0, 0, 0, 0.05)',
-                padding: 'calc(var(--nw-spacing-xl) * 4)', // Maximum padding for bigger cards
-                margin: '0', // Remove margin - gap handles spacing between borders
-                textAlign: 'left',
-                position: 'relative',
-                overflow: 'hidden',
-                maxWidth: '750px', // Maximum width for bigger cards
-                width: '100%',
-                minHeight: '100px' // Increased minimum height for bigger cards
-              }}
-              onClick={() => onGroupSelect(group.value)}
-              onMouseEnter={(e) => {
-                const card = e.currentTarget;
-                card.style.boxShadow = '0 8px 24px -4px rgba(0, 0, 0, 0.12), 0 4px 12px -4px rgba(0, 0, 0, 0.08)';
-                card.style.transform = 'translateY(-4px) scale(1.02)';
-              }}
-              onMouseLeave={(e) => {
-                const card = e.currentTarget;
-                card.style.boxShadow = '0 4px 12px -2px rgba(0, 0, 0, 0.08), 0 2px 6px -2px rgba(0, 0, 0, 0.05)';
-                card.style.transform = 'translateY(0px) scale(1)';
-              }}
-            >
-              <div>
-                <h3 style={{
-                  margin: 0,
-                  marginBottom: 'var(--nw-spacing-md)',
-                  fontSize: '1.375rem',
-                  fontWeight: 700,
-                  color: 'var(--nw-foreground)',
-                  letterSpacing: '-0.025em'
-                }}>
-                  {group.title}
-                </h3>
-                <p style={{
-                  margin: 0,
-                  fontSize: '1rem',
-                  color: 'var(--nw-muted-foreground)',
-                  lineHeight: 1.6
-                }}>
-                  {group.description}
-                </p>
+        <div className="gba:space-y-8">
+          <div 
+            className="gba:flex gba:flex-col gba:gap-8 gba:items-stretch"
+            data-testid={formatDataTestId(prefixDataTestId, 'investment-groups-grid')}
+          >
+            {investmentGroups.map((group) => (
+              <div
+                key={group.id}
+                onClick={() => onGroupSelect(group.value)}
+                data-testid={formatDataTestId(prefixDataTestId, `investment-group-button-${group.id}`)}
+                className="gba:min-h-16 gba:h-16 gba:flex gba:items-center gba:justify-center gba:text-center gba:whitespace-normal gba:px-8 gba:py-6 gba:bg-secondary gba:text-secondary-foreground gba:border gba:border-solid gba:rounded-md gba:text-base gba:font-medium gba:cursor-pointer gba:transition-all gba:duration-200 gba:ease-in-out gba:select-none gba:hover:opacity-80 gba:border-ring"
+              >
+                {group.title}
               </div>
-            </div>
-          ))}
+            ))}
+          </div>
           {investmentGroups.length === 0 && (
             <div
-              data-testid={formatDataTestId(prefixDataTestId, 'EmptyState-Container')}
-              style={{ 
-                gridColumn: '1 / -1',
-                textAlign: 'center', 
-                padding: 'var(--nw-spacing-xl)',
-                color: 'var(--nw-color-text-secondary)'
-              }}>
+              data-testid={formatDataTestId(prefixDataTestId, 'empty-state-container')}
+              className="gba:text-center gba:p-8 gba:text-secondary-foreground"
+            >
               <p 
-                data-testid={formatDataTestId(prefixDataTestId, 'EmptyState-Message')}
-                style={{ margin: 0 }}
+                data-testid={formatDataTestId(prefixDataTestId, 'empty-state-message')}
+                className="gba:m-0"
               >
                 {getTranslationFromI18nKeyAndLabel('investment.form.noGroupsAvailable', 'No investment groups available')}
               </p>
@@ -362,29 +309,6 @@ const GroupSelectSegment: React.FC<GroupSelectSegmentProps> = ({
         </div>
       )}
 
-      {!investmentCatalogLoading && !investmentCatalogError && investmentGroups.length > 0 && (
-        <div
-          data-testid={formatDataTestId(prefixDataTestId, 'HelpText-Container')}
-          style={{ 
-            textAlign: 'center',
-            padding: 'var(--nw-spacing-md)',
-            paddingTop: 'var(--nw-spacing-xl)',
-            marginTop: 'var(--nw-spacing-lg)',
-            backgroundColor: 'var(--nw-color-surface-secondary)',
-            borderRadius: 'var(--nw-border-radius-md)',
-            border: '1px solid var(--nw-color-border-default)'
-          }}>
-          <p 
-            data-testid={formatDataTestId(prefixDataTestId, 'HelpText-Message')}
-            style={{ 
-              margin: 0, 
-              fontSize: '0.875rem', 
-              color: 'var(--nw-color-text-secondary)' 
-            }}>
-            {getTranslationFromI18nKeyAndLabel('investment.form.modifyDetailsHint', 'You can modify investment details after selecting the group')}
-          </p>
-        </div>
-      )}
     </div>
   );
 };

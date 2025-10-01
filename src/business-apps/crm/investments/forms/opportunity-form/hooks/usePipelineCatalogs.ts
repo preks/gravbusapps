@@ -48,7 +48,6 @@ export const usePipelineCatalogs = (
 
   const loadPipelines = useCallback(async () => {
     if (!context.accessToken) {
-      console.log("❌ No access token available for pipelines");
       setIsLoadingPipelines(false);
       return;
     }
@@ -97,7 +96,6 @@ export const usePipelineCatalogs = (
   const loadPipelineStages = useCallback(
     async (filterPipelineId?: string) => {
       if (!context.accessToken) {
-        console.log("❌ No access token available for pipeline stages");
         setIsLoadingStages(false);
         return;
       }

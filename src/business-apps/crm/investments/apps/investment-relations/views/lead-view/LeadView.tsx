@@ -44,8 +44,9 @@ export const LeadView: React.FC<LeadViewProps> = (context) => {
   const [searchTerm, setSearchTerm] = useState(initial.search);
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize] = useState(20);
-  const [sortField, setSortField] = useState("");
-  const [sortOrder, setSortOrder] = useState<"ASC" | "DESC" | "">("");
+  type SortOrder = "ASC" | "DESC" | undefined;
+  const [sortField, setSortField] = useState<string | undefined>("createdAt");
+  const [sortOrder, setSortOrder] = useState<SortOrder>("DESC");
   const [selectedFilters, setSelectedFilters] = useState<string[]>(initial.filters);
   // const [showDataFilter, setShowDataFilter] = useState(false);
 
@@ -307,8 +308,8 @@ export const LeadView: React.FC<LeadViewProps> = (context) => {
       if (sortOrder === "ASC") {
         setSortOrder("DESC");
       } else if (sortOrder === "DESC") {
-        setSortField("");
-        setSortOrder("");
+        setSortField(undefined);
+        setSortOrder(undefined);
       } else {
         setSortOrder("ASC");
       }
@@ -440,8 +441,8 @@ export const LeadView: React.FC<LeadViewProps> = (context) => {
             pageSize={pageSize}
             onPageChange={handlePageChange}
             onSort={handleSort}
-            sortField={sortField}
-            sortOrder={sortOrder as "ASC" | "DESC"}
+            sortField={sortField || "createdAt"}
+            sortOrder={sortOrder || "ASC"}
             onClearFilters={() => setSelectedFilters([])}
             visibleColumns={visibleColumns}
             {...context}

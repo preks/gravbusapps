@@ -56,7 +56,7 @@ const DescriptionSection: React.FC = () => {
           e.currentTarget.style.background =
             "linear-gradient(to right, #bfdbfe, #93c5fd)";
         }}
-        data-testid={formatDataTestId(prefixDataTestId, "DescriptionToggle")}
+        data-testid={formatDataTestId(prefixDataTestId, "description-toggle-button")}
       >
         <div className="gba:flex gba:items-center gba:gap-2 gba:flex-1">
           <div className="gba:w-2 gba:h-2 gba:bg-blue-500 gba:rounded-full"></div>

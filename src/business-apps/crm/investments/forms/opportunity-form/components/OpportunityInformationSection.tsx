@@ -13,7 +13,6 @@ import {
   OpportunityInvestmentSelectionSection,
   OpportunityFinancialFieldsSection,
   AmountDateSection,
-  AccountSelectionSection,
 } from "./sections";
 
 const OpportunityInformationSection: React.FC = () => {
@@ -55,10 +54,9 @@ const OpportunityInformationSection: React.FC = () => {
 
         <OwnerBasicInfoSection />
         <DealTypePipelineSection />
+        <AmountDateSection />
         <OpportunityInvestmentSelectionSection />
         <OpportunityFinancialFieldsSection />
-        <AmountDateSection />
-        <AccountSelectionSection />
       </CardContent>
     </Card>
   );

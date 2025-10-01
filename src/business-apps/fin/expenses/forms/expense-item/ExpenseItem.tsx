@@ -190,6 +190,7 @@ const ExpenseItem: React.FC<BusinessAppContextProps & ExpenseItemProps> = ({ acc
             handleRemovePosition={handleRemovePosition}
             loading={loading}
             calculateTotal={calculateTotal}
+            isEmbeddedInRequestWizard={Boolean(localAdditionalData?.expenseRequestId && localAdditionalData.expenseRequestId !== "0")}
           />
         )}
       </div>

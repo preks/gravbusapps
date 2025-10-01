@@ -69,7 +69,6 @@ export const useEmployeeByIdGraphQL = (accessToken: string, employeeId?: string)
     setError(null);
 
     try {
-      console.log('🔍 Fetching employee by ID:', id);
       const result = await graphqlClient.request<{
         EmployeePosition: EmployeePositionGraphQLData[];
       }>(GET_EMPLOYEE_BY_ID, {
@@ -78,7 +77,6 @@ export const useEmployeeByIdGraphQL = (accessToken: string, employeeId?: string)
 
       const employee = result?.EmployeePosition?.[0];
       if (employee) {
-        console.log('✅ Employee data fetched successfully:', employee);
         setEmployeeData(employee);
       } else {
         console.warn('⚠️ No employee found for ID:', id);
