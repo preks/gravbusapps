@@ -1807,6 +1807,30 @@ export class ConductorWorkflowEngineAdapter implements WorkflowEngine {
   }
 
   /**
+   * Get count of user's requests without fetching full details
+   * Optimized for performance - only makes one API call
+   */
+  async getMyRequestsCount(userId?: string): Promise<number> {
+    const targetUserId = userId || this.currentUserId;
+    try {
+      console.log(`[ConductorAdapter] Getting requests count for user: ${targetUserId}`);
+
+      // Only get the list of flows - no need to fetch individual details
+      const listResponse = await this.makeRequest(`/flows/user/${targetUserId}/initiated?limit=100&offset=0`);
+      
+      const flows = listResponse.data?.flows || listResponse.flows || [];
+      const count = flows.length;
+      
+      console.log(`[ConductorAdapter] Found ${count} flows for user ${targetUserId} (count only)`);
+      return count;
+
+    } catch (error) {
+      console.error('[ConductorAdapter] Error getting user requests count:', error);
+      throw new Error(`Failed to get user requests count: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
+  }
+
+  /**
    * Enhanced getMyRequests with optional userId parameter
    */
   async getMyRequests(userId?: string): Promise<SubmittedRequest[]> {

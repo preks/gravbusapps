@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useEffect } from 'react';
 import { 
   LauncherLayout, 
   type NavigationCardInput, 
@@ -7,7 +7,7 @@ import {
   type KpiData
 } from '@newwork/nw-design-system';
 import { getCategoryIcon } from '../../../utils/iconMapping';
-import { useDesksForUser, useServicePortalCategories, useSharedFlowTemplates } from '../../../hooks';
+import { useDesksForUser, useServicePortalCategories, useSharedFlowTemplates, useMyRequestsCount } from '../../../hooks';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 import { SERVICE_PORTAL_CONFIG } from '../../../config/servicePortalConfig';
 import { navigateTo } from '@/common/utils/navigationUtils';
@@ -53,6 +53,13 @@ export const ServiceCatalog: React.FC<ServiceCatalogProps> = ({
     limit: SERVICE_PORTAL_CONFIG.DEFAULT_TEMPLATE_LIMIT,
     filterByApp: SERVICE_PORTAL_CONFIG.FILTER_BY_SERVICES_APP
   });
+
+  // Get count of user's requests for badge display
+  const {
+    count: myRequestsCount,
+    isLoading: requestsCountLoading,
+    error: requestsCountError
+  } = useMyRequestsCount({ accessToken, userInfo });
 
   // Function to count templates for a specific category
   const getTemplateCountForCategory = (categoryId: string): number => {
@@ -115,19 +122,19 @@ export const ServiceCatalog: React.FC<ServiceCatalogProps> = ({
         const templateCount = getTemplateCountForCategory(category.id);
         
         return {
-          id: category.id,
-          title: category.name,
-          description: category.description || 'Available services in this category',
+      id: category.id,
+      title: category.name,
+      description: category.description || 'Available services in this category',
           icon: getCategoryIcon(category.icon || category.id),
-          stats: {
+      stats: {
             value: templateCount,
             label: templateCount === 1 ? 'Service' : 'Services'
-          },
-          primaryAction: {
-            label: 'View Services',
-            onClick: () => onCategorySelect(category.id)
-          },
-          variant: variants[index % variants.length], // Cycle through variants for visual variety
+      },
+      primaryAction: {
+        label: 'View Services',
+        onClick: () => onCategorySelect(category.id)
+      },
+      variant: variants[index % variants.length], // Cycle through variants for visual variety
         };
       });
 
@@ -169,12 +176,141 @@ export const ServiceCatalog: React.FC<ServiceCatalogProps> = ({
     return regularSections;
   }, [categoryGroups, catalogCategories, onCategorySelect, allFlowTemplates]);
 
+  // Add beautiful badge to My Requests icon via DOM manipulation
+  useEffect(() => {
+    // Create pulse animation using JavaScript
+    const createPulseAnimation = (badge: HTMLElement) => {
+      let scale = 1;
+      let growing = true;
+      
+      const animate = () => {
+        if (growing) {
+          scale += 0.001;
+          if (scale >= 1.05) growing = false;
+        } else {
+          scale -= 0.001;
+          if (scale <= 1) growing = true;
+        }
+        
+        badge.style.transform = `scale(${scale})`;
+        badge.style.boxShadow = growing 
+          ? `0 ${2 + scale}px ${4 + scale * 4}px rgba(239, 68, 68, ${0.4 + scale * 0.2}), 0 0 0 1.5px white`
+          : `0 2px 4px rgba(239, 68, 68, 0.4), 0 0 0 1.5px white`;
+      };
+      
+      const intervalId = setInterval(animate, 16); // ~60fps
+      return intervalId;
+    };
+
+    const addBadgeToMyRequestsIcon = () => {
+      const myRequestsTile = document.querySelector('[data-testid="quick-action-my-requests"]');
+      
+      // Remove existing badge and event listeners if any
+      const existingBadge = myRequestsTile?.querySelector('.my-requests-badge');
+      if (existingBadge && myRequestsTile) {
+        // Remove event listeners and animation to prevent memory leaks
+        const oldHandlers = (myRequestsTile as any)._badgeHandlers;
+        if (oldHandlers) {
+          myRequestsTile.removeEventListener('mouseenter', oldHandlers.hover);
+          myRequestsTile.removeEventListener('mouseleave', oldHandlers.leave);
+          if (oldHandlers.animationId) {
+            clearInterval(oldHandlers.animationId);
+          }
+        }
+        existingBadge.remove();
+      }
+      
+      if (myRequestsTile && !requestsCountLoading && !requestsCountError && myRequestsCount > 0) {
+        // Don't add 'has-badge' class to avoid CSS pseudo-element conflicts
+        // myRequestsTile.classList.add('has-badge');
+        
+        // Find the icon container (IconAvatar or similar)
+        const iconContainer = myRequestsTile.querySelector('[class*="IconAvatar"]') || 
+                             myRequestsTile.querySelector('[data-testid*="icon-avatar"]') ||
+                             myRequestsTile.querySelector('svg')?.parentElement ||
+                             myRequestsTile.querySelector('.nw\\:flex.nw\\:flex-col .nw\\:flex:first-child');
+        
+        if (iconContainer) {
+          // Create badge element
+          const badge = document.createElement('div');
+          badge.className = 'my-requests-badge';
+          badge.textContent = myRequestsCount.toString();
+          badge.style.cssText = `
+            position: absolute;
+            top: -3px;
+            right: -3px;
+            background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+            color: white;
+            border-radius: 50%;
+            min-width: 16px;
+            height: 16px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 9px;
+            font-weight: 700;
+            font-family: system-ui, -apple-system, sans-serif;
+            box-shadow: 0 2px 4px rgba(239, 68, 68, 0.4), 0 0 0 1.5px white;
+            z-index: 30;
+            padding: 0 2px;
+            line-height: 1;
+            transition: all 0.2s ease;
+          `;
+          
+          // Start JavaScript-based pulse animation
+          const animationId = createPulseAnimation(badge);
+          
+          // Add hover effect to the tile that affects the badge
+          const handleTileHover = () => {
+            clearInterval(animationId);
+            badge.style.transform = 'scale(1.1)';
+            badge.style.boxShadow = '0 4px 10px rgba(239, 68, 68, 0.5), 0 0 0 1.5px white';
+          };
+          
+          const handleTileLeave = () => {
+            const newAnimationId = createPulseAnimation(badge);
+            // Update stored animation ID
+            (myRequestsTile as any)._badgeHandlers.animationId = newAnimationId;
+          };
+          
+          myRequestsTile.addEventListener('mouseenter', handleTileHover);
+          myRequestsTile.addEventListener('mouseleave', handleTileLeave);
+          
+          // Store handlers for cleanup
+          (myRequestsTile as any)._badgeHandlers = {
+            hover: handleTileHover,
+            leave: handleTileLeave,
+            animationId: animationId
+          };
+          
+          // Make icon container relative if it isn't already
+          const computedStyle = window.getComputedStyle(iconContainer);
+          if (computedStyle.position === 'static') {
+            (iconContainer as HTMLElement).style.position = 'relative';
+          }
+          
+          // Add badge to icon container
+          iconContainer.appendChild(badge);
+          
+          console.log('🎯 [ServiceCatalog] Badge added to My Requests icon:', { count: myRequestsCount });
+        }
+      } else if (myRequestsTile) {
+        // Remove badge class from tile (if it was added)
+        myRequestsTile.classList.remove('has-badge');
+      }
+    };
+
+    // Add badge after component renders
+    const timeoutId = setTimeout(addBadgeToMyRequestsIcon, 150);
+    return () => clearTimeout(timeoutId);
+  }, [myRequestsCount, requestsCountLoading, requestsCountError]);
+
   // Quick actions for common tasks (conditionally include Service Desk)
   const quickActions: QuickActionData[] = useMemo(() => {
     const actions: QuickActionData[] = [
       {
         id: 'my-requests',
-        label: 'My Requests',
+        label: 'My Requests', // Clean label - badge added via CSS
         icon: ClockCounterClockwise,
         onClick: onMyRequestsClick,
         variant: 'ext1'
@@ -209,7 +345,7 @@ export const ServiceCatalog: React.FC<ServiceCatalogProps> = ({
     });
 
     return actions;
-  }, [onMyRequestsClick, onServiceDeskClick, deskAccessLoading, deskAccessError, availableDesks]);
+  }, [onMyRequestsClick, onServiceDeskClick, deskAccessLoading, deskAccessError, availableDesks, myRequestsCount, requestsCountLoading, requestsCountError]);
 
   // Header KPIs showing service statistics
   const headerKpis: KpiData[] = useMemo(() => {
@@ -283,7 +419,7 @@ export const ServiceCatalog: React.FC<ServiceCatalogProps> = ({
       </div>
     );
   }
-  
+
   return (
     <div data-testid="service-catalog-container">
       <LauncherLayout

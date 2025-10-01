@@ -165,6 +165,7 @@ export interface WorkflowEngine {
   startRequest(templateKey: string, formData: any): Promise<string>;
   getRequest(requestId: string): Promise<SubmittedRequest>;
   getMyRequests(): Promise<SubmittedRequest[]>;
+  getMyRequestsCount(): Promise<number>;
   getDeskTickets(desk: StepReceiver): Promise<StepInstance[]>;
   claim(stepId: string): Promise<void>;
   assign(stepId: string, userId: string): Promise<void>;

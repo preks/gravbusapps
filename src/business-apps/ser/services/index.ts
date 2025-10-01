@@ -25,4 +25,4 @@ export { TemplatesService, createTemplatesService, useSharedTemplates } from './
 export { employeeOnboardingServiceTemplate, getEmployeeOnboardingTemplate, employeeOnboardingTemplateMetadata } from './templates/employeeOnboardingTemplate';
 
 // Re-export types for convenience
-export type { WorkflowEngine } from 'packages/services-plus-core';
+export type { WorkflowEngine } from '../types';
