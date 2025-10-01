@@ -1,4 +1,4 @@
-import React, { useMemo, useEffect } from 'react';
+import React, { useMemo, useEffect, useState, useCallback } from 'react';
 import { 
   LauncherLayout, 
   type NavigationCardInput, 
@@ -11,10 +11,13 @@ import { useDesksForUser, useServicePortalCategories, useSharedFlowTemplates, us
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 import { SERVICE_PORTAL_CONFIG } from '../../../config/servicePortalConfig';
 import { navigateTo } from '@/common/utils/navigationUtils';
+import { DebouncedInput } from '@/components/data-filter/DebouncedInput';
 import { 
   ClockCounterClockwise,
   Notepad,
-  ChartLine
+  ChartLine,
+  MagnifyingGlass,
+  X
 } from '@phosphor-icons/react';
 
 export interface ServiceCatalogProps extends BusinessAppContextProps {
@@ -23,6 +26,47 @@ export interface ServiceCatalogProps extends BusinessAppContextProps {
   onServiceDeskClick?: () => void;
 }
 
+// Search input component defined outside to prevent re-creation and focus loss
+const SearchInput = React.memo<{
+  searchQuery: string;
+  onSearchChange: (query: string) => void;
+  onSearchClear: () => void;
+}>(({ searchQuery, onSearchChange, onSearchClear }) => (
+  <div className="gba:relative gba:w-full" data-testid="service-portal-search">
+    <div className="gba:relative">
+      <MagnifyingGlass 
+        className="gba:absolute gba:left-3 gba:top-1/2 gba:transform gba:-translate-y-1/2 gba:w-4 gba:h-4 gba:text-gray-400 gba:pointer-events-none" 
+        data-testid="search-icon"
+      />
+      <DebouncedInput
+        key={`search-input-${searchQuery === '' ? 'empty' : 'filled'}`}
+        value={searchQuery}
+        onChange={onSearchChange}
+        placeholder="Search services and categories..."
+        className="gba:w-full gba:pl-10 gba:pr-10 gba:py-2.5 gba:text-sm gba:bg-white/50 gba:border gba:border-gray-200 gba:rounded-lg gba:transition-all gba:duration-200 focus:gba:border-blue-500 focus:gba:ring-2 focus:gba:ring-blue-100 focus:gba:bg-white/60 hover:gba:border-gray-300"
+        debounceDelay={300}
+        ariaLabel="Search services and categories"
+        data-testid="search-input"
+      />
+      {searchQuery && (
+        <button
+          type="button"
+          onClick={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            onSearchClear();
+          }}
+          className="gba:absolute gba:right-3 gba:top-1/2 gba:transform gba:-translate-y-1/2 gba:p-1 gba:text-gray-400 hover:gba:text-gray-600 gba:transition-colors gba:duration-200 gba:rounded-full hover:gba:bg-gray-100 gba:cursor-pointer"
+          aria-label="Clear search"
+          data-testid="search-clear"
+        >
+          <X className="gba:w-3 gba:h-3" />
+        </button>
+      )}
+    </div>
+  </div>
+));
+
 export const ServiceCatalog: React.FC<ServiceCatalogProps> = ({
   onCategorySelect,
   onMyRequestsClick,
@@ -30,6 +74,9 @@ export const ServiceCatalog: React.FC<ServiceCatalogProps> = ({
   accessToken,
   userInfo
 }) => {
+  // Search state
+  const [searchQuery, setSearchQuery] = useState('');
+
   // Fetch dynamic categories from catalog
   const {
     categories: catalogCategories,
@@ -61,94 +108,130 @@ export const ServiceCatalog: React.FC<ServiceCatalogProps> = ({
     error: requestsCountError
   } = useMyRequestsCount({ accessToken, userInfo });
 
-  // Function to count templates for a specific category
-  const getTemplateCountForCategory = (categoryId: string): number => {
+
+  // Search functions
+  const searchInText = (text: string, query: string): boolean => {
+    return text.toLowerCase().includes(query.toLowerCase());
+  };
+
+  const getMatchingTemplatesForCategory = (categoryId: string, query: string) => {
     if (!allFlowTemplates || allFlowTemplates.length === 0) {
-      return 0;
+      return [];
     }
 
     const expectedCategoryRef = `ServicePortalCategory:1:${categoryId.toUpperCase()}`;
     
     return allFlowTemplates.filter(template => {
-      // Check if template has tags and serviceCategory
-      if (!template.tags || !template.tags.serviceCategory) {
-        return false;
+      // First check if template belongs to this category
+      let belongsToCategory = false;
+      
+      if (categoryId === 'uncategorized') {
+        // For uncategorized, check if template has no valid category
+        if (!template.tags || !template.tags.serviceCategory) {
+          belongsToCategory = true;
+        } else {
+          const templateCategories = Array.isArray(template.tags.serviceCategory) 
+            ? template.tags.serviceCategory 
+            : [template.tags.serviceCategory];
+          
+          const hasValidCategory = templateCategories.some(templateCategory => {
+            return catalogCategories.some(category => {
+              const expectedRef = `ServicePortalCategory:1:${category.id.toUpperCase()}`;
+              return templateCategory === expectedRef;
+            });
+          });
+          
+          belongsToCategory = !hasValidCategory;
+        }
+      } else {
+        // For regular categories
+        if (template.tags && template.tags.serviceCategory) {
+          const templateCategories = Array.isArray(template.tags.serviceCategory) 
+            ? template.tags.serviceCategory 
+            : [template.tags.serviceCategory];
+          
+          belongsToCategory = templateCategories.includes(expectedCategoryRef);
+        }
       }
       
-      // Check if any of the template's service categories match our category
-      const templateCategories = Array.isArray(template.tags.serviceCategory) 
-        ? template.tags.serviceCategory 
-        : [template.tags.serviceCategory];
+      if (!belongsToCategory) return false;
       
-      return templateCategories.includes(expectedCategoryRef);
-    }).length;
+      // If no search query, return all templates in category
+      if (!query.trim()) return true;
+      
+      // Search in template name, description, and steps
+      const matchesName = searchInText(template.name || '', query);
+      const matchesDescription = searchInText(template.description || '', query);
+      
+      // Search in steps
+      const matchesSteps = template.steps?.some(step => 
+        searchInText(step.title || '', query) || 
+        searchInText(step.message || '', query)
+      ) || false;
+      
+      return matchesName || matchesDescription || matchesSteps;
+    });
   };
 
-  // Function to count uncategorized templates
-  const getUncategorizedTemplatesCount = (): number => {
-    if (!allFlowTemplates || allFlowTemplates.length === 0) {
-      return 0;
-    }
-
-    return allFlowTemplates.filter(template => {
-      // Count templates without tags or serviceCategory
-      if (!template.tags || !template.tags.serviceCategory) {
-        return true;
-      }
-      
-      // Also count templates with serviceCategory that doesn't match any existing category
-      const templateCategories = Array.isArray(template.tags.serviceCategory) 
-        ? template.tags.serviceCategory 
-        : [template.tags.serviceCategory];
-      
-      // Check if any template category matches existing categories
-      const hasValidCategory = templateCategories.some(templateCategory => {
-        return catalogCategories.some(category => {
-          const expectedCategoryRef = `ServicePortalCategory:1:${category.id.toUpperCase()}`;
-          return templateCategory === expectedCategoryRef;
-        });
-      });
-      
-      return !hasValidCategory;
-    }).length;
+  const doesCategoryMatchSearch = (category: any, query: string): boolean => {
+    if (!query.trim()) return true;
+    
+    return searchInText(category.name || '', query) || 
+           searchInText(category.description || '', query);
   };
 
-  // Transform category groups into sections
+  // Transform category groups into sections with search filtering
   const sections: LauncherSectionConfig[] = useMemo(() => {
     const regularSections = categoryGroups.map(group => {
-      // Transform group categories to navigation cards
-      const groupCards = group.categories.map((category, index): NavigationCardInput => {
-        const variants = ['ext1', 'ext2', 'ext3', 'ext4', 'ext5', 'ext6', 'ext7', 'ext8'] as const;
-        const templateCount = getTemplateCountForCategory(category.id);
-        
-        return {
+      // Filter and transform group categories to navigation cards based on search
+      const groupCards = group.categories
+        .filter(category => {
+          // Check if category name/description matches search
+          const categoryMatches = doesCategoryMatchSearch(category, searchQuery);
+          
+          // Check if category has matching templates
+          const matchingTemplates = getMatchingTemplatesForCategory(category.id, searchQuery);
+          const hasMatchingTemplates = matchingTemplates.length > 0;
+          
+          // Show category if it matches search OR has matching templates
+          return categoryMatches || hasMatchingTemplates;
+        })
+        .map((category, index): NavigationCardInput => {
+    const variants = ['ext1', 'ext2', 'ext3', 'ext4', 'ext5', 'ext6', 'ext7', 'ext8'] as const;
+          
+          // Count matching templates for this category
+          const matchingTemplates = getMatchingTemplatesForCategory(category.id, searchQuery);
+          const templateCount = matchingTemplates.length;
+    
+          return {
       id: category.id,
       title: category.name,
       description: category.description || 'Available services in this category',
-          icon: getCategoryIcon(category.icon || category.id),
+            icon: getCategoryIcon(category.icon || category.id),
       stats: {
-            value: templateCount,
-            label: templateCount === 1 ? 'Service' : 'Services'
+              value: templateCount,
+              label: templateCount === 1 ? 'Service' : 'Services'
       },
       primaryAction: {
         label: 'View Services',
         onClick: () => onCategorySelect(category.id)
       },
       variant: variants[index % variants.length], // Cycle through variants for visual variety
-        };
-      });
+          };
+        });
 
-      return {
+      // Only return group if it has cards
+      return groupCards.length > 0 ? {
         id: group.id,
         title: group.name,
         description: group.description,
         cards: groupCards
-      };
-    });
+      } : null;
+    }).filter(Boolean) as LauncherSectionConfig[];
 
-    // Add uncategorized section if there are uncategorized templates
-    const uncategorizedCount = getUncategorizedTemplatesCount();
-    if (uncategorizedCount > 0) {
+    // Add uncategorized section if there are matching uncategorized templates
+    const matchingUncategorizedTemplates = getMatchingTemplatesForCategory('uncategorized', searchQuery);
+    if (matchingUncategorizedTemplates.length > 0) {
       const uncategorizedSection = {
         id: 'uncategorized-section',
         title: 'Uncategorized Services',
@@ -159,8 +242,8 @@ export const ServiceCatalog: React.FC<ServiceCatalogProps> = ({
           description: 'Templates without category tags or with invalid categories',
           icon: getCategoryIcon('uncategorized'),
           stats: {
-            value: uncategorizedCount,
-            label: uncategorizedCount === 1 ? 'Service' : 'Services'
+            value: matchingUncategorizedTemplates.length,
+            label: matchingUncategorizedTemplates.length === 1 ? 'Service' : 'Services'
           },
           primaryAction: {
             label: 'View Services',
@@ -174,7 +257,7 @@ export const ServiceCatalog: React.FC<ServiceCatalogProps> = ({
     }
 
     return regularSections;
-  }, [categoryGroups, catalogCategories, onCategorySelect, allFlowTemplates]);
+  }, [categoryGroups, catalogCategories, onCategorySelect, allFlowTemplates, searchQuery]);
 
   // Add beautiful badge to My Requests icon via DOM manipulation
   useEffect(() => {
@@ -376,6 +459,18 @@ export const ServiceCatalog: React.FC<ServiceCatalogProps> = ({
     ];
   }, [catalogCategories, allFlowTemplates]);
 
+  // Handle search change
+  const handleSearchChange = useCallback((query: string) => {
+    setSearchQuery(query);
+  }, []);
+
+  // Handle search clear
+  const handleSearchClear = useCallback(() => {
+    console.log('🧹 [ServiceCatalog] Clearing search query, current value:', searchQuery);
+    setSearchQuery('');
+  }, [searchQuery]);
+
+
   // Show loading state while fetching categories
   if (categoriesLoading) {
     return (
@@ -421,7 +516,7 @@ export const ServiceCatalog: React.FC<ServiceCatalogProps> = ({
   }
 
   return (
-    <div data-testid="service-catalog-container">
+    <div data-testid="service-catalog-container" className="gba:relative">
       <LauncherLayout
         title="Service Portal"
         description="Browse and request services across your organization"
@@ -431,6 +526,51 @@ export const ServiceCatalog: React.FC<ServiceCatalogProps> = ({
         quickActionsTitle="Quick Actions"
         quickActionsDescription="Frequently used functions and shortcuts"
       />
+      
+      {/* Search input overlay positioned in Quick Actions area - as an additional item */}
+      <div className="gba:absolute gba:top-0 gba:left-0 gba:right-0 gba:z-10 gba:pointer-events-none">
+        <div className="gba:pt-58">
+          <div className="layout-content gba:pointer-events-auto">
+            {/* Search input positioned as additional Quick Action item */}
+            <div className="gba:grid gba:grid-cols-2 gba:sm:grid-cols-3 gba:md:grid-cols-4 gba:lg:grid-cols-6 gba:gap-2">
+              {/* Skip existing Quick Action buttons (My Requests, Service Desk, Help Center) */}
+              <div></div>
+              <div></div>
+              <div></div>
+              {/* Empty space to push search input to the right */}
+              <div></div>
+              {/* Search input only - right aligned */}
+              <div className="gba:col-span-2">
+                <div className="gba:bg-transparent gba:rounded-lg gba:p-6 gba:h-full gba:flex gba:flex-col gba:justify-center gba:min-h-20">
+                  <SearchInput 
+                    searchQuery={searchQuery}
+                    onSearchChange={handleSearchChange}
+                    onSearchClear={handleSearchClear}
+                  />
+                  {/* Search results summary - directly under input */}
+                  {searchQuery && (
+                    <div className="gba:mt-2">
+                      <p className="gba:text-xs gba:text-gray-500 gba:text-right" data-testid="search-results-summary">
+                        {sections.length === 0 ? (
+                          <span className="gba:text-orange-500">
+                            No services found for "{searchQuery}"
+                          </span>
+                        ) : (
+                          <>
+                            Found {sections.reduce((total, section) => total + section.cards.length, 0)} service{sections.reduce((total, section) => total + section.cards.length, 0) === 1 ? '' : 's'} 
+                            {' '}in {sections.length} categor{sections.length === 1 ? 'y' : 'ies'} matching "{searchQuery}"
+                          </>
+                        )}
+                      </p>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      
     </div>
   );
 };
