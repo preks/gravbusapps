@@ -750,7 +750,7 @@ const ExpenseItemsTable: React.FC<ExpenseItemsTableProps> = React.memo((props) =
     />
 
     {/* Sheet for details */}
-    <Sheet open={isSheetOpen} onOpenChange={setIsSheetOpen} title={selectedItem?.title || 'Expense Item Details'}>
+    <Sheet open={isSheetOpen} onOpenChange={setIsSheetOpen} title={selectedItem?.title || getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.expense_item_details', 'Expense Item Details')}>
       <SheetContent className="gba:w-[600px] gba:sm:gba:w-[600px] gba:max-w-none">
         <SheetHeader>
           <SheetTitle className="gba:text-xl gba:font-semibold gba:text-gray-900">
