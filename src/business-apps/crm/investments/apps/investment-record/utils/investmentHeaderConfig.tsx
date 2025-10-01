@@ -4,6 +4,7 @@ import { Badge } from '@newwork/nw-design-system';
 import { formatCurrency, extractCurrencyCode } from '@/business-apps/crm/common/utils/currencyUtils';
 // Remove dependency on investmentTypeUtils - now using dynamic types
 import { FormFieldsDefinition, FormFieldDefinition } from '@/business-apps/crm/investments/forms/investment-form/queries/InvestmentCatalogQueries';
+import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
 
 /**
  * Format date helper
@@ -322,6 +323,24 @@ export const getTypeSpecificDetailGroups = (
       );
       
       if (dynamicItems.length > 0) {
+        // Add Owner Employee if not already provided by the form definition
+        const ownerEmployeeLabel = getTranslationFromI18nKeyAndLabel(
+          'crm.investments.ownerEmployee',
+          'Owner Employee'
+        );
+        const hasOwnerEmployeeField = formFieldsDefinition.formFields.some(group =>
+          group.fields.some(field => field.property?.includes('ownerEmployee'))
+        );
+        const hasOwnerEmployee = dynamicItems.some(item => item.label === ownerEmployeeLabel);
+        if (!hasOwnerEmployeeField && !hasOwnerEmployee && investment?.ownerEmployee) {
+          dynamicItems.push({
+            label: ownerEmployeeLabel,
+            value: investment.ownerEmployee.firstName && investment.ownerEmployee.lastName
+              ? `${investment.ownerEmployee.firstName} ${investment.ownerEmployee.lastName}`.trim()
+              : investment.ownerEmployee.displayName || investment.ownerEmployee.fullName || '-'
+          });
+        }
+        
         return groupHeaderItems(dynamicItems);
       }
     }
@@ -368,10 +387,6 @@ export const getTypeSpecificDetailGroups = (
           id: 'equity-details-2',
           items: [
             { 
-              label: 'Acquisition Date', 
-              value: formatDate(investment?.acquisitionDate)
-            },
-            { 
               label: 'Turnover Amount', 
               value: equity?.turnoverAmount 
                 ? formatCurrency(equity.turnoverAmount, currencyCode)
@@ -398,9 +413,22 @@ export const getTypeSpecificDetailGroups = (
         {
           id: 'real-estate-details',
           items: [
-            { label: 'Size', value: realEstate.propertySize ? `${realEstate.propertySize} m²` : '-' },
-            { label: 'Location', value: realEstate.propertyLocation || '-' },
-            { label: 'Type', value: realEstate.propertyType?.value || '-' }
+            { label: getTranslationFromI18nKeyAndLabel('crm.investments.realEstate.propertySize', 'Size'), value: realEstate.propertySize ? `${realEstate.propertySize} m²` : '-' },
+            { label: getTranslationFromI18nKeyAndLabel('crm.investments.realEstate.propertyLocation', 'Location'), value: realEstate.propertyLocation || '-' },
+            {
+              label: getTranslationFromI18nKeyAndLabel('crm.investments.realEstate.propertyType', 'Property Type'),
+              value: realEstate.propertyType?.value || '-',
+            },
+            {
+              label: getTranslationFromI18nKeyAndLabel('crm.investments.header.ownerEmployee', 'Owner Employee'),
+              value: investment?.ownerEmployee
+                ? (
+                    (investment.ownerEmployee.firstName || investment.ownerEmployee.lastName)
+                      ? `${investment.ownerEmployee.firstName || ''} ${investment.ownerEmployee.lastName || ''}`.trim()
+                      : (investment.ownerEmployee.displayName || investment.ownerEmployee.fullName || '-')
+                  )
+                : '-',
+            }
           ]
         }
       ] : [];
@@ -450,10 +478,6 @@ export const getTypeSpecificDetailGroups = (
               value: liquidFund?.interestRate ? `${liquidFund.interestRate}%` : '-'
             },
             { 
-              label: 'Acquisition Date', 
-              value: formatDate(investment?.acquisitionDate)
-            },
-            { 
               label: 'Owner Employee', 
               value: investment?.ownerEmployee 
                 ? `${investment.ownerEmployee.firstName || ''} ${investment.ownerEmployee.lastName || ''}`.trim()
@@ -485,10 +509,6 @@ export const getTypeSpecificDetailGroups = (
               value: investment?.investmentMarketValue 
                 ? formatCurrency(investment.investmentMarketValue, currencyCode)
                 : '-'
-            },
-            { 
-              label: 'Acquisition Date', 
-              value: formatDate(investment?.acquisitionDate)
             },
             { 
               label: 'Owner Employee', 

@@ -177,8 +177,12 @@ export const buildInvestmentTaskPayload = (
       payloadBody.creatorUserId = task.creatorUserId;
     }
   } else {
-    payloadBody.creatorEmployee = businessAppContext.userInfo?.employeeDetails?.employeeId;
-    payloadBody.creatorUserId = businessAppContext.userInfo?.id;
+    const creatorEmployeeId = businessAppContext.userInfo?.employeeDetails?.employeeId;
+    const creatorUserId = businessAppContext.userInfo?.id;
+    
+    // Use employeeDetails.employeeId if available, otherwise try direct employeeId field
+    payloadBody.creatorEmployee = creatorEmployeeId || (businessAppContext.userInfo as any)?.employeeId;
+    payloadBody.creatorUserId = creatorUserId;
   }
 
   if (options.isUpdate && task.id) {

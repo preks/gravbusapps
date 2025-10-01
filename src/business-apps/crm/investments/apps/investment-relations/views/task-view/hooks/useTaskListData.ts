@@ -97,7 +97,6 @@ export const useTaskListData = (props: UseTaskListDataProps): UseTaskListDataRet
 
   const loadData = useCallback(async (page: number, size: number) => {
     if (!accessToken) {
-      console.warn('No access token provided to useTaskListData (IRM)');
       return;
     }
     setLoading(true);
@@ -132,7 +131,8 @@ export const useTaskListData = (props: UseTaskListDataProps): UseTaskListDataRet
           const contactName = it.contactDisplayName || `${it.contact.firstName || ''} ${it.contact.lastName || ''}`.trim() || 'Contact';
           reference = { type: 'contact', id: it.contact.id, name: contactName } as any;
         } else {
-          reference = { type: 'account', id: it.id, name: 'General' } as any;
+          // No related entity - set reference to undefined instead of creating invalid reference
+          reference = undefined;
         }
 
         return {
@@ -144,7 +144,8 @@ export const useTaskListData = (props: UseTaskListDataProps): UseTaskListDataRet
             lastName: it.assignedEmployee?.lastName || '',
             displayName: it.assignedDisplayName || it.assignedEmployee?.displayName || 'Unassigned',
             department: '',
-            initials: ''
+            initials: '',
+            pictureThumbnail: it.assignedEmployee?.pictureThumbnail || undefined
           },
           type,
           priority: normalizedPriority,
@@ -158,14 +159,25 @@ export const useTaskListData = (props: UseTaskListDataProps): UseTaskListDataRet
           version: it.version as any,
           rawSalesTask: undefined,
           createdBy: it.creatorUserId,
-          creatorEmployee: it.creatorEmployee ? {
-            id: it.creatorEmployee.id,
-            firstName: it.creatorEmployee.firstName || '',
-            lastName: it.creatorEmployee.lastName || '',
-            displayName: it.creatorEmployee.displayName || 'Unknown',
-            department: '',
-            initials: ''
-          } : undefined
+          creatorEmployee: (() => {
+            // Check for flattened creator display name first (like assignedDisplayName)
+            const creatorDisplayName = (it as any).creatorDisplayName;
+            const creatorEmployeeId = typeof it.creatorEmployee === 'string' ? it.creatorEmployee : it.creatorEmployee?.id;
+
+            if (creatorEmployeeId) {
+              return {
+                id: creatorEmployeeId,
+                firstName: it.creatorEmployee?.firstName || '',
+                lastName: it.creatorEmployee?.lastName || '',
+                displayName: creatorDisplayName || it.creatorEmployee?.displayName || 'Unknown Creator',
+                department: '',
+                initials: '',
+                pictureThumbnail: it.creatorEmployee?.pictureThumbnail || undefined
+              };
+            }
+            
+            return undefined;
+          })()
         } as Task;
       });
 
@@ -177,7 +189,6 @@ export const useTaskListData = (props: UseTaskListDataProps): UseTaskListDataRet
     } catch (err) {
       const e = err instanceof Error ? err : new Error('Failed to load tasks');
       setError(e);
-      console.error('Error loading IRM tasks:', e);
     } finally {
       setLoading(false);
     }

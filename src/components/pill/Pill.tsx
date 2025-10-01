@@ -1,5 +1,4 @@
 import React from 'react';
-import { PILL_TYPE_COLOR_MAP } from './pillColors';
 
 export type PillType = 'draft' | 'completed' | 'waiting' | 'task' | 'error' | 'preparing';
 
@@ -37,7 +36,14 @@ const Pill: React.FC<PillProps> = ({
   'data-testid': dataTestId = 'pill' 
 }) => {
   // Define color mapping for different types
-  const typeColorMap: Record<PillType, string> = PILL_TYPE_COLOR_MAP as Record<PillType, string>;
+  const typeColorMap: Record<PillType, string> = {
+    draft: '#797d82',
+    completed: '#0DBC7B',
+    waiting: '#0094D1',
+    task: '#FF9E02',
+    error: '#DE1D49',
+    preparing: '#94A9C7',
+  };
 
   // Determine background color based on type or custom color
   const backgroundColor = color || (type && typeColorMap[type]) || '#CCCCCC';
