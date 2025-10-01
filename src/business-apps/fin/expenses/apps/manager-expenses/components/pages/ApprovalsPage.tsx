@@ -200,8 +200,8 @@ const ApprovalsPage: React.FC<ApprovalsPageProps> = ({ onNavigateBack, ...props 
 
       <PageLayout
         headerTitle={getTranslationFromI18nKeyAndLabel(
-          'lowcoder:team_expenses_page.dashboard_tab.pending_approvals',
-          'Pending Approvals',
+          'lowcoder:team_expenses_page.dashboard_tab.review_approvals',
+          'Approvals Review',
         )}
         headerDescription={getTranslationFromI18nKeyAndLabel(
           'lowcoder:team_expenses_page.dashboard_tab.review_subheader',

@@ -87,7 +87,7 @@ const ExpenseDashboardTab: React.FC<ExpenseDashboardTabProps> = (props) => {
       key: "approvals",
       title: getTranslationFromI18nKeyAndLabel(
         "lowcoder:team_expenses_page.dashboard_tab.review_approvals",
-        "Review Approvals",
+        "Approvals Review",
       ),
       description: getTranslationFromI18nKeyAndLabel(
         "lowcoder:team_expenses_page.dashboard_tab.review_pending_expense_approvals",

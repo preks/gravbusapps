@@ -104,9 +104,8 @@ const ExpensePlanStatisticsDisplay: React.FC<ExpensePlanStatisticsProps> = ({
         ),
         value: planStats.pendingCount.toString(),
         prefix: <PiCalendar />,
-        color: activeFilter?.includes(ExpenseStatus.PENDING) ? "var(--nw-color-primary-500)" : "var(--nw-color-warning-500)",
+        color: "var(--nw-color-warning-500)",
         valueIsString: true,
-        
         description: getTranslationFromI18nKeyAndLabel(
           "lowcoder:team_expenses_page.expense_plans_tab.requires_action",
           "Requires action",
@@ -124,7 +123,6 @@ const ExpensePlanStatisticsDisplay: React.FC<ExpensePlanStatisticsProps> = ({
         prefix: <PiFileText />,
         color: "var(--nw-color-primary-500)",
         valueIsString: true,
-        
         description: getTranslationFromI18nKeyAndLabel(
           "lowcoder:team_expenses_page.expense_plans_tab.all_submitted_plans",
           "All submitted plans",

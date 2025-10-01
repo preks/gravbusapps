@@ -972,8 +972,8 @@ const TeamSpendingAnalyticsPage: React.FC<TeamSpendingAnalyticsPageProps> = ({
 
       <PageLayout
         headerTitle={getTranslationFromI18nKeyAndLabel(
-          "lowcoder:team_expenses_page.dashboard_tab.team_spending_analytics",
-          "Team Spending Analytics",
+          "lowcoder:team_expenses_page.dashboard_tab.team_spending_analysis",
+          "Team Spending Analysis",
         )}
         headerDescription={getTranslationFromI18nKeyAndLabel(
           "lowcoder:team_expenses_page.dashboard_tab.team_spending_analytics_description",

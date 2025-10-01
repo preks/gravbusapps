@@ -5,7 +5,7 @@ import { GET_EXPENSE_PLANS_BY_MANAGER } from "../queries/expensePlans";
 import { GET_EXPENSE_REQUESTS_BY_MANAGER } from "../queries/expenseRequests";
 import { GET_EXPENSE_ITEMS_BY_MANAGER } from "../queries/expenseItems";
 import { formatDate, getTranslationFromI18nKeyAndLabel } from "@/common/utils/windowUtils";
-import { GET_ADVANCE_PAYMENTS_BY_MANAGER, GET_ADVANCE_PAYMENTS_REPORT_BY_MANAGER } from "../queries/advancePayments";
+import { GET_ADVANCE_PAYMENTS_REPORT_BY_MANAGER } from "../queries/advancePayments";
 import { getExpenseRequestStatusDisplay, getExpensePlanStatusDisplay, getAdvancePaymentStatusDisplay } from "../utils";
 
 // Define report types
@@ -265,11 +265,11 @@ export const useExpenseReportData = ({
   };
 
   // Process advance payments data
-  const processAdvancePaymentsData = (data: any): AdvancePaymentReport[] => {
-    if (!data?.ExpensePlan?.length) return [];
+  const processAdvancePaymentsData = (_data: any): AdvancePaymentReport[] => {
+    if (!_data?.ExpensePlan?.length) return [];
 
     const rows: AdvancePaymentReport[] = [];
-    data.ExpensePlan.forEach((plan: any) => {
+    _data.ExpensePlan.forEach((plan: any) => {
       const payments = Array.isArray(plan.advancePayment) ? plan.advancePayment : [];
       payments.forEach((payment: any) => {
         const statusDisplay = payment.status
@@ -280,7 +280,7 @@ export const useExpenseReportData = ({
           id: payment.id,
           code: plan.code || "",
           title: plan.title || "",
-          requestDate: payment.createdAt ? formatDate(payment.createdAt, "date.short") : "",
+          requestDate: payment.createdAt ? formatDate(payment.createdAt, "date.short") || "-" : "-",
           status: statusDisplay.label,
           amount: payment.amount || 0,
           employeeName: plan.employee?.fullName || "",
@@ -408,7 +408,7 @@ export const useExpenseReportData = ({
           id: p.id,
           code: p.expensePlan?.code || p.code || "",
           title: p.expensePlan?.title || "",
-          requestDate: p.createdAt ? formatDate(p.createdAt, "date.short") : "",
+          requestDate: p.createdAt ? formatDate(p.createdAt, "date.short") || "-" : "-",
           status: statusDisplay.label,
           amount: p.amount || 0,
           employeeName: p.expensePlan?.employee?.fullName || "",
@@ -433,108 +433,113 @@ export const useExpenseReportData = ({
     if (!graphqlClient || !selectedReportType) return [];
 
     const batchLimit = 1000;
-
-    switch (selectedReportType) {
-      case ReportType.EXPENSE_ITEM: {
-        const all: ReportItem[] = [];
-        let offset = 0;
-        // Loop until fewer than batchLimit items are returned
-        while (true) {
-          const result = await graphqlClient.request(GET_EXPENSE_ITEMS_BY_MANAGER, {
-            managerId: managerId,
-            limit: batchLimit,
-            offset,
-            searchTerm: searchTerm ? `%${searchTerm}%` : "%%",
-          });
-          const processed = processExpenseItemsData(result);
-          all.push(...processed);
-          if (!Array.isArray(processed) || processed.length < batchLimit) break;
-          offset += batchLimit;
+    try {
+      switch (selectedReportType) {
+        case ReportType.EXPENSE_ITEM: {
+          const all: ReportItem[] = [];
+          let offset = 0;
+          // Loop until fewer than batchLimit items are returned
+          while (true) {
+            const result = await graphqlClient.request(GET_EXPENSE_ITEMS_BY_MANAGER, {
+              managerId: managerId,
+              limit: batchLimit,
+              offset,
+              searchTerm: searchTerm ? `%${searchTerm}%` : "%%",
+            });
+            const processed = processExpenseItemsData(result);
+            all.push(...processed);
+            if (!Array.isArray(processed) || processed.length < batchLimit) break;
+            offset += batchLimit;
+          }
+          return all;
         }
-        return all;
-      }
-      case ReportType.EXPENSE_PLAN: {
-        const all: ReportItem[] = [];
-        let offset = 0;
-        while (true) {
-          const result = await graphqlClient.request(GET_EXPENSE_PLANS_BY_MANAGER, {
-            managerId: managerId,
-            limit: batchLimit,
-            offset,
-            searchTerm: searchTerm ? `%${searchTerm}%` : "%%",
-          });
-          const processed = processExpensePlansData(result);
-          all.push(...processed);
-          if (!Array.isArray(processed) || processed.length < batchLimit) break;
-          offset += batchLimit;
+        case ReportType.EXPENSE_PLAN: {
+          const all: ReportItem[] = [];
+          let offset = 0;
+          while (true) {
+            const result = await graphqlClient.request(GET_EXPENSE_PLANS_BY_MANAGER, {
+              managerId: managerId,
+              limit: batchLimit,
+              offset,
+              searchTerm: searchTerm ? `%${searchTerm}%` : "%%",
+            });
+            const processed = processExpensePlansData(result);
+            all.push(...processed);
+            if (!Array.isArray(processed) || processed.length < batchLimit) break;
+            offset += batchLimit;
+          }
+          return all;
         }
-        return all;
-      }
-      case ReportType.EXPENSE_REQUEST: {
-        const all: ReportItem[] = [];
-        let offset = 0;
-        const where = {
-          employee: { employeePosition: { supervisorEmployeeId: { _eq: managerId } } },
-          isDeleted: { _eq: false },
-          _or: [
-            { code: { _ilike: searchTerm ? `%${searchTerm}%` : "%%" } },
-            { title: { _ilike: searchTerm ? `%${searchTerm}%` : "%%" } },
-            { employee: { fullName: { _ilike: searchTerm ? `%${searchTerm}%` : "%%" } } },
-          ],
-        } as any;
+        case ReportType.EXPENSE_REQUEST: {
+          const all: ReportItem[] = [];
+          let offset = 0;
+          const where = {
+            employee: { employeePosition: { supervisorEmployeeId: { _eq: managerId } } },
+            isDeleted: { _eq: false },
+            _or: [
+              { code: { _ilike: searchTerm ? `%${searchTerm}%` : "%%" } },
+              { title: { _ilike: searchTerm ? `%${searchTerm}%` : "%%" } },
+              { employee: { fullName: { _ilike: searchTerm ? `%${searchTerm}%` : "%%" } } },
+            ],
+          } as any;
 
-        while (true) {
-          const result = await graphqlClient.request(GET_EXPENSE_REQUESTS_BY_MANAGER, {
-            where,
-            limit: batchLimit,
-            offset,
-            orderBy: [{ requestDate: "DESC" }],
-          });
-          const processed = processExpenseRequestsData(result);
-          all.push(...processed);
-          if (!Array.isArray(processed) || processed.length < batchLimit) break;
-          offset += batchLimit;
+          while (true) {
+            const result = await graphqlClient.request(GET_EXPENSE_REQUESTS_BY_MANAGER, {
+              where,
+              limit: batchLimit,
+              offset,
+              orderBy: [{ requestDate: "DESC" }],
+            });
+            const processed = processExpenseRequestsData(result);
+            all.push(...processed);
+            if (!Array.isArray(processed) || processed.length < batchLimit) break;
+            offset += batchLimit;
+          }
+          return all;
         }
-        return all;
-      }
-      case ReportType.ADVANCE_PAYMENT: {
-        const all: ReportItem[] = [];
-        let offset = 0;
-        while (true) {
-          const result = await graphqlClient.request(GET_ADVANCE_PAYMENTS_REPORT_BY_MANAGER, {
-            managerId: managerId,
-            limit: batchLimit,
-            offset,
-            searchTerm: searchTerm ? `%${searchTerm}%` : "%%",
-          });
+        case ReportType.ADVANCE_PAYMENT: {
+          const all: ReportItem[] = [];
+          let offset = 0;
+          while (true) {
+            const result = await graphqlClient.request(GET_ADVANCE_PAYMENTS_REPORT_BY_MANAGER, {
+              managerId: managerId,
+              limit: batchLimit,
+              offset,
+              searchTerm: searchTerm ? `%${searchTerm}%` : "%%",
+            });
 
-          const rows: AdvancePaymentReport[] = (result?.AdvancePayment || []).map((p: any) => {
-            const statusDisplay = p.status
-              ? getAdvancePaymentStatusDisplay(p.status)
-              : { label: "", type: "draft" };
-            const currencyCode = p?.currencyRef ? String(p.currencyRef).split(":").pop() || "" : "";
-            return {
-              id: p.id,
-              code: p.expensePlan?.code || p.code || "",
-              title: p.expensePlan?.title || "",
-              requestDate: p.createdAt ? formatDate(p.createdAt, "date.short") : "",
-              status: statusDisplay.label,
-              amount: p.amount || 0,
-              employeeName: p.expensePlan?.employee?.fullName || "",
-              paymentMethod: p.paymentMethod || undefined,
-              costCenter: p.costCenter?.name || p.costCenter?.code || undefined,
-              currency: currencyCode,
-            };
-          });
+            const rows: AdvancePaymentReport[] = (result?.AdvancePayment || []).map((p: any) => {
+              const statusDisplay = p.status
+                ? getAdvancePaymentStatusDisplay(p.status)
+                : { label: "", type: "draft" };
+              const currencyCode = p?.currencyRef ? String(p.currencyRef).split(":").pop() || "" : "";
+              return {
+                id: p.id,
+                code: p.expensePlan?.code || p.code || "",
+                title: p.expensePlan?.title || "",
+                requestDate: p.createdAt ? formatDate(p.createdAt, "date.short") || "-" : "-",
+                status: statusDisplay.label,
+                amount: p.amount || 0,
+                employeeName: p.expensePlan?.employee?.fullName || "",
+                paymentMethod: p.paymentMethod || undefined,
+                costCenter: p.costCenter?.name || p.costCenter?.code || undefined,
+                currency: currencyCode,
+              };
+            });
 
-        all.push(...rows);
-        if (!Array.isArray(rows) || rows.length < batchLimit) break;
-        offset += batchLimit;
+            all.push(...rows);
+            if (!Array.isArray(rows) || rows.length < batchLimit) break;
+            offset += batchLimit;
+          }
+          return all;
         }
-        return all;
+        default:
+          return [];
       }
-      default:
-        return [];
+    } catch (err) {
+      console.error("Error exporting report data:", err);
+      setError("Failed to export report data");
+      return [];
     }
   }, [graphqlClient, selectedReportType, managerId, searchTerm]);
 
