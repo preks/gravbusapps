@@ -123,16 +123,6 @@ export const useCountriesRegions = (
 
       // ✅ DEBUG: Log country mapping for troubleshooting
       if (filteredCountries.length > 0) {
-        console.log("🔍 Country Options Debug:", {
-          totalCountries: filteredCountries.length,
-          firstCountry: filteredCountries[0],
-          sampleCountryFormat: {
-            id: filteredCountries[0]?.id,
-            value: filteredCountries[0]?.value,
-            label: filteredCountries[0]?.label,
-          },
-          allCountryValues: filteredCountries.slice(0, 5).map((c) => c.value),
-        });
       }
 
       if (searchTerm.trim()) {

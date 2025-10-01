@@ -39,17 +39,6 @@ export const CreateContactStep: React.FC<CreateContactStepProps> = ({
           </div>
         ) : (
           (() => {
-            console.log('🔍 Rendering ContactFormWrapper with initial values:', contactInitialValues);
-            console.log('🔍 Lead data available:', !!leadData);
-            console.log('🔍 Form key:', `contact-form-${actualLeadId}-${leadData?.id || 'no-data'}`);
-            console.log('🎯 OWNER FIELD DEBUG - Contact:', {
-              leadDataOwnerEmployeeId: leadData?.ownerEmployeeId,
-              leadDataOwnerEmployee: leadData?.ownerEmployee,
-              contactInitialValuesOwner: contactInitialValues.owner,
-              contactInitialValuesOwnerEmployeeId: contactInitialValues.ownerEmployeeId,
-              hasLeadData: !!leadData,
-              note: 'Owner field should be set to leadData.ownerEmployeeId'
-            });
             
             return (
               <ContactFormWrapper

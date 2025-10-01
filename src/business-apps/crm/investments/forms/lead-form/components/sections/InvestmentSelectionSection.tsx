@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo } from "react";
+import { Input, Label } from "@newwork/nw-design-system";
 import { formatDataTestId } from "@/common/utils/formatDataTestId";
 import { useLeadFormContext } from "../../context/LeadFormContext";
 import SearchableSelect from "../SearchableSelect";
@@ -48,6 +49,21 @@ const InvestmentSelectionSection: React.FC = () => {
 
   return (
     <div className="gba:space-y-6">
+      {/* Investment Name - Full width */}
+      <div className="gba:space-y-2">
+        <Label className="gba:text-sm gba:font-medium gba:text-gray-900">
+          Investment Name
+        </Label>
+        <Input
+          type="text"
+          value={formValues.investmentName || ""}
+          onChange={(e) => setFormValues({ investmentName: e.target.value })}
+          placeholder="Enter investment name..."
+          data-testid={formatDataTestId(prefixDataTestId, "investment-name-input")}
+          className="gba:w-full"
+        />
+      </div>
+
       {/* Investment Group and Investment Type - Side by side */}
       <div className="gba:grid gba:grid-cols-1 gba:gap-6 gba:md:grid-cols-2">
         {/* Investment Group */}
@@ -67,7 +83,7 @@ const InvestmentSelectionSection: React.FC = () => {
             onSearch={searchInvestmentGroups}
             onChange={(value) => setFormValues({ investmentGroup: value })}
             error={null}
-            data-testid={formatDataTestId(prefixDataTestId, "InvestmentGroupSelect")}
+            data-testid={formatDataTestId(prefixDataTestId, "investment-group-select")}
             className="gba:w-full"
           />
         </div>
@@ -91,7 +107,7 @@ const InvestmentSelectionSection: React.FC = () => {
             onSearch={handleInvestmentTypeSearch}
             onChange={(value) => setFormValues({ investmentType: value })}
             error={dependentInvestmentTypesError}
-            data-testid={formatDataTestId(prefixDataTestId, "InvestmentTypeSelect")}
+            data-testid={formatDataTestId(prefixDataTestId, "investment-type-select")}
             className="gba:w-full"
           />
         </div>

@@ -28,11 +28,12 @@ export const OpportunityView: React.FC<OpportunityViewProps> = (context) => {
   const { accessToken } = context;
 
   // State management
+  type SortOrder = "ASC" | "DESC" | undefined;
   const [searchTerm, setSearchTerm] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize] = useState(20);
-  const [sortField, setSortField] = useState("");
-  const [sortOrder, setSortOrder] = useState<"ASC" | "DESC" | "">("");
+  const [sortField, setSortField] = useState<string | undefined>("createdAt");
+  const [sortOrder, setSortOrder] = useState<SortOrder>("DESC");
   const [selectedFilters, setSelectedFilters] = useState<string[]>([]);
   // const [showDataFilter, setShowDataFilter] = useState(false);
   const [activeTab, setActiveTab] = useState("list");
@@ -292,8 +293,8 @@ export const OpportunityView: React.FC<OpportunityViewProps> = (context) => {
       if (sortOrder === "ASC") {
         setSortOrder("DESC");
       } else if (sortOrder === "DESC") {
-        setSortField("");
-        setSortOrder("");
+        setSortField(undefined);
+        setSortOrder(undefined);
       } else {
         setSortOrder("ASC");
       }
@@ -467,7 +468,7 @@ export const OpportunityView: React.FC<OpportunityViewProps> = (context) => {
                 onPageChange={handlePageChange}
                 onSort={handleSort}
                 sortField={sortField}
-                sortOrder={sortOrder || "ASC"}
+                sortOrder={sortOrder}
                 visibleColumns={visibleColumns}
                 {...context}
               />

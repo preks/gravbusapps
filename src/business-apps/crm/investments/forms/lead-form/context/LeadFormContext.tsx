@@ -237,9 +237,8 @@ export const LeadFormProvider: React.FC<LeadFormProviderProps> = ({
   const [formValues, setFormValuesState] = useState<LeadFormValues>({
     // Lead Information
     owner: "",
-    leadStatus: "",
+    leadStatus: "InvestmentLeadStatus:v1:OPEN", // Default to OPEN status
     leadSource: "",
-    leadSourceType: "", // ✅ ADDED: Additional lead source type
     rating: "",
 
     // Contact Information
@@ -617,7 +616,7 @@ export const LeadFormProvider: React.FC<LeadFormProviderProps> = ({
     () => ({
       accessToken: businessAppContext.accessToken,
       catalogIdentifier: MEASUREMENT_UNIT_CATALOG,
-      whereConditions: { additionalValue1: "AREA" },
+      whereConditions: { type: "AREA" },
     }),
     [businessAppContext.accessToken]
   );
