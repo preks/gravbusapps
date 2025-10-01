@@ -425,7 +425,7 @@ const ExpensePlansTable: React.FC<ExpensePlansTableProps> = (props) => {
                           ]}
                           prefixDataTestId={`${DATA_TEST_ID_PREFIX}-update-expense-plan`}
                           accessToken={contextProps.accessToken}
-                          emptyStateBehavior="disable"
+                          emptyStateBehavior="enable"
                           deferMainContextRequestsUntilClick
                         />
                       </div>
@@ -654,7 +654,7 @@ const ExpensePlansTable: React.FC<ExpensePlansTableProps> = (props) => {
       </Modal>
 
       {/* Expense Plan Details Sheet */}
-      <Sheet open={!!selectedItem} onOpenChange={(open) => !open && handleCloseDetails()}>
+      <Sheet open={!!selectedItem} onOpenChange={(open) => !open && handleCloseDetails()} title={selectedItem?.title || getTranslationFromI18nKeyAndLabel('lowcoder:approve_expense_plan.expense_subtitle_details', 'Expense Plan Details')}>
         <SheetContent className="gba:w-[600px] gba:sm:gba:w-[600px] gba:max-w-none">
           <SheetHeader>
             <SheetTitle className="gba:text-xl gba:font-semibold gba:text-gray-900">

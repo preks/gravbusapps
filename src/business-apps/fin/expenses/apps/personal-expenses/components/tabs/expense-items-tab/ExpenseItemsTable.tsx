@@ -599,7 +599,7 @@ const ExpenseItemsTable: React.FC<ExpenseItemsTableProps> = React.memo((props) =
                                 })}
                                 prefixDataTestId={`${DATA_TEST_ID_PREFIX}-update-expense-item`}
                                 accessToken={contextProps.accessToken}
-                                emptyStateBehavior="disable"
+                                emptyStateBehavior="enable"
                                 deferMainContextRequestsUntilClick={true}
                               />
                             </div>

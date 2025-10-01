@@ -402,7 +402,7 @@ const AdvancePaymentsTable = React.forwardRef<HTMLDivElement, AdvancePaymentsTab
                                 }] : [])
                               ]}
                               accessToken={contextProps.accessToken}
-                              emptyStateBehavior="disable"
+                              emptyStateBehavior="enable"
                               deferMainContextRequestsUntilClick={true}
                             />
                           </div>

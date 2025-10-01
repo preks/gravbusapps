@@ -481,7 +481,7 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = (props) => {
                           ]}
                           prefixDataTestId="expense-requests-update"
                           accessToken={props.accessToken}
-                          emptyStateBehavior="disable"
+                          emptyStateBehavior="enable"
                           deferMainContextRequestsUntilClick
                           onClick={(e) => e.stopPropagation()}
                         />
@@ -795,7 +795,7 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = (props) => {
       />
 
       {/* Expense Request Details Sheet */}
-      <Sheet open={!!selectedRequest} onOpenChange={(open) => !open && setSelectedRequest(null)}>
+      <Sheet open={!!selectedRequest} onOpenChange={(open) => !open && setSelectedRequest(null)} title={selectedRequest?.title || getTranslationFromI18nKeyAndLabel('lowcoder:expense_request_details.title', 'Expense Request Details')}>
         <SheetContent className="gba:w-[500px] gba:sm:gba:w-[500px] gba:max-w-none">
           <SheetHeader>
             <SheetTitle className="gba:text-xl gba:font-semibold gba:text-gray-900">

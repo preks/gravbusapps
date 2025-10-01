@@ -478,7 +478,7 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = React.memo((pr
                                   },
                               ]}
                               accessToken={contextProps.accessToken}
-                              emptyStateBehavior="disable"
+                              emptyStateBehavior="enable"
                               deferMainContextRequestsUntilClick={true}
                               onClick={(e) => e.stopPropagation()}
                             />
