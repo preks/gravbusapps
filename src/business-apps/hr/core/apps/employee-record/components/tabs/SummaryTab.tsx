@@ -88,14 +88,15 @@ const SummaryTab: React.FC<SummaryTabProps> = ({
   const isCurrentUser = useMemo(() => {
     return currentUserEmployeeId && currentUserEmployeeId === employee.id;
   }, [employee.id, currentUserEmployeeId]);
-  const filteredUpcomingAbsence = useMemo(() => {
-    return upcomingAbsence?.filter(
+  const firstUpcomingValidAbsence = useMemo(() => {
+    const filteredUpcomingAbsence = upcomingAbsence?.filter(
       (absence) => absence.status === "APPROVED" || absence.status === "PENDING",
     );
+    return filteredUpcomingAbsence?.[0];
   }, [upcomingAbsence]);
   const approvedAbsence = useMemo(() => {
-    return filteredUpcomingAbsence?.filter((absence) => absence.status === "APPROVED");
-  }, [filteredUpcomingAbsence]);
+    return upcomingAbsence?.filter((absence) => absence.status === "APPROVED");
+  }, [upcomingAbsence]);
 
   // Check if current day is within any approved absence period
   const hasAbsenceToday = useMemo(() => {
@@ -676,7 +677,7 @@ const SummaryTab: React.FC<SummaryTabProps> = ({
                 )}
 
                 {/* Upcoming Absence Section */}
-                {filteredUpcomingAbsence && filteredUpcomingAbsence.length > 0 && (
+                {firstUpcomingValidAbsence && (
                   <div
                     className="gba:mt-4 gba:border-t gba:border-gray-200 gba:pt-4"
                     data-testid="upcoming-absence-section"
@@ -690,43 +691,40 @@ const SummaryTab: React.FC<SummaryTabProps> = ({
                         Next Planned Absence
                       </div>
                     </div>
-                    <div className="gba:flex gba:flex-col gba:gap-2">
-                      {filteredUpcomingAbsence.map((absence) => (
-                        <div className="gba:bg-gray-50 gba:p-3 gba:rounded gba:border gba:border-gray-200">
-                          <div className="gba:flex gba:justify-between gba:items-center">
-                            <div>
-                              <p className="gba:text-sm gba:font-medium" data-testid="absence-type">
-                                {absence.type.parentEntryId === "AbsenceGroup:v1:HEALTH" &&
-                                !isCurrentUser
-                                  ? "Out of office"
-                                  : absence.type.value}{" "}
-                                - {absence.calendarDays} days
-                              </p>
-                              <div className="gba:flex gba:items-center gba:mt-1">
-                                <span
-                                  className="gba:text-xs gba:text-gray-500"
-                                  data-testid="absence-dates"
-                                >
-                                  {dayjs(absence.startDate).format("MMM DD")} -{" "}
-                                  {dayjs(absence.endDate).format("MMM DD, YYYY")}
-                                </span>
-                              </div>
-                            </div>
-                            <div
-                              className={cn("gba:text-xs gba:px-2 gba:py-1 gba:rounded", {
-                                "gba:bg-green-100 gba:text-green-800":
-                                  absence.status === "APPROVED",
-                                "gba:bg-red-100 gba:text-red-800": absence.status === "REJECTED",
-                                "gba:bg-yellow-100 gba:text-yellow-800":
-                                  absence.status === "PENDING",
-                              })}
-                              data-testid="absence-status"
+                    <div className="gba:bg-gray-50 gba:p-3 gba:rounded gba:border gba:border-gray-200">
+                      <div className="gba:flex gba:justify-between gba:items-center">
+                        <div>
+                          <p className="gba:text-sm gba:font-medium" data-testid="absence-type">
+                            {firstUpcomingValidAbsence.type.parentEntryId ===
+                              "AbsenceGroup:v1:HEALTH" && !isCurrentUser
+                              ? "Out of office"
+                              : firstUpcomingValidAbsence.type.value}
+                            - {firstUpcomingValidAbsence.calendarDays} days
+                          </p>
+                          <div className="gba:flex gba:items-center gba:mt-1">
+                            <span
+                              className="gba:text-xs gba:text-gray-500"
+                              data-testid="absence-dates"
                             >
-                              {absence.status}
-                            </div>
+                              {dayjs(firstUpcomingValidAbsence.startDate).format("MMM DD")} -{" "}
+                              {dayjs(firstUpcomingValidAbsence.endDate).format("MMM DD, YYYY")}
+                            </span>
                           </div>
                         </div>
-                      ))}
+                        <div
+                          className={cn("gba:text-xs gba:px-2 gba:py-1 gba:rounded", {
+                            "gba:bg-green-100 gba:text-green-800":
+                              firstUpcomingValidAbsence.status === "APPROVED",
+                            "gba:bg-red-100 gba:text-red-800":
+                              firstUpcomingValidAbsence.status === "REJECTED",
+                            "gba:bg-yellow-100 gba:text-yellow-800":
+                              firstUpcomingValidAbsence.status === "PENDING",
+                          })}
+                          data-testid="absence-status"
+                        >
+                          {firstUpcomingValidAbsence.status}
+                        </div>
+                      </div>
                     </div>
                   </div>
                 )}

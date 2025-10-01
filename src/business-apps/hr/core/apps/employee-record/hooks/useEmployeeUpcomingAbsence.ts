@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useGraphqlClient } from '@/common/network/graphql/useGraphQLClient';
+import dayjs from 'dayjs';
 
 interface EmployeeAbsence {
   id: string;
@@ -57,7 +58,7 @@ export const useEmployeeUpcomingAbsence = (accessToken: string, employeeId: stri
       try {
         const variables = {
           employeeId,
-          startDate: '2025-10-01',
+          startDate: dayjs().format('YYYY-MM-DD'),
         };
 
         const response = await graphqlClient.request(getEmployeeUpcomingAbsence, variables);
