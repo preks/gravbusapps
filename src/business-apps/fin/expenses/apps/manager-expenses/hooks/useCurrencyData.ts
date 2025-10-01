@@ -19,6 +19,41 @@ const standardizeCurrencyRef = (currencyRef: string): string => {
   return `Currency:v1:${currencyRef}`;
 };
 
+// Function to process currency data from API response
+function processCurrencyData(response: any) {
+  const currencyMap = new Map<string, number>();
+
+  if (response?.expenseItems) {
+    response.expenseItems.forEach((item: any) => {
+      const code = extractCurrencyCode(item.currencyRef);
+      if (code) currencyMap.set(code, (currencyMap.get(code) || 0) + 1);
+    });
+  }
+
+  if (response?.expenseRequests) {
+    response.expenseRequests.forEach((item: any) => {
+      const code = extractCurrencyCode(item.currencyRef);
+      if (code) currencyMap.set(code, (currencyMap.get(code) || 0) + 1);
+    });
+  }
+
+  if (response?.expensePlans) {
+    response.expensePlans.forEach((item: any) => {
+      const code = extractCurrencyCode(item.currencyRef);
+      if (code) currencyMap.set(code, (currencyMap.get(code) || 0) + 1);
+    });
+  }
+
+  if (response?.advancePayments) {
+    response.advancePayments.forEach((item: any) => {
+      const code = extractCurrencyCode(item.currencyRef);
+      if (code) currencyMap.set(code, (currencyMap.get(code) || 0) + 1);
+    });
+  }
+
+  return Array.from(currencyMap.entries()).map(([currencyCode, count]) => ({ currencyCode, count }));
+}
+
 /**
  * Hook to fetch available currencies and most used currency
  */
@@ -80,43 +115,8 @@ export const useCurrencyData = (accessToken: string, managerId: string) => {
     } finally {
       setIsLoading(false);
     }
-  }, [graphQLClient, managerId, setStoreCurrencies, setMostUsedCurrency, isUserSelected, setPrimaryCurrency, setInitialized, processCurrencyData]);
+  }, [graphQLClient, managerId, setStoreCurrencies, setMostUsedCurrency, isUserSelected, setPrimaryCurrency, setInitialized]);
   
-  // Function to process currency data from API response (regular function to avoid TDZ)
-  function processCurrencyData(response: any) {
-    const currencyMap = new Map<string, number>();
-
-    if (response?.expenseItems) {
-      response.expenseItems.forEach((item: any) => {
-        const code = extractCurrencyCode(item.currencyRef);
-        if (code) currencyMap.set(code, (currencyMap.get(code) || 0) + 1);
-      });
-    }
-
-    if (response?.expenseRequests) {
-      response.expenseRequests.forEach((item: any) => {
-        const code = extractCurrencyCode(item.currencyRef);
-        if (code) currencyMap.set(code, (currencyMap.get(code) || 0) + 1);
-      });
-    }
-
-    if (response?.expensePlans) {
-      response.expensePlans.forEach((item: any) => {
-        const code = extractCurrencyCode(item.currencyRef);
-        if (code) currencyMap.set(code, (currencyMap.get(code) || 0) + 1);
-      });
-    }
-
-    if (response?.advancePayments) {
-      response.advancePayments.forEach((item: any) => {
-        const code = extractCurrencyCode(item.currencyRef);
-        if (code) currencyMap.set(code, (currencyMap.get(code) || 0) + 1);
-      });
-    }
-
-    return Array.from(currencyMap.entries()).map(([currencyCode, count]) => ({ currencyCode, count }));
-  }
-
   // Fetch currency data on component mount
   useEffect(() => {
     if (!accessToken || !managerId) {

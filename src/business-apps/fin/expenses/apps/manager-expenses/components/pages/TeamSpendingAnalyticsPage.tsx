@@ -21,15 +21,15 @@ import {
   Label,
   Separator,
 } from "@newwork/nw-design-system";
-import { PiArrowLeft, PiChartLineUp, PiMagnifyingGlass } from "react-icons/pi";
+import { PiArrowLeft, PiMagnifyingGlass } from "react-icons/pi";
+import { ChartLineUp as ChartLineUpIcon } from "@phosphor-icons/react";
 import { BusinessAppContextProps } from "@/common/BusinessAppContext";
 import { useTeamSpendingAnalytics, DateRangeOption } from "../../hooks/useTeamSpendingAnalytics";
-import { useExpenseGroupCatalog } from "../../hooks/useExpenseGroupCatalog";
 import { LineChartComponent, PieChartComponent, BarChartComponent } from "../modals/charts";
 import { PillType } from '@/components/pill/Pill';
-import { getPillColor } from '@/components/pill/pillColors';
+import StatusLegend from "../StatusLegend";
 import { getTranslationFromI18nKeyAndLabel, getCurrentActiveUserLocale } from "@/common/utils/windowUtils";
-import { formatCurrencyDisplay } from "../../../personal-expenses/utils";
+// removed unused formatCurrencyDisplay
 import {
   getExpenseRequestStatusDisplay,
   getAdvancePaymentStatusDisplay,
@@ -47,39 +47,7 @@ const TeamSpendingAnalyticsPage: React.FC<TeamSpendingAnalyticsPageProps> = ({
   accessToken,
   userInfo,
 }) => {
-  // Exact Pill palette (copied from Pill.tsx to keep charts consistent with pills)
-  const pillTypeColorMap = {
-    draft: getPillColor('draft'),
-    completed: getPillColor('completed'),
-    waiting: getPillColor('waiting'),
-    task: getPillColor('task'),
-    error: getPillColor('error'),
-    preparing: getPillColor('preparing'),
-  } as const;
-
-  const pillTypeLabelMap: Record<PillType, string> = {
-    draft: getTranslationFromI18nKeyAndLabel('lowcoder:status_legend.draft', 'Draft'),
-    completed: getTranslationFromI18nKeyAndLabel('lowcoder:status_legend.completed', 'Completed'),
-    waiting: getTranslationFromI18nKeyAndLabel('lowcoder:status_legend.waiting', 'Waiting'),
-    task: getTranslationFromI18nKeyAndLabel('lowcoder:status_legend.task', 'Task'),
-    error: getTranslationFromI18nKeyAndLabel('lowcoder:status_legend.error', 'Error'),
-    preparing: getTranslationFromI18nKeyAndLabel('lowcoder:status_legend.preparing', 'Preparing'),
-  };
-
-  const StatusLegend: React.FC<{ id?: string }> = ({ id }) => (
-    <div className="gba:mt-3 gba:flex gba:flex-wrap gba:gap-3" data-testid={id ? `${id}-status-legend` : 'status-legend'}>
-      {(Object.keys(pillTypeColorMap) as PillType[]).map((type) => (
-        <div key={type} className="gba:flex gba:items-center gba:gap-2">
-          <span
-            aria-hidden="true"
-            className="gba:inline-block gba:h-3 gba:w-3 gba:rounded-full"
-            style={{ backgroundColor: pillTypeColorMap[type] }}
-          />
-          <span className="gba:text-xs gba:text-muted-foreground">{pillTypeLabelMap[type]}</span>
-        </div>
-      ))}
-    </div>
-  );
+  // colors resolved within StatusLegend component
   // Use the global currency store
   const { primaryCurrency } = useCurrencyStore();
   const [activeTab, setActiveTab] = React.useState<string>("expense-items");
@@ -125,7 +93,7 @@ const TeamSpendingAnalyticsPage: React.FC<TeamSpendingAnalyticsPageProps> = ({
   );
 
   // Use the expense group catalog hook to get category names
-  const { expenseGroups } = useExpenseGroupCatalog(accessToken);
+  // catalog names are resolved in hook; no need to load here
 
   // Set the default currency when data is loaded
   useEffect(() => {
@@ -168,7 +136,7 @@ const TeamSpendingAnalyticsPage: React.FC<TeamSpendingAnalyticsPageProps> = ({
         "Total Expense Items",
       ),
       value: formatKpiAmount(data?.totalExpenseAmount),
-      color: "#1890ff",
+      color: "var(--nw-color-primary-500)",
       valueIsString: true,
       description: getTranslationFromI18nKeyAndLabel(
         "lowcoder:team_expenses_page.dashboard_tab.individual_expense_transactions",
@@ -182,7 +150,7 @@ const TeamSpendingAnalyticsPage: React.FC<TeamSpendingAnalyticsPageProps> = ({
         "Total Expense Requests",
       ),
       value: formatKpiAmount(data?.totalRequestAmount),
-      color: "#52c41a",
+      color: "var(--nw-color-success-500)",
       valueIsString: true,
       description: getTranslationFromI18nKeyAndLabel(
         "lowcoder:team_expenses_page.dashboard_tab.submitted_expense_requests",
@@ -196,7 +164,7 @@ const TeamSpendingAnalyticsPage: React.FC<TeamSpendingAnalyticsPageProps> = ({
         "Total Expense Plans",
       ),
       value: formatKpiAmount(data?.totalPlanAmount),
-      color: "#722ed1",
+      color: "var(--nw-color-accent-500)",
       valueIsString: true,
       description: getTranslationFromI18nKeyAndLabel(
         "lowcoder:team_expenses_page.dashboard_tab.planned_expense_budgets",
@@ -210,7 +178,7 @@ const TeamSpendingAnalyticsPage: React.FC<TeamSpendingAnalyticsPageProps> = ({
         "Total Advance Payments",
       ),
       value: formatKpiAmount(data?.totalAdvanceAmount),
-      color: "#fa8c16",
+      color: "var(--nw-color-warning-500)",
       valueIsString: true,
       description: getTranslationFromI18nKeyAndLabel(
         "lowcoder:team_expenses_page.dashboard_tab.advance_payments_to_employees",
@@ -235,7 +203,7 @@ const TeamSpendingAnalyticsPage: React.FC<TeamSpendingAnalyticsPageProps> = ({
             <LineChartComponent
               data={data?.expenseItemsByMonth || []}
               title=""
-              lineColor="#1890ff"
+              lineColor="var(--nw-color-primary-500)"
               currency={currencyFilter || primaryCurrency}
             />
           </CardContent>
@@ -262,7 +230,7 @@ const TeamSpendingAnalyticsPage: React.FC<TeamSpendingAnalyticsPageProps> = ({
               })) || []
               }
               title=""
-              barColor="#1890ff"
+              barColor="var(--nw-color-primary-500)"
               valueType="count"
               countLabel={getTranslationFromI18nKeyAndLabel(
                 "lowcoder:team_expenses_page.dashboard_tab.items",
@@ -272,7 +240,8 @@ const TeamSpendingAnalyticsPage: React.FC<TeamSpendingAnalyticsPageProps> = ({
               const code = entry.status || entry.name;
               const config = getExpenseRequestStatusDisplay(code);
               const type = (config?.type as PillType) || 'draft';
-              return pillTypeColorMap[type] || '#1890ff';
+              // StatusLegend centralizes colors; keep fallback token here
+              return (window as any)?.__nw_pill_colors?.[type] || 'var(--nw-color-primary-500)';
             }}
             />
             <StatusLegend id="expense-items-by-status" />
@@ -295,7 +264,7 @@ const TeamSpendingAnalyticsPage: React.FC<TeamSpendingAnalyticsPageProps> = ({
                 data={expenseItemsByCategoryWithNames}
                 title=""
                 currency={currencyFilter || primaryCurrency}
-                colors={["#1890ff", "#52c41a", "#722ed1", "#f5222d", "#fa8c16"]}
+                colors={["#1890ff", "#52c41a", "#faad14", "#f5222d", "#722ed1", "#13c2c2", "#fa8c16"]}
               />
             </CardContent>
           </Card>
@@ -325,7 +294,7 @@ const TeamSpendingAnalyticsPage: React.FC<TeamSpendingAnalyticsPageProps> = ({
               </div>
               <Separator />
               <div className="gba:text-center">
-                <div className="gba:text-2xl gba:font-bold gba:text-blue-600">
+                <div className="gba:text-2xl gba:font-bold" style={{ color: 'var(--nw-color-primary-500)' }}>
                   {formatKpiAmount(Number((data?.totalExpenseAmount ?? 0).toFixed?.(2) ?? data?.totalExpenseAmount ?? 0))}
                 </div>
                 <div className="gba:text-sm gba:text-muted-foreground">
@@ -358,7 +327,7 @@ const TeamSpendingAnalyticsPage: React.FC<TeamSpendingAnalyticsPageProps> = ({
             <LineChartComponent
               data={data?.expenseRequestsByMonth || []}
               title=""
-              lineColor="#52c41a"
+              lineColor="var(--nw-color-success-500)"
               currency={currencyFilter || primaryCurrency}
             />
           </CardContent>
@@ -387,7 +356,7 @@ const TeamSpendingAnalyticsPage: React.FC<TeamSpendingAnalyticsPageProps> = ({
               })) || []
               }
               title=""
-              barColor="#52c41a"
+              barColor="var(--nw-color-success-500)"
               valueType="count"
               countLabel={getTranslationFromI18nKeyAndLabel(
                 "lowcoder:team_expenses_page.dashboard_tab.requests",
@@ -397,7 +366,7 @@ const TeamSpendingAnalyticsPage: React.FC<TeamSpendingAnalyticsPageProps> = ({
               const code = entry.status || entry.name;
               const config = getExpenseRequestStatusDisplay(code);
               const type = (config?.type as PillType) || 'draft';
-              return pillTypeColorMap[type] || '#52c41a';
+              return (window as any)?.__nw_pill_colors?.[type] || 'var(--nw-color-success-500)';
             }}
             />
             <StatusLegend id="expense-requests-by-status-counts" />
@@ -424,18 +393,24 @@ const TeamSpendingAnalyticsPage: React.FC<TeamSpendingAnalyticsPageProps> = ({
               data={
               data?.expenseRequestsByStatus.map((item) => ({
                 name: getExpenseRequestStatusDisplay(item.status).label,
-                value: item.amount ?? 0,
+                value: (item as any).amount ?? 0,
                 status: item.status,
               })) || []
               }
               title=""
               currency={currencyFilter || primaryCurrency}
-              colors={["#52c41a", "#1890ff", "#722ed1", "#f5222d", "#fa8c16"]}
+              colors={[
+                "var(--nw-color-success-500)",
+                "var(--nw-color-primary-500)",
+                "var(--nw-color-accent-500)",
+                "var(--nw-color-danger-500)",
+                "var(--nw-color-warning-500)"
+              ]}
             getColor={(entry) => {
               const code = entry.status || entry.name;
               const config = getExpenseRequestStatusDisplay(code);
               const type = (config?.type as PillType) || 'draft';
-              return pillTypeColorMap[type];
+              return (window as any)?.__nw_pill_colors?.[type];
             }}
             />
             <StatusLegend id="expense-requests-by-status-amounts" />
@@ -466,7 +441,7 @@ const TeamSpendingAnalyticsPage: React.FC<TeamSpendingAnalyticsPageProps> = ({
               </div>
               <Separator />
               <div className="gba:text-center">
-                <div className="gba:text-2xl gba:font-bold gba:text-green-600">
+                <div className="gba:text-2xl gba:font-bold" style={{ color: 'var(--nw-color-success-500)' }}>
                   {formatKpiAmount(Number((data?.totalRequestAmount ?? 0).toFixed?.(2) ?? data?.totalRequestAmount ?? 0))}
                 </div>
                 <div className="gba:text-sm gba:text-muted-foreground">
@@ -499,7 +474,7 @@ const TeamSpendingAnalyticsPage: React.FC<TeamSpendingAnalyticsPageProps> = ({
             <LineChartComponent
               data={data?.expensePlansByMonth || []}
               title=""
-              lineColor="#722ed1"
+              lineColor="var(--nw-color-accent-500)"
               currency={currencyFilter || primaryCurrency}
             />
           </CardContent>
@@ -527,7 +502,7 @@ const TeamSpendingAnalyticsPage: React.FC<TeamSpendingAnalyticsPageProps> = ({
               })) || []
               }
               title=""
-              barColor="#722ed1"
+              barColor="var(--nw-color-accent-500)"
               valueType="count"
               countLabel={getTranslationFromI18nKeyAndLabel(
                 "lowcoder:team_expenses_page.dashboard_tab.plans",
@@ -537,7 +512,7 @@ const TeamSpendingAnalyticsPage: React.FC<TeamSpendingAnalyticsPageProps> = ({
               const code = entry.status || entry.name;
               const config = getExpensePlanStatusDisplay(code);
               const type = (config?.type as PillType) || 'draft';
-              return pillTypeColorMap[type] || '#722ed1';
+              return (window as any)?.__nw_pill_colors?.[type] || 'var(--nw-color-accent-500)';
             }}
             />
             <StatusLegend id="expense-plans-by-status-counts" />
@@ -563,18 +538,24 @@ const TeamSpendingAnalyticsPage: React.FC<TeamSpendingAnalyticsPageProps> = ({
               data={
               data?.expensePlansByStatus.map((item) => ({
                 name: getExpensePlanStatusDisplay(item.status).label,
-                value: item.amount ?? 0,
+                value: (item as any).amount ?? 0,
                 status: item.status,
               })) || []
               }
               title=""
               currency={currencyFilter || primaryCurrency}
-              colors={["#722ed1", "#52c41a", "#1890ff", "#f5222d", "#fa8c16"]}
+              colors={[
+                "var(--nw-color-accent-500)",
+                "var(--nw-color-success-500)",
+                "var(--nw-color-primary-500)",
+                "var(--nw-color-danger-500)",
+                "var(--nw-color-warning-500)"
+              ]}
             getColor={(entry) => {
               const code = entry.status || entry.name;
               const config = getExpensePlanStatusDisplay(code);
               const type = (config?.type as PillType) || 'draft';
-              return pillTypeColorMap[type];
+              return (window as any)?.__nw_pill_colors?.[type];
             }}
             />
             <StatusLegend id="expense-plans-by-status-amounts" />
@@ -605,7 +586,7 @@ const TeamSpendingAnalyticsPage: React.FC<TeamSpendingAnalyticsPageProps> = ({
               </div>
               <Separator />
               <div className="gba:text-center">
-                <div className="gba:text-2xl gba:font-bold gba:text-purple-600">
+                <div className="gba:text-2xl gba:font-bold" style={{ color: 'var(--nw-color-accent-500)' }}>
                   {formatKpiAmount(Number((data?.totalPlanAmount ?? 0).toFixed?.(2) ?? data?.totalPlanAmount ?? 0))}
                 </div>
                 <div className="gba:text-sm gba:text-muted-foreground">
@@ -676,7 +657,7 @@ const TeamSpendingAnalyticsPage: React.FC<TeamSpendingAnalyticsPageProps> = ({
               const code = entry.status || entry.name;
               const config = getAdvancePaymentStatusDisplay(code);
               const type = (config?.type as PillType) || 'draft';
-              return pillTypeColorMap[type] || '#13c2c2';
+              return (window as any)?.__nw_pill_colors?.[type] || '#13c2c2';
             }}
             />
             <StatusLegend id="advance-payments-by-status-counts" />
@@ -707,13 +688,19 @@ const TeamSpendingAnalyticsPage: React.FC<TeamSpendingAnalyticsPageProps> = ({
               })) || []
               }
               title=""
-              colors={["#13c2c2", "#52c41a", "#1890ff", "#f5222d", "#fa8c16"]}
+              colors={[
+                "var(--nw-color-info-500)",
+                "var(--nw-color-success-500)",
+                "var(--nw-color-primary-500)",
+                "var(--nw-color-danger-500)",
+                "var(--nw-color-warning-500)"
+              ]}
               currency={currencyFilter || primaryCurrency}
             getColor={(entry) => {
               const code = entry.status || entry.name;
               const config = getAdvancePaymentStatusDisplay(code);
               const type = (config?.type as PillType) || 'draft';
-              return pillTypeColorMap[type];
+              return (window as any)?.__nw_pill_colors?.[type];
             }}
             />
             <StatusLegend id="advance-payments-by-status-amounts" />
@@ -744,7 +731,7 @@ const TeamSpendingAnalyticsPage: React.FC<TeamSpendingAnalyticsPageProps> = ({
               </div>
               <Separator />
               <div className="gba:text-center">
-                <div className="gba:text-2xl gba:font-bold gba:text-cyan-600">
+                <div className="gba:text-2xl gba:font-bold" style={{ color: 'var(--nw-color-info-500)' }}>
                   {formatKpiAmount(Number((data?.totalAdvanceAmount ?? 0).toFixed?.(2) ?? data?.totalAdvanceAmount ?? 0))}
                 </div>
                 <div className="gba:text-sm gba:text-muted-foreground">
@@ -992,7 +979,7 @@ const TeamSpendingAnalyticsPage: React.FC<TeamSpendingAnalyticsPageProps> = ({
           "lowcoder:team_expenses_page.dashboard_tab.team_spending_analytics_description",
           "Comprehensive analysis of team spending patterns, trends, and budget allocations across all expense categories",
         )}
-        headerIcon={PiChartLineUp}
+        headerIcon={ChartLineUpIcon}
         className="gba:min-h-screen"
       >
         <div className="gba:px-6 gba:space-y-6" data-testid="team-spending-analytics-page">

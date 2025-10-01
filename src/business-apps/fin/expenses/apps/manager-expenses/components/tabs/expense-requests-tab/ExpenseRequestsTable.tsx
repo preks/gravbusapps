@@ -328,7 +328,7 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = (props) => {
                   <div className="gba:flex gba:items-center">
                     <span>
                       {getTranslationFromI18nKeyAndLabel(
-                        "lowcoder:expense_item_list.expense_table.title",
+                        "lowcoder:expense_request_list.expense_plan_table.title",
                         "Title",
                       )}
                     </span>

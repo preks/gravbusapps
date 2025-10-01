@@ -66,8 +66,8 @@ const ExpenseRequestStatistics: React.FC<ExpenseRequestStatisticsProps> = ({
             "Pending Requests",
           ),
           value: requestStats.pendingCount,
-          color: selectedFilters.includes("PENDING") ? "#1890ff" : "#faad14",
-          span: { xs: 24, sm: 12, md: 6, lg: 6 },
+          color: selectedFilters.includes("PENDING") ? "var(--nw-color-primary-500)" : "var(--nw-color-warning-500)",
+          
           description: getTranslationFromI18nKeyAndLabel(
             "lowcoder:team_expenses_page.expense_requests_tab.waiting_for_approval",
             "Waiting for approval",
@@ -82,8 +82,8 @@ const ExpenseRequestStatistics: React.FC<ExpenseRequestStatisticsProps> = ({
             "Pending Amount",
           ),
           value: formatCurrencyDisplay(requestStats.pendingAmount || 0, displayCurrency),
-          color: "#52c41a",
-          span: { xs: 24, sm: 12, md: 6, lg: 6 },
+          color: "var(--nw-color-success-500)",
+          
           description: getTranslationFromI18nKeyAndLabel(
             "lowcoder:team_expenses_page.expense_requests_tab.total_pending_funds",
             "Total Pending Reimbursement",
@@ -101,9 +101,9 @@ const ExpenseRequestStatistics: React.FC<ExpenseRequestStatisticsProps> = ({
           color: (() => {
             const multiFilters = ["PENDING", "APPROVED", "VERIFIED", "BOOKED", "TRANSFERRED"];
             const allActive = multiFilters.every((filter) => selectedFilters.includes(filter));
-            return allActive ? "#1677ff" : "#1890ff";
+            return allActive ? "var(--nw-color-primary-600)" : "var(--nw-color-primary-500)";
           })(),
-          span: { xs: 24, sm: 12, md: 6, lg: 6 },
+          
           description: getTranslationFromI18nKeyAndLabel(
             "lowcoder:team_expenses_page.expense_requests_tab.all_submitted_requests",
             "All Submitted Requests",
@@ -121,8 +121,8 @@ const ExpenseRequestStatistics: React.FC<ExpenseRequestStatisticsProps> = ({
             "Total Submitted Amount",
           ),
           value: formatCurrencyDisplay(requestStats.totalSubmittedAmount || 0, displayCurrency),
-          color: selectedFilters.length === 0 ? "#1677ff" : "#722ed1",
-          span: { xs: 24, sm: 12, md: 6, lg: 6 },
+          color: selectedFilters.length === 0 ? "var(--nw-color-primary-600)" : "var(--nw-color-accent-500)",
+          
           description: getTranslationFromI18nKeyAndLabel(
             "lowcoder:team_expenses_page.expense_requests_tab.all_expense_requests",
             "All Expense Requests",

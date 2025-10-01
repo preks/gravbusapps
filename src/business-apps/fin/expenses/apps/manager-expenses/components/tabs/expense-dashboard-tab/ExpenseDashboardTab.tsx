@@ -140,8 +140,8 @@ const ExpenseDashboardTab: React.FC<ExpenseDashboardTabProps> = (props) => {
       ),
       value: dashboardData?.teamMembersCount ?? 0,
       prefix: <PiListChecks />,
-      color: "#1677ff",
-      span: { xs: 24, sm: 12, lg: 6 },
+      color: "var(--nw-color-primary-500)",
+      
       description: getTranslationFromI18nKeyAndLabel(
         "lowcoder:team_expenses_page.dashboard_tab.total_team_members",
         "Total team members",
@@ -155,8 +155,8 @@ const ExpenseDashboardTab: React.FC<ExpenseDashboardTabProps> = (props) => {
       ),
       value: dashboardData?.pendingApprovalsCount ?? 0,
       prefix: <PiClockAfternoon />,
-      color: "#faad14",
-      span: { xs: 24, sm: 12, lg: 6 },
+      color: "var(--nw-color-warning-500)",
+      
       description: getTranslationFromI18nKeyAndLabel(
         "lowcoder:team_expenses_page.expense_plans_tab.requires_action",
         "Requires action",
@@ -176,9 +176,9 @@ const ExpenseDashboardTab: React.FC<ExpenseDashboardTabProps> = (props) => {
           {displayCurrency}
         </span>
       ),
-      color: "#3f8600",
+      color: "var(--nw-color-success-600)",
       valueIsString: true,
-      span: { xs: 24, sm: 12, lg: 6 },
+      
       description: getTranslationFromI18nKeyAndLabel(
         "lowcoder:team_expenses_page.dashboard_tab.current_month",
         "Current month",
@@ -192,8 +192,8 @@ const ExpenseDashboardTab: React.FC<ExpenseDashboardTabProps> = (props) => {
       ),
       value: dashboardData?.expenseCategoriesCount ?? 0,
       prefix: <PiCalendar />,
-      color: "#722ed1",
-      span: { xs: 24, sm: 12, lg: 6 },
+      color: "var(--nw-color-accent-500)",
+      
       description: getTranslationFromI18nKeyAndLabel(
         "lowcoder:team_expenses_page.dashboard_tab.categories_used",
         "Categories used",

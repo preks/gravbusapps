@@ -27,13 +27,22 @@ const BarChartComponent: React.FC<BarChartProps> = ({
   title,
   xAxisDataKey = "name",
   barDataKey = "value",
-  barColor = "#1890ff",
+  barColor = "var(--nw-color-primary-500)",
   height = 300,
   currency = "EUR",
   valueType = 'amount',
   countLabel = 'items',
   getColor,
 }) => {
+  const resolveCssVar = (color: string): string => {
+    if (typeof window === 'undefined') return color;
+    if (!color?.startsWith('var(')) return color;
+    const varName = color.substring(4, color.length - 1).trim();
+    const value = getComputedStyle(document.documentElement).getPropertyValue(varName).trim();
+    return value || color;
+  };
+
+  const resolvedBarColor = React.useMemo(() => resolveCssVar(barColor), [barColor]);
   if (!data || data.length === 0) {
     return (
       <Card className="gba:w-full">
@@ -93,9 +102,12 @@ const BarChartComponent: React.FC<BarChartProps> = ({
                 }}
                 labelFormatter={(label) => `${label}`}
               />
-              <Bar dataKey={barDataKey} fill={barColor}>
+              <Bar dataKey={barDataKey} fill={resolvedBarColor}>
                 {data.map((entry, index) => (
-                  <Cell key={`cell-${index}`} fill={getColor ? (getColor(entry, index) || barColor) : barColor} />
+                  <Cell key={`cell-${index}`} fill={(() => {
+                    const candidate = getColor ? (getColor(entry, index) || resolvedBarColor) : resolvedBarColor;
+                    return resolveCssVar(candidate);
+                  })()} />
                 ))}
               </Bar>
             </BarChart>

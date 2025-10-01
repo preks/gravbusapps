@@ -84,6 +84,10 @@ export const useGetExpenseDashboard = (
   context?: BusinessAppContextProps,
   currencyFilter?: string,
 ): ExpenseDashboardResult => {
+  const managerId =
+    context?.userInfo?.employeeDetails?.employeeId ||
+    context?.userInfo?.id ||
+    "00000000-0000-0000-0000-000000000000";
   const [dashboardData, setDashboardData] = useState<ExpenseDashboardData | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
@@ -94,11 +98,6 @@ export const useGetExpenseDashboard = (
 
   // Function to fetch dashboard data
   const fetchDashboardData = useCallback(async () => {
-    // Use the real manager ID from userInfo with a fallback UUID for development
-    const managerId =
-      context?.userInfo?.employeeDetails?.employeeId ||
-      context?.userInfo?.id ||
-      "00000000-0000-0000-0000-000000000000";
     if (!accessToken) {
       setError("Access token not found. Cannot fetch dashboard data.");
       setDashboardData(null);
@@ -133,7 +132,8 @@ export const useGetExpenseDashboard = (
       })();
 
       // Format the currency reference for the database query (Currency:v1:CODE format)
-      const formattedCurrencyRef = currencyFilter ? `Currency:v1:${currencyFilter}` : undefined;
+      // Always use the dashboard filter (required)
+      const formattedCurrencyRef = `Currency:v1:${currencyFilter || ''}`;
 
       // Make the request using the GraphQL client
       const result = await graphQLClient.request(GET_EXPENSE_DASHBOARD_BY_MANAGER, {
@@ -196,7 +196,7 @@ export const useGetExpenseDashboard = (
     } finally {
       setIsLoading(false);
     }
-  }, [context?.userInfo?.employeeDetails?.employeeId, context?.userInfo?.id, graphQLClient, currencyFilter]);
+  }, [managerId, graphQLClient, currencyFilter]);
 
   // Initial fetch of dashboard data
   useEffect(() => {

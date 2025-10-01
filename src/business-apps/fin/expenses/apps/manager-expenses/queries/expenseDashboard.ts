@@ -45,7 +45,7 @@ query GetExpenseDashboardByManager($managerId: uuid!, $startDate: timestamp, $ye
     }
   }
 
-  # Get monthly expenses total
+  # Get monthly expenses total (exclude non-contributing statuses)
   MonthlyExpensesAggregate: ExpenseRequestAggregate(
     where: {
       employee: {
@@ -53,7 +53,7 @@ query GetExpenseDashboardByManager($managerId: uuid!, $startDate: timestamp, $ye
           supervisorEmployeeId: {_eq: $managerId}
         }
       },
-      status: {_eq: "APPROVED"},
+      status: { _nin: ["CREATED", "RETURNED", "REJECTED", "DISCARDED"] },
       requestDate: {_gte: $startDate},
       isDeleted: {_eq: false},
       currencyRef: {_eq: $currencyRef}

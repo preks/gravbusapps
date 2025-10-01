@@ -28,12 +28,29 @@ const PieChartComponent: React.FC<PieChartProps> = ({
   nameKey = "name",
   dataKey = "value",
   height = 300,
-  colors = ["#1890ff", "#52c41a", "#faad14", "#f5222d", "#722ed1", "#13c2c2", "#fa8c16"],
+  colors = [
+    "var(--nw-color-primary-500)",
+    "var(--nw-color-success-500)",
+    "var(--nw-color-warning-500)",
+    "var(--nw-color-danger-500)",
+    "var(--nw-color-accent-500)",
+    "var(--nw-color-info-500)",
+    "var(--nw-color-warning-600)"
+  ],
   currency = "EUR",
   valueType = 'amount',
   countLabel = 'items',
   getColor,
 }) => {
+  const resolveCssVar = (color: string): string => {
+    if (typeof window === 'undefined') return color;
+    if (!color?.startsWith('var(')) return color;
+    const varName = color.substring(4, color.length - 1).trim();
+    const value = getComputedStyle(document.documentElement).getPropertyValue(varName).trim();
+    return value || color;
+  };
+
+  const resolvedColors = React.useMemo(() => colors.map(resolveCssVar), [colors]);
   if (!data || data.length === 0) {
     return (
       <Card className="gba:w-full">
@@ -80,18 +97,20 @@ const PieChartComponent: React.FC<PieChartProps> = ({
                 fill="#8884d8"
                 dataKey={dataKey}
               >
-                {data.map((entry, index) => (
-                  <Cell key={`cell-${index}`} fill={getColor ? (getColor(entry, index) || colors[index % colors.length]) : colors[index % colors.length]} />
-                ))}
+                {data.map((entry, index) => {
+                  const base = resolvedColors[index % resolvedColors.length];
+                  const custom = getColor ? getColor(entry, index) : undefined;
+                  const resolved = custom ? resolveCssVar(custom) : base;
+                  return <Cell key={`cell-${index}`} fill={resolved} />;
+                })}
               </Pie>
               <Tooltip
                 formatter={(value: any, _name: any, props: any) => {
+                  const num = Number(value ?? 0);
                   if (valueType === 'count') {
-                    const num = typeof value === 'number' ? value : Number(value ?? 0);
                     return [`${num} ${countLabel}`, 'Count'];
                   }
-                  const num = typeof value === 'number' ? value : Number(value ?? 0);
-                  const fixed = Number.isFinite(num) ? Number(num.toFixed(2)) : 0;
+                  const fixed = Number.isFinite(num) ? Math.round(num * 100) / 100 : 0;
                   const count = props?.payload?.count ?? null;
                   const amountText = formatCurrencyDisplay(fixed, currency);
                   return [count !== null ? `${amountText} (Count: ${count})` : amountText, 'Amount'];

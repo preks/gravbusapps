@@ -36,6 +36,12 @@ export interface ExpenseRequest {
     fileUrl: string;
     fileName: string;
   }[];
+  /**
+   * Linked expense plan (if any). Added to avoid 'any' assertions when rendering Plan Code.
+   */
+  expensePlan?: {
+    code?: string;
+  } | null;
   employeeDocument?: {
     file: string;
     fileSize: number;

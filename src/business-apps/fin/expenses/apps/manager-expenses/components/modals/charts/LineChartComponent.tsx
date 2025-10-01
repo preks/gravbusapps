@@ -32,10 +32,19 @@ const LineChartComponent: React.FC<LineChartProps> = ({
   title,
   xAxisDataKey = "date",
   lineDataKey = "value",
-  lineColor = "#52c41a",
+  lineColor = "var(--nw-color-success-500)",
   height = 300,
   currency = "EUR",
 }) => {
+  const resolveCssVar = (color: string): string => {
+    if (typeof window === 'undefined') return color;
+    if (!color?.startsWith('var(')) return color;
+    const varName = color.substring(4, color.length - 1).trim();
+    const value = getComputedStyle(document.documentElement).getPropertyValue(varName).trim();
+    return value || color;
+  };
+
+  const resolvedLineColor = React.useMemo(() => resolveCssVar(lineColor), [lineColor]);
   if (!data || data.length === 0) {
     return (
       <Card className="gba:w-full">
@@ -94,7 +103,7 @@ const LineChartComponent: React.FC<LineChartProps> = ({
               <Line
                 type="monotone"
                 dataKey={lineDataKey}
-                stroke={lineColor}
+                stroke={resolvedLineColor}
                 activeDot={{ r: 8 }}
                 name="Amount"
               />

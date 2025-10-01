@@ -104,9 +104,9 @@ const ExpensePlanStatisticsDisplay: React.FC<ExpensePlanStatisticsProps> = ({
         ),
         value: planStats.pendingCount.toString(),
         prefix: <PiCalendar />,
-        color: activeFilter?.includes(ExpenseStatus.PENDING) ? "#1890ff" : "#faad14",
+        color: activeFilter?.includes(ExpenseStatus.PENDING) ? "var(--nw-color-primary-500)" : "var(--nw-color-warning-500)",
         valueIsString: true,
-        span: { xs: 24, sm: 6 },
+        
         description: getTranslationFromI18nKeyAndLabel(
           "lowcoder:team_expenses_page.expense_plans_tab.requires_action",
           "Requires action",
@@ -122,9 +122,9 @@ const ExpensePlanStatisticsDisplay: React.FC<ExpensePlanStatisticsProps> = ({
         ),
         value: planStats.totalCount.toString(),
         prefix: <PiFileText />,
-        color: "#1890ff",
+        color: "var(--nw-color-primary-500)",
         valueIsString: true,
-        span: { xs: 24, sm: 6 },
+        
         description: getTranslationFromI18nKeyAndLabel(
           "lowcoder:team_expenses_page.expense_plans_tab.all_submitted_plans",
           "All submitted plans",
@@ -192,9 +192,9 @@ const ExpensePlanStatisticsDisplay: React.FC<ExpensePlanStatisticsProps> = ({
             {displayCurrency}
           </span>
         ),
-        color: "#3f8600",
+        color: "var(--nw-color-success-600)",
         valueIsString: true,
-        span: { xs: 24, sm: 6 },
+        
         description: getTranslationFromI18nKeyAndLabel(
           "lowcoder:team_expenses_page.expense_plans_tab.across_all_plans",
           "Across all plans",
