@@ -1,7 +1,19 @@
-"use client";
+'use client';
 
 import React, { useCallback } from 'react';
-import { Table, TableHeader, TableBody, TableHead, TableRow, TableCell, Card, CardContent, Spinner, Button, Badge } from '@newwork/nw-design-system';
+import {
+  Table,
+  TableHeader,
+  TableBody,
+  TableHead,
+  TableRow,
+  TableCell,
+  Card,
+  CardContent,
+  Spinner,
+  Button,
+  Badge,
+} from '@newwork/nw-design-system';
 import { PiCalendar, PiUser, PiArrowUp, PiArrowDown } from 'react-icons/pi';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 import { EnhancedAbsence } from '../types';
@@ -30,9 +42,6 @@ interface AbsenceTableProps extends BusinessAppContextProps {
 
 const DATA_TEST_ID_PREFIX = 'AbsenceTable';
 
-/**
- * Table component for displaying absences with pagination and actions
- */
 export const AbsenceTable: React.FC<AbsenceTableProps> = ({
   absences,
   loading,
@@ -52,9 +61,7 @@ export const AbsenceTable: React.FC<AbsenceTableProps> = ({
   selectedAbsenceId,
   ...props
 }) => {
-  // Get absence colors
   const { getColorForAbsence } = useAbsenceColors(props);
-  // Get employee display name
   const getEmployeeName = (absence: EnhancedAbsence) => {
     if (absence.employee.firstName || absence.employee.lastName) {
       return `${absence.employee.firstName || ''} ${absence.employee.lastName || ''}`.trim();
@@ -62,12 +69,10 @@ export const AbsenceTable: React.FC<AbsenceTableProps> = ({
     return '-';
   };
 
-  // Get absence group display name
   const getAbsenceGroup = (absence: EnhancedAbsence) => {
     return absence.groupName || '-';
   };
 
-  // Get status badge variant
   const getStatusBadgeVariant = (status: string) => {
     switch (status) {
       case 'APPROVED':
@@ -83,24 +88,26 @@ export const AbsenceTable: React.FC<AbsenceTableProps> = ({
     }
   };
 
-  // Handle row click
-  const handleRowClick = useCallback((record: EnhancedAbsence) => {
-    onSelectAbsence?.(record);
-  }, [onSelectAbsence]);
+  const handleRowClick = useCallback(
+    (record: EnhancedAbsence) => {
+      onSelectAbsence?.(record);
+    },
+    [onSelectAbsence],
+  );
 
-  // Show error state
   if (error) {
     return (
-      <div 
+      <div
         className="gba:flex gba:flex-col gba:items-center gba:justify-center gba:p-8 gba:text-center"
         data-testid={`${DATA_TEST_ID_PREFIX}-error-state`}
       >
         <div className="gba:text-red-500 gba:text-lg gba:font-medium gba:mb-2">
-          {getTranslationFromI18nKeyAndLabel('lowcoder:absence_table.error_loading_absences', 'Error Loading Absences')}
+          {getTranslationFromI18nKeyAndLabel(
+            'lowcoder:absence_table.error_loading_absences',
+            'Error Loading Absences',
+          )}
         </div>
-        <div className="gba:text-gray-600 gba:mb-4">
-          {error.message}
-        </div>
+        <div className="gba:text-gray-600 gba:mb-4">{error.message}</div>
         <Button
           variant="default"
           onClick={retry}
@@ -112,10 +119,8 @@ export const AbsenceTable: React.FC<AbsenceTableProps> = ({
     );
   }
 
-  // Helper function to handle column sorting
   const handleSort = (field: string) => {
     if (sortField === field) {
-      // Cycle through: ASC -> DESC -> clear
       if (sortOrder === 'ASC') {
         onSortingChange(field, 'DESC');
       } else if (sortOrder === 'DESC') {
@@ -128,7 +133,6 @@ export const AbsenceTable: React.FC<AbsenceTableProps> = ({
     }
   };
 
-  // Helper function to render sort icon
   const renderSortIcon = (field: string) => {
     if (sortField !== field) return null;
     if (sortOrder === 'ASC') return <PiArrowUp className="gba:inline gba:ml-1" size={12} />;
@@ -144,22 +148,25 @@ export const AbsenceTable: React.FC<AbsenceTableProps> = ({
             <Spinner />
           </div>
         )}
-        
+
         <div className="gba:overflow-x-auto">
           <Table data-testid={`${DATA_TEST_ID_PREFIX}-table`}>
             <TableHeader>
               <TableRow className="gba:border-b gba:bg-gray-50">
-                <TableHead 
+                <TableHead
                   className="gba:w-[20%] gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6 gba:cursor-pointer gba:select-none hover:gba:bg-gray-100"
                   onClick={() => handleSort('employee.firstName')}
                   data-testid={`${DATA_TEST_ID_PREFIX}-employee-header`}
                 >
                   <div className="gba:flex gba:items-center">
-                    {getTranslationFromI18nKeyAndLabel('lowcoder:absence_table.employee', 'Employee')}
+                    {getTranslationFromI18nKeyAndLabel(
+                      'lowcoder:absence_table.employee',
+                      'Employee',
+                    )}
                     {renderSortIcon('employee.firstName')}
                   </div>
                 </TableHead>
-                <TableHead 
+                <TableHead
                   className="gba:w-[15%] gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6 gba:cursor-pointer gba:select-none hover:gba:bg-gray-100"
                   onClick={() => handleSort('groupName')}
                   data-testid={`${DATA_TEST_ID_PREFIX}-group-header`}
@@ -169,27 +176,33 @@ export const AbsenceTable: React.FC<AbsenceTableProps> = ({
                     {renderSortIcon('groupName')}
                   </div>
                 </TableHead>
-                <TableHead 
+                <TableHead
                   className="gba:w-[12%] gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6 gba:cursor-pointer gba:select-none hover:gba:bg-gray-100"
                   onClick={() => handleSort('startDate')}
                   data-testid={`${DATA_TEST_ID_PREFIX}-start-date-header`}
                 >
                   <div className="gba:flex gba:items-center">
-                    {getTranslationFromI18nKeyAndLabel('lowcoder:absence_table.start_date', 'Start Date')}
+                    {getTranslationFromI18nKeyAndLabel(
+                      'lowcoder:absence_table.start_date',
+                      'Start Date',
+                    )}
                     {renderSortIcon('startDate')}
                   </div>
                 </TableHead>
-                <TableHead 
+                <TableHead
                   className="gba:w-[12%] gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6 gba:cursor-pointer gba:select-none hover:gba:bg-gray-100"
                   onClick={() => handleSort('endDate')}
                   data-testid={`${DATA_TEST_ID_PREFIX}-end-date-header`}
                 >
                   <div className="gba:flex gba:items-center">
-                    {getTranslationFromI18nKeyAndLabel('lowcoder:absence_table.end_date', 'End Date')}
+                    {getTranslationFromI18nKeyAndLabel(
+                      'lowcoder:absence_table.end_date',
+                      'End Date',
+                    )}
                     {renderSortIcon('endDate')}
                   </div>
                 </TableHead>
-                <TableHead 
+                <TableHead
                   className="gba:w-[10%] gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6 gba:cursor-pointer gba:select-none hover:gba:bg-gray-100"
                   onClick={() => handleSort('status')}
                   data-testid={`${DATA_TEST_ID_PREFIX}-status-header`}
@@ -199,7 +212,7 @@ export const AbsenceTable: React.FC<AbsenceTableProps> = ({
                     {renderSortIcon('status')}
                   </div>
                 </TableHead>
-                <TableHead 
+                <TableHead
                   className="gba:w-[6%] gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6 gba:cursor-pointer gba:select-none hover:gba:bg-gray-100"
                   onClick={() => handleSort('effectiveDays')}
                   data-testid={`${DATA_TEST_ID_PREFIX}-days-header`}
@@ -209,7 +222,7 @@ export const AbsenceTable: React.FC<AbsenceTableProps> = ({
                     {renderSortIcon('effectiveDays')}
                   </div>
                 </TableHead>
-                <TableHead 
+                <TableHead
                   className="gba:w-[15%] gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6 gba:cursor-pointer gba:select-none hover:gba:bg-gray-100"
                   onClick={() => handleSort('createdAt')}
                   data-testid={`${DATA_TEST_ID_PREFIX}-created-header`}
@@ -223,13 +236,16 @@ export const AbsenceTable: React.FC<AbsenceTableProps> = ({
             </TableHeader>
             <TableBody>
               {absences.map((record) => (
-                <TableRow 
+                <TableRow
                   key={record.id}
                   className={`gba:border-b gba:hover:bg-gray-50 gba:transition-colors ${selectedAbsenceId === record.id ? 'gba:bg-blue-50' : ''}`}
                   data-testid={`${DATA_TEST_ID_PREFIX}-row-${record.id}`}
                 >
-                  <TableCell className="gba:py-4 gba:px-6" data-testid={`${DATA_TEST_ID_PREFIX}-employee-cell-${record.id}`}>
-                    <div 
+                  <TableCell
+                    className="gba:py-4 gba:px-6"
+                    data-testid={`${DATA_TEST_ID_PREFIX}-employee-cell-${record.id}`}
+                  >
+                    <div
                       className="gba:flex gba:items-center gba:gap-3 gba:cursor-pointer gba:hover:bg-gray-50 gba:p-2 gba:rounded gba:transition-colors"
                       onClick={(e) => {
                         e.stopPropagation();
@@ -245,55 +261,81 @@ export const AbsenceTable: React.FC<AbsenceTableProps> = ({
                       </div>
                     </div>
                   </TableCell>
-                  <TableCell className="gba:py-4 gba:px-6" data-testid={`${DATA_TEST_ID_PREFIX}-group-cell-${record.id}`}>
-                    <Badge 
+                  <TableCell
+                    className="gba:py-4 gba:px-6"
+                    data-testid={`${DATA_TEST_ID_PREFIX}-group-cell-${record.id}`}
+                  >
+                    <Badge
                       variant="outline"
-                      style={{ 
+                      style={{
                         backgroundColor: getColorForAbsence(getAbsenceGroup(record)),
                         color: 'white',
-                        borderColor: getColorForAbsence(getAbsenceGroup(record))
+                        borderColor: getColorForAbsence(getAbsenceGroup(record)),
                       }}
                     >
                       {getAbsenceGroup(record)}
                     </Badge>
                   </TableCell>
-                  <TableCell className="gba:py-4 gba:px-6" data-testid={`${DATA_TEST_ID_PREFIX}-start-date-cell-${record.id}`}>
+                  <TableCell
+                    className="gba:py-4 gba:px-6"
+                    data-testid={`${DATA_TEST_ID_PREFIX}-start-date-cell-${record.id}`}
+                  >
                     {record.startDate ? (
                       <div className="gba:flex gba:items-center gba:gap-2">
                         <PiCalendar size={16} className="gba:text-gray-400" />
                         <span className="gba:text-sm">
-                          {dayjs(record.startDate).format(getDateFormat("date.short"))}
+                          {dayjs(record.startDate).format(getDateFormat('date.short'))}
                         </span>
                       </div>
-                    ) : '-'}
+                    ) : (
+                      '-'
+                    )}
                   </TableCell>
-                  <TableCell className="gba:py-4 gba:px-6" data-testid={`${DATA_TEST_ID_PREFIX}-end-date-cell-${record.id}`}>
+                  <TableCell
+                    className="gba:py-4 gba:px-6"
+                    data-testid={`${DATA_TEST_ID_PREFIX}-end-date-cell-${record.id}`}
+                  >
                     {record.endDate ? (
                       <div className="gba:flex gba:items-center gba:gap-2">
                         <PiCalendar size={16} className="gba:text-gray-400" />
                         <span className="gba:text-sm">
-                          {dayjs(record.endDate).format(getDateFormat("date.short"))}
+                          {dayjs(record.endDate).format(getDateFormat('date.short'))}
                         </span>
                       </div>
-                    ) : '-'}
+                    ) : (
+                      '-'
+                    )}
                   </TableCell>
-                  <TableCell className="gba:py-4 gba:px-6" data-testid={`${DATA_TEST_ID_PREFIX}-status-cell-${record.id}`}>
+                  <TableCell
+                    className="gba:py-4 gba:px-6"
+                    data-testid={`${DATA_TEST_ID_PREFIX}-status-cell-${record.id}`}
+                  >
                     <Badge variant={getStatusBadgeVariant(record.status)}>
                       {record.status || '-'}
                     </Badge>
                   </TableCell>
-                  <TableCell className="gba:py-4 gba:px-6" data-testid={`${DATA_TEST_ID_PREFIX}-days-cell-${record.id}`}>
-                    <span className="gba:text-sm gba:font-medium">{record.effectiveDays || '-'}</span>
+                  <TableCell
+                    className="gba:py-4 gba:px-6"
+                    data-testid={`${DATA_TEST_ID_PREFIX}-days-cell-${record.id}`}
+                  >
+                    <span className="gba:text-sm gba:font-medium">
+                      {record.effectiveDays || '-'}
+                    </span>
                   </TableCell>
-                  <TableCell className="gba:py-4 gba:px-6" data-testid={`${DATA_TEST_ID_PREFIX}-created-cell-${record.id}`}>
+                  <TableCell
+                    className="gba:py-4 gba:px-6"
+                    data-testid={`${DATA_TEST_ID_PREFIX}-created-cell-${record.id}`}
+                  >
                     {record.createdAt ? (
                       <div className="gba:flex gba:items-center gba:gap-2">
                         <PiCalendar size={16} className="gba:text-gray-400" />
                         <span className="gba:text-sm">
-                          {dayjs(record.createdAt).format(getDateFormat("date.short"))}
+                          {dayjs(record.createdAt).format(getDateFormat('date.short'))}
                         </span>
                       </div>
-                    ) : '-'}
+                    ) : (
+                      '-'
+                    )}
                   </TableCell>
                 </TableRow>
               ))}
@@ -302,81 +344,95 @@ export const AbsenceTable: React.FC<AbsenceTableProps> = ({
         </div>
       </CardContent>
 
-      {/* Pagination - Only show if there are multiple pages */}
       {total > pageSize ? (
-        <div className="gba:flex gba:items-center gba:justify-between gba:px-2 gba:py-4" data-testid={`${DATA_TEST_ID_PREFIX}-pagination`}>
-        <div className="gba:text-sm gba:text-muted-foreground" data-testid={`${DATA_TEST_ID_PREFIX}-pagination-info`}>
-          {`${(currentPage - 1) * pageSize + 1}-${Math.min(currentPage * pageSize, total)} of ${total} absences`}
+        <div
+          className="gba:flex gba:items-center gba:justify-between gba:px-2 gba:py-4"
+          data-testid={`${DATA_TEST_ID_PREFIX}-pagination`}
+        >
+          <div
+            className="gba:text-sm gba:text-muted-foreground"
+            data-testid={`${DATA_TEST_ID_PREFIX}-pagination-info`}
+          >
+            {`${(currentPage - 1) * pageSize + 1}-${Math.min(currentPage * pageSize, total)} of ${total} absences`}
+          </div>
+          <div className="gba:flex gba:items-center gba:space-x-6 gba:lg:space-x-8">
+            <div className="gba:flex gba:items-center gba:space-x-2">
+              <p className="gba:text-sm gba:font-medium">Rows per page</p>
+              <select
+                value={pageSize}
+                onChange={(e) => onPaginationChange(1, Number(e.target.value))}
+                className="gba:h-8 gba:w-[70px] gba:rounded gba:border gba:border-input gba:px-3 gba:py-1 gba:text-sm"
+                data-testid={`${DATA_TEST_ID_PREFIX}-page-size-select`}
+              >
+                <option value={10}>10</option>
+                <option value={20}>20</option>
+                <option value={50}>50</option>
+                <option value={100}>100</option>
+              </select>
+            </div>
+            <div
+              className="gba:flex gba:w-[100px] gba:items-center gba:justify-center gba:text-sm gba:font-medium"
+              data-testid={`${DATA_TEST_ID_PREFIX}-page-info`}
+            >
+              Page {currentPage} of {Math.ceil(total / pageSize)}
+            </div>
+            <div className="gba:flex gba:items-center gba:space-x-2">
+              <Button
+                variant="outline"
+                className="gba:h-8 gba:w-8 gba:p-0"
+                onClick={() => onPaginationChange(1)}
+                disabled={currentPage === 1}
+                data-testid={`${DATA_TEST_ID_PREFIX}-first-page-button`}
+              >
+                <span className="gba:sr-only">Go to first page</span>
+                ⟨⟨
+              </Button>
+              <Button
+                variant="outline"
+                className="gba:h-8 gba:w-8 gba:p-0"
+                onClick={() => onPaginationChange(currentPage - 1)}
+                disabled={currentPage === 1}
+                data-testid={`${DATA_TEST_ID_PREFIX}-previous-page-button`}
+              >
+                <span className="gba:sr-only">Go to previous page</span>⟨
+              </Button>
+              <Button
+                variant="outline"
+                className="gba:h-8 gba:w-8 gba:p-0"
+                onClick={() => onPaginationChange(currentPage + 1)}
+                disabled={currentPage >= Math.ceil(total / pageSize)}
+                data-testid={`${DATA_TEST_ID_PREFIX}-next-page-button`}
+              >
+                <span className="gba:sr-only">Go to next page</span>⟩
+              </Button>
+              <Button
+                variant="outline"
+                className="gba:h-8 gba:w-8 gba:p-0"
+                onClick={() => onPaginationChange(Math.ceil(total / pageSize))}
+                disabled={currentPage >= Math.ceil(total / pageSize)}
+                data-testid={`${DATA_TEST_ID_PREFIX}-last-page-button`}
+              >
+                <span className="gba:sr-only">Go to last page</span>
+                ⟩⟩
+              </Button>
+            </div>
+          </div>
         </div>
-        <div className="gba:flex gba:items-center gba:space-x-6 gba:lg:space-x-8">
-          <div className="gba:flex gba:items-center gba:space-x-2">
-            <p className="gba:text-sm gba:font-medium">Rows per page</p>
-            <select
-              value={pageSize}
-              onChange={(e) => onPaginationChange(1, Number(e.target.value))}
-              className="gba:h-8 gba:w-[70px] gba:rounded gba:border gba:border-input gba:px-3 gba:py-1 gba:text-sm"
-              data-testid={`${DATA_TEST_ID_PREFIX}-page-size-select`}
-            >
-              <option value={10}>10</option>
-              <option value={20}>20</option>
-              <option value={50}>50</option>
-              <option value={100}>100</option>
-            </select>
-          </div>
-          <div className="gba:flex gba:w-[100px] gba:items-center gba:justify-center gba:text-sm gba:font-medium" data-testid={`${DATA_TEST_ID_PREFIX}-page-info`}>
-            Page {currentPage} of {Math.ceil(total / pageSize)}
-          </div>
-          <div className="gba:flex gba:items-center gba:space-x-2">
-            <Button
-              variant="outline"
-              className="gba:h-8 gba:w-8 gba:p-0"
-              onClick={() => onPaginationChange(1)}
-              disabled={currentPage === 1}
-              data-testid={`${DATA_TEST_ID_PREFIX}-first-page-button`}
-            >
-              <span className="gba:sr-only">Go to first page</span>
-              ⟨⟨
-            </Button>
-            <Button
-              variant="outline"
-              className="gba:h-8 gba:w-8 gba:p-0"
-              onClick={() => onPaginationChange(currentPage - 1)}
-              disabled={currentPage === 1}
-              data-testid={`${DATA_TEST_ID_PREFIX}-previous-page-button`}
-            >
-              <span className="gba:sr-only">Go to previous page</span>
-              ⟨
-            </Button>
-            <Button
-              variant="outline"
-              className="gba:h-8 gba:w-8 gba:p-0"
-              onClick={() => onPaginationChange(currentPage + 1)}
-              disabled={currentPage >= Math.ceil(total / pageSize)}
-              data-testid={`${DATA_TEST_ID_PREFIX}-next-page-button`}
-            >
-              <span className="gba:sr-only">Go to next page</span>
-              ⟩
-            </Button>
-            <Button
-              variant="outline"
-              className="gba:h-8 gba:w-8 gba:p-0"
-              onClick={() => onPaginationChange(Math.ceil(total / pageSize))}
-              disabled={currentPage >= Math.ceil(total / pageSize)}
-              data-testid={`${DATA_TEST_ID_PREFIX}-last-page-button`}
-            >
-              <span className="gba:sr-only">Go to last page</span>
-              ⟩⟩
-            </Button>
-          </div>
-        </div>
-      </div>
       ) : (
-        <div className="gba:flex gba:items-center gba:justify-between gba:px-2 gba:py-4" data-testid={`${DATA_TEST_ID_PREFIX}-pagination-info-single-page`}>
+        <div
+          className="gba:flex gba:items-center gba:justify-between gba:px-2 gba:py-4"
+          data-testid={`${DATA_TEST_ID_PREFIX}-pagination-info-single-page`}
+        >
           <div className="gba:text-sm gba:text-muted-foreground">
             {`${total} ${getTranslationFromI18nKeyAndLabel('lowcoder:absence_table.absences', 'absences')}`}
           </div>
           <div className="gba:flex gba:items-center gba:space-x-2">
-            <p className="gba:text-sm gba:font-medium">{getTranslationFromI18nKeyAndLabel('lowcoder:absence_table.rows_per_page', 'Rows per page')}</p>
+            <p className="gba:text-sm gba:font-medium">
+              {getTranslationFromI18nKeyAndLabel(
+                'lowcoder:absence_table.rows_per_page',
+                'Rows per page',
+              )}
+            </p>
             <select
               value={pageSize}
               onChange={(e) => onPaginationChange(1, Number(e.target.value))}
@@ -393,4 +449,4 @@ export const AbsenceTable: React.FC<AbsenceTableProps> = ({
       )}
     </Card>
   );
-}; 
+};
