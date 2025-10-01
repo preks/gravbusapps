@@ -557,8 +557,23 @@ export const ServiceCatalog: React.FC<ServiceCatalogProps> = ({
                           </span>
                         ) : (
                           <>
-                            Found {sections.reduce((total, section) => total + section.cards.length, 0)} service{sections.reduce((total, section) => total + section.cards.length, 0) === 1 ? '' : 's'} 
-                            {' '}in {sections.length} categor{sections.length === 1 ? 'y' : 'ies'} matching "{searchQuery}"
+                            {(() => {
+                              let totalServices = 0;
+                              let totalCategories = 0;
+                              
+                              // Calculate totals by going through each section and card
+                              sections.forEach(section => {
+                                section.cards.forEach(card => {
+                                  const matchingTemplates = getMatchingTemplatesForCategory(card.id, searchQuery);
+                                  if (matchingTemplates.length > 0) {
+                                    totalServices += matchingTemplates.length;
+                                    totalCategories += 1;
+                                  }
+                                });
+                              });
+                              
+                              return `Found ${totalServices} service${totalServices === 1 ? '' : 's'} in ${totalCategories} categor${totalCategories === 1 ? 'y' : 'ies'} matching "${searchQuery}"`;
+                            })()}
                           </>
                         )}
                       </p>
