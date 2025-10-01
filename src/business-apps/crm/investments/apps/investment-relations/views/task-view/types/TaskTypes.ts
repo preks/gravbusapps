@@ -6,6 +6,7 @@ export interface TaskEmployee {
   department: string;
   avatar?: string;
   initials: string;
+  pictureThumbnail?: string;
 }
 
 export interface TaskReference {
@@ -22,7 +23,7 @@ export interface Task {
   type: string;
   priority: 'high' | 'medium' | 'urgent' | 'low';
   status: 'in_progress' | 'pending' | 'completed' | 'overdue';
-  reference: TaskReference;
+  reference?: TaskReference; // Made optional to handle tasks without related entities
   dueDate: string;
   scheduleDate?: string;
   timingType?: 'DEADLINE' | 'SCHEDULED' | 'UNKNOWN_TIMING_TYPE';

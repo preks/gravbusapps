@@ -18,16 +18,14 @@ import {
   Award, 
   Building2, 
   Calendar, 
-  User,
   Target
 } from "lucide-react";
 import { getTranslationFromI18nKeyAndLabel } from "@/common/utils/windowUtils";
 import { BusinessAppContextProps } from "@/common/BusinessAppContext";
 import { DataContainer } from "@/components/layout/dataContainer/DataContainer";
 import { ColumnConfig } from "@/components/dataController";
-import { AppAction } from "@/components/app-action/AppAction";
-import { AppActionButton } from "@/components/app-action-button/AppActionButton";
 import { FlowContextName } from "@/common/types/FlowRegistryTypes";
+import { AppActionButton } from "@/components/app-action-button/AppActionButton";
 import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils';
 import { OwnerDisplay } from "../../../../../../components/shared";
 import { formatDate } from "../../utils";
@@ -69,7 +67,6 @@ const formatCurrencyLarge = (amount: number | undefined, currencyCode: string = 
     minimumFractionDigits: 0
   }).format(amount);
 };
-import { useSalesData } from "./hooks/useSalesData";
 import { DateRangeFilter } from '@/business-apps/crm/customers/apps/customer-relations/views/lead-view/components/DateRangeFilter';
 import { useEmployeeSearch } from '@/common/data/employee/useEmployeeSearch';
 import { useGetInvestmentOpportunities } from '@/common/data/investment/hooks/useInvestmentOpportunities';
@@ -85,9 +82,11 @@ export interface SalesMetrics {
   totalSold: number;
   totalRevenue: number;
   averageOpportunityValue: number;
+  averageRevenue: number;
   totalSoldChange?: number;
   totalRevenueChange?: number;
   averageOpportunityValueChange?: number;
+  averageRevenueChange?: number;
   averageWinRate?: number;
   winRateChange?: number;
 }
@@ -180,7 +179,7 @@ const Sales: React.FC<SalesProps> = ({ accessToken, userInfo }) => {
             const statusValue = opp.opportunityStatus?.value?.toUpperCase();
             const statusCode = opp.opportunityStatus?.code?.toUpperCase();
             const statusAltCode = opp.opportunityStatus?.alternativeCode?.toUpperCase();
-            const directStatus = opp.status?.toUpperCase();
+            const directStatus = (opp as any).status?.toUpperCase();
             
             // Check for various "WON" representations
             const wonVariations = ["WON", "CLOSED WON", "SOLD", "SUCCESS", "COMPLETED"];
@@ -220,6 +219,7 @@ const Sales: React.FC<SalesProps> = ({ accessToken, userInfo }) => {
             totalSold: wonOpportunities.length,
             totalRevenue: totalValue,
             averageRevenue: averageValue,
+            averageOpportunityValue: averageValue,
             averageWinRate,
           };
         };
@@ -234,7 +234,7 @@ const Sales: React.FC<SalesProps> = ({ accessToken, userInfo }) => {
         const current = calculateMetrics(currentResult.InvestmentOpportunity);
         const historical = historicalResult?.InvestmentOpportunity ? 
           calculateMetrics(historicalResult.InvestmentOpportunity, thirtyDaysAgo) : 
-          { totalSold: 0, totalRevenue: 0, averageRevenue: 0, averageWinRate: 0 };
+          { totalSold: 0, totalRevenue: 0, averageRevenue: 0, averageOpportunityValue: 0, averageWinRate: 0 };
 
         // Calculate percentage changes
         const calculatePercentageChange = (current: number, previous: number): number => {
@@ -418,8 +418,8 @@ const Sales: React.FC<SalesProps> = ({ accessToken, userInfo }) => {
         span: { xs: 24, sm: 12, md: 12, lg: 6 },
         description: getTranslationFromI18nKeyAndLabel("successfully_sold_opportunities", "Successfully sold opportunities"),
         trend: {
-          value: formatPercentageChange(metrics.totalSoldChange),
-          positive: metrics.totalSoldChange >= 0,
+          value: formatPercentageChange(metrics.totalSoldChange || 0),
+          positive: (metrics.totalSoldChange || 0) >= 0,
           description: getTranslationFromI18nKeyAndLabel("vs_previous_period", "vs previous period")
         }
       },
@@ -432,8 +432,8 @@ const Sales: React.FC<SalesProps> = ({ accessToken, userInfo }) => {
         span: { xs: 24, sm: 12, md: 12, lg: 6 },
         description: getTranslationFromI18nKeyAndLabel("average_amount_per_sale", "Average amount per sale"),
         trend: {
-          value: formatPercentageChange(metrics.averageRevenueChange),
-          positive: metrics.averageRevenueChange >= 0,
+          value: formatPercentageChange(metrics.averageRevenueChange || 0),
+          positive: (metrics.averageRevenueChange || 0) >= 0,
           description: getTranslationFromI18nKeyAndLabel("vs_previous_period", "vs previous period")
         }
       },
@@ -446,8 +446,8 @@ const Sales: React.FC<SalesProps> = ({ accessToken, userInfo }) => {
         span: { xs: 24, sm: 12, md: 12, lg: 6 },
         description: getTranslationFromI18nKeyAndLabel("total_revenue_generated", "Total revenue generated from sales"),
         trend: {
-          value: formatPercentageChange(metrics.totalRevenueChange),
-          positive: metrics.totalRevenueChange >= 0,
+          value: formatPercentageChange(metrics.totalRevenueChange || 0),
+          positive: (metrics.totalRevenueChange || 0) >= 0,
           description: getTranslationFromI18nKeyAndLabel("vs_previous_period", "vs previous period")
         }
       },
@@ -460,8 +460,8 @@ const Sales: React.FC<SalesProps> = ({ accessToken, userInfo }) => {
         span: { xs: 24, sm: 12, md: 12, lg: 6 },
         description: getTranslationFromI18nKeyAndLabel("average_revenue_per_sale", "Average revenue per sale"),
         trend: {
-          value: formatPercentageChange(metrics.averageRevenueChange),
-          positive: metrics.averageRevenueChange >= 0,
+          value: formatPercentageChange(metrics.averageRevenueChange || 0),
+          positive: (metrics.averageRevenueChange || 0) >= 0,
           description: getTranslationFromI18nKeyAndLabel("vs_previous_period", "vs previous period")
         }
       }
@@ -532,24 +532,6 @@ const Sales: React.FC<SalesProps> = ({ accessToken, userInfo }) => {
                 <span className="gba:text-gray-500">({total})</span>
               </div>
             </div>
-          ),
-          actions: (
-            <AppAction
-              contextsArray={[FlowContextName.createInvestmentOpportunity]}
-              accessToken={accessToken}
-              data-testid="sales-add-action"
-              emptyStateBehavior="hide"
-            >
-              <button
-                className="gba:flex gba:flex-row gba:justify-center gba:items-center gba:px-3 gba:py-0 gba:h-8 gba:rounded gba:gap-1"
-                data-testid="sales-add-action"
-                type="button"
-              >
-                <span className="gba:h-4 gba:font-normal gba:text-sm gba:leading-4 gba:flex gba:items-center gba:text-black gba:flex-none order-1 gba:grow-0">
-                  Add
-                </span>
-              </button>
-            </AppAction>
           ),
         }}
         dataFilterProps={{
@@ -758,7 +740,7 @@ const Sales: React.FC<SalesProps> = ({ accessToken, userInfo }) => {
                           accessToken={accessToken}
                           emptyStateBehavior="enable"
                           deferMainContextRequestsUntilClick
-                          onClick={(e) => e.stopPropagation()}
+                          onClick={(e: React.MouseEvent) => e.stopPropagation()}
                         />
                       </div>
                     </TableCell>)}

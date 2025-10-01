@@ -1,6 +1,6 @@
 import React, { useState, useCallback, useEffect, useMemo } from "react";
 import { Button, Spinner, Alert } from "@newwork/nw-design-system";
-// import { Plus } from "lucide-react";
+import { Plus } from "lucide-react";
 import { BusinessAppContextProps } from "@/common/BusinessAppContext";
 import { useGetInvestmentContacts } from "@/common/data/investment/hooks/useInvestmentContacts";
 import type { InvestmentContact } from "@/common/data/investment/types";
@@ -12,7 +12,7 @@ import { ColumnConfig } from "@/components/dataController";
 import { useInvestmentContactFilters } from "./hooks/useInvestmentContactFilters";
 import { AppAction } from "@/components/app-action/AppAction";
 import { FlowContextName } from "@/common/types/FlowRegistryTypes";
-import { PlusSquareIcon } from "@phosphor-icons/react";
+import { getTranslationFromI18nKeyAndLabel } from "@/common/utils/windowUtils";
 
 export interface ContactViewProps extends BusinessAppContextProps {}
 
@@ -141,7 +141,6 @@ export const ContactView: React.FC<ContactViewProps> = (context) => {
       setContacts(result.InvestmentContact || []);
       setTotalCount(result.InvestmentContactAggregate?.aggregate?.count || 0);
     } catch (err) {
-      console.error("Error loading investment contacts:", err);
       setError(err instanceof Error ? err.message : "Unknown error occurred");
     } finally {
       setIsLoading(false);
@@ -157,17 +156,8 @@ export const ContactView: React.FC<ContactViewProps> = (context) => {
   useEffect(() => {
     const handleProcessEvent = (event: any) => {
       try {
-        console.log(
-          "✅ Investment Contact process event received:",
-          event.type,
-          event
-        );
-
         // Check for successful completion from different event structures (MATCHING ACCOUNT VIEW PATTERN)
         if (event.detail?.resolution === "success") {
-          console.log(
-            "✅ Success resolution detected, refreshing contact data"
-          );
           loadData(); // Refresh contact list data
           return;
         }
@@ -178,9 +168,6 @@ export const ContactView: React.FC<ContactViewProps> = (context) => {
           response?.detail?.resolution === "success" ||
           response?.investmentContact
         ) {
-          console.log(
-            "✅ Success in response or investmentContact detected, refreshing data"
-          );
           loadData();
           return;
         }
@@ -190,13 +177,15 @@ export const ContactView: React.FC<ContactViewProps> = (context) => {
           event.type === "com.newwork.process.continue" &&
           event.detail?.payload
         ) {
-          console.log(
-            "✅ Continue event with payload detected, refreshing contact data"
-          );
           loadData();
         }
       } catch (err) {
-        console.error("Error handling process event:", err);
+        // Log process event handling errors with context
+        console.error('ContactView: Error handling process event:', {
+          eventType: event?.type || 'unknown',
+          error: err instanceof Error ? err.message : String(err),
+          stack: err instanceof Error ? err.stack : undefined
+        });
       }
     };
 
@@ -392,18 +381,15 @@ export const ContactView: React.FC<ContactViewProps> = (context) => {
               data-testid="add-contact-action"
               emptyStateBehavior="hide"
             >
-              <button
-                className="gba:flex gba:flex-row gba:justify-center gba:items-center gba:px-3 gba:py-0 gba:h-8 gba:rounded gba:gap-1"
-                data-testid="add-contact-action"
+              <Button
+                size="sm"
+                variant="default"
+                data-testid="add-contact-button"
                 type="button"
               >
-                <span className="gba:w-5 gba:h-5 gba:flex gba:items-center gba:justify-center gba:flex-none order-0 gba:grow-0">
-                  <PlusSquareIcon />
-                </span>
-                <span className="gba:h-4 gba:font-normal gba:text-sm gba:leading-4 gba:flex gba:items-center gba:text-black gba:flex-none order-1 gba:grow-0">
-                  Add
-                </span>
-              </button>
+                <Plus size={16} />
+                {getTranslationFromI18nKeyAndLabel('crm:contact.addContact', 'Add Contact')}
+              </Button>
             </AppAction>
           ),
         }}

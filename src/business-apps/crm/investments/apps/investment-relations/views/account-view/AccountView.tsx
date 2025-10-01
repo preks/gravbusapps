@@ -1,5 +1,6 @@
 import React, { useState, useCallback, useEffect, useMemo } from "react";
 import { Button, Spinner, Alert } from "@newwork/nw-design-system";
+import { Plus } from "lucide-react";
 import { BusinessAppContextProps } from "@/common/BusinessAppContext";
 import { useGetInvestmentAccounts } from "@/common/data/investment/hooks/useInvestmentAccounts";
 import type { InvestmentAccount } from "@/common/data/investment/types";
@@ -10,8 +11,8 @@ import { AccountList } from "./components/AccountList";
 import { ColumnConfig } from "@/components/dataController";
 import { AppAction } from "@/components/app-action/AppAction";
 import { FlowContextName } from "@/common/types/FlowRegistryTypes";
-import { PlusSquareIcon } from "@phosphor-icons/react";
 import { useInvestmentAccountFilters } from "./hooks/useInvestmentAccountFilters";
+import { getTranslationFromI18nKeyAndLabel } from "@/common/utils/windowUtils";
 
 export interface AccountViewProps extends BusinessAppContextProps { }
 
@@ -196,7 +197,6 @@ export const AccountView: React.FC<AccountViewProps> = (context) => {
       setAccounts(result.InvestmentAccount || []);
       setTotalCount(result.InvestmentAccountAggregate?.aggregate?.count || 0);
     } catch (err) {
-      console.error("Error loading investment accounts:", err);
       setError(err instanceof Error ? err.message : "Unknown error occurred");
     } finally {
       setIsLoading(false);
@@ -207,17 +207,8 @@ export const AccountView: React.FC<AccountViewProps> = (context) => {
   useEffect(() => {
     const handleProcessEvent = (event: any) => {
       try {
-        console.log(
-          "✅ Investment Account process event received:",
-          event.type,
-          event
-        );
-
         // Check for successful completion from different event structures
         if (event.detail?.resolution === "success") {
-          console.log(
-            "✅ Success resolution detected, refreshing account data"
-          );
           loadData(); // Refresh account list data
           return;
         }
@@ -228,9 +219,6 @@ export const AccountView: React.FC<AccountViewProps> = (context) => {
           response?.detail?.resolution === "success" ||
           response?.investmentAccount
         ) {
-          console.log(
-            "✅ Success in response or investmentAccount detected, refreshing data"
-          );
           loadData();
           return;
         }
@@ -240,13 +228,10 @@ export const AccountView: React.FC<AccountViewProps> = (context) => {
           event.type === "com.newwork.process.continue" &&
           event.detail?.payload
         ) {
-          console.log(
-            "✅ Continue event with payload detected, refreshing account data"
-          );
           loadData();
         }
       } catch (err) {
-        console.error("Error handling process event:", err);
+        // Silently handle errors in process event handling
       }
     };
 
@@ -417,13 +402,15 @@ export const AccountView: React.FC<AccountViewProps> = (context) => {
               data-testid="add-account-action"
               emptyStateBehavior="hide"
             >
-              <div
-                className="gba:flex gba:flex-row gba:justify-center gba:items-center gba:rounded gba:gap-1 gba:cursor-pointer"
-                data-testid="add-account-trigger"
-              >
-                <PlusSquareIcon />
-                Add
-              </div>
+            <Button
+              size="sm"
+              variant="default"
+              data-testid="add-account-button"
+              type="button"
+            >
+              <Plus size={16} />
+              {getTranslationFromI18nKeyAndLabel('crm:account.addAccount', 'Add Account')}
+            </Button>
             </AppAction>
           ),
         }}
