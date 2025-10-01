@@ -137,6 +137,9 @@ export const createSubmissionPayload = (
       opportunityPipelineRef: completeOpportunityData.pipeline || legacyFormData.opportunityData.pipeline || null,
       opportunityPipelineStageRef: completeOpportunityData.pipelineStage || legacyFormData.opportunityData.pipelineStage || null,
       
+      // Status - Always set to OPEN for new opportunities created during lead conversion
+      opportunityStatusRef: "InvestmentOpportunityStatus:v1:OPEN",
+      
       // Notes summary
       notesSummary: completeOpportunityData.notesSummary || null,
       
@@ -176,9 +179,6 @@ export const createSubmissionPayload = (
       ownerEmployee: completeOpportunityData.owner || legacyFormData.opportunityData.owner || null,
       account: legacyFormData.selectedAccountId || completeOpportunityData.accountId || completeOpportunityData.account || null,
       
-      // Record state (from OpportunityFormComponent)
-      recordState: completeOpportunityData.recordState ? completeOpportunityData.recordState.toLowerCase() : null,
-      
       // Additional properties (empty object as per OpportunityFormComponent)
       additionalProperties: {},
     };
@@ -188,11 +188,8 @@ export const createSubmissionPayload = (
 };
 
 export const submitConversionForm = (payload: any, onSuccess?: (payload: any) => void) => {
-  console.log('Convert Investment Lead Payload:', payload);
-  
   // NOTE: AppActionForm will handle dispatchProcessContinueEvent automatically
   // We don't need to call it here to avoid double execution
-  console.log('✅ Payload prepared for AppActionForm to dispatch process event');
   
   // Trigger onSuccess to close modal
   if (onSuccess) {

@@ -37,7 +37,8 @@ export const mapInvestmentOpportunityDataToFormValues = (
     version: opportunity.version,
 
     // Basic Information
-    name: opportunity.investmentName || "",
+    name: opportunity.name || "",
+    investmentName: opportunity.investmentName || "",
     dealType: opportunity.dealType || "",
     code: opportunity.code || "",
     businessKey: opportunity.businessKey || "",
@@ -85,7 +86,6 @@ export const mapInvestmentOpportunityDataToFormValues = (
 
     // Process and system fields
     processInstanceId: opportunity.processInstanceId || "",
-    recordState: opportunity.recordState?.toUpperCase() || "",
 
     // Audit information (readonly)
     activeFrom: opportunity.activeFrom || "",

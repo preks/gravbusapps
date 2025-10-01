@@ -60,7 +60,7 @@ const ProfessionalInformationSection: React.FC = () => {
         }}
         data-testid={formatDataTestId(
           prefixDataTestId,
-          "ProfessionalInfoToggle"
+          "professional-info-toggle"
         )}
       >
         <div className="gba:flex gba:items-center gba:gap-2 gba:flex-1">
@@ -110,7 +110,7 @@ const ProfessionalInformationSection: React.FC = () => {
                 className="gba:border-gray-300 gba:bg-white"
                 data-testid={formatDataTestId(
                   prefixDataTestId,
-                  "JobPositionInput"
+                  "job-position-input"
                 )}
               />
             </div>
@@ -127,7 +127,7 @@ const ProfessionalInformationSection: React.FC = () => {
                 className="gba:border-gray-300 gba:bg-white"
                 data-testid={formatDataTestId(
                   prefixDataTestId,
-                  "DepartmentInput"
+                  "department-input"
                 )}
               />
             </div>
@@ -144,7 +144,7 @@ const ProfessionalInformationSection: React.FC = () => {
               onChange={(e) => setFormValues({ code: e.target.value })}
               placeholder="Please enter business code..."
               className="gba:border-gray-300 gba:bg-white"
-              data-testid={formatDataTestId(prefixDataTestId, "CodeInput")}
+              data-testid={formatDataTestId(prefixDataTestId, "code-input")}
             />
           </div>
         </CardContent>

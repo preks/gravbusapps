@@ -113,12 +113,6 @@ export const ConvertInvestmentLeadForm = ({
 
   // Auto-save handler for account form changes
   const handleAccountFormChange = useCallback((values: Partial<AccountFormValues>) => {
-    console.log('🔍 Account form changed:', {
-      values,
-      ownerField: values.owner,
-      allFields: Object.keys(values)
-    });
-    
     // Store complete account data for payload construction
     setCompleteAccountData(prev => ({ ...prev, ...values }));
     
@@ -132,13 +126,6 @@ export const ConvertInvestmentLeadForm = ({
 
   // Auto-save handler for contact form changes
   const handleContactFormChange = useCallback((values: Partial<ContactFormValues>) => {
-    console.log('🔍 Contact form changed:', {
-      values,
-      ownerEmployeeIdField: values.ownerEmployeeId,
-      ownerField: values.owner,
-      allFields: Object.keys(values)
-    });
-    
     // Store complete contact data for payload construction
     setCompleteContactData(prev => ({ ...prev, ...values }));
     
@@ -152,12 +139,6 @@ export const ConvertInvestmentLeadForm = ({
 
   // Auto-save handler for opportunity form changes
   const handleOpportunityFormChange = useCallback((values: Partial<InvestmentOpportunityFormValues>) => {
-    console.log('🔍 Opportunity form changed:', {
-      values,
-      ownerField: values.owner,
-      allFields: Object.keys(values)
-    });
-    
     // Store complete opportunity data for payload construction
     setCompleteOpportunityData(prev => ({ ...prev, ...values }));
     
@@ -328,21 +309,11 @@ export const ConvertInvestmentLeadForm = ({
   ]);
 
   const handleSubmit = useCallback(async (data: ConvertLeadFormData): Promise<any> => {
-    console.log('🔍 Handle Submit called with data:', data);
-
     // Guard clause: Check if form is ready for conversion
     if (!isFormReadyForConversion()) {
       setValidationErrors(form, formValues);
       throw new Error('Form validation failed');
     }
-    
-    console.log('✅ handleSubmit proceeding with actual submission');
-    
-    // 🔍 DEBUG: Log form data to understand field mappings
-    console.log('🔍 Convert Lead Form Data Debug:', {
-      data,
-      formDataWatch: formData,
-    });
 
     // Create submission payload
     const payload = createSubmissionPayload(

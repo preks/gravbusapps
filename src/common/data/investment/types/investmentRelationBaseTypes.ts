@@ -168,6 +168,9 @@ export interface BaseInvestmentAccount extends BaseEntity {
   
   // Entity references (using Ref types)
   ownerEmployee?: EmployeeRef;
+  
+  // Address relationships
+  investmentAddress?: BaseInvestmentAddress[];
 }
 
 // investment_contact table  

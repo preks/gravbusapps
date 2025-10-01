@@ -243,7 +243,7 @@ const CompanyInformationSection: React.FC = () => {
           e.currentTarget.style.background =
             "linear-gradient(to right, #ddd6fe, #c4b5fd)";
         }}
-        data-testid={formatDataTestId(prefixDataTestId, "CompanyInfoToggle")}
+        data-testid={formatDataTestId(prefixDataTestId, "company-info-toggle")}
       >
         <div className="gba:flex gba:items-center gba:gap-2 gba:flex-1">
           <div className="gba:w-2 gba:h-2 gba:bg-purple-500 gba:rounded-full"></div>
@@ -317,6 +317,7 @@ const CompanyInformationSection: React.FC = () => {
                         type="button"
                         onClick={handleLoadMoreLegalForms}
                         className="gba:w-full gba:px-3 gba:py-2 gba:text-sm gba:text-blue-600 gba:bg-blue-50 gba:border gba:border-blue-200 gba:rounded gba:hover:bg-blue-100 gba:transition-colors"
+                        data-testid={formatDataTestId(prefixDataTestId, "load-more-legal-forms-button")}
                       >
                         📥 Load More Legal Forms ({legalFormsDisplayCount}/
                         {legalFormsTotalFetched} shown)
@@ -370,6 +371,7 @@ const CompanyInformationSection: React.FC = () => {
                         type="button"
                         onClick={handleLoadMoreIndustries}
                         className="gba:w-full gba:px-3 gba:py-2 gba:text-sm gba:text-blue-600 gba:bg-blue-50 gba:border gba:border-blue-200 gba:rounded gba:hover:bg-blue-100 gba:transition-colors"
+                        data-testid={formatDataTestId(prefixDataTestId, "load-more-industries-button")}
                       >
                         📥 Load More Industries ({industriesDisplayCount}/
                         {industriesTotalFetched} shown)
@@ -594,6 +596,7 @@ const CompanyInformationSection: React.FC = () => {
                             type="button"
                             onClick={loadMoreEmployeeSizes}
                             className="gba:w-full gba:px-3 gba:py-2 gba:text-sm gba:text-blue-600 gba:bg-blue-50 gba:border gba:border-blue-200 gba:rounded gba:hover:bg-blue-100 gba:transition-colors"
+                            data-testid={formatDataTestId(prefixDataTestId, "load-more-employee-sizes-button")}
                           >
                             📥 Load More Company Sizes
                           </button>
@@ -643,6 +646,7 @@ const CompanyInformationSection: React.FC = () => {
                             type="button"
                             onClick={loadMoreRevenueSizes}
                             className="gba:w-full gba:px-3 gba:py-2 gba:text-sm gba:text-blue-600 gba:bg-blue-50 gba:border gba:border-blue-200 gba:rounded gba:hover:bg-blue-100 gba:transition-colors"
+                            data-testid={formatDataTestId(prefixDataTestId, "load-more-revenue-sizes-button")}
                           >
                             Load More Revenue Bands
                           </button>

@@ -320,7 +320,7 @@ const AdvancePaymentsTable: React.FC<AdvancePaymentsTableProps> = (props) => {
                         ]}
                         prefixDataTestId="advance-payments-update"
                         accessToken={props.accessToken}
-                        emptyStateBehavior="disable"
+                        emptyStateBehavior="enable"
                       />
                     </div>
                   </TableCell>

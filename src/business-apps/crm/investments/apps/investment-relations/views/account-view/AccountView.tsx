@@ -38,11 +38,12 @@ export const AccountView: React.FC<AccountViewProps> = (context) => {
   const initial = getInitialFromUrl();
 
   // State management
+  type SortOrder = "ASC" | "DESC" | undefined;
   const [searchTerm, setSearchTerm] = useState(initial.search);
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize] = useState(20);
-  const [sortField, setSortField] = useState("");
-  const [sortOrder, setSortOrder] = useState<"ASC" | "DESC" | "">("");
+  const [sortField, setSortField] = useState<string | undefined>("createdAt");
+  const [sortOrder, setSortOrder] = useState<SortOrder>("DESC");
   const [selectedFilters, setSelectedFilters] = useState<string[]>(initial.filters);
   // const [showDataFilter, setShowDataFilter] = useState(false);
 
@@ -304,8 +305,8 @@ export const AccountView: React.FC<AccountViewProps> = (context) => {
       if (sortOrder === "ASC") {
         setSortOrder("DESC");
       } else if (sortOrder === "DESC") {
-        setSortField("");
-        setSortOrder("");
+        setSortField(undefined);
+        setSortOrder(undefined);
       } else {
         setSortOrder("ASC");
       }
@@ -442,7 +443,7 @@ export const AccountView: React.FC<AccountViewProps> = (context) => {
             onPageChange={handlePageChange}
             onSort={handleSort}
             sortField={sortField}
-            sortOrder={sortOrder as any}
+            sortOrder={sortOrder}
             onClearFilters={() => setSelectedFilters([])}
             visibleColumns={visibleColumns}
             {...context}

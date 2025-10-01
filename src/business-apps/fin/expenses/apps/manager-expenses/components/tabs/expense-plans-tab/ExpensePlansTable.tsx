@@ -437,7 +437,7 @@ const ExpensePlansTable: React.FC<ExpensePlansTableProps> = (props) => {
                           ]}
                           prefixDataTestId={`${DATA_TEST_ID_PREFIX}-update-expense-plan`}
                           accessToken={contextProps.accessToken}
-                          emptyStateBehavior="disable"
+                          emptyStateBehavior="enable"
                           deferMainContextRequestsUntilClick
                         />
                       </div>
