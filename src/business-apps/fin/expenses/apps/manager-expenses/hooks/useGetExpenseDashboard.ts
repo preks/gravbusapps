@@ -116,11 +116,10 @@ export const useGetExpenseDashboard = (
       // Prepare the dates for the query
       const now = new Date();
 
-      // Start date for recent requests (30 days ago)
+      // Start date for current month (month-to-date)
       const startDate = (() => {
-        const date = new Date(now);
-        date.setDate(date.getDate() - 30);
-        date.setUTCHours(0, 0, 0, 0); // Set time to midnight UTC
+        const date = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1));
+        date.setUTCHours(0, 0, 0, 0); // Midnight UTC on first day of current month
         return date.toISOString();
       })();
 
