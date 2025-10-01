@@ -72,9 +72,6 @@ const AbsenceCharts: React.FC<ChartsSectionProps> = ({
                   ); // Another Romanian term
                 })
               : undefined;
-            // Debug: log what we found
-            console.log('All entitlements:', entitlements);
-            console.log('Found annual leave entitlement:', annualLeaveEntitlement);
 
             const used = annualLeaveEntitlement?.used || 0;
             const total = annualLeaveEntitlement?.total || 0;

@@ -32,28 +32,64 @@ const getAbsenceTooltipContent = (absence: any) => {
       </div>
       <div className="gba:space-y-1 gba:text-xs">
         <div className="gba:flex gba:justify-between">
-          <span className="gba:font-medium">Status:</span>
+          <span className="gba:font-medium">
+            {getTranslationFromI18nKeyAndLabel(
+              'lowcoder:expense_request_list.expense_plan_table.status',
+              'Status',
+            )}
+            :
+          </span>
           <span style={{ color: absence.statusColor || '#6b7280' }} className="gba:font-medium">
             {absence.status}
           </span>
         </div>
         <div className="gba:flex gba:justify-between">
-          <span className="gba:font-medium">Start:</span>
+          <span className="gba:font-medium">
+            {getTranslationFromI18nKeyAndLabel(
+              'lowcoder:expense_request_detailed_view.start',
+              'Start',
+            )}
+            :
+          </span>
           <span>{startDate.format('MMM DD, YYYY')}</span>
         </div>
         <div className="gba:flex gba:justify-between">
-          <span className="gba:font-medium">End:</span>
+          <span className="gba:font-medium">
+            {getTranslationFromI18nKeyAndLabel('lowcoder:expense_request_detailed_view.end', 'End')}
+            :
+          </span>
           <span>{endDate.format('MMM DD, YYYY')}</span>
         </div>
         <div className="gba:flex gba:justify-between">
-          <span className="gba:font-medium">Duration:</span>
+          <span className="gba:font-medium">
+            {getTranslationFromI18nKeyAndLabel(
+              'lowcoder:team_expenses_page.plan_details.duration',
+              'Duration',
+            )}
+            :
+          </span>
           <span>
-            {duration} {duration === 1 ? 'day' : 'days'}
+            {duration}{' '}
+            {duration === 1
+              ? getTranslationFromI18nKeyAndLabel(
+                  'lowcoder:absence_module.limited_pending_days_text.day',
+                  'day',
+                )
+              : getTranslationFromI18nKeyAndLabel(
+                  'lowcoder:absence_module.limited_pending_days_text.days',
+                  'days',
+                )}
           </span>
         </div>
         {absence.description && (
           <div className="gba:mt-2 gba:pt-2 gba:border-t gba:border-gray-200">
-            <div className="gba:font-medium gba:mb-1">Description:</div>
+            <div className="gba:font-medium gba:mb-1">
+              {getTranslationFromI18nKeyAndLabel(
+                'lowcoder:employee_profile.document_layout.document_table.description',
+                'Description',
+              )}
+              :
+            </div>
             <div className="gba:text-gray-600 gba:break-words">{absence.description}</div>
           </div>
         )}
