@@ -1,23 +1,23 @@
-import { PillType } from "@/components/pill/Pill";
-import { getTranslationFromI18nKeyAndLabel } from "@/common/utils/windowUtils";
+import { PillType } from '@/components/pill/Pill';
+import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
 
 /**
  * Enum representing the technical statuses for expenses
  */
 export enum ExpenseStatus {
-  PREPARED = "PREPARED",
-  CREATED = "CREATED",
-  ASSIGNED = "ASSIGNED",
-  PENDING = "PENDING",
-  APPROVED = "APPROVED",
-  RETURNED = "RETURNED",
-  REJECTED = "REJECTED",
-  VERIFIED = "VERIFIED",
-  BOOKED = "BOOKED",
-  PAID = "PAID",
-  CLOSED = "CLOSED",
-  DISCARDED = "DISCARDED",
-  TRANSFERRED = "TRANSFERRED",
+  PREPARED = 'PREPARED',
+  CREATED = 'CREATED',
+  ASSIGNED = 'ASSIGNED',
+  PENDING = 'PENDING',
+  APPROVED = 'APPROVED',
+  RETURNED = 'RETURNED',
+  REJECTED = 'REJECTED',
+  VERIFIED = 'VERIFIED',
+  BOOKED = 'BOOKED',
+  PAID = 'PAID',
+  CLOSED = 'CLOSED',
+  DISCARDED = 'DISCARDED',
+  TRANSFERRED = 'TRANSFERRED',
 }
 
 /**
@@ -37,85 +37,85 @@ export const getExpensePlanStatusDisplay = (status: string): StatusDisplayConfig
   switch (status) {
     case ExpenseStatus.PREPARED:
       return {
-        label: getTranslationFromI18nKeyAndLabel("lowcoder:expense_statuses.prepared", "Prepared"),
-        type: "draft",
+        label: getTranslationFromI18nKeyAndLabel('lowcoder:expense_statuses.prepared', 'Prepared'),
+        type: 'draft',
       };
     case ExpenseStatus.CREATED:
       return {
-        label: getTranslationFromI18nKeyAndLabel("lowcoder:expense_statuses.draft", "Draft"),
-        type: "draft",
+        label: getTranslationFromI18nKeyAndLabel('lowcoder:expense_statuses.draft', 'Draft'),
+        type: 'draft',
       };
     case ExpenseStatus.ASSIGNED:
       return {
-        label: getTranslationFromI18nKeyAndLabel("lowcoder:expense_statuses.assigned", "Assigned"),
-        type: "waiting",
+        label: getTranslationFromI18nKeyAndLabel('lowcoder:expense_statuses.assigned', 'Assigned'),
+        type: 'waiting',
       };
     case ExpenseStatus.PENDING:
       return {
         label: getTranslationFromI18nKeyAndLabel(
-          "lowcoder:expense_statuses.in_approval",
-          "In Approval",
+          'lowcoder:expense_statuses.in_approval',
+          'In Approval',
         ),
-        type: "waiting",
+        type: 'waiting',
       };
     case ExpenseStatus.APPROVED:
       return {
-        label: getTranslationFromI18nKeyAndLabel("lowcoder:expense_statuses.approved", "Approved"),
-        type: "completed",
+        label: getTranslationFromI18nKeyAndLabel('lowcoder:expense_statuses.approved', 'Approved'),
+        type: 'completed',
       };
     case ExpenseStatus.RETURNED:
       return {
-        label: getTranslationFromI18nKeyAndLabel("lowcoder:expense_statuses.returned", "Returned"),
-        type: "waiting",
+        label: getTranslationFromI18nKeyAndLabel('lowcoder:expense_statuses.returned', 'Returned'),
+        type: 'waiting',
       };
     case ExpenseStatus.REJECTED:
       return {
         label: getTranslationFromI18nKeyAndLabel(
-          "lowcoder:expense_statuses.revision_required",
-          "Revision Required",
+          'lowcoder:expense_statuses.revision_required',
+          'Revision Required',
         ),
-        type: "task",
+        type: 'task',
       };
     case ExpenseStatus.VERIFIED:
       return {
-        label: getTranslationFromI18nKeyAndLabel("lowcoder:expense_statuses.verified", "Verified"),
-        type: "waiting",
+        label: getTranslationFromI18nKeyAndLabel('lowcoder:expense_statuses.verified', 'Verified'),
+        type: 'waiting',
       };
     case ExpenseStatus.BOOKED:
       return {
-        label: getTranslationFromI18nKeyAndLabel("lowcoder:expense_statuses.booked", "Booked"),
-        type: "waiting",
+        label: getTranslationFromI18nKeyAndLabel('lowcoder:expense_statuses.booked', 'Booked'),
+        type: 'waiting',
       };
     case ExpenseStatus.PAID:
       return {
-        label: getTranslationFromI18nKeyAndLabel("lowcoder:expense_statuses.paid", "Paid"),
-        type: "completed",
+        label: getTranslationFromI18nKeyAndLabel('lowcoder:expense_statuses.paid', 'Paid'),
+        type: 'completed',
       };
     case ExpenseStatus.CLOSED:
       return {
-        label: getTranslationFromI18nKeyAndLabel("lowcoder:expense_statuses.closed", "Closed"),
-        type: "completed",
+        label: getTranslationFromI18nKeyAndLabel('lowcoder:expense_statuses.closed', 'Closed'),
+        type: 'completed',
       };
     case ExpenseStatus.DISCARDED:
       return {
         label: getTranslationFromI18nKeyAndLabel(
-          "lowcoder:expense_statuses.discarded",
-          "Discarded",
+          'lowcoder:expense_statuses.discarded',
+          'Discarded',
         ),
-        type: "error",
+        type: 'error',
       };
     case ExpenseStatus.TRANSFERRED:
       return {
         label: getTranslationFromI18nKeyAndLabel(
-          "lowcoder:expense_statuses.transferred",
-          "Transferred",
+          'lowcoder:expense_statuses.transferred',
+          'Transferred',
         ),
-        type: "completed",
+        type: 'completed',
       };
     default:
       return {
         label: status,
-        type: "draft",
+        type: 'draft',
       };
   }
 };
@@ -129,85 +129,90 @@ export const getExpenseRequestStatusDisplay = (status: string): StatusDisplayCon
   switch (status) {
     case ExpenseStatus.PREPARED:
       return {
-        label: getTranslationFromI18nKeyAndLabel("lowcoder:expense_statuses.prepared", "Prepared"),
-        type: "draft",
+        label: getTranslationFromI18nKeyAndLabel('lowcoder:expense_statuses.prepared', 'Prepared'),
+        type: 'draft',
       };
     case ExpenseStatus.CREATED:
       return {
-        label: getTranslationFromI18nKeyAndLabel("lowcoder:expense_statuses.draft", "Draft"),
-        type: "draft",
+        label: getTranslationFromI18nKeyAndLabel('lowcoder:expense_statuses.draft', 'Draft'),
+        type: 'draft',
       };
     case ExpenseStatus.ASSIGNED:
       return {
-        label: getTranslationFromI18nKeyAndLabel("lowcoder:expense_statuses.assigned", "Assigned"),
-        type: "waiting",
+        label: getTranslationFromI18nKeyAndLabel('lowcoder:expense_statuses.assigned', 'Assigned'),
+        type: 'waiting',
       };
     case ExpenseStatus.PENDING:
       return {
         label: getTranslationFromI18nKeyAndLabel(
-          "lowcoder:expense_statuses.in_approval",
-          "In Approval",
+          'lowcoder:expense_statuses.in_approval',
+          'In Approval',
         ),
-        type: "task",
+        type: 'task',
       };
     case ExpenseStatus.APPROVED:
       return {
-        label: getTranslationFromI18nKeyAndLabel("lowcoder:expense_statuses.approved", "Approved"),
-        type: "completed",
+        label: getTranslationFromI18nKeyAndLabel('lowcoder:expense_statuses.approved', 'Approved'),
+        type: 'completed',
       };
     case ExpenseStatus.RETURNED:
       return {
-        label: getTranslationFromI18nKeyAndLabel("lowcoder:expense_statuses.returned", "Returned"),
-        type: "waiting",
+        label: getTranslationFromI18nKeyAndLabel('lowcoder:expense_statuses.returned', 'Returned'),
+        type: 'waiting',
       };
     case ExpenseStatus.REJECTED:
       return {
         label: getTranslationFromI18nKeyAndLabel(
-          "lowcoder:expense_statuses.revision_required",
-          "Revision Required",
+          'lowcoder:expense_statuses.revision_required',
+          'Revision Required',
         ),
-        type: "error",
+        type: 'error',
       };
     case ExpenseStatus.VERIFIED:
       return {
-        label: getTranslationFromI18nKeyAndLabel("lowcoder:expense_statuses.verified", "Verified"),
-        type: "waiting",
+        label: getTranslationFromI18nKeyAndLabel('lowcoder:expense_statuses.verified', 'Verified'),
+        type: 'waiting',
       };
     case ExpenseStatus.BOOKED:
       return {
-        label: getTranslationFromI18nKeyAndLabel("lowcoder:expense_statuses.booked", "Booked"),
-        type: "waiting",
+        label: getTranslationFromI18nKeyAndLabel('lowcoder:expense_statuses.booked', 'Booked'),
+        type: 'waiting',
       };
     case ExpenseStatus.PAID:
       return {
-        label: getTranslationFromI18nKeyAndLabel("lowcoder:expense_statuses.paid", "Paid"),
-        type: "completed",
+        label: getTranslationFromI18nKeyAndLabel('lowcoder:expense_statuses.paid', 'Paid'),
+        type: 'completed',
       };
     case ExpenseStatus.CLOSED:
       return {
-        label: getTranslationFromI18nKeyAndLabel("lowcoder:expense_statuses.closed", "Closed"),
-        type: "completed",
+        label: getTranslationFromI18nKeyAndLabel('lowcoder:expense_statuses.closed', 'Closed'),
+        type: 'completed',
       };
     case ExpenseStatus.DISCARDED:
       return {
         label: getTranslationFromI18nKeyAndLabel(
-          "lowcoder:expense_statuses.discarded",
-          "Discarded",
+          'lowcoder:expense_statuses.discarded',
+          'Discarded',
         ),
-        type: "error",
+        type: 'error',
       };
     case ExpenseStatus.TRANSFERRED:
       return {
         label: getTranslationFromI18nKeyAndLabel(
-          "lowcoder:expense_statuses.transferred",
-          "Transferred",
+          'lowcoder:expense_statuses.transferred',
+          'Transferred',
         ),
-        type: "completed",
+        type: 'completed',
+      };
+    case 'Open':
+      return {
+        label: getTranslationFromI18nKeyAndLabel('translation:flow_status_open', 'Open'),
+        type: 'draft',
       };
     default:
       return {
         label: status,
-        type: "draft",
+        type: 'draft',
       };
   }
 };
@@ -221,85 +226,85 @@ export const getAdvancePaymentStatusDisplay = (status: string): StatusDisplayCon
   switch (status) {
     case ExpenseStatus.PREPARED:
       return {
-        label: getTranslationFromI18nKeyAndLabel("lowcoder:expense_statuses.prepared", "Prepared"),
-        type: "draft",
+        label: getTranslationFromI18nKeyAndLabel('lowcoder:expense_statuses.prepared', 'Prepared'),
+        type: 'draft',
       };
     case ExpenseStatus.CREATED:
       return {
-        label: getTranslationFromI18nKeyAndLabel("lowcoder:expense_statuses.draft", "Draft"),
-        type: "draft",
+        label: getTranslationFromI18nKeyAndLabel('lowcoder:expense_statuses.draft', 'Draft'),
+        type: 'draft',
       };
     case ExpenseStatus.ASSIGNED:
       return {
-        label: getTranslationFromI18nKeyAndLabel("lowcoder:expense_statuses.assigned", "Assigned"),
-        type: "waiting",
+        label: getTranslationFromI18nKeyAndLabel('lowcoder:expense_statuses.assigned', 'Assigned'),
+        type: 'waiting',
       };
     case ExpenseStatus.PENDING:
       return {
         label: getTranslationFromI18nKeyAndLabel(
-          "lowcoder:expense_statuses.in_approval",
-          "In Approval",
+          'lowcoder:expense_statuses.in_approval',
+          'In Approval',
         ),
-        type: "task",
+        type: 'task',
       };
     case ExpenseStatus.APPROVED:
       return {
-        label: getTranslationFromI18nKeyAndLabel("lowcoder:expense_statuses.approved", "Approved"),
-        type: "completed",
+        label: getTranslationFromI18nKeyAndLabel('lowcoder:expense_statuses.approved', 'Approved'),
+        type: 'completed',
       };
     case ExpenseStatus.RETURNED:
       return {
-        label: getTranslationFromI18nKeyAndLabel("lowcoder:expense_statuses.returned", "Returned"),
-        type: "waiting",
+        label: getTranslationFromI18nKeyAndLabel('lowcoder:expense_statuses.returned', 'Returned'),
+        type: 'waiting',
       };
     case ExpenseStatus.REJECTED:
       return {
         label: getTranslationFromI18nKeyAndLabel(
-          "lowcoder:expense_statuses.revision_required",
-          "Revision Required",
+          'lowcoder:expense_statuses.revision_required',
+          'Revision Required',
         ),
-        type: "error",
+        type: 'error',
       };
     case ExpenseStatus.VERIFIED:
       return {
-        label: getTranslationFromI18nKeyAndLabel("lowcoder:expense_statuses.verified", "Verified"),
-        type: "waiting",
+        label: getTranslationFromI18nKeyAndLabel('lowcoder:expense_statuses.verified', 'Verified'),
+        type: 'waiting',
       };
     case ExpenseStatus.BOOKED:
       return {
-        label: getTranslationFromI18nKeyAndLabel("lowcoder:expense_statuses.booked", "Booked"),
-        type: "waiting",
+        label: getTranslationFromI18nKeyAndLabel('lowcoder:expense_statuses.booked', 'Booked'),
+        type: 'waiting',
       };
     case ExpenseStatus.PAID:
       return {
-        label: getTranslationFromI18nKeyAndLabel("lowcoder:expense_statuses.paid", "Paid"),
-        type: "completed",
+        label: getTranslationFromI18nKeyAndLabel('lowcoder:expense_statuses.paid', 'Paid'),
+        type: 'completed',
       };
     case ExpenseStatus.CLOSED:
       return {
-        label: getTranslationFromI18nKeyAndLabel("lowcoder:expense_statuses.closed", "Closed"),
-        type: "completed",
+        label: getTranslationFromI18nKeyAndLabel('lowcoder:expense_statuses.closed', 'Closed'),
+        type: 'completed',
       };
     case ExpenseStatus.DISCARDED:
       return {
         label: getTranslationFromI18nKeyAndLabel(
-          "lowcoder:expense_statuses.discarded",
-          "Discarded",
+          'lowcoder:expense_statuses.discarded',
+          'Discarded',
         ),
-        type: "error",
+        type: 'error',
       };
     case ExpenseStatus.TRANSFERRED:
       return {
         label: getTranslationFromI18nKeyAndLabel(
-          "lowcoder:expense_statuses.transferred",
-          "Transferred",
+          'lowcoder:expense_statuses.transferred',
+          'Transferred',
         ),
-        type: "completed",
+        type: 'completed',
       };
     default:
       return {
         label: status,
-        type: "draft",
+        type: 'draft',
       };
   }
 };

@@ -1,6 +1,7 @@
-import React from "react";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription, Button } from "@newwork/nw-design-system";
+import React, { useCallback } from "react";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@newwork/nw-design-system";
 import { Calendar } from "lucide-react";
+import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils';
 
 export interface ActivityItem {
   id: string;
@@ -10,16 +11,88 @@ export interface ActivityItem {
   relatedTo?: string;
   createdAt: string | number | Date;
   completedAt?: string | number | Date;
+  relatedEntity?: {
+    type: 'opportunity' | 'lead' | 'contact' | 'account';
+    id: string;
+    name: string;
+  };
 }
 
 export interface ActivitySummaryProps {
   activities: ActivityItem[];
   moduleColor?: string;
+  source?: 'investments' | 'customer-relations';
 }
 
-export const ActivitySummary: React.FC<ActivitySummaryProps> = ({ activities, moduleColor = "default" }) => {
+export const ActivitySummary: React.FC<ActivitySummaryProps> = ({ 
+  activities, 
+  moduleColor = "default",
+  source = 'investments'
+}) => {
   // Remove unused variable warning
   const _ = moduleColor;
+
+  // Navigation handler for activity clicks
+  const handleActivityClick = useCallback((activity: ActivityItem) => {
+    if (!activity.relatedEntity) {
+      return;
+    }
+
+    const { type, id } = activity.relatedEntity;
+    const isInvestmentSource = source === 'investments';
+    let url: string;
+
+    switch (type) {
+      case 'opportunity':
+        url = buildPlatformUrl(
+          isInvestmentSource ? '/platform/irm/opportunity-record' : '/platform/crm/opportunity-record',
+          { 
+            opportunityId: id,
+            source: source,
+            fromView: 'dashboard',
+            fromActivity: activity.id
+          }
+        );
+        break;
+      case 'lead':
+        url = buildPlatformUrl(
+          isInvestmentSource ? '/platform/irm/lead-record' : '/platform/crm/lead-record',
+          { 
+            leadId: id,
+            source: source,
+            fromView: 'dashboard',
+            fromActivity: activity.id
+          }
+        );
+        break;
+      case 'contact':
+        url = buildPlatformUrl(
+          isInvestmentSource ? '/platform/irm/contact-record' : '/platform/crm/contact-record',
+          { 
+            contactId: id,
+            source: source,
+            fromView: 'dashboard',
+            fromActivity: activity.id
+          }
+        );
+        break;
+      case 'account':
+        url = buildPlatformUrl(
+          isInvestmentSource ? '/platform/irm/account-record' : '/platform/crm/account-record',
+          { 
+            accountId: id,
+            source: source,
+            fromView: 'dashboard',
+            fromActivity: activity.id
+          }
+        );
+        break;
+      default:
+        return;
+    }
+    
+    navigateTo(url);
+  }, [source]);
   return (
     <Card className="gba:h-full">
       <CardHeader>
@@ -36,7 +109,11 @@ export const ActivitySummary: React.FC<ActivitySummaryProps> = ({ activities, mo
             {activities.slice(0, 5).map((activity) => (
               <Card
                 key={activity.id}
-                className="gba:transition-colors hover:gba:shadow-md"
+                className={`gba:transition-colors hover:gba:shadow-md ${
+                  activity.relatedEntity ? 'gba:cursor-pointer hover:gba:bg-gray-50' : ''
+                }`}
+                onClick={() => activity.relatedEntity && handleActivityClick(activity)}
+                data-testid={`activity-item-${activity.id}`}
               >
                 <CardHeader className="gba:pb-2">
                   <div className="gba:flex gba:items-center gba:gap-3">
@@ -68,11 +145,6 @@ export const ActivitySummary: React.FC<ActivitySummaryProps> = ({ activities, mo
                 </CardContent>
               </Card>
             ))}
-            <div className="gba:text-center gba:pt-2">
-              <Button variant="link" size="sm" className="gba:text-orange-600">
-                View All Activities
-              </Button>
-            </div>
           </div>
         ) : (
           <div className="gba:h-64 gba:flex gba:items-center gba:justify-center">
@@ -82,11 +154,6 @@ export const ActivitySummary: React.FC<ActivitySummaryProps> = ({ activities, mo
               </div>
               <div className="gba:text-gray-600 gba:text-lg">
                 No activities scheduled for today.
-              </div>
-              <div className="gba:mt-4">
-                <Button variant="link" size="sm" className="gba:text-orange-600">
-                  Schedule Activity
-                </Button>
               </div>
             </div>
           </div>

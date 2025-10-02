@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useCallback } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import {
   Spinner,
   Button,
@@ -11,6 +11,7 @@ import {
   DollarOutlined,
   StarOutlined,
 } from "@ant-design/icons";
+import { Trash2, Edit } from 'lucide-react';
 import { LightbulbIcon } from '@phosphor-icons/react';
 import { BusinessAppContextProps } from "@/common/BusinessAppContext";
 import { navigateTo } from "@/common/utils/navigationUtils";
@@ -34,6 +35,7 @@ import { DocumentSection, type DocumentItem } from "@/common/components/common-r
 import { useGetInvestmentActivities } from "@/common/data/investment/hooks/useInvestmentActivities";
 import { useGetInvestmentNotesByOpportunityId, useGetInvestmentTasksByOpportunityId, useGetInvestmentDocumentsByOpportunityId } from "@/common/data/investment/hooks/useInvestmentOpportunities";
 import { FlowContextName } from "@/common/types/FlowRegistryTypes";
+import { startProcess } from "@/common/utils/start-process";
 
 interface OpportunityRecordContentProps extends BusinessAppContextProps {
   opportunityId: string;
@@ -210,15 +212,9 @@ const InvestmentOpportunityRecordContent: React.FC<OpportunityRecordContentProps
     loadDocuments();
   }, [opportunityId]);
 
-  // Listen for process completion events to refresh only opportunity data
-  const refreshOnProcessCompletion = useCallback(() => {
-    console.log("InvestmentOpportunityRecord: Refreshing opportunity data after process completion...");
-    refetchOpportunityData();
-  }, [refetchOpportunityData]);
 
   useProcessCompletion({
     onSuccess: () => {
-      console.log("InvestmentOpportunityRecord: Refreshing all data after process completion...");
       refetchOpportunityData();
       loadActivities();
       loadNotes();
@@ -272,17 +268,6 @@ const InvestmentOpportunityRecordContent: React.FC<OpportunityRecordContentProps
     prefixDataTestId: "opportunity-note-entity"
   }), [opportunityId]);
 
-  const taskEntityActionProps = useMemo(() => ({
-    contextsArray: [FlowContextName.investmentTaskEntity],
-    externalContextData: { opportunityId },
-    prefixDataTestId: "opportunity-task-entity"
-  }), [opportunityId]);
-
-  const approvalEntityActionProps = useMemo(() => ({
-    contextsArray: [FlowContextName.investmentTaskEntity],
-    externalContextData: { opportunityId },
-    prefixDataTestId: "opportunity-approval-entity"
-  }), [opportunityId]);
 
   const activityEntityActionProps = useMemo(() => ({
     contextsArray: [FlowContextName.investmentActivityEntity],
@@ -524,7 +509,6 @@ const InvestmentOpportunityRecordContent: React.FC<OpportunityRecordContentProps
                       assigneeEmployee: task.assignedEmployee
                     }))}
                     taskActionProps={taskActionProps}
-                    taskEntityActionProps={taskEntityActionProps}
                     data-testid="opportunity-task-section"
                     {...props}
                   />
@@ -539,7 +523,6 @@ const InvestmentOpportunityRecordContent: React.FC<OpportunityRecordContentProps
                       actorEmployee: approval.creatorEmployee
                     }))}
                     approvalActionProps={approvalActionProps}
-                    approvalEntityActionProps={approvalEntityActionProps}
                     data-testid="opportunity-approval-section"
                     {...props}
                   />
@@ -586,13 +569,65 @@ const InvestmentOpportunityRecordContent: React.FC<OpportunityRecordContentProps
           <div className="gba:col-span-12">
             <DocumentSection
               entityId={opportunityId}
-              entityType="opportunity"
               documents={documents}
               isLoading={documentsLoading}
               error={documentsError}
               onRefresh={loadDocuments}
+              apiConfig={{
+                baseEndpoint: '/investment-relations',
+                entityFieldName: 'opportunity',
+                documentFieldName: 'investmentDocument'
+              }}
+              enableGraphQLSearch={true}
+              graphQLSearchConfig={{
+                entityType: 'opportunity'
+              }}
+              customActions={[
+                {
+                  key: 'delete',
+                  label: 'Delete',
+                  icon: <Trash2 className="gba:h-4 gba:w-4" />,
+                  apiEndpoint: '/investment-relations/deleteInvestmentDocument',
+                  confirmMessage: 'Are you sure you want to delete this document? This action cannot be undone.'
+                },
+                {
+                  key: 'update',
+                  label: 'Update',
+                  icon: <Edit className="gba:h-4 gba:w-4" />,
+                  onClick: (documentId: string, document: any, entityId: string) => {
+                    // Open the document update popup
+                    startProcess({
+                      domain: 'investment-relations',
+                      processName: 'updateInvestmentDocument',
+                      payload: {
+                        documentId: documentId,
+                        opportunityId: entityId,
+                        investmentDocument: {
+                          id: documentId,
+                          version: document.version,
+                          name: document.name,
+                          documentGroupRef: document.documentGroup?.id,
+                          documentTypeRef: document.documentType?.id,
+                          expirationDate: document.expirationDate,
+                          description: document.description,
+                          folder: document.folder || false,
+                        },
+                      },
+                      builderType: 'NATIVE_SCREEN',
+                    });
+                  }
+                }
+              ]}
               createFolderActionProps={documentCreateFolderActionProps}
               uploadActionProps={documentUploadActionProps}
+              deleteActionProps={{
+                contextsArray: [FlowContextName.investmentDocumentDelete],
+                externalContextData: { 
+                  opportunityId,
+                  entityType: 'opportunity'
+                },
+                prefixDataTestId: 'opportunity-document-delete'
+              }}
               data-testid="opportunity-document-section"
               {...props}
             />

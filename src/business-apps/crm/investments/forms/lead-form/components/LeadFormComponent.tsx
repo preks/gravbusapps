@@ -77,7 +77,6 @@ const LeadFormComponent: React.FC = () => {
         accountAnnualRevenueBandRef: toStringOrUndefined(
           formValues.annualRevenue
         ), // ✅ FIXED: annualRevenueRef → accountAnnualRevenueBandRef
-        timeZoneRef: toStringOrUndefined(formValues.timeZone), // ✅ ADDED: Time zone support
 
         // ✅ FIXED: Owner Information with correct API field name
         ownerEmployee: toStringOrUndefined(formValues.owner), // ✅ FIXED: API expects 'ownerEmployee' not 'ownerEmployeeId'
@@ -226,7 +225,7 @@ const LeadFormComponent: React.FC = () => {
               onLoadMore={loadMoreEmployeePositions}
               onSearch={searchEmployeePositions}
               error={employeePositionsError}
-              dataTestId={formatDataTestId(prefixDataTestId, "OwnerSelector")}
+              dataTestId={formatDataTestId(prefixDataTestId, "owner-selector-select")}
             />
           </div>
 
@@ -261,7 +260,7 @@ const LeadFormComponent: React.FC = () => {
             className="gba:flex-1"
             size="lg"
             onClick={handleCancel}
-            data-testid={formatDataTestId(prefixDataTestId, "CancelButton")}
+            data-testid={formatDataTestId(prefixDataTestId, "cancel-button")}
           >
             Cancel
           </Button>
@@ -271,7 +270,7 @@ const LeadFormComponent: React.FC = () => {
             className="gba:flex-1"
             size="lg"
             onClick={handleSubmit}
-            data-testid={formatDataTestId(prefixDataTestId, "SubmitButton")}
+            data-testid={formatDataTestId(prefixDataTestId, "submit-button")}
           >
             {isLoading
               ? "Processing..."

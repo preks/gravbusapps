@@ -98,9 +98,9 @@ export const useExpensePlanFilters = () => {
       ] });
     }
     
-    // Process status filters (exclude date range filter IDs and special filters from the original selectedFilters)
-    const statusFilters = selectedFilters.filter(f => 
-      !['planDateRange', 'startDateRange', 'endDateRange', 'top-destination'].includes(f)
+    // Process status filters: include ONLY known status values; ignore currency and other tokens
+    const statusFilters = selectedFilters.filter(f =>
+      (Object.values(ExpenseStatus) as string[]).includes(f)
     );
     if (statusFilters.length > 0) {
       conditions.push({ status: { _in: statusFilters } });
@@ -222,6 +222,8 @@ export const useExpensePlanFilters = () => {
     
 
     
+    // Ensure currency pills show code (if present via DataContainer currency group)
+    // Currency filters are injected at table level; here we just preserve any provided labels
     return map;
   }, [filterGroups, formatDateRangeLabel, planDateRange, startDateRange, endDateRange]);
 

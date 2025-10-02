@@ -14,6 +14,8 @@ export interface ExpensePosition {
   costCenter: string;
   customField?: string;
   isReimbursable?: boolean;
+  persistedId?: string;
+  persistedVersion?: string | number;
 }
 
 export interface ExpenseItemData {

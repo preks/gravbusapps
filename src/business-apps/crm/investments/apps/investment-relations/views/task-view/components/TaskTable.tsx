@@ -17,6 +17,7 @@ import {
 } from '../utils/taskBadgeUtils';
 import dayjs from 'dayjs';
 import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils';
+import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
 import { OwnerDisplay } from '../../../../../components/shared';
 
 interface TaskTableProps {
@@ -39,6 +40,7 @@ interface TaskTableProps {
   accessToken: string;
   sourceApp?: string;
   hideAssignedTo?: boolean;
+  visibleColumns?: string[];
 }
 
 const DATA_TEST_ID_PREFIX = 'TaskTable';
@@ -76,7 +78,8 @@ export const TaskTable: React.FC<TaskTableProps> = ({
   selectedTaskId,
   accessToken,
   sourceApp,
-  hideAssignedTo
+  hideAssignedTo,
+  visibleColumns = []
 }) => {
   const { t } = useTranslation();
 
@@ -86,6 +89,8 @@ export const TaskTable: React.FC<TaskTableProps> = ({
   }, []);
 
   const handleReferenceClick = useCallback((reference: Task['reference']) => {
+    if (!reference) return; // Handle undefined reference
+    
     const source = (sourceApp === 'investment-relations' || sourceApp === 'IRM') ? 'investments' : 'customer-relations';
     let url = '';
     switch (reference.type) {
@@ -137,33 +142,49 @@ export const TaskTable: React.FC<TaskTableProps> = ({
           <Table data-testid={`${DATA_TEST_ID_PREFIX}-table`}>
             <TableHeader>
               <TableRow className="gba:border-b gba:bg-gray-50">
-                <TableHead className="gba:w-[25%] gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6 gba:cursor-pointer gba:select-none hover:gba:bg-gray-100" onClick={() => handleSort('name')} data-testid={`${DATA_TEST_ID_PREFIX}-task-header`}>
-                  <div className="gba:flex gba:items-center">{t('task.name', 'Task')}{renderSortIcon('name')}</div>
-                </TableHead>
-                {!hideAssignedTo && (
+                {visibleColumns.includes('task') && (
+                  <TableHead className="gba:w-[25%] gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6 gba:cursor-pointer gba:select-none hover:gba:bg-gray-100" onClick={() => handleSort('name')} data-testid={`${DATA_TEST_ID_PREFIX}-task-header`}>
+                    <div className="gba:flex gba:items-center">{t('task.name', 'Task')}{renderSortIcon('name')}</div>
+                  </TableHead>
+                )}
+                {!hideAssignedTo && visibleColumns.includes('assignedTo') && (
                   <TableHead className="gba:w-[20%] gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6 gba:cursor-pointer gba:select-none hover:gba:bg-gray-100" onClick={() => handleSort('assignedTo')} data-testid={`${DATA_TEST_ID_PREFIX}-assigned-to-header`}>
                     <div className="gba:flex gba:items-center">{t('task.assignedTo', 'Assigned To')}{renderSortIcon('assignedTo')}</div>
                   </TableHead>
                 )}
-                <TableHead className="gba:w-[12%] gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6 gba:cursor-pointer gba:select-none hover:gba:bg-gray-100" onClick={() => handleSort('type')} data-testid={`${DATA_TEST_ID_PREFIX}-type-header`}>
-                  <div className="gba:flex gba:items-center">{t('task.type', 'Type')}{renderSortIcon('type')}</div>
-                </TableHead>
-                <TableHead className="gba:w-[12%] gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6 gba:cursor-pointer gba:select-none hover:gba:bg-gray-100" onClick={() => handleSort('priority')} data-testid={`${DATA_TEST_ID_PREFIX}-priority-header`}>
-                  <div className="gba:flex gba:items-center">{t('task.priority', 'Priority')}{renderSortIcon('priority')}</div>
-                </TableHead>
-                <TableHead className="gba:w-[12%] gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6 gba:cursor-pointer gba:select-none hover:gba:bg-gray-100" onClick={() => handleSort('status')} data-testid={`${DATA_TEST_ID_PREFIX}-status-header`}>
-                  <div className="gba:flex gba:items-center">{t('task.status', 'Status')}{renderSortIcon('status')}</div>
-                </TableHead>
-                <TableHead className="gba:w-[20%] gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6 gba:cursor-pointer gba:select-none hover:gba:bg-gray-100" onClick={() => handleSort('reference')} data-testid={`${DATA_TEST_ID_PREFIX}-reference-header`}>
-                  <div className="gba:flex gba:items-center">{t('task.reference', 'Reference')}{renderSortIcon('reference')}</div>
-                </TableHead>
-                <TableHead className="gba:w-[15%] gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6 gba:cursor-pointer gba:select-none hover:gba:bg-gray-100" onClick={() => handleSort('dueDate')} data-testid={`${DATA_TEST_ID_PREFIX}-schedule-header`}>
-                  <div className="gba:flex gba:items-center">{t('task.schedule', 'Schedule / Due Date')}{renderSortIcon('dueDate')}</div>
-                </TableHead>
-                <TableHead className="gba:w-[15%] gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6 gba:cursor-pointer gba:select-none hover:gba:bg-gray-100" onClick={() => handleSort('createdBy')} data-testid={`${DATA_TEST_ID_PREFIX}-created-by-header`}>
-                  <div className="gba:flex gba:items-center">{t('task.createdBy', 'Created By')}{renderSortIcon('createdBy')}</div>
-                </TableHead>
-                <TableHead className="gba:w-[60px] gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6" data-testid={`${DATA_TEST_ID_PREFIX}-actions-header`}>ACTIONS</TableHead>
+                {visibleColumns.includes('type') && (
+                  <TableHead className="gba:w-[12%] gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6 gba:cursor-pointer gba:select-none hover:gba:bg-gray-100" onClick={() => handleSort('type')} data-testid={`${DATA_TEST_ID_PREFIX}-type-header`}>
+                    <div className="gba:flex gba:items-center">{t('task.type', 'Type')}{renderSortIcon('type')}</div>
+                  </TableHead>
+                )}
+                {visibleColumns.includes('priority') && (
+                  <TableHead className="gba:w-[12%] gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6 gba:cursor-pointer gba:select-none hover:gba:bg-gray-100" onClick={() => handleSort('priority')} data-testid={`${DATA_TEST_ID_PREFIX}-priority-header`}>
+                    <div className="gba:flex gba:items-center">{t('task.priority', 'Priority')}{renderSortIcon('priority')}</div>
+                  </TableHead>
+                )}
+                {visibleColumns.includes('status') && (
+                  <TableHead className="gba:w-[12%] gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6 gba:cursor-pointer gba:select-none hover:gba:bg-gray-100" onClick={() => handleSort('status')} data-testid={`${DATA_TEST_ID_PREFIX}-status-header`}>
+                    <div className="gba:flex gba:items-center">{t('task.status', 'Status')}{renderSortIcon('status')}</div>
+                  </TableHead>
+                )}
+                {visibleColumns.includes('reference') && (
+                  <TableHead className="gba:w-[20%] gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6 gba:cursor-pointer gba:select-none hover:gba:bg-gray-100" onClick={() => handleSort('reference')} data-testid={`${DATA_TEST_ID_PREFIX}-reference-header`}>
+                    <div className="gba:flex gba:items-center">{t('task.reference', 'Reference')}{renderSortIcon('reference')}</div>
+                  </TableHead>
+                )}
+                {visibleColumns.includes('schedule') && (
+                  <TableHead className="gba:w-[15%] gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6 gba:cursor-pointer gba:select-none hover:gba:bg-gray-100" onClick={() => handleSort('dueDate')} data-testid={`${DATA_TEST_ID_PREFIX}-schedule-header`}>
+                    <div className="gba:flex gba:items-center">{t('task.schedule', 'Schedule / Due Date')}{renderSortIcon('dueDate')}</div>
+                  </TableHead>
+                )}
+                {visibleColumns.includes('createdBy') && (
+                  <TableHead className="gba:w-[15%] gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6 gba:cursor-pointer gba:select-none hover:gba:bg-gray-100" onClick={() => handleSort('createdBy')} data-testid={`${DATA_TEST_ID_PREFIX}-created-by-header`}>
+                    <div className="gba:flex gba:items-center">{t('task.createdBy', 'Created By')}{renderSortIcon('createdBy')}</div>
+                  </TableHead>
+                )}
+                {visibleColumns.includes('actions') && (
+                  <TableHead className="gba:w-[60px] gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6" data-testid={`${DATA_TEST_ID_PREFIX}-actions-header`}>ACTIONS</TableHead>
+                )}
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -176,12 +197,14 @@ export const TaskTable: React.FC<TaskTableProps> = ({
                   }}
                   data-testid={`${DATA_TEST_ID_PREFIX}-row-${record.id}`}
                 >
-                  <TableCell className="gba:py-4 gba:px-6" data-testid={`${DATA_TEST_ID_PREFIX}-task-cell-${record.id}`}>
-                    <div className="gba:flex gba:items-center gba:gap-3" data-testid={`${DATA_TEST_ID_PREFIX}-task-name-${record.id}`}>
-                      <div><div className="gba:font-medium gba:text-sm">{record.name}</div></div>
-                    </div>
-                  </TableCell>
-                  {!hideAssignedTo && (
+                  {visibleColumns.includes('task') && (
+                    <TableCell className="gba:py-4 gba:px-6" data-testid={`${DATA_TEST_ID_PREFIX}-task-cell-${record.id}`}>
+                      <div className="gba:flex gba:items-center gba:gap-3" data-testid={`${DATA_TEST_ID_PREFIX}-task-name-${record.id}`}>
+                        <div><div className="gba:font-medium gba:text-sm">{record.name}</div></div>
+                      </div>
+                    </TableCell>
+                  )}
+                  {!hideAssignedTo && visibleColumns.includes('assignedTo') && (
                     <TableCell className="gba:py-4 gba:px-6" data-testid={`${DATA_TEST_ID_PREFIX}-assigned-to-cell-${record.id}`}>
                       <OwnerDisplay 
                         ownerEmployee={record.assignedTo}
@@ -190,65 +213,105 @@ export const TaskTable: React.FC<TaskTableProps> = ({
                       />
                     </TableCell>
                   )}
-                  <TableCell className="gba:py-4 gba:px-6" data-testid={`${DATA_TEST_ID_PREFIX}-type-cell-${record.id}`}>
-                    <Badge variant={getTaskTypeBadgeVariant(record.type)}>{record.type.charAt(0).toUpperCase() + record.type.slice(1).toLowerCase()}</Badge>
-                  </TableCell>
-                  <TableCell className="gba:py-4 gba:px-6" data-testid={`${DATA_TEST_ID_PREFIX}-priority-cell-${record.id}`}>
-                    <Badge variant={getTaskPriorityBadgeVariant(record.priority)}>{record.priority.charAt(0).toUpperCase() + record.priority.slice(1).toLowerCase()}</Badge>
-                  </TableCell>
-                  <TableCell className="gba:py-4 gba:px-6" data-testid={`${DATA_TEST_ID_PREFIX}-status-cell-${record.id}`}>
-                    <Badge variant={getTaskStatusBadgeVariant(record.status)}>{record.status === 'in_progress' ? 'In Progress' : record.status.charAt(0).toUpperCase() + record.status.slice(1)}</Badge>
-                  </TableCell>
-                  <TableCell className="gba:py-4 gba:px-6" data-testid={`${DATA_TEST_ID_PREFIX}-reference-cell-${record.id}`}>
-                    <div className="gba:cursor-pointer gba:hover:bg-gray-50 gba:p-2 gba:rounded gba:transition-colors" onClick={(e) => { e.stopPropagation(); handleReferenceClick(record.reference); }} data-testid={`${DATA_TEST_ID_PREFIX}-reference-link-${record.id}`}>
-                      <div className="gba:font-medium gba:text-sm">{record.reference.name}</div>
-                      <div className="gba:flex gba:items-center gba:gap-1 gba:mt-1">
-                        <Badge variant={getReferenceTypeBadgeVariant(record.reference.type)} className="gba:text-xs">{record.reference.type.charAt(0).toUpperCase() + record.reference.type.slice(1)}</Badge>
-                        {record.reference.description && (<span className="gba:text-xs gba:text-gray-500">{record.reference.description}</span>)}
+                  {visibleColumns.includes('type') && (
+                    <TableCell className="gba:py-4 gba:px-6" data-testid={`${DATA_TEST_ID_PREFIX}-type-cell-${record.id}`}>
+                      <Badge variant={getTaskTypeBadgeVariant(record.type)}>{record.type.charAt(0).toUpperCase() + record.type.slice(1).toLowerCase()}</Badge>
+                    </TableCell>
+                  )}
+                  {visibleColumns.includes('priority') && (
+                    <TableCell className="gba:py-4 gba:px-6" data-testid={`${DATA_TEST_ID_PREFIX}-priority-cell-${record.id}`}>
+                      <Badge variant={getTaskPriorityBadgeVariant(record.priority)}>{record.priority.charAt(0).toUpperCase() + record.priority.slice(1).toLowerCase()}</Badge>
+                    </TableCell>
+                  )}
+                  {visibleColumns.includes('status') && (
+                    <TableCell className="gba:py-4 gba:px-6" data-testid={`${DATA_TEST_ID_PREFIX}-status-cell-${record.id}`}>
+                      <Badge variant={getTaskStatusBadgeVariant(record.status)}>{record.status === 'in_progress' ? 'In Progress' : record.status.charAt(0).toUpperCase() + record.status.slice(1)}</Badge>
+                    </TableCell>
+                  )}
+                  {visibleColumns.includes('reference') && (
+                    <TableCell className="gba:py-4 gba:px-6" data-testid={`${DATA_TEST_ID_PREFIX}-reference-cell-${record.id}`}>
+                      {record.reference ? (
+                        <div 
+                          style={{ 
+                            cursor: 'pointer',
+                            padding: 'var(--nw-spacing-sm)',
+                            borderRadius: 'var(--nw-border-radius-md)',
+                            transition: 'background-color 0.2s ease'
+                          }}
+                          onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'var(--nw-color-surface-hover)'}
+                          onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
+                          onClick={(e) => { e.stopPropagation(); handleReferenceClick(record.reference); }} 
+                          data-testid={`${DATA_TEST_ID_PREFIX}-reference-link-${record.id}`}
+                        >
+                          <div style={{ fontWeight: 'var(--nw-font-weight-medium)', fontSize: 'var(--nw-font-size-sm)' }}>{record.reference.name}</div>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--nw-spacing-xs)', marginTop: 'var(--nw-spacing-xs)' }}>
+                            <Badge variant={getReferenceTypeBadgeVariant(record.reference.type)} style={{ fontSize: 'var(--nw-font-size-xs)' }}>
+                              {getTranslationFromI18nKeyAndLabel(`crm:reference.type.${record.reference.type}`, record.reference.type)}
+                            </Badge>
+                            {record.reference.description && (<span style={{ fontSize: 'var(--nw-font-size-xs)', color: 'var(--nw-color-text-muted)' }}>{record.reference.description}</span>)}
+                          </div>
+                        </div>
+                      ) : (
+                        <div style={{ padding: 'var(--nw-spacing-sm)' }} data-testid={`${DATA_TEST_ID_PREFIX}-no-reference-${record.id}`}>
+                          <div style={{ fontWeight: 'var(--nw-font-weight-medium)', fontSize: 'var(--nw-font-size-sm)', color: 'var(--nw-color-text-muted)' }}>
+                            {getTranslationFromI18nKeyAndLabel('crm:task.noRelatedEntity', 'No related entity')}
+                          </div>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--nw-spacing-xs)', marginTop: 'var(--nw-spacing-xs)' }}>
+                            <Badge variant="secondary" style={{ fontSize: 'var(--nw-font-size-xs)' }}>
+                              {getTranslationFromI18nKeyAndLabel('crm:reference.general', 'General')}
+                            </Badge>
+                          </div>
+                        </div>
+                      )}
+                    </TableCell>
+                  )}
+                  {visibleColumns.includes('schedule') && (
+                    <TableCell className="gba:py-4 gba:px-6" data-testid={`${DATA_TEST_ID_PREFIX}-schedule-cell-${record.id}`}>
+                      <div className="gba:flex gba:items-center gba:gap-2">
+                        <TooltipProvider>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <div className="gba:flex gba:items-center">{getTimingTypeIcon(record.timingType).icon}</div>
+                            </TooltipTrigger>
+                            <TooltipContent>
+                              <p>{getTimingTypeIcon(record.timingType).tooltip}</p>
+                            </TooltipContent>
+                          </Tooltip>
+                        </TooltipProvider>
+                        <span className="gba:text-sm">{formatDate(record.dueDate)}</span>
                       </div>
-                    </div>
-                  </TableCell>
-                  <TableCell className="gba:py-4 gba:px-6" data-testid={`${DATA_TEST_ID_PREFIX}-schedule-cell-${record.id}`}>
-                    <div className="gba:flex gba:items-center gba:gap-2">
-                      <TooltipProvider>
-                        <Tooltip>
-                          <TooltipTrigger asChild>
-                            <div className="gba:flex gba:items-center">{getTimingTypeIcon(record.timingType).icon}</div>
-                          </TooltipTrigger>
-                          <TooltipContent>
-                            <p>{getTimingTypeIcon(record.timingType).tooltip}</p>
-                          </TooltipContent>
-                        </Tooltip>
-                      </TooltipProvider>
-                      <span className="gba:text-sm">{formatDate(record.dueDate)}</span>
-                    </div>
-                  </TableCell>
-                  <TableCell className="gba:py-4 gba:px-6" data-testid={`${DATA_TEST_ID_PREFIX}-created-by-cell-${record.id}`}>
-                    {record.creatorEmployee ? (
-                      <OwnerDisplay 
-                        ownerEmployee={record.creatorEmployee}
-                        entityId={record.id}
-                        testIdPrefix="task-creator"
-                      />
-                    ) : (
-                      <span className="gba:text-sm gba:text-gray-400">Unknown</span>
-                    )}
-                  </TableCell>
-                  <TableCell className="gba:py-4 gba:px-6" data-testid={`${DATA_TEST_ID_PREFIX}-actions-cell-${record.id}`}>
-                    <div className="gba:flex gba:justify-start gba:gap-2">
-                      <AppActionButton
-                        data-testid={`${DATA_TEST_ID_PREFIX}-update-task-button-${record.id}`}
-                        size="icon"
-                        contextsArray={[FlowContextName.investmentTaskEntity]}
-                        externalContextData={{ taskId: record.id}}
-                        prefixDataTestId={`${DATA_TEST_ID_PREFIX}-update-task`}
-                        accessToken={accessToken}
-                        emptyStateBehavior="enable"
-                        deferMainContextRequestsUntilClick
-                        onClick={(e) => e.stopPropagation()}
-                      />
-                    </div>
-                  </TableCell>
+                    </TableCell>
+                  )}
+                  {visibleColumns.includes('createdBy') && (
+                    <TableCell className="gba:py-4 gba:px-6" data-testid={`${DATA_TEST_ID_PREFIX}-created-by-cell-${record.id}`}>
+                      {record.creatorEmployee ? (
+                        <OwnerDisplay 
+                          ownerEmployee={record.creatorEmployee}
+                          entityId={record.id}
+                          testIdPrefix="task-creator"
+                        />
+                      ) : (
+                        <span className="gba:text-sm gba:text-gray-400">Unknown</span>
+                      )}
+                    </TableCell>
+                  )}
+                  {visibleColumns.includes('actions') && (
+                    <TableCell className="gba:py-4 gba:px-6" data-testid={`${DATA_TEST_ID_PREFIX}-actions-cell-${record.id}`}>
+                      <div className="gba:flex gba:justify-start gba:gap-2">
+                        <AppActionButton
+                          data-testid={`${DATA_TEST_ID_PREFIX}-update-task-button-${record.id}`}
+                          size="icon"
+                          contextsArray={[FlowContextName.investmentTaskEntity]}
+                          externalContextData={{ taskId: record.id}}
+                          prefixDataTestId={`${DATA_TEST_ID_PREFIX}-update-task`}
+                          accessToken={accessToken}
+                          emptyStateBehavior="enable"
+                          deferMainContextRequestsUntilClick
+                          onClick={(e) => e.stopPropagation()}
+                        />
+                      </div>
+                    </TableCell>
+                  )}
                 </TableRow>
               ))}
             </TableBody>

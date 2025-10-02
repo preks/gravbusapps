@@ -56,11 +56,6 @@ export const GET_INVESTMENT_LEAD_PREFILL_DATA = `
         value
       }
       accountAnnualRevenueBandRef
-      timeZone {
-        id
-        value
-      }
-      timeZoneRef
       
       # Catalog relationships for contact pre-filling
       academicTitle {

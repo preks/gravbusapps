@@ -145,7 +145,7 @@ export const useCompensationDataIntegration = (
         compensationBandId:
           level.compensationBandId || level.compensationBand?.id,
         level: level.level || 1,
-        heirarchyOrder: level.heirarchyOrder || 0,
+        hierarchyOrder: level.hierarchyOrder || 0,
         version: level.version || 0,
         displayName: level.name || level.code || "Unknown",
       }))

@@ -9,7 +9,6 @@ import {
 import { formatDataTestId } from "@/common/utils/formatDataTestId";
 import { dispatchProcessContinueEvent } from "@/common/utils/processEventUtils";
 import OpportunityInformationSection from "./OpportunityInformationSection";
-import AdditionalInformationSection from "./AdditionalInformationSection";
 
 const prefixDataTestId = "InvestmentOpportunityForm";
 
@@ -35,10 +34,7 @@ const OpportunityFormComponent: React.FC = () => {
 
   // Handle form submission for Investment Opportunity
   const handleSubmit = async () => {
-    console.log("Investment Opportunity form values:", formValues);
     try {
-      await onSubmit(formValues);
-
       // Determine dealType: default to "INVESTMENT_DEAL" unless business context provides one
       const contextDealType = businessAppContext.additionalData?.dealType;
       const finalDealType = contextDealType || formValues.dealType || "INVESTMENT_DEAL";
@@ -49,7 +45,7 @@ const OpportunityFormComponent: React.FC = () => {
 
         // Basic information (matching API structure exactly)
         name: toStringOrUndefined(formValues.name),
-        investmentName: toStringOrUndefined(formValues.name), // Same as name for investment context
+        investmentName: toStringOrUndefined(formValues.investmentName), // Separate investment name field
         code: toStringOrUndefined(formValues.code),
         businessKey: toStringOrUndefined(formValues.businessKey),
         dealType: finalDealType,
@@ -117,12 +113,8 @@ const OpportunityFormComponent: React.FC = () => {
 
         // Relationships
         ownerEmployee: toStringOrUndefined(formValues.owner),
-        account: toStringOrUndefined(
-          formValues.accountId || formValues.account
-        ),
+        account: toStringOrUndefined(formValues.account),
 
-        // Record state (convert back to lowercase for API)
-        recordState: toStringOrUndefined(formValues.recordState)?.toLowerCase(),
 
         // Additional properties (empty object as per API)
         additionalProperties: {},
@@ -135,14 +127,29 @@ const OpportunityFormComponent: React.FC = () => {
       if (formValues.id) {
         investmentOpportunityPayload.id = formValues.id;
         investmentOpportunityPayload.version = formValues.version || 0;
+      } else {
+        // Set opportunityStatusRef to OPEN for new opportunities
+        investmentOpportunityPayload.opportunityStatusRef = "InvestmentOpportunityStatus:v1:OPEN";
       }
 
       const payload = {
         investmentOpportunity: investmentOpportunityPayload,
         changeMode: changeMode,
       };
-      // Dispatch process continue event on successful submission
+
+      // Dispatch process continue event FIRST (like account form)
       dispatchProcessContinueEvent("pse_submit", payload);
+
+      // Call the onSubmit callback after dispatching the process event
+      // This ensures the process event is always dispatched even if onSubmit fails
+      try {
+        await onSubmit(formValues);
+      } catch (submitError) {
+        console.warn(
+          "onSubmit callback failed, but process event was dispatched:",
+          submitError
+        );
+      }
     } catch (err) {
       console.error("Error submitting investment opportunity form:", err);
     }
@@ -182,9 +189,6 @@ const OpportunityFormComponent: React.FC = () => {
           {/* Investment Opportunity Information Section */}
           <OpportunityInformationSection />
 
-          {/* Additional Information Section */}
-          <AdditionalInformationSection />
-
           {/* Error Display */}
           {error && (
             <Alert
@@ -207,7 +211,7 @@ const OpportunityFormComponent: React.FC = () => {
               className="gba:flex-1"
               size="lg"
               onClick={handleCancel}
-              data-testid={formatDataTestId(prefixDataTestId, "CancelButton")}
+              data-testid={formatDataTestId(prefixDataTestId, "cancel-button")}
             >
               Cancel
             </Button>
@@ -218,7 +222,7 @@ const OpportunityFormComponent: React.FC = () => {
               className="gba:flex-1"
               size="lg"
               onClick={handleSubmit}
-              data-testid={formatDataTestId(prefixDataTestId, "SubmitButton")}
+              data-testid={formatDataTestId(prefixDataTestId, "submit-button")}
             >
               {isLoading && <Spinner size="sm" className="gba:mr-2" />}
               {formValues.id

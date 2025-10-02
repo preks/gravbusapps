@@ -8,8 +8,9 @@ import {
   SelectValue,
 } from "@newwork/nw-design-system";
 import { formatDataTestId } from "@/common/utils/formatDataTestId";
+import { getTranslationFromI18nKeyAndLabel } from "@/common/utils/windowUtils";
 import { useOpportunityFormContext } from "../../context/OpportunityFormContext";
-import { DEAL_TYPES, RECORD_STATES } from "../../types";
+import { DEAL_TYPES } from "../../types";
 
 const prefixDataTestId = "InvestmentOpportunityForm";
 
@@ -73,59 +74,30 @@ const DealTypePipelineSection: React.FC = () => {
 
   return (
     <div className="gba:space-y-6">
-      {/* Deal Type and Record State - Same Row */}
-      <div className="gba:grid gba:grid-cols-1 gba:gap-6 gba:md:grid-cols-2">
-        {/* Deal Type */}
-        <div className="gba:space-y-2">
-          <Label
-            htmlFor="dealType"
-            className="gba:block gba:text-sm gba:font-medium gba:text-gray-900"
-          >
-            Deal Type
-          </Label>
-          <Select
-            value={formValues.dealType || ""}
-            onValueChange={(value) => handleInputChange("dealType", value)}
-            data-testid={formatDataTestId(prefixDataTestId, "deal-type")}
-          >
-            <SelectTrigger className="gba:border-gray-300 gba:bg-white">
-              <SelectValue placeholder="Please select deal type..." />
-            </SelectTrigger>
-            <SelectContent>
-              {DEAL_TYPES.map((dealType) => (
-                <SelectItem key={dealType.id} value={dealType.value}>
-                  {dealType.label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-
-        {/* Record State */}
-        <div className="gba:space-y-2">
-          <Label
-            htmlFor="recordState"
-            className="gba:block gba:text-sm gba:font-medium gba:text-gray-900"
-          >
-            Record State
-          </Label>
-          <Select
-            value={formValues.recordState || ""}
-            onValueChange={(value) => handleInputChange("recordState", value)}
-            data-testid={formatDataTestId(prefixDataTestId, "record-state")}
-          >
-            <SelectTrigger className="gba:border-gray-300 gba:bg-white">
-              <SelectValue placeholder="Please select record state..." />
-            </SelectTrigger>
-            <SelectContent>
-              {RECORD_STATES.map((state) => (
-                <SelectItem key={state.id} value={state.value}>
-                  {state.label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
+      {/* Deal Type */}
+      <div className="gba:space-y-2">
+        <Label
+          htmlFor="dealType"
+          className="gba:block gba:text-sm gba:font-medium gba:text-gray-900"
+        >
+          {getTranslationFromI18nKeyAndLabel("opportunity.dealType.label", "Deal Type")}
+        </Label>
+        <Select
+          value={formValues.dealType || ""}
+          onValueChange={(value) => handleInputChange("dealType", value)}
+          data-testid={formatDataTestId(prefixDataTestId, "deal-type")}
+        >
+          <SelectTrigger className="gba:border-gray-300 gba:bg-white">
+            <SelectValue placeholder={getTranslationFromI18nKeyAndLabel("opportunity.dealType.placeholder", "Please select deal type...")} />
+          </SelectTrigger>
+          <SelectContent>
+            {DEAL_TYPES.map((dealType) => (
+              <SelectItem key={dealType.id} value={dealType.value}>
+                {dealType.label}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
       </div>
 
       {/* Pipeline and Stage - Side by Side */}
@@ -133,7 +105,7 @@ const DealTypePipelineSection: React.FC = () => {
         {/* Pipeline */}
         <div className="gba:space-y-2">
           <Label className="gba:block gba:text-sm gba:font-medium gba:text-gray-900">
-            Pipeline <span className="gba:text-red-500">*</span>
+            {getTranslationFromI18nKeyAndLabel("opportunity.pipeline.label", "Pipeline")} <span className="gba:text-red-500">*</span>
           </Label>
           <Select
             value={formValues.pipeline || ""}
@@ -141,7 +113,7 @@ const DealTypePipelineSection: React.FC = () => {
             data-testid={formatDataTestId(prefixDataTestId, "pipeline")}
           >
             <SelectTrigger className="gba:border-gray-300 gba:bg-white">
-              <SelectValue placeholder="Please select pipeline..." />
+              <SelectValue placeholder={getTranslationFromI18nKeyAndLabel("opportunity.pipeline.placeholder", "Please select pipeline...")} />
             </SelectTrigger>
             <SelectContent>
               {pipelines.map((pipeline) => (
@@ -156,7 +128,7 @@ const DealTypePipelineSection: React.FC = () => {
         {/* Pipeline Stage */}
         <div className="gba:space-y-2">
           <Label className="gba:block gba:text-sm gba:font-medium gba:text-gray-900">
-            Stage <span className="gba:text-red-500">*</span>
+            {getTranslationFromI18nKeyAndLabel("opportunity.stage.label", "Stage")} <span className="gba:text-red-500">*</span>
           </Label>
           <Select
             value={formValues.pipelineStage || ""}
@@ -175,10 +147,10 @@ const DealTypePipelineSection: React.FC = () => {
               <SelectValue
                 placeholder={
                   !formValues.pipeline
-                    ? "Select Pipeline First..."
+                    ? getTranslationFromI18nKeyAndLabel("opportunity.stage.selectPipelineFirst", "Select Pipeline First...")
                     : pipelineStages.length === 0 && !pipelineStagesLoading
-                    ? "No Stages Available"
-                    : "Please select stage..."
+                    ? getTranslationFromI18nKeyAndLabel("opportunity.stage.noStagesAvailable", "No Stages Available")
+                    : getTranslationFromI18nKeyAndLabel("opportunity.stage.placeholder", "Please select stage...")
                 }
               />
             </SelectTrigger>
@@ -189,8 +161,8 @@ const DealTypePipelineSection: React.FC = () => {
               {pipelineStages.length === 0 && !pipelineStagesLoading ? (
                 <div className="gba:px-3 gba:py-2 gba:text-sm gba:text-gray-500 gba:text-center">
                   {!formValues.pipeline
-                    ? "Please select a pipeline first"
-                    : "No stages available for this pipeline"}
+                    ? getTranslationFromI18nKeyAndLabel("opportunity.stage.selectPipelineFirst", "Please select a pipeline first")
+                    : getTranslationFromI18nKeyAndLabel("opportunity.stage.noStagesForPipeline", "No stages available for this pipeline")}
                 </div>
               ) : (
                 pipelineStages.map((stage) => (
@@ -201,7 +173,7 @@ const DealTypePipelineSection: React.FC = () => {
               )}
               {pipelineStagesLoading && (
                 <div className="gba:px-3 gba:py-2 gba:text-sm gba:text-gray-600 gba:text-center">
-                  Loading stages...
+                  {getTranslationFromI18nKeyAndLabel("opportunity.stage.loading", "Loading stages...")}
                 </div>
               )}
             </SelectContent>

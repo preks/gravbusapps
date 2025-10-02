@@ -182,12 +182,18 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = React.memo((pr
 
   // Handle filter changes
   const handleFilterChangeCallback = useCallback((filterId: string, selected: boolean) => {
+    // Delegate to parent handler (align with ExpensePlansTable pattern)
+    if (props.handleFilterChange) {
+      props.handleFilterChange(filterId, selected);
+      return;
+    }
+    // Fallback: simple add/remove
     if (selected) {
       props.addFilter?.(filterId);
     } else {
       props.removeFilter?.(filterId);
     }
-  }, [props.addFilter, props.removeFilter]);
+  }, [props.handleFilterChange, props.addFilter, props.removeFilter]);
 
   // Enhanced server-side sorting handler
   const handleSort = useCallback((field: string) => {
@@ -331,7 +337,7 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = React.memo((pr
               <Table data-testid="expense-requests-data-table">
                 <TableHeader>
                   <TableRow className="gba:border-b gba:bg-gray-50">
-                    <TableHead className="gba:w-[60px] gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-3"/>
+                    <TableHead className="gba:w-[50px] gba:min-w-[50px] gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-3"/>
                     <TableHead 
                       className="gba:w-[15%] gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6 gba:cursor-pointer gba:select-none hover:gba:bg-gray-100"
                       onClick={() => handleSort('code')}
@@ -472,7 +478,7 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = React.memo((pr
                                   },
                               ]}
                               accessToken={contextProps.accessToken}
-                              emptyStateBehavior="disable"
+                              emptyStateBehavior="enable"
                               deferMainContextRequestsUntilClick={true}
                               onClick={(e) => e.stopPropagation()}
                             />
@@ -515,7 +521,6 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = React.memo((pr
                           {(() => {
                             const advanceAmountValue = record.expensePlan?.advancePaymentAggregate?.aggregate?.sum?.amount;
                             // Use expense plan currency if available, otherwise fall back to main currency
-                            const currencyCode = advanceAmountValue && advanceAmountValue !== 0  ?  record.currency?.code  : '';
                             const formattedAmount = advanceAmountValue && advanceAmountValue !== 0 ? 
                               formatCurrencyDisplay(advanceAmountValue, record.currency?.code) : "-";
                             return (
@@ -638,7 +643,13 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = React.memo((pr
           placeholder: getTranslationFromI18nKeyAndLabel('lowcoder:employee_list.employee_report_filter.job_search','Search') + '...',
           filter: selectedFilters,
           setFilter: setFilters || (() => {}),
-          filterLabelMap: filterLabelMap,
+          filterLabelMap: useMemo(() => {
+            const currencyLabelMap: Record<string, string> = {};
+            (((props as any).currencyStats) || []).forEach((cs: any) => {
+              currencyLabelMap[`currency:${cs.ref}`] = cs.code;
+            });
+            return { ...filterLabelMap, ...currencyLabelMap };
+          }, [filterLabelMap, (props as any).currencyStats]),
           addButton: {
             onClick: onAddExpenseRequest || (() => {}),
             label: getTranslationFromI18nKeyAndLabel('lowcoder:expense_calculation_rule_details.calculation_allowance_period_list.calculation_allowance_period_modal.btn_add','Add'),
@@ -646,14 +657,23 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = React.memo((pr
           },
         }}
         dataFilterProps={{
-          filterGroups: filterGroups,
+          filterGroups: useMemo(() => {
+            const currencyFilters = (props as any).currencyStats?.map((cs: any) => ({
+              id: `currency:${cs.ref}`,
+              label: cs.code,
+              selected: (selectedFilters || []).includes(`currency:${cs.ref}`)
+            })) || [];
+            const currencyGroup = currencyFilters.length > 0 ? [{ id: 'currency', title: getTranslationFromI18nKeyAndLabel('lowcoder:expense_item_list.currency','Currency'), filters: currencyFilters }] : [];
+            return [...currencyGroup, ...filterGroups];
+          }, [filterGroups, selectedFilters, (props as any).currencyStats]),
           onFilterChange: handleFilterChangeCallback,
         }}
         dataBody={renderDataBody()}
+        addLeftPaddingWhenNoFilter={true}
       />
 
       {/* Expense Request Details Sheet */}
-      <Sheet open={!!selectedItem} onOpenChange={(open) => !open && handleCloseDetails()}>
+      <Sheet open={!!selectedItem} onOpenChange={(open) => !open && handleCloseDetails()} title={selectedItem?.title || getTranslationFromI18nKeyAndLabel('lowcoder:expense_request_list.modal_list_or_flow_button.expense_request_details','Expense Request Details')}>
         <SheetContent className="gba:w-[600px] gba:sm:gba:w-[600px] gba:max-w-none">
           <SheetHeader>
             <SheetTitle className="gba:text-xl gba:font-semibold gba:text-gray-900">

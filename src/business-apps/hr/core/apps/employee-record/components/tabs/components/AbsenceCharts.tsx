@@ -1,0 +1,394 @@
+import React from 'react';
+import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip as RechartsTooltip } from 'recharts';
+import { Card } from '@newwork/gravity-ui-catalog';
+import { Spin } from 'antd';
+import { ChartsSectionProps } from '../../../queries/types';
+import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
+
+const AbsenceCharts: React.FC<ChartsSectionProps> = ({
+  entitlements,
+  absenceList,
+  loading,
+  error,
+}) => {
+  if (loading) {
+    return (
+      <div className="gba:loading gba:flex gba:justify-center gba:items-center gba:py-8">
+        <Spin size="large" />
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="gba:error gba:text-red-500 gba:py-8 gba:text-center">
+        {getTranslationFromI18nKeyAndLabel(
+          'lowcoder:absence_hub.error_loading',
+          'Failed to load absence data.',
+        )}
+      </div>
+    );
+  }
+
+  return (
+    <div className="gba:charts-section gba:mb-8" data-testid="absence-charts-section">
+      <div className="gba:grid gba:grid-cols-1 gba:md:grid-cols-3 gba:gap-6">
+        <Card
+          variant="outlined"
+          className="gba:border gba:border-gray-200 gba:shadow-md gba:hover:shadow-lg gba:transition-all gba:p-4"
+          data-testid="annual-leave-chart"
+        >
+          <div className="gba:text-lg gba:font-medium gba:mb-2">
+            {getTranslationFromI18nKeyAndLabel('lowcoder:absence_hub.annual_leave', 'Annual Leave')}
+          </div>
+          <div className="gba:text-sm gba:text-gray-500 gba:mb-4">
+            {getTranslationFromI18nKeyAndLabel(
+              'lowcoder:absence_hub.annual_leave_description',
+              'Used vs. Total Annual Leave',
+            )}
+          </div>
+          {(() => {
+            // Find annual leave entitlement by catalog ID or fallback to type name
+            const annualLeaveEntitlement = Array.isArray(entitlements)
+              ? entitlements.find((e) => {
+                  // Try to find by common annual leave catalog IDs first
+                  if (
+                    e?.typeId?.includes('A001') ||
+                    e?.typeId?.includes('Annual') ||
+                    e?.typeId?.includes('Vacation')
+                  ) {
+                    return true;
+                  }
+
+                  // Fallback to type name matching (for different languages)
+                  const typeLower = e?.type?.toLowerCase() || '';
+                  return (
+                    typeLower.includes('annual') ||
+                    typeLower.includes('vacation') ||
+                    typeLower.includes('leave') ||
+                    typeLower.includes('concediu') || // Romanian
+                    typeLower.includes('urlaub') || // German
+                    typeLower.includes('ferie')
+                  ); // Another Romanian term
+                })
+              : undefined;
+
+            const used = annualLeaveEntitlement?.used || 0;
+            const total = annualLeaveEntitlement?.total || 0;
+            const remaining = total - used;
+
+            const chartColors = ['#22c55e', '#f97316'];
+
+            const data = [
+              {
+                name: getTranslationFromI18nKeyAndLabel(
+                  'lowcoder:absence_hub.remaining_days',
+                  'Remaining Days',
+                ),
+                value: remaining,
+                color: chartColors[0],
+              },
+              {
+                name: getTranslationFromI18nKeyAndLabel(
+                  'lowcoder:absence_hub.used_days',
+                  'Used Days',
+                ),
+                value: used,
+                color: chartColors[1],
+              },
+            ];
+
+            return (
+              <>
+                <div className="gba:h-[180px] gba:border gba:border-gray-200 gba:rounded-md">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <PieChart>
+                      <Pie
+                        data={data}
+                        dataKey="value"
+                        nameKey="name"
+                        cx="50%"
+                        cy="50%"
+                        innerRadius={50}
+                        outerRadius={70}
+                        fill="#8884d8"
+                      >
+                        {data.map((_, index) => (
+                          <Cell
+                            key={`cell-${index}`}
+                            fill={chartColors[index % chartColors.length]}
+                          />
+                        ))}
+                      </Pie>
+                      <RechartsTooltip
+                        formatter={(value, name) => [
+                          `${value} ${getTranslationFromI18nKeyAndLabel('lowcoder:absence_hub.days', 'days')}`,
+                          name,
+                        ]}
+                      />
+                    </PieChart>
+                  </ResponsiveContainer>
+                </div>
+                <div className="gba:flex gba:justify-center gba:items-center gba:gap-2 gba:mt-2">
+                  <div className="gba:flex gba:items-center gba:gap-1.5">
+                    <div className="gba:w-3 gba:h-3 gba:rounded-full gba:bg-[#22c55e]"></div>
+                    <span className="gba:text-sm">
+                      {remaining}{' '}
+                      {getTranslationFromI18nKeyAndLabel(
+                        'lowcoder:new_goal.remaining',
+                        'Remaining',
+                      )}
+                    </span>
+                  </div>
+                  <div className="gba:flex gba:items-center gba:gap-1.5">
+                    <div className="gba:w-3 gba:h-3 gba:rounded-full gba:bg-[#f97316]"></div>
+                    <span className="gba:text-sm">
+                      {used}{' '}
+                      {getTranslationFromI18nKeyAndLabel(
+                        'lowcoder:absence_hub.used_annual_leave',
+                        'Used',
+                      )}
+                    </span>
+                  </div>
+                </div>
+              </>
+            );
+          })()}
+        </Card>
+
+        <Card
+          variant="outlined"
+          className="gba:border gba:border-gray-200 gba:shadow-md gba:hover:shadow-lg gba:transition-all gba:p-4"
+          data-testid="absence-distribution-chart"
+        >
+          <div className="gba:text-lg gba:font-medium gba:mb-2">
+            {getTranslationFromI18nKeyAndLabel(
+              'lowcoder:absence_management_hub_manager.absence_distribution',
+              'Absence Distribution',
+            )}
+          </div>
+          <div className="gba:text-sm gba:text-gray-500 gba:mb-4">
+            {getTranslationFromI18nKeyAndLabel('lowcoder:absence_hub.by_type', 'By Type')}
+          </div>
+          {(() => {
+            const absenceByTypeId: Record<
+              string,
+              { count: number; translatedName: string; color: string }
+            > = {};
+            absenceList.forEach((absence) => {
+              const originalStatus = absence.originalStatus || '';
+              const isApproved =
+                originalStatus.toUpperCase() === 'APPROVED' ||
+                originalStatus.toUpperCase() === 'PENDING' ||
+                originalStatus.toUpperCase() === 'ACTION_REQUIRED';
+
+              if (isApproved) {
+                const typeId = absence.typeId || 'other';
+                const translatedName =
+                  absence.type ||
+                  getTranslationFromI18nKeyAndLabel('lowcoder:absence_hub.other', 'Other');
+
+                if (!absenceByTypeId[typeId]) {
+                  absenceByTypeId[typeId] = {
+                    count: 0,
+                    translatedName: translatedName,
+                    color: '#6b7280',
+                  };
+                }
+                const durationMatch = absence.duration?.match(/(\d+)/);
+                const duration = durationMatch ? parseInt(durationMatch[1]) : 0;
+                absenceByTypeId[typeId].count += duration;
+
+                let color = absence.typeColor || '#6b7280';
+                if (color && typeof color === 'string') {
+                  if (!color.startsWith('#') && /^([0-9A-Fa-f]{6})$/.test(color)) {
+                    color = `#${color}`;
+                  }
+                } else {
+                  color = '#6b7280';
+                }
+                absenceByTypeId[typeId].color = color;
+              }
+            });
+
+            const data = Object.keys(absenceByTypeId).map((typeId) => ({
+              name: absenceByTypeId[typeId].translatedName,
+              value: absenceByTypeId[typeId].count,
+              color: absenceByTypeId[typeId].color,
+            }));
+
+            return (
+              <>
+                <div className="gba:h-[180px] gba:border gba:border-gray-200 gba:rounded-md">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <PieChart>
+                      <Pie
+                        data={data}
+                        dataKey="value"
+                        nameKey="name"
+                        cx="50%"
+                        cy="50%"
+                        innerRadius={50}
+                        outerRadius={70}
+                        fill="#8884d8"
+                      >
+                        {data.map((entry, index) => (
+                          <Cell key={`cell-${index}`} fill={entry.color} />
+                        ))}
+                      </Pie>
+                      <RechartsTooltip
+                        formatter={(value, name) => [
+                          `${value} ${getTranslationFromI18nKeyAndLabel('lowcoder:absence_hub.days', 'days')}`,
+                          name,
+                        ]}
+                      />
+                    </PieChart>
+                  </ResponsiveContainer>
+                </div>
+                <div className="gba:grid gba:grid-cols-2 gba:gap-2 gba:mt-2">
+                  {data.map((entry, index) => (
+                    <div key={`legend-${index}`} className="gba:flex gba:items-center gba:gap-1.5">
+                      <div
+                        className="gba:w-3 gba:h-3 gba:rounded-full"
+                        style={{ backgroundColor: entry.color }}
+                      ></div>
+                      <span className="gba:text-sm">{entry.name}</span>
+                    </div>
+                  ))}
+                </div>
+              </>
+            );
+          })()}
+        </Card>
+
+        <Card
+          variant="outlined"
+          className="gba:border gba:border-gray-200 gba:shadow-md gba:hover:shadow-lg gba:transition-all gba:p-4"
+          data-testid="absences-by-status-chart"
+        >
+          <div className="gba:text-lg gba:font-medium gba:mb-2">
+            {getTranslationFromI18nKeyAndLabel(
+              'lowcoder:absence_hub.absence_status',
+              'Absence Status',
+            )}
+          </div>
+          <div className="gba:text-sm gba:text-gray-500 gba:mb-4">
+            {getTranslationFromI18nKeyAndLabel(
+              'lowcoder:absence_hub.status_distribution',
+              'Status Distribution',
+            )}
+          </div>
+          {(() => {
+            const absenceByStatus: Record<string, number> = {};
+            absenceList.forEach((absence) => {
+              const status =
+                absence.status ||
+                getTranslationFromI18nKeyAndLabel('lowcoder:absence_hub.unknown_type', 'Unknown');
+              if (!absenceByStatus[status]) {
+                absenceByStatus[status] = 0;
+              }
+              const durationMatch = absence.duration?.match(/(\d+)/);
+              const duration = durationMatch ? parseInt(durationMatch[1]) : 0;
+              absenceByStatus[status] += duration;
+            });
+            const chartColors = [
+              'rgba(13, 188, 123, 1)',
+              'rgba(255, 158, 2, 1)',
+              'rgba(222, 29, 73, 1)',
+              'rgba(141, 145, 153, 1)',
+              '#94a3b8',
+            ];
+            const getStatusColorIndex = (originalStatus: string): number => {
+              const statusUpper = originalStatus.toUpperCase();
+
+              if (statusUpper === 'APPROVED') {
+                return 0;
+              }
+              if (statusUpper === 'PENDING' || statusUpper === 'ACTION_REQUIRED') {
+                return 1;
+              }
+              if (statusUpper === 'REJECTED') {
+                return 2;
+              }
+              if (statusUpper === 'CANCELLED') {
+                return 3;
+              }
+
+              return 4;
+            };
+
+            const statusGroups: Record<string, { count: number; translatedStatus: string }> = {};
+            absenceList.forEach((absence) => {
+              const originalStatus = absence.originalStatus || 'UNKNOWN';
+              const translatedStatus =
+                absence.status ||
+                getTranslationFromI18nKeyAndLabel('lowcoder:absence_hub.unknown_type', 'Unknown');
+
+              if (!statusGroups[originalStatus]) {
+                statusGroups[originalStatus] = { count: 0, translatedStatus };
+              }
+
+              const durationMatch = absence.duration?.match(/(\d+)/);
+              const duration = durationMatch ? parseInt(durationMatch[1]) : 0;
+              statusGroups[originalStatus].count += duration;
+            });
+
+            const data = Object.keys(statusGroups).map((originalStatus) => {
+              const colorIndex = getStatusColorIndex(originalStatus);
+              const group = statusGroups[originalStatus];
+              return {
+                name: group.translatedStatus,
+                value: group.count,
+                color: chartColors[colorIndex],
+              };
+            });
+
+            return (
+              <>
+                <div className="gba:h-[180px] gba:border gba:border-gray-200 gba:rounded-md">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <PieChart>
+                      <Pie
+                        data={data}
+                        dataKey="value"
+                        nameKey="name"
+                        cx="50%"
+                        cy="50%"
+                        innerRadius={50}
+                        outerRadius={70}
+                        fill="#8884d8"
+                      >
+                        {data.map((entry, index) => (
+                          <Cell key={`cell-${index}`} fill={entry.color} />
+                        ))}
+                      </Pie>
+                      <RechartsTooltip
+                        formatter={(value, name) => [
+                          `${value} ${getTranslationFromI18nKeyAndLabel('lowcoder:absence_hub.days', 'days')}`,
+                          name,
+                        ]}
+                      />
+                    </PieChart>
+                  </ResponsiveContainer>
+                </div>
+                <div className="gba:grid gba:grid-cols-2 gba:gap-2 gba:mt-2">
+                  {data.map((entry, index) => (
+                    <div key={`legend-${index}`} className="gba:flex gba:items-center gba:gap-1.5">
+                      <div
+                        className="gba:w-3 gba:h-3 gba:rounded-full"
+                        style={{ backgroundColor: entry.color }}
+                      ></div>
+                      <span className="gba:text-sm">{entry.name}</span>
+                    </div>
+                  ))}
+                </div>
+              </>
+            );
+          })()}
+        </Card>
+      </div>
+    </div>
+  );
+};
+
+export default AbsenceCharts;

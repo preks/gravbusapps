@@ -18,12 +18,6 @@ export interface AllInvestmentsFilters {
   createdAfter?: string;
   createdBefore?: string;
   // Amount ranges
-  initialInvestmentMinAmount?: number;
-  initialInvestmentMaxAmount?: number;
-  marketValueMinAmount?: number;
-  marketValueMaxAmount?: number;
-  totalInvestmentMinAmount?: number;
-  totalInvestmentMaxAmount?: number;
   debtFinancingMinAmount?: number;
   debtFinancingMaxAmount?: number;
   forecastedProfitMinAmount?: number;
@@ -77,9 +71,6 @@ export const useAllInvestmentsFilters = (context: BusinessAppContextProps) => {
   const [createdAfter, setCreatedAfter] = useState<string | undefined>(undefined);
   const [createdBefore, setCreatedBefore] = useState<string | undefined>(undefined);
   // Numeric ranges
-  const [initialRange, setInitialRange] = useState<{ min?: number; max?: number } | null>(null);
-  const [marketRange, setMarketRange] = useState<{ min?: number; max?: number } | null>(null);
-  const [totalRange, setTotalRange] = useState<{ min?: number; max?: number } | null>(null);
   const [debtRange, setDebtRange] = useState<{ min?: number; max?: number } | null>(null);
   const [forecastRange, setForecastRange] = useState<{ min?: number; max?: number } | null>(null);
   const [stakeRange, setStakeRange] = useState<{ min?: number; max?: number } | null>(null);
@@ -255,48 +246,6 @@ export const useAllInvestmentsFilters = (context: BusinessAppContextProps) => {
       }),
       hideSearch: true,
     },
-    // Initial Investment amount range
-    {
-      id: "initialInvestmentRange",
-      title: "Initial Investment",
-      filters: [],
-      customComponent: React.createElement(ExpenseAmountRangeFilter, {
-        amountRange: initialRange,
-        onAmountRangeChange: setInitialRange,
-        label: 'Initial Investment',
-        dataTestIdPrefix: 'all-investments-initial-range',
-        className: 'gba:border-0 gba:shadow-none gba:p-0 gba:bg-transparent',
-      }),
-      hideSearch: true,
-    },
-    // Market Value amount range
-    {
-      id: "marketValueRange",
-      title: "Market Value",
-      filters: [],
-      customComponent: React.createElement(ExpenseAmountRangeFilter, {
-        amountRange: marketRange,
-        onAmountRangeChange: setMarketRange,
-        label: 'Market Value',
-        dataTestIdPrefix: 'all-investments-market-range',
-        className: 'gba:border-0 gba:shadow-none gba:p-0 gba:bg-transparent',
-      }),
-      hideSearch: true,
-    },
-    // Total Investment range
-    {
-      id: "totalInvestmentRange",
-      title: "Total Investment",
-      filters: [],
-      customComponent: React.createElement(ExpenseAmountRangeFilter, {
-        amountRange: totalRange,
-        onAmountRangeChange: setTotalRange,
-        label: 'Total Investment',
-        dataTestIdPrefix: 'all-investments-total-range',
-        className: 'gba:border-0 gba:shadow-none gba:p-0 gba:bg-transparent',
-      }),
-      hideSearch: true,
-    },
     // Debt Financing range
     {
       id: "debtFinancingRange",
@@ -420,20 +369,6 @@ export const useAllInvestmentsFilters = (context: BusinessAppContextProps) => {
         createdAfter: plannedAfter,
         createdBefore: plannedBefore,
         onDateRangeChange: (after?: string, before?: string) => { setPlannedAfter(after); setPlannedBefore(before); },
-        className: 'gba:border-0 gba:shadow-none gba:p-0 gba:bg-transparent',
-      }),
-      hideSearch: true,
-    },
-    // Total Investment range
-    {
-      id: "totalInvestmentRange",
-      title: "Total Investment",
-      filters: [],
-      customComponent: React.createElement(ExpenseAmountRangeFilter, {
-        amountRange: totalRange,
-        onAmountRangeChange: setTotalRange,
-        label: 'Total Investment',
-        dataTestIdPrefix: 'all-investments-total-range',
         className: 'gba:border-0 gba:shadow-none gba:p-0 gba:bg-transparent',
       }),
       hideSearch: true,
@@ -575,12 +510,6 @@ export const useAllInvestmentsFilters = (context: BusinessAppContextProps) => {
     });
 
     // Apply ranges
-    if (initialRange?.min !== undefined) filters.initialInvestmentMinAmount = initialRange.min;
-    if (initialRange?.max !== undefined) filters.initialInvestmentMaxAmount = initialRange.max;
-    if (marketRange?.min !== undefined) filters.marketValueMinAmount = marketRange.min;
-    if (marketRange?.max !== undefined) filters.marketValueMaxAmount = marketRange.max;
-    if (totalRange?.min !== undefined) filters.totalInvestmentMinAmount = totalRange.min;
-    if (totalRange?.max !== undefined) filters.totalInvestmentMaxAmount = totalRange.max;
     if (debtRange?.min !== undefined) filters.debtFinancingMinAmount = debtRange.min;
     if (debtRange?.max !== undefined) filters.debtFinancingMaxAmount = debtRange.max;
     if (forecastRange?.min !== undefined) filters.forecastedProfitMinAmount = forecastRange.min;
@@ -592,7 +521,7 @@ export const useAllInvestmentsFilters = (context: BusinessAppContextProps) => {
     // Performance filtering removed
 
     return filters;
-  }, [selectedFilters, filterGroups, createdAfter, createdBefore, initialRange, marketRange, totalRange, debtRange, forecastRange, isin, fundManager, stakeRange]);
+  }, [selectedFilters, filterGroups, createdAfter, createdBefore, debtRange, forecastRange, isin, fundManager, stakeRange]);
 
   return {
     search,
@@ -609,17 +538,11 @@ export const useAllInvestmentsFilters = (context: BusinessAppContextProps) => {
     createdBefore,
     setCreatedAfter,
     setCreatedBefore,
-    initialRange,
-    marketRange,
-    totalRange,
     debtRange,
     forecastRange,
     isin,
     fundManager,
     stakeRange,
-    setInitialRange,
-    setMarketRange,
-    setTotalRange,
     setDebtRange,
     setForecastRange,
     setIsin,

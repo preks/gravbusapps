@@ -95,12 +95,33 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ moduleColor = "def
 
 
 
+  // Transform KpiTrendData to TrendData format
+  const transformedTrendData = kpiTrendData ? {
+    totalLeadsThisMonth: kpiTrendData.totalLeadsThisMonth,
+    totalLeadsLastMonth: kpiTrendData.totalLeadsLastMonth,
+    totalAccountsThisMonth: kpiTrendData.totalAccountsThisMonth,
+    totalAccountsLastMonth: kpiTrendData.totalAccountsLastMonth,
+    totalOpportunitiesThisMonth: kpiTrendData.totalOpportunitiesThisMonth,
+    totalOpportunitiesLastMonth: kpiTrendData.totalOpportunitiesLastMonth,
+    totalContactsThisMonth: kpiTrendData.totalContactsThisMonth,
+    totalContactsLastMonth: kpiTrendData.totalContactsLastMonth,
+    currentMonthWonOpportunities: kpiTrendData.currentMonthWonOpportunities,
+    previousMonthWonOpportunities: kpiTrendData.previousMonthWonOpportunities,
+    // New trend metrics for the missing cards
+    currentMonthLeadConversionRate: kpiTrendData.currentMonthLeadConversionRate,
+    previousMonthLeadConversionRate: kpiTrendData.previousMonthLeadConversionRate,
+    currentMonthAvgDealSize: kpiTrendData.currentMonthAvgDealSize,
+    previousMonthAvgDealSize: kpiTrendData.previousMonthAvgDealSize,
+    currentMonthSalesCycleLength: kpiTrendData.currentMonthSalesCycleLength,
+    previousMonthSalesCycleLength: kpiTrendData.previousMonthSalesCycleLength,
+  } : null;
+
   // Prepare the props for each tab based on the actual data structure
   const overviewProps = data?.overview ? {
     title: "CRM Overview",
     counts: data.overview.totalCounts,
     conversionMetrics: data.overview.conversionMetrics,
-    trendData: kpiTrendData || null,
+    trendData: transformedTrendData,
     trendLoading: false,
     pipelines: [],
     selectedPipelineId: selectedPipelineId,

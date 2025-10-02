@@ -90,7 +90,7 @@ const ContactInformationSection: React.FC = () => {
           e.currentTarget.style.background =
             "linear-gradient(to right, #bbf7d0, #6ee7b7)";
         }}
-        data-testid={formatDataTestId(prefixDataTestId, "ContactInfoToggle")}
+        data-testid={formatDataTestId(prefixDataTestId, "contact-info-toggle-button")}
       >
         <div className="gba:flex gba:items-center gba:gap-2 gba:flex-1">
           <div className="gba:w-2 gba:h-2 gba:bg-green-500 gba:rounded-full"></div>
@@ -157,6 +157,7 @@ const ContactInformationSection: React.FC = () => {
                       type="button"
                       onClick={loadMoreSalutations}
                       className="gba:w-full gba:px-3 gba:py-2 gba:text-sm gba:text-blue-600 gba:bg-blue-50 gba:border gba:border-blue-200 gba:rounded gba:hover:bg-blue-100 gba:transition-colors"
+                      data-testid={formatDataTestId(prefixDataTestId, "load-more-salutations-button")}
                     >
                       📥 Load More Salutations
                     </button>
@@ -204,6 +205,7 @@ const ContactInformationSection: React.FC = () => {
                       type="button"
                       onClick={loadMoreAcademicTitles}
                       className="gba:w-full gba:px-3 gba:py-2 gba:text-sm gba:text-blue-600 gba:bg-blue-50 gba:border gba:border-blue-200 gba:rounded gba:hover:bg-blue-100 gba:transition-colors"
+                      data-testid={formatDataTestId(prefixDataTestId, "load-more-academic-titles-button")}
                     >
                       📥 Load More Academic Titles
                     </button>
@@ -256,7 +258,7 @@ const ContactInformationSection: React.FC = () => {
                   borderColor: phoneError ? "#ef4444" : "#d1d5db",
                   paddingLeft: "32px",
                 }}
-                data-testid={formatDataTestId(prefixDataTestId, "PhoneInput")}
+                data-testid={formatDataTestId(prefixDataTestId, "phone-input")}
               />
             </div>
             {phoneError && (
@@ -285,7 +287,7 @@ const ContactInformationSection: React.FC = () => {
                   borderColor: emailError ? "#ef4444" : "#d1d5db",
                   paddingLeft: "32px",
                 }}
-                data-testid={formatDataTestId(prefixDataTestId, "EmailInput")}
+                data-testid={formatDataTestId(prefixDataTestId, "email-input")}
               />
             </div>
             {emailError && (

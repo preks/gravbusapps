@@ -3,7 +3,7 @@ import { useOpportunityFormContext } from "../context/OpportunityFormContext";
 import { useOpportunityInvestmentTypeDetection } from "./useOpportunityInvestmentTypeDetection";
 
 export const useOpportunityFormFieldClearing = () => {
-  const { formValues, setFormValues, dependentInvestmentTypes, simpleAccounts } = useOpportunityFormContext();
+  const { formValues, setFormValues, dependentInvestmentTypes } = useOpportunityFormContext();
   const {
     isEquityGroup,
     isRealEstateGroup,
@@ -16,13 +16,10 @@ export const useOpportunityFormFieldClearing = () => {
 
   // Handle form field changes with special account handling
   const handleInputChange = (field: string, value: string) => {
-    // Update the form values and also set the accountId for the backend
+    // For account field, we'll set both the account value and accountId
+    // The accountId will be set by the component that has access to the accounts data
     if (field === "account") {
-      const selectedAccount = simpleAccounts.find((acc) => acc.value === value);
-      setFormValues({
-        [field]: value,
-        accountId: selectedAccount?.id || value, // Use account ID for backend
-      });
+      setFormValues({ [field]: value });
     } else {
       setFormValues({ [field]: value });
     }

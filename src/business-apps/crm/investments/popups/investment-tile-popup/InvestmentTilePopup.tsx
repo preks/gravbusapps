@@ -21,9 +21,9 @@ import { InvestmentTilePopupProps, TileFormData } from './types';
 
 const prefixDataTestId = 'investment-tile-popup';
 
-// Form validation schema
+// Form validation schema (allow empty string to clear the field)
 const tileFormSchema = z.object({
-  tileValue: z.string().min(1, 'Tile value is required'),
+  tileValue: z.string(),
 });
 
 export const InvestmentTilePopup: React.FC<InvestmentTilePopupProps> = ({
@@ -48,10 +48,7 @@ export const InvestmentTilePopup: React.FC<InvestmentTilePopupProps> = ({
   const tileKey = additionalData?.tileKey || 
     additionalData?.psi_taskPayload?.psi_initialParameters?.tileKey;
 
-  // Debug logging
-  console.log('InvestmentTilePopup - additionalData:', additionalData);
-  console.log('InvestmentTilePopup - extracted investmentId:', investmentId);
-  console.log('InvestmentTilePopup - extracted tileKey:', tileKey);
+  // Debug logging removed
 
   // Validate required data
   if (!investmentId) {
@@ -186,7 +183,7 @@ export const InvestmentTilePopup: React.FC<InvestmentTilePopupProps> = ({
       changeMode: 'UPDATE'
     };
 
-    console.log('InvestmentTilePopup - payload for AppActionForm:', payload);
+    // removed verbose payload logging
 
     // Call success callback with updated values
     if (onSave) {

@@ -1,5 +1,6 @@
 import React, { useMemo, useState, useEffect } from 'react';
-import { Input, Textarea, Select, SelectTrigger, SelectContent, SelectItem, SelectValue, FormField, FormItem, FormLabel, FormControl, FormMessage } from '@newwork/nw-design-system';
+import { Input, Textarea, Select, SelectTrigger, SelectContent, SelectItem, SelectValue, FormField, FormItem, FormLabel, FormControl, FormMessage, Button } from '@newwork/nw-design-system';
+import { File, Upload, X } from 'lucide-react';
 import { useForm } from 'react-hook-form';
 import { AppActionForm } from '@/components/app-action-form/AppActionForm';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
@@ -132,16 +133,16 @@ const DocumentPopup: React.FC<DocumentPopupProps> = ({ initialValues = {}, ...pr
       try {
         const idField = (() => {
           switch (contextValues.entityType) {
-            case 'account': return 'account';
-            case 'contact': return 'contact';
-            case 'lead': return 'lead';
-            case 'opportunity': return 'opportunity';
+            case 'account': return 'accountId';
+            case 'contact': return 'contactId';
+            case 'lead': return 'leadId';
+            case 'opportunity': return 'opportunityId';
             default: return 'account';
           }
         })();
         const query = `
           query GetParentFolders($id: uuid!) {
-            InvestmentDocument(where: { ${idField}: { id: { _eq: $id } }, format: { _eq: "FOLDER" }, isDeleted: { _eq: false } }) {
+            InvestmentDocument(where: { ${idField}: { _eq: $id }, isDeleted: { _eq: false }, folder: { _eq: true } }) {
               id
               name
             }
@@ -159,10 +160,12 @@ const DocumentPopup: React.FC<DocumentPopupProps> = ({ initialValues = {}, ...pr
   }, [props.accessToken, contextValues.entityId, contextValues.entityType, graphqlClient, renameMode]);
 
   const isUpdateMode = !!(initialValues as any)?.investmentDocument?.id;
+  const isUpdatingFolder = isUpdateMode && !!(initialValues as any)?.investmentDocument?.folder;
   const title = useMemo(() => {
     if (renameMode) return 'Rename Document';
+    if (isUpdatingFolder) return 'Rename Folder';
     return isUpdateMode ? 'Update Document' : (contextValues.folder ? 'Create Folder' : 'Create Document');
-  }, [isUpdateMode, contextValues.folder, renameMode]);
+  }, [isUpdateMode, isUpdatingFolder, contextValues.folder, renameMode]);
   const actionLabel = useMemo(() => (renameMode ? 'Save' : (isUpdateMode ? 'Save' : 'Create')), [isUpdateMode, renameMode]);
 
   const entityIdKey = useMemo(() => {
@@ -377,9 +380,13 @@ const DocumentPopup: React.FC<DocumentPopupProps> = ({ initialValues = {}, ...pr
       errors.push('Please provide a name.');
     }
     
-    if (!renameMode && !formData.folder && !formData.file) {
+    // For create mode, require file only if not a folder and not rename mode
+    if (!renameMode && !formData.folder && !formData.file && !isUpdateMode) {
       errors.push('Please select a file.');
     }
+    
+    // For update mode, file is optional - user can update just metadata
+    // No file validation needed for update mode
     
     return errors.length > 0 ? errors : null;
   };
@@ -401,24 +408,26 @@ const DocumentPopup: React.FC<DocumentPopupProps> = ({ initialValues = {}, ...pr
           <h2 className="gba:text-xl gba:font-semibold" data-testid={formatDataTestId(prefixDataTestId, 'Title')}>{title}</h2>
         </div>
 
-        {renameMode ? (
-          <FormField
-            control={form.control}
-            name="name"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Document Name</FormLabel>
-                <FormControl>
-                  <Input
-                    placeholder="Document name"
-                    {...field}
-                    data-testid={formatDataTestId(prefixDataTestId, 'RenameNameInput')}
-                  />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
+        {renameMode || isUpdatingFolder ? (
+          <>
+            <FormField
+              control={form.control}
+              name="name"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>{isUpdatingFolder ? 'Folder Name' : 'Document Name'}</FormLabel>
+                  <FormControl>
+                    <Input
+                      placeholder={isUpdatingFolder ? 'Folder name' : 'Document name'}
+                      {...field}
+                      data-testid={formatDataTestId(prefixDataTestId, 'RenameNameInput')}
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+          </>
         ) : watchedFolder ? (
           <FormField
             control={form.control}
@@ -446,18 +455,67 @@ const DocumentPopup: React.FC<DocumentPopupProps> = ({ initialValues = {}, ...pr
                 <FormItem>
                   <FormLabel>File</FormLabel>
                   <FormControl>
-                    <Input
-                      type="file"
-                      onChange={(e) => {
-                        const file = e.target.files?.[0] || null;
-                        onChange(file);
-                        if (file && !form.getValues('name')) {
-                          form.setValue('name', file.name);
-                        }
-                      }}
-                      data-testid={formatDataTestId(prefixDataTestId, 'FileInput')}
-                      {...field}
-                    />
+                    <div className="gba:space-y-2">
+                      {/* Hidden file input */}
+                      <input
+                        type="file"
+                        onChange={(e) => {
+                          const file = e.target.files?.[0] || null;
+                          onChange(file);
+                          if (file) {
+                            // In update mode, always use the new file name
+                            // In create mode, only set name if it's empty
+                            if (isUpdateMode || !form.getValues('name')) {
+                              form.setValue('name', file.name);
+                            }
+                          }
+                        }}
+                        className="gba:hidden"
+                        id="file-input"
+                        data-testid={formatDataTestId(prefixDataTestId, 'FileInput')}
+                        {...field}
+                      />
+                      
+                      {/* Custom file display */}
+                      {value ? (
+                        <div className="gba:flex gba:items-center gba:justify-between gba:p-3 gba:border gba:rounded-md gba:bg-muted/50">
+                          <div className="gba:flex gba:items-center gba:gap-2">
+                            <File className="gba:h-4 gba:w-4 gba:text-muted-foreground" />
+                            <div className="gba:flex gba:flex-col">
+                              <span className="gba:text-sm gba:font-medium">{value.name}</span>
+                              <span className="gba:text-xs gba:text-muted-foreground">
+                                {(value.size / 1024).toFixed(1)} KB
+                              </span>
+                            </div>
+                          </div>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => {
+                              onChange(null);
+                              const fileInput = document.getElementById('file-input') as HTMLInputElement;
+                              if (fileInput) fileInput.value = '';
+                            }}
+                            className="gba:h-8 gba:w-8 gba:p-0"
+                          >
+                            <X className="gba:h-4 gba:w-4" />
+                          </Button>
+                        </div>
+                      ) : (
+                        <Button
+                          type="button"
+                          variant="outline"
+                          onClick={() => {
+                            document.getElementById('file-input')?.click();
+                          }}
+                          className="gba:w-full gba:justify-start gba:gap-2"
+                        >
+                          <Upload className="gba:h-4 gba:w-4" />
+                          Choose File
+                        </Button>
+                      )}
+                    </div>
                   </FormControl>
                   <FormMessage />
                 </FormItem>

@@ -81,6 +81,13 @@ export const TaskDetails: React.FC<TaskDetailsProps> = ({ task, sourceApp }) => 
     return `${firstName.charAt(0)}${lastName.charAt(0)}`.toUpperCase();
   };
 
+  // Simple truncation to first 7 characters + "..."
+  const getTruncatedText = (text: string) => {
+    if (!text) return text;
+    if (text.length <= 7) return text;
+    return text.substring(0, 7) + '...';
+  };
+
 
   // Determine if task is overdue based on timing type
   const getTaskDate = () => {
@@ -96,6 +103,8 @@ export const TaskDetails: React.FC<TaskDetailsProps> = ({ task, sourceApp }) => 
   };
 
   const handleReferenceClick = () => {
+    if (!task.reference) return;
+    
     const source = (sourceApp === 'investment-relations' || sourceApp === 'IRM') ? 'investments' : 'customer-relations';
     let url: string;
     switch (task.reference.type) {
@@ -162,22 +171,26 @@ export const TaskDetails: React.FC<TaskDetailsProps> = ({ task, sourceApp }) => 
             </FieldRow>
 
             <FieldRow icon={Link} label="Reference" testId={`${DATA_TEST_ID_PREFIX}-reference-field`}>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <div
-                    className="gba:cursor-pointer gba:hover:bg-accent gba:px-2 gba:py-1 gba:rounded gba:transition-colors gba:w-fit gba:min-h-[24px]"
-                    onClick={handleReferenceClick}
-                    data-testid={`${DATA_TEST_ID_PREFIX}-reference-link`}
-                  >
-                    <div className="gba:flex gba:items-center gba:gap-2">
-                      <Badge variant={getReferenceTypeBadgeVariant(task.reference.type)} className="gba:text-xs gba:shrink-0">{task.reference.type.charAt(0).toUpperCase() + task.reference.type.slice(1)}</Badge>
-                      <span className="gba:text-sm gba:font-medium gba:truncate">{task.reference.name}</span>
-                      <ArrowSquareOut size={12} className="gba:text-muted-foreground gba:shrink-0" />
+              {task.reference ? (
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <div
+                      className="gba:cursor-pointer gba:hover:bg-accent gba:px-2 gba:py-1 gba:rounded gba:transition-colors gba:w-fit gba:min-h-[24px]"
+                      onClick={handleReferenceClick}
+                      data-testid={`${DATA_TEST_ID_PREFIX}-reference-link`}
+                    >
+                      <div className="gba:flex gba:items-center gba:gap-2">
+                        <Badge variant={getReferenceTypeBadgeVariant(task.reference.type)} className="gba:text-xs gba:shrink-0">{task.reference.type.charAt(0).toUpperCase() + task.reference.type.slice(1)}</Badge>
+                        <span className="gba:text-sm gba:font-medium gba:truncate">{task.reference.name}</span>
+                        <ArrowSquareOut size={12} className="gba:text-muted-foreground gba:shrink-0" />
+                      </div>
                     </div>
-                  </div>
-                </TooltipTrigger>
-                <TooltipContent>View {task.reference.type} record</TooltipContent>
-              </Tooltip>
+                  </TooltipTrigger>
+                  <TooltipContent>View {task.reference.type} record</TooltipContent>
+                </Tooltip>
+              ) : (
+                <span className="gba:text-sm gba:text-muted-foreground">No reference</span>
+              )}
             </FieldRow>
 
             <FieldRow icon={User} label="Created By" testId={`${DATA_TEST_ID_PREFIX}-created-by-field`}>
@@ -187,8 +200,10 @@ export const TaskDetails: React.FC<TaskDetailsProps> = ({ task, sourceApp }) => 
                     <div
                       className="gba:flex gba:items-center gba:gap-2 gba:cursor-pointer gba:hover:bg-accent gba:px-2 gba:py-1 gba:rounded gba:transition-colors gba:w-fit gba:min-h-[24px]"
                       onClick={() => {
-                        const url = buildPlatformUrl('/platform/employee-record', { employeeId: task.creatorEmployee.id });
-                        navigateTo(url);
+                        if (task.creatorEmployee) {
+                          const url = buildPlatformUrl('/platform/employee-record', { employeeId: task.creatorEmployee.id });
+                          navigateTo(url);
+                        }
                       }}
                       data-testid={`${DATA_TEST_ID_PREFIX}-creator-link`}
                     >

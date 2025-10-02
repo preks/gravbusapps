@@ -747,6 +747,7 @@ export const LeadDocuments: React.FC<LeadDocumentsProps> = ({
             id: docId,
             version: version,
             parentDocument: newParentId ?? '',
+            folder: !documents.find(d => d.id === docId)?.format || documents.find(d => d.id === docId)?.format?.toUpperCase() !== 'FILE', // Preserve folder status
             lead: leadId,
           },
         },

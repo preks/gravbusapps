@@ -8,6 +8,7 @@ import { AppActionButton } from '@/components/app-action-button/AppActionButton'
 import { FlowContextName } from '@/common/types/FlowRegistryTypes';
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
 import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils';
+import { useProcessCompletion } from '@/common/hooks/useProcessCompletion';
 import { useInvestmentTileFields } from './hooks/useInvestmentTileFields';
 import { useInvestmentAiSummary } from './hooks/useInvestmentAiSummary';
 import { TrendingUp, Home, BarChart3 } from 'lucide-react';
@@ -150,6 +151,13 @@ const InvestmentRecord: React.FC<InvestmentRecordProps> = (props) => {
   useEffect(() => {
     loadData();
   }, [loadData]);
+
+  // Refresh on process completion success using shared hook
+  useProcessCompletion({
+    onSuccess: () => {
+      loadData();
+    },
+  });
 
   // Determine investment type and type-specific data using dynamic approach
   const investmentType = useMemo(() => determineInvestmentType(investmentData), [investmentData, determineInvestmentType]);

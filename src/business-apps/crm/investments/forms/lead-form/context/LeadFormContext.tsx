@@ -27,7 +27,6 @@ import {
   COUNTRY_CATALOG,
   EMPLOYEE_SIZE_CATALOG,
   REVENUE_SIZE_CATALOG,
-  TIMEZONE_CATALOG,
   INVESTMENT_TYPE_CATALOG,
   INVESTMENT_GROUP_CATALOG,
   INVESTMENT_ROLE_CATALOG,
@@ -238,9 +237,8 @@ export const LeadFormProvider: React.FC<LeadFormProviderProps> = ({
   const [formValues, setFormValuesState] = useState<LeadFormValues>({
     // Lead Information
     owner: "",
-    leadStatus: "",
+    leadStatus: "InvestmentLeadStatus:v1:OPEN", // Default to OPEN status
     leadSource: "",
-    leadSourceType: "", // ✅ ADDED: Additional lead source type
     rating: "",
 
     // Contact Information
@@ -260,7 +258,6 @@ export const LeadFormProvider: React.FC<LeadFormProviderProps> = ({
     website: "",
     companyEmail: "",
     companyPhone: "",
-    timeZone: "",
     numberOfEmployees: "",
     annualRevenue: "",
 
@@ -582,13 +579,6 @@ export const LeadFormProvider: React.FC<LeadFormProviderProps> = ({
     [businessAppContext.accessToken]
   );
 
-  const timeZonesConfig = useMemo(
-    () => ({
-      accessToken: businessAppContext.accessToken,
-      catalogIdentifier: TIMEZONE_CATALOG,
-    }),
-    [businessAppContext.accessToken]
-  );
 
   const investmentTypesConfig = useMemo(
     () => ({
@@ -626,7 +616,7 @@ export const LeadFormProvider: React.FC<LeadFormProviderProps> = ({
     () => ({
       accessToken: businessAppContext.accessToken,
       catalogIdentifier: MEASUREMENT_UNIT_CATALOG,
-      whereConditions: { additionalValue1: "AREA" },
+      whereConditions: { type: "AREA" },
     }),
     [businessAppContext.accessToken]
   );
@@ -643,7 +633,6 @@ export const LeadFormProvider: React.FC<LeadFormProviderProps> = ({
   // ✅ ADDED: New searchable catalog hooks
   const salutationsHook = useSearchableCatalog(salutationsConfig);
   const academicTitlesHook = useSearchableCatalog(academicTitlesConfig);
-  const timeZonesHook = useSearchableCatalog(timeZonesConfig);
   const investmentTypesHook = useSearchableCatalog(investmentTypesConfig);
   const investmentGroupsHook = useSearchableCatalog(investmentGroupsConfig);
   const investmentRolesHook = useSearchableCatalog(investmentRolesConfig);
@@ -679,7 +668,6 @@ export const LeadFormProvider: React.FC<LeadFormProviderProps> = ({
       // ✅ ADDED: Initialize new searchable catalogs
       salutationsHook.initialize();
       academicTitlesHook.initialize();
-      timeZonesHook.initialize();
       investmentTypesHook.initialize();
       investmentGroupsHook.initialize();
       investmentRolesHook.initialize();
@@ -1118,17 +1106,6 @@ export const LeadFormProvider: React.FC<LeadFormProviderProps> = ({
     loadMoreAcademicTitles: academicTitlesHook.loadMore,
     showMoreAcademicTitles: academicTitlesHook.showMore,
 
-    // Time Zones
-    timeZones: timeZonesHook.allOptions,
-    timeZonesLoading: timeZonesHook.loading,
-    timeZonesError: timeZonesHook.error,
-    timeZonesHasMore: timeZonesHook.hasMore,
-    timeZonesNeedsMoreData: timeZonesHook.needsMoreData,
-    timeZonesDisplayCount: timeZonesHook.displayCount,
-    timeZonesTotalFetched: timeZonesHook.totalFetched,
-    searchTimeZones: timeZonesHook.search,
-    loadMoreTimeZones: timeZonesHook.loadMore,
-    showMoreTimeZones: timeZonesHook.showMore,
 
     // Investment Types
     investmentTypesSearchable: investmentTypesHook.allOptions,

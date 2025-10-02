@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, ReactNode } from 'react';
+import React, { useState, useEffect, ReactNode } from 'react';
 import { PageLayout } from '@newwork/nw-design-system';
 import { WalletIcon } from "@phosphor-icons/react";
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
@@ -91,32 +91,16 @@ const PersonalExpenses: React.FC<PersonalExpensesProps> = (props) => {
     };
   }, []);
 
-  const renderTabContent = () => {
-    switch (activeTab) {
-      case 'dashboard':
-        // Clear content header for dashboard since it has its own layout
-        if (contentHeader) {
-          setContentHeader(null);
-        }
-        return <ExpenseDashboardTab {...props} />;
-      case 'expense-items':
-        return <ExpenseItemsTab {...props} onContentHeaderChange={(header: ReactNode) => setContentHeader(header)} />;
-      case 'expense-plans':
-        return <ExpensePlansTab {...props} onContentHeaderChange={(header: ReactNode) => setContentHeader(header)} />;
-      case 'advance-payments':
-        return <AdvancePaymentsTab {...props} onContentHeaderChange={(header: ReactNode) => setContentHeader(header)} />;
-      case 'expense-requests':
-        return <ExpenseRequestsTab {...props} onContentHeaderChange={(header: ReactNode) => setContentHeader(header)} />;
-      case 'calendar':
-        // Clear content header for calendar since it doesn't need statistics
-        if (contentHeader) {
-          setContentHeader(null);
-        }
-        return <ExpenseCalendarTab {...props} />;
-      default:
-        return <ExpenseDashboardTab {...props} />;
+  // Clear header when switching to tabs that should not display it
+  useEffect(() => {
+    if (activeTab === 'dashboard' || activeTab === 'calendar') {
+      if (contentHeader) {
+        setContentHeader(null);
+      }
     }
-  };
+  }, [activeTab]);
+
+  const noop = (_header?: ReactNode) => {};
 
   return (
     <div data-testid="personal-expenses-container">
@@ -146,8 +130,32 @@ const PersonalExpenses: React.FC<PersonalExpensesProps> = (props) => {
           </div>
         )}
         
-        {/* Render tab content */}
-        {renderTabContent()}
+        {/* Render all tabs concurrently; toggle visibility for instant switching */}
+        <div data-testid="tabs-container">
+          <div className={activeTab === 'dashboard' ? '' : 'gba:hidden'} data-testid="tab-dashboard">
+            <ExpenseDashboardTab {...props} />
+          </div>
+
+          <div className={activeTab === 'expense-items' ? '' : 'gba:hidden'} data-testid="tab-expense-items">
+            <ExpenseItemsTab {...props} onContentHeaderChange={activeTab === 'expense-items' ? setContentHeader : noop} />
+          </div>
+
+          <div className={activeTab === 'expense-plans' ? '' : 'gba:hidden'} data-testid="tab-expense-plans">
+            <ExpensePlansTab {...props} onContentHeaderChange={activeTab === 'expense-plans' ? setContentHeader : noop} />
+          </div>
+
+          <div className={activeTab === 'advance-payments' ? '' : 'gba:hidden'} data-testid="tab-advance-payments">
+            <AdvancePaymentsTab {...props} onContentHeaderChange={activeTab === 'advance-payments' ? setContentHeader : noop} />
+          </div>
+
+          <div className={activeTab === 'expense-requests' ? '' : 'gba:hidden'} data-testid="tab-expense-requests">
+            <ExpenseRequestsTab {...props} onContentHeaderChange={activeTab === 'expense-requests' ? setContentHeader : noop} />
+          </div>
+
+          <div className={activeTab === 'calendar' ? '' : 'gba:hidden'} data-testid="tab-calendar">
+            <ExpenseCalendarTab {...props} />
+          </div>
+        </div>
       </PageLayout>
     </div>
   );

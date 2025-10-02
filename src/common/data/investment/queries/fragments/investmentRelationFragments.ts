@@ -159,6 +159,22 @@ export const INVESTMENT_CONTACT = `
     }
 `;
 
+export const INVESTMENT_ADDRESS = `
+    id
+    addressType
+    addressLine
+    postalCode
+    locality
+    
+    # Catalog relationships
+    region {
+        ${CATALOG_ENTRY}
+    }
+    country {
+        ${CATALOG_ENTRY}
+    }
+`;
+
 export const INVESTMENT_ACCOUNT_REF = `
     id
     code
@@ -220,6 +236,11 @@ export const INVESTMENT_ACCOUNT = `
     # Employee relationship
     ownerEmployee {
         ${EMPLOYEE_REF}
+    }
+    
+    # Address relationships
+    investmentAddress(where: { isDeleted: { _eq: false } }) {
+        ${INVESTMENT_ADDRESS}
     }
 `;
 

@@ -76,7 +76,7 @@ const OwnerInformationSection: React.FC = () => {
               searchEmployeePositions(searchTerm);
             }}
             error={employeePositionsError}
-            dataTestId={formatDataTestId(prefixDataTestId, "OwnerSelect")}
+            dataTestId={formatDataTestId(prefixDataTestId, "owner-select")}
           />
         </div>
 
@@ -92,7 +92,7 @@ const OwnerInformationSection: React.FC = () => {
               onChange={(e) => setFormValues({ firstName: e.target.value })}
               placeholder="Please Enter..."
               className="gba:border-gray-300 gba:bg-white"
-              data-testid={formatDataTestId(prefixDataTestId, "FirstNameInput")}
+              data-testid={formatDataTestId(prefixDataTestId, "first-name-input")}
             />
           </div>
 
@@ -106,7 +106,7 @@ const OwnerInformationSection: React.FC = () => {
               onChange={(e) => setFormValues({ lastName: e.target.value })}
               placeholder="Please Enter..."
               className="gba:border-gray-300 gba:bg-white"
-              data-testid={formatDataTestId(prefixDataTestId, "LastNameInput")}
+              data-testid={formatDataTestId(prefixDataTestId, "last-name-input")}
             />
           </div>
         </div>
@@ -123,7 +123,7 @@ const OwnerInformationSection: React.FC = () => {
             onChange={(e) => setFormValues({ email: e.target.value })}
             placeholder="Please Enter..."
             className="gba:border-gray-300 gba:bg-white"
-            data-testid={formatDataTestId(prefixDataTestId, "EmailInput")}
+            data-testid={formatDataTestId(prefixDataTestId, "email-input")}
           />
         </div>
 
@@ -140,7 +140,7 @@ const OwnerInformationSection: React.FC = () => {
               onChange={(e) => setFormValues({ phone: e.target.value })}
               placeholder="Please Enter..."
               className="gba:border-gray-300 gba:bg-white"
-              data-testid={formatDataTestId(prefixDataTestId, "PhoneInput")}
+              data-testid={formatDataTestId(prefixDataTestId, "phone-input")}
             />
           </div>
           {/* Empty second column to maintain CRM layout consistency (Fax not available in InvestmentContact) */}

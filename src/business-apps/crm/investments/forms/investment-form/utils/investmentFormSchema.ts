@@ -8,7 +8,11 @@ const baseInvestmentSchema = z.object({
   name: z.string().min(1, 'Investment name is required'),
   ownerEmployeeId: z.string().min(1, 'Investment owner is required'),
   group: z.string().min(1, 'Investment group is required'),
-  
+
+  // Required related entities - temporarily made optional for debugging
+  accountId: z.string().min(1, 'Related account is required'),
+  contactId: z.string().min(1, 'Related contact is required'),
+
   // Optional fields that might be present
   id: z.string().optional(),
   description: z.string().optional(),
@@ -18,7 +22,8 @@ const baseInvestmentSchema = z.object({
 
 // Helper function to extract field name from property path (e.g., "realEstateInvestment.totalCost" -> "totalCost")
 // For additionalProperties, we flatten the path: "investment.additionalProperties.openingBalance" -> "additionalProperties_openingBalance"
-const getPropertyName = (property: string): string => {
+// IMPORTANT: This must match the naming logic in DynamicGroupSegment.tsx
+const getPropertyName = (property: string, fieldType?: string): string => {
   const parts = property.split('.');
   
   // Handle additionalProperties fields with special naming
@@ -30,7 +35,15 @@ const getPropertyName = (property: string): string => {
   }
   
   // Default behavior for regular fields
-  return parts.pop() || property;
+  const baseName = parts.pop() || property;
+  
+  // For REF_ types, if the property points to a relationship, add "Id" suffix for form field
+  // This matches the logic in DynamicGroupSegment.tsx
+  if (fieldType?.startsWith('REF_') && !baseName.endsWith('Id')) {
+    return baseName + 'Id';
+  }
+  
+  return baseName;
 };
 
 /**
@@ -38,16 +51,16 @@ const getPropertyName = (property: string): string => {
  */
 export const createDynamicInvestmentSchema = (formFieldsDefinition?: FormFieldsDefinition) => {
   let dynamicFields: Record<string, z.ZodTypeAny> = {};
-  
+
   if (formFieldsDefinition?.formFields) {
     for (const group of formFieldsDefinition.formFields) {
       for (const field of group.fields) {
         // Use flattened property name to match DynamicGroupSegment implementation
-        const fieldName = getPropertyName(field.property);
-        
+        const fieldName = getPropertyName(field.property, field.type);
+
         if (field.required) {
           const errorMessage = `${field.label} is required`;
-          
+
           switch (field.type) {
             case 'TEXT':
             case 'TEXTAREA':
@@ -60,7 +73,7 @@ export const createDynamicInvestmentSchema = (formFieldsDefinition?: FormFieldsD
                   const num = Number(val);
                   return isNaN(num) ? undefined : num;
                 },
-                z.number({ message: errorMessage }).min(0, `${field.label} must be positive`)
+                z.number({ message: errorMessage }).min(0, `${field.label} must be positive`),
               );
               break;
             case 'PERCENTAGE':
@@ -70,7 +83,10 @@ export const createDynamicInvestmentSchema = (formFieldsDefinition?: FormFieldsD
                   const num = Number(val);
                   return isNaN(num) ? undefined : num;
                 },
-                z.number({ message: errorMessage }).min(0, `${field.label} must be at least 0%`).max(100, `${field.label} must be at most 100%`)
+                z
+                  .number({ message: errorMessage })
+                  .min(0, `${field.label} must be at least 0%`)
+                  .max(100, `${field.label} must be at most 100%`),
               );
               break;
             case 'NUMBER':
@@ -80,7 +96,7 @@ export const createDynamicInvestmentSchema = (formFieldsDefinition?: FormFieldsD
                   const num = Number(val);
                   return isNaN(num) ? undefined : num;
                 },
-                z.number({ message: errorMessage })
+                z.number({ message: errorMessage }),
               );
               break;
             case 'DATE':
@@ -110,7 +126,7 @@ export const createDynamicInvestmentSchema = (formFieldsDefinition?: FormFieldsD
                   const num = Number(val);
                   return isNaN(num) ? undefined : num;
                 },
-                z.number().min(0, `${field.label} must be positive`).optional()
+                z.number().min(0, `${field.label} must be positive`).optional(),
               );
               break;
             case 'PERCENTAGE':
@@ -120,18 +136,19 @@ export const createDynamicInvestmentSchema = (formFieldsDefinition?: FormFieldsD
                   const num = Number(val);
                   return isNaN(num) ? undefined : num;
                 },
-                z.number().min(0, `${field.label} must be at least 0%`).max(100, `${field.label} must be at most 100%`).optional()
+                z
+                  .number()
+                  .min(0, `${field.label} must be at least 0%`)
+                  .max(100, `${field.label} must be at most 100%`)
+                  .optional(),
               );
               break;
             case 'NUMBER':
-              dynamicFields[fieldName] = z.preprocess(
-                (val) => {
-                  if (val === null || val === undefined || val === '') return undefined;
-                  const num = Number(val);
-                  return isNaN(num) ? undefined : num;
-                },
-                z.number().optional()
-              );
+              dynamicFields[fieldName] = z.preprocess((val) => {
+                if (val === null || val === undefined || val === '') return undefined;
+                const num = Number(val);
+                return isNaN(num) ? undefined : num;
+              }, z.number().optional());
               break;
             case 'DATE':
             case 'DATETIME':
@@ -149,10 +166,10 @@ export const createDynamicInvestmentSchema = (formFieldsDefinition?: FormFieldsD
       }
     }
   }
-  
+
   // Create base schema with dynamic fields
   const schemaWithDynamicFields = baseInvestmentSchema.extend(dynamicFields);
-  
+
   // Add conditional validation for investment flow
   return schemaWithDynamicFields.refine(
     (data) => {
@@ -166,7 +183,7 @@ export const createDynamicInvestmentSchema = (formFieldsDefinition?: FormFieldsD
     {
       message: 'Investment type or liquid fund type is required',
       path: ['investmentTypeRef'], // This will show the error on the investmentTypeRef field
-    }
+    },
   );
 };
 
@@ -175,9 +192,9 @@ export const createDynamicInvestmentSchema = (formFieldsDefinition?: FormFieldsD
  */
 export const createInvestmentFormResolver = (formFieldsDefinition?: FormFieldsDefinition) => {
   const schema = createDynamicInvestmentSchema(formFieldsDefinition);
-  
+
   // Debug: Uncomment to see schema creation
-  
+
   return zodResolver(schema);
 };
 
