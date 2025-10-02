@@ -459,7 +459,7 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = (props) => {
                     onClick={() => handleSelectRequest(record)}
                     data-testid={`expense-requests-row-${record.id}`}
                   >
-                    <TableCell className="gba:w-[60px] gba:min-w-[60px] gba:max-w-[60px] gba:box-border gba:py-4 gba:px-0" data-testid={`expense-requests-actions-cell-${record.id}`}>
+                    <TableCell className="gba:w-[60px] gba:min-w-[60px] gba:max-w-[60px] gba:box-border gba:py-3 gba:px-4" data-testid={`expense-requests-actions-cell-${record.id}`}>
                       <div className="gba:flex gba:justify-start gba:items-center gba:gap-0">
                         <AppActionButton
                           onClick={(e) => e.stopPropagation()}

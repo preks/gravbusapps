@@ -398,7 +398,7 @@ const ExpensePlansTable: React.FC<ExpensePlansTableProps> = (props) => {
                     }`}
                     onClick={() => handleSelectItem(plan)}
                   >
-                    <TableCell className="gba:w-[60px] gba:min-w-[60px] gba:max-w-[60px] gba:box-border gba:py-4 gba:px-0" data-testid={`${DATA_TEST_ID_PREFIX}-actions-cell-${plan.id}`}>
+                    <TableCell className="gba:w-[60px] gba:min-w-[60px] gba:max-w-[60px] gba:box-border gba:py-3 gba:px-4" data-testid={`${DATA_TEST_ID_PREFIX}-actions-cell-${plan.id}`}>
                       <div className="gba:flex gba:justify-start gba:items-center gba:gap-0">
                         <AppActionButton
                           onClick={(e) => e.stopPropagation()}

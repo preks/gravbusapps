@@ -285,7 +285,7 @@ const AdvancePaymentsTable: React.FC<AdvancePaymentsTableProps> = (props) => {
                   className="gba:cursor-pointer gba:hover:bg-accent"
                   onClick={() => setSelectedPayment(record)}
                 >
-                  <TableCell className="gba:w-[60px] gba:min-w-[60px] gba:max-w-[60px] gba:box-border gba:py-4 gba:px-0 gba:first:pl-0" data-testid={`advance-payments-actions-cell-${record.id}`}>
+                  <TableCell className="gba:w-[60px] gba:min-w-[60px] gba:max-w-[60px] gba:box-border gba:py-3 gba:px-4" data-testid={`advance-payments-actions-cell-${record.id}`}>
                     <div className="gba:flex gba:justify-start gba:items-center gba:gap-0">
                         <AppActionButton
                         onClick={(e) => e.stopPropagation()}
