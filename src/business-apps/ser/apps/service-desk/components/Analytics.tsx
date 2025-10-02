@@ -1,11 +1,21 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
-import { Card, Alert } from 'antd';
+import { Tabs, TabsList, TabsTrigger } from '@newwork/nw-design-system';
+import { 
+  OverviewDashboard, 
+  FlowAnalyticsDashboard, 
+  TaskPerformanceDashboard, 
+  EmployeeAnalyticsDashboard,
+  TrendAnalyticsDashboard,
+  ServiceDeskChartsDashboard,
+  EmployeeDeskAnalyticsDashboard
+} from './manager-analytics';
 
 /**
- * Analytics component for Service Desk performance metrics and reporting
- * Provides insights into ticket trends, response times, and team performance
+ * Manager Analytics component for Service Desk performance metrics and reporting
+ * Provides comprehensive insights into workflow performance, employee metrics, and operational analytics
+ * Integrates with Custom Flow Engine analytics APIs for real-time data
  */
 export interface AnalyticsProps extends BusinessAppContextProps {}
 
@@ -13,126 +23,79 @@ export const Analytics: React.FC<AnalyticsProps> = ({
   accessToken,
   userInfo,
 }) => {
+  const [activeTab, setActiveTab] = useState('overview');
+
+  console.log('[Analytics] Rendering with activeTab:', activeTab);
+
   return (
-    <div data-testid="service-desk-analytics" className="gba:space-y-6">
+    <div data-testid="manager-analytics" className="gba:min-h-screen">
       {/* Header Section */}
       <div className="gba:mb-6">
-        <h2 className="gba:text-xl gba:font-semibold gba:mb-2">
+        <h2 className="gba:text-2xl gba:font-bold gba:text-gray-900 gba:mb-2">
           {getTranslationFromI18nKeyAndLabel(
             'services.analytics.title',
-            'Service Desk Analytics'
+            'Manager Analytics'
           )}
         </h2>
         <p className="gba:text-gray-600">
           {getTranslationFromI18nKeyAndLabel(
             'services.analytics.description',
-            'Analyze performance metrics, trends, and insights for your service desk operations.'
+            'Comprehensive insights into team performance, workflow efficiency, and operational metrics.'
           )}
         </p>
       </div>
 
-      {/* Placeholder Alert */}
-      <Alert
-        message={getTranslationFromI18nKeyAndLabel(
-          'services.analytics.placeholder.title',
-          'Analytics Under Development'
-        )}
-        description={getTranslationFromI18nKeyAndLabel(
-          'services.analytics.placeholder.description',
-          'This section will provide comprehensive analytics including ticket trends, response time metrics, team performance, and custom reports.'
-        )}
-        type="info"
-        showIcon
-        className="gba:mb-6"
-      />
+      {/* Analytics Tabs */}
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="gba:w-full">
+        <TabsList className="gba:grid gba:w-full gba:grid-cols-7">
+          <TabsTrigger value="overview">
+            {getTranslationFromI18nKeyAndLabel('services.analytics.tabs.overview', 'Overview')}
+          </TabsTrigger>
+          <TabsTrigger value="flows">
+            {getTranslationFromI18nKeyAndLabel('services.analytics.tabs.flows', 'Request Analytics')}
+          </TabsTrigger>
+          <TabsTrigger value="tasks">
+            {getTranslationFromI18nKeyAndLabel('services.analytics.tabs.tasks', 'Ticket Performance')}
+          </TabsTrigger>
+          <TabsTrigger value="employees">
+            {getTranslationFromI18nKeyAndLabel('services.analytics.tabs.employees', 'Employee Analytics')}
+          </TabsTrigger>
+          <TabsTrigger value="trends">
+            {getTranslationFromI18nKeyAndLabel('services.analytics.tabs.trends', 'Trends & Insights')}
+          </TabsTrigger>
+          <TabsTrigger value="charts">
+            {getTranslationFromI18nKeyAndLabel('services.analytics.tabs.charts', 'Service Desk Charts')}
+          </TabsTrigger>
+          <TabsTrigger value="employee-desk">
+            {getTranslationFromI18nKeyAndLabel('services.analytics.tabs.employeeDesk', 'Employee on Desk')}
+          </TabsTrigger>
+        </TabsList>
 
-      {/* Placeholder Analytics Grid */}
-      <div className="gba:grid gba:grid-cols-1 gba:lg:grid-cols-2 gba:gap-6">
-        {/* Ticket Trends Card */}
-        <Card 
-          title={getTranslationFromI18nKeyAndLabel(
-            'services.analytics.ticketTrends.title',
-            'Ticket Trends'
+        {/* Conditionally render only the active tab to prevent duplicate API calls */}
+        <div className="gba:mt-6">
+          {activeTab === 'overview' && (
+            <OverviewDashboard accessToken={accessToken} userInfo={userInfo} />
           )}
-          className="gba:shadow-sm"
-          data-testid="analytics-ticket-trends"
-        >
-          <div className="gba:text-center gba:py-12 gba:text-gray-500">
-            {getTranslationFromI18nKeyAndLabel(
-              'services.analytics.ticketTrends.placeholder',
-              'Ticket volume and trend charts will be displayed here'
-            )}
-          </div>
-        </Card>
-
-        {/* Response Time Metrics Card */}
-        <Card 
-          title={getTranslationFromI18nKeyAndLabel(
-            'services.analytics.responseTime.title',
-            'Response Time Metrics'
+          {activeTab === 'flows' && (
+            <FlowAnalyticsDashboard accessToken={accessToken} userInfo={userInfo} />
           )}
-          className="gba:shadow-sm"
-          data-testid="analytics-response-time"
-        >
-          <div className="gba:text-center gba:py-12 gba:text-gray-500">
-            {getTranslationFromI18nKeyAndLabel(
-              'services.analytics.responseTime.placeholder',
-              'Average response time and SLA metrics will be shown here'
-            )}
-          </div>
-        </Card>
-
-        {/* Team Performance Card */}
-        <Card 
-          title={getTranslationFromI18nKeyAndLabel(
-            'services.analytics.teamPerformance.title',
-            'Team Performance'
+          {activeTab === 'tasks' && (
+            <TaskPerformanceDashboard accessToken={accessToken} userInfo={userInfo} />
           )}
-          className="gba:shadow-sm"
-          data-testid="analytics-team-performance"
-        >
-          <div className="gba:text-center gba:py-12 gba:text-gray-500">
-            {getTranslationFromI18nKeyAndLabel(
-              'services.analytics.teamPerformance.placeholder',
-              'Individual and team performance metrics will be displayed here'
-            )}
-          </div>
-        </Card>
-
-        {/* Customer Satisfaction Card */}
-        <Card 
-          title={getTranslationFromI18nKeyAndLabel(
-            'services.analytics.satisfaction.title',
-            'Customer Satisfaction'
+          {activeTab === 'employees' && (
+            <EmployeeAnalyticsDashboard accessToken={accessToken} userInfo={userInfo} />
           )}
-          className="gba:shadow-sm"
-          data-testid="analytics-satisfaction"
-        >
-          <div className="gba:text-center gba:py-12 gba:text-gray-500">
-            {getTranslationFromI18nKeyAndLabel(
-              'services.analytics.satisfaction.placeholder',
-              'Customer satisfaction scores and feedback analysis will appear here'
-            )}
-          </div>
-        </Card>
-      </div>
-
-      {/* Reports Section */}
-      <Card 
-        title={getTranslationFromI18nKeyAndLabel(
-          'services.analytics.reports.title',
-          'Custom Reports'
-        )}
-        className="gba:shadow-sm"
-        data-testid="analytics-reports"
-      >
-        <div className="gba:text-center gba:py-12 gba:text-gray-500">
-          {getTranslationFromI18nKeyAndLabel(
-            'services.analytics.reports.placeholder',
-            'Custom report generation and export functionality will be available here'
+          {activeTab === 'trends' && (
+            <TrendAnalyticsDashboard accessToken={accessToken} userInfo={userInfo} />
+          )}
+          {activeTab === 'charts' && (
+            <ServiceDeskChartsDashboard accessToken={accessToken} userInfo={userInfo} />
+          )}
+          {activeTab === 'employee-desk' && (
+            <EmployeeDeskAnalyticsDashboard accessToken={accessToken} userInfo={userInfo} />
           )}
         </div>
-      </Card>
+      </Tabs>
     </div>
   );
 };

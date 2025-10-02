@@ -232,3 +232,6 @@ export type ServiceRoute = '/services' | '/services/my-requests' | '/services/re
 
 // Table preferences types
 export * from './tablePreferences';
+
+// Manager analytics types
+export * from './managerAnalytics';

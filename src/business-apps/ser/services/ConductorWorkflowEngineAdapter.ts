@@ -2522,6 +2522,607 @@ export class ConductorWorkflowEngineAdapter implements WorkflowEngine {
   }
 
 
+  // =================================================================================
+  // MANAGER ANALYTICS METHODS - Custom Flow Engine Analytics API Integration
+  // =================================================================================
+
+  /**
+   * Get comprehensive flow analytics for manager dashboard
+   * Maps to /api/analytics/flows endpoint
+   */
+  async getFlowAnalytics(params?: {
+    timeframe?: 'last24h' | 'wtd' | 'mtd' | 'qtd' | 'ytd' | 'custom';
+    startDate?: string;
+    endDate?: string;
+    departmentId?: string;
+    templateId?: string;
+    userId?: string;
+    includeBusinessMetrics?: boolean;
+    includeOperationalMetrics?: boolean;
+    correlationEntity?: string;
+    correlationEntityId?: string;
+  }): Promise<{
+    status: string;
+    data: {
+      businessMetrics: {
+        totalFlows: number;
+        completedFlows: number;
+        avgCompletionTime: number;
+        successRate: number;
+      };
+      operationalMetrics: {
+        activeFlows: number;
+        bottlenecks: string[];
+      };
+    };
+    timeRange: {
+      start: string;
+      end: string;
+    };
+  }> {
+    try {
+      console.log('[ConductorAdapter] Getting flow analytics...', params);
+
+      // Build query parameters
+      const queryParams = new URLSearchParams();
+      if (params?.timeframe) queryParams.append('timeframe', params.timeframe);
+      if (params?.startDate) queryParams.append('startDate', params.startDate);
+      if (params?.endDate) queryParams.append('endDate', params.endDate);
+      if (params?.departmentId) queryParams.append('departmentId', params.departmentId);
+      if (params?.templateId) queryParams.append('templateId', params.templateId);
+      if (params?.userId) queryParams.append('userId', params.userId);
+      if (params?.includeBusinessMetrics !== undefined) queryParams.append('includeBusinessMetrics', params.includeBusinessMetrics.toString());
+      if (params?.includeOperationalMetrics !== undefined) queryParams.append('includeOperationalMetrics', params.includeOperationalMetrics.toString());
+      if (params?.correlationEntity) queryParams.append('correlationEntity', params.correlationEntity);
+      if (params?.correlationEntityId) queryParams.append('correlationEntityId', params.correlationEntityId);
+
+      const queryString = queryParams.toString();
+      const endpoint = `/analytics/flows${queryString ? `?${queryString}` : ''}`;
+
+      const result = await this.makeRequest(endpoint, {
+        method: 'GET',
+      });
+
+      console.log('[ConductorAdapter] ✅ Flow analytics fetched successfully:', {
+        totalFlows: result.data?.businessMetrics?.totalFlows,
+        successRate: result.data?.businessMetrics?.successRate,
+        activeFlows: result.data?.operationalMetrics?.activeFlows
+      });
+
+      return result;
+
+    } catch (error) {
+      console.error('[ConductorAdapter] ❌ Error getting flow analytics:', error);
+      throw new Error(`Failed to get flow analytics: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
+  }
+
+  /**
+   * Get flow management analytics for actionable insights
+   * Maps to /api/analytics/flow-management endpoint
+   */
+  async getFlowManagementAnalytics(params?: {
+    timeframe?: 'last24h' | 'wtd' | 'mtd' | 'qtd' | 'ytd' | 'custom';
+    startDate?: string;
+    endDate?: string;
+    departmentId?: string;
+    templateId?: string;
+    userId?: string;
+  }): Promise<{
+    status: string;
+    data: {
+      flowEfficiency: number;
+      bottlenecks: Array<{
+        stepName: string;
+        avgDelay: number;
+        impactLevel: 'low' | 'medium' | 'high';
+      }>;
+      recommendations: Array<{
+        type: string;
+        description: string;
+        priority: 'low' | 'medium' | 'high';
+      }>;
+    };
+  }> {
+    try {
+      console.log('[ConductorAdapter] Getting flow management analytics...', params);
+
+      // Build query parameters
+      const queryParams = new URLSearchParams();
+      if (params?.timeframe) queryParams.append('timeframe', params.timeframe);
+      if (params?.startDate) queryParams.append('startDate', params.startDate);
+      if (params?.endDate) queryParams.append('endDate', params.endDate);
+      if (params?.departmentId) queryParams.append('departmentId', params.departmentId);
+      if (params?.templateId) queryParams.append('templateId', params.templateId);
+      if (params?.userId) queryParams.append('userId', params.userId);
+
+      const queryString = queryParams.toString();
+      const endpoint = `/analytics/flow-management${queryString ? `?${queryString}` : ''}`;
+
+      const result = await this.makeRequest(endpoint, {
+        method: 'GET',
+      });
+
+      console.log('[ConductorAdapter] ✅ Flow management analytics fetched successfully:', {
+        flowEfficiency: result.data?.flowEfficiency,
+        bottlenecksCount: result.data?.bottlenecks?.length,
+        recommendationsCount: result.data?.recommendations?.length
+      });
+
+      return result;
+
+    } catch (error) {
+      console.error('[ConductorAdapter] ❌ Error getting flow management analytics:', error);
+      throw new Error(`Failed to get flow management analytics: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
+  }
+
+  /**
+   * Get detailed task performance analytics including user performance
+   * Maps to /api/analytics/task-performance endpoint
+   */
+  async getTaskPerformanceAnalytics(params?: {
+    timeframe?: 'last24h' | 'wtd' | 'mtd' | 'ytd' | 'custom';
+    startDate?: string;
+    endDate?: string;
+    departmentId?: string;
+    templateId?: string;
+    userId?: string;
+    stepType?: string;
+    workflowType?: string;
+  }): Promise<{
+    status: string;
+    data: {
+      performanceOverview: {
+        totalTasks: number;
+        avgCompletionTime: number;
+        efficiencyScore: number;
+      };
+      performanceByStep: Array<{
+        stepType: string;
+        avgDuration: number;
+        completionRate: number;
+        bottleneckRisk: 'low' | 'medium' | 'high';
+      }>;
+      userPerformance: Array<{
+        userId: string;
+        tasksCompleted: number;
+        avgCompletionTime: number;
+        efficiencyRating: 'excellent' | 'good' | 'average' | 'poor';
+      }>;
+    };
+  }> {
+    try {
+      console.log('[ConductorAdapter] Getting task performance analytics...', params);
+
+      // Build query parameters
+      const queryParams = new URLSearchParams();
+      if (params?.timeframe) queryParams.append('timeframe', params.timeframe);
+      if (params?.startDate) queryParams.append('startDate', params.startDate);
+      if (params?.endDate) queryParams.append('endDate', params.endDate);
+      if (params?.departmentId) queryParams.append('departmentId', params.departmentId);
+      if (params?.templateId) queryParams.append('templateId', params.templateId);
+      if (params?.userId) queryParams.append('userId', params.userId);
+      if (params?.stepType) queryParams.append('stepType', params.stepType);
+      if (params?.workflowType) queryParams.append('workflowType', params.workflowType);
+
+      const queryString = queryParams.toString();
+      const endpoint = `/analytics/task-performance${queryString ? `?${queryString}` : ''}`;
+
+      const result = await this.makeRequest(endpoint, {
+        method: 'GET',
+      });
+
+      console.log('[ConductorAdapter] ✅ Task performance analytics fetched successfully:', {
+        totalTasks: result.data?.performanceOverview?.totalTasks,
+        efficiencyScore: result.data?.performanceOverview?.efficiencyScore,
+        userPerformanceCount: result.data?.userPerformance?.length
+      });
+
+      return result;
+
+    } catch (error) {
+      console.error('[ConductorAdapter] ❌ Error getting task performance analytics:', error);
+      throw new Error(`Failed to get task performance analytics: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
+  }
+
+  /**
+   * Get template performance analytics
+   * Maps to /api/analytics/template-performance endpoint
+   */
+  async getTemplatePerformanceAnalytics(params?: {
+    timeframe?: 'last24h' | 'wtd' | 'mtd' | 'qtd' | 'ytd' | 'custom';
+    startDate?: string;
+    endDate?: string;
+    limit?: number;
+    offset?: number;
+    sortBy?: 'totalWorkflows' | 'completionRate' | 'avgDuration' | 'successRate' | 'activeWorkflows';
+    sortOrder?: 'asc' | 'desc';
+    templateId?: string;
+    minUsage?: number;
+  }): Promise<{
+    status: string;
+    data: {
+      templates: Array<{
+        templateId: string;
+        templateName: string;
+        totalWorkflows: number;
+        completedWorkflows: number;
+        activeWorkflows: number;
+        completionRate: number;
+        avgDurationHours: number;
+        successRate: number;
+        failureRate: number;
+        bottleneckSteps: string[];
+        utilizationTrend: string;
+      }>;
+      totalTemplates: number;
+      averagePerformance: {
+        completionRate: number;
+        avgDurationHours: number;
+        successRate: number;
+      };
+    };
+    timeRange: {
+      start: string;
+      end: string;
+    };
+    pagination: {
+      limit: number;
+      offset: number;
+      total: number;
+      hasMore: boolean;
+    };
+  }> {
+    try {
+      console.log('[ConductorAdapter] Getting template performance analytics...', params);
+
+      // Build query parameters
+      const queryParams = new URLSearchParams();
+      if (params?.timeframe) queryParams.append('timeframe', params.timeframe);
+      if (params?.startDate) queryParams.append('startDate', params.startDate);
+      if (params?.endDate) queryParams.append('endDate', params.endDate);
+      if (params?.limit) queryParams.append('limit', params.limit.toString());
+      if (params?.offset) queryParams.append('offset', params.offset.toString());
+      if (params?.sortBy) queryParams.append('sortBy', params.sortBy);
+      if (params?.sortOrder) queryParams.append('sortOrder', params.sortOrder);
+      if (params?.templateId) queryParams.append('templateId', params.templateId);
+      if (params?.minUsage) queryParams.append('minUsage', params.minUsage.toString());
+
+      const queryString = queryParams.toString();
+      const endpoint = `/analytics/template-performance${queryString ? `?${queryString}` : ''}`;
+
+      const result = await this.makeRequest(endpoint, {
+        method: 'GET',
+      });
+
+      console.log('[ConductorAdapter] ✅ Template performance analytics fetched successfully:', {
+        templatesCount: result.data?.templates?.length,
+        totalTemplates: result.data?.totalTemplates,
+        avgCompletionRate: result.data?.averagePerformance?.completionRate
+      });
+
+      return result;
+
+    } catch (error) {
+      console.error('[ConductorAdapter] ❌ Error getting template performance analytics:', error);
+      throw new Error(`Failed to get template performance analytics: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
+  }
+
+  /**
+   * Get audit logs with filtering and pagination
+   * Maps to /api/audit/logs endpoint
+   */
+  async getAuditLogs(params?: {
+    userId?: string;
+    department?: string;
+    templateId?: string;
+    flowId?: string;
+    taskId?: string;
+    action?: 'TASK' | 'APPROVAL' | 'REJECTION' | 'ASSIGNMENT' | 'COMPLETION';
+    status?: 'COMPLETED' | 'REJECTED' | 'IN_PROGRESS' | 'PENDING';
+    startDate?: string;
+    endDate?: string;
+    limit?: number;
+    offset?: number;
+  }): Promise<{
+    status: string;
+    data: Array<{
+      id: string;
+      timestamp: string;
+      userId: string;
+      userName: string;
+      action: string;
+      entityType: string;
+      entityId: string;
+      flowId: string;
+      templateId: string;
+      details: Record<string, any>;
+      status: string;
+    }>;
+    pagination: {
+      total: number;
+      offset: number;
+      limit: number;
+      hasMore: boolean;
+    };
+  }> {
+    try {
+      console.log('[ConductorAdapter] Getting audit logs...', params);
+
+      // Build query parameters
+      const queryParams = new URLSearchParams();
+      if (params?.userId) queryParams.append('userId', params.userId);
+      if (params?.department) queryParams.append('department', params.department);
+      if (params?.templateId) queryParams.append('templateId', params.templateId);
+      if (params?.flowId) queryParams.append('flowId', params.flowId);
+      if (params?.taskId) queryParams.append('taskId', params.taskId);
+      if (params?.action) queryParams.append('action', params.action);
+      if (params?.status) queryParams.append('status', params.status);
+      if (params?.startDate) queryParams.append('startDate', params.startDate);
+      if (params?.endDate) queryParams.append('endDate', params.endDate);
+      if (params?.limit) queryParams.append('limit', params.limit.toString());
+      if (params?.offset) queryParams.append('offset', params.offset.toString());
+
+      const queryString = queryParams.toString();
+      const endpoint = `/audit/logs${queryString ? `?${queryString}` : ''}`;
+
+      const result = await this.makeRequest(endpoint, {
+        method: 'GET',
+      });
+
+      console.log('[ConductorAdapter] ✅ Audit logs fetched successfully:', {
+        entriesCount: result.data?.length,
+        totalEntries: result.pagination?.total,
+        hasMore: result.pagination?.hasMore
+      });
+
+      return result;
+
+    } catch (error) {
+      console.error('[ConductorAdapter] ❌ Error getting audit logs:', error);
+      throw new Error(`Failed to get audit logs: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
+  }
+
+  /**
+   * Get flow management analytics for manager dashboard
+   * Maps to /api/analytics/flow-management endpoint
+   */
+  async getFlowManagementAnalytics(params?: {
+    timeframe?: 'last24h' | 'wtd' | 'mtd' | 'qtd' | 'ytd' | 'custom';
+    startDate?: string;
+    endDate?: string;
+    departmentId?: string;
+    templateId?: string;
+    userId?: string;
+    includeResourceUtilization?: boolean;
+    includeBottleneckAnalysis?: boolean;
+    correlationEntity?: string;
+    correlationEntityId?: string;
+  }): Promise<{
+    status: string;
+    data: {
+      resourceUtilization: {
+        totalResources: number;
+        activeResources: number;
+        utilizationRate: number;
+        overloadedResources: string[];
+      };
+      bottleneckAnalysis: {
+        identifiedBottlenecks: Array<{
+          stepType: string;
+          severity: 'low' | 'medium' | 'high';
+          impactedFlows: number;
+          avgDelayTime: number;
+        }>;
+        recommendations: string[];
+      };
+    };
+    timeRange: {
+      start: string;
+      end: string;
+    };
+  }> {
+    try {
+      console.log('[ConductorAdapter] Getting flow management analytics...', params);
+
+      // Build query parameters
+      const queryParams = new URLSearchParams();
+      if (params?.timeframe) queryParams.append('timeframe', params.timeframe);
+      if (params?.startDate) queryParams.append('startDate', params.startDate);
+      if (params?.endDate) queryParams.append('endDate', params.endDate);
+      if (params?.departmentId) queryParams.append('departmentId', params.departmentId);
+      if (params?.templateId) queryParams.append('templateId', params.templateId);
+      if (params?.userId) queryParams.append('userId', params.userId);
+      if (params?.includeResourceUtilization !== undefined) queryParams.append('includeResourceUtilization', params.includeResourceUtilization.toString());
+      if (params?.includeBottleneckAnalysis !== undefined) queryParams.append('includeBottleneckAnalysis', params.includeBottleneckAnalysis.toString());
+      if (params?.correlationEntity) queryParams.append('correlationEntity', params.correlationEntity);
+      if (params?.correlationEntityId) queryParams.append('correlationEntityId', params.correlationEntityId);
+
+      const queryString = queryParams.toString();
+      const endpoint = `/analytics/flow-management${queryString ? `?${queryString}` : ''}`;
+
+      const result = await this.makeRequest(endpoint, {
+        method: 'GET',
+      });
+
+      console.log('[ConductorAdapter] ✅ Flow management analytics fetched successfully:', {
+        totalResources: result.data?.resourceUtilization?.totalResources,
+        utilizationRate: result.data?.resourceUtilization?.utilizationRate,
+        bottleneckCount: result.data?.bottleneckAnalysis?.identifiedBottlenecks?.length
+      });
+
+      return result;
+
+    } catch (error) {
+      console.error('[ConductorAdapter] ❌ Error getting flow management analytics:', error);
+      throw new Error(`Failed to get flow management analytics: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
+  }
+
+  /**
+   * Get trend analytics for manager dashboard
+   * Maps to /api/analytics/trends endpoint
+   */
+  async getTrendAnalytics(params?: {
+    timeframe?: 'last24h' | 'wtd' | 'mtd' | 'qtd' | 'ytd' | 'custom';
+    startDate?: string;
+    endDate?: string;
+    departmentId?: string;
+    templateId?: string;
+    userId?: string;
+    comparisonPeriod?: 'previous_period' | 'same_period_last_year';
+    includeForecasting?: boolean;
+    correlationEntity?: string;
+    correlationEntityId?: string;
+  }): Promise<{
+    status: string;
+    data: {
+      periodComparison: {
+        currentPeriod: {
+          totalFlows: number;
+          completionRate: number;
+          avgCompletionTime: number;
+        };
+        previousPeriod: {
+          totalFlows: number;
+          completionRate: number;
+          avgCompletionTime: number;
+        };
+        percentageChange: {
+          totalFlows: number;
+          completionRate: number;
+          avgCompletionTime: number;
+        };
+      };
+      forecasting: {
+        nextPeriodPrediction: {
+          expectedFlows: number;
+          confidenceLevel: number;
+        };
+        trendDirection: 'increasing' | 'decreasing' | 'stable';
+      };
+    };
+    timeRange: {
+      start: string;
+      end: string;
+    };
+  }> {
+    try {
+      console.log('[ConductorAdapter] Getting trend analytics...', params);
+
+      // Build query parameters
+      const queryParams = new URLSearchParams();
+      if (params?.timeframe) queryParams.append('timeframe', params.timeframe);
+      if (params?.startDate) queryParams.append('startDate', params.startDate);
+      if (params?.endDate) queryParams.append('endDate', params.endDate);
+      if (params?.departmentId) queryParams.append('departmentId', params.departmentId);
+      if (params?.templateId) queryParams.append('templateId', params.templateId);
+      if (params?.userId) queryParams.append('userId', params.userId);
+      if (params?.comparisonPeriod) queryParams.append('comparisonPeriod', params.comparisonPeriod);
+      if (params?.includeForecasting !== undefined) queryParams.append('includeForecasting', params.includeForecasting.toString());
+      if (params?.correlationEntity) queryParams.append('correlationEntity', params.correlationEntity);
+      if (params?.correlationEntityId) queryParams.append('correlationEntityId', params.correlationEntityId);
+
+      const queryString = queryParams.toString();
+      const endpoint = `/analytics/trends${queryString ? `?${queryString}` : ''}`;
+
+      const result = await this.makeRequest(endpoint, {
+        method: 'GET',
+      });
+
+      console.log('[ConductorAdapter] ✅ Trend analytics fetched successfully:', {
+        currentFlows: result.data?.periodComparison?.currentPeriod?.totalFlows,
+        previousFlows: result.data?.periodComparison?.previousPeriod?.totalFlows,
+        trendDirection: result.data?.forecasting?.trendDirection
+      });
+
+      return result;
+
+    } catch (error) {
+      console.error('[ConductorAdapter] ❌ Error getting trend analytics:', error);
+      throw new Error(`Failed to get trend analytics: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
+  }
+
+  /**
+   * Get usage analytics for manager dashboard
+   * Maps to /api/analytics/usage endpoint
+   */
+  async getUsageAnalytics(params?: {
+    timeframe?: 'last24h' | 'wtd' | 'mtd' | 'qtd' | 'ytd' | 'custom';
+    startDate?: string;
+    endDate?: string;
+    departmentId?: string;
+    templateId?: string;
+    userId?: string;
+    groupBy?: 'department' | 'template' | 'user';
+    includeAdoptionMetrics?: boolean;
+    correlationEntity?: string;
+    correlationEntityId?: string;
+  }): Promise<{
+    status: string;
+    data: {
+      adoptionMetrics: {
+        totalUsers: number;
+        activeUsers: number;
+        adoptionRate: number;
+        newUserGrowth: number;
+      };
+      usageByGroup: Array<{
+        groupId: string;
+        groupName: string;
+        totalUsage: number;
+        uniqueUsers: number;
+        avgSessionDuration: number;
+      }>;
+    };
+    timeRange: {
+      start: string;
+      end: string;
+    };
+  }> {
+    try {
+      console.log('[ConductorAdapter] Getting usage analytics...', params);
+
+      // Build query parameters
+      const queryParams = new URLSearchParams();
+      if (params?.timeframe) queryParams.append('timeframe', params.timeframe);
+      if (params?.startDate) queryParams.append('startDate', params.startDate);
+      if (params?.endDate) queryParams.append('endDate', params.endDate);
+      if (params?.departmentId) queryParams.append('departmentId', params.departmentId);
+      if (params?.templateId) queryParams.append('templateId', params.templateId);
+      if (params?.userId) queryParams.append('userId', params.userId);
+      if (params?.groupBy) queryParams.append('groupBy', params.groupBy);
+      if (params?.includeAdoptionMetrics !== undefined) queryParams.append('includeAdoptionMetrics', params.includeAdoptionMetrics.toString());
+      if (params?.correlationEntity) queryParams.append('correlationEntity', params.correlationEntity);
+      if (params?.correlationEntityId) queryParams.append('correlationEntityId', params.correlationEntityId);
+
+      const queryString = queryParams.toString();
+      const endpoint = `/analytics/usage${queryString ? `?${queryString}` : ''}`;
+
+      const result = await this.makeRequest(endpoint, {
+        method: 'GET',
+      });
+
+      console.log('[ConductorAdapter] ✅ Usage analytics fetched successfully:', {
+        totalUsers: result.data?.adoptionMetrics?.totalUsers,
+        activeUsers: result.data?.adoptionMetrics?.activeUsers,
+        adoptionRate: result.data?.adoptionMetrics?.adoptionRate,
+        groupCount: result.data?.usageByGroup?.length
+      });
+
+      return result;
+
+    } catch (error) {
+      console.error('[ConductorAdapter] ❌ Error getting usage analytics:', error);
+      throw new Error(`Failed to get usage analytics: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
+  }
+
 }
 
 /**
