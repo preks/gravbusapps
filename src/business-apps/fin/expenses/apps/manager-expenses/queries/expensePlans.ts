@@ -59,6 +59,13 @@ export const GET_EXPENSE_PLANS_BY_MANAGER = `
       updatedAt
       decisionDate
       planDate
+      employeeDocument {
+        id
+        file
+        fileSize
+        fileName
+        mimeType
+      }
       employee {
         id
         displayName

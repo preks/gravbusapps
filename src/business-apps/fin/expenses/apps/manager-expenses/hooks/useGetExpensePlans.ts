@@ -17,6 +17,13 @@ export interface ExpensePlan {
   currency: string;
   createdAt: string;
   updatedAt: string;
+  employeeDocument?: {
+    id: string;
+    file: string;
+    fileSize?: number;
+    fileName?: string;
+    mimeType?: string;
+  } | null;
   employee: {
     id: string;
     displayName?: string;

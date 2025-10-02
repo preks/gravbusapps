@@ -145,6 +145,17 @@ const ExpensePlansTable: React.FC<ExpensePlansTableProps> = (props) => {
   // Handle printing a plan
   const handlePrintPlan = useCallback(
     async (plan: ExpensePlan) => {
+      console.log("[Print Debug] Attempting to print plan:", {
+        planId: plan.id,
+        planCode: plan.code,
+        planTitle: plan.title,
+        hasEmployeeDocument: !!plan.employeeDocument,
+        employeeDocumentId: plan.employeeDocument?.id,
+        employeeDocumentFile: plan.employeeDocument?.file,
+        employeeId: plan.employee?.id,
+        employeeDisplayName: plan.employee?.displayName,
+      });
+
       setPrintLoading(true);
       setPrintModalOpen(true);
 
@@ -175,15 +186,23 @@ const ExpensePlansTable: React.FC<ExpensePlansTableProps> = (props) => {
           },
         };
 
+        console.log("[Print Debug] Mapped plan for print service:", {
+          hasEmployeeDocument: !!mappedPlan.employeeDocument,
+          employeeDocumentFile: mappedPlan.employeeDocument?.file,
+          employeeCode: mappedPlan.employee.code,
+        });
+
         const result = await printExpensePlan(mappedPlan);
+
+        console.log("[Print Debug] Print result:", result);
 
         if (result.success && result.pdfUrl && isMounted.current) {
           setPrintPdfUrl(result.pdfUrl);
         } else if (!result.success) {
-          console.error("Error printing plan:", result.error);
+          console.error("[Print Error]", result.error);
         }
       } catch (error) {
-        console.error("Error fetching print PDF:", error);
+        console.error("[Print Exception]", error);
       } finally {
         if (isMounted.current) {
           setPrintLoading(false);
@@ -406,8 +425,13 @@ const ExpensePlansTable: React.FC<ExpensePlansTableProps> = (props) => {
                           size="icon"
                           className="gba:h-7 gba:w-7"
                           staticFlowData={[
-                            // Print action - only available if document exists
-                            ...(plan.employeeDocument?.file
+                            // Print action - only available for finalized plans with documents
+                            ...((plan.status === "APPROVED" ||
+                              plan.status === "VERIFIED" ||
+                              plan.status === "BOOKED" ||
+                              plan.status === "TRANSFERRED" ||
+                              plan.status === "PAID") &&
+                            plan.employeeDocument?.file?.trim()
                               ? [
                                   {
                                     category: getTranslationFromI18nKeyAndLabel(

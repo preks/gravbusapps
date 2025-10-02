@@ -466,40 +466,58 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = (props) => {
                           data-testid={`expense-requests-update-button-${record.id}`}
                           size="icon"
                           className="gba:h-7 gba:w-7"
-                          staticFlowData={[
-                            ...(record.employeeDocument?.file
-                              ? [
-                                  {
-                                    category: getTranslationFromI18nKeyAndLabel(
-                                      "lowcoder:employee_list.flows_button.actions",
-                                      "Actions",
-                                    ),
-                                    key: "print",
-                                    label: getTranslationFromI18nKeyAndLabel(
-                                      "lowcoder:expense_plan_list.expense_plan_flows.print",
-                                      "Print",
-                                    ),
-                                    onClick: () => {
-                                      handlePrintRequest(record);
+                          staticFlowData={(() => {
+                            // Debug: Check print button conditions
+                            const hasValidStatus = record.status === "APPROVED" ||
+                              record.status === "VERIFIED" ||
+                              record.status === "BOOKED" ||
+                              record.status === "TRANSFERRED" ||
+                              record.status === "PAID";
+                            const hasDocument = !!record.employeeDocument?.file?.trim();
+                            
+                            console.log(`[Print Debug] Request ${record.id}:`, {
+                              status: record.status,
+                              hasValidStatus,
+                              hasDocument,
+                              file: record.employeeDocument?.file,
+                              showPrint: hasValidStatus && hasDocument
+                            });
+                            
+                            return [
+                              ...(hasValidStatus && hasDocument
+                                ? [
+                                    {
+                                      category: getTranslationFromI18nKeyAndLabel(
+                                        "lowcoder:employee_list.flows_button.actions",
+                                        "Actions",
+                                      ),
+                                      key: "print",
+                                      label: getTranslationFromI18nKeyAndLabel(
+                                        "lowcoder:expense_plan_list.expense_plan_flows.print",
+                                        "Print",
+                                      ),
+                                      onClick: () => {
+                                        handlePrintRequest(record);
+                                      },
                                     },
-                                  },
-                                ]
-                              : []),
-                            {
-                              category: getTranslationFromI18nKeyAndLabel(
-                                "lowcoder:employee_list.flows_button.navigations",
-                                "Navigations",
-                              ),
-                              key: "view-request-details",
-                              label: getTranslationFromI18nKeyAndLabel(
-                                "lowcoder:expense_request_list.expense_request_flows.view_request_details",
-                                "View Request Details",
-                              ),
-                              onClick: () => {
-                                handleViewRequestDetails(record);
+                                  ]
+                                : []),
+                              {
+                                category: getTranslationFromI18nKeyAndLabel(
+                                  "lowcoder:employee_list.flows_button.navigations",
+                                  "Navigations",
+                                ),
+                                key: "view-request-details",
+                                label: getTranslationFromI18nKeyAndLabel(
+                                  "lowcoder:expense_request_list.expense_request_flows.view_request_details",
+                                  "View Request Details",
+                                ),
+                                onClick: () => {
+                                  handleViewRequestDetails(record);
+                                },
                               },
-                            },
-                          ]}
+                            ];
+                          })()}
                           prefixDataTestId="expense-requests-update"
                           accessToken={props.accessToken}
                           emptyStateBehavior="enable"
