@@ -1,6 +1,5 @@
 import React from "react";
 import {
-  Badge,
   Separator,
   Button,
   Card,
@@ -8,9 +7,10 @@ import {
   CardHeader,
   CardTitle,
 } from "@newwork/nw-design-system";
+import Pill from "@/components/pill";
 import { getExpensePlanStatusDisplay } from "../../../utils";
 import { BusinessAppContextProps } from "@/common/BusinessAppContext";
-import { PiCalendarDuotone, PiClock, PiArrowRight } from "react-icons/pi";
+import { PiCalendarDuotone, PiClock, PiPath, PiArrowRight } from "react-icons/pi";
 import {
   getTranslationFromI18nKeyAndLabel,
   getCurrentActiveUserLocale,
@@ -48,32 +48,28 @@ const ExpensePlanDetails: React.FC<ExpensePlanDetailsProps> = ({ selectedItem })
       <div className="gba:flex gba:justify-between gba:items-start gba:mb-6">
         <div className="gba:flex-1">
           <h2
-            className="gba:text-xl gba:font-semibold gba:text-foreground gba:mb-1"
+            className="gba:text-xl gba:font-semibold gba:text-gray-900 gba:mb-1"
             data-testid="expense-plan-title"
           >
             {selectedItem.title}
           </h2>
-          <p className="gba:text-sm gba:text-muted-foreground" data-testid="expense-plan-code">
+          <p className="gba:text-sm gba:text-gray-500" data-testid="expense-plan-code">
             {selectedItem.code}
           </p>
         </div>
-        <Badge
-          variant={
-            getExpensePlanStatusDisplay(selectedItem.status).type === "completed"
-              ? "success"
-              : getExpensePlanStatusDisplay(selectedItem.status).type === "error"
-                ? "destructive"
-                : getExpensePlanStatusDisplay(selectedItem.status).type === "task"
-                  ? "warning"
-                  : getExpensePlanStatusDisplay(selectedItem.status).type === "waiting"
-                    ? "secondary"
-                    : "default"
-          }
-          className="gba:text-sm"
-          data-testid="expense-plan-status-badge"
-        >
-          {getExpensePlanStatusDisplay(selectedItem.status).label}
-        </Badge>
+        <div className="gba:flex gba:items-center gba:gap-3">
+          {(() => {
+            const statusConfig = getExpensePlanStatusDisplay(selectedItem.status);
+            return (
+              <Pill
+                type={statusConfig.type}
+                label={statusConfig.label}
+                color={statusConfig.color}
+                data-testid="expense-plan-status-badge"
+              />
+            );
+          })()}
+        </div>
       </div>
 
       {/* Date Information */}
@@ -81,8 +77,8 @@ const ExpensePlanDetails: React.FC<ExpensePlanDetailsProps> = ({ selectedItem })
         <CardContent className="gba:p-4 gba:space-y-3">
           {selectedItem.startDate && selectedItem.endDate && (
             <div className="gba:flex gba:items-center gba:space-x-2">
-              <PiCalendarDuotone className="gba:text-muted-foreground" />
-              <span className="gba:text-sm gba:text-foreground">
+              <PiCalendarDuotone className="gba:text-gray-500" />
+              <span className="gba:text-sm gba:text-gray-700">
                 {getTranslationFromI18nKeyAndLabel(
                   "lowcoder:team_expenses_page.plan_details.duration",
                   "Duration",
@@ -105,14 +101,32 @@ const ExpensePlanDetails: React.FC<ExpensePlanDetailsProps> = ({ selectedItem })
 
           {selectedItem.planDate && (
             <div className="gba:flex gba:items-center gba:space-x-2">
-              <PiClock className="gba:text-muted-foreground" />
-              <span className="gba:text-sm gba:text-foreground">
+              <PiClock className="gba:text-gray-500" />
+              <span className="gba:text-sm gba:text-gray-700">
                 {getTranslationFromI18nKeyAndLabel(
                   "lowcoder:team_expenses_page.plan_details.plan_date",
                   "Plan Date",
                 )}
                 :{" "}
                 {new Date(selectedItem.planDate).toLocaleDateString(userLocale, {
+                  year: "2-digit",
+                  month: "2-digit",
+                  day: "2-digit",
+                })}
+              </span>
+            </div>
+          )}
+          
+          {selectedItem.decisionDate && (
+            <div className="gba:flex gba:items-center gba:space-x-2">
+              <PiPath className="gba:text-gray-500" />
+              <span className="gba:text-sm gba:text-gray-700">
+                {getTranslationFromI18nKeyAndLabel(
+                  "lowcoder:personal_expenses.decision_date",
+                  "Decision Date",
+                )}
+                :{" "}
+                {new Date(selectedItem.decisionDate).toLocaleDateString(userLocale, {
                   year: "2-digit",
                   month: "2-digit",
                   day: "2-digit",
@@ -135,7 +149,7 @@ const ExpensePlanDetails: React.FC<ExpensePlanDetailsProps> = ({ selectedItem })
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="gba:text-sm gba:text-foreground" data-testid="expense-plan-description">
+            <p className="gba:text-sm gba:text-gray-700" data-testid="expense-plan-description">
               {selectedItem.description}
             </p>
           </CardContent>
@@ -156,13 +170,13 @@ const ExpensePlanDetails: React.FC<ExpensePlanDetailsProps> = ({ selectedItem })
           <div className="gba:grid gba:grid-cols-1 gba:gap-4">
             {selectedItem.employee && (
               <div className="gba:flex gba:justify-between gba:items-center">
-                <span className="gba:text-sm gba:font-medium gba:text-foreground">
+                <span className="gba:text-sm gba:font-medium gba:text-gray-700">
                   {getTranslationFromI18nKeyAndLabel(
                     "lowcoder:expense_request_overview.side_bar.requester",
                     "Requester",
                   )}
                 </span>
-                <span className="gba:text-sm gba:text-foreground">
+                <span className="gba:text-sm gba:text-gray-900">
                   {selectedItem.employee.displayName || selectedItem.employee.fullName}
                 </span>
               </div>
@@ -170,13 +184,13 @@ const ExpensePlanDetails: React.FC<ExpensePlanDetailsProps> = ({ selectedItem })
 
             {selectedItem.employee?.employeePosition?.organizationalUnit && (
               <div className="gba:flex gba:justify-between gba:items-center">
-                <span className="gba:text-sm gba:font-medium gba:text-foreground">
+                <span className="gba:text-sm gba:font-medium gba:text-gray-700">
                   {getTranslationFromI18nKeyAndLabel(
                     "lowcoder:employee_profile.profile_icon_list.department_title",
                     "Department",
                   )}
                 </span>
-                <span className="gba:text-sm gba:text-foreground">
+                <span className="gba:text-sm gba:text-gray-900">
                   {selectedItem.employee.employeePosition.organizationalUnit.name}
                 </span>
               </div>
@@ -184,36 +198,36 @@ const ExpensePlanDetails: React.FC<ExpensePlanDetailsProps> = ({ selectedItem })
 
             {selectedItem.employee?.employeePosition?.siteLocation && (
               <div className="gba:flex gba:justify-between gba:items-center">
-                <span className="gba:text-sm gba:font-medium gba:text-foreground">
+                <span className="gba:text-sm gba:font-medium gba:text-gray-700">
                   {getTranslationFromI18nKeyAndLabel(
                     "lowcoder:employee_profile.profile_icon_list.location_title",
                     "Location",
                   )}
                 </span>
-                <span className="gba:text-sm gba:text-foreground">
+                <span className="gba:text-sm gba:text-gray-900">
                   {selectedItem.employee.employeePosition.siteLocation.name}
                 </span>
               </div>
             )}
 
             <div className="gba:flex gba:justify-between gba:items-center">
-              <span className="gba:text-sm gba:font-medium gba:text-foreground">
+              <span className="gba:text-sm gba:font-medium gba:text-gray-700">
                 {getTranslationFromI18nKeyAndLabel(
                   "lowcoder:team_expenses_page.plan_details.trip_type",
                   "Trip Type",
                 )}
               </span>
-              <span className="gba:text-sm gba:text-foreground">{getTripType()}</span>
+              <span className="gba:text-sm gba:text-gray-900">{getTripType()}</span>
             </div>
 
             <div className="gba:flex gba:justify-between gba:items-center">
-              <span className="gba:text-sm gba:font-medium gba:text-foreground">
+              <span className="gba:text-sm gba:font-medium gba:text-gray-700">
                 {getTranslationFromI18nKeyAndLabel(
                   "lowcoder:expense_request_list.expense_plan_table.total_amount",
                   "Total Amount",
                 )}
               </span>
-              <span className="gba:text-sm gba:font-semibold gba:text-foreground">
+              <span className="gba:text-sm gba:font-semibold gba:text-gray-900">
                 {typeof selectedItem.totalAmount === "number" && selectedItem.currency
                   ? formatAmount(selectedItem.totalAmount, selectedItem.currency)
                   : "-"}
