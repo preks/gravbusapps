@@ -201,6 +201,17 @@ export const useAdvancePaymentFilters = ({
     currenciesInitialized,
   ]);
 
+  // Unified currency setter that updates all related states (local + global)
+  const setUnifiedCurrency = useCallback(
+    (currency: string) => {
+      setLocalPrimaryCurrency(currency);
+      setUserHasSelectedCurrency(true); // Mark as user selection
+      setPrimaryCurrency(currency); // Update global store
+      setUserSelected(true); // Mark global store as user-selected
+    },
+    [setPrimaryCurrency, setUserSelected],
+  );
+
   return {
     searchTerm,
     setSearchTerm,
@@ -211,7 +222,7 @@ export const useAdvancePaymentFilters = ({
     handleDataFilterChange,
     filterLabelMap,
     currencyFilter: localPrimaryCurrency,
-    setCurrencyFilter: setLocalPrimaryCurrency,
+    setCurrencyFilter: setUnifiedCurrency,
     currenciesLoading,
     filtersInitialized,
   };
