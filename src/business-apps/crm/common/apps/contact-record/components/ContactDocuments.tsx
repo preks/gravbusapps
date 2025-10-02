@@ -765,6 +765,7 @@ export const ContactDocuments: React.FC<ContactDocumentsProps> = ({
             id: docId,
             version: version,
             parentDocument: newParentId ?? '',
+            folder: !documents.find(d => d.id === docId)?.format || documents.find(d => d.id === docId)?.format?.toUpperCase() !== 'FILE', // Preserve folder status
             contact: contactId,
           },
         },

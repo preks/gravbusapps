@@ -45,7 +45,7 @@ import {
 import { Gear } from '@phosphor-icons/react';
 import { toast } from 'sonner';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
-import { DebouncedInput } from '@/components/data-filter/DebouncedInput';
+import { DebouncedInput } from '@/components/debounced-input/DebouncedInput';
 import { DataContainer } from '@/components/layout/dataContainer';
 import { useEmployeeData } from '@/business-apps/crm/common/hooks/useEmployeeData';
 import { startProcess } from '@/common/utils/start-process';
@@ -780,6 +780,7 @@ export const OpportunityDocuments: React.FC<OpportunityDocumentsProps> = ({
             id: docId,
             version: version,
             parentDocument: newParentId ?? '',
+            folder: documents.find(d => d.id === docId)?.folder || false, // Preserve folder status
             opportunity: opportunityId,
           },
         },
