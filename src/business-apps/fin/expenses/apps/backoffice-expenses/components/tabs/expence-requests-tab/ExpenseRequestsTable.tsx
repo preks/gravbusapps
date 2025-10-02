@@ -530,6 +530,7 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = (props) => {
                             <ExpenseRequestTableRow
                               key={record.id}
                               record={record}
+                              accessToken={props.accessToken}
                               onRowClick={handleRowClick}
                               onNavigateToExpenseRequest={handleNavigateToExpenseRequest}
                               onDownloadAccountingNote={handleDownloadAccountingNote}

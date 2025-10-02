@@ -17,23 +17,19 @@ import {
   TableCell,
   Alert, 
   Spinner,
-  Button,
   Pagination,
   PaginationContent,
   PaginationItem,
   PaginationLink,
   PaginationNext,
   PaginationPrevious,
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
   Card,
   CardContent
 } from '@newwork/nw-design-system';
 import { DataContainer } from '@/components/layout/dataContainer/DataContainer';
 import { DataFilterGroup } from '@/components/data-filter/DataFilter';
-import { MoreHorizontal, FileText } from 'lucide-react';
+import { AppActionButton } from '@/components/app-action-button/AppActionButton';
+import { FileText } from 'lucide-react';
 
 import { getAdvancePaymentStatusDisplay } from '../../../utils/utils';
 import AdvancePaymentDetails from './AdvancePaymentDetails';
@@ -277,48 +273,66 @@ const AdvancePaymentsTable: React.FC<AdvancePaymentsTableProps> = (props) => {
                   className="gba:cursor-pointer gba:hover:bg-gray-50"
                 >
                   <TableCell className="gba:w-[60px]">
-                    <div className="gba:flex gba:justify-center gba:items-center">
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button
-                            variant="ghost"
-                            className="gba:h-8 gba:w-8 p-0"
-                            data-testid={`actions-${record.id}`}
-                          >
-                            <span className="gba:sr-only">Open menu</span>
-                            <MoreHorizontal className="h-4 w-4" />
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                          <DropdownMenuItem
-                            onClick={() => {
+                    <div 
+                      className="gba:flex gba:justify-center gba:items-center"
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      <AppActionButton
+                        data-testid={`advance-payments-update-button-${record.id}`}
+                        size="icon"
+                        staticFlowData={[
+                          {
+                            category: getTranslationFromI18nKeyAndLabel(
+                              "lowcoder:employee_list.flows_button.navigations",
+                              "Navigations",
+                            ),
+                            key: "view-advance-payment-details",
+                            label: getTranslationFromI18nKeyAndLabel(
+                              "lowcoder:advance_payment_table.view_advance_payment_details",
+                              "View Advance Payment Details",
+                            ),
+                            onClick: (e?: React.MouseEvent) => {
+                              e?.stopPropagation();
                               setSelectedItem(record);
                               setSelectedActionType('advance-payment');
-                            }}
-                            data-testid={`view-advance-payment-${record.id}`}
-                          >
-                            {getTranslationFromI18nKeyAndLabel('lowcoder:advance_payment_table.view_advance_payment_details', 'View Advance Payment Details')}
-                          </DropdownMenuItem>
-                          <DropdownMenuItem
-                            onClick={() => {
+                            },
+                          },
+                          {
+                            category: getTranslationFromI18nKeyAndLabel(
+                              "lowcoder:employee_list.flows_button.navigations",
+                              "Navigations",
+                            ),
+                            key: "view-plan-details",
+                            label: getTranslationFromI18nKeyAndLabel(
+                              "lowcoder:expense_plan_list.expense_plan_flows.view_plan_details",
+                              "View Plan Details",
+                            ),
+                            onClick: (e?: React.MouseEvent) => {
+                              e?.stopPropagation();
                               handleNavigateToPlanDetails(record);
-                            }}
-                            data-testid={`view-plan-${record.id}`}
-                          >
-                            {getTranslationFromI18nKeyAndLabel('lowcoder:expense_plan_list.expense_plan_flows.view_plan_details', 'View Plan Details')}
-                          </DropdownMenuItem>
-                          {hasExpenseRequest && (
-                            <DropdownMenuItem
-                              onClick={() => {
-                                handleNavigateToRequestDetails(record);
-                              }}
-                              data-testid={`view-request-${record.id}`}
-                            >
-                               {getTranslationFromI18nKeyAndLabel('lowcoder:expense_request_list.modal_list_or_flow_button.view_request_details',   'View Request Details')}
-                            </DropdownMenuItem>
-                          )}
-                        </DropdownMenuContent>
-                      </DropdownMenu>
+                            },
+                          },
+                          ...(hasExpenseRequest ? [{
+                            category: getTranslationFromI18nKeyAndLabel(
+                              "lowcoder:employee_list.flows_button.navigations",
+                              "Navigations",
+                            ),
+                            key: "view-request-details",
+                            label: getTranslationFromI18nKeyAndLabel(
+                              "lowcoder:expense_request_list.modal_list_or_flow_button.view_request_details",
+                              "View Request Details",
+                            ),
+                            onClick: (e?: React.MouseEvent) => {
+                              e?.stopPropagation();
+                              handleNavigateToRequestDetails(record);
+                            },
+                          }] : []),
+                        ]}
+                        prefixDataTestId="advance-payments-update"
+                        accessToken={props.accessToken}
+                        emptyStateBehavior="enable"
+                        deferMainContextRequestsUntilClick
+                      />
                     </div>
                   </TableCell>
                   <TableCell>
