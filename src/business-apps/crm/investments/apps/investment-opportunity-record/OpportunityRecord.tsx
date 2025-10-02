@@ -5,7 +5,7 @@ import {
   RecordLayout,
   Badge,
 } from "@newwork/nw-design-system";
-import { User, FileText, CurrencyDollar, Star, Lightbulb as LightbulbIcon } from '@phosphor-icons/react';
+import { User, FileText, CurrencyDollar, Star, Lightbulb as LightbulbIcon, Trash as Trash2, PencilSimple as Edit } from '@phosphor-icons/react';
 import { BusinessAppContextProps } from "@/common/BusinessAppContext";
 import { navigateTo } from "@/common/utils/navigationUtils";
 import { getTranslationFromI18nKeyAndLabel } from "@/common/utils/windowUtils";
@@ -13,8 +13,9 @@ import { useOpportunityData } from "./hooks/useOpportunityData";
 import { useProcessCompletion } from "@/common/hooks/useProcessCompletion";
 import { formatCurrency, extractCurrencyCode } from '@/business-apps/crm/common/utils/currencyUtils';
 import { useAiSummary } from './hooks/useAiSummary';
-import { AiSummaryButton } from "@/common/components/common-relations/record-sections/header-section/ai-summary-button";
+import { AiActions, AiAction } from "@/common/components/common-relations/record-sections/header-section/ai-actions";
 import { AppActionButton } from "@/components/app-action-button/AppActionButton";
+import { Bot } from 'lucide-react';
 import ConditionSection from "@/common/components/common-relations/record-sections/condition-section/ConditionSection";
 import InvestmentSection from "@/common/components/common-relations/record-sections/investment-section/InvestmentSection";
 import { OpportunityStageProgression } from "./components/OpportunityStageProgression";
@@ -374,17 +375,23 @@ const InvestmentOpportunityRecordContent: React.FC<OpportunityRecordContentProps
     }
   ], [opportunity?.status, opportunity?.currency?.id, opportunity?.value, opportunity?.ownerEmployee]);
 
-  const headerActions = useMemo(() => (
-    <AiSummaryButton
-      config={{
-        entityType: 'opportunity',
-        loadingMessage: 'Generating AI Summary...',
-        loadingSubtitle: 'Analyzing opportunity data and activities'
-      }}
-      summaryHook={aiSummaryHook}
-      dataTestId={`opportunity-update-button-${opportunityId}`}
-    />
-  ), [aiSummaryHook, opportunityId]);
+  const headerActions = useMemo(() => {
+    const actions: AiAction[] = [
+      {
+        key: 'ai-summary',
+        label: getTranslationFromI18nKeyAndLabel('crm.ai.summary', 'AI Summary'),
+        icon: <Bot size={16} />,
+        hook: aiSummaryHook,
+        config: {
+          entityType: 'opportunity',
+          loadingMessage: getTranslationFromI18nKeyAndLabel('crm.ai.summary.loading', 'Generating AI Summary...'),
+          loadingSubtitle: getTranslationFromI18nKeyAndLabel('crm.ai.summary.subtitle', 'Analyzing opportunity data and activities')
+        }
+      }
+    ];
+    
+    return <AiActions actions={actions} dataTestId={`opportunity-update-button-${opportunityId}`} buttonText={getTranslationFromI18nKeyAndLabel('crm.ai.summary', 'AI Summary')} />;
+  }, [aiSummaryHook, opportunityId]);
 
   const headerContent = useMemo(() => {
     const isReadonly = !isOpportunityOpen(opportunityData?.opportunityStatus?.value);
@@ -741,14 +748,14 @@ const InvestmentOpportunityRecordContent: React.FC<OpportunityRecordContentProps
                 {
                   key: 'delete',
                   label: 'Delete',
-                  icon: <Trash2 className="gba:h-4 gba:w-4" />,
+                  icon: <Trash2 size={16} />,
                   apiEndpoint: '/investment-relations/deleteInvestmentDocument',
                   confirmMessage: 'Are you sure you want to delete this document? This action cannot be undone.'
                 },
                 {
                   key: 'update',
                   label: 'Update',
-                  icon: <Edit className="gba:h-4 gba:w-4" />,
+                  icon: <Edit size={16} />,
                   onClick: (documentId: string, document: any, entityId: string) => {
                     // Open the document update popup
                     startProcess({

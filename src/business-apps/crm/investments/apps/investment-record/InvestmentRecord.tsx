@@ -3,9 +3,10 @@ import { RecordLayout, Spinner } from '@newwork/nw-design-system';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 import { useGetInvestmentById, useGetInvestmentDocumentsByInvestmentId } from '@/common/data/investment';
 import { useGetInvestmentCatalogData } from '@/business-apps/crm/investments/forms/investment-form/queries/InvestmentCatalogQueries';
-import { AiSummaryButton } from '@/common/components/common-relations/record-sections/header-section/ai-summary-button';
+import { AiActions, AiAction } from '@/common/components/common-relations/record-sections/header-section/ai-actions';
 import { AppActionButton } from '@/components/app-action-button/AppActionButton';
 import { FlowContextName } from '@/common/types/FlowRegistryTypes';
+import { Bot } from 'lucide-react';
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
 import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils';
 import { useProcessCompletion } from '@/common/hooks/useProcessCompletion';
@@ -281,15 +282,25 @@ const InvestmentRecord: React.FC<InvestmentRecordProps> = (props) => {
   // Header configuration using centralized utilities
   const headerMeta = createHeaderMeta(investment, investmentType, typeSpecificData);
 
-  const headerActions = (
-    <AiSummaryButton
-      config={{
+  const actions: AiAction[] = [
+    {
+      key: 'ai-summary',
+      label: getTranslationFromI18nKeyAndLabel('crm.ai.summary', 'AI Summary'),
+      icon: <Bot size={16} />,
+      hook: aiSummaryHook,
+      config: {
         entityType: 'investment',
         loadingMessage: getTranslationFromI18nKeyAndLabel('crm.investments.ai.summary.loading', 'Generating AI Summary...'),
         loadingSubtitle: getTranslationFromI18nKeyAndLabel('crm.investments.ai.summary.subtitle', 'Analyzing investment data and activities')
-      }}
-      summaryHook={aiSummaryHook}
+      }
+    }
+  ];
+
+  const headerActions = (
+    <AiActions 
+      actions={actions} 
       dataTestId={`${investmentType}-update-button-${investmentId}`}
+      buttonText={getTranslationFromI18nKeyAndLabel('crm.ai.summary', 'AI Summary')}
     />
   );
 

@@ -8,8 +8,10 @@ import { useGetInvestmentAccountById } from '@/common/data/investment/hooks/useI
 import { InvestmentAccount } from '@/common/data/investment/types';
 import { AppActionButton } from "@/components/app-action-button/AppActionButton";
 import { FlowContextName } from "@/common/types/FlowRegistryTypes";
-import { AiSummaryButton } from "@/common/components/common-relations/record-sections/header-section/ai-summary-button";
+import { AiActions, AiAction } from "@/common/components/common-relations/record-sections/header-section/ai-actions";
 import { useAccountAiSummary } from "./hooks/useAccountAiSummary";
+import { useGenerateAIBooklet } from "./hooks/useGenerateAIBooklet";
+import { Bot } from 'lucide-react';
 import { 
   useGetInvestmentActivitiesByAccountId,
   useGetInvestmentNotesByAccountId,
@@ -93,6 +95,10 @@ const InvestmentAccountRecordContent: React.FC<AccountRecordContentProps> = ({ a
   
   // AI Summary hook - must be called before any conditional returns
   const aiSummaryHook = useAccountAiSummary(accountId, props.accessToken);
+  const aiBookletHook = useGenerateAIBooklet(accountId, props.accessToken, {
+    outputFileName: 'ma_booklet_generated.xlsx',
+    maxQuestions: 14
+  });
 
 
   // Data fetching hooks for sections
@@ -197,17 +203,42 @@ const InvestmentAccountRecordContent: React.FC<AccountRecordContentProps> = ({ a
     }
   ], [(accountData as any)?.industryClassLabel, account?.industry, (accountData as any)?.ownerDisplayName, account?.accountOwner]);
 
-  const headerActions = useMemo(() => (
-    <AiSummaryButton
-      config={{
-        entityType: 'account',
-        loadingMessage: getTranslationFromI18nKeyAndLabel('crm.ai.generatingSummary', 'Generating AI Summary...'),
-        loadingSubtitle: getTranslationFromI18nKeyAndLabel('crm.ai.analyzingAccount', 'Analyzing account data and activities')
-      }}
-      summaryHook={aiSummaryHook}
-      dataTestId={`account-update-button-${accountId}`}
-    />
-  ), [aiSummaryHook, accountId]);
+  const headerActions = useMemo(() => {
+    const aiActions: AiAction[] = props.accessToken ? [
+      {
+        key: 'ai-summary',
+        label: getTranslationFromI18nKeyAndLabel('crm.ai.summary', 'AI Summary'),
+        icon: <Bot size={16} />,
+        hook: aiSummaryHook,
+        config: {
+          entityType: 'account',
+          loadingMessage: getTranslationFromI18nKeyAndLabel('crm.ai.generatingSummary', 'Generating AI Summary...'),
+          loadingSubtitle: getTranslationFromI18nKeyAndLabel('crm.ai.analyzingAccount', 'Analyzing account data and activities'),
+          emptyStateMessage: getTranslationFromI18nKeyAndLabel('crm.ai.summary.emptyState', 'Click to generate intelligent insights about this account\'s performance and next steps')
+        }
+      },
+      {
+        key: 'ai-booklet',
+        label: getTranslationFromI18nKeyAndLabel('crm.ai.booklet', 'AI Booklet'),
+        icon: <Bot size={16} />,
+        hook: aiBookletHook,
+        config: {
+          entityType: 'account',
+          loadingMessage: getTranslationFromI18nKeyAndLabel('crm.ai.booklet.loading', 'Generating AI Booklet...'),
+          loadingSubtitle: getTranslationFromI18nKeyAndLabel('crm.ai.booklet.subtitle', 'Analyzing account documents for creating a booklet'),
+          emptyStateMessage: getTranslationFromI18nKeyAndLabel('crm.ai.booklet.emptyState', 'Click to generate an M&A booklet from account documents')
+        }
+      }
+    ] : [];
+
+    return (
+      <AiActions
+        actions={aiActions}
+        dataTestId={`account-ai-actions-${accountId}`}
+        buttonText={getTranslationFromI18nKeyAndLabel('crm.ai.actions', 'AI Actions')}
+      />
+    );
+  }, [props.accessToken, aiSummaryHook, aiBookletHook, accountId]);
 
   const headerActionButton = useMemo(() => (
     <AppActionButton

@@ -7,8 +7,9 @@ import { getTranslationFromI18nKeyAndLabel } from "@/common/utils/windowUtils";
 import { useContactData } from "./hooks/useContactData";
 import { AppActionButton } from "@/components/app-action-button/AppActionButton";
 import { FlowContextName } from "@/common/types/FlowRegistryTypes";
-import { AiSummaryButton } from "@/common/components/common-relations/record-sections/header-section/ai-summary-button";
+import { AiActions, AiAction } from "@/common/components/common-relations/record-sections/header-section/ai-actions";
 import { useContactAiSummary } from "./hooks/useContactAiSummary";
+import { Bot } from 'lucide-react';
 import { 
   useGetInvestmentActivitiesByContactId,
   useGetInvestmentNotesByContactId,
@@ -181,17 +182,23 @@ const InvestmentContactRecordContent: React.FC<ContactRecordContentProps> = ({
     }
   ], [contactData?.email, contact?.email, contactData?.phone, contact?.phone, contactData?.ownerEmployee, contact?.ownerEmployee]);
 
-  const headerActions = useMemo(() => (
-    <AiSummaryButton
-      config={{
-        entityType: 'contact',
-        loadingMessage: getTranslationFromI18nKeyAndLabel('crm.ai.summary.loading', 'Generating AI Summary...'),
-        loadingSubtitle: getTranslationFromI18nKeyAndLabel('crm.ai.summary.contact.subtitle', 'Analyzing contact data and activities')
-      }}
-      summaryHook={aiSummaryHook}
-      dataTestId={`contact-update-button-${contactId}`}
-    />
-  ), [aiSummaryHook, contactId]);
+  const headerActions = useMemo(() => {
+    const actions: AiAction[] = [
+      {
+        key: 'ai-summary',
+        label: getTranslationFromI18nKeyAndLabel('crm.ai.summary', 'AI Summary'),
+        icon: <Bot size={16} />,
+        hook: aiSummaryHook,
+        config: {
+          entityType: 'contact',
+          loadingMessage: getTranslationFromI18nKeyAndLabel('crm.ai.summary.loading', 'Generating AI Summary...'),
+          loadingSubtitle: getTranslationFromI18nKeyAndLabel('crm.ai.summary.contact.subtitle', 'Analyzing contact data and activities')
+        }
+      }
+    ];
+    
+    return <AiActions actions={actions} dataTestId={`contact-update-button-${contactId}`} buttonText={getTranslationFromI18nKeyAndLabel('crm.ai.summary', 'AI Summary')} />;
+  }, [aiSummaryHook, contactId]);
 
   const headerActionButton = useMemo(() => (
     <AppActionButton

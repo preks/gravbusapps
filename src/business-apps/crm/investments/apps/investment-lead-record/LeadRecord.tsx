@@ -24,9 +24,10 @@ import ActivitySection from "@/common/components/common-relations/record-section
 import NoteSection from "@/common/components/common-relations/record-sections/note-section/NoteSection";
 import TaskSection from "@/common/components/common-relations/record-sections/task-section/TaskSection";
 import SectionWrapper from "@/common/components/common-relations/record-sections/section-card/SectionCard";
-import { AiSummaryButton } from '@/common/components/common-relations/record-sections/header-section/ai-summary-button';
+import { AiActions, AiAction } from '@/common/components/common-relations/record-sections/header-section/ai-actions';
 import { useAiSummary } from './hooks/useAiSummary';
 import { AppActionButton } from '@/components/app-action-button/AppActionButton';
+import { Bot } from 'lucide-react';
 
 
 interface LeadRecordContentProps extends BusinessAppContextProps {
@@ -237,19 +238,25 @@ const InvestmentLeadRecordContent: React.FC<LeadRecordContentProps> = ({
     }
   ], [lead?.leadSource?.value, lead?.leadRating?.value, lead?.ownerEmployee]);
 
-  const headerActions = useMemo(() => (
-    props.accessToken && leadId && (
-      <AiSummaryButton
-        config={{
+  const headerActions = useMemo(() => {
+    if (!props.accessToken || !leadId) return null;
+    
+    const actions: AiAction[] = [
+      {
+        key: 'ai-summary',
+        label: getTranslationFromI18nKeyAndLabel('crm.ai.summary', 'AI Summary'),
+        icon: <Bot size={16} />,
+        hook: aiSummary,
+        config: {
           entityType: 'lead',
           loadingMessage: getTranslationFromI18nKeyAndLabel('crm.ai.summary.loading', 'Generating AI Summary...'),
           loadingSubtitle: getTranslationFromI18nKeyAndLabel('crm.ai.summary.subtitle', 'Analyzing lead data and activities')
-        }}
-        summaryHook={aiSummary}
-        dataTestId={`lead-update-button-${leadId}`}
-      />
-    )
-  ), [props.accessToken, leadId, aiSummary]);
+        }
+      }
+    ];
+    
+    return <AiActions actions={actions} dataTestId={`lead-update-button-${leadId}`} buttonText={getTranslationFromI18nKeyAndLabel('crm.ai.summary', 'AI Summary')} />;
+  }, [props.accessToken, leadId, aiSummary]);
 
   const headerActionButton = useMemo(() => (
     props.accessToken && (
