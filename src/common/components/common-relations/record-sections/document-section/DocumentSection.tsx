@@ -462,10 +462,14 @@ const DocumentSection: React.FC<DocumentSectionProps> = ({
    const [newFolderName, setNewFolderName] = useState('');
    const [selectedParentFolder, setSelectedParentFolder] = useState<string>('');
    
-   // State for drag and drop
-   const [draggedDocument, setDraggedDocument] = useState<DocumentItem | null>(null);
-   const [dropTarget, setDropTarget] = useState<string | null>(null);
-   const [isDroppingOnRoot, setIsDroppingOnRoot] = useState<boolean>(false);
+  // State for drag and drop
+  const [draggedDocument, setDraggedDocument] = useState<DocumentItem | null>(null);
+  const [dropTarget, setDropTarget] = useState<string | null>(null);
+  const [isDroppingOnRoot, setIsDroppingOnRoot] = useState<boolean>(false);
+  
+  // State for click vs drag detection
+  const [mouseDownPos, setMouseDownPos] = useState<{ x: number; y: number } | null>(null);
+  const [isDragging, setIsDragging] = useState<boolean>(false);
   
   // Organize documents into tree structure
   const organizeDocumentsForTree = (docs: DocumentItem[]): DocumentItem[] => {
@@ -640,6 +644,11 @@ const DocumentSection: React.FC<DocumentSectionProps> = ({
   const handleRowClick = (documentId: string, event: React.MouseEvent) => {
     if (viewMode !== 'tree') return;
     
+    // Don't select if we were dragging
+    if (isDragging) {
+      return;
+    }
+    
     // Don't select if clicking on action buttons or expansion controls
     if ((event.target as HTMLElement).closest('button')) {
       return;
@@ -762,9 +771,36 @@ const DocumentSection: React.FC<DocumentSectionProps> = ({
      setExpandedFolders(new Set());
    };
    
+   // Mouse handlers for click vs drag detection
+   const handleMouseDown = (e: React.MouseEvent) => {
+     setMouseDownPos({ x: e.clientX, y: e.clientY });
+     setIsDragging(false);
+   };
+   
+   const handleMouseMove = (e: React.MouseEvent) => {
+     if (mouseDownPos) {
+       const distance = Math.sqrt(
+         Math.pow(e.clientX - mouseDownPos.x, 2) + 
+         Math.pow(e.clientY - mouseDownPos.y, 2)
+       );
+       
+       // If mouse moved more than 5 pixels, consider it a drag
+       if (distance > 5) {
+         setIsDragging(true);
+       }
+     }
+   };
+   
+   const handleMouseUp = () => {
+     setMouseDownPos(null);
+     // Reset dragging state after a short delay to allow click to process
+     setTimeout(() => setIsDragging(false), 100);
+   };
+   
    // Drag and drop handlers
    const handleDragStart = (e: React.DragEvent, document: DocumentItem) => {
      setDraggedDocument(document);
+     setIsDragging(true);
      e.dataTransfer.effectAllowed = 'move';
      e.dataTransfer.setData('text/plain', document.id);
    };
@@ -777,6 +813,9 @@ const DocumentSection: React.FC<DocumentSectionProps> = ({
      if (targetDocument.folder && draggedDocument && draggedDocument.id !== targetDocument.id) {
        e.dataTransfer.dropEffect = 'move';
        setDropTarget(targetDocument.id);
+     } else if (targetDocument.folder) {
+       // Show that this is a valid drop zone even if no document is being dragged
+       e.dataTransfer.dropEffect = 'move';
      } else {
        e.dataTransfer.dropEffect = 'none';
      }
@@ -786,14 +825,16 @@ const DocumentSection: React.FC<DocumentSectionProps> = ({
      e.preventDefault();
      e.stopPropagation();
      
-     // Only clear drop target if we're actually leaving the row
-     const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
-     const x = e.clientX;
-     const y = e.clientY;
-     
-     if (x < rect.left || x > rect.right || y < rect.top || y > rect.bottom) {
-       setDropTarget(null);
-     }
+     // Use a timeout to allow for smooth transitions between drop zones
+     setTimeout(() => {
+       const relatedTarget = e.relatedTarget as HTMLElement;
+       const currentTarget = e.currentTarget as HTMLElement;
+       
+       // Only clear if we're not moving to a child element or another drop zone
+       if (!relatedTarget || !currentTarget.contains(relatedTarget)) {
+         setDropTarget(null);
+       }
+     }, 50);
    };
    
    const handleDrop = async (e: React.DragEvent, targetFolder: DocumentItem) => {
@@ -814,20 +855,25 @@ const DocumentSection: React.FC<DocumentSectionProps> = ({
      setDraggedDocument(null);
      setDropTarget(null);
      setIsDroppingOnRoot(false);
+     setIsDragging(false);
    };
    
    // Handle drag over the root area (table container)
    const handleRootDragOver = (e: React.DragEvent) => {
-     if (!draggedDocument) return;
-     
      e.preventDefault();
      e.dataTransfer.dropEffect = 'move';
      
-     // Check if we're not over a folder row
-     const target = e.target as HTMLElement;
-     const isOverFolder = target.closest('[data-testid*="-row-"]')?.querySelector('[data-folder="true"]');
+     if (!draggedDocument) return;
      
-     if (!isOverFolder) {
+     // Check if we're over a folder row
+     const target = e.target as HTMLElement;
+     const folderRow = target.closest('[data-folder="true"]');
+     
+     if (folderRow) {
+       // We're over a folder row, let the row handler take care of it
+       setIsDroppingOnRoot(false);
+     } else {
+       // We're over the root area
        setIsDroppingOnRoot(true);
        setDropTarget(null); // Clear folder drop target
      }
@@ -835,12 +881,18 @@ const DocumentSection: React.FC<DocumentSectionProps> = ({
    
    // Handle drag leave from root area
    const handleRootDragLeave = (e: React.DragEvent) => {
-     // Only clear if we're actually leaving the table area
-     const target = e.target as HTMLElement;
-     const tableContainer = target.closest('.gba\\:border.gba\\:rounded-lg');
-     if (!tableContainer?.contains(e.relatedTarget as Node)) {
-       setIsDroppingOnRoot(false);
-     }
+     e.preventDefault();
+     
+     // Use a timeout to allow for smooth transitions
+     setTimeout(() => {
+       const relatedTarget = e.relatedTarget as HTMLElement;
+       const currentTarget = e.currentTarget as HTMLElement;
+       
+       // Only clear if we're not moving to a child element
+       if (!relatedTarget || !currentTarget.contains(relatedTarget)) {
+         setIsDroppingOnRoot(false);
+       }
+     }, 50);
    };
    
    // Handle drop on root area
@@ -1467,9 +1519,13 @@ const DocumentSection: React.FC<DocumentSectionProps> = ({
                          ${viewMode === 'tree' ? 'gba:cursor-pointer hover:gba:bg-muted/30' : ''}
                          ${isDraggedOver ? 'gba:bg-primary/20 gba:border-2 gba:border-primary gba:border-dashed' : ''}
                          ${isDragging ? 'gba:opacity-50' : ''}
-                         ${document.folder ? 'gba:transition-all gba:duration-200 gba:drop-target' : ''}
+                         ${document.folder && draggedDocument ? 'gba:transition-all gba:duration-200 hover:gba:bg-primary/10' : ''}
+                         ${document.folder ? 'gba:transition-all gba:duration-200' : ''}
                        `}
                        onClick={(e) => handleRowClick(document.id, e)}
+                       onMouseDown={handleMouseDown}
+                       onMouseMove={handleMouseMove}
+                       onMouseUp={handleMouseUp}
                        draggable={!document.folder} // Only allow dragging documents, not folders
                        onDragStart={(e) => handleDragStart(e, document)}
                        onDragEnter={(e) => document.folder ? handleDragOver(e, document) : undefined}
