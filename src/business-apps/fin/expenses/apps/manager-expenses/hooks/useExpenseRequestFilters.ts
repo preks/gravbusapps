@@ -30,6 +30,7 @@ export interface UseExpenseRequestFiltersReturn {
   availableCurrencies: string[];
   currenciesLoading: boolean;
   currenciesInitialized: boolean;
+  filtersInitialized: boolean;
   resetCurrencySelection: () => void;
 }
 
@@ -223,7 +224,8 @@ export const useExpenseRequestFilters = ({
     mostUsedCurrency: localMostUsedCurrency,
     availableCurrencies: availableCurrencies,
     currenciesLoading,
-    currenciesInitialized: !currenciesError,
+    currenciesInitialized: filtersInitialized,
+    filtersInitialized,
     handleDataFilterChange,
     setCurrencyFilter: setLocalPrimaryCurrency,
     resetCurrencySelection,

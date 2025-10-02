@@ -518,7 +518,10 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = (props) => {
                     <TableCell className="gba:w-[10%] gba:py-4 gba:px-3 gba:text-sm">
                       {(record as any)?.expensePlan?.code ?? getTranslationFromI18nKeyAndLabel("lowcoder:common.not_available","N/A")}
                     </TableCell>
-                    <TableCell className="gba:text-sm">
+                    <TableCell
+                      className="gba:text-sm"
+                      data-testid={`expense-requests-start-date-cell-${record.id}`}
+                    >
                       {record.startDate
                         ? (() => {
                             try {
@@ -535,7 +538,10 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = (props) => {
                           })()
                         : getTranslationFromI18nKeyAndLabel("lowcoder:common.not_available","N/A")}
                     </TableCell>
-                    <TableCell className="gba:text-sm">
+                    <TableCell
+                      className="gba:text-sm"
+                      data-testid={`expense-requests-end-date-cell-${record.id}`}
+                    >
                       {record.endDate
                         ? (() => {
                             try {
@@ -552,7 +558,7 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = (props) => {
                           })()
                         : getTranslationFromI18nKeyAndLabel("lowcoder:common.not_available","N/A")}
                     </TableCell>
-                    <TableCell>
+                    <TableCell data-testid={`expense-requests-employee-cell-${record.id}`}>
                       <div className="gba:flex gba:items-center gba:gap-2">
                         <Avatar className="gba:h-6 gba:w-6">
                           <AvatarImage
@@ -579,7 +585,10 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = (props) => {
                         </div>
                       </div>
                     </TableCell>
-                    <TableCell className="gba:text-sm">
+                    <TableCell
+                      className="gba:text-sm"
+                      data-testid={`expense-requests-request-date-cell-${record.id}`}
+                    >
                       {record.requestDate
                         ? (() => {
                             try {
