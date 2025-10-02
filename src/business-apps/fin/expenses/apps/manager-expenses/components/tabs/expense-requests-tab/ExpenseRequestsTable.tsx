@@ -312,7 +312,7 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = (props) => {
 
     if (requests.length === 0) {
       return (
-        <div className="gba:flex gba:justify-center gba:items-center gba:py-12 gba:text-gray-500">
+        <div className="gba:flex gba:justify-center gba:items-center gba:py-12 gba:text-muted-foreground">
           {getTranslationFromI18nKeyAndLabel(
             "lowcoder:personal_expenses.no_expense_data_available",
             "No expense data available.",
@@ -573,7 +573,7 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = (props) => {
                           <div className="gba:font-medium gba:text-sm">
                             {record.employee?.displayName || record.employee?.fullName}
                           </div>
-                          <div className="gba:text-xs gba:text-gray-500">
+                          <div className="gba:text-xs gba:text-muted-foreground">
                             {record.employee?.department || getTranslationFromI18nKeyAndLabel("lowcoder:common.not_available","N/A")}
                           </div>
                         </div>
@@ -808,7 +808,7 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = (props) => {
                     "Expense Requests",
                   )}
                 </span>
-                <span className="gba:text-gray-500">({totalCount})</span>
+                <span className="gba:text-muted-foreground">({totalCount})</span>
               </div>
             </div>
           ),
@@ -841,7 +841,7 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = (props) => {
       >
         <SheetContent className="gba:w-[500px] gba:sm:gba:w-[500px] gba:max-w-none">
           <SheetHeader>
-            <SheetTitle className="gba:text-xl gba:font-semibold gba:text-gray-900">
+            <SheetTitle className="gba:text-xl gba:font-semibold gba:text-foreground">
               {selectedRequest?.title ||
                 getTranslationFromI18nKeyAndLabel(
                   "lowcoder:expense_request_details.title",
@@ -889,8 +889,8 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = (props) => {
           />
         ) : (
           <div className="gba:flex gba:flex-col gba:items-center gba:justify-center gba:py-8 gba:text-center">
-            <div className="gba:text-gray-600 gba:mb-4">{getTranslationFromI18nKeyAndLabel("lowcoder:print.no_document","No document available for printing")}</div>
-            <div className="gba:text-sm gba:text-gray-500">
+            <div className="gba:text-muted-foreground gba:mb-4">{getTranslationFromI18nKeyAndLabel("lowcoder:print.no_document","No document available for printing")}</div>
+            <div className="gba:text-sm gba:text-muted-foreground">
               {getTranslationFromI18nKeyAndLabel("lowcoder:print.no_document_details","This expense request does not have an associated document to print.")}
             </div>
           </div>

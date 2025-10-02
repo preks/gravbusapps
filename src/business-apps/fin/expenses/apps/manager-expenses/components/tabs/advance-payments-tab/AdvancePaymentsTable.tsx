@@ -114,7 +114,7 @@ const AdvancePaymentsTable: React.FC<AdvancePaymentsTableProps> = (props) => {
     if (!isLoading && filteredPayments.length === 0) {
       return (
         <div className="gba:flex gba:items-center gba:justify-center gba:h-64">
-          <span className="gba:text-gray-500">
+          <span className="gba:text-muted-foreground">
             {getTranslationFromI18nKeyAndLabel(
               "lowcoder:personal_expenses.no_advance_payments_found",
               "No advance payments found.",
@@ -552,7 +552,7 @@ const AdvancePaymentsTable: React.FC<AdvancePaymentsTableProps> = (props) => {
       >
         <SheetContent className="gba:w-[500px] gba:sm:gba:w-[500px] gba:max-w-none">
           <SheetHeader>
-            <SheetTitle className="gba:text-xl gba:font-semibold gba:text-gray-900">
+            <SheetTitle className="gba:text-xl gba:font-semibold gba:text-foreground">
               {selectedPayment?.expensePlan?.title ||
                 getTranslationFromI18nKeyAndLabel(
                   "lowcoder:advance_payment_details.title",

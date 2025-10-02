@@ -137,13 +137,13 @@ const ApprovalTable: React.FC<ApprovalTableProps> = ({
   if (approvalRequests.length === 0) {
     return (
       <div className="gba:flex gba:flex-col gba:items-center gba:justify-center gba:p-8 gba:text-center">
-        <div className="gba:text-gray-500 gba:text-lg gba:font-medium gba:mb-2">
+        <div className="gba:text-muted-foreground gba:text-lg gba:font-medium gba:mb-2">
           {getTranslationFromI18nKeyAndLabel(
             'lowcoder:manager_expenses_landing_page.no_pending_approvals',
             'No pending approval requests found',
           )}
         </div>
-        <div className="gba:text-gray-400 gba:mb-4">
+        <div className="gba:text-muted-foreground gba:mb-4">
           {getTranslationFromI18nKeyAndLabel(
             'lowcoder:manager_expenses_landing_page.all_approvals_processed',
             'All approval requests have been processed.',
@@ -268,13 +268,13 @@ const ApprovalTable: React.FC<ApprovalTableProps> = ({
                     : '-'}
                 </TableCell>
                 <TableCell>
-                  <div className="gba:font-medium gba:text-gray-900">{request.title}</div>
+                  <div className="gba:font-medium gba:text-foreground">{request.title}</div>
                 </TableCell>
                 <TableCell>
-                  <div className="gba:text-sm gba:text-gray-600">{request.taskGroup}</div>
+                  <div className="gba:text-sm gba:text-muted-foreground">{request.taskGroup}</div>
                 </TableCell>
                 <TableCell>
-                  <div className="gba:text-sm gba:text-gray-900">
+                  <div className="gba:text-sm gba:text-foreground">
                     {request.totalAmount > 0
                       ? new Intl.NumberFormat(getCurrentActiveUserLocale(), {
                           style: 'currency',
@@ -284,7 +284,7 @@ const ApprovalTable: React.FC<ApprovalTableProps> = ({
                   </div>
                 </TableCell>
                 <TableCell>
-                  <div className="gba:text-sm gba:text-gray-900">{request.employee.fullName}</div>
+                  <div className="gba:text-sm gba:text-foreground">{request.employee.fullName}</div>
                 </TableCell>
                 <TableCell>
                   {(() => {

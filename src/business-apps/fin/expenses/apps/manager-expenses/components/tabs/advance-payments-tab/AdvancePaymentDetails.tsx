@@ -37,12 +37,12 @@ const AdvancePaymentDetails: React.FC<AdvancePaymentDetailsProps> = ({ payment }
       <div className="gba:flex gba:justify-between gba:items-start gba:mb-6">
         <div className="gba:flex-1">
           <h2
-            className="gba:text-xl gba:font-semibold gba:text-gray-900 gba:mb-1"
+            className="gba:text-xl gba:font-semibold gba:text-foreground gba:mb-1"
             data-testid="advance-payment-title"
           >
             {payment.expensePlan?.title || "Advance Payment"}
           </h2>
-          <p className="gba:text-sm gba:text-gray-500" data-testid="advance-payment-code">
+          <p className="gba:text-sm gba:text-muted-foreground" data-testid="advance-payment-code">
             {payment.expensePlan?.code || payment.id}
           </p>
         </div>
@@ -70,8 +70,8 @@ const AdvancePaymentDetails: React.FC<AdvancePaymentDetailsProps> = ({ payment }
         <CardContent className="gba:p-4 gba:space-y-3">
           {payment.expensePlan?.startDate && payment.expensePlan?.endDate && (
             <div className="gba:flex gba:items-center gba:space-x-2">
-              <PiCalendarDuotone className="gba:text-gray-500" />
-              <span className="gba:text-sm gba:text-gray-700">
+              <PiCalendarDuotone className="gba:text-muted-foreground" />
+              <span className="gba:text-sm gba:text-foreground">
                 {getTranslationFromI18nKeyAndLabel(
                   "lowcoder:team_expenses_page.plan_details.duration",
                   "Duration",
@@ -84,8 +84,8 @@ const AdvancePaymentDetails: React.FC<AdvancePaymentDetailsProps> = ({ payment }
 
           {payment.createdAt && (
             <div className="gba:flex gba:items-center gba:space-x-2">
-              <PiClock className="gba:text-gray-500" />
-              <span className="gba:text-sm gba:text-gray-700">
+              <PiClock className="gba:text-muted-foreground" />
+              <span className="gba:text-sm gba:text-foreground">
                 {getTranslationFromI18nKeyAndLabel(
                   "lowcoder:advance_payment_details.creation_date",
                   "Creation Date",
@@ -97,8 +97,8 @@ const AdvancePaymentDetails: React.FC<AdvancePaymentDetailsProps> = ({ payment }
 
           {payment.dueDate && (
             <div className="gba:flex gba:items-center gba:space-x-2">
-              <PiClock className="gba:text-gray-500" />
-              <span className="gba:text-sm gba:text-gray-700">
+              <PiClock className="gba:text-muted-foreground" />
+              <span className="gba:text-sm gba:text-foreground">
                 {getTranslationFromI18nKeyAndLabel(
                   "lowcoder:advance_payment_details.due_date",
                   "Due Date",
@@ -122,7 +122,7 @@ const AdvancePaymentDetails: React.FC<AdvancePaymentDetailsProps> = ({ payment }
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="gba:text-sm gba:text-gray-700" data-testid="advance-payment-purpose">
+            <p className="gba:text-sm gba:text-foreground" data-testid="advance-payment-purpose">
               {payment.purpose}
             </p>
           </CardContent>
@@ -143,13 +143,13 @@ const AdvancePaymentDetails: React.FC<AdvancePaymentDetailsProps> = ({ payment }
           <div className="gba:grid gba:grid-cols-1 gba:gap-4">
             {payment.expensePlan?.employee && (
               <div className="gba:flex gba:justify-between gba:items-center">
-                <span className="gba:text-sm gba:font-medium gba:text-gray-700">
+                <span className="gba:text-sm gba:font-medium gba:text-foreground">
                   {getTranslationFromI18nKeyAndLabel(
                     "lowcoder:expense_request_overview.side_bar.requester",
                     "Requester",
                   )}
                 </span>
-                <span className="gba:text-sm gba:text-gray-900">
+                <span className="gba:text-sm gba:text-foreground">
                   {payment.expensePlan.employee.displayName ||
                     payment.expensePlan.employee.fullName}
                 </span>
@@ -158,13 +158,13 @@ const AdvancePaymentDetails: React.FC<AdvancePaymentDetailsProps> = ({ payment }
 
             {payment.expensePlan?.employee?.employeePosition?.organizationalUnit && (
               <div className="gba:flex gba:justify-between gba:items-center">
-                <span className="gba:text-sm gba:font-medium gba:text-gray-700">
+                <span className="gba:text-sm gba:font-medium gba:text-foreground">
                   {getTranslationFromI18nKeyAndLabel(
                     "lowcoder:employee_profile.profile_icon_list.department_title",
                     "Department",
                   )}
                 </span>
-                <span className="gba:text-sm gba:text-gray-900">
+                <span className="gba:text-sm gba:text-foreground">
                   {payment.expensePlan.employee.employeePosition.organizationalUnit.name}
                 </span>
               </div>
@@ -172,36 +172,36 @@ const AdvancePaymentDetails: React.FC<AdvancePaymentDetailsProps> = ({ payment }
 
             {payment.expensePlan?.employee?.employeePosition?.siteLocation && (
               <div className="gba:flex gba:justify-between gba:items-center">
-                <span className="gba:text-sm gba:font-medium gba:text-gray-700">
+                <span className="gba:text-sm gba:font-medium gba:text-foreground">
                   {getTranslationFromI18nKeyAndLabel(
                     "lowcoder:employee_profile.profile_icon_list.location_title",
                     "Location",
                   )}
                 </span>
-                <span className="gba:text-sm gba:text-gray-900">
+                <span className="gba:text-sm gba:text-foreground">
                   {payment.expensePlan.employee.employeePosition.siteLocation.name}
                 </span>
               </div>
             )}
 
             <div className="gba:flex gba:justify-between gba:items-center">
-              <span className="gba:text-sm gba:font-medium gba:text-gray-700">
+              <span className="gba:text-sm gba:font-medium gba:text-foreground">
                 {getTranslationFromI18nKeyAndLabel(
                   "lowcoder:advance_payment_details.purpose",
                   "Purpose",
                 )}
               </span>
-              <span className="gba:text-sm gba:text-gray-900">{getTripType()}</span>
+              <span className="gba:text-sm gba:text-foreground">{getTripType()}</span>
             </div>
 
             <div className="gba:flex gba:justify-between gba:items-center">
-              <span className="gba:text-sm gba:font-medium gba:text-gray-700">
+              <span className="gba:text-sm gba:font-medium gba:text-foreground">
                 {getTranslationFromI18nKeyAndLabel(
                   "lowcoder:advance_payment_details.amount",
                   "Amount",
                 )}
               </span>
-              <span className="gba:text-sm gba:font-semibold gba:text-gray-900">
+              <span className="gba:text-sm gba:font-semibold gba:text-foreground">
                 {typeof payment.amount === "number"
                   ? `${formatNumberFunction(String(payment.amount))} ${
                       payment.currencyRef?.split(":").pop() || "-"

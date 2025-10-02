@@ -48,12 +48,12 @@ const ExpensePlanDetails: React.FC<ExpensePlanDetailsProps> = ({ selectedItem })
       <div className="gba:flex gba:justify-between gba:items-start gba:mb-6">
         <div className="gba:flex-1">
           <h2
-            className="gba:text-xl gba:font-semibold gba:text-gray-900 gba:mb-1"
+            className="gba:text-xl gba:font-semibold gba:text-foreground gba:mb-1"
             data-testid="expense-plan-title"
           >
             {selectedItem.title}
           </h2>
-          <p className="gba:text-sm gba:text-gray-500" data-testid="expense-plan-code">
+          <p className="gba:text-sm gba:text-muted-foreground" data-testid="expense-plan-code">
             {selectedItem.code}
           </p>
         </div>
@@ -81,8 +81,8 @@ const ExpensePlanDetails: React.FC<ExpensePlanDetailsProps> = ({ selectedItem })
         <CardContent className="gba:p-4 gba:space-y-3">
           {selectedItem.startDate && selectedItem.endDate && (
             <div className="gba:flex gba:items-center gba:space-x-2">
-              <PiCalendarDuotone className="gba:text-gray-500" />
-              <span className="gba:text-sm gba:text-gray-700">
+              <PiCalendarDuotone className="gba:text-muted-foreground" />
+              <span className="gba:text-sm gba:text-foreground">
                 {getTranslationFromI18nKeyAndLabel(
                   "lowcoder:team_expenses_page.plan_details.duration",
                   "Duration",
@@ -105,8 +105,8 @@ const ExpensePlanDetails: React.FC<ExpensePlanDetailsProps> = ({ selectedItem })
 
           {selectedItem.planDate && (
             <div className="gba:flex gba:items-center gba:space-x-2">
-              <PiClock className="gba:text-gray-500" />
-              <span className="gba:text-sm gba:text-gray-700">
+              <PiClock className="gba:text-muted-foreground" />
+              <span className="gba:text-sm gba:text-foreground">
                 {getTranslationFromI18nKeyAndLabel(
                   "lowcoder:team_expenses_page.plan_details.plan_date",
                   "Plan Date",
@@ -135,7 +135,7 @@ const ExpensePlanDetails: React.FC<ExpensePlanDetailsProps> = ({ selectedItem })
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="gba:text-sm gba:text-gray-700" data-testid="expense-plan-description">
+            <p className="gba:text-sm gba:text-foreground" data-testid="expense-plan-description">
               {selectedItem.description}
             </p>
           </CardContent>
@@ -156,13 +156,13 @@ const ExpensePlanDetails: React.FC<ExpensePlanDetailsProps> = ({ selectedItem })
           <div className="gba:grid gba:grid-cols-1 gba:gap-4">
             {selectedItem.employee && (
               <div className="gba:flex gba:justify-between gba:items-center">
-                <span className="gba:text-sm gba:font-medium gba:text-gray-700">
+                <span className="gba:text-sm gba:font-medium gba:text-foreground">
                   {getTranslationFromI18nKeyAndLabel(
                     "lowcoder:expense_request_overview.side_bar.requester",
                     "Requester",
                   )}
                 </span>
-                <span className="gba:text-sm gba:text-gray-900">
+                <span className="gba:text-sm gba:text-foreground">
                   {selectedItem.employee.displayName || selectedItem.employee.fullName}
                 </span>
               </div>
@@ -170,13 +170,13 @@ const ExpensePlanDetails: React.FC<ExpensePlanDetailsProps> = ({ selectedItem })
 
             {selectedItem.employee?.employeePosition?.organizationalUnit && (
               <div className="gba:flex gba:justify-between gba:items-center">
-                <span className="gba:text-sm gba:font-medium gba:text-gray-700">
+                <span className="gba:text-sm gba:font-medium gba:text-foreground">
                   {getTranslationFromI18nKeyAndLabel(
                     "lowcoder:employee_profile.profile_icon_list.department_title",
                     "Department",
                   )}
                 </span>
-                <span className="gba:text-sm gba:text-gray-900">
+                <span className="gba:text-sm gba:text-foreground">
                   {selectedItem.employee.employeePosition.organizationalUnit.name}
                 </span>
               </div>
@@ -184,36 +184,36 @@ const ExpensePlanDetails: React.FC<ExpensePlanDetailsProps> = ({ selectedItem })
 
             {selectedItem.employee?.employeePosition?.siteLocation && (
               <div className="gba:flex gba:justify-between gba:items-center">
-                <span className="gba:text-sm gba:font-medium gba:text-gray-700">
+                <span className="gba:text-sm gba:font-medium gba:text-foreground">
                   {getTranslationFromI18nKeyAndLabel(
                     "lowcoder:employee_profile.profile_icon_list.location_title",
                     "Location",
                   )}
                 </span>
-                <span className="gba:text-sm gba:text-gray-900">
+                <span className="gba:text-sm gba:text-foreground">
                   {selectedItem.employee.employeePosition.siteLocation.name}
                 </span>
               </div>
             )}
 
             <div className="gba:flex gba:justify-between gba:items-center">
-              <span className="gba:text-sm gba:font-medium gba:text-gray-700">
+              <span className="gba:text-sm gba:font-medium gba:text-foreground">
                 {getTranslationFromI18nKeyAndLabel(
                   "lowcoder:team_expenses_page.plan_details.trip_type",
                   "Trip Type",
                 )}
               </span>
-              <span className="gba:text-sm gba:text-gray-900">{getTripType()}</span>
+              <span className="gba:text-sm gba:text-foreground">{getTripType()}</span>
             </div>
 
             <div className="gba:flex gba:justify-between gba:items-center">
-              <span className="gba:text-sm gba:font-medium gba:text-gray-700">
+              <span className="gba:text-sm gba:font-medium gba:text-foreground">
                 {getTranslationFromI18nKeyAndLabel(
                   "lowcoder:expense_request_list.expense_plan_table.total_amount",
                   "Total Amount",
                 )}
               </span>
-              <span className="gba:text-sm gba:font-semibold gba:text-gray-900">
+              <span className="gba:text-sm gba:font-semibold gba:text-foreground">
                 {typeof selectedItem.totalAmount === "number" && selectedItem.currency
                   ? formatAmount(selectedItem.totalAmount, selectedItem.currency)
                   : "-"}

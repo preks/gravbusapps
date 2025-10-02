@@ -241,7 +241,7 @@ const ExpensePlansTable: React.FC<ExpensePlansTableProps> = (props) => {
         className="gba:flex gba:flex-col gba:items-center gba:justify-center gba:p-8 gba:text-center"
         data-testid={`${DATA_TEST_ID_PREFIX}-error-state`}
       >
-        <div className="gba:text-gray-600 gba:mb-4">{error.message}</div>
+        <div className="gba:text-muted-foreground gba:mb-4">{error.message}</div>
         <Button
           variant="default"
           onClick={() => globalThis.location.reload()}
@@ -266,7 +266,7 @@ const ExpensePlansTable: React.FC<ExpensePlansTableProps> = (props) => {
   if (!expensePlans || expensePlans.length === 0) {
     return (
       <div className="gba:flex gba:flex-col gba:items-center gba:justify-center gba:p-8 gba:text-center">
-        <div className="gba:text-gray-500 gba:text-lg gba:font-medium gba:mb-2">
+        <div className="gba:text-muted-foreground gba:text-lg gba:font-medium gba:mb-2">
           {getTranslationFromI18nKeyAndLabel(
             "lowcoder:create_expense_request.no_plans_found_search",
             "No expense plans found",
@@ -678,8 +678,8 @@ const ExpensePlansTable: React.FC<ExpensePlansTableProps> = (props) => {
           />
         ) : (
           <div className="gba:flex gba:flex-col gba:items-center gba:justify-center gba:py-8 gba:text-center">
-            <div className="gba:text-gray-600 gba:mb-4">{getTranslationFromI18nKeyAndLabel("lowcoder:print.no_document","No document available for printing")}</div>
-            <div className="gba:text-sm gba:text-gray-500">
+            <div className="gba:text-muted-foreground gba:mb-4">{getTranslationFromI18nKeyAndLabel("lowcoder:print.no_document","No document available for printing")}</div>
+            <div className="gba:text-sm gba:text-muted-foreground">
               This expense plan does not have an associated document to print.
             </div>
           </div>
@@ -704,7 +704,7 @@ const ExpensePlansTable: React.FC<ExpensePlansTableProps> = (props) => {
       >
         <SheetContent className="gba:w-[600px] gba:sm:gba:w-[600px] gba:max-w-none">
           <SheetHeader>
-            <SheetTitle className="gba:text-xl gba:font-semibold gba:text-gray-900">
+            <SheetTitle className="gba:text-xl gba:font-semibold gba:text-foreground">
               {selectedItem?.title ||
                 getTranslationFromI18nKeyAndLabel(
                   "lowcoder:approve_expense_plan.expense_subtitle_details",

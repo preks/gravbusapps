@@ -150,7 +150,7 @@ const ExpensePlansTab: React.FC<ExpensePlansTabProps> = (props) => {
                     "Plans",
                   )}
                 </span>
-                <span className="gba:text-gray-500">({totalCount})</span>
+                <span className="gba:text-muted-foreground">({totalCount})</span>
               </div>
             </div>
           ),

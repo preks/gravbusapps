@@ -67,10 +67,10 @@ const LineChartComponent: React.FC<LineChartProps> = ({
         )}
         <CardContent>
           <div className="gba:flex gba:flex-col gba:items-center gba:justify-center gba:p-8 gba:text-center gba:min-h-[200px]">
-            <div className="gba:text-gray-500 gba:text-lg gba:font-medium gba:mb-2">
+            <div className="gba:text-muted-foreground gba:text-lg gba:font-medium gba:mb-2">
               {getTranslationFromI18nKeyAndLabel("lowcoder:charts.empty.title","No data available")}
             </div>
-            <div className="gba:text-gray-400 gba:text-sm">
+            <div className="gba:text-muted-foreground gba:text-sm">
               {getTranslationFromI18nKeyAndLabel("lowcoder:charts.empty.description","There is no data to display for this chart.")}
             </div>
           </div>
