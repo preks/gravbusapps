@@ -163,6 +163,13 @@ export const InvestmentFormComponent: React.FC = () => {
   const preSelectedGroup = getInvestmentGroupFromContext(businessAppContext.additionalData);
   const isUpdate = Boolean(externalInvestmentId);
   
+  // Debug logging with expanded objects
+  console.log('=== InvestmentFormComponent Debug ===');
+  console.log('additionalData (expanded):', JSON.stringify(businessAppContext.additionalData, null, 2));
+  console.log('preSelectedGroup:', preSelectedGroup);
+  console.log('isUpdate:', isUpdate);
+  console.log('====================================');
+  
   // Helper function to detect if current context is Overview tab
   const isOverviewContext = () => {
     const additionalData = businessAppContext.additionalData;
