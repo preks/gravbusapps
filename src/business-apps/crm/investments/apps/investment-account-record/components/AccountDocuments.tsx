@@ -22,6 +22,7 @@ const AccountDocuments: React.FC<AccountDocumentsProps> = ({ accountId, context 
   const [documents, setDocuments] = useState<Document[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [lastRefreshTime, setLastRefreshTime] = useState<number>(0);
 
   // Fetch documents using the existing hook
   const { fetchInvestmentDocumentsByAccountId } = useGetInvestmentDocumentsByAccountId(context);

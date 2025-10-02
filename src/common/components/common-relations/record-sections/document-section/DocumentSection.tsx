@@ -29,6 +29,7 @@ import {
 } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@newwork/nw-design-system';
 import { useSearchInvestmentDocuments } from '@/common/data/investment/hooks/useSearchInvestmentDocuments';
+import { DebouncedInput } from '@/components/debounced-input/DebouncedInput';
 
 // Function to get appropriate icon based on file type
 const getFileIcon = (document: DocumentItem) => {
@@ -740,7 +741,6 @@ const DocumentSection: React.FC<DocumentSectionProps> = ({
   
   // Context-aware file upload
   const handleUpload = () => {
-    const _targetParentId = getTargetParentId();
     const firstAction = uploadActionData.combinedData[0];
     
     if (firstAction) {
@@ -771,20 +771,34 @@ const DocumentSection: React.FC<DocumentSectionProps> = ({
    
    const handleDragOver = (e: React.DragEvent, targetDocument: DocumentItem) => {
      e.preventDefault();
-     e.dataTransfer.dropEffect = 'move';
+     e.stopPropagation();
      
      // Only allow dropping on folders
      if (targetDocument.folder && draggedDocument && draggedDocument.id !== targetDocument.id) {
+       e.dataTransfer.dropEffect = 'move';
        setDropTarget(targetDocument.id);
+     } else {
+       e.dataTransfer.dropEffect = 'none';
      }
    };
    
-   const handleDragLeave = () => {
-     setDropTarget(null);
+   const handleDragLeave = (e: React.DragEvent) => {
+     e.preventDefault();
+     e.stopPropagation();
+     
+     // Only clear drop target if we're actually leaving the row
+     const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+     const x = e.clientX;
+     const y = e.clientY;
+     
+     if (x < rect.left || x > rect.right || y < rect.top || y > rect.bottom) {
+       setDropTarget(null);
+     }
    };
    
    const handleDrop = async (e: React.DragEvent, targetFolder: DocumentItem) => {
      e.preventDefault();
+     e.stopPropagation();
      setDropTarget(null);
      
      if (!draggedDocument || !targetFolder.folder || draggedDocument.id === targetFolder.id) {
@@ -876,6 +890,7 @@ const DocumentSection: React.FC<DocumentSectionProps> = ({
          id: documentId,
          version: document.version,
          parentDocument: targetFolderId,
+         folder: document.folder || false, // Preserve folder status
          [apiConfig.entityFieldName]: entityId
        };
        
@@ -890,7 +905,7 @@ const DocumentSection: React.FC<DocumentSectionProps> = ({
        toast.success('Document moved successfully');
        
        // Refresh the documents list after a short delay
-       // Note: This might cause duplicate refreshes if useProcessCompletion is also active
+       // This ensures the UI updates even if useProcessCompletion doesn't trigger
        setTimeout(() => {
          if (onRefresh) {
            onRefresh();
@@ -931,6 +946,7 @@ const DocumentSection: React.FC<DocumentSectionProps> = ({
          id: documentId,
          version: document.version,
          parentDocument: '', // Use empty string for root documents
+         folder: document.folder || false, // Preserve folder status
          [apiConfig.entityFieldName]: entityId
        };
        
@@ -944,7 +960,7 @@ const DocumentSection: React.FC<DocumentSectionProps> = ({
        toast.success('Document moved to root level');
        
        // Refresh the documents list after a short delay
-       // Note: This might cause duplicate refreshes if useProcessCompletion is also active
+       // This ensures the UI updates even if useProcessCompletion doesn't trigger
        setTimeout(() => {
          if (onRefresh) {
            onRefresh();
@@ -1320,14 +1336,14 @@ const DocumentSection: React.FC<DocumentSectionProps> = ({
         {/* Search and View Toggle Row */}
         <div className="gba:flex gba:items-center gba:justify-between">
           {/* Search Input */}
-          <div className="gba:relative gba:max-w-sm">
-            <Search className="gba:absolute gba:left-3 gba:top-1/2 gba:transform gba:-translate-y-1/2 gba:h-4 gba:w-4 gba:text-muted-foreground" />
-            <Input
-              placeholder={getTranslationFromI18nKeyAndLabel("document.search.placeholder", "Search documents...")}
+          <div className="gba:max-w-sm">
+            <DebouncedInput
               value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="gba:pl-10"
+              onChange={setSearchTerm}
+              placeholder={getTranslationFromI18nKeyAndLabel("document.search.placeholder", "Search documents...")}
+              icon={<Search className="gba:h-4 gba:w-4 gba:text-muted-foreground" />}
               data-testid={`${dataTestId}-search-input`}
+              debounceDelay={300}
             />
           </div>
           
@@ -1449,12 +1465,14 @@ const DocumentSection: React.FC<DocumentSectionProps> = ({
                        className={`
                          ${isSelected && viewMode === 'tree' ? 'gba:bg-muted/50' : ''} 
                          ${viewMode === 'tree' ? 'gba:cursor-pointer hover:gba:bg-muted/30' : ''}
-                         ${isDraggedOver ? 'gba:bg-primary/10 gba:border-primary' : ''}
+                         ${isDraggedOver ? 'gba:bg-primary/20 gba:border-2 gba:border-primary gba:border-dashed' : ''}
                          ${isDragging ? 'gba:opacity-50' : ''}
+                         ${document.folder ? 'gba:transition-all gba:duration-200 gba:drop-target' : ''}
                        `}
                        onClick={(e) => handleRowClick(document.id, e)}
                        draggable={!document.folder} // Only allow dragging documents, not folders
                        onDragStart={(e) => handleDragStart(e, document)}
+                       onDragEnter={(e) => document.folder ? handleDragOver(e, document) : undefined}
                        onDragOver={(e) => document.folder ? handleDragOver(e, document) : undefined}
                        onDragLeave={document.folder ? handleDragLeave : undefined}
                        onDrop={(e) => document.folder ? handleDrop(e, document) : undefined}
