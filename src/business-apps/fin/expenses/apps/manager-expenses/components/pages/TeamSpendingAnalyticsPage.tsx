@@ -22,11 +22,10 @@ import {
   Separator,
 } from "@newwork/nw-design-system";
 import { PiArrowLeft, PiMagnifyingGlass } from "react-icons/pi";
-import { ChartLineUp as ChartLineUpIcon } from "@phosphor-icons/react";
+import { ChartLineUpIcon } from "@phosphor-icons/react";
 import { BusinessAppContextProps } from "@/common/BusinessAppContext";
 import { useTeamSpendingAnalytics, DateRangeOption } from "../../hooks/useTeamSpendingAnalytics";
 import { LineChartComponent, PieChartComponent, BarChartComponent } from "../modals/charts";
-import { PillType } from '@/components/pill/Pill';
 import StatusLegend from "../StatusLegend";
 import { getTranslationFromI18nKeyAndLabel, getCurrentActiveUserLocale } from "@/common/utils/windowUtils";
 // removed unused formatCurrencyDisplay
@@ -238,9 +237,8 @@ const TeamSpendingAnalyticsPage: React.FC<TeamSpendingAnalyticsPageProps> = ({
             getColor={(entry) => {
               const code = entry.status || entry.name;
               const config = getExpenseRequestStatusDisplay(code);
-              const type = (config?.type as PillType) || 'draft';
-              // StatusLegend centralizes colors; keep fallback token here
-              return (window as any)?.__nw_pill_colors?.[type] || 'var(--nw-color-primary-500)';
+              const type = config?.type || 'draft';
+              return (globalThis as any)?.__nw_pill_colors?.[type] || 'var(--nw-color-primary-500)';
             }}
             />
             <StatusLegend id="expense-items-by-status" />
@@ -263,7 +261,14 @@ const TeamSpendingAnalyticsPage: React.FC<TeamSpendingAnalyticsPageProps> = ({
                 data={expenseItemsByCategoryWithNames}
                 title=""
                 currency={currencyFilter || primaryCurrency}
-                colors={["#1890ff", "#52c41a", "#faad14", "#f5222d", "#722ed1", "#13c2c2", "#fa8c16"]}
+                colors={[
+                  "var(--nw-color-primary-500)",
+                  "var(--nw-color-success-500)",
+                  "var(--nw-color-warning-500)",
+                  "var(--nw-color-danger-500)",
+                  "var(--nw-color-accent-500)",
+                  "var(--nw-color-info-500)"
+                ]}
               />
             </CardContent>
           </Card>
@@ -364,8 +369,8 @@ const TeamSpendingAnalyticsPage: React.FC<TeamSpendingAnalyticsPageProps> = ({
             getColor={(entry) => {
               const code = entry.status || entry.name;
               const config = getExpenseRequestStatusDisplay(code);
-              const type = (config?.type as PillType) || 'draft';
-              return (window as any)?.__nw_pill_colors?.[type] || 'var(--nw-color-success-500)';
+              const type = config?.type || 'draft';
+              return (globalThis as any)?.__nw_pill_colors?.[type] || 'var(--nw-color-success-500)';
             }}
             />
             <StatusLegend id="expense-requests-by-status-counts" />
@@ -408,8 +413,8 @@ const TeamSpendingAnalyticsPage: React.FC<TeamSpendingAnalyticsPageProps> = ({
             getColor={(entry) => {
               const code = entry.status || entry.name;
               const config = getExpenseRequestStatusDisplay(code);
-              const type = (config?.type as PillType) || 'draft';
-              return (window as any)?.__nw_pill_colors?.[type];
+              const type = config?.type || 'draft';
+              return (globalThis as any)?.__nw_pill_colors?.[type];
             }}
             />
             <StatusLegend id="expense-requests-by-status-amounts" />
@@ -510,8 +515,8 @@ const TeamSpendingAnalyticsPage: React.FC<TeamSpendingAnalyticsPageProps> = ({
             getColor={(entry) => {
               const code = entry.status || entry.name;
               const config = getExpensePlanStatusDisplay(code);
-              const type = (config?.type as PillType) || 'draft';
-              return (window as any)?.__nw_pill_colors?.[type] || 'var(--nw-color-accent-500)';
+              const type = config?.type || 'draft';
+              return (globalThis as any)?.__nw_pill_colors?.[type] || 'var(--nw-color-accent-500)';
             }}
             />
             <StatusLegend id="expense-plans-by-status-counts" />
@@ -553,8 +558,8 @@ const TeamSpendingAnalyticsPage: React.FC<TeamSpendingAnalyticsPageProps> = ({
             getColor={(entry) => {
               const code = entry.status || entry.name;
               const config = getExpensePlanStatusDisplay(code);
-              const type = (config?.type as PillType) || 'draft';
-              return (window as any)?.__nw_pill_colors?.[type];
+              const type = config?.type || 'draft';
+              return (globalThis as any)?.__nw_pill_colors?.[type];
             }}
             />
             <StatusLegend id="expense-plans-by-status-amounts" />
@@ -618,7 +623,7 @@ const TeamSpendingAnalyticsPage: React.FC<TeamSpendingAnalyticsPageProps> = ({
             <LineChartComponent
               data={data?.advancePaymentsByMonth || []}
               title=""
-              lineColor="#13c2c2"
+              lineColor="var(--nw-color-info-500)"
               currency={currencyFilter || primaryCurrency}
             />
           </CardContent>
@@ -646,7 +651,7 @@ const TeamSpendingAnalyticsPage: React.FC<TeamSpendingAnalyticsPageProps> = ({
               })) || []
               }
               title=""
-              barColor="#13c2c2"
+              barColor="var(--nw-color-info-500)"
               valueType="count"
               countLabel={getTranslationFromI18nKeyAndLabel(
                 "lowcoder:team_expenses_page.dashboard_tab.payments",
@@ -655,8 +660,8 @@ const TeamSpendingAnalyticsPage: React.FC<TeamSpendingAnalyticsPageProps> = ({
             getColor={(entry) => {
               const code = entry.status || entry.name;
               const config = getAdvancePaymentStatusDisplay(code);
-              const type = (config?.type as PillType) || 'draft';
-              return (window as any)?.__nw_pill_colors?.[type] || '#13c2c2';
+              const type = config?.type || 'draft';
+              return (globalThis as any)?.__nw_pill_colors?.[type] || 'var(--nw-color-info-500)';
             }}
             />
             <StatusLegend id="advance-payments-by-status-counts" />
@@ -698,8 +703,8 @@ const TeamSpendingAnalyticsPage: React.FC<TeamSpendingAnalyticsPageProps> = ({
             getColor={(entry) => {
               const code = entry.status || entry.name;
               const config = getAdvancePaymentStatusDisplay(code);
-              const type = (config?.type as PillType) || 'draft';
-              return (window as any)?.__nw_pill_colors?.[type];
+              const type = config?.type || 'draft';
+              return (globalThis as any)?.__nw_pill_colors?.[type];
             }}
             />
             <StatusLegend id="advance-payments-by-status-amounts" />
@@ -941,7 +946,10 @@ const TeamSpendingAnalyticsPage: React.FC<TeamSpendingAnalyticsPageProps> = ({
             ))}
             {departmentFilters.length === 0 && (
               <div className="gba:text-sm gba:text-muted-foreground gba:italic gba:py-2">
-                No departments found
+                {getTranslationFromI18nKeyAndLabel(
+                  "lowcoder:team_expenses_page.dashboard_tab.no_departments_found",
+                  "No departments found",
+                )}
               </div>
             )}
           </div>
@@ -956,7 +964,7 @@ const TeamSpendingAnalyticsPage: React.FC<TeamSpendingAnalyticsPageProps> = ({
       <div className="gba:px-6 gba:pt-6 gba:pb-0">
         <button
           onClick={onNavigateBack}
-          className="gba:flex gba:items-center gba:text-blue-500 gba:hover:text-blue-600"
+          className="gba:flex gba:items-center gba:text-primary gba:hover:text-accent"
           data-testid="team-spending-analytics-back-button"
         >
           <PiArrowLeft className="gba:mr-2" />
@@ -987,7 +995,7 @@ const TeamSpendingAnalyticsPage: React.FC<TeamSpendingAnalyticsPageProps> = ({
             widgets={widgets}
             isLoading={isLoading}
             error={error ? error : null}
-            onRetry={() => window.location.reload()}
+            onRetry={() => globalThis.location?.reload?.()}
             skeletonCount={4}
             emptyText={getTranslationFromI18nKeyAndLabel(
               "lowcoder:team_expenses_page.dashboard_tab.no_analytics_data",

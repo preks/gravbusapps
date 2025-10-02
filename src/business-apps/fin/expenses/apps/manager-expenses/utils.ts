@@ -28,316 +28,85 @@ export interface StatusDisplayConfig {
   type: PillType;
 }
 
-/**
- * Maps technical expense plan statuses to user-friendly display configurations
- * @param status - The technical status from the API
- * @returns StatusDisplayConfig with label and styling information
- */
-export const getExpensePlanStatusDisplay = (status: string): StatusDisplayConfig => {
-  switch (status) {
-    case 'IN_APPROVAL':
-      return {
-        label: getTranslationFromI18nKeyAndLabel('lowcoder:expense_statuses.in_approval', 'In Approval'),
-        type: 'task',
-      };
-    case 'VERIFICATION_REQUIRED':
-      return {
-        label: getTranslationFromI18nKeyAndLabel('lowcoder:expense_statuses.verification_required', 'Verification Required'),
-        type: 'waiting',
-      };
-    case ExpenseStatus.PREPARED:
-      return {
-        label: getTranslationFromI18nKeyAndLabel('lowcoder:expense_statuses.prepared', 'Prepared'),
-        type: 'draft',
-      };
-    case ExpenseStatus.CREATED:
-      return {
-        label: getTranslationFromI18nKeyAndLabel('lowcoder:expense_statuses.draft', 'Draft'),
-        type: 'draft',
-      };
-    case ExpenseStatus.ASSIGNED:
-      return {
-        label: getTranslationFromI18nKeyAndLabel('lowcoder:expense_statuses.assigned', 'Assigned'),
-        type: 'waiting',
-      };
-    case ExpenseStatus.PENDING:
-      return {
-        label: getTranslationFromI18nKeyAndLabel(
-          'lowcoder:expense_statuses.in_approval',
-          'In Approval',
-        ),
-        type: 'task',
-      };
-    case ExpenseStatus.APPROVED:
-      return {
-        label: getTranslationFromI18nKeyAndLabel('lowcoder:expense_statuses.approved', 'Approved'),
-        type: 'completed',
-      };
-    case ExpenseStatus.RETURNED:
-      return {
-        label: getTranslationFromI18nKeyAndLabel('lowcoder:expense_statuses.returned', 'Returned'),
-        type: 'waiting',
-      };
-    case ExpenseStatus.REJECTED:
-      return {
-        label: getTranslationFromI18nKeyAndLabel(
-          'lowcoder:expense_statuses.revision_required',
-          'Revision Required',
-        ),
-        type: 'task',
-      };
-    case ExpenseStatus.VERIFIED:
-      return {
-        label: getTranslationFromI18nKeyAndLabel('lowcoder:expense_statuses.verified', 'Verified'),
-        type: 'waiting',
-      };
-    case ExpenseStatus.BOOKED:
-      return {
-        label: getTranslationFromI18nKeyAndLabel('lowcoder:expense_statuses.booked', 'Booked'),
-        type: 'waiting',
-      };
-    case ExpenseStatus.PAID:
-      return {
-        label: getTranslationFromI18nKeyAndLabel('lowcoder:expense_statuses.paid', 'Paid'),
-        type: 'completed',
-      };
-    case ExpenseStatus.CLOSED:
-      return {
-        label: getTranslationFromI18nKeyAndLabel('lowcoder:expense_statuses.closed', 'Closed'),
-        type: 'completed',
-      };
-    case ExpenseStatus.DISCARDED:
-      return {
-        label: getTranslationFromI18nKeyAndLabel(
-          'lowcoder:expense_statuses.discarded',
-          'Discarded',
-        ),
-        type: 'error',
-      };
-    case ExpenseStatus.TRANSFERRED:
-      return {
-        label: getTranslationFromI18nKeyAndLabel(
-          'lowcoder:expense_statuses.transferred',
-          'Transferred',
-        ),
-        type: 'completed',
-      };
-    default:
-      return {
-        label: status,
-        type: 'draft',
-      };
-  }
+// Consolidated status keys that can come from APIs or UI
+type StatusKey =
+  | keyof typeof ExpenseStatus
+  | 'IN_APPROVAL'
+  | 'VERIFICATION_REQUIRED'
+  | 'Open';
+
+// Base i18n + default pill type for each status (shared across entities)
+const BASE_STATUS_MAP: Record<StatusKey, { i18nKey: string; fallback: string; defaultType: PillType }> = {
+  IN_APPROVAL: { i18nKey: 'lowcoder:expense_statuses.in_approval', fallback: 'In Approval', defaultType: 'task' },
+  VERIFICATION_REQUIRED: { i18nKey: 'lowcoder:expense_statuses.verification_required', fallback: 'Verification Required', defaultType: 'waiting' },
+  PREPARED: { i18nKey: 'lowcoder:expense_statuses.prepared', fallback: 'Prepared', defaultType: 'draft' },
+  CREATED: { i18nKey: 'lowcoder:expense_statuses.draft', fallback: 'Draft', defaultType: 'draft' },
+  ASSIGNED: { i18nKey: 'lowcoder:expense_statuses.assigned', fallback: 'Assigned', defaultType: 'waiting' },
+  PENDING: { i18nKey: 'lowcoder:expense_statuses.in_approval', fallback: 'In Approval', defaultType: 'task' },
+  APPROVED: { i18nKey: 'lowcoder:expense_statuses.approved', fallback: 'Approved', defaultType: 'completed' },
+  RETURNED: { i18nKey: 'lowcoder:expense_statuses.returned', fallback: 'Returned', defaultType: 'waiting' },
+  REJECTED: { i18nKey: 'lowcoder:expense_statuses.revision_required', fallback: 'Revision Required', defaultType: 'error' },
+  VERIFIED: { i18nKey: 'lowcoder:expense_statuses.verified', fallback: 'Verified', defaultType: 'waiting' },
+  BOOKED: { i18nKey: 'lowcoder:expense_statuses.booked', fallback: 'Booked', defaultType: 'waiting' },
+  PAID: { i18nKey: 'lowcoder:expense_statuses.paid', fallback: 'Paid', defaultType: 'completed' },
+  CLOSED: { i18nKey: 'lowcoder:expense_statuses.closed', fallback: 'Closed', defaultType: 'completed' },
+  DISCARDED: { i18nKey: 'lowcoder:expense_statuses.discarded', fallback: 'Discarded', defaultType: 'error' },
+  TRANSFERRED: { i18nKey: 'lowcoder:expense_statuses.transferred', fallback: 'Transferred', defaultType: 'completed' },
+  Open: { i18nKey: 'translation:flow_status_open', fallback: 'Open', defaultType: 'draft' },
+} as const;
+
+// Per-entity overrides only where they differ from the base
+const ENTITY_OVERRIDES: {
+  plan: Partial<Record<StatusKey, PillType>>;
+  request: Partial<Record<StatusKey, PillType>>;
+  advance: Partial<Record<StatusKey, PillType>>;
+} = {
+  plan: {
+    // Plan uses task for REJECTED instead of error
+    REJECTED: 'task',
+  },
+  request: {
+    // request matches base; keep here for clarity/expansion
+  },
+  advance: {
+    // advance matches base; keep here for clarity/expansion
+  },
 };
 
 /**
- * Maps technical expense request statuses to user-friendly display configurations
- * @param status - The technical status from the API
- * @returns StatusDisplayConfig with label and styling information
+ * Generic status-to-display mapper with per-entity overrides.
  */
-export const getExpenseRequestStatusDisplay = (status: string): StatusDisplayConfig => {
-  switch (status) {
-    case 'IN_APPROVAL':
-      return {
-        label: getTranslationFromI18nKeyAndLabel('lowcoder:expense_statuses.in_approval', 'In Approval'),
-        type: 'task',
-      };
-    case 'VERIFICATION_REQUIRED':
-      return {
-        label: getTranslationFromI18nKeyAndLabel('lowcoder:expense_statuses.verification_required', 'Verification Required'),
-        type: 'waiting',
-      };
-    case ExpenseStatus.PREPARED:
-      return {
-        label: getTranslationFromI18nKeyAndLabel('lowcoder:expense_statuses.prepared', 'Prepared'),
-        type: 'draft',
-      };
-    case ExpenseStatus.CREATED:
-      return {
-        label: getTranslationFromI18nKeyAndLabel('lowcoder:expense_statuses.draft', 'Draft'),
-        type: 'draft',
-      };
-    case ExpenseStatus.ASSIGNED:
-      return {
-        label: getTranslationFromI18nKeyAndLabel('lowcoder:expense_statuses.assigned', 'Assigned'),
-        type: 'waiting',
-      };
-    case ExpenseStatus.PENDING:
-      return {
-        label: getTranslationFromI18nKeyAndLabel(
-          'lowcoder:expense_statuses.in_approval',
-          'In Approval',
-        ),
-        type: 'task',
-      };
-    case ExpenseStatus.APPROVED:
-      return {
-        label: getTranslationFromI18nKeyAndLabel('lowcoder:expense_statuses.approved', 'Approved'),
-        type: 'completed',
-      };
-    case ExpenseStatus.RETURNED:
-      return {
-        label: getTranslationFromI18nKeyAndLabel('lowcoder:expense_statuses.returned', 'Returned'),
-        type: 'waiting',
-      };
-    case ExpenseStatus.REJECTED:
-      return {
-        label: getTranslationFromI18nKeyAndLabel(
-          'lowcoder:expense_statuses.revision_required',
-          'Revision Required',
-        ),
-        type: 'error',
-      };
-    case ExpenseStatus.VERIFIED:
-      return {
-        label: getTranslationFromI18nKeyAndLabel('lowcoder:expense_statuses.verified', 'Verified'),
-        type: 'waiting',
-      };
-    case ExpenseStatus.BOOKED:
-      return {
-        label: getTranslationFromI18nKeyAndLabel('lowcoder:expense_statuses.booked', 'Booked'),
-        type: 'waiting',
-      };
-    case ExpenseStatus.PAID:
-      return {
-        label: getTranslationFromI18nKeyAndLabel('lowcoder:expense_statuses.paid', 'Paid'),
-        type: 'completed',
-      };
-    case ExpenseStatus.CLOSED:
-      return {
-        label: getTranslationFromI18nKeyAndLabel('lowcoder:expense_statuses.closed', 'Closed'),
-        type: 'completed',
-      };
-    case ExpenseStatus.DISCARDED:
-      return {
-        label: getTranslationFromI18nKeyAndLabel(
-          'lowcoder:expense_statuses.discarded',
-          'Discarded',
-        ),
-        type: 'error',
-      };
-    case ExpenseStatus.TRANSFERRED:
-      return {
-        label: getTranslationFromI18nKeyAndLabel(
-          'lowcoder:expense_statuses.transferred',
-          'Transferred',
-        ),
-        type: 'completed',
-      };
-    case 'Open':
-      return {
-        label: getTranslationFromI18nKeyAndLabel('translation:flow_status_open', 'Open'),
-        type: 'draft',
-      };
-    default:
-      return {
-        label: status,
-        type: 'draft',
-      };
+export const getEntityStatusDisplay = (
+  entity: 'plan' | 'request' | 'advance',
+  status: string,
+): StatusDisplayConfig => {
+  if (!status) {
+    return { label: '', type: 'draft' };
   }
+  const normalized = String(status) as StatusKey;
+  const base = BASE_STATUS_MAP[normalized];
+
+  if (!base) {
+    return { label: status, type: 'draft' };
+  }
+
+  const overrideType = ENTITY_OVERRIDES[entity]?.[normalized];
+  const type = overrideType || base.defaultType;
+  const label = getTranslationFromI18nKeyAndLabel(base.i18nKey, base.fallback);
+  return { label, type };
 };
 
 /**
- * Maps technical advance payment statuses to user-friendly display configurations
- * @param status - The technical status from the API
- * @returns StatusDisplayConfig with label and styling information
+ * Backward-compatible wrappers (preserve existing imports in other files).
  */
-export const getAdvancePaymentStatusDisplay = (status: string): StatusDisplayConfig => {
-  switch (status) {
-    case 'IN_APPROVAL':
-      return {
-        label: getTranslationFromI18nKeyAndLabel('lowcoder:expense_statuses.in_approval', 'In Approval'),
-        type: 'task',
-      };
-    case 'VERIFICATION_REQUIRED':
-      return {
-        label: getTranslationFromI18nKeyAndLabel('lowcoder:expense_statuses.verification_required', 'Verification Required'),
-        type: 'waiting',
-      };
-    case ExpenseStatus.PREPARED:
-      return {
-        label: getTranslationFromI18nKeyAndLabel('lowcoder:expense_statuses.prepared', 'Prepared'),
-        type: 'draft',
-      };
-    case ExpenseStatus.CREATED:
-      return {
-        label: getTranslationFromI18nKeyAndLabel('lowcoder:expense_statuses.draft', 'Draft'),
-        type: 'draft',
-      };
-    case ExpenseStatus.ASSIGNED:
-      return {
-        label: getTranslationFromI18nKeyAndLabel('lowcoder:expense_statuses.assigned', 'Assigned'),
-        type: 'waiting',
-      };
-    case ExpenseStatus.PENDING:
-      return {
-        label: getTranslationFromI18nKeyAndLabel(
-          'lowcoder:expense_statuses.in_approval',
-          'In Approval',
-        ),
-        type: 'task',
-      };
-    case ExpenseStatus.APPROVED:
-      return {
-        label: getTranslationFromI18nKeyAndLabel('lowcoder:expense_statuses.approved', 'Approved'),
-        type: 'completed',
-      };
-    case ExpenseStatus.RETURNED:
-      return {
-        label: getTranslationFromI18nKeyAndLabel('lowcoder:expense_statuses.returned', 'Returned'),
-        type: 'waiting',
-      };
-    case ExpenseStatus.REJECTED:
-      return {
-        label: getTranslationFromI18nKeyAndLabel(
-          'lowcoder:expense_statuses.revision_required',
-          'Revision Required',
-        ),
-        type: 'error',
-      };
-    case ExpenseStatus.VERIFIED:
-      return {
-        label: getTranslationFromI18nKeyAndLabel('lowcoder:expense_statuses.verified', 'Verified'),
-        type: 'waiting',
-      };
-    case ExpenseStatus.BOOKED:
-      return {
-        label: getTranslationFromI18nKeyAndLabel('lowcoder:expense_statuses.booked', 'Booked'),
-        type: 'waiting',
-      };
-    case ExpenseStatus.PAID:
-      return {
-        label: getTranslationFromI18nKeyAndLabel('lowcoder:expense_statuses.paid', 'Paid'),
-        type: 'completed',
-      };
-    case ExpenseStatus.CLOSED:
-      return {
-        label: getTranslationFromI18nKeyAndLabel('lowcoder:expense_statuses.closed', 'Closed'),
-        type: 'completed',
-      };
-    case ExpenseStatus.DISCARDED:
-      return {
-        label: getTranslationFromI18nKeyAndLabel(
-          'lowcoder:expense_statuses.discarded',
-          'Discarded',
-        ),
-        type: 'error',
-      };
-    case ExpenseStatus.TRANSFERRED:
-      return {
-        label: getTranslationFromI18nKeyAndLabel(
-          'lowcoder:expense_statuses.transferred',
-          'Transferred',
-        ),
-        type: 'completed',
-      };
-    default:
-      return {
-        label: status,
-        type: 'draft',
-      };
-  }
-};
+export const getExpensePlanStatusDisplay = (status: string): StatusDisplayConfig =>
+  getEntityStatusDisplay('plan', status);
+
+export const getExpenseRequestStatusDisplay = (status: string): StatusDisplayConfig =>
+  getEntityStatusDisplay('request', status);
+
+export const getAdvancePaymentStatusDisplay = (status: string): StatusDisplayConfig =>
+  getEntityStatusDisplay('advance', status);
 
 /**
  * Normalizes unknown error values into a user-friendly string message

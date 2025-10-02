@@ -31,7 +31,15 @@ import {
 import { navigateTo, buildPlatformUrl } from "@/common/utils/navigationUtils";
 import { AdvancePayment as AdvancePaymentItem } from "../../../hooks/useMainViewAdvancePayments";
 import AdvancePaymentDetails from "./AdvancePaymentDetails";
-import Pill from "@/components/pill/Pill";
+// Local token map for status colors
+const ADV_STATUS_TOKENS: Record<string, string> = {
+  draft: "var(--nw-color-neutral-500)",
+  completed: "var(--nw-color-success-500)",
+  waiting: "var(--nw-color-info-500)",
+  task: "var(--nw-color-warning-500)",
+  error: "var(--nw-color-danger-500)",
+  preparing: "var(--nw-color-neutral-400)",
+};
 
 interface AdvancePaymentsTableProps extends BusinessAppContextProps {}
 
@@ -121,7 +129,7 @@ const AdvancePaymentsTable: React.FC<AdvancePaymentsTableProps> = (props) => {
     }
 
     return (
-        <div className="gba:border gba:border-gray-200 gba:rounded-md gba:shadow-sm">
+        <div className="gba:border gba:border-gray-200 gba:rounded-md">
         {/* Table with horizontal scrolling */}
         <div className="gba:overflow-x-auto gba:pr-4">
           <Table data-testid="advance-payments-table" className="gba:min-w-[1296px] gba:w-full gba:table-fixed">
@@ -425,11 +433,19 @@ const AdvancePaymentsTable: React.FC<AdvancePaymentsTableProps> = (props) => {
                     </span>
                   </TableCell>
                   <TableCell className="gba:pr-6 gba:w-[35%]">
-                    <Pill
-                      label={getAdvancePaymentStatusDisplay(record.status).label}
-                      type={getAdvancePaymentStatusDisplay(record.status).type as any}
-                      data-testid={`status-pill-${record.status.toLowerCase()}`}
-                    />
+                    {(() => {
+                      const status = getAdvancePaymentStatusDisplay(record.status);
+                      const token = ADV_STATUS_TOKENS[String(status.type).toLowerCase()] || ADV_STATUS_TOKENS.draft;
+                      return (
+                        <span
+                          className="gba:inline-block gba:rounded-full gba:px-3 gba:py-1 gba:text-xs gba:font-medium gba:whitespace-nowrap"
+                          style={{ backgroundColor: token, color: "var(--nw-color-on-primary)" }}
+                          data-testid={`status-pill-${record.status.toLowerCase()}`}
+                        >
+                          {status.label}
+                        </span>
+                      );
+                    })()}
                   </TableCell>
                 </TableRow>
               ))}

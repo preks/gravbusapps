@@ -19,7 +19,15 @@ import {
 } from "@newwork/nw-design-system";
 import { PiArrowUp, PiArrowDown } from "react-icons/pi";
 import { DataContainer } from "@/components/layout/dataContainer/DataContainer";
-import Pill from "@/components/pill/Pill";
+// Local token map for status colors
+const REQUEST_STATUS_TOKENS: Record<string, string> = {
+  draft: "var(--nw-color-neutral-500)",
+  completed: "var(--nw-color-success-500)",
+  waiting: "var(--nw-color-info-500)",
+  task: "var(--nw-color-warning-500)",
+  error: "var(--nw-color-danger-500)",
+  preparing: "var(--nw-color-neutral-400)",
+};
 import { BusinessAppContextProps } from "@/common/BusinessAppContext";
 import { ExpenseRequest, SortField } from "../../../hooks/useGetExpenseRequests";
 import { getExpenseRequestStatusDisplay } from "../../../utils";
@@ -307,7 +315,7 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = (props) => {
 
     return (
       <div>
-        <div className="gba:overflow-x-auto gba:pr-4 gba:border gba:border-gray-200 gba:rounded-md gba:shadow-sm gba:relative">
+        <div className="gba:overflow-x-auto gba:pr-4 gba:border gba:border-gray-200 gba:rounded-md gba:relative">
           {isLoading && requests.length > 0 && (
             <div
               className="gba:absolute gba:inset-0 gba:bg-white/50 gba:flex gba:items-center gba:justify-center gba:z-10"
@@ -597,11 +605,16 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = (props) => {
                         : formatCurrencyDisplay(0, record.currency || "EUR")}
                     </TableCell>
                     <TableCell className="gba:pr-6 gba:w-[35%]">
-                      <Pill
-                        type={type as any}
-                        label={label}
+                      <span
+                        className="gba:inline-block gba:rounded-full gba:px-3 gba:py-1 gba:text-xs gba:font-medium gba:whitespace-nowrap"
+                        style={{
+                          backgroundColor: REQUEST_STATUS_TOKENS[String(type).toLowerCase()] || REQUEST_STATUS_TOKENS.draft,
+                          color: "var(--nw-color-on-primary)",
+                        }}
                         data-testid={`status-pill-${record.status?.toLowerCase()}`}
-                      />
+                      >
+                        {label}
+                      </span>
                     </TableCell>
                   </TableRow>
                 );

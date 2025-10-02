@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { AdvancePaymentStatistics as AdvancePaymentStatisticsData } from "../../../hooks/useMainViewAdvancePayments";
 import { WidgetGroup, WidgetItem } from "@/components/widget-group";
 import { Spinner } from "@newwork/nw-design-system";
@@ -22,43 +22,44 @@ const AdvancePaymentStatistics: React.FC<AdvancePaymentStatisticsProps> = ({
   // Use the global currency store - use primary currency (user's selection) for both cards
   const { primaryCurrency } = useCurrencyStore();
 
-  // Transform the stats data into widgets format
-  const widgets: WidgetItem[] = advancePaymentStats
-    ? [
-        {
-          key: "total-advance-payment",
-          title: getTranslationFromI18nKeyAndLabel(
-            "lowcoder:team_expenses_page.advance_payments_tab.total_advance_payments",
-            "Total Advance Payment",
-          ),
-          value: advancePaymentStats.sumAmount
-            ? formatCurrencyDisplay(advancePaymentStats.sumAmount, primaryCurrency)
-            : formatCurrencyDisplay(0, primaryCurrency),
-          color: "var(--nw-color-success-500)",
-          valueIsString: true, // Mark as pre-formatted string
-          description: getTranslationFromI18nKeyAndLabel(
-            "lowcoder:team_expenses_page.advance_payments_tab.total_advance_payments",
-            "Total Advance Payments",
-          ),
-        },
-        {
-          key: "pending-amount",
-          title: getTranslationFromI18nKeyAndLabel(
-            "lowcoder:team_expenses_page.expense_plans_tab.pending_amount",
-            "Pending Amount",
-          ),
-          value: advancePaymentStats.pendingAmount
-            ? formatCurrencyDisplay(advancePaymentStats.pendingAmount, primaryCurrency)
-            : formatCurrencyDisplay(0, primaryCurrency),
-          color: "var(--nw-color-danger-500)",
-          valueIsString: true, // Mark as pre-formatted string
-          description: getTranslationFromI18nKeyAndLabel(
-            "lowcoder:team_expenses_page.expense_plans_tab.awaiting_approval",
-            "Awaiting approval",
-          ),
-        },
-      ]
-    : [];
+  // Transform the stats data into widgets format (memoized to avoid infinite effect loops)
+  const widgets: WidgetItem[] = useMemo(() => {
+    if (!advancePaymentStats) return [];
+    return [
+      {
+        key: "total-advance-payment",
+        title: getTranslationFromI18nKeyAndLabel(
+          "lowcoder:team_expenses_page.advance_payments_tab.total_advance_payments",
+          "Total Advance Payment",
+        ),
+        value: advancePaymentStats.sumAmount
+          ? formatCurrencyDisplay(advancePaymentStats.sumAmount, primaryCurrency)
+          : formatCurrencyDisplay(0, primaryCurrency),
+        color: "var(--nw-color-success-500)",
+        valueIsString: true,
+        description: getTranslationFromI18nKeyAndLabel(
+          "lowcoder:team_expenses_page.advance_payments_tab.total_advance_payments",
+          "Total Advance Payments",
+        ),
+      },
+      {
+        key: "pending-amount",
+        title: getTranslationFromI18nKeyAndLabel(
+          "lowcoder:team_expenses_page.expense_plans_tab.pending_amount",
+          "Pending Amount",
+        ),
+        value: advancePaymentStats.pendingAmount
+          ? formatCurrencyDisplay(advancePaymentStats.pendingAmount, primaryCurrency)
+          : formatCurrencyDisplay(0, primaryCurrency),
+        color: "var(--nw-color-danger-500)",
+        valueIsString: true,
+        description: getTranslationFromI18nKeyAndLabel(
+          "lowcoder:team_expenses_page.expense_plans_tab.awaiting_approval",
+          "Awaiting approval",
+        ),
+      },
+    ];
+  }, [advancePaymentStats, primaryCurrency]);
 
   const [lastWidgets, setLastWidgets] = useState<WidgetItem[] | null>(null);
   useEffect(() => {
@@ -85,7 +86,12 @@ const AdvancePaymentStatistics: React.FC<AdvancePaymentStatisticsProps> = ({
           error={hasLoadedOnce && statsError ? "Failed to load statistics" : undefined}
           onRetry={fetchAdvancePaymentStatistics}
           skeletonCount={4}
-          emptyText={hasLoadedOnce ? "No advance payment statistics available." : undefined}
+          emptyText={hasLoadedOnce
+            ? getTranslationFromI18nKeyAndLabel(
+                "lowcoder:team_expenses_page.advance_payments_tab.no_statistics",
+                "No advance payment statistics available."
+              )
+            : undefined}
           cardBackground="transparent"
           className="gba:py-0"
         />

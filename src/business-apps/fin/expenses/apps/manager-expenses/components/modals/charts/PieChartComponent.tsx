@@ -43,7 +43,7 @@ const PieChartComponent: React.FC<PieChartProps> = ({
   getColor,
 }) => {
   const resolveCssVar = (color: string): string => {
-    if (typeof window === 'undefined') return color;
+    if (typeof globalThis === 'undefined') return color;
     if (!color?.startsWith('var(')) return color;
     const varName = color.substring(4, color.length - 1).trim();
     const value = getComputedStyle(document.documentElement).getPropertyValue(varName).trim();
@@ -62,10 +62,10 @@ const PieChartComponent: React.FC<PieChartProps> = ({
         <CardContent>
           <div className="gba:flex gba:flex-col gba:items-center gba:justify-center gba:p-8 gba:text-center gba:min-h-[200px]">
             <div className="gba:text-gray-500 gba:text-lg gba:font-medium gba:mb-2">
-              No data available
+              {"No data available"}
             </div>
             <div className="gba:text-gray-400 gba:text-sm">
-              There is no data to display for this chart.
+              {"There is no data to display for this chart."}
             </div>
           </div>
         </CardContent>

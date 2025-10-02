@@ -56,7 +56,7 @@ export const useExpenseGroupCatalog = (accessToken: string): UseExpenseGroupCata
 
       try {
         // Get current user locale
-        const activeUserLocale = window.localStorage.getItem("activeUserLocale") || "en";
+        const activeUserLocale = globalThis.localStorage?.getItem?.("activeUserLocale") || "en";
 
         const response = await graphqlClient.request(GET_EXPENSE_GROUPS, { activeUserLocale });
 

@@ -81,7 +81,7 @@ const ExpenseDashboardTab: React.FC<ExpenseDashboardTabProps> = (props) => {
       icon: PiListChecks,
       onClick: () => props.onNavigateToApprovals?.(),
       testId: "review-approvals-action",
-      iconColor: "gba:text-blue-500",
+      iconColor: "gba:text-primary",
     },
     {
       key: "analysis",
@@ -96,7 +96,7 @@ const ExpenseDashboardTab: React.FC<ExpenseDashboardTabProps> = (props) => {
       icon: PiChartLineUp,
       onClick: () => props.onNavigateToAnalytics?.(),
       testId: "team-spending-analysis-action",
-      iconColor: "gba:text-green-500",
+      iconColor: "gba:text-success",
     },
     {
       key: "reports",
@@ -111,7 +111,7 @@ const ExpenseDashboardTab: React.FC<ExpenseDashboardTabProps> = (props) => {
       icon: PiFileText,
       onClick: () => props.onNavigateToReports?.(),
       testId: "expense-reports-action",
-      iconColor: "gba:text-purple-500",
+      iconColor: "gba:text-accent",
     },
   ];
 
@@ -227,7 +227,7 @@ const ExpenseDashboardTab: React.FC<ExpenseDashboardTabProps> = (props) => {
             widgets={widgets}
             isLoading={false}
             error={error ? getErrorMessage(error) : null}
-            onRetry={() => window.location.reload()}
+            onRetry={() => globalThis.location?.reload?.()}
             skeletonCount={4}
             emptyText={undefined}
             data-testid="expense-dashboard-statistics"
@@ -250,7 +250,7 @@ const ExpenseDashboardTab: React.FC<ExpenseDashboardTabProps> = (props) => {
               return (
                 <Card
                   key={action.key}
-                  className="gba:cursor-pointer gba:transition-all gba:hover:shadow-md"
+                  className="gba:cursor-pointer gba:transition-colors"
                   onClick={action.onClick}
                   data-testid={`quick-action-${action.key}`}
                 >

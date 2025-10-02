@@ -155,13 +155,13 @@ const ApprovalsPage: React.FC<ApprovalsPageProps> = ({ onNavigateBack, ...props 
     ];
 
     eventNames.forEach((eventName) => {
-      window.addEventListener(eventName, handleProcessCompletion as EventListener);
+      globalThis.addEventListener?.(eventName, handleProcessCompletion as EventListener);
     });
 
     // Cleanup function
     return () => {
       eventNames.forEach((eventName) => {
-        window.removeEventListener(eventName, handleProcessCompletion as EventListener);
+        globalThis.removeEventListener?.(eventName, handleProcessCompletion as EventListener);
       });
     };
   }, [refreshAllData]);
@@ -185,7 +185,7 @@ const ApprovalsPage: React.FC<ApprovalsPageProps> = ({ onNavigateBack, ...props 
       <div className="gba:px-6 gba:pt-6 gba:pb-0">
         <button
           onClick={onNavigateBack}
-          className="gba:flex gba:items-center gba:text-blue-500 gba:hover:text-blue-600"
+          className="gba:flex gba:items-center gba:text-primary gba:hover:text-accent"
           data-testid="approvals-back-button"
         >
           <PiArrowLeft className="gba:mr-2" />

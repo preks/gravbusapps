@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { ExpenseRequestStatisticsData } from "../../../hooks/useGetExpenseRequests";
 import { WidgetGroup, WidgetItem } from "@/components/widget-group";
 import { Spinner } from "@newwork/nw-design-system";
@@ -58,7 +58,8 @@ const ExpenseRequestStatistics: React.FC<ExpenseRequestStatisticsProps> = ({
     [selectedFilters, addFilter, removeFilter],
   );
 
-  const widgets: WidgetItem[] = requestStats
+  const widgets: WidgetItem[] = useMemo(() => (
+    requestStats
     ? [
         {
           key: "pending-requests",
@@ -132,7 +133,8 @@ const ExpenseRequestStatistics: React.FC<ExpenseRequestStatisticsProps> = ({
           active: selectedFilters.length === 0,
         },
       ]
-    : [];
+    : []
+  ), [requestStats, selectedFilters, displayCurrency]);
 
   // Handle widget clicks from WidgetGroup
   const handleWidgetClick = useCallback(
@@ -149,7 +151,7 @@ const ExpenseRequestStatistics: React.FC<ExpenseRequestStatisticsProps> = ({
           break;
       }
     },
-    [handleCardClick, selectedFilters, removeFilter],
+    [handleCardClick],
   );
 
   // Preserve last widgets to prevent flicker

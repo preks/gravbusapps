@@ -35,7 +35,7 @@ const BarChartComponent: React.FC<BarChartProps> = ({
   getColor,
 }) => {
   const resolveCssVar = (color: string): string => {
-    if (typeof window === 'undefined') return color;
+    if (typeof globalThis === 'undefined') return color;
     if (!color?.startsWith('var(')) return color;
     const varName = color.substring(4, color.length - 1).trim();
     const value = getComputedStyle(document.documentElement).getPropertyValue(varName).trim();

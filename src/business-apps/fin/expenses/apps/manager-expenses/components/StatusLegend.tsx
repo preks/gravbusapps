@@ -1,16 +1,16 @@
 import React from 'react';
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
 import { PillType } from '@/components/pill/Pill';
-import { getPillColor } from '@/components/pill/pillColors';
 
-const pillTypeColorMap = {
-  draft: getPillColor('draft'),
-  completed: getPillColor('completed'),
-  waiting: getPillColor('waiting'),
-  task: getPillColor('task'),
-  error: getPillColor('error'),
-  preparing: getPillColor('preparing'),
-} as const;
+// Local design-token based color map to avoid importing shared file
+const pillTypeColorMap: Record<PillType, string> = {
+  draft: 'var(--nw-color-neutral-500)',
+  completed: 'var(--nw-color-success-500)',
+  waiting: 'var(--nw-color-info-500)',
+  task: 'var(--nw-color-warning-500)',
+  error: 'var(--nw-color-danger-500)',
+  preparing: 'var(--nw-color-neutral-400)'
+};
 
 const pillTypeLabelMap: Record<PillType, string> = {
   draft: getTranslationFromI18nKeyAndLabel('lowcoder:status_legend.draft', 'Draft'),
@@ -37,8 +37,8 @@ export const StatusLegend: React.FC<{ id?: string }> = ({ id }) => (
 );
 
 // Expose color map globally for charts that need to resolve colors without importing maps everywhere
-if (typeof window !== 'undefined') {
-  (window as any).__nw_pill_colors = pillTypeColorMap;
+if (typeof globalThis !== 'undefined') {
+  (globalThis as any).__nw_pill_colors = pillTypeColorMap;
 }
 
 export default StatusLegend;

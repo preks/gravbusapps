@@ -19,7 +19,15 @@ import {
 import { Modal } from "antd";
 import { PiArrowUp, PiArrowDown } from "react-icons/pi";
 import { BusinessAppContextProps } from "@/common/BusinessAppContext";
-import Pill from "@/components/pill/Pill";
+// Local token map for status colors
+const PLAN_STATUS_TOKENS: Record<string, string> = {
+  draft: "var(--nw-color-neutral-500)",
+  completed: "var(--nw-color-success-500)",
+  waiting: "var(--nw-color-info-500)",
+  task: "var(--nw-color-warning-500)",
+  error: "var(--nw-color-danger-500)",
+  preparing: "var(--nw-color-neutral-400)",
+};
 import { ExpensePlan, SortField } from "../../../hooks/useMainViewExpensePlans";
 import { getExpensePlanStatusDisplay, ExpenseStatus } from "../../../utils";
 import {
@@ -264,7 +272,7 @@ const ExpensePlansTable: React.FC<ExpensePlansTableProps> = (props) => {
   return (
     <div data-testid={`${DATA_TEST_ID_PREFIX}-container`}>
       {/* Table with border containing both table and pagination */}
-      <div className="gba:border gba:border-gray-200 gba:rounded-md gba:shadow-sm">
+      <div className="gba:border gba:border-gray-200 gba:rounded-md">
         {/* Table with horizontal scrolling and fixed height */}
         <div className="gba:overflow-x-auto gba:pr-4 gba:border-b gba:border-gray-200">
           <Table data-testid={`${DATA_TEST_ID_PREFIX}-table`} className="gba:min-w-[1296px] gba:w-full gba:table-fixed">
@@ -538,7 +546,16 @@ const ExpensePlansTable: React.FC<ExpensePlansTableProps> = (props) => {
                       </span>
                     </TableCell>
                     <TableCell className="gba:pr-6 gba:w-[35%]">
-                      <Pill type={display.type as any} label={display.label} />
+                      <span
+                        className="gba:inline-block gba:rounded-full gba:px-3 gba:py-1 gba:text-xs gba:font-medium gba:whitespace-nowrap"
+                        style={{
+                          backgroundColor: PLAN_STATUS_TOKENS[String(display.type).toLowerCase()] || PLAN_STATUS_TOKENS.draft,
+                          color: "var(--nw-color-on-primary)",
+                        }}
+                        data-testid={`status-pill-${String(display.type).toLowerCase()}`}
+                      >
+                        {display.label}
+                      </span>
                     </TableCell>
                   </TableRow>
                 );
