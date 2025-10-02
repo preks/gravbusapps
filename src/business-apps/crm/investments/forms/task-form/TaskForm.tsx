@@ -50,19 +50,25 @@ const InvestmentTaskForm: React.FC<InvestmentTaskFormProps> = ({ accessToken, us
     return {
       taskId: (additionalData as any)?.taskId || nested?.taskId,
       employeeId: (additionalData as any)?.employeeId || nested?.employeeId,
+      investmentId: (additionalData as any)?.investmentId || nested?.investmentId,
       accountId: (additionalData as any)?.accountId || nested?.accountId,
       contactId: (additionalData as any)?.contactId || nested?.contactId,
       opportunityId: (additionalData as any)?.opportunityId || nested?.opportunityId,
       leadId: (additionalData as any)?.leadId || nested?.leadId,
     } as {
-      taskId?: string; employeeId?: string; accountId?: string; contactId?: string; opportunityId?: string; leadId?: string;
+      taskId?: string; employeeId?: string; investmentId?: string; accountId?: string; contactId?: string; opportunityId?: string; leadId?: string;
     };
   }, [additionalData]);
 
+  const investmentId = platformParams.investmentId;
   const accountId = platformParams.accountId;
   const contactId = platformParams.contactId;
   const opportunityId = platformParams.opportunityId;
   const leadId = platformParams.leadId;
+
+  // Determine if entity selection should be shown
+  const hasEntityFromContext = investmentId || accountId || contactId || opportunityId || leadId;
+  const shouldShowEntitySelection = !hasEntityFromContext;
   // Load existing task when taskId is provided via additionalData
   React.useEffect(() => {
     const taskId = platformParams.taskId as string | undefined;
@@ -264,6 +270,26 @@ const InvestmentTaskForm: React.FC<InvestmentTaskFormProps> = ({ accessToken, us
     }
   }, [accessToken, platformParams.taskId, searchEntities]);
 
+  // Handle investment-specific entity context (extends common TaskSegment behavior)
+  React.useEffect(() => {
+    if (!investmentId) return;
+    const hasEntity = Boolean(
+      form.getValues("investment") ||
+        form.getValues("account") ||
+        form.getValues("contact") ||
+        form.getValues("opportunity") ||
+        form.getValues("lead")
+    );
+    if (hasEntity) return;
+    
+    // Set investment entity in form
+    form.setValue("investment", { id: investmentId });
+    form.setValue("relatedEntityId", investmentId);
+    
+    // Hydrate investment details for display
+    hydrateEntityById('investment', investmentId);
+  }, [investmentId, form, hydrateEntityById]);
+
   // Detect approval mode from additionalData.typeRef
   const isApprovalMode = React.useMemo(() => {
     const t = (additionalData as any)?.typeRef || (additionalData as any)?.psi_taskPayload?.psi_initialParameters?.typeRef;
@@ -304,8 +330,8 @@ const InvestmentTaskForm: React.FC<InvestmentTaskFormProps> = ({ accessToken, us
         priorityCatalog={{ identifier: TASK_PRIORITY_CATALOG, version: 'v1' }}
         statusCatalog={{ identifier: TASK_STATUS_CATALOG, version: 'v1' }}
         // entity search
-        // Show entity selection for investment-relations page tasks
-        showEntitySelection={true}
+        // Hide entity selection if entity is provided from context
+        showEntitySelection={shouldShowEntitySelection}
         showAssigneeSelection={true}
         entities={entities}
         entitiesLoading={entitiesLoading}

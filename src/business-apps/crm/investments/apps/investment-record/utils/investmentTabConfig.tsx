@@ -1,10 +1,9 @@
 // Investment Tab Configuration Utilities
 import { Home, BarChart3, Folder, FileText } from 'lucide-react';
 import { DocumentSection } from '@/common/components/common-relations/record-sections/document-section';
-import { AccountSection } from '@/common/components/common-relations/record-sections/account-section';
-import { ContactSection } from '@/common/components/common-relations/record-sections/contact-section';
 import { FlowContextName } from '@/common/types/FlowRegistryTypes';
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
+import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 import { 
   GenerateOnePagerButton, 
@@ -48,7 +47,9 @@ export const getTypeSpecificOverviewContent = (investmentType: string, typeSpeci
           isLoading={false}
           onRefresh={onRefresh}
           data-testid="equity-investment-rounds-overview"
-          {...businessAppContext}
+          accessToken={businessAppContext?.accessToken || ''}
+          userInfo={businessAppContext?.userInfo}
+          additionalData={businessAppContext?.additionalData}
         />
       </div>
     );
@@ -94,26 +95,36 @@ export const createInvestmentTabsConfig = (
   loadData: () => void,
   props: BusinessAppContextProps,
   catalogData?: any
-) => ({
-  defaultValue: activeTab,
-  onValueChange: setActiveTab,
-  items: [
+) => {
+  // Create base tabs array
+  const tabs = [
     // Home Tab
     {
       value: 'home',
       label: getTranslationFromI18nKeyAndLabel('crm.investments.tabs.home', 'Home'),
       icon: <Home className="gba:h-4 gba:w-4 gba:mr-2" />,
       content: (
-        <div className="gba:col-span-12">
           <InvestmentHomeTab
             investmentId={investmentId}
+            investment={investment}
             {...props}
           />
-        </div>
       )
-    },
-    // Overview Tab
-    {
+    }
+  ];
+
+  // Add Overview Tab only for non-liquid fund investments
+  const typeStr = (investmentType || '').toUpperCase();
+  const isLiquidFund =
+    typeStr === 'LIQUID_FUND' ||
+    typeStr.includes('LIQUID_FUND') ||
+    ((investment?.investmentGroup?.code || '').toUpperCase().includes('LIQUID_FUND')) ||
+    ((investment?.investmentGroup?.value || '').toUpperCase().includes('LIQUID_FUND')) ||
+    ((investment?.investmentType?.code || '').toUpperCase().includes('LIQUID_FUND')) ||
+    ((investment?.investmentType?.value || '').toUpperCase().includes('LIQUID_FUND'));
+  
+  if (!isLiquidFund) {
+    tabs.push({
       value: 'overview',
       label: getTranslationFromI18nKeyAndLabel('crm.investments.tabs.overview', 'Overview'),
       icon: <BarChart3 className="gba:h-4 gba:w-4 gba:mr-2" />,
@@ -148,25 +159,14 @@ export const createInvestmentTabsConfig = (
           {/* Type-specific content */}
           {getTypeSpecificOverviewContent(investmentType, typeSpecificData, props, loadData)}
 
-          {/* Common Account and Contact Information */}
-          <div 
-            className="gba:grid gba:grid-cols-1 gba:lg:grid-cols-2"
-            style={{ gap: 'var(--nw-spacing-xl)' }}
-          >
-            <AccountSection 
-              account={investment?.investmentAccount}
-              accessToken={props.accessToken}
-              data-testid="investment-account-section"
-            />
-            <ContactSection 
-              contacts={investment?.investmentAccount?.investmentAccountContact?.map((link: any) => link?.contact).filter(Boolean) || []}
-              accessToken={props.accessToken}
-              data-testid="investment-contact-section"
-            />
-          </div>
+          {/* Note: Account and Contact sections removed - now available in Home tab */}
         </div>
       )
-    },
+    });
+  }
+
+  // Add remaining tabs
+  tabs.push(
     // Documents Tab
     {
       value: 'documents',
@@ -232,5 +232,15 @@ export const createInvestmentTabsConfig = (
         </div>
       )
     }
-  ]
-});
+  );
+
+  return {
+    defaultValue: activeTab,
+    onValueChange: (val: string) => {
+      setActiveTab(val);
+      const url = buildPlatformUrl(window.location.pathname, { tab: val });
+      navigateTo(url);
+    },
+    items: tabs
+  };
+};

@@ -133,17 +133,20 @@ export const InvestmentFormProvider: React.FC<InvestmentFormProviderProps> = ({
 }) => {
   // Form state
   const [formValues, setFormValuesState] = useState<InvestmentFormValues>(() => {
-    const initialFormValues = {
-      ownerEmployeeId: initialValues.ownerEmployeeId || businessAppContext.userInfo?.employeeDetails?.employeeId || '',
-      name: initialValues.name || '',
-      accountId: initialValues.accountId || '',
-      contactId: initialValues.contactId || '',
-      initialInvestmentAmount: initialValues.initialInvestmentAmount || '',
-      group: initialValues.group || '',
-      id: initialValues.id,
-      version: initialValues.version,
-      // Spread any additional initial values
-      ...initialValues
+    const initialFormValues: InvestmentFormValues = {
+      investment: {
+        id: initialValues.investment?.id,
+        version: initialValues.investment?.version,
+        name: initialValues.investment?.name || '',
+        initialInvestmentAmount: initialValues.investment?.initialInvestmentAmount || '',
+        investmentGroupRef: initialValues.investment?.investmentGroupRef || '',
+        ownerEmployee: initialValues.investment?.ownerEmployee || businessAppContext.userInfo?.employeeDetails?.employeeId || '',
+        investmentTypeRef: initialValues.investment?.investmentTypeRef,
+        investmentAccount: initialValues.investment?.investmentAccount,
+      },
+      equityInvestment: initialValues.equityInvestment,
+      realEstateInvestment: initialValues.realEstateInvestment,
+      liquidFundInvestment: initialValues.liquidFundInvestment,
     };
 
     return initialFormValues;

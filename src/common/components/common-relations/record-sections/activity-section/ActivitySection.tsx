@@ -1,291 +1,196 @@
-import React, { useMemo, useState, useEffect, useRef } from 'react';
+import React, { useMemo } from 'react';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
-import { Button, Alert, Spinner, TimelineLayout, Select, SelectContent, SelectItem, SelectTrigger, SelectValue, Card, CardHeader, CardContent, CardTitle } from '@newwork/nw-design-system';
-import { PhoneIcon, EnvelopeIcon, CalendarBlankIcon, UserIcon, PlusCircleIcon, DotsThreeVerticalIcon } from '@phosphor-icons/react';
-import { MoreOutlined } from '@ant-design/icons';
+import { Spinner, TimelineLayout, Button, Alert } from '@newwork/nw-design-system';
+import { PhoneIcon, EnvelopeIcon, CalendarBlankIcon, UserIcon, PlusIcon, DotsThreeVertical } from '@phosphor-icons/react';
 import dayjs from 'dayjs';
 import { AppAction } from '@/components/app-action';
 import { AppActionMenu } from '@/components/app-action-menu/AppActionMenu';
 import type { AppActionCommonProps } from '@/common/hooks/useAppActionData';
-import { buildPlatformUrl } from '@/common/utils/navigationUtils';
-import { FlowContextName } from '@/common/types/FlowRegistryTypes';
-import { LANGUAGES, Language, translateMultipleTexts } from './translationService';
-interface TranslatedActivity {
-  id: string;
-  title: string;
-  description: string;
-  translatedTitle?: string;
-  translatedDescription?: string;
-  isTranslating?: boolean;
-  occurredAt: string;
-  createdAt: string;
-  ownerEmployee?: any;
-  createdBy?: string;
-  activityType?: any;
-}
+import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
+import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils';
 
 interface ActivitySectionProps extends BusinessAppContextProps {
-  accountId?: string;
-  contactId?: string;
-  opportunityId?: string;
-  leadId?: string;
-  investmentId?: string;
-  defaultTab?: 'activities' | 'notes' | 'approvals' | 'documents' | 'ai-summary';
-  'data-testid'?: string;
-  className?: string;
   activities?: any[];
   activitiesLoading?: boolean;
   activitiesError?: string | null;
   onReloadActivities?: () => void;
-  // Make AppAction configurable
-  contextsArray: FlowContextName[];
-  externalContextData?: Record<string, any>;
-  prefixDataTestId?: string;
+  activitySectionActionProps?: Omit<AppActionCommonProps, 'accessToken'>;
   activityEntityActionProps?: Omit<AppActionCommonProps, 'accessToken'>;
-  // Translation features
-  showTranslation?: boolean;
+  className?: string;
+  alignment?: 'left' | 'right';
 }
 
-const ActivitySection: React.FC<ActivitySectionProps> = ({ defaultTab = 'activities', showTranslation = false, className, ...context }) => {
-  const rawActivities = (context as any).activities || [];
-  const activitiesLoading = (context as any).activitiesLoading || false;
-  const activitiesError = (context as any).activitiesError || null;
-  
-  // Translation state
-  const [selectedLanguage, setSelectedLanguage] = useState('Original');
-  const [translating, setTranslating] = useState(false);
-  const [translatedActivities, setTranslatedActivities] = useState<TranslatedActivity[]>([]);
-  const originalActivitiesRef = useRef<any[]>([]);
+// Standard React component that can be used with SectionWrapper
+const ActivitySection: React.FC<ActivitySectionProps> = (props) => {
+  const { 
+    accessToken,
+    activities: rawActivities = [],
+    activitiesLoading = false,
+    activitiesError = null,
+    onReloadActivities,
+    activityEntityActionProps,
+    className,
+    alignment = 'left'
+  } = props;
 
-  // Update original activities ref when raw activities change
-  useEffect(() => {
-    originalActivitiesRef.current = rawActivities;
-    setTranslatedActivities(rawActivities);
+  // Process activities
+  const processedActivities = useMemo(() => {
+    if (!rawActivities || rawActivities.length === 0) return [];
+    
+    return rawActivities.map((activity: any) => ({
+      id: activity.id,
+      title: activity.title || 'Untitled Activity',
+      description: activity.description || '',
+      occurredAt: activity.occurredAt || activity.createdAt,
+      createdAt: activity.createdAt,
+      ownerEmployee: activity.ownerEmployee,
+      createdBy: activity.createdBy,
+      activityType: activity.activityType
+    }));
   }, [rawActivities]);
 
-  const entity = useMemo(() => ({
-    accountId: (context as any).accountId,
-    contactId: (context as any).contactId,
-    opportunityId: (context as any).opportunityId,
-    leadId: (context as any).leadId,
-    investmentId: (context as any).investmentId,
-  }), [context]);
-
-  const loadActivities = () => (context as any).onReloadActivities?.();
-  
-  // Translation logic
-  useEffect(() => {
-    const translateActivities = async () => {
-      const originalActivities = originalActivitiesRef.current;
-
-      if (selectedLanguage === 'Original' || originalActivities.length === 0) {
-        setTranslatedActivities(originalActivities);
-        return;
-      }
-
-      setTranslating(true);
-
-      try {
-        const textsToTranslate: string[] = [];
-        const activityMapping: Array<{ activityIndex: number, titleIndex: number, descriptionIndex: number }> = [];
-
-        originalActivities.forEach((activity, activityIndex) => {
-          const titleIndex = textsToTranslate.length;
-          textsToTranslate.push(activity.title || '');
-
-          const descriptionIndex = textsToTranslate.length;
-          textsToTranslate.push(activity.description || '');
-
-          activityMapping.push({ activityIndex, titleIndex, descriptionIndex });
-        });
-
-        const translatedTexts = await translateMultipleTexts(textsToTranslate, selectedLanguage, context.accessToken);
-
-        const translated: TranslatedActivity[] = originalActivities.map((originalActivity, activityIndex) => {
-          const mapping = activityMapping[activityIndex];
-          return {
-            ...originalActivity,
-            translatedTitle: translatedTexts[mapping.titleIndex],
-            translatedDescription: translatedTexts[mapping.descriptionIndex],
-            isTranslating: false
-          };
-        });
-
-        setTranslatedActivities(translated);
-      } catch (err) {
-        console.error('Translation error:', err);
-        setTranslatedActivities(originalActivities);
-      } finally {
-        setTranslating(false);
-      }
-    };
-
-    if (showTranslation) {
-      translateActivities();
+  const getActivityIcon = (activityType: string) => {
+    switch (activityType?.toLowerCase()) {
+      case 'call':
+        return (props: any) => <PhoneIcon weight="bold" {...props} />;
+      case 'email':
+        return (props: any) => <EnvelopeIcon weight="bold" {...props} />;
+      case 'meeting':
+        return (props: any) => <CalendarBlankIcon weight="bold" {...props} />;
+      default:
+        return (props: any) => <UserIcon weight="bold" {...props} />;
     }
-  }, [selectedLanguage, context.accessToken, showTranslation]);
-
-  const handleLanguageChange = (languageCode: string) => {
-    setSelectedLanguage(languageCode);
   };
-  
-  // no approvals/notes here – they live in their own sections
-  const getEmployeeDisplayNameFromObject = (emp: any, context?: any) => {
-    // If emp is an object with display properties
-    if (emp && typeof emp === 'object') {
-      return emp?.displayName || (emp?.firstName && emp?.lastName ? `${emp.firstName} ${emp.lastName}` : 'Unknown User');
-    }
+
+  const getActivityTypeLabel = (activityType: any) => activityType?.value || 'Activity';
+  const getOwnerName = (ownerEmployee: any) => {
+    if (!ownerEmployee) return 'Unknown';
     
-    // If emp is just a string ID, check if it matches current user
-    if (emp && typeof emp === 'string' && context?.userInfo?.employeeDetails?.employeeId === emp) {
-      const userInfo = context.userInfo.employeeDetails;
-      return userInfo?.displayName || 
-             (userInfo?.firstName && userInfo?.lastName ? `${userInfo.firstName} ${userInfo.lastName}` : 'Unknown User');
-    }
+    // Use firstName + lastName first
+    const fullName = `${ownerEmployee.firstName || ''} ${ownerEmployee.lastName || ''}`.trim();
+    if (fullName) return fullName;
     
-    // Fallback for unknown users
-    return 'Unknown User';
+    // Fallback to displayName
+    return ownerEmployee.displayName || 'Unknown';
   };
+
+  const handleEmployeeClick = (employeeId: string) => {
+    navigateTo(buildPlatformUrl('/platform/hr/core/employees/employee-record', { employeeId }));
+  };
+
 
   return (
-    <Card data-testid={context['data-testid'] || 'activity-section'} className={className}>
-      <CardHeader className="gba:flex gba:flex-row gba:items-start gba:justify-between gba:gap-4 gba:px-4">
-        <div className="gba:flex gba:flex-col gba:gap-2 gba:min-w-0">
-          <CardTitle>Activities</CardTitle>
-          {showTranslation && (
-            <div className="gba:flex gba:items-center gba:gap-2 gba:flex-wrap">
-              <Select 
-                value={selectedLanguage} 
-                onValueChange={handleLanguageChange}
-                data-testid="language-dropdown"
+    <div data-testid="activity-section-new-content" className={className}>
+      {activitiesLoading ? (
+        <div className="gba:flex gba:justify-center gba:py-8">
+          <Spinner size="lg" />
+        </div>
+      ) : activitiesError ? (
+        <Alert variant="destructive" data-testid="activity-error-alert">
+          <div>
+            <strong>{getTranslationFromI18nKeyAndLabel('crm.activities.errorTitle', 'Error loading activities')}</strong>
+            <div>{activitiesError}</div>
+            {onReloadActivities && (
+              <Button
+                variant="secondary"
+                size="sm"
+                onClick={onReloadActivities}
+                data-testid="activity-retry-button"
               >
-                <SelectTrigger size="sm" >
-                  <SelectValue placeholder="Select language" />
-                </SelectTrigger>
-                <SelectContent>
-                  {LANGUAGES.map((language: Language) => (
-                    <SelectItem key={language.code} value={language.code}>
-                      {language.flag} {language.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              {translating && (
-                <Spinner size="sm" />
-              )}
-            </div>
-          )}
-        </div>
-        <div className="gba:flex gba:items-center gba:gap-3">
-          {showTranslation && (
-            null
-          )}
-          <AppAction
-            accessToken={context.accessToken}
-            contextsArray={context.contextsArray}
-            externalContextData={context.externalContextData || { ...entity }}
-            prefixDataTestId={context.prefixDataTestId || "activities"}
-          >
-          <Button data-testid="add-activity-button" size="icon"><PlusCircleIcon /></Button>
-          </AppAction>
-        </div>
-      </CardHeader>
-
-      <CardContent>
-        {activitiesLoading && (
-          <div className="gba:text-center gba:py-8"><Spinner /></div>
-        )}
-        {activitiesError && (
-          <Alert variant="destructive" className="gba:mb-4 gba:flex gba:items-center gba:justify-between">
-            <span>Error Loading Activities: {activitiesError}</span>
-            <Button onClick={loadActivities} variant="outline" size="sm">Retry</Button>
-          </Alert>
-        )}
-        {!activitiesLoading && !activitiesError && translatedActivities.length === 0 && (
-          <div className="gba:text-center gba:py-8 gba:text-gray-500" data-testid="empty-activities">
-            No activities yet. Start by adding your first activity.
+                {getTranslationFromI18nKeyAndLabel('crm.common.retry', 'Retry')}
+              </Button>
+            )}
           </div>
-        )}
-        {!activitiesLoading && !activitiesError && translatedActivities.length > 0 && (() => {
-          const items = translatedActivities.map((activity: TranslatedActivity, index: number) => {
-            const title = (showTranslation && activity.translatedTitle) ? activity.translatedTitle : (activity.title || 'New Activity');
-            const dateSource = activity.occurredAt || activity.createdAt;
-            const occurred = dayjs(dateSource).isValid() ? dayjs(dateSource).format('MMM D, YYYY [at] h:mm A') : '';
-            const ownerName = getEmployeeDisplayNameFromObject(activity.ownerEmployee, context);
-            const ownerId = typeof activity.ownerEmployee === 'string' ? activity.ownerEmployee : activity.ownerEmployee?.id;
-            const activityTypeLabel = activity.activityType?.value || activity.activityType;
-            const description = [
-              activityTypeLabel, 
-              (showTranslation && activity.translatedDescription) ? activity.translatedDescription : activity.description
-            ].filter(Boolean).join('\n');
+        </Alert>
+      ) : processedActivities.length === 0 ? (
+        <div className="gba:text-center gba:py-8 gba:text-muted-foreground">
+          No activities yet. Create your first activity.
+        </div>
+      ) : (
+        <TimelineLayout 
+          items={processedActivities.map((activity: any) => {
+            const activityTypeLabel = getActivityTypeLabel(activity.activityType);
+            const ownerName = getOwnerName(activity.ownerEmployee);
+            const description = activity.description;
             
-            // Determine icon based on activity type
-            const getActivityIcon = (type: string) => {
-              const lowerType = type?.toLowerCase() || '';
-              if (lowerType.includes('call') || lowerType.includes('phone')) return PhoneIcon;
-              if (lowerType.includes('email') || lowerType.includes('mail')) return EnvelopeIcon;
-              if (lowerType.includes('meeting') || lowerType.includes('appointment')) return CalendarBlankIcon;
-              return UserIcon; // Default icon
-            };
-            
-            // Create actions for this activity if activityEntityActionProps is provided
-            const activityActions = (context as any).activityEntityActionProps ? (
+            const activityActions = activityEntityActionProps ? (
               <AppActionMenu
-                accessToken={context.accessToken}
-                contextsArray={(context as any).activityEntityActionProps.contextsArray}
-                externalContextData={{ ...(context as any).activityEntityActionProps.externalContextData, activityId: activity.id }}
-                prefixDataTestId={(context as any).activityEntityActionProps.prefixDataTestId ? `${(context as any).activityEntityActionProps.prefixDataTestId}-${activity.id}` : `activity-actions-${activity.id}`}
-                emptyStateBehavior={(context as any).activityEntityActionProps.emptyStateBehavior || 'enable'}
-                deferMainContextRequestsUntilClick={true}
-                data-testid={`activity-actions-menu-${activity.id}`}
+                accessToken={accessToken}
+                contextsArray={activityEntityActionProps.contextsArray}
+                externalContextData={{ 
+                  ...activityEntityActionProps.externalContextData, 
+                  activityId: activity.id,
+                  activityType: activity.activityType?.value
+                }}
+                prefixDataTestId={`${activityEntityActionProps.prefixDataTestId}-${activity.id}`}
+                emptyStateBehavior={activityEntityActionProps.emptyStateBehavior}
               >
-                <span
-                  aria-label="Activity actions"
-                  className="gba:inline-flex gba:items-center gba:justify-center gba:cursor-pointer gba:p-1 gba:rounded hover:gba:bg-gray-100"
-                  data-testid={`activity-actions-trigger-${activity.id}`}
+                <div 
+                  className="gba:flex gba:items-center gba:justify-center gba:h-6 gba:w-6 gba:cursor-pointer gba:rounded gba:hover:bg-muted gba:transition-colors"
+                  data-testid={`activity-menu-${activity.id}`}
                 >
-                  <MoreOutlined className="gba:rotate-90" />
-                </span>
+                  <DotsThreeVertical size={16} />
+                </div>
               </AppActionMenu>
             ) : null;
 
             return {
-              id: index,
-              date: occurred,
-              title: title,
-              actor: ownerName
-                ? ownerId
-                  ? (
-                      <a
-                        href={buildPlatformUrl('/platform/employee-record', { employeeId: ownerId })}
-                        className="gba:underline gba:text-inherit hover:gba:text-primary"
-                        data-testid={`activity-owner-link-${ownerId}`}
-                      >
-                        {ownerName}
-                      </a>
-                    )
-                  : ownerName
-                : undefined,
-              description,
+              id: activity.id,
+              date: dayjs(activity.occurredAt).format('MMM D, YYYY h:mm A'),
+              actor: activity.ownerEmployee ? (
+                <a
+                  href={buildPlatformUrl('/platform/hr/core/employees/employee-record', { employeeId: activity.ownerEmployee.id })}
+                  onClick={(e) => {
+                    e.preventDefault();
+                    handleEmployeeClick(activity.ownerEmployee.id);
+                  }}
+                  className="gba:font-medium gba:text-primary gba:hover:underline gba:cursor-pointer"
+                >
+                  {ownerName}
+                </a>
+              ) : undefined,
+              title: (
+                <div className="gba:flex gba:items-center gba:justify-between gba:w-full">
+                  <span className="gba:flex-1 gba:truncate">{activity.title}</span>
+                  {activityActions}
+                </div>
+              ),
+              description: description,
               icon: getActivityIcon(activityTypeLabel),
-              actions: activityActions,
             } as any;
-          });
-          return (
-            <TimelineLayout 
-              items={items}
-              variant="default"
-              orientation="vertical"
-              alignment="right"
-              className="gba:w-full" 
-            />
-          );
-        })()}
-      </CardContent>
-    </Card>
+          })}
+          variant="default"
+          orientation="vertical"
+          alignment={alignment}
+          className="gba:w-full" 
+        />
+      )}
+    </div>
+  );
+};
+
+// Static properties for SectionWrapper
+(ActivitySection as any).sectionTitle = 'Activities';
+(ActivitySection as any).sectionActions = (props: ActivitySectionProps) => {
+  const { accessToken, activitySectionActionProps } = props;
+  
+  if (!activitySectionActionProps) {
+    return null;
+  }
+
+  return (
+    <AppAction
+      accessToken={accessToken}
+      contextsArray={activitySectionActionProps.contextsArray}
+      externalContextData={activitySectionActionProps.externalContextData}
+      prefixDataTestId={activitySectionActionProps.prefixDataTestId}
+      emptyStateBehavior={activitySectionActionProps.emptyStateBehavior}
+    >
+      <Button data-testid="add-activity-button" variant="secondary" size="icon">
+        <PlusIcon />
+      </Button>
+    </AppAction>
   );
 };
 
 export default ActivitySection;
-
-

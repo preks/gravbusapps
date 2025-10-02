@@ -216,7 +216,7 @@ const EquityInvestmentsReport: React.FC<EquityInvestmentsReportProps> = (props) 
           <h3 className="gba:text-2xl gba:font-bold gba:text-gray-900 gba:m-0">
             {getTranslationFromI18nKeyAndLabel('equity.investments.title', 'Equity Investments Report')}
           </h3>
-          <Badge variant="secondary">{equityInvestments.length} {getTranslationFromI18nKeyAndLabel('equity.investments.items', 'equity investments')}</Badge>
+          <Badge variant="secondary">{kpis?.totalInvestments || 0} {getTranslationFromI18nKeyAndLabel('equity.investments.items', 'equity investments')}</Badge>
         </div>
       </div>
 

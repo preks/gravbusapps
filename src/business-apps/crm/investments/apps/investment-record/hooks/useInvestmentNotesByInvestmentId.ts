@@ -2,10 +2,11 @@ import { useCallback } from 'react';
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 import { GET_INVESTMENT_NOTES_BY_INVESTMENT_ID } from '@/common/data/investment/queries/investmentQueries';
-import type { InvestmentNote } from '@/common/data/investment/types';
+import type { BaseInvestmentNote, InvestmentNote } from '@/common/data/investment/types';
+import { toInvestmentNote } from '@/common/data/investment/mappers';
 
 interface InvestmentNotesByInvestmentIdResponse {
-  InvestmentNote: InvestmentNote[];
+  InvestmentNote: BaseInvestmentNote[];
 }
 
 export const useGetInvestmentNotesByInvestmentId = (context: BusinessAppContextProps) => {
@@ -16,7 +17,8 @@ export const useGetInvestmentNotesByInvestmentId = (context: BusinessAppContextP
 
     try {
       const result = await graphqlClient.request<InvestmentNotesByInvestmentIdResponse>(query);
-      return result.InvestmentNote || [];
+      // Transform base types to enhanced types using mapper
+      return result.InvestmentNote.map(toInvestmentNote);
     } catch (error) {
       console.error('Error fetching investment notes by investment ID:', error);
       throw error;
