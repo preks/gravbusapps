@@ -429,17 +429,18 @@ export const ExpenseItemDetails: React.FC<ExpenseItemDetailsProps> = ({
             return <Pill type={statusConfig.type} label={statusConfig.label} color={statusConfig.color} data-testid="expense-item-status-badge" />;
           })()}
           {(() => {
-            const availableActions = generateExpenseItemActions(
-              displayItem,
-              {
-                employeeId: contextProps.userInfo?.employeeDetails?.employeeId || '',
-                accessToken: contextProps.accessToken || ''
-              },
-              {
-                includeDetails: false,
-                includeAssignToRequest: true
-              }
-            );
+             const availableActions = generateExpenseItemActions(
+               displayItem,
+               {
+                 employeeId: contextProps.userInfo?.employeeDetails?.employeeId || '',
+                 accessToken: contextProps.accessToken || '',
+                 onClose: onClose
+               },
+               {
+                 includeDetails: false,
+                 includeAssignToRequest: true
+               }
+             );
             
             // Only show action button if there are available actions
             if (availableActions.length > 0) {
