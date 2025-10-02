@@ -41,7 +41,8 @@ export const createSummaryScreenLogObject = (
     expenseGroupRef: item.expenseGroupRef || '',
     source: item.source || '',
     expenseClassRef: item.expenseClassRef || '',
-    autoCalculated: item.autoCalculated || false
+    autoCalculated: item.autoCalculated || false,
+    expenseDate: item.expenseDate || ''
   }));
   
   const travelBreakdowns: any[] = (expenseRequestData?.TravelBreakdown || [])

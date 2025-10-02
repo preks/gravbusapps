@@ -32,7 +32,7 @@ import {
 import { Modal, message, Input as AntdInput } from 'antd';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient';
-import { DebouncedInput } from '@/components/data-filter/DebouncedInput';
+import { DebouncedInput } from '@/components/debounced-input/DebouncedInput';
 import { DataContainer } from '@/components/layout/dataContainer';
 import { useEmployeeData } from '@/business-apps/crm/common/hooks/useEmployeeData';
 import { startProcess } from '@/common/utils/start-process';
@@ -763,6 +763,7 @@ export const OpportunityDocuments: React.FC<OpportunityDocumentsProps> = ({
             id: docId,
             version: version,
             parentDocument: newParentId ?? '',
+            folder: !documents.find(d => d.id === docId)?.format || documents.find(d => d.id === docId)?.format?.toUpperCase() !== 'FILE', // Preserve folder status
             opportunity: opportunityId,
           },
         },
