@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useCallback, useEffect } from 'react';
+import React, { useState, useCallback, useEffect, useMemo } from 'react';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, DataDisplay, DataTable, Button } from '@newwork/nw-design-system';
 
 import { useTaskData } from './hooks/useTaskData';
@@ -8,6 +8,7 @@ import { useTaskStatisticsNew } from './hooks/useTaskStatistics';
 import { TaskDetails, TaskStatistics } from './components';
 import { createTaskColumns, createTaskSortableColumns } from './config/taskColumns';
 import { taskFilterConfig } from './config/taskFilters';
+import { useTaskFilters } from './hooks/useTaskFilters';
 import { AppActionMenu } from '@/components/app-action-menu/AppActionMenu';
 import { AppAction } from '@/components/app-action/AppAction';
 import { FlowContextName } from '@/common/types/FlowRegistryTypes';
@@ -25,6 +26,57 @@ export const TaskManagement: React.FC<TaskManagementProps> = (props: TaskManagem
   // Section state
   const [currentSection, setCurrentSection] = useState('my');
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
+
+  // Get dynamic filter data
+  const { types, statuses, priorities } = useTaskFilters({ accessToken, userInfo });
+
+  // Create dynamic filter configuration
+  const dynamicFilterConfig = useMemo(() => {
+    const config = { ...taskFilterConfig };
+    
+    // Update Status filter with dynamic data
+    const statusGroup = config.groups.find(g => g.id === 'status-group');
+    if (statusGroup && statuses.length > 0) {
+      const statusFilter = statusGroup.filters.find(f => f.id === 'status');
+      if (statusFilter && statusFilter.config && 'options' in statusFilter.config) {
+        (statusFilter.config as any).options = statuses.map(status => ({
+          id: status.id,
+          label: status.value
+        }));
+      }
+    }
+    
+    // Update Priority filter with dynamic data
+    const priorityGroup = config.groups.find(g => g.id === 'priority-group');
+    if (priorityGroup && priorities.length > 0) {
+      const priorityFilter = priorityGroup.filters.find(f => f.id === 'priority');
+      if (priorityFilter && priorityFilter.config && 'options' in priorityFilter.config) {
+        (priorityFilter.config as any).options = priorities.map(priority => ({
+          id: priority.id,
+          label: priority.value
+        }));
+      }
+    }
+    
+    // Update Task Type filter with dynamic data
+    const typeGroup = config.groups.find(g => g.id === 'type-group');
+    if (typeGroup && types.length > 0) {
+      const typeFilter = typeGroup.filters.find(f => f.id === 'type');
+      if (typeFilter && typeFilter.config && 'options' in typeFilter.config) {
+        (typeFilter.config as any).options = types.map(type => ({
+          id: type.id,
+          label: type.value
+        }));
+      }
+    }
+    
+    console.log('Dynamic filter config:', config);
+    console.log('Statuses data:', statuses);
+    console.log('Priorities data:', priorities);
+    console.log('Types data:', types);
+    
+    return config;
+  }, [types, statuses, priorities]);
 
       // Data hooks for each section
       const myTasks = useTaskData({ 
@@ -64,12 +116,60 @@ export const TaskManagement: React.FC<TaskManagementProps> = (props: TaskManagem
     setSelectedTask(task);
   }, []);
 
+  // Debug log for creatorEmployees
+  useEffect(() => {
+    if (current.data && current.data.length > 0) {
+      console.log('=== TASK CREATOR EMPLOYEES DEBUG ===');
+      current.data.forEach((task, index) => {
+        console.log(`Task ${index + 1} (${task.id}):`, {
+          name: task.name,
+          creatorEmployee: task.creatorEmployee,
+          createdBy: task.createdBy
+        });
+      });
+      console.log('=== END CREATOR EMPLOYEES DEBUG ===');
+    }
+  }, [current.data]);
+
   // Process completion event handling
   useEffect(() => {
     const handleProcessCompletion = (event: any) => {
       try {
-        if (event.detail?.resolution === 'success' || event.detail?.response?.detail?.resolution === 'success') {
-          // Refresh statistics
+        console.log(
+          "✅ Investment Task process event received:",
+          event.type,
+          event
+        );
+
+        // Check for successful completion from different event structures
+        if (event.detail?.resolution === 'success') {
+          console.log("✅ Success resolution detected, refreshing task data");
+          // Refresh both task data and statistics
+          current.refetch?.();
+          refetchStatistics();
+          return;
+        }
+
+        // Also check for different event structure
+        const response = event.detail?.response;
+        if (
+          response?.detail?.resolution === 'success' ||
+          response?.investmentTask ||
+          response?.task
+        ) {
+          console.log("✅ Success in response or task detected, refreshing data");
+          current.refetch?.();
+          refetchStatistics();
+          return;
+        }
+
+        // For continue events, check if payload contains successful data
+        if (
+          event.type === 'com.newwork.process.continue' &&
+          event.detail?.payload
+        ) {
+          console.log("✅ Continue event with payload detected, refreshing task data");
+          current.refetch?.();
           refetchStatistics();
         }
       } catch (err) {
@@ -171,8 +271,11 @@ export const TaskManagement: React.FC<TaskManagementProps> = (props: TaskManagem
             
             // Filters
             filters={current.filters}
-            filterConfiguration={taskFilterConfig}
-            onFilterChange={current.setFilters}
+            filterConfiguration={dynamicFilterConfig}
+            onFilterChange={(newFilters) => {
+              console.log('DataDisplay - Filter change:', newFilters);
+              current.setFilters(newFilters);
+            }}
             
             // Live filtering for real-time updates
             enableLiveFiltering={true}
@@ -261,9 +364,9 @@ export const TaskManagement: React.FC<TaskManagementProps> = (props: TaskManagem
                   emptyStateBehavior="enable"
                   deferMainContextRequestsUntilClick
                 >
-                  <button
-                    type="button"
-                    className="gba:flex gba:items-center gba:justify-center gba:w-8 gba:h-8 gba:rounded gba:border gba:border-gray-300 gba:bg-white gba:hover:bg-gray-50 gba:focus:outline-none gba:focus:ring-2 gba:focus:ring-blue-500 gba:focus:ring-offset-2"
+                  <Button
+                    size="icon"
+                    variant="ghost"
                     aria-label="Task actions"
                     data-testid={`task-actions-trigger-${row.original.id}`}
                     onClick={(e) => e.stopPropagation()}
@@ -271,7 +374,7 @@ export const TaskManagement: React.FC<TaskManagementProps> = (props: TaskManagem
                     <svg className="gba:w-4 gba:h-4 gba:text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z" />
                     </svg>
-                  </button>
+                  </Button>
                 </AppActionMenu>
               )}
           

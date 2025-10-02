@@ -29,6 +29,7 @@ export const useTaskListData = (props: UseTaskListDataProps): UseTaskListDataRet
     priorityRefs,
     taskTypes,
     assignedEmployeeIds,
+    referenceTypes,
     createdAfter,
     createdBefore,
     dueDateAfter,
@@ -74,6 +75,14 @@ export const useTaskListData = (props: UseTaskListDataProps): UseTaskListDataRet
       variables.assignedEmployeeIds = assignedEmployeeIds;
     }
 
+    // Handle reference type filtering
+    if (referenceTypes && referenceTypes.length > 0) {
+      // For reference type filtering, we need to use a different approach
+      // Since we can't filter by reference type directly in GraphQL,
+      // we'll need to handle this in the where condition
+      variables.referenceTypes = referenceTypes;
+    }
+
     if (createdAfter) {
       variables.createdAfter = createdAfter;
     }
@@ -106,7 +115,7 @@ export const useTaskListData = (props: UseTaskListDataProps): UseTaskListDataRet
     console.log('useTaskListData - Building query variables:', variables);
     
     return variables;
-  }, [search, statusRefs, priorityRefs, taskTypes, assignedEmployeeIds, createdAfter, createdBefore, dueDateAfter, dueDateBefore, sortField, sortOrder]);
+  }, [search, statusRefs, priorityRefs, taskTypes, assignedEmployeeIds, referenceTypes, createdAfter, createdBefore, dueDateAfter, dueDateBefore, sortField, sortOrder]);
 
   const loadData = useCallback(async (page: number, size: number) => {
     if (!accessToken) {
@@ -176,7 +185,7 @@ export const useTaskListData = (props: UseTaskListDataProps): UseTaskListDataRet
             id: it.creatorEmployee.id,
             firstName: it.creatorEmployee.firstName || '',
             lastName: it.creatorEmployee.lastName || '',
-            displayName: it.creatorEmployee.displayName || 'Unknown',
+            displayName: it.creatorEmployee.displayName || '',
             department: '',
             initials: '',
             pictureThumbnail: it.creatorEmployee.pictureThumbnail

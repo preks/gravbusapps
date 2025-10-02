@@ -31,6 +31,9 @@ interface UseTaskDataReturn {
   setSelectedRows: (rows: Task[]) => void;
   visibleColumns: string[];
   setVisibleColumns: (columns: string[]) => void;
+  
+  // Data refresh
+  refetch: () => void;
 }
 
 export function useTaskData({
@@ -49,6 +52,8 @@ export function useTaskData({
     );
     if (hasActiveFilters) {
       console.log('useTaskData - Filter state changed:', filters);
+    } else {
+      console.log('useTaskData - No active filters');
     }
   }, [filters]);
 
@@ -117,7 +122,8 @@ export function useTaskData({
     total, 
     loading, 
     error, 
-    loadPage
+    loadPage,
+    retry
   } = useTaskListData(queryParams);
   
   // Handle pagination changes
@@ -166,6 +172,9 @@ export function useTaskData({
     selectedRows,
     setSelectedRows,
     visibleColumns,
-    setVisibleColumns
+    setVisibleColumns,
+    
+    // Data refresh
+    refetch: retry
   };
 }

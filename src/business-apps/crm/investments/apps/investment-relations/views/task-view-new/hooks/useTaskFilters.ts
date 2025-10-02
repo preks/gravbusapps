@@ -195,7 +195,10 @@ export const useTaskFilters = (context: BusinessAppContextProps & { sourceApp?: 
     getFilters,
     createdAfter,
     createdBefore,
-    handleDateRangeChange
+    handleDateRangeChange,
+    types,
+    statuses,
+    priorities
   };
 };
 

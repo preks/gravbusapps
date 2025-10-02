@@ -62,15 +62,8 @@ export const taskFilterConfig: FilterConfiguration = {
           label: 'Type',
           type: 'multi-select',
           config: {
-            options: [
-              { id: 'InvestmentTaskType:v1:CALL', label: 'Call' },
-              { id: 'InvestmentTaskType:v1:EMAIL', label: 'Email' },
-              { id: 'InvestmentTaskType:v1:MEETING', label: 'Meeting' },
-              { id: 'InvestmentTaskType:v1:TODO', label: 'To-Do' },
-              { id: 'InvestmentTaskType:v1:FOLLOW_UP', label: 'Follow Up' },
-              { id: 'InvestmentTaskType:v1:RESEARCH', label: 'Research' },
-              { id: 'InvestmentTaskType:v1:REVIEW', label: 'Review' }
-            ]
+            // Options will be populated dynamically from catalog data
+            options: []
           }
         }
       ]
