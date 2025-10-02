@@ -1,13 +1,15 @@
 "use client";
 
-import React, { useState, useCallback, useEffect, useRef, useMemo } from 'react';
-import { Sheet, SheetContent, SheetHeader, SheetTitle, Tabs, TabsList, TabsTrigger, TabsContent } from '@newwork/nw-design-system';
-import { UserOutlined, TeamOutlined } from '@ant-design/icons';
-import { debounce, DEFAULT_LOAD_DEBOUNCE_DELAY } from '@/common/data/investment';
+import React, { useState, useCallback, useEffect, useMemo } from 'react';
+import { Sheet, SheetContent, SheetHeader, SheetTitle, DataDisplay, DataTable, Button } from '@newwork/nw-design-system';
 
-import { DataContainer } from '@/components/layout/dataContainer';
-import { useTaskListData, useTaskFilters, useTaskStatistics } from './hooks';
-import { TaskTable, TaskDetails, TaskStatistics } from './components';
+import { useTaskData } from './hooks/useTaskData';
+import { useTaskStatisticsNew } from './hooks/useTaskStatistics';
+import { TaskDetails, TaskStatistics } from './components';
+import { createTaskColumns, createTaskSortableColumns } from './config/taskColumns';
+import { taskFilterConfig } from './config/taskFilters';
+import { useTaskFilters } from './hooks/useTaskFilters';
+import { AppActionMenu } from '@/components/app-action-menu/AppActionMenu';
 import { AppAction } from '@/components/app-action/AppAction';
 import { FlowContextName } from '@/common/types/FlowRegistryTypes';
 import { PlusSquareIcon } from '@phosphor-icons/react';
@@ -21,174 +23,153 @@ export interface TaskManagementProps extends BusinessAppContextProps {
 export const TaskManagement: React.FC<TaskManagementProps> = (props: TaskManagementProps) => {
   const { accessToken, userInfo } = props;
 
-  const [activeTab, setActiveTab] = useState('my');
-
-  const {
-    search,
-    setSearch,
-    selectedFilters,
-    filterGroups,
-    filterLabelMap,
-    addFilter,
-    removeFilter,
-    resetFilters,
-    getFilters,
-    createdAfter: filterCreatedAfter,
-    createdBefore: filterCreatedBefore,
-    handleDateRangeChange: filterHandleDateRangeChange
-  } = useTaskFilters({ ...props, sourceApp: 'IRM' } as any);
-
-  const [initialParams] = useState(() => {
-    const urlParams = new URLSearchParams(window.location.search);
-    return {
-      search: urlParams.get('search') || '',
-      page: parseInt(urlParams.get('page') || '1', 10),
-      pageSize: parseInt(urlParams.get('pageSize') || '20', 10),
-      sortField: urlParams.get('sortField') || '',
-      sortOrder: urlParams.get('sortOrder') || 'DESC',
-      tab: urlParams.get('tab') || 'my'
-    };
-  });
-
-  const [currentPage, setCurrentPage] = useState(initialParams.page);
-  const [pageSize, setPageSize] = useState(initialParams.pageSize);
-  const [sortField, setSortField] = useState(initialParams.sortField);
-  const [sortOrder, setSortOrder] = useState<'ASC' | 'DESC'>(initialParams.sortOrder as 'ASC' | 'DESC');
+  // Section state
+  const [currentSection, setCurrentSection] = useState('my');
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
-  const initialLoadDone = useRef(false);
 
-  useEffect(() => {
-    if (initialParams.tab && activeTab === 'my') {
-      setActiveTab(initialParams.tab);
-    }
-    if (initialParams.search && !search) {
-      setSearch(initialParams.search);
-    }
-  }, []);
+  // Get dynamic filter data
+  const { types, statuses, priorities } = useTaskFilters({ accessToken, userInfo });
 
-  const updateURLParams = useCallback((params: {
-    search?: string;
-    page?: number;
-    pageSize?: number;
-    sortField?: string;
-    sortOrder?: 'ASC' | 'DESC';
-    tab?: string;
-  }) => {
-    const newSearchParams = new URLSearchParams(window.location.search);
-    if (params.search !== undefined) {
-      if (params.search) newSearchParams.set('search', params.search);
-      else newSearchParams.delete('search');
-    }
-    if (params.page !== undefined) {
-      if (params.page > 1) newSearchParams.set('page', params.page.toString());
-      else newSearchParams.delete('page');
-    }
-    if (params.pageSize !== undefined) {
-      if (params.pageSize !== 20) newSearchParams.set('pageSize', params.pageSize.toString());
-      else newSearchParams.delete('pageSize');
-    }
-    if (params.sortField !== undefined) {
-      if (params.sortField !== 'createdAt' && params.sortField !== '') newSearchParams.set('sortField', params.sortField);
-      else newSearchParams.delete('sortField');
-    }
-    if (params.sortOrder !== undefined) {
-      if (params.sortOrder !== 'DESC') newSearchParams.set('sortOrder', params.sortOrder);
-      else newSearchParams.delete('sortOrder');
-    }
-    if (params.tab !== undefined) {
-      if (params.tab !== 'my') newSearchParams.set('tab', params.tab);
-      else newSearchParams.delete('tab');
-    }
-    const newURL = `${window.location.pathname}?${newSearchParams.toString()}`;
-    window.history.replaceState({}, '', newURL);
-  }, []);
-
-  const handleTabChange = useCallback((tab: string) => {
-    setActiveTab(tab);
-    setCurrentPage(1);
-    updateURLParams({ tab, page: 1 });
-  }, [updateURLParams]);
-
-  const getTabFilters = useCallback(() => {
-    const baseFilters = getFilters();
-    if (activeTab === 'my') {
-      const currentUserEmployeeId = userInfo?.employeeDetails?.employeeId;
-      console.log('🔍 Investment My Tasks Filter Debug:', {
-        userInfo,
-        employeeDetails: userInfo?.employeeDetails,
-        currentUserEmployeeId,
-        alternativeId: userInfo?.id,
-        alternativeEmployeeId: (userInfo as any)?.employeeId
-      });
-      
-      if (currentUserEmployeeId) {
-        console.log('✅ Using employeeDetails.employeeId:', currentUserEmployeeId);
-        return { ...baseFilters, assignedEmployeeIds: [currentUserEmployeeId] };
-      } else if ((userInfo as any)?.employeeId) {
-        // Fallback to direct employeeId if employeeDetails.employeeId is not available
-        console.log('⚠️ Fallback to userInfo.employeeId:', (userInfo as any).employeeId);
-        return { ...baseFilters, assignedEmployeeIds: [(userInfo as any).employeeId] };
-      } else if (userInfo?.id) {
-        // Last fallback to user ID
-        console.log('⚠️ Fallback to userInfo.id:', userInfo.id);
-        return { ...baseFilters, assignedEmployeeIds: [userInfo.id] };
-      } else {
-        console.warn('❌ No user ID found for My Tasks filter. User info:', userInfo);
+  // Create dynamic filter configuration
+  const dynamicFilterConfig = useMemo(() => {
+    const config = { ...taskFilterConfig };
+    
+    // Update Status filter with dynamic data
+    const statusGroup = config.groups.find(g => g.id === 'status-group');
+    if (statusGroup && statuses.length > 0) {
+      const statusFilter = statusGroup.filters.find(f => f.id === 'status');
+      if (statusFilter && statusFilter.config && 'options' in statusFilter.config) {
+        (statusFilter.config as any).options = statuses.map(status => ({
+          id: status.id,
+          label: status.value
+        }));
       }
     }
-    return baseFilters;
-  }, [getFilters, activeTab, userInfo]);
-
-  
-
-  const handleFilterChange = useCallback((filterId: string, selected: boolean) => {
-    selected ? addFilter(filterId) : removeFilter(filterId);
-  }, [addFilter, removeFilter]);
-
-  const handleSetFilter = useCallback((filters: string[]) => {
-    if (filters.length === 0) {
-      resetFilters();
-    } else {
-      const removedFilters = selectedFilters.filter(f => !filters.includes(f));
-      removedFilters.forEach(filterId => removeFilter(filterId));
+    
+    // Update Priority filter with dynamic data
+    const priorityGroup = config.groups.find(g => g.id === 'priority-group');
+    if (priorityGroup && priorities.length > 0) {
+      const priorityFilter = priorityGroup.filters.find(f => f.id === 'priority');
+      if (priorityFilter && priorityFilter.config && 'options' in priorityFilter.config) {
+        (priorityFilter.config as any).options = priorities.map(priority => ({
+          id: priority.id,
+          label: priority.value
+        }));
+      }
     }
-  }, [resetFilters, selectedFilters, removeFilter]);
+    
+    // Update Task Type filter with dynamic data
+    const typeGroup = config.groups.find(g => g.id === 'type-group');
+    if (typeGroup && types.length > 0) {
+      const typeFilter = typeGroup.filters.find(f => f.id === 'type');
+      if (typeFilter && typeFilter.config && 'options' in typeFilter.config) {
+        (typeFilter.config as any).options = types.map(type => ({
+          id: type.id,
+          label: type.value
+        }));
+      }
+    }
+    
+    console.log('Dynamic filter config:', config);
+    console.log('Statuses data:', statuses);
+    console.log('Priorities data:', priorities);
+    console.log('Types data:', types);
+    
+    return config;
+  }, [types, statuses, priorities]);
 
-  const stableFilters = useMemo(() => getTabFilters(), [getTabFilters, selectedFilters.length, filterCreatedAfter, filterCreatedBefore, activeTab, userInfo]);
+      // Data hooks for each section
+      const myTasks = useTaskData({ 
+        type: 'my', 
+        userInfo, 
+        accessToken
+      });
+      
+      const teamTasks = useTaskData({ 
+        type: 'team', 
+        accessToken
+      });
 
-  const { 
-    tasks, 
-    total, 
-    loading, 
-    error, 
-    hasMore, 
-    loadMore, 
-    loadPage,
-    retry 
-  } = useTaskListData({
-    ...stableFilters,
-    sortField,
-    sortOrder,
-    accessToken,
-    sourceApp: 'IRM'
-  });
+  // Get current section data
+  const current = currentSection === 'my' ? myTasks : teamTasks;
 
+  // Statistics hook - truly decoupled from table data and sections
   const {
-    statistics, 
-    loading: statisticsLoading, 
-    error: statisticsError, 
+    myTasksStatistics,
+    teamTasksStatistics,
+    isLoading: statisticsLoading,
+    error: statisticsError,
     refetch: refetchStatistics
-  } = useTaskStatistics({
-    ...stableFilters,
-    accessToken
+  } = useTaskStatisticsNew({
+    accessToken,
+    userInfo
+    // Note: No filters or search - statistics should show overall counts, not filtered counts
   });
 
+  // Handle section change
+  const handleSectionChange = useCallback((section: string) => {
+    setCurrentSection(section);
+  }, []);
+
+  // Handle task selection
+  const handleSelectTask = useCallback((task: Task) => {
+    setSelectedTask(task);
+  }, []);
+
+  // Debug log for creatorEmployees
+  useEffect(() => {
+    if (current.data && current.data.length > 0) {
+      console.log('=== TASK CREATOR EMPLOYEES DEBUG ===');
+      current.data.forEach((task, index) => {
+        console.log(`Task ${index + 1} (${task.id}):`, {
+          name: task.name,
+          creatorEmployee: task.creatorEmployee,
+          createdBy: task.createdBy
+        });
+      });
+      console.log('=== END CREATOR EMPLOYEES DEBUG ===');
+    }
+  }, [current.data]);
+
+  // Process completion event handling
   useEffect(() => {
     const handleProcessCompletion = (event: any) => {
       try {
-        if (event.detail?.resolution === 'success' || event.detail?.response?.detail?.resolution === 'success') {
-          // Refresh current page without altering state that would retrigger this effect
-          loadPage(currentPage, pageSize);
+        console.log(
+          "✅ Investment Task process event received:",
+          event.type,
+          event
+        );
+
+        // Check for successful completion from different event structures
+        if (event.detail?.resolution === 'success') {
+          console.log("✅ Success resolution detected, refreshing task data");
+          // Refresh both task data and statistics
+          current.refetch?.();
+          refetchStatistics();
+          return;
+        }
+
+        // Also check for different event structure
+        const response = event.detail?.response;
+        if (
+          response?.detail?.resolution === 'success' ||
+          response?.investmentTask ||
+          response?.task
+        ) {
+          console.log("✅ Success in response or task detected, refreshing data");
+          current.refetch?.();
+          refetchStatistics();
+          return;
+        }
+
+        // For continue events, check if payload contains successful data
+        if (
+          event.type === 'com.newwork.process.continue' &&
+          event.detail?.payload
+        ) {
+          console.log("✅ Continue event with payload detected, refreshing task data");
+          current.refetch?.();
           refetchStatistics();
         }
       } catch (err) {
@@ -218,242 +199,197 @@ export const TaskManagement: React.FC<TaskManagementProps> = (props: TaskManagem
         window.removeEventListener(eventName, handleProcessCompletion as EventListener);
       });
     };
-  }, []);
-
-  useEffect(() => {
-    if (!initialLoadDone.current && accessToken) {
-      initialLoadDone.current = true;
-      loadPage(currentPage, pageSize);
-    }
-  }, [accessToken]);
-
-  const debouncedLoadData = useCallback(
-    debounce(() => {
-      if (initialLoadDone.current) {
-        setCurrentPage(1);
-        updateURLParams({ search, page: 1 });
-        loadPage(1, pageSize);
-      }
-    }, DEFAULT_LOAD_DEBOUNCE_DELAY),
-    [search, pageSize, updateURLParams, loadPage]
-  );
-
-  useEffect(() => {
-    if (initialLoadDone.current) {
-      debouncedLoadData();
-    }
-  }, [search, debouncedLoadData]);
-
-  useEffect(() => {
-    if (initialLoadDone.current) {
-      setCurrentPage(1);
-      loadPage(1, pageSize);
-    }
-  }, [selectedFilters.length, filterCreatedAfter, filterCreatedBefore]);
-
-  useEffect(() => {
-    if (initialLoadDone.current) {
-      setCurrentPage(1);
-      loadPage(1, pageSize);
-      refetchStatistics();
-    }
-  }, [activeTab]);
-
-  const handleSelectTask = useCallback((task: Task) => {
-    setSelectedTask(task);
-  }, []);
-
-  const lastPaginationTime = useRef(0);
-  const PAGINATION_THROTTLE_MS = 500;
-
-  const handlePaginationChange = useCallback((page: number, newPageSize?: number) => {
-    const now = Date.now();
-    if (now - lastPaginationTime.current < PAGINATION_THROTTLE_MS) {
-      return;
-    }
-    lastPaginationTime.current = now;
-    const targetPageSize = newPageSize || pageSize;
-    setCurrentPage(page);
-    setPageSize(targetPageSize);
-    updateURLParams({ page, pageSize: targetPageSize });
-    loadPage(page, targetPageSize);
-  }, [pageSize, updateURLParams, loadPage]);
-
-  const handleSortingChange = useCallback((field: string, order: 'ASC' | 'DESC' | '') => {
-    const now = Date.now();
-    if (now - lastPaginationTime.current < PAGINATION_THROTTLE_MS) {
-      return;
-    }
-    lastPaginationTime.current = now;
-    if (order === '') {
-      setSortField('');
-      setSortOrder('DESC');
-      setCurrentPage(1);
-      updateURLParams({ sortField: '', sortOrder: 'DESC', page: 1 });
-    } else {
-      setSortField(field);
-      setSortOrder(order);
-      setCurrentPage(1);
-      updateURLParams({ sortField: field, sortOrder: order, page: 1 });
-    }
-    loadPage(1, pageSize);
-  }, [pageSize, updateURLParams, loadPage]);
+  }, [refetchStatistics]);
 
   return (
     <div className="gba:p-6" data-testid="task-management-content">
       <div className="gba:mb-8" data-testid="task-management-header">
-        <div data-testid="task-management-title-section">
-          <h1 className="gba:text-4xl gba:font-bold gba:text-black gba:mb-3 gba:tracking-tight" data-testid="task-management-title">Tasks</h1>
-          <p className="gba:text-lg gba:text-gray-500 gba:font-normal gba:leading-relaxed" data-testid="task-management-subtitle">Manage and track investment tasks</p>
+        <div className="gba:flex gba:justify-between gba:items-start" data-testid="task-management-title-section">
+          <div>
+            <h1 className="gba:text-4xl gba:font-bold gba:text-black gba:mb-3 gba:tracking-tight" data-testid="task-management-title">Tasks</h1>
+            <p className="gba:text-lg gba:text-gray-500 gba:font-normal gba:leading-relaxed" data-testid="task-management-subtitle">Manage and track investment tasks</p>
+          </div>
         </div>
       </div>
 
+      {/* Statistics - decoupled from table data */}
       <div className="gba:mb-6 gba:pb-6 gba:border-b gba:border-gray-200" data-testid="task-statistics-section">
-        <TaskStatistics statistics={statistics} isLoading={statisticsLoading} error={statisticsError} onRetry={refetchStatistics} />
+        <TaskStatistics 
+          myTasksStatistics={myTasksStatistics}
+          teamTasksStatistics={teamTasksStatistics}
+          isLoading={statisticsLoading} 
+          error={statisticsError} 
+          onRetry={refetchStatistics} 
+        />
       </div>
 
-      <div className="gba:task-management-content" data-testid="task-management-tabs">
-        <Tabs value={activeTab} onValueChange={handleTabChange} className="gba:w-full">
-          <TabsList className="gba:bg-white gba:border gba:mb-6">
-            <TabsTrigger value="my" data-testid="my-tasks-tab"><UserOutlined className="gba:mr-2" />My Tasks</TabsTrigger>
-            <TabsTrigger value="team" data-testid="team-tasks-tab"><TeamOutlined className="gba:mr-2" />Team Tasks</TabsTrigger>
-          </TabsList>
 
-          <TabsContent value="my" data-testid="my-tasks-content">
-            <DataContainer
-              dataControllerProps={{
-                search,
-                setSearch,
-                debounceDelay: DEFAULT_LOAD_DEBOUNCE_DELAY,
-                filter: selectedFilters,
-                setFilter: handleSetFilter,
-                filterLabelMap,
-                dateRange: { createdAfter: filterCreatedAfter, createdBefore: filterCreatedBefore, onClear: () => filterHandleDateRangeChange(undefined, undefined) },
-                listTitle: (
-                  <div className="gba:flex gba:items-center gba:gap-4">
-                    <div className="gba:flex gba:items-center gba:gap-2">
-                      <span>My Tasks</span>
-                      <span className="gba:text-gray-500">({total})</span>
-                    </div>
-                  </div>
-                ),
-                actions: (
-                  <AppAction
-                    contextsArray={[FlowContextName.investmentTaskCreate]}
-                    accessToken={accessToken}
-                    data-testid="add-task-action"
-                    emptyStateBehavior="hide"
-                  >
-                    <div
-                      className="gba:flex gba:flex-row gba:justify-center gba:items-center gba:rounded gba:gap-1 gba:cursor-pointer"
-                      data-testid="add-task-trigger"
-                    >
-                      <PlusSquareIcon />
-                      Add
-                    </div>
-                  </AppAction>
-                ),
-              }}
-              dataFilterProps={{ filterGroups, onFilterChange: handleFilterChange }}
-              dataBody={
-                <div data-testid="my-task-table-container">
-                  <TaskTable
-                    {...props}
-                    tasks={tasks}
-                    loading={loading}
-                    error={error}
-                    hasMore={hasMore}
-                    loadMore={loadMore}
-                    loadPage={loadPage}
-                    retry={retry}
-                    total={total}
-                    pageSize={pageSize}
-                    currentPage={currentPage}
-                    sortField={sortField}
-                    sortOrder={sortOrder}
-                    onSelectTask={handleSelectTask}
-                    onPaginationChange={handlePaginationChange}
-                    onSortingChange={handleSortingChange}
-                    selectedTaskId={selectedTask?.id}
-                    hideAssignedTo={true}
-                    sourceApp="IRM"
-                  />
-                </div>
+          {/* Data Display with DataTable */}
+          <DataDisplay
+            // Section tabs with badges showing total counts
+            titleSections={[
+              { 
+                id: 'my', 
+                label: 'My Tasks',
+                metadata: {
+                  count: myTasks.total,
+                  subtitle: 'Assigned to me'
+                }
+              },
+              { 
+                id: 'team', 
+                label: 'Team Tasks',
+                metadata: {
+                  count: teamTasks.total,
+                  subtitle: 'All team tasks'
+                }
               }
-            />
-          </TabsContent>
-
-          <TabsContent value="team" data-testid="team-tasks-content">
-            <DataContainer
-              dataControllerProps={{
-                search,
-                setSearch,
-                debounceDelay: DEFAULT_LOAD_DEBOUNCE_DELAY,
-                filter: selectedFilters,
-                setFilter: handleSetFilter,
-                filterLabelMap,
-                dateRange: { createdAfter: filterCreatedAfter, createdBefore: filterCreatedBefore, onClear: () => filterHandleDateRangeChange(undefined, undefined) },
-                listTitle: (
-                  <div className="gba:flex gba:items-center gba:gap-4">
-                    <div className="gba:flex gba:items-center gba:gap-2">
-                      <span>Team Tasks</span>
-                      <span className="gba:text-gray-500">({total})</span>
-                    </div>
-                  </div>
-                ),
-                actions: (
-                  <AppAction
-                    contextsArray={[FlowContextName.investmentTaskCreate]}
-                    accessToken={accessToken}
-                    data-testid="add-task-action"
-                    emptyStateBehavior="hide"
-                  >
-                    <div
-                      className="gba:flex gba:flex-row gba:justify-center gba:items-center gba:rounded gba:gap-1 gba:cursor-pointer"
-                      data-testid="add-task-trigger"
-                    >
-                      <PlusSquareIcon />
-                      Add
-                    </div>
-                  </AppAction>
-                ),
-              }}
-              dataFilterProps={{ filterGroups, onFilterChange: handleFilterChange }}
-              dataBody={
-                <div data-testid="team-task-table-container">
-                  <TaskTable
-                    {...props}
-                    tasks={tasks}
-                    loading={loading}
-                    error={error}
-                    hasMore={hasMore}
-                    loadMore={loadMore}
-                    loadPage={loadPage}
-                    retry={retry}
-                    total={total}
-                    pageSize={pageSize}
-                    currentPage={currentPage}
-                    sortField={sortField}
-                    sortOrder={sortOrder}
-                    onSelectTask={handleSelectTask}
-                    onPaginationChange={handlePaginationChange}
-                    onSortingChange={handleSortingChange}
-                    selectedTaskId={selectedTask?.id}
-                    sourceApp="IRM"
-                  />
-                </div>
+            ]}
+            currentSection={currentSection}
+            onSectionChange={handleSectionChange}
+            
+            // Primary action - Add Task
+            primaryAction={
+              <AppAction
+                contextsArray={[FlowContextName.investmentTaskCreate]}
+                externalContextData={{}}
+                accessToken={accessToken}
+                emptyStateBehavior="hide"
+                deferMainContextRequestsUntilClick={false}
+              >
+                <Button variant="default">
+                  <PlusSquareIcon className="gba:w-4 gba:h-4" />
+                  Add Task
+                </Button>
+              </AppAction>
+            }
+            
+            // Search
+            searchValue={current.search}
+            searchPlaceholder="Search tasks..."
+            onSearchChange={current.setSearch}
+            
+            // Filters
+            filters={current.filters}
+            filterConfiguration={dynamicFilterConfig}
+            onFilterChange={(newFilters) => {
+              console.log('DataDisplay - Filter change:', newFilters);
+              current.setFilters(newFilters);
+            }}
+            
+            // Live filtering for real-time updates
+            enableLiveFiltering={true}
+            
+            // Custom filter sheet labels
+            filterSheetTitle="Filter Tasks"
+            filterSheetDescription="Apply filters to narrow down the task list"
+            
+            // Toolbar density
+            toolbarDensity="default"
+            
+            // Sorting
+            sorting={current.sorting}
+            sortableColumns={createTaskSortableColumns()}
+            onSortingChange={current.setSorting}
+            
+            // Column visibility
+            availableColumns={createTaskColumns().map(col => ({
+              id: col.id!,
+              label: col.header as string
+            }))}
+            visibleColumns={current.visibleColumns}
+            onVisibleColumnsChange={current.setVisibleColumns}
+            
+            // Selection & bulk actions
+            selectedCount={current.selectedRows.length}
+            bulkActions={[
+              {
+                id: 'export',
+                label: 'Export Selected',
+                onClick: () => console.log('Export selected tasks:', current.selectedRows)
+              },
+              {
+                id: 'assign',
+                label: 'Bulk Assign',
+                onClick: () => console.log('Bulk assign tasks:', current.selectedRows)
+              },
+              {
+                id: 'delete',
+                label: 'Delete Selected',
+                onClick: () => console.log('Delete selected tasks:', current.selectedRows)
               }
-            />
-          </TabsContent>
-        </Tabs>
-      </div>
+            ]}
+            onClearSelection={() => current.setSelectedRows([])}
+            
+          >
+        <DataTable<Task>
+          // Data
+          data={current.data}
+          columns={createTaskColumns().filter(col => 
+            current.visibleColumns.includes(col.id!)
+          )}
+          loading={current.loading}
+          error={current.error?.message}
+          totalCount={current.total}
+          
+          // Controlled State
+          sorting={current.sorting}
+          onSortingChange={current.setSorting}
+          pagination={current.pagination}
+          onPaginationChange={current.setPagination}
+          selectedRows={current.selectedRows}
+          onSelectionChange={current.setSelectedRows}
+          
+          // Features
+          enablePagination
+          enableSorting
+          enableSelection={false}
+          enableColumnPinning
+          enableResizing={false}
+          
+          // UI
+          rowsPerPageOptions={[10, 20, 50, 100]}
+          showPageNumbers
+          maxVisiblePages={7}
+          emptyMessage="No tasks found"
+          
+              // Row Actions - Using AppActionMenu for flow integration
+              actions={(row) => (
+                <AppActionMenu
+                  data-testid={`task-actions-menu-${row.original.id}`}
+                  contextsArray={[FlowContextName.investmentTaskEntity]}
+                  externalContextData={{ taskId: row.original.id }}
+                  prefixDataTestId="task-actions"
+                  accessToken={accessToken}
+                  emptyStateBehavior="enable"
+                  deferMainContextRequestsUntilClick
+                >
+                  <Button
+                    size="icon"
+                    variant="ghost"
+                    aria-label="Task actions"
+                    data-testid={`task-actions-trigger-${row.original.id}`}
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    <svg className="gba:w-4 gba:h-4 gba:text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z" />
+                    </svg>
+                  </Button>
+                </AppActionMenu>
+              )}
+          
+          // Row Click
+          onRowClick={(task) => handleSelectTask(task)}
+        />
+      </DataDisplay>
 
+      {/* Task Details Sheet */}
       <Sheet 
         open={!!selectedTask} 
         onOpenChange={(open) => {
-          console.log('🔍 Investment Sheet onOpenChange:', { open, selectedTask: !!selectedTask });
           if (!open) setSelectedTask(null);
         }}
+        title="Task Details"
       >
         <SheetContent className="gba:w-[450px] gba:sm:w-[600px] gba:max-w-[90vw] gba:p-0 gba:flex gba:flex-col">
           <SheetHeader className="gba:px-6 gba:py-6 gba:border-b gba:border-border gba:shrink-0">
@@ -461,15 +397,15 @@ export const TaskManagement: React.FC<TaskManagementProps> = (props: TaskManagem
               {selectedTask?.name || 'Task Details'}
             </SheetTitle>
           </SheetHeader>
-          <div className="gba:flex-1 gba:overflow-hidden gba:px-6">
-            {selectedTask ? (
-              <TaskDetails task={selectedTask} sourceApp="IRM" onClose={() => setSelectedTask(null)} />
-            ) : (
-              <div className="gba:p-4 gba:text-center gba:text-muted-foreground">
-                No task selected
+              <div className="gba:flex-1 gba:overflow-hidden gba:px-6">
+                {selectedTask ? (
+                  <TaskDetails task={selectedTask} accessToken={accessToken} />
+                ) : (
+                  <div className="gba:p-4 gba:text-center gba:text-muted-foreground">
+                    No task selected
+                  </div>
+                )}
               </div>
-            )}
-          </div>
         </SheetContent>
       </Sheet>
     </div>

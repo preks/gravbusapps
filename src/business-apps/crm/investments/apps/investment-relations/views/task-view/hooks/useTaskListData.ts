@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback, useRef } from 'react';
+import { useState, useCallback } from 'react';
 import { Task } from '../types/TaskTypes';
 import { TaskFilters } from './useTaskFilters';
 import { useInvestmentTasks } from '@/common/data/investment';
@@ -9,7 +9,6 @@ interface UseTaskListDataProps extends TaskFilters {
   sortField: string;
   sortOrder: 'ASC' | 'DESC';
   accessToken: string;
-  sourceApp?: string;
 }
 
 interface UseTaskListDataReturn {
@@ -33,6 +32,8 @@ export const useTaskListData = (props: UseTaskListDataProps): UseTaskListDataRet
     referenceTypes,
     createdAfter,
     createdBefore,
+    dueDateAfter,
+    dueDateBefore,
     sortField,
     sortOrder,
     accessToken
@@ -56,28 +57,46 @@ export const useTaskListData = (props: UseTaskListDataProps): UseTaskListDataRet
     };
 
     if (statusRefs.length > 0) {
-      // Convert statusRefs like SalesTaskStatus to InvestmentTask catalog
-      variables.taskStatusIds = statusRefs.map((ref) => ref.split(':').pop()).filter(Boolean);
+      // Pass full catalog IDs directly to GraphQL query
+      variables.taskStatusIds = statusRefs;
     }
 
     if (priorityRefs.length > 0) {
-      variables.taskPriorityIds = priorityRefs.map((ref) => ref.split(':').pop()).filter(Boolean);
+      // Pass full catalog IDs directly to GraphQL query
+      variables.taskPriorityIds = priorityRefs;
     }
 
     if (taskTypes.length > 0) {
-      variables.taskTypeIds = taskTypes.map((ref) => ref.split(':').pop()).filter(Boolean);
+      // Pass full catalog IDs directly to GraphQL query
+      variables.taskTypeIds = taskTypes;
     }
 
     if (assignedEmployeeIds.length > 0) {
       variables.assignedEmployeeIds = assignedEmployeeIds;
     }
 
+    // Handle reference type filtering
+    if (referenceTypes && referenceTypes.length > 0) {
+      // For reference type filtering, we need to use a different approach
+      // Since we can't filter by reference type directly in GraphQL,
+      // we'll need to handle this in the where condition
+      variables.referenceTypes = referenceTypes;
+    }
+
     if (createdAfter) {
-      variables.dueDateFrom = createdAfter;
+      variables.createdAfter = createdAfter;
     }
 
     if (createdBefore) {
-      variables.dueDateTo = createdBefore;
+      variables.createdBefore = createdBefore;
+    }
+
+    if (dueDateAfter) {
+      variables.dueDateFrom = dueDateAfter;
+    }
+
+    if (dueDateBefore) {
+      variables.dueDateTo = dueDateBefore;
     }
 
     if (sortField && sortOrder) {
@@ -92,8 +111,11 @@ export const useTaskListData = (props: UseTaskListDataProps): UseTaskListDataRet
       variables.orderBy = [{ field, direction: sortOrder }];
     }
 
+    // Debug logging
+    console.log('useTaskListData - Building query variables:', variables);
+    
     return variables;
-  }, [search, statusRefs, priorityRefs, taskTypes, assignedEmployeeIds, createdAfter, createdBefore, sortField, sortOrder]);
+  }, [search, statusRefs, priorityRefs, taskTypes, assignedEmployeeIds, referenceTypes, createdAfter, createdBefore, dueDateAfter, dueDateBefore, sortField, sortOrder]);
 
   const loadData = useCallback(async (page: number, size: number) => {
     if (!accessToken) {
@@ -163,7 +185,7 @@ export const useTaskListData = (props: UseTaskListDataProps): UseTaskListDataRet
             id: it.creatorEmployee.id,
             firstName: it.creatorEmployee.firstName || '',
             lastName: it.creatorEmployee.lastName || '',
-            displayName: it.creatorEmployee.displayName || 'Unknown',
+            displayName: it.creatorEmployee.displayName || '',
             department: '',
             initials: '',
             pictureThumbnail: it.creatorEmployee.pictureThumbnail
