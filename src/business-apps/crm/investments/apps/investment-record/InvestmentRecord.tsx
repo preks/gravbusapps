@@ -60,13 +60,21 @@ const InvestmentRecord: React.FC<InvestmentRecordProps> = (props) => {
     
     const base = { investment: investmentData, documents };
     
-    // Extract all type-specific arrays
+    // Extract all type-specific data - handle both array and object formats
     return {
       ...base,
-      equityInvestment: Array.isArray(investmentData.equityInvestment) ? investmentData.equityInvestment[0] : undefined,
-      liquidFundInvestment: Array.isArray(investmentData.liquidFundInvestment) ? investmentData.liquidFundInvestment[0] : undefined,
-      realEstateInvestment: Array.isArray(investmentData.realEstateInvestment) ? investmentData.realEstateInvestment[0] : undefined,
-      privateEquityInvestment: Array.isArray(investmentData.privateEquityInvestment) ? investmentData.privateEquityInvestment[0] : undefined
+      equityInvestment: Array.isArray(investmentData.equityInvestment) 
+        ? investmentData.equityInvestment[0] 
+        : investmentData.equityInvestment,
+      liquidFundInvestment: Array.isArray(investmentData.liquidFundInvestment) 
+        ? investmentData.liquidFundInvestment[0] 
+        : investmentData.liquidFundInvestment,
+      realEstateInvestment: Array.isArray(investmentData.realEstateInvestment) 
+        ? investmentData.realEstateInvestment[0] 
+        : investmentData.realEstateInvestment,
+      privateEquityInvestment: Array.isArray(investmentData.privateEquityInvestment) 
+        ? investmentData.privateEquityInvestment[0] 
+        : investmentData.privateEquityInvestment
     };
   }, []);
 

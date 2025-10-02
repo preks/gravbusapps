@@ -365,18 +365,38 @@ export const GET_INVESTMENTS = (variables: InvestmentQueryVariables = {}): strin
         realEstateInvestment {
           id
           buildingYear
+          numberOfUnits
           annualNetColdRent
           actualAnnualExpenses
+          targetAnnualExpenses
+          funding
           occupancyPercent
+          size
+          sizeMeasurementUnitRef
           locality
+          postalCode
+          addressLine
+          liquidityForecast
+          investment {
+            id
+            name
+            code
+          }
         }
         
         liquidFundInvestment {
           id
+          proprietorName
           bankName
-          interestRate
           bankAccountNumber
           earlyTerminationAllowed
+          interestRate
+          maturityDate
+          investment {
+            id
+            name
+            code
+          }
           investmentLiquidFundType {
             ${CATALOG_ENTRY}
           }
@@ -625,23 +645,42 @@ export const GET_INVESTMENT_BY_ID = (id: string): string => {
           numberOfUnits
           annualNetColdRent
           actualAnnualExpenses
+          targetAnnualExpenses
           funding
           occupancyPercent
+          size
+          sizeMeasurementUnitRef
           locality
+          postalCode
           addressLine
           liquidityForecast
+          investment {
+            id
+            name
+            code
+          }
           ${AUDIT_FIELDS}
           country {
+            ${CATALOG_ENTRY}
+          }
+          region {
             ${CATALOG_ENTRY}
           }
         }
         
         liquidFundInvestment {
           id
+          proprietorName
           bankName
           bankAccountNumber
           earlyTerminationAllowed
           interestRate
+          maturityDate
+          investment {
+            id
+            name
+            code
+          }
           ${AUDIT_FIELDS}
           investmentLiquidFundType {
             ${CATALOG_ENTRY}
