@@ -450,7 +450,7 @@ const ExpensePlansTable: React.FC<ExpensePlansTableProps> = (props) => {
                         />
                       </div>
                     </TableCell>
-                    <TableCell className="gba:text-left gba:w-[18%] gba:py-4 gba:px-3">
+                    <TableCell className="gba:text-left gba:py-3 gba:px-4 gba:w-[18%]">
                       <div className="gba:font-medium gba:text-sm gba:whitespace-nowrap gba:truncate">{plan.title}</div>
                       <div className="gba:text-xs gba:text-muted-foreground gba:whitespace-nowrap gba:truncate">
                         {plan.code || getTranslationFromI18nKeyAndLabel("lowcoder:common.not_available","N/A")}
@@ -461,7 +461,7 @@ const ExpensePlansTable: React.FC<ExpensePlansTableProps> = (props) => {
                         ? ((plan as any).expenseRequest[0]?.code || getTranslationFromI18nKeyAndLabel("lowcoder:common.not_available","N/A"))
                         : getTranslationFromI18nKeyAndLabel("lowcoder:common.not_available","N/A")}
                     </TableCell>
-                    <TableCell className="gba:text-sm">
+                    <TableCell className="gba:text-sm gba:py-3 gba:px-4">
                       {plan.startDate
                         ? (() => {
                             try {
@@ -478,7 +478,7 @@ const ExpensePlansTable: React.FC<ExpensePlansTableProps> = (props) => {
                           })()
                         : getTranslationFromI18nKeyAndLabel("lowcoder:common.not_available","N/A")}
                     </TableCell>
-                    <TableCell className="gba:text-sm">
+                    <TableCell className="gba:text-sm gba:py-3 gba:px-4">
                       {plan.endDate
                         ? (() => {
                             try {
@@ -515,7 +515,7 @@ const ExpensePlansTable: React.FC<ExpensePlansTableProps> = (props) => {
                         </span>
                       </div>
                     </TableCell>
-                    <TableCell className="gba:text-sm">
+                    <TableCell className="gba:text-sm gba:py-3 gba:px-4">
                       {plan.createdAt
                         ? (() => {
                             try {

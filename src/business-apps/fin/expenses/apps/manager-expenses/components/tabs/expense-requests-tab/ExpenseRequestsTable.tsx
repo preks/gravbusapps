@@ -305,7 +305,7 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = (props) => {
               "Error loading data",
             )}
           </div>
-          <div className="gba:text-sm">{error}</div>
+          <div className="gba:text-sm gba:py-3 gba:px-4">{error}</div>
         </Alert>
       );
     }
@@ -507,7 +507,7 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = (props) => {
                         />
                       </div>
                     </TableCell>
-                    <TableCell className="gba:text-left gba:w-[13%] gba:py-4 gba:px-3">
+                    <TableCell className="gba:text-left gba:py-3 gba:px-4 gba:w-[13%]">
                       <div className="gba:font-medium gba:text-sm gba:whitespace-nowrap gba:truncate">
                         {record.title ?? getTranslationFromI18nKeyAndLabel("lowcoder:common.untitled_request","Untitled Request")}
                       </div>
@@ -519,7 +519,7 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = (props) => {
                       {(record as any)?.expensePlan?.code ?? getTranslationFromI18nKeyAndLabel("lowcoder:common.not_available","N/A")}
                     </TableCell>
                     <TableCell
-                      className="gba:text-sm"
+                      className="gba:text-sm gba:py-3 gba:px-4"
                       data-testid={`expense-requests-start-date-cell-${record.id}`}
                     >
                       {record.startDate
@@ -539,7 +539,7 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = (props) => {
                         : getTranslationFromI18nKeyAndLabel("lowcoder:common.not_available","N/A")}
                     </TableCell>
                     <TableCell
-                      className="gba:text-sm"
+                      className="gba:text-sm gba:py-3 gba:px-4"
                       data-testid={`expense-requests-end-date-cell-${record.id}`}
                     >
                       {record.endDate
@@ -586,7 +586,7 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = (props) => {
                       </div>
                     </TableCell>
                     <TableCell
-                      className="gba:text-sm"
+                      className="gba:text-sm gba:py-3 gba:px-4"
                       data-testid={`expense-requests-request-date-cell-${record.id}`}
                     >
                       {record.requestDate

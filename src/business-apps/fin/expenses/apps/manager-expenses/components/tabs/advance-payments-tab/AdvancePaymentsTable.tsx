@@ -104,7 +104,7 @@ const AdvancePaymentsTable: React.FC<AdvancePaymentsTableProps> = (props) => {
       return (
         <Alert variant="destructive">
           <div className="gba:font-medium">Error loading advance payments</div>
-          <div className="gba:text-sm">
+          <div className="gba:text-sm gba:py-3 gba:px-4">
             {error.message || "An error occurred while loading advance payments."}
           </div>
         </Alert>
@@ -321,7 +321,7 @@ const AdvancePaymentsTable: React.FC<AdvancePaymentsTableProps> = (props) => {
                       />
                     </div>
                   </TableCell>
-                  <TableCell className="gba:text-left gba:w-[12%] gba:py-4 gba:px-3">
+                  <TableCell className="gba:text-left gba:py-3 gba:px-4 gba:w-[12%]">
                     <div className="gba:font-medium gba:text-sm gba:whitespace-nowrap gba:truncate">
                       {record.expensePlan?.title ?? getTranslationFromI18nKeyAndLabel("lowcoder:common.not_available","N/A")}
                     </div>
@@ -329,7 +329,7 @@ const AdvancePaymentsTable: React.FC<AdvancePaymentsTableProps> = (props) => {
                       {record.expensePlan?.code ?? getTranslationFromI18nKeyAndLabel("lowcoder:common.not_available","N/A")}
                     </div>
                   </TableCell>
-                  <TableCell className="gba:text-sm">
+                  <TableCell className="gba:text-sm gba:py-3 gba:px-4">
                     {record.expensePlan?.startDate
                       ? (() => {
                           try {
@@ -346,7 +346,7 @@ const AdvancePaymentsTable: React.FC<AdvancePaymentsTableProps> = (props) => {
                         })()
                       : getTranslationFromI18nKeyAndLabel("lowcoder:common.not_available","N/A")}
                   </TableCell>
-                  <TableCell className="gba:text-sm">
+                  <TableCell className="gba:text-sm gba:py-3 gba:px-4">
                     {record.expensePlan?.endDate
                       ? (() => {
                           try {
@@ -385,7 +385,7 @@ const AdvancePaymentsTable: React.FC<AdvancePaymentsTableProps> = (props) => {
                       </span>
                     </div>
                   </TableCell>
-                  <TableCell className="gba:text-sm">
+                  <TableCell className="gba:text-sm gba:py-3 gba:px-4">
                     {record.createdAt
                       ? (() => {
                           try {
