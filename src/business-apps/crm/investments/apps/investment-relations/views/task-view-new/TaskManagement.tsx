@@ -242,7 +242,7 @@ export const TaskManagement: React.FC<TaskManagementProps> = (props: TaskManagem
           enableSorting
           enableSelection={false}
           enableColumnPinning
-          enableResizing
+          enableResizing={false}
           
           // UI
           rowsPerPageOptions={[10, 20, 50, 100]}

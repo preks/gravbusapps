@@ -18,6 +18,7 @@ import {
 import dayjs from 'dayjs';
 import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils';
 import { OwnerDisplay } from '../../../../../components/shared';
+import { TaskEmployee } from '../types/TaskTypes';
 
 interface TaskTableProps {
   tasks: Task[];
@@ -44,6 +45,15 @@ interface TaskTableProps {
 const DATA_TEST_ID_PREFIX = 'TaskTable';
 
 const formatDate = (dateString: string) => dayjs(dateString).format('MM/DD/YYYY');
+
+// Helper function to convert TaskEmployee to OwnerEmployee format
+const convertToOwnerEmployee = (taskEmployee: TaskEmployee) => ({
+  id: taskEmployee.id,
+  displayName: taskEmployee.displayName,
+  firstName: taskEmployee.firstName,
+  lastName: taskEmployee.lastName,
+  pictureThumbnail: taskEmployee.pictureThumbnail
+});
 
 const getTimingTypeIcon = (timingType?: string) => {
   if (!timingType) return { icon: <Clock className="gba:h-4 gba:w-4 gba:text-gray-400" />, tooltip: 'No timing type specified' };
@@ -184,7 +194,7 @@ export const TaskTable: React.FC<TaskTableProps> = ({
                   {!hideAssignedTo && (
                     <TableCell className="gba:py-4 gba:px-6" data-testid={`${DATA_TEST_ID_PREFIX}-assigned-to-cell-${record.id}`}>
                       <OwnerDisplay 
-                        ownerEmployee={record.assignedTo}
+                        ownerEmployee={convertToOwnerEmployee(record.assignedTo)}
                         entityId={record.id}
                         testIdPrefix="task-assigned-to"
                       />
@@ -226,7 +236,7 @@ export const TaskTable: React.FC<TaskTableProps> = ({
                   <TableCell className="gba:py-4 gba:px-6" data-testid={`${DATA_TEST_ID_PREFIX}-created-by-cell-${record.id}`}>
                     {record.creatorEmployee ? (
                       <OwnerDisplay 
-                        ownerEmployee={record.creatorEmployee}
+                        ownerEmployee={convertToOwnerEmployee(record.creatorEmployee)}
                         entityId={record.id}
                         testIdPrefix="task-creator"
                       />

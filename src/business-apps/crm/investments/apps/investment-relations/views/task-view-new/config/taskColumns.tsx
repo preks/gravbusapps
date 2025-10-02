@@ -2,7 +2,7 @@ import type { ColumnDef } from '@tanstack/react-table';
 import { Badge, Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@newwork/nw-design-system';
 import { Clock, Calendar } from 'lucide-react';
 import { OwnerDisplay } from '../../../../../components/shared';
-import { Task } from '../types/TaskTypes';
+import { Task, TaskEmployee } from '../types/TaskTypes';
 import { 
   getTaskStatusBadgeVariant,
   getTaskPriorityBadgeVariant,
@@ -13,6 +13,15 @@ import dayjs from 'dayjs';
 import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils';
 
 const formatDate = (dateString: string) => dayjs(dateString).format('MM/DD/YYYY');
+
+// Helper function to convert TaskEmployee to OwnerEmployee format
+const convertToOwnerEmployee = (taskEmployee: TaskEmployee) => ({
+  id: taskEmployee.id,
+  displayName: taskEmployee.displayName,
+  firstName: taskEmployee.firstName,
+  lastName: taskEmployee.lastName,
+  pictureThumbnail: taskEmployee.pictureThumbnail
+});
 
 const getTimingTypeIcon = (timingType?: string) => {
   if (!timingType) return { icon: <Clock className="gba:h-4 gba:w-4 gba:text-gray-400" />, tooltip: 'No timing type specified' };
@@ -58,7 +67,7 @@ export const createTaskColumns = (): ColumnDef<Task>[] => [
     size: 180,
     cell: ({ row }) => (
       <OwnerDisplay 
-        ownerEmployee={row.original.assignedTo}
+        ownerEmployee={convertToOwnerEmployee(row.original.assignedTo)}
         entityId={row.original.id}
         testIdPrefix="task-assigned-to"
       />
@@ -154,7 +163,7 @@ export const createTaskColumns = (): ColumnDef<Task>[] => [
     cell: ({ row }) => (
       row.original.creatorEmployee ? (
         <OwnerDisplay 
-          ownerEmployee={row.original.creatorEmployee}
+          ownerEmployee={convertToOwnerEmployee(row.original.creatorEmployee)}
           entityId={row.original.id}
           testIdPrefix="task-creator"
         />

@@ -6,6 +6,7 @@ export interface TaskEmployee {
   department: string;
   avatar?: string;
   initials: string;
+  pictureThumbnail?: string;
 }
 
 export interface TaskReference {
