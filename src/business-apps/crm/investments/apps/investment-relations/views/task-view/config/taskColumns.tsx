@@ -36,6 +36,8 @@ const getTimingTypeIcon = (timingType?: string) => {
 };
 
 const handleReferenceClick = (reference: Task['reference']) => {
+  if (!reference) return;
+  
   const source = 'investments'; // Default to investments for IRM
   let url = '';
   switch (reference.type) {
@@ -111,26 +113,32 @@ export const createTaskColumns = (): ColumnDef<Task>[] => [
     accessorKey: 'reference',
     header: 'Reference',
     size: 200,
-    cell: ({ row }) => (
-      <div 
-        className="gba:cursor-pointer gba:hover:bg-gray-50 gba:p-2 gba:rounded gba:transition-colors" 
-        onClick={(e) => { 
-          e.stopPropagation(); 
-          handleReferenceClick(row.original.reference); 
-        }}
-        data-testid={`task-reference-link-${row.original.id}`}
-      >
-          <div className="gba:font-medium gba:text-sm">{row.original.reference.name}</div>
-          <div className="gba:flex gba:items-center gba:gap-1 gba:mt-1">
-            <Badge variant={getReferenceTypeBadgeVariant(row.original.reference.type)} className="gba:text-xs">
-              {row.original.reference.type.charAt(0).toUpperCase() + row.original.reference.type.slice(1)}
-            </Badge>
-            {row.original.reference.description && (
-              <span className="gba:text-xs gba:text-gray-500">{row.original.reference.description}</span>
-            )}
+    cell: ({ row }) => {
+      if (!row.original.reference) {
+        return <span className="gba:text-gray-400">No reference</span>;
+      }
+      
+      return (
+        <div 
+          className="gba:cursor-pointer gba:hover:bg-gray-50 gba:p-2 gba:rounded gba:transition-colors" 
+          onClick={(e) => { 
+            e.stopPropagation(); 
+            handleReferenceClick(row.original.reference); 
+          }}
+          data-testid={`task-reference-link-${row.original.id}`}
+        >
+            <div className="gba:font-medium gba:text-sm">{row.original.reference.name}</div>
+            <div className="gba:flex gba:items-center gba:gap-1 gba:mt-1">
+              <Badge variant={getReferenceTypeBadgeVariant(row.original.reference.type)} className="gba:text-xs">
+                {row.original.reference.type.charAt(0).toUpperCase() + row.original.reference.type.slice(1)}
+              </Badge>
+              {row.original.reference.description && (
+                <span className="gba:text-xs gba:text-gray-500">{row.original.reference.description}</span>
+              )}
+            </div>
           </div>
-        </div>
-    )
+      );
+    }
   },
   {
     id: 'dueDate',

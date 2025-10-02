@@ -2,49 +2,6 @@ import { useState, useCallback, useEffect, useMemo } from 'react';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 import { useGetTaskStatistics } from '../queries/taskStatisticsQueries';
 
-interface TaskStatisticsData {
-  myTasks: {
-    aggregate: {
-      count: number;
-    };
-  };
-  myTasksInProgress: {
-    aggregate: {
-      count: number;
-    };
-  };
-  myTasksCompleted: {
-    aggregate: {
-      count: number;
-    };
-  };
-  myTasksOverdue: {
-    aggregate: {
-      count: number;
-    };
-  };
-  teamTasks: {
-    aggregate: {
-      count: number;
-    };
-  };
-  teamTasksInProgress: {
-    aggregate: {
-      count: number;
-    };
-  };
-  teamTasksCompleted: {
-    aggregate: {
-      count: number;
-    };
-  };
-  teamTasksOverdue: {
-    aggregate: {
-      count: number;
-    };
-  };
-}
-
 interface TaskStatistics {
   totalTasks: { value: number };
   inProgress: { value: number };
@@ -52,12 +9,12 @@ interface TaskStatistics {
   overdue: { value: number };
 }
 
-interface UseTaskStatisticsNewProps extends BusinessAppContextProps {
+interface UseTaskStatisticsProps extends BusinessAppContextProps {
   filters?: Record<string, any>;
   search?: string;
 }
 
-interface UseTaskStatisticsNewReturn {
+interface UseTaskStatisticsReturn {
   myTasksStatistics: TaskStatistics;
   teamTasksStatistics: TaskStatistics;
   isLoading: boolean;
@@ -65,7 +22,7 @@ interface UseTaskStatisticsNewReturn {
   refetch: () => void;
 }
 
-export const useTaskStatisticsNew = (props: UseTaskStatisticsNewProps): UseTaskStatisticsNewReturn => {
+export const useTaskStatistics = (props: UseTaskStatisticsProps): UseTaskStatisticsReturn => {
   const { accessToken, userInfo } = props;
   const { fetchTaskStatistics } = useGetTaskStatistics(props);
 

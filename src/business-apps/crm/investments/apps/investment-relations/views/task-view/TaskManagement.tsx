@@ -4,7 +4,7 @@ import React, { useState, useCallback, useEffect, useMemo } from 'react';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, DataDisplay, DataTable, Button } from '@newwork/nw-design-system';
 
 import { useTaskData } from './hooks/useTaskData';
-import { useTaskStatisticsNew } from './hooks/useTaskStatistics';
+import { useTaskStatistics } from './hooks/useTaskStatistics';
 import { TaskDetails, TaskStatistics } from './components';
 import { createTaskColumns, createTaskSortableColumns } from './config/taskColumns';
 import { taskFilterConfig } from './config/taskFilters';
@@ -14,7 +14,8 @@ import { AppAction } from '@/components/app-action/AppAction';
 import { FlowContextName } from '@/common/types/FlowRegistryTypes';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 import { Task } from './types/TaskTypes';
-import { ColumnConfig } from '@/components/dataController';
+import { PlusSquareIcon } from '@phosphor-icons/react';
+import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
 
 export interface TaskManagementProps extends BusinessAppContextProps {
   sourceApp?: string;
@@ -100,7 +101,7 @@ export const TaskManagement: React.FC<TaskManagementProps> = (props: TaskManagem
     isLoading: statisticsLoading,
     error: statisticsError,
     refetch: refetchStatistics
-  } = useTaskStatisticsNew({
+  } = useTaskStatistics({
     accessToken,
     userInfo
     // Note: No filters or search - statistics should show overall counts, not filtered counts
