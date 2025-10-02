@@ -530,17 +530,17 @@ export const ServiceCatalog: React.FC<ServiceCatalogProps> = ({
       {/* Search input overlay positioned in Quick Actions area - as an additional item */}
       <div className="gba:absolute gba:top-0 gba:left-0 gba:right-0 gba:z-10 gba:pointer-events-none">
         <div className="gba:pt-58">
-          <div className="layout-content gba:pointer-events-auto">
+          <div className="layout-content">
             {/* Search input positioned as additional Quick Action item */}
-            <div className="gba:grid gba:grid-cols-2 gba:sm:grid-cols-3 gba:md:grid-cols-4 gba:lg:grid-cols-6 gba:gap-2">
-              {/* Skip existing Quick Action buttons (My Requests, Service Desk, Help Center) */}
-              <div></div>
-              <div></div>
-              <div></div>
+            <div className="gba:grid gba:grid-cols-2 gba:sm:grid-cols-3 gba:md:grid-cols-4 gba:lg:grid-cols-6 gba:gap-2 gba:pointer-events-none">
+              {/* Skip existing Quick Action buttons (My Requests, Service Desk, Help Center) - let clicks pass through */}
+              <div className="gba:pointer-events-none"></div>
+              <div className="gba:pointer-events-none"></div>
+              <div className="gba:pointer-events-none"></div>
               {/* Empty space to push search input to the right */}
-              <div></div>
-              {/* Search input only - right aligned */}
-              <div className="gba:col-span-2">
+              <div className="gba:pointer-events-none"></div>
+              {/* Search input only - right aligned - ONLY this area captures clicks */}
+              <div className="gba:col-span-2 gba:pointer-events-auto">
                 <div className="gba:bg-transparent gba:rounded-lg gba:p-6 gba:h-full gba:flex gba:flex-col gba:justify-center gba:min-h-20">
                   <SearchInput 
                     searchQuery={searchQuery}
