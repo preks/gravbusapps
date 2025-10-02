@@ -19,14 +19,30 @@ export interface ContactViewProps extends BusinessAppContextProps {}
 export const ContactView: React.FC<ContactViewProps> = (context) => {
   const { accessToken } = context;
 
+  // Read initial filters/search from URL (before first render)
+  const getInitialFromUrl = () => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const filters: string[] = [];
+    const pushAll = (key: string, prefix: string) => {
+      urlParams.getAll(key).forEach((v) => v && filters.push(`${prefix}:${v}`));
+    };
+    pushAll("contactType", "type");
+    pushAll("owner", "owner");
+    pushAll("account", "account");
+    pushAll("department", "department");
+    const search = urlParams.get("search") || "";
+    return { search, filters };
+  };
+  const initial = getInitialFromUrl();
+
   // State management
-  const [searchTerm, setSearchTerm] = useState("");
+  const [searchTerm, setSearchTerm] = useState(initial.search);
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize] = useState(20);
   type SortOrder = "ASC" | "DESC" | undefined;
   const [sortField, setSortField] = useState<string | undefined>("createdAt");
   const [sortOrder, setSortOrder] = useState<SortOrder>("DESC");
-  const [selectedFilters, setSelectedFilters] = useState<string[]>([]);
+  const [selectedFilters, setSelectedFilters] = useState<string[]>(initial.filters);
   // const [showDataFilter, setShowDataFilter] = useState(false);
   const {
     filterGroups,

@@ -274,6 +274,14 @@ export const useInvestmentAccountFilters = (
         hideSearch: true,
       } as any,
       {
+        id: "status",
+        title: "Status",
+        filters: toFilters([
+          { id: "status:active", label: "Active" },
+          { id: "status:inactive", label: "Inactive" },
+        ])
+      },
+      {
         id: "contactInfo",
         title: "Contact Info",
         filters: toFilters([
@@ -306,6 +314,8 @@ export const useInvestmentAccountFilters = (
       ...Object.fromEntries(revenueBands.map(c => [`annualRevenueBand:${c.id}`, c.value || c.code || c.id])),
       ...Object.fromEntries(companies.map(n => [`company:${n}`, n])),
       ...Object.fromEntries(locations.map(l => [`location:${l}`, l])),
+      "status:active": "Active",
+      "status:inactive": "Inactive",
       "has:website": "Has website",
       "missing:website": "Missing website",
       "has:email": "Has email",
