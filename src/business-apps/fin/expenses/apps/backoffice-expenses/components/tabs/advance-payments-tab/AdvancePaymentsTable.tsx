@@ -24,7 +24,11 @@ import {
   PaginationNext,
   PaginationPrevious,
   Card,
-  CardContent
+  CardContent,
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle
 } from '@newwork/nw-design-system';
 import { DataContainer } from '@/components/layout/dataContainer/DataContainer';
 import { DataFilterGroup } from '@/components/data-filter/DataFilter';
@@ -32,7 +36,7 @@ import { AppActionButton } from '@/components/app-action-button/AppActionButton'
 import { FileText } from 'lucide-react';
 
 import { getAdvancePaymentStatusDisplay } from '../../../utils/utils';
-import AdvancePaymentDetails from './AdvancePaymentDetails';
+import AdvancePaymentDetailsBackoffice from './AdvancePaymentDetailsBackoffice';
 import { formatNumberFunction, getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
 import { buildPlatformUrl, navigateTo } from '@/common/utils/navigationUtils';
 import Pill from '@/components/pill/Pill';
@@ -454,15 +458,14 @@ const AdvancePaymentsTable: React.FC<AdvancePaymentsTableProps> = (props) => {
     if (!selectedItem) return null;
 
     return (
-      <AdvancePaymentDetails
-        selectedItem={selectedItem}
+      <AdvancePaymentDetailsBackoffice
+        payment={selectedItem}
         onClose={handleCloseDetails}
         accessToken={props.accessToken}
         userInfo={props.userInfo}
-        type={selectedActionType}
       />
     );
-  }, [selectedItem, handleCloseDetails, props.accessToken, props.userInfo, selectedActionType]);
+  }, [selectedItem, handleCloseDetails, props.accessToken, props.userInfo]);
 
   // Filter groups for DataContainer
   const filterGroups: DataFilterGroup[] = [
@@ -664,18 +667,26 @@ const AdvancePaymentsTable: React.FC<AdvancePaymentsTableProps> = (props) => {
           onFilterChange: handleFilterChange as (filterId: string, selected: boolean) => void,
         }}
         dataBody={renderDataBody()}
-        dataDetails={selectedItem ? {
-          title: selectedActionType === 'advance-payment' 
-            ? (selectedItem.title || selectedItem.description || getTranslationFromI18nKeyAndLabel('lowcoder:advance_payment_table.advance_payment_details', 'Advance Payment Details'))
-            : selectedActionType === 'plan'
-            ? (selectedItem.expensePlan?.title || getTranslationFromI18nKeyAndLabel('lowcoder:advance_payment_table.plan_details', 'Plan Details'))
-            : (selectedItem.expensePlan?.expenseRequest?.title || getTranslationFromI18nKeyAndLabel('lowcoder:confirm_transfer_advance_payment.request_details', 'Request Details')),
-          icon: <FileText className="gba:w-4 gba:h-4" />,
-          content: renderAdvancePaymentDetails,
-          onClose: handleCloseDetails
-        } : undefined}
-        floatingDetails={true}
       />
+      <Sheet open={!!selectedItem} onOpenChange={(open) => !open && handleCloseDetails()} title={selectedItem?.title || selectedItem?.description || getTranslationFromI18nKeyAndLabel('lowcoder:advance_payment_table.advance_payment_details', 'Advance Payment Details')}>
+        <SheetContent className="gba:w-[600px] gba:sm:gba:w-[600px] gba:max-w-none">
+          <SheetHeader>
+            <SheetTitle className="gba:text-xl gba:font-semibold gba:text-gray-900">
+              {selectedItem?.title || selectedItem?.description || getTranslationFromI18nKeyAndLabel('lowcoder:advance_payment_table.advance_payment_details', 'Advance Payment Details')}
+            </SheetTitle>
+          </SheetHeader>
+          <div className="gba:mt-6 gba:overflow-y-auto gba:max-h-[calc(100vh-120px)]">
+            {selectedItem && (
+              <AdvancePaymentDetailsBackoffice
+                payment={selectedItem}
+                onClose={handleCloseDetails}
+                accessToken={props.accessToken}
+                userInfo={props.userInfo}
+              />
+            )}
+          </div>
+        </SheetContent>
+      </Sheet>
     </>
   );
 };

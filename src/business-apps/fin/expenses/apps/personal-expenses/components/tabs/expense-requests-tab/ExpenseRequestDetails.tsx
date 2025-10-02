@@ -20,23 +20,28 @@ import { generateExpenseRequestActions } from '../../../utils/expenseRequestActi
 export interface ExpenseRequestDetailsProps extends BusinessAppContextProps {
   selectedItem: any;
   onClose: () => void;
+  requestTypeLabel?: string;
 }
 
 const ExpenseRequestDetails: React.FC<ExpenseRequestDetailsProps> = ({
   selectedItem,
   onClose,
+  requestTypeLabel,
   ...contextProps
 }) => {
   if (!selectedItem) return null;
   
-  // Get trip type
-  const getTripType = () => {
-    if (selectedItem.requestType?.value) {
-      return selectedItem.requestType.value;
-    }
-    const additionalProps = selectedItem.additionalProperties as Record<string, unknown> | null;
-    const tripType = additionalProps?.tripType ?? additionalProps?.travelType;
-    return tripType ?? 'Business Travel';
+  const formatTypeLabel = (value?: string) => {
+    if (!value) return 'N/A';
+    const trimmed = String(value).trim();
+    if (!trimmed) return 'N/A';
+    return trimmed.charAt(0).toUpperCase() + trimmed.slice(1).toLowerCase();
+  };
+
+  const getRequestType = () => {
+    if (selectedItem.requestType?.value) return selectedItem.requestType.value;
+    if (selectedItem.requestType) return String(selectedItem.requestType);
+    return 'N/A';
   };
 
   return (
@@ -187,9 +192,9 @@ const ExpenseRequestDetails: React.FC<ExpenseRequestDetailsProps> = ({
             
             <div className="gba:flex gba:justify-between gba:items-center">
               <span className="gba:text-sm gba:font-medium gba:text-gray-700">
-                {getTranslationFromI18nKeyAndLabel('lowcoder:team_expenses_page.plan_details.trip_type', 'Trip Type')}
+                {getTranslationFromI18nKeyAndLabel('lowcoder:expense_calculation_rule.expense_calculation_rule_modal.affected_expense_modal', 'Request Type')}
               </span>
-              <span className="gba:text-sm gba:text-gray-900">{getTripType()}</span>
+              <span className="gba:text-sm gba:text-gray-900">{formatTypeLabel(requestTypeLabel ?? getRequestType())}</span>
             </div>
             
             <div className="gba:flex gba:justify-between gba:items-center">

@@ -13,15 +13,26 @@ export interface AdvancePaymentDetailsProps extends BusinessAppContextProps {
   selectedItem: any | null;
   onClose: () => void;
   type: 'advance-payment' | 'plan' | 'request';
+  requestTypeLabel?: string;
+  planTypeLabel?: string;
 }
 
 export const AdvancePaymentDetails: React.FC<AdvancePaymentDetailsProps> = ({
   selectedItem,
   onClose,
   type,
+  requestTypeLabel,
+  planTypeLabel,
   ...contextProps
 }) => {
   if (!selectedItem) return null;
+
+  const formatTypeLabel = (value?: string) => {
+    if (!value) return 'N/A';
+    const trimmed = String(value).trim();
+    if (!trimmed) return 'N/A';
+    return trimmed.charAt(0).toUpperCase() + trimmed.slice(1).toLowerCase();
+  };
 
   const renderAdvancePaymentDetails = () => (
     <div className="gba:p-4 gba:relative gba:mb-6">
@@ -175,8 +186,8 @@ export const AdvancePaymentDetails: React.FC<AdvancePaymentDetailsProps> = ({
             </Descriptions.Item>
           )}
           
-          <Descriptions.Item label={getTranslationFromI18nKeyAndLabel('lowcoder:plan_details.trip_type', 'Trip Type')}>
-            {getTripType()}
+          <Descriptions.Item label={getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.plan_type', 'Plan Type')}>
+            {formatTypeLabel(planTypeLabel ?? String(getTripType()))}
           </Descriptions.Item>
           
           <Descriptions.Item label={getTranslationFromI18nKeyAndLabel('lowcoder:expense_request_list.expense_plan_table.total_amount', 'Total Amount')}>
@@ -256,7 +267,7 @@ export const AdvancePaymentDetails: React.FC<AdvancePaymentDetailsProps> = ({
             </span>
           </Descriptions.Item>
           <Descriptions.Item label={getTranslationFromI18nKeyAndLabel('lowcoder:create_expense_request.expense_request_container.current_title_label', 'Request Type')}>
-            {request.requestType?.value || request.requestType || 'N/A'}
+            {formatTypeLabel(requestTypeLabel ?? (request.requestType?.value || request.requestType))}
           </Descriptions.Item>
           {request.costCenter && (
             <Descriptions.Item label={getTranslationFromI18nKeyAndLabel('lowcoder:expense_request_overview.side_bar.request_cost_center', 'Cost Center')}>

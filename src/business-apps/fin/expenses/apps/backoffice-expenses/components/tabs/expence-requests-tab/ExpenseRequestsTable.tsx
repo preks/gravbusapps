@@ -18,17 +18,19 @@ import {
   Button,
   Checkbox,
   Card,
-  CardContent
+  CardContent,
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle
 } from '@newwork/nw-design-system';
 import { DataContainer } from '@/components/layout/dataContainer/DataContainer';
 import { DataFilterGroup } from '@/components/data-filter/DataFilter';
-import { getTranslationFromI18nKeyAndLabel, formatDate, formatNumberFunction } from '@/common/utils/windowUtils';
-import { Descriptions, Divider } from 'antd';
-
-import Pill from '@/components/pill/Pill';
+import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
 import { ExpenseData } from '../../../types';
 import { getExpenseRequestStatusDisplay } from '../../../utils/utils';
 import { buildPlatformUrl, navigateTo } from '@/common/utils/navigationUtils';
+import ExpenseRequestDetailsBackoffice from './ExpenseRequestDetailsBackoffice';
 
 import {
   ExpenseRequestPdfModal,
@@ -558,98 +560,34 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = (props) => {
             </div>
           )
         }
-        dataDetails={
-          selectedExpense ? {
-            title: selectedExpense.title || getTranslationFromI18nKeyAndLabel('expense.request.details.title', 'Expense Request Details'),
-            content: (
-              <div className="gba:p-4 gba:relative gba:mb-6">
-                {/* Header: Title, Code, Status Pill */}
-                <div className="gba:flex gba:justify-between gba:items-center gba:mb-4">
-                  <div>
-                    <h3 className="gba:text-lg gba:font-semibold gba:mb-1">
-                      {selectedExpense.title || 'N/A'}
-                    </h3>
-                    <p className="gba:text-sm gba:text-gray-600">
-                      {selectedExpense.code || 'N/A'}
-                    </p>
-                  </div>
-                  <Pill
-                    type={getExpenseRequestStatusDisplay(selectedExpense.status).type}
-                    label={getExpenseRequestStatusDisplay(selectedExpense.status).label}
-                    className="gba:text-base"
-                    data-testid="expense-request-status-pill"
-                  />
-                </div>
-
-                                 {/* Details Section */}
-                 <Descriptions size="small" column={1}>
-                   <Descriptions.Item label={getTranslationFromI18nKeyAndLabel('lowcoder:hr_absences.create_absence.employee', 'Employee')}>
-                     {selectedExpense.employee || 'N/A'}
-                   </Descriptions.Item>
-                   <Descriptions.Item label={getTranslationFromI18nKeyAndLabel('lowcoder:expense_request_table.employee_code', 'Employee Codes')}>
-                     {selectedExpense.employeeCode || 'N/A'}
-                   </Descriptions.Item>
-                   <Descriptions.Item label={getTranslationFromI18nKeyAndLabel('lowcoder:expense_config_calculation_rule_list.expense_table.sap_number', 'SAP Number')}>
-                     {selectedExpense.sapNumber || 'N/A'}
-                   </Descriptions.Item>
-                   <Descriptions.Item label={getTranslationFromI18nKeyAndLabel('lowcoder:expense_request_list.expense_request_filter.request_number_input', 'Request Number')}>
-                     {selectedExpense.code || 'N/A'}
-                   </Descriptions.Item>
-                   <Descriptions.Item label={getTranslationFromI18nKeyAndLabel('lowcoder:expense_request_list.expense_plan_table.title', 'Title')}>
-                     {selectedExpense.title || 'N/A'}
-                   </Descriptions.Item>
-                   <Descriptions.Item label={getTranslationFromI18nKeyAndLabel('lowcoder:expense_plan_list.expense_plan_table.start_date', 'Start Date')}>
-                     {selectedExpense.startDate && selectedExpense.startDate !== 'N/A' ? formatDate(selectedExpense.startDate, 'date.long') : 'N/A'}
-                   </Descriptions.Item>
-                   <Descriptions.Item label={getTranslationFromI18nKeyAndLabel('lowcoder:expense_plan_list.expense_plan_table.end_date', 'End Date')}>
-                     {selectedExpense.endDate && selectedExpense.endDate !== 'N/A' ? formatDate(selectedExpense.endDate, 'date.long') : 'N/A'}
-                   </Descriptions.Item>
-                   <Descriptions.Item label={getTranslationFromI18nKeyAndLabel('lowcoder:manager_expense_request_list.expense_table.creation_date', 'Creation Date')}>
-                     {selectedExpense.creationDate && selectedExpense.creationDate !== 'N/A' ? formatDate(selectedExpense.creationDate, 'date.long') : 'N/A'}
-                   </Descriptions.Item>
-                   <Descriptions.Item label={getTranslationFromI18nKeyAndLabel('lowcoder:expense_request_list.expense_plan_table.status', 'Status')}>
-                     {getExpenseRequestStatusDisplay(selectedExpense.status).label}
-                   </Descriptions.Item>
-                   <Descriptions.Item label={getTranslationFromI18nKeyAndLabel('lowcoder:approve_expense_plan.remaining', 'Remaining Amount')}>
-                     <span style={{ fontWeight: 'bold' }}>
-                       {(() => {
-                         const remainingAmount = Number(selectedExpense.totalRemainingAmount) || 0;
-                         const currencyCode = selectedExpense.currency || 'EUR';
-                         return remainingAmount > 0 ? `${formatNumberFunction(String(remainingAmount))} ${currencyCode}` : '-';
-                       })()}
-                     </span>
-                   </Descriptions.Item>
-                   <Descriptions.Item label={getTranslationFromI18nKeyAndLabel('lowcoder:expense_request_list.expense_plan_table.total_amount', 'Total Amount')}>
-                     <span style={{ fontWeight: 'bold' }}>
-                       {formatNumberFunction(String(selectedExpense.totalAmount || 0))}
-                     </span>
-                   </Descriptions.Item>
-                                  </Descriptions>
-
-                 <Divider />
-                
-                                 <div className="gba:flex gba:justify-end gba:mt-4">
-                   <Button
-                     variant="default"
-                     onClick={() => {
-                       // Navigate to the expense request record page
-                       const url = buildPlatformUrl('/platform/fin/expenses/expense-request-record', { 
-                         expenseRequestId: selectedExpense.id ? String(selectedExpense.id) : '' 
-                       });
-                       navigateTo(url);
-                     }}
-                     data-testid="view-expense-request-details-button"
-                   >
-                     {getTranslationFromI18nKeyAndLabel('lowcoder:team_expenses_page.plan_details.view_full_details', 'View Full Details')}
-                   </Button>
-                 </div>
-              </div>
-            ),
-            onClose: handleCloseDetails,
-          } : undefined
-        }
-        floatingDetails={true}
+        dataDetails={undefined}
+        floatingDetails={false}
       />
+
+      {/* Expense Request Details Sheet to match personal usage */}
+      <Sheet open={!!selectedExpense} onOpenChange={(open) => !open && handleCloseDetails()} title={selectedExpense?.title || getTranslationFromI18nKeyAndLabel('lowcoder:expense_request_list.modal_list_or_flow_button.expense_request_details','Expense Request Details')}>
+        <SheetContent className="gba:w-[600px] gba:sm:gba:w-[600px] gba:max-w-none">
+          <SheetHeader>
+            <SheetTitle className="gba:text-xl gba:font-semibold gba:text-gray-900">
+              {selectedExpense?.title || getTranslationFromI18nKeyAndLabel('lowcoder:expense_request_list.modal_list_or_flow_button.expense_request_details','Expense Request Details')}
+            </SheetTitle>
+          </SheetHeader>
+          <div className="gba:mt-6 gba:overflow-y-auto gba:max-h-[calc(100vh-120px)]">
+            {selectedExpense && (
+              <ExpenseRequestDetailsBackoffice
+                selectedItem={selectedExpense}
+                onClose={handleCloseDetails}
+                accessToken={accessToken}
+                userInfo={props.userInfo}
+                requestTypeLabel={(selectedExpense.requestTypeRef 
+                  ? String(selectedExpense.requestTypeRef).split(':').pop() 
+                  : (selectedExpense.type ? String(selectedExpense.type) : undefined))}
+                planTypeLabel={undefined}
+              />
+            )}
+          </div>
+        </SheetContent>
+      </Sheet>
       
       {/* PDF Modal */}
       <ExpenseRequestPdfModal

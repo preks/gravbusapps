@@ -639,6 +639,9 @@ const AdvancePaymentsTable = React.forwardRef<HTMLDivElement, AdvancePaymentsTab
                 onClose={handleCloseDetails}
                 accessToken={props.accessToken}
                 userInfo={props.userInfo}
+                planTypeLabel={(selectedExpensePlan.requestType && (selectedExpensePlan.requestType as any).value) 
+                  || (selectedExpensePlan.type && (selectedExpensePlan.type as any).value)
+                  || (selectedExpensePlan.requestType ? String(selectedExpensePlan.requestType) : (selectedExpensePlan.type ? String(selectedExpensePlan.type) : undefined))}
               />
             )}
           </div>
