@@ -2,10 +2,11 @@ import { useState, useMemo, useCallback, useEffect } from 'react';
 import type { SortingState } from '@tanstack/react-table';
 import { useTaskListData } from './useTaskListData';
 import { Task } from '../types/TaskTypes';
+import { UserInfoProps } from '@/common/BusinessAppContext';
 
 interface UseTaskDataProps {
   type: 'my' | 'team';
-  userInfo?: any;
+  userInfo?: UserInfoProps;
   accessToken: string;
 }
 
@@ -45,17 +46,6 @@ export function useTaskData({
   const [search, setSearch] = useState('');
   const [filters, setFilters] = useState<Record<string, any>>({});
   
-  // Debug filter changes (only when filters actually change)
-  useEffect(() => {
-    const hasActiveFilters = Object.values(filters).some(value => 
-      Array.isArray(value) ? value.length > 0 : value !== undefined && value !== null && value !== ''
-    );
-    if (hasActiveFilters) {
-      console.log('useTaskData - Filter state changed:', filters);
-    } else {
-      console.log('useTaskData - No active filters');
-    }
-  }, [filters]);
 
   // Clean filters to remove empty arrays and undefined values
   const cleanedFilters = useMemo(() => {
@@ -81,9 +71,26 @@ export function useTaskData({
   // Track initial loading separately from subsequent operations
   const [isInitialLoad, setIsInitialLoad] = useState(true);
   
+  // Define proper interface for query parameters
+  interface TaskQueryParams {
+    search: string;
+    statusRefs: string[];
+    priorityRefs: string[];
+    taskTypes: string[];
+    assignedEmployeeIds: string[];
+    referenceTypes: string[];
+    createdAfter?: string;
+    createdBefore?: string;
+    dueDateAfter?: string;
+    dueDateBefore?: string;
+    sortField: string;
+    sortOrder: 'ASC' | 'DESC';
+    accessToken: string;
+  }
+  
   // Build query from state
   const queryParams = useMemo(() => {
-    const params: any = {
+    const params: TaskQueryParams = {
       search,
       // Map filters based on the filter IDs from filter configuration
       // Ensure all filter values are arrays
@@ -101,20 +108,16 @@ export function useTaskData({
       accessToken
     };
     
-        // Debug logging
-        console.log('useTaskData - Query params:', params);
-    
-    // Add type-specific filters
-    if (type === 'my' && userInfo?.employeeDetails?.employeeId) {
-      params.assignedEmployeeIds = [userInfo.employeeDetails.employeeId];
-    } else if (type === 'my' && (userInfo as any)?.employeeId) {
-      params.assignedEmployeeIds = [(userInfo as any).employeeId];
-    } else if (type === 'my' && userInfo?.id) {
-      params.assignedEmployeeIds = [userInfo.id];
+    // Add type-specific filters - simplified employeeId extraction
+    if (type === 'my') {
+      const employeeId = userInfo?.employeeDetails?.employeeId || userInfo?.id;
+      if (employeeId) {
+        params.assignedEmployeeIds = [employeeId];
+      }
     }
     
     return params;
-  }, [search, filters, pagination, sorting, type, userInfo, accessToken]);
+  }, [search, filters, sorting, type, userInfo, accessToken]);
   
   // Fetch data using existing hook
   const { 
@@ -149,7 +152,7 @@ export function useTaskData({
         }
       });
     }
-  }, [accessToken, loadPage, pagination.pageIndex, pagination.pageSize, sorting, search, filters, isInitialLoad]);
+  }, [accessToken, loadPage, pagination.pageIndex, pagination.pageSize, sorting, search, filters]);
   
   return {
     // Data

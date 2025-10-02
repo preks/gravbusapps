@@ -17,6 +17,16 @@ import { Task } from './types/TaskTypes';
 import { PlusIcon } from '@phosphor-icons/react';
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
 
+// Filter configuration types
+export interface FilterOption {
+  id: string;
+  label: string;
+}
+
+export interface SelectFilterConfig {
+  options: FilterOption[];
+}
+
 export interface TaskManagementProps extends BusinessAppContextProps {
   sourceApp?: string;
 }
@@ -40,7 +50,8 @@ export const TaskManagement: React.FC<TaskManagementProps> = (props: TaskManagem
     if (statusGroup && statuses.length > 0) {
       const statusFilter = statusGroup.filters.find(f => f.id === 'status');
       if (statusFilter && statusFilter.config && 'options' in statusFilter.config) {
-        (statusFilter.config as any).options = statuses.map(status => ({
+        const cfg = statusFilter.config as SelectFilterConfig;
+        cfg.options = statuses.map(status => ({
           id: status.id,
           label: status.value
         }));
@@ -52,7 +63,8 @@ export const TaskManagement: React.FC<TaskManagementProps> = (props: TaskManagem
     if (priorityGroup && priorities.length > 0) {
       const priorityFilter = priorityGroup.filters.find(f => f.id === 'priority');
       if (priorityFilter && priorityFilter.config && 'options' in priorityFilter.config) {
-        (priorityFilter.config as any).options = priorities.map(priority => ({
+        const cfg = priorityFilter.config as SelectFilterConfig;
+        cfg.options = priorities.map(priority => ({
           id: priority.id,
           label: priority.value
         }));
@@ -64,17 +76,13 @@ export const TaskManagement: React.FC<TaskManagementProps> = (props: TaskManagem
     if (typeGroup && types.length > 0) {
       const typeFilter = typeGroup.filters.find(f => f.id === 'type');
       if (typeFilter && typeFilter.config && 'options' in typeFilter.config) {
-        (typeFilter.config as any).options = types.map(type => ({
+        const cfg = typeFilter.config as SelectFilterConfig;
+        cfg.options = types.map(type => ({
           id: type.id,
           label: type.value
         }));
       }
     }
-    
-    console.log('Dynamic filter config:', config);
-    console.log('Statuses data:', statuses);
-    console.log('Priorities data:', priorities);
-    console.log('Types data:', types);
     
     return config;
   }, [types, statuses, priorities]);
@@ -118,19 +126,6 @@ export const TaskManagement: React.FC<TaskManagementProps> = (props: TaskManagem
   }, []);
 
   // Debug log for creatorEmployees
-  useEffect(() => {
-    if (current.data && current.data.length > 0) {
-      console.log('=== TASK CREATOR EMPLOYEES DEBUG ===');
-      current.data.forEach((task, index) => {
-        console.log(`Task ${index + 1} (${task.id}):`, {
-          name: task.name,
-          creatorEmployee: task.creatorEmployee,
-          createdBy: task.createdBy
-        });
-      });
-      console.log('=== END CREATOR EMPLOYEES DEBUG ===');
-    }
-  }, [current.data]);
 
   // Process completion event handling
   useEffect(() => {
@@ -214,7 +209,6 @@ export const TaskManagement: React.FC<TaskManagementProps> = (props: TaskManagem
       </div>
 
       {/* Statistics - decoupled from table data */}
-      <div className="gba:mb-6 gba:pb-6 gba:border-b gba:border-gray-200" data-testid="task-statistics-section">
         <TaskStatistics 
           myTasksStatistics={myTasksStatistics}
           teamTasksStatistics={teamTasksStatistics}
@@ -222,9 +216,7 @@ export const TaskManagement: React.FC<TaskManagementProps> = (props: TaskManagem
           error={statisticsError} 
           onRetry={refetchStatistics} 
         />
-      </div>
-
-
+      
           {/* Data Display with DataTable */}
           <DataDisplay
             // Section tabs with badges showing total counts
@@ -274,10 +266,8 @@ export const TaskManagement: React.FC<TaskManagementProps> = (props: TaskManagem
             filters={current.filters}
             filterConfiguration={dynamicFilterConfig}
             onFilterChange={(newFilters) => {
-              console.log('DataDisplay - Filter change:', newFilters);
               current.setFilters(newFilters);
-            }}
-            
+            }}            
             // Live filtering for real-time updates
             enableLiveFiltering={true}
             

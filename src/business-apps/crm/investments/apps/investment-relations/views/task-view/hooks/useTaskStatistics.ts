@@ -9,10 +9,7 @@ interface TaskStatistics {
   overdue: { value: number };
 }
 
-interface UseTaskStatisticsProps extends BusinessAppContextProps {
-  filters?: Record<string, any>;
-  search?: string;
-}
+interface UseTaskStatisticsProps extends BusinessAppContextProps {}
 
 interface UseTaskStatisticsReturn {
   myTasksStatistics: TaskStatistics;
