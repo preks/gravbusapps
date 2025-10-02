@@ -1,4 +1,2 @@
-export { default as ChangePrivateCommunicationScreen } from './ChangePrivateCommunicationScreen';
-export default './ChangePrivateCommunicationScreen';
-
+export { default } from  './ChangePrivateCommunicationScreen';
 

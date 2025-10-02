@@ -1,39 +1,30 @@
 import React, { useMemo, useState } from 'react';
-import { Button, Spinner, Select, SelectTrigger, SelectValue, SelectContent, SelectItem, Input } from '@newwork/nw-design-system';
+import { Button, Select, SelectTrigger, SelectValue, SelectContent, SelectItem, Input } from '@newwork/nw-design-system';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 import { formatDataTestId } from '@/common/utils/formatDataTestId';
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
 import { dispatchProcessContinueEvent } from '@/common/utils/processEventUtils';
+import { useCommunicationLookups } from './queries/ChangeCommunicationQueries';
 
 interface ChangePrivateCommunicationScreenProps extends BusinessAppContextProps {}
 
 const prefixDataTestId = 'ChangePrivateCommunicationScreen';
 
-const CHANNEL_TYPES = [
-  { value: 'EMAIL', label: 'Email' },
-  { value: 'PHONE', label: 'Phone' },
-  { value: 'CHAT', label: 'Chat' },
-];
-
-const VALUE_TYPES = [
-  { value: 'WORK', label: 'Work' },
-  { value: 'HOME', label: 'Home' },
-  { value: 'OTHER', label: 'Other' },
-];
-
-const ChangePrivateCommunicationScreen: React.FC<ChangePrivateCommunicationScreenProps> = ({ additionalData }) => {
+const ChangePrivateCommunicationScreen: React.FC<ChangePrivateCommunicationScreenProps> = (context) => {
   const [channelType, setChannelType] = useState<string | undefined>(undefined);
   const [valueType, setValueType] = useState<string | undefined>(undefined);
   const [value, setValue] = useState<string>('');
+  const [purpose, setPurpose] = useState<string>('PRIVATE');
+  const { channels, types, loading } = useCommunicationLookups(context);
 
-  const isValid = useMemo(() => !!channelType && !!valueType && value.trim().length > 0, [channelType, valueType, value]);
+  const isValid = useMemo(() => !!channelType && !!valueType && !!purpose && value.trim().length > 0, [channelType, valueType, purpose, value]);
 
   const handleSubmit = () => {
     if (!isValid) return;
     const payload = {
       channelType,
       type: valueType,
-      purpose: 'PRIVATE',
+      purpose,
       value: value.trim(),
     };
     dispatchProcessContinueEvent('pse_submit', payload);
@@ -53,7 +44,7 @@ const ChangePrivateCommunicationScreen: React.FC<ChangePrivateCommunicationScree
         <div className="gba:flex gba:items-center gba:justify-between gba:p-6">
           <div className="gba:flex gba:items-center gba:gap-2">
             <h2 className="gba:text-xl gba:font-semibold gba:text-gray-900">
-              {getTranslationFromI18nKeyAndLabel('change.communication.title', 'Change Private Communication')}
+              {getTranslationFromI18nKeyAndLabel('lowcoder:communication_form.title', 'Change Private Communication')}
             </h2>
           </div>
         </div>
@@ -65,15 +56,15 @@ const ChangePrivateCommunicationScreen: React.FC<ChangePrivateCommunicationScree
           {/* Channel Type */}
           <div className="gba:space-y-2">
             <div className="gba:text-sm gba:font-medium gba:text-gray-600">
-              {getTranslationFromI18nKeyAndLabel('change.communication.channelType', 'Channel Type')}*
+              {getTranslationFromI18nKeyAndLabel('lowcoder:communication_form.channelType', 'Channel Type')}*
             </div>
-            <Select value={channelType} onValueChange={setChannelType}>
+            <Select value={channelType} onValueChange={setChannelType} disabled={loading}>
               <SelectTrigger className="gba:w-full">
-                <SelectValue placeholder={getTranslationFromI18nKeyAndLabel('change.communication.selectChannel', 'Select Channel Type')} />
+                <SelectValue placeholder={getTranslationFromI18nKeyAndLabel('lowcoder:communication_form.selectChannel', 'Select Channel Type')} />
               </SelectTrigger>
               <SelectContent>
-                {CHANNEL_TYPES.map((c) => (
-                  <SelectItem key={c.value} value={c.value}>{c.label}</SelectItem>
+                {channels.map((c) => (
+                  <SelectItem key={c.id} value={c.value}>{c.label}</SelectItem>
                 ))}
               </SelectContent>
             </Select>
@@ -82,35 +73,43 @@ const ChangePrivateCommunicationScreen: React.FC<ChangePrivateCommunicationScree
           {/* Type */}
           <div className="gba:space-y-2">
             <div className="gba:text-sm gba:font-medium gba:text-gray-600">
-              {getTranslationFromI18nKeyAndLabel('change.communication.type', 'Type')}*
+              {getTranslationFromI18nKeyAndLabel('lowcoder:communication_form.type', 'Type')}*
             </div>
-            <Select value={valueType} onValueChange={setValueType}>
+            <Select value={valueType} onValueChange={setValueType} disabled={loading}>
               <SelectTrigger className="gba:w-full">
-                <SelectValue placeholder={getTranslationFromI18nKeyAndLabel('change.communication.selectType', 'Select Type')} />
+                <SelectValue placeholder={getTranslationFromI18nKeyAndLabel('lowcoder:communication_form.selectType', 'Select Type')} />
               </SelectTrigger>
               <SelectContent>
-                {VALUE_TYPES.map((t) => (
-                  <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>
+                {types.map((t) => (
+                  <SelectItem key={t.id} value={t.value}>{t.label}</SelectItem>
                 ))}
               </SelectContent>
             </Select>
           </div>
 
-          {/* Purpose (fixed) */}
-          <div className="gba:space-y-1">
+          {/* Purpose */}
+          <div className="gba:space-y-2">
             <div className="gba:text-sm gba:font-medium gba:text-gray-600">
-              {getTranslationFromI18nKeyAndLabel('change.communication.purpose', 'Purpose')}
+              {getTranslationFromI18nKeyAndLabel('lowcoder:communication_form.purpose', 'Purpose')}*
             </div>
-            <div className="gba:w-full gba:bg-gray-50 gba:text-gray-700 gba:rounded gba:p-3">PRIVATE</div>
+            <Select value={purpose} onValueChange={setPurpose}>
+              <SelectTrigger className="gba:w-full">
+                <SelectValue placeholder={getTranslationFromI18nKeyAndLabel('lowcoder:communication_form.selectPurpose', 'Select Purpose')} />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="PRIVATE">{getTranslationFromI18nKeyAndLabel('lowcoder:communication_form.purpose.private', 'Private')}</SelectItem>
+                <SelectItem value="INTERNAL">{getTranslationFromI18nKeyAndLabel('lowcoder:communication_form.purpose.internal', 'Internal')}</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
 
           {/* Value */}
           <div className="gba:space-y-2">
             <div className="gba:text-sm gba:font-medium gba:text-gray-600">
-              {getTranslationFromI18nKeyAndLabel('change.communication.value', 'Value')}*
+              {getTranslationFromI18nKeyAndLabel('lowcoder:communication_form.value', 'Value')}*
             </div>
             <Input
-              placeholder={getTranslationFromI18nKeyAndLabel('change.communication.enterValue', 'Enter Value')}
+              placeholder={getTranslationFromI18nKeyAndLabel('lowcoder:communication_form.enterValue', 'Enter Value')}
               value={value}
               onChange={(e: React.ChangeEvent<HTMLInputElement>) => setValue(e.target.value)}
             />
