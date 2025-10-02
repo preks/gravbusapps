@@ -22,7 +22,6 @@ import * as RemixIcons from "@remixicon/react";
 // Import PhosphorIcons for LauncherLayout
 import { TrendUpIcon } from "@phosphor-icons/react";
 import { MODULE_COLORS } from "@/common/constants/ui";
-import "./InvestmentLauncher.css";
 interface InvestmentLauncherProps extends BusinessAppContextProps {}
 
 const InvestmentLauncher: React.FC<InvestmentLauncherProps> = (context) => {
@@ -389,16 +388,6 @@ const InvestmentLauncher: React.FC<InvestmentLauncherProps> = (context) => {
         processName: "createLead",
         builderType: "NATIVE_SCREEN",
         payload: {
-          accessToken: context.accessToken,
-        },
-      });
-    } else if (action.action === "convert-lead") {
-      startProcess({
-        domain: "investments",
-        processName: "convertInvestmentLead",
-        builderType: "NATIVE_SCREEN",
-        payload: {
-          leadId: 'demo-lead-123', // Demo lead ID - in production this would come from context
           accessToken: context.accessToken,
         },
       });
