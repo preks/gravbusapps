@@ -1,16 +1,28 @@
-import React, { useState, useEffect, useMemo } from 'react';
-import { Button, Spinner, Tabs, TabsList, TabsTrigger, TabsContent } from '@newwork/nw-design-system';
-import { ArrowLeftOutlined, UserOutlined, BarChartOutlined, FileOutlined } from '@ant-design/icons';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import { Button, Spinner, RecordLayout } from '@newwork/nw-design-system';
+import { Users, TrendUp, FileText, Bank } from '@phosphor-icons/react';
 import { BusinessAppContextProps } from "@/common/BusinessAppContext";
-import { navigateTo } from "@/common/utils/navigationUtils";
-import { useAccountData } from "./hooks/useAccountData";
-import { AccountHeader } from "./components/AccountHeader";
-import { CompanyInformation } from "./components/CompanyInformation";
-import { ContactInformation } from "./components/ContactInformation";
-import { ActivityTimeline } from "./components/ActivityTimeline";
-import { TasksSection } from "./components/TasksSection";
+import { navigateTo, buildPlatformUrl } from "@/common/utils/navigationUtils";
+import { getTranslationFromI18nKeyAndLabel } from "@/common/utils/windowUtils";
+import { useGetInvestmentAccountById } from '@/common/data/investment/hooks/useInvestmentAccounts';
+import { InvestmentAccount } from '@/common/data/investment/types';
+import { AppActionButton } from "@/components/app-action-button/AppActionButton";
+import { FlowContextName } from "@/common/types/FlowRegistryTypes";
+import { AiSummaryButton } from "@/common/components/common-relations/record-sections/header-section/ai-summary-button";
+import { useAccountAiSummary } from "./hooks/useAccountAiSummary";
+import { 
+  useGetInvestmentActivitiesByAccountId,
+  useGetInvestmentNotesByAccountId,
+  useGetInvestmentTasksByAccountId
+} from '@/common/data/investment/hooks/useInvestmentAccounts';
 import { AccountOpportunities } from "./components";
 import { AccountDocuments } from "./components/AccountDocuments";
+import AccountSection from "@/common/components/common-relations/record-sections/account-section/AccountSection";
+import ContactSection from "@/common/components/common-relations/record-sections/contact-section/ContactSection";
+import ActivitySection from "@/common/components/common-relations/record-sections/activity-section/ActivitySection";
+import NoteSection from "@/common/components/common-relations/record-sections/note-section/NoteSection";
+import TaskSection from "@/common/components/common-relations/record-sections/task-section/TaskSection";
+import SectionWrapper from "@/common/components/common-relations/record-sections/section-card/SectionCard";
 
 interface AccountRecordContentProps extends BusinessAppContextProps {
   accountId: string;
@@ -21,21 +33,463 @@ const InvestmentAccountRecordContent: React.FC<AccountRecordContentProps> = ({ a
   const [account, setAccount] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState('overview');
+  const ALLOWED_TABS = ['overview', 'opportunities', 'documents'] as const;
+  type TabKey = (typeof ALLOWED_TABS)[number];
+  const [activeTab, setActiveTab] = useState<TabKey>(() => {
+    if (typeof window === 'undefined') return 'overview';
+    const params = new URLSearchParams(window.location.search);
+    const tab = params.get('tab') || 'overview';
+    return (ALLOWED_TABS as readonly string[]).includes(tab) ? (tab as TabKey) : 'overview';
+  });
 
-  const { account: accountData, loading: dataLoading, error: dataError, refetch } = useAccountData(accountId, props.accessToken);
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const params = new URLSearchParams(window.location.search);
+    if (!params.get('tab')) {
+      params.set('tab', activeTab);
+      window.history.replaceState(null, '', `${window.location.pathname}?${params.toString()}`);
+    }
+  }, []); // set default tab in URL on initial load
 
-  // Get source from URL parameters to determine back navigation text
-  const source = useMemo(() => {
-    return new URLSearchParams(window.location.search).get('source');
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const onPopState = () => {
+      if (typeof window === 'undefined') return;
+      const params = new URLSearchParams(window.location.search);
+      const tab = params.get('tab');
+      if ((ALLOWED_TABS as readonly string[]).includes(tab || '')) setActiveTab(tab as TabKey);
+    };
+    window.addEventListener('popstate', onPopState);
+    return () => window.removeEventListener('popstate', onPopState);
   }, []);
 
-  const getBackButtonText = () => {
-    if (source === 'investment-relations') {
-      return 'Back to Investment Relations';
+  const { fetchInvestmentAccountById } = useGetInvestmentAccountById(props);
+  const [accountData, setAccountData] = useState<InvestmentAccount | undefined>(undefined);
+  const [dataLoading, setDataLoading] = useState(true);
+  const [dataError, setDataError] = useState<string | null>(null);
+  
+  // Fetch account data
+  useEffect(() => {
+    const loadAccountData = async () => {
+      if (!accountId) return;
+      
+      try {
+        setDataLoading(true);
+        setDataError(null);
+        const result = await fetchInvestmentAccountById(accountId);
+        if (result?.account) {
+          setAccountData(result.account);
+        }
+      } catch (error) {
+        console.error('Error fetching investment account:', error);
+        setDataError(error instanceof Error ? error.message : 'Unknown error');
+      } finally {
+        setDataLoading(false);
+      }
+    };
+    
+    loadAccountData();
+  }, [accountId, fetchInvestmentAccountById]);
+  
+  // AI Summary hook - must be called before any conditional returns
+  const aiSummaryHook = useAccountAiSummary(accountId, props.accessToken);
+
+
+  // Data fetching hooks for sections
+  const { fetchInvestmentActivitiesByAccountId } = useGetInvestmentActivitiesByAccountId(props);
+  const { fetchInvestmentNotesByAccountId } = useGetInvestmentNotesByAccountId(props);
+  const { fetchInvestmentTasksByAccountId } = useGetInvestmentTasksByAccountId(props);
+
+  // State for section data
+  const [activities, setActivities] = useState<any[]>([]);
+  const [notes, setNotes] = useState<any[]>([]);
+  const [tasks, setTasks] = useState<any[]>([]);
+  const [approvals, setApprovals] = useState<any[]>([]);
+  const [sectionsLoading, setSectionsLoading] = useState(true);
+  const [sectionsError, setSectionsError] = useState<string | null>(null);
+
+
+  const handleTabChange = useCallback((value: string) => {
+    if ((ALLOWED_TABS as readonly string[]).includes(value)) {
+      setActiveTab(value as TabKey);
+      if (typeof window === 'undefined') return;
+      const params = new URLSearchParams(window.location.search);
+      params.set('tab', value);
+      params.delete('subView'); // clear subView when changing main tab
+      window.history.replaceState(null, '', `${window.location.pathname}?${params.toString()}`);
     }
-    return 'Back to Investment Accounts';
-  };
+  }, []);
+
+
+  // Load section data
+  const loadSectionData = useCallback(async () => {
+    if (!accountId || !props.accessToken) return;
+
+    setSectionsLoading(true);
+    setSectionsError(null);
+
+    try {
+      const [activitiesData, notesData, tasksData] = await Promise.all([
+        fetchInvestmentActivitiesByAccountId(accountId),
+        fetchInvestmentNotesByAccountId(accountId),
+        fetchInvestmentTasksByAccountId(accountId)
+      ]);
+
+      const sortedActivities = (activitiesData || []).sort(
+        (a: any, b: any) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+      );
+      const sortedNotes = (notesData || []).sort(
+        (a: any, b: any) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+      );
+      const sortedTasks = (tasksData || []).sort(
+        (a: any, b: any) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+      );
+
+      // Separate regular tasks from approvals based on taskType catalog entry
+      const regularTasks = sortedTasks.filter((task: any) => {
+        const taskTypeCode = task?.taskType?.code || '';
+        const taskTypeValue = task?.taskType?.value || '';
+        return taskTypeCode?.toUpperCase() !== 'APPROVAL' && taskTypeValue?.toUpperCase() !== 'APPROVAL';
+      });
+      const approvalTasks = sortedTasks.filter((task: any) => {
+        const taskTypeCode = task?.taskType?.code || '';
+        const taskTypeValue = task?.taskType?.value || '';
+        return taskTypeCode?.toUpperCase() === 'APPROVAL' || taskTypeValue?.toUpperCase() === 'APPROVAL';
+      });
+
+      setActivities(sortedActivities);
+      setNotes(sortedNotes);
+      setTasks(regularTasks);
+      setApprovals(approvalTasks);
+    } catch (error) {
+      console.error('Error loading section data:', error);
+      setSectionsError(
+        error instanceof Error
+          ? error.message
+          : getTranslationFromI18nKeyAndLabel('crm.common.loadFailed', 'Failed to load data')
+      );
+    } finally {
+      setSectionsLoading(false);
+    }
+  }, [accountId, props.accessToken, fetchInvestmentActivitiesByAccountId, fetchInvestmentNotesByAccountId, fetchInvestmentTasksByAccountId]);
+
+  // Load section data on mount
+  useEffect(() => {
+    loadSectionData();
+  }, [loadSectionData]);
+
+  // Memoize header data - must be called before conditional returns
+  const headerDetailGroups = useMemo(() => [
+    {
+      id: 'account-details',
+      items: [
+        {
+          label: 'Industry',
+          value: (accountData as any)?.industryClassLabel || account?.industry || 'Not set',
+          icon: TrendUp
+        },
+        {
+          label: 'Owner',
+          value: (accountData as any)?.ownerDisplayName || account?.accountOwner?.name || 'Not assigned',
+          icon: Users
+        }
+      ]
+    }
+  ], [(accountData as any)?.industryClassLabel, account?.industry, (accountData as any)?.ownerDisplayName, account?.accountOwner]);
+
+  const headerActions = useMemo(() => (
+    <AiSummaryButton
+      config={{
+        entityType: 'account',
+        loadingMessage: getTranslationFromI18nKeyAndLabel('crm.ai.generatingSummary', 'Generating AI Summary...'),
+        loadingSubtitle: getTranslationFromI18nKeyAndLabel('crm.ai.analyzingAccount', 'Analyzing account data and activities')
+      }}
+      summaryHook={aiSummaryHook}
+      dataTestId={`account-update-button-${accountId}`}
+    />
+  ), [aiSummaryHook, accountId]);
+
+  const headerActionButton = useMemo(() => (
+    <AppActionButton
+      data-testid="investment-account-record-action-button"
+      size="icon"
+      contextsArray={[FlowContextName.investmentAccountEntity]}
+      externalContextData={{
+        accountId: accountId
+      }}
+      prefixDataTestId="investment-account-record-action"
+      accessToken={props.accessToken}
+      emptyStateBehavior="hide"
+      deferMainContextRequestsUntilClick={false}
+    />
+  ), [accountId, props.accessToken]);
+
+  // Action props for sections - must be defined before subViewsConfig
+  const activityActionProps = useMemo(() => ({
+    contextsArray: [FlowContextName.createInvestmentActivity],
+    externalContextData: { accountId },
+    prefixDataTestId: "account-activity"
+  }), [accountId]);
+
+  const noteActionProps = useMemo(() => ({
+    contextsArray: [FlowContextName.createInvestmentNote],
+    externalContextData: { accountId },
+    prefixDataTestId: "account-note"
+  }), [accountId]);
+
+  const taskActionProps = useMemo(() => ({
+    contextsArray: [FlowContextName.investmentTaskCreate],
+    externalContextData: { accountId },
+    prefixDataTestId: "account-task"
+  }), [accountId]);
+
+  const approvalActionProps = useMemo(() => ({
+    contextsArray: [FlowContextName.investmentTaskCreate],
+    externalContextData: { 
+      accountId, 
+      typeRef: 'InvestmentTaskType:v1:APPROVAL',
+      investmentTask: { account: accountId, type: 'InvestmentTaskType:v1:APPROVAL' }
+    },
+    prefixDataTestId: "account-approval"
+  }), [accountId]);
+
+
+  const subViewsConfig = useMemo(() => ({
+    defaultValue: activeTab,
+    onValueChange: handleTabChange,
+    items: [
+      {
+        value: 'overview',
+        label: getTranslationFromI18nKeyAndLabel('crm.common.overview', 'Overview'),
+        icon: <Users className="gba:mr-2" />,
+        content: (
+          <>
+            {/* Account Section - 1/3 width */}
+            <SectionWrapper
+              className="gba:col-span-1 gba:sm:col-span-3 gba:md:col-span-4 gba:lg:col-span-4 gba:row-span-1"
+              sections={[
+                {
+                  id: 'account-section',
+                  component: AccountSection,
+                  props: {
+                    ...props,
+                    account: accountData ? {
+                      id: accountData.id,
+                      name: accountData.name,
+                      website: accountData.website,
+                      email: accountData.email,
+                      phone: accountData.phone,
+                      // Map catalog entries to expected format
+                      legalForm: accountData.legalForm?.value,
+                      industry: accountData.industryClass?.value,
+                      size: accountData.companySize?.value,
+                      revenue: accountData.accountAnnualRevenueBand?.value,
+                      // Map other fields
+                      numberOfEmployees: accountData.companySize,
+                      annualRevenue: accountData.accountAnnualRevenueBand,
+                    } : undefined,
+                    address: accountData ? (() => {
+                      const addresses = accountData.addresses || [];
+                      const primaryAddress = addresses.find(addr => addr.addressType === 'PRIMARY_ADDRESS');
+                      const address = primaryAddress || addresses[0];
+                      
+                      return address ? {
+                        addressLine: address.addressLine,
+                        postalCode: address.postalCode,
+                        locality: address.locality,
+                        country: typeof address.country === 'string' ? address.country : address.country?.value,
+                        region: typeof address.region === 'string' ? address.region : address.region?.value,
+                      } : undefined;
+                    })() : undefined,
+                    accountId: accountId,
+                    actionButtonProps: {
+                      contextsArray: [FlowContextName.customerAccountEntity],
+                      externalContextData: { accountId },
+                      prefixDataTestId: "account-account"
+                    }
+                  }
+                }
+              ]}
+              data-testid="account-account-section-wrapper"
+            />
+
+            {/* Contact Section - 1/3 width */}
+            <SectionWrapper
+              className="gba:col-span-1 gba:sm:col-span-3 gba:md:col-span-4 gba:lg:col-span-4 gba:row-span-1"
+              sections={[
+                {
+                  id: 'contact-section',
+                  component: ContactSection,
+                  props: {
+                    ...props,
+                    contacts: accountData?.investmentAccountContact?.map(accountContact => accountContact.contact).filter(Boolean) || [],
+                    contact: accountData?.investmentAccountContact?.[0]?.contact || undefined,
+                    contactId: accountData?.investmentAccountContact?.[0]?.contact?.id || undefined,
+                    actionButtonProps: {
+                      contextsArray: [FlowContextName.customerContactEntity],
+                      externalContextData: { accountId },
+                      prefixDataTestId: "account-contact"
+                    }
+                  }
+                }
+              ]}
+              data-testid="account-contact-section-wrapper"
+            />
+            {/* Activities Section - 1/3 width, full height */}
+            <SectionWrapper
+              className="gba:col-span-1 gba:sm:col-span-3 gba:md:col-span-4 gba:lg:col-span-4 gba:row-span-5"
+              sections={[
+                {
+                  id: 'activities-section',
+                  component: ActivitySection,
+                  props: {
+                    ...props,
+                    activities: activities,
+                    activitiesLoading: sectionsLoading,
+                    activitiesError: sectionsError,
+                    onReloadActivities: loadSectionData,
+                    alignment: 'right',
+                    activitySectionActionProps: {
+                      ...activityActionProps,
+                      emptyStateBehavior: 'enable'
+                    },
+                    activityEntityActionProps: {
+                      contextsArray: [FlowContextName.investmentActivityEntity],
+                      externalContextData: { accountId },
+                      prefixDataTestId: "account-activity-entity",
+                      emptyStateBehavior: 'enable'
+                    }
+                  }
+                }
+              ]}
+              data-testid="account-activities-section-wrapper"
+            />
+            {/* Tasks & Approvals - 2/3 width, spans 2 rows */}
+            <SectionWrapper
+              className="gba:col-span-1 gba:sm:col-span-3 gba:md:col-span-8 gba:lg:col-span-8 gba:row-span-2"
+              sections={[
+                {
+                  id: 'tasks-section',
+                  component: TaskSection,
+                  props: {
+                    ...props,
+                    tasks: tasks.map(task => ({
+                      id: task.id,
+                      title: task.name || task.displayName || getTranslationFromI18nKeyAndLabel('crm.tasks.untitled', 'Untitled Task'),
+                      createdAt: task.createdAt,
+                      due: task.dueDate,
+                      assignee: task.assignedEmployee?.displayName || task.assignedEmployee?.fullName,
+                      statusCode: task.taskStatus?.value?.toUpperCase() as any,
+                      taskStatus: task.taskStatus,
+                      taskPriority: task.taskPriority,
+                      assigneeEmployee: task.assignedEmployee
+                    })),
+                    taskActionProps: {
+                      ...taskActionProps,
+                      emptyStateBehavior: 'enable'
+                    },
+                    taskEntityActionProps: {
+                      contextsArray: [FlowContextName.investmentTaskEntity],
+                      externalContextData: { accountId },
+                      prefixDataTestId: "account-task-entity",
+                      emptyStateBehavior: 'enable'
+                    }
+                  }
+                },
+                {
+                  id: 'approval-tasks-section',
+                  component: TaskSection,
+                  props: {
+                    ...props,
+                    sectionTitle: 'Approval Tasks',
+                    tasks: approvals.map(approval => ({
+                      id: approval.id,
+                      title: approval.name || approval.displayName || getTranslationFromI18nKeyAndLabel('crm.approvals.request', 'Approval Request'),
+                      createdAt: approval.createdAt,
+                      due: approval.dueDate,
+                      assignee: approval.assignedEmployee?.displayName || approval.assignedEmployee?.fullName,
+                      statusCode: approval.taskStatus?.value?.toUpperCase() as any,
+                      taskStatus: approval.taskStatus,
+                      taskPriority: approval.taskPriority,
+                      assigneeEmployee: approval.assignedEmployee
+                    })),
+                    taskEntityActionProps: {
+                      contextsArray: [FlowContextName.investmentTaskEntity],
+                      externalContextData: { accountId },
+                      prefixDataTestId: "account-approval-entity",
+                      emptyStateBehavior: 'enable'
+                    },
+                    taskActionProps: {
+                      ...approvalActionProps,
+                      emptyStateBehavior: 'enable'
+                    }
+                  }
+                }
+              ]}
+              data-testid="account-tasks-approvals-section-wrapper"
+            />
+
+            {/* Notes Section - 2/3 width, spans 2 rows */}
+            <SectionWrapper
+              className="gba:col-span-1 gba:sm:col-span-3 gba:md:col-span-8 gba:lg:col-span-8 gba:row-span-2"
+              sections={[
+                {
+                  id: 'notes-section',
+                  component: NoteSection,
+                  props: {
+                    ...props,
+                    notes: notes.map(note => ({
+                      id: note.id,
+                      noteTitle: note.title || note.displayName || getTranslationFromI18nKeyAndLabel('crm.notes.untitled', 'Untitled Note'),
+                      noteText: note.text || '',
+                      createdAt: note.createdAt,
+                      createdBy: note.authorDisplayName || note.authorEmployee?.displayName || getTranslationFromI18nKeyAndLabel('crm.common.unknown', 'Unknown'),
+                      authorEmployee: note.authorEmployee,
+                      reminderAt: note.reminderDate
+                    })),
+                    noteActionProps: {
+                      ...noteActionProps,
+                      emptyStateBehavior: 'enable'
+                    },
+                    noteEntityActionProps: {
+                      contextsArray: [FlowContextName.investmentNoteEntity],
+                      externalContextData: { accountId },
+                      prefixDataTestId: "account-note-entity",
+                      emptyStateBehavior: 'enable'
+                    }
+                  }
+                }
+              ]}
+              data-testid="account-notes-section-wrapper"
+            />
+          </>
+        )
+      },
+      {
+        value: 'opportunities',
+        label: getTranslationFromI18nKeyAndLabel('crm.common.opportunities', 'Opportunities'),
+        icon: <TrendUp className="gba:mr-2" />,
+        content: (
+          <div className="gba:col-span-12">
+            <AccountOpportunities 
+              accountId={accountId} 
+              context={props} 
+            />
+          </div>
+        )
+      },
+      {
+        value: 'documents',
+        label: getTranslationFromI18nKeyAndLabel('crm.common.documents', 'Documents'),
+        icon: <FileText className="gba:mr-2" />,
+        content: (
+          <div className="gba:col-span-12">
+            <AccountDocuments accountId={accountId} context={props} />
+          </div>
+        )
+      }
+    ]
+  }), [activeTab, handleTabChange, account, accountData, accountId, props]);
 
   useEffect(() => {
     const fetchAccountData = async () => {
@@ -83,13 +537,16 @@ const InvestmentAccountRecordContent: React.FC<AccountRecordContentProps> = ({ a
     return (
       <div className="gba:flex gba:items-center gba:justify-center gba:min-h-screen">
         <div className="gba:text-center">
-          <p className="gba:text-red-500 gba:text-lg">{error || 'Investment Account not found'}</p>
+          <p className="gba:text-lg" data-testid="investment-account-error-message">
+            {error || getTranslationFromI18nKeyAndLabel('crm.investments.account.notFound', 'Investment Account not found')}
+          </p>
           <Button
             onClick={onBack}
-            className="gba:mt-4"
+            style={{marginTop:'var(--nw-spacing-sm)'}}
             variant="default"
+            data-testid="investment-account-error-back-button"
           >
-            {getBackButtonText()}
+            {getTranslationFromI18nKeyAndLabel('crm.common.back', 'Back to Investment Accounts')}
           </Button>
         </div>
       </div>
@@ -97,97 +554,18 @@ const InvestmentAccountRecordContent: React.FC<AccountRecordContentProps> = ({ a
   }
 
   return (
-    <div className="gba:contact-details-container" data-testid="investment-account-detail" style={{ backgroundColor: 'white', padding: '16px' }}>
-      {/* Back navigation */}
-      <div className="gba:back-navigation" style={{ marginBottom: '16px' }}>
-        <button
-          onClick={onBack}
-          className="gba:flex gba:items-center gba:text-blue-500 gba:hover:text-blue-600"
-          data-testid="back-button"
-        >
-          <ArrowLeftOutlined className="gba:mr-2" />
-          <span>{getBackButtonText()}</span>
-        </button>
-      </div>
-
-      {/* Account header */}
-      <AccountHeader 
-        account={account} 
-        accountData={accountData} 
-        accountId={accountId} 
-        additionalData={props} 
-        accessToken={props.accessToken} 
-        onStatusUpdate={refetch} 
+    <div data-testid="investment-account-detail">
+      <RecordLayout
+        headerOrientation="horizontal"
+        headerIcon={Bank}
+        headerCategory={getTranslationFromI18nKeyAndLabel('crm.common.account', 'ACCOUNT')}
+        onBack={onBack}
+        headerTitle={account.name}
+        headerDetailGroups={headerDetailGroups}
+        headerActions={headerActions}
+        headerActionButton={headerActionButton}
+        subViews={subViewsConfig}
       />
-
-      {/* Main content with tabs */}
-      <div className="gba:contact-details-content" data-testid="investment-account-details-content">
-        <Tabs value={activeTab} onValueChange={setActiveTab} className="gba:w-full">
-          <TabsList className="gba:bg-white gba:border gba:mb-6">
-            <TabsTrigger value="overview" data-testid="investment-account-overview-tab">
-              <UserOutlined className="gba:mr-2" />
-              Overview
-            </TabsTrigger>
-            <TabsTrigger value="opportunities" data-testid="investment-account-opportunities-tab">
-              <BarChartOutlined className="gba:mr-2" />
-              Opportunities
-            </TabsTrigger>
-            <TabsTrigger value="documents" data-testid="investment-account-documents-tab">
-              <FileOutlined className="gba:mr-2" />
-              Documents
-            </TabsTrigger>
-          </TabsList>
-
-          <TabsContent value="overview" data-testid="investment-account-overview-content">
-            {/* First Row: Company Information + Personal Info */}
-            <div className="gba:grid gba:grid-cols-4 gba:gap-6 gba:mb-6">
-              {/* Company Information - 3/4 width */}
-              <div className="gba:col-span-3 gba:flex">
-                <CompanyInformation 
-                  account={account} 
-                  accountData={accountData} 
-                  accountId={accountId}
-                  context={props}
-                />
-              </div>
-
-              {/* Personal Information - 1/4 width */}
-              <div className="gba:col-span-1 gba:flex">
-                <ContactInformation 
-                  accountData={accountData} 
-                  accountId={accountId}
-                  context={props}
-                />
-              </div>
-            </div>
-
-            {/* Second Row: Activity Timeline + Tasks */}
-            <div className="gba:grid gba:grid-cols-2 gba:gap-6">
-              {/* Activity Timeline - 1/2 width */}
-              <div>
-                <ActivityTimeline accountId={accountId} context={props} />
-              </div>
-
-              {/* Tasks - 1/2 width */}
-              <div>
-                <TasksSection accountId={accountId} context={props} />
-              </div>
-            </div>
-          </TabsContent>
-
-          <TabsContent value="opportunities" data-testid="investment-account-opportunities-content">
-            <AccountOpportunities 
-              accountId={accountId} 
-              context={props} 
-            />
-          </TabsContent>
-
-          <TabsContent value="documents" data-testid="investment-account-documents-content">
-            <AccountDocuments accountId={accountId} context={props} />
-          </TabsContent>
-
-        </Tabs>
-      </div>
     </div>
   );
 };
@@ -203,23 +581,20 @@ const AccountRecord: React.FC<AccountRecordProps> = (props) => {
     return props.accountId || new URLSearchParams(window.location.search).get('accountId');
   }, [props.accountId]);
 
-  const source = useMemo(() => {
-    return props.source || new URLSearchParams(window.location.search).get('source');
-  }, [props.source]);
   
   const handleBack = () => {
     if (props.onBack) {
       props.onBack();
     } else {
       // Always navigate to investment relations
-      navigateTo('/platform/irm/investment-relations?view=accounts');
+      navigateTo(buildPlatformUrl('/platform/irm/investment-relations', { view: 'accounts' }));
     }
   };
 
   if (!accountId) {
     return (
       <div data-testid="investment-account-record-no-id">
-        <p>No investment account ID provided</p>
+        <p>{getTranslationFromI18nKeyAndLabel('crm.investments.account.noIdProvided', 'No investment account ID provided')}</p>
       </div>
     );
   }

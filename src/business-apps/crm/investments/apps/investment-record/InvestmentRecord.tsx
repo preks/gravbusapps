@@ -22,7 +22,12 @@ interface InvestmentRecordProps extends BusinessAppContextProps {}
 
 const InvestmentRecord: React.FC<InvestmentRecordProps> = (props) => {
   const [investmentId, setInvestmentId] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState('home');
+  const getInitialTab = () => {
+    if (typeof window === 'undefined') return 'home';
+    const params = new URLSearchParams(window.location.search);
+    return params.get('tab') || 'home';
+  };
+  const [activeTab, setActiveTab] = useState<string>(getInitialTab);
   const [investmentData, setInvestmentData] = useState<any>(null);
   const [documents, setDocuments] = useState<any[]>([]);
   const [catalogData, setCatalogData] = useState<any>(null);
@@ -76,15 +81,34 @@ const InvestmentRecord: React.FC<InvestmentRecordProps> = (props) => {
 
   // Get display category based on investment group
   const getInvestmentCategory = useCallback((investmentData: any): string => {
-    if (!investmentData) return 'INVESTMENT';
+    if (!investmentData) return getTranslationFromI18nKeyAndLabel('crm.investments.category.default', 'INVESTMENT');
     
     const group = investmentData.investmentGroup?.code || '';
-    if (group.includes('EQUITY')) return 'EQUITY INVESTMENT';
-    if (group.includes('LIQUID_FUND')) return 'LIQUID FUND INVESTMENT';
-    if (group.includes('REAL_ESTATE')) return 'REAL ESTATE INVESTMENT';
-    if (group.includes('PRIVATE_EQUITY')) return 'PRIVATE EQUITY INVESTMENT';
+    if (group.includes('EQUITY')) return getTranslationFromI18nKeyAndLabel('crm.investments.category.equity', 'EQUITY INVESTMENT');
+    if (group.includes('LIQUID_FUND')) return getTranslationFromI18nKeyAndLabel('crm.investments.category.liquidFund', 'LIQUID FUND INVESTMENT');
+    if (group.includes('REAL_ESTATE')) return getTranslationFromI18nKeyAndLabel('crm.investments.category.realEstate', 'REAL ESTATE INVESTMENT');
+    if (group.includes('PRIVATE_EQUITY')) return getTranslationFromI18nKeyAndLabel('crm.investments.category.privateEquity', 'PRIVATE EQUITY INVESTMENT');
     
-    return 'INVESTMENT';
+    return getTranslationFromI18nKeyAndLabel('crm.investments.category.default', 'INVESTMENT');
+  }, []);
+
+  // Helper function to get the correct FlowContextName based on investment type
+  const getInvestmentFlowContext = useCallback((type: string): FlowContextName => {
+    switch (type?.toLowerCase()) {
+      case 'equity':
+        return FlowContextName.equityInvestmentEntity;
+      case 'private_equity':
+      case 'privateequity':
+        return FlowContextName.privateEquityInvestmentEntity;
+      case 'liquid_fund':
+      case 'liquidfund':
+        return FlowContextName.liquidFundInvestmentEntity;
+      case 'real_estate':
+      case 'realestate':
+        return FlowContextName.realEstateInvestmentEntity;
+      default:
+        return FlowContextName.investmentEntity; // Fallback to generic investment entity
+    }
   }, []);
   
   // Central hooks for data fetching
@@ -194,6 +218,32 @@ const InvestmentRecord: React.FC<InvestmentRecordProps> = (props) => {
     }
   }, []);
 
+  const updateUrlTab = useCallback((tab: string) => {
+    if (typeof window === 'undefined') return;
+    const url = new URL(window.location.href);
+    url.searchParams.set('tab', tab);
+    window.history.replaceState(null, '', url.toString());
+  }, []);
+
+  const setActiveTabAndUrl = useCallback((tab: string) => {
+    setActiveTab(tab);
+    updateUrlTab(tab);
+  }, [updateUrlTab]);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const params = new URLSearchParams(window.location.search);
+    if (!params.get('tab')) {
+      updateUrlTab(activeTab);
+    }
+    const onPop = () => {
+      const next = new URLSearchParams(window.location.search).get('tab') || 'home';
+      setActiveTab(next);
+    };
+    window.addEventListener('popstate', onPop);
+    return () => window.removeEventListener('popstate', onPop);
+  }, [activeTab, updateUrlTab]);
+
   // Loading state
   if (isLoading) {
     return (
@@ -210,15 +260,15 @@ const InvestmentRecord: React.FC<InvestmentRecordProps> = (props) => {
         <div className="gba:mb-4">
           <button
             onClick={handleBack}
-            className="gba:flex gba:items-center gba:text-blue-500 gba:hover:text-blue-600 gba:mx-auto"
+            className="gba:flex gba:items-center gba:text-primary hover:gba:text-primary gba:mx-auto"
             data-testid="back-to-investments-button"
           >
             <span className="gba:mr-2">←</span>
-            Back to Investments
+{getTranslationFromI18nKeyAndLabel('crm.investments.navigation.backToList', 'Back to Investments')}
           </button>
         </div>
         {error && (
-          <p className="gba:text-red-500 gba:text-lg gba:mb-4">
+          <p className="gba:text-destructive gba:text-lg gba:mb-4">
             {error}
           </p>
         )}
@@ -246,7 +296,7 @@ const InvestmentRecord: React.FC<InvestmentRecordProps> = (props) => {
   const headerActionButton = (
     <AppActionButton
       size="icon"
-      contextsArray={[FlowContextName.investmentEntity]}
+      contextsArray={[getInvestmentFlowContext(investmentType)]}
       externalContextData={{ investmentId }}
       prefixDataTestId={`${investmentType}-record-action`}
       emptyStateBehavior="enable"
@@ -261,7 +311,7 @@ const InvestmentRecord: React.FC<InvestmentRecordProps> = (props) => {
   // Tab configuration using centralized utilities
   const subViewsConfig = createInvestmentTabsConfig(
     activeTab,
-    setActiveTab,
+    setActiveTabAndUrl,
     investmentId || '',
     investment,
     investmentType,
@@ -283,7 +333,7 @@ const InvestmentRecord: React.FC<InvestmentRecordProps> = (props) => {
         headerIcon={getInvestmentIcon(investment)}
         headerCategory={getInvestmentCategory(investment)}
         onBack={handleBack}
-        headerTitle={investment?.name || 'Investment Record'}
+        headerTitle={investment?.name || getTranslationFromI18nKeyAndLabel('crm.investments.record.title', 'Investment Record')}
         headerMeta={headerMeta}
         headerActions={headerActions}
         headerActionButton={headerActionButton}

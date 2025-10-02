@@ -2,7 +2,7 @@
 // Built using actual schema discovered via newwork-mcp
 import { CATALOG_ENTRY, AUDIT_FIELDS } from '@/common/network/graphql/commonFragments';
 import { INVESTMENT } from './fragments/investmentFragments';
-import { INVESTMENT_ACTIVITY, INVESTMENT_TASK, INVESTMENT_NOTE, INVESTMENT_DOCUMENT } from './fragments/investmentRelationFragments';
+import { INVESTMENT_ACTIVITY, INVESTMENT_TASK, INVESTMENT_NOTE, INVESTMENT_DOCUMENT, INVESTMENT_ACCOUNT_REF } from './fragments/investmentRelationFragments';
 
 export interface InvestmentQueryVariables {
   ids?: string[];
@@ -557,21 +557,7 @@ export const GET_INVESTMENT_BY_ID = (id: string): string => {
         
         # Entity relationships
         investmentAccount {
-          id
-          code
-          name
-          email
-          foundationDate
-          geographicPresence
-          companySize {
-            ${CATALOG_ENTRY}
-          }
-          accountAnnualRevenueBand {
-            ${CATALOG_ENTRY}
-          }
-          industryClass {
-            ${CATALOG_ENTRY}
-          }
+          ${INVESTMENT_ACCOUNT_REF}
           investmentAccountContact {
             contactType
             contact {

@@ -3,6 +3,40 @@ import { CATALOG_ENTRY, AUDIT_FIELDS } from '@/common/network/graphql/commonFrag
 import { EMPLOYEE_REF } from '@/common/data/employee/queries/fragments/employeeFragments';
 import { INVESTMENT_REF } from './investmentFragments';
 
+export const INVESTMENT_ADDRESS = `
+    id
+    addressType
+    addressLine
+    postalCode
+    locality
+    region {
+        ${CATALOG_ENTRY}
+    }
+    country {
+        ${CATALOG_ENTRY}
+    }
+`;
+
+export const INVESTMENT_COMMUNICATION_CHANNEL = `
+    id
+    source
+    value
+    valueExtension
+    communicationChannel {
+        ${CATALOG_ENTRY}
+    }
+    communicationChannelRef
+    accountId
+    contactId
+    leadId
+    opportunityId
+    additionalProperties
+    businessKey
+    processInstanceId
+    synchronizedAt
+    ${AUDIT_FIELDS}
+`;
+
 export const INVESTMENT_LEAD = `
         id
         code
@@ -159,22 +193,6 @@ export const INVESTMENT_CONTACT = `
     }
 `;
 
-export const INVESTMENT_ADDRESS = `
-    id
-    addressType
-    addressLine
-    postalCode
-    locality
-    
-    # Catalog relationships
-    region {
-        ${CATALOG_ENTRY}
-    }
-    country {
-        ${CATALOG_ENTRY}
-    }
-`;
-
 export const INVESTMENT_ACCOUNT_REF = `
     id
     code
@@ -186,6 +204,12 @@ export const INVESTMENT_ACCOUNT_REF = `
     geographicPresence
     picture
     pictureThumbnail
+    addresses {
+        ${INVESTMENT_ADDRESS}
+    }
+    communicationChannels {
+        ${INVESTMENT_COMMUNICATION_CHANNEL}
+    }
     legalForm {
         ${CATALOG_ENTRY}
     }
@@ -217,7 +241,21 @@ export const INVESTMENT_ACCOUNT = `
     website
     picture
     pictureThumbnail
-    ${AUDIT_FIELDS}
+    notesSummary
+    businessKey
+    additionalProperties
+    processInstanceId
+    synchronizedAt
+    
+    # Address information
+    addresses {
+        ${INVESTMENT_ADDRESS}
+    }
+    
+    # Communication channels
+    communicationChannels {
+        ${INVESTMENT_COMMUNICATION_CHANNEL}
+    }
     
     # Catalog relationships
     legalForm {
@@ -230,6 +268,9 @@ export const INVESTMENT_ACCOUNT = `
         ${CATALOG_ENTRY}
     }
     industryClass {
+        ${CATALOG_ENTRY}
+    }
+    timeZone {
         ${CATALOG_ENTRY}
     }
     
