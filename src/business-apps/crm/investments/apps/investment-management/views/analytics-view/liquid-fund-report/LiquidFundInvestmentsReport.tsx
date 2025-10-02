@@ -159,7 +159,7 @@ export const LiquidFundInvestmentsReport: React.FC<LiquidFundInvestmentsReportPr
             variant="secondary"
             data-testid="liquid-fund-investments-count"
           >
-            {liquidFundInvestments.length} {getTranslationFromI18nKeyAndLabel('liquidFund.investments.items', 'funds')}
+            {kpis?.totalInvestments || 0} {getTranslationFromI18nKeyAndLabel('liquidFund.investments.items', 'funds')}
           </Badge>
         </div>
       </div>

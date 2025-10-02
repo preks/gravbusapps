@@ -254,16 +254,21 @@ export const useRealEstateChartData = (realEstateInvestments: RealEstateInvestme
 
     // Expenses vs Value Data (based on available fields)
     const expensesValueData = realEstateInvestments
-      .filter(property => 
-        property.realEstateInvestment?.actualAnnualExpenses !== null &&
-        property.realEstateInvestment?.actualAnnualExpenses !== undefined &&
-        property.investment.investmentMarketValue !== null &&
-        property.realEstateInvestment?.actualAnnualExpenses &&
-        property.realEstateInvestment.actualAnnualExpenses > 0
-      )
+      .filter(property => {
+        // Try primary fields first
+        const primaryExpenses = property.realEstateInvestment?.annualNetColdRent;
+        const primaryValue = property.investment.totalInvestmentAmount;
+        
+        const hasExpenses = (primaryExpenses !== null && primaryExpenses !== undefined && primaryExpenses > 0);
+        const hasValue = (primaryValue !== null && primaryValue > 0);
+        
+        
+        return hasExpenses && hasValue;
+      })
       .map(property => {
-        const annualExpenses = property.realEstateInvestment?.actualAnnualExpenses || 0;
-        const propertyValue = property.investment.investmentMarketValue || 0;
+        // Use primary fields
+        const annualExpenses = property.realEstateInvestment?.annualNetColdRent || 0;
+        const propertyValue = property.investment.totalInvestmentAmount || 0;
         
         return {
           name: property.displayName || 'Unknown Property',
@@ -273,6 +278,7 @@ export const useRealEstateChartData = (realEstateInvestments: RealEstateInvestme
           country: property.realEstateInvestment?.country?.value || 'Unknown'
         };
       });
+
 
     // Geographic Analysis Data
     const geoData = realEstateInvestments.reduce((acc, property) => {
