@@ -305,16 +305,8 @@ const ExpenseReportsPage: React.FC<ExpenseReportsPageProps> = ({
     }
   };
 
-  // Filter data based on search
-  const filteredData = useMemo(() => {
-    if (!reportData || !searchTerm) return reportData || [];
-
-    return reportData.filter((item: any) => {
-      return Object.values(item).some(
-        (value: any) => value && value.toString().toLowerCase().includes(searchTerm.toLowerCase()),
-      );
-    });
-  }, [reportData, searchTerm]);
+  // Server-side search is now handled in the hook, no need for client-side filtering
+  const filteredData = reportData || [];
 
   // Handle download action (CSV export)
   const handleDownload = async () => {
@@ -573,7 +565,7 @@ const ExpenseReportsPage: React.FC<ExpenseReportsPageProps> = ({
             {error && (
               <Alert className="gba:mb-4" data-testid="expense-reports-error-alert">
                 <AlertDescription>
-                  <strong>Error:</strong> {error}
+                  <strong>{getTranslationFromI18nKeyAndLabel("lowcoder:common.error_title","Error")}</strong> {error}
                 </AlertDescription>
               </Alert>
             )}

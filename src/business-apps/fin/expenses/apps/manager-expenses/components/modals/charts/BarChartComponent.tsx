@@ -1,6 +1,7 @@
 import React from "react";
 import { Card, CardHeader, CardTitle, CardContent } from "@newwork/nw-design-system";
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from "recharts";
+import { getTranslationFromI18nKeyAndLabel } from "@/common/utils/windowUtils";
+import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid, Cell } from "recharts";
 import { formatCurrencyDisplay } from "../../../../personal-expenses/utils";
 
 interface BarChartProps {
@@ -27,7 +28,7 @@ const BarChartComponent: React.FC<BarChartProps> = ({
   title,
   xAxisDataKey = "name",
   barDataKey = "value",
-  barColor = "var(--nw-color-primary-500)",
+  barColor = "#8884d8",
   height = 300,
   currency = "EUR",
   valueType = 'amount',
@@ -54,10 +55,10 @@ const BarChartComponent: React.FC<BarChartProps> = ({
         <CardContent>
           <div className="gba:flex gba:flex-col gba:items-center gba:justify-center gba:p-8 gba:text-center gba:min-h-[200px]">
             <div className="gba:text-gray-500 gba:text-lg gba:font-medium gba:mb-2">
-              No data available
+              {getTranslationFromI18nKeyAndLabel("lowcoder:charts.empty.title","No data available")}
             </div>
             <div className="gba:text-gray-400 gba:text-sm">
-              There is no data to display for this chart.
+              {getTranslationFromI18nKeyAndLabel("lowcoder:charts.empty.description","There is no data to display for this chart.")}
             </div>
           </div>
         </CardContent>

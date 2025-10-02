@@ -19,15 +19,7 @@ import {
 } from "@newwork/nw-design-system";
 import { PiArrowUp, PiArrowDown } from "react-icons/pi";
 import { DataContainer } from "@/components/layout/dataContainer/DataContainer";
-// Local token map for status colors
-const REQUEST_STATUS_TOKENS: Record<string, string> = {
-  draft: "var(--nw-color-neutral-500)",
-  completed: "var(--nw-color-success-500)",
-  waiting: "var(--nw-color-info-500)",
-  task: "var(--nw-color-warning-500)",
-  error: "var(--nw-color-danger-500)",
-  preparing: "var(--nw-color-neutral-400)",
-};
+// (replaced by REQUEST_STATUS_CLASSES)
 import { BusinessAppContextProps } from "@/common/BusinessAppContext";
 import { ExpenseRequest, SortField } from "../../../hooks/useGetExpenseRequests";
 import { getExpenseRequestStatusDisplay } from "../../../utils";
@@ -41,6 +33,22 @@ import { formatCurrencyDisplay } from "../../../../personal-expenses/utils";
 import { Modal } from "antd";
 import { useExpensePlanFileService } from "../../../../personal-expenses/utils/expensePlanFileService";
 import { navigateTo, buildPlatformUrl } from "@/common/utils/navigationUtils";
+
+// Status → token classes (design-system)
+const REQUEST_STATUS_CLASSES: Record<string, string> = {
+  success: "gba:bg-success gba:text-success-foreground",
+  warning: "gba:bg-warning gba:text-warning-foreground",
+  info: "gba:bg-info gba:text-info-foreground",
+  destructive: "gba:bg-destructive gba:text-destructive-foreground",
+  offline: "gba:bg-offline gba:text-offline-foreground",
+  // domain-specific aliases
+  draft: "gba:bg-muted gba:text-muted-foreground",
+  completed: "gba:bg-success gba:text-success-foreground",
+  waiting: "gba:bg-info gba:text-info-foreground",
+  task: "gba:bg-warning gba:text-warning-foreground",
+  error: "gba:bg-destructive gba:text-destructive-foreground",
+  preparing: "gba:bg-muted gba:text-muted-foreground",
+};
 
 interface ExpenseRequestsTableProps extends BusinessAppContextProps {
   expenseRequests: ExpenseRequest[];
@@ -180,7 +188,7 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = (props) => {
         const mappedPlan = {
           id: request.id,
           code: request.code || "",
-          title: request.title || "Untitled Request",
+          title: request.title || getTranslationFromI18nKeyAndLabel("lowcoder:common.untitled_request","Untitled Request"),
           description: request.description || "",
           status: request.status,
           startDate: request.startDate || "",
@@ -324,10 +332,10 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = (props) => {
               <Spinner className="gba:h-8 gba:w-8" />
             </div>
           )}
-          <Table data-testid="expense-requests-table" className="gba:min-w-[1296px] gba:w-full gba:table-fixed">
+          <Table data-testid="expense-requests-table" className="gba:w-full">
             <TableHeader className="gba:sticky gba:top-0 gba:bg-white gba:z-10 gba:border-b gba:border-gray-200">
               <TableRow>
-                <TableHead className="gba:w-[60px]"></TableHead>
+                <TableHead className="gba:w-[50px] gba:min-w-[50px] gba:max-w-[50px] gba:box-border"></TableHead>
                 <TableHead
                   className="gba:w-[13%] gba:cursor-pointer gba:select-none"
                   onClick={() => handleSort("title")}
@@ -342,12 +350,6 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = (props) => {
                     </span>
                     {renderSortIndicator("title")}
                   </div>
-                </TableHead>
-                <TableHead className="gba:w-[10%]">
-                  {getTranslationFromI18nKeyAndLabel(
-                    "lowcoder:expense_request_list.expense_request_filter.request_number_input",
-                    "Expense Code",
-                  )}
                 </TableHead>
                 <TableHead className="gba:w-[10%]">
                   {getTranslationFromI18nKeyAndLabel(
@@ -431,7 +433,7 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = (props) => {
                   </div>
                 </TableHead>
                 <TableHead
-                  className="gba:w-[25%] gba:cursor-pointer gba:select-none gba:pr-6"
+                  className="gba:w-[20%] gba:cursor-pointer gba:select-none gba:pr-6"
                   onClick={() => handleSort("status")}
                   data-testid="expense-requests-status-header"
                 >
@@ -457,14 +459,15 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = (props) => {
                     onClick={() => handleSelectRequest(record)}
                     data-testid={`expense-requests-row-${record.id}`}
                   >
-                    <TableCell className="gba:w-[60px] gba:py-4 gba:px-3" data-testid={`expense-requests-actions-cell-${record.id}`}>
+                    <TableCell className="gba:w-[50px] gba:min-w-[50px] gba:max-w-[50px] gba:box-border gba:py-4 gba:px-0" data-testid={`expense-requests-actions-cell-${record.id}`}>
                       <div
-                        className="gba:flex gba:justify-start gba:gap-2"
+                        className="gba:flex gba:justify-center gba:items-center gba:gap-0"
                         onClick={(e) => e.stopPropagation()}
                       >
                         <AppActionButton
                           data-testid={`expense-requests-update-button-${record.id}`}
                           size="icon"
+                          className="gba:h-7 gba:w-7"
                           staticFlowData={[
                             ...(record.employeeDocument?.file
                               ? [
@@ -508,15 +511,15 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = (props) => {
                       </div>
                     </TableCell>
                     <TableCell className="gba:text-left gba:w-[13%] gba:py-4 gba:px-3">
-                      <div className="gba:font-medium gba:text-sm">
-                        {record.title ?? "Untitled Request"}
+                      <div className="gba:font-medium gba:text-sm gba:whitespace-nowrap gba:truncate">
+                        {record.title ?? getTranslationFromI18nKeyAndLabel("lowcoder:common.untitled_request","Untitled Request")}
+                      </div>
+                      <div className="gba:text-xs gba:text-muted-foreground gba:whitespace-nowrap gba:truncate">
+                        {record.code ?? getTranslationFromI18nKeyAndLabel("lowcoder:common.not_available","N/A")}
                       </div>
                     </TableCell>
                     <TableCell className="gba:w-[10%] gba:py-4 gba:px-3 gba:text-sm">
-                      {record.code ?? "N/A"}
-                    </TableCell>
-                    <TableCell className="gba:w-[10%] gba:py-4 gba:px-3 gba:text-sm">
-                      {(record as any)?.expensePlan?.code ?? "N/A"}
+                      {(record as any)?.expensePlan?.code ?? getTranslationFromI18nKeyAndLabel("lowcoder:common.not_available","N/A")}
                     </TableCell>
                     <TableCell className="gba:text-sm">
                       {record.startDate
@@ -530,10 +533,10 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = (props) => {
                                 year: "2-digit",
                               });
                             } catch (error) {
-                              return "N/A";
+                              return getTranslationFromI18nKeyAndLabel("lowcoder:common.not_available","N/A");
                             }
                           })()
-                        : "N/A"}
+                        : getTranslationFromI18nKeyAndLabel("lowcoder:common.not_available","N/A")}
                     </TableCell>
                     <TableCell className="gba:text-sm">
                       {record.endDate
@@ -547,10 +550,10 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = (props) => {
                                 year: "2-digit",
                               });
                             } catch (error) {
-                              return "N/A";
+                              return getTranslationFromI18nKeyAndLabel("lowcoder:common.not_available","N/A");
                             }
                           })()
-                        : "N/A"}
+                        : getTranslationFromI18nKeyAndLabel("lowcoder:common.not_available","N/A")}
                     </TableCell>
                     <TableCell>
                       <div className="gba:flex gba:items-center gba:gap-2">
@@ -574,7 +577,7 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = (props) => {
                             {record.employee?.displayName || record.employee?.fullName}
                           </div>
                           <div className="gba:text-xs gba:text-gray-500">
-                            {record.employee?.department || "N/A"}
+                            {record.employee?.department || getTranslationFromI18nKeyAndLabel("lowcoder:common.not_available","N/A")}
                           </div>
                         </div>
                       </div>
@@ -591,10 +594,10 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = (props) => {
                                 year: "2-digit",
                               });
                             } catch (error) {
-                              return "N/A";
+                              return getTranslationFromI18nKeyAndLabel("lowcoder:common.not_available","N/A");
                             }
                           })()
-                        : "N/A"}
+                        : getTranslationFromI18nKeyAndLabel("lowcoder:common.not_available","N/A")}
                     </TableCell>
                     <TableCell
                       className="gba:text-right gba:text-sm"
@@ -604,13 +607,11 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = (props) => {
                         ? formatCurrencyDisplay(record.amount, record.currency)
                         : formatCurrencyDisplay(0, record.currency || "EUR")}
                     </TableCell>
-                    <TableCell className="gba:pr-6 gba:w-[35%]">
+                    <TableCell className="gba:pr-6 gba:w-[20%]">
                       <span
-                        className="gba:inline-block gba:rounded-full gba:px-3 gba:py-1 gba:text-xs gba:font-medium gba:whitespace-nowrap"
-                        style={{
-                          backgroundColor: REQUEST_STATUS_TOKENS[String(type).toLowerCase()] || REQUEST_STATUS_TOKENS.draft,
-                          color: "var(--nw-color-on-primary)",
-                        }}
+                        className={`gba:inline-block gba:rounded-full gba:px-3 gba:py-1 gba:text-xs gba:font-medium gba:whitespace-nowrap ${
+                          REQUEST_STATUS_CLASSES[String(type).toLowerCase()] || REQUEST_STATUS_CLASSES.draft
+                        }`}
                         data-testid={`status-pill-${record.status?.toLowerCase()}`}
                       >
                         {label}
@@ -629,7 +630,7 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = (props) => {
             data-testid="expense-requests-pagination"
           >
             <div
-              className="gba:text-sm gba:text-gray-600"
+              className="gba:text-sm gba:text-muted-foreground"
               data-testid="expense-requests-pagination-info"
             >
               {`${(currentPage - 1) * pageSize + 1}-${Math.min(
@@ -862,7 +863,7 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = (props) => {
       {/* Print Modal */}
       <Modal
         open={printModalOpen}
-        title="Print Expense Request"
+        title={getTranslationFromI18nKeyAndLabel("lowcoder:print.preview_title","Print Preview")}
         footer={null}
         onCancel={() => {
           setPrintModalOpen(false);
@@ -881,14 +882,14 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = (props) => {
           <iframe
             src={printPdfUrl}
             style={{ width: "100%", height: "calc(90vh - 55px)", border: "none" }}
-            title="Print Preview"
+            title={getTranslationFromI18nKeyAndLabel("lowcoder:print.preview_title","Print Preview")}
             data-testid="print-request-iframe"
           />
         ) : (
           <div className="gba:flex gba:flex-col gba:items-center gba:justify-center gba:py-8 gba:text-center">
-            <div className="gba:text-gray-600 gba:mb-4">No document available for printing</div>
+            <div className="gba:text-gray-600 gba:mb-4">{getTranslationFromI18nKeyAndLabel("lowcoder:print.no_document","No document available for printing")}</div>
             <div className="gba:text-sm gba:text-gray-500">
-              This expense request does not have an associated document to print.
+              {getTranslationFromI18nKeyAndLabel("lowcoder:print.no_document_details","This expense request does not have an associated document to print.")}
             </div>
           </div>
         )}

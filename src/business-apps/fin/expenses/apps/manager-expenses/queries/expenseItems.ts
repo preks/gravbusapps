@@ -15,8 +15,13 @@ export const GET_EXPENSE_ITEMS_BY_MANAGER = `
         },
         isDeleted: {_eq: false},
         _or: [
+          {title: {_ilike: $searchTerm}},
           {expensePosition: {expenseGroupRef: {_ilike: $searchTerm}}},
-          {employee: {fullName: {_ilike: $searchTerm}}}
+          {employee: {fullName: {_ilike: $searchTerm}}},
+          {employee: {firstName: {_ilike: $searchTerm}}},
+          {employee: {lastName: {_ilike: $searchTerm}}},
+          {expenseRequest: {code: {_ilike: $searchTerm}}},
+          {expenseRequest: {status: {_ilike: $searchTerm}}}
         ]
       }
     ) {
@@ -36,8 +41,13 @@ export const GET_EXPENSE_ITEMS_BY_MANAGER = `
         },
         isDeleted: {_eq: false},
         _or: [
+          {title: {_ilike: $searchTerm}},
           {expensePosition: {expenseGroupRef: {_ilike: $searchTerm}}},
-          {employee: {fullName: {_ilike: $searchTerm}}}
+          {employee: {fullName: {_ilike: $searchTerm}}},
+          {employee: {firstName: {_ilike: $searchTerm}}},
+          {employee: {lastName: {_ilike: $searchTerm}}},
+          {expenseRequest: {code: {_ilike: $searchTerm}}},
+          {expenseRequest: {status: {_ilike: $searchTerm}}}
         ]
       }
     ) {

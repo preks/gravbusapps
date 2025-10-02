@@ -41,6 +41,28 @@ interface TeamSpendingAnalyticsPageProps extends BusinessAppContextProps {
   onNavigateBack: () => void;
 }
 
+// Status type → hex color mapping for charts (matching design system pill colors)
+const STATUS_COLOR_MAP: Record<string, string> = {
+  // Base design system colors
+  success: '#10b981',      // green (gba:bg-success)
+  warning: '#f59e0b',      // amber (gba:bg-warning)
+  info: '#3b82f6',         // blue (gba:bg-info)
+  destructive: '#ef4444',  // red (gba:bg-destructive)
+  offline: '#6b7280',      // gray (gba:bg-offline)
+  // Domain-specific aliases
+  draft: '#9ca3af',        // gray-400 (gba:bg-muted)
+  completed: '#10b981',    // green (same as success)
+  waiting: '#3b82f6',      // blue (same as info)
+  task: '#f59e0b',         // amber (same as warning)
+  error: '#ef4444',        // red (same as destructive)
+  preparing: '#9ca3af',    // gray-400 (same as draft)
+};
+
+const resolveStatusColor = (type: string | undefined, fallbackColor: string): string => {
+  const key = String(type || 'draft').toLowerCase();
+  return STATUS_COLOR_MAP[key] || fallbackColor;
+};
+
 const TeamSpendingAnalyticsPage: React.FC<TeamSpendingAnalyticsPageProps> = ({
   onNavigateBack,
   accessToken,
@@ -201,7 +223,7 @@ const TeamSpendingAnalyticsPage: React.FC<TeamSpendingAnalyticsPageProps> = ({
             <LineChartComponent
               data={data?.expenseItemsByMonth || []}
               title=""
-              lineColor="var(--nw-color-primary-500)"
+              lineColor="#8884d8"
               currency={currencyFilter || primaryCurrency}
             />
           </CardContent>
@@ -228,7 +250,7 @@ const TeamSpendingAnalyticsPage: React.FC<TeamSpendingAnalyticsPageProps> = ({
               })) || []
               }
               title=""
-              barColor="var(--nw-color-primary-500)"
+              barColor="#8884d8"
               valueType="count"
               countLabel={getTranslationFromI18nKeyAndLabel(
                 "lowcoder:team_expenses_page.dashboard_tab.items",
@@ -238,7 +260,7 @@ const TeamSpendingAnalyticsPage: React.FC<TeamSpendingAnalyticsPageProps> = ({
               const code = entry.status || entry.name;
               const config = getExpenseRequestStatusDisplay(code);
               const type = config?.type || 'draft';
-              return (globalThis as any)?.__nw_pill_colors?.[type] || 'var(--nw-color-primary-500)';
+              return resolveStatusColor(type, '#8884d8');
             }}
             />
             <StatusLegend id="expense-items-by-status" />
@@ -262,12 +284,12 @@ const TeamSpendingAnalyticsPage: React.FC<TeamSpendingAnalyticsPageProps> = ({
                 title=""
                 currency={currencyFilter || primaryCurrency}
                 colors={[
-                  "var(--nw-color-primary-500)",
-                  "var(--nw-color-success-500)",
-                  "var(--nw-color-warning-500)",
-                  "var(--nw-color-danger-500)",
-                  "var(--nw-color-accent-500)",
-                  "var(--nw-color-info-500)"
+                  "#8884d8",
+                  "#82ca9d",
+                  "#ffc658",
+                  "#ff7300",
+                  "#8dd1e1",
+                  "#d084d0"
                 ]}
               />
             </CardContent>
@@ -331,7 +353,7 @@ const TeamSpendingAnalyticsPage: React.FC<TeamSpendingAnalyticsPageProps> = ({
             <LineChartComponent
               data={data?.expenseRequestsByMonth || []}
               title=""
-              lineColor="var(--nw-color-success-500)"
+              lineColor="#82ca9d"
               currency={currencyFilter || primaryCurrency}
             />
           </CardContent>
@@ -360,7 +382,7 @@ const TeamSpendingAnalyticsPage: React.FC<TeamSpendingAnalyticsPageProps> = ({
               })) || []
               }
               title=""
-              barColor="var(--nw-color-success-500)"
+              barColor="#82ca9d"
               valueType="count"
               countLabel={getTranslationFromI18nKeyAndLabel(
                 "lowcoder:team_expenses_page.dashboard_tab.requests",
@@ -370,7 +392,7 @@ const TeamSpendingAnalyticsPage: React.FC<TeamSpendingAnalyticsPageProps> = ({
               const code = entry.status || entry.name;
               const config = getExpenseRequestStatusDisplay(code);
               const type = config?.type || 'draft';
-              return (globalThis as any)?.__nw_pill_colors?.[type] || 'var(--nw-color-success-500)';
+              return resolveStatusColor(type, '#82ca9d');
             }}
             />
             <StatusLegend id="expense-requests-by-status-counts" />
@@ -404,17 +426,17 @@ const TeamSpendingAnalyticsPage: React.FC<TeamSpendingAnalyticsPageProps> = ({
               title=""
               currency={currencyFilter || primaryCurrency}
               colors={[
-                "var(--nw-color-success-500)",
-                "var(--nw-color-primary-500)",
-                "var(--nw-color-accent-500)",
-                "var(--nw-color-danger-500)",
-                "var(--nw-color-warning-500)"
+                "#82ca9d",
+                "#8884d8",
+                "#ffc658",
+                "#ff7300",
+                "#8dd1e1"
               ]}
             getColor={(entry) => {
               const code = entry.status || entry.name;
               const config = getExpenseRequestStatusDisplay(code);
               const type = config?.type || 'draft';
-              return (globalThis as any)?.__nw_pill_colors?.[type];
+              return resolveStatusColor(type, '#82ca9d');
             }}
             />
             <StatusLegend id="expense-requests-by-status-amounts" />
@@ -478,7 +500,7 @@ const TeamSpendingAnalyticsPage: React.FC<TeamSpendingAnalyticsPageProps> = ({
             <LineChartComponent
               data={data?.expensePlansByMonth || []}
               title=""
-              lineColor="var(--nw-color-accent-500)"
+              lineColor="#ffc658"
               currency={currencyFilter || primaryCurrency}
             />
           </CardContent>
@@ -506,7 +528,7 @@ const TeamSpendingAnalyticsPage: React.FC<TeamSpendingAnalyticsPageProps> = ({
               })) || []
               }
               title=""
-              barColor="var(--nw-color-accent-500)"
+              barColor="#ffc658"
               valueType="count"
               countLabel={getTranslationFromI18nKeyAndLabel(
                 "lowcoder:team_expenses_page.dashboard_tab.plans",
@@ -516,7 +538,7 @@ const TeamSpendingAnalyticsPage: React.FC<TeamSpendingAnalyticsPageProps> = ({
               const code = entry.status || entry.name;
               const config = getExpensePlanStatusDisplay(code);
               const type = config?.type || 'draft';
-              return (globalThis as any)?.__nw_pill_colors?.[type] || 'var(--nw-color-accent-500)';
+              return resolveStatusColor(type, '#ffc658');
             }}
             />
             <StatusLegend id="expense-plans-by-status-counts" />
@@ -549,17 +571,17 @@ const TeamSpendingAnalyticsPage: React.FC<TeamSpendingAnalyticsPageProps> = ({
               title=""
               currency={currencyFilter || primaryCurrency}
               colors={[
-                "var(--nw-color-accent-500)",
-                "var(--nw-color-success-500)",
-                "var(--nw-color-primary-500)",
-                "var(--nw-color-danger-500)",
-                "var(--nw-color-warning-500)"
+                "#ffc658",
+                "#82ca9d",
+                "#8884d8",
+                "#ff7300",
+                "#8dd1e1"
               ]}
             getColor={(entry) => {
               const code = entry.status || entry.name;
               const config = getExpensePlanStatusDisplay(code);
               const type = config?.type || 'draft';
-              return (globalThis as any)?.__nw_pill_colors?.[type];
+              return resolveStatusColor(type, '#ffc658');
             }}
             />
             <StatusLegend id="expense-plans-by-status-amounts" />
@@ -623,7 +645,7 @@ const TeamSpendingAnalyticsPage: React.FC<TeamSpendingAnalyticsPageProps> = ({
             <LineChartComponent
               data={data?.advancePaymentsByMonth || []}
               title=""
-              lineColor="var(--nw-color-info-500)"
+              lineColor="#8dd1e1"
               currency={currencyFilter || primaryCurrency}
             />
           </CardContent>
@@ -651,7 +673,7 @@ const TeamSpendingAnalyticsPage: React.FC<TeamSpendingAnalyticsPageProps> = ({
               })) || []
               }
               title=""
-              barColor="var(--nw-color-info-500)"
+              barColor="#8dd1e1"
               valueType="count"
               countLabel={getTranslationFromI18nKeyAndLabel(
                 "lowcoder:team_expenses_page.dashboard_tab.payments",
@@ -661,7 +683,7 @@ const TeamSpendingAnalyticsPage: React.FC<TeamSpendingAnalyticsPageProps> = ({
               const code = entry.status || entry.name;
               const config = getAdvancePaymentStatusDisplay(code);
               const type = config?.type || 'draft';
-              return (globalThis as any)?.__nw_pill_colors?.[type] || 'var(--nw-color-info-500)';
+              return resolveStatusColor(type, '#8dd1e1');
             }}
             />
             <StatusLegend id="advance-payments-by-status-counts" />
@@ -693,18 +715,18 @@ const TeamSpendingAnalyticsPage: React.FC<TeamSpendingAnalyticsPageProps> = ({
               }
               title=""
               colors={[
-                "var(--nw-color-info-500)",
-                "var(--nw-color-success-500)",
-                "var(--nw-color-primary-500)",
-                "var(--nw-color-danger-500)",
-                "var(--nw-color-warning-500)"
+                "#8dd1e1",
+                "#82ca9d",
+                "#8884d8",
+                "#ff7300",
+                "#ffc658"
               ]}
               currency={currencyFilter || primaryCurrency}
             getColor={(entry) => {
               const code = entry.status || entry.name;
               const config = getAdvancePaymentStatusDisplay(code);
               const type = config?.type || 'draft';
-              return (globalThis as any)?.__nw_pill_colors?.[type];
+              return resolveStatusColor(type, '#8dd1e1');
             }}
             />
             <StatusLegend id="advance-payments-by-status-amounts" />
@@ -1014,7 +1036,7 @@ const TeamSpendingAnalyticsPage: React.FC<TeamSpendingAnalyticsPageProps> = ({
               {error ? (
                 <Alert data-testid="team-spending-analytics-error-alert">
                   <AlertDescription>
-                    <strong>Error:</strong> {error}
+                    <strong>{getTranslationFromI18nKeyAndLabel("lowcoder:common.error_title","Error")}</strong> {error}
                   </AlertDescription>
                 </Alert>
               ) : (

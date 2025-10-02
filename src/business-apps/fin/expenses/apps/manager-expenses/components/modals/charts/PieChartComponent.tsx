@@ -2,6 +2,7 @@ import React from "react";
 import { Card, CardHeader, CardTitle, CardContent } from "@newwork/nw-design-system";
 import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer, Legend } from "recharts";
 import { formatCurrencyDisplay } from "../../../../personal-expenses/utils";
+import { getTranslationFromI18nKeyAndLabel } from "@/common/utils/windowUtils";
 
 interface PieChartProps {
   data: {
@@ -9,7 +10,6 @@ interface PieChartProps {
     value: number;
   }[];
   title: string;
-  nameKey?: string;
   dataKey?: string;
   height?: number;
   colors?: string[];
@@ -25,17 +25,16 @@ interface PieChartProps {
 const PieChartComponent: React.FC<PieChartProps> = ({
   data,
   title,
-  nameKey = "name",
   dataKey = "value",
   height = 300,
   colors = [
-    "var(--nw-color-primary-500)",
-    "var(--nw-color-success-500)",
-    "var(--nw-color-warning-500)",
-    "var(--nw-color-danger-500)",
-    "var(--nw-color-accent-500)",
-    "var(--nw-color-info-500)",
-    "var(--nw-color-warning-600)"
+    '#8884d8',
+    '#82ca9d',
+    '#ffc658',
+    '#ff7300',
+    '#8dd1e1',
+    '#d084d0',
+    '#ffb347'
   ],
   currency = "EUR",
   valueType = 'amount',
@@ -62,10 +61,10 @@ const PieChartComponent: React.FC<PieChartProps> = ({
         <CardContent>
           <div className="gba:flex gba:flex-col gba:items-center gba:justify-center gba:p-8 gba:text-center gba:min-h-[200px]">
             <div className="gba:text-gray-500 gba:text-lg gba:font-medium gba:mb-2">
-              {"No data available"}
+              {getTranslationFromI18nKeyAndLabel("lowcoder:charts.empty.title","No data available")}
             </div>
             <div className="gba:text-gray-400 gba:text-sm">
-              {"There is no data to display for this chart."}
+              {getTranslationFromI18nKeyAndLabel("lowcoder:charts.empty.description","There is no data to display for this chart.")}
             </div>
           </div>
         </CardContent>
@@ -108,12 +107,14 @@ const PieChartComponent: React.FC<PieChartProps> = ({
                 formatter={(value: any, _name: any, props: any) => {
                   const num = Number(value ?? 0);
                   if (valueType === 'count') {
-                    return [`${num} ${countLabel}`, 'Count'];
+                    return [`${num} ${countLabel}`, getTranslationFromI18nKeyAndLabel("lowcoder:charts.tooltip.count","Count")];
                   }
                   const fixed = Number.isFinite(num) ? Math.round(num * 100) / 100 : 0;
                   const count = props?.payload?.count ?? null;
                   const amountText = formatCurrencyDisplay(fixed, currency);
-                  return [count !== null ? `${amountText} (Count: ${count})` : amountText, 'Amount'];
+                  const amountLabel = getTranslationFromI18nKeyAndLabel("lowcoder:charts.tooltip.amount","Amount");
+                  const countLabelText = getTranslationFromI18nKeyAndLabel("lowcoder:charts.tooltip.count","Count");
+                  return [count !== null ? `${amountText} (${countLabelText}: ${count})` : amountText, amountLabel];
                 }}
                 labelFormatter={(name) => `${name}`}
               />

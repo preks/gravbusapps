@@ -65,7 +65,7 @@ export const AppActionButton: React.FC<AppActionButtonProps> = (props) => {
   }, [handleDeferredFetch, onDropdownOpen]);
 
   return (
-    <div data-testid={containerTestId}>
+    <div data-testid={containerTestId} className={actionButtonProps.className}>
       <ActionButton
         {...actionButtonProps}
         data-testid={buttonTestId}

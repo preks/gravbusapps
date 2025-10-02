@@ -1,5 +1,6 @@
 import React from "react";
 import { Card, CardHeader, CardTitle, CardContent } from "@newwork/nw-design-system";
+import { getTranslationFromI18nKeyAndLabel } from "@/common/utils/windowUtils";
 import {
   LineChart,
   Line,
@@ -8,6 +9,7 @@ import {
   CartesianGrid,
   Tooltip,
   ResponsiveContainer,
+  Legend,
 } from "recharts";
 import { formatCurrencyDisplay } from "../../../../personal-expenses/utils";
 
@@ -32,7 +34,7 @@ const LineChartComponent: React.FC<LineChartProps> = ({
   title,
   xAxisDataKey = "date",
   lineDataKey = "value",
-  lineColor = "var(--nw-color-success-500)",
+  lineColor = "#82ca9d",
   height = 300,
   currency = "EUR",
 }) => {
@@ -56,10 +58,10 @@ const LineChartComponent: React.FC<LineChartProps> = ({
         <CardContent>
           <div className="gba:flex gba:flex-col gba:items-center gba:justify-center gba:p-8 gba:text-center gba:min-h-[200px]">
             <div className="gba:text-gray-500 gba:text-lg gba:font-medium gba:mb-2">
-              No data available
+              {getTranslationFromI18nKeyAndLabel("lowcoder:charts.empty.title","No data available")}
             </div>
             <div className="gba:text-gray-400 gba:text-sm">
-              There is no data to display for this chart.
+              {getTranslationFromI18nKeyAndLabel("lowcoder:charts.empty.description","There is no data to display for this chart.")}
             </div>
           </div>
         </CardContent>
@@ -100,6 +102,7 @@ const LineChartComponent: React.FC<LineChartProps> = ({
                 }}
                 labelFormatter={(label) => `${label}`}
               />
+              <Legend />
               <Line
                 type="monotone"
                 dataKey={lineDataKey}

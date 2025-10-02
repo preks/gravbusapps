@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
-import { useGraphqlClient } from '@/common/network/graphql/useGraphQLClient';
+import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient';
 import { getCurrentActiveUserLocale } from '@/common/utils/windowUtils';
 import { GET_EXPENSE_ANALYTICS_DATA } from '../queries/analytics';
 import dayjs from 'dayjs';
@@ -180,7 +180,7 @@ export const useTeamSpendingAnalytics = (
   const [departmentSearchTerm, setDepartmentSearchTerm] = useState<string>('');
   const [rawData, setRawData] = useState<AnalyticsData | null>(null);
   
-  const graphqlClient = useGraphqlClient(accessToken);
+  const graphqlClient = useGraphQLClient(accessToken);
   
   // Calculate date range based on selected option
   const dateRangeValues = useMemo(() => {

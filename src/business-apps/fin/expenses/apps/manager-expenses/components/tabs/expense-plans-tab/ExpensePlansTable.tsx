@@ -19,17 +19,24 @@ import {
 import { Modal } from "antd";
 import { PiArrowUp, PiArrowDown } from "react-icons/pi";
 import { BusinessAppContextProps } from "@/common/BusinessAppContext";
-// Local token map for status colors
-const PLAN_STATUS_TOKENS: Record<string, string> = {
-  draft: "var(--nw-color-neutral-500)",
-  completed: "var(--nw-color-success-500)",
-  waiting: "var(--nw-color-info-500)",
-  task: "var(--nw-color-warning-500)",
-  error: "var(--nw-color-danger-500)",
-  preparing: "var(--nw-color-neutral-400)",
-};
+// (replaced by PLAN_STATUS_CLASSES)
 import { ExpensePlan, SortField } from "../../../hooks/useMainViewExpensePlans";
 import { getExpensePlanStatusDisplay, ExpenseStatus } from "../../../utils";
+
+// Status → token classes (design-system)
+const PLAN_STATUS_CLASSES: Record<string, string> = {
+  success: "gba:bg-success gba:text-success-foreground",
+  warning: "gba:bg-warning gba:text-warning-foreground",
+  info: "gba:bg-info gba:text-info-foreground",
+  destructive: "gba:bg-destructive gba:text-destructive-foreground",
+  offline: "gba:bg-offline gba:text-offline-foreground",
+  draft: "gba:bg-muted gba:text-muted-foreground",
+  completed: "gba:bg-success gba:text-success-foreground",
+  waiting: "gba:bg-info gba:text-info-foreground",
+  task: "gba:bg-warning gba:text-warning-foreground",
+  error: "gba:bg-destructive gba:text-destructive-foreground",
+  preparing: "gba:bg-muted gba:text-muted-foreground",
+};
 import {
   getTranslationFromI18nKeyAndLabel,
   getCurrentActiveUserLocale,
@@ -275,11 +282,11 @@ const ExpensePlansTable: React.FC<ExpensePlansTableProps> = (props) => {
       <div className="gba:border gba:border-gray-200 gba:rounded-md">
         {/* Table with horizontal scrolling and fixed height */}
         <div className="gba:overflow-x-auto gba:pr-4 gba:border-b gba:border-gray-200">
-          <Table data-testid={`${DATA_TEST_ID_PREFIX}-table`} className="gba:min-w-[1296px] gba:w-full gba:table-fixed">
+          <Table data-testid={`${DATA_TEST_ID_PREFIX}-table`} className="gba:w-full">
             <TableHeader className="gba:sticky gba:top-0 gba:bg-white gba:z-10 gba:border-b gba:border-gray-200">
               <TableRow>
                 <TableHead
-                  className="gba:w-[60px] gba:bg-gray-50 gba:font-semibold"
+                  className="gba:w-[50px] gba:min-w-[50px] gba:max-w-[50px] gba:box-border gba:bg-gray-50 gba:font-semibold"
                   data-testid={`${DATA_TEST_ID_PREFIX}-actions-header`}
                 ></TableHead>
                 <TableHead
@@ -294,12 +301,6 @@ const ExpensePlansTable: React.FC<ExpensePlansTableProps> = (props) => {
                     )}
                     {renderSortIndicator("title")}
                   </div>
-                </TableHead>
-                <TableHead className="gba:w-[10%] gba:bg-gray-50 gba:font-semibold">
-                  {getTranslationFromI18nKeyAndLabel(
-                    "lowcoder:expense_calculation_rule.expense_table.code",
-                    "Plan Code",
-                  )}
                 </TableHead>
                 <TableHead className="gba:w-[10%] gba:bg-gray-50 gba:font-semibold">
                   {getTranslationFromI18nKeyAndLabel(
@@ -397,14 +398,15 @@ const ExpensePlansTable: React.FC<ExpensePlansTableProps> = (props) => {
                     }`}
                     onClick={() => handleSelectItem(plan)}
                   >
-                    <TableCell className="gba:w-[60px] gba:py-4 gba:px-3" data-testid={`${DATA_TEST_ID_PREFIX}-actions-cell-${plan.id}`}>
+                    <TableCell className="gba:w-[50px] gba:min-w-[50px] gba:max-w-[50px] gba:box-border gba:py-4 gba:px-0" data-testid={`${DATA_TEST_ID_PREFIX}-actions-cell-${plan.id}`}>
                       <div
-                        className="gba:flex gba:justify-start gba:gap-2"
+                        className="gba:flex gba:justify-center gba:items-center gba:gap-0"
                         onClick={(e) => e.stopPropagation()}
                       >
                         <AppActionButton
                           data-testid={`${DATA_TEST_ID_PREFIX}-update-plan-button-${plan.id}`}
                           size="icon"
+                          className="gba:h-7 gba:w-7"
                           staticFlowData={[
                             // Print action - only available if document exists
                             ...(plan.employeeDocument?.file
@@ -451,15 +453,15 @@ const ExpensePlansTable: React.FC<ExpensePlansTableProps> = (props) => {
                       </div>
                     </TableCell>
                     <TableCell className="gba:text-left gba:w-[18%] gba:py-4 gba:px-3">
-                      <div className="gba:font-medium gba:text-sm">{plan.title}</div>
-                    </TableCell>
-                    <TableCell className="gba:w-[10%] gba:py-4 gba:px-3 gba:text-sm">
-                      {plan.code || "N/A"}
+                      <div className="gba:font-medium gba:text-sm gba:whitespace-nowrap gba:truncate">{plan.title}</div>
+                      <div className="gba:text-xs gba:text-muted-foreground gba:whitespace-nowrap gba:truncate">
+                        {plan.code || getTranslationFromI18nKeyAndLabel("lowcoder:common.not_available","N/A")}
+                      </div>
                     </TableCell>
                     <TableCell className="gba:w-[10%] gba:py-4 gba:px-3 gba:text-sm">
                       {(plan as any).expenseRequest && Array.isArray((plan as any).expenseRequest) && (plan as any).expenseRequest.length > 0
-                        ? ((plan as any).expenseRequest[0]?.code || "N/A")
-                        : "N/A"}
+                        ? ((plan as any).expenseRequest[0]?.code || getTranslationFromI18nKeyAndLabel("lowcoder:common.not_available","N/A"))
+                        : getTranslationFromI18nKeyAndLabel("lowcoder:common.not_available","N/A")}
                     </TableCell>
                     <TableCell className="gba:text-sm">
                       {plan.startDate
@@ -473,10 +475,10 @@ const ExpensePlansTable: React.FC<ExpensePlansTableProps> = (props) => {
                                 year: "2-digit",
                               });
                             } catch (error) {
-                              return "N/A";
+                              return getTranslationFromI18nKeyAndLabel("lowcoder:common.not_available","N/A");
                             }
                           })()
-                        : "N/A"}
+                        : getTranslationFromI18nKeyAndLabel("lowcoder:common.not_available","N/A")}
                     </TableCell>
                     <TableCell className="gba:text-sm">
                       {plan.endDate
@@ -490,10 +492,10 @@ const ExpensePlansTable: React.FC<ExpensePlansTableProps> = (props) => {
                                 year: "2-digit",
                               });
                             } catch (error) {
-                              return "N/A";
+                              return getTranslationFromI18nKeyAndLabel("lowcoder:common.not_available","N/A");
                             }
                           })()
-                        : "N/A"}
+                        : getTranslationFromI18nKeyAndLabel("lowcoder:common.not_available","N/A")}
                     </TableCell>
                     <TableCell>
                       <div className="gba:flex gba:items-center gba:gap-2">
@@ -527,10 +529,10 @@ const ExpensePlansTable: React.FC<ExpensePlansTableProps> = (props) => {
                                 year: "2-digit",
                               });
                             } catch (error) {
-                              return "N/A";
+                              return getTranslationFromI18nKeyAndLabel("lowcoder:common.not_available","N/A");
                             }
                           })()
-                        : "N/A"}
+                        : getTranslationFromI18nKeyAndLabel("lowcoder:common.not_available","N/A")}
                     </TableCell>
                     <TableCell className="gba:text-right">
                       <span className="gba:font-medium gba:text-sm">
@@ -545,13 +547,11 @@ const ExpensePlansTable: React.FC<ExpensePlansTableProps> = (props) => {
                             )}
                       </span>
                     </TableCell>
-                    <TableCell className="gba:pr-6 gba:w-[35%]">
+                    <TableCell className="gba:pr-6 gba:w-[20%]">
                       <span
-                        className="gba:inline-block gba:rounded-full gba:px-3 gba:py-1 gba:text-xs gba:font-medium gba:whitespace-nowrap"
-                        style={{
-                          backgroundColor: PLAN_STATUS_TOKENS[String(display.type).toLowerCase()] || PLAN_STATUS_TOKENS.draft,
-                          color: "var(--nw-color-on-primary)",
-                        }}
+                        className={`gba:inline-block gba:rounded-full gba:px-3 gba:py-1 gba:text-xs gba:font-medium gba:whitespace-nowrap ${
+                          PLAN_STATUS_CLASSES[String(display.type).toLowerCase()] || PLAN_STATUS_CLASSES.draft
+                        }`}
                         data-testid={`status-pill-${String(display.type).toLowerCase()}`}
                       >
                         {display.label}
@@ -571,7 +571,7 @@ const ExpensePlansTable: React.FC<ExpensePlansTableProps> = (props) => {
             data-testid={`${DATA_TEST_ID_PREFIX}-pagination`}
           >
             <div
-              className="gba:text-sm gba:text-gray-600"
+              className="gba:text-sm gba:text-muted-foreground"
               data-testid={`${DATA_TEST_ID_PREFIX}-pagination-info`}
             >
               {`${(currentPage - 1) * pageSize + 1}-${Math.min(
@@ -582,14 +582,13 @@ const ExpensePlansTable: React.FC<ExpensePlansTableProps> = (props) => {
             <div className="gba:flex gba:items-center gba:space-x-6 gba:lg:space-x-8">
               <div className="gba:flex gba:items-center gba:space-x-2">
                 <p className="gba:text-sm gba:font-medium">
-                  {" "}
                   {getTranslationFromI18nKeyAndLabel(
                     "lowcoder:personal_expenses.rows_per_page",
                     "Rows per page",
                   )}
                 </p>
                 <select
-                  className="gba:h-8 gba:rounded-md gba:border gba:border-gray-300 gba:bg-white gba:px-2 gba:text-sm"
+                  className="gba:h-8 gba:w-[70px] gba:rounded gba:border gba:border-input gba:px-3 gba:py-1 gba:text-sm"
                   value={pageSize}
                   onChange={handlePageSizeChange}
                   data-testid={`${DATA_TEST_ID_PREFIX}-page-size-select`}
@@ -676,12 +675,12 @@ const ExpensePlansTable: React.FC<ExpensePlansTableProps> = (props) => {
           <iframe
             src={printPdfUrl}
             style={{ width: "100%", height: "calc(90vh - 55px)", border: "none" }}
-            title="Print Preview"
+            title={getTranslationFromI18nKeyAndLabel("lowcoder:print.preview_title","Print Preview")}
             data-testid="print-plan-iframe"
           />
         ) : (
           <div className="gba:flex gba:flex-col gba:items-center gba:justify-center gba:py-8 gba:text-center">
-            <div className="gba:text-gray-600 gba:mb-4">No document available for printing</div>
+            <div className="gba:text-gray-600 gba:mb-4">{getTranslationFromI18nKeyAndLabel("lowcoder:print.no_document","No document available for printing")}</div>
             <div className="gba:text-sm gba:text-gray-500">
               This expense plan does not have an associated document to print.
             </div>

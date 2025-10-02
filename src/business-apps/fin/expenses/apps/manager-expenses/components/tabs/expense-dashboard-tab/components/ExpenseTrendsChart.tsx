@@ -74,7 +74,7 @@ const ExpenseTrendsChart: React.FC<ExpenseTrendsChartProps> = ({
               No data available
             </h3>
             <p className="gba:mt-1 gba:text-sm gba:text-gray-500">
-              No expense trend data available
+              {getTranslationFromI18nKeyAndLabel("lowcoder:charts.empty.title","No data available")}
             </p>
           </div>
         </CardContent>

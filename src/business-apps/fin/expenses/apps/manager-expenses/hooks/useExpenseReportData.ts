@@ -264,35 +264,6 @@ export const useExpenseReportData = ({
     });
   };
 
-  // Process advance payments data
-  const processAdvancePaymentsData = (_data: any): AdvancePaymentReport[] => {
-    if (!_data?.ExpensePlan?.length) return [];
-
-    const rows: AdvancePaymentReport[] = [];
-    _data.ExpensePlan.forEach((plan: any) => {
-      const payments = Array.isArray(plan.advancePayment) ? plan.advancePayment : [];
-      payments.forEach((payment: any) => {
-        const statusDisplay = payment.status
-          ? getAdvancePaymentStatusDisplay(payment.status)
-          : { label: "", type: "draft" };
-        const currencyCode = payment?.currencyRef ? String(payment.currencyRef).split(":").pop() || "" : "";
-        rows.push({
-          id: payment.id,
-          code: plan.code || "",
-          title: plan.title || "",
-          requestDate: payment.createdAt ? formatDate(payment.createdAt, "date.short") || "-" : "-",
-          status: statusDisplay.label,
-          amount: payment.amount || 0,
-          employeeName: plan.employee?.fullName || "",
-          paymentMethod: payment.paymentMethod || undefined,
-          costCenter: payment.costCenter?.name || payment.costCenter?.code || undefined,
-          currency: currencyCode,
-        });
-      });
-    });
-    return rows;
-  };
-
   // Fetch expense items report
   const fetchExpenseItems = useCallback(async () => {
     if (!graphqlClient) return;
@@ -356,15 +327,25 @@ export const useExpenseReportData = ({
       setError(null);
 
       // Use the real manager ID from userInfo
-      const where = {
+      const where: any = {
         employee: { employeePosition: { supervisorEmployeeId: { _eq: managerId } } },
         isDeleted: { _eq: false },
-        _or: [
-          { code: { _ilike: searchTerm ? `%${searchTerm}%` : "%%" } },
-          { title: { _ilike: searchTerm ? `%${searchTerm}%` : "%%" } },
-          { employee: { fullName: { _ilike: searchTerm ? `%${searchTerm}%` : "%%" } } },
-        ],
-      } as any;
+      };
+
+      // Only add search conditions if searchTerm is not empty
+      if (searchTerm && searchTerm.trim()) {
+        const searchPattern = `%${searchTerm.trim()}%`;
+        where._or = [
+          { code: { _ilike: searchPattern } },
+          { title: { _ilike: searchPattern } },
+          { status: { _ilike: searchPattern } },
+          { employee: { fullName: { _ilike: searchPattern } } },
+          { employee: { firstName: { _ilike: searchPattern } } },
+          { employee: { lastName: { _ilike: searchPattern } } },
+          { expensePlan: { code: { _ilike: searchPattern } } },
+          { expensePlan: { title: { _ilike: searchPattern } } },
+        ];
+      }
 
       const result = await graphqlClient.request(GET_EXPENSE_REQUESTS_BY_MANAGER, {
         where,
@@ -485,15 +466,24 @@ export const useExpenseReportData = ({
         case ReportType.EXPENSE_REQUEST: {
           const all: ReportItem[] = [];
           let offset = 0;
-          const where = {
+          const where: any = {
             employee: { employeePosition: { supervisorEmployeeId: { _eq: managerId } } },
             isDeleted: { _eq: false },
-            _or: [
-              { code: { _ilike: searchTerm ? `%${searchTerm}%` : "%%" } },
-              { title: { _ilike: searchTerm ? `%${searchTerm}%` : "%%" } },
-              { employee: { fullName: { _ilike: searchTerm ? `%${searchTerm}%` : "%%" } } },
-            ],
-          } as any;
+          };
+
+          // Only add search conditions if searchTerm is not empty
+          if (searchTerm && searchTerm.trim()) {
+            const searchPattern = `%${searchTerm.trim()}%`;
+            where._or = [
+              { code: { _ilike: searchPattern } },
+              { title: { _ilike: searchPattern } },
+              { employee: { fullName: { _ilike: searchPattern } } },
+              { employee: { firstName: { _ilike: searchPattern } } },
+              { employee: { lastName: { _ilike: searchPattern } } },
+              { expensePlan: { code: { _ilike: searchPattern } } },
+              { expensePlan: { title: { _ilike: searchPattern } } },
+            ];
+          }
 
           try {
             while (true) {

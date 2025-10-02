@@ -32,13 +32,18 @@ import { navigateTo, buildPlatformUrl } from "@/common/utils/navigationUtils";
 import { AdvancePayment as AdvancePaymentItem } from "../../../hooks/useMainViewAdvancePayments";
 import AdvancePaymentDetails from "./AdvancePaymentDetails";
 // Local token map for status colors
-const ADV_STATUS_TOKENS: Record<string, string> = {
-  draft: "var(--nw-color-neutral-500)",
-  completed: "var(--nw-color-success-500)",
-  waiting: "var(--nw-color-info-500)",
-  task: "var(--nw-color-warning-500)",
-  error: "var(--nw-color-danger-500)",
-  preparing: "var(--nw-color-neutral-400)",
+const ADV_STATUS_CLASSES: Record<string, string> = {
+  success: "gba:bg-success gba:text-success-foreground",
+  warning: "gba:bg-warning gba:text-warning-foreground",
+  info: "gba:bg-info gba:text-info-foreground",
+  destructive: "gba:bg-destructive gba:text-destructive-foreground",
+  offline: "gba:bg-offline gba:text-offline-foreground",
+  draft: "gba:bg-muted gba:text-muted-foreground",
+  completed: "gba:bg-success gba:text-success-foreground",
+  waiting: "gba:bg-info gba:text-info-foreground",
+  task: "gba:bg-warning gba:text-warning-foreground",
+  error: "gba:bg-destructive gba:text-destructive-foreground",
+  preparing: "gba:bg-muted gba:text-muted-foreground",
 };
 
 interface AdvancePaymentsTableProps extends BusinessAppContextProps {}
@@ -132,10 +137,10 @@ const AdvancePaymentsTable: React.FC<AdvancePaymentsTableProps> = (props) => {
         <div className="gba:border gba:border-gray-200 gba:rounded-md">
         {/* Table with horizontal scrolling */}
         <div className="gba:overflow-x-auto gba:pr-4">
-          <Table data-testid="advance-payments-table" className="gba:min-w-[1296px] gba:w-full gba:table-fixed">
+          <Table data-testid="advance-payments-table" className="gba:w-full">
             <TableHeader>
               <TableRow>
-                <TableHead className="gba:w-[60px]"></TableHead>
+                <TableHead className="gba:w-[50px] gba:min-w-[50px] gba:max-w-[50px] gba:box-border gba:first:pl-0" data-testid="advance-payments-actions-header"></TableHead>
                 <TableHead
                   className="gba:w-[12%] gba:cursor-pointer"
                   onClick={() => updateSorting("expensePlan.title")}
@@ -156,12 +161,6 @@ const AdvancePaymentsTable: React.FC<AdvancePaymentsTableProps> = (props) => {
                         <PiArrowDown className="gba:inline gba:ml-1" size={12} />
                       ))}
                   </div>
-                </TableHead>
-                <TableHead className="gba:w-[10%]">
-                  {getTranslationFromI18nKeyAndLabel(
-                    "lowcoder:expense_calculation_rule.expense_table.code",
-                    "Plan Code",
-                  )}
                 </TableHead>
                 <TableHead
                   className="gba:w-[8%] gba:cursor-pointer"
@@ -295,14 +294,15 @@ const AdvancePaymentsTable: React.FC<AdvancePaymentsTableProps> = (props) => {
                   className="gba:cursor-pointer gba:hover:bg-gray-50"
                   onClick={() => setSelectedPayment(record)}
                 >
-                  <TableCell className="gba:w-[60px] gba:py-4 gba:px-3" data-testid={`advance-payments-actions-cell-${record.id}`}>
+                  <TableCell className="gba:w-[50px] gba:min-w-[50px] gba:max-w-[50px] gba:box-border gba:py-4 gba:px-0 gba:first:pl-0" data-testid={`advance-payments-actions-cell-${record.id}`}>
                     <div
-                      className="gba:flex gba:justify-start gba:gap-2"
+                      className="gba:flex gba:justify-center gba:items-center gba:gap-0"
                       onClick={(e) => e.stopPropagation()}
                     >
-                      <AppActionButton
+                        <AppActionButton
                         data-testid={`advance-payments-update-button-${record.id}`}
                         size="icon"
+                          className="gba:h-7 gba:w-7"
                         staticFlowData={[
                           {
                             category: getTranslationFromI18nKeyAndLabel(
@@ -333,15 +333,12 @@ const AdvancePaymentsTable: React.FC<AdvancePaymentsTableProps> = (props) => {
                     </div>
                   </TableCell>
                   <TableCell className="gba:text-left gba:w-[12%] gba:py-4 gba:px-3">
-                    <div className="gba:font-medium gba:text-sm">
-                      {record.expensePlan?.title ?? "N/A"}
+                    <div className="gba:font-medium gba:text-sm gba:whitespace-nowrap gba:truncate">
+                      {record.expensePlan?.title ?? getTranslationFromI18nKeyAndLabel("lowcoder:common.not_available","N/A")}
                     </div>
-                    <div className="gba:text-xs gba:text-gray-500">
-                      {record.expensePlan?.code ?? "N/A"}
+                    <div className="gba:text-xs gba:text-muted-foreground gba:whitespace-nowrap gba:truncate">
+                      {record.expensePlan?.code ?? getTranslationFromI18nKeyAndLabel("lowcoder:common.not_available","N/A")}
                     </div>
-                  </TableCell>
-                  <TableCell className="gba:w-[10%] gba:py-4 gba:px-3 gba:text-sm">
-                    {record.expensePlan?.code ?? "N/A"}
                   </TableCell>
                   <TableCell className="gba:text-sm">
                     {record.expensePlan?.startDate
@@ -355,10 +352,10 @@ const AdvancePaymentsTable: React.FC<AdvancePaymentsTableProps> = (props) => {
                               year: "2-digit",
                             });
                           } catch (error) {
-                            return "N/A";
+                            return getTranslationFromI18nKeyAndLabel("lowcoder:common.not_available","N/A");
                           }
                         })()
-                      : "N/A"}
+                      : getTranslationFromI18nKeyAndLabel("lowcoder:common.not_available","N/A")}
                   </TableCell>
                   <TableCell className="gba:text-sm">
                     {record.expensePlan?.endDate
@@ -372,10 +369,10 @@ const AdvancePaymentsTable: React.FC<AdvancePaymentsTableProps> = (props) => {
                               year: "2-digit",
                             });
                           } catch (error) {
-                            return "N/A";
+                            return getTranslationFromI18nKeyAndLabel("lowcoder:common.not_available","N/A");
                           }
                         })()
-                      : "N/A"}
+                      : getTranslationFromI18nKeyAndLabel("lowcoder:common.not_available","N/A")}
                   </TableCell>
                   <TableCell>
                     <div className="gba:flex gba:items-center gba:gap-2">
@@ -395,7 +392,7 @@ const AdvancePaymentsTable: React.FC<AdvancePaymentsTableProps> = (props) => {
                       <span className="gba:font-medium gba:text-sm">
                         {record.expensePlan?.employee?.displayName ??
                           record.expensePlan?.employee?.fullName ??
-                          "N/A"}
+                          getTranslationFromI18nKeyAndLabel("lowcoder:common.not_available","N/A")}
                       </span>
                     </div>
                   </TableCell>
@@ -411,10 +408,10 @@ const AdvancePaymentsTable: React.FC<AdvancePaymentsTableProps> = (props) => {
                               year: "2-digit",
                             });
                           } catch (error) {
-                            return "N/A";
+                            return getTranslationFromI18nKeyAndLabel("lowcoder:common.not_available","N/A");
                           }
                         })()
-                      : "N/A"}
+                      : getTranslationFromI18nKeyAndLabel("lowcoder:common.not_available","N/A")}
                   </TableCell>
                   <TableCell
                     className="gba:text-right"
@@ -432,14 +429,13 @@ const AdvancePaymentsTable: React.FC<AdvancePaymentsTableProps> = (props) => {
                         : formatCurrencyDisplay(0, "EUR")}
                     </span>
                   </TableCell>
-                  <TableCell className="gba:pr-6 gba:w-[35%]">
+                  <TableCell className="gba:pr-6 gba:w-[20%]">
                     {(() => {
                       const status = getAdvancePaymentStatusDisplay(record.status);
-                      const token = ADV_STATUS_TOKENS[String(status.type).toLowerCase()] || ADV_STATUS_TOKENS.draft;
+                      const cls = ADV_STATUS_CLASSES[String(status.type).toLowerCase()] || ADV_STATUS_CLASSES.draft;
                       return (
                         <span
-                          className="gba:inline-block gba:rounded-full gba:px-3 gba:py-1 gba:text-xs gba:font-medium gba:whitespace-nowrap"
-                          style={{ backgroundColor: token, color: "var(--nw-color-on-primary)" }}
+                          className={`gba:inline-block gba:rounded-full gba:px-3 gba:py-1 gba:text-xs gba:font-medium gba:whitespace-nowrap ${cls}`}
                           data-testid={`status-pill-${record.status.toLowerCase()}`}
                         >
                           {status.label}
@@ -460,7 +456,7 @@ const AdvancePaymentsTable: React.FC<AdvancePaymentsTableProps> = (props) => {
             data-testid="advance-payments-pagination"
           >
             <div
-              className="gba:text-sm gba:text-gray-600"
+              className="gba:text-sm gba:text-muted-foreground"
               data-testid="advance-payments-pagination-info"
             >
               {`${(currentPage - 1) * pageSize + 1}-${Math.min(
@@ -468,7 +464,7 @@ const AdvancePaymentsTable: React.FC<AdvancePaymentsTableProps> = (props) => {
                 totalCount,
               )} ${getTranslationFromI18nKeyAndLabel("lowcoder:personal_expenses.of", "of")} ${totalCount} ${getTranslationFromI18nKeyAndLabel("lowcoder:personal_expenses.advance_payments", "advance payments")}`}
             </div>
-            <div className="gba:flex gba:items-center gba:space-x-6 gba:lg:space-x-8">
+              <div className="gba:flex gba:items-center gba:space-x-6 gba:lg:space-x-8">
               <div className="gba:flex gba:items-center gba:space-x-2">
                 <p className="gba:text-sm gba:font-medium">
                   {" "}
