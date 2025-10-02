@@ -33,6 +33,7 @@ export const AccountView: React.FC<AccountViewProps> = (context) => {
     pushAll("annualRevenueBand", "annualRevenueBand");
     pushAll("company", "company");
     pushAll("location", "location");
+    pushAll("status", "status");
     const search = urlParams.get("search") || "";
     return { search, filters };
   };
@@ -70,6 +71,7 @@ export const AccountView: React.FC<AccountViewProps> = (context) => {
     { id: "account", label: "Account", visible: true },
     { id: "contact", label: "Contact Info", visible: true },
     { id: "location", label: "Location", visible: true },
+    { id: "status", label: "Status", visible: true },
     { id: "industry", label: "Industry", visible: true },
     { id: "legalForm", label: "Legal Form", visible: true },
     { id: "size", label: "Company Size", visible: false },
@@ -110,7 +112,9 @@ export const AccountView: React.FC<AccountViewProps> = (context) => {
       hasPhone = false,
       missingPhone = false,
       hasContact = false,
-      missingContact = false;
+      missingContact = false,
+      isActive = false,
+      isInactive = false;
 
     selectedFilters.forEach((f) => {
       if (f.startsWith("owner:")) ownerIds.push(f.slice(6));
@@ -136,6 +140,8 @@ export const AccountView: React.FC<AccountViewProps> = (context) => {
       }
       else if (f.startsWith("company:")) names.push(f.slice(8));
       else if (f.startsWith("location:")) geoPresence.push(f.slice(9));
+      else if (f === "status:active") isActive = true;
+      else if (f === "status:inactive") isInactive = true;
       else if (f === "has:website") hasWebsite = true;
       else if (f === "missing:website") missingWebsite = true;
       else if (f === "has:email") hasEmail = true;
@@ -171,6 +177,8 @@ export const AccountView: React.FC<AccountViewProps> = (context) => {
       ...(missingPhone ? { missingPhone: true } : {}),
       ...(hasContact ? { hasContact: true } : {}),
       ...(missingContact ? { missingContact: true } : {}),
+      ...(isActive ? { isActive: true } : {}),
+      ...(isInactive ? { isInactive: true } : {}),
       ...vars,
     };
     return base;
