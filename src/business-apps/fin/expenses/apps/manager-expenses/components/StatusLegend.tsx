@@ -13,16 +13,49 @@ const pillTypeClassMap: Record<PillType, string> = {
   preparing: 'gba:bg-muted'        // gray (preparing status)
 };
 
-// Hex color map for charts (Recharts requires resolved colors)
-// Kept separate as charts can't use Tailwind classes
-const pillTypeColorMap: Record<PillType, string> = {
-  draft: '#9ca3af',
-  completed: '#10b981',
-  waiting: '#3b82f6',
-  task: '#f59e0b',
-  error: '#ef4444',
-  preparing: '#9ca3af'
+// Design token CSS variables for charts (will be resolved to hex at runtime)
+// Recharts requires actual color values, so we use CSS variables that get resolved
+const pillTypeColorTokens: Record<PillType, string> = {
+  draft: 'var(--nw-color-neutral-500)',
+  completed: 'var(--nw-color-success-500)',
+  waiting: 'var(--nw-color-info-500)',
+  task: 'var(--nw-color-warning-500)',
+  error: 'var(--nw-color-destructive-500)',
+  preparing: 'var(--nw-color-neutral-500)'
 };
+
+// Helper function to resolve CSS variables to hex colors (SSR-safe)
+// This is needed because Recharts requires actual hex/rgb values, not CSS variables
+const resolveCssVar = (color: string): string => {
+  if (!color?.startsWith('var(')) return color;
+  if (
+    typeof globalThis.window === 'undefined' ||
+    typeof globalThis.document === 'undefined' ||
+    typeof globalThis.window.getComputedStyle !== 'function'
+  ) {
+    // SSR fallback: return hex values directly
+    const fallbackMap: Record<string, string> = {
+      'var(--nw-color-neutral-500)': '#9ca3af',
+      'var(--nw-color-success-500)': '#10b981',
+      'var(--nw-color-info-500)': '#3b82f6',
+      'var(--nw-color-warning-500)': '#f59e0b',
+      'var(--nw-color-destructive-500)': '#ef4444',
+    };
+    return fallbackMap[color] || color;
+  }
+  const varName = color.substring(4, color.length - 1).trim();
+  const value = globalThis.window.getComputedStyle(globalThis.document.documentElement).getPropertyValue(varName).trim();
+  return value || color;
+};
+
+// Resolved color map for charts (hex values resolved from CSS variables)
+const pillTypeColorMap: Record<PillType, string> = Object.entries(pillTypeColorTokens).reduce(
+  (acc, [key, token]) => {
+    acc[key as PillType] = resolveCssVar(token);
+    return acc;
+  },
+  {} as Record<PillType, string>
+);
 
 // Fallback labels for SSR (when window is not available)
 const pillTypeFallbackLabels: Record<PillType, string> = {
