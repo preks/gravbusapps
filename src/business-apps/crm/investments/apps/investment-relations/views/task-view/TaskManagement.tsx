@@ -14,7 +14,7 @@ import { AppAction } from '@/components/app-action/AppAction';
 import { FlowContextName } from '@/common/types/FlowRegistryTypes';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 import { Task } from './types/TaskTypes';
-import { PlusSquareIcon } from '@phosphor-icons/react';
+import { PlusIcon } from '@phosphor-icons/react';
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
 
 export interface TaskManagementProps extends BusinessAppContextProps {
@@ -259,7 +259,7 @@ export const TaskManagement: React.FC<TaskManagementProps> = (props: TaskManagem
                 deferMainContextRequestsUntilClick={false}
               >
                 <Button variant="default">
-                  <PlusSquareIcon className="gba:w-4 gba:h-4" />
+                  <PlusIcon className="gba:w-4 gba:h-4" />
                   Add Task
                 </Button>
               </AppAction>
