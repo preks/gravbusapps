@@ -74,12 +74,6 @@ export const investmentQuickActions: InvestmentQuickAction[] = [
     action: 'create-lead'
   },
   {
-    id: 'convert-lead',
-    label: 'Convert Lead',
-    icon: ArrowsClockwise,
-    action: 'convert-lead'
-  },
-  {
     id: 'create-opportunity',
     label: 'Create Opportunity',
     icon: Target,
