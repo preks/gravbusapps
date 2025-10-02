@@ -50,7 +50,8 @@ export const useExpenseRequestCurrencies = (
   context: BusinessAppContextProps,
   managerId: string,
 ) => {
-  const [mostUsedCurrency, setMostUsedCurrency] = useState<string>("EUR"); // Default fallback
+  const [mostUsedCurrency, setMostUsedCurrency] = useState<string>("");
+  const [availableCurrencies, setAvailableCurrencies] = useState<string[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
 
@@ -91,23 +92,30 @@ export const useExpenseRequestCurrencies = (
 
         const managerRequestsCurrencyCounts = countCurrencies(result.managerRequests);
 
-        // Sort by count (descending) and get the most used currency
+        // Sort by count (descending)
         if (managerRequestsCurrencyCounts.length > 0) {
           managerRequestsCurrencyCounts.sort((a, b) => b.count - a.count);
-          const detectedCurrency = managerRequestsCurrencyCounts[0].currency;
-
-          // The detectedCurrency is already the extracted currency code
-          setMostUsedCurrency(detectedCurrency);
+          
+          // Get all unique currencies sorted alphabetically
+          const allCurrencies = managerRequestsCurrencyCounts
+            .map((c) => c.currency)
+            .sort((a, b) => a.localeCompare(b));
+          
+          setAvailableCurrencies(allCurrencies);
+          setMostUsedCurrency(managerRequestsCurrencyCounts[0].currency);
         } else {
-          setMostUsedCurrency("EUR");
+          setAvailableCurrencies([]);
+          setMostUsedCurrency("");
         }
       } else {
-        setMostUsedCurrency("EUR");
+        setAvailableCurrencies([]);
+        setMostUsedCurrency("");
       }
     } catch (err) {
       console.error("Error detecting most used currency:", err);
       setError(err instanceof Error ? err : new Error("Failed to detect currency"));
-      setMostUsedCurrency("EUR"); // Fallback to EUR on error
+      setAvailableCurrencies([]);
+      setMostUsedCurrency("");
     } finally {
       setIsLoading(false);
     }
@@ -119,6 +127,7 @@ export const useExpenseRequestCurrencies = (
 
   return {
     mostUsedCurrency,
+    availableCurrencies,
     isLoading,
     error,
     refetch: detectMostUsedCurrency,

@@ -315,7 +315,7 @@ const ExpenseReportsPage: React.FC<ExpenseReportsPageProps> = ({
       return;
     }
 
-    const dateKeys = [
+    const dateKeys = new Set([
       "date",
       "startDate",
       "endDate",
@@ -323,11 +323,11 @@ const ExpenseReportsPage: React.FC<ExpenseReportsPageProps> = ({
       "requestDate",
       "createdAt",
       "planDate",
-    ];
+    ]);
 
     const escapeCsv = (value: string) => {
       const needsQuotes = /[",\r\n]/.test(value);
-      let out = value.replace(/"/g, '""');
+      let out = value.replaceAll('"', '""');
       return needsQuotes ? `"${out}"` : out;
     };
 
@@ -341,10 +341,10 @@ const ExpenseReportsPage: React.FC<ExpenseReportsPageProps> = ({
       return cols.map((c) => {
         const key = c.key as string;
         const raw = row[key];
-        let val: string = "";
+        let val: string;
         if (raw == null) {
           val = "";
-        } else if (dateKeys.includes(key)) {
+        } else if (dateKeys.has(key)) {
           val = raw ? ensureShortDateFormat(raw) : "";
         } else if (typeof raw === "number") {
           val = String(raw);
@@ -370,7 +370,7 @@ const ExpenseReportsPage: React.FC<ExpenseReportsPageProps> = ({
     link.download = filename;
     document.body.appendChild(link);
     link.click();
-    document.body.removeChild(link);
+    link.remove();
     URL.revokeObjectURL(url);
   };
 
@@ -381,7 +381,7 @@ const ExpenseReportsPage: React.FC<ExpenseReportsPageProps> = ({
       return;
     }
 
-    const dateKeys = [
+    const dateKeys = new Set([
       "date",
       "startDate",
       "endDate",
@@ -389,15 +389,15 @@ const ExpenseReportsPage: React.FC<ExpenseReportsPageProps> = ({
       "requestDate",
       "createdAt",
       "planDate",
-    ];
+    ]);
 
     const htmlEscape = (value: string) =>
       value
-        .replace(/&/g, "&amp;")
-        .replace(/</g, "&lt;")
-        .replace(/>/g, "&gt;")
-        .replace(/\"/g, "&quot;")
-        .replace(/'/g, "&#39;");
+        .replaceAll("&", "&amp;")
+        .replaceAll("<", "&lt;")
+        .replaceAll(">", "&gt;")
+        .replaceAll('"', "&quot;")
+        .replaceAll("'", "&#39;");
 
     const headerCells = cols
       .map((c) => {
@@ -413,10 +413,10 @@ const ExpenseReportsPage: React.FC<ExpenseReportsPageProps> = ({
           .map((c) => {
             const key = c.key as string;
             const raw = row[key];
-            let val: string = "";
+            let val: string;
             if (raw == null) {
               val = "";
-            } else if (dateKeys.includes(key)) {
+            } else if (dateKeys.has(key)) {
               val = raw ? ensureShortDateFormat(raw) : "";
             } else if (typeof raw === "number") {
               val = String(raw);
@@ -445,7 +445,7 @@ const ExpenseReportsPage: React.FC<ExpenseReportsPageProps> = ({
     link.download = filename;
     document.body.appendChild(link);
     link.click();
-    document.body.removeChild(link);
+    link.remove();
     URL.revokeObjectURL(url);
   };
 
@@ -608,32 +608,48 @@ const ExpenseReportsPage: React.FC<ExpenseReportsPageProps> = ({
                   <TableBody>
                     {reportData.map((row: any, index: number) => (
                       <TableRow key={`${selectedReportType}-${index}`}>
-                        {columns.map((column) => (
-                          <TableCell
-                            key={column.key}
-                            data-testid={`expense-reports-cell-${column.key}`}
-                          >
-                            {column.key.includes("amount") || column.key.includes("Amount") ? (
+                        {columns.map((column) => {
+                          // Extract nested ternary into independent statement
+                          let cellContent: React.ReactNode;
+                          
+                          if (column.key.includes("amount") || column.key.includes("Amount")) {
+                            // Amount columns - format as currency
+                            cellContent = (
                               <span className="gba:text-sm">
                                 {formatCurrencyDisplay(row[column.key] || 0, row.currency || "EUR")}
                               </span>
-                            ) : [
-                                "date",
-                                "startDate",
-                                "endDate",
-                                "submissionDate",
-                                "requestDate",
-                                "createdAt",
-                                "planDate",
-                              ].includes(column.key) ? (
+                            );
+                          } else if ([
+                            "date",
+                            "startDate",
+                            "endDate",
+                            "submissionDate",
+                            "requestDate",
+                            "createdAt",
+                            "planDate",
+                          ].includes(column.key)) {
+                            // Date columns - format as date
+                            cellContent = (
                               <span className="gba:text-sm">
                                 {row[column.key] ? ensureShortDateFormat(row[column.key]) : "-"}
                               </span>
-                            ) : (
+                            );
+                          } else {
+                            // All other columns - display as text
+                            cellContent = (
                               <span className="gba:text-sm">{row[column.key] || "-"}</span>
-                            )}
-                          </TableCell>
-                        ))}
+                            );
+                          }
+
+                          return (
+                            <TableCell
+                              key={column.key}
+                              data-testid={`expense-reports-cell-${column.key}`}
+                            >
+                              {cellContent}
+                            </TableCell>
+                          );
+                        })}
                       </TableRow>
                     ))}
                   </TableBody>
@@ -641,7 +657,7 @@ const ExpenseReportsPage: React.FC<ExpenseReportsPageProps> = ({
                 {/* Pagination Footer */}
                 {totalCount > 0 && (
                   <div className="gba:flex gba:items-center gba:justify-between gba:px-2 gba:py-4" data-testid="expense-reports-pagination">
-                    <div className="gba:text-sm gba:text-gray-600" data-testid="expense-reports-pagination-info">
+                    <div className="gba:text-sm gba:text-muted-foreground" data-testid="expense-reports-pagination-info">
                       {`${(currentPage - 1) * pageSize + 1}-${Math.min(currentPage * pageSize, totalCount)} ${getTranslationFromI18nKeyAndLabel("lowcoder:personal_expenses.of", "of")} ${totalCount}`}
                     </div>
                     <div className="gba:flex gba:items-center gba:space-x-6 gba:lg:space-x-8">
@@ -678,13 +694,13 @@ const ExpenseReportsPage: React.FC<ExpenseReportsPageProps> = ({
               </div>
             ) : (
               <div className="gba:flex gba:flex-col gba:items-center gba:justify-center gba:p-8 gba:text-center">
-                <div className="gba:text-gray-500 gba:text-lg gba:font-medium gba:mb-2">
+                <div className="gba:text-muted-foreground gba:text-lg gba:font-medium gba:mb-2">
                   {getTranslationFromI18nKeyAndLabel(
                     "lowcoder:team_expenses_page.dashboard_tab.no_expense_reports_found",
                     "No expense reports found",
                   )}
                 </div>
-                <div className="gba:text-gray-400 gba:mb-4">
+                <div className="gba:text-muted-foreground gba:opacity-70 gba:mb-4">
                   {getTranslationFromI18nKeyAndLabel(
                     "lowcoder:team_expenses_page.dashboard_tab.adjust_search",
                     "Try selecting a different report type or adjusting your search.",

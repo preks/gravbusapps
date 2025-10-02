@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useGraphqlClient } from "@/common/network/graphql/useGraphQLClient";
+import { useGraphQLClient } from "@/common/network/graphql/useGraphQLClient";
 
 // Define types
 interface ExpenseGroupCatalogEntry {
@@ -12,6 +12,16 @@ interface UseExpenseGroupCatalogResult {
   isLoading: boolean;
   error: string | null;
   expenseGroups: Record<string, ExpenseGroupCatalogEntry>;
+}
+
+interface ExpenseGroupResponse {
+  id: string;
+  name?: string;
+  description?: string;
+  translations?: Array<{
+    name?: string;
+    description?: string;
+  }>;
 }
 
 // GraphQL query to fetch expense group catalog entries
@@ -44,7 +54,7 @@ export const useExpenseGroupCatalog = (accessToken: string): UseExpenseGroupCata
   const [error, setError] = useState<string | null>(null);
   const [expenseGroups, setExpenseGroups] = useState<Record<string, ExpenseGroupCatalogEntry>>({});
 
-  const graphqlClient = useGraphqlClient(accessToken);
+  const graphqlClient = useGraphQLClient(accessToken);
 
   useEffect(() => {
     const fetchExpenseGroups = async () => {
@@ -64,7 +74,7 @@ export const useExpenseGroupCatalog = (accessToken: string): UseExpenseGroupCata
           // Create a map of id -> catalog entry
           const groupsMap: Record<string, ExpenseGroupCatalogEntry> = {};
 
-          response.expenseGroups.forEach((group: any) => {
+          response.expenseGroups.forEach((group: ExpenseGroupResponse) => {
             // Use translated name if available, otherwise use default name
             const translatedName = group.translations?.[0]?.name;
             const translatedDescription = group.translations?.[0]?.description;
@@ -82,7 +92,7 @@ export const useExpenseGroupCatalog = (accessToken: string): UseExpenseGroupCata
               .toString()
               .trim()
               .toUpperCase()
-              .replace(/\s+/g, "_");
+              .replaceAll(/\s+/g, "_");
 
             // Only store ref/CODE keys when we have a non-empty code
             if (codeKey) {
@@ -120,7 +130,7 @@ export const useExpenseGroupCatalog = (accessToken: string): UseExpenseGroupCata
     };
 
     fetchExpenseGroups();
-  }, [accessToken, graphqlClient]);
+  }, [accessToken]);
 
   return { isLoading, error, expenseGroups };
 };

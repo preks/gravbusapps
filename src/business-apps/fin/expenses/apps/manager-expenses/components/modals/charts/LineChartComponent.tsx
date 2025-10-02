@@ -34,19 +34,29 @@ const LineChartComponent: React.FC<LineChartProps> = ({
   title,
   xAxisDataKey = "date",
   lineDataKey = "value",
-  lineColor = "#82ca9d",
+  lineColor = "var(--nw-color-success-500)",
   height = 300,
   currency = "EUR",
 }) => {
   const resolveCssVar = (color: string): string => {
-    if (typeof globalThis === 'undefined') return color;
     if (!color?.startsWith('var(')) return color;
+    if (
+      typeof globalThis.window === 'undefined' ||
+      typeof globalThis.document === 'undefined' ||
+      typeof globalThis.window.getComputedStyle !== 'function'
+    ) {
+      return color;
+    }
     const varName = color.substring(4, color.length - 1).trim();
-    const value = getComputedStyle(document.documentElement).getPropertyValue(varName).trim();
+    const value = globalThis.window.getComputedStyle(globalThis.document.documentElement).getPropertyValue(varName).trim();
     return value || color;
   };
 
   const resolvedLineColor = React.useMemo(() => resolveCssVar(lineColor), [lineColor]);
+  const lineName = getTranslationFromI18nKeyAndLabel(
+    "lowcoder:charts.legend.amount",
+    "Amount",
+  );
   if (!data || data.length === 0) {
     return (
       <Card className="gba:w-full">
@@ -98,7 +108,11 @@ const LineChartComponent: React.FC<LineChartProps> = ({
                 formatter={(value) => {
                   const num = typeof value === 'number' ? value : Number(value ?? 0);
                   const fixed = Number.isFinite(num) ? Number(num.toFixed(2)) : 0;
-                  return [formatCurrencyDisplay(fixed, currency), "Amount"];
+                  const amountLabel = getTranslationFromI18nKeyAndLabel(
+                    "lowcoder:charts.tooltip.amount",
+                    "Amount",
+                  );
+                  return [formatCurrencyDisplay(fixed, currency), amountLabel];
                 }}
                 labelFormatter={(label) => `${label}`}
               />
@@ -108,7 +122,7 @@ const LineChartComponent: React.FC<LineChartProps> = ({
                 dataKey={lineDataKey}
                 stroke={resolvedLineColor}
                 activeDot={{ r: 8 }}
-                name="Amount"
+                name={lineName}
               />
             </LineChart>
           </ResponsiveContainer>

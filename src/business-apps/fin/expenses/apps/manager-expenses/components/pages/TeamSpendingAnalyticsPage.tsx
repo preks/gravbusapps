@@ -1,6 +1,6 @@
 import React, { useMemo, useState, useEffect } from "react";
 import { useCurrencyStore } from "../../store/useCurrencyStore";
-import { useCurrencyData, standardizeCurrencyRef } from "../../hooks/useCurrencyData";
+import { standardizeCurrencyRef } from "../../hooks/useCurrencyData";
 import {
   Card,
   CardContent,
@@ -22,7 +22,7 @@ import {
   Separator,
 } from "@newwork/nw-design-system";
 import { PiArrowLeft, PiMagnifyingGlass } from "react-icons/pi";
-import { ChartLineUpIcon } from "@phosphor-icons/react";
+import { ChartLine } from "@phosphor-icons/react";
 import { BusinessAppContextProps } from "@/common/BusinessAppContext";
 import { useTeamSpendingAnalytics, DateRangeOption } from "../../hooks/useTeamSpendingAnalytics";
 import { LineChartComponent, PieChartComponent, BarChartComponent } from "../modals/charts";
@@ -42,6 +42,7 @@ interface TeamSpendingAnalyticsPageProps extends BusinessAppContextProps {
 }
 
 // Status type → hex color mapping for charts (matching design system pill colors)
+// Note: Recharts requires resolved hex values, CSS variables are converted via resolveCssVar
 const STATUS_COLOR_MAP: Record<string, string> = {
   // Base design system colors
   success: '#10b981',      // green (gba:bg-success)
@@ -73,16 +74,6 @@ const TeamSpendingAnalyticsPage: React.FC<TeamSpendingAnalyticsPageProps> = ({
   const { primaryCurrency } = useCurrencyStore();
   const [activeTab, setActiveTab] = React.useState<string>("expense-items");
 
-  // Use the currency data hook to get dynamic currency information
-  const {
-    availableCurrencies,
-    defaultCurrency,
-    isLoading: isCurrencyLoading,
-  } = useCurrencyData(
-    accessToken,
-    userInfo?.employeeDetails?.employeeId || "00000000-0000-0000-0000-000000000000",
-  );
-
   // Initialize currency filter with null, will be set after data is loaded
   const [currencyFilter, setCurrencyFilter] = useState<string | null>(null);
 
@@ -106,6 +97,7 @@ const TeamSpendingAnalyticsPage: React.FC<TeamSpendingAnalyticsPageProps> = ({
     toggleDepartmentFilter,
     departmentSearchTerm,
     setDepartmentSearchTerm,
+    availableCurrencies,
   } = useTeamSpendingAnalytics(
     accessToken,
     userInfo?.employeeDetails?.employeeId || "00000000-0000-0000-0000-000000000000",
@@ -115,12 +107,17 @@ const TeamSpendingAnalyticsPage: React.FC<TeamSpendingAnalyticsPageProps> = ({
   // Use the expense group catalog hook to get category names
   // catalog names are resolved in hook; no need to load here
 
-  // Set the default currency when data is loaded
+  // Set the default currency when analytics data is loaded
   useEffect(() => {
-    if (!currencyFilter && defaultCurrency) {
-      setCurrencyFilter(defaultCurrency);
+    if (!currencyFilter && availableCurrencies.length > 0 && !isLoading) {
+      // Use the first available currency (they're sorted alphabetically)
+      // or fall back to primaryCurrency if it exists in the list
+      const defaultCurrency = availableCurrencies.includes(primaryCurrency || '') 
+        ? primaryCurrency 
+        : availableCurrencies[0];
+      setCurrencyFilter(defaultCurrency || null);
     }
-  }, [defaultCurrency, currencyFilter]);
+  }, [availableCurrencies, currencyFilter, isLoading, primaryCurrency]);
 
   // Transform expense items by category data to use actual category names
   const expenseItemsByCategoryWithNames = useMemo(() => {
@@ -130,8 +127,8 @@ const TeamSpendingAnalyticsPage: React.FC<TeamSpendingAnalyticsPageProps> = ({
   }, [data?.expenseItemsByCategory]);
 
   // Handle date range change
-  const handleDateRangeChange = (value: DateRangeOption) => {
-    setDateRange(value);
+  const handleDateRangeChange = (value: string) => {
+    setDateRange(value as DateRangeOption);
   };
 
   // Create widgets for summary statistics (force two decimals in KPI formatting)
@@ -144,7 +141,12 @@ const TeamSpendingAnalyticsPage: React.FC<TeamSpendingAnalyticsPageProps> = ({
       maximumFractionDigits: 2,
     }).format(safe);
     const lang = userLocale.split('-')[0].toLowerCase();
-    return lang === 'en' ? `${kpiCurrencyCode} ${formatted}` : `${formatted} ${kpiCurrencyCode}`;
+    
+    // Avoid nested template literals: construct string parts separately
+    if (lang === 'en') {
+      return kpiCurrencyCode + ' ' + formatted;
+    }
+    return formatted + ' ' + kpiCurrencyCode;
   };
 
   // Create widgets for summary statistics
@@ -320,7 +322,7 @@ const TeamSpendingAnalyticsPage: React.FC<TeamSpendingAnalyticsPageProps> = ({
               </div>
               <Separator />
               <div className="gba:text-center">
-                <div className="gba:text-2xl gba:font-bold" style={{ color: 'var(--nw-color-primary-500)' }}>
+                <div className="gba:text-2xl gba:font-bold gba:text-primary">
                   {formatKpiAmount(Number((data?.totalExpenseAmount ?? 0).toFixed?.(2) ?? data?.totalExpenseAmount ?? 0))}
                 </div>
                 <div className="gba:text-sm gba:text-muted-foreground">
@@ -419,7 +421,7 @@ const TeamSpendingAnalyticsPage: React.FC<TeamSpendingAnalyticsPageProps> = ({
               data={
               data?.expenseRequestsByStatus.map((item) => ({
                 name: getExpenseRequestStatusDisplay(item.status).label,
-                value: (item as any).amount ?? 0,
+                value: item.amount ?? 0,
                 status: item.status,
               })) || []
               }
@@ -467,7 +469,7 @@ const TeamSpendingAnalyticsPage: React.FC<TeamSpendingAnalyticsPageProps> = ({
               </div>
               <Separator />
               <div className="gba:text-center">
-                <div className="gba:text-2xl gba:font-bold" style={{ color: 'var(--nw-color-success-500)' }}>
+                <div className="gba:text-2xl gba:font-bold gba:text-success">
                   {formatKpiAmount(Number((data?.totalRequestAmount ?? 0).toFixed?.(2) ?? data?.totalRequestAmount ?? 0))}
                 </div>
                 <div className="gba:text-sm gba:text-muted-foreground">
@@ -564,7 +566,7 @@ const TeamSpendingAnalyticsPage: React.FC<TeamSpendingAnalyticsPageProps> = ({
               data={
               data?.expensePlansByStatus.map((item) => ({
                 name: getExpensePlanStatusDisplay(item.status).label,
-                value: (item as any).amount ?? 0,
+                value: item.amount ?? 0,
                 status: item.status,
               })) || []
               }
@@ -612,7 +614,7 @@ const TeamSpendingAnalyticsPage: React.FC<TeamSpendingAnalyticsPageProps> = ({
               </div>
               <Separator />
               <div className="gba:text-center">
-                <div className="gba:text-2xl gba:font-bold" style={{ color: 'var(--nw-color-accent-500)' }}>
+                <div className="gba:text-2xl gba:font-bold gba:text-accent">
                   {formatKpiAmount(Number((data?.totalPlanAmount ?? 0).toFixed?.(2) ?? data?.totalPlanAmount ?? 0))}
                 </div>
                 <div className="gba:text-sm gba:text-muted-foreground">
@@ -757,7 +759,7 @@ const TeamSpendingAnalyticsPage: React.FC<TeamSpendingAnalyticsPageProps> = ({
               </div>
               <Separator />
               <div className="gba:text-center">
-                <div className="gba:text-2xl gba:font-bold" style={{ color: 'var(--nw-color-info-500)' }}>
+                <div className="gba:text-2xl gba:font-bold gba:text-info">
                   {formatKpiAmount(Number((data?.totalAdvanceAmount ?? 0).toFixed?.(2) ?? data?.totalAdvanceAmount ?? 0))}
                 </div>
                 <div className="gba:text-sm gba:text-muted-foreground">
@@ -795,7 +797,7 @@ const TeamSpendingAnalyticsPage: React.FC<TeamSpendingAnalyticsPageProps> = ({
           </Label>
           <RadioGroup
             value={dateRange}
-            onValueChange={(value) => handleDateRangeChange(value as DateRangeOption)}
+            onValueChange={handleDateRangeChange}
             className="gba:space-y-3"
           >
             <div className="gba:flex gba:items-center gba:space-x-3 gba:py-1">
@@ -921,7 +923,7 @@ const TeamSpendingAnalyticsPage: React.FC<TeamSpendingAnalyticsPageProps> = ({
               "lowcoder:expense_calculation_rule.expense_calculation_rule_modal.currency_placeholder",
               "Select Currency",
             )}
-            isLoading={isCurrencyLoading}
+            isLoading={isLoading}
           />
         </div>
 
@@ -986,7 +988,7 @@ const TeamSpendingAnalyticsPage: React.FC<TeamSpendingAnalyticsPageProps> = ({
       <div className="gba:px-6 gba:pt-6 gba:pb-0">
         <button
           onClick={onNavigateBack}
-          className="gba:flex gba:items-center gba:text-primary gba:hover:text-accent"
+          className="gba:flex gba:items-center gba:text-primary gba:hover:text-primary/80 gba:transition-colors"
           data-testid="team-spending-analytics-back-button"
         >
           <PiArrowLeft className="gba:mr-2" />
@@ -1008,7 +1010,7 @@ const TeamSpendingAnalyticsPage: React.FC<TeamSpendingAnalyticsPageProps> = ({
           "lowcoder:team_expenses_page.dashboard_tab.team_spending_analytics_description",
           "Comprehensive analysis of team spending patterns, trends, and budget allocations across all expense categories",
         )}
-        headerIcon={ChartLineUpIcon}
+        headerIcon={ChartLine}
         className="gba:min-h-screen"
       >
         <div className="gba:px-6 gba:space-y-6" data-testid="team-spending-analytics-page">

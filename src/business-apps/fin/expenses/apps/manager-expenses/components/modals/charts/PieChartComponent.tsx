@@ -5,10 +5,11 @@ import { formatCurrencyDisplay } from "../../../../personal-expenses/utils";
 import { getTranslationFromI18nKeyAndLabel } from "@/common/utils/windowUtils";
 
 interface PieChartProps {
-  data: {
+  data: Array<{
     name: string;
     value: number;
-  }[];
+    [key: string]: any; // Allow additional dynamic properties
+  }>;
   title: string;
   dataKey?: string;
   height?: number;
@@ -28,13 +29,13 @@ const PieChartComponent: React.FC<PieChartProps> = ({
   dataKey = "value",
   height = 300,
   colors = [
-    '#8884d8',
-    '#82ca9d',
-    '#ffc658',
-    '#ff7300',
-    '#8dd1e1',
-    '#d084d0',
-    '#ffb347'
+    'var(--nw-color-primary-500)',
+    'var(--nw-color-success-500)',
+    'var(--nw-color-warning-500)',
+    'var(--nw-color-danger-500)',
+    'var(--nw-color-info-500)',
+    'var(--nw-color-accent-500)',
+    'var(--nw-color-neutral-500)'
   ],
   currency = "EUR",
   valueType = 'amount',
@@ -42,10 +43,16 @@ const PieChartComponent: React.FC<PieChartProps> = ({
   getColor,
 }) => {
   const resolveCssVar = (color: string): string => {
-    if (typeof globalThis === 'undefined') return color;
     if (!color?.startsWith('var(')) return color;
+    if (
+      typeof globalThis.window === 'undefined' ||
+      typeof globalThis.document === 'undefined' ||
+      typeof globalThis.window.getComputedStyle !== 'function'
+    ) {
+      return color;
+    }
     const varName = color.substring(4, color.length - 1).trim();
-    const value = getComputedStyle(document.documentElement).getPropertyValue(varName).trim();
+    const value = globalThis.window.getComputedStyle(globalThis.document.documentElement).getPropertyValue(varName).trim();
     return value || color;
   };
 
@@ -100,21 +107,31 @@ const PieChartComponent: React.FC<PieChartProps> = ({
                   const base = resolvedColors[index % resolvedColors.length];
                   const custom = getColor ? getColor(entry, index) : undefined;
                   const resolved = custom ? resolveCssVar(custom) : base;
-                  return <Cell key={`cell-${index}`} fill={resolved} />;
+                  // Use entry name or value as key fallback to ensure uniqueness
+                  const entryKey = entry.name || entry[dataKey] || index;
+                  return <Cell key={`cell-${entryKey}`} fill={resolved} />;
                 })}
               </Pie>
               <Tooltip
                 formatter={(value: any, _name: any, props: any) => {
                   const num = Number(value ?? 0);
-                  if (valueType === 'count') {
-                    return [`${num} ${countLabel}`, getTranslationFromI18nKeyAndLabel("lowcoder:charts.tooltip.count","Count")];
+                  if (valueType === "count") {
+                    const itemsLabel = getTranslationFromI18nKeyAndLabel(
+                      "lowcoder:charts.tooltip.items",
+                      countLabel,
+                    );
+                    const countLabelText = getTranslationFromI18nKeyAndLabel(
+                      "lowcoder:charts.tooltip.count",
+                      "Count",
+                    );
+                    return [`${num} ${itemsLabel}`, countLabelText];
                   }
                   const fixed = Number.isFinite(num) ? Math.round(num * 100) / 100 : 0;
                   const count = props?.payload?.count ?? null;
                   const amountText = formatCurrencyDisplay(fixed, currency);
                   const amountLabel = getTranslationFromI18nKeyAndLabel("lowcoder:charts.tooltip.amount","Amount");
                   const countLabelText = getTranslationFromI18nKeyAndLabel("lowcoder:charts.tooltip.count","Count");
-                  return [count !== null ? `${amountText} (${countLabelText}: ${count})` : amountText, amountLabel];
+                  return [count === null ? amountText : `${amountText} (${countLabelText}: ${count})`, amountLabel];
                 }}
                 labelFormatter={(name) => `${name}`}
               />

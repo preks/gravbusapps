@@ -19,10 +19,7 @@ import {
 import { PiArrowUp, PiArrowDown } from "react-icons/pi";
 import { AppActionButton } from "@/components/app-action-button/AppActionButton";
 import { BusinessAppContextProps } from "@/common/BusinessAppContext";
-import { DataContainer } from "@/components/layout/dataContainer/DataContainer";
 import { formatCurrencyDisplay } from "../../../../personal-expenses/utils";
-import { useAdvancePaymentFilters } from "../../../hooks/useAdvancePaymentFilters";
-import { useMainViewAdvancePayments } from "../../../hooks/useMainViewAdvancePayments";
 import { getAdvancePaymentStatusDisplay } from "../../../utils";
 import {
   getTranslationFromI18nKeyAndLabel,
@@ -46,10 +43,28 @@ const ADV_STATUS_CLASSES: Record<string, string> = {
   preparing: "gba:bg-muted gba:text-muted-foreground",
 };
 
-interface AdvancePaymentsTableProps extends BusinessAppContextProps {}
+interface AdvancePaymentsTableProps extends BusinessAppContextProps {
+  search?: string;
+  onSearchChange?: (search: string) => void;
+  activeFilter?: string[] | null;
+  onFilterChange?: (filter: string[] | null) => void;
+  onClearFilters?: () => void;
+  currencyFilter?: string;
+  // Data from parent hook
+  advancePayments?: AdvancePaymentItem[];
+  loading?: boolean;
+  error?: Error | null;
+  totalCount?: number;
+  currentPage?: number;
+  setCurrentPage?: (page: number) => void;
+  sorting?: { field: string; direction: "asc" | "desc" } | null;
+  updateSorting?: (field: string) => void;
+  pageSize?: number;
+  setPageSize?: (size: number) => void;
+}
 
 const AdvancePaymentsTable: React.FC<AdvancePaymentsTableProps> = (props) => {
-  // Extract only the necessary props to prevent unnecessary re-renders
+  // Extract context props for passing to child components
   const contextProps = React.useMemo(
     () => ({
       accessToken: props.accessToken,
@@ -58,54 +73,30 @@ const AdvancePaymentsTable: React.FC<AdvancePaymentsTableProps> = (props) => {
     [props.accessToken, props.userInfo],
   );
 
-  // Get managerId from userInfo for currency filtering
-  const managerId = props.userInfo?.employeeDetails?.employeeId || "";
-
-  // Use the advance payment filters hook with accessToken and managerId for dynamic currency data
-  const {
-    searchTerm,
-    setSearchTerm,
-    statusFilter,
-    setStatusFilter,
-    filterGroups,
-    handleDataFilterChange,
-    filterLabelMap,
-    currencyFilter,
-  } = useAdvancePaymentFilters({
-    accessToken: props.accessToken,
-    managerId,
-  });
+  // Use data from props if provided (from parent Tab), otherwise fall back to local hook
+  const payments = props.advancePayments;
+  const isLoading = props.loading ?? false;
+  const error = props.error ?? null;
+  const totalCount = props.totalCount ?? 0;
+  const currentPage = props.currentPage ?? 1;
+  const setCurrentPage = props.setCurrentPage ?? (() => {});
+  const sorting = props.sorting ?? null;
+  const updateSorting = props.updateSorting ?? (() => {});
+  const pageSize = props.pageSize ?? 10;
+  const setPageSize = props.setPageSize ?? (() => {});
+  const currencyFilter = props.currencyFilter ?? "";
 
   // Local state management
   const [selectedPayment, setSelectedPayment] = useState<AdvancePaymentItem | null>(null);
-  const [pageSize, setPageSize] = useState<number>(10);
-  const [currentPage, setCurrentPage] = useState<number>(1);
 
-  // Use the new main view hook for advance payments
-  const {
-    payments,
-    loading: isLoading,
-    error,
-    totalCount,
-    sorting,
-    updateSorting,
-  } = useMainViewAdvancePayments({
-    ...contextProps,
-    pageSize,
-    searchTerm: searchTerm,
-    currentStatusFilter: statusFilter || undefined,
-    currentPage,
-    currentCurrencyFilter: currencyFilter,
-  });
-
-  // Filter payments based on search and status (already handled by the hook)
-  const filteredPayments = useMemo(() => payments, [payments]);
+  // Filter payments based on data from props
+  const filteredPayments = useMemo(() => payments || [], [payments]);
 
   // Handle page size changes
   const handlePageSizeChange = useCallback((newPageSize: number) => {
     setPageSize(newPageSize);
     setCurrentPage(1);
-  }, []);
+  }, [setPageSize, setCurrentPage]);
 
   // Render the table
   const renderDataBody = useCallback(() => {
@@ -134,13 +125,13 @@ const AdvancePaymentsTable: React.FC<AdvancePaymentsTableProps> = (props) => {
     }
 
     return (
-        <div className="gba:border gba:border-gray-200 gba:rounded-md">
+        <div className="gba:border gba:border-border gba:rounded-md">
         {/* Table with horizontal scrolling */}
         <div className="gba:overflow-x-auto gba:pr-4">
           <Table data-testid="advance-payments-table" className="gba:w-full">
             <TableHeader>
               <TableRow>
-                <TableHead className="gba:w-[50px] gba:min-w-[50px] gba:max-w-[50px] gba:box-border gba:first:pl-0" data-testid="advance-payments-actions-header"></TableHead>
+                <TableHead className="gba:w-[60px] gba:min-w-[60px] gba:max-w-[60px] gba:box-border gba:first:pl-0" data-testid="advance-payments-actions-header"></TableHead>
                 <TableHead
                   className="gba:w-[12%] gba:cursor-pointer"
                   onClick={() => updateSorting("expensePlan.title")}
@@ -153,9 +144,9 @@ const AdvancePaymentsTable: React.FC<AdvancePaymentsTableProps> = (props) => {
                         "Expense Plan",
                       )}
                     </span>
-                    {sorting.lastField === "expensePlan.title" &&
-                      sorting.order !== null &&
-                      (sorting.order === "ASC" ? (
+                    {sorting?.field === "expensePlan.title" &&
+                      sorting?.direction &&
+                      (sorting.direction === "asc" ? (
                         <PiArrowUp className="gba:inline gba:ml-1" size={12} />
                       ) : (
                         <PiArrowDown className="gba:inline gba:ml-1" size={12} />
@@ -174,9 +165,9 @@ const AdvancePaymentsTable: React.FC<AdvancePaymentsTableProps> = (props) => {
                         "Start Date",
                       )}
                     </span>
-                    {sorting.lastField === "expensePlan.startDate" &&
-                      sorting.order !== null &&
-                      (sorting.order === "ASC" ? (
+                    {sorting?.field === "expensePlan.startDate" &&
+                      sorting?.direction &&
+                      (sorting.direction === "asc" ? (
                         <PiArrowUp className="gba:inline gba:ml-1" size={12} />
                       ) : (
                         <PiArrowDown className="gba:inline gba:ml-1" size={12} />
@@ -195,9 +186,9 @@ const AdvancePaymentsTable: React.FC<AdvancePaymentsTableProps> = (props) => {
                         "End Date",
                       )}
                     </span>
-                    {sorting.lastField === "expensePlan.endDate" &&
-                      sorting.order !== null &&
-                      (sorting.order === "ASC" ? (
+                    {sorting?.field === "expensePlan.endDate" &&
+                      sorting?.direction &&
+                      (sorting.direction === "asc" ? (
                         <PiArrowUp className="gba:inline gba:ml-1" size={12} />
                       ) : (
                         <PiArrowDown className="gba:inline gba:ml-1" size={12} />
@@ -216,9 +207,9 @@ const AdvancePaymentsTable: React.FC<AdvancePaymentsTableProps> = (props) => {
                         "Employee",
                       )}
                     </span>
-                    {sorting.lastField === "expensePlan.employee.fullName" &&
-                      sorting.order !== null &&
-                      (sorting.order === "ASC" ? (
+                    {sorting?.field === "expensePlan.employee.fullName" &&
+                      sorting?.direction &&
+                      (sorting.direction === "asc" ? (
                         <PiArrowUp className="gba:inline gba:ml-1" size={12} />
                       ) : (
                         <PiArrowDown className="gba:inline gba:ml-1" size={12} />
@@ -237,9 +228,9 @@ const AdvancePaymentsTable: React.FC<AdvancePaymentsTableProps> = (props) => {
                         "Creation Date",
                       )}
                     </span>
-                    {sorting.lastField === "createdAt" &&
-                      sorting.order !== null &&
-                      (sorting.order === "ASC" ? (
+                    {sorting?.field === "createdAt" &&
+                      sorting?.direction &&
+                      (sorting.direction === "asc" ? (
                         <PiArrowUp className="gba:inline gba:ml-1" size={12} />
                       ) : (
                         <PiArrowDown className="gba:inline gba:ml-1" size={12} />
@@ -255,9 +246,9 @@ const AdvancePaymentsTable: React.FC<AdvancePaymentsTableProps> = (props) => {
                     <span>
                       {getTranslationFromI18nKeyAndLabel("lowcoder:sales_hub.amount", "Amount")}
                     </span>
-                    {sorting.lastField === "amount" &&
-                      sorting.order !== null &&
-                      (sorting.order === "ASC" ? (
+                    {sorting?.field === "amount" &&
+                      sorting?.direction &&
+                      (sorting.direction === "asc" ? (
                         <PiArrowUp className="gba:inline gba:ml-1" size={12} />
                       ) : (
                         <PiArrowDown className="gba:inline gba:ml-1" size={12} />
@@ -276,9 +267,9 @@ const AdvancePaymentsTable: React.FC<AdvancePaymentsTableProps> = (props) => {
                         "Status",
                       )}
                     </span>
-                    {sorting.lastField === "status" &&
-                      sorting.order !== null &&
-                      (sorting.order === "ASC" ? (
+                    {sorting?.field === "status" &&
+                      sorting?.direction &&
+                      (sorting.direction === "asc" ? (
                         <PiArrowUp className="gba:inline gba:ml-1" size={12} />
                       ) : (
                         <PiArrowDown className="gba:inline gba:ml-1" size={12} />
@@ -294,12 +285,10 @@ const AdvancePaymentsTable: React.FC<AdvancePaymentsTableProps> = (props) => {
                   className="gba:cursor-pointer gba:hover:bg-gray-50"
                   onClick={() => setSelectedPayment(record)}
                 >
-                  <TableCell className="gba:w-[50px] gba:min-w-[50px] gba:max-w-[50px] gba:box-border gba:py-4 gba:px-0 gba:first:pl-0" data-testid={`advance-payments-actions-cell-${record.id}`}>
-                    <div
-                      className="gba:flex gba:justify-center gba:items-center gba:gap-0"
-                      onClick={(e) => e.stopPropagation()}
-                    >
+                  <TableCell className="gba:w-[60px] gba:min-w-[60px] gba:max-w-[60px] gba:box-border gba:py-4 gba:px-0 gba:first:pl-0" data-testid={`advance-payments-actions-cell-${record.id}`}>
+                    <div className="gba:flex gba:justify-center gba:items-center gba:gap-0">
                         <AppActionButton
+                        onClick={(e) => e.stopPropagation()}
                         data-testid={`advance-payments-update-button-${record.id}`}
                         size="icon"
                           className="gba:h-7 gba:w-7"
@@ -452,7 +441,7 @@ const AdvancePaymentsTable: React.FC<AdvancePaymentsTableProps> = (props) => {
         {/* Pagination - Always show when there are records */}
         {totalCount > 0 && (
           <div
-            className="gba:flex gba:items-center gba:justify-between gba:px-2 gba:py-4 gba:border-t gba:border-gray-200"
+            className="gba:flex gba:items-center gba:justify-between gba:px-2 gba:py-4 gba:border-t gba:border-border"
             data-testid="advance-payments-pagination"
           >
             <div
@@ -543,39 +532,7 @@ const AdvancePaymentsTable: React.FC<AdvancePaymentsTableProps> = (props) => {
 
   return (
     <>
-      <DataContainer
-        contentBackground="white"
-        dataControllerProps={{
-          search: searchTerm,
-          setSearch: setSearchTerm,
-          debounceDelay: 300,
-          filter: statusFilter || [],
-          setFilter: (newFilters: string[]) => {
-            setStatusFilter(newFilters.length > 0 ? newFilters : null);
-          },
-          filterLabelMap: filterLabelMap,
-          listTitle: (
-            <div className="gba:flex gba:items-center gba:gap-4">
-              <div className="gba:flex gba:items-center gba:gap-2">
-                <span>
-                  {getTranslationFromI18nKeyAndLabel(
-                    "lowcoder:backoffice_expense_landing_page.advance_title",
-                    "Advance Payments",
-                  )}
-                </span>
-                <span className="gba:text-gray-500">({totalCount})</span>
-              </div>
-            </div>
-          ),
-        }}
-        dataFilterProps={{
-          filterGroups: filterGroups,
-          onFilterChange: handleDataFilterChange,
-        }}
-        hideFilter={false}
-        dataBody={renderDataBody()}
-        data-testid="advance-payments-container"
-      />
+      {renderDataBody()}
 
       {/* Advance Payment Details Sheet */}
       <Sheet

@@ -69,12 +69,12 @@ const ExpenseTrendsChart: React.FC<ExpenseTrendsChartProps> = ({
         </CardHeader>
         <CardContent>
           <div className="gba:text-center gba:p-8" data-testid="expense-trends-chart-empty-state">
-            <ChartBarIcon className="gba:mx-auto gba:h-12 gba:w-12 gba:text-gray-400" />
-            <h3 className="gba:mt-2 gba:text-sm gba:font-medium gba:text-gray-900">
-              No data available
-            </h3>
-            <p className="gba:mt-1 gba:text-sm gba:text-gray-500">
+            <ChartBarIcon className="gba:mx-auto gba:h-12 gba:w-12 gba:text-muted-foreground" />
+            <h3 className="gba:mt-2 gba:text-sm gba:font-medium gba:text-foreground">
               {getTranslationFromI18nKeyAndLabel("lowcoder:charts.empty.title","No data available")}
+            </h3>
+            <p className="gba:mt-1 gba:text-sm gba:text-muted-foreground">
+              {getTranslationFromI18nKeyAndLabel("lowcoder:charts.empty.description","Try adjusting your filters or date range.")}
             </p>
           </div>
         </CardContent>

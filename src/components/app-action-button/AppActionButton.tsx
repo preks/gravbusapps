@@ -46,13 +46,8 @@ export const AppActionButton: React.FC<AppActionButtonProps> = (props) => {
     ...actionButtonProps
   } = cleanProps;
 
-  // Generate test IDs
-  const containerTestId = customDataTestId || formatDataTestId(
-    appActionConfig.prefixDataTestId,
-    DATA_TEST_ID_PREFIX,
-    'container'
-  );
-  const buttonTestId = formatDataTestId(
+  // Generate test ID for button
+  const buttonTestId = customDataTestId || formatDataTestId(
     appActionConfig.prefixDataTestId,
     DATA_TEST_ID_PREFIX,
     'Button'
@@ -65,23 +60,21 @@ export const AppActionButton: React.FC<AppActionButtonProps> = (props) => {
   }, [handleDeferredFetch, onDropdownOpen]);
 
   return (
-    <div data-testid={containerTestId} className={actionButtonProps.className}>
-      <ActionButton
-        {...actionButtonProps}
-        data-testid={buttonTestId}
-        noActionsText={translations.noActions}
-        loadingText={translations.loading}
-        emptyStateBehavior={appActionConfig.emptyStateBehavior}
-        actionsLoading={shouldShowLoading}
-        actions={combinedData}
-        onDropdownOpen={handleDropdownOpen}
-        onClick={(e) => {
-          e.stopPropagation();
-          e.preventDefault();
-          onClick?.(e);
-        }}
-      />
-    </div>
+    <ActionButton
+      {...actionButtonProps}
+      data-testid={buttonTestId}
+      noActionsText={translations.noActions}
+      loadingText={translations.loading}
+      emptyStateBehavior={appActionConfig.emptyStateBehavior}
+      actionsLoading={shouldShowLoading}
+      actions={combinedData}
+      onDropdownOpen={handleDropdownOpen}
+      onClick={(e) => {
+        e.stopPropagation();
+        e.preventDefault();
+        onClick?.(e);
+      }}
+    />
   );
 };
 

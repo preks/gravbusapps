@@ -74,6 +74,7 @@ export const useExpensePlanFilters = ({
   // Fetch dynamic currency data if accessToken and managerId are provided
   const {
     mostUsedCurrency: detectedCurrency,
+    availableCurrencies: fetchedCurrencies,
     isLoading: currenciesLoading,
     error: currenciesError,
   } = useExpensePlanCurrencies(contextProps, managerId || "");
@@ -92,19 +93,12 @@ export const useExpensePlanFilters = ({
     }
   }, [detectedCurrency, currenciesLoading, localPrimaryCurrency, userHasManuallySelectedCurrency]);
 
-  // Available currencies - include detected currency and common ones
+  // Available currencies from fetched data
   const availableCurrencies = useMemo(() => {
-    const currencies = new Set<string>();
-    if (detectedCurrency) {
-      currencies.add(detectedCurrency);
-    }
-    // Always include common currencies
-    currencies.add("EUR");
-    currencies.add("USD");
-    currencies.add("RON");
-
-    return Array.from(currencies).sort();
-  }, [detectedCurrency]);
+    return fetchedCurrencies && fetchedCurrencies.length > 0
+      ? fetchedCurrencies
+      : [];
+  }, [fetchedCurrencies]);
 
   const handleDataFilterChange = useCallback((filterId: string, isSelected: boolean) => {
     // Check if this is a currency filter (starts with 'currency:')
@@ -155,9 +149,7 @@ export const useExpensePlanFilters = ({
     }));
 
     // Currency filters - use local currency state
-    const currencyItems: DataFilter[] = (
-      availableCurrencies.length > 0 ? availableCurrencies : ["EUR", "USD"]
-    ).map((currency) => ({
+    const currencyItems: DataFilter[] = availableCurrencies.map((currency) => ({
       id: `currency:${currency}`,
       label: currency,
       selected: currency === localPrimaryCurrency, // Use local state

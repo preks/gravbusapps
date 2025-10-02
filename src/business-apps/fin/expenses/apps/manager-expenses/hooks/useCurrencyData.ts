@@ -93,7 +93,7 @@ export const useCurrencyData = (accessToken: string, managerId: string) => {
       // Extract unique currency codes
       const uniqueCurrencies = Array.from(
         new Set(currencyCounts.map((c) => c.currencyCode))
-      ).sort();
+      ).sort((a, b) => a.localeCompare(b));
       // Determine most used currency
       const mostUsed = currencyCounts.length > 0 ? currencyCounts[0].currencyCode : null;
       // Update local state

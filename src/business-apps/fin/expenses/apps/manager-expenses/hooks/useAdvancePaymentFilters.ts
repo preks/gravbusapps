@@ -1,4 +1,4 @@
-import { useState, useCallback, useMemo } from "react";
+import { useState, useCallback, useMemo, useEffect } from "react";
 import type { DataFilterGroup, DataFilter } from "@/components/data-filter/DataFilter";
 import { useDebounce } from "@/common/hooks/useDebounce";
 import { ExpenseStatus, getAdvancePaymentStatusDisplay } from "../utils";
@@ -34,6 +34,9 @@ export const useAdvancePaymentFilters = ({
   const [searchTerm, setSearchTerm] = useState<string>("");
   // No default filter - show all advance payments initially
   const [statusFilter, setStatusFilter] = useState<string[] | null>(null);
+  // Local primary currency for advance payments (independent from global store)
+  const [localPrimaryCurrency, setLocalPrimaryCurrency] = useState<string>("");
+  const [userHasSelectedCurrency, setUserHasSelectedCurrency] = useState(false);
 
   // Use the global currency store with enhanced properties
   const {
@@ -47,6 +50,7 @@ export const useAdvancePaymentFilters = ({
   // Fetch dynamic currency data if accessToken and managerId are provided
   const {
     availableCurrencies: dynamicCurrencies,
+    mostUsedCurrency: advancePaymentMostUsedCurrency,
     isLoading: currenciesLoading,
     isInitialized: currenciesInitialized,
   } = useAdvancePaymentCurrencies({
@@ -55,6 +59,13 @@ export const useAdvancePaymentFilters = ({
   });
 
   const debouncedSearchTerm = useDebounce(searchTerm, 300);
+
+  // Set local primary currency from advance payment's most used currency
+  useEffect(() => {
+    if (advancePaymentMostUsedCurrency && !userHasSelectedCurrency) {
+      setLocalPrimaryCurrency(advancePaymentMostUsedCurrency);
+    }
+  }, [advancePaymentMostUsedCurrency, userHasSelectedCurrency]);
 
   const handleStatusFilterChange = useCallback(
     (newStatus: string[] | null) => {
@@ -69,14 +80,14 @@ export const useAdvancePaymentFilters = ({
 
   const handleDataFilterChange = useCallback(
     (filterId: string, isSelected: boolean) => {
-      // Simplified currency options for filtering - only the most common ones
-      const currencyOptions = ["EUR", "USD", "RON"];
-
-      if (currencyOptions.includes(filterId)) {
+      // Check if filterId is a currency (will be in dynamicCurrencies)
+      if (dynamicCurrencies.includes(filterId)) {
         // Handle currency filter selection
         if (isSelected) {
-          setPrimaryCurrency(filterId);
-          setUserSelected(true); // Mark this as a user selection
+          setLocalPrimaryCurrency(filterId);
+          setUserHasSelectedCurrency(true); // Mark this as a user selection
+          setPrimaryCurrency(filterId); // Also update global store
+          setUserSelected(true);
         }
         return;
       }
@@ -94,7 +105,7 @@ export const useAdvancePaymentFilters = ({
         handleStatusFilterChange(newFilters.length > 0 ? newFilters : null);
       }
     },
-    [statusFilter, handleStatusFilterChange, setPrimaryCurrency, setUserSelected],
+    [statusFilter, handleStatusFilterChange, setPrimaryCurrency, setUserSelected, dynamicCurrencies],
   );
 
   // Define the statuses that should be used for filtering with the correct mappings
@@ -125,14 +136,13 @@ export const useAdvancePaymentFilters = ({
       map[status] = display.label;
     });
 
-    // Add currency filters - simplified to only the most common ones
-    const currencyOptions = ["EUR", "USD", "RON"];
-    currencyOptions.forEach((currency) => {
+    // Add currency filters from dynamic data
+    dynamicCurrencies.forEach((currency) => {
       map[currency] = currency;
     });
 
     return map;
-  }, [availableFilterStatuses]);
+  }, [availableFilterStatuses, dynamicCurrencies]);
 
   // Create filter groups for the DataFilter component
   const filterGroups = useMemo<DataFilterGroup[]>(() => {
@@ -144,13 +154,11 @@ export const useAdvancePaymentFilters = ({
       group: "statusGroup",
     }));
 
-    // Simplified currency options for the filter - only the most common ones
-    const currencyOptions = ["EUR", "USD", "RON"];
-
-    const currencyItems: DataFilter[] = currencyOptions.map((currency) => ({
+    // Use dynamic currency options from actual data
+    const currencyItems: DataFilter[] = dynamicCurrencies.map((currency) => ({
       id: currency,
       label: currency,
-      selected: currency === primaryCurrency,
+      selected: currency === localPrimaryCurrency,
       group: "currencyGroup",
     }));
 
@@ -178,11 +186,9 @@ export const useAdvancePaymentFilters = ({
     availableFilterStatuses,
     statusFilter,
     filterLabelMap,
-    primaryCurrency,
+    localPrimaryCurrency,
     dynamicCurrencies,
-    mostUsedCurrency,
     currenciesInitialized,
-    storeInitialized,
   ]);
 
   return {
@@ -194,8 +200,8 @@ export const useAdvancePaymentFilters = ({
     filterGroups,
     handleDataFilterChange,
     filterLabelMap,
-    currencyFilter: primaryCurrency,
-    setCurrencyFilter: setPrimaryCurrency,
+    currencyFilter: localPrimaryCurrency,
+    setCurrencyFilter: setLocalPrimaryCurrency,
     currenciesLoading,
   };
 };

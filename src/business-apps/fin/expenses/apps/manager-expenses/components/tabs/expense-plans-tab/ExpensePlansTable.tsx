@@ -244,7 +244,7 @@ const ExpensePlansTable: React.FC<ExpensePlansTableProps> = (props) => {
         <div className="gba:text-gray-600 gba:mb-4">{error.message}</div>
         <Button
           variant="default"
-          onClick={() => window.location.reload()}
+          onClick={() => globalThis.location.reload()}
           data-testid={`${DATA_TEST_ID_PREFIX}-retry-button`}
         >
           Retry
@@ -279,14 +279,14 @@ const ExpensePlansTable: React.FC<ExpensePlansTableProps> = (props) => {
   return (
     <div data-testid={`${DATA_TEST_ID_PREFIX}-container`}>
       {/* Table with border containing both table and pagination */}
-      <div className="gba:border gba:border-gray-200 gba:rounded-md">
+      <div className="gba:border gba:border-border gba:rounded-md">
         {/* Table with horizontal scrolling and fixed height */}
-        <div className="gba:overflow-x-auto gba:pr-4 gba:border-b gba:border-gray-200">
+        <div className="gba:overflow-x-auto gba:pr-4 gba:border-b gba:border-border">
           <Table data-testid={`${DATA_TEST_ID_PREFIX}-table`} className="gba:w-full">
-            <TableHeader className="gba:sticky gba:top-0 gba:bg-white gba:z-10 gba:border-b gba:border-gray-200">
+            <TableHeader className="gba:sticky gba:top-0 gba:bg-white gba:z-10 gba:border-b gba:border-border">
               <TableRow>
                 <TableHead
-                  className="gba:w-[50px] gba:min-w-[50px] gba:max-w-[50px] gba:box-border gba:bg-gray-50 gba:font-semibold"
+                  className="gba:w-[60px] gba:min-w-[60px] gba:max-w-[60px] gba:box-border gba:bg-gray-50 gba:font-semibold"
                   data-testid={`${DATA_TEST_ID_PREFIX}-actions-header`}
                 ></TableHead>
                 <TableHead
@@ -398,12 +398,10 @@ const ExpensePlansTable: React.FC<ExpensePlansTableProps> = (props) => {
                     }`}
                     onClick={() => handleSelectItem(plan)}
                   >
-                    <TableCell className="gba:w-[50px] gba:min-w-[50px] gba:max-w-[50px] gba:box-border gba:py-4 gba:px-0" data-testid={`${DATA_TEST_ID_PREFIX}-actions-cell-${plan.id}`}>
-                      <div
-                        className="gba:flex gba:justify-center gba:items-center gba:gap-0"
-                        onClick={(e) => e.stopPropagation()}
-                      >
+                    <TableCell className="gba:w-[60px] gba:min-w-[60px] gba:max-w-[60px] gba:box-border gba:py-4 gba:px-0" data-testid={`${DATA_TEST_ID_PREFIX}-actions-cell-${plan.id}`}>
+                      <div className="gba:flex gba:justify-center gba:items-center gba:gap-0">
                         <AppActionButton
+                          onClick={(e) => e.stopPropagation()}
                           data-testid={`${DATA_TEST_ID_PREFIX}-update-plan-button-${plan.id}`}
                           size="icon"
                           className="gba:h-7 gba:w-7"
@@ -567,7 +565,7 @@ const ExpensePlansTable: React.FC<ExpensePlansTableProps> = (props) => {
         {/* Pagination - Always show when there are records */}
         {totalCount > 0 && (
           <div
-            className="gba:flex gba:items-center gba:justify-between gba:px-2 gba:py-4 gba:border-t gba:border-gray-200"
+            className="gba:flex gba:items-center gba:justify-between gba:px-2 gba:py-4 gba:border-t gba:border-border"
             data-testid={`${DATA_TEST_ID_PREFIX}-pagination`}
           >
             <div

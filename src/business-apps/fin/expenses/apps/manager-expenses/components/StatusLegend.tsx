@@ -2,14 +2,15 @@ import React from 'react';
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
 import { PillType } from '@/components/pill/Pill';
 
-// Local design-token based color map to avoid importing shared file
+// Hex color map matching design system pill colors
+// Using hex values instead of CSS variables for reliable rendering
 const pillTypeColorMap: Record<PillType, string> = {
-  draft: 'var(--nw-color-neutral-500)',
-  completed: 'var(--nw-color-success-500)',
-  waiting: 'var(--nw-color-info-500)',
-  task: 'var(--nw-color-warning-500)',
-  error: 'var(--nw-color-danger-500)',
-  preparing: 'var(--nw-color-neutral-400)'
+  draft: '#9ca3af',        // gray-400 (gba:bg-muted)
+  completed: '#10b981',    // green (gba:bg-success)
+  waiting: '#3b82f6',      // blue (gba:bg-info)
+  task: '#f59e0b',         // amber (gba:bg-warning)
+  error: '#ef4444',        // red (gba:bg-destructive)
+  preparing: '#9ca3af'     // gray-400 (same as draft)
 };
 
 const pillTypeLabelMap: Record<PillType, string> = {

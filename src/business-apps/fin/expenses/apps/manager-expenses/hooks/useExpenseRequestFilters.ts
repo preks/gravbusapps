@@ -70,6 +70,7 @@ export const useExpenseRequestFilters = ({
 
   const {
     mostUsedCurrency: detectedCurrency,
+    availableCurrencies: fetchedCurrencies,
     isLoading: currenciesLoading,
     error: currenciesError,
   } = useExpenseRequestCurrencies(contextProps, managerId || "");
@@ -95,19 +96,9 @@ export const useExpenseRequestFilters = ({
   }, [localPrimaryCurrency, onCurrencyChange]);
 
   const availableCurrencies = useMemo(() => {
-    const currencies = new Set<string>();
-
-    if (localMostUsedCurrency) {
-      currencies.add(localMostUsedCurrency);
-    }
-
-    currencies.add("EUR");
-    currencies.add("USD");
-    currencies.add("GBP");
-    currencies.add("RON");
-
-    return Array.from(currencies);
-  }, [localMostUsedCurrency]);
+    // Use currencies fetched from expense requests data
+    return fetchedCurrencies || [];
+  }, [fetchedCurrencies]);
 
   const handleDataFilterChange = useCallback(
     (filterId: string, selected: boolean) => {
@@ -118,7 +109,7 @@ export const useExpenseRequestFilters = ({
           setLocalPrimaryCurrency(currency);
           setUserHasManuallySelectedCurrency(true);
         } else {
-          setLocalPrimaryCurrency(localMostUsedCurrency || "EUR");
+          setLocalPrimaryCurrency(localMostUsedCurrency || "");
           setUserHasManuallySelectedCurrency(false);
         }
       } else {
@@ -153,12 +144,10 @@ export const useExpenseRequestFilters = ({
       group: "statusGroup",
     }));
 
-    const currencyItems: DataFilter[] = (
-      availableCurrencies.length > 0 ? availableCurrencies : ["EUR", "USD"]
-    ).map((currency) => ({
+    const currencyItems: DataFilter[] = availableCurrencies.map((currency) => ({
       id: `currency:${currency}`,
       label: currency,
-      selected: currency === (localPrimaryCurrency || "EUR"),
+      selected: currency === localPrimaryCurrency,
       group: "currencyGroup",
     }));
 

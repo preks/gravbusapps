@@ -28,7 +28,7 @@ const BarChartComponent: React.FC<BarChartProps> = ({
   title,
   xAxisDataKey = "name",
   barDataKey = "value",
-  barColor = "#8884d8",
+  barColor = "var(--nw-color-primary-500)",
   height = 300,
   currency = "EUR",
   valueType = 'amount',
@@ -36,10 +36,16 @@ const BarChartComponent: React.FC<BarChartProps> = ({
   getColor,
 }) => {
   const resolveCssVar = (color: string): string => {
-    if (typeof globalThis === 'undefined') return color;
     if (!color?.startsWith('var(')) return color;
+    if (
+      typeof globalThis.window === 'undefined' ||
+      typeof globalThis.document === 'undefined' ||
+      typeof globalThis.window.getComputedStyle !== 'function'
+    ) {
+      return color;
+    }
     const varName = color.substring(4, color.length - 1).trim();
-    const value = getComputedStyle(document.documentElement).getPropertyValue(varName).trim();
+    const value = globalThis.window.getComputedStyle(globalThis.document.documentElement).getPropertyValue(varName).trim();
     return value || color;
   };
 
@@ -95,21 +101,37 @@ const BarChartComponent: React.FC<BarChartProps> = ({
                 formatter={(value: any, _name: any, props: any) => {
                   if (valueType === 'count') {
                     const num = typeof value === 'number' ? value : Number(value ?? 0);
-                    return [`${num} ${countLabel}`,''];
+                    const itemsLabel = getTranslationFromI18nKeyAndLabel(
+                      "lowcoder:charts.tooltip.items",
+                      countLabel,
+                    );
+                    const countLabelText = getTranslationFromI18nKeyAndLabel(
+                      "lowcoder:charts.tooltip.count",
+                      "Count",
+                    );
+                    return [`${num} ${itemsLabel}`, countLabelText];
                   }
                   const count = props?.payload?.count ?? null;
                   const amountText = formatCurrencyDisplay(value, currency);
-                  return [count !== null ? `${amountText} (Count: ${count})` : amountText, ''];
+                  const countLabelText = getTranslationFromI18nKeyAndLabel(
+                    "lowcoder:charts.tooltip.count",
+                    "Count",
+                  );
+                  return [count === null ? amountText : `${amountText} (${countLabelText}: ${count})`, ''];
                 }}
                 labelFormatter={(label) => `${label}`}
               />
               <Bar dataKey={barDataKey} fill={resolvedBarColor}>
-                {data.map((entry, index) => (
-                  <Cell key={`cell-${index}`} fill={(() => {
-                    const candidate = getColor ? (getColor(entry, index) || resolvedBarColor) : resolvedBarColor;
-                    return resolveCssVar(candidate);
-                  })()} />
-                ))}
+                {data.map((entry, index) => {
+                  // Use entry name or value as key fallback to ensure uniqueness
+                  const entryKey = entry[xAxisDataKey] || entry[barDataKey] || index;
+                  return (
+                    <Cell key={`cell-${entryKey}`} fill={(() => {
+                      const candidate = getColor ? (getColor(entry, index) || resolvedBarColor) : resolvedBarColor;
+                      return resolveCssVar(candidate);
+                    })()} />
+                  );
+                })}
               </Bar>
             </BarChart>
           </ResponsiveContainer>

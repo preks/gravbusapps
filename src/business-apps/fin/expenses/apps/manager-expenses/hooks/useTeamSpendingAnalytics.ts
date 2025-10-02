@@ -104,6 +104,7 @@ interface TimeSeriesData {
 interface StatusBreakdown {
   status: string;
   count: number;
+  amount: number;
 }
 
 interface OrgUnitBreakdown {
@@ -444,6 +445,48 @@ export const useTeamSpendingAnalytics = (
     );
   }, [departmentFilters, departmentSearchTerm]);
   
+  // Extract available currencies from raw data
+  const availableCurrencies = useMemo(() => {
+    if (!rawData) return [];
+    
+    const currencySet = new Set<string>();
+    
+    // Collect from expense items
+    rawData.expenseItems?.forEach(item => {
+      if (item.currencyRef) {
+        // Extract currency code from Currency:v1:EUR format
+        const code = item.currencyRef.split(':').pop();
+        if (code) currencySet.add(code);
+      }
+    });
+    
+    // Collect from expense requests
+    rawData.expenseRequests?.forEach(request => {
+      if (request.currencyRef) {
+        const code = request.currencyRef.split(':').pop();
+        if (code) currencySet.add(code);
+      }
+    });
+    
+    // Collect from expense plans
+    rawData.expensePlans?.forEach(plan => {
+      if (plan.currencyRef) {
+        const code = plan.currencyRef.split(':').pop();
+        if (code) currencySet.add(code);
+      }
+    });
+    
+    // Collect from advance payments
+    rawData.advancePayments?.forEach(payment => {
+      if (payment.currencyRef) {
+        const code = payment.currencyRef.split(':').pop();
+        if (code) currencySet.add(code);
+      }
+    });
+    
+    return Array.from(currencySet).sort((a, b) => a.localeCompare(b));
+  }, [rawData]);
+  
   // Apply filters to raw data
   const processedData: ProcessedAnalyticsData | null = useMemo(() => {
     if (!rawData) return null;
@@ -660,39 +703,45 @@ export const useTeamSpendingAnalytics = (
       return true;
     }) : [];
 
+    // Helper function to get localized category display name
+    const getCategoryDisplayName = (position: ExpensePosition): string => {
+      const catalog = position.expenseGroup;
+      const locale = getCurrentActiveUserLocale().toLowerCase();
+      const translated = catalog?.translations?.find((t) => t?.localeCode?.toLowerCase() === locale)?.value;
+      const display = translated || catalog?.value;
+      const codeKey = position.expenseGroupRef || 'Uncategorized';
+      return display || codeKey;
+    };
+
+    // Helper function to add amount to category map
+    const addToCategory = (categoryMap: Map<string, number>, category: string, amount: number): void => {
+      const currentAmount = categoryMap.get(category) || 0;
+      categoryMap.set(category, currentAmount + amount);
+    };
+
+    // Helper function to process a single expense item for categorization
+    const processItemCategory = (item: ExpenseItem, categoryMap: Map<string, number>): void => {
+      if (item.expensePosition && Array.isArray(item.expensePosition)) {
+        const positions = item.expensePosition;
+        if (positions.length > 0) {
+          // Divide total amount equally among positions
+          const amountPerPosition = (item.totalAmount || 0) / positions.length;
+          positions.forEach((position: ExpensePosition) => {
+            const category = getCategoryDisplayName(position);
+            addToCategory(categoryMap, category, amountPerPosition);
+          });
+        } else {
+          addToCategory(categoryMap, 'Uncategorized', item.totalAmount || 0);
+        }
+      } else {
+        addToCategory(categoryMap, 'Uncategorized', item.totalAmount || 0);
+      }
+    };
+
     // Process expense items by category
     const categoryMap = new Map<string, number>();
     filteredExpenseItems.forEach((item: ExpenseItem) => {
-      // Check if expensePosition exists and is an array
-      if (item.expensePosition && Array.isArray(item.expensePosition)) {
-        // Group by expense category
-        const positions = item.expensePosition;
-        if (positions.length > 0) {
-          // Group amounts by category
-          positions.forEach((position: ExpensePosition) => {
-            // Prefer catalog display value when available
-            const catalog = position.expenseGroup;
-            const locale = getCurrentActiveUserLocale().toLowerCase();
-            const translated = catalog?.translations?.find((t) => t?.localeCode?.toLowerCase() === locale)?.value;
-            const display = translated || catalog?.value;
-            const codeKey = position.expenseGroupRef || 'Uncategorized';
-            const category = display || codeKey;
-            const currentAmount = categoryMap.get(category) || 0;
-            // For array positions, we need to divide the total amount proportionally
-            // Here we're simply dividing equally among positions, which may need refinement
-            const amountPerPosition = (item.totalAmount || 0) / positions.length;
-            categoryMap.set(category, currentAmount + amountPerPosition);
-          });
-        } else {
-          // If no positions, add to uncategorized
-          const currentAmount = categoryMap.get('Uncategorized') || 0;
-          categoryMap.set('Uncategorized', currentAmount + (item.totalAmount || 0));
-        }
-      } else {
-        // If no position, add to uncategorized
-        const currentAmount = categoryMap.get('Uncategorized') || 0;
-        categoryMap.set('Uncategorized', currentAmount + (item.totalAmount || 0));
-      }
+      processItemCategory(item, categoryMap);
     });
     
     const expenseItemsByCategory: ChartData[] = Array.from(categoryMap.entries())
@@ -737,7 +786,7 @@ export const useTeamSpendingAnalytics = (
         const addAmount = Number(item?.[amountField] ?? 0);
         statusMap.set(status, {
           count: prev.count + 1,
-          amount: prev.amount + (isNaN(addAmount) ? 0 : addAmount)
+          amount: prev.amount + (Number.isNaN(addAmount) ? 0 : addAmount)
         });
       });
       
@@ -830,7 +879,7 @@ export const useTeamSpendingAnalytics = (
       totalPlanAmount,
       totalAdvanceAmount
     };
-  }, [rawData]);
+  }, [rawData, locationFilters, departmentFilters, dateRange, customDateRange, currencyFilter]);
 
   return {
     isLoading,
@@ -848,6 +897,7 @@ export const useTeamSpendingAnalytics = (
     toggleDepartmentFilter,
     departmentSearchTerm,
     setDepartmentSearchTerm: handleDepartmentSearchTermChange,
-    currencyFilter
+    currencyFilter,
+    availableCurrencies
   };
 };

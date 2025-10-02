@@ -323,19 +323,19 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = (props) => {
 
     return (
       <div>
-        <div className="gba:overflow-x-auto gba:pr-4 gba:border gba:border-gray-200 gba:rounded-md gba:relative">
+        <div className="gba:overflow-x-auto gba:pr-4 gba:border gba:border-border gba:rounded-md gba:relative">
           {isLoading && requests.length > 0 && (
             <div
-              className="gba:absolute gba:inset-0 gba:bg-white/50 gba:flex gba:items-center gba:justify-center gba:z-10"
+              className="gba:absolute gba:inset-0 gba:bg-background/50 gba:flex gba:items-center gba:justify-center gba:z-10"
               data-testid="expense-requests-loading-overlay"
             >
               <Spinner className="gba:h-8 gba:w-8" />
             </div>
           )}
           <Table data-testid="expense-requests-table" className="gba:w-full">
-            <TableHeader className="gba:sticky gba:top-0 gba:bg-white gba:z-10 gba:border-b gba:border-gray-200">
+            <TableHeader className="gba:sticky gba:top-0 gba:bg-white gba:z-10 gba:border-b gba:border-border">
               <TableRow>
-                <TableHead className="gba:w-[50px] gba:min-w-[50px] gba:max-w-[50px] gba:box-border"></TableHead>
+                <TableHead className="gba:w-[60px] gba:min-w-[60px] gba:max-w-[60px] gba:box-border"></TableHead>
                 <TableHead
                   className="gba:w-[13%] gba:cursor-pointer gba:select-none"
                   onClick={() => handleSort("title")}
@@ -459,12 +459,10 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = (props) => {
                     onClick={() => handleSelectRequest(record)}
                     data-testid={`expense-requests-row-${record.id}`}
                   >
-                    <TableCell className="gba:w-[50px] gba:min-w-[50px] gba:max-w-[50px] gba:box-border gba:py-4 gba:px-0" data-testid={`expense-requests-actions-cell-${record.id}`}>
-                      <div
-                        className="gba:flex gba:justify-center gba:items-center gba:gap-0"
-                        onClick={(e) => e.stopPropagation()}
-                      >
+                    <TableCell className="gba:w-[60px] gba:min-w-[60px] gba:max-w-[60px] gba:box-border gba:py-4 gba:px-0" data-testid={`expense-requests-actions-cell-${record.id}`}>
+                      <div className="gba:flex gba:justify-center gba:items-center gba:gap-0">
                         <AppActionButton
+                          onClick={(e) => e.stopPropagation()}
                           data-testid={`expense-requests-update-button-${record.id}`}
                           size="icon"
                           className="gba:h-7 gba:w-7"
@@ -506,7 +504,6 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = (props) => {
                           accessToken={props.accessToken}
                           emptyStateBehavior="enable"
                           deferMainContextRequestsUntilClick
-                          onClick={(e) => e.stopPropagation()}
                         />
                       </div>
                     </TableCell>
@@ -626,7 +623,7 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = (props) => {
 
         {totalCount > 0 && (
           <div
-            className="gba:flex gba:items-center gba:justify-between gba:px-2 gba:py-4 gba:border-t gba:border-gray-200"
+            className="gba:flex gba:items-center gba:justify-between gba:px-2 gba:py-4 gba:border-t gba:border-border"
             data-testid="expense-requests-pagination"
           >
             <div
@@ -787,6 +784,7 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = (props) => {
   return (
     <>
       <DataContainer
+        key="expense-requests-data-container"
         dataControllerProps={{
           search: searchTerm,
           setSearch: handleSearchChange,

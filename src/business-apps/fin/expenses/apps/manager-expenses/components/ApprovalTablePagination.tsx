@@ -25,7 +25,7 @@ const ApprovalTablePagination: React.FC<ApprovalTablePaginationProps> = ({
 
   return (
     <div
-      className="gba:flex gba:items-center gba:justify-between gba:px-2 gba:py-4 gba:border-t gba:border-gray-200"
+      className="gba:flex gba:items-center gba:justify-between gba:px-2 gba:py-4 gba:border-t gba:border-border"
       data-testid={`${dataTestIdPrefix}-pagination`}
     >
       <div
