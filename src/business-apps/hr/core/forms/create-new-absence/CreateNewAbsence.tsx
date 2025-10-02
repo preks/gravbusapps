@@ -369,7 +369,7 @@ export const CreateNewAbsence: React.FC<BusinessAppContextProps> = (props) => {
           className="gba:text-2xl gba:font-bold gba:text-center"
           data-testid="create-new-absence-title"
         >
-          {getTranslationFromI18nKeyAndLabel('absence.createNew.title', 'Create New Absence')}
+          {getTranslationFromI18nKeyAndLabel('lowcoder:absence_form.create_new_title', 'Create New Absence')}
         </h1>
       </div>
       <form
@@ -390,13 +390,13 @@ export const CreateNewAbsence: React.FC<BusinessAppContextProps> = (props) => {
               <div className="gba:mb-3">
                 <h4 className="gba:text-sm gba:font-semibold gba:text-orange-800 gba:mb-2">
                   {getTranslationFromI18nKeyAndLabel(
-                    'absence.sickLeave.existingFound',
+                    'lowcoder:absence_form.existing_found',
                     'Existing Sick Leave Found',
                   )}
                 </h4>
                 <p className="gba:text-sm gba:text-orange-700">
                   {getTranslationFromI18nKeyAndLabel(
-                    'absence.sickLeave.existingMessage',
+                    'lowcoder:absence_form.existing_message',
                     'You already have a sick leave for today. Would you like to update it or create a new absence?',
                   )}
                 </p>
@@ -410,7 +410,7 @@ export const CreateNewAbsence: React.FC<BusinessAppContextProps> = (props) => {
                   data-testid="update-existing-sick-leave-button"
                 >
                   {getTranslationFromI18nKeyAndLabel(
-                    'absence.sickLeave.updateExisting',
+                    'lowcoder:absence_form.update_existing',
                     'Update Existing',
                   )}
                 </Button>
@@ -421,7 +421,7 @@ export const CreateNewAbsence: React.FC<BusinessAppContextProps> = (props) => {
                   onClick={handleCreateNew}
                   data-testid="create-new-absence-button"
                 >
-                  {getTranslationFromI18nKeyAndLabel('absence.sickLeave.createNew', 'Create New')}
+                  {getTranslationFromI18nKeyAndLabel('lowcoder:absence_form.create_new', 'Create New')}
                 </Button>
               </div>
             </div>
@@ -432,7 +432,7 @@ export const CreateNewAbsence: React.FC<BusinessAppContextProps> = (props) => {
             <>
               <div className="gba:mb-4 gba:w-full">
                 <Label className="gba:block gba:mb-2 gba:font-medium" data-testid="type-Label">
-                  {getTranslationFromI18nKeyAndLabel('absence.type', 'Type')}
+                  {getTranslationFromI18nKeyAndLabel('lowcoder:expense_request_list.expense_plan_table.type', 'Type')}
                   <span className="gba:text-red-500 gba:ml-1">*</span>
                 </Label>
                 <div className="gba:w-full">
@@ -448,7 +448,7 @@ export const CreateNewAbsence: React.FC<BusinessAppContextProps> = (props) => {
                     disabled={types.length <= 1}
                   >
                     <SelectTrigger className="gba:w-full">
-                      <SelectValue placeholder="Select a type" />
+                      <SelectValue placeholder={getTranslationFromI18nKeyAndLabel('lowcoder:absence_form.select_type', 'Select a type')} />
                     </SelectTrigger>
                     <SelectContent>
                       {types.map((type) => (
@@ -465,7 +465,7 @@ export const CreateNewAbsence: React.FC<BusinessAppContextProps> = (props) => {
                   className="gba:block gba:mb-2 gba:font-medium"
                   data-testid="start-date-Label"
                 >
-                  {getTranslationFromI18nKeyAndLabel('absence.startDate', 'Start Date')}
+                  {getTranslationFromI18nKeyAndLabel('lowcoder:absence_table.start_date', 'Start Date')}
                   <span className="gba:text-red-500 gba:ml-1">*</span>
                 </Label>
                 <Popover>
@@ -478,7 +478,7 @@ export const CreateNewAbsence: React.FC<BusinessAppContextProps> = (props) => {
                       <CalendarIcon className="gba:mr-2 gba:h-4 gba:w-4" />
                       {formValuesState.startDate
                         ? dayjs(formValuesState.startDate).format('YYYY-MM-DD')
-                        : 'Select start date'}
+                        : getTranslationFromI18nKeyAndLabel('lowcoder:absence_form.select_start_date', 'Select start date')}
                     </Button>
                   </PopoverTrigger>
                   <PopoverContent className="gba:w-auto gba:p-0">
@@ -498,7 +498,7 @@ export const CreateNewAbsence: React.FC<BusinessAppContextProps> = (props) => {
               </div>
               <div className="gba:mb-4">
                 <Label className="gba:block gba:mb-2 gba:font-medium" data-testid="end-date-Label">
-                  {getTranslationFromI18nKeyAndLabel('absence.endDate', 'End Date')}
+                  {getTranslationFromI18nKeyAndLabel('lowcoder:absence_table.end_date', 'End Date')}
                   <span className="gba:text-red-500 gba:ml-1">*</span>
                 </Label>
                 <Popover>
@@ -511,7 +511,7 @@ export const CreateNewAbsence: React.FC<BusinessAppContextProps> = (props) => {
                       <CalendarIcon className="gba:mr-2 gba:h-4 gba:w-4" />
                       {formValuesState.endDate
                         ? dayjs(formValuesState.endDate).format('YYYY-MM-DD')
-                        : 'Select end date'}
+                        : getTranslationFromI18nKeyAndLabel('lowcoder:absence_form.select_end_date', 'Select end date')}
                     </Button>
                   </PopoverTrigger>
                   <PopoverContent className="gba:w-auto gba:p-0">
@@ -541,7 +541,7 @@ export const CreateNewAbsence: React.FC<BusinessAppContextProps> = (props) => {
                     className="gba:block gba:mb-2 gba:font-medium"
                     data-testid="substitute-Label"
                   >
-                    {getTranslationFromI18nKeyAndLabel('absence.substitute', 'Substitute')}
+                    {getTranslationFromI18nKeyAndLabel('lowcoder:absence_form.substitute', 'Substitute')}
                   </Label>
                   <div className="gba:w-full">
                     <Select
@@ -555,7 +555,7 @@ export const CreateNewAbsence: React.FC<BusinessAppContextProps> = (props) => {
                       }
                     >
                       <SelectTrigger className="gba:w-full">
-                        <SelectValue placeholder="Select substitute" />
+                        <SelectValue placeholder={getTranslationFromI18nKeyAndLabel('lowcoder:absence_form.select_substitute', 'Select substitute')} />
                       </SelectTrigger>
                       <SelectContent>
                         {employees.map((employee) => (
@@ -570,7 +570,7 @@ export const CreateNewAbsence: React.FC<BusinessAppContextProps> = (props) => {
               )}
               <div className="gba:mb-4">
                 <Label className="gba:block gba:mb-2 gba:font-medium" data-testid="comment-Label">
-                  {getTranslationFromI18nKeyAndLabel('absence.comment', 'Comment')}
+                  {getTranslationFromI18nKeyAndLabel('lowcoder:initiate_expense_plan.create_expense_plan.comment_text_area', 'Comment')}
                 </Label>
                 <Textarea
                   data-testid="comment-textarea"
@@ -583,7 +583,7 @@ export const CreateNewAbsence: React.FC<BusinessAppContextProps> = (props) => {
                     }))
                   }
                   placeholder={getTranslationFromI18nKeyAndLabel(
-                    'absence.comment.placeholder',
+                    'lowcoder:absence_form.comment_text_area_placeholder',
                     'Add a comment (optional)',
                   )}
                 />
@@ -597,7 +597,7 @@ export const CreateNewAbsence: React.FC<BusinessAppContextProps> = (props) => {
                 >
                   <p className="gba:text-sm gba:text-blue-700 gba:font-medium">
                     {getTranslationFromI18nKeyAndLabel(
-                      'absence.updateMode.indicator',
+                      'lowcoder:absence_form.update_mode_indicator',
                       'Updating existing absence',
                     )}
                   </p>
@@ -659,7 +659,7 @@ export const CreateNewAbsence: React.FC<BusinessAppContextProps> = (props) => {
                   data-testid="validation-loading"
                 >
                   {getTranslationFromI18nKeyAndLabel(
-                    'absence.validation.checking',
+                    'lowcoder:absence_form.validation_checking',
                     'Checking availability...',
                   )}
                 </div>
@@ -672,7 +672,7 @@ export const CreateNewAbsence: React.FC<BusinessAppContextProps> = (props) => {
                     className="gba:block gba:mb-2 gba:font-medium"
                     data-testid="attachments-label"
                   >
-                    {getTranslationFromI18nKeyAndLabel('absence.attachments', 'Attachments')}
+                    {getTranslationFromI18nKeyAndLabel('lowcoder:expense_item_request_card.attachments', 'Attachments')}
                   </Label>
                   <Upload
                     fileList={fileList}
@@ -692,14 +692,14 @@ export const CreateNewAbsence: React.FC<BusinessAppContextProps> = (props) => {
                     >
                       <UploadOutlined className="gba:mr-2" />
                       {getTranslationFromI18nKeyAndLabel(
-                        'absence.upload.button',
+                        'lowcoder:absence_form.upload_button',
                         'Click or drag files to upload',
                       )}
                     </Button>
                   </Upload>
                   <div className="gba:text-xs gba:text-gray-500 gba:mt-1">
                     {getTranslationFromI18nKeyAndLabel(
-                      'absence.upload.hint',
+                      'lowcoder:absence_form.upload_hint',
                       'Supported formats: PDF, JPG, PNG (max 10MB each, up to 5 files)',
                     )}
                   </div>
@@ -719,8 +719,8 @@ export const CreateNewAbsence: React.FC<BusinessAppContextProps> = (props) => {
                   disabled={!isFormValid}
                 >
                   {isUpdateMode
-                    ? getTranslationFromI18nKeyAndLabel('absence.update', 'Update')
-                    : getTranslationFromI18nKeyAndLabel('absence.submit', 'Submit')}
+                    ? getTranslationFromI18nKeyAndLabel('lowcoder:expense_calculation_rule.expense_calculation_rule_modal.btn_update', 'Update')
+                    : getTranslationFromI18nKeyAndLabel('lowcoder:modify_expense_request.btn_submit', 'Submit')}
                 </Button>
                 <Button
                   type="button"
@@ -728,7 +728,7 @@ export const CreateNewAbsence: React.FC<BusinessAppContextProps> = (props) => {
                   data-testid="cancel-button"
                   onClick={handleCancel}
                 >
-                  {getTranslationFromI18nKeyAndLabel('absence.cancel', 'Cancel')}
+                  {getTranslationFromI18nKeyAndLabel('lowcoder:modify_expense_request.btn_cancel', 'Cancel')}
                 </Button>
               </div>
             </>
