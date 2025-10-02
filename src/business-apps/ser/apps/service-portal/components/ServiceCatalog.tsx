@@ -31,7 +31,8 @@ const SearchInput = React.memo<{
   searchQuery: string;
   onSearchChange: (query: string) => void;
   onSearchClear: () => void;
-}>(({ searchQuery, onSearchChange, onSearchClear }) => (
+  clearTimestamp: number;
+}>(({ searchQuery, onSearchChange, onSearchClear, clearTimestamp }) => (
   <div className="gba:relative gba:w-full" data-testid="service-portal-search">
     <div className="gba:relative">
       <MagnifyingGlass 
@@ -39,7 +40,7 @@ const SearchInput = React.memo<{
         data-testid="search-icon"
       />
       <DebouncedInput
-        key={`search-input-${searchQuery === '' ? 'empty' : 'filled'}`}
+        key={`search-input-${clearTimestamp}`}
         value={searchQuery}
         onChange={onSearchChange}
         placeholder="Search services and categories..."
@@ -76,6 +77,7 @@ export const ServiceCatalog: React.FC<ServiceCatalogProps> = ({
 }) => {
   // Search state
   const [searchQuery, setSearchQuery] = useState('');
+  const [clearTimestamp, setClearTimestamp] = useState(0);
 
   // Fetch dynamic categories from catalog
   const {
@@ -466,9 +468,10 @@ export const ServiceCatalog: React.FC<ServiceCatalogProps> = ({
 
   // Handle search clear
   const handleSearchClear = useCallback(() => {
-    console.log('🧹 [ServiceCatalog] Clearing search query, current value:', searchQuery);
+    console.log('🧹 [ServiceCatalog] Clearing search query');
     setSearchQuery('');
-  }, [searchQuery]);
+    setClearTimestamp(Date.now()); // Force component remount to clear internal state
+  }, []);
 
 
   // Show loading state while fetching categories
@@ -546,6 +549,7 @@ export const ServiceCatalog: React.FC<ServiceCatalogProps> = ({
                     searchQuery={searchQuery}
                     onSearchChange={handleSearchChange}
                     onSearchClear={handleSearchClear}
+                    clearTimestamp={clearTimestamp}
                   />
                   {/* Search results summary - directly under input */}
                   {searchQuery && (
