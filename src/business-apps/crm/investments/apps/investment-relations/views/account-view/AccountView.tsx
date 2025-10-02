@@ -57,6 +57,7 @@ export const AccountView: React.FC<AccountViewProps> = (context) => {
     handleFilterChange,
     createdAfter,
     createdBefore,
+    filtersInitialized,
   } = useInvestmentAccountFilters(context, selectedFilters, setSelectedFilters);
 
   // Data state
@@ -195,7 +196,7 @@ export const AccountView: React.FC<AccountViewProps> = (context) => {
 
   // Load data
   const loadData = useCallback(async () => {
-    if (!accessToken) return;
+    if (!accessToken || !filtersInitialized) return;
 
     setIsLoading(true);
     setError(null);
@@ -209,7 +210,7 @@ export const AccountView: React.FC<AccountViewProps> = (context) => {
     } finally {
       setIsLoading(false);
     }
-  }, [accessToken, fetchInvestmentAccounts, queryVariables]);
+  }, [accessToken, filtersInitialized, fetchInvestmentAccounts, queryVariables]);
 
   // Listen for process events and refresh data when investment account processes complete
   useEffect(() => {
@@ -332,6 +333,7 @@ export const AccountView: React.FC<AccountViewProps> = (context) => {
     setList("annualRevenueBand", collect("annualRevenueBand"));
     setList("company", collect("company"));
     setList("location", collect("location"));
+    setList("status", collect("status"));
 
     if (searchTerm) urlParams.set("search", searchTerm); else urlParams.delete("search");
 

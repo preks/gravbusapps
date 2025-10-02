@@ -291,8 +291,7 @@ const EquityInvestmentsList: React.FC<EquityInvestmentsListProps> = (props) => {
           <AppAction
             contextsArray={[FlowContextName.createInvestment]}
             externalContextData={{ 
-              investmentGroup: 'EQUITY',
-              investmentGroupRef: 'InvestmentGroup:v1:EQUITY',
+              investmentGroup: 'InvestmentGroup:v1:EQUITY',
               fromView: 'investments',
               fromSubView: 'equity'
             }}

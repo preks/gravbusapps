@@ -324,8 +324,7 @@ const RealEstateInvestmentsList: React.FC<RealEstateInvestmentsListProps> = (con
           <AppAction
             contextsArray={[FlowContextName.createInvestment]}
             externalContextData={{ 
-              investmentGroup: 'REAL_ESTATE',
-              investmentGroupRef: 'InvestmentGroup:v1:REAL_ESTATE',
+              investmentGroup: 'InvestmentGroup:v1:REAL_ESTATE',
               fromView: 'investments',
               fromSubView: 'real-estate'
             }}
