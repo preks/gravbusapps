@@ -2,7 +2,7 @@
 // Built using actual schema discovered via newwork-mcp
 import { CATALOG_ENTRY, AUDIT_FIELDS } from '@/common/network/graphql/commonFragments';
 import { INVESTMENT } from './fragments/investmentFragments';
-import { INVESTMENT_ACTIVITY, INVESTMENT_TASK, INVESTMENT_NOTE, INVESTMENT_DOCUMENT } from './fragments/investmentRelationFragments';
+import { INVESTMENT_ACTIVITY, INVESTMENT_TASK, INVESTMENT_NOTE, INVESTMENT_DOCUMENT, INVESTMENT_ACCOUNT_REF } from './fragments/investmentRelationFragments';
 
 export interface InvestmentQueryVariables {
   ids?: string[];
@@ -315,11 +315,17 @@ export const GET_INVESTMENTS = (variables: InvestmentQueryVariables = {}): strin
         investmentStatus {
           ${CATALOG_ENTRY}
         }
-        investmentRiskLevel {
-          ${CATALOG_ENTRY}
-        }
         currency {
           ${CATALOG_ENTRY}
+        }
+
+        # Investment role relationship (array)
+        investmentRole {
+          id
+          displayOrder
+          investmentRole {
+            ${CATALOG_ENTRY}
+          }
         }
 
         # Employee relationship (simplified)
@@ -359,18 +365,38 @@ export const GET_INVESTMENTS = (variables: InvestmentQueryVariables = {}): strin
         realEstateInvestment {
           id
           buildingYear
+          numberOfUnits
           annualNetColdRent
           actualAnnualExpenses
+          targetAnnualExpenses
+          funding
           occupancyPercent
+          size
+          sizeMeasurementUnitRef
           locality
+          postalCode
+          addressLine
+          liquidityForecast
+          investment {
+            id
+            name
+            code
+          }
         }
         
         liquidFundInvestment {
           id
+          proprietorName
           bankName
-          interestRate
           bankAccountNumber
           earlyTerminationAllowed
+          interestRate
+          maturityDate
+          investment {
+            id
+            name
+            code
+          }
           investmentLiquidFundType {
             ${CATALOG_ENTRY}
           }
@@ -551,21 +577,7 @@ export const GET_INVESTMENT_BY_ID = (id: string): string => {
         
         # Entity relationships
         investmentAccount {
-          id
-          code
-          name
-          email
-          foundationDate
-          geographicPresence
-          companySize {
-            ${CATALOG_ENTRY}
-          }
-          accountAnnualRevenueBand {
-            ${CATALOG_ENTRY}
-          }
-          industryClass {
-            ${CATALOG_ENTRY}
-          }
+          ${INVESTMENT_ACCOUNT_REF}
           investmentAccountContact {
             contactType
             contact {
@@ -633,23 +645,42 @@ export const GET_INVESTMENT_BY_ID = (id: string): string => {
           numberOfUnits
           annualNetColdRent
           actualAnnualExpenses
+          targetAnnualExpenses
           funding
           occupancyPercent
+          size
+          sizeMeasurementUnitRef
           locality
+          postalCode
           addressLine
           liquidityForecast
+          investment {
+            id
+            name
+            code
+          }
           ${AUDIT_FIELDS}
           country {
+            ${CATALOG_ENTRY}
+          }
+          region {
             ${CATALOG_ENTRY}
           }
         }
         
         liquidFundInvestment {
           id
+          proprietorName
           bankName
           bankAccountNumber
           earlyTerminationAllowed
           interestRate
+          maturityDate
+          investment {
+            id
+            name
+            code
+          }
           ${AUDIT_FIELDS}
           investmentLiquidFundType {
             ${CATALOG_ENTRY}

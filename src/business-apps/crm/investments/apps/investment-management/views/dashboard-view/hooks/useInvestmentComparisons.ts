@@ -75,11 +75,11 @@ const GET_INVESTMENT_COMPARISONS = `
     ) {
       aggregate {
         sum {
-          currentCompanyValuation
-          lastReportedTurnover
+          marketValue
+          turnoverAmount
         }
         avg {
-          currentCompanyValuation
+          marketValue
         }
       }
     }
@@ -228,9 +228,9 @@ export const useInvestmentComparisons = (
 
       // Calculate type performance comparisons
       const equityValuation =
-        result.equityInvestments.aggregate.sum?.investmentMarketValue || 0;
+        result.equityInvestments.aggregate.sum?.marketValue || 0;
       const equityAvg =
-        result.equityInvestments.aggregate.avg?.investmentMarketValue || 0;
+        result.equityInvestments.aggregate.avg?.marketValue || 0;
       const equityPerformance =
         equityAvg > 0 ? Math.round((equityValuation / equityAvg) * 10) : 75;
 

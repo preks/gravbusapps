@@ -4,6 +4,7 @@ import React from 'react';
 import { 
   Avatar, 
   AvatarFallback, 
+  AvatarImage,
   Badge, 
   Card, 
   CardContent, 
@@ -81,12 +82,6 @@ export const TaskDetails: React.FC<TaskDetailsProps> = ({ task, sourceApp }) => 
     return `${firstName.charAt(0)}${lastName.charAt(0)}`.toUpperCase();
   };
 
-  // Simple truncation to first 7 characters + "..."
-  const getTruncatedText = (text: string) => {
-    if (!text) return text;
-    if (text.length <= 7) return text;
-    return text.substring(0, 7) + '...';
-  };
 
 
   // Determine if task is overdue based on timing type
@@ -152,6 +147,12 @@ export const TaskDetails: React.FC<TaskDetailsProps> = ({ task, sourceApp }) => 
                     data-testid={`${DATA_TEST_ID_PREFIX}-assignee-link`}
                   >
                     <Avatar size="sm" className="gba:size-6">
+                      {task.assignedTo.pictureThumbnail && (
+                        <AvatarImage
+                          src={`data:image/gif;base64,${task.assignedTo.pictureThumbnail}`}
+                          alt={task.assignedTo.displayName}
+                        />
+                      )}
                       <AvatarFallback className="gba:text-xs">{getInitials(task.assignedTo.firstName, task.assignedTo.lastName)}</AvatarFallback>
                     </Avatar>
                     <span className="gba:text-sm gba:font-medium">{task.assignedTo.displayName}</span>

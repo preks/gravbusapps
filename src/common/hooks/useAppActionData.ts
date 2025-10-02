@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useMemo } from 'react';
 import { ActionOption } from '@newwork/nw-design-system';
 import { useMainContextsData } from './useMainContextsData';
 import { useFlowItems, ExternalContextData } from './useFlowItems';
@@ -78,16 +78,22 @@ export const useAppActionData = (
   // Track whether a deferred fetch has been attempted
   const [hasDeferredFetchAttempted, setHasDeferredFetchAttempted] = useState(false);
 
+  // Memoize the contexts array to prevent unnecessary re-renders
+  const contextsArray = useMemo(() => config.contextsArray ?? EMPTY_CONTEXTS_ARRAY, [config.contextsArray]);
+
   // Use manual mode when deferring requests until click/open
   const {
     mainContextsData,
     fetchMainContextsData,
     isLoading: isLoadingContexts,
   } = useMainContextsData(
-    config.contextsArray ?? EMPTY_CONTEXTS_ARRAY,
+    contextsArray,
     config.accessToken ?? "",
     !!config.deferMainContextRequestsUntilClick
   );
+
+  // Memoize external context data to prevent unnecessary re-renders
+  const externalContextData = useMemo(() => config.externalContextData ?? EMPTY_EXTERNAL_CONTEXT_DATA, [config.externalContextData]);
 
   const {
     flowData,
@@ -95,7 +101,7 @@ export const useAppActionData = (
     isLoading: isLoadingFlows,
   } = useFlowItems({
     mainContextsData,
-    externalContextData: config.externalContextData ?? EMPTY_EXTERNAL_CONTEXT_DATA,
+    externalContextData,
     isFlowButtonOrigin: true,
     accessToken: config.accessToken ?? "",
     manualFetch: !!config.deferMainContextRequestsUntilClick,

@@ -3,15 +3,18 @@ export interface ContactFormValues {
   firstName: string;
   lastName: string;
   fullName: string; // ✅ Available in InvestmentContact
+  type: string; // ✅ Available in InvestmentContact - Contact type enum
   academicTitleRef: string;
   birthDate: string;
   languageRef: string; // ✅ Available in InvestmentContact
-  description: string; // ✅ Available in InvestmentContact
 
   // Professional Information
   jobPosition: string; // ✅ Available in InvestmentContact
   department: string; // ✅ Available in InvestmentContact
-  code: string; // ✅ Available in InvestmentContact (business code)
+
+  // Social Media Information
+  linkedinUrl: string; // ✅ Available in InvestmentContact via communication channels
+  xingUrl: string; // ✅ Available in InvestmentContact via communication channels
 
   // ✅ REMOVED: Fields NOT available in InvestmentContact database
   // salutationRef: string; // ❌ NOT in InvestmentContact schema
@@ -88,11 +91,29 @@ export interface InvestmentContactQueryResult {
   phone?: string;
   jobPosition?: string;
   department?: string;
-  code?: string;
   type?: string; // ✅ NEW: Contact type enum
-  description?: string;
   notesSummary?: string;
+
+  // Social Media Information
+  linkedinUrl?: string; // ✅ NEW: LinkedIn URL from communication channels
+  xingUrl?: string; // ✅ NEW: Xing URL from communication channels
   businessKey?: string;
+
+  // Communication Channels
+  communicationChannels?: Array<{
+    id: string;
+    communicationChannelRef: string;
+    value: string;
+    valueExtension?: string;
+    source?: string;
+    activeFrom?: string;
+    activeTo?: string;
+    communicationChannel?: {
+      id: string;
+      value: string;
+      code: string;
+    };
+  }>;
   birthDate?: string;
   picture?: string; // ✅ NEW: Profile picture URL
   pictureThumbnail?: string; // ✅ NEW: Profile picture thumbnail
@@ -118,7 +139,3 @@ export interface InvestmentContactQueryResult {
   // updatedBy?: string; // ❌ NOT in InvestmentContact schema
 }
 
-// ✅ NEW: Interface for InvestmentContact data response
-export interface InvestmentContactDataResponse {
-  InvestmentContact: InvestmentContactQueryResult[];
-}

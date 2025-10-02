@@ -63,7 +63,7 @@ const ContactDocuments: React.FC<ContactDocumentsProps> = ({ contactId, context 
       fileSize: doc.fileSize,
       createdBy: doc.createdBy,
       parentDocument: typeof doc.parentDocument === 'object' ? doc.parentDocument?.id ?? null : doc.parentDocument ?? null,
-      folder: !doc.mimeType && !doc.file && !doc.fileSize, // Infer folder from lack of file properties
+      folder: doc.folder === true, // Use direct folder property like opportunity documents
       version: doc.version,
       updatedAt: doc.updatedAt,
       updatedBy: doc.updatedBy

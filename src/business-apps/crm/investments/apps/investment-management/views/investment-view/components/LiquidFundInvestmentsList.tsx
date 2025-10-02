@@ -437,7 +437,7 @@ const LiquidFundInvestmentsList: React.FC<LiquidFundInvestmentsListProps> = (con
                 {visibleColumns.includes('created') && (
                   <SortableTableHead field="createdAt" currentSortField={sortField} currentSortOrder={sortOrder} onSort={handleSortingChange}>{getTranslationFromI18nKeyAndLabel('investment:liquidFund.columns.created', 'Created')}</SortableTableHead>
                 )}
-                {visibleColumns.includes('actions') && <TableHead className="gba:w-[60px]">{getTranslationFromI18nKeyAndLabel('investment:liquidFund.columns.actions', 'Actions')}</TableHead>}
+                {visibleColumns.includes('actions') && <TableHead className="gba:w-[60px]">Actions</TableHead>}
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -494,12 +494,12 @@ const LiquidFundInvestmentsList: React.FC<LiquidFundInvestmentsListProps> = (con
                         <AppActionButton
                           data-testid={`liquid-fund-investment-update-button-${inv.id}`}
                           size="icon"
-                          contextsArray={[FlowContextName.liquidFundInvestmentEntity]}
+                          contextsArray={[FlowContextName.investmentEntity]}
                           externalContextData={{ investmentId: inv.id }}
                           prefixDataTestId={`liquid-fund-investment-update`}
                           accessToken={accessToken}
                           emptyStateBehavior="enable"
-                          deferMainContextRequestsUntilClick
+                          deferMainContextRequestsUntilClick={true}
                           onClick={(e) => e.stopPropagation()}
                         />
                       </div>

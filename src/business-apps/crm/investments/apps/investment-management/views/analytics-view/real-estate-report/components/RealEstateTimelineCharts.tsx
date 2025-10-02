@@ -60,7 +60,7 @@ export const RealEstateTimelineCharts: React.FC<RealEstateTimelineChartsProps> =
           </div>
         </CardHeader>
         <CardContent>
-          <ChartContainer config={timelineConfig}>
+          <ChartContainer config={timelineConfig} className="gba:h-[400px] gba:w-full">
             <ComposedChart data={timelineData}>
               <XAxis dataKey="period" />
               <YAxis yAxisId="left" />
@@ -150,7 +150,7 @@ export const RealEstateTimelineCharts: React.FC<RealEstateTimelineChartsProps> =
           </div>
         </CardHeader>
         <CardContent>
-          <ChartContainer config={performanceConfig}>
+          <ChartContainer config={performanceConfig} className="gba:h-[400px] gba:w-full">
             <ComposedChart data={performanceData}>
               <XAxis dataKey="period" />
               <YAxis yAxisId="left" />
@@ -229,7 +229,7 @@ export const RealEstateTimelineCharts: React.FC<RealEstateTimelineChartsProps> =
           </div>
         </CardHeader>
         <CardContent>
-          <ChartContainer config={buildingYearConfig}>
+          <ChartContainer config={buildingYearConfig} className="gba:h-[400px] gba:w-full">
             <ComposedChart data={buildingYearData}>
               <XAxis dataKey="yearRange" />
               <YAxis yAxisId="left" />

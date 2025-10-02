@@ -1,6 +1,51 @@
 import { useState, useEffect } from 'react';
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient';
 
+// Import the sales cycle calculation function
+const calculateSalesCycleLength = (opportunities: any): number => {
+  const wonOpportunities = (
+    opportunities.WonOpportunitiesAndWithCloseDate || []
+  ).filter(
+    (opp: any) => opp.opportunityStatus?.code === "WON" && opp.closeDate
+  );
+
+  if (wonOpportunities.length === 0) return 0;
+
+  const totalDays = wonOpportunities.reduce((sum: number, opp: any) => {
+    const created = new Date(opp.createdAt);
+    const closed = new Date(opp.closeDate);
+    
+    // Validate that closeDate is not before createdAt (data quality check)
+    if (closed < created) {
+      console.warn(`Opportunity ${opp.id} has closeDate (${opp.closeDate}) before createdAt (${opp.createdAt}). Skipping this opportunity.`);
+      return sum; // Skip this opportunity
+    }
+    
+    const days = Math.ceil(
+      (closed.getTime() - created.getTime()) / (1000 * 60 * 60 * 24)
+    );
+    
+    // Additional safety check - ensure days is not negative
+    if (days < 0) {
+      console.warn(`Opportunity ${opp.id} calculated negative days (${days}). Skipping this opportunity.`);
+      return sum; // Skip this opportunity
+    }
+    
+    return sum + days;
+  }, 0);
+
+  // Count only valid opportunities (those that passed validation)
+  const validOpportunities = wonOpportunities.filter((opp: any) => {
+    const created = new Date(opp.createdAt);
+    const closed = new Date(opp.closeDate);
+    return closed >= created;
+  });
+
+  if (validOpportunities.length === 0) return 0;
+
+  return Math.round(totalDays / validOpportunities.length);
+};
+
 // Trend data interface for KPI comparisons
 export interface KpiTrendData {
   // Current month counts (newly created)
@@ -40,6 +85,14 @@ export interface KpiTrendData {
   actualOpportunityWinRateLastMonth: number;
   actualAvgDealSizeThisMonth: number;
   actualAvgDealSizeLastMonth: number;
+  
+  // Additional trend metrics for the new cards
+  currentMonthLeadConversionRate: number;
+  previousMonthLeadConversionRate: number;
+  currentMonthAvgDealSize: number;
+  previousMonthAvgDealSize: number;
+  currentMonthSalesCycleLength: number;
+  previousMonthSalesCycleLength: number;
 }
 
 // Custom hook for KPI trend data
@@ -203,6 +256,35 @@ export const useKpiTrendData = (accessToken: string) => {
                 opportunityStatus: {code: {_eq: "WON"}}
               }
             ) { aggregate { count sum { estimatedAmount } } }
+            
+            # Individual opportunity records for sales cycle calculation
+            currentMonthWonOpportunitiesWithCloseDate: Opportunity(
+              where: {
+                isDeleted: {_eq: false}
+                createdAt: {_gte: "${currentMonthStart}", _lt: "${nextMonthStart}"}
+                opportunityStatus: {code: {_eq: "WON"}}
+                closeDate: {_isNull: false}
+              }
+            ) {
+              id
+              createdAt
+              closeDate
+              opportunityStatus { code }
+            }
+            
+            previousMonthWonOpportunitiesWithCloseDate: Opportunity(
+              where: {
+                isDeleted: {_eq: false}
+                createdAt: {_gte: "${previousMonthStart}", _lt: "${currentMonthStart}"}
+                opportunityStatus: {code: {_eq: "WON"}}
+                closeDate: {_isNull: false}
+              }
+            ) {
+              id
+              createdAt
+              closeDate
+              opportunityStatus { code }
+            }
           }
         `;
 
@@ -245,6 +327,18 @@ export const useKpiTrendData = (accessToken: string) => {
             (result.currentMonthWonOpportunities.aggregate.sum?.estimatedAmount || 0) / result.currentMonthWonOpportunities.aggregate.count : 0,
           actualAvgDealSizeLastMonth: result.previousMonthWonOpportunities.aggregate.count > 0 ? 
             (result.previousMonthWonOpportunities.aggregate.sum?.estimatedAmount || 0) / result.previousMonthWonOpportunities.aggregate.count : 0,
+          
+          // Additional trend metrics for the new cards
+          currentMonthLeadConversionRate: result.currentMonthLeads.aggregate.count > 0 ? 
+            (result.currentMonthConvertedLeads.aggregate.count / result.currentMonthLeads.aggregate.count) * 100 : 0,
+          previousMonthLeadConversionRate: result.previousMonthLeads.aggregate.count > 0 ? 
+            (result.previousMonthConvertedLeads.aggregate.count / result.previousMonthLeads.aggregate.count) * 100 : 0,
+          currentMonthAvgDealSize: result.currentMonthWonOpportunities.aggregate.count > 0 ? 
+            (result.currentMonthWonOpportunities.aggregate.sum?.estimatedAmount || 0) / result.currentMonthWonOpportunities.aggregate.count : 0,
+          previousMonthAvgDealSize: result.previousMonthWonOpportunities.aggregate.count > 0 ? 
+            (result.previousMonthWonOpportunities.aggregate.sum?.estimatedAmount || 0) / result.previousMonthWonOpportunities.aggregate.count : 0,
+          currentMonthSalesCycleLength: calculateSalesCycleLength({ WonOpportunitiesAndWithCloseDate: result.currentMonthWonOpportunitiesWithCloseDate || [] }),
+          previousMonthSalesCycleLength: calculateSalesCycleLength({ WonOpportunitiesAndWithCloseDate: result.previousMonthWonOpportunitiesWithCloseDate || [] })
         });
       } catch (err) {
         // console.error('Error fetching KPI trend data:', err);

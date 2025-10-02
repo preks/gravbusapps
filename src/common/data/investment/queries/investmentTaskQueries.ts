@@ -29,6 +29,9 @@ export const INVESTMENT_TASK_DESCRIPTORS: Descriptor[] = [
   { key: 'contactIds', path: 'contact.id', kind: 'inIds' },
   { key: 'leadIds', path: 'lead.id', kind: 'inIds' },
   { key: 'opportunityIds', path: 'opportunity.id', kind: 'inIds' },
+  
+  // Reference type filters (custom handling)
+  { key: 'referenceTypes', path: 'referenceType', kind: 'custom' },
 
   // Date range filters
   { key: 'dueDateFrom', path: 'dueDate', kind: 'dateFrom' },
@@ -52,6 +55,7 @@ export interface InvestmentTaskQueryVariables {
   contactIds?: string[];
   leadIds?: string[];
   opportunityIds?: string[];
+  referenceTypes?: string[];
 
   dueDateFrom?: string;
   dueDateTo?: string;
@@ -79,6 +83,28 @@ export const buildInvestmentTaskWhereCondition = (variables: InvestmentTaskQuery
   // Generic AND filters from descriptors
   const andFilters = buildFilter(variables as any, INVESTMENT_TASK_DESCRIPTORS);
   if (andFilters) whereClause += `, ${andFilters}`;
+
+  // Handle reference type filtering
+  if (variables.referenceTypes && variables.referenceTypes.length > 0) {
+    const referenceConditions = variables.referenceTypes.map(type => {
+      switch (type) {
+        case 'opportunity':
+          return '{ opportunity: { id: { _neq: null } } }';
+        case 'account':
+          return '{ account: { id: { _neq: null } } }';
+        case 'lead':
+          return '{ lead: { id: { _neq: null } } }';
+        case 'contact':
+          return '{ contact: { id: { _neq: null } } }';
+        default:
+          return null;
+      }
+    }).filter(Boolean);
+
+    if (referenceConditions.length > 0) {
+      whereClause += `, _or: [${referenceConditions.join(', ')}]`;
+    }
+  }
 
   whereClause += ' }';
   return whereClause;

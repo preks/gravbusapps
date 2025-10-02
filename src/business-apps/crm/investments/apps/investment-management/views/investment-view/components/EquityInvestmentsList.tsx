@@ -475,12 +475,12 @@ const EquityInvestmentsList: React.FC<EquityInvestmentsListProps> = (props) => {
                         <AppActionButton
                           data-testid={`equity-investment-update-button-${investment.id}`}
                           size="icon"
-                          contextsArray={[FlowContextName.equityInvestmentEntity]}
+                          contextsArray={[FlowContextName.investmentEntity]}
                           externalContextData={{ investmentId: investment.id }}
                           prefixDataTestId="equity-investment-update"
                           accessToken={accessToken}
                           emptyStateBehavior="enable"
-                          deferMainContextRequestsUntilClick
+                          deferMainContextRequestsUntilClick={true}
                           onClick={(e) => e.stopPropagation()}
                         />
                       </div>

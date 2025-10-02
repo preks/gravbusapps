@@ -56,6 +56,30 @@ export const GET_INVESTMENT_ACCOUNT_ACTUAL_REVENUE = `
   }
 `;
 
+// Query to get total revenue with trend data (current vs previous period)
+export const GET_INVESTMENT_TOTAL_REVENUE_WITH_TREND = `
+  query GetInvestmentTotalRevenueWithTrend($currentStart: timestamptz!, $previousStart: timestamptz!, $previousEnd: timestamptz!) {
+    current: InvestmentAccount(where: { isDeleted: { _eq: false }, createdAt: { _gte: $currentStart } }, limit: 100) {
+      id
+      investment {
+        forecastedRevenueAmount
+        currency {
+          code
+        }
+      }
+    }
+    previous: InvestmentAccount(where: { isDeleted: { _eq: false }, createdAt: { _gte: $previousStart, _lt: $previousEnd } }, limit: 100) {
+      id
+      investment {
+        forecastedRevenueAmount
+        currency {
+          code
+        }
+      }
+    }
+  }
+`;
+
 export interface TrendData { current: number; previous: number; }
 
 export const useAccountStatisticsQueries = (context: BusinessAppContextProps) => {
@@ -217,11 +241,67 @@ export const useAccountStatisticsQueries = (context: BusinessAppContextProps) =>
     }
   }, [graphqlClient]);
 
+  const fetchTotalRevenueWithTrend = useCallback(async (): Promise<TrendData> => {
+    try {
+      const now = new Date();
+      const currentStart = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000); // Last 30 days
+      const previousEnd = currentStart;
+      const previousStart = new Date(currentStart.getTime() - 30 * 24 * 60 * 60 * 1000); // Previous 30 days
+
+      const result = await graphqlClient.request<{
+        current: Array<{
+          id: string;
+          investment: Array<{
+            forecastedRevenueAmount: number | null;
+            currency: { code: string } | null;
+          }>;
+        }>;
+        previous: Array<{
+          id: string;
+          investment: Array<{
+            forecastedRevenueAmount: number | null;
+            currency: { code: string } | null;
+          }>;
+        }>;
+      }>(GET_INVESTMENT_TOTAL_REVENUE_WITH_TREND, {
+        currentStart: currentStart.toISOString(),
+        previousStart: previousStart.toISOString(),
+        previousEnd: previousEnd.toISOString(),
+      });
+
+      // Calculate current period revenue
+      let currentRevenue = 0;
+      for (const account of result.current) {
+        for (const investment of account.investment) {
+          if (investment.forecastedRevenueAmount !== null && investment.forecastedRevenueAmount > 0) {
+            currentRevenue += investment.forecastedRevenueAmount;
+          }
+        }
+      }
+
+      // Calculate previous period revenue
+      let previousRevenue = 0;
+      for (const account of result.previous) {
+        for (const investment of account.investment) {
+          if (investment.forecastedRevenueAmount !== null && investment.forecastedRevenueAmount > 0) {
+            previousRevenue += investment.forecastedRevenueAmount;
+          }
+        }
+      }
+
+      return { current: currentRevenue, previous: previousRevenue };
+    } catch (error) {
+      console.error('Error fetching total revenue with trend:', error);
+      return { current: 0, previous: 0 };
+    }
+  }, [graphqlClient]);
+
   return {
     fetchRecentAccountsWithTrend,
     fetchActiveAccountsWithTrend,
     fetchAccountsThisYearWithTrend,
     fetchTotalRevenueApprox,
+    fetchTotalRevenueWithTrend,
     fetchCurrencyInfo,
   };
 };
