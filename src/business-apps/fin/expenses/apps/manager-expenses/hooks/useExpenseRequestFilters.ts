@@ -62,6 +62,7 @@ export const useExpenseRequestFilters = ({
   const [localMostUsedCurrency, setLocalMostUsedCurrency] = useState<string | null>(null);
   const [userHasManuallySelectedCurrency, setUserHasManuallySelectedCurrency] =
     useState<boolean>(false);
+  const [filtersInitialized, setFiltersInitialized] = useState(false);
 
   const contextProps: BusinessAppContextProps = {
     accessToken: accessToken || "",
@@ -87,7 +88,12 @@ export const useExpenseRequestFilters = ({
     }
   }, [detectedCurrency, currenciesLoading, userHasManuallySelectedCurrency, localPrimaryCurrency]);
 
-  useEffect(() => {}, [localPrimaryCurrency]);
+  // Mark filters as initialized once currency data is ready
+  useEffect(() => {
+    if (!filtersInitialized && !currenciesLoading) {
+      setFiltersInitialized(true);
+    }
+  }, [filtersInitialized, currenciesLoading]);
 
   useEffect(() => {
     if (localPrimaryCurrency && onCurrencyChange) {
@@ -181,8 +187,8 @@ export const useExpenseRequestFilters = ({
 
   const resetCurrencySelection = useCallback(() => {
     setUserHasManuallySelectedCurrency(false);
-    setLocalPrimaryCurrency("EUR");
-  }, []);
+    setLocalPrimaryCurrency(localMostUsedCurrency || "");
+  }, [localMostUsedCurrency]);
 
   const addFilter = useCallback(
     (filterId: string) => {
@@ -199,7 +205,7 @@ export const useExpenseRequestFilters = ({
   );
 
   const returnPrimaryCurrency = useMemo(() => {
-    const currency = localPrimaryCurrency || "EUR";
+    const currency = localPrimaryCurrency || "";
 
     return currency;
   }, [localPrimaryCurrency]);

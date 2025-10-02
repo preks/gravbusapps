@@ -25,6 +25,8 @@ export interface UseAdvancePaymentFiltersReturn {
   setCurrencyFilter: (currency: string) => void;
   // Loading state for currency data
   currenciesLoading: boolean;
+  // Initialization flag (set true once filter data is ready)
+  filtersInitialized: boolean;
 }
 
 export const useAdvancePaymentFilters = ({
@@ -37,6 +39,7 @@ export const useAdvancePaymentFilters = ({
   // Local primary currency for advance payments (independent from global store)
   const [localPrimaryCurrency, setLocalPrimaryCurrency] = useState<string>("");
   const [userHasSelectedCurrency, setUserHasSelectedCurrency] = useState(false);
+  const [filtersInitialized, setFiltersInitialized] = useState(false);
 
   // Use the global currency store with enhanced properties
   const {
@@ -66,6 +69,13 @@ export const useAdvancePaymentFilters = ({
       setLocalPrimaryCurrency(advancePaymentMostUsedCurrency);
     }
   }, [advancePaymentMostUsedCurrency, userHasSelectedCurrency]);
+
+  // Mark filters as initialized once currency data is ready
+  useEffect(() => {
+    if (!filtersInitialized && !currenciesLoading && currenciesInitialized) {
+      setFiltersInitialized(true);
+    }
+  }, [filtersInitialized, currenciesLoading, currenciesInitialized]);
 
   const handleStatusFilterChange = useCallback(
     (newStatus: string[] | null) => {
@@ -203,5 +213,6 @@ export const useAdvancePaymentFilters = ({
     currencyFilter: localPrimaryCurrency,
     setCurrencyFilter: setLocalPrimaryCurrency,
     currenciesLoading,
+    filtersInitialized,
   };
 };

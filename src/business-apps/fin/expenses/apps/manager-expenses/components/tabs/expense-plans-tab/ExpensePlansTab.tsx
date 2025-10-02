@@ -104,7 +104,7 @@ const ExpensePlansTab: React.FC<ExpensePlansTabProps> = (props) => {
   }, [setSearchTerm, setStatusFilter]);
 
   return (
-    <div className="gba:h-full gba:flex gba:flex-col">
+    <div className="gba:h-full gba:flex gba:flex-col" data-testid="expense-plans-tab-container">
       {/* Statistics Section */}
       <div className="gba:mb-6">
         <ExpensePlanStatisticsDisplay

@@ -135,7 +135,7 @@ export const useCurrencyData = (accessToken: string, managerId: string) => {
   
   // Default to most used currency, fallback to primary currency from store
   const defaultCurrency = useMemo(() => {
-    return localMostUsedCurrency || storeMostUsedCurrency || primaryCurrency || 'USD';
+    return localMostUsedCurrency || storeMostUsedCurrency || primaryCurrency || 'EUR';
   }, [localMostUsedCurrency, storeMostUsedCurrency, primaryCurrency]);
   
   // Combine all data for the component

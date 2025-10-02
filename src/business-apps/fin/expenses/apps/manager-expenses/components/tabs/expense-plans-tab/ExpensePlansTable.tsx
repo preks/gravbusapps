@@ -286,11 +286,11 @@ const ExpensePlansTable: React.FC<ExpensePlansTableProps> = (props) => {
             <TableHeader className="gba:sticky gba:top-0 gba:bg-white gba:z-10 gba:border-b gba:border-border">
               <TableRow>
                 <TableHead
-                  className="gba:w-[60px] gba:min-w-[60px] gba:max-w-[60px] gba:box-border gba:bg-gray-50 gba:font-semibold"
+                  className="gba:w-[60px] gba:min-w-[60px] gba:max-w-[60px] gba:box-border gba:bg-muted gba:font-semibold"
                   data-testid={`${DATA_TEST_ID_PREFIX}-actions-header`}
                 ></TableHead>
                 <TableHead
-                  className="gba:w-[18%] gba:cursor-pointer gba:select-none gba:bg-gray-50 gba:font-semibold"
+                  className="gba:w-[18%] gba:cursor-pointer gba:select-none gba:bg-muted gba:font-semibold"
                   onClick={() => handleSort("title")}
                   data-testid={`${DATA_TEST_ID_PREFIX}-title-header`}
                 >
@@ -302,14 +302,14 @@ const ExpensePlansTable: React.FC<ExpensePlansTableProps> = (props) => {
                     {renderSortIndicator("title")}
                   </div>
                 </TableHead>
-                <TableHead className="gba:w-[10%] gba:bg-gray-50 gba:font-semibold">
+                <TableHead className="gba:w-[10%] gba:bg-muted gba:font-semibold">
                   {getTranslationFromI18nKeyAndLabel(
                     "lowcoder:expense_request_list.expense_request_filter.request_number_input",
                     "Request Code",
                   )}
                 </TableHead>
                 <TableHead
-                  className="gba:w-[8%] gba:cursor-pointer gba:select-none gba:bg-gray-50 gba:font-semibold"
+                  className="gba:w-[8%] gba:cursor-pointer gba:select-none gba:bg-muted gba:font-semibold"
                   onClick={() => handleSort("startDate")}
                   data-testid={`${DATA_TEST_ID_PREFIX}-start-date-header`}
                 >
@@ -322,7 +322,7 @@ const ExpensePlansTable: React.FC<ExpensePlansTableProps> = (props) => {
                   </div>
                 </TableHead>
                 <TableHead
-                  className="gba:w-[8%] gba:cursor-pointer gba:select-none gba:bg-gray-50 gba:font-semibold"
+                  className="gba:w-[8%] gba:cursor-pointer gba:select-none gba:bg-muted gba:font-semibold"
                   onClick={() => handleSort("endDate")}
                   data-testid={`${DATA_TEST_ID_PREFIX}-end-date-header`}
                 >
@@ -336,7 +336,7 @@ const ExpensePlansTable: React.FC<ExpensePlansTableProps> = (props) => {
                   </div>
                 </TableHead>
                 <TableHead
-                  className="gba:w-[20%] gba:cursor-pointer gba:select-none gba:bg-gray-50 gba:font-semibold"
+                  className="gba:w-[20%] gba:cursor-pointer gba:select-none gba:bg-muted gba:font-semibold"
                   onClick={() => handleSort("employee.fullName")}
                   data-testid={`${DATA_TEST_ID_PREFIX}-employee-header`}
                 >
@@ -349,7 +349,7 @@ const ExpensePlansTable: React.FC<ExpensePlansTableProps> = (props) => {
                   </div>
                 </TableHead>
                 <TableHead
-                  className="gba:w-[8%] gba:cursor-pointer gba:select-none gba:bg-gray-50 gba:font-semibold"
+                  className="gba:w-[8%] gba:cursor-pointer gba:select-none gba:bg-muted gba:font-semibold"
                   onClick={() => handleSort("createdAt")}
                   data-testid={`${DATA_TEST_ID_PREFIX}-creation-date-header`}
                 >
@@ -362,7 +362,7 @@ const ExpensePlansTable: React.FC<ExpensePlansTableProps> = (props) => {
                   </div>
                 </TableHead>
                 <TableHead
-                  className="gba:w-[12%] gba:cursor-pointer gba:select-none gba:bg-gray-50 gba:font-semibold"
+                  className="gba:w-[12%] gba:cursor-pointer gba:select-none gba:bg-muted gba:font-semibold"
                   onClick={() => handleSort("totalAmount")}
                   data-testid={`${DATA_TEST_ID_PREFIX}-amount-header`}
                 >
@@ -372,7 +372,7 @@ const ExpensePlansTable: React.FC<ExpensePlansTableProps> = (props) => {
                   </div>
                 </TableHead>
                 <TableHead
-                  className="gba:w-[20%] gba:cursor-pointer gba:select-none gba:bg-gray-50 gba:font-semibold gba:pr-6"
+                  className="gba:w-[20%] gba:cursor-pointer gba:select-none gba:bg-muted gba:font-semibold gba:pr-6"
                   onClick={() => handleSort("status")}
                   data-testid={`${DATA_TEST_ID_PREFIX}-status-header`}
                 >
@@ -393,13 +393,13 @@ const ExpensePlansTable: React.FC<ExpensePlansTableProps> = (props) => {
                   <TableRow
                     key={plan.id}
                     data-testid={`${DATA_TEST_ID_PREFIX}-row-${plan.id}`}
-                    className={`gba:cursor-pointer gba:hover:bg-gray-50 gba:transition-colors ${
-                      selectedItem?.id === plan.id ? "gba:bg-blue-50" : ""
+                    className={`gba:cursor-pointer gba:hover:bg-accent gba:transition-colors ${
+                      selectedItem?.id === plan.id ? "gba:bg-accent/50" : ""
                     }`}
                     onClick={() => handleSelectItem(plan)}
                   >
                     <TableCell className="gba:w-[60px] gba:min-w-[60px] gba:max-w-[60px] gba:box-border gba:py-4 gba:px-0" data-testid={`${DATA_TEST_ID_PREFIX}-actions-cell-${plan.id}`}>
-                      <div className="gba:flex gba:justify-center gba:items-center gba:gap-0">
+                      <div className="gba:flex gba:justify-start gba:items-center gba:gap-0">
                         <AppActionButton
                           onClick={(e) => e.stopPropagation()}
                           data-testid={`${DATA_TEST_ID_PREFIX}-update-plan-button-${plan.id}`}
@@ -687,6 +687,10 @@ const ExpensePlansTable: React.FC<ExpensePlansTableProps> = (props) => {
       </Modal>
 
       {/* Expense Plan Details Sheet */}
+      {/* IMPORTANT: The 'title' prop is REQUIRED by @newwork/nw-design-system Sheet interface (line 20).
+          Removing it causes TypeScript error: "Property 'title' is missing but required in type 'SheetProps'".
+          SonarCloud incorrectly flags it as unsupported. Verified in Sheet.d.ts - title: string (required).
+          The component renders the title internally. DO NOT REMOVE. */}
       <Sheet
         open={!!selectedItem}
         onOpenChange={(open) => !open && handleCloseDetails()}

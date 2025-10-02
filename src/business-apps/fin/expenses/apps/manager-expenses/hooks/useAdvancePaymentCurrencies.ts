@@ -11,6 +11,7 @@ interface UseAdvancePaymentCurrenciesProps {
 
 interface UseAdvancePaymentCurrenciesReturn {
   availableCurrencies: string[];
+  mostUsedCurrency: string | null;
   isLoading: boolean;
   error: Error | null;
   refetch: () => Promise<void>;

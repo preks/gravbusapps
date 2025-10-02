@@ -80,11 +80,8 @@ const BarChartComponent: React.FC<BarChartProps> = ({
         </CardHeader>
       )}
       <CardContent>
-        <div
-          style={{ height: height }}
-          data-testid={`${title.toLowerCase().replace(/\s+/g, "-")}-chart`}
-        >
-          <ResponsiveContainer width="100%" height="100%">
+        <div data-testid={`${title.toLowerCase().replace(/\s+/g, "-")}-chart`}>
+          <ResponsiveContainer width="100%" height={height}>
             <BarChart
               data={data}
               margin={{

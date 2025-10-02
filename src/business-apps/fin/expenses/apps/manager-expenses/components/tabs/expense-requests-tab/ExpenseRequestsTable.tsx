@@ -455,12 +455,12 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = (props) => {
                 return (
                   <TableRow
                     key={record.id}
-                    className="gba:cursor-pointer gba:hover:bg-gray-50"
+                    className="gba:cursor-pointer gba:hover:bg-accent"
                     onClick={() => handleSelectRequest(record)}
                     data-testid={`expense-requests-row-${record.id}`}
                   >
                     <TableCell className="gba:w-[60px] gba:min-w-[60px] gba:max-w-[60px] gba:box-border gba:py-4 gba:px-0" data-testid={`expense-requests-actions-cell-${record.id}`}>
-                      <div className="gba:flex gba:justify-center gba:items-center gba:gap-0">
+                      <div className="gba:flex gba:justify-start gba:items-center gba:gap-0">
                         <AppActionButton
                           onClick={(e) => e.stopPropagation()}
                           data-testid={`expense-requests-update-button-${record.id}`}
@@ -824,6 +824,10 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = (props) => {
       />
 
       {/* Expense Request Details Sheet */}
+      {/* IMPORTANT: The 'title' prop is REQUIRED by @newwork/nw-design-system Sheet interface (line 20).
+          Removing it causes TypeScript error: "Property 'title' is missing but required in type 'SheetProps'".
+          SonarCloud incorrectly flags it as unsupported. Verified in Sheet.d.ts - title: string (required).
+          The component renders the title internally. DO NOT REMOVE. */}
       <Sheet
         open={!!selectedRequest}
         onOpenChange={(open) => !open && setSelectedRequest(null)}

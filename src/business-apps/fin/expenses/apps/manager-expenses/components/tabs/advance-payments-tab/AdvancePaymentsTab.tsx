@@ -91,7 +91,7 @@ const AdvancePaymentsTab: React.FC<AdvancePaymentsTabProps> = (props) => {
   }, [setSearchTerm, setStatusFilter]);
 
   return (
-    <div className="gba:h-full gba:flex gba:flex-col">
+    <div className="gba:h-full gba:flex gba:flex-col" data-testid="advance-payments-tab-container">
       {/* Statistics Section */}
       <div className="gba:mb-6">
         <AdvancePaymentStatistics 

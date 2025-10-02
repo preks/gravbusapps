@@ -187,7 +187,7 @@ const ExpenseDashboardTab: React.FC<ExpenseDashboardTabProps> = (props) => {
   ];
 
   return (
-    <div className="gba:h-full gba:flex gba:flex-col">
+    <div className="gba:h-full gba:flex gba:flex-col" data-testid="expense-dashboard-tab-container">
       {/* Currency Filter */}
       <div
         className="gba:flex gba:justify-start gba:mb-4 gba:px-6"

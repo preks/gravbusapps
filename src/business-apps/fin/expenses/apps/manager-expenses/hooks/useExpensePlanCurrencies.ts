@@ -12,10 +12,6 @@ interface CurrencyDetectionResponse {
     id: string;
     currencyRef: string;
   }[];
-  allPlans: {
-    id: string;
-    currencyRef: string;
-  }[];
 }
 
 const GET_CURRENCY_DISTRIBUTION = `
@@ -28,15 +24,6 @@ const GET_CURRENCY_DISTRIBUTION = `
             supervisorEmployeeId: {_eq: $managerId}
           }
         },
-        isDeleted: {_eq: false}
-      }
-    ) {
-      id
-      currencyRef
-    }
-    # Debug: Get all plans without manager filtering
-    allPlans: ExpensePlan(
-      where: {
         isDeleted: {_eq: false}
       }
     ) {
@@ -72,7 +59,7 @@ export const useExpensePlanCurrencies = (
         { managerId }
       );
 
-      if (result?.managerPlans && result?.allPlans) {
+      if (result?.managerPlans) {
         // Helper function to count currencies from plans
         const countCurrencies = (
           plans: { currencyRef: string }[]

@@ -64,6 +64,7 @@ export const useExpensePlanFilters = ({
   const [localMostUsedCurrency, setLocalMostUsedCurrency] = useState<string | null>(null);
   const [userHasManuallySelectedCurrency, setUserHasManuallySelectedCurrency] =
     useState<boolean>(false);
+  const [filtersInitialized, setFiltersInitialized] = useState(false);
 
   // Create context object for the currency hook
   const contextProps: BusinessAppContextProps = {
@@ -92,6 +93,13 @@ export const useExpensePlanFilters = ({
       }
     }
   }, [detectedCurrency, currenciesLoading, localPrimaryCurrency, userHasManuallySelectedCurrency]);
+
+  // Mark filters as initialized once currency data is ready
+  useEffect(() => {
+    if (!filtersInitialized && !currenciesLoading) {
+      setFiltersInitialized(true);
+    }
+  }, [filtersInitialized, currenciesLoading]);
 
   // Available currencies from fetched data
   const availableCurrencies = useMemo(() => {
