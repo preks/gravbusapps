@@ -22,6 +22,7 @@ import * as RemixIcons from "@remixicon/react";
 // Import PhosphorIcons for LauncherLayout
 import { TrendUpIcon } from "@phosphor-icons/react";
 import { MODULE_COLORS } from "@/common/constants/ui";
+import "./InvestmentLauncher.css";
 interface InvestmentLauncherProps extends BusinessAppContextProps {}
 
 const InvestmentLauncher: React.FC<InvestmentLauncherProps> = (context) => {
@@ -387,7 +388,9 @@ const InvestmentLauncher: React.FC<InvestmentLauncherProps> = (context) => {
         domain: "customer-relations",
         processName: "createLead",
         builderType: "NATIVE_SCREEN",
-        payload: {},
+        payload: {
+          accessToken: context.accessToken,
+        },
       });
     } else if (action.action === "convert-lead") {
       startProcess({
@@ -395,54 +398,67 @@ const InvestmentLauncher: React.FC<InvestmentLauncherProps> = (context) => {
         processName: "convertInvestmentLead",
         builderType: "NATIVE_SCREEN",
         payload: {
-          leadId: 'demo-lead-123' // Demo lead ID - in production this would come from context
+          leadId: 'demo-lead-123', // Demo lead ID - in production this would come from context
+          accessToken: context.accessToken,
         },
       });
     } else if (action.action === "save-opportunity") {
       startProcess({
-        domain: "customer-relations",
-        processName: "saveInvestmentOpportunity",
+        domain: "investment-relations",
+        processName: "createInvestmentOpportunity",
         builderType: "NATIVE_SCREEN",
-        payload: {},
+        payload: {
+          accessToken: context.accessToken,
+        },
       });
     } else if (action.action === "save-contact") {
       startProcess({
-        domain: "customer-relations",
-        processName: "saveContact",
+        domain: "investment-relations",
+        processName: "createInvestmentContact",
         builderType: "NATIVE_SCREEN",
-        payload: {},
+        payload: {
+          accessToken: context.accessToken,
+        },
       });
     } else if (action.action === "create-account") {
       startProcess({
-        domain: "customer-relations",
-        processName: "saveAccount",
+        domain: "investment-relations",
+        processName: "createInvestmentAccount",
         builderType: "NATIVE_SCREEN",
-        payload: {},
+        payload: {
+          accessToken: context.accessToken,
+        },
       });
     } else if (action.action === "create-opportunity") {
       startProcess({
-        domain: "customer-relations",
-        processName: "saveOpportunity",
+        domain: "investment-relations",
+        processName: "createInvestmentOpportunity",
         builderType: "NATIVE_SCREEN",
-        payload: {},
+        payload: {
+          accessToken: context.accessToken,
+        },
       });
     } else if (action.action === "create-contact") {
       startProcess({
-        domain: "customer-relations",
-        processName: "saveContact",
+        domain: "investment-relations",
+        processName: "createInvestmentContact",
         builderType: "NATIVE_SCREEN",
-        payload: {},
+        payload: {
+          accessToken: context.accessToken,
+        },
       });
     } else if (action.action === "create-investment") {
       startProcess({
         domain: "investment-relations",
         processName: "createInvestment",
         builderType: "NATIVE_SCREEN",
-        payload: {},
+        payload: {
+          accessToken: context.accessToken,
+        },
       });
     } else if (action.action === "generate-report") {
-      const url = buildPlatformUrl("/platform/irm/investment-relations", {
-        view: "dashboard",
+      const url = buildPlatformUrl("/platform/irm/investment-management", {
+        view: "investments",
       });
       navigateTo(url);
     } else {
