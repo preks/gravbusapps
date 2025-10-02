@@ -315,11 +315,17 @@ export const GET_INVESTMENTS = (variables: InvestmentQueryVariables = {}): strin
         investmentStatus {
           ${CATALOG_ENTRY}
         }
-        investmentRiskLevel {
-          ${CATALOG_ENTRY}
-        }
         currency {
           ${CATALOG_ENTRY}
+        }
+
+        # Investment role relationship (array)
+        investmentRole {
+          id
+          displayOrder
+          investmentRole {
+            ${CATALOG_ENTRY}
+          }
         }
 
         # Employee relationship (simplified)

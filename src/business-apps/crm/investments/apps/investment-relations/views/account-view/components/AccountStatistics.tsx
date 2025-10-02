@@ -16,12 +16,13 @@ interface AccountStatisticsProps extends BusinessAppContextProps {}
 export const AccountStatistics: React.FC<AccountStatisticsProps> = ({ ...context }) => {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<Error | null>(null);
-  const { fetchRecentAccountsWithTrend, fetchActiveAccountsWithTrend, fetchAccountsThisYearWithTrend, fetchTotalRevenueApprox, fetchCurrencyInfo } = useAccountStatisticsQueries(context);
+  const { fetchRecentAccountsWithTrend, fetchActiveAccountsWithTrend, fetchAccountsThisYearWithTrend, fetchTotalRevenueApprox, fetchTotalRevenueWithTrend, fetchCurrencyInfo } = useAccountStatisticsQueries(context);
 
   const [recent, setRecent] = useState<{ current: number; changePercent: number; isPositive: boolean }>({ current: 0, changePercent: 0, isPositive: true });
   const [active, setActive] = useState<{ current: number; changePercent: number; isPositive: boolean }>({ current: 0, changePercent: 0, isPositive: true });
   const [thisYear, setThisYear] = useState<{ current: number; changePercent: number; isPositive: boolean }>({ current: 0, changePercent: 0, isPositive: true });
   const [totalRevenue, setTotalRevenue] = useState<number>(0);
+  const [totalRevenueTrend, setTotalRevenueTrend] = useState<{ current: number; changePercent: number; isPositive: boolean }>({ current: 0, changePercent: 0, isPositive: true });
   const [currencyCode, setCurrencyCode] = useState<string>('USD'); // Default fallback
 
   useEffect(() => {
@@ -29,11 +30,12 @@ export const AccountStatistics: React.FC<AccountStatisticsProps> = ({ ...context
       setIsLoading(true);
       setError(null);
       try {
-        const [r, a, y, rev, currency] = await Promise.all([
+        const [r, a, y, rev, revTrend, currency] = await Promise.all([
           fetchRecentAccountsWithTrend(),
           fetchActiveAccountsWithTrend(),
           fetchAccountsThisYearWithTrend(),
           fetchTotalRevenueApprox(),
+          fetchTotalRevenueWithTrend(),
           fetchCurrencyInfo(),
         ]);
         const calc = (t: { current: number; previous: number }) => ({
@@ -45,6 +47,7 @@ export const AccountStatistics: React.FC<AccountStatisticsProps> = ({ ...context
         setActive(calc(a));
         setThisYear(calc(y));
         setTotalRevenue(rev);
+        setTotalRevenueTrend(calc(revTrend));
         setCurrencyCode(currency || 'USD'); // Use extracted currency or fallback to USD
       } catch (e) {
         setError(e instanceof Error ? e : new Error('Failed to load account statistics'));
@@ -117,6 +120,11 @@ export const AccountStatistics: React.FC<AccountStatisticsProps> = ({ ...context
       valueIsString: true,
       span: { xs: 24, sm: 12, lg: 6 },
       description: "Approx. based on revenue bands",
+      trend: {
+        value: formatTrendPercent(totalRevenueTrend.changePercent),
+        positive: totalRevenueTrend.isPositive,
+        description: "vs previous 30 days"
+      }
     }
   ];
 
