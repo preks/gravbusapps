@@ -120,6 +120,10 @@ const FeedbackTab: React.FC<FeedbackTabProps> = ({
     lastReviewDate: '',
   });
 
+  // Filters for requests
+  const [requestSearchTerm, setRequestSearchTerm] = useState<string>('');
+  const [requestStatus, setRequestStatus] = useState<'all' | 'pending' | 'completed'>('all');
+
   // Initialize GraphQL client
   const graphQLClient = useGraphqlClient(accessToken);
   
@@ -234,8 +238,8 @@ const FeedbackTab: React.FC<FeedbackTabProps> = ({
         firstName,
         lastName,
         rating: feedback.rating,
-        private: feedback.private,
-        type: feedback.type
+        private: (feedback as any).feedbackPublic === false,
+        type: ((feedback as any)?.type?.value as string) || (feedback as any).typeRef
       };
     });
   };
@@ -252,14 +256,7 @@ const FeedbackTab: React.FC<FeedbackTabProps> = ({
     );
   }
 
-  // Handle error state
-  if (error && !allFormattedFeedback.length) {
-    return (
-      <div className="gba:text-center gba:text-red-600 gba:py-8" data-testid="feedback-error">
-        <p>{error}</p>
-      </div>
-    );
-  }
+  // Note: Do not early-return error when there is no feedback; prefer empty state
   
   // Filter feedback based on search and filter criteria
   const formattedFilteredFeedback = allFormattedFeedback.filter(feedback => {
@@ -410,6 +407,28 @@ const FeedbackTab: React.FC<FeedbackTabProps> = ({
       <div className="gba:space-y-6" data-testid="feedback-requests-section">
         <div className="gba:flex gba:justify-between gba:items-center">
           <h3 className="gba:text-xl gba:font-semibold">Feedback Requests</h3>
+          <div className="gba:flex gba:items-center gba:gap-3">
+            <Input
+              placeholder="Search requests"
+              prefix={<SearchOutlined className="gba:text-gray-400" />}
+              className="gba:w-56 gba:rounded-md"
+              data-testid="requests-search-input"
+              value={requestSearchTerm}
+              onChange={(e) => setRequestSearchTerm(e.target.value)}
+            />
+            <Select
+              className="gba:w-40"
+              data-testid="requests-status-select"
+              value={requestStatus}
+              onChange={(value) => setRequestStatus(value as any)}
+              options={[
+                { value: 'all', label: 'All' },
+                { value: 'pending', label: 'Pending' },
+                { value: 'completed', label: 'Completed' },
+              ]}
+              suffixIcon={<DownloadOutlined className="gba:text-gray-400 gba:rotate-180" />}
+            />
+          </div>
         </div>
         
         {requestsLoading ? (
@@ -573,10 +592,6 @@ const FeedbackTab: React.FC<FeedbackTabProps> = ({
           <div className="gba:flex gba:justify-center gba:items-center gba:h-40" data-testid="feedback-loading">
             <Spin size="large" />
           </div>
-        ) : error ? (
-          <div className="gba:text-center gba:text-red-600 gba:py-8" data-testid="feedback-error">
-            <p>{error}</p>
-          </div>
         ) : formattedFilteredFeedback.length > 0 ? (
           <div className="gba:space-y-4" data-testid="feedback-list">
             {formattedFilteredFeedback.map((feedback, index) => (
@@ -612,12 +627,10 @@ const FeedbackTab: React.FC<FeedbackTabProps> = ({
                       
                       {/* Type Badge */}
                       {feedback.type && (
-                        <span 
-                          className={`gba:text-xs gba:px-2 gba:py-1 gba:rounded-full gba:font-medium ${
-                            feedback.type === 'Performance' ? 'gba:bg-blue-100 gba:text-blue-800' : 
-                            feedback.type === 'Skills' ? 'gba:bg-green-100 gba:text-green-800' : 
-                            'gba:bg-purple-100 gba:text-purple-800'
-                          }`}
+                        <span
+                          className={
+                            'gba:text-xs gba:px-2 gba:py-1 gba:rounded-full gba:font-medium gba:bg-gray-100 gba:text-gray-800'
+                          }
                           data-testid={`feedback-type-${index}`}
                         >
                           {feedback.type}
@@ -655,13 +668,20 @@ const FeedbackTab: React.FC<FeedbackTabProps> = ({
             ))}
           </div>
         ) : (
-          <Empty 
-            description={getTranslationFromI18nKeyAndLabel(
-              "lowcoder:hr_performance.no_feedback", 
-              "No feedback available"
-            )} 
-            data-testid="feedback-empty" 
-          />
+          <>
+            <Empty 
+              description={getTranslationFromI18nKeyAndLabel(
+                "lowcoder:hr_performance.no_feedback", 
+                "No feedback available"
+              )} 
+              data-testid="feedback-empty" 
+            />
+            {error && (
+              <div className="gba:text-center gba:text-gray-500 gba:py-4" data-testid="feedback-error-inline">
+                <p>{error}</p>
+              </div>
+            )}
+          </>
         )}
       </div>
     </div>

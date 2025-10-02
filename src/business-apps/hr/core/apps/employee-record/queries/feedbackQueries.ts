@@ -17,7 +17,8 @@ export const employeeFeedbackQuery = `
       typeRef
       type {
         id
-        name
+        code
+        value
       }
       senderEmployee {
         firstName
