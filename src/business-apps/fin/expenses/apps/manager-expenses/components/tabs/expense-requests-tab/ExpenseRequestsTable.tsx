@@ -866,9 +866,9 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = (props) => {
           )
         }
       >
-        <SheetContent className="gba:w-[500px] gba:sm:gba:w-[500px] gba:max-w-none">
+        <SheetContent className="gba:w-[600px] gba:sm:gba:w-[600px] gba:max-w-none">
           <SheetHeader>
-            <SheetTitle className="gba:text-xl gba:font-semibold gba:text-foreground">
+            <SheetTitle className="gba:text-xl gba:font-semibold gba:text-gray-900">
               {selectedRequest?.title ||
                 getTranslationFromI18nKeyAndLabel(
                   "lowcoder:expense_request_details.title",

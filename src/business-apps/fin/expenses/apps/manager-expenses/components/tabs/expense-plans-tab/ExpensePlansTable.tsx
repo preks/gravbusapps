@@ -728,7 +728,7 @@ const ExpensePlansTable: React.FC<ExpensePlansTableProps> = (props) => {
       >
         <SheetContent className="gba:w-[600px] gba:sm:gba:w-[600px] gba:max-w-none">
           <SheetHeader>
-            <SheetTitle className="gba:text-xl gba:font-semibold gba:text-foreground">
+            <SheetTitle className="gba:text-xl gba:font-semibold gba:text-gray-900">
               {selectedItem?.title ||
                 getTranslationFromI18nKeyAndLabel(
                   "lowcoder:approve_expense_plan.expense_subtitle_details",
