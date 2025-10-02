@@ -25,7 +25,8 @@ import {
   Building2, 
   Calendar, 
   User,
-  Award
+  Award,
+  Plus
 } from "lucide-react";
 import { BusinessAppContextProps } from "@/common/BusinessAppContext";
 import { DataContainer } from "@/components/layout/dataContainer/DataContainer";
@@ -482,15 +483,16 @@ const ExitOpportunities: React.FC<ExitOpportunitiesProps> = ({
               data-testid="exit-opportunities-add-action"
               emptyStateBehavior="hide"
             >
-              <button
-                className="gba:flex gba:flex-row gba:justify-center gba:items-center gba:px-3 gba:py-0 gba:h-8 gba:rounded gba:gap-1"
+              <Button
+                size="sm"
+                variant="default"
                 data-testid="exit-opportunities-add-action"
                 type="button"
+                style={{ gap: 'var(--nw-spacing-xs)' }}
               >
-                <span className="gba:h-4 gba:font-normal gba:text-sm gba:leading-4 gba:flex gba:items-center gba:text-black gba:flex-none order-1 gba:grow-0">
-                  Add
-                </span>
-              </button>
+                <Plus size={16} />
+                {getTranslationFromI18nKeyAndLabel('exit_opportunities.addOpportunity', 'Add Opportunity')}
+              </Button>
             </AppAction>
           ),
         }}

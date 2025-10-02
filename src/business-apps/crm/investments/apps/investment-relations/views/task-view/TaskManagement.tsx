@@ -1,18 +1,19 @@
 "use client";
 
 import React, { useState, useCallback, useEffect, useRef, useMemo } from 'react';
-import { Sheet, SheetContent, SheetHeader, SheetTitle, Tabs, TabsList, TabsTrigger, TabsContent } from '@newwork/nw-design-system';
-import { UserOutlined, TeamOutlined } from '@ant-design/icons';
+import { Sheet, SheetContent, SheetHeader, SheetTitle, Tabs, TabsList, TabsTrigger, TabsContent, Button } from '@newwork/nw-design-system';
+import { Plus, User, Users } from 'lucide-react';
 import { debounce, DEFAULT_LOAD_DEBOUNCE_DELAY } from '@/common/data/investment';
+import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
 
 import { DataContainer } from '@/components/layout/dataContainer';
 import { useTaskListData, useTaskFilters, useTaskStatistics } from './hooks';
 import { TaskTable, TaskDetails, TaskStatistics } from './components';
 import { AppAction } from '@/components/app-action/AppAction';
 import { FlowContextName } from '@/common/types/FlowRegistryTypes';
-import { PlusSquareIcon } from '@phosphor-icons/react';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 import { Task } from './types/TaskTypes';
+import { ColumnConfig } from '@/components/dataController';
 
 export interface TaskManagementProps extends BusinessAppContextProps {
   sourceApp?: string;
@@ -56,6 +57,34 @@ export const TaskManagement: React.FC<TaskManagementProps> = (props: TaskManagem
   const [sortOrder, setSortOrder] = useState<'ASC' | 'DESC'>(initialParams.sortOrder as 'ASC' | 'DESC');
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
   const initialLoadDone = useRef(false);
+
+  // Column visibility configuration
+  const [columnConfig, setColumnConfig] = useState<ColumnConfig[]>(() => [
+    { id: "actions", label: getTranslationFromI18nKeyAndLabel('investment.tasks.columns.actions', 'Actions'), visible: true, disabled: true },
+    { id: "task", label: getTranslationFromI18nKeyAndLabel('investment.tasks.columns.task', 'Task'), visible: true },
+    { id: "assignedTo", label: getTranslationFromI18nKeyAndLabel('investment.tasks.columns.assignedTo', 'Assigned To'), visible: true },
+    { id: "type", label: getTranslationFromI18nKeyAndLabel('investment.tasks.columns.type', 'Type'), visible: true },
+    { id: "priority", label: getTranslationFromI18nKeyAndLabel('investment.tasks.columns.priority', 'Priority'), visible: true },
+    { id: "status", label: getTranslationFromI18nKeyAndLabel('investment.tasks.columns.status', 'Status'), visible: true },
+    { id: "reference", label: getTranslationFromI18nKeyAndLabel('investment.tasks.columns.reference', 'Reference'), visible: true },
+    { id: "schedule", label: getTranslationFromI18nKeyAndLabel('investment.tasks.columns.schedule', 'Schedule / Due Date'), visible: true },
+    { id: "createdBy", label: getTranslationFromI18nKeyAndLabel('investment.tasks.columns.createdBy', 'Created By'), visible: true },
+  ]);
+
+  // Get visible columns for passing to table
+  const visibleColumns = columnConfig
+    .filter((col) => col.visible)
+    .map((col) => col.id);
+
+  // Handle column visibility change
+  const handleColumnVisibilityChange = useCallback(
+    (columnId: string, visible: boolean) => {
+      setColumnConfig((prev) =>
+        prev.map((col) => (col.id === columnId ? { ...col, visible } : col))
+      );
+    },
+    []
+  );
 
   useEffect(() => {
     if (initialParams.tab && activeTab === 'my') {
@@ -113,27 +142,15 @@ export const TaskManagement: React.FC<TaskManagementProps> = (props: TaskManagem
     const baseFilters = getFilters();
     if (activeTab === 'my') {
       const currentUserEmployeeId = userInfo?.employeeDetails?.employeeId;
-      console.log('🔍 Investment My Tasks Filter Debug:', {
-        userInfo,
-        employeeDetails: userInfo?.employeeDetails,
-        currentUserEmployeeId,
-        alternativeId: userInfo?.id,
-        alternativeEmployeeId: (userInfo as any)?.employeeId
-      });
       
       if (currentUserEmployeeId) {
-        console.log('✅ Using employeeDetails.employeeId:', currentUserEmployeeId);
         return { ...baseFilters, assignedEmployeeIds: [currentUserEmployeeId] };
       } else if ((userInfo as any)?.employeeId) {
         // Fallback to direct employeeId if employeeDetails.employeeId is not available
-        console.log('⚠️ Fallback to userInfo.employeeId:', (userInfo as any).employeeId);
         return { ...baseFilters, assignedEmployeeIds: [(userInfo as any).employeeId] };
       } else if (userInfo?.id) {
         // Last fallback to user ID
-        console.log('⚠️ Fallback to userInfo.id:', userInfo.id);
         return { ...baseFilters, assignedEmployeeIds: [userInfo.id] };
-      } else {
-        console.warn('❌ No user ID found for My Tasks filter. User info:', userInfo);
       }
     }
     return baseFilters;
@@ -192,7 +209,7 @@ export const TaskManagement: React.FC<TaskManagementProps> = (props: TaskManagem
           refetchStatistics();
         }
       } catch (err) {
-        console.error('Error handling process completion:', err);
+        // Silently handle errors in process completion
       }
     };
 
@@ -300,23 +317,31 @@ export const TaskManagement: React.FC<TaskManagementProps> = (props: TaskManagem
   }, [pageSize, updateURLParams, loadPage]);
 
   return (
-    <div className="gba:p-6" data-testid="task-management-content">
-      <div className="gba:mb-8" data-testid="task-management-header">
-        <div data-testid="task-management-title-section">
-          <h1 className="gba:text-4xl gba:font-bold gba:text-black gba:mb-3 gba:tracking-tight" data-testid="task-management-title">Tasks</h1>
-          <p className="gba:text-lg gba:text-gray-500 gba:font-normal gba:leading-relaxed" data-testid="task-management-subtitle">Manage and track investment tasks</p>
+    <div data-testid="task-management-content">
+      {/* Header */}
+      <div className="gba:mb-6" data-testid="task-management-header">
+        <div className="gba:flex gba:items-center gba:justify-between gba:mb-4" data-testid="task-management-title-section">
+          <div>
+            <h1 className="gba:text-2xl gba:font-bold gba:text-gray-900" data-testid="task-management-title">{getTranslationFromI18nKeyAndLabel('investment.tasks.title', 'Tasks')}</h1>
+            <p className="gba:text-gray-600" data-testid="task-management-subtitle">{getTranslationFromI18nKeyAndLabel('investment.tasks.subtitle', 'Manage and track investment tasks')}</p>
+          </div>
         </div>
-      </div>
 
-      <div className="gba:mb-6 gba:pb-6 gba:border-b gba:border-gray-200" data-testid="task-statistics-section">
+        {/* Statistics Cards (server-based, separate fetch) */}
         <TaskStatistics statistics={statistics} isLoading={statisticsLoading} error={statisticsError} onRetry={refetchStatistics} />
       </div>
 
       <div className="gba:task-management-content" data-testid="task-management-tabs">
         <Tabs value={activeTab} onValueChange={handleTabChange} className="gba:w-full">
-          <TabsList className="gba:bg-white gba:border gba:mb-6">
-            <TabsTrigger value="my" data-testid="my-tasks-tab"><UserOutlined className="gba:mr-2" />My Tasks</TabsTrigger>
-            <TabsTrigger value="team" data-testid="team-tasks-tab"><TeamOutlined className="gba:mr-2" />Team Tasks</TabsTrigger>
+          <TabsList className="gba:mb-6">
+            <TabsTrigger value="my" data-testid="my-tasks-tab">
+              <User size={16} />
+              {getTranslationFromI18nKeyAndLabel('investment.tasks.myTasks', 'My Tasks')}
+            </TabsTrigger>
+            <TabsTrigger value="team" data-testid="team-tasks-tab">
+              <Users size={16} />
+              {getTranslationFromI18nKeyAndLabel('investment.tasks.teamTasks', 'Team Tasks')}
+            </TabsTrigger>
           </TabsList>
 
           <TabsContent value="my" data-testid="my-tasks-content">
@@ -332,11 +357,16 @@ export const TaskManagement: React.FC<TaskManagementProps> = (props: TaskManagem
                 listTitle: (
                   <div className="gba:flex gba:items-center gba:gap-4">
                     <div className="gba:flex gba:items-center gba:gap-2">
-                      <span>My Tasks</span>
+                      <span>{getTranslationFromI18nKeyAndLabel('investment.tasks.myTasks', 'My Tasks')}</span>
                       <span className="gba:text-gray-500">({total})</span>
                     </div>
                   </div>
                 ),
+                columnVisibility: {
+                  columns: columnConfig,
+                  onColumnVisibilityChange: handleColumnVisibilityChange,
+                  'data-testid': 'my-tasks-column-visibility'
+                },
                 actions: (
                   <AppAction
                     contextsArray={[FlowContextName.investmentTaskCreate]}
@@ -344,13 +374,16 @@ export const TaskManagement: React.FC<TaskManagementProps> = (props: TaskManagem
                     data-testid="add-task-action"
                     emptyStateBehavior="hide"
                   >
-                    <div
-                      className="gba:flex gba:flex-row gba:justify-center gba:items-center gba:rounded gba:gap-1 gba:cursor-pointer"
+                    <Button
+                      size="sm"
+                      variant="default"
                       data-testid="add-task-trigger"
+                      type="button"
+                      style={{ gap: 'var(--nw-spacing-xs)' }}
                     >
-                      <PlusSquareIcon />
-                      Add
-                    </div>
+                      <Plus size={16} />
+                      {getTranslationFromI18nKeyAndLabel('crm:task.addTask', 'Add Task')}
+                    </Button>
                   </AppAction>
                 ),
               }}
@@ -376,6 +409,7 @@ export const TaskManagement: React.FC<TaskManagementProps> = (props: TaskManagem
                     onSortingChange={handleSortingChange}
                     selectedTaskId={selectedTask?.id}
                     hideAssignedTo={true}
+                    visibleColumns={visibleColumns}
                     sourceApp="IRM"
                   />
                 </div>
@@ -396,11 +430,16 @@ export const TaskManagement: React.FC<TaskManagementProps> = (props: TaskManagem
                 listTitle: (
                   <div className="gba:flex gba:items-center gba:gap-4">
                     <div className="gba:flex gba:items-center gba:gap-2">
-                      <span>Team Tasks</span>
+                      <span>{getTranslationFromI18nKeyAndLabel('investment.tasks.teamTasks', 'Team Tasks')}</span>
                       <span className="gba:text-gray-500">({total})</span>
                     </div>
                   </div>
                 ),
+                columnVisibility: {
+                  columns: columnConfig,
+                  onColumnVisibilityChange: handleColumnVisibilityChange,
+                  'data-testid': 'team-tasks-column-visibility'
+                },
                 actions: (
                   <AppAction
                     contextsArray={[FlowContextName.investmentTaskCreate]}
@@ -408,13 +447,16 @@ export const TaskManagement: React.FC<TaskManagementProps> = (props: TaskManagem
                     data-testid="add-task-action"
                     emptyStateBehavior="hide"
                   >
-                    <div
-                      className="gba:flex gba:flex-row gba:justify-center gba:items-center gba:rounded gba:gap-1 gba:cursor-pointer"
+                    <Button
+                      size="sm"
+                      variant="default"
                       data-testid="add-task-trigger"
+                      type="button"
+                      style={{ gap: 'var(--nw-spacing-xs)' }}
                     >
-                      <PlusSquareIcon />
-                      Add
-                    </div>
+                      <Plus size={16} />
+                      {getTranslationFromI18nKeyAndLabel('crm:task.addTask', 'Add Task')}
+                    </Button>
                   </AppAction>
                 ),
               }}
@@ -439,6 +481,7 @@ export const TaskManagement: React.FC<TaskManagementProps> = (props: TaskManagem
                     onPaginationChange={handlePaginationChange}
                     onSortingChange={handleSortingChange}
                     selectedTaskId={selectedTask?.id}
+                    visibleColumns={visibleColumns}
                     sourceApp="IRM"
                   />
                 </div>
@@ -451,22 +494,22 @@ export const TaskManagement: React.FC<TaskManagementProps> = (props: TaskManagem
       <Sheet 
         open={!!selectedTask} 
         onOpenChange={(open) => {
-          console.log('🔍 Investment Sheet onOpenChange:', { open, selectedTask: !!selectedTask });
           if (!open) setSelectedTask(null);
         }}
+        title={getTranslationFromI18nKeyAndLabel('investment.tasks.taskDetails', 'Task Details')}
       >
         <SheetContent className="gba:w-[450px] gba:sm:w-[600px] gba:max-w-[90vw] gba:p-0 gba:flex gba:flex-col">
           <SheetHeader className="gba:px-6 gba:py-6 gba:border-b gba:border-border gba:shrink-0">
             <SheetTitle className="gba:text-xl gba:font-semibold gba:text-left">
-              {selectedTask?.name || 'Task Details'}
+              {selectedTask?.name || getTranslationFromI18nKeyAndLabel('investment.tasks.taskDetails', 'Task Details')}
             </SheetTitle>
           </SheetHeader>
           <div className="gba:flex-1 gba:overflow-hidden gba:px-6">
             {selectedTask ? (
-              <TaskDetails task={selectedTask} sourceApp="IRM" onClose={() => setSelectedTask(null)} />
+              <TaskDetails task={selectedTask} sourceApp="IRM" accessToken={accessToken} />
             ) : (
               <div className="gba:p-4 gba:text-center gba:text-muted-foreground">
-                No task selected
+                {getTranslationFromI18nKeyAndLabel('investment.tasks.noTaskSelected', 'No task selected')}
               </div>
             )}
           </div>

@@ -86,7 +86,6 @@ export const useTaskStatistics = (props: UseTaskStatisticsProps): UseTaskStatist
     } catch (err) {
       const e = err instanceof Error ? err : new Error('Failed to load task statistics');
       setError(e);
-      console.error('Error loading IRM task statistics:', e);
     } finally {
       setLoading(false);
     }

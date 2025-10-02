@@ -1,15 +1,111 @@
-import React from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { 
-  FileExplorer, 
-  type FileExplorerNode, 
-  type FileExplorerColumn, 
-  Spinner, Alert, Button, Badge 
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+  Spinner, Alert, Button, Badge, Input,
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle
 } from '@newwork/nw-design-system';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
-import { AppAction } from '@/components/app-action/AppAction';
+import { AppActionMenu } from '@/components/app-action-menu';
 import { FlowContextName } from '@/common/types/FlowRegistryTypes';
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
 import { useAppActionData } from '@/common/hooks/useAppActionData';
+import { useRestClient } from '@/common/network/rest/useRestClient';
+import { env } from '@/common/env/EnvUtils';
+import { toast } from 'sonner';
+import { 
+  Eye, MoreHorizontal, File, Folder, Upload, ListTree, List, ChevronDown, ChevronRight, Search, Expand, Minimize,
+  FileText, FileSpreadsheet, FileImage, FileVideo, FileAudio, Archive, Code, Download
+} from 'lucide-react';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@newwork/nw-design-system';
+import { useSearchInvestmentDocuments } from '@/common/data/investment/hooks/useSearchInvestmentDocuments';
+
+// Function to get appropriate icon based on file type
+const getFileIcon = (document: DocumentItem) => {
+  if (document.folder) {
+    return <Folder className="gba:h-4 gba:w-4" style={{ color: 'var(--nw-warning)' }} />;
+  }
+
+  const fileName = document.name?.toLowerCase() || '';
+  const mimeType = document.mimeType?.toLowerCase() || '';
+
+  // PDF files
+  if (fileName.endsWith('.pdf') || mimeType.includes('pdf')) {
+    return <FileText className="gba:h-4 gba:w-4" style={{ color: 'var(--nw-destructive)' }} />;
+  }
+
+  // Word documents
+  if (fileName.endsWith('.doc') || fileName.endsWith('.docx') || 
+      mimeType.includes('msword') || mimeType.includes('wordprocessingml')) {
+    return <FileText className="gba:h-4 gba:w-4" style={{ color: 'var(--nw-info)' }} />;
+  }
+
+  // Excel files
+  if (fileName.endsWith('.xls') || fileName.endsWith('.xlsx') || fileName.endsWith('.csv') ||
+      mimeType.includes('excel') || mimeType.includes('spreadsheetml') || mimeType.includes('csv')) {
+    return <FileSpreadsheet className="gba:h-4 gba:w-4" style={{ color: 'var(--nw-success)' }} />;
+  }
+
+  // PowerPoint files
+  if (fileName.endsWith('.ppt') || fileName.endsWith('.pptx') ||
+      mimeType.includes('powerpoint') || mimeType.includes('presentationml')) {
+    return <FileText className="gba:h-4 gba:w-4" style={{ color: 'var(--nw-warning)' }} />;
+  }
+
+  // Image files
+  if (fileName.match(/\.(jpg|jpeg|png|gif|bmp|svg|webp)$/) || mimeType.startsWith('image/')) {
+    return <FileImage className="gba:h-4 gba:w-4" style={{ color: 'var(--nw-chart-5)' }} />;
+  }
+
+  // Video files
+  if (fileName.match(/\.(mp4|avi|mov|wmv|flv|webm|mkv)$/) || mimeType.startsWith('video/')) {
+    return <FileVideo className="gba:h-4 gba:w-4" style={{ color: 'var(--nw-chart-7)' }} />;
+  }
+
+  // Audio files
+  if (fileName.match(/\.(mp3|wav|flac|aac|ogg|wma)$/) || mimeType.startsWith('audio/')) {
+    return <FileAudio className="gba:h-4 gba:w-4" style={{ color: 'var(--nw-chart-2)' }} />;
+  }
+
+  // Archive files
+  if (fileName.match(/\.(zip|rar|7z|tar|gz|bz2)$/) || 
+      mimeType.includes('zip') || mimeType.includes('compressed')) {
+    return <Archive className="gba:h-4 gba:w-4" style={{ color: 'var(--nw-muted-foreground)' }} />;
+  }
+
+  // Code files
+  if (fileName.match(/\.(js|ts|jsx|tsx|html|css|scss|json|xml|sql|py|java|cpp|c|php|rb|go|rs)$/) ||
+      mimeType.includes('javascript') || mimeType.includes('json') || mimeType.includes('xml')) {
+    return <Code className="gba:h-4 gba:w-4" style={{ color: 'var(--nw-chart-3)' }} />;
+  }
+
+  // Text files
+  if (fileName.endsWith('.txt') || mimeType.includes('text/plain')) {
+    return <FileText className="gba:h-4 gba:w-4" style={{ color: 'var(--nw-muted-foreground)' }} />;
+  }
+
+  // Default file icon
+  return <File className="gba:h-4 gba:w-4" style={{ color: 'var(--nw-muted-foreground)' }} />;
+};
+
+// Custom column interface for document table
+export interface DocumentColumn {
+  id: string;
+  header: string;
+  width?: string;
+  align?: "left" | "center" | "right";
+  render: (document: DocumentItem) => React.ReactNode;
+}
 
 // Generic document interface for any entity type
 export interface DocumentItem {
@@ -48,17 +144,36 @@ interface DocumentSectionProps extends BusinessAppContextProps {
   isLoading?: boolean;
   error?: string | null;
   onRefresh?: () => void;
+  
+  // Dynamic API configuration for document operations
+  apiConfig?: {
+    baseEndpoint: string; // e.g., '/investment-relations'
+    entityFieldName: string; // e.g., 'opportunity', 'lead', 'account', 'contact'
+    documentFieldName: string; // e.g., 'investmentDocument', 'crmDocument'
+  };
+
+  // GraphQL search configuration (optional - if not provided, uses local search only)
+  enableGraphQLSearch?: boolean;
+  graphQLSearchConfig?: {
+    entityType: 'opportunity' | 'lead' | 'contact' | 'account' | 'investment'; // Maps to search hook parameters
+  };
+
+  // Custom menu actions configuration
+  customActions?: Array<{
+    key: string;
+    label: string;
+    icon?: React.ReactNode;
+    apiEndpoint?: string; // e.g., '/investment-relations/deleteInvestmentDocument'
+    payload?: (documentId: string, document: DocumentItem, entityId: string) => any;
+    onClick?: (documentId: string, document: DocumentItem, entityId: string) => void | Promise<void>;
+    confirmMessage?: string; // Optional confirmation dialog
+  }>;
   uploadActionProps?: {
     contextsArray: FlowContextName[];
     externalContextData: Record<string, any>;
     prefixDataTestId: string;
   };
   createFolderActionProps?: {
-    contextsArray: FlowContextName[];
-    externalContextData: Record<string, any>;
-    prefixDataTestId: string;
-  };
-  viewActionProps?: {
     contextsArray: FlowContextName[];
     externalContextData: Record<string, any>;
     prefixDataTestId: string;
@@ -77,34 +192,47 @@ interface DocumentSectionProps extends BusinessAppContextProps {
 }
 
 const DocumentSection: React.FC<DocumentSectionProps> = ({ 
+  entityId,
   documents = [],
   isLoading = false,
   error = null,
   onRefresh,
+  apiConfig,
+  enableGraphQLSearch = false,
+  graphQLSearchConfig,
+  customActions = [],
   uploadActionProps,
   createFolderActionProps,
-  viewActionProps,
   downloadActionProps,
   deleteActionProps,
   accessToken,
   'data-testid': dataTestId = 'document-section'
 }) => {
-  // Set up AppAction data hooks for programmatic triggering
-  const createFolderActionData = useAppActionData(
-    createFolderActionProps && accessToken ? {
-      contextsArray: createFolderActionProps.contextsArray,
-      externalContextData: createFolderActionProps.externalContextData,
-      accessToken,
-      deferMainContextRequestsUntilClick: false,
-      prefixDataTestId: createFolderActionProps.prefixDataTestId
-    } : {
-      contextsArray: [],
-      accessToken: accessToken || '',
-      deferMainContextRequestsUntilClick: false,
-      prefixDataTestId: 'document-create-folder'
-    },
-    'CreateFolder'
-  );
+  // REST client for direct API calls
+  const restClient = useRestClient(env('NEXT_PUBLIC_KOGITO_PROCESSES_ENDPOINT'));
+
+  // GraphQL search hook (conditionally initialized)
+  const graphQLSearchHook = enableGraphQLSearch ? useSearchInvestmentDocuments({ accessToken }) : null;
+
+  // State for custom three dots menu
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [menuMountEl, setMenuMountEl] = useState<HTMLElement | null>(null);
+
+  // State for confirmation modal
+  const [confirmationModal, setConfirmationModal] = useState<{
+    open: boolean;
+    title: string;
+    message: string;
+    action: (() => Promise<void>) | null;
+    actionLabel: string;
+  }>({
+    open: false,
+    title: '',
+    message: '',
+    action: null,
+    actionLabel: 'Confirm'
+  });
+   // Set up AppAction data hooks for programmatic triggering (upload only, create folder is handled directly)
 
   const uploadActionData = useAppActionData(
     uploadActionProps && accessToken ? {
@@ -121,31 +249,8 @@ const DocumentSection: React.FC<DocumentSectionProps> = ({
     },
     'Upload'
   );
-  // Transform documents to FileExplorerNode format
-  const transformDocumentsToNodes = (docs: DocumentItem[]): FileExplorerNode[] => {
-    return docs.map(doc => ({
-      id: doc.id,
-      name: doc.name || 'Untitled Document',
-      type: doc.folder ? 'folder' : 'file',
-      size: doc.fileSize || 0,
-      modified: new Date(doc.createdAt),
-      parentId: doc.parentDocument || null,
-      mimeType: doc.mimeType || undefined,
-      starred: doc.verified || false,
-      metadata: {
-        documentType: doc.documentType?.value,
-        documentGroup: doc.documentGroup?.value,
-        createdBy: doc.createdBy,
-        verified: doc.verified,
-        authenticated: doc.authenticated,
-        mandatory: doc.mandatory,
-        expirationDate: doc.expirationDate,
-        version: doc.version
-      }
-    }));
-  };
 
-  const nodes = transformDocumentsToNodes(documents);
+  // Note: We use direct API calls for delete instead of AppAction data hooks
 
   // Helper function to format file size
   const formatFileSize = (bytes: number): string => {
@@ -156,189 +261,989 @@ const DocumentSection: React.FC<DocumentSectionProps> = ({
     return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
   };
 
-  // Define custom columns according to requirements: Name, Group, Type, Size, Upload Date, Uploaded by, Actions
-  const columns: FileExplorerColumn[] = [
+  // Define custom columns for document table
+  const columns: DocumentColumn[] = [
+    {
+      id: "name",
+      header: "Name",
+      align: "left",
+      render: (document) => {
+        const docWithTreeInfo = document as DocumentItem & { level?: number; hasChildren?: boolean; isExpanded?: boolean };
+        const level = docWithTreeInfo.level || 0;
+        const hasChildren = docWithTreeInfo.hasChildren || false;
+        const isExpanded = docWithTreeInfo.isExpanded || false;
+        
+         return (
+           <div 
+             className="gba:flex gba:items-center gba:gap-2"
+             style={{ paddingLeft: `${level * 20}px` }}
+           >
+             {/* Tree expansion control - only show for folders with children */}
+             {viewMode === 'tree' && document.folder && hasChildren ? (
+               <button
+                 onClick={(e) => {
+                   e.stopPropagation();
+                   toggleFolderExpansion(document.id);
+                 }}
+                 className="gba:p-0 gba:h-4 gba:w-4 gba:flex gba:items-center gba:justify-center gba:hover:bg-muted gba:rounded"
+                 data-testid={`${dataTestId}-expand-${document.id}`}
+               >
+                 {isExpanded ? (
+                   <ChevronDown className="gba:h-3 gba:w-3" />
+                 ) : (
+                   <ChevronRight className="gba:h-3 gba:w-3" />
+                 )}
+               </button>
+             ) : viewMode === 'tree' ? (
+               // Empty space to maintain alignment for items without expansion controls
+               <div className="gba:w-4 gba:h-4" />
+             ) : null}
+             
+            {/* File/Folder icon with proper type-based styling */}
+            {getFileIcon(document)}
+             
+             {/* Document name */}
+             <span 
+               className="gba:text-sm gba:font-medium gba:truncate"
+               data-testid={`${dataTestId}-name-${document.id}`}
+               title={document.name || 'Untitled Document'}
+             >
+               {document.name || 'Untitled Document'}
+               {/* Show children count for folders */}
+               {document.folder && viewMode === 'tree' && (
+                 <span className="gba:ml-2 gba:text-xs gba:text-muted-foreground">
+                   ({getFolderChildrenCount(document.id)} items)
+                 </span>
+               )}
+             </span>
+           </div>
+         );
+      },
+    },
     {
       id: "group",
       header: "Group",
-      width: "w-32",
+      width: "150px",
       align: "left",
-      render: (node) => (
+      render: (document) => (
         <span 
-          className="gba:text-xs gba:text-muted-foreground"
-          data-testid={`${dataTestId}-group-${node.id}`}
+          className="gba:text-xs gba:text-muted-foreground gba:truncate"
+          data-testid={`${dataTestId}-group-${document.id}`}
+          title={document.documentGroup?.value || '-'}
         >
-          {node.metadata?.documentGroup || '-'}
+          {document.documentGroup?.value || '-'}
         </span>
       ),
     },
     {
       id: "type",
       header: "Type",
-      width: "w-28",
+      width: "120px",
       align: "left",
-      render: (node) => (
+      render: (document) => (
         <Badge 
           variant="secondary" 
           className="gba:text-xs"
-          data-testid={`${dataTestId}-type-${node.id}`}
+          data-testid={`${dataTestId}-type-${document.id}`}
         >
-          {node.type === "folder" ? "Folder" : (node.metadata?.documentType || "Document")}
+          {document.folder ? "Folder" : (document.documentType?.value || "Document")}
         </Badge>
       ),
     },
     {
       id: "size",
       header: "Size",
-      width: "w-20",
-      align: "right",
-      render: (node) => (
+      width: "100px",
+      align: "left",
+      render: (document) => (
         <span 
           className="gba:text-xs gba:text-muted-foreground"
-          data-testid={`${dataTestId}-size-${node.id}`}
+          data-testid={`${dataTestId}-size-${document.id}`}
         >
-          {node.type === "file" && node.size ? formatFileSize(node.size) : '-'}
+          {!document.folder && document.fileSize ? formatFileSize(document.fileSize) : '-'}
         </span>
       ),
     },
     {
       id: "uploadDate",
       header: "Upload Date",
-      width: "w-32",
+      width: "140px",
       align: "left",
-      render: (node) => (
+      render: (document) => (
         <span 
           className="gba:text-xs gba:text-muted-foreground"
-          data-testid={`${dataTestId}-upload-date-${node.id}`}
+          data-testid={`${dataTestId}-upload-date-${document.id}`}
         >
-          {node.modified.toLocaleDateString()}
-        </span>
-      ),
-    },
-    {
-      id: "uploadedBy",
-      header: "Uploaded by",
-      width: "w-32",
-      align: "left",
-      render: (node) => (
-        <span 
-          className="gba:text-xs gba:text-muted-foreground"
-          data-testid={`${dataTestId}-uploaded-by-${node.id}`}
-        >
-          {node.metadata?.createdBy || '-'}
+          {new Date(document.createdAt).toLocaleDateString()}
         </span>
       ),
     },
     {
       id: "actions",
       header: "Actions",
-      width: "w-32",
+      width: "80px",
       align: "center",
-      render: (node) => (
-        <div 
-          className="gba:flex gba:items-center gba:justify-center gba:gap-1"
-          data-testid={`${dataTestId}-actions-${node.id}`}
+      render: (document) => (
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={(e) => handleActionsButtonClick(document, e)}
+          data-testid={`${dataTestId}-actions-${document.id}`}
         >
-          {viewActionProps && accessToken && (
-            <AppAction
-              data-testid={`${viewActionProps.prefixDataTestId}-view-${node.id}`}
-              contextsArray={viewActionProps.contextsArray}
-              externalContextData={{ ...viewActionProps.externalContextData, documentId: node.id }}
-              prefixDataTestId={`${viewActionProps.prefixDataTestId}-view`}
-              accessToken={accessToken}
-              emptyStateBehavior="enable"
-              deferMainContextRequestsUntilClick
-            >
-              <Button variant="ghost" size="sm">{getTranslationFromI18nKeyAndLabel("document.action.view", "View")}</Button>
-            </AppAction>
-          )}
-          {downloadActionProps && accessToken && node.type === "file" && (
-            <AppAction
-              data-testid={`${downloadActionProps.prefixDataTestId}-download-${node.id}`}
-              contextsArray={downloadActionProps.contextsArray}
-              externalContextData={{ ...downloadActionProps.externalContextData, documentId: node.id }}
-              prefixDataTestId={`${downloadActionProps.prefixDataTestId}-download`}
-              accessToken={accessToken}
-              emptyStateBehavior="enable"
-              deferMainContextRequestsUntilClick
-            >
-              <Button variant="ghost" size="sm">{getTranslationFromI18nKeyAndLabel("document.action.download", "Download")}</Button>
-            </AppAction>
-          )}
-          {deleteActionProps && accessToken && (
-            <AppAction
-              data-testid={`${deleteActionProps.prefixDataTestId}-delete-${node.id}`}
-              contextsArray={deleteActionProps.contextsArray}
-              externalContextData={{ ...deleteActionProps.externalContextData, documentId: node.id }}
-              prefixDataTestId={`${deleteActionProps.prefixDataTestId}-delete`}
-              accessToken={accessToken}
-              emptyStateBehavior="enable"
-              deferMainContextRequestsUntilClick
-            >
-              <Button variant="ghost" size="sm">{getTranslationFromI18nKeyAndLabel("document.action.delete", "Delete")}</Button>
-            </AppAction>
-          )}
-        </div>
+          <MoreHorizontal className="gba:h-4 gba:w-4" />
+        </Button>
       ),
-    },
+    }
   ];
 
-  const handleNodesChange = (updatedNodes: FileExplorerNode[]) => {
-    // Handle node changes (rename, move, etc.)
-    // This would trigger API calls in the parent component
-    console.log('Nodes changed:', updatedNodes);
-  };
 
-  const handleSelectionChange = (selectedNodeIds: string[]) => {
-    // Handle selection changes
-    console.log('Selection changed:', selectedNodeIds);
-  };
+  // State for selected document for actions menu
+  const [selectedDocument, setSelectedDocument] = useState<DocumentItem | null>(null);
+  
+  // State for view mode (tree vs list)
+  const [viewMode, setViewMode] = useState<'tree' | 'list'>('list');
+  
+  // State for expanded folders in tree view
+  const [expandedFolders, setExpandedFolders] = useState<Set<string>>(new Set());
+  
+  // State for search
+  const [searchTerm, setSearchTerm] = useState('');
+  
+  // GraphQL search effect - setup search context when component mounts
+  useEffect(() => {
+    if (enableGraphQLSearch && graphQLSearchHook && graphQLSearchConfig) {
+      
+      // Build search variables based on entity type
+      const searchVariables: any = {};
+      
+      switch (graphQLSearchConfig.entityType) {
+        case 'opportunity':
+          searchVariables.opportunityId = entityId;
+          break;
+        case 'lead':
+          searchVariables.leadId = entityId;
+          break;
+        case 'contact':
+          searchVariables.contactId = entityId;
+          break;
+        case 'account':
+          searchVariables.accountId = entityId;
+          break;
+        case 'investment':
+          searchVariables.investmentId = entityId;
+          break;
+      }
+      
+      graphQLSearchHook.performDebouncedSearch(searchVariables);
+    }
+  }, [enableGraphQLSearch, graphQLSearchConfig?.entityType, entityId]); // Removed searchTerm to avoid infinite loop
 
-  const handleFileUpload = (files: File[], parentId: string | null) => {
-    // Handle file uploads
-    // This would trigger upload process in the parent component
-    console.log('Files to upload:', files, 'to parent:', parentId);
-  };
-
-  const handleNodeAction = (action: string, node: FileExplorerNode) => {
-    // Handle built-in FileExplorer actions and integrate with AppAction workflows
-    console.log('Node action:', action, 'on node:', node.id);
+  // Sync local search term with GraphQL search hook
+  useEffect(() => {
+    if (enableGraphQLSearch && graphQLSearchHook) {
+      graphQLSearchHook.setSearchTerm(searchTerm);
+    }
+  }, [enableGraphQLSearch, searchTerm]);
+  
+   // State for selected items (for tree view context)
+   const [selectedItems, setSelectedItems] = useState<string[]>([]);
+   
+   // State for new folder dialog
+   const [newFolderDialog, setNewFolderDialog] = useState<{
+     open: boolean;
+     parentId: string | null;
+     parentName?: string;
+   }>({
+     open: false,
+     parentId: null
+   });
+   
+   const [newFolderName, setNewFolderName] = useState('');
+   const [selectedParentFolder, setSelectedParentFolder] = useState<string>('');
+   
+   // State for drag and drop
+   const [draggedDocument, setDraggedDocument] = useState<DocumentItem | null>(null);
+   const [dropTarget, setDropTarget] = useState<string | null>(null);
+   const [isDroppingOnRoot, setIsDroppingOnRoot] = useState<boolean>(false);
+  
+  // Organize documents into tree structure
+  const organizeDocumentsForTree = (docs: DocumentItem[]): DocumentItem[] => {
+    if (viewMode === 'list') {
+      return docs; // Return flat list for list view
+    }
     
-    switch (action) {
-      case 'download':
-        // Trigger download AppAction if available
-        if (downloadActionProps && accessToken) {
-          console.log('Triggering download action for node:', node.id);
-          // In a real implementation, you would trigger the download AppAction here
-          // For now, we'll log the action
+    // For tree view, organize by parent-child relationships
+    const rootDocuments: DocumentItem[] = [];
+    const documentMap = new Map<string, DocumentItem & { children: DocumentItem[] }>();
+    
+    // First pass: create map with children arrays
+    docs.forEach(doc => {
+      documentMap.set(doc.id, { ...doc, children: [] });
+    });
+    
+    // Second pass: organize hierarchy based on parentDocument field
+    docs.forEach(doc => {
+      const docWithChildren = documentMap.get(doc.id)!;
+      
+      // Check if this document has a parent (using parentDocument field from API)
+      if (doc.parentDocument) {
+        const parent = documentMap.get(doc.parentDocument);
+        if (parent) {
+          parent.children.push(docWithChildren);
+        } else {
+          // Parent not found in current filtered set, add to root
+          rootDocuments.push(docWithChildren);
         }
-        break;
-        
-      case 'share':
-        // Handle share action
-        console.log('Share action for node:', node.id);
-        // Could integrate with share AppAction if available
-        break;
-        
-      case 'rename':
-        // Handle rename action
-        console.log('Rename action for node:', node.id);
-        // Could trigger rename workflow
-        break;
-        
-      case 'delete':
-        // Trigger delete AppAction if available
-        if (deleteActionProps && accessToken) {
-          console.log('Triggering delete action for node:', node.id);
-          // In a real implementation, you would trigger the delete AppAction here
-          // For now, we'll log the action
+      } else {
+        // No parent, this is a root-level document
+        rootDocuments.push(docWithChildren);
+      }
+    });
+    
+    // Sort function to put folders before documents
+    const sortFoldersFirst = (a: DocumentItem, b: DocumentItem): number => {
+      // If one is a folder and the other isn't, folder comes first
+      if (a.folder && !b.folder) return -1;
+      if (!a.folder && b.folder) return 1;
+      // If both are the same type (both folders or both documents), sort by name
+      return (a.name || '').localeCompare(b.name || '');
+    };
+    
+    // Recursively sort all levels
+    const sortTreeLevel = (items: any[]): void => {
+      items.sort(sortFoldersFirst);
+      items.forEach((item: any) => {
+        if (item.children && item.children.length > 0) {
+          sortTreeLevel(item.children);
         }
-        break;
-        
-      default:
-        console.log('Unhandled action:', action, 'for node:', node.id);
+      });
+    };
+    
+    // Sort root level and all children
+    sortTreeLevel(rootDocuments);
+    
+    return rootDocuments;
+  };
+  
+  // Flatten tree for rendering with indentation
+  const flattenTreeForRendering = (docs: DocumentItem[], level = 0): Array<DocumentItem & { level: number; hasChildren: boolean; isExpanded: boolean }> => {
+    const result: Array<DocumentItem & { level: number; hasChildren: boolean; isExpanded: boolean }> = [];
+    
+    docs.forEach(doc => {
+      const docWithChildren = doc as DocumentItem & { children?: DocumentItem[] };
+      const hasChildren = docWithChildren.children && docWithChildren.children.length > 0;
+      const isExpanded = expandedFolders.has(doc.id);
+      
+      // Add the current document/folder
+      result.push({
+        ...doc,
+        level,
+        hasChildren: !!hasChildren,
+        isExpanded
+      });
+      
+      // Add children if this is a folder, has children, and is expanded
+      if (doc.folder && hasChildren && isExpanded && docWithChildren.children) {
+        result.push(...flattenTreeForRendering(docWithChildren.children, level + 1));
+      }
+    });
+    
+    return result;
+  };
+  
+  // Filter documents by search term (GraphQL or local)
+  const filteredDocuments = useMemo(() => {
+    // If GraphQL search is enabled and we have search results, use them
+    if (enableGraphQLSearch && graphQLSearchHook && searchTerm.trim()) {
+      
+      // Transform GraphQL results to DocumentItem format if needed
+      const graphQLResults = graphQLSearchHook.documents.map((doc: any) => ({
+        id: doc.id,
+        name: doc.name || null,
+        description: doc.description || null,
+        createdAt: doc.createdAt,
+        expirationDate: doc.expirationDate || null,
+        documentType: doc.documentType ? {
+          id: doc.documentType.id,
+          value: doc.documentType.value || '',
+          code: doc.documentType.code
+        } : null,
+        documentGroup: doc.documentGroup ? {
+          id: doc.documentGroup.id,
+          value: doc.documentGroup.value || '',
+          code: doc.documentGroup.code
+        } : null,
+        file: doc.file || null,
+        mimeType: doc.mimeType || null,
+        fileSize: doc.fileSize,
+        createdBy: doc.createdBy || null,
+        parentDocument: typeof doc.parentDocument === 'string' ? doc.parentDocument : doc.parentDocument?.id || null,
+        folder: doc.folder,
+        verified: doc.verified,
+        verificationDate: doc.verificationDate || null,
+        authenticated: doc.authenticated,
+        authenticationDate: doc.authenticationDate || null,
+        mandatory: doc.mandatory,
+        version: doc.version
+      }));
+      
+      return graphQLResults;
+    }
+    
+    // Fallback to local search
+    if (!searchTerm.trim()) {
+      return documents;
+    }
+    
+    const localResults = documents.filter(doc => 
+      doc.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      doc.description?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      doc.documentType?.value?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      doc.documentGroup?.value?.toLowerCase().includes(searchTerm.toLowerCase())
+    );
+    
+    return localResults;
+  }, [documents, searchTerm, enableGraphQLSearch, graphQLSearchHook]);
+
+   const organizedDocuments = organizeDocumentsForTree(filteredDocuments);
+   const displayDocuments = viewMode === 'tree' 
+     ? flattenTreeForRendering(organizedDocuments)
+     : filteredDocuments
+         .filter(doc => !doc.folder) // In list view, exclude folders - show only documents
+         .map(doc => ({ ...doc, level: 0, hasChildren: false, isExpanded: false }));
+   
+   // Get available folders for parent selection
+   const availableFolders = useMemo(() => {
+     return filteredDocuments.filter(doc => doc.folder);
+   }, [filteredDocuments]);
+   
+   // Helper function to count children of a folder
+   const getFolderChildrenCount = (folderId: string): number => {
+     return documents.filter(doc => doc.parentDocument === folderId).length;
+   };
+  
+  // Toggle folder expansion
+  const toggleFolderExpansion = (folderId: string) => {
+    setExpandedFolders(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(folderId)) {
+        newSet.delete(folderId);
+      } else {
+        newSet.add(folderId);
+      }
+      return newSet;
+    });
+  };
+  
+  // Handle row selection for tree view context
+  const handleRowClick = (documentId: string, event: React.MouseEvent) => {
+    if (viewMode !== 'tree') return;
+    
+    // Don't select if clicking on action buttons or expansion controls
+    if ((event.target as HTMLElement).closest('button')) {
+      return;
+    }
+    
+    setSelectedItems(prev => {
+      if (event.ctrlKey || event.metaKey) {
+        // Multi-select with Ctrl/Cmd
+        return prev.includes(documentId) 
+          ? prev.filter(id => id !== documentId)
+          : [...prev, documentId];
+      } else {
+        // Single select
+        return prev.includes(documentId) && prev.length === 1 ? [] : [documentId];
+      }
+    });
+  };
+  
+  // Get the target parent for new folder/upload operations
+  const getTargetParentId = (): string | null => {
+    if (viewMode !== 'tree' || selectedItems.length === 0) {
+      return null; // Root level
+    }
+    
+    // If single folder is selected, use it as parent
+    if (selectedItems.length === 1) {
+      const selectedDoc = filteredDocuments.find(doc => doc.id === selectedItems[0]);
+      if (selectedDoc && selectedDoc.folder) {
+        return selectedDoc.id;
+      }
+    }
+    
+    return null; // Default to root level
+  };
+  
+   // Context-aware folder creation
+   const handleCreateFolder = () => {
+     const targetParentId = getTargetParentId();
+     const parentDoc = targetParentId ? filteredDocuments.find(doc => doc.id === targetParentId) : null;
+     
+     setNewFolderDialog({
+       open: true,
+       parentId: targetParentId,
+       parentName: parentDoc?.name || undefined
+     });
+     setNewFolderName('');
+     setSelectedParentFolder(targetParentId || 'root');
+   };
+   
+   // Create new folder via API
+   const handleCreateNewFolder = async () => {
+     if (!newFolderName.trim() || !accessToken || !apiConfig) {
+       toast.error('Folder name is required');
+       return;
+     }
+     
+     try {
+       // Extract entity ID from deleteActionProps (fallback for compatibility)
+       const externalData = deleteActionProps?.externalContextData || {};
+       const entityId = externalData.opportunityId || externalData.leadId || externalData.accountId || externalData.contactId || '';
+       
+       if (!entityId) {
+         toast.error('Entity ID not found');
+         return;
+       }
+       
+       // Use selected parent folder instead of the initial context
+       const finalParentId = selectedParentFolder === 'root' ? null : selectedParentFolder;
+       
+       const payload = {
+         [apiConfig.documentFieldName]: {
+           name: newFolderName.trim(),
+           folder: true, // This is the key field that must be set to true for folders
+           [apiConfig.entityFieldName]: entityId,
+           ...(finalParentId && { parentDocument: finalParentId }), // Use parentDocument field for hierarchy
+           description: `Folder: ${newFolderName.trim()}`,
+           recordState: 'active'
+         }
+       };
+       
+       await restClient.post(`${apiConfig.baseEndpoint}/createInvestmentDocument`, payload, {
+         headers: { Authorization: `Bearer ${accessToken}` }
+       });
+       
+       toast.success('Folder created successfully');
+       setNewFolderDialog({ open: false, parentId: null });
+       setNewFolderName('');
+       setSelectedParentFolder('');
+       
+       // Refresh the documents list
+       if (onRefresh) {
+         onRefresh();
+       }
+     } catch (e: any) {
+       console.error('Error creating folder:', e);
+       toast.error(e?.message || 'Failed to create folder');
+     }
+   };
+  
+  // Context-aware file upload
+  const handleUpload = () => {
+    const _targetParentId = getTargetParentId();
+    const firstAction = uploadActionData.combinedData[0];
+    
+    if (firstAction) {
+      // You could potentially modify the external context data here to include parent info
+      firstAction.onClick?.();
     }
   };
+  
+   // Expand all folders in tree view
+   const handleExpandAll = () => {
+     const allFolderIds = filteredDocuments
+       .filter(doc => doc.folder && getFolderChildrenCount(doc.id) > 0) // Only expand folders with children
+       .map(doc => doc.id);
+     setExpandedFolders(new Set(allFolderIds));
+   };
+  
+   // Collapse all folders in tree view
+   const handleCollapseAll = () => {
+     setExpandedFolders(new Set());
+   };
+   
+   // Drag and drop handlers
+   const handleDragStart = (e: React.DragEvent, document: DocumentItem) => {
+     setDraggedDocument(document);
+     e.dataTransfer.effectAllowed = 'move';
+     e.dataTransfer.setData('text/plain', document.id);
+   };
+   
+   const handleDragOver = (e: React.DragEvent, targetDocument: DocumentItem) => {
+     e.preventDefault();
+     e.dataTransfer.dropEffect = 'move';
+     
+     // Only allow dropping on folders
+     if (targetDocument.folder && draggedDocument && draggedDocument.id !== targetDocument.id) {
+       setDropTarget(targetDocument.id);
+     }
+   };
+   
+   const handleDragLeave = () => {
+     setDropTarget(null);
+   };
+   
+   const handleDrop = async (e: React.DragEvent, targetFolder: DocumentItem) => {
+     e.preventDefault();
+     setDropTarget(null);
+     
+     if (!draggedDocument || !targetFolder.folder || draggedDocument.id === targetFolder.id) {
+       return;
+     }
+     
+     // Move document to target folder
+     await moveDocumentToFolder(draggedDocument.id, targetFolder.id);
+     setDraggedDocument(null);
+   };
+   
+   const handleDragEnd = () => {
+     setDraggedDocument(null);
+     setDropTarget(null);
+     setIsDroppingOnRoot(false);
+   };
+   
+   // Handle drag over the root area (table container)
+   const handleRootDragOver = (e: React.DragEvent) => {
+     if (!draggedDocument) return;
+     
+     e.preventDefault();
+     e.dataTransfer.dropEffect = 'move';
+     
+     // Check if we're not over a folder row
+     const target = e.target as HTMLElement;
+     const isOverFolder = target.closest('[data-testid*="-row-"]')?.querySelector('[data-folder="true"]');
+     
+     if (!isOverFolder) {
+       setIsDroppingOnRoot(true);
+       setDropTarget(null); // Clear folder drop target
+     }
+   };
+   
+   // Handle drag leave from root area
+   const handleRootDragLeave = (e: React.DragEvent) => {
+     // Only clear if we're actually leaving the table area
+     const target = e.target as HTMLElement;
+     const tableContainer = target.closest('.gba\\:border.gba\\:rounded-lg');
+     if (!tableContainer?.contains(e.relatedTarget as Node)) {
+       setIsDroppingOnRoot(false);
+     }
+   };
+   
+   // Handle drop on root area
+   const handleRootDrop = async (e: React.DragEvent) => {
+     e.preventDefault();
+     setIsDroppingOnRoot(false);
+     
+     if (!draggedDocument) return;
+     
+     // Check if we're not dropping on a folder
+     const target = e.target as HTMLElement;
+     const isOverFolder = target.closest('[data-testid*="-row-"]')?.querySelector('[data-folder="true"]');
+     
+     if (!isOverFolder) {
+       // Move document to root level
+       await moveDocumentToRoot(draggedDocument.id);
+       setDraggedDocument(null);
+     }
+   };
+   
+   // Move document to folder via API
+   const moveDocumentToFolder = async (documentId: string, targetFolderId: string) => {
+     if (!accessToken || !apiConfig) {
+       toast.error('Cannot move document: missing configuration');
+       return;
+     }
+     
+     try {
+       const document = documents.find(doc => doc.id === documentId);
+       if (!document) {
+         toast.error('Document not found');
+         return;
+       }
+       
+       // Extract entity ID from deleteActionProps (fallback for compatibility)
+       const externalData = deleteActionProps?.externalContextData || {};
+       const entityId = externalData.opportunityId || externalData.leadId || externalData.accountId || externalData.contactId || '';
+       
+       if (!entityId) {
+         toast.error('Entity ID not found');
+         return;
+       }
+       
+       // Based on LeadDocuments.tsx working implementation:
+       // Use minimal payload with only required fields
+       const documentPayload: any = {
+         id: documentId,
+         version: document.version,
+         parentDocument: targetFolderId,
+         [apiConfig.entityFieldName]: entityId
+       };
+       
+       // Use createInvestmentDocument with changeMode: 'UPDATE' like the working implementation
+       await restClient.post(`${apiConfig.baseEndpoint}/createInvestmentDocument`, {
+         changeMode: 'UPDATE',
+         investmentDocument: documentPayload
+       }, {
+         headers: { Authorization: `Bearer ${accessToken}` }
+       });
+       
+       toast.success('Document moved successfully');
+       
+       // Refresh the documents list after a short delay
+       // Note: This might cause duplicate refreshes if useProcessCompletion is also active
+       setTimeout(() => {
+         if (onRefresh) {
+           onRefresh();
+         }
+       }, 500);
+     } catch (e: any) {
+       console.error('Error moving document:', e);
+       toast.error(e?.message || 'Failed to move document');
+     }
+   };
+   
+   // Move document to root level (remove from folder)
+   const moveDocumentToRoot = async (documentId: string) => {
+     if (!accessToken || !apiConfig) {
+       toast.error('Cannot move document: missing configuration');
+       return;
+     }
+     
+     try {
+       const document = documents.find(doc => doc.id === documentId);
+       if (!document) {
+         toast.error('Document not found');
+         return;
+       }
+       
+       // Extract entity ID from deleteActionProps (fallback for compatibility)
+       const externalData = deleteActionProps?.externalContextData || {};
+       const entityId = externalData.opportunityId || externalData.leadId || externalData.accountId || externalData.contactId || '';
+       
+       if (!entityId) {
+         toast.error('Entity ID not found');
+         return;
+       }
+       
+       // Based on working OpportunityDocuments.tsx implementation:
+       // For root documents, use empty string ('') and createInvestmentDocument with changeMode: 'UPDATE'
+       const documentPayload: any = {
+         id: documentId,
+         version: document.version,
+         parentDocument: '', // Use empty string for root documents
+         [apiConfig.entityFieldName]: entityId
+       };
+       
+       await restClient.post(`${apiConfig.baseEndpoint}/createInvestmentDocument`, {
+         changeMode: 'UPDATE',
+         investmentDocument: documentPayload
+       }, {
+         headers: { Authorization: `Bearer ${accessToken}` }
+       });
+       
+       toast.success('Document moved to root level');
+       
+       // Refresh the documents list after a short delay
+       // Note: This might cause duplicate refreshes if useProcessCompletion is also active
+       setTimeout(() => {
+         if (onRefresh) {
+           onRefresh();
+         }
+       }, 500);
+     } catch (e: any) {
+       console.error('Error moving document to root:', e);
+       toast.error(e?.message || 'Failed to move document to root');
+     }
+   };
+
+  // Confirmation modal handlers
+  const showConfirmation = (title: string, message: string, action: () => Promise<void>, actionLabel: string = 'Confirm') => {
+    setConfirmationModal({
+      open: true,
+      title,
+      message,
+      action,
+      actionLabel
+    });
+  };
+
+  const handleConfirmAction = async () => {
+    if (confirmationModal.action) {
+      await confirmationModal.action();
+    }
+    setConfirmationModal(prev => ({ ...prev, open: false }));
+  };
+
+  const handleCancelAction = () => {
+    setConfirmationModal(prev => ({ ...prev, open: false }));
+  };
+
+
+  // Generic action handler for custom actions
+  const handleCustomAction = async (action: any, documentId: string) => {
+    if (!accessToken || !apiConfig) {
+      console.error('Access token or API config not available');
+      return;
+    }
+
+    try {
+      
+      // Find the document
+      const document = documents.find(doc => doc.id === documentId);
+      if (!document) {
+        console.error('Document not found:', documentId);
+        toast.error('Document not found');
+        return;
+      }
+
+      // Extract entity ID from deleteActionProps (fallback for compatibility)
+      const externalData = deleteActionProps?.externalContextData || {};
+      const entityId = externalData.opportunityId || externalData.leadId || externalData.accountId || externalData.contactId;
+
+      // Handle custom onClick function (this will handle update action)
+      if (action.onClick) {
+        await action.onClick(documentId, document, entityId);
+        return;
+      }
+
+      // Handle API call
+      if (action.apiEndpoint) {
+        let payload;
+        
+        if (action.payload) {
+          // Use custom payload function
+          payload = action.payload(documentId, document, entityId);
+        } else {
+          // Default payload structure
+          payload = {
+            [apiConfig.documentFieldName]: { 
+              id: documentId, 
+              version: document.version,
+              [apiConfig.entityFieldName]: entityId
+            },
+          };
+        }
+
+        await restClient.post(action.apiEndpoint, payload, { 
+          headers: { Authorization: `Bearer ${accessToken}` } 
+        });
+
+        toast.success(`${action.label} completed successfully`);
+        
+        // Refresh the documents list
+        if (onRefresh) {
+          onRefresh();
+        }
+      }
+    } catch (e: any) {
+      console.error('Error executing action:', action.key, e);
+      toast.error(e?.message || `Failed to ${action.label.toLowerCase()}`);
+    }
+  };
+
+  // Handle document download
+  const handleDownloadDocument = (document: DocumentItem) => {
+    if (!document.file) {
+      toast.warning('No file available to download');
+      return;
+    }
+
+    try {
+      // For investment and customer relations documents
+      if (apiConfig?.baseEndpoint) {
+        const entityType = graphQLSearchConfig?.entityType || 'documents';
+        
+        // Get file extension
+        const getFileExtension = (doc: DocumentItem): string => {
+          if (doc.name && doc.name.includes('.')) {
+            return doc.name.split('.').pop() || 'pdf';
+          }
+          const mimeTypeExtensions: Record<string, string> = {
+            'application/pdf': 'pdf',
+            'application/vnd.openxmlformats-officedocument.wordprocessingml.document': 'docx',
+            'application/msword': 'doc',
+            'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': 'xlsx',
+            'application/vnd.ms-excel': 'xls',
+            'image/png': 'png',
+            'image/jpeg': 'jpg',
+            'text/plain': 'txt'
+          };
+          return (doc.mimeType && mimeTypeExtensions[doc.mimeType]) || 'pdf';
+        };
+
+        const fileExtension = getFileExtension(document);
+        
+        // Determine the correct API path and URL pattern based on the baseEndpoint
+        const baseEndpoint = apiConfig.baseEndpoint || '';
+        
+        // Proper pluralization function
+        const pluralize = (word: string): string => {
+          const pluralMap: Record<string, string> = {
+            'opportunity': 'opportunities',
+            'contact': 'contacts',
+            'account': 'accounts',
+            'lead': 'leads',
+            'document': 'documents'
+          };
+          return pluralMap[word] || `${word}s`;
+        };
+        
+        const pluralEntityType = pluralize(entityType);
+        let fileUrl: string;
+        
+        if (baseEndpoint === '/investment-relations') {
+          // Investment documents use IRM paths with files endpoint (like working investment components)
+          const filesEndpoint = env('NEXT_PUBLIC_FILES_ENDPOINT') || '';
+          const baseUrl = `${filesEndpoint}/files/api/v1/public/downloads/irm/${pluralEntityType}/${entityId}/documents/`;
+          
+          if (document.file.includes('.')) {
+            fileUrl = `${baseUrl}${document.file}`;
+          } else {
+            fileUrl = `${baseUrl}${document.file}.${fileExtension}`;
+          }
+        } else if (baseEndpoint === '/customer-relations') {
+          // CRM documents use relative URLs (like working CRM ContactDocuments component)
+          if (document.file.includes('.')) {
+            fileUrl = `/files/api/v1/public/downloads/crm/${pluralEntityType}/${entityId}/documents/${document.file}`;
+          } else {
+            fileUrl = `/files/api/v1/public/downloads/crm/${pluralEntityType}/${entityId}/documents/${document.file}.${fileExtension}`;
+          }
+        } else {
+          // Fallback - try to infer from baseEndpoint
+          const endpointParts = baseEndpoint.split('-');
+          const domain = endpointParts[0]?.replace('/', '') || 'crm';
+          
+          if (document.file.includes('.')) {
+            fileUrl = `/files/api/v1/public/downloads/${domain}/${pluralEntityType}/${entityId}/documents/${document.file}`;
+          } else {
+            fileUrl = `/files/api/v1/public/downloads/${domain}/${pluralEntityType}/${entityId}/documents/${document.file}.${fileExtension}`;
+          }
+        }
+        
+        const downloadFilename = document.name || `document.${fileExtension}`;
+        
+        // Use simple link download like the working CRM ContactDocuments component
+        const link = window.document.createElement('a');
+        link.href = fileUrl;
+        link.download = downloadFilename;
+        window.document.body.appendChild(link);
+        link.click();
+        window.document.body.removeChild(link);
+      } else {
+        // Fallback for other document types
+        toast.info('Download functionality not implemented for this document type');
+      }
+    } catch (error) {
+      console.error('Error downloading document:', error);
+      toast.error('Failed to download document');
+    }
+  };
+
+  // Handle three-dots click to open custom menu
+  const handleActionsButtonClick = (document: DocumentItem, event: React.MouseEvent) => {
+    setSelectedDocument(document);
+    
+    // Create menu mount point relative to the clicked button
+    try {
+      const buttonElement = event.currentTarget as HTMLElement;
+      // cleanup previous mount
+      if (menuMountEl && menuMountEl.parentElement) {
+        menuMountEl.parentElement.removeChild(menuMountEl);
+      }
+      
+      const mount = window.document.createElement('div');
+      mount.style.position = 'absolute';
+      mount.style.right = '0px';
+      mount.style.top = 'calc(100% + 6px)';
+      mount.style.zIndex = '10000';
+      
+      // Position relative to button
+      buttonElement.style.position = 'relative';
+      buttonElement.appendChild(mount);
+      
+      setMenuMountEl(mount);
+      setMenuOpen(true);
+    } catch (error) {
+      console.error('Error creating menu mount:', error);
+      setMenuOpen(true);
+    }
+  };
+
+  // Custom menu actions for the three dots menu (fully dynamic)
+  const customMenuActions = useMemo(() => {
+    if (!selectedDocument) return [];
+
+    const actions = [];
+
+    // Add download action if available (only for files, not folders)
+    if (downloadActionProps && selectedDocument.file && !selectedDocument.folder) {
+      actions.push({
+        key: 'download',
+        label: 'Download',
+        onClick: () => {
+          // Trigger download action using AppActionMenu flow
+          handleDownloadDocument(selectedDocument);
+          setMenuOpen(false);
+        },
+        icon: <Download className="gba:h-4 gba:w-4" />
+      });
+    }
+
+    // Add custom actions from configuration
+    if (customActions && customActions.length > 0 && accessToken && apiConfig) {
+      // Check if download action is missing and add it automatically for investment-relations
+      const hasDownloadAction = customActions.some(action => action.key === 'download');
+      
+      customActions.forEach(action => {
+        actions.push({
+          key: action.key,
+          label: action.label,
+          onClick: async () => {
+            setMenuOpen(false);
+            
+            // Show confirmation modal if specified
+            if (action.confirmMessage) {
+              const actionToExecute = async () => {
+                await handleCustomAction(action, selectedDocument.id);
+              };
+              
+              showConfirmation(
+                `Confirm ${action.label}`,
+                action.confirmMessage,
+                actionToExecute,
+                action.label
+              );
+            } else {
+              // Execute action directly if no confirmation needed
+              await handleCustomAction(action, selectedDocument.id);
+            }
+          },
+          icon: action.icon || <Eye className="gba:h-4 gba:w-4" />
+        });
+      });
+
+      // Automatically add download action for investment-relations if not present
+      // Only add download for files (not folders)
+      if (!hasDownloadAction && 
+          apiConfig?.baseEndpoint === '/investment-relations' && 
+          selectedDocument.file && 
+          !selectedDocument.folder) {
+        // Insert download action at the beginning
+        actions.unshift({
+          key: 'download',
+          label: 'Download',
+          onClick: () => {
+            handleDownloadDocument(selectedDocument);
+            setMenuOpen(false);
+          },
+          icon: <Download className="gba:h-4 gba:w-4" />
+        });
+      }
+    }
+
+    return actions;
+  }, [selectedDocument, downloadActionProps, customActions, accessToken, apiConfig]);
+
 
   if (isLoading) {
     return (
@@ -372,82 +1277,340 @@ const DocumentSection: React.FC<DocumentSectionProps> = ({
   }
 
   return (
-    <div data-testid={dataTestId}>
-      <FileExplorer
-        nodes={nodes}
-        treeColumns={columns.slice(0, 4)} // Tree view: Group, Type, Size, Upload Date (no Actions column)
-        listColumns={columns} // List view: All columns including Actions
-        showSearch
-        allowDragDrop
-        allowMultiSelect
-        showHeader={true} // Enable header with integrated title and controls
-        title={getTranslationFromI18nKeyAndLabel("document.section.title", "Document Management")}
-        showColumnHeaders={true}
-        showViewModeToggle={true}
-        viewMode="tree" // Start with tree view by default
-        defaultExpanded={[]} // Start collapsed to test expand all functionality
-          allowUpload={!!uploadActionProps}
-          allowCreateFolder={!!createFolderActionProps}
-          // Override built-in dialogs to use AppAction workflows
-          disableLocalFolderDialog={true}
-          disableLocalUploadDialog={true}
-          onNodesChange={handleNodesChange}
-          onSelectionChange={handleSelectionChange}
-          onFileUpload={handleFileUpload}
-          onNodeAction={handleNodeAction}
-          // Override handlers to use AppAction workflows
-          onNewRootFolder={() => {
-            // Execute the first available create folder action
-            const firstAction = createFolderActionData.combinedData[0];
-            if (firstAction) {
-              firstAction.onClick?.();
-            }
-          }}
-          onNewSubfolder={(parentId) => {
-            // Execute create subfolder action with parent context
-            const firstAction = createFolderActionData.combinedData[0];
-            if (firstAction) {
-              // Note: parentId could be used to set context for subfolder creation
-              console.log('Creating subfolder under parent:', parentId);
-              firstAction.onClick?.();
-            }
-          }}
-          onRequestUpload={(parentId) => {
-            // Execute the first available upload action
-            const firstAction = uploadActionData.combinedData[0];
-            if (firstAction) {
-              // Note: parentId could be used to set upload destination folder
-              console.log('Uploading to parent folder:', parentId);
-              firstAction.onClick?.();
-            }
-          }}
-          // Enable built-in actions menu for tree view (three dots dropdown)
-          onActionsButtonClick={undefined} // Use default behavior for dropdown menu
-          labels={{
-            searchPlaceholder: getTranslationFromI18nKeyAndLabel("document.search.placeholder", "Search documents..."),
-            folderNamePlaceholder: getTranslationFromI18nKeyAndLabel("document.folder.name.placeholder", "Document folder name"),
-            newFolder: getTranslationFromI18nKeyAndLabel("document.folder.new", "New Document Folder"),
-            uploadFiles: getTranslationFromI18nKeyAndLabel("document.upload.files", "Upload Documents"),
-            expandAll: getTranslationFromI18nKeyAndLabel("document.tree.expand.all", "Expand All"),
-            collapseAll: getTranslationFromI18nKeyAndLabel("document.tree.collapse.all", "Collapse All"),
-            treeView: getTranslationFromI18nKeyAndLabel("document.view.tree", "Tree View"),
-            listView: getTranslationFromI18nKeyAndLabel("document.view.list", "List View"),
-            // Built-in action labels
-            newSubfolder: getTranslationFromI18nKeyAndLabel("document.action.create.subfolder", "New Subfolder"),
-            upload: getTranslationFromI18nKeyAndLabel("document.action.upload", "Upload Files"),
-            download: getTranslationFromI18nKeyAndLabel("document.action.download", "Download"),
-            share: getTranslationFromI18nKeyAndLabel("document.action.share", "Share"),
-            rename: getTranslationFromI18nKeyAndLabel("document.action.rename", "Rename"),
-            delete: getTranslationFromI18nKeyAndLabel("document.action.delete", "Delete"),
-            emptyStateTitle: getTranslationFromI18nKeyAndLabel("document.empty.title", "No documents found"),
-            emptyStateDescription: getTranslationFromI18nKeyAndLabel("document.empty.description", "Upload documents or create folders to organize your files"),
-            emptyStateFolderButton: getTranslationFromI18nKeyAndLabel("document.empty.create.button", "Create Folder"),
-            emptyStateUploadButton: getTranslationFromI18nKeyAndLabel("document.empty.upload.button", "Upload Document"),
-            folderLabel: getTranslationFromI18nKeyAndLabel("document.folder.label", "Folder"),
-            fileLabel: getTranslationFromI18nKeyAndLabel("document.file.label", "Document")
-          }}
-          data-testid={`${dataTestId}-file-explorer`}
-        />
+    <div data-testid={dataTestId} className="gba:w-full">
+      <div className="gba:space-y-4">
+        {/* Header with title and actions */}
+        <div className="gba:flex gba:items-center gba:justify-between">
+          <h3 className="gba:text-lg gba:font-semibold">
+            {getTranslationFromI18nKeyAndLabel("document.section.title", "Document Management")}
+          </h3>
+          
+          <div className="gba:flex gba:items-center gba:gap-2">
+            {createFolderActionProps && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleCreateFolder}
+                data-testid={`${dataTestId}-create-folder-button`}
+                title={viewMode === 'tree' && selectedItems.length === 1 && filteredDocuments.find(doc => doc.id === selectedItems[0] && doc.folder) 
+                  ? `Create folder in "${filteredDocuments.find(doc => doc.id === selectedItems[0])?.name}"` 
+                  : "Create folder at root level"}
+              >
+                <Folder className="gba:h-4 gba:w-4 gba:mr-2" />
+                {getTranslationFromI18nKeyAndLabel("document.folder.new", "New Document Folder")}
+              </Button>
+            )}
+            {uploadActionProps && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleUpload}
+                data-testid={`${dataTestId}-upload-button`}
+                title={viewMode === 'tree' && selectedItems.length === 1 && filteredDocuments.find(doc => doc.id === selectedItems[0] && doc.folder) 
+                  ? `Upload to "${filteredDocuments.find(doc => doc.id === selectedItems[0])?.name}"` 
+                  : "Upload to root level"}
+              >
+                <Upload className="gba:h-4 gba:w-4 gba:mr-2" />
+                {getTranslationFromI18nKeyAndLabel("document.upload.files", "Upload Documents")}
+              </Button>
+            )}
+          </div>
+        </div>
+
+        {/* Search and View Toggle Row */}
+        <div className="gba:flex gba:items-center gba:justify-between">
+          {/* Search Input */}
+          <div className="gba:relative gba:max-w-sm">
+            <Search className="gba:absolute gba:left-3 gba:top-1/2 gba:transform gba:-translate-y-1/2 gba:h-4 gba:w-4 gba:text-muted-foreground" />
+            <Input
+              placeholder={getTranslationFromI18nKeyAndLabel("document.search.placeholder", "Search documents...")}
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="gba:pl-10"
+              data-testid={`${dataTestId}-search-input`}
+            />
+          </div>
+          
+          <div className="gba:flex gba:items-center gba:gap-2">
+            {/* Expand/Collapse buttons - only show in tree view */}
+            {viewMode === 'tree' && (
+              <div className="gba:flex gba:items-center gba:gap-1">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleExpandAll}
+                  data-testid={`${dataTestId}-expand-all-button`}
+                  title={getTranslationFromI18nKeyAndLabel("document.tree.expand.all", "Expand All")}
+                >
+                  <Expand className="gba:h-4 gba:w-4 gba:mr-1" />
+                  {getTranslationFromI18nKeyAndLabel("document.tree.expand.all", "Expand All")}
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleCollapseAll}
+                  data-testid={`${dataTestId}-collapse-all-button`}
+                  title={getTranslationFromI18nKeyAndLabel("document.tree.collapse.all", "Collapse All")}
+                >
+                  <Minimize className="gba:h-4 gba:w-4 gba:mr-1" />
+                  {getTranslationFromI18nKeyAndLabel("document.tree.collapse.all", "Collapse All")}
+                </Button>
+              </div>
+            )}
+            
+            {/* View Mode Toggle */}
+            <div className="gba:flex gba:items-center gba:border gba:rounded-md">
+              <Button
+                variant={viewMode === 'tree' ? 'default' : 'ghost'}
+                size="sm"
+                onClick={() => {
+                  setViewMode('tree');
+                  // Clear selection when switching to tree view
+                  setSelectedItems([]);
+                }}
+                className="gba:rounded-r-none gba:border-r"
+                data-testid={`${dataTestId}-tree-view-button`}
+              >
+                <ListTree className="gba:h-4 gba:w-4 gba:mr-1" />
+                {getTranslationFromI18nKeyAndLabel("document.view.tree", "Tree View")}
+              </Button>
+              <Button
+                variant={viewMode === 'list' ? 'default' : 'ghost'}
+                size="sm"
+                onClick={() => {
+                  setViewMode('list');
+                  // Clear selection when switching to list view
+                  setSelectedItems([]);
+                }}
+                className="gba:rounded-l-none"
+                data-testid={`${dataTestId}-list-view-button`}
+              >
+                <List className="gba:h-4 gba:w-4 gba:mr-1" />
+                {getTranslationFromI18nKeyAndLabel("document.view.list", "List View")}
+              </Button>
+            </div>
+          </div>
+        </div>
+
+
+         {/* Documents Table */}
+         <div 
+           className={`gba:border gba:rounded-lg ${isDroppingOnRoot ? 'gba:bg-primary/5 gba:border-primary' : ''}`}
+           onDragOver={handleRootDragOver}
+           onDragLeave={handleRootDragLeave}
+           onDrop={handleRootDrop}
+         >
+           <Table>
+            <TableHeader>
+              <TableRow>
+                {columns.map((column) => (
+                  <TableHead 
+                    key={column.id}
+                    className={`gba:text-left ${column.width ? `gba:w-[${column.width}]` : ''}`}
+                    style={{ 
+                      textAlign: column.align || 'left',
+                      width: column.width 
+                    }}
+                  >
+                    {column.header}
+                  </TableHead>
+                ))}
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {displayDocuments.length === 0 ? (
+                <TableRow>
+                  <TableCell 
+                    colSpan={columns.length} 
+                    className="gba:text-center gba:py-12 gba:text-muted-foreground"
+                  >
+                    <div className="gba:space-y-2">
+                      <File className="gba:h-12 gba:w-12 gba:mx-auto gba:text-muted-foreground" />
+                      <div className="gba:text-lg gba:font-medium">
+                        {getTranslationFromI18nKeyAndLabel("document.empty.title", "No documents found")}
+                      </div>
+                      <div className="gba:text-sm">
+                        {getTranslationFromI18nKeyAndLabel("document.empty.description", "Upload documents or create document folders to organize your files")}
+                      </div>
+                    </div>
+                  </TableCell>
+                </TableRow>
+              ) : (
+                 displayDocuments.map((document) => {
+                   const isSelected = selectedItems.includes(document.id);
+                   const isDraggedOver = dropTarget === document.id;
+                   const isDragging = draggedDocument?.id === document.id;
+                   
+                   return (
+                     <TableRow 
+                       key={document.id} 
+                       data-testid={`${dataTestId}-row-${document.id}`}
+                       data-folder={document.folder ? 'true' : 'false'} // Add data attribute to identify folders
+                       className={`
+                         ${isSelected && viewMode === 'tree' ? 'gba:bg-muted/50' : ''} 
+                         ${viewMode === 'tree' ? 'gba:cursor-pointer hover:gba:bg-muted/30' : ''}
+                         ${isDraggedOver ? 'gba:bg-primary/10 gba:border-primary' : ''}
+                         ${isDragging ? 'gba:opacity-50' : ''}
+                       `}
+                       onClick={(e) => handleRowClick(document.id, e)}
+                       draggable={!document.folder} // Only allow dragging documents, not folders
+                       onDragStart={(e) => handleDragStart(e, document)}
+                       onDragOver={(e) => document.folder ? handleDragOver(e, document) : undefined}
+                       onDragLeave={document.folder ? handleDragLeave : undefined}
+                       onDrop={(e) => document.folder ? handleDrop(e, document) : undefined}
+                       onDragEnd={handleDragEnd}
+                     >
+                      {columns.map((column) => (
+                        <TableCell 
+                          key={column.id}
+                          style={{ 
+                            textAlign: column.align || 'left',
+                            width: column.width 
+                          }}
+                        >
+                          {column.render(document)}
+                        </TableCell>
+                      ))}
+                    </TableRow>
+                  );
+                })
+              )}
+            </TableBody>
+          </Table>
+        </div>
+
+        {/* Custom three dots menu portal */}
+        {selectedDocument && menuMountEl && createPortal(
+          <AppActionMenu
+            accessToken={accessToken}
+            staticFlowData={customMenuActions as any}
+            emptyStateBehavior="enable"
+            open={menuOpen}
+            onOpenChange={(open) => setMenuOpen(open)}
+            prefixDataTestId="document-section"
+            data-testid="document-section-action-menu"
+          >
+            <button type="button" aria-label="open actions" />
+          </AppActionMenu>,
+          menuMountEl
+        )}
+
+         {/* Confirmation Modal */}
+         <Dialog open={confirmationModal.open} onOpenChange={(open) => !open && handleCancelAction()}>
+           <DialogContent data-testid="document-section-confirmation-modal">
+             <DialogHeader>
+               <DialogTitle>{confirmationModal.title}</DialogTitle>
+               <DialogDescription>
+                 {confirmationModal.message}
+               </DialogDescription>
+             </DialogHeader>
+             <DialogFooter>
+               <Button 
+                 variant="outline" 
+                 onClick={handleCancelAction}
+                 data-testid="document-section-cancel-button"
+               >
+                 Cancel
+               </Button>
+               <Button 
+                 variant="destructive" 
+                 onClick={handleConfirmAction}
+                 data-testid="document-section-confirm-button"
+               >
+                 {confirmationModal.actionLabel}
+               </Button>
+             </DialogFooter>
+           </DialogContent>
+         </Dialog>
+         
+         {/* New Folder Dialog */}
+         <Dialog open={newFolderDialog.open} onOpenChange={(open) => {
+           if (!open) {
+             setNewFolderDialog({ open: false, parentId: null });
+             setSelectedParentFolder('');
+           }
+         }}>
+           <DialogContent data-testid="document-section-new-folder-modal">
+             <DialogHeader>
+               <DialogTitle>
+                 {getTranslationFromI18nKeyAndLabel("document.folder.create.title", "Create New Folder")}
+               </DialogTitle>
+               <DialogDescription>
+                 {newFolderDialog.parentName 
+                   ? `Creating folder in "${newFolderDialog.parentName}"`
+                   : "Creating folder at root level"
+                 }
+               </DialogDescription>
+             </DialogHeader>
+             <div className="gba:space-y-4 gba:py-4">
+               <div className="gba:space-y-2">
+                 <label htmlFor="folder-name" className="gba:text-sm gba:font-medium">
+                   {getTranslationFromI18nKeyAndLabel("document.folder.name.label", "Folder Name")}
+                 </label>
+                 <Input
+                   id="folder-name"
+                   placeholder={getTranslationFromI18nKeyAndLabel("document.folder.name.placeholder", "Enter folder name...")}
+                   value={newFolderName}
+                   onChange={(e) => setNewFolderName(e.target.value)}
+                   data-testid="document-section-folder-name-input"
+                   onKeyDown={(e) => {
+                     if (e.key === 'Enter') {
+                       handleCreateNewFolder();
+                     }
+                   }}
+                 />
+               </div>
+               
+               <div className="gba:space-y-2">
+                 <label htmlFor="parent-folder" className="gba:text-sm gba:font-medium">
+                   {getTranslationFromI18nKeyAndLabel("document.folder.parent.label", "Parent Folder")}
+                 </label>
+                 <Select value={selectedParentFolder} onValueChange={setSelectedParentFolder}>
+                   <SelectTrigger data-testid="document-section-parent-folder-select">
+                     <SelectValue placeholder={getTranslationFromI18nKeyAndLabel("document.folder.parent.placeholder", "Select parent folder...")} />
+                   </SelectTrigger>
+                   <SelectContent>
+                     <SelectItem value="root" data-testid="document-section-parent-root">
+                       <div className="gba:flex gba:items-center gba:gap-2">
+                         <Folder className="gba:h-4 gba:w-4" />
+                         {getTranslationFromI18nKeyAndLabel("document.folder.root", "Root Level")}
+                       </div>
+                     </SelectItem>
+                     {availableFolders.map((folder) => (
+                       <SelectItem key={folder.id} value={folder.id} data-testid={`document-section-parent-${folder.id}`}>
+                         <div className="gba:flex gba:items-center gba:gap-2">
+                           <Folder className="gba:h-4 gba:w-4" />
+                           {folder.name || 'Untitled Folder'}
+                         </div>
+                       </SelectItem>
+                     ))}
+                   </SelectContent>
+                 </Select>
+               </div>
+             </div>
+             <DialogFooter>
+               <Button 
+                 variant="outline" 
+                 onClick={() => {
+                   setNewFolderDialog({ open: false, parentId: null });
+                   setSelectedParentFolder('');
+                 }}
+                 data-testid="document-section-folder-cancel-button"
+               >
+                 {getTranslationFromI18nKeyAndLabel("common.cancel", "Cancel")}
+               </Button>
+               <Button 
+                 onClick={handleCreateNewFolder}
+                 disabled={!newFolderName.trim()}
+                 data-testid="document-section-folder-create-button"
+               >
+                 {getTranslationFromI18nKeyAndLabel("document.folder.create.action", "Create Folder")}
+               </Button>
+             </DialogFooter>
+           </DialogContent>
+         </Dialog>
+
+      </div>
     </div>
   );
 };
