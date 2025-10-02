@@ -26,7 +26,8 @@ import {
   UserOutlined,
   FolderAddOutlined,
   EditOutlined,
-  DeleteOutlined
+  DeleteOutlined,
+  MoreOutlined
 } from '@ant-design/icons';
 import { 
   Dialog,
@@ -35,12 +36,16 @@ import {
   DialogTitle,
   DialogFooter,
   Input,
-  Icon
+  Icon,
+  DropdownMenu,
+  DropdownMenuTrigger,
+  DropdownMenuContent,
+  DropdownMenuItem
 } from '@newwork/nw-design-system';
 import { Gear } from '@phosphor-icons/react';
 import { toast } from 'sonner';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
-import { DebouncedInput } from '@/components/data-filter/DebouncedInput';
+import { DebouncedInput } from '@/components/debounced-input/DebouncedInput';
 import { DataContainer } from '@/components/layout/dataContainer';
 import { useEmployeeData } from '@/business-apps/crm/common/hooks/useEmployeeData';
 import { startProcess } from '@/common/utils/start-process';
@@ -49,6 +54,7 @@ import { DndContext, PointerSensor, useSensor, useSensors, DragEndEvent, DragSta
 import { useRestClient } from '@/common/network/rest/useRestClient';
 import { env } from '@/common/env/EnvUtils';
 import { useGetInvestmentDocumentsByOpportunityId } from '@/common/data/investment/hooks/useInvestmentOpportunities';
+import { useSearchInvestmentDocuments } from '@/common/data/investment/hooks/useSearchInvestmentDocuments';
 import { buildDocumentUrls } from '../utils/documentUrlUtils';
 
 interface Document {
@@ -121,6 +127,7 @@ export const OpportunityDocuments: React.FC<OpportunityDocumentsProps> = ({
   opportunityId, 
   context 
 }) => {
+  
   // DnD sensors
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }));
   const restClient = useRestClient(env('NEXT_PUBLIC_KOGITO_PROCESSES_ENDPOINT'));
@@ -149,6 +156,22 @@ export const OpportunityDocuments: React.FC<OpportunityDocumentsProps> = ({
   ]);
 
   const { getEmployeeDisplayName } = useEmployeeData(context.accessToken);
+  
+  // Initialize search hook for list view GraphQL search
+  const {
+    searchTerm: graphqlSearchTerm,
+    documents: searchedDocuments,
+    totalCount: searchTotalCount,
+    isLoading: searchIsLoading,
+    error: searchError,
+    setSearchTerm: setGraphqlSearchTerm,
+    performDebouncedSearch,
+    hasSearchTerm
+  } = useSearchInvestmentDocuments(context);
+
+  // Log view mode changes
+  useEffect(() => {
+  }, [viewMode, searchQuery, graphqlSearchTerm]);
 
   const openRenameFolder = (node: DocumentFolder) => {
     setRenameModal({ open: true, node, name: node.name });
@@ -168,8 +191,7 @@ export const OpportunityDocuments: React.FC<OpportunityDocumentsProps> = ({
       return;
     }
     try {
-      await restClient.post('/investments/saveInvestmentDocument', {
-        changeMode: 'UPDATE',
+      await restClient.post('/investment-relations/updateInvestmentDocument', {
         investmentDocument: {
           id: node.folderId,
           version: node.folderVersion,
@@ -181,16 +203,16 @@ export const OpportunityDocuments: React.FC<OpportunityDocumentsProps> = ({
       setRenameModal({ open: false, name: '', node: undefined });
       await fetchDocuments();
     } catch (e: any) {
-      console.error('Error renaming folder', e);
       toast.error(e?.message || 'Failed to rename folder');
     }
   };
 
   const openEditDocument = (doc: Document) => {
     startProcess({
-      domain: 'investments',
-      processName: 'saveInvestmentDocument',
+      domain: 'investment-relations',
+      processName: 'updateInvestment',
       payload: {
+        documentId: doc.id,
         opportunityId,
         investmentDocument: {
           id: doc.id,
@@ -328,19 +350,10 @@ export const OpportunityDocuments: React.FC<OpportunityDocumentsProps> = ({
 
   // Apply filters to documents for enhanced List View
   const documentsWithFilters = useMemo(() => {
-    let filtered = documents;
+    // For list view, use GraphQL search results when there's a search term
+    let filtered = viewMode === 'list' && hasSearchTerm ? searchedDocuments : documents;
 
-    // Apply search filter
-    if (searchQuery.trim()) {
-      const search = searchQuery.toLowerCase();
-      filtered = filtered.filter(doc => 
-        doc.name?.toLowerCase().includes(search) ||
-        doc.documentType?.value?.toLowerCase().includes(search) ||
-        doc.documentGroup?.value?.toLowerCase().includes(search)
-      );
-    }
-
-    // Apply selected filters
+    // Apply selected filters (only for local filtering)
     if (selectedFilters.length > 0) {
       filtered = filtered.filter(doc => {
         // Check if document matches any of the selected filters
@@ -376,7 +389,7 @@ export const OpportunityDocuments: React.FC<OpportunityDocumentsProps> = ({
     }
 
     return filtered;
-  }, [documents, searchQuery, selectedFilters]);
+  }, [documents, searchedDocuments, selectedFilters, viewMode, hasSearchTerm]);
 
   const { fetchInvestmentDocumentsByOpportunityId } = useGetInvestmentDocumentsByOpportunityId(context);
 
@@ -399,7 +412,6 @@ export const OpportunityDocuments: React.FC<OpportunityDocumentsProps> = ({
       }));
       setDocuments(mapped);
     } catch (err) {
-      console.error('Error fetching opportunity documents:', err);
       setError(err instanceof Error ? err.message : 'Failed to load documents');
     } finally {
       setLoading(false);
@@ -412,10 +424,16 @@ export const OpportunityDocuments: React.FC<OpportunityDocumentsProps> = ({
     fetchDocuments();
   }, [opportunityId, context.accessToken]);
 
+  // Trigger GraphQL search when switching to list view or opportunity changes
+  useEffect(() => {
+    if (viewMode === 'list' && opportunityId) {
+      performDebouncedSearch({ opportunityId });
+    }
+  }, [viewMode, opportunityId, performDebouncedSearch]);
+
   // Listen for process completion to refetch documents after upload
   useProcessCompletion({
     onSuccess: () => {
-      console.log('Process completed, refreshing opportunity documents');
       fetchDocuments();
     },
     onFailure: () => {
@@ -495,12 +513,40 @@ export const OpportunityDocuments: React.FC<OpportunityDocumentsProps> = ({
     return `${dateStr}, ${timeStr}`;
   };
 
-  const filteredDocuments = Array.isArray(documents) ? documents.filter(doc => 
-    !searchQuery || 
-    (doc.name && doc.name.toLowerCase().includes(searchQuery.toLowerCase())) ||
-    (doc.documentType?.value && doc.documentType.value.toLowerCase().includes(searchQuery.toLowerCase())) ||
-    (doc.createdBy && getEmployeeDisplayName(doc.createdBy)?.toLowerCase()?.includes(searchQuery.toLowerCase()))
-  ) : [];
+  const filteredDocuments = useMemo(() => {
+    
+    if (!Array.isArray(documents)) {
+      return [];
+    }
+    
+    const filtered = documents.filter(doc => {
+      
+      // If no search query, include all documents
+      if (!searchQuery) {
+        return true;
+      }
+      
+      const searchLower = searchQuery.toLowerCase();
+      
+      // Check name match
+      const nameMatch = doc.name && doc.name.toLowerCase().includes(searchLower);
+      if (nameMatch) {
+      }
+      
+      // Check document type match
+      const typeMatch = doc.documentType?.value && doc.documentType.value.toLowerCase().includes(searchLower);
+      
+      // Check created by match
+      const employeeName = getEmployeeDisplayName(doc.createdBy || '');
+      const createdByMatch = doc.createdBy && employeeName?.toLowerCase()?.includes(searchLower);
+      
+      const isMatch = nameMatch || typeMatch || createdByMatch;
+      
+      return isMatch;
+    });
+    
+    return filtered;
+  }, [documents, searchQuery, getEmployeeDisplayName]);
 
   const toggleFolder = (folderId: string) => {
     const newExpanded = new Set(expandedFolders);
@@ -605,9 +651,13 @@ export const OpportunityDocuments: React.FC<OpportunityDocumentsProps> = ({
     if (!document) return;
     
     try {
-      await restClient.post('/investments/saveInvestmentDocument', {
-        changeMode: 'DELETE',
-        investmentDocument: { id: document.id, version: document.version, opportunity: opportunityId },
+      await restClient.post('/investment-relations/updateInvestmentDocument', {
+        investmentDocument: { 
+          id: document.id, 
+          version: document.version, 
+          opportunity: opportunityId,
+          recordState: 'inactive'
+        },
       }, { headers: { Authorization: `Bearer ${context.accessToken}` } });
       toast.success('Document deleted');
       await fetchDocuments();
@@ -658,7 +708,7 @@ export const OpportunityDocuments: React.FC<OpportunityDocumentsProps> = ({
     if (!node.folderId || node.folderVersion == null) return;
     
     try {
-      await restClient.post('/investments/saveInvestmentDocument', {
+      await restClient.post('/investment-relations/createInvestmentDocument', {
         changeMode: 'DELETE',
         investmentDocument: { id: node.folderId, version: node.folderVersion, opportunity: opportunityId },
       }, { headers: { Authorization: `Bearer ${context.accessToken}` } });
@@ -724,13 +774,13 @@ export const OpportunityDocuments: React.FC<OpportunityDocumentsProps> = ({
   ) => {
     try {
       await restClient.post(
-        '/investments/saveInvestmentDocument',
+        '/investment-relations/updateInvestmentDocument',
         {
-          changeMode: 'UPDATE',
           investmentDocument: {
             id: docId,
             version: version,
             parentDocument: newParentId ?? '',
+            folder: documents.find(d => d.id === docId)?.folder || false, // Preserve folder status
             opportunity: opportunityId,
           },
         },
@@ -795,6 +845,69 @@ export const OpportunityDocuments: React.FC<OpportunityDocumentsProps> = ({
 
   // Removed unused renderDocumentListItem
 
+  // Document Actions Dropdown Component
+  const DocumentActionsDropdown: React.FC<{ document: Document; testIdPrefix: string; size?: 'sm' | 'md' }> = ({ document, testIdPrefix, size = 'sm' }) => {
+    const buttonSize = size === 'md' ? 'gba:h-7 gba:w-7' : 'gba:h-6 gba:w-6';
+    return (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <Button
+          variant="ghost"
+          size="sm"
+          className={`gba:p-1 ${buttonSize} gba:opacity-0 gba:group-hover:opacity-100`}
+          data-testid={`${testIdPrefix}-actions-${document.id}`}
+          onClick={(e) => e.stopPropagation()}
+        >
+          <MoreOutlined style={{ fontSize: '10px' }} />
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end" className="gba:w-32">
+        <DropdownMenuItem
+          onClick={(e) => {
+            e.stopPropagation();
+            openEditDocument(document);
+          }}
+          data-testid={`${testIdPrefix}-edit-${document.id}`}
+        >
+          <EditOutlined className="gba:mr-2 gba:h-4 gba:w-4" />
+          Edit
+        </DropdownMenuItem>
+        <DropdownMenuItem
+          onClick={(e) => {
+            e.stopPropagation();
+            handleViewDocument(document);
+          }}
+          data-testid={`${testIdPrefix}-view-${document.id}`}
+        >
+          <EyeOutlined className="gba:mr-2 gba:h-4 gba:w-4" />
+          View
+        </DropdownMenuItem>
+        <DropdownMenuItem
+          onClick={(e) => {
+            e.stopPropagation();
+            handleDownloadDocument(document);
+          }}
+          data-testid={`${testIdPrefix}-download-${document.id}`}
+        >
+          <DownloadOutlined className="gba:mr-2 gba:h-4 gba:w-4" />
+          Download
+        </DropdownMenuItem>
+        <DropdownMenuItem
+          onClick={(e) => {
+            e.stopPropagation();
+            handleDeleteDocument(document);
+          }}
+          data-testid={`${testIdPrefix}-delete-${document.id}`}
+          style={{ color: 'var(--nw-destructive)' }}
+        >
+          <DeleteOutlined className="gba:mr-2 gba:h-4 gba:w-4" />
+          Delete
+        </DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
+    );
+  };
+
   return (
     <Card className="gba:h-full">
       <CardHeader>
@@ -804,8 +917,8 @@ export const OpportunityDocuments: React.FC<OpportunityDocumentsProps> = ({
           <Button
             variant="outline"
             onClick={() => startProcess({
-              domain: 'investments',
-              processName: 'saveInvestmentDocument',
+              domain: 'investment-relations',
+              processName: 'createInvestmentDocument',
               payload: { opportunityId },
               builderType: 'NATIVE_SCREEN',
             })}
@@ -817,8 +930,8 @@ export const OpportunityDocuments: React.FC<OpportunityDocumentsProps> = ({
               <Button
                 variant="outline"
                 onClick={() => startProcess({
-                  domain: 'investments',
-                  processName: 'saveInvestmentDocument',
+                  domain: 'investment-relations',
+                  processName: 'createInvestmentDocument',
                   payload: { opportunityId, createFolder: true },
                   builderType: 'NATIVE_SCREEN',
                 })}
@@ -836,8 +949,14 @@ export const OpportunityDocuments: React.FC<OpportunityDocumentsProps> = ({
         <div className="gba:mb-4 gba:space-y-3">
           <DebouncedInput
             placeholder="Search documents..."
-            value={searchQuery}
-            onChange={setSearchQuery}
+            value={viewMode === 'list' ? graphqlSearchTerm : searchQuery}
+            onChange={(value) => {
+              if (viewMode === 'list') {
+                setGraphqlSearchTerm(value);
+              } else {
+                setSearchQuery(value);
+              }
+            }}
             className="gba:w-full"
             data-testid="documents-search-input"
           />
@@ -850,7 +969,9 @@ export const OpportunityDocuments: React.FC<OpportunityDocumentsProps> = ({
                 <Button
                   variant={viewMode === 'icon' ? 'default' : 'ghost'}
                   size="sm"
-                  onClick={() => setViewMode('icon')}
+                  onClick={() => {
+                    setViewMode('icon');
+                  }}
                   className="gba:px-3 gba:py-1.5"
                   data-testid="tree-view-toggle"
                 >
@@ -860,7 +981,9 @@ export const OpportunityDocuments: React.FC<OpportunityDocumentsProps> = ({
                 <Button
                   variant={viewMode === 'list' ? 'default' : 'ghost'}
                   size="sm"
-                  onClick={() => setViewMode('list')}
+                  onClick={() => {
+                    setViewMode('list');
+                  }}
                   className="gba:px-3 gba:py-1.5"
                   data-testid="list-view-toggle"
                 >
@@ -880,15 +1003,15 @@ export const OpportunityDocuments: React.FC<OpportunityDocumentsProps> = ({
           </div>
         </div>
 
-        {loading ? (
+        {(loading || (viewMode === 'list' && searchIsLoading)) ? (
           <div className="gba:flex gba:justify-center gba:items-center gba:py-8">
             <Spinner size="lg" />
           </div>
-        ) : error ? (
+        ) : (error || (viewMode === 'list' && searchError)) ? (
           <Alert variant="destructive" className="gba:mb-4">
             <div>
               <h4 className="gba:font-medium">Error loading documents</h4>
-              <p className="gba:text-sm">{error}</p>
+              <p className="gba:text-sm">{viewMode === 'list' && searchError ? searchError : error}</p>
             </div>
           </Alert>
         ) : documentFolders.length === 0 ? (
@@ -943,16 +1066,8 @@ export const OpportunityDocuments: React.FC<OpportunityDocumentsProps> = ({
                           <div className="gba:w-44 gba:text-right gba:mr-4 gba:text-sm gba:text-gray-500">{formatDate(document.createdAt)}</div>
                           <div className="gba:w-20 gba:text-right gba:mr-4 gba:text-sm gba:text-gray-500">{formatFileSize(document.fileSize || 0)}</div>
                           <div className="gba:w-16 gba:text-right gba:mr-4 gba:text-sm gba:text-gray-500">{document.mimeType?.split('/')[1]?.toUpperCase() || 'FILE'}</div>
-                          <div className="gba:w-28 gba:flex gba:items-center gba:justify-end gba:gap-1">
-                            <Button variant="ghost" size="sm" onClick={(e) => { e.stopPropagation(); openEditDocument(document); }} data-testid={`edit-tree-document-${document.id}`} className="gba:p-1 gba:h-6 gba:w-6 gba:opacity-0 gba:group-hover:opacity-100" title="Edit">
-                              <EditOutlined style={{ fontSize: '10px' }} />
-                            </Button>
-                            <Button variant="ghost" size="sm" onClick={(e) => { e.stopPropagation(); handleViewDocument(document); }} data-testid={`view-tree-document-${document.id}`} className="gba:p-1 gba:h-6 gba:w-6 gba:opacity-0 gba:group-hover:opacity-100" title="View">
-                              <EyeOutlined style={{ fontSize: '10px' }} />
-                            </Button>
-                            <Button variant="ghost" size="sm" onClick={(e) => { e.stopPropagation(); handleDeleteDocument(document); }} data-testid={`delete-tree-document-${document.id}`} className="gba:p-1 gba:h-6 gba:w-6 gba:opacity-0 gba:group-hover:opacity-100" title="Delete">
-                              <DeleteOutlined style={{ fontSize: '10px' }} />
-                            </Button>
+                          <div className="gba:w-8 gba:flex gba:items-center gba:justify-end">
+                            <DocumentActionsDropdown document={document} testIdPrefix="tree-document" />
                           </div>
                         </div>
                       </Draggable>
@@ -996,8 +1111,8 @@ export const OpportunityDocuments: React.FC<OpportunityDocumentsProps> = ({
                                     onClick={(e) => {
                                       e.stopPropagation();
                                       startProcess({
-                                        domain: 'investments',
-                                        processName: 'saveInvestmentDocument',
+                                        domain: 'investment-relations',
+                                        processName: 'createInvestmentDocument',
                                         payload: { opportunityId, ...(node.folderId ? { parentDocument: node.folderId } : {}) },
                                         builderType: 'NATIVE_SCREEN',
                                       });
@@ -1014,8 +1129,8 @@ export const OpportunityDocuments: React.FC<OpportunityDocumentsProps> = ({
                                     onClick={(e) => {
                                       e.stopPropagation();
                                       startProcess({
-                                        domain: 'investments',
-                                        processName: 'saveInvestmentDocument',
+                                        domain: 'investment-relations',
+                                        processName: 'createInvestmentDocument',
                                         payload: { opportunityId, createFolder: true, ...(node.folderId ? { parentDocument: node.folderId } : {}) },
                                         builderType: 'NATIVE_SCREEN',
                                       });
@@ -1081,16 +1196,8 @@ export const OpportunityDocuments: React.FC<OpportunityDocumentsProps> = ({
                                       <div className="gba:w-44 gba:text-right gba:mr-4 gba:text-sm gba:text-gray-500">{formatDate(document.createdAt)}</div>
                                       <div className="gba:w-20 gba:text-right gba:mr-4 gba:text-sm gba:text-gray-500">{formatFileSize(document.fileSize || 0)}</div>
                                       <div className="gba:w-16 gba:text-right gba:mr-4 gba:text-sm gba:text-gray-500">{document.mimeType?.split('/')[1]?.toUpperCase() || 'FILE'}</div>
-                          <div className="gba:w-16 gba:flex gba:items-center gba:justify-end gba:gap-1">
-                                        <Button variant="ghost" size="sm" onClick={(e) => { e.stopPropagation(); openEditDocument(document); }} data-testid={`edit-tree-document-${document.id}`} className="gba:p-1 gba:h-6 gba:w-6 gba:opacity-0 gba:group-hover:opacity-100" title="Edit">
-                                          <EditOutlined style={{ fontSize: '10px' }} />
-                                        </Button>
-                                        <Button variant="ghost" size="sm" onClick={(e) => { e.stopPropagation(); handleViewDocument(document); }} data-testid={`view-tree-document-${document.id}`} className="gba:p-1 gba:h-6 gba:w-6 gba:opacity-0 gba:group-hover:opacity-100" title="View">
-                              <EyeOutlined style={{ fontSize: '10px' }} />
-                            </Button>
-                                        <Button variant="ghost" size="sm" onClick={(e) => { e.stopPropagation(); handleDeleteDocument(document); }} data-testid={`delete-tree-document-${document.id}`} className="gba:p-1 gba:h-6 gba:w-6 gba:opacity-0 gba:group-hover:opacity-100" title="Delete">
-                                          <DeleteOutlined style={{ fontSize: '10px' }} />
-                                        </Button>
+                          <div className="gba:w-8 gba:flex gba:items-center gba:justify-end">
+                            <DocumentActionsDropdown document={document} testIdPrefix="tree-document" />
                           </div>
                         </div>
                                   </Draggable>
@@ -1137,14 +1244,16 @@ export const OpportunityDocuments: React.FC<OpportunityDocumentsProps> = ({
                 <div className="gba:flex gba:items-center gba:gap-4">
                   <div className="gba:flex gba:items-center gba:gap-2">
                     <span>Documents</span>
-                    <span className="gba:text-gray-500">({documentsWithFilters.length})</span>
+                    <span className="gba:text-gray-500">
+                      ({viewMode === 'list' && hasSearchTerm ? searchTotalCount : documentsWithFilters.length})
+                    </span>
                   </div>
                 </div>
               ),
               addButton: {
                 onClick: () => startProcess({
-                  domain: 'investments',
-                  processName: 'saveInvestmentDocument',
+                  domain: 'investment-relations',
+                  processName: 'createInvestmentDocument',
                   payload: {
                     opportunityId,
                   },
@@ -1271,48 +1380,9 @@ export const OpportunityDocuments: React.FC<OpportunityDocumentsProps> = ({
                             </div>
                           )}
                           {isColumnVisible('actions') && (
-                            <div className="gba:w-20 gba:flex-shrink-0 gba:text-right">
-                              <div className="gba:flex gba:items-center gba:gap-1 gba:justify-end">
-                                 <Button
-                                   variant="ghost"
-                                   size="sm"
-                                   onClick={() => openEditDocument(document)}
-                                   data-testid={`edit-list-document-${document.id}`}
-                                   className="gba:p-1 gba:h-7 gba:w-7"
-                                   title="Edit"
-                                 >
-                                   <EditOutlined className="gba:text-xs" />
-                                 </Button>
-                                <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  onClick={() => handleViewDocument(document)}
-                                  data-testid={`view-list-document-${document.id}`}
-                                  className="gba:p-1 gba:h-7 gba:w-7"
-                                  title="View"
-                                >
-                                  <EyeOutlined className="gba:text-xs" />
-                                </Button>
-                                <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  onClick={() => handleDownloadDocument(document)}
-                                  data-testid={`download-list-document-${document.id}`}
-                                  className="gba:p-1 gba:h-7 gba:w-7"
-                                  title="Download"
-                                >
-                                  <DownloadOutlined className="gba:text-xs" />
-                                </Button>
-                                 <Button
-                                   variant="ghost"
-                                   size="sm"
-                                   onClick={() => handleDeleteDocument(document)}
-                                   data-testid={`delete-list-document-${document.id}`}
-                                   className="gba:p-1 gba:h-7 gba:w-7"
-                                   title="Delete"
-                                 >
-                                   <DeleteOutlined className="gba:text-xs" />
-                                </Button>
+                            <div className="gba:w-8 gba:flex-shrink-0 gba:text-right">
+                              <div className="gba:flex gba:items-center gba:justify-end">
+                                <DocumentActionsDropdown document={document} testIdPrefix="list-document" size="md" />
                               </div>
                             </div>
                           )}

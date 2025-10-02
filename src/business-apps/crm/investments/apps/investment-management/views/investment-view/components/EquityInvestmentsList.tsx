@@ -8,7 +8,7 @@ import { DataContainer } from "@/components/layout/dataContainer/DataContainer";
 import { AppAction } from "@/components/app-action/AppAction";
 import { AppActionButton } from "@/components/app-action-button/AppActionButton";
 import { FlowContextName } from "@/common/types/FlowRegistryTypes";
-import { Building2, Calendar, PlusSquare } from "lucide-react";
+import { Building2, Calendar, Plus } from "lucide-react";
 import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils';
 import { formatDate } from "@/common/data/investment";
 import { formatCurrencyParts } from '@/common/utils/numberFormatter';
@@ -17,6 +17,7 @@ import { ColumnConfig } from "@/components/dataController";
 import { useInvestmentListController } from "../hooks/useInvestmentListController";
 import { OwnerDisplay } from "../../../../../components/shared";
 import { useProcessCompletion } from "@/common/hooks/useProcessCompletion";
+import { getTranslationFromI18nKeyAndLabel } from "@/common/utils/windowUtils";
 
 export interface EquityInvestmentsListProps extends BusinessAppContextProps {
   sourceApp?: string;
@@ -54,8 +55,6 @@ const EquityInvestmentsList: React.FC<EquityInvestmentsListProps> = (props) => {
   const [columnConfig, setColumnConfig] = useState<ColumnConfig[]>(() => [
     { id: "investment", label: "Investment", visible: true },
     { id: "type", label: "Type", visible: true },
-    { id: "stage", label: "Stage", visible: true },
-    { id: "initialInvestment", label: "Initial Investment", visible: true },
     { id: "totalInvestment", label: "Total Investment", visible: true },
     { id: "marketValue", label: "Market Value", visible: true },
     { id: "performance", label: "Performance", visible: true },
@@ -69,8 +68,6 @@ const EquityInvestmentsList: React.FC<EquityInvestmentsListProps> = (props) => {
     { id: "created", label: "Created", visible: true },
     // Optional columns specific to equity
     { id: "exitDate", label: "Exit Date", visible: false },
-    { id: "isin", label: "ISIN", visible: false },
-    { id: "currency", label: "Currency", visible: false },
     // Actions column must be LAST
     { id: "actions", label: "Actions", visible: true, disabled: true },
   ]);
@@ -95,7 +92,6 @@ const EquityInvestmentsList: React.FC<EquityInvestmentsListProps> = (props) => {
     const columnToFilterMap: Record<string, string> = {
       investment: "investment",
       type: "investmentType",
-      stage: "investmentStage",
       status: "investmentStatus",
       owner: "owner",
       created: "creationDate",
@@ -286,7 +282,7 @@ const EquityInvestmentsList: React.FC<EquityInvestmentsListProps> = (props) => {
         listTitle: (
           <div className="gba:flex gba:items-center gba:gap-4">
             <div className="gba:flex gba:items-center gba:gap-2">
-              <span>Equity Investments</span>
+              <span>{getTranslationFromI18nKeyAndLabel('investment:equity.equityInvestments', 'Equity Investments')}</span>
               <span className="gba:text-gray-500">({totalCount})</span>
             </div>
           </div>
@@ -305,14 +301,14 @@ const EquityInvestmentsList: React.FC<EquityInvestmentsListProps> = (props) => {
             emptyStateBehavior="hide"
           >
             <Button
-              variant="ghost"
               size="sm"
+              variant="default"
               data-testid="equity-investments-add-button"
               type="button"
-              className="gba:gap-1"
+              style={{ gap: 'var(--nw-spacing-xs)' }}
             >
-              <PlusSquare className="gba:w-4 gba:h-4" />
-              Add
+              <Plus size={16} />
+              {getTranslationFromI18nKeyAndLabel('investment:equity.addEquityInvestment', 'Add Equity Investment')}
             </Button>
           </AppAction>
         ),
@@ -333,8 +329,6 @@ const EquityInvestmentsList: React.FC<EquityInvestmentsListProps> = (props) => {
               <TableRow>
                 {visibleColumns.includes('investment') && <TableHead>Investment</TableHead>}
                 {visibleColumns.includes('type') && <TableHead>Type</TableHead>}
-                {visibleColumns.includes('stage') && <TableHead>Stage</TableHead>}
-                {visibleColumns.includes('initialInvestment') && <TableHead>Initial Investment</TableHead>}
                 {visibleColumns.includes('totalInvestment') && <TableHead>Total Investment</TableHead>}
                 {visibleColumns.includes('marketValue') && <TableHead>Market Value</TableHead>}
                 {visibleColumns.includes('performance') && <TableHead>Performance</TableHead>}
@@ -364,21 +358,6 @@ const EquityInvestmentsList: React.FC<EquityInvestmentsListProps> = (props) => {
                     <TableCell>
                       <Badge variant="secondary">{investment.investmentType?.value || "Unknown"}</Badge>
                     </TableCell>
-                  )}
-                  {visibleColumns.includes('stage') && (
-                    <TableCell>
-                      <Badge variant="outline">{investment.investmentPhase?.value || "Unknown"}</Badge>
-                    </TableCell>
-                  )}
-                  {visibleColumns.includes('initialInvestment') && (
-                    <TableCell className="gba:text-right">{
-                      (() => { const { number, symbol } = formatCurrencyParts(investment.initialInvestmentAmount || 0, { currency: investment.currency?.code, minimumFractionDigits: 0, maximumFractionDigits: 2 }); return (
-                        <>
-                          <span className="gba:text-sm gba:[font-variant-numeric:tabular-nums]">{number}</span>
-                          <span className="gba:text-xs gba:text-gray-400 gba:inline-block gba:text-right gba:shrink-0 gba:w-[5ch]">{symbol}</span>
-                        </>
-                      ); })()
-                    }</TableCell>
                   )}
                   {visibleColumns.includes('totalInvestment') && (
                     <TableCell className="gba:text-right">{

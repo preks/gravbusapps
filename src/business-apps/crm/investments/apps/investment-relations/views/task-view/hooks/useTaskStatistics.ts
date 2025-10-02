@@ -132,7 +132,7 @@ export const useTaskStatisticsNew = (props: UseTaskStatisticsNewProps): UseTaskS
     } catch (err) {
       const e = err instanceof Error ? err : new Error('Failed to load task statistics');
       setError(e);
-      console.error('Error loading task statistics:', e);
+
     } finally {
       setIsLoading(false);
     }

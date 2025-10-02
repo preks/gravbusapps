@@ -119,7 +119,6 @@ export const useTaskListData = (props: UseTaskListDataProps): UseTaskListDataRet
 
   const loadData = useCallback(async (page: number, size: number) => {
     if (!accessToken) {
-      console.warn('No access token provided to useTaskListData (IRM)');
       return;
     }
     setLoading(true);
@@ -154,7 +153,8 @@ export const useTaskListData = (props: UseTaskListDataProps): UseTaskListDataRet
           const contactName = it.contactDisplayName || `${it.contact.firstName || ''} ${it.contact.lastName || ''}`.trim() || 'Contact';
           reference = { type: 'contact', id: it.contact.id, name: contactName } as any;
         } else {
-          reference = { type: 'account', id: it.id, name: 'General' } as any;
+          // No related entity - set reference to undefined instead of creating invalid reference
+          reference = undefined;
         }
 
         return {
@@ -201,7 +201,6 @@ export const useTaskListData = (props: UseTaskListDataProps): UseTaskListDataRet
     } catch (err) {
       const e = err instanceof Error ? err : new Error('Failed to load tasks');
       setError(e);
-      console.error('Error loading IRM tasks:', e);
     } finally {
       setLoading(false);
     }

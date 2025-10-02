@@ -12,9 +12,9 @@ import { useTaskFilters } from './hooks/useTaskFilters';
 import { AppActionMenu } from '@/components/app-action-menu/AppActionMenu';
 import { AppAction } from '@/components/app-action/AppAction';
 import { FlowContextName } from '@/common/types/FlowRegistryTypes';
-import { PlusSquareIcon } from '@phosphor-icons/react';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 import { Task } from './types/TaskTypes';
+import { ColumnConfig } from '@/components/dataController';
 
 export interface TaskManagementProps extends BusinessAppContextProps {
   sourceApp?: string;
@@ -173,7 +173,7 @@ export const TaskManagement: React.FC<TaskManagementProps> = (props: TaskManagem
           refetchStatistics();
         }
       } catch (err) {
-        console.error('Error handling process completion:', err);
+        // Silently handle errors in process completion
       }
     };
 
@@ -394,7 +394,7 @@ export const TaskManagement: React.FC<TaskManagementProps> = (props: TaskManagem
         <SheetContent className="gba:w-[450px] gba:sm:w-[600px] gba:max-w-[90vw] gba:p-0 gba:flex gba:flex-col">
           <SheetHeader className="gba:px-6 gba:py-6 gba:border-b gba:border-border gba:shrink-0">
             <SheetTitle className="gba:text-xl gba:font-semibold gba:text-left">
-              {selectedTask?.name || 'Task Details'}
+              {selectedTask?.name || getTranslationFromI18nKeyAndLabel('investment.tasks.taskDetails', 'Task Details')}
             </SheetTitle>
           </SheetHeader>
               <div className="gba:flex-1 gba:overflow-hidden gba:px-6">
