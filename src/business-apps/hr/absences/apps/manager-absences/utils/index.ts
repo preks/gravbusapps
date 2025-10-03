@@ -295,3 +295,40 @@ export const sortAbsencesByField = (
     return 0;
   });
 };
+
+// Status display configuration for absence statuses
+export interface AbsenceStatusDisplayConfig {
+  label: string;
+  type: string;
+}
+
+// Maps absence statuses to user-friendly display configurations (similar to expense status)
+export const getAbsenceStatusDisplay = (status: string): AbsenceStatusDisplayConfig => {
+  switch (status?.toUpperCase()) {
+    case 'PENDING':
+      return {
+        label: getTranslationFromI18nKeyAndLabel('lowcoder:expense_statuses.pending', 'Pending'),
+        type: 'pending',
+      };
+    case 'APPROVED':
+      return {
+        label: getTranslationFromI18nKeyAndLabel('lowcoder:expense_statuses.approved', 'Approved'),
+        type: 'approved',
+      };
+    case 'REJECTED':
+      return {
+        label: getTranslationFromI18nKeyAndLabel('lowcoder:expense_statuses.rejected', 'Rejected'),
+        type: 'rejected',
+      };
+    case 'CANCELLED':
+      return {
+        label: getTranslationFromI18nKeyAndLabel('lowcoder:absences_overview_entry_screen.cancelled_status', 'Cancelled'),
+        type: 'cancelled',
+      };
+    default:
+      return {
+        label: status || 'Unknown',
+        type: 'cancelled',
+      };
+  }
+};
