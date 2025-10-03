@@ -413,21 +413,29 @@ export const getTypeSpecificDetailGroups = (
         {
           id: 'real-estate-details',
           items: [
-            { label: getTranslationFromI18nKeyAndLabel('crm.investments.realEstate.propertySize', 'Size'), value: realEstate.propertySize ? `${realEstate.propertySize} m²` : '-' },
-            { label: getTranslationFromI18nKeyAndLabel('crm.investments.realEstate.propertyLocation', 'Location'), value: realEstate.propertyLocation || '-' },
-            {
-              label: getTranslationFromI18nKeyAndLabel('crm.investments.realEstate.propertyType', 'Property Type'),
-              value: realEstate.propertyType?.value || '-',
+            { 
+              label: getTranslationFromI18nKeyAndLabel('crm.investments.realEstate.size', 'Size'), 
+              value: realEstate.size ? `${realEstate.size} ${realEstate.sizeMeasurementUnitRef?.split(':').pop() || 'm²'}` : '-' 
             },
-            {
-              label: getTranslationFromI18nKeyAndLabel('crm.investments.header.ownerEmployee', 'Owner Employee'),
-              value: investment?.ownerEmployee
-                ? (
-                    (investment.ownerEmployee.firstName || investment.ownerEmployee.lastName)
-                      ? `${investment.ownerEmployee.firstName || ''} ${investment.ownerEmployee.lastName || ''}`.trim()
-                      : (investment.ownerEmployee.displayName || investment.ownerEmployee.fullName || '-')
-                  )
-                : '-',
+            { 
+              label: getTranslationFromI18nKeyAndLabel('crm.investments.realEstate.buildingYear', 'Building Year'), 
+              value: realEstate.buildingYear || '-' 
+            },
+            { 
+              label: getTranslationFromI18nKeyAndLabel('crm.investments.realEstate.annualNetColdRent', 'Annual Net Cold Rent'), 
+              value: realEstate.annualNetColdRent ? formatCurrency(realEstate.annualNetColdRent, currencyCode) : '-' 
+            },
+            { 
+              label: getTranslationFromI18nKeyAndLabel('crm.investments.realEstate.funding', 'Funding'), 
+              value: realEstate.funding ? formatCurrency(realEstate.funding, currencyCode) : '-' 
+            },
+            { 
+              label: getTranslationFromI18nKeyAndLabel('crm.investments.realEstate.occupancyPercent', 'Occupancy %'), 
+              value: realEstate.occupancyPercent ? `${realEstate.occupancyPercent}%` : '-' 
+            },
+            { 
+              label: getTranslationFromI18nKeyAndLabel('crm.investments.realEstate.locality', 'Location'), 
+              value: realEstate.locality || '-' 
             }
           ]
         }

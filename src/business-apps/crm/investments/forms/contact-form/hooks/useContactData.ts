@@ -27,20 +27,25 @@ export const mapInvestmentContactToFormValues = (
     firstName: contact.firstName || "",
     lastName: contact.lastName || "",
     fullName: contact.fullName || "",
+    type: contact.type || "UNKNOWN_CONTACT",
     birthDate: contact.birthDate || "",
-    description: contact.description || "", // ✅ Using description field
 
     // Professional Information
     jobPosition: contact.jobPosition || "",
     department: contact.department || "",
-    code: contact.code || "",
+
+    // Social Media Information - Extract from communication channels
+    linkedinUrl: contact.communicationChannels?.find(
+      channel => channel.communicationChannelRef === "CommunicationChannel:v1:LinkedIn"
+    )?.value || "",
+    xingUrl: contact.communicationChannels?.find(
+      channel => channel.communicationChannelRef === "CommunicationChannel:v1:Xing"
+    )?.value || "",
 
     // Contact Information
     email: contact.email || "",
     phone: contact.phone || "",
 
-    // ✅ REMOVED: Fields NOT in InvestmentContact database
-    // type: contact.type || "UNKNOWN_CONTACT", // ❌ NOT in schema
     // picture: contact.picture || "", // ❌ NOT in schema
     // pictureThumbnail: contact.pictureThumbnail || "", // ❌ NOT in schema
 

@@ -3,14 +3,13 @@ import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@neww
 import { 
   ChartContainer, 
   ChartTooltip, 
-  ChartTooltipContent, 
   ChartLegend, 
   ChartLegendContent,
   IconAvatar
 } from '@newwork/nw-design-system';
-import { ScatterChart, Scatter, XAxis, YAxis, BarChart, Bar, ComposedChart } from 'recharts';
+import { ScatterChart, Scatter, XAxis, YAxis, Bar, ComposedChart } from 'recharts';
 import { ChartBarIcon, PercentIcon } from '@phosphor-icons/react';
-import { formatCurrency, formatPercentage, formatNumber } from '@/common/data/investment';
+import { formatCurrency } from '@/common/data/investment';
 
 interface RealEstateAnalyticsChartsProps {
   chartData: {
@@ -26,17 +25,18 @@ export const RealEstateAnalyticsCharts: React.FC<RealEstateAnalyticsChartsProps>
   } = chartData;
 
 
+
   // Occupancy Analysis Config
   const occupancyConfig = useMemo(() => ({
     occupancyrate: { label: "Occupancy Rate" },
     propertyvalue: { label: "Property Value" }
   }), []);
 
-  // Expenses vs Value Config
+  // Property Value vs Annual Net Cold Rent Config
   const expensesValueConfig = useMemo(() => ({
-    annualexpenses: { label: "Annual Expenses" },
+    annualexpenses: { label: "Annual Net Cold Rent" },
     propertyvalue: { label: "Property Value" },
-    expenseefficiency: { label: "Expense Efficiency" }
+    rentefficiency: { label: "Rent Efficiency" }
   }), []);
 
   return (
@@ -124,14 +124,15 @@ export const RealEstateAnalyticsCharts: React.FC<RealEstateAnalyticsChartsProps>
           <div className="gba:flex gba:items-center gba:gap-2">
             <IconAvatar icon={ChartBarIcon} variant="warning" />
             <div>
-              <CardTitle>Expenses vs Property Value</CardTitle>
-              <CardDescription>Annual expenses correlation with property values</CardDescription>
+              <CardTitle>Property Value vs Annual Net Cold Rent</CardTitle>
+              <CardDescription>Property values correlation with annual net cold rent</CardDescription>
             </div>
           </div>
         </CardHeader>
         <CardContent>
-          <ChartContainer config={expensesValueConfig}>
-            <ScatterChart data={expensesValueData}>
+          {expensesValueData && expensesValueData.length > 0 ? (
+            <ChartContainer config={expensesValueConfig} className="gba:h-[400px] gba:w-full">
+              <ScatterChart data={expensesValueData}>
               <XAxis 
                 dataKey="propertyValue" 
                 name="Property Value"
@@ -139,7 +140,7 @@ export const RealEstateAnalyticsCharts: React.FC<RealEstateAnalyticsChartsProps>
               />
               <YAxis 
                 dataKey="annualExpenses" 
-                name="Annual Expenses"
+                name="Annual Net Cold Rent"
                 type="number"
               />
               <ChartTooltip 
@@ -164,7 +165,7 @@ export const RealEstateAnalyticsCharts: React.FC<RealEstateAnalyticsChartsProps>
                             className="gba:w-3 gba:h-3 gba:rounded-full" 
                             style={{ backgroundColor: 'var(--color-annualexpenses)' }}
                           />
-                          <span className="gba:font-medium">Annual Expenses:</span>
+                          <span className="gba:font-medium">Annual Net Cold Rent:</span>
                           <span className="gba:font-semibold">{formatCurrency(data.annualExpenses)}</span>
                         </div>
                       </div>
@@ -180,6 +181,16 @@ export const RealEstateAnalyticsCharts: React.FC<RealEstateAnalyticsChartsProps>
               />
             </ScatterChart>
           </ChartContainer>
+          ) : (
+            <div className="gba:h-[400px] gba:w-full gba:flex gba:items-center gba:justify-center gba:bg-gray-50 gba:rounded-lg">
+              <div className="gba:text-center">
+                <p className="gba:text-gray-500 gba:text-lg gba:mb-2">No Data Available</p>
+                <p className="gba:text-gray-400 gba:text-sm">
+                  No properties with both annual net cold rent and value data found
+                </p>
+              </div>
+            </div>
+          )}
         </CardContent>
       </Card>
     </div>

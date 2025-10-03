@@ -50,6 +50,7 @@ export interface Contact {
 export const useContactData = (contactId: string, accessToken: string) => {
   const [contact, setContact] = useState<Contact | null>(null);
   const [contactData, setContactData] = useState<InvestmentContact | null>(null);
+  const [rawContactData, setRawContactData] = useState<InvestmentContact | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [contactStatuses, setContactStatuses] = useState<ReferenceData[]>([]);
@@ -66,42 +67,42 @@ export const useContactData = (contactId: string, accessToken: string) => {
       const result = await fetchInvestmentContactById(contactId);
       
       if (result && result.contact) {
-        const rawContactData = result.contact;
-        setContactData(rawContactData);
+        setRawContactData(result.contact);
+        setContactData(result.contact);
         
         // Transform data for UI compatibility
         const transformedContact: Contact = {
-          id: rawContactData.id,
-          firstName: rawContactData.firstName || '',
-          lastName: rawContactData.lastName || '',
-          email: rawContactData.email || '',
-          phone: rawContactData.phone || '',
-          jobTitle: rawContactData.jobTitle || '',
-          linkedinUrl: rawContactData.linkedinUrl || '',
-          xingUrl: rawContactData.xingUrl || '',
-          bio: rawContactData.bio || '',
-          contactType: rawContactData.contactType || '',
-          version: rawContactData.version?.toString() || '1',
-          academicTitle: rawContactData.academicTitle ? {
-            id: rawContactData.academicTitle.id,
-            value: rawContactData.academicTitle.value
+          id: result.contact.id,
+          firstName: result.contact.firstName || '',
+          lastName: result.contact.lastName || '',
+          email: result.contact.email || '',
+          phone: result.contact.phone || '',
+          jobTitle: result.contact.jobTitle || '',
+          linkedinUrl: result.contact.linkedinUrl || '',
+          xingUrl: result.contact.xingUrl || '',
+          bio: result.contact.bio || '',
+          contactType: result.contact.contactType || '',
+          version: result.contact.version?.toString() || '1',
+          academicTitle: result.contact.academicTitle ? {
+            id: result.contact.academicTitle.id,
+            value: result.contact.academicTitle.value
           } : undefined,
-          updatedAt: rawContactData.updatedAt,
-          createdAt: rawContactData.createdAt,
-          accountId: rawContactData.accountId,
-          account: rawContactData.account ? {
-            name: rawContactData.account.name,
-            id: rawContactData.account.id
+          updatedAt: result.contact.updatedAt,
+          createdAt: result.contact.createdAt,
+          accountId: result.contact.accountId,
+          account: result.contact.account ? {
+            name: result.contact.account.name,
+            id: result.contact.account.id
           } : undefined,
-          ownerEmployee: rawContactData.ownerEmployee ? {
-            id: rawContactData.ownerEmployee.id,
-            firstName: rawContactData.ownerEmployee.firstName || '',
-            lastName: rawContactData.ownerEmployee.lastName || '',
-            displayName: rawContactData.ownerEmployee.displayName,
-            fullName: rawContactData.ownerEmployee.fullName,
-            employeePosition: rawContactData.ownerEmployee.employeePosition ? {
-              company: rawContactData.ownerEmployee.employeePosition.company ? {
-                name: rawContactData.ownerEmployee.employeePosition.company.name
+          ownerEmployee: result.contact.ownerEmployee ? {
+            id: result.contact.ownerEmployee.id,
+            firstName: result.contact.ownerEmployee.firstName || '',
+            lastName: result.contact.ownerEmployee.lastName || '',
+            displayName: result.contact.ownerEmployee.displayName,
+            fullName: result.contact.ownerEmployee.fullName,
+            employeePosition: result.contact.ownerEmployee.employeePosition ? {
+              company: result.contact.ownerEmployee.employeePosition.company ? {
+                name: result.contact.ownerEmployee.employeePosition.company.name
               } : undefined
             } : undefined
           } : undefined
@@ -160,6 +161,7 @@ export const useContactData = (contactId: string, accessToken: string) => {
   return {
     contact,
     contactData,
+    rawContactData,
     loading,
     error,
     contactStatuses,

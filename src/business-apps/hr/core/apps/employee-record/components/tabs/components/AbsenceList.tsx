@@ -153,6 +153,12 @@ const AbsenceList: React.FC<AbsenceListProps> = ({
                 { range0: range[0], range1: range[1], total },
               )
             }
+            locale={{
+              items_per_page: getTranslationFromI18nKeyAndLabel(
+                'lowcoder:absence_hub.per_page',
+                '/ page',
+              ),
+            }}
           />
         </div>
       )}

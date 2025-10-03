@@ -384,8 +384,7 @@ const LiquidFundInvestmentsList: React.FC<LiquidFundInvestmentsListProps> = (con
           <AppAction
             contextsArray={[FlowContextName.createInvestment]}
             externalContextData={{ 
-              investmentGroup: 'LIQUID_FUND',
-              investmentGroupRef: 'InvestmentGroup:v1:LIQUID_FUND',
+              investmentGroup: 'InvestmentGroup:v1:LIQUID_FUND',
               fromView: 'investments',
               fromSubView: 'liquid-funds'
             }}
@@ -438,7 +437,7 @@ const LiquidFundInvestmentsList: React.FC<LiquidFundInvestmentsListProps> = (con
                 {visibleColumns.includes('created') && (
                   <SortableTableHead field="createdAt" currentSortField={sortField} currentSortOrder={sortOrder} onSort={handleSortingChange}>{getTranslationFromI18nKeyAndLabel('investment:liquidFund.columns.created', 'Created')}</SortableTableHead>
                 )}
-                {visibleColumns.includes('actions') && <TableHead className="gba:w-[60px]">{getTranslationFromI18nKeyAndLabel('investment:liquidFund.columns.actions', 'Actions')}</TableHead>}
+                {visibleColumns.includes('actions') && <TableHead className="gba:w-[60px]">Actions</TableHead>}
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -460,10 +459,9 @@ const LiquidFundInvestmentsList: React.FC<LiquidFundInvestmentsListProps> = (con
                   {visibleColumns.includes('fundType') && (
                     <TableCell>
                       {inv.liquidFundInvestment?.[0]?.investmentLiquidFundType?.value ? (
-                        <Badge variant="default" className="gba:bg-blue-100 gba:text-blue-800">
+                        <Badge variant="default">
                           {inv.liquidFundInvestment[0].investmentLiquidFundType.value}
-                        </Badge>
-                      ) : (
+                        </Badge>                      ) : (
                         <span className="gba:text-gray-400">-</span>
                       )}
                     </TableCell>
@@ -496,12 +494,12 @@ const LiquidFundInvestmentsList: React.FC<LiquidFundInvestmentsListProps> = (con
                         <AppActionButton
                           data-testid={`liquid-fund-investment-update-button-${inv.id}`}
                           size="icon"
-                          contextsArray={[FlowContextName.liquidFundInvestmentEntity]}
+                          contextsArray={[FlowContextName.investmentEntity]}
                           externalContextData={{ investmentId: inv.id }}
                           prefixDataTestId={`liquid-fund-investment-update`}
                           accessToken={accessToken}
                           emptyStateBehavior="enable"
-                          deferMainContextRequestsUntilClick
+                          deferMainContextRequestsUntilClick={true}
                           onClick={(e) => e.stopPropagation()}
                         />
                       </div>

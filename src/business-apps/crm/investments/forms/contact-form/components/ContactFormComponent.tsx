@@ -9,7 +9,6 @@ import { formatDataTestId } from "@/common/utils/formatDataTestId";
 import { dispatchProcessContinueEvent } from "@/common/utils/processEventUtils";
 import { useContactFormContext } from "../context/ContactFormContext";
 import PersonalInformationSection from "./PersonalInformationSection";
-import ProfessionalInformationSection from "./ProfessionalInformationSection";
 import OwnerInformationSection from "./OwnerInformationSection";
 
 const prefixDataTestId = "ContactForm";
@@ -54,12 +53,11 @@ const ContactFormComponent: React.FC = () => {
         fullName:
           toStringOrUndefined(formValues.fullName) ||
           `${formValues.firstName || ""} ${formValues.lastName || ""}`.trim(),
+        type: toStringOrUndefined(formValues.type),
         birthDate: toStringOrUndefined(formValues.birthDate),
-        description: toStringOrUndefined(formValues.description),
 
         jobPosition: toStringOrUndefined(formValues.jobPosition),
         department: toStringOrUndefined(formValues.department),
-        code: toStringOrUndefined(formValues.code),
 
         email: toStringOrUndefined(formValues.email),
         phone: toStringOrUndefined(formValues.phone),
@@ -74,6 +72,38 @@ const ContactFormComponent: React.FC = () => {
 
         additionalProperties: formValues.additionalProperties || {},
       };
+
+      // ✅ NEW: Add communication channels for LinkedIn and Xing
+      const communicationChannels = [];
+      
+      // Add LinkedIn communication channel if provided
+      if (formValues.linkedinUrl && formValues.linkedinUrl.trim()) {
+        communicationChannels.push({
+          communicationChannelRef: "CommunicationChannel:v1:LinkedIn",
+          value: formValues.linkedinUrl.trim(),
+          valueExtension: null,
+          source: "FORM_INPUT",
+          activeFrom: new Date().toISOString(),
+          activeTo: null,
+        });
+      }
+      
+      // Add Xing communication channel if provided
+      if (formValues.xingUrl && formValues.xingUrl.trim()) {
+        communicationChannels.push({
+          communicationChannelRef: "CommunicationChannel:v1:Xing", 
+          value: formValues.xingUrl.trim(),
+          valueExtension: null,
+          source: "FORM_INPUT",
+          activeFrom: new Date().toISOString(),
+          activeTo: null,
+        });
+      }
+
+      // Add communication channels to payload if any exist
+      if (communicationChannels.length > 0) {
+        investmentContactPayload.communicationChannels = communicationChannels;
+      }
 
       // ✅ FIXED: Handle ID and version for UPDATE mode only
       if (isUpdate) {
@@ -137,9 +167,6 @@ const ContactFormComponent: React.FC = () => {
 
           {/* Personal Information Section */}
           <PersonalInformationSection />
-
-          {/* Professional Information Section */}
-          <ProfessionalInformationSection />
 
 
           {/* Error Display */}
