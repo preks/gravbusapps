@@ -1,6 +1,15 @@
 import React from "react";
-import { Card, CardHeader, CardTitle, CardContent } from "@newwork/nw-design-system";
-import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer, Legend } from "recharts";
+import { 
+  Card, 
+  CardHeader, 
+  CardTitle, 
+  CardContent,
+  ChartContainer,
+  ChartConfig,
+  ChartTooltip,
+  ChartTooltipContent,
+} from "@newwork/nw-design-system";
+import { PieChart, Pie, Cell, Legend } from "recharts";
 import { formatCurrencyDisplay } from "../../../../personal-expenses/utils";
 import { getTranslationFromI18nKeyAndLabel } from "@/common/utils/windowUtils";
 
@@ -57,6 +66,25 @@ const PieChartComponent: React.FC<PieChartProps> = ({
   };
 
   const resolvedColors = React.useMemo(() => colors.map(resolveCssVar), [colors]);
+
+  // Create chart config dynamically from data
+  const chartConfig = React.useMemo(() => {
+    const config: ChartConfig = {
+      [dataKey]: {
+        label: valueType === 'count' ? countLabel : getTranslationFromI18nKeyAndLabel("lowcoder:charts.tooltip.amount", "Amount"),
+      },
+    };
+    
+    // Add each data item to config
+    data.forEach((item, index) => {
+      const key = item.name.toLowerCase().replace(/\s+/g, '_');
+      config[key] = {
+        label: item.name,
+      };
+    });
+    
+    return config;
+  }, [data, dataKey, valueType, countLabel]);
   if (!data || data.length === 0) {
     return (
       <Card className="gba:w-full">
@@ -87,58 +115,103 @@ const PieChartComponent: React.FC<PieChartProps> = ({
         </CardHeader>
       )}
       <CardContent>
-        <div
-          style={{ height: height }}
+        <ChartContainer
+          config={chartConfig}
+          className="gba:mx-auto"
+          style={{ minHeight: height, width: '100%' }}
           data-testid={`${title.toLowerCase().replace(/\s+/g, "-")}-chart`}
         >
-          <ResponsiveContainer width="100%" height="100%">
-            <PieChart>
-              <Pie
-                data={data}
-                cx="50%"
-                cy="50%"
-                labelLine={false}
-                outerRadius={100}
-                innerRadius={60}
-                fill="#8884d8"
-                dataKey={dataKey}
-              >
-                {data.map((entry, index) => {
-                  const base = resolvedColors[index % resolvedColors.length];
-                  const custom = getColor ? getColor(entry, index) : undefined;
-                  const resolved = custom ? resolveCssVar(custom) : base;
-                  // Use entry name or value as key fallback to ensure uniqueness
-                  const entryKey = entry.name || entry[dataKey] || index;
-                  return <Cell key={`cell-${entryKey}`} fill={resolved} />;
-                })}
-              </Pie>
-              <Tooltip
-                formatter={(value: any, _name: any, props: any) => {
-                  const num = Number(value ?? 0);
-                  if (valueType === "count") {
-                    const itemsLabel = getTranslationFromI18nKeyAndLabel(
-                      "lowcoder:charts.tooltip.items",
-                      countLabel,
-                    );
-                    const countLabelText = getTranslationFromI18nKeyAndLabel(
-                      "lowcoder:charts.tooltip.count",
-                      "Count",
-                    );
-                    return [`${num} ${itemsLabel}`, countLabelText];
-                  }
-                  const fixed = Number.isFinite(num) ? Math.round(num * 100) / 100 : 0;
-                  const count = props?.payload?.count ?? null;
-                  const amountText = formatCurrencyDisplay(fixed, currency);
-                  const amountLabel = getTranslationFromI18nKeyAndLabel("lowcoder:charts.tooltip.amount","Amount");
-                  const countLabelText = getTranslationFromI18nKeyAndLabel("lowcoder:charts.tooltip.count","Count");
-                  return [count === null ? amountText : `${amountText} (${countLabelText}: ${count})`, amountLabel];
-                }}
-                labelFormatter={(name) => `${name}`}
-              />
-              <Legend />
-            </PieChart>
-          </ResponsiveContainer>
-        </div>
+          <PieChart width={500} height={400}>
+            <ChartTooltip
+              cursor={false}
+              content={
+                <ChartTooltipContent
+                  formatter={(value: any, _name: any, props: any) => {
+                    const num = Number(value ?? 0);
+                    if (valueType === "count") {
+                      const itemsLabel = getTranslationFromI18nKeyAndLabel(
+                        "lowcoder:charts.tooltip.items",
+                        countLabel,
+                      );
+                      return `${num} ${itemsLabel}`;
+                    }
+                    const fixed = Number.isFinite(num) ? Math.round(num * 100) / 100 : 0;
+                    const count = props?.payload?.count ?? null;
+                    const amountText = formatCurrencyDisplay(fixed, currency);
+                    const countLabelText = getTranslationFromI18nKeyAndLabel("lowcoder:charts.tooltip.count","Count");
+                    return count === null ? amountText : `${amountText} (${countLabelText}: ${count})`;
+                  }}
+                  nameKey="name"
+                />
+              }
+            />
+            <Pie
+              data={data}
+              cx="50%"
+              cy="45%"
+              labelLine={true}
+              label={({ cx, cy, midAngle, outerRadius, fill, ...entry }) => {
+                const RADIAN = Math.PI / 180;
+                const radius = outerRadius + 30;
+                const x = cx + radius * Math.cos(-midAngle * RADIAN);
+                const y = cy + radius * Math.sin(-midAngle * RADIAN);
+                
+                let text;
+                if (valueType === "count") {
+                  text = entry[dataKey];
+                } else {
+                  const value = Number(entry[dataKey] ?? 0);
+                  const fixed = Number.isFinite(value) ? Math.round(value * 100) / 100 : 0;
+                  text = formatCurrencyDisplay(fixed, currency);
+                }
+                
+                return (
+                  <text 
+                    x={x} 
+                    y={y} 
+                    fill="#000000"
+                    textAnchor={x > cx ? 'start' : 'end'}
+                    dominantBaseline="central"
+                    fontSize={12}
+                    fontWeight={500}
+                  >
+                    {text}
+                  </text>
+                );
+              }}
+              outerRadius={100}
+              innerRadius={60}
+              fill="var(--nw-chart-1)"
+              dataKey={dataKey}
+              nameKey="name"
+            >
+              {data.map((entry, index) => {
+                const base = resolvedColors[index % resolvedColors.length];
+                const custom = getColor ? getColor(entry, index) : undefined;
+                const resolved = custom ? resolveCssVar(custom) : base;
+                // Use entry name or value as key fallback to ensure uniqueness
+                const entryKey = entry.name || entry[dataKey] || index;
+                return <Cell key={`cell-${entryKey}`} fill={resolved} />;
+              })}
+            </Pie>
+            <Legend 
+              layout="horizontal" 
+              align="center"
+              verticalAlign="bottom"
+              iconSize={10}
+              wrapperStyle={{ 
+                paddingTop: '20px',
+                display: 'flex',
+                flexWrap: 'nowrap',
+                justifyContent: 'center',
+                gap: '16px'
+              }}
+              formatter={(value) => (
+                <span style={{ fontSize: '12px', whiteSpace: 'nowrap' }}>{value}</span>
+              )}
+            />
+          </PieChart>
+        </ChartContainer>
       </CardContent>
     </Card>
   );

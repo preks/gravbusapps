@@ -1,5 +1,6 @@
 import React, { useState, useCallback, useMemo } from "react";
 import {
+  Badge,
   Button,
   Table,
   TableBody,
@@ -28,20 +29,6 @@ import {
 import { navigateTo, buildPlatformUrl } from "@/common/utils/navigationUtils";
 import { AdvancePayment as AdvancePaymentItem } from "../../../hooks/useMainViewAdvancePayments";
 import AdvancePaymentDetails from "./AdvancePaymentDetails";
-// Local token map for status colors
-const ADV_STATUS_CLASSES: Record<string, string> = {
-  success: "gba:bg-success gba:text-success-foreground",
-  warning: "gba:bg-warning gba:text-warning-foreground",
-  info: "gba:bg-info gba:text-info-foreground",
-  destructive: "gba:bg-destructive gba:text-destructive-foreground",
-  offline: "gba:bg-offline gba:text-offline-foreground",
-  draft: "gba:bg-muted gba:text-muted-foreground",
-  completed: "gba:bg-success gba:text-success-foreground",
-  waiting: "gba:bg-info gba:text-info-foreground",
-  task: "gba:bg-warning gba:text-warning-foreground",
-  error: "gba:bg-destructive gba:text-destructive-foreground",
-  preparing: "gba:bg-muted gba:text-muted-foreground",
-};
 
 interface AdvancePaymentsTableProps extends BusinessAppContextProps {
   search?: string;
@@ -102,10 +89,18 @@ const AdvancePaymentsTable: React.FC<AdvancePaymentsTableProps> = (props) => {
   const renderDataBody = useCallback(() => {
     if (error) {
       return (
-        <Alert variant="destructive">
-          <div className="gba:font-medium">Error loading advance payments</div>
+        <Alert variant="destructive" data-testid="advance-payments-error-alert">
+          <div className="gba:font-medium">
+            {getTranslationFromI18nKeyAndLabel(
+              "lowcoder:advance_payments.error_title",
+              "Error loading advance payments"
+            )}
+          </div>
           <div className="gba:text-sm gba:py-3 gba:px-4">
-            {error.message || "An error occurred while loading advance payments."}
+            {error.message || getTranslationFromI18nKeyAndLabel(
+              "lowcoder:advance_payments.error_description",
+              "An error occurred while loading advance payments."
+            )}
           </div>
         </Alert>
       );
@@ -113,7 +108,10 @@ const AdvancePaymentsTable: React.FC<AdvancePaymentsTableProps> = (props) => {
 
     if (!isLoading && filteredPayments.length === 0) {
       return (
-        <div className="gba:flex gba:items-center gba:justify-center gba:h-64">
+        <div 
+          className="gba:flex gba:items-center gba:justify-center gba:h-64"
+          data-testid="advance-payments-empty-state"
+        >
           <span className="gba:text-muted-foreground">
             {getTranslationFromI18nKeyAndLabel(
               "lowcoder:personal_expenses.no_advance_payments_found",
@@ -285,7 +283,11 @@ const AdvancePaymentsTable: React.FC<AdvancePaymentsTableProps> = (props) => {
                   className="gba:cursor-pointer gba:hover:bg-accent"
                   onClick={() => setSelectedPayment(record)}
                 >
-                  <TableCell className="gba:w-[60px] gba:min-w-[60px] gba:max-w-[60px] gba:box-border gba:py-3 gba:px-4" data-testid={`advance-payments-actions-cell-${record.id}`}>
+                  <TableCell 
+                    className="gba:w-[60px] gba:min-w-[60px] gba:max-w-[60px] gba:box-border gba:py-3 gba:px-4" 
+                    data-testid={`advance-payments-actions-cell-${record.id}`}
+                    onClick={(e) => e.stopPropagation()}
+                  >
                     <div className="gba:flex gba:justify-start gba:items-center gba:gap-0">
                         <AppActionButton
                         onClick={(e) => e.stopPropagation()}
@@ -421,14 +423,13 @@ const AdvancePaymentsTable: React.FC<AdvancePaymentsTableProps> = (props) => {
                   <TableCell className="gba:pr-6 gba:w-[20%]">
                     {(() => {
                       const status = getAdvancePaymentStatusDisplay(record.status);
-                      const cls = ADV_STATUS_CLASSES[String(status.type).toLowerCase()] || ADV_STATUS_CLASSES.draft;
                       return (
-                        <span
-                          className={`gba:inline-block gba:rounded-full gba:px-3 gba:py-1 gba:text-xs gba:font-medium gba:whitespace-nowrap ${cls}`}
-                          data-testid={`status-pill-${record.status.toLowerCase()}`}
+                        <Badge
+                          variant={status.type}
+                          data-testid={`status-badge-${record.status.toLowerCase()}`}
                         >
                           {status.label}
-                        </span>
+                        </Badge>
                       );
                     })()}
                   </TableCell>
@@ -528,7 +529,19 @@ const AdvancePaymentsTable: React.FC<AdvancePaymentsTableProps> = (props) => {
         )}
       </div>
     );
-  }, [error, isLoading, filteredPayments, totalCount, pageSize, currentPage]);
+  }, [
+    error,
+    isLoading,
+    filteredPayments,
+    totalCount,
+    pageSize,
+    currentPage,
+    currencyFilter,
+    setCurrentPage,
+    updateSorting,
+    handlePageSizeChange,
+    sorting,
+  ]);
 
   return (
     <>
@@ -542,6 +555,7 @@ const AdvancePaymentsTable: React.FC<AdvancePaymentsTableProps> = (props) => {
       <Sheet
         open={!!selectedPayment}
         onOpenChange={(open) => !open && setSelectedPayment(null)}
+        data-testid="advance-payments-details-sheet"
         title={
           selectedPayment?.expensePlan?.title ||
           getTranslationFromI18nKeyAndLabel(
@@ -552,7 +566,7 @@ const AdvancePaymentsTable: React.FC<AdvancePaymentsTableProps> = (props) => {
       >
         <SheetContent className="gba:w-[600px] gba:sm:gba:w-[600px] gba:max-w-none">
           <SheetHeader>
-            <SheetTitle className="gba:text-xl gba:font-semibold gba:text-gray-900">
+            <SheetTitle className="gba:text-xl gba:font-semibold gba:text-foreground">
               {selectedPayment?.expensePlan?.title ||
                 getTranslationFromI18nKeyAndLabel(
                   "lowcoder:advance_payment_details.title",

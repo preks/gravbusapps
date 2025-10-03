@@ -16,33 +16,30 @@ const pillTypeClassMap: Record<PillType, string> = {
 // Design token CSS variables for charts (will be resolved to hex at runtime)
 // Recharts requires actual color values, so we use CSS variables that get resolved
 const pillTypeColorTokens: Record<PillType, string> = {
-  draft: 'var(--nw-color-neutral-500)',
-  completed: 'var(--nw-color-success-500)',
-  waiting: 'var(--nw-color-info-500)',
-  task: 'var(--nw-color-warning-500)',
-  error: 'var(--nw-color-destructive-500)',
-  preparing: 'var(--nw-color-neutral-500)'
+  draft: 'var(--nw-muted)',
+  completed: 'var(--nw-success)',
+  waiting: 'var(--nw-info)',
+  task: 'var(--nw-warning)',
+  error: 'var(--nw-destructive)',
+  preparing: 'var(--nw-muted)'
 };
 
-// Helper function to resolve CSS variables to hex colors (SSR-safe)
+// Helper function to resolve CSS variables to hex colors (client-side only)
 // This is needed because Recharts requires actual hex/rgb values, not CSS variables
+// During SSR, we return the CSS variable as-is and let the client resolve it after hydration
 const resolveCssVar = (color: string): string => {
   if (!color?.startsWith('var(')) return color;
+  
+  // During SSR, return the CSS variable as-is (client will resolve after hydration)
   if (
     typeof globalThis.window === 'undefined' ||
     typeof globalThis.document === 'undefined' ||
     typeof globalThis.window.getComputedStyle !== 'function'
   ) {
-    // SSR fallback: return hex values directly
-    const fallbackMap: Record<string, string> = {
-      'var(--nw-color-neutral-500)': '#9ca3af',
-      'var(--nw-color-success-500)': '#10b981',
-      'var(--nw-color-info-500)': '#3b82f6',
-      'var(--nw-color-warning-500)': '#f59e0b',
-      'var(--nw-color-destructive-500)': '#ef4444',
-    };
-    return fallbackMap[color] || color;
+    return color;
   }
+  
+  // Client-side: resolve CSS variable from computed styles
   const varName = color.substring(4, color.length - 1).trim();
   const value = globalThis.window.getComputedStyle(globalThis.document.documentElement).getPropertyValue(varName).trim();
   return value || color;
@@ -106,10 +103,8 @@ export const StatusLegend: React.FC<{ id?: string }> = ({ id }) => (
   </div>
 );
 
-// Expose color map globally for charts that need hex values
-if (typeof globalThis !== 'undefined') {
-  (globalThis as any).__nw_pill_colors = pillTypeColorMap;
-}
+// Export color maps for consumers that need them (e.g., charts)
+export { pillTypeColorMap, pillTypeColorTokens };
 
 export default StatusLegend;
 

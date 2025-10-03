@@ -1,5 +1,16 @@
 import React from "react";
-import { Card, CardHeader, CardTitle, CardContent } from "@newwork/nw-design-system";
+import {
+  Card,
+  CardHeader,
+  CardTitle,
+  CardContent,
+  ChartContainer,
+  ChartConfig,
+  ChartTooltip,
+  ChartTooltipContent,
+  ChartLegend,
+  ChartLegendContent,
+} from "@newwork/nw-design-system";
 import { getTranslationFromI18nKeyAndLabel } from "@/common/utils/windowUtils";
 import {
   LineChart,
@@ -7,9 +18,6 @@ import {
   XAxis,
   YAxis,
   CartesianGrid,
-  Tooltip,
-  ResponsiveContainer,
-  Legend,
 } from "recharts";
 import { formatCurrencyDisplay } from "../../../../personal-expenses/utils";
 
@@ -57,6 +65,16 @@ const LineChartComponent: React.FC<LineChartProps> = ({
     "lowcoder:charts.legend.amount",
     "Amount",
   );
+  
+  const chartConfig = React.useMemo(() => {
+    const config: ChartConfig = {
+      [lineDataKey]: {
+        label: lineName,
+      },
+    };
+    return config;
+  }, [lineDataKey, lineName]);
+
   if (!data || data.length === 0) {
     return (
       <Card className="gba:w-full">
@@ -87,46 +105,46 @@ const LineChartComponent: React.FC<LineChartProps> = ({
         </CardHeader>
       )}
       <CardContent>
-        <div
+        <ChartContainer
+          config={chartConfig}
+          className="gba:w-full"
           style={{ height: height }}
           data-testid={`${title.toLowerCase().replace(/\s+/g, "-")}-chart`}
         >
-          <ResponsiveContainer width="100%" height="100%">
-            <LineChart
-              data={data}
-              margin={{
-                top: 5,
-                right: 30,
-                left: 20,
-                bottom: 5,
-              }}
-            >
-              <CartesianGrid strokeDasharray="3 3" />
-              <XAxis dataKey={xAxisDataKey} />
-              <YAxis />
-              <Tooltip
-                formatter={(value) => {
-                  const num = typeof value === 'number' ? value : Number(value ?? 0);
-                  const fixed = Number.isFinite(num) ? Number(num.toFixed(2)) : 0;
-                  const amountLabel = getTranslationFromI18nKeyAndLabel(
-                    "lowcoder:charts.tooltip.amount",
-                    "Amount",
-                  );
-                  return [formatCurrencyDisplay(fixed, currency), amountLabel];
-                }}
-                labelFormatter={(label) => `${label}`}
-              />
-              <Legend />
-              <Line
-                type="monotone"
-                dataKey={lineDataKey}
-                stroke={resolvedLineColor}
-                activeDot={{ r: 8 }}
-                name={lineName}
-              />
-            </LineChart>
-          </ResponsiveContainer>
-        </div>
+          <LineChart
+            data={data}
+            margin={{
+              top: 5,
+              right: 30,
+              left: 20,
+              bottom: 5,
+            }}
+          >
+            <CartesianGrid strokeDasharray="3 3" />
+            <XAxis dataKey={xAxisDataKey} />
+            <YAxis />
+            <ChartTooltip
+              cursor={false}
+              content={
+                <ChartTooltipContent
+                  formatter={(value) => {
+                    const num = typeof value === 'number' ? value : Number(value ?? 0);
+                    const fixed = Number.isFinite(num) ? Number(num.toFixed(2)) : 0;
+                    return formatCurrencyDisplay(fixed, currency);
+                  }}
+                />
+              }
+            />
+            <ChartLegend content={<ChartLegendContent />} />
+            <Line
+              type="monotone"
+              dataKey={lineDataKey}
+              stroke={resolvedLineColor}
+              activeDot={{ r: 8 }}
+              name={lineName}
+            />
+          </LineChart>
+        </ChartContainer>
       </CardContent>
     </Card>
   );

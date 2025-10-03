@@ -15,8 +15,11 @@ import {
   SheetContent,
   SheetHeader,
   SheetTitle,
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
 } from "@newwork/nw-design-system";
-import { Modal } from "antd";
 import { PiArrowUp, PiArrowDown } from "react-icons/pi";
 import { BusinessAppContextProps } from "@/common/BusinessAppContext";
 // (replaced by PLAN_STATUS_CLASSES)
@@ -145,17 +148,6 @@ const ExpensePlansTable: React.FC<ExpensePlansTableProps> = (props) => {
   // Handle printing a plan
   const handlePrintPlan = useCallback(
     async (plan: ExpensePlan) => {
-      console.log("[Print Debug] Attempting to print plan:", {
-        planId: plan.id,
-        planCode: plan.code,
-        planTitle: plan.title,
-        hasEmployeeDocument: !!plan.employeeDocument,
-        employeeDocumentId: plan.employeeDocument?.id,
-        employeeDocumentFile: plan.employeeDocument?.file,
-        employeeId: plan.employee?.id,
-        employeeDisplayName: plan.employee?.displayName,
-      });
-
       setPrintLoading(true);
       setPrintModalOpen(true);
 
@@ -186,15 +178,7 @@ const ExpensePlansTable: React.FC<ExpensePlansTableProps> = (props) => {
           },
         };
 
-        console.log("[Print Debug] Mapped plan for print service:", {
-          hasEmployeeDocument: !!mappedPlan.employeeDocument,
-          employeeDocumentFile: mappedPlan.employeeDocument?.file,
-          employeeCode: mappedPlan.employee.code,
-        });
-
         const result = await printExpensePlan(mappedPlan);
-
-        console.log("[Print Debug] Print result:", result);
 
         if (result.success && result.pdfUrl && isMounted.current) {
           setPrintPdfUrl(result.pdfUrl);
@@ -417,7 +401,11 @@ const ExpensePlansTable: React.FC<ExpensePlansTableProps> = (props) => {
                     }`}
                     onClick={() => handleSelectItem(plan)}
                   >
-                    <TableCell className="gba:w-[60px] gba:min-w-[60px] gba:max-w-[60px] gba:box-border gba:py-3 gba:px-4" data-testid={`${DATA_TEST_ID_PREFIX}-actions-cell-${plan.id}`}>
+                    <TableCell 
+                      className="gba:w-[60px] gba:min-w-[60px] gba:max-w-[60px] gba:box-border gba:py-3 gba:px-4" 
+                      data-testid={`${DATA_TEST_ID_PREFIX}-actions-cell-${plan.id}`}
+                      onClick={(e) => e.stopPropagation()}
+                    >
                       <div className="gba:flex gba:justify-start gba:items-center gba:gap-0">
                         <AppActionButton
                           onClick={(e) => e.stopPropagation()}
@@ -675,40 +663,48 @@ const ExpensePlansTable: React.FC<ExpensePlansTableProps> = (props) => {
         )}
       </div>
 
-      {/* Print Modal */}
-      <Modal
+      {/* Print Dialog */}
+      <Dialog
         open={printModalOpen}
-        title="Print Expense Plan"
-        footer={null}
-        onCancel={() => {
-          setPrintModalOpen(false);
-          setPrintPdfUrl("");
+        onOpenChange={(open) => {
+          if (!open) {
+            setPrintModalOpen(false);
+            setPrintPdfUrl("");
+          }
         }}
-        width="90%"
-        style={{ top: 20 }}
-        destroyOnHidden={true}
-        data-testid="print-plan-modal"
       >
-        {printLoading ? (
-          <div className="gba:flex gba:justify-center gba:items-center gba:py-8">
-            <Spinner />
-          </div>
-        ) : printPdfUrl ? (
-          <iframe
-            src={printPdfUrl}
-            style={{ width: "100%", height: "calc(90vh - 55px)", border: "none" }}
-            title={getTranslationFromI18nKeyAndLabel("lowcoder:print.preview_title","Print Preview")}
-            data-testid="print-plan-iframe"
-          />
-        ) : (
-          <div className="gba:flex gba:flex-col gba:items-center gba:justify-center gba:py-8 gba:text-center">
-            <div className="gba:text-muted-foreground gba:mb-4">{getTranslationFromI18nKeyAndLabel("lowcoder:print.no_document","No document available for printing")}</div>
-            <div className="gba:text-sm gba:text-muted-foreground">
-              This expense plan does not have an associated document to print.
+        <DialogContent className="gba:max-w-[90vw] gba:h-[90vh]" data-testid="print-plan-dialog">
+          <DialogHeader>
+            <DialogTitle>
+              {getTranslationFromI18nKeyAndLabel("lowcoder:print.title", "Print Expense Plan")}
+            </DialogTitle>
+          </DialogHeader>
+          {printLoading ? (
+            <div className="gba:flex gba:justify-center gba:items-center gba:py-8">
+              <Spinner />
             </div>
-          </div>
-        )}
-      </Modal>
+          ) : printPdfUrl ? (
+            <iframe
+              src={printPdfUrl}
+              className="gba:w-full gba:h-full gba:border-0"
+              title={getTranslationFromI18nKeyAndLabel("lowcoder:print.preview_title","Print Preview")}
+              data-testid="print-plan-iframe"
+            />
+          ) : (
+            <div className="gba:flex gba:flex-col gba:items-center gba:justify-center gba:py-8 gba:text-center">
+              <div className="gba:text-muted-foreground gba:mb-4">
+                {getTranslationFromI18nKeyAndLabel("lowcoder:print.no_document","No document available for printing")}
+              </div>
+              <div className="gba:text-sm gba:text-muted-foreground">
+                {getTranslationFromI18nKeyAndLabel(
+                  "lowcoder:print.no_document_details",
+                  "This expense plan does not have an associated document to print."
+                )}
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
 
       {/* Expense Plan Details Sheet */}
       {/* IMPORTANT: The 'title' prop is REQUIRED by @newwork/nw-design-system Sheet interface (line 20).

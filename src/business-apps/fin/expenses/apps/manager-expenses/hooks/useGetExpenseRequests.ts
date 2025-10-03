@@ -199,6 +199,7 @@ export const useGetExpenseRequests = ({
               },
             ]
           : [],
+        employeeDocument: request.employeeDocument || null,
         employee: request.employee
           ? {
               id: request.employee.id,

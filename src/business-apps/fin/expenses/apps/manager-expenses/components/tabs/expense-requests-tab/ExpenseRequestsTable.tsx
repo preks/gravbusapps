@@ -16,6 +16,10 @@ import {
   SheetContent,
   SheetHeader,
   SheetTitle,
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
 } from "@newwork/nw-design-system";
 import { PiArrowUp, PiArrowDown } from "react-icons/pi";
 import { DataContainer } from "@/components/layout/dataContainer/DataContainer";
@@ -30,7 +34,6 @@ import {
 } from "@/common/utils/windowUtils";
 import { AppActionButton } from "@/components/app-action-button/AppActionButton";
 import { formatCurrencyDisplay } from "../../../../personal-expenses/utils";
-import { Modal } from "antd";
 import { useExpensePlanFileService } from "../../../../personal-expenses/utils/expensePlanFileService";
 import { navigateTo, buildPlatformUrl } from "@/common/utils/navigationUtils";
 
@@ -459,7 +462,11 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = (props) => {
                     onClick={() => handleSelectRequest(record)}
                     data-testid={`expense-requests-row-${record.id}`}
                   >
-                    <TableCell className="gba:w-[60px] gba:min-w-[60px] gba:max-w-[60px] gba:box-border gba:py-3 gba:px-4" data-testid={`expense-requests-actions-cell-${record.id}`}>
+                    <TableCell 
+                      className="gba:w-[60px] gba:min-w-[60px] gba:max-w-[60px] gba:box-border gba:py-3 gba:px-4" 
+                      data-testid={`expense-requests-actions-cell-${record.id}`}
+                      onClick={(e) => e.stopPropagation()}
+                    >
                       <div className="gba:flex gba:justify-start gba:items-center gba:gap-0">
                         <AppActionButton
                           onClick={(e) => e.stopPropagation()}
@@ -467,21 +474,13 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = (props) => {
                           size="icon"
                           className="gba:h-7 gba:w-7"
                           staticFlowData={(() => {
-                            // Debug: Check print button conditions
+                            // Check print button conditions
                             const hasValidStatus = record.status === "APPROVED" ||
                               record.status === "VERIFIED" ||
                               record.status === "BOOKED" ||
                               record.status === "TRANSFERRED" ||
                               record.status === "PAID";
                             const hasDocument = !!record.employeeDocument?.file?.trim();
-                            
-                            console.log(`[Print Debug] Request ${record.id}:`, {
-                              status: record.status,
-                              hasValidStatus,
-                              hasDocument,
-                              file: record.employeeDocument?.file,
-                              showPrint: hasValidStatus && hasDocument
-                            });
                             
                             return [
                               ...(hasValidStatus && hasDocument
@@ -889,40 +888,45 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = (props) => {
         </SheetContent>
       </Sheet>
 
-      {/* Print Modal */}
-      <Modal
+      {/* Print Dialog */}
+      <Dialog
         open={printModalOpen}
-        title={getTranslationFromI18nKeyAndLabel("lowcoder:print.preview_title","Print Preview")}
-        footer={null}
-        onCancel={() => {
-          setPrintModalOpen(false);
-          setPrintPdfUrl("");
+        onOpenChange={(open) => {
+          if (!open) {
+            setPrintModalOpen(false);
+            setPrintPdfUrl("");
+          }
         }}
-        width="90%"
-        style={{ top: 20 }}
-        destroyOnHidden={true}
-        data-testid="print-request-modal"
       >
-        {printLoading ? (
-          <div className="gba:flex gba:justify-center gba:items-center gba:py-8">
-            <Spinner />
-          </div>
-        ) : printPdfUrl ? (
-          <iframe
-            src={printPdfUrl}
-            style={{ width: "100%", height: "calc(90vh - 55px)", border: "none" }}
-            title={getTranslationFromI18nKeyAndLabel("lowcoder:print.preview_title","Print Preview")}
-            data-testid="print-request-iframe"
-          />
-        ) : (
-          <div className="gba:flex gba:flex-col gba:items-center gba:justify-center gba:py-8 gba:text-center">
-            <div className="gba:text-muted-foreground gba:mb-4">{getTranslationFromI18nKeyAndLabel("lowcoder:print.no_document","No document available for printing")}</div>
-            <div className="gba:text-sm gba:text-muted-foreground">
-              {getTranslationFromI18nKeyAndLabel("lowcoder:print.no_document_details","This expense request does not have an associated document to print.")}
+        <DialogContent className="gba:max-w-[90vw] gba:h-[90vh]" data-testid="print-request-dialog">
+          <DialogHeader>
+            <DialogTitle>
+              {getTranslationFromI18nKeyAndLabel("lowcoder:print.preview_title","Print Preview")}
+            </DialogTitle>
+          </DialogHeader>
+          {printLoading ? (
+            <div className="gba:flex gba:justify-center gba:items-center gba:py-8">
+              <Spinner />
             </div>
-          </div>
-        )}
-      </Modal>
+          ) : printPdfUrl ? (
+            <iframe
+              src={printPdfUrl}
+              className="gba:w-full gba:h-full gba:border-0"
+              title={getTranslationFromI18nKeyAndLabel("lowcoder:print.preview_title","Print Preview")}
+              data-testid="print-request-iframe"
+            />
+          ) : (
+            <div className="gba:flex gba:flex-col gba:items-center gba:justify-center gba:py-8 gba:text-center">
+              <div className="gba:text-muted-foreground gba:mb-4">
+                {getTranslationFromI18nKeyAndLabel("lowcoder:print.no_document","No document available for printing")}
+              </div>
+              <div className="gba:text-sm gba:text-muted-foreground">
+                {getTranslationFromI18nKeyAndLabel("lowcoder:print.no_document_details","This expense request does not have an associated document to print.")}
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </>
   );
 };

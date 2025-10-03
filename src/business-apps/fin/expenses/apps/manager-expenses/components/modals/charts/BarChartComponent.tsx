@@ -1,7 +1,16 @@
 import React from "react";
-import { Card, CardHeader, CardTitle, CardContent } from "@newwork/nw-design-system";
+import {
+  Card,
+  CardHeader,
+  CardTitle,
+  CardContent,
+  ChartContainer,
+  ChartConfig,
+  ChartTooltip,
+  ChartTooltipContent,
+} from "@newwork/nw-design-system";
 import { getTranslationFromI18nKeyAndLabel } from "@/common/utils/windowUtils";
-import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid, Cell } from "recharts";
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Cell } from "recharts";
 import { formatCurrencyDisplay } from "../../../../personal-expenses/utils";
 
 interface BarChartProps {
@@ -50,6 +59,16 @@ const BarChartComponent: React.FC<BarChartProps> = ({
   };
 
   const resolvedBarColor = React.useMemo(() => resolveCssVar(barColor), [barColor]);
+  
+  const chartConfig = React.useMemo(() => {
+    const config: ChartConfig = {
+      [barDataKey]: {
+        label: valueType === 'count' ? countLabel : getTranslationFromI18nKeyAndLabel("lowcoder:charts.tooltip.amount", "Amount"),
+      },
+    };
+    return config;
+  }, [barDataKey, valueType, countLabel]);
+
   if (!data || data.length === 0) {
     return (
       <Card className="gba:w-full">
@@ -80,59 +99,62 @@ const BarChartComponent: React.FC<BarChartProps> = ({
         </CardHeader>
       )}
       <CardContent>
-        <div data-testid={`${title.toLowerCase().replace(/\s+/g, "-")}-chart`}>
-          <ResponsiveContainer width="100%" height={height}>
-            <BarChart
-              data={data}
-              margin={{
-                top: 5,
-                right: 30,
-                left: 20,
-                bottom: 5,
-              }}
-            >
-              <CartesianGrid strokeDasharray="3 3" />
-              <XAxis dataKey={xAxisDataKey} />
-              <YAxis />
-              <Tooltip
-                formatter={(value: any, _name: any, props: any) => {
-                  if (valueType === 'count') {
-                    const num = typeof value === 'number' ? value : Number(value ?? 0);
-                    const itemsLabel = getTranslationFromI18nKeyAndLabel(
-                      "lowcoder:charts.tooltip.items",
-                      countLabel,
-                    );
+        <ChartContainer
+          config={chartConfig}
+          className="gba:w-full"
+          style={{ height: height }}
+          data-testid={`${title.toLowerCase().replace(/\s+/g, "-")}-chart`}
+        >
+          <BarChart
+            data={data}
+            margin={{
+              top: 5,
+              right: 30,
+              left: 20,
+              bottom: 5,
+            }}
+          >
+            <CartesianGrid strokeDasharray="3 3" />
+            <XAxis dataKey={xAxisDataKey} />
+            <YAxis />
+            <ChartTooltip
+              cursor={false}
+              content={
+                <ChartTooltipContent
+                  formatter={(value: any, _name: any, props: any) => {
+                    if (valueType === 'count') {
+                      const num = typeof value === 'number' ? value : Number(value ?? 0);
+                      const itemsLabel = getTranslationFromI18nKeyAndLabel(
+                        "lowcoder:charts.tooltip.items",
+                        countLabel,
+                      );
+                      return `${num} ${itemsLabel}`;
+                    }
+                    const count = props?.payload?.count ?? null;
+                    const amountText = formatCurrencyDisplay(value, currency);
                     const countLabelText = getTranslationFromI18nKeyAndLabel(
                       "lowcoder:charts.tooltip.count",
                       "Count",
                     );
-                    return [`${num} ${itemsLabel}`, countLabelText];
-                  }
-                  const count = props?.payload?.count ?? null;
-                  const amountText = formatCurrencyDisplay(value, currency);
-                  const countLabelText = getTranslationFromI18nKeyAndLabel(
-                    "lowcoder:charts.tooltip.count",
-                    "Count",
-                  );
-                  return [count === null ? amountText : `${amountText} (${countLabelText}: ${count})`, ''];
-                }}
-                labelFormatter={(label) => `${label}`}
-              />
-              <Bar dataKey={barDataKey} fill={resolvedBarColor}>
-                {data.map((entry, index) => {
-                  // Use entry name or value as key fallback to ensure uniqueness
-                  const entryKey = entry[xAxisDataKey] || entry[barDataKey] || index;
-                  return (
-                    <Cell key={`cell-${entryKey}`} fill={(() => {
-                      const candidate = getColor ? (getColor(entry, index) || resolvedBarColor) : resolvedBarColor;
-                      return resolveCssVar(candidate);
-                    })()} />
-                  );
-                })}
-              </Bar>
-            </BarChart>
-          </ResponsiveContainer>
-        </div>
+                    return count === null ? amountText : `${amountText} (${countLabelText}: ${count})`;
+                  }}
+                />
+              }
+            />
+            <Bar dataKey={barDataKey} fill={resolvedBarColor}>
+              {data.map((entry, index) => {
+                // Use entry name or value as key fallback to ensure uniqueness
+                const entryKey = entry[xAxisDataKey] || entry[barDataKey] || index;
+                return (
+                  <Cell key={`cell-${entryKey}`} fill={(() => {
+                    const candidate = getColor ? (getColor(entry, index) || resolvedBarColor) : resolvedBarColor;
+                    return resolveCssVar(candidate);
+                  })()} />
+                );
+              })}
+            </Bar>
+          </BarChart>
+        </ChartContainer>
       </CardContent>
     </Card>
   );

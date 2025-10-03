@@ -206,7 +206,7 @@ export const useExpenseRequestFilters = ({
   );
 
   const returnPrimaryCurrency = useMemo(() => {
-    const currency = localPrimaryCurrency || "";
+    const currency = localPrimaryCurrency || "EUR";
 
     return currency;
   }, [localPrimaryCurrency]);

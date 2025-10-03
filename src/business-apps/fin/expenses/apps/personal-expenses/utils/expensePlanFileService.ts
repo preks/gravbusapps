@@ -39,7 +39,9 @@ export const useExpensePlanFileService = (props: BusinessAppContextProps) => {
     }
 
     try {
-      const employeeId = props.userInfo?.employeeDetails?.employeeId;
+      // Use the employee ID from the record if available (for manager viewing team member's expenses)
+      // Otherwise fall back to the logged-in user's employee ID (for personal expenses)
+      const employeeId = record.employee?.id || record.employeeDocument?.employee?.id || props.userInfo?.employeeDetails?.employeeId;
       
       if (!employeeId) {
         return {
@@ -58,6 +60,8 @@ export const useExpensePlanFileService = (props: BusinessAppContextProps) => {
         };
       }
 
+      const filePath = `/documents/${employeeId}`;
+
       // Fetch the PDF file using FileClient with proper authorization
       const blob = await fileClient.getFile(
         { 
@@ -66,7 +70,7 @@ export const useExpensePlanFileService = (props: BusinessAppContextProps) => {
         },
         { 
           appName: 'employee-profile',
-          folderPath: `/documents/${employeeId}`
+          folderPath: filePath
         }
       );
       
@@ -78,6 +82,7 @@ export const useExpensePlanFileService = (props: BusinessAppContextProps) => {
         pdfUrl: objectUrl
       };
     } catch (error) {
+      console.error('Error fetching file for print:', error);
       return {
         success: false,
         error: error instanceof Error ? error.message : 'Unknown error occurred'
