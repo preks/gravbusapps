@@ -406,12 +406,11 @@ const ExpensePlansTable: React.FC<ExpensePlansTableProps> = (props) => {
                       data-testid={`${DATA_TEST_ID_PREFIX}-actions-cell-${plan.id}`}
                       onClick={(e) => e.stopPropagation()}
                     >
-                      <div className="gba:flex gba:justify-start gba:items-center gba:gap-0">
+                      <div className="gba:flex gba:justify-start gba:gap-2">
                         <AppActionButton
                           onClick={(e) => e.stopPropagation()}
                           data-testid={`${DATA_TEST_ID_PREFIX}-update-plan-button-${plan.id}`}
                           size="icon"
-                          className="gba:h-7 gba:w-7"
                           staticFlowData={[
                             // Print action - only available for finalized plans with documents
                             ...((plan.status === "APPROVED" ||

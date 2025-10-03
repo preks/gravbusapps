@@ -467,12 +467,11 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = (props) => {
                       data-testid={`expense-requests-actions-cell-${record.id}`}
                       onClick={(e) => e.stopPropagation()}
                     >
-                      <div className="gba:flex gba:justify-start gba:items-center gba:gap-0">
+                      <div className="gba:flex gba:justify-start gba:gap-2">
                         <AppActionButton
                           onClick={(e) => e.stopPropagation()}
                           data-testid={`expense-requests-update-button-${record.id}`}
                           size="icon"
-                          className="gba:h-7 gba:w-7"
                           staticFlowData={(() => {
                             // Check print button conditions
                             const hasValidStatus = record.status === "APPROVED" ||
@@ -811,6 +810,7 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = (props) => {
     <>
       <DataContainer
         key="expense-requests-data-container"
+        addLeftPaddingWhenNoFilter={true}
         dataControllerProps={{
           search: searchTerm,
           setSearch: handleSearchChange,

@@ -190,7 +190,7 @@ const ExpenseDashboardTab: React.FC<ExpenseDashboardTabProps> = (props) => {
     <div className="gba:h-full gba:flex gba:flex-col" data-testid="expense-dashboard-tab-container">
       {/* Currency Filter */}
       <div
-        className="gba:flex gba:justify-start gba:mb-4 gba:px-6"
+        className="gba:flex gba:justify-start gba:mb-4"
         data-testid="expense-dashboard-currency-filter-container"
       >
         <div className="gba:flex gba:items-center gba:gap-2">
@@ -229,7 +229,7 @@ const ExpenseDashboardTab: React.FC<ExpenseDashboardTabProps> = (props) => {
       </div>
 
       {/* Main Content Area */}
-      <div className="gba:flex-1 gba:space-y-6 gba:px-6">
+      <div className="gba:flex-1 gba:space-y-6">
         {/* Quick Actions Section */}
         <div>
           <h3 className="gba:text-lg gba:font-semibold gba:mb-4">

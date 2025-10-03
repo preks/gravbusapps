@@ -179,7 +179,7 @@ const TeamSpendingAnalyticsPage: React.FC<TeamSpendingAnalyticsPageProps> = ({
         "Total Expense Items",
       ),
       value: formatKpiAmount(data?.totalExpenseAmount),
-      color: "var(--nw-color-primary-500)",
+      color: "var(--nw-primary)",
       valueIsString: true,
       description: getTranslationFromI18nKeyAndLabel(
         "lowcoder:team_expenses_page.dashboard_tab.individual_expense_transactions",
@@ -193,7 +193,7 @@ const TeamSpendingAnalyticsPage: React.FC<TeamSpendingAnalyticsPageProps> = ({
         "Total Expense Requests",
       ),
       value: formatKpiAmount(data?.totalRequestAmount),
-      color: "var(--nw-color-success-500)",
+      color: "var(--nw-success)",
       valueIsString: true,
       description: getTranslationFromI18nKeyAndLabel(
         "lowcoder:team_expenses_page.dashboard_tab.submitted_expense_requests",
@@ -207,7 +207,7 @@ const TeamSpendingAnalyticsPage: React.FC<TeamSpendingAnalyticsPageProps> = ({
         "Total Expense Plans",
       ),
       value: formatKpiAmount(data?.totalPlanAmount),
-      color: "var(--nw-color-accent-500)",
+      color: "var(--nw-accent)",
       valueIsString: true,
       description: getTranslationFromI18nKeyAndLabel(
         "lowcoder:team_expenses_page.dashboard_tab.planned_expense_budgets",
@@ -221,7 +221,7 @@ const TeamSpendingAnalyticsPage: React.FC<TeamSpendingAnalyticsPageProps> = ({
         "Total Advance Payments",
       ),
       value: formatKpiAmount(data?.totalAdvanceAmount),
-      color: "var(--nw-color-warning-500)",
+      color: "var(--nw-warning)",
       valueIsString: true,
       description: getTranslationFromI18nKeyAndLabel(
         "lowcoder:team_expenses_page.dashboard_tab.advance_payments_to_employees",
@@ -749,18 +749,18 @@ const TeamSpendingAnalyticsPage: React.FC<TeamSpendingAnalyticsPageProps> = ({
               }
               title=""
               colors={[
-                "var(--nw-color-info-500)",
-                "var(--nw-color-success-500)",
-                "var(--nw-color-primary-500)",
-                "var(--nw-color-accent-500)",
-                "var(--nw-color-warning-500)"
+                "var(--nw-chart-1)",
+                "var(--nw-chart-2)",
+                "var(--nw-chart-3)",
+                "var(--nw-chart-4)",
+                "var(--nw-chart-5)"
               ]}
               currency={currencyFilter || primaryCurrency}
             getColor={(entry) => {
               const code = entry.status || entry.name;
               const config = getAdvancePaymentStatusDisplay(code);
               const type = config?.type || 'draft';
-              return resolveStatusColor(type, 'var(--nw-color-info-500)');
+              return resolveStatusColor(type, 'var(--nw-chart-1)');
             }}
               data-testid="team-analytics-advance-payments-status-amounts-chart"
             />
@@ -1051,28 +1051,28 @@ const TeamSpendingAnalyticsPage: React.FC<TeamSpendingAnalyticsPageProps> = ({
         headerIcon={ChartLine}
         className="gba:min-h-screen"
       >
-        <div className="gba:px-6 gba:space-y-6" data-testid="team-spending-analytics-page">
-          {/* Summary Statistics */}
-          <WidgetGroup
-            widgets={widgets}
-            isLoading={isLoading}
-            error={error ? error : null}
-            onRetry={() => globalThis.location?.reload?.()}
-            skeletonCount={4}
-            emptyText={getTranslationFromI18nKeyAndLabel(
-              "lowcoder:team_expenses_page.dashboard_tab.no_analytics_data",
-              "No analytics data available.",
-            )}
-            data-testid="team-spending-analytics-statistics"
-          />
+        {/* Layout with consistent sidebar spacing */}
+        <div className="gba:flex gba:gap-6">
+          {/* Left Sidebar - Filters */}
+          <div className="gba:w-80 gba:flex-shrink-0">{renderFilters()}</div>
 
-          {/* Main Content */}
-          <div className="gba:flex gba:gap-6">
-            {/* Left Sidebar - Filters */}
-            <div className="gba:w-80 gba:flex-shrink-0">{renderFilters()}</div>
+          {/* Main Content Area */}
+          <div className="gba:flex-1 gba:space-y-6">
+            {/* Summary Statistics */}
+            <WidgetGroup
+              widgets={widgets}
+              isLoading={isLoading}
+              error={error ? error : null}
+              onRetry={() => globalThis.location?.reload?.()}
+              skeletonCount={4}
+              emptyText={getTranslationFromI18nKeyAndLabel(
+                "lowcoder:team_expenses_page.dashboard_tab.no_analytics_data",
+                "No analytics data available.",
+              )}
+              data-testid="team-spending-analytics-statistics"
+            />
 
-            {/* Main Content Area */}
-            <div className="gba:flex-1">
+            {/* Tabs */}
               {error ? (
                 <Alert data-testid="team-spending-analytics-error-alert">
                   <AlertDescription>
@@ -1151,7 +1151,6 @@ const TeamSpendingAnalyticsPage: React.FC<TeamSpendingAnalyticsPageProps> = ({
               )}
             </div>
           </div>
-        </div>
       </PageLayout>
     </div>
   );

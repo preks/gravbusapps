@@ -1,6 +1,5 @@
 import React, { useState, useCallback, useMemo } from "react";
 import {
-  Badge,
   Button,
   Table,
   TableBody,
@@ -17,6 +16,21 @@ import {
   SheetHeader,
   SheetTitle,
 } from "@newwork/nw-design-system";
+
+// Status type → Tailwind classes mapping (matching Plans table)
+const ADV_STATUS_CLASSES: Record<string, string> = {
+  success: "gba:bg-success gba:text-success-foreground",
+  warning: "gba:bg-warning gba:text-warning-foreground",
+  info: "gba:bg-info gba:text-info-foreground",
+  destructive: "gba:bg-destructive gba:text-destructive-foreground",
+  offline: "gba:bg-offline gba:text-offline-foreground",
+  draft: "gba:bg-muted gba:text-muted-foreground",
+  completed: "gba:bg-success gba:text-success-foreground",
+  waiting: "gba:bg-info gba:text-info-foreground",
+  task: "gba:bg-warning gba:text-warning-foreground",
+  error: "gba:bg-destructive gba:text-destructive-foreground",
+  preparing: "gba:bg-muted gba:text-muted-foreground",
+};
 import { PiArrowUp, PiArrowDown } from "react-icons/pi";
 import { AppActionButton } from "@/components/app-action-button/AppActionButton";
 import { BusinessAppContextProps } from "@/common/BusinessAppContext";
@@ -125,13 +139,13 @@ const AdvancePaymentsTable: React.FC<AdvancePaymentsTableProps> = (props) => {
     return (
         <div className="gba:border gba:border-border gba:rounded-md">
         {/* Table with horizontal scrolling */}
-        <div className="gba:overflow-x-auto gba:pr-4">
+        <div className="gba:overflow-x-auto gba:pr-4 gba:border-b gba:border-border">
           <Table data-testid="advance-payments-table" className="gba:w-full">
-            <TableHeader>
+            <TableHeader className="gba:sticky gba:top-0 gba:bg-white gba:z-10 gba:border-b gba:border-border">
               <TableRow>
-                <TableHead className="gba:w-[60px] gba:min-w-[60px] gba:max-w-[60px] gba:box-border gba:first:pl-0" data-testid="advance-payments-actions-header"></TableHead>
+                <TableHead className="gba:w-[60px] gba:min-w-[60px] gba:max-w-[60px] gba:box-border gba:bg-muted gba:font-semibold" data-testid="advance-payments-actions-header"></TableHead>
                 <TableHead
-                  className="gba:w-[12%] gba:cursor-pointer"
+                  className="gba:w-[18%] gba:cursor-pointer gba:select-none gba:bg-muted gba:font-semibold"
                   onClick={() => updateSorting("expensePlan.title")}
                   data-testid="advance-payments-title-header"
                 >
@@ -152,7 +166,7 @@ const AdvancePaymentsTable: React.FC<AdvancePaymentsTableProps> = (props) => {
                   </div>
                 </TableHead>
                 <TableHead
-                  className="gba:w-[8%] gba:cursor-pointer"
+                  className="gba:w-[8%] gba:cursor-pointer gba:select-none gba:bg-muted gba:font-semibold"
                   onClick={() => updateSorting("expensePlan.startDate")}
                   data-testid="advance-payments-start-date-header"
                 >
@@ -173,7 +187,7 @@ const AdvancePaymentsTable: React.FC<AdvancePaymentsTableProps> = (props) => {
                   </div>
                 </TableHead>
                 <TableHead
-                  className="gba:w-[8%] gba:cursor-pointer"
+                  className="gba:w-[8%] gba:cursor-pointer gba:select-none gba:bg-muted gba:font-semibold"
                   onClick={() => updateSorting("expensePlan.endDate")}
                   data-testid="advance-payments-end-date-header"
                 >
@@ -194,7 +208,7 @@ const AdvancePaymentsTable: React.FC<AdvancePaymentsTableProps> = (props) => {
                   </div>
                 </TableHead>
                 <TableHead
-                  className="gba:w-[20%] gba:cursor-pointer"
+                  className="gba:w-[20%] gba:cursor-pointer gba:select-none gba:bg-muted gba:font-semibold"
                   onClick={() => updateSorting("expensePlan.employee.fullName")}
                   data-testid="advance-payments-employee-header"
                 >
@@ -215,7 +229,7 @@ const AdvancePaymentsTable: React.FC<AdvancePaymentsTableProps> = (props) => {
                   </div>
                 </TableHead>
                 <TableHead
-                  className="gba:w-[8%] gba:cursor-pointer"
+                  className="gba:w-[8%] gba:cursor-pointer gba:select-none gba:bg-muted gba:font-semibold"
                   onClick={() => updateSorting("createdAt")}
                   data-testid="advance-payments-creation-date-header"
                 >
@@ -236,7 +250,7 @@ const AdvancePaymentsTable: React.FC<AdvancePaymentsTableProps> = (props) => {
                   </div>
                 </TableHead>
                 <TableHead
-                  className="gba:w-[12%] gba:cursor-pointer"
+                  className="gba:w-[12%] gba:cursor-pointer gba:select-none gba:bg-muted gba:font-semibold"
                   onClick={() => updateSorting("amount")}
                   data-testid="advance-payments-amount-header"
                 >
@@ -254,7 +268,7 @@ const AdvancePaymentsTable: React.FC<AdvancePaymentsTableProps> = (props) => {
                   </div>
                 </TableHead>
                 <TableHead
-                  className="gba:w-[20%] gba:cursor-pointer gba:pr-6"
+                  className="gba:w-[20%] gba:cursor-pointer gba:select-none gba:bg-muted gba:font-semibold gba:pr-6"
                   onClick={() => updateSorting("status")}
                   data-testid="advance-payments-status-header"
                 >
@@ -288,12 +302,11 @@ const AdvancePaymentsTable: React.FC<AdvancePaymentsTableProps> = (props) => {
                     data-testid={`advance-payments-actions-cell-${record.id}`}
                     onClick={(e) => e.stopPropagation()}
                   >
-                    <div className="gba:flex gba:justify-start gba:items-center gba:gap-0">
-                        <AppActionButton
+                    <div className="gba:flex gba:justify-start gba:gap-2">
+                      <AppActionButton
                         onClick={(e) => e.stopPropagation()}
                         data-testid={`advance-payments-update-button-${record.id}`}
                         size="icon"
-                          className="gba:h-7 gba:w-7"
                         staticFlowData={[
                           {
                             category: getTranslationFromI18nKeyAndLabel(
@@ -323,7 +336,7 @@ const AdvancePaymentsTable: React.FC<AdvancePaymentsTableProps> = (props) => {
                       />
                     </div>
                   </TableCell>
-                  <TableCell className="gba:text-left gba:py-3 gba:px-4 gba:w-[12%]">
+                  <TableCell className="gba:text-left gba:py-3 gba:px-4 gba:w-[18%]">
                     <div className="gba:font-medium gba:text-sm gba:whitespace-nowrap gba:truncate">
                       {record.expensePlan?.title ?? getTranslationFromI18nKeyAndLabel("lowcoder:common.not_available","N/A")}
                     </div>
@@ -424,12 +437,14 @@ const AdvancePaymentsTable: React.FC<AdvancePaymentsTableProps> = (props) => {
                     {(() => {
                       const status = getAdvancePaymentStatusDisplay(record.status);
                       return (
-                        <Badge
-                          variant={status.type}
-                          data-testid={`status-badge-${record.status.toLowerCase()}`}
+                        <span
+                          className={`gba:inline-block gba:rounded-full gba:px-3 gba:py-1 gba:text-xs gba:font-medium gba:whitespace-nowrap ${
+                            ADV_STATUS_CLASSES[String(status.type).toLowerCase()] || ADV_STATUS_CLASSES.draft
+                          }`}
+                          data-testid={`status-pill-${String(status.type).toLowerCase()}`}
                         >
                           {status.label}
-                        </Badge>
+                        </span>
                       );
                     })()}
                   </TableCell>

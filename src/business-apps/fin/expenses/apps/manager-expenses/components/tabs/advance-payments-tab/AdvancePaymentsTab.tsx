@@ -49,7 +49,6 @@ const AdvancePaymentsTab: React.FC<AdvancePaymentsTabProps> = (props) => {
     ...contextProps,
     pageSize: 1000,
     currentCurrencyFilter: currencyFilter,
-    statisticsOnly: true, // This prevents race conditions with the table data
   });
   
   // Use the main data hook to fetch advance payments data for the table
@@ -68,7 +67,6 @@ const AdvancePaymentsTab: React.FC<AdvancePaymentsTabProps> = (props) => {
     searchTerm,
     currentStatusFilter: statusFilter,
     currentCurrencyFilter: currencyFilter,
-    statisticsOnly: false, // This fetches the main data
   });
   
   // Fetch statistics on component mount
@@ -90,6 +88,15 @@ const AdvancePaymentsTab: React.FC<AdvancePaymentsTabProps> = (props) => {
     setStatusFilter([]);
   }, [setSearchTerm, setStatusFilter]);
 
+  // Transform sorting to match expected format
+  const transformedSorting = useMemo(() => {
+    if (!sorting || !sorting.field || !sorting.order) return null;
+    return {
+      field: sorting.field,
+      direction: sorting.order.toLowerCase() as "asc" | "desc"
+    };
+  }, [sorting]);
+
   return (
     <div className="gba:h-full gba:flex gba:flex-col" data-testid="advance-payments-tab-container">
       {/* Statistics Section */}
@@ -106,13 +113,14 @@ const AdvancePaymentsTab: React.FC<AdvancePaymentsTabProps> = (props) => {
       <DataContainer
         key="advance-payments-data-container"
         contentBackground="white"
+        addLeftPaddingWhenNoFilter={true}
         dataControllerProps={{
           search: searchTerm,
-          filter: statusFilter,
+          filter: statusFilter || [],
           setSearch: handleSearchChange,
           setFilter: (newFilters) => {
             // Convert filters to string IDs for comparison
-            const currentFilters = statusFilter.map((status) => status as unknown as string);
+            const currentFilters = (statusFilter || []).map((status) => status as unknown as string);
             const incomingFilters = newFilters.map((status) => status as unknown as string);
 
             // Find filters to remove and add
@@ -160,7 +168,7 @@ const AdvancePaymentsTab: React.FC<AdvancePaymentsTabProps> = (props) => {
               totalCount={totalCount}
               currentPage={currentPage}
               setCurrentPage={setCurrentPage}
-              sorting={sorting}
+              sorting={transformedSorting}
               updateSorting={updateSorting}
               pageSize={pageSize}
               setPageSize={setPageSize}

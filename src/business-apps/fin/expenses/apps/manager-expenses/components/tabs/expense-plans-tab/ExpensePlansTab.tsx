@@ -122,6 +122,7 @@ const ExpensePlansTab: React.FC<ExpensePlansTabProps> = (props) => {
       <DataContainer
         key="expense-plans-data-container"
         contentBackground="white"
+        addLeftPaddingWhenNoFilter={true}
         dataControllerProps={{
           search: searchTerm,
           filter: statusFilter,
