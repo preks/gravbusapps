@@ -1,7 +1,24 @@
-import { InvestmentFormData } from '@/common/data/investment/payloads/investmentPayloads';
+import { 
+  InvestmentData,
+  EquityInvestmentData,
+  RealEstateInvestmentData,
+  LiquidFundInvestmentData 
+} from '@/common/data/investment/payloads/investmentPayloads';
 
-// Re-export the form data interface for backwards compatibility
-export interface InvestmentFormValues extends InvestmentFormData {}
+// Nested form structure matching API payload structure exactly
+// react-hook-form handles nested structures perfectly with dot notation (e.g., "investment.name")
+export interface InvestmentFormValues {
+  // Main investment data - matches InvestmentData interface exactly
+  investment: InvestmentData;
+  
+  // Group-specific data - exactly one must be present based on investmentGroupRef
+  equityInvestment?: EquityInvestmentData;
+  realEstateInvestment?: RealEstateInvestmentData;
+  liquidFundInvestment?: LiquidFundInvestmentData;
+  
+  // Form-only helper fields (not sent to API, used for better UX in selects)
+  accountId?: string; // Helper for investmentAccount selection
+}
 
 export interface SelectOption {
   id: string | number;

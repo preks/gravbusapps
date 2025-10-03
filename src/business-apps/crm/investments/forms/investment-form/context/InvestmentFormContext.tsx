@@ -131,60 +131,71 @@ export const InvestmentFormProvider: React.FC<InvestmentFormProviderProps> = ({
   onCancel = async () => {},
   onDelete,
 }) => {
-  // Form state
+  // Form state - nested structure matching API
   const [formValues, setFormValuesState] = useState<InvestmentFormValues>(() => {
-    const initialFormValues: InvestmentFormValues = {
+    return {
       investment: {
-        id: initialValues.investment?.id,
-        version: initialValues.investment?.version,
         name: initialValues.investment?.name || '',
         initialInvestmentAmount: initialValues.investment?.initialInvestmentAmount || '',
         investmentGroupRef: initialValues.investment?.investmentGroupRef || '',
         ownerEmployee: initialValues.investment?.ownerEmployee || businessAppContext.userInfo?.employeeDetails?.employeeId || '',
-        investmentTypeRef: initialValues.investment?.investmentTypeRef,
-        investmentAccount: initialValues.investment?.investmentAccount,
+        investmentStatusRef: initialValues.investment?.investmentStatusRef || 'InvestmentStatus:v1:ACTIVE',
+        ...(initialValues.investment?.id && { id: initialValues.investment.id }),
+        ...(initialValues.investment?.version && { version: initialValues.investment.version }),
+        ...(initialValues.investment?.currencyRef && { currencyRef: initialValues.investment.currencyRef }),
+        ...(initialValues.investment?.investmentAccount && { investmentAccount: initialValues.investment.investmentAccount }),
       },
       equityInvestment: initialValues.equityInvestment,
       realEstateInvestment: initialValues.realEstateInvestment,
       liquidFundInvestment: initialValues.liquidFundInvestment,
+      // Form helper fields
+      accountId: initialValues.accountId || '',
     };
-
-    return initialFormValues;
   });
 
 
 
-  // Enhanced setFormValues that handles investment type clearing when group changes
+  // Enhanced setFormValues with proper nested merging and cascade clearing
   const setFormValues = useCallback((updates: Partial<InvestmentFormValues>) => {
     setFormValuesState(prev => {
-      const newValues = { ...prev, ...updates };
+      // Deep merge nested structures
+      const newValues: InvestmentFormValues = {
+        investment: {
+          ...prev.investment,
+          ...updates.investment,
+        },
+        // Deep merge subtype objects to preserve dynamic fields
+        equityInvestment: updates.equityInvestment !== undefined 
+          ? { ...prev.equityInvestment, ...updates.equityInvestment } 
+          : prev.equityInvestment,
+        realEstateInvestment: updates.realEstateInvestment !== undefined 
+          ? { ...prev.realEstateInvestment, ...updates.realEstateInvestment } 
+          : prev.realEstateInvestment,
+        liquidFundInvestment: updates.liquidFundInvestment !== undefined 
+          ? { ...prev.liquidFundInvestment, ...updates.liquidFundInvestment } 
+          : prev.liquidFundInvestment,
+        // Merge helper fields
+        accountId: updates.accountId !== undefined ? updates.accountId : prev.accountId,
+      };
       
-      // If group is changing, clear downstream selections
-      if (
-        updates.group !== undefined &&
-        updates.group !== prev.group &&
-        updates.investmentTypeRef === undefined
-      ) {
-        newValues.investmentTypeRef = '';
-      }
+      // Extract group codes for cascade logic
+      const prevGroupCode = prev.investment.investmentGroupRef?.split(':').pop();
+      const newGroupCode = newValues.investment.investmentGroupRef?.split(':').pop();
       
-      // If group is changing, clear liquid fund type
-      if (
-        updates.group !== undefined &&
-        updates.group !== prev.group &&
-        updates.investmentLiquidFundTypeRef === undefined
-      ) {
-        newValues.investmentLiquidFundTypeRef = '';
-      }
+      // Clear downstream selections when group changes (but NOT if subtype data is being explicitly set in the update)
+      const isExplicitlySettingSubtype = 
+        updates.equityInvestment !== undefined || 
+        updates.realEstateInvestment !== undefined || 
+        updates.liquidFundInvestment !== undefined;
       
-      // If investment type is changing for liquid funds, clear liquid fund type
-      if (
-        updates.investmentTypeRef !== undefined &&
-        updates.investmentTypeRef !== prev.investmentTypeRef &&
-        prev.group === 'LIQUID_FUND' &&
-        updates.investmentLiquidFundTypeRef === undefined
-      ) {
-        newValues.investmentLiquidFundTypeRef = '';
+      if (newGroupCode !== prevGroupCode && !isExplicitlySettingSubtype) {
+        if (updates.investment?.investmentTypeRef === undefined) {
+          newValues.investment.investmentTypeRef = undefined;
+        }
+        // Clear all subtype data when group changes (unless we're explicitly setting it)
+        newValues.equityInvestment = undefined;
+        newValues.realEstateInvestment = undefined;
+        newValues.liquidFundInvestment = undefined;
       }
       
       return newValues;
@@ -220,7 +231,7 @@ export const InvestmentFormProvider: React.FC<InvestmentFormProviderProps> = ({
     error: currentEmployeeError
   } = useEmployeeById({ 
     accessToken: businessAppContext.accessToken,
-    employeeId: formValues.ownerEmployeeId 
+    employeeId: formValues.investment.ownerEmployee || '' 
   });
 
   // Investment catalog data - load immediately when context initializes
@@ -260,18 +271,17 @@ export const InvestmentFormProvider: React.FC<InvestmentFormProviderProps> = ({
     // Use override values if provided, otherwise use current formValues
     const effectiveFormValues = overrideFormValues ? { ...formValues, ...overrideFormValues } : formValues;
 
-    // Extract codes
-    const groupCode = effectiveFormValues.group ? effectiveFormValues.group.split(':').pop() : null;
-    const typeCode = effectiveFormValues.investmentTypeRef ? effectiveFormValues.investmentTypeRef.split(':').pop() : null;
-    const liquidFundTypeCode = effectiveFormValues.investmentLiquidFundTypeRef ? 
-      effectiveFormValues.investmentLiquidFundTypeRef.split(':').pop() : null;
+    // Extract codes from nested structure
+    const groupCode = effectiveFormValues.investment.investmentGroupRef?.split(':').pop() || null;
+    const typeCode = effectiveFormValues.investment.investmentTypeRef?.split(':').pop() || null;
+    const liquidFundTypeCode = effectiveFormValues.liquidFundInvestment?.investmentLiquidFundType?.split(':').pop() || null;
 
     // PRIORITY 1: Investment Liquid Fund Type (highest priority for liquid funds)
     if (groupCode === 'LIQUID_FUND' && liquidFundTypeCode) {
       const liquidFundTypeEntry = investmentCatalogData.investmentLiquidFundTypes?.find(
         entry => entry.code === liquidFundTypeCode
       );
-      if (liquidFundTypeEntry?.objectValue?.formFields?.length > 0) {
+      if (liquidFundTypeEntry?.objectValue?.formFields && liquidFundTypeEntry.objectValue.formFields.length > 0) {
         return liquidFundTypeEntry.objectValue;
       }
     }
@@ -293,7 +303,7 @@ export const InvestmentFormProvider: React.FC<InvestmentFormProviderProps> = ({
     }
 
     return null;
-  }, [investmentCatalogData, formValues.group, formValues.investmentTypeRef, formValues.investmentLiquidFundTypeRef]);
+  }, [investmentCatalogData, formValues.investment.investmentGroupRef, formValues.investment.investmentTypeRef, formValues.liquidFundInvestment]);
 
   // Current user employee hook - for ensuring current user is always available in the list
   const currentUserEmployeeId = businessAppContext.userInfo?.employeeDetails?.employeeId;
@@ -326,12 +336,13 @@ export const InvestmentFormProvider: React.FC<InvestmentFormProviderProps> = ({
   const interestPaymentFrequenciesHook = useInterestPaymentFrequencies(businessAppContext.accessToken);
 
   // Investment types hook (based on selected group)
-  const investmentTypesHook = useInvestmentTypeCatalog(businessAppContext.accessToken, formValues.group);
+  const groupCode = formValues.investment.investmentGroupRef?.split(':').pop();
+  const investmentTypesHook = useInvestmentTypeCatalog(businessAppContext.accessToken, groupCode);
 
   // Investment liquid fund types hook (based on selected investment type)
   const investmentLiquidFundTypesHook = useInvestmentLiquidFundTypeCatalog(
     businessAppContext.accessToken, 
-    formValues.investmentTypeRef
+    formValues.investment.investmentTypeRef
   );
 
   // Accounts data hook for account autocomplete  
@@ -361,20 +372,23 @@ export const InvestmentFormProvider: React.FC<InvestmentFormProviderProps> = ({
 
   // Note: Account loading now uses centralized fetchInvestmentAccounts
 
-  // Auto-select current user as owner when ownerEmployeeId is null or not provided
+  // Auto-select current user as owner when ownerEmployee is null or not provided
   useEffect(() => {
     if (
       businessAppContext.userInfo?.employeeDetails?.employeeId && 
-      (!formValues.ownerEmployeeId || formValues.ownerEmployeeId.trim() === '') && 
+      (!formValues.investment.ownerEmployee || formValues.investment.ownerEmployee.trim() === '') && 
       !autoSelectionDone.current
     ) {
       setFormValuesState(prev => ({
         ...prev,
-        ownerEmployeeId: businessAppContext.userInfo?.employeeDetails?.employeeId || ''
+        investment: {
+          ...prev.investment,
+          ownerEmployee: businessAppContext.userInfo?.employeeDetails?.employeeId || ''
+        }
       }));
       autoSelectionDone.current = true;
     }
-  }, [businessAppContext.userInfo?.employeeDetails?.employeeId, formValues.ownerEmployeeId]);
+  }, [businessAppContext.userInfo?.employeeDetails?.employeeId, formValues.investment.ownerEmployee]);
 
   // Enhanced employee positions list that always includes current user at the top
   const enhancedEmployeePositions = useMemo(() => {
@@ -406,13 +420,13 @@ export const InvestmentFormProvider: React.FC<InvestmentFormProviderProps> = ({
     }
     
     // Ensure current owner (loaded from form) is present as an option
-    if (currentEmployee && formValues.ownerEmployeeId &&
-        !positions.some(emp => emp.value === formValues.ownerEmployeeId)) {
+    if (currentEmployee && formValues.investment.ownerEmployee &&
+        !positions.some(emp => emp.value === formValues.investment.ownerEmployee)) {
       const ownerDisplayName = currentEmployee.employee?.displayName || 
         `${currentEmployee.firstName || ''} ${currentEmployee.lastName || ''}`.trim();
       const ownerOption: SelectOption = {
-        id: formValues.ownerEmployeeId,
-        value: formValues.ownerEmployeeId,
+        id: formValues.investment.ownerEmployee,
+        value: formValues.investment.ownerEmployee,
         label: ownerDisplayName,
         name: ownerDisplayName,
         extraInfo: {

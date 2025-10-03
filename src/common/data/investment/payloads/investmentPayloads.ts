@@ -27,7 +27,7 @@ export interface InvestmentData {
   investmentStatusRef?: string;
   investmentRiskLevelRef?: string;
   acquisitionDate?: string;
-  planedExit?: boolean; // Note: typo in API model
+  planedExit?: boolean; // TODO: typo in API model
   plannedExitDate?: string;
   exitDate?: string;
   totalInvestmentAmount?: number | string;
@@ -64,7 +64,6 @@ export interface EquityInvestmentData {
   marketValue?: number | string;
   turnoverAmount?: number | string;
   ebitdaAmount?: number | string;
-  investment?: string; // uuid
 
   // Support for dynamic additional properties fields
   [key: string]: any; // Allow dynamic additional properties fields
@@ -88,7 +87,6 @@ export interface RealEstateInvestmentData {
   actualAnnualExpenses?: number | string;
   targetAnnualExpenses?: number | string;
   liquidityForecast?: any; // object
-  investment?: string; // uuid
 
   // Support for dynamic additional properties fields
   [key: string]: any; // Allow dynamic additional properties fields
@@ -105,7 +103,6 @@ export interface LiquidFundInvestmentData {
   interestRate?: number | string;
   interestPaymentFrequencyRef?: string;
   maturityDate?: string;
-  investment?: string; // uuid
 
   // Support for dynamic additional properties fields
   [key: string]: any; // Allow dynamic additional properties fields
@@ -130,33 +127,14 @@ export interface InvestmentFormData {
 // ==============================
 
 export const buildInvestmentPayload = (
-  formData: InvestmentFormData | any, // Accept any for backwards compatibility
+  formData: InvestmentFormData,
   _businessAppContext: BusinessAppContextProps,
   options: { isUpdate?: boolean; rawInvestmentData?: any } = {}
 ) => {
   const { rawInvestmentData } = options;
   
-  // Handle both new nested structure and old flat structure for backwards compatibility
-  let investment: any;
-  
-  if (formData.investment) {
-    // New nested structure
-    investment = formData.investment;
-  } else {
-    // Old flat structure - convert to new structure
-    investment = {
-      id: (formData as any).id,
-      version: (formData as any).version,
-      name: (formData as any).name,
-      initialInvestmentAmount: (formData as any).initialInvestmentAmount,
-      investmentGroupRef: (formData as any).investmentGroupRef || (formData as any).group,
-      ownerEmployee: (formData as any).ownerEmployee || (formData as any).ownerEmployeeId,
-      investmentTypeRef: (formData as any).investmentTypeRef,
-      investmentAccount: (formData as any).investmentAccount || (formData as any).accountId,
-      // Copy all other fields that might be in the flat structure
-      ...(formData as any),
-    };
-  }
+  // Extract investment data from nested structure
+  const investment = formData.investment;
   
   // Helper to convert string/number to number
   const toNumber = (value: number | string | undefined): number | undefined => {
@@ -172,10 +150,15 @@ export const buildInvestmentPayload = (
       return undefined;
     }
 
+    // First, check if additionalProperties is passed directly as an object
+    if (formData.additionalProperties && typeof formData.additionalProperties === 'object') {
+      return formData.additionalProperties;
+    }
+
+    // Fallback: Find all fields that start with "additionalProperties_" (for backward compatibility)
     const additionalProps: Record<string, any> = {};
     let hasAdditionalProps = false;
 
-    // Find all fields that start with "additionalProperties_"
     Object.keys(formData).forEach(key => {
       if (key.startsWith('additionalProperties_')) {
         const fieldName = key.replace('additionalProperties_', '');
@@ -200,9 +183,12 @@ export const buildInvestmentPayload = (
 
   // Extract investment-level additionalProperties
   const investmentAdditionalProperties = buildAdditionalProperties(investment, 'investment');
-
   
-  // Base investment payload
+  // Map accountId helper field to investment.investmentAccount (if provided)
+  // accountId is a form helper field, investmentAccount is the API field
+  const investmentAccountId = (formData as any).accountId || investment.investmentAccount;
+  
+  // Base investment payload - include ALL fields from GraphQL schema
   const baseInvestmentPayload: any = {
     name: investment.name,
     initialInvestmentAmount: toNumber(investment.initialInvestmentAmount),
@@ -243,14 +229,14 @@ export const buildInvestmentPayload = (
     ...(investment.currencyRef && { currencyRef: investment.currencyRef }),
     ...(investment.fundManagerName && { fundManagerName: investment.fundManagerName }),
     ...(investment.identification && { identification: investment.identification }),
-    ...(investment.investmentAccount && { investmentAccount: investment.investmentAccount }),
+    ...(investmentAccountId && { investmentAccount: investmentAccountId }),
     ...(investment.investmentOpportunity && { investmentOpportunity: investment.investmentOpportunity }),
     ...(investment.loanRecipientInvestmentAccount && { loanRecipientInvestmentAccount: investment.loanRecipientInvestmentAccount }),
     
     // Investment additionalProperties as JSON string
     ...(investmentAdditionalProperties && { additionalProperties: investmentAdditionalProperties }),
   };
-
+  
   // Add update fields if updating
   if (options.isUpdate && rawInvestmentData?.id) {
     baseInvestmentPayload.id = rawInvestmentData.id;
@@ -285,144 +271,114 @@ export const buildInvestmentPayload = (
   // Add group-specific data based on the investment type
   switch (groupType) {
     case 'EQUITY':
-      // Always create equityInvestment object (required by API)
-      // Handle both new nested structure and old flat structure
-      const equityData = formData.equityInvestment || {
-        foundationDate: (formData as any).foundationDate,
-        marketValue: (formData as any).marketValue,
-        turnoverAmount: (formData as any).turnoverAmount,
-        ebitdaAmount: (formData as any).ebitdaAmount,
-      };
+      // Always create equityInvestment object (required by API - exactly one subtype must exist)
+      const equityData = formData.equityInvestment || {};
       
-      if (equityData && (equityData.foundationDate || equityData.marketValue || equityData.turnoverAmount || equityData.ebitdaAmount)) {
-        // Handle both array and object structures for existing equity data
-        const existingEquity = Array.isArray(rawInvestmentData?.equityInvestment) 
-          ? rawInvestmentData.equityInvestment[0] || {}
-          : rawInvestmentData?.equityInvestment || {};
-        const equityAdditionalProperties = buildAdditionalProperties(equityData, 'equityInvestment');
-        
-        investmentRequest.equityInvestment = {
-          // Preserve all existing data
-          ...existingEquity,
-          // Override with form changes (only if provided)
-          ...(equityData.foundationDate !== undefined && { foundationDate: toISOFormat(equityData.foundationDate) }),
-          ...(equityData.marketValue !== undefined && { marketValue: toNumber(equityData.marketValue) }),
-          ...(equityData.turnoverAmount !== undefined && { turnoverAmount: toNumber(equityData.turnoverAmount) }),
-          ...(equityData.ebitdaAmount !== undefined && { ebitdaAmount: toNumber(equityData.ebitdaAmount) }),
-          ...(equityData.investment !== undefined && { investment: equityData.investment }),
-          // Additional properties as JSON string
-          ...(equityAdditionalProperties && { additionalProperties: equityAdditionalProperties }),
-          // Always include id and version for updates (these should not be overridden by form)
-          ...(options.isUpdate && existingEquity.id && { 
-            id: existingEquity.id,
-            version: existingEquity.version 
-          }),
-        };
+      // Handle both array and object structures for existing equity data
+      const existingEquity = Array.isArray(rawInvestmentData?.equityInvestment) 
+        ? rawInvestmentData.equityInvestment[0] || {}
+        : rawInvestmentData?.equityInvestment || {};
+      const equityAdditionalProperties = buildAdditionalProperties(equityData, 'equityInvestment');
+      
+      // Build equityInvestment using ONLY fields defined in EquityInvestmentData interface
+      const equityPayload: any = {};
+      
+      // Add fields from equityData (new/updated values)
+      if (equityData.foundationDate !== undefined) equityPayload.foundationDate = toISOFormat(equityData.foundationDate);
+      if (equityData.marketValue !== undefined) equityPayload.marketValue = toNumber(equityData.marketValue);
+      if (equityData.turnoverAmount !== undefined) equityPayload.turnoverAmount = toNumber(equityData.turnoverAmount);
+      if (equityData.ebitdaAmount !== undefined) equityPayload.ebitdaAmount = toNumber(equityData.ebitdaAmount);
+      
+      // Additional properties
+      if (equityAdditionalProperties) equityPayload.additionalProperties = equityAdditionalProperties;
+      
+      // Always include id and version for updates
+      if (options.isUpdate && existingEquity.id) {
+        equityPayload.id = existingEquity.id;
+        equityPayload.version = existingEquity.version;
       }
+      
+      // Always set equityInvestment (API requires exactly one subtype)
+      investmentRequest.equityInvestment = equityPayload;
       break;
 
     case 'REAL_ESTATE':
-      // Always create realEstateInvestment object (required by API)
-      // Handle both new nested structure and old flat structure
-      const realEstateData = formData.realEstateInvestment || {
-        countryRef: (formData as any).countryRef,
-        regionRef: (formData as any).regionRef,
-        addressLine: (formData as any).addressLine,
-        postalCode: (formData as any).postalCode,
-        locality: (formData as any).locality,
-        buildingYear: (formData as any).buildingYear,
-        size: (formData as any).size,
-        sizeMeasurementUnitRef: (formData as any).sizeMeasurementUnitRef,
-        numberOfUnits: (formData as any).numberOfUnits,
-        occupancyPercent: (formData as any).occupancyPercent,
-        annualNetColdRent: (formData as any).annualNetColdRent,
-        funding: (formData as any).funding,
-        actualAnnualExpenses: (formData as any).actualAnnualExpenses,
-        targetAnnualExpenses: (formData as any).targetAnnualExpenses,
-        liquidityForecast: (formData as any).liquidityForecast,
-      };
+      // Always create realEstateInvestment object (required by API - exactly one subtype must exist)
+      const realEstateData = formData.realEstateInvestment || {};
       
-      if (realEstateData && Object.values(realEstateData).some(v => v !== undefined)) {
-        // Handle both array and object structures for existing real estate data
-        const existingRealEstate = Array.isArray(rawInvestmentData?.realEstateInvestment) 
-          ? rawInvestmentData.realEstateInvestment[0] || {}
-          : rawInvestmentData?.realEstateInvestment || {};
-        const realEstateAdditionalProperties = buildAdditionalProperties(realEstateData, 'realEstateInvestment');
-        
-        investmentRequest.realEstateInvestment = {
-          // Preserve all existing data
-          ...existingRealEstate,
-          // Override with form changes (only if provided)
-          ...(realEstateData.countryRef !== undefined && { countryRef: realEstateData.countryRef }),
-          ...(realEstateData.regionRef !== undefined && { regionRef: realEstateData.regionRef }),
-          ...(realEstateData.addressLine !== undefined && { addressLine: realEstateData.addressLine }),
-          ...(realEstateData.postalCode !== undefined && { postalCode: realEstateData.postalCode }),
-          ...(realEstateData.locality !== undefined && { locality: realEstateData.locality }),
-          ...(realEstateData.buildingYear !== undefined && { buildingYear: realEstateData.buildingYear }), // string in model
-          ...(realEstateData.size !== undefined && { size: toNumber(realEstateData.size) }),
-          ...(realEstateData.sizeMeasurementUnitRef !== undefined && { sizeMeasurementUnitRef: realEstateData.sizeMeasurementUnitRef }),
-          ...(realEstateData.numberOfUnits !== undefined && { numberOfUnits: toNumber(realEstateData.numberOfUnits) }),
-          ...(realEstateData.occupancyPercent !== undefined && { occupancyPercent: toNumber(realEstateData.occupancyPercent) }),
-          ...(realEstateData.annualNetColdRent !== undefined && { annualNetColdRent: toNumber(realEstateData.annualNetColdRent) }),
-          ...(realEstateData.funding !== undefined && { funding: toNumber(realEstateData.funding) }),
-          ...(realEstateData.actualAnnualExpenses !== undefined && { actualAnnualExpenses: toNumber(realEstateData.actualAnnualExpenses) }),
-          ...(realEstateData.targetAnnualExpenses !== undefined && { targetAnnualExpenses: toNumber(realEstateData.targetAnnualExpenses) }),
-          ...(realEstateData.liquidityForecast !== undefined && { liquidityForecast: realEstateData.liquidityForecast }),
-          ...(realEstateData.investment !== undefined && { investment: realEstateData.investment }),
-          // Additional properties as JSON string
-          ...(realEstateAdditionalProperties && { additionalProperties: realEstateAdditionalProperties }),
-          // Always include id and version for updates (these should not be overridden by form)
-          ...(options.isUpdate && existingRealEstate.id && { 
-            id: existingRealEstate.id,
-            version: existingRealEstate.version 
-          }),
-        };
+      // Handle both array and object structures for existing real estate data
+      const existingRealEstate = Array.isArray(rawInvestmentData?.realEstateInvestment) 
+        ? rawInvestmentData.realEstateInvestment[0] || {}
+        : rawInvestmentData?.realEstateInvestment || {};
+      const realEstateAdditionalProperties = buildAdditionalProperties(realEstateData, 'realEstateInvestment');
+      
+      // Build realEstateInvestment using ONLY fields defined in RealEstateInvestmentData interface
+      const realEstatePayload: any = {};
+      
+      // Add fields from realEstateData (new/updated values)
+      if (realEstateData.countryRef !== undefined) realEstatePayload.countryRef = realEstateData.countryRef;
+      if (realEstateData.regionRef !== undefined) realEstatePayload.regionRef = realEstateData.regionRef;
+      if (realEstateData.addressLine !== undefined) realEstatePayload.addressLine = realEstateData.addressLine;
+      if (realEstateData.postalCode !== undefined) realEstatePayload.postalCode = realEstateData.postalCode;
+      if (realEstateData.locality !== undefined) realEstatePayload.locality = realEstateData.locality;
+      if (realEstateData.buildingYear !== undefined) realEstatePayload.buildingYear = realEstateData.buildingYear;
+      if (realEstateData.size !== undefined) realEstatePayload.size = toNumber(realEstateData.size);
+      if (realEstateData.sizeMeasurementUnitRef !== undefined) realEstatePayload.sizeMeasurementUnitRef = realEstateData.sizeMeasurementUnitRef;
+      if (realEstateData.numberOfUnits !== undefined) realEstatePayload.numberOfUnits = toNumber(realEstateData.numberOfUnits);
+      if (realEstateData.occupancyPercent !== undefined) realEstatePayload.occupancyPercent = toNumber(realEstateData.occupancyPercent);
+      if (realEstateData.annualNetColdRent !== undefined) realEstatePayload.annualNetColdRent = toNumber(realEstateData.annualNetColdRent);
+      if (realEstateData.funding !== undefined) realEstatePayload.funding = toNumber(realEstateData.funding);
+      if (realEstateData.actualAnnualExpenses !== undefined) realEstatePayload.actualAnnualExpenses = toNumber(realEstateData.actualAnnualExpenses);
+      if (realEstateData.targetAnnualExpenses !== undefined) realEstatePayload.targetAnnualExpenses = toNumber(realEstateData.targetAnnualExpenses);
+      if (realEstateData.liquidityForecast !== undefined) realEstatePayload.liquidityForecast = realEstateData.liquidityForecast;
+      
+      // Additional properties
+      if (realEstateAdditionalProperties) realEstatePayload.additionalProperties = realEstateAdditionalProperties;
+      
+      // Always include id and version for updates
+      if (options.isUpdate && existingRealEstate.id) {
+        realEstatePayload.id = existingRealEstate.id;
+        realEstatePayload.version = existingRealEstate.version;
       }
+      
+      // Always set realEstateInvestment (API requires exactly one subtype)
+      investmentRequest.realEstateInvestment = realEstatePayload;
       break;
 
     case 'LIQUID_FUND':
-      // Always create liquidFundInvestment object (required by API)
-      // Handle both new nested structure and old flat structure
-      const liquidFundData = formData.liquidFundInvestment || {
-        investmentLiquidFundTypeRef: (formData as any).investmentLiquidFundTypeRef,
-        proprietorName: (formData as any).proprietorName,
-        bankName: (formData as any).bankName,
-        bankAccountNumber: (formData as any).bankAccountNumber,
-        earlyTerminationAllowed: (formData as any).earlyTerminationAllowed,
-        interestRate: (formData as any).interestRate,
-        interestPaymentFrequencyRef: (formData as any).interestPaymentFrequencyRef,
-        maturityDate: (formData as any).maturityDate,
-      };
+      // Always create liquidFundInvestment object (required by API - exactly one subtype must exist)
+      const liquidFundData = formData.liquidFundInvestment || {};
       
-      if (liquidFundData && Object.values(liquidFundData).some(v => v !== undefined)) {
-        // Handle both array and object structures for existing liquid fund data
-        const existingLiquidFund = Array.isArray(rawInvestmentData?.liquidFundInvestment) 
-          ? rawInvestmentData.liquidFundInvestment[0] || {}
-          : rawInvestmentData?.liquidFundInvestment || {};
-        const liquidFundAdditionalProperties = buildAdditionalProperties(liquidFundData, 'liquidFundInvestment');
-        
-        investmentRequest.liquidFundInvestment = {
-          // Preserve all existing data
-          ...existingLiquidFund,
-          // Override with form changes (only if provided)
-          ...(liquidFundData.investmentLiquidFundTypeRef !== undefined && { investmentLiquidFundTypeRef: liquidFundData.investmentLiquidFundTypeRef }),
-          ...(liquidFundData.proprietorName !== undefined && { proprietorName: liquidFundData.proprietorName }),
-          ...(liquidFundData.bankName !== undefined && { bankName: liquidFundData.bankName }),
-          ...(liquidFundData.bankAccountNumber !== undefined && { bankAccountNumber: liquidFundData.bankAccountNumber }),
-          ...(liquidFundData.earlyTerminationAllowed !== undefined && { earlyTerminationAllowed: liquidFundData.earlyTerminationAllowed }),
-          ...(liquidFundData.interestRate !== undefined && { interestRate: toNumber(liquidFundData.interestRate) }),
-          ...(liquidFundData.interestPaymentFrequencyRef !== undefined && { interestPaymentFrequencyRef: liquidFundData.interestPaymentFrequencyRef }),
-          ...(liquidFundData.maturityDate !== undefined && { maturityDate: toISOFormat(liquidFundData.maturityDate) }),
-          ...(liquidFundData.investment !== undefined && { investment: liquidFundData.investment }),
-          // Additional properties as JSON string
-          ...(liquidFundAdditionalProperties && { additionalProperties: liquidFundAdditionalProperties }),
-          // Always include id and version for updates (these should not be overridden by form)
-          ...(options.isUpdate && existingLiquidFund.id && { 
-            id: existingLiquidFund.id,
-            version: existingLiquidFund.version 
-          }),
-        };
+      // Handle both array and object structures for existing liquid fund data
+      const existingLiquidFund = Array.isArray(rawInvestmentData?.liquidFundInvestment) 
+        ? rawInvestmentData.liquidFundInvestment[0] || {}
+        : rawInvestmentData?.liquidFundInvestment || {};
+      const liquidFundAdditionalProperties = buildAdditionalProperties(liquidFundData, 'liquidFundInvestment');
+      
+      // Build liquidFundInvestment using ONLY fields defined in LiquidFundInvestmentData interface
+      const liquidFundPayload: any = {};
+      
+      // Add fields from liquidFundData (new/updated values)
+      if (liquidFundData.investmentLiquidFundTypeRef !== undefined) liquidFundPayload.investmentLiquidFundTypeRef = liquidFundData.investmentLiquidFundTypeRef;
+      if (liquidFundData.proprietorName !== undefined) liquidFundPayload.proprietorName = liquidFundData.proprietorName;
+      if (liquidFundData.bankName !== undefined) liquidFundPayload.bankName = liquidFundData.bankName;
+      if (liquidFundData.bankAccountNumber !== undefined) liquidFundPayload.bankAccountNumber = liquidFundData.bankAccountNumber;
+      if (liquidFundData.earlyTerminationAllowed !== undefined) liquidFundPayload.earlyTerminationAllowed = liquidFundData.earlyTerminationAllowed;
+      if (liquidFundData.interestRate !== undefined) liquidFundPayload.interestRate = toNumber(liquidFundData.interestRate);
+      if (liquidFundData.interestPaymentFrequencyRef !== undefined) liquidFundPayload.interestPaymentFrequencyRef = liquidFundData.interestPaymentFrequencyRef;
+      if (liquidFundData.maturityDate !== undefined) liquidFundPayload.maturityDate = toISOFormat(liquidFundData.maturityDate);
+      
+      // Additional properties
+      if (liquidFundAdditionalProperties) liquidFundPayload.additionalProperties = liquidFundAdditionalProperties;
+      
+      // Always include id and version for updates
+      if (options.isUpdate && existingLiquidFund.id) {
+        liquidFundPayload.id = existingLiquidFund.id;
+        liquidFundPayload.version = existingLiquidFund.version;
       }
+      
+      // Always set liquidFundInvestment (API requires exactly one subtype)
+      investmentRequest.liquidFundInvestment = liquidFundPayload;
       break;
   }
 

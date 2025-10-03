@@ -147,7 +147,8 @@ const TaskSection: React.FC<TaskSectionProps> = ({ accessToken, tasks, taskEntit
                   taskId: t.id
                 }}
                 prefixDataTestId={`${taskEntityActionProps.prefixDataTestId}-${t.id}`}
-                emptyStateBehavior={taskEntityActionProps.emptyStateBehavior}
+                deferMainContextRequestsUntilClick={true}
+                emptyStateBehavior="enable"
               >
                 <div 
                   className="gba:flex gba:items-center gba:justify-center gba:h-6 gba:w-6 gba:cursor-pointer gba:rounded gba:hover:bg-muted gba:transition-colors"

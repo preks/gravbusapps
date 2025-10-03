@@ -373,6 +373,9 @@ export const GET_INVESTMENTS = (variables: InvestmentQueryVariables = {}): strin
           occupancyPercent
           size
           sizeMeasurementUnitRef
+          sizeMeasurementUnit {
+            ${CATALOG_ENTRY}
+          }
           locality
           postalCode
           addressLine
@@ -650,6 +653,9 @@ export const GET_INVESTMENT_BY_ID = (id: string): string => {
           occupancyPercent
           size
           sizeMeasurementUnitRef
+          sizeMeasurementUnit {
+            ${CATALOG_ENTRY}
+          }
           locality
           postalCode
           addressLine

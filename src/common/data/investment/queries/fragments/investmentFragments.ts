@@ -62,6 +62,9 @@ export const INVESTMENT = `
     investmentStakeType {
         ${CATALOG_ENTRY}
     }
+    investmentPhase {
+        ${CATALOG_ENTRY}
+    }
     investmentStatus {
         ${CATALOG_ENTRY}
     }
