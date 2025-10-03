@@ -3,20 +3,19 @@ import { InvestmentFormData } from '@/common/data/investment/payloads/investment
 // Interface for the GraphQL investment data response (from existing queries)
 export interface InvestmentQueryData {
   id: string;
-  accountId: string;
-  account?: {
-    id: string;
-    name: string;
-  };
   name: string;
   investmentGroupRef?: string;
   investmentTypeRef?: string;
-  ownerEmployeeId?: string;
+  investmentStakeTypeRef?: string;
   ownerEmployee?: {
     id: string;
     firstName?: string;
     lastName?: string;
     displayName?: string;
+  };
+  investmentAccount?: {
+    id: string;
+    name: string;
   };
   initialInvestmentAmount?: number;
   version?: number;
@@ -24,31 +23,40 @@ export interface InvestmentQueryData {
   // Group-specific data
   equityInvestment?: {
     id: string;
-    investmentRoleRef?: string;
-    currentCompanyValuation?: number;
-    lastReportedTurnover?: number;
-    lastReportedEbitda?: number;
+    marketValue?: number;
+    turnoverAmount?: number;
+    ebitdaAmount?: number;
+    foundationDate?: string;
     version?: number;
   };
   
   realEstateInvestment?: {
     id: string;
-    realEstateTypeRef?: string;
-    investmentOwnershipStructureRef?: string;
     numberOfUnits?: number;
-    buildingYear?: number;
-    version?: number;
-  };
-  
-  privateEquityInvestment?: {
-    id: string;
-    investmentRoleRef?: string;
+    buildingYear?: string;
+    countryRef?: string;
+    regionRef?: string;
+    addressLine?: any;
+    postalCode?: string;
+    locality?: string;
+    size?: number;
+    sizeMeasurementUnitRef?: string;
+    occupancyPercent?: number;
+    annualNetColdRent?: number;
+    funding?: number;
+    actualAnnualExpenses?: number;
+    targetAnnualExpenses?: number;
+    liquidityForecast?: any;
+    investment?: string;
     version?: number;
   };
   
   liquidFundInvestment?: {
     id: string;
-    accountNumber?: string;
+    investmentLiquidFundTypeRef?: string;
+    proprietorName?: string;
+    bankName?: string;
+    bankAccountNumber?: string;
     earlyTerminationAllowed?: boolean;
     interestRate?: number;
     interestPaymentFrequencyRef?: string;
@@ -62,93 +70,72 @@ export interface InvestmentQueryData {
  */
 export const transformInvestmentDataToForm = (data: InvestmentQueryData): InvestmentFormData => {
   const formData: InvestmentFormData = {
-    // Base investment data
-    id: data.id,
-    version: data.version,
-    ownerEmployeeId: data.ownerEmployeeId || '',
-    name: data.name || '',
-    accountId: data.accountId || '',
-    initialInvestmentAmount: data.initialInvestmentAmount || '',
-    group: data.investmentGroupRef || '',
-    investmentTypeRef: data.investmentTypeRef || '',
+    // Main investment data
+    investment: {
+      id: data.id,
+      version: data.version,
+      name: data.name || '',
+      initialInvestmentAmount: data.initialInvestmentAmount || '',
+      investmentGroupRef: data.investmentGroupRef || '',
+      ownerEmployee: data.ownerEmployee?.id || '',
+      investmentTypeRef: data.investmentTypeRef,
+      investmentStakeTypeRef: data.investmentStakeTypeRef,
+      investmentAccount: data.investmentAccount?.id,
+      // Include any additional fields that might be available in the data
+      ...(data as any),
+    },
   };
 
   // Add equity-specific data if present
   if (data.equityInvestment) {
-    formData.equityInvestmentId = data.equityInvestment.id;
-    formData.equityInvestmentVersion = data.equityInvestment.version;
-    // Match dynamic field names by last segment from catalog JSON
-    formData.investmentRoleRef = data.equityInvestment.investmentRoleRef || '';
-    formData.marketValue = data.equityInvestment.currentCompanyValuation || '';
-    formData.turnoverAmount = data.equityInvestment.lastReportedTurnover || '';
-    formData.ebitdaAmount = data.equityInvestment.lastReportedEbitda || '';
+    formData.equityInvestment = {
+      id: data.equityInvestment.id,
+      version: data.equityInvestment.version,
+      foundationDate: data.equityInvestment.foundationDate,
+      marketValue: data.equityInvestment.marketValue,
+      turnoverAmount: data.equityInvestment.turnoverAmount,
+      ebitdaAmount: data.equityInvestment.ebitdaAmount,
+    };
   }
 
   // Add real estate-specific data if present
   if (data.realEstateInvestment) {
-    formData.realEstateInvestmentId = data.realEstateInvestment.id;
-    formData.realEstateInvestmentVersion = data.realEstateInvestment.version;
-    formData.realEstateTypeRef = data.realEstateInvestment.realEstateTypeRef || '';
-    formData.investmentOwnershipStructureRef = data.realEstateInvestment.investmentOwnershipStructureRef || '';
-    formData.numberOfUnits = data.realEstateInvestment.numberOfUnits || '';
-    formData.buildingYear = data.realEstateInvestment.buildingYear || '';
-    // Additional real estate fields
-    // If present in response, map using last segment names
-    // @ts-expect-error optional specialization fields
-    if ((data.realEstateInvestment as any).annualNetColdRent !== undefined) {
-      // @ts-expect-error
-      formData.annualNetColdRent = (data.realEstateInvestment as any).annualNetColdRent || '';
-    }
-    // @ts-expect-error
-    if ((data.realEstateInvestment as any).actualAnnualExpenses !== undefined) {
-      // @ts-expect-error
-      formData.actualAnnualExpenses = (data.realEstateInvestment as any).actualAnnualExpenses || '';
-    }
-    // @ts-expect-error
-    if ((data.realEstateInvestment as any).targetAnnualExpenses !== undefined) {
-      // @ts-expect-error
-      formData.targetAnnualExpenses = (data.realEstateInvestment as any).targetAnnualExpenses || '';
-    }
-    // @ts-expect-error
-    if ((data.realEstateInvestment as any).occupancyPercent !== undefined) {
-      // @ts-expect-error
-      formData.occupancyPercent = (data.realEstateInvestment as any).occupancyPercent || '';
-    }
-    // @ts-expect-error
-    if ((data.realEstateInvestment as any).size !== undefined) {
-      // @ts-expect-error
-      formData.size = (data.realEstateInvestment as any).size || '';
-    }
-  }
-
-  // Add private equity-specific data if present
-  if (data.privateEquityInvestment) {
-    formData.privateEquityInvestmentId = data.privateEquityInvestment.id;
-    formData.privateEquityInvestmentVersion = data.privateEquityInvestment.version;
-    formData.investmentRoleRef = data.privateEquityInvestment.investmentRoleRef || '';
+    formData.realEstateInvestment = {
+      id: data.realEstateInvestment.id,
+      version: data.realEstateInvestment.version,
+      countryRef: data.realEstateInvestment.countryRef,
+      regionRef: data.realEstateInvestment.regionRef,
+      addressLine: data.realEstateInvestment.addressLine,
+      postalCode: data.realEstateInvestment.postalCode,
+      locality: data.realEstateInvestment.locality,
+      buildingYear: data.realEstateInvestment.buildingYear,
+      size: data.realEstateInvestment.size,
+      sizeMeasurementUnitRef: data.realEstateInvestment.sizeMeasurementUnitRef,
+      numberOfUnits: data.realEstateInvestment.numberOfUnits,
+      occupancyPercent: data.realEstateInvestment.occupancyPercent,
+      annualNetColdRent: data.realEstateInvestment.annualNetColdRent,
+      funding: data.realEstateInvestment.funding,
+      actualAnnualExpenses: data.realEstateInvestment.actualAnnualExpenses,
+      targetAnnualExpenses: data.realEstateInvestment.targetAnnualExpenses,
+      liquidityForecast: data.realEstateInvestment.liquidityForecast,
+      investment: data.realEstateInvestment.investment,
+    };
   }
 
   // Add liquid fund-specific data if present
   if (data.liquidFundInvestment) {
-    formData.liquidFundInvestmentId = data.liquidFundInvestment.id;
-    formData.liquidFundInvestmentVersion = data.liquidFundInvestment.version;
-    // Match last segment names used by JSON
-    formData.bankAccountNumber = data.liquidFundInvestment.accountNumber || '';
-    formData.earlyTerminationAllowed = data.liquidFundInvestment.earlyTerminationAllowed || false;
-    formData.interestRate = data.liquidFundInvestment.interestRate || '';
-    formData.interestPaymentFrequencyRef = data.liquidFundInvestment.interestPaymentFrequencyRef || '';
-    formData.maturityDate = data.liquidFundInvestment.maturityDate || '';
-    // Optional additional fields
-    // @ts-expect-error
-    if ((data.liquidFundInvestment as any).bankName) {
-      // @ts-expect-error
-      formData.bankName = (data.liquidFundInvestment as any).bankName;
-    }
-    // @ts-expect-error
-    if ((data.liquidFundInvestment as any).investmentLiquidFundTypeRef) {
-      // @ts-expect-error
-      formData.investmentLiquidFundTypeRef = (data.liquidFundInvestment as any).investmentLiquidFundTypeRef;
-    }
+    formData.liquidFundInvestment = {
+      id: data.liquidFundInvestment.id,
+      version: data.liquidFundInvestment.version,
+      investmentLiquidFundTypeRef: data.liquidFundInvestment.investmentLiquidFundTypeRef,
+      proprietorName: data.liquidFundInvestment.proprietorName,
+      bankName: data.liquidFundInvestment.bankName,
+      bankAccountNumber: data.liquidFundInvestment.bankAccountNumber,
+      earlyTerminationAllowed: data.liquidFundInvestment.earlyTerminationAllowed,
+      interestRate: data.liquidFundInvestment.interestRate,
+      interestPaymentFrequencyRef: data.liquidFundInvestment.interestPaymentFrequencyRef,
+      maturityDate: data.liquidFundInvestment.maturityDate,
+    };
   }
 
   return formData;
@@ -158,15 +145,21 @@ export const transformInvestmentDataToForm = (data: InvestmentQueryData): Invest
  * Get investment group from form data or additional data
  */
 export const getInvestmentGroupFromContext = (additionalData?: Record<string, any>): string | undefined => {
-  // Check for investmentGroupRef in additionalData
-  if (additionalData?.investmentGroupRef) {
-    return additionalData.investmentGroupRef;
-  }
-
-  // Check for shorthand group type and convert to full reference
-  if (additionalData?.investmentGroup) {
-    const group = additionalData.investmentGroup.toUpperCase();
-    switch (group) {
+  // Check for investmentGroup in multiple possible locations
+  // 1. Top level (direct pass-through)
+  // 2. psi_taskPayload.psi_initialParameters (process payload)
+  const group = additionalData?.investmentGroup || 
+                additionalData?.psi_taskPayload?.psi_initialParameters?.investmentGroup;
+  
+  if (group) {
+    // If already in catalog ID format (e.g., "InvestmentGroup:v1:EQUITY"), return as-is
+    if (typeof group === 'string' && group.includes('InvestmentGroup:v1:')) {
+      return group;
+    }
+    
+    // Otherwise, convert shorthand to full reference
+    const groupUpper = String(group).toUpperCase();
+    switch (groupUpper) {
       case 'EQUITY':
         return 'InvestmentGroup:v1:EQUITY';
       case 'REAL_ESTATE':
@@ -175,8 +168,6 @@ export const getInvestmentGroupFromContext = (additionalData?: Record<string, an
       case 'LIQUID_FUND':
       case 'LIQUID-FUND':
         return 'InvestmentGroup:v1:LIQUID_FUND';
-      case 'PRIVATE_EQUITY':
-        return 'InvestmentGroup:v1:PRIVATE_EQUITY';
       default:
         return undefined;
     }

@@ -46,7 +46,12 @@ const InvestmentForm: React.FC<BusinessAppContextProps & InvestmentFormProps> = 
   // Enhanced initial values with investmentId for updates
   const enhancedInitialValues = {
     ...initialValues,
-    ...(extractedInvestmentId && { id: extractedInvestmentId })
+    ...(extractedInvestmentId && {
+      investment: {
+        ...initialValues?.investment,
+        id: extractedInvestmentId
+      }
+    })
   };
   // Handle form submission with payload building for Kogito flow
   const handleSubmit = async (values: InvestmentFormValues) => {
@@ -61,7 +66,7 @@ const InvestmentForm: React.FC<BusinessAppContextProps & InvestmentFormProps> = 
       const payload = buildInvestmentPayload(
         values,
         businessAppContext,
-        { isUpdate: Boolean(values.id) }
+        { isUpdate: Boolean(values.investment?.id) }
       );
       
       
@@ -95,7 +100,7 @@ const InvestmentForm: React.FC<BusinessAppContextProps & InvestmentFormProps> = 
   const handleDelete = async (id: string) => {
     try {
       // Get the current version from initial values if available
-      const version = enhancedInitialValues.version;
+      const version = enhancedInitialValues.investment?.version;
       
       // Call the provided onDelete handler if available
       if (onDelete) {
@@ -104,10 +109,12 @@ const InvestmentForm: React.FC<BusinessAppContextProps & InvestmentFormProps> = 
 
       // Prepare payload for process continuation
       const payload = {
-        investment: {
-          id,
-          deleted: true,
-          version
+        investmentRequest: {
+          investment: {
+            id,
+            deleted: true,
+            version
+          }
         }
       };
       

@@ -1,19 +1,25 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
-import { TaskSection, ActivitySection, NoteSection, ApprovalSection } from '@/common/components/common-relations/record-sections';
-import { Tabs, TabsList, TabsTrigger, TabsContent } from '@newwork/nw-design-system';
+import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
 import { useGetInvestmentTasksByInvestmentId } from '../../hooks/useInvestmentTasksByInvestmentId';
 import { useGetInvestmentActivitiesByInvestmentId } from '../../hooks/useInvestmentActivitiesByInvestmentId';
 import { useGetInvestmentNotesByInvestmentId } from '../../hooks/useInvestmentNotesByInvestmentId';
 import { FlowContextName } from '@/common/types/FlowRegistryTypes';
-import { ChartLine, PencilSimple, CheckCircle } from '@phosphor-icons/react';
+import AccountSection from "@/common/components/common-relations/record-sections/account-section/AccountSection";
+import ContactSection from "@/common/components/common-relations/record-sections/contact-section/ContactSection";
+import ActivitySection from "@/common/components/common-relations/record-sections/activity-section/ActivitySection";
+import NoteSection from "@/common/components/common-relations/record-sections/note-section/NoteSection";
+import TaskSection from "@/common/components/common-relations/record-sections/task-section/TaskSection";
+import SectionWrapper from "@/common/components/common-relations/record-sections/section-card/SectionCard";
 
 interface InvestmentHomeTabProps extends BusinessAppContextProps {
   investmentId: string;
+  investment?: any;
 }
 
 export const InvestmentHomeTab: React.FC<InvestmentHomeTabProps> = ({ 
-  investmentId, 
+  investmentId,
+  investment,
   ...context 
 }) => {
   // Real data state
@@ -24,6 +30,7 @@ export const InvestmentHomeTab: React.FC<InvestmentHomeTabProps> = ({
   const [notes, setNotes] = useState<any[]>([]);
   const [approvals, setApprovals] = useState<any[]>([]);
   
+  
   const { fetchInvestmentTasksByInvestmentId } = useGetInvestmentTasksByInvestmentId(context);
   const { fetchInvestmentActivitiesByInvestmentId } = useGetInvestmentActivitiesByInvestmentId(context);
   const { fetchInvestmentNotesByInvestmentId } = useGetInvestmentNotesByInvestmentId(context);
@@ -33,7 +40,13 @@ export const InvestmentHomeTab: React.FC<InvestmentHomeTabProps> = ({
     
     try {
       const tasksData = await fetchInvestmentTasksByInvestmentId(investmentId);
-      setTasks(tasksData || []);
+      // Filter out approval tasks - only show regular tasks
+      const regularTasks = (tasksData || []).filter((task: any) => {
+        const taskTypeCode = task?.taskType?.code || '';
+        const taskTypeValue = task?.taskType?.value || '';
+        return taskTypeCode?.toUpperCase() !== 'APPROVAL' && taskTypeValue?.toUpperCase() !== 'APPROVAL';
+      });
+      setTasks(regularTasks);
     } catch (error) {
       console.error('Error loading tasks:', error);
     }
@@ -72,10 +85,11 @@ export const InvestmentHomeTab: React.FC<InvestmentHomeTabProps> = ({
     
     try {
       const tasksData = await fetchInvestmentTasksByInvestmentId(investmentId);
-      // Filter only approval tasks
+      // Filter only approval tasks - taskType code or value must be 'APPROVAL'
       const approvalTasks = (tasksData || []).filter((task: any) => {
-        const typeVal = task?.taskType?.value || task?.taskType?.code || task?.taskTypeRef || '';
-        return String(typeVal).toLowerCase() === 'approval' || String(typeVal).toUpperCase().endsWith(':APPROVAL');
+        const taskTypeCode = task?.taskType?.code || '';
+        const taskTypeValue = task?.taskType?.value || '';
+        return taskTypeCode?.toUpperCase() === 'APPROVAL' || taskTypeValue?.toUpperCase() === 'APPROVAL';
       });
       setApprovals(approvalTasks);
     } catch (err) {
@@ -160,141 +174,222 @@ export const InvestmentHomeTab: React.FC<InvestmentHomeTabProps> = ({
   }, [handleProcessEvent]);
 
   return (
-    <div data-testid="investment-home-tab">
-      {/* Two-column layout: Activity Timeline on left, Tasks on right */}
-      <div className="gba:grid gba:grid-cols-2 gba:gap-6">
-        
-        {/* Left Column: Activity Timeline with tabs */}
-        <div className="gba:bg-white gba:rounded-lg gba:border gba:shadow-sm">
-          <div className="gba:p-4 gba:border-b">
-            <h3 className="gba:text-lg gba:font-semibold">Activity Timeline</h3>
-          </div>
-          
-          <Tabs defaultValue="activities" className="gba:w-full">
-            <TabsList className="gba:grid gba:w-full gba:grid-cols-3 gba:bg-transparent gba:p-0 gba:h-auto">
-              <TabsTrigger 
-                value="activities" 
-                className="gba:border-b-2 gba:border-transparent gba:rounded-none data-[state=active]:gba:border-blue-500 data-[state=active]:gba:bg-transparent"
-              >
-                <div className="gba:flex gba:items-center gba:gap-2">
-                  <ChartLine className="gba:w-4 gba:h-4" />
-                  Activities
-                </div>
-              </TabsTrigger>
-              <TabsTrigger 
-                value="notes"
-                className="gba:border-b-2 gba:border-transparent gba:rounded-none data-[state=active]:gba:border-blue-500 data-[state=active]:gba:bg-transparent"
-              >
-                <div className="gba:flex gba:items-center gba:gap-2">
-                  <PencilSimple className="gba:w-4 gba:h-4" />
-                  Notes
-                </div>
-              </TabsTrigger>
-              <TabsTrigger 
-                value="approvals"
-                className="gba:border-b-2 gba:border-transparent gba:rounded-none data-[state=active]:gba:border-blue-500 data-[state=active]:gba:bg-transparent"
-              >
-                <div className="gba:flex gba:items-center gba:gap-2">
-                  <CheckCircle className="gba:w-4 gba:h-4" />
-                  Approvals
-                </div>
-              </TabsTrigger>
-            </TabsList>
-            
-            <TabsContent value="activities" className="gba:p-4">
-              <ActivitySection
-                investmentId={investmentId}
-                accessToken={context.accessToken}
-                userInfo={context.userInfo}
-                activities={activities}
-                activitiesLoading={activitiesLoading}
-                activitiesError={activitiesError}
-                onReloadActivities={loadActivities}
-                contextsArray={[FlowContextName.createInvestmentActivity]}
-                externalContextData={{ investmentId }}
-                prefixDataTestId="investment-activity"
-                data-testid="investment-activities-section"
-              />
-            </TabsContent>
-            
-            <TabsContent value="notes" className="gba:p-4">
-              <NoteSection
-                investmentId={investmentId}
-                notes={notes}
-                accessToken={context.accessToken}
-                userInfo={context.userInfo}
-                noteActionProps={{
-                  contextsArray: [FlowContextName.createInvestmentNote],
-                  externalContextData: { investmentId },
-                  prefixDataTestId: 'investment-note',
-                  emptyStateBehavior: 'enable'
-                }}
-                data-testid="investment-notes-section"
-              />
-            </TabsContent>
-            
-            <TabsContent value="approvals" className="gba:p-4">
-              <ApprovalSection
-                accessToken={context.accessToken}
-                userInfo={context.userInfo}
-                approvals={approvals.map(approval => ({
-                  id: approval.id,
-                  title: approval.title || approval.name || 'Approval Task',
-                  status: approval.status || approval.taskStatus?.value || approval.taskStatus?.code || 'pending',
-                  date: approval.createdAt || approval.date || approval.dueDate,
-                  actor: approval.assigneeName,
-                  actorEmployee: approval.assigneeEmployee || approval.reviewer || approval.approver
-                }))}
-                approvalActionProps={{
-                  contextsArray: [FlowContextName.investmentTaskCreate],
-                  externalContextData: { 
-                    investmentId,
-                    investment: investmentId,
-                    investmentTask: { investment: investmentId, investmentId, taskType: 'approval' }
-                  },
-                  prefixDataTestId: 'request-approval',
-                  emptyStateBehavior: 'enable'
-                }}
-                data-testid="investment-approvals-section"
-              />
-            </TabsContent>
-          </Tabs>
-        </div>
+    <>
+      {/* Account Section - 1/3 width */}
+      <SectionWrapper
+        className="gba:col-span-1 gba:sm:col-span-3 gba:md:col-span-4 gba:lg:col-span-4 gba:row-span-1"
+        sections={[
+          {
+            id: 'account-section',
+            component: AccountSection,
+            props: {
+              ...context,
+              account: investment?.investmentAccount ? {
+                id: investment.investmentAccount.id,
+                name: investment.investmentAccount.name,
+                email: investment.investmentAccount.email,
+                phone: investment.investmentAccount.phone,
+                website: investment.investmentAccount.website,
+                legalForm: investment.investmentAccount.legalForm?.value,
+                industry: investment.investmentAccount.industryClass?.value,
+                size: investment.investmentAccount.companySize?.value,
+                revenue: investment.investmentAccount.accountAnnualRevenueBand?.value,
+                numberOfEmployees: investment.investmentAccount.companySize,
+                annualRevenue: investment.investmentAccount.accountAnnualRevenueBand,
+              } : undefined,
+              address: investment?.investmentAccount ? (() => {
+                const addresses = investment.investmentAccount.addresses || [];
+                const primaryAddress = addresses.find((addr: any) => addr.addressType === 'PRIMARY_ADDRESS');
+                const address = primaryAddress || addresses[0];
 
-        {/* Right Column: Tasks */}
-        <div className="gba:bg-white gba:rounded-lg gba:border gba:shadow-sm">
-          <div className="gba:p-4 gba:border-b">
-            <h3 className="gba:text-lg gba:font-semibold">Tasks ({tasks.length})</h3>
-          </div>
-          
-          <div className="gba:p-4">
-            <TaskSection
-              accessToken={context.accessToken}
-              userInfo={context.userInfo}
-              tasks={tasks.map(task => ({
-                id: task.id || task.title,
-                title: task.title || task.name || 'Untitled Task',
-                due: task.dueDate || task.due,
-                assignee: task.assigneeName,
+                return address ? {
+                  addressLine: address.addressLine,
+                  postalCode: address.postalCode,
+                  locality: address.locality,
+                  country: typeof address.country === 'string' ? address.country : address.country?.value,
+                  region: typeof address.region === 'string' ? address.region : address.region?.value,
+                } : undefined;
+              })() : undefined,
+              accountId: investment?.investmentAccount?.id,
+              actionButtonProps: investment?.investmentAccount?.id ? {
+                contextsArray: [FlowContextName.investmentAccountEntity],
+                externalContextData: { accountId: investment.investmentAccount.id },
+                prefixDataTestId: "investment-record-account-action"
+              } : undefined
+            }
+          }
+        ]}
+        data-testid="investment-account-section-wrapper"
+      />
+
+      {/* Contact Section - 1/3 width */}
+      <SectionWrapper
+        className="gba:col-span-1 gba:sm:col-span-3 gba:md:col-span-4 gba:lg:col-span-4 gba:row-span-1"
+        sections={[
+          {
+            id: 'contact-section',
+            component: ContactSection,
+            props: {
+              ...context,
+              contact: {
+                id: investment?.investmentAccount?.investmentAccountContact?.[0]?.contact?.id || null,
+                firstName: investment?.investmentAccount?.investmentAccountContact?.[0]?.contact?.firstName || null,
+                lastName: investment?.investmentAccount?.investmentAccountContact?.[0]?.contact?.lastName || null,
+                email: investment?.investmentAccount?.investmentAccountContact?.[0]?.contact?.email || null,
+                phone: investment?.investmentAccount?.investmentAccountContact?.[0]?.contact?.phone || null
+              },
+              contactId: investment?.investmentAccount?.investmentAccountContact?.[0]?.contact?.id || null,
+              actionButtonProps: investment?.investmentAccount?.investmentAccountContact?.[0]?.contact?.id ? {
+                contextsArray: [FlowContextName.investmentContactEntity],
+                externalContextData: { contactId: investment.investmentAccount.investmentAccountContact[0].contact.id },
+                prefixDataTestId: "investment-record-contact-action"
+              } : undefined
+            }
+          }
+        ]}
+        data-testid="investment-contact-section-wrapper"
+      />
+
+      {/* Activities Section - 1/3 width, full height */}
+      <SectionWrapper
+        className="gba:col-span-1 gba:sm:col-span-3 gba:md:col-span-4 gba:lg:col-span-4 gba:row-span-5"
+        sections={[
+          {
+            id: 'activities-section',
+            component: ActivitySection,
+            props: {
+              ...context,
+              activities: activities,
+              activitiesLoading: activitiesLoading,
+              activitiesError: activitiesError,
+              onReloadActivities: loadActivities,
+              activitySectionActionProps: {
+                contextsArray: [FlowContextName.createInvestmentActivity],
+                externalContextData: { investmentId },
+                prefixDataTestId: "investment-activity",
+                emptyStateBehavior: 'enable'
+              },
+              activityEntityActionProps: {
+                contextsArray: [FlowContextName.investmentActivityEntity],
+                externalContextData: { investmentId },
+                prefixDataTestId: "investment-activity-entity",
+                emptyStateBehavior: 'enable'
+              }
+            }
+          }
+        ]}
+        data-testid="investment-activities-section-wrapper"
+      />
+
+      {/* Tasks & Approvals - 2/3 width, spans 2 rows */}
+      <SectionWrapper
+        className="gba:col-span-1 gba:sm:col-span-3 gba:md:col-span-8 gba:lg:col-span-8 gba:row-span-2"
+        sections={[
+          {
+            id: 'tasks-section',
+            component: TaskSection,
+            props: {
+              ...context,
+              tasks: tasks.map(task => ({
+                id: task.id,
+                title: task.title || task.name || getTranslationFromI18nKeyAndLabel('crm.common.untitledTask', 'Untitled Task'),
+                createdAt: task.createdAt,
+                due: task.dueDate,
+                assignee: task.assignedDisplayName,
                 statusCode: (task.statusCode || task.status || task.taskStatus?.code || task.taskStatus?.value || 'PENDING') as any,
-                assigneeEmployee: task.assigneeEmployee || task.assignee
-              }))}
-              taskActionProps={{
+                taskStatus: task.taskStatus,
+                taskPriority: task.taskPriority,
+                assigneeEmployee: task.assignedEmployee
+              })),
+              taskActionProps: {
+                contextsArray: [FlowContextName.investmentTaskCreate],
+                externalContextData: { investmentId },
+                prefixDataTestId: "investment-task",
+                emptyStateBehavior: 'enable'
+              },
+              taskEntityActionProps: {
+                contextsArray: [FlowContextName.investmentTaskEntity],
+                externalContextData: { investmentId },
+                prefixDataTestId: "investment-task-entity",
+                emptyStateBehavior: 'enable'
+              }
+            }
+          },
+          {
+            id: 'approval-tasks-section',
+            component: TaskSection,
+            props: {
+              ...context,
+              sectionTitle: 'Approval Tasks',
+              tasks: approvals.map(approval => ({
+                id: approval.id,
+                title: approval.title || approval.name || getTranslationFromI18nKeyAndLabel('crm.common.untitledApproval', 'Approval Task'),
+                createdAt: approval.createdAt,
+                due: approval.dueDate,
+                assignee: approval.assignedDisplayName,
+                statusCode: (approval.statusCode || approval.status || approval.taskStatus?.code || approval.taskStatus?.value || 'PENDING') as any,
+                taskStatus: approval.taskStatus,
+                taskPriority: approval.taskPriority,
+                assigneeEmployee: approval.assignedEmployee
+              })),
+              taskActionProps: {
                 contextsArray: [FlowContextName.investmentTaskCreate],
                 externalContextData: { 
                   investmentId,
-                  investment: investmentId,
-                  investmentTask: { investment: investmentId, investmentId }
+                  typeRef: 'InvestmentTaskType:v1:APPROVAL',
+                  investmentTask: { investment: investmentId, type: 'InvestmentTaskType:v1:APPROVAL' }
                 },
-                prefixDataTestId: 'add-task',
+                prefixDataTestId: "investment-approval",
                 emptyStateBehavior: 'enable'
-              }}
-              data-testid="investment-tasks-section"
-            />
-          </div>
-        </div>
-      </div>
-    </div>
+              },
+              taskEntityActionProps: {
+                contextsArray: [FlowContextName.investmentTaskEntity],
+                externalContextData: { investmentId },
+                prefixDataTestId: "investment-approval-entity",
+                emptyStateBehavior: 'enable'
+              }
+            }
+          }
+        ]}
+        data-testid="investment-tasks-approvals-section-wrapper"
+      />
+
+      {/* Notes Section - 2/3 width, spans 2 rows */}
+      <SectionWrapper
+        className="gba:col-span-1 gba:sm:col-span-3 gba:md:col-span-8 gba:lg:col-span-8 gba:row-span-2"
+        sections={[
+          {
+            id: 'notes-section',
+            component: NoteSection,
+            props: {
+              ...context,
+              notes: notes.map(note => ({
+                id: note.id,
+                noteTitle: note.title || note.displayName || getTranslationFromI18nKeyAndLabel('crm.common.untitledNote', 'Untitled Note'),
+                noteText: note.text || '',
+                createdAt: note.createdAt,
+                createdBy: note.authorDisplayName || note.authorEmployee?.displayName || getTranslationFromI18nKeyAndLabel('crm.common.unknown', 'Unknown'),
+                authorEmployee: note.authorEmployee,
+                reminderAt: note.reminderDate
+              })),
+              noteActionProps: {
+                contextsArray: [FlowContextName.createInvestmentNote],
+                externalContextData: { investmentId },
+                prefixDataTestId: "investment-note",
+                emptyStateBehavior: 'enable'
+              },
+              noteEntityActionProps: {
+                contextsArray: [FlowContextName.investmentNoteEntity],
+                externalContextData: { investmentId },
+                prefixDataTestId: "investment-note-entity",
+                emptyStateBehavior: 'enable'
+              }
+            }
+          }
+        ]}
+        data-testid="investment-notes-section-wrapper"
+      />
+    </>
   );
 };
 

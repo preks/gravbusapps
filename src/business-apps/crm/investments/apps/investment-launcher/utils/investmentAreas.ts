@@ -6,8 +6,7 @@ import {
   AddressBook,
   FileText,
   ChartBar,
-  Wallet,
-  ArrowsClockwise
+  Wallet
 } from '@phosphor-icons/react';
 
 export const investmentAreas: InvestmentArea[] = [
