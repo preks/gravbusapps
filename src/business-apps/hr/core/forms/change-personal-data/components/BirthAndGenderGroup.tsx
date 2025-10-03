@@ -42,6 +42,7 @@ const BirthAndGenderGroup: React.FC<BirthAndGenderGroupProps> = ({ control, cata
             </FormLabel>
             <FormControl>
               <Input
+                className="gba:w-full"
                 {...field}
                 type="date"
                 placeholder={placeholderSelect}
@@ -64,7 +65,7 @@ const BirthAndGenderGroup: React.FC<BirthAndGenderGroupProps> = ({ control, cata
               {getTranslationFromI18nKeyAndLabel('lowcoder:employee_profile.details_layout.personal_information_container.place_of_birth', 'Place of Birth')}
             </FormLabel>
             <FormControl>
-              <Input {...field} placeholder={placeholderEnter} data-testid="change-personal-data-birth-place-input" />
+              <Input className="gba:w-full" {...field} placeholder={placeholderEnter} data-testid="change-personal-data-birth-place-input" />
             </FormControl>
             <FormMessage />
           </FormItem>
@@ -84,8 +85,8 @@ const BirthAndGenderGroup: React.FC<BirthAndGenderGroupProps> = ({ control, cata
               value={field.value === null || field.value === undefined || field.value === '' ? undefined : String(field.value)}
               onValueChange={(v) => field.onChange(v || null)}
             >
-              <FormControl className="gba:w-[100%]">
-                <SelectTrigger data-testid="change-personal-data-gender-select">
+              <FormControl>
+                <SelectTrigger className="gba:block gba:!w-full gba:min-w-0 gba:!max-w-none" data-testid="change-personal-data-gender-select">
                   <SelectValue placeholder={placeholderSelect} />
                 </SelectTrigger>
               </FormControl>

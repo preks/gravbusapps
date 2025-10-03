@@ -31,8 +31,8 @@ const QualificationFields: React.FC<QualificationFieldsProps> = ({ control, cata
               value={field.value === null || field.value === undefined || field.value === '' ? undefined : String(field.value)}
               onValueChange={(v) => field.onChange(v || null)}
             >
-              <FormControl className="gba:w-[100%]">
-                <SelectTrigger data-testid="change-personal-data-school-qualification-select">
+              <FormControl>
+                <SelectTrigger className="gba:block gba:!w-full gba:min-w-0 gba:!max-w-none" data-testid="change-personal-data-school-qualification-select">
                   <SelectValue placeholder={placeholderSelect} />
                 </SelectTrigger>
               </FormControl>
@@ -65,59 +65,61 @@ const QualificationFields: React.FC<QualificationFieldsProps> = ({ control, cata
             field.onChange((selected || []).filter((id: string) => id !== val));
           };
           const selectedEntries = (catalogs.academicTitle || []).filter((e: any) => selected.includes(String(e.id)));
-          const triggerHasSelection = selectedEntries.length > 0;
+          // Note: trigger displays placeholder only; chips render below the trigger.
           return (
-            <FormItem>
+            <FormItem className="gba:[&_button[role='combobox']]:gba:!h-auto gba:[&_button[role='combobox']]:gba:!min-h-[64px] gba:[&_button[role='combobox']]:gba:!items-start gba:[&_button[role='combobox']>span]:gba:flex gba:[&_button[role='combobox']>span]:gba:flex-wrap gba:[&_button[role='combobox']>span]:gba:w-full gba:[&_button[role='combobox']>span]:gba:gap-2 gba:[&_button[role='combobox']>span]:gba:whitespace-normal gba:[&_button[role='combobox']>span]:gba:overflow-visible">
               <FormLabel data-testid="change-personal-data-academic-titles-label">
                 {getTranslationFromI18nKeyAndLabel('lowcoder:employee_profile.details_layout.personal_information_container.academic_titles', 'Academic Titles')}
               </FormLabel>
               <Select value={''} onValueChange={(v) => addValue(v)} open={open} onOpenChange={setOpen}>
-                <FormControl className="gba:w-[100%]">
-                  <SelectTrigger
-                    data-testid="change-personal-data-academic-titles-select"
-                    onMouseDownCapture={(evt) => {
-                      const target = evt.target as HTMLElement;
-                      if (target.closest('[data-chip-action="remove"]')) {
-                        evt.preventDefault();
-                        evt.stopPropagation();
-                      }
-                    }}
-                  >
-                    {triggerHasSelection ? (
-                      <div className="gba:flex gba:flex-wrap gba:gap-2 gba:min-h-5" data-testid="change-personal-data-academic-titles-chips">
-                    {selectedEntries.map((e: any) => (
-                          <Badge key={e.id} variant="secondary" className="gba:flex gba:items-center gba:gap-1 gba:h-6 gba:py-0 gba:px-2 gba:text-xs gba:pointer-events-auto" data-testid={`change-personal-data-academic-title-chip-${e.id}`}>
-                            <span className="gba:px-1">
-                              {getCatalogValue(e)}
-                            </span>
-                            <span
-                              role="button"
-                              tabIndex={0}
-                              onMouseDown={(evt) => { evt.preventDefault(); evt.stopPropagation(); }}
-                              onClick={(evt) => { evt.preventDefault(); evt.stopPropagation(); setOpen(false); removeValue(String(e.id)); }}
-                              onKeyDown={(evt) => { if (evt.key === 'Enter' || evt.key === ' ') { evt.preventDefault(); evt.stopPropagation(); setOpen(false); removeValue(String(e.id)); } }}
-                              aria-label="Remove"
-                              className="gba:cursor-pointer gba:rounded-full gba:p-0.5 gba:flex gba:items-center"
-                              data-testid={`change-personal-data-academic-title-remove-${e.id}`}
-                              data-chip-action="remove"
-                            >
-                              <XCircleIcon className="gba:w-3 gba:h-3" />
-                            </span>
-                          </Badge>
-                        ))}
-                      </div>
-                    ) : (
-                      <SelectValue placeholder={placeholderSelect} />
-                    )}
-                  </SelectTrigger>
-                </FormControl>
-                <SelectContent>
-                  {(catalogs.academicTitle || []).map((entry: any) => (
-                    <SelectItem key={entry.id} value={String(entry.id)} data-testid={`change-personal-data-academic-title-option-${entry.id}`}>
-                      {getCatalogValue(entry)}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
+              <FormControl>
+                <SelectTrigger
+                  className="gba:block gba:!w-full gba:min-w-0 gba:!max-w-none gba:!h-auto"
+                  data-testid="change-personal-data-academic-titles-select"
+                  onMouseDownCapture={(evt) => {
+                    const target = evt.target as HTMLElement;
+                    if (target.closest('[data-chip-action="remove"]')) {
+                      evt.preventDefault();
+                      evt.stopPropagation();
+                    }
+                  }}
+                  style={{ width: '100%', whiteSpace: 'normal', height: 'auto', alignItems: 'flex-start' }}
+                >
+                  {selectedEntries.length > 0 ? (
+                    <div className="gba:w-full gba:flex gba:flex-wrap gba:gap-2 gba:min-h-5" data-testid="change-personal-data-academic-titles-chips">
+                      {selectedEntries.map((e: any) => (
+                        <Badge key={e.id} variant="secondary" className="gba:flex gba:items-center gba:gap-1 gba:h-6 gba:py-0 gba:px-2 gba:text-xs gba:pointer-events-auto" data-testid={`change-personal-data-academic-title-chip-${e.id}`}>
+                          <span className="gba:px-1">
+                            {getCatalogValue(e)}
+                          </span>
+                          <span
+                            role="button"
+                            tabIndex={0}
+                            onMouseDown={(evt) => { evt.preventDefault(); evt.stopPropagation(); }}
+                            onClick={(evt) => { evt.preventDefault(); evt.stopPropagation(); setOpen(false); removeValue(String(e.id)); }}
+                            onKeyDown={(evt) => { if (evt.key === 'Enter' || evt.key === ' ') { evt.preventDefault(); evt.stopPropagation(); setOpen(false); removeValue(String(e.id)); } }}
+                            aria-label="Remove"
+                            className="gba:cursor-pointer gba:rounded-full gba:p-0.5 gba:flex gba:items-center"
+                            data-testid={`change-personal-data-academic-title-remove-${e.id}`}
+                            data-chip-action="remove"
+                          >
+                            <XCircleIcon className="gba:w-3 gba:h-3" />
+                          </span>
+                        </Badge>
+                      ))}
+                    </div>
+                  ) : (
+                    <SelectValue placeholder={placeholderSelect} />
+                  )}
+                </SelectTrigger>
+              </FormControl>
+              <SelectContent>
+                {(catalogs.academicTitle || []).map((entry: any) => (
+                  <SelectItem key={entry.id} value={String(entry.id)} data-testid={`change-personal-data-academic-title-option-${entry.id}`}>
+                    {getCatalogValue(entry)}
+                  </SelectItem>
+                ))}
+              </SelectContent>
               </Select>
               <FormMessage />
             </FormItem>

@@ -28,8 +28,8 @@ const NationalityLanguageStatusGroup: React.FC<NationalityLanguageStatusGroupPro
               value={field.value === null || field.value === undefined || field.value === '' ? undefined : String(field.value)}
               onValueChange={(v) => field.onChange(v || null)}
             >
-              <FormControl className="gba:w-[100%]">
-                <SelectTrigger data-testid="change-personal-data-nationality-select">
+              <FormControl>
+                <SelectTrigger className="gba:block gba:!w-full gba:min-w-0 gba:!max-w-none" data-testid="change-personal-data-nationality-select">
                   <SelectValue placeholder={placeholderSelect} />
                 </SelectTrigger>
               </FormControl>
@@ -59,8 +59,8 @@ const NationalityLanguageStatusGroup: React.FC<NationalityLanguageStatusGroupPro
               value={field.value === null || field.value === undefined || field.value === '' ? undefined : String(field.value)}
               onValueChange={(v) => field.onChange(v || null)}
             >
-              <FormControl className="gba:w-[100%]">
-                <SelectTrigger data-testid="change-personal-data-language-select">
+              <FormControl>
+                <SelectTrigger className="gba:block gba:!w-full gba:min-w-0 gba:!max-w-none" data-testid="change-personal-data-language-select">
                   <SelectValue placeholder={placeholderSelect} />
                 </SelectTrigger>
               </FormControl>
@@ -90,8 +90,8 @@ const NationalityLanguageStatusGroup: React.FC<NationalityLanguageStatusGroupPro
               value={field.value === null || field.value === undefined || field.value === '' ? undefined : String(field.value)}
               onValueChange={(v) => field.onChange(v || null)}
             >
-              <FormControl className="gba:w-[100%]">
-                <SelectTrigger data-testid="change-personal-data-marital-status-select">
+              <FormControl>
+                <SelectTrigger className="gba:block gba:!w-full gba:min-w-0 gba:!max-w-none" data-testid="change-personal-data-marital-status-select">
                   <SelectValue placeholder={placeholderSelect} />
                 </SelectTrigger>
               </FormControl>
@@ -130,6 +130,7 @@ const NationalityLanguageStatusGroup: React.FC<NationalityLanguageStatusGroupPro
             </FormLabel>
             <FormControl>
               <Input
+                className="gba:w-full"
                 {...field}
                 placeholder={placeholderEnter}
                 inputMode="decimal"

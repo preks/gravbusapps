@@ -32,8 +32,8 @@ const NamesGroup: React.FC<NamesGroupProps> = ({ control, catalogs }) => {
               value={field.value === null || field.value === undefined || field.value === '' ? undefined : String(field.value)}
               onValueChange={(v) => field.onChange(v || null)}
             >
-              <FormControl className="gba:w-[100%]">
-                <SelectTrigger data-testid="change-personal-data-salutation-select">
+              <FormControl>
+                <SelectTrigger className="gba:block gba:!w-full gba:min-w-0 gba:!max-w-none" data-testid="change-personal-data-salutation-select">
                   <SelectValue placeholder={placeholderSelect} />
                 </SelectTrigger>
               </FormControl>
@@ -60,7 +60,7 @@ const NamesGroup: React.FC<NamesGroupProps> = ({ control, catalogs }) => {
               {getTranslationFromI18nKeyAndLabel('lowcoder:employee_profile.details_layout.personal_information_container.title', 'Title')}
             </FormLabel>
             <FormControl>
-              <Input {...field} placeholder={placeholderEnter} data-testid="change-personal-data-title-input" />
+              <Input className="gba:w-full" {...field} placeholder={placeholderEnter} data-testid="change-personal-data-title-input" />
             </FormControl>
             <FormMessage />
           </FormItem>
@@ -90,7 +90,7 @@ const NamesGroup: React.FC<NamesGroupProps> = ({ control, catalogs }) => {
               <span style={{ color: 'var(--nw-color-danger-500)' }}> *</span>
             </FormLabel>
             <FormControl>
-              <Input {...field} placeholder={placeholderEnter} data-testid="change-personal-data-first-name-input" />
+              <Input className="gba:w-full" {...field} placeholder={placeholderEnter} data-testid="change-personal-data-first-name-input" />
             </FormControl>
             <FormMessage />
           </FormItem>
@@ -120,7 +120,7 @@ const NamesGroup: React.FC<NamesGroupProps> = ({ control, catalogs }) => {
               <span style={{ color: 'var(--nw-color-danger-500)' }}> *</span>
             </FormLabel>
             <FormControl>
-              <Input {...field} placeholder={placeholderEnter} data-testid="change-personal-data-last-name-input" />
+              <Input className="gba:w-full" {...field} placeholder={placeholderEnter} data-testid="change-personal-data-last-name-input" />
             </FormControl>
             <FormMessage />
           </FormItem>
@@ -137,7 +137,7 @@ const NamesGroup: React.FC<NamesGroupProps> = ({ control, catalogs }) => {
               {getTranslationFromI18nKeyAndLabel('lowcoder:employee_profile.details_layout.personal_information_container.preferred_name', 'Display Name')}
             </FormLabel>
             <FormControl>
-              <Input {...field} placeholder={placeholderEnter} data-testid="change-personal-data-display-name-input" />
+              <Input className="gba:w-full" {...field} placeholder={placeholderEnter} data-testid="change-personal-data-display-name-input" />
             </FormControl>
             <FormMessage />
           </FormItem>

@@ -178,7 +178,7 @@ const ChangePersonalDataContent: React.FC<ChangePersonalDataFormProps> = ({ acce
     <div className="gba:mx-auto gba:font-primary gba:flex gba:flex-col" style={{ width: '100%', maxWidth: '800px' }} data-testid="change-personal-data-form-container">
       <FormHeader title={title} flowIconUrl={flowIconUrl} />
 
-      <div className="gba:flex gba:flex-col gba:gap-4" data-testid="change-personal-data-form-content">
+      <div className="gba:flex gba:flex-col gba:gap-4 gba:[&>div[data-testid='change-personal-data']]:!px-0" data-testid="change-personal-data-form-content">
         <UploadComponent
           dataTestIdPrefix="change-personal-data"
           multiple={false}
@@ -257,12 +257,12 @@ const ChangePersonalDataContent: React.FC<ChangePersonalDataFormProps> = ({ acce
             const uploadedEmployeeDocumentId = values.employeeDocumentId || '';
             const payload = {
               event: 'pse_submit',
-              employeeDocument: uploadedEmployeeDocumentId,
+              employeeDocument: null,
               personalInformation: {
                 id: employee?.id || '',
                 notes: values.comment || '',
                 title: values.title || '',
-                personalDocument: uploadedEmployeeDocumentId || '',
+                personalDocument: uploadedEmployeeDocumentId || null, //uploadedEmployeeDocumentId || 
                 version: employee?.version ?? 0,
                 academicTitleRef: values.academicTitleRefs || [],
                 salutationRef: values.salutationRef || '',
@@ -276,7 +276,7 @@ const ChangePersonalDataContent: React.FC<ChangePersonalDataFormProps> = ({ acce
                 nationalityRef: values.nationalityRef || '',
                 languageRef: values.languageRef || '',
                 maritalStatusRef: values.maritalStatusRef || '',
-                severelyDisabilityDegree: values.severelyDisabilityDegree !== '' ? values.severelyDisabilityDegree : 0,
+                severelyDisabilityDegree: values.severelyDisabilityDegree !== '' ? values.severelyDisabilityDegree : "",
                 schoolQualificationRef: values.schoolQualificationRef || '',
                 birthPlace: values.birthPlace || '',
                 userId: employee?.userId || '',
@@ -297,7 +297,7 @@ const ChangePersonalDataContent: React.FC<ChangePersonalDataFormProps> = ({ acce
                 languageRef: employee?.languageRef || '',
                 maritalStatusRef: employee?.maritalStatusRef || '',
                 birthPlace: employee?.birthPlace || '',
-                severelyDisabilityDegree: employee?.severelyDisabilityDegree ?? 0,
+                severelyDisabilityDegree: employee?.severelyDisabilityDegree ?? "",
                 schoolQualificationRef: employee?.schoolQualificationRef || '',
                 userId: employee?.userId || '',
               },
@@ -307,22 +307,23 @@ const ChangePersonalDataContent: React.FC<ChangePersonalDataFormProps> = ({ acce
           data-testid="change-personal-data"
           submitButtonText={getTranslationFromI18nKeyAndLabel('lowcoder:hr_absences.create_absence.submit', 'Submit')}
         >
-          {/* Group 1: Names */}
-          <NamesGroup control={form.control} catalogs={{ salutation: catalogSalutation }} />
+          <div className="gba:flex-1 gba:space-y-4" data-testid="change-personal-data-groups">
+            {/* Group 1: Names */}
+            <NamesGroup control={form.control} catalogs={{ salutation: catalogSalutation }} />
 
-          {/* Group 2: Birth and Gender (includes DOB & Place) */}
-          <BirthAndGenderGroup control={form.control} catalogs={{ gender: catalogs.gender }} />
+            {/* Group 2: Birth and Gender (includes DOB & Place) */}
+            <BirthAndGenderGroup control={form.control} catalogs={{ gender: catalogs.gender }} />
 
-          {/* Birth Name moved into BirthAndGenderGroup */}
-          {/* Group 3: Nationality, Language, Marital Status, Disability */}
-          <NationalityLanguageStatusGroup control={form.control} catalogs={{ nationality: catalogs.nationality, language: catalogs.language, maritalStatus: catalogs.maritalStatus }} />
+            {/* Group 3: Nationality, Language, Marital Status, Disability */}
+            <NationalityLanguageStatusGroup control={form.control} catalogs={{ nationality: catalogs.nationality, language: catalogs.language, maritalStatus: catalogs.maritalStatus }} />
 
-          {/* Qualification fields (school + academic titles) */}
-          <QualificationFields control={form.control} catalogs={{ schoolQualification: catalogs.schoolQualification, academicTitle: catalogs.academicTitle }} />
+            {/* Qualification fields (school + academic titles) */}
+            <QualificationFields control={form.control} catalogs={{ schoolQualification: catalogs.schoolQualification, academicTitle: catalogs.academicTitle }} />
+          </div>
 
           <div className="gba:flex-grow" data-testid="change-personal-data-spacer" />
 
-          <Separator className="gba:mt-[38px] gba:mb-[0px]" data-testid="change-personal-data-divider" />
+          <Separator className="gba:mt-4 gba:mb-4" data-testid="change-personal-data-divider" />
 
           <div className="gba:flex gba:justify-between gba:items-center gba:mt-auto gba:pt-4" data-testid="change-personal-data-actions-wrapper">
             <div className="gba:flex gba:gap-2" data-testid="change-personal-data-actions-left">
