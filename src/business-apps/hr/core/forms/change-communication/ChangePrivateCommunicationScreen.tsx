@@ -1,9 +1,10 @@
 import React, { useMemo, useState } from 'react';
-import { Button, Select, SelectTrigger, SelectValue, SelectContent, SelectItem, Input } from '@newwork/nw-design-system';
+import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem, Input } from '@newwork/nw-design-system';
+import { AppActionForm } from '@/components/app-action-form';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 import { formatDataTestId } from '@/common/utils/formatDataTestId';
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
-import { dispatchProcessContinueEvent } from '@/common/utils/processEventUtils';
+// import { dispatchProcessContinueEvent } from '@/common/utils/processEventUtils';
 import { useCommunicationLookups } from './queries/ChangeCommunicationQueries';
 
 interface ChangePrivateCommunicationScreenProps extends BusinessAppContextProps {}
@@ -19,25 +20,32 @@ const ChangePrivateCommunicationScreen: React.FC<ChangePrivateCommunicationScree
 
   const isValid = useMemo(() => !!channelType && !!valueType && !!purpose && value.trim().length > 0, [channelType, valueType, purpose, value]);
 
-  const handleSubmit = () => {
-    if (!isValid) return;
-    const payload = {
+  const validateForm = () => {
+    if (!isValid) {
+      return [getTranslationFromI18nKeyAndLabel('lowcoder:communication_form.enterValue', 'Enter Value')];
+    }
+    return null;
+  };
+
+  const handlePreSubmit = async () => {
+    return {
       channelType,
       type: valueType,
       purpose,
       value: value.trim(),
     };
-    dispatchProcessContinueEvent('pse_submit', payload);
-  };
-
-  const handleCancel = () => {
-    dispatchProcessContinueEvent('pse_pause', {});
   };
 
   return (
-    <div
+    <AppActionForm
+      processType="update"
+      formData={{}}
+      onSubmit={(data) => data}
+      validateForm={validateForm}
+      handlePreSubmit={handlePreSubmit}
+      submitButtonText={getTranslationFromI18nKeyAndLabel('common.submit', 'Submit')}
+      cancelButtonText={getTranslationFromI18nKeyAndLabel('common.cancel', 'Cancel')}
       data-testid={formatDataTestId(prefixDataTestId, 'Container')}
-      className="gba:flex gba:items-center gba:justify-center gba:w-full gba:h-full"
     >
       <div className="gba:bg-white gba:max-w-xl gba:w-full gba:max-h-[90vh] gba:overflow-hidden">
         {/* Header */}
@@ -116,26 +124,9 @@ const ChangePrivateCommunicationScreen: React.FC<ChangePrivateCommunicationScree
           </div>
         </div>
 
-        {/* Actions */}
-        <div className="gba:p-6 gba:border-t gba:border-gray-200 gba:flex gba:gap-3 gba:justify-end">
-          <Button
-            variant="secondary"
-            onClick={handleCancel}
-            data-testid={formatDataTestId(prefixDataTestId, 'CancelButton')}
-          >
-            {getTranslationFromI18nKeyAndLabel('common.cancel', 'Cancel')}
-          </Button>
-          <Button
-            disabled={!isValid}
-            onClick={handleSubmit}
-            data-testid={formatDataTestId(prefixDataTestId, 'SubmitButton')}
-            className="gba:min-w-24"
-          >
-            {getTranslationFromI18nKeyAndLabel('common.submit', 'Submit')}
-          </Button>
-        </div>
+        {/* Actions handled by AppActionForm */}
       </div>
-    </div>
+    </AppActionForm>
   );
 };
 
