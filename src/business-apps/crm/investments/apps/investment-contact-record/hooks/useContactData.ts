@@ -1,5 +1,4 @@
 import { useState, useEffect } from 'react';
-import { useCatalogManagerClient } from '@/common/network/catalogs/useCatalogManagerClient';
 import { useGetInvestmentContactById } from '@/common/data/investment/hooks/useInvestmentContacts';
 import type { InvestmentContact } from '@/common/data/investment/types';
 
@@ -23,6 +22,10 @@ export interface Contact {
   contactType?: string;
   version: string;
   academicTitle?: {
+    id: string;
+    value: string;
+  };
+  language?: {
     id: string;
     value: string;
   };
@@ -53,11 +56,8 @@ export const useContactData = (contactId: string, accessToken: string) => {
   const [rawContactData, setRawContactData] = useState<InvestmentContact | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [contactStatuses, setContactStatuses] = useState<ReferenceData[]>([]);
-  const [loadingStatuses, setLoadingStatuses] = useState(false);
 
   const { fetchInvestmentContactById } = useGetInvestmentContactById({ accessToken });
-  const catalogClient = useCatalogManagerClient(accessToken);
 
   const fetchContactData = async () => {
     try {
@@ -81,11 +81,15 @@ export const useContactData = (contactId: string, accessToken: string) => {
           linkedinUrl: result.contact.linkedinUrl || '',
           xingUrl: result.contact.xingUrl || '',
           bio: result.contact.bio || '',
-          contactType: result.contact.contactType || '',
+          contactType: result.contact.type || '', // Use 'type' field from GraphQL
           version: result.contact.version?.toString() || '1',
           academicTitle: result.contact.academicTitle ? {
             id: result.contact.academicTitle.id,
             value: result.contact.academicTitle.value
+          } : undefined,
+          language: result.contact.language ? {
+            id: result.contact.language.id,
+            value: result.contact.language.value
           } : undefined,
           updatedAt: result.contact.updatedAt,
           createdAt: result.contact.createdAt,
@@ -119,42 +123,10 @@ export const useContactData = (contactId: string, accessToken: string) => {
     }
   };
 
-  const fetchContactStatuses = async () => {
-    try {
-      setLoadingStatuses(true);
-      const response = await catalogClient.getCatalogEntriesList(
-        { catalogIdentifier: 'InvestmentContactStatus', version: 'v1' },
-        { limit: 100, offset: 0, returnTotalRecords: true }
-      );
-      
-      if (response && response.data) {
-        const statusData = response.data.map((entry: any) => ({
-          id: entry.id,
-          code: entry.code,
-          value: entry.value,
-          alternativeCode: entry.alternativeCode,
-        }));
-        
-        // Sort by alternativeCode in ascending order (1, 2, 3, etc.)
-        const sortedStatuses = statusData.sort((a, b) => {
-          const aCode = parseInt(a.alternativeCode || '999');
-          const bCode = parseInt(b.alternativeCode || '999');
-          return aCode - bCode;
-        });
-        
-        setContactStatuses(sortedStatuses);
-      }
-    } catch (err) {
-      console.error('Error fetching investment contact statuses:', err);
-    } finally {
-      setLoadingStatuses(false);
-    }
-  };
 
   useEffect(() => {
     if (contactId && accessToken) {
       fetchContactData();
-      fetchContactStatuses();
     }
   }, [contactId, accessToken]);
 
@@ -164,8 +136,6 @@ export const useContactData = (contactId: string, accessToken: string) => {
     rawContactData,
     loading,
     error,
-    contactStatuses,
-    loadingStatuses,
     refetch: fetchContactData
   };
 };

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo, useCallback } from "react";
-import { Button, Spinner, RecordLayout } from '@newwork/nw-design-system';
+import { Button, Spinner, RecordLayout, Badge, Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@newwork/nw-design-system';
 import { Users, FileText, User } from '@phosphor-icons/react';
 import { BusinessAppContextProps } from "@/common/BusinessAppContext";
 import { navigateTo, buildPlatformUrl } from "@/common/utils/navigationUtils";
@@ -8,6 +8,7 @@ import { useContactData } from "./hooks/useContactData";
 import { AppActionButton } from "@/components/app-action-button/AppActionButton";
 import { FlowContextName } from "@/common/types/FlowRegistryTypes";
 import { AiActions, AiAction } from "@/common/components/common-relations/record-sections/header-section/ai-actions";
+import { getContactTypeDisplayValue, getLanguageDisplayValue, getContactFullName } from "./utils";
 import { useContactAiSummary } from "./hooks/useContactAiSummary";
 import { Bot } from 'lucide-react';
 import { 
@@ -174,13 +175,18 @@ const InvestmentContactRecordContent: React.FC<ContactRecordContentProps> = ({
           icon: Users
         },
         {
+          label: getTranslationFromI18nKeyAndLabel('crm.common.language', 'Language'),
+          value: getLanguageDisplayValue(contactData, contact),
+          icon: Users
+        },
+        {
           label: getTranslationFromI18nKeyAndLabel('crm.common.owner', 'Owner'),
           value: contactData?.ownerEmployee?.displayName || contact?.ownerEmployee?.displayName || getTranslationFromI18nKeyAndLabel('crm.common.notAssigned', 'Not assigned'),
           icon: User
         }
       ]
     }
-  ], [contactData?.email, contact?.email, contactData?.phone, contact?.phone, contactData?.ownerEmployee, contact?.ownerEmployee]);
+  ], [contactData, contact]);
 
   const headerActions = useMemo(() => {
     const actions: AiAction[] = [
@@ -536,7 +542,35 @@ const InvestmentContactRecordContent: React.FC<ContactRecordContentProps> = ({
     );
   }
 
-  const fullName = `${contactData?.firstName || contact?.firstName || ''} ${contactData?.lastName || contact?.lastName || ''}`.trim() || getTranslationFromI18nKeyAndLabel('crm.common.unknownContact', 'Unknown Contact');
+  const fullName = getContactFullName(contactData, contact);
+
+  // Create header title with contact type badge
+  const contactType = contactData?.type || contact?.contactType;
+  const contactTypeLabel = getContactTypeDisplayValue(contactData, contact);
+  
+  const headerTitle = (
+    <div className="gba:flex gba:items-center gba:gap-2">
+      <span>{fullName}</span>
+      {contactType && (
+        <TooltipProvider>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Badge
+                data-testid="contact-type-badge"
+                variant="outline"
+                className="gba:text-sm"
+              >
+                {contactTypeLabel}
+              </Badge>
+            </TooltipTrigger>
+            <TooltipContent data-testid="contact-type-tooltip">
+              {getTranslationFromI18nKeyAndLabel('crm.common.contactType', 'Contact Type')}
+            </TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
+      )}
+    </div>
+  );
 
   return (
     <div data-testid="investment-contact-detail">
@@ -545,7 +579,7 @@ const InvestmentContactRecordContent: React.FC<ContactRecordContentProps> = ({
         headerIcon={User}
         headerCategory={getTranslationFromI18nKeyAndLabel('crm.common.contact', 'CONTACT')}
         onBack={onBack}
-        headerTitle={fullName}
+        headerTitle={headerTitle}
         headerDetailGroups={headerDetailGroups}
         headerActions={headerActions}
         headerActionButton={headerActionButton}
