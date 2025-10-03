@@ -1,4 +1,3 @@
-// ===== DASHBOARD QUERIES - FIXED TO USE PROPER GRAPHQL VARIABLES =====
 
 export const GET_APPROVED_ABSENCES_2025 = (currentYearStart: string, currentYearEnd: string): string => `
   query GetApprovedAbsences2025($supervisorId: uuid, $currentYearStart: timestamp!, $currentYearEnd: timestamp!) {
@@ -34,14 +33,21 @@ export const GET_PENDING_REQUESTS = (currentYearStart: string, currentYearEnd: s
   }
 `;
 
-export const GET_TEAM_MEMBERS_AWAY = (): string => `
-  query GetTeamMembersAway($supervisorId: uuid) {
+export const GET_TEAM_MEMBERS_AWAY = (todayStart: string, todayEnd: string): string => `
+  query GetTeamMembersAway($supervisorId: uuid, $todayStart: timestamp!, $todayEnd: timestamp!) {
     EmployeeAbsenceAggregate(
       where: {
         isDeleted: {_eq: false},
         status: {_eq: "APPROVED"},
-        startDate: {_lte: "now()"},
-        endDate: {_gte: "now()"},
+        _or: [
+          {
+            startDate: {_lte: $todayEnd},
+            endDate: {_gte: $todayStart}
+          },
+          {
+            startDate: {_gte: $todayStart, _lte: $todayEnd}
+          }
+        ],
         employee: {employeePosition: {supervisor: {id: {_eq: $supervisorId}}}}
       }
     ) {
@@ -52,14 +58,13 @@ export const GET_TEAM_MEMBERS_AWAY = (): string => `
   }
 `;
 
-export const GET_UPCOMING_ABSENCES = (currentYearStart: string, currentYearEnd: string): string => `
-  query GetUpcomingAbsences($supervisorId: uuid, $currentYearStart: timestamp!, $currentYearEnd: timestamp!) {
+export const GET_UPCOMING_ABSENCES = (todayStart: string): string => `
+  query GetUpcomingAbsences($supervisorId: uuid, $todayStart: timestamp!) {
     EmployeeAbsenceAggregate(
       where: {
         isDeleted: {_eq: false},
         status: {_eq: "APPROVED"},
-        startDate: {_gte: $currentYearStart, _lte: $currentYearEnd},
-        endDate: {_gt: "now()"},
+        startDate: {_gte: $todayStart},
         employee: {employeePosition: {supervisor: {id: {_eq: $supervisorId}}}}
       }
     ) {

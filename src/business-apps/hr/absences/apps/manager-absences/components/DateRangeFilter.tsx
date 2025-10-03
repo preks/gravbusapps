@@ -1,7 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { DatePicker } from 'antd';
 import dayjs from 'dayjs';
+import weekday from 'dayjs/plugin/weekday';
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
+
+dayjs.extend(weekday);
 
 const { RangePicker } = DatePicker;
 

@@ -10,6 +10,7 @@ interface UseAbsenceListDataSimpleProps extends AbsenceFilters {
   sortOrder?: 'ASC' | 'DESC';
   accessToken: string;
   orgUnitId?: string;
+  isTeamAwayFilter?: boolean;
 }
 
 interface UseAbsenceListDataSimpleReturn {
@@ -39,6 +40,7 @@ const buildWhereConditions = (filters: {
   endDate?: string;
   creationStartDate?: string;
   creationEndDate?: string;
+  isTeamAwayFilter?: boolean;
 }) => {
   const {
     search,
@@ -50,6 +52,7 @@ const buildWhereConditions = (filters: {
     endDate,
     creationStartDate,
     creationEndDate,
+    isTeamAwayFilter,
   } = filters;
 
   const conditions: any = {};
@@ -89,15 +92,28 @@ const buildWhereConditions = (filters: {
   }
 
   if (startDate && endDate) {
-    const startDateTime = `${startDate} 00:00:00+00`;
-    const endDateTime = `${endDate} 23:59:59+00`;
-    conditions.startDate = { _gte: startDateTime };
-    conditions.endDate = { _lte: endDateTime };
+    const startDateTime = startDate.includes(' ') ? startDate : `${startDate} 00:00:00+00`;
+    const endDateTime = endDate.includes(' ') ? endDate : `${endDate} 23:59:59+00`;
+    
+    if (isTeamAwayFilter) {
+      conditions._or = [
+        {
+          startDate: { _lte: endDateTime },
+          endDate: { _gte: startDateTime }
+        },
+        {
+          startDate: { _gte: startDateTime, _lte: endDateTime }
+        }
+      ];
+    } else {
+      conditions.startDate = { _gte: startDateTime };
+      conditions.endDate = { _lte: endDateTime };
+    }
   } else if (startDate) {
-    const startDateTime = `${startDate} 00:00:00+00`;
+    const startDateTime = startDate.includes(' ') ? startDate : `${startDate} 00:00:00+00`;
     conditions.startDate = { _gte: startDateTime };
   } else if (endDate) {
-    const endDateTime = `${endDate} 23:59:59+00`;
+    const endDateTime = endDate.includes(' ') ? endDate : `${endDate} 23:59:59+00`;
     conditions.endDate = { _lte: endDateTime };
   }
 
@@ -133,6 +149,7 @@ export const useAbsenceListDataSimple = ({
   sortOrder = 'DESC',
   accessToken,
   orgUnitId,
+  isTeamAwayFilter = false,
 }: UseAbsenceListDataSimpleProps): UseAbsenceListDataSimpleReturn => {
   const [absences, setAbsences] = useState<EnhancedAbsence[]>([]);
   const [total, setTotal] = useState(0);
@@ -153,7 +170,6 @@ export const useAbsenceListDataSimple = ({
     try {
       const userLocale = getCurrentActiveUserLocale() ?? 'en-US';
       
-      // Load both translated and original (English) group names
       const [translatedData, originalData] = await Promise.all([
         catalogClient.getCatalogEntriesList(
           {
@@ -177,7 +193,7 @@ export const useAbsenceListDataSimple = ({
             limit: 100,
             offset: 0,
             returnTotalRecords: true,
-            localeCode: 'en-US', // Always fetch English for color lookup
+            localeCode: 'en-US',
             includeChildCatalogEntries: true,
           }
         )
@@ -239,6 +255,7 @@ export const useAbsenceListDataSimple = ({
           endDate,
           creationStartDate,
           creationEndDate,
+          isTeamAwayFilter,
         });
 
         let orderBy: any[] = [];

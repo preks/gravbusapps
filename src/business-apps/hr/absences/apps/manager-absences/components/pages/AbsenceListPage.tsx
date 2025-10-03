@@ -31,7 +31,6 @@ export const AbsenceListPage: React.FC<AbsenceListPageProps> = (props) => {
   const { accessToken, userInfo, onNavigateBack, preFilter } = props;
   const supervisorId = userInfo?.employeeDetails?.employeeId;
 
-  // Use the centralized absence filters hook
   const {
     search,
     setSearch,
@@ -50,10 +49,8 @@ export const AbsenceListPage: React.FC<AbsenceListPageProps> = (props) => {
     handleCreationDateRangeChange,
   } = useAbsenceFilters(props);
 
-  // Get absence groups from catalog for dynamic filtering
   const { absenceGroups } = useAbsenceCatalogs(props);
 
-  // State for pagination and sorting
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(20);
   const [sortField, setSortField] = useState('');
@@ -62,35 +59,34 @@ export const AbsenceListPage: React.FC<AbsenceListPageProps> = (props) => {
   const initialLoadDone = useRef(false);
   const preFiltersApplied = useRef(false);
 
-  // Apply pre-filters when component mounts and absence groups are loaded
   useEffect(() => {
     if (preFilter && !preFiltersApplied.current && absenceGroups.length > 0) {
       preFiltersApplied.current = true;
 
-      // Clear all existing filters first
       resetFilters();
 
-      // Apply pre-filters immediately
       if (preFilter.type === 'top-absentees') {
-        // For top-absentees, apply employee filters and exclude work leave
         if (preFilter.employees) {
           preFilter.employees.forEach((employeeId) => {
             addFilter(employeeId);
           });
         }
 
-        // Add all absence groups except work leave
+        if (preFilter.status) {
+          preFilter.status.forEach((status) => {
+            addFilter(`status-${status.toLowerCase()}`);
+          });
+        }
+
         absenceGroups.forEach((group) => {
           if (group.id !== 'AbsenceGroup:v1:WORK') {
             addFilter(group.id);
           }
         });
 
-        // Clear date ranges
         handleDateRangeChange(undefined, undefined);
         handleCreationDateRangeChange(undefined, undefined);
       } else if (preFilter.type === 'recent') {
-        // For recent requests, set current month creation date range
         const now = new Date();
         const startOfMonth = new Date(Date.UTC(now.getFullYear(), now.getMonth(), 1));
         const endOfMonth = new Date(Date.UTC(now.getFullYear(), now.getMonth() + 1, 0));
@@ -101,28 +97,24 @@ export const AbsenceListPage: React.FC<AbsenceListPageProps> = (props) => {
         );
         handleDateRangeChange(undefined, undefined);
       } else {
-        // Apply status filters for other pre-filter types
         if (preFilter.status) {
           preFilter.status.forEach((status) => {
             addFilter(`status-${status.toLowerCase()}`);
           });
         }
 
-        // Apply group filters
         if (preFilter.groups) {
           preFilter.groups.forEach((group) => {
             addFilter(`group-${group}`);
           });
         }
 
-        // Apply employee filters
         if (preFilter.employees) {
           preFilter.employees.forEach((employeeId) => {
             addFilter(employeeId);
           });
         }
 
-        // Apply date range only if explicitly provided
         if (preFilter.dateRange) {
           handleDateRangeChange(preFilter.dateRange.startDate, preFilter.dateRange.endDate);
         } else {
@@ -140,7 +132,6 @@ export const AbsenceListPage: React.FC<AbsenceListPageProps> = (props) => {
     absenceGroups,
   ]);
 
-  // Get absence data with search, sorting, and filters
   const filters = getFilters();
 
   const { absences, total, loading, error, hasMore, loadMore, loadPage, retry } =
@@ -150,22 +141,19 @@ export const AbsenceListPage: React.FC<AbsenceListPageProps> = (props) => {
       sortOrder,
       accessToken,
       orgUnitId: supervisorId,
+      isTeamAwayFilter: preFilter?.type === 'team-away',
     });
 
-  // Consolidated data loading effect
   useEffect(() => {
     if (accessToken && supervisorId) {
-      // If we have a preFilter, wait for it to be applied before loading data
       if (preFilter && !preFiltersApplied.current) {
-        return; // Don't load data yet, wait for pre-filters to be applied
+        return;
       }
 
       if (!initialLoadDone.current) {
-        // Initial load
         initialLoadDone.current = true;
         loadPage(currentPage, pageSize);
       } else {
-        // Subsequent loads (search, filters, etc.)
         setCurrentPage(1);
         loadPage(1, pageSize);
       }
@@ -185,7 +173,6 @@ export const AbsenceListPage: React.FC<AbsenceListPageProps> = (props) => {
     preFiltersApplied,
   ]);
 
-  // Handle sorting changes - separate useEffect for cleaner separation
   useEffect(() => {
     if (initialLoadDone.current) {
       setCurrentPage(1);
@@ -193,7 +180,6 @@ export const AbsenceListPage: React.FC<AbsenceListPageProps> = (props) => {
     }
   }, [sortField, sortOrder, loadPage, pageSize]);
 
-  // Handle filter changes from the filter sidebar
   const handleFilterChange = useCallback(
     (filterId: string, selected: boolean) => {
       selected ? addFilter(filterId) : removeFilter(filterId);
@@ -202,7 +188,6 @@ export const AbsenceListPage: React.FC<AbsenceListPageProps> = (props) => {
     [addFilter, removeFilter],
   );
 
-  // Handle search changes
   const handleSearchChange = useCallback(
     (value: string) => {
       setSearch(value);
@@ -211,12 +196,10 @@ export const AbsenceListPage: React.FC<AbsenceListPageProps> = (props) => {
     [setSearch],
   );
 
-  // Handle filter set changes
   const handleSetFilter = useCallback(
     (filters: string[]) => {
       if (filters.length === 0) {
         resetFilters();
-        // Also clear creation date filter when clearing all filters
         handleCreationDateRangeChange(undefined, undefined);
       } else {
         const removedFilters = selectedFilters.filter((f) => !filters.includes(f));
@@ -227,7 +210,6 @@ export const AbsenceListPage: React.FC<AbsenceListPageProps> = (props) => {
     [selectedFilters, removeFilter, resetFilters, handleCreationDateRangeChange],
   );
 
-  // Handle sorting changes
   const handleSortChange = useCallback((field: string, order: '' | 'ASC' | 'DESC') => {
     if (order === '') {
       setSortField('');
@@ -240,7 +222,6 @@ export const AbsenceListPage: React.FC<AbsenceListPageProps> = (props) => {
     }
   }, []);
 
-  // Handle page size changes
   const handlePageSizeChange = useCallback(
     (newPageSize: number) => {
       setPageSize(newPageSize);
@@ -250,7 +231,6 @@ export const AbsenceListPage: React.FC<AbsenceListPageProps> = (props) => {
     [loadPage],
   );
 
-  // Handle page changes
   const handlePageChange = useCallback(
     (newPage: number) => {
       setCurrentPage(newPage);
@@ -259,17 +239,25 @@ export const AbsenceListPage: React.FC<AbsenceListPageProps> = (props) => {
     [loadPage, pageSize],
   );
 
-  // Get page title based on pre-filter
   const getPageTitle = () => {
     if (!preFilter) return 'Absence List';
 
     switch (preFilter.type) {
       case 'pending':
-        return 'Pending Requests';
+        return getTranslationFromI18nKeyAndLabel(
+          "lowcoder:absence_management_hub_manager.pending_requests_btn",
+          "Pending Requests",
+        );
       case 'recent':
-        return 'Recent Requests';
+        return getTranslationFromI18nKeyAndLabel(
+          'lowcoder:absence_management_hub_manager.recent_requests_btn',
+          'Recent Requests',
+        );
       case 'sick':
-        return 'Sick Leaves';
+        return getTranslationFromI18nKeyAndLabel(
+          'lowcoder:absence_management_hub_manager.dashboard.sick_leaves_btn',
+          'Sick Leaves',
+        );
       case 'vacation':
         return 'Vacation Requests';
       case 'team-away':
@@ -278,25 +266,36 @@ export const AbsenceListPage: React.FC<AbsenceListPageProps> = (props) => {
           'Team Members Away',
         );
       case 'upcoming':
-        return 'Upcoming Absences';
+        return getTranslationFromI18nKeyAndLabel(
+          'lowcoder:absence_management_hub_manager.dashboard.upcoming_absences_btn',
+          'Upcoming Absences',
+        );
       case 'top-absentees':
-        return 'Top Absentees';
+        return getTranslationFromI18nKeyAndLabel('lowcoder:absence_management_hub_manager.dashboard.top_absentees_btn', 'Top Absentees');
       default:
         return 'Absence List';
     }
   };
 
-  // Get page description based on pre-filter
   const getPageDescription = () => {
     if (!preFilter) return 'View and manage all absence requests';
 
     switch (preFilter.type) {
       case 'pending':
-        return 'Review and approve pending absence requests';
+        return getTranslationFromI18nKeyAndLabel(
+          'lowcoder:absence_management_hub_manager.dashboard.review_and_approve_pending_requests',
+          'Review and approve pending absence requests',
+        );
       case 'recent':
-        return 'View recent absence requests across all statuses';
+        return getTranslationFromI18nKeyAndLabel(
+          'lowcoder:absence_management_hub_manager.dashboard.view_recent_absence_requests_across_all_statuses',
+          'View recent absence requests across all statuses',
+        );
       case 'sick':
-        return 'View sick leave requests and patterns';
+        return getTranslationFromI18nKeyAndLabel(
+          'lowcoder:absence_management_hub_manager.dashboard.view_sick_leave_requests_and_patterns',
+          'View sick leave requests and patterns',
+        );
       case 'vacation':
         return 'Manage vacation and time-off requests';
       case 'team-away':
@@ -305,11 +304,14 @@ export const AbsenceListPage: React.FC<AbsenceListPageProps> = (props) => {
           'See team members currently away',
         );
       case 'upcoming':
-        return 'View upcoming scheduled absences';
+        return getTranslationFromI18nKeyAndLabel(
+          'lowcoder:absence_management_hub_manager.dashboard.view_upcoming_scheduled_absences',
+          'View upcoming scheduled absences',
+        );
       case 'top-absentees':
-        return 'View all absence requests for employees with the most absence days';
+        return getTranslationFromI18nKeyAndLabel('lowcoder:absence_management_hub_manager.dashboard.view_absence_requests_most_absence_days', 'View all absence requests for employees with the most absence days');
       default:
-        return 'View and manage all absence requests';
+        return getTranslationFromI18nKeyAndLabel('lowcoder:absence_management_hub_manager.dashboard.view_manage_absence_requests', 'View and manage all absence requests');
     }
   };
 
