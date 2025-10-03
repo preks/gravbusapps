@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef } from 'react';
+import { useState, useCallback, useRef, useEffect } from 'react';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 import { useGetInvestmentAccounts, useSearchInvestmentAccounts } from '@/common/data/investment/hooks/useInvestmentAccounts';
 import { SelectOption } from '../types';
@@ -86,6 +86,11 @@ export const useAccountSelection = (
       setLoading(false);
     }
   }, [context.accessToken, fetchInvestmentAccounts, searchInvestmentAccounts]);
+
+  // Load initial accounts on mount
+  useEffect(() => {
+    fetchAccounts('', 0, false);
+  }, [fetchAccounts]);
 
   const search = useCallback((searchTerm: string) => {
     // Clear previous timeout

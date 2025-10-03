@@ -54,7 +54,13 @@ export const mapInvestmentContactToFormValues = (
     owner: contact.ownerEmployeeId || "", // Map to owner field for form
 
     // Account Information
-    accountIds: contact.investmentAccountContact?.map(rel => rel.account.id) || [],
+    accountIds: Array.from(
+      new Set(
+        (contact.investmentAccountContact ?? [])
+          .map(rel => rel.account?.id)
+          .filter((id): id is string => Boolean(id))
+      )
+    ),
 
     // Additional Information
     notesSummary: contact.notesSummary || "",

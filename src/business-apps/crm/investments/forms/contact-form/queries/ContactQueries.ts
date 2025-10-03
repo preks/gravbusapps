@@ -150,7 +150,7 @@ export const GET_INVESTMENT_CONTACT_BY_ID = `
       languageRef
       
       # Account relationships
-      investmentAccountContact {
+      investmentAccountContact(where: { isDeleted: { _eq: false } }) {
         id
         account {
           id
