@@ -6,6 +6,7 @@ import { EndDateRangeFilter } from '../components/tabs/expense-plans-tab/EndDate
 import PlanDateRangeFilter from '../components/tabs/expense-plans-tab/PlanDateRangeFilter';
 import dayjs from 'dayjs';
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
+import EffectiveDateRangeFilter from '../components/tabs/expense-plans-tab/EffectiveDateRangeFilter';
 
 export enum DataFilterType {
   CHECKBOX_GROUP = 'checkbox-group',
@@ -19,8 +20,20 @@ export const useExpensePlanFilters = () => {
   const [startDateRange, setStartDateRange] = useState<[Date | null, Date | null] | null>(null);
   const [endDateRange, setEndDateRange] = useState<[Date | null, Date | null] | null>(null);
   const [planDateRange, setPlanDateRange] = useState<[Date | null, Date | null] | null>(null);
+  const [effectiveDateRange, setEffectiveDateRange] = useState<[Date | null, Date | null] | null>(null);
  
   const filterGroups = useMemo<DataFilterGroup[]>(() => [
+    {
+      id: 'effectiveDateRange',
+      title: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.effective_date','Effective Date'),
+      type: DataFilterType.DATE_RANGE,
+      customComponent: React.createElement(EffectiveDateRangeFilter, {
+        effectiveDateRange: effectiveDateRange,
+        onDateRangeChange: setEffectiveDateRange,
+        placeholder: [getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.start_date','Start date'), getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.end_date','End date')]
+      }),
+      hideSearch: true,
+    },
     {
       id: 'planDateRange',
       title: getTranslationFromI18nKeyAndLabel('lowcoder:team_expenses_page.plan_details.plan_date','Plan Date'),
@@ -73,7 +86,7 @@ export const useExpensePlanFilters = () => {
       ],
     },
   
-  ], [selectedFilters, startDateRange, endDateRange, planDateRange]);
+  ], [selectedFilters, startDateRange, endDateRange, planDateRange, effectiveDateRange]);
 
   /**
    * Returns the current filters as an object for API queries (GraphQL/REST)
@@ -133,17 +146,37 @@ export const useExpensePlanFilters = () => {
       conditions.push({ endDate: { _lte: formatEndDate(endDateRange[1]) } });
     }
 
+    // Effective Date filter: EXPENSES -> planDate, TRIP -> startDate
+    if (effectiveDateRange?.[0] || effectiveDateRange?.[1]) {
+      const start = effectiveDateRange?.[0] ? formatStartDate(effectiveDateRange[0]) : undefined;
+      const end = effectiveDateRange?.[1] ? formatEndDate(effectiveDateRange[1]) : undefined;
+      const tripAnd = [] as any[];
+      const expenseAnd = [] as any[];
+      if (start) { tripAnd.push({ startDate: { _gte: start } }); expenseAnd.push({ planDate: { _gte: start } }); }
+      if (end) { tripAnd.push({ startDate: { _lte: end } }); expenseAnd.push({ planDate: { _lte: end } }); }
+      if (tripAnd.length > 0 || expenseAnd.length > 0) {
+        conditions.push({
+          _or: [
+            { _and: [ { requestTypeRef: { _eq: 'ExpenseRequestType:v1:TRIP' } }, ...tripAnd ] },
+            { _and: [ { requestTypeRef: { _eq: 'ExpenseRequestType:v1:EXPENSES' } }, ...expenseAnd ] }
+          ]
+        });
+      }
+    }
+
     // Always exclude DISCARDED plans at backend level for correct pagination
     conditions.push({ status: { _neq: ExpenseStatus.DISCARDED } });
     return { _and: conditions.length > 0 ? conditions : [{}] };
 
-  }, [search, selectedFilters, planDateRange, startDateRange, endDateRange]);
+  }, [search, selectedFilters, planDateRange, startDateRange, endDateRange, effectiveDateRange]);
 
+  // deprecated: use clearAllFilters instead
   const clearFilters = useCallback(() => {
     setSelectedFilters([]);
     setStartDateRange(null);
     setEndDateRange(null);
     setPlanDateRange(null);
+    setEffectiveDateRange(null);
     setSearch('');
   }, []);
 
@@ -185,11 +218,14 @@ export const useExpensePlanFilters = () => {
     if (endDateRange && (endDateRange[0] || endDateRange[1])) {
       filters.push('endDateRange');
     }
+    if (effectiveDateRange && (effectiveDateRange[0] || effectiveDateRange[1])) {
+      filters.push('effectiveDateRange');
+    }
     
 
     
     return filters;
-  }, [selectedFilters, planDateRange, startDateRange, endDateRange]);
+  }, [selectedFilters, planDateRange, startDateRange, endDateRange, effectiveDateRange]);
 
   // Create filter label map including all active date ranges
   const filterLabelMap = useMemo<Record<string, string>>(() => {
@@ -219,13 +255,18 @@ export const useExpensePlanFilters = () => {
     if (endDateLabel) {
       map['endDateRange'] = `${getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.end_date','End Date')}: ${endDateLabel}`;
     }
+
+    const effectiveDateLabel = formatDateRangeLabel(effectiveDateRange);
+    if (effectiveDateLabel) {
+      map['effectiveDateRange'] = `${getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.effective_date','Effective Date')}: ${effectiveDateLabel}`;
+    }
     
 
     
     // Ensure currency pills show code (if present via DataContainer currency group)
     // Currency filters are injected at table level; here we just preserve any provided labels
     return map;
-  }, [filterGroups, formatDateRangeLabel, planDateRange, startDateRange, endDateRange]);
+  }, [filterGroups, formatDateRangeLabel, planDateRange, startDateRange, endDateRange, effectiveDateRange]);
 
   // Remove filter function that handles all date ranges
   const removeFilter = useCallback((filterId: string) => {
@@ -235,6 +276,8 @@ export const useExpensePlanFilters = () => {
       setStartDateRange(null);
     } else if (filterId === 'endDateRange') {
       setEndDateRange(null);
+    } else if (filterId === 'effectiveDateRange') {
+      setEffectiveDateRange(null);
     } else {
       setSelectedFilters(prev => prev.filter(id => id !== filterId));
     }
@@ -253,7 +296,7 @@ export const useExpensePlanFilters = () => {
     }
     
     // Separate date range filters from regular filters
-    const dateRangeFilters = ['planDateRange', 'startDateRange', 'endDateRange'];
+    const dateRangeFilters = ['planDateRange', 'startDateRange', 'endDateRange', 'effectiveDateRange'];
     const regularFilters = filters.filter(f => !dateRangeFilters.includes(f));
     const newDateRangeFilters = filters.filter(f => dateRangeFilters.includes(f));
     
@@ -270,6 +313,9 @@ export const useExpensePlanFilters = () => {
     if (!newDateRangeFilters.includes('endDateRange')) {
       setEndDateRange(null);
     }
+    if (!newDateRangeFilters.includes('effectiveDateRange')) {
+      setEffectiveDateRange(null);
+    }
   }, []);
 
   // Clear all filters including all date ranges
@@ -278,6 +324,7 @@ export const useExpensePlanFilters = () => {
     setPlanDateRange(null);
     setStartDateRange(null);
     setEndDateRange(null);
+    setEffectiveDateRange(null);
     setSearch('');
   }, []);
 
@@ -294,6 +341,7 @@ export const useExpensePlanFilters = () => {
     setStartDateRange,
     setEndDateRange,
     setPlanDateRange,
+    setEffectiveDateRange,
     addFilter: handleFilterChange, // Add this for compatibility
     removeFilter, // Use the enhanced removeFilter
   };

@@ -27,6 +27,8 @@ export const useExpenseRequests = (context: BusinessAppContextProps) => {
   const [statusFilter, setStatusFilter] = useState<string>("BOOKED");
   const [amountMinFilter, setAmountMinFilter] = useState<string>("");
   const [amountMaxFilter, setAmountMaxFilter] = useState<string>("");
+  const [effectiveStart, setEffectiveStart] = useState<string>("");
+  const [effectiveEnd, setEffectiveEnd] = useState<string>("");
 
   const transformExpenseRequest = (item: any): ExpenseData => {
     return {
@@ -129,6 +131,20 @@ export const useExpenseRequests = (context: BusinessAppContextProps) => {
             totalAmount: amountConditions,
           });
         }
+      }
+
+      // Effective Date filter: EXPENSES -> requestDate, TRIP -> startDate
+      if ((effectiveStart && effectiveStart !== "") || (effectiveEnd && effectiveEnd !== "")) {
+        const tripAnd: any[] = [];
+        const expenseAnd: any[] = [];
+        if (effectiveStart) { tripAnd.push({ startDate: { _gte: effectiveStart } }); expenseAnd.push({ requestDate: { _gte: effectiveStart } }); }
+        if (effectiveEnd) { tripAnd.push({ startDate: { _lte: effectiveEnd } }); expenseAnd.push({ requestDate: { _lte: effectiveEnd } }); }
+        conditions.push({
+          _or: [
+            { _and: [ { requestTypeRef: { _eq: 'ExpenseRequestType:v1:TRIP' } }, ...tripAnd ] },
+            { _and: [ { requestTypeRef: { _eq: 'ExpenseRequestType:v1:EXPENSES' } }, ...expenseAnd ] }
+          ]
+        });
       }
 
       if (searchTerm && searchTerm.trim() !== "") {
@@ -256,6 +272,12 @@ export const useExpenseRequests = (context: BusinessAppContextProps) => {
     },
     []
   );
+
+  const handleEffectiveDateFilter = useCallback((start?: string, end?: string) => {
+    setEffectiveStart(start || "");
+    setEffectiveEnd(end || "");
+    setCurrentPage(1);
+  }, []);
 
   const departments = useMemo(() => {
     const deptSet = new Set<string>();
@@ -419,6 +441,7 @@ export const useExpenseRequests = (context: BusinessAppContextProps) => {
     handleEmployeeFilter,
     handleStatusFilter,
     handleAmountFilter,
+    handleEffectiveDateFilter,
     handleTableChange,
     handleSearch,
     amountMinFilter,
