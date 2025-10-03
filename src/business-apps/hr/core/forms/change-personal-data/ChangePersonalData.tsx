@@ -6,24 +6,16 @@ import UploadComponent from '../components/UploadComponent';
 import flowIconUrl from '@/assets/icons/flowSmall.svg';
 import { ChangePersonalDataProvider, useChangePersonalData } from './ChangePersonalDataContext';
 import { useForm } from 'react-hook-form';
-import {
-  Form,
-  FormControl,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormMessage,
-  Input,
-  Button,
-  Separator,
-} from '@newwork/nw-design-system';
+import { Separator, Button } from '@newwork/nw-design-system';
 import NamesGroup from './components/NamesGroup';
 import BirthAndGenderGroup from './components/BirthAndGenderGroup';
 import NationalityLanguageStatusGroup from './components/NationalityLanguageStatusGroup';
 import QualificationFields from './components/QualificationFields';
-import { dispatchProcessContinueEvent } from '@/common/utils/processEventUtils';
 import { useFileClient } from '@/common/network/files/useFileClient';
 import { env } from '@/common/env/EnvUtils';
+import { AppActionForm } from '@/components/app-action-form/AppActionForm';
+import { useProcessEventState } from '@/business-apps/fin/expenses/utils/useProcessEventState';
+import { dispatchProcessContinueEvent } from '@/common/utils/processEventUtils';
  
 
 export interface ChangePersonalDataFormProps extends BusinessAppContextProps {}
@@ -36,8 +28,7 @@ type PersonalDataFormValues = {
   displayName: string;
   preferredName: string;
   birthName: string;
-  birthDate: string; // YYYY-MM-DD
-  // Additional fields
+  birthDate: string;
   birthPlace?: string;
   genderRef?: string | null;
   nationalityRef?: string | null;
@@ -47,12 +38,13 @@ type PersonalDataFormValues = {
   schoolQualificationRef?: string | null;
   academicTitleRefs?: string[];
   comment?: string;
+  employeeDocumentId?: string;
 };
 
 const ChangePersonalDataContent: React.FC<ChangePersonalDataFormProps> = ({ accessToken, additionalData }) => {
   const [fileList, setFileList] = useState<any[]>([]);
   const { data } = useChangePersonalData();
-
+ 
   const employee = useMemo(() => data?.employee?.EmployeeByPk, [data]);
   const catalogSalutation: any[] = useMemo(() => data?.catalogs?.salutation || [], [data]);
   const catalogs = useMemo(() => ({
@@ -110,10 +102,34 @@ const ChangePersonalDataContent: React.FC<ChangePersonalDataFormProps> = ({ acce
 
   const fileClient = useFileClient({ accessToken } as any);
 
-  // Reset to defaults whenever employee/catalogs change
+  // Normalize default values to match Select option value types (string ids)
+  const normalizedDefaults: PersonalDataFormValues = useMemo(() => {
+    const toIdString = (val: any) => (val === null || val === undefined || val === '' ? null : String(val));
+    const findId = (list: any[] | undefined, current: any) => {
+      if (!list || current === null || current === undefined || current === '') return null;
+      const currentStr = String(current);
+      const match = list.find((e: any) => String(e?.id) === currentStr || String(e?.value) === currentStr || String(e?.translations?.[0]?.value) === currentStr);
+      return match ? String(match.id) : toIdString(current);
+    };
+
+    return {
+      ...defaultValues,
+      salutationRef: findId(catalogSalutation, defaultValues.salutationRef),
+      genderRef: findId(catalogs.gender, defaultValues.genderRef),
+      nationalityRef: findId(catalogs.nationality, defaultValues.nationalityRef),
+      languageRef: findId(catalogs.language, defaultValues.languageRef),
+      maritalStatusRef: findId(catalogs.maritalStatus, defaultValues.maritalStatusRef),
+      schoolQualificationRef: findId(catalogs.schoolQualification, defaultValues.schoolQualificationRef),
+      academicTitleRefs: Array.isArray(defaultValues.academicTitleRefs)
+        ? defaultValues.academicTitleRefs.map((v) => findId(catalogs.academicTitle, v)).filter(Boolean) as string[]
+        : [],
+    } as PersonalDataFormValues;
+  }, [defaultValues, catalogSalutation, catalogs]);
+
+  // Reset to normalized defaults whenever employee/catalogs change
   useEffect(() => {
-    form.reset(defaultValues);
-  }, [defaultValues]);
+    form.reset(normalizedDefaults);
+  }, [normalizedDefaults]);
 
   // Track initial values for change detection
   const initialRef = useRef<PersonalDataFormValues>(defaultValues);
@@ -142,15 +158,12 @@ const ChangePersonalDataContent: React.FC<ChangePersonalDataFormProps> = ({ acce
   });
 
   const watchedValues = form.watch();
-  const isUnchanged = useMemo(() => {
-    const current = normalizeForCompare(watchedValues as PersonalDataFormValues);
-    const initial = normalizeForCompare(initialRef.current);
-    return JSON.stringify(current) === JSON.stringify(initial);
+  const isUnchangedNow = useMemo(() => {
+    return (
+      JSON.stringify(normalizeForCompare(watchedValues as any)) ===
+      JSON.stringify(normalizeForCompare(initialRef.current))
+    );
   }, [watchedValues]);
-
-  
-
-  // validation moved into group components
 
   const title = useMemo(() =>
     getTranslationFromI18nKeyAndLabel(
@@ -173,186 +186,180 @@ const ChangePersonalDataContent: React.FC<ChangePersonalDataFormProps> = ({ acce
           setFileList={setFileList}
         />
 
-        <Form {...form}>
-          <form
-            className="gba:space-y-4"
-            data-testid="change-personal-data-form-fields"
-            onSubmit={form.handleSubmit(async (values) => {
-              let uploadedEmployeeDocumentId: string | undefined;
+        <AppActionForm
+          processType="update"
+          form={form as any}
+          formData={defaultValues}
+          submitEventType="pse_submit"
+          onCancel={() => form.reset(defaultValues)}
+          customFormLayout
+          handlePreSubmit={async (values) => {
+            let uploadedEmployeeDocumentId: string | undefined;
+            try {
+              if (fileList && fileList.length > 0 && fileList[0]?.originFileObj) {
+                const file: File = fileList[0].originFileObj as File;
+                const employeeId =
+                  additionalData?.value?.psi_taskPayload?.employeeId ||
+                  additionalData?.value?.psi_taskPayload?.initialParameters?.employeeId ||
+                  data?.employee?.EmployeeByPk?.id ||
+                  data?.employee?.EmployeeByPk?.employeeId;
 
-              // If a file is attached, upload to file service, then create employee document
-              try {
-                if (fileList && fileList.length > 0 && fileList[0]?.originFileObj) {
-                  const file: File = fileList[0].originFileObj as File;
-                  const employeeId =
-                    additionalData?.value?.psi_taskPayload?.employeeId ||
-                    additionalData?.value?.psi_taskPayload?.initialParameters?.employeeId ||
-                    data?.employee?.EmployeeByPk?.id ||
-                    data?.employee?.EmployeeByPk?.employeeId;
+                const uploadResp = await fileClient.uploadFile(
+                  file,
+                  { accessScope: 'tenant' },
+                  {
+                    appName: 'employee-profile',
+                    folderPath: `/documents/${employeeId}`,
+                    mimeType: (file as any)?.type || 'application/octet-stream',
+                  },
+                  'fileContent'
+                );
 
-                  // Upload to /tenant/files with params
-                  const uploadResp = await fileClient.uploadFile(
-                    file,
-                    { accessScope: 'tenant' },
-                    {
-                      appName: 'employee-profile',
-                      folderPath: `/documents/${employeeId}`,
-                      mimeType: (file as any)?.type || 'application/octet-stream',
-                    },
-                    'fileContent'
-                  );
+                const processesBase = env('NEXT_PUBLIC_PROCESSES_ENDPOINT') || 'https://newwork-dev.newwork.com/processes';
+                const createDocUrl = `${processesBase}/employee/employeeDocuments`;
+                const body = {
+                  employeeDocument: {
+                    employeeId: employeeId,
+                    documentGroup: 'DocumentGroup:v1:PERSONAL',
+                    type: 'DocumentType:v1:17',
+                    description: '',
+                    name: uploadResp?.fileInfo?.fileMetadata?.originalFileName,
+                    file: uploadResp?.fileInfo?.fileId,
+                    mimeType: uploadResp?.fileInfo?.fileMetadata?.mimeType,
+                    fileSize: 0,
+                    validFrom: new Date().toISOString(),
+                  },
+                };
 
-                  // Create employee document in processes API
-                  const processesBase = env('NEXT_PUBLIC_PROCESSES_ENDPOINT') || 'https://newwork-dev.newwork.com/processes';
-                  const createDocUrl = `${processesBase}/employee/employeeDocuments`;
-                  const body = {
-                    employeeDocument: {
-                      employeeId: employeeId,
-                      documentGroup: 'DocumentGroup:v1:PERSONAL',
-                      type: 'DocumentType:v1:17',
-                      description: '',
-                      name: uploadResp?.fileInfo?.fileMetadata?.originalFileName,
-                      file: uploadResp?.fileInfo?.fileId,
-                      mimeType: uploadResp?.fileInfo?.fileMetadata?.mimeType,
-                      fileSize: 0,
-                      validFrom: new Date().toISOString(),
-                    },
-                  };
-
-                  await fetch(createDocUrl, {
-                    method: 'POST',
-                    headers: {
-                      'Content-Type': 'application/json',
-                      Authorization: accessToken ? `Bearer ${accessToken}` : '',
-                    },
-                    body: JSON.stringify(body),
+                await fetch(createDocUrl, {
+                  method: 'POST',
+                  headers: {
+                    'Content-Type': 'application/json',
+                    Authorization: accessToken ? `Bearer ${accessToken}` : '',
+                  },
+                  body: JSON.stringify(body),
+                })
+                  .then(async (r) => {
+                    const json = await r.json();
+                    uploadedEmployeeDocumentId = json?.employeeDocument?.id;
                   })
-                    .then(async (r) => {
-                      const json = await r.json();
-                      uploadedEmployeeDocumentId = json?.employeeDocument?.id;
-                    })
-                    .catch(() => {
-                      uploadedEmployeeDocumentId = undefined;
-                    });
-                }
-              } catch (e) {
-                // Soft-fail: continue submit without employee document
-                uploadedEmployeeDocumentId = undefined;
+                  .catch(() => {
+                    uploadedEmployeeDocumentId = undefined;
+                  });
               }
+            } catch (e) {
+              uploadedEmployeeDocumentId = undefined;
+            }
 
-              const payload = {
-                event: 'pse_submit',
-                employeeDocument: uploadedEmployeeDocumentId || '',
-                personalInformation: {
-                  id: employee?.id || '',
-                  notes: values.comment || '',
-                  title: values.title || '',
-                  personalDocument: uploadedEmployeeDocumentId || '',
-                  version: employee?.version ?? 0,
-                  academicTitleRef: values.academicTitleRefs || [],
-                  salutationRef: values.salutationRef || '',
-                  firstName: values.firstName || '',
-                  lastName: values.lastName || '',
-                  preferredName: values.preferredName || '',
-                  displayName: values.displayName || '',
-                  birthName: values.birthName || '',
-                  birthDate: values.birthDate ? formatDateToISO(new Date(values.birthDate)) : '',
-                  genderRef: values.genderRef || '',
-                  nationalityRef: values.nationalityRef || '',
-                  languageRef: values.languageRef || '',
-                  maritalStatusRef: values.maritalStatusRef || '',
-                  severelyDisabilityDegree: values.severelyDisabilityDegree !== '' ? values.severelyDisabilityDegree : 0,
-                  schoolQualificationRef: values.schoolQualificationRef || '',
-                  birthPlace: values.birthPlace || '',
-                  userId: employee?.userId || '',
-                },
-                oldPersonalInformation: {
-                  id: employee?.id || '',
-                  version: employee?.version ?? 0,
-                  academicTitleRef: employee?.academicTitleRef || [],
-                  salutationRef: employee?.salutationRef || '',
-                  firstName: employee?.firstName || '',
-                  lastName: employee?.lastName || '',
-                  displayName: employee?.displayName || '',
-                  preferredName: employee?.preferredName || '',
-                  birthName: employee?.birthName || '',
-                  birthDate: employee?.birthDate ? formatDateToISO(new Date(employee.birthDate)) : '',
-                  genderRef: employee?.genderRef || '',
-                  nationalityRef: employee?.nationalityRef || '',
-                  languageRef: employee?.languageRef || '',
-                  maritalStatusRef: employee?.maritalStatusRef || '',
-                  birthPlace: employee?.birthPlace || '',
-                  severelyDisabilityDegree: employee?.severelyDisabilityDegree ?? 0,
-                  schoolQualificationRef: employee?.schoolQualificationRef || '',
-                  userId: employee?.userId || '',
-                },
-              };
-              try {
-                dispatchProcessContinueEvent('pse_submit', payload);
-              } catch (e) {
-                console.warn('Submit payload', payload);
-              }
-            })}
-          >
-            {/* Group 1: Names */}
-            <NamesGroup control={form.control} catalogs={{ salutation: catalogSalutation }} />
+            return { ...(values as any), employeeDocumentId: uploadedEmployeeDocumentId } as PersonalDataFormValues;
+          }}
+          onSubmit={async (values: PersonalDataFormValues) => {
+            const uploadedEmployeeDocumentId = values.employeeDocumentId || '';
+            const payload = {
+              event: 'pse_submit',
+              employeeDocument: uploadedEmployeeDocumentId,
+              personalInformation: {
+                id: employee?.id || '',
+                notes: values.comment || '',
+                title: values.title || '',
+                personalDocument: uploadedEmployeeDocumentId || '',
+                version: employee?.version ?? 0,
+                academicTitleRef: values.academicTitleRefs || [],
+                salutationRef: values.salutationRef || '',
+                firstName: values.firstName || '',
+                lastName: values.lastName || '',
+                preferredName: values.preferredName || '',
+                displayName: values.displayName || '',
+                birthName: values.birthName || '',
+                birthDate: values.birthDate ? formatDateToISO(new Date(values.birthDate)) : '',
+                genderRef: values.genderRef || '',
+                nationalityRef: values.nationalityRef || '',
+                languageRef: values.languageRef || '',
+                maritalStatusRef: values.maritalStatusRef || '',
+                severelyDisabilityDegree: values.severelyDisabilityDegree !== '' ? values.severelyDisabilityDegree : 0,
+                schoolQualificationRef: values.schoolQualificationRef || '',
+                birthPlace: values.birthPlace || '',
+                userId: employee?.userId || '',
+              },
+              oldPersonalInformation: {
+                id: employee?.id || '',
+                version: employee?.version ?? 0,
+                academicTitleRef: employee?.academicTitleRef || [],
+                salutationRef: employee?.salutationRef || '',
+                firstName: employee?.firstName || '',
+                lastName: employee?.lastName || '',
+                displayName: employee?.displayName || '',
+                preferredName: employee?.preferredName || '',
+                birthName: employee?.birthName || '',
+                birthDate: employee?.birthDate ? formatDateToISO(new Date(employee.birthDate)) : '',
+                genderRef: employee?.genderRef || '',
+                nationalityRef: employee?.nationalityRef || '',
+                languageRef: employee?.languageRef || '',
+                maritalStatusRef: employee?.maritalStatusRef || '',
+                birthPlace: employee?.birthPlace || '',
+                severelyDisabilityDegree: employee?.severelyDisabilityDegree ?? 0,
+                schoolQualificationRef: employee?.schoolQualificationRef || '',
+                userId: employee?.userId || '',
+              },
+            };
+            return payload;
+          }}
+          data-testid="change-personal-data"
+          submitButtonText={getTranslationFromI18nKeyAndLabel('lowcoder:hr_absences.create_absence.submit', 'Submit')}
+        >
+          {/* Group 1: Names */}
+          <NamesGroup control={form.control} catalogs={{ salutation: catalogSalutation }} />
 
-            {/* Group 2: Birth and Gender (includes DOB & Place) */}
-            <BirthAndGenderGroup control={form.control} catalogs={{ gender: catalogs.gender }} />
+          {/* Group 2: Birth and Gender (includes DOB & Place) */}
+          <BirthAndGenderGroup control={form.control} catalogs={{ gender: catalogs.gender }} />
 
-            {/* Birth Name (kept with birth related info) */}
-            <FormField
-              control={form.control}
-              name="birthName"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel data-testid="change-personal-data-birth-name-label">
-                    {getTranslationFromI18nKeyAndLabel('lowcoder:employee_profile.details_layout.personal_information_container.birth_mame', 'Birth Name')}
-                  </FormLabel>
-                  <FormControl>
-                    <Input {...field} placeholder={getTranslationFromI18nKeyAndLabel('lowcoder:employee_profile.details_layout.personal_information_container.enter_placeholder', 'Please Enter')} data-testid="change-personal-data-birth-name-input" />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            {/* Group 3: Nationality, Language, Marital Status, Disability */}
-            <NationalityLanguageStatusGroup control={form.control} catalogs={{ nationality: catalogs.nationality, language: catalogs.language, maritalStatus: catalogs.maritalStatus }} />
+          {/* Birth Name moved into BirthAndGenderGroup */}
+          {/* Group 3: Nationality, Language, Marital Status, Disability */}
+          <NationalityLanguageStatusGroup control={form.control} catalogs={{ nationality: catalogs.nationality, language: catalogs.language, maritalStatus: catalogs.maritalStatus }} />
 
-            {/* Qualification fields (school + academic titles) */}
-            <QualificationFields control={form.control} catalogs={{ schoolQualification: catalogs.schoolQualification, academicTitle: catalogs.academicTitle }} />
+          {/* Qualification fields (school + academic titles) */}
+          <QualificationFields control={form.control} catalogs={{ schoolQualification: catalogs.schoolQualification, academicTitle: catalogs.academicTitle }} />
 
-            <div className="gba:flex-grow" data-testid="change-personal-data-spacer" />
+          <div className="gba:flex-grow" data-testid="change-personal-data-spacer" />
 
-            <Separator className="gba:mt-[46px] gba:mb-[30px]" data-testid="change-personal-data-divider" />
+          <Separator className="gba:mt-[38px] gba:mb-[0px]" data-testid="change-personal-data-divider" />
 
-            <div className="gba:py-4" data-testid="change-personal-data-actions-wrapper">
-              <div className="gba:flex gba:justify-between" style={{ width: '100%' }} data-testid="change-personal-data-actions">
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={() => form.reset(defaultValues)}
-                  className="gba:min-w-[100px] gba:border-2 gba:text-base gba:font-semibold gba:px-4"
-                  style={{ borderRadius: '22px', height: '40px' }}
-                  data-testid="change-personal-data-cancel-button"
-                >
-                  {getTranslationFromI18nKeyAndLabel('lowcoder:create_expense_request.initiate_cancel_button', 'Cancel')}
-                </Button>
-                <Button
-                  type="submit"
-                  variant="default"
-                  disabled={!form.formState.isValid || isUnchanged}
-                  className="gba:min-w-[100px] gba:border-2 gba:text-base gba:font-semibold gba:px-4"
-                  style={{ borderRadius: '22px', width: 'auto', height: '40px' }}
-                  data-testid="change-personal-data-submit-button"
-                >
-                  {getTranslationFromI18nKeyAndLabel('lowcoder:expense_calculation_rule_details.calculation_rule_tab_custom_fields.custom_fields_modal.btn_save', 'Create')}
-                </Button>
-              </div>
+          <div className="gba:flex gba:justify-between gba:items-center gba:mt-auto gba:pt-4" data-testid="change-personal-data-actions-wrapper">
+            <div className="gba:flex gba:gap-2" data-testid="change-personal-data-actions-left">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => {
+                  dispatchProcessContinueEvent('pse_abort', {
+                    event: 'pse_abort',
+                    pso_exitStrategy: 'abort',
+                    pso_completeNotification: {
+                      type: 'error',
+                      messageKey: getTranslationFromI18nKeyAndLabel(
+                        'lowcoder:absence_module.toast_notification_cancel_create_absence',
+                        'The action has been canceled.'
+                      )
+                    }
+                  });
+                  form.reset(defaultValues);
+                }}
+                data-testid="change-personal-data-cancel-button"
+              >
+                {getTranslationFromI18nKeyAndLabel('lowcoder:create_expense_request.initiate_cancel_button', 'Cancel')}
+              </Button>
             </div>
-
-          </form>
-        </Form>
+            <div className="gba:flex gba:gap-2" data-testid="change-personal-data-actions-right">
+              <Button
+                type="submit"
+                variant="default"
+                disabled={!form.formState.isValid || isUnchangedNow}
+                data-testid="change-personal-data-submit-button"
+              >
+                {getTranslationFromI18nKeyAndLabel('lowcoder:hr_absences.create_absence.submit', 'Submit')}
+              </Button>
+            </div>
+          </div>
+        </AppActionForm>
       </div>
     </div>
   );

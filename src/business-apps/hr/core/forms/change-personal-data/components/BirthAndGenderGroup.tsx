@@ -14,6 +14,23 @@ const BirthAndGenderGroup: React.FC<BirthAndGenderGroupProps> = ({ control, cata
 
   return (
     <div className="gba:space-y-4" data-testid="change-personal-data-birth-gender-group">
+      {/* Birth Name (should appear between Preferred Name and Date of Birth) */}
+      <FormField
+        control={control}
+        name={"birthName" as any}
+        render={({ field }) => (
+          <FormItem>
+            <FormLabel data-testid="change-personal-data-birth-name-label">
+              {getTranslationFromI18nKeyAndLabel('lowcoder:employee_profile.details_layout.personal_information_container.birth_mame', 'Birth Name')}
+            </FormLabel>
+            <FormControl>
+              <Input {...field} placeholder={placeholderEnter} data-testid="change-personal-data-birth-name-input" />
+            </FormControl>
+            <FormMessage />
+          </FormItem>
+        )}
+      />
+
       {/* Birth Date */}
       <FormField
         control={control}
@@ -63,7 +80,10 @@ const BirthAndGenderGroup: React.FC<BirthAndGenderGroupProps> = ({ control, cata
             <FormLabel data-testid="change-personal-data-gender-label">
               {getTranslationFromI18nKeyAndLabel('lowcoder:employee_profile.details_layout.personal_information_container.gender', 'Gender')}
             </FormLabel>
-            <Select value={field.value ?? ''} onValueChange={(v) => field.onChange(v || null)}>
+            <Select
+              value={field.value === null || field.value === undefined || field.value === '' ? undefined : String(field.value)}
+              onValueChange={(v) => field.onChange(v || null)}
+            >
               <FormControl className="gba:w-[100%]">
                 <SelectTrigger data-testid="change-personal-data-gender-select">
                   <SelectValue placeholder={placeholderSelect} />
@@ -71,7 +91,7 @@ const BirthAndGenderGroup: React.FC<BirthAndGenderGroupProps> = ({ control, cata
               </FormControl>
               <SelectContent>
                 {(catalogs.gender || []).map((entry: any) => (
-                  <SelectItem key={entry.id} value={entry.id} data-testid={`change-personal-data-gender-option-${entry.id}`}>
+                  <SelectItem key={entry.id} value={String(entry.id)} data-testid={`change-personal-data-gender-option-${entry.id}`}>
                     {entry?.translations?.[0]?.value || entry?.value}
                   </SelectItem>
                 ))}

@@ -24,7 +24,10 @@ const NationalityLanguageStatusGroup: React.FC<NationalityLanguageStatusGroupPro
             <FormLabel data-testid="change-personal-data-nationality-label">
               {getTranslationFromI18nKeyAndLabel('lowcoder:employee_profile.details_layout.personal_information_container.nationality', 'Nationality')}
             </FormLabel>
-            <Select value={field.value ?? ''} onValueChange={(v) => field.onChange(v || null)}>
+            <Select
+              value={field.value === null || field.value === undefined || field.value === '' ? undefined : String(field.value)}
+              onValueChange={(v) => field.onChange(v || null)}
+            >
               <FormControl className="gba:w-[100%]">
                 <SelectTrigger data-testid="change-personal-data-nationality-select">
                   <SelectValue placeholder={placeholderSelect} />
@@ -32,7 +35,7 @@ const NationalityLanguageStatusGroup: React.FC<NationalityLanguageStatusGroupPro
               </FormControl>
               <SelectContent>
                 {(catalogs.nationality || []).map((entry: any) => (
-                  <SelectItem key={entry.id} value={entry.id} data-testid={`change-personal-data-nationality-option-${entry.id}`}>
+                  <SelectItem key={entry.id} value={String(entry.id)} data-testid={`change-personal-data-nationality-option-${entry.id}`}>
                     {entry?.translations?.[0]?.value || entry?.value}
                   </SelectItem>
                 ))}
@@ -52,7 +55,10 @@ const NationalityLanguageStatusGroup: React.FC<NationalityLanguageStatusGroupPro
             <FormLabel data-testid="change-personal-data-language-label">
               {getTranslationFromI18nKeyAndLabel('lowcoder:employee_profile.details_layout.personal_information_container.language', 'Native Language')}
             </FormLabel>
-            <Select value={field.value ?? ''} onValueChange={(v) => field.onChange(v || null)}>
+            <Select
+              value={field.value === null || field.value === undefined || field.value === '' ? undefined : String(field.value)}
+              onValueChange={(v) => field.onChange(v || null)}
+            >
               <FormControl className="gba:w-[100%]">
                 <SelectTrigger data-testid="change-personal-data-language-select">
                   <SelectValue placeholder={placeholderSelect} />
@@ -60,7 +66,7 @@ const NationalityLanguageStatusGroup: React.FC<NationalityLanguageStatusGroupPro
               </FormControl>
               <SelectContent>
                 {(catalogs.language || []).map((entry: any) => (
-                  <SelectItem key={entry.id} value={entry.id} data-testid={`change-personal-data-language-option-${entry.id}`}>
+                  <SelectItem key={entry.id} value={String(entry.id)} data-testid={`change-personal-data-language-option-${entry.id}`}>
                     {entry?.translations?.[0]?.value || entry?.value}
                   </SelectItem>
                 ))}
@@ -80,7 +86,10 @@ const NationalityLanguageStatusGroup: React.FC<NationalityLanguageStatusGroupPro
             <FormLabel data-testid="change-personal-data-marital-status-label">
               {getTranslationFromI18nKeyAndLabel('lowcoder:employee_profile.details_layout.personal_information_container.marital_status', 'Marital Status')}
             </FormLabel>
-            <Select value={field.value ?? ''} onValueChange={(v) => field.onChange(v || null)}>
+            <Select
+              value={field.value === null || field.value === undefined || field.value === '' ? undefined : String(field.value)}
+              onValueChange={(v) => field.onChange(v || null)}
+            >
               <FormControl className="gba:w-[100%]">
                 <SelectTrigger data-testid="change-personal-data-marital-status-select">
                   <SelectValue placeholder={placeholderSelect} />
@@ -88,7 +97,7 @@ const NationalityLanguageStatusGroup: React.FC<NationalityLanguageStatusGroupPro
               </FormControl>
               <SelectContent>
                 {(catalogs.maritalStatus || []).map((entry: any) => (
-                  <SelectItem key={entry.id} value={entry.id} data-testid={`change-personal-data-marital-status-option-${entry.id}`}>
+                  <SelectItem key={entry.id} value={String(entry.id)} data-testid={`change-personal-data-marital-status-option-${entry.id}`}>
                     {entry?.translations?.[0]?.value || entry?.value}
                   </SelectItem>
                 ))}

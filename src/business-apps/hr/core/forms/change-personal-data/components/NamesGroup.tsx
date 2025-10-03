@@ -28,7 +28,10 @@ const NamesGroup: React.FC<NamesGroupProps> = ({ control, catalogs }) => {
             <FormLabel data-testid="change-personal-data-salutation-label" className="gba:w-[100%]">
               {getTranslationFromI18nKeyAndLabel('lowcoder:employee_profile.details_layout.personal_information_container.salutation', 'Salutation')}
             </FormLabel>
-            <Select value={field.value ?? ''} onValueChange={(v) => field.onChange(v || null)}>
+            <Select
+              value={field.value === null || field.value === undefined || field.value === '' ? undefined : String(field.value)}
+              onValueChange={(v) => field.onChange(v || null)}
+            >
               <FormControl className="gba:w-[100%]">
                 <SelectTrigger data-testid="change-personal-data-salutation-select">
                   <SelectValue placeholder={placeholderSelect} />
@@ -36,7 +39,7 @@ const NamesGroup: React.FC<NamesGroupProps> = ({ control, catalogs }) => {
               </FormControl>
               <SelectContent>
                 {(catalogs.salutation || []).map((entry: any) => (
-                  <SelectItem key={entry.id} value={entry.id} data-testid={`change-personal-data-salutation-option-${entry.id}`}>
+                  <SelectItem key={entry.id} value={String(entry.id)} data-testid={`change-personal-data-salutation-option-${entry.id}`}>
                     {getCatalogValue(entry)}
                   </SelectItem>
                 ))}

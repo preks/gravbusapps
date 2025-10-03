@@ -1,5 +1,5 @@
-import React from 'react';
-import { FormField, FormItem, FormLabel, FormControl, FormMessage, Select, SelectTrigger, SelectValue, SelectContent, SelectItem, Badge, Button, Textarea } from '@newwork/nw-design-system';
+import React, { useState } from 'react';
+import { FormField, FormItem, FormLabel, FormControl, FormMessage, Select, SelectTrigger, SelectValue, SelectContent, SelectItem, Badge, Textarea } from '@newwork/nw-design-system';
 import type { Control } from 'react-hook-form';
 import { getTranslationFromI18nKeyAndLabel, getCatalogValue } from '@/common/utils/windowUtils';
 import { XCircleIcon } from 'lucide-react';
@@ -27,7 +27,10 @@ const QualificationFields: React.FC<QualificationFieldsProps> = ({ control, cata
             <FormLabel data-testid="change-personal-data-school-qualification-label">
               {getTranslationFromI18nKeyAndLabel('lowcoder:employee_profile.details_layout.personal_information_container.qualification', 'Highest School Qualification')}
             </FormLabel>
-            <Select value={field.value ?? ''} onValueChange={(v) => field.onChange(v || null)}>
+            <Select
+              value={field.value === null || field.value === undefined || field.value === '' ? undefined : String(field.value)}
+              onValueChange={(v) => field.onChange(v || null)}
+            >
               <FormControl className="gba:w-[100%]">
                 <SelectTrigger data-testid="change-personal-data-school-qualification-select">
                   <SelectValue placeholder={placeholderSelect} />
@@ -35,7 +38,7 @@ const QualificationFields: React.FC<QualificationFieldsProps> = ({ control, cata
               </FormControl>
               <SelectContent>
                 {(catalogs.schoolQualification || []).map((entry: any) => (
-                  <SelectItem key={entry.id} value={entry.id} data-testid={`change-personal-data-school-qualification-option-${entry.id}`}>
+                  <SelectItem key={entry.id} value={String(entry.id)} data-testid={`change-personal-data-school-qualification-option-${entry.id}`}>
                     {getCatalogValue(entry)}
                   </SelectItem>
                 ))}
@@ -51,7 +54,8 @@ const QualificationFields: React.FC<QualificationFieldsProps> = ({ control, cata
         control={control}
         name={"academicTitleRefs" as any}
         render={({ field }) => {
-          const selected: string[] = Array.isArray(field.value) ? field.value : [];
+          const [open, setOpen] = useState(false);
+          const selected: string[] = Array.isArray(field.value) ? field.value.map((id: any) => String(id)) : [];
           const addValue = (val: string) => {
             if (!val) return;
             if (selected.includes(val)) return;
@@ -60,49 +64,61 @@ const QualificationFields: React.FC<QualificationFieldsProps> = ({ control, cata
           const removeValue = (val: string) => {
             field.onChange((selected || []).filter((id: string) => id !== val));
           };
-          const selectedEntries = (catalogs.academicTitle || []).filter((e: any) => selected.includes(e.id));
-          const triggerText = selectedEntries.length > 0 ? selectedEntries.map((e: any) => getCatalogValue(e)).join(', ') : placeholderSelect;
+          const selectedEntries = (catalogs.academicTitle || []).filter((e: any) => selected.includes(String(e.id)));
+          const triggerHasSelection = selectedEntries.length > 0;
           return (
             <FormItem>
               <FormLabel data-testid="change-personal-data-academic-titles-label">
                 {getTranslationFromI18nKeyAndLabel('lowcoder:employee_profile.details_layout.personal_information_container.academic_titles', 'Academic Titles')}
               </FormLabel>
-              <Select value={''} onValueChange={(v) => addValue(v)}>
+              <Select value={''} onValueChange={(v) => addValue(v)} open={open} onOpenChange={setOpen}>
                 <FormControl className="gba:w-[100%]">
-                  <SelectTrigger data-testid="change-personal-data-academic-titles-select">
-                    <SelectValue placeholder={triggerText} />
+                  <SelectTrigger
+                    data-testid="change-personal-data-academic-titles-select"
+                    onMouseDownCapture={(evt) => {
+                      const target = evt.target as HTMLElement;
+                      if (target.closest('[data-chip-action="remove"]')) {
+                        evt.preventDefault();
+                        evt.stopPropagation();
+                      }
+                    }}
+                  >
+                    {triggerHasSelection ? (
+                      <div className="gba:flex gba:flex-wrap gba:gap-2 gba:min-h-5" data-testid="change-personal-data-academic-titles-chips">
+                    {selectedEntries.map((e: any) => (
+                          <Badge key={e.id} variant="secondary" className="gba:flex gba:items-center gba:gap-1 gba:h-6 gba:py-0 gba:px-2 gba:text-xs gba:pointer-events-auto" data-testid={`change-personal-data-academic-title-chip-${e.id}`}>
+                            <span className="gba:px-1">
+                              {getCatalogValue(e)}
+                            </span>
+                            <span
+                              role="button"
+                              tabIndex={0}
+                              onMouseDown={(evt) => { evt.preventDefault(); evt.stopPropagation(); }}
+                              onClick={(evt) => { evt.preventDefault(); evt.stopPropagation(); setOpen(false); removeValue(String(e.id)); }}
+                              onKeyDown={(evt) => { if (evt.key === 'Enter' || evt.key === ' ') { evt.preventDefault(); evt.stopPropagation(); setOpen(false); removeValue(String(e.id)); } }}
+                              aria-label="Remove"
+                              className="gba:cursor-pointer gba:rounded-full gba:p-0.5 gba:flex gba:items-center"
+                              data-testid={`change-personal-data-academic-title-remove-${e.id}`}
+                              data-chip-action="remove"
+                            >
+                              <XCircleIcon className="gba:w-3 gba:h-3" />
+                            </span>
+                          </Badge>
+                        ))}
+                      </div>
+                    ) : (
+                      <SelectValue placeholder={placeholderSelect} />
+                    )}
                   </SelectTrigger>
                 </FormControl>
                 <SelectContent>
                   {(catalogs.academicTitle || []).map((entry: any) => (
-                    <SelectItem key={entry.id} value={entry.id} data-testid={`change-personal-data-academic-title-option-${entry.id}`}>
+                    <SelectItem key={entry.id} value={String(entry.id)} data-testid={`change-personal-data-academic-title-option-${entry.id}`}>
                       {getCatalogValue(entry)}
                     </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
-              {selectedEntries.length > 0 && (
-                <div className="gba:flex gba:flex-wrap gba:gap-2" data-testid="change-personal-data-academic-titles-chips">
-                  {selectedEntries.map((e: any) => (
-                    <Badge key={e.id} variant="secondary" className="gba:flex gba:items-center" data-testid={`change-personal-data-academic-title-chip-${e.id}`}>
-                      <span className="gba:px-2">
-                        {getCatalogValue(e)}
-                      </span>
-                      <Button
-                        type="button"
-                        size="sm"
-                        variant="ghost"
-                        onClick={() => removeValue(e.id)}
-                        aria-label="Remove"
-                        className="gba:!px-2"
-                        data-testid={`change-personal-data-academic-title-remove-${e.id}`}
-                      >
-                        <XCircleIcon className="gba:w-4 gba:h-4" />
-                      </Button>
-                    </Badge>
-                  ))}
-                </div>
-              )}
               <FormMessage />
             </FormItem>
           );
