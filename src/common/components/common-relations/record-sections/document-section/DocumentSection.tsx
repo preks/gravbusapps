@@ -347,7 +347,7 @@ const DocumentSection: React.FC<DocumentSectionProps> = ({
           className="gba:text-xs"
           data-testid={`${dataTestId}-type-${document.id}`}
         >
-          {document.folder ? "Folder" : (document.documentType?.value || "Document")}
+          {document.folder === true ? "Folder" : (document.documentType?.value || "-")}
         </Badge>
       ),
     },
@@ -708,7 +708,7 @@ const DocumentSection: React.FC<DocumentSectionProps> = ({
      try {
        // Extract entity ID from deleteActionProps (fallback for compatibility)
        const externalData = deleteActionProps?.externalContextData || {};
-       const entityId = externalData.opportunityId || externalData.leadId || externalData.accountId || externalData.contactId || '';
+       const entityId = externalData.opportunityId || externalData.leadId || externalData.accountId || externalData.contactId || externalData.investmentId || '';
        
        if (!entityId) {
          toast.error('Entity ID not found');
@@ -929,7 +929,7 @@ const DocumentSection: React.FC<DocumentSectionProps> = ({
        
        // Extract entity ID from deleteActionProps (fallback for compatibility)
        const externalData = deleteActionProps?.externalContextData || {};
-       const entityId = externalData.opportunityId || externalData.leadId || externalData.accountId || externalData.contactId || '';
+       const entityId = externalData.opportunityId || externalData.leadId || externalData.accountId || externalData.contactId || externalData.investmentId || '';
        
        if (!entityId) {
          toast.error('Entity ID not found');
@@ -985,7 +985,7 @@ const DocumentSection: React.FC<DocumentSectionProps> = ({
        
        // Extract entity ID from deleteActionProps (fallback for compatibility)
        const externalData = deleteActionProps?.externalContextData || {};
-       const entityId = externalData.opportunityId || externalData.leadId || externalData.accountId || externalData.contactId || '';
+       const entityId = externalData.opportunityId || externalData.leadId || externalData.accountId || externalData.contactId || externalData.investmentId || '';
        
        if (!entityId) {
          toast.error('Entity ID not found');
@@ -1066,7 +1066,7 @@ const DocumentSection: React.FC<DocumentSectionProps> = ({
 
       // Extract entity ID from deleteActionProps (fallback for compatibility)
       const externalData = deleteActionProps?.externalContextData || {};
-      const entityId = externalData.opportunityId || externalData.leadId || externalData.accountId || externalData.contactId;
+      const entityId = externalData.opportunityId || externalData.leadId || externalData.accountId || externalData.contactId || externalData.investmentId;
 
       // Handle custom onClick function (this will handle update action)
       if (action.onClick) {
