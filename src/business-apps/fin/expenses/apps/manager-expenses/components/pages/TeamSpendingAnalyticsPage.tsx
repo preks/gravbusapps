@@ -749,18 +749,18 @@ const TeamSpendingAnalyticsPage: React.FC<TeamSpendingAnalyticsPageProps> = ({
               }
               title=""
               colors={[
-                "var(--nw-chart-5)",
-                "var(--nw-chart-2)",
-                "var(--nw-chart-1)",
-                "var(--nw-chart-4)",
-                "var(--nw-chart-3)"
+                "var(--nw-color-info-500)",
+                "var(--nw-color-success-500)",
+                "var(--nw-color-primary-500)",
+                "var(--nw-color-accent-500)",
+                "var(--nw-color-warning-500)"
               ]}
               currency={currencyFilter || primaryCurrency}
             getColor={(entry) => {
               const code = entry.status || entry.name;
               const config = getAdvancePaymentStatusDisplay(code);
               const type = config?.type || 'draft';
-              return resolveStatusColor(type, 'var(--nw-chart-5)');
+              return resolveStatusColor(type, 'var(--nw-color-info-500)');
             }}
               data-testid="team-analytics-advance-payments-status-amounts-chart"
             />

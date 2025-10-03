@@ -207,7 +207,7 @@ const PieChartComponent: React.FC<PieChartProps> = ({
                 gap: '16px'
               }}
               formatter={(value) => (
-                <span style={{ fontSize: '12px', whiteSpace: 'nowrap' }}>{value}</span>
+                <span style={{ fontSize: '12px', whiteSpace: 'nowrap', color: '#000000' }}>{value}</span>
               )}
             />
           </PieChart>

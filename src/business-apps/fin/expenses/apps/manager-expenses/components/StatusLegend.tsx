@@ -13,6 +13,16 @@ const pillTypeClassMap: Record<PillType, string> = {
   preparing: 'gba:bg-muted'        // gray (preparing status)
 };
 
+// Text color map for status labels (black for preparing)
+const pillTypeTextColorMap: Record<PillType, string> = {
+  draft: 'gba:text-muted-foreground',
+  completed: 'gba:text-muted-foreground',
+  waiting: 'gba:text-muted-foreground',
+  task: 'gba:text-muted-foreground',
+  error: 'gba:text-muted-foreground',
+  preparing: 'gba:text-foreground'     // black text for better visibility
+};
+
 // Design token CSS variables for charts (will be resolved to hex at runtime)
 // Recharts requires actual color values, so we use CSS variables that get resolved
 const pillTypeColorTokens: Record<PillType, string> = {
@@ -97,7 +107,7 @@ export const StatusLegend: React.FC<{ id?: string }> = ({ id }) => (
           aria-hidden="true"
           className={`gba:inline-block gba:h-3 gba:w-3 gba:rounded-full ${pillTypeClassMap[type]}`}
         />
-        <span className="gba:text-xs gba:text-muted-foreground">{getPillTypeLabel(type)}</span>
+        <span className={`gba:text-xs ${pillTypeTextColorMap[type]}`}>{getPillTypeLabel(type)}</span>
       </div>
     ))}
   </div>
