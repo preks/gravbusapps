@@ -40,7 +40,7 @@ const ExpenseRequestTableRow: React.FC<ExpenseRequestTableRowProps> = ({
         {onSelectRecord && (
           <Checkbox
             checked={isSelected}
-            onCheckedChange={(checked) => onSelectRecord(record, checked as boolean)}
+            onCheckedChange={(checked) => onSelectRecord(record, checked === true)}
             onClick={(e) => e.stopPropagation()}
             data-testid={`select-record-checkbox-${record.id}`}
           />

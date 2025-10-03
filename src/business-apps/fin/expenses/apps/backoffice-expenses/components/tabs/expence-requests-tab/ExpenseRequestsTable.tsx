@@ -264,13 +264,20 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = (props) => {
 
   // Bulk selection handlers
   const handleSelectRecord = useCallback((record: ExpenseData, checked: boolean) => {
-    if (checked) {
-      setSelectedRecords(prev => [...prev, record]);
-      setSelectedRowKeys(prev => [...prev, record.id]);
-    } else {
-      setSelectedRecords(prev => prev.filter(r => r.id !== record.id));
-      setSelectedRowKeys(prev => prev.filter(key => key !== record.id));
-    }
+    setSelectedRecords(prev => {
+      const exists = prev.some(r => r.id === record.id);
+      if (checked) {
+        return exists ? prev : [...prev, record];
+      }
+      return prev.filter(r => r.id !== record.id);
+    });
+    setSelectedRowKeys(prev => {
+      const exists = prev.includes(record.id);
+      if (checked) {
+        return exists ? prev : [...prev, record.id];
+      }
+      return prev.filter(key => key !== record.id);
+    });
   }, []);
 
   const handleSelectAllRecords = useCallback((checked: boolean) => {
@@ -285,10 +292,11 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = (props) => {
   }, [expenses]);
 
   const handleBulkTransfer = useCallback(() => {
+    console.log('intra in bulk transfer', selectedRecords);
     if (selectedRecords.length > 0) {
       const bookableRecords = selectedRecords.filter(record => record.status === 'BOOKED');
       if (bookableRecords.length > 0) {
-        handleBulkTransferPayment(bookableRecords);
+        // handleBulkTransferPayment(bookableRecords);
       }
     }
   }, [selectedRecords, handleBulkTransferPayment]);
@@ -296,6 +304,11 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = (props) => {
   // Check if any selected records are bookable
   const hasBookableSelected = useMemo(() => {
     return selectedRecords.some(record => record.status === 'BOOKED');
+  }, [selectedRecords]);
+
+  // Count selected records that are bookable
+  const bookedSelectedCount = useMemo(() => {
+    return selectedRecords.filter(r => r.status === 'BOOKED').length;
   }, [selectedRecords]);
 
   // Check if all visible records are bookable
@@ -360,13 +373,13 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = (props) => {
     ];
   }, [availableStatuses, statusFilter, employeeSearchText, showEmployeeDropdown, employeeSearchResults, employeeSearchLoading, selectedEmployees, handleEmployeeFilter, debouncedSearchEmployees, localAmountMin, setLocalAmountMin, localAmountMax, setLocalAmountMax, debouncedAmountFilter]);
 
-  const getFilters = useCallback((filtersToApply?: string[]) => {
+  const getFilters = useCallback((_filtersToApply?: string[]) => {
     const filters: Record<string, any> = {};
     if (employeeFilter) filters.employee = employeeFilter;
     return filters;
   }, [employeeFilter]);
 
-  const setFilters = useCallback((filters: string[]) => {
+  const setFilters = useCallback((_filters: string[]) => {
     setEmployeeFilter('');
     setSelectedEmployees([]);
     setEmployeeSearchText('');
@@ -426,16 +439,21 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = (props) => {
             employee: employeeFilter ? `Employee: ${selectedEmployees.map(e => e.name).join(', ')}` : 'Employee: All',
             amount: `Amount: ${amountMinFilter || '0'} - ${amountMaxFilter || '∞'}`,
           },
-          actions: hasBookableSelected ? (
-            <Button
-              onClick={handleBulkTransfer}
-              data-testid="bulk-transfer-payment-button"
-              variant="outline"
-              size="sm"
-            >
-              {getTranslationFromI18nKeyAndLabel('lowcoder:transfer_payment', 'Transfer Payment')} ({selectedRecords.filter(r => r.status === 'BOOKED').length} {getTranslationFromI18nKeyAndLabel('lowcoder:expense_request_list.selected', 'selected')})
-            </Button>
-          ) : undefined,
+          // Always provide a truthy actions prop to keep hook order stable in DataController
+          // Include the dynamic count in key/testid so memoized DataControllerActions detects changes
+          actions: hasBookableSelected ? [
+            (
+              <Button
+                key={`bulk-transfer-${bookedSelectedCount}`}
+                onClick={handleBulkTransfer}
+                data-testid={`bulk-transfer-payment-button-${bookedSelectedCount}`}
+                variant="outline"
+                size="sm"
+              >
+                {getTranslationFromI18nKeyAndLabel('lowcoder:transfer_payment', 'Transfer Payment')} ({bookedSelectedCount} {getTranslationFromI18nKeyAndLabel('lowcoder:expense_request_list.selected', 'selected')})
+              </Button>
+            )
+          ] : [],
         }}
         dataFilterProps={{
           filterGroups: filterGroups,
@@ -499,7 +517,7 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = (props) => {
                             {bookableRecordsCount > 0 && (
                               <Checkbox
                                 checked={allBookableSelected}
-                                onCheckedChange={handleSelectAllRecords}
+                                onCheckedChange={(checked) => handleSelectAllRecords(checked === true)}
                                 data-testid="select-all-records-checkbox"
                               />
                             )}
