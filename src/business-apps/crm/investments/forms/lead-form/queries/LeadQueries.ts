@@ -31,12 +31,6 @@ export interface InvestmentLeadQueryResult {
   };
 
   // Contact Information
-  salutationRef?: string; // ✅ ADDED
-  salutation?: {
-    id: string;
-    code: string;
-    value: string;
-  };
   academicTitleRef?: string; // ✅ ADDED
   academicTitle?: {
     id: string;
@@ -211,13 +205,7 @@ export const GET_INVESTMENT_LEAD_BY_ID = `
         displayName
       }
       
-      # Contact Information - ✅ ADDED: Salutation and Academic Title
-      salutationRef
-      salutation {
-        id
-        code
-        value
-      }
+      # Contact Information - ✅ ADDED: Academic Title
       academicTitleRef
       academicTitle {
         id

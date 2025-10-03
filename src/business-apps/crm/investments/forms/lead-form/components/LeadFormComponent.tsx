@@ -48,7 +48,6 @@ const LeadFormComponent: React.FC = () => {
         sourceApp: "IRM", // ✅ FIXED: Changed from CRM to IRM for Investment Relations Management
 
         // ✅ UPDATED: Contact Information with new fields
-        salutationRef: toStringOrUndefined(formValues.salutation),
         academicTitleRef: toStringOrUndefined(formValues.academicTitle),
         firstName: toStringOrUndefined(formValues.firstName),
         lastName: toStringOrUndefined(formValues.lastName),
