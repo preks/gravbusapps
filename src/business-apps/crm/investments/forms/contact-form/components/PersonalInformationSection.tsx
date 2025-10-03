@@ -17,6 +17,7 @@ import {
 } from "@newwork/nw-design-system";
 import { PiCaretDown, PiCaretUp } from "react-icons/pi";
 import { formatDataTestId } from "@/common/utils/formatDataTestId";
+import AccountSelector from "./AccountSelector";
 
 const prefixDataTestId = "ContactForm";
 
@@ -29,6 +30,9 @@ const PersonalInformationSection: React.FC = () => {
     formValues,
     setFormValues,
     error,
+
+    // Account selection
+    accountsError,
 
     // Academic Titles
     academicTitles,
@@ -186,6 +190,7 @@ const PersonalInformationSection: React.FC = () => {
               <AlertDescription>{error}</AlertDescription>
             </Alert>
           )}
+
 
 
 

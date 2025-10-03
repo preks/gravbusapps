@@ -53,6 +53,9 @@ export const mapInvestmentContactToFormValues = (
     ownerEmployeeId: contact.ownerEmployeeId || "",
     owner: contact.ownerEmployeeId || "", // Map to owner field for form
 
+    // Account Information
+    accountIds: contact.investmentAccountContact?.map(rel => rel.account.id) || [],
+
     // Additional Information
     notesSummary: contact.notesSummary || "",
     businessKey: contact.businessKey || "",

@@ -17,6 +17,7 @@ import {
   mapInvestmentContactToFormValues,
 } from "../hooks/useContactData";
 import { useEmployeeByIdGraphQL } from "../hooks/useEmployeeByIdGraphQL";
+import { useAccountSelection } from "../hooks/useAccountSelection";
 
 // ✅ UPDATED: Catalog constants for InvestmentContact
 export const ACADEMIC_TITLE_CATALOG = "AcademicTitle";
@@ -64,6 +65,15 @@ interface ContactFormContextValue extends ContactContextState {
   searchLanguages: (search: string) => void;
   loadMoreLanguages: () => void;
   showMoreLanguages: () => void;
+
+  // Account selection
+  accounts: SelectOption[];
+  accountsLoading: boolean;
+  accountsError: string | null;
+  accountsHasMore: boolean;
+  searchAccounts: (search: string) => void;
+  loadMoreAccounts: () => void;
+  clearAccountSearch: () => void;
 }
 
 const ContactFormContext = createContext<ContactFormContextValue | null>(null);
@@ -117,6 +127,9 @@ export const ContactFormProvider: React.FC<ContactFormProviderProps> = ({
     // Owner Information
     ownerEmployeeId: "",
     owner: "",
+
+    // Account Information
+    accountIds: [], // ✅ NEW: Array of account IDs
 
     // Additional Information
     notesSummary: "",
@@ -202,6 +215,17 @@ export const ContactFormProvider: React.FC<ContactFormProviderProps> = ({
     version: CATALOG_VERSION,
     accessToken: businessAppContext.accessToken,
   });
+
+  // Account selection hook
+  const {
+    accounts: accountOptions,
+    loading: accountsLoading,
+    error: accountsError,
+    hasMore: accountsHasMore,
+    search: searchAccounts,
+    loadMore: loadMoreAccounts,
+    clearSearch: clearAccountSearch,
+  } = useAccountSelection(businessAppContext);
 
 
   // ✅ CRITICAL: Initialize catalogs on mount (MATCHES CRM PATTERN)
@@ -488,6 +512,15 @@ export const ContactFormProvider: React.FC<ContactFormProviderProps> = ({
     searchLanguages: searchLanguagesWrapper,
     loadMoreLanguages: loadMoreLanguagesWrapper,
     showMoreLanguages: showMoreLanguagesWrapper,
+
+    // Account selection (with safe fallbacks)
+    accounts: accountOptions || [],
+    accountsLoading: accountsLoading || false,
+    accountsError: accountsError || null,
+    accountsHasMore: accountsHasMore || false,
+    searchAccounts: searchAccounts,
+    loadMoreAccounts: loadMoreAccounts,
+    clearAccountSearch: clearAccountSearch,
 
     // Additional required from ContactContextState interface
     departments: [], // Not used in simplified InvestmentContact form

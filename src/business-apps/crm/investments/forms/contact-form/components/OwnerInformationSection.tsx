@@ -15,6 +15,7 @@ import {
 import { formatDataTestId } from "@/common/utils/formatDataTestId";
 import { useContactFormContext } from "../context/ContactFormContext";
 import OwnerSelector from "./OwnerSelector";
+import AccountSelector from "./AccountSelector";
 
 const prefixDataTestId = "ContactForm";
 
@@ -28,6 +29,7 @@ const OwnerInformationSection: React.FC = () => {
     employeePositionsHasMore,
     loadMoreEmployeePositions,
     searchEmployeePositions,
+    accountsError,
     error,
   } = useContactFormContext();
 
@@ -137,6 +139,14 @@ const OwnerInformationSection: React.FC = () => {
             </SelectContent>
           </Select>
         </div>
+
+        {/* Related Account Selection */}
+        <AccountSelector
+          value={formValues.accountIds}
+          onChange={(accountIds) => setFormValues({ accountIds })}
+          dataTestId={formatDataTestId(prefixDataTestId, "account-selector")}
+          error={accountsError}
+        />
 
         {/* Email */}
         <div className="gba:space-y-2">
