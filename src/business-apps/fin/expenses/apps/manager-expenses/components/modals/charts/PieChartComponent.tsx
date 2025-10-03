@@ -39,13 +39,13 @@ const PieChartComponent: React.FC<PieChartProps> = ({
   dataKey = "value",
   height = 300,
   colors = [
-    'var(--nw-color-primary-500)',
-    'var(--nw-color-success-500)',
-    'var(--nw-color-warning-500)',
-    'var(--nw-color-danger-500)',
-    'var(--nw-color-info-500)',
-    'var(--nw-color-accent-500)',
-    'var(--nw-color-neutral-500)'
+    'var(--nw-primary)',
+    'var(--nw-success)',
+    'var(--nw-warning)',
+    'var(--nw-destructive)',
+    'var(--nw-info)',
+    'var(--nw-accent)',
+    'var(--nw-muted)'
   ],
   currency = "EUR",
   valueType = 'amount',

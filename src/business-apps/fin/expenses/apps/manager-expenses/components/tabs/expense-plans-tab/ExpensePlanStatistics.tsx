@@ -105,7 +105,7 @@ const ExpensePlanStatisticsDisplay: React.FC<ExpensePlanStatisticsProps> = ({
         ),
         value: planStats.pendingCount.toString(),
         prefix: <PiCalendar />,
-        color: "var(--nw-color-warning-500)",
+        color: "var(--nw-warning)",
         valueIsString: true,
         description: getTranslationFromI18nKeyAndLabel(
           "lowcoder:team_expenses_page.expense_plans_tab.requires_action",
@@ -122,7 +122,7 @@ const ExpensePlanStatisticsDisplay: React.FC<ExpensePlanStatisticsProps> = ({
         ),
         value: planStats.totalCount.toString(),
         prefix: <PiFileText />,
-        color: "var(--nw-color-primary-500)",
+        color: "var(--nw-primary)",
         valueIsString: true,
         description: getTranslationFromI18nKeyAndLabel(
           "lowcoder:team_expenses_page.expense_plans_tab.all_submitted_plans",
@@ -191,7 +191,7 @@ const ExpensePlanStatisticsDisplay: React.FC<ExpensePlanStatisticsProps> = ({
             {displayCurrency}
           </span>
         ),
-        color: "var(--nw-color-success-600)",
+        color: "var(--nw-success)",
         valueIsString: true,
         
         description: getTranslationFromI18nKeyAndLabel(

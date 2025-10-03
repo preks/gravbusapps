@@ -38,7 +38,7 @@ const BarChartComponent: React.FC<BarChartProps> = ({
   title,
   xAxisDataKey = "name",
   barDataKey = "value",
-  barColor = "var(--nw-color-primary-500)",
+  barColor = "var(--nw-primary)",
   height = 300,
   currency = "EUR",
   valueType = 'amount',

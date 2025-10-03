@@ -153,7 +153,7 @@ const TeamSpendingAnalyticsPage: React.FC<TeamSpendingAnalyticsPageProps> = ({
   };
 
   // Create widgets for summary statistics (force two decimals in KPI formatting)
-  const kpiCurrencyCode = currencyFilter || primaryCurrency;
+  const kpiCurrencyCode = currencyFilter || primaryCurrency || "EUR";
   const formatKpiAmount = (amount: number | null | undefined): string => {
     const safe = typeof amount === 'number' ? amount : 0;
     const userLocale = getCurrentActiveUserLocale();

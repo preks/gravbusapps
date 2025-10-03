@@ -68,7 +68,7 @@ const ExpenseRequestStatistics: React.FC<ExpenseRequestStatisticsProps> = ({
             "Pending Requests",
           ),
           value: requestStats.pendingCount,
-          color: selectedFilters.includes("PENDING") ? "var(--nw-color-primary-500)" : "var(--nw-color-warning-500)",
+          color: selectedFilters.includes("PENDING") ? "var(--nw-primary)" : "var(--nw-warning)",
           
           description: getTranslationFromI18nKeyAndLabel(
             "lowcoder:team_expenses_page.expense_requests_tab.waiting_for_approval",
@@ -84,7 +84,7 @@ const ExpenseRequestStatistics: React.FC<ExpenseRequestStatisticsProps> = ({
             "Pending Amount",
           ),
           value: formatCurrencyDisplay(requestStats.pendingAmount || 0, displayCurrency),
-          color: "var(--nw-color-success-500)",
+          color: "var(--nw-success)",
           
           description: getTranslationFromI18nKeyAndLabel(
             "lowcoder:team_expenses_page.expense_requests_tab.total_pending_funds",
@@ -103,7 +103,7 @@ const ExpenseRequestStatistics: React.FC<ExpenseRequestStatisticsProps> = ({
           color: (() => {
             const multiFilters = ["PENDING", "APPROVED", "VERIFIED", "BOOKED", "TRANSFERRED"];
             const allActive = multiFilters.every((filter) => selectedFilters.includes(filter));
-            return allActive ? "var(--nw-color-primary-600)" : "var(--nw-color-primary-500)";
+            return allActive ? "var(--nw-primary)" : "var(--nw-primary)";
           })(),
           
           description: getTranslationFromI18nKeyAndLabel(
@@ -123,7 +123,7 @@ const ExpenseRequestStatistics: React.FC<ExpenseRequestStatisticsProps> = ({
             "Total Submitted Amount",
           ),
           value: formatCurrencyDisplay(requestStats.totalSubmittedAmount || 0, displayCurrency),
-          color: selectedFilters.length === 0 ? "var(--nw-color-primary-600)" : "var(--nw-color-accent-500)",
+          color: selectedFilters.length === 0 ? "var(--nw-primary)" : "var(--nw-accent)",
           
           description: getTranslationFromI18nKeyAndLabel(
             "lowcoder:team_expenses_page.expense_requests_tab.all_expense_requests",

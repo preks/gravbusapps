@@ -43,7 +43,7 @@ const LineChartComponent: React.FC<LineChartProps> = ({
   title,
   xAxisDataKey = "date",
   lineDataKey = "value",
-  lineColor = "var(--nw-color-success-500)",
+  lineColor = "var(--nw-success)",
   height = 300,
   currency = "EUR",
   dataTestId,

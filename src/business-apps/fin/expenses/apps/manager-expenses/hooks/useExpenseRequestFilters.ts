@@ -118,7 +118,7 @@ export const useExpenseRequestFilters = ({
           setLocalPrimaryCurrency(currency);
           setUserHasManuallySelectedCurrency(true);
         } else {
-          setLocalPrimaryCurrency(localMostUsedCurrency || "");
+          setLocalPrimaryCurrency(localMostUsedCurrency || "EUR");
           setUserHasManuallySelectedCurrency(false);
         }
       } else {
@@ -190,7 +190,7 @@ export const useExpenseRequestFilters = ({
 
   const resetCurrencySelection = useCallback(() => {
     setUserHasManuallySelectedCurrency(false);
-    setLocalPrimaryCurrency(localMostUsedCurrency || "");
+    setLocalPrimaryCurrency(localMostUsedCurrency || "EUR");
   }, [localMostUsedCurrency]);
 
   const addFilter = useCallback(

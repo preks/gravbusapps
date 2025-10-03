@@ -35,7 +35,7 @@ const AdvancePaymentStatistics: React.FC<AdvancePaymentStatisticsProps> = ({
         value: advancePaymentStats.sumAmount
           ? formatCurrencyDisplay(advancePaymentStats.sumAmount, primaryCurrency)
           : formatCurrencyDisplay(0, primaryCurrency),
-        color: "var(--nw-color-success-500)",
+        color: "var(--nw-success)",
         valueIsString: true,
         description: getTranslationFromI18nKeyAndLabel(
           "lowcoder:team_expenses_page.advance_payments_tab.total_advance_payments",
@@ -51,7 +51,7 @@ const AdvancePaymentStatistics: React.FC<AdvancePaymentStatisticsProps> = ({
         value: advancePaymentStats.pendingAmount
           ? formatCurrencyDisplay(advancePaymentStats.pendingAmount, primaryCurrency)
           : formatCurrencyDisplay(0, primaryCurrency),
-        color: "var(--nw-color-danger-500)",
+        color: "var(--nw-destructive)",
         valueIsString: true,
         description: getTranslationFromI18nKeyAndLabel(
           "lowcoder:team_expenses_page.expense_plans_tab.awaiting_approval",
