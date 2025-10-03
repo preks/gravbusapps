@@ -14,6 +14,7 @@ export interface UseInvestmentAccountFiltersReturn {
   handleFilterChange: (filterId: string, selected: boolean) => void;
   createdAfter?: string;
   createdBefore?: string;
+  filtersInitialized: boolean;
 }
 
 export const useInvestmentAccountFilters = (
@@ -23,6 +24,9 @@ export const useInvestmentAccountFilters = (
 ): UseInvestmentAccountFiltersReturn => {
   const graphqlClient = useGraphQLClient(context.accessToken);
   const catalogClient = useCatalogManagerClient(context.accessToken);
+
+  // Filters initialization state
+  const [filtersInitialized, setFiltersInitialized] = useState(false);
 
   // Date range filter state (createdAt)
   const [createdAfter, setCreatedAfter] = useState<string | undefined>(undefined);
@@ -348,12 +352,23 @@ export const useInvestmentAccountFilters = (
     void loadLocations("");
   }, [loadOwners, loadIndustries, loadLegalForms, loadCompanySizes, loadRevenueBands, loadCompanies, loadLocations]);
 
+  // Track when all initial filter loading is complete
+  useEffect(() => {
+    const anyLoading = loadingOwners || loadingIndustries || loadingLegalForms || 
+                       loadingCompanySizes || loadingRevenueBands || loadingCompanies || 
+                       loadingLocations;
+    
+    setFiltersInitialized(!anyLoading);
+  }, [loadingOwners, loadingIndustries, loadingLegalForms, loadingCompanySizes, 
+      loadingRevenueBands, loadingCompanies, loadingLocations]);
+
   return {
     filterGroups,
     filterLabelMap,
     handleFilterChange,
     createdAfter,
     createdBefore,
+    filtersInitialized,
   };
 };
 

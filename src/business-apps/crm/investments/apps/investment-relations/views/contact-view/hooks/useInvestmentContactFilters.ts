@@ -13,6 +13,10 @@ export const useInvestmentContactFilters = (
   setSelectedFilters: (filters: string[]) => void
 ) => {
   const graphqlClient = useGraphQLClient(context.accessToken);
+  
+  // Filters initialization state
+  const [filtersInitialized, setFiltersInitialized] = useState(false);
+  
   // Distinct option states (old CRM contact-list parity)
   const [owners, setOwners] = useState<SimpleItem[]>([]);
   const [contacts, setContacts] = useState<SimpleItem[]>([]);
@@ -133,6 +137,14 @@ export const useInvestmentContactFilters = (
     loadDistinct('departments');
   }, [loadDistinct]);
 
+  // Track when all initial filter loading is complete
+  useEffect(() => {
+    const anyLoading = loading.owners || loading.contacts || loading.accounts || 
+                       loading.types || loading.departments;
+    
+    setFiltersInitialized(!anyLoading);
+  }, [loading]);
+
   const filterLabelMap: Record<string, string> = useMemo(() => {
     const map: Record<string, string> = {};
     owners.forEach(o => { map[`owner:${o.id}`] = o.label; });
@@ -212,7 +224,7 @@ export const useInvestmentContactFilters = (
     setSelectedFilters(selected ? [...selectedFilters, filterId] : selectedFilters.filter(f => f !== filterId));
   }, [selectedFilters, setSelectedFilters]);
 
-  return { filterGroups, filterLabelMap, handleFilterChange, birthDateAfter, birthDateBefore };
+  return { filterGroups, filterLabelMap, handleFilterChange, birthDateAfter, birthDateBefore, filtersInitialized };
 };
 
 
