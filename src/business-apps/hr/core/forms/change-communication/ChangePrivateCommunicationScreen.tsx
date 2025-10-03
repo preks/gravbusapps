@@ -1,6 +1,7 @@
 import React, { useMemo, useState } from 'react';
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem, Input } from '@newwork/nw-design-system';
 import { AppActionForm } from '@/components/app-action-form';
+import flowSmall from '@/assets/icons/flowSmall.svg';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 import { formatDataTestId } from '@/common/utils/formatDataTestId';
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
@@ -29,10 +30,13 @@ const ChangePrivateCommunicationScreen: React.FC<ChangePrivateCommunicationScree
 
   const handlePreSubmit = async () => {
     return {
-      channelType,
-      type: valueType,
-      purpose,
-      value: value.trim(),
+      employeeCommunication: {
+        channelRef: channelType,
+        typeRef: valueType,
+        purpose,
+        value: value.trim(),
+        employeeId: context.userInfo?.employeeDetails?.employeeId,
+      },
     };
   };
 
@@ -51,6 +55,12 @@ const ChangePrivateCommunicationScreen: React.FC<ChangePrivateCommunicationScree
         {/* Header */}
         <div className="gba:flex gba:items-center gba:justify-between gba:p-6">
           <div className="gba:flex gba:items-center gba:gap-2">
+            <img
+              src={flowSmall}
+              alt="Flow Small"
+              className="gba:w-6 gba:h-6"
+              style={{ filter: 'brightness(0)' }}
+            />
             <h2 className="gba:text-xl gba:font-semibold gba:text-gray-900">
               {getTranslationFromI18nKeyAndLabel('lowcoder:communication_form.title', 'Change Private Communication')}
             </h2>
@@ -72,7 +82,7 @@ const ChangePrivateCommunicationScreen: React.FC<ChangePrivateCommunicationScree
               </SelectTrigger>
               <SelectContent>
                 {channels.map((c) => (
-                  <SelectItem key={c.id} value={c.value}>{c.label}</SelectItem>
+                  <SelectItem key={c.id} value={c.id}>{c.label}</SelectItem>
                 ))}
               </SelectContent>
             </Select>
@@ -89,7 +99,7 @@ const ChangePrivateCommunicationScreen: React.FC<ChangePrivateCommunicationScree
               </SelectTrigger>
               <SelectContent>
                 {types.map((t) => (
-                  <SelectItem key={t.id} value={t.value}>{t.label}</SelectItem>
+                  <SelectItem key={t.id} value={t.id}>{t.label}</SelectItem>
                 ))}
               </SelectContent>
             </Select>
