@@ -75,8 +75,6 @@ export interface LeadFormValues {
   size: string;
   measurementUnit: string;
 
-  // Notes
-  notes: string;
 
   // Conversion Information
   conversionDate?: string; // ✅ ADDED: Date when lead was converted

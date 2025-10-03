@@ -2,6 +2,7 @@ import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
 
 export interface Address {
   id: string; // Unique identifier for the address
+  version?: number; // Version for optimistic locking during updates
   addressType: string; // "PRIMARY_ADDRESS", "SECONDARY_ADDRESS", "UNKNOWN_ADDRESS", etc.
   addressLines: string[]; // Dynamic array of address lines (stored in additional properties)
   postalCode: string;

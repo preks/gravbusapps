@@ -69,10 +69,17 @@ export const AccountHeader: React.FC<AccountHeaderProps> = ({
             
             {/* Account-specific fields */}
             <div className="gba:text-gray-500 gba:text-sm gba:mb-2 gba:flex gba:flex-row gba:items-center gba:flex-nowrap">
-              {(accountData?.industryClassLabel || account.industry) && (
+              {accountData?.email && (
                 <>
                   <Tags className="gba:inline gba:w-4 gba:h-4 gba:mr-1" />
-                  <span>Industry: {accountData?.industryClassLabel || account.industry}</span>
+                  <span>Email: {accountData.email}</span>
+                  <span className="gba:mx-2">•</span>
+                </>
+              )}
+              {accountData?.foundationDate && (
+                <>
+                  <Tags className="gba:inline gba:w-4 gba:h-4 gba:mr-1" />
+                  <span>Founded: {new Date(accountData.foundationDate).toLocaleDateString()}</span>
                   <span className="gba:mx-2">•</span>
                 </>
               )}

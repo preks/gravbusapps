@@ -138,6 +138,7 @@ interface LeadFormContextValue extends LeadContextState {
   addressLineCount: number;
   addAddressLine: () => void;
   removeAddressLine: () => void;
+  removeAddressLineAtIndex: (lineIndex: number) => void;
 
   // Address management (new dynamic structure)
   addAddress: () => void;
@@ -783,6 +784,27 @@ export const LeadFormProvider: React.FC<LeadFormProviderProps> = ({
     }
   }, [addressLineCount]);
 
+  // Remove specific address line by index (1-based)
+  const removeAddressLineAtIndex = useCallback((lineIndex: number) => {
+    if (addressLineCount > 1 && lineIndex >= 1 && lineIndex <= addressLineCount) {
+      const newCount = addressLineCount - 1;
+      setAddressLineCount(newCount);
+
+      // Shift all subsequent lines up
+      const updates: Partial<LeadFormValues> = {};
+      for (let i = lineIndex; i < addressLineCount; i++) {
+        const currentField = `addressLine${i}` as keyof LeadFormValues;
+        const nextField = `addressLine${i + 1}` as keyof LeadFormValues;
+        updates[currentField] = formValues[nextField] as string || "";
+      }
+      // Clear the last line
+      const lastField = `addressLine${addressLineCount}` as keyof LeadFormValues;
+      updates[lastField] = "";
+
+      setFormValuesState((prev) => ({ ...prev, ...updates }));
+    }
+  }, [addressLineCount, formValues]);
+
   const setFormValues = useCallback((updates: Partial<LeadFormValues>) => {
     setFormValuesState((prev) => ({ ...prev, ...updates }));
   }, []);
@@ -1050,6 +1072,7 @@ export const LeadFormProvider: React.FC<LeadFormProviderProps> = ({
     addressLineCount,
     addAddressLine,
     removeAddressLine,
+    removeAddressLineAtIndex,
 
     // Address management (new dynamic structure)
     addAddress,
