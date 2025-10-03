@@ -184,6 +184,78 @@ const InvestmentAccountRecordContent: React.FC<AccountRecordContentProps> = ({ a
     loadSectionData();
   }, [loadSectionData]);
 
+  // Refetch function for process completion
+  const refetchAccountData = useCallback(async () => {
+    if (!accountId) return;
+    
+    try {
+      setDataLoading(true);
+      setDataError(null);
+      const result = await fetchInvestmentAccountById(accountId);
+      if (result?.account) {
+        setAccountData(result.account);
+      }
+    } catch (error) {
+      console.error('Error refetching investment account:', error);
+      setDataError(error instanceof Error ? error.message : 'Unknown error');
+    } finally {
+      setDataLoading(false);
+    }
+  }, [accountId, fetchInvestmentAccountById]);
+
+  // Listen for process completion events to refresh account data
+  useEffect(() => {
+    const handleProcessCompletion = (event: any) => {
+      try {
+        // Check for successful completion
+        if (event.detail?.resolution === "success") {
+          refetchAccountData();
+          loadSectionData(); // Also refresh section data
+          return;
+        }
+
+        // Also check for different event structure
+        const response = event.detail?.response;
+        if (response?.detail?.resolution === "success" || response?.account) {
+          refetchAccountData();
+          loadSectionData(); // Also refresh section data
+        }
+      } catch (err) {
+        console.error("Error handling process completion in AccountRecord:", err);
+      }
+    };
+
+    // Listen to multiple possible event names for account updates
+    const eventNames = [
+      "com.newwork.process.taskCompletion",
+      "com.newwork.process.completion",
+      "com.newwork.process.continue",
+      "com.newwork.process.processCompletion",
+      "processCompletion",
+      "taskCompletion",
+      "taskCompleted",
+      "processCompleted",
+      "task-completion",
+      "process-completion",
+    ];
+
+    eventNames.forEach((eventName) => {
+      window.addEventListener(
+        eventName,
+        handleProcessCompletion as EventListener
+      );
+    });
+
+    return () => {
+      eventNames.forEach((eventName) => {
+        window.removeEventListener(
+          eventName,
+          handleProcessCompletion as EventListener
+        );
+      });
+    };
+  }, [accountId, refetchAccountData, loadSectionData]);
+
   // Memoize header data - must be called before conditional returns
   const headerDetailGroups = useMemo(() => [
     {
@@ -358,9 +430,9 @@ const InvestmentAccountRecordContent: React.FC<AccountRecordContentProps> = ({ a
                   component: ContactSection,
                   props: {
                     ...props,
-                    contacts: accountData?.investmentAccountContact?.map(accountContact => accountContact.contact).filter(Boolean) || [],
-                    contact: accountData?.investmentAccountContact?.[0]?.contact || undefined,
-                    contactId: accountData?.investmentAccountContact?.[0]?.contact?.id || undefined,
+                    contacts: (accountData as any)?.investmentAccountContact?.map((accountContact: any) => accountContact.contact).filter(Boolean) || [],
+                    contact: (accountData as any)?.investmentAccountContact?.[0]?.contact || undefined,
+                    contactId: (accountData as any)?.investmentAccountContact?.[0]?.contact?.id || undefined,
                     actionButtonProps: {
                       contextsArray: [FlowContextName.customerContactEntity],
                       externalContextData: { accountId },

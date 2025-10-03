@@ -21,6 +21,7 @@ export interface Contact {
   bio?: string;
   contactType?: string;
   version: string;
+  birthDate?: string;
   academicTitle?: {
     id: string;
     value: string;
@@ -83,6 +84,7 @@ export const useContactData = (contactId: string, accessToken: string) => {
           bio: result.contact.bio || '',
           contactType: result.contact.type || '', // Use 'type' field from GraphQL
           version: result.contact.version?.toString() || '1',
+          birthDate: result.contact.birthDate || undefined,
           academicTitle: result.contact.academicTitle ? {
             id: result.contact.academicTitle.id,
             value: result.contact.academicTitle.value

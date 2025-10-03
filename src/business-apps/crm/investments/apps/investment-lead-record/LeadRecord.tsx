@@ -304,7 +304,8 @@ const InvestmentLeadRecordContent: React.FC<LeadRecordContentProps> = ({
   ), [props.accessToken, leadId]);
 
   // Tab handling hooks - MUST be before conditional returns to comply with Rules of Hooks
-  const handleTabChange = useCallback((tab: LeadRecordTab) => {
+  const handleTabChange = useCallback((value: string) => {
+    const tab = getValidTab(value);
     setActiveTab(tab);
     if (typeof window === 'undefined') return;
     const url = new URL(window.location.href);

@@ -45,7 +45,7 @@ const InvestmentContactRecordContent: React.FC<ContactRecordContentProps> = ({
     return params.get('tab') || 'overview';
   });
 
-  const { contact: contactData, rawContactData, loading: dataLoading, error: dataError } = useContactData(contactId, props.accessToken);
+  const { contact: contactData, rawContactData, loading: dataLoading, error: dataError, refetch: refetchContactData } = useContactData(contactId, props.accessToken);
   
   // AI Summary hook - must be called before any conditional returns
   const aiSummaryHook = useContactAiSummary(contactId, props.accessToken);
@@ -141,6 +141,59 @@ const InvestmentContactRecordContent: React.FC<ContactRecordContentProps> = ({
     loadSectionData();
   }, [loadSectionData]);
 
+  // Listen for process completion events to refresh contact data
+  useEffect(() => {
+    const handleProcessCompletion = (event: any) => {
+      try {
+        // Check for successful completion
+        if (event.detail?.resolution === "success") {
+          refetchContactData();
+          loadSectionData(); // Also refresh section data
+          return;
+        }
+
+        // Also check for different event structure
+        const response = event.detail?.response;
+        if (response?.detail?.resolution === "success" || response?.contact) {
+          refetchContactData();
+          loadSectionData(); // Also refresh section data
+        }
+      } catch (err) {
+        console.error("Error handling process completion in ContactRecord:", err);
+      }
+    };
+
+    // Listen to multiple possible event names for contact updates
+    const eventNames = [
+      "com.newwork.process.taskCompletion",
+      "com.newwork.process.completion",
+      "com.newwork.process.continue",
+      "com.newwork.process.processCompletion",
+      "processCompletion",
+      "taskCompletion",
+      "taskCompleted",
+      "processCompleted",
+      "task-completion",
+      "process-completion",
+    ];
+
+    eventNames.forEach((eventName) => {
+      window.addEventListener(
+        eventName,
+        handleProcessCompletion as EventListener
+      );
+    });
+
+    return () => {
+      eventNames.forEach((eventName) => {
+        window.removeEventListener(
+          eventName,
+          handleProcessCompletion as EventListener
+        );
+      });
+    };
+  }, [contactId, refetchContactData, loadSectionData]);
+
   // Get source from URL parameters to determine back navigation text
   const source = useMemo(() => {
     return new URLSearchParams(window.location.search).get('source');
@@ -172,6 +225,13 @@ const InvestmentContactRecordContent: React.FC<ContactRecordContentProps> = ({
         {
           label: getTranslationFromI18nKeyAndLabel('crm.common.phone', 'Phone'),
           value: contactData?.phone || contact?.phone || getTranslationFromI18nKeyAndLabel('crm.common.notSet', 'Not set'),
+          icon: Users
+        },
+        {
+          label: getTranslationFromI18nKeyAndLabel('crm.common.birthday', 'Birthday'),
+          value: contactData?.birthDate || contact?.birthDate ? 
+            new Date(contactData?.birthDate || contact?.birthDate || '').toLocaleDateString('en-GB') : 
+            getTranslationFromI18nKeyAndLabel('crm.common.notSet', 'Not set'),
           icon: Users
         },
         {
@@ -269,21 +329,21 @@ const InvestmentContactRecordContent: React.FC<ContactRecordContentProps> = ({
                   component: AccountSection,
                   props: {
                     ...props,
-                    account: rawContactData?.investmentAccountContact?.[0]?.account ? {
-                      id: rawContactData.investmentAccountContact[0].account.id,
-                      name: rawContactData.investmentAccountContact[0].account.name,
-                      email: rawContactData.investmentAccountContact[0].account.email,
-                      phone: rawContactData.investmentAccountContact[0].account.phone,
-                      website: rawContactData.investmentAccountContact[0].account.website,
-                      legalForm: rawContactData.investmentAccountContact[0].account.legalForm?.value,
-                      industry: rawContactData.investmentAccountContact[0].account.industryClass?.value,
-                      size: rawContactData.investmentAccountContact[0].account.companySize?.value,
-                      revenue: rawContactData.investmentAccountContact[0].account.accountAnnualRevenueBand?.value,
-                      numberOfEmployees: rawContactData.investmentAccountContact[0].account.companySize,
-                      annualRevenue: rawContactData.investmentAccountContact[0].account.accountAnnualRevenueBand,
+                    account: (rawContactData as any)?.investmentAccountContact?.[0]?.account ? {
+                      id: (rawContactData as any).investmentAccountContact[0].account.id,
+                      name: (rawContactData as any).investmentAccountContact[0].account.name,
+                      email: (rawContactData as any).investmentAccountContact[0].account.email,
+                      phone: (rawContactData as any).investmentAccountContact[0].account.phone,
+                      website: (rawContactData as any).investmentAccountContact[0].account.website,
+                      legalForm: (rawContactData as any).investmentAccountContact[0].account.legalForm?.value,
+                      industry: (rawContactData as any).investmentAccountContact[0].account.industryClass?.value,
+                      size: (rawContactData as any).investmentAccountContact[0].account.companySize?.value,
+                      revenue: (rawContactData as any).investmentAccountContact[0].account.accountAnnualRevenueBand?.value,
+                      numberOfEmployees: (rawContactData as any).investmentAccountContact[0].account.companySize,
+                      annualRevenue: (rawContactData as any).investmentAccountContact[0].account.accountAnnualRevenueBand,
                     } : undefined,
-                    address: rawContactData?.investmentAccountContact?.[0]?.account ? (() => {
-                      const addresses = rawContactData.investmentAccountContact[0].account.addresses || [];
+                    address: (rawContactData as any)?.investmentAccountContact?.[0]?.account ? (() => {
+                      const addresses = (rawContactData as any).investmentAccountContact[0].account.addresses || [];
                       const primaryAddress = addresses.find((addr: any) => addr.addressType === 'PRIMARY_ADDRESS');
                       const address = primaryAddress || addresses[0];
 
@@ -295,10 +355,10 @@ const InvestmentContactRecordContent: React.FC<ContactRecordContentProps> = ({
                         region: typeof address.region === 'string' ? address.region : address.region?.value,
                       } : undefined;
                     })() : undefined,
-                    accountId: rawContactData?.investmentAccountContact?.[0]?.account?.id,
+                    accountId: (rawContactData as any)?.investmentAccountContact?.[0]?.account?.id,
                     actionButtonProps: {
                       contextsArray: [FlowContextName.customerAccountEntity],
-                      externalContextData: { accountId: rawContactData?.investmentAccountContact?.[0]?.account?.id },
+                      externalContextData: { accountId: (rawContactData as any)?.investmentAccountContact?.[0]?.account?.id },
                       prefixDataTestId: "contact-account"
                     }
                   }
@@ -545,7 +605,7 @@ const InvestmentContactRecordContent: React.FC<ContactRecordContentProps> = ({
   const fullName = getContactFullName(contactData, contact);
 
   // Create header title with contact type badge
-  const contactType = contactData?.type || contact?.contactType;
+  const contactType = contactData?.contactType || contact?.contactType;
   const contactTypeLabel = getContactTypeDisplayValue(contactData, contact);
   
   const headerTitle = (
