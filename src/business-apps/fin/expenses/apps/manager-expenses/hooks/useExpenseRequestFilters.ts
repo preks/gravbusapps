@@ -97,9 +97,11 @@ export const useExpenseRequestFilters = ({
   }, [filtersInitialized, currenciesLoading]);
 
   useEffect(() => {
-    if (localPrimaryCurrency && onCurrencyChange) {
-      onCurrencyChange(localPrimaryCurrency);
+    if (!onCurrencyChange) {
+      return;
     }
+
+    onCurrencyChange(localPrimaryCurrency || "EUR");
   }, [localPrimaryCurrency, onCurrencyChange]);
 
   const availableCurrencies = useMemo(() => {

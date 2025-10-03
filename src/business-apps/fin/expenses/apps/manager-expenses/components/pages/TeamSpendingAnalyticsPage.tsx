@@ -248,7 +248,7 @@ const TeamSpendingAnalyticsPage: React.FC<TeamSpendingAnalyticsPageProps> = ({
               title=""
               lineColor="var(--nw-chart-1)"
               currency={currencyFilter || primaryCurrency}
-              data-testid="team-analytics-expense-items-monthly-chart"
+              dataTestId="team-analytics-expense-items-monthly-chart"
             />
           </CardContent>
         </Card>
@@ -286,9 +286,9 @@ const TeamSpendingAnalyticsPage: React.FC<TeamSpendingAnalyticsPageProps> = ({
               const type = config?.type || 'draft';
               return resolveStatusColor(type, 'var(--nw-chart-1)');
             }}
-              data-testid="team-analytics-expense-items-status-chart"
+              dataTestId="team-analytics-expense-items-status-chart"
             />
-            <StatusLegend id="expense-items-by-status" data-testid="team-analytics-expense-items-status-legend" />
+            <StatusLegend id="expense-items-by-status" />
           </CardContent>
         </Card>
 
@@ -316,7 +316,7 @@ const TeamSpendingAnalyticsPage: React.FC<TeamSpendingAnalyticsPageProps> = ({
                   "var(--nw-chart-5)",
                   "var(--nw-chart-6)"
                 ]}
-                data-testid="team-analytics-expense-items-category-chart"
+                dataTestId="team-analytics-expense-items-category-chart"
               />
             </CardContent>
           </Card>
@@ -381,7 +381,7 @@ const TeamSpendingAnalyticsPage: React.FC<TeamSpendingAnalyticsPageProps> = ({
               title=""
               lineColor="var(--nw-chart-2)"
               currency={currencyFilter || primaryCurrency}
-              data-testid="team-analytics-expense-requests-monthly-chart"
+              dataTestId="team-analytics-expense-requests-monthly-chart"
             />
           </CardContent>
         </Card>
@@ -421,9 +421,9 @@ const TeamSpendingAnalyticsPage: React.FC<TeamSpendingAnalyticsPageProps> = ({
               const type = config?.type || 'draft';
               return resolveStatusColor(type, 'var(--nw-chart-2)');
             }}
-              data-testid="team-analytics-expense-requests-status-counts-chart"
+              dataTestId="team-analytics-expense-requests-status-counts-chart"
             />
-            <StatusLegend id="expense-requests-by-status-counts" data-testid="team-analytics-expense-requests-status-counts-legend" />
+            <StatusLegend id="expense-requests-by-status-counts" />
           </CardContent>
         </Card>
       </div>
@@ -466,9 +466,9 @@ const TeamSpendingAnalyticsPage: React.FC<TeamSpendingAnalyticsPageProps> = ({
               const type = config?.type || 'draft';
               return resolveStatusColor(type, 'var(--nw-chart-2)');
             }}
-              data-testid="team-analytics-expense-requests-status-amounts-chart"
+              dataTestId="team-analytics-expense-requests-status-amounts-chart"
             />
-            <StatusLegend id="expense-requests-by-status-amounts" data-testid="team-analytics-expense-requests-status-amounts-legend" />
+            <StatusLegend id="expense-requests-by-status-amounts" />
           </CardContent>
         </Card>
 
@@ -531,7 +531,7 @@ const TeamSpendingAnalyticsPage: React.FC<TeamSpendingAnalyticsPageProps> = ({
               title=""
               lineColor="var(--nw-chart-3)"
               currency={currencyFilter || primaryCurrency}
-              data-testid="team-analytics-expense-plans-monthly-chart"
+              dataTestId="team-analytics-expense-plans-monthly-chart"
             />
           </CardContent>
         </Card>
@@ -570,9 +570,9 @@ const TeamSpendingAnalyticsPage: React.FC<TeamSpendingAnalyticsPageProps> = ({
               const type = config?.type || 'draft';
               return resolveStatusColor(type, 'var(--nw-chart-3)');
             }}
-              data-testid="team-analytics-expense-plans-status-counts-chart"
+              dataTestId="team-analytics-expense-plans-status-counts-chart"
             />
-            <StatusLegend id="expense-plans-by-status-counts" data-testid="team-analytics-expense-plans-status-counts-legend" />
+            <StatusLegend id="expense-plans-by-status-counts" />
           </CardContent>
         </Card>
       </div>
@@ -614,9 +614,9 @@ const TeamSpendingAnalyticsPage: React.FC<TeamSpendingAnalyticsPageProps> = ({
               const type = config?.type || 'draft';
               return resolveStatusColor(type, 'var(--nw-chart-3)');
             }}
-              data-testid="team-analytics-expense-plans-status-amounts-chart"
+              dataTestId="team-analytics-expense-plans-status-amounts-chart"
             />
-            <StatusLegend id="expense-plans-by-status-amounts" data-testid="team-analytics-expense-plans-status-amounts-legend" />
+            <StatusLegend id="expense-plans-by-status-amounts" />
           </CardContent>
         </Card>
 
@@ -679,7 +679,7 @@ const TeamSpendingAnalyticsPage: React.FC<TeamSpendingAnalyticsPageProps> = ({
               title=""
               lineColor="var(--nw-chart-5)"
               currency={currencyFilter || primaryCurrency}
-              data-testid="team-analytics-advance-payments-monthly-chart"
+              dataTestId="team-analytics-advance-payments-monthly-chart"
             />
           </CardContent>
         </Card>
@@ -718,9 +718,9 @@ const TeamSpendingAnalyticsPage: React.FC<TeamSpendingAnalyticsPageProps> = ({
               const type = config?.type || 'draft';
               return resolveStatusColor(type, 'var(--nw-chart-5)');
             }}
-              data-testid="team-analytics-advance-payments-status-counts-chart"
+              dataTestId="team-analytics-advance-payments-status-counts-chart"
             />
-            <StatusLegend id="advance-payments-by-status-counts" data-testid="team-analytics-advance-payments-status-counts-legend" />
+            <StatusLegend id="advance-payments-by-status-counts" />
           </CardContent>
         </Card>
       </div>
@@ -762,9 +762,9 @@ const TeamSpendingAnalyticsPage: React.FC<TeamSpendingAnalyticsPageProps> = ({
               const type = config?.type || 'draft';
               return resolveStatusColor(type, 'var(--nw-chart-1)');
             }}
-              data-testid="team-analytics-advance-payments-status-amounts-chart"
+              dataTestId="team-analytics-advance-payments-status-amounts-chart"
             />
-            <StatusLegend id="advance-payments-by-status-amounts" data-testid="team-analytics-advance-payments-status-amounts-legend" />
+            <StatusLegend id="advance-payments-by-status-amounts" />
           </CardContent>
         </Card>
 

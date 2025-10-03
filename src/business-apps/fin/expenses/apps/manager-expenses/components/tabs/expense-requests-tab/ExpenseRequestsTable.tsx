@@ -1,4 +1,6 @@
 import React, { useState, useCallback, useMemo } from "react";
+import dayjs from "dayjs";
+import localizedFormat from "dayjs/plugin/localizedFormat";
 import {
   Table,
   TableHeader,
@@ -22,6 +24,9 @@ import {
   DialogTitle,
 } from "@newwork/nw-design-system";
 import { PiArrowUp, PiArrowDown } from "react-icons/pi";
+
+// Enable localized date formatting
+dayjs.extend(localizedFormat);
 import { DataContainer } from "@/components/layout/dataContainer/DataContainer";
 // (replaced by REQUEST_STATUS_CLASSES)
 import { BusinessAppContextProps } from "@/common/BusinessAppContext";
@@ -541,13 +546,8 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = (props) => {
                       {record.startDate
                         ? (() => {
                             try {
-                              const date = new Date(record.startDate);
                               const userLocale = getCurrentActiveUserLocale();
-                              return date.toLocaleDateString(userLocale, {
-                                month: "2-digit",
-                                day: "2-digit",
-                                year: "2-digit",
-                              });
+                              return dayjs(record.startDate).locale(userLocale).format("L");
                             } catch (error) {
                               return getTranslationFromI18nKeyAndLabel("lowcoder:common.not_available","N/A");
                             }
@@ -561,13 +561,8 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = (props) => {
                       {record.endDate
                         ? (() => {
                             try {
-                              const date = new Date(record.endDate);
                               const userLocale = getCurrentActiveUserLocale();
-                              return date.toLocaleDateString(userLocale, {
-                                month: "2-digit",
-                                day: "2-digit",
-                                year: "2-digit",
-                              });
+                              return dayjs(record.endDate).locale(userLocale).format("L");
                             } catch (error) {
                               return getTranslationFromI18nKeyAndLabel("lowcoder:common.not_available","N/A");
                             }
@@ -608,13 +603,8 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = (props) => {
                       {record.requestDate
                         ? (() => {
                             try {
-                              const date = new Date(record.requestDate);
                               const userLocale = getCurrentActiveUserLocale();
-                              return date.toLocaleDateString(userLocale, {
-                                month: "2-digit",
-                                day: "2-digit",
-                                year: "2-digit",
-                              });
+                              return dayjs(record.requestDate).locale(userLocale).format("L");
                             } catch (error) {
                               return getTranslationFromI18nKeyAndLabel("lowcoder:common.not_available","N/A");
                             }

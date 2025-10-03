@@ -27,6 +27,7 @@ interface PieChartProps {
   valueType?: 'amount' | 'count';
   countLabel?: string;
   getColor?: (entry: any, index: number) => string | undefined;
+  dataTestId?: string;
 }
 
 /**
@@ -50,6 +51,7 @@ const PieChartComponent: React.FC<PieChartProps> = ({
   valueType = 'amount',
   countLabel = 'items',
   getColor,
+  dataTestId,
 }) => {
   const resolveCssVar = (color: string): string => {
     if (!color?.startsWith('var(')) return color;
@@ -119,7 +121,7 @@ const PieChartComponent: React.FC<PieChartProps> = ({
           config={chartConfig}
           className="gba:mx-auto"
           style={{ minHeight: height, width: '100%' }}
-          data-testid={`${title.toLowerCase().replace(/\s+/g, "-")}-chart`}
+          data-testid={dataTestId ?? `${title.toLowerCase().replace(/\s+/g, "-")}-chart`}
         >
           <PieChart width={500} height={400}>
             <ChartTooltip
@@ -149,36 +151,8 @@ const PieChartComponent: React.FC<PieChartProps> = ({
               data={data}
               cx="50%"
               cy="45%"
-              labelLine={true}
-              label={({ cx, cy, midAngle, outerRadius, fill, ...entry }) => {
-                const RADIAN = Math.PI / 180;
-                const radius = outerRadius + 30;
-                const x = cx + radius * Math.cos(-midAngle * RADIAN);
-                const y = cy + radius * Math.sin(-midAngle * RADIAN);
-                
-                let text;
-                if (valueType === "count") {
-                  text = entry[dataKey];
-                } else {
-                  const value = Number(entry[dataKey] ?? 0);
-                  const fixed = Number.isFinite(value) ? Math.round(value * 100) / 100 : 0;
-                  text = formatCurrencyDisplay(fixed, currency);
-                }
-                
-                return (
-                  <text 
-                    x={x} 
-                    y={y} 
-                    fill="#000000"
-                    textAnchor={x > cx ? 'start' : 'end'}
-                    dominantBaseline="central"
-                    fontSize={12}
-                    fontWeight={500}
-                  >
-                    {text}
-                  </text>
-                );
-              }}
+              labelLine={false}
+              label={false}
               outerRadius={100}
               innerRadius={60}
               fill="var(--nw-chart-1)"

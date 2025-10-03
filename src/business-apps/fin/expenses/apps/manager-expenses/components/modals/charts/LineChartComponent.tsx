@@ -32,6 +32,7 @@ interface LineChartProps {
   lineColor?: string;
   height?: number;
   currency?: string;
+  dataTestId?: string;
 }
 
 /**
@@ -45,6 +46,7 @@ const LineChartComponent: React.FC<LineChartProps> = ({
   lineColor = "var(--nw-color-success-500)",
   height = 300,
   currency = "EUR",
+  dataTestId,
 }) => {
   const resolveCssVar = (color: string): string => {
     if (!color?.startsWith('var(')) return color;
@@ -109,7 +111,7 @@ const LineChartComponent: React.FC<LineChartProps> = ({
           config={chartConfig}
           className="gba:w-full"
           style={{ height: height }}
-          data-testid={`${title.toLowerCase().replace(/\s+/g, "-")}-chart`}
+          data-testid={dataTestId ?? `${title.toLowerCase().replace(/\s+/g, "-")}-chart`}
         >
           <LineChart
             data={data}

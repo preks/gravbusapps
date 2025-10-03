@@ -7,6 +7,8 @@ import {
   PiCalendar,
   PiClockAfternoon,
 } from "react-icons/pi";
+import dayjs from "dayjs";
+import localizedFormat from "dayjs/plugin/localizedFormat";
 import { useCurrencyStore } from "../../../store/useCurrencyStore";
 import { useCurrencyFilter } from "../../../hooks/useCurrencyFilter";
 import { useGetExpenseDashboard } from "../../../hooks/useGetExpenseDashboard";
@@ -21,6 +23,9 @@ import {
 import { WidgetGroup, WidgetItem } from "@/components/widget-group";
 import { formatCurrencyDisplay } from "../../../../personal-expenses/utils";
 import { getExpenseRequestStatusDisplay, getNormalizedErrorMessage } from "../../../utils";
+
+// Enable localized date formatting
+dayjs.extend(localizedFormat);
 
 export interface ExpenseDashboardTabProps extends BusinessAppContextProps {
   onNavigateToApprovals?: () => void;
@@ -313,11 +318,7 @@ const ExpenseDashboardTab: React.FC<ExpenseDashboardTabProps> = (props) => {
                         </p>
                         <p className="gba:text-sm gba:text-muted-foreground">
                           {request.requestDate && request.requestDate !== "N/A"
-                            ? new Date(request.requestDate).toLocaleDateString(userLocale, {
-                                month: "2-digit",
-                                day: "2-digit",
-                                year: "2-digit",
-                              })
+                            ? dayjs(request.requestDate).locale(userLocale).format("L")
                             : getTranslationFromI18nKeyAndLabel(
                                 "lowcoder:common.not_available",
                                 "N/A",

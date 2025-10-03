@@ -27,6 +27,7 @@ interface BarChartProps {
   valueType?: 'amount' | 'count';
   countLabel?: string;
   getColor?: (entry: any, index: number) => string | undefined;
+  dataTestId?: string;
 }
 
 /**
@@ -43,6 +44,7 @@ const BarChartComponent: React.FC<BarChartProps> = ({
   valueType = 'amount',
   countLabel = 'items',
   getColor,
+  dataTestId,
 }) => {
   const resolveCssVar = (color: string): string => {
     if (!color?.startsWith('var(')) return color;
@@ -103,7 +105,7 @@ const BarChartComponent: React.FC<BarChartProps> = ({
           config={chartConfig}
           className="gba:w-full"
           style={{ height: height }}
-          data-testid={`${title.toLowerCase().replace(/\s+/g, "-")}-chart`}
+          data-testid={dataTestId ?? `${title.toLowerCase().replace(/\s+/g, "-")}-chart`}
         >
           <BarChart
             data={data}
