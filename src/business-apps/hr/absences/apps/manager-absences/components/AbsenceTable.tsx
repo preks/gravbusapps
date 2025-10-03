@@ -73,8 +73,29 @@ export const AbsenceTable: React.FC<AbsenceTableProps> = ({
     return absence.groupName || '-';
   };
 
+
+  // Get the original group name for color lookup (before translation)
+  const getOriginalGroupName = (absence: EnhancedAbsence) => {
+    return absence.originalGroupName || absence.groupName || '-';
+  };
+
+  const getTranslatedStatus = (status: string) => {
+    switch (status?.toUpperCase()) {
+      case 'PENDING':
+        return getTranslationFromI18nKeyAndLabel('lowcoder:expense_statuses.pending', 'Pending');
+      case 'APPROVED':
+        return getTranslationFromI18nKeyAndLabel('lowcoder:expense_statuses.approved', 'Approved');
+      case 'REJECTED':
+        return getTranslationFromI18nKeyAndLabel('lowcoder:expense_statuses.rejected', 'Rejected');
+      case 'CANCELLED':
+        return getTranslationFromI18nKeyAndLabel('lowcoder:absences_overview_entry_screen.cancelled_status', 'Cancelled');
+      default:
+        return status || '-';
+    }
+  };
+
   const getStatusBadgeVariant = (status: string) => {
-    switch (status) {
+    switch (status?.toUpperCase()) {
       case 'APPROVED':
         return 'success' as const;
       case 'PENDING':
@@ -208,7 +229,7 @@ export const AbsenceTable: React.FC<AbsenceTableProps> = ({
                   data-testid={`${DATA_TEST_ID_PREFIX}-status-header`}
                 >
                   <div className="gba:flex gba:items-center">
-                    {getTranslationFromI18nKeyAndLabel('lowcoder:absence_table.status', 'Status')}
+                    {getTranslationFromI18nKeyAndLabel('lowcoder:expense_request_list.expense_plan_table.status', 'Status')}
                     {renderSortIcon('status')}
                   </div>
                 </TableHead>
@@ -228,7 +249,7 @@ export const AbsenceTable: React.FC<AbsenceTableProps> = ({
                   data-testid={`${DATA_TEST_ID_PREFIX}-created-header`}
                 >
                   <div className="gba:flex gba:items-center">
-                    {getTranslationFromI18nKeyAndLabel('lowcoder:absence_table.created', 'Created')}
+                    {getTranslationFromI18nKeyAndLabel('lowcoder:expense_plan_list.expense_plan_table.create_date', 'Created At')}
                     {renderSortIcon('createdAt')}
                   </div>
                 </TableHead>
@@ -268,9 +289,9 @@ export const AbsenceTable: React.FC<AbsenceTableProps> = ({
                     <Badge
                       variant="outline"
                       style={{
-                        backgroundColor: getColorForAbsence(getAbsenceGroup(record)),
+                        backgroundColor: getColorForAbsence(getOriginalGroupName(record)),
                         color: 'white',
-                        borderColor: getColorForAbsence(getAbsenceGroup(record)),
+                        borderColor: getColorForAbsence(getOriginalGroupName(record)),
                       }}
                     >
                       {getAbsenceGroup(record)}
@@ -311,7 +332,7 @@ export const AbsenceTable: React.FC<AbsenceTableProps> = ({
                     data-testid={`${DATA_TEST_ID_PREFIX}-status-cell-${record.id}`}
                   >
                     <Badge variant={getStatusBadgeVariant(record.status)}>
-                      {record.status || '-'}
+                      {getTranslatedStatus(record.status)}
                     </Badge>
                   </TableCell>
                   <TableCell
@@ -353,11 +374,11 @@ export const AbsenceTable: React.FC<AbsenceTableProps> = ({
             className="gba:text-sm gba:text-muted-foreground"
             data-testid={`${DATA_TEST_ID_PREFIX}-pagination-info`}
           >
-            {`${(currentPage - 1) * pageSize + 1}-${Math.min(currentPage * pageSize, total)} of ${total} absences`}
+            {`${(currentPage - 1) * pageSize + 1}-${Math.min(currentPage * pageSize, total)} ${getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.of', 'of')} ${total} ${getTranslationFromI18nKeyAndLabel('lowcoder:absence_management_hub_manager.absence_list_screen.title', 'absences')}`}
           </div>
           <div className="gba:flex gba:items-center gba:space-x-6 gba:lg:space-x-8">
             <div className="gba:flex gba:items-center gba:space-x-2">
-              <p className="gba:text-sm gba:font-medium">Rows per page</p>
+              <p className="gba:text-sm gba:font-medium"> {getTranslationFromI18nKeyAndLabel('lowcoder:absence_table.rows_per_page', 'Rows per page')}</p>
               <select
                 value={pageSize}
                 onChange={(e) => onPaginationChange(1, Number(e.target.value))}
@@ -374,7 +395,7 @@ export const AbsenceTable: React.FC<AbsenceTableProps> = ({
               className="gba:flex gba:w-[100px] gba:items-center gba:justify-center gba:text-sm gba:font-medium"
               data-testid={`${DATA_TEST_ID_PREFIX}-page-info`}
             >
-              Page {currentPage} of {Math.ceil(total / pageSize)}
+              {getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.page', 'Page')} {currentPage} {getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.of', 'of')} {Math.ceil(total / pageSize)}
             </div>
             <div className="gba:flex gba:items-center gba:space-x-2">
               <Button

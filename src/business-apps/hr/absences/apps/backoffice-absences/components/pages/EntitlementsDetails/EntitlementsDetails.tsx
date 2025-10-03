@@ -17,6 +17,7 @@ import { BusinessAppContextProps } from '../../../../../../../../common/Business
 import { useGraphQLClient } from '../../../../../../../../common/network/graphql/useGraphQLClient';
 import { useCatalogManagerClient } from '../../../../../../../../common/network/catalogs/useCatalogManagerClient';
 import { TimeFilter, DataFilterGroup } from '../../../types';
+import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
 
 interface EntitlementsDetailsProps extends BusinessAppContextProps {
   timeFilter?: TimeFilter;
@@ -855,8 +856,11 @@ const EntitlementsDetails: React.FC<EntitlementsDetailsProps> = ({
           data-testid="back-to-dashboard-button"
         >
           <PiArrowLeft size={16} />
-          Back to Dashboard
-        </Button>
+          {getTranslationFromI18nKeyAndLabel(
+              'lowcoder:team_expenses_page.dashboard_tab.back_to_btn',
+              'Back to Dashboard',
+            )}      
+          </Button>
       </div>
 
       {/* Page Header */}

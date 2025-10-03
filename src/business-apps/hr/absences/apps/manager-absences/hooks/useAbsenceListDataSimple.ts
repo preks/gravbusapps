@@ -3,6 +3,7 @@ import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient';
 import { useCatalogManagerClient } from '@/common/network/catalogs/useCatalogManagerClient';
 import { AbsenceFilters, EmployeeAbsence, EnhancedAbsence } from '../types';
 import { enhanceAbsence } from '../utils';
+import { getCurrentActiveUserLocale } from '@/common/utils/windowUtils';
 
 interface UseAbsenceListDataSimpleProps extends AbsenceFilters {
   sortField?: string;
@@ -141,6 +142,7 @@ export const useAbsenceListDataSimple = ({
   const [pageSize, setPageSize] = useState(20);
   const [hasMore, setHasMore] = useState(true);
   const [absenceGroups, setAbsenceGroups] = useState<{ [key: string]: string }>({});
+  const [originalAbsenceGroups, setOriginalAbsenceGroups] = useState<{ [key: string]: string }>({});
 
   const graphqlClient = useGraphQLClient(accessToken);
   const catalogClient = useCatalogManagerClient(accessToken);
@@ -149,23 +151,61 @@ export const useAbsenceListDataSimple = ({
 
   const loadAbsenceGroups = useCallback(async () => {
     try {
-      const catalogData = await catalogClient.getCatalogEntriesList({
-        catalogIdentifier: 'AbsenceGroup',
-        version: 'v1',
-      });
-      const typesMap: { [key: string]: string } = {};
-      catalogData.data.forEach((entry: any) => {
-        typesMap[entry.id] = entry.value;
+      const userLocale = getCurrentActiveUserLocale() ?? 'en-US';
+      
+      // Load both translated and original (English) group names
+      const [translatedData, originalData] = await Promise.all([
+        catalogClient.getCatalogEntriesList(
+          {
+            catalogIdentifier: 'AbsenceGroup',
+            version: 'v1',
+          },
+          {
+            limit: 100,
+            offset: 0,
+            returnTotalRecords: true,
+            localeCode: userLocale,
+            includeChildCatalogEntries: true,
+          }
+        ),
+        catalogClient.getCatalogEntriesList(
+          {
+            catalogIdentifier: 'AbsenceGroup',
+            version: 'v1',
+          },
+          {
+            limit: 100,
+            offset: 0,
+            returnTotalRecords: true,
+            localeCode: 'en-US', // Always fetch English for color lookup
+            includeChildCatalogEntries: true,
+          }
+        )
+      ]);
+
+      const translatedMap: { [key: string]: string } = {};
+      const originalMap: { [key: string]: string } = {};
+
+      translatedData.data.forEach((entry: any) => {
+        translatedMap[entry.id] = entry.value;
         if (entry.catalogEntryLocalId) {
-          typesMap[entry.catalogEntryLocalId] = entry.value;
+          translatedMap[entry.catalogEntryLocalId] = entry.value;
         }
       });
 
-      setAbsenceGroups(typesMap);
-      return typesMap;
+      originalData.data.forEach((entry: any) => {
+        originalMap[entry.id] = entry.value;
+        if (entry.catalogEntryLocalId) {
+          originalMap[entry.catalogEntryLocalId] = entry.value;
+        }
+      });
+
+      setAbsenceGroups(translatedMap);
+      setOriginalAbsenceGroups(originalMap);
+      return { translated: translatedMap, original: originalMap };
     } catch (err) {
       console.error('Error loading absence groups:', err);
-      return {};
+      return { translated: {}, original: {} };
     }
   }, [catalogClient]);
 
@@ -181,8 +221,11 @@ export const useAbsenceListDataSimple = ({
 
       try {
         let currentAbsenceGroups = absenceGroups;
+        let currentOriginalAbsenceGroups = originalAbsenceGroups;
         if (Object.keys(currentAbsenceGroups).length === 0) {
-          currentAbsenceGroups = await loadAbsenceGroups();
+          const groupData = await loadAbsenceGroups();
+          currentAbsenceGroups = groupData.translated;
+          currentOriginalAbsenceGroups = groupData.original;
         }
 
         const page = (targetPage - 1) * newPageSize;
@@ -287,7 +330,7 @@ export const useAbsenceListDataSimple = ({
           const totalCount = result.EmployeeAbsenceAggregate?.aggregate?.count || 0;
 
           let enhancedAbsences = rawAbsences.map((absence) =>
-            enhanceAbsence(absence, currentAbsenceGroups),
+            enhanceAbsence(absence, currentAbsenceGroups, currentOriginalAbsenceGroups),
           );
 
           if (sortField === 'groupName' && sortOrder) {

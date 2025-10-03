@@ -8,6 +8,7 @@ import { EnhancedAbsence } from '../../types';
 import { useAbsenceFilters } from '../../hooks/useAbsenceFilters';
 import { useAbsenceListDataSimple } from '../../hooks/useAbsenceListDataSimple';
 import { useAbsenceCatalogs } from '../../hooks/useAbsenceCatalogs';
+import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
 
 export interface AbsenceListPageProps extends BusinessAppContextProps {
   onNavigateBack: () => void;
@@ -272,7 +273,10 @@ export const AbsenceListPage: React.FC<AbsenceListPageProps> = (props) => {
       case 'vacation':
         return 'Vacation Requests';
       case 'team-away':
-        return 'Team Members Away';
+        return getTranslationFromI18nKeyAndLabel(
+          'lowcoder:absence_management_hub_manager.dashboard.team_members_away_btn',
+          'Team Members Away',
+        );
       case 'upcoming':
         return 'Upcoming Absences';
       case 'top-absentees':
@@ -296,7 +300,10 @@ export const AbsenceListPage: React.FC<AbsenceListPageProps> = (props) => {
       case 'vacation':
         return 'Manage vacation and time-off requests';
       case 'team-away':
-        return 'See team members currently away';
+        return getTranslationFromI18nKeyAndLabel(
+          'lowcoder:absence_management_hub_manager.dashboard.see_team_members_away',
+          'See team members currently away',
+        );
       case 'upcoming':
         return 'View upcoming scheduled absences';
       case 'top-absentees':
@@ -319,7 +326,10 @@ export const AbsenceListPage: React.FC<AbsenceListPageProps> = (props) => {
             data-testid="absence-list-page-back-button"
           >
             <PiArrowLeft className="gba:text-lg" />
-            Back to Dashboard
+            {getTranslationFromI18nKeyAndLabel(
+              'lowcoder:team_expenses_page.dashboard_tab.back_to_btn',
+              'Back to Dashboard',
+            )}    
           </Button>
 
           {/* Title and Subtitle */}
@@ -344,7 +354,10 @@ export const AbsenceListPage: React.FC<AbsenceListPageProps> = (props) => {
             search: search,
             setSearch: handleSearchChange,
             debounceDelay: 500,
-            placeholder: 'Search absences...',
+            placeholder: getTranslationFromI18nKeyAndLabel(
+              'lowcoder:employee_list.employee_report_filter.job_search',
+              'Search absences...',
+            ),
             filter: selectedFilters,
             setFilter: handleSetFilter,
             filterLabelMap: filterLabelMap,

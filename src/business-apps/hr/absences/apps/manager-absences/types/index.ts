@@ -152,6 +152,8 @@ export interface EnhancedAbsence extends EmployeeAbsence {
   employeeName: string;
   typeName: string;
   groupName: string;
+  originalGroupName: string;
+  translatedStatus: string;
   dateRange: string;
   duration: string;
   statusBadgeVariant: string;

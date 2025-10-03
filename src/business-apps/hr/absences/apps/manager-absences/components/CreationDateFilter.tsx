@@ -46,8 +46,8 @@ export const CreationDateFilter: React.FC<CreationDateFilterProps> = ({
         onChange={handleDateRangeChange}
         format="YYYY-MM-DD"
         placeholder={[
-          getTranslationFromI18nKeyAndLabel('lowcoder:absence_hub.creation_start_date', 'Creation Start Date'),
-          getTranslationFromI18nKeyAndLabel('lowcoder:absence_hub.creation_end_date', 'Creation End Date')
+          getTranslationFromI18nKeyAndLabel('lowcoder:expense_plan_list.expense_plan_table.start_date', 'Start Date'),
+          getTranslationFromI18nKeyAndLabel('lowcoder:expense_plan_list.expense_plan_table.end_date', 'End Date')
         ]}
         data-testid="creation-date-picker"
       />
