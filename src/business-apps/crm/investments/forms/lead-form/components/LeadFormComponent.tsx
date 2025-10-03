@@ -13,8 +13,6 @@ import OwnerSelector from "./OwnerSelector";
 import LeadInformationSection from "./LeadInformationSection";
 import ContactInformationSection from "./ContactInformationSection";
 import CompanyInformationSection from "./CompanyInformationSection";
-import AddressInformationSection from "./AddressInformationSection";
-import DescriptionSection from "./DescriptionSection";
 
 const prefixDataTestId = "LeadForm";
 
@@ -57,14 +55,12 @@ const LeadFormComponent: React.FC = () => {
         phoneNumber: toStringOrUndefined(formValues.phone),
         email: toStringOrUndefined(formValues.email),
         position: toStringOrUndefined(formValues.jobPosition),
-        description: toStringOrUndefined(formValues.notes),
         sensitive: formValues.sensitive,
 
         // ✅ UPDATED: Lead Information with new fields
         leadRatingRef: toStringOrUndefined(formValues.rating),
         leadStatusRef: toStringOrUndefined(formValues.leadStatus),
         leadSourceRef: toStringOrUndefined(formValues.leadSource),
-        leadSourceType: toStringOrUndefined(formValues.leadSourceType),
 
         // ✅ UPDATED: Company Information with fixed field names
         companyName: toStringOrUndefined(formValues.company),
@@ -238,12 +234,6 @@ const LeadFormComponent: React.FC = () => {
           {/* Company Information Section */}
           <CompanyInformationSection />
 
-
-          {/* Address Information Section */}
-          <AddressInformationSection />
-
-          {/* Description Section */}
-          <DescriptionSection />
 
           {/* Error Display */}
           {error && (

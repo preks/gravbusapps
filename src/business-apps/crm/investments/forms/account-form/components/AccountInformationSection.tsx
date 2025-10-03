@@ -326,6 +326,37 @@ const AccountInformationSection: React.FC = () => {
           />
         </div>
 
+        {/* Phone and Email - Side by side */}
+        <div className="gba:grid gba:grid-cols-1 gba:gap-6 gba:md:grid-cols-2">
+          <div className="gba:space-y-2">
+            <Label className="gba:text-sm gba:font-medium gba:text-gray-900">
+              {getTranslationFromI18nKeyAndLabel('investments.account.phone', 'Phone')}
+            </Label>
+            <Input
+              name="phone"
+              value={formValues.phone}
+              onChange={(e) => setFormValues({ phone: e.target.value })}
+              placeholder={getTranslationFromI18nKeyAndLabel('common.pleaseEnter', 'Please Enter...')}
+              className="gba:border-gray-300 gba:bg-white"
+              data-testid={formatDataTestId(prefixDataTestId, "phone-input")}
+            />
+          </div>
+
+          <div className="gba:space-y-2">
+            <Label className="gba:text-sm gba:font-medium gba:text-gray-900">
+              {getTranslationFromI18nKeyAndLabel('investments.account.email', 'Email')}
+            </Label>
+            <Input
+              name="email"
+              value={formValues.email}
+              onChange={(e) => setFormValues({ email: e.target.value })}
+              placeholder={getTranslationFromI18nKeyAndLabel('common.pleaseEnter', 'Please Enter...')}
+              className="gba:border-gray-300 gba:bg-white"
+              data-testid={formatDataTestId(prefixDataTestId, "email-input")}
+            />
+          </div>
+        </div>
+
         {/* ✅ REMOVED: Sales Campaign Section - not relevant for InvestmentAccount */}
       </CardContent>
     </Card>

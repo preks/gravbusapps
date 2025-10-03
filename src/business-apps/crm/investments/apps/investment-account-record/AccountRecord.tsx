@@ -190,8 +190,13 @@ const InvestmentAccountRecordContent: React.FC<AccountRecordContentProps> = ({ a
       id: 'account-details',
       items: [
         {
-          label: 'Industry',
-          value: (accountData as any)?.industryClassLabel || account?.industry || 'Not set',
+          label: 'Email',
+          value: accountData?.email || 'Not set',
+          icon: TrendUp
+        },
+        {
+          label: 'Founded',
+          value: accountData?.foundationDate ? new Date(accountData.foundationDate).toLocaleDateString() : 'Not set',
           icon: TrendUp
         },
         {
@@ -201,7 +206,7 @@ const InvestmentAccountRecordContent: React.FC<AccountRecordContentProps> = ({ a
         }
       ]
     }
-  ], [(accountData as any)?.industryClassLabel, account?.industry, (accountData as any)?.ownerDisplayName, account?.accountOwner]);
+  ], [accountData?.email, accountData?.foundationDate, (accountData as any)?.ownerDisplayName, account?.accountOwner]);
 
   const headerActions = useMemo(() => {
     const aiActions: AiAction[] = props.accessToken ? [

@@ -53,6 +53,27 @@ export interface InvestmentAccountDataResponse {
       code: string;
       objectValue?: any;
     };
+    // Address relationships
+    investmentAddress?: Array<{
+      id: string;
+      version: number;
+      addressType?: string;
+      addressLine?: any; // Jsonb
+      postalCode?: string;
+      locality?: string;
+      regionRef?: string;
+      countryRef?: string;
+      region?: {
+        id: string;
+        value: string;
+        code: string;
+      };
+      country?: {
+        id: string;
+        value: string;
+        code: string;
+      };
+    }>;
     // Audit fields
     createdAt: string;
     createdBy: string;
@@ -113,6 +134,28 @@ export const GET_INVESTMENT_ACCOUNT_BY_ID = `
         value
         code
         objectValue
+      }
+      
+      # Address relationships
+      investmentAddress(where: { isDeleted: { _eq: false } }) {
+        id
+        version
+        addressType
+        addressLine
+        postalCode
+        locality
+        regionRef
+        countryRef
+        region {
+          id
+          value
+          code
+        }
+        country {
+          id
+          value
+          code
+        }
       }
       
       # Audit fields

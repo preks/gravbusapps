@@ -3,6 +3,11 @@ import {
   Spinner,
   Button,
   RecordLayout,
+  Badge,
+  Tooltip,
+  TooltipProvider,
+  TooltipTrigger,
+  TooltipContent,
 } from "@newwork/nw-design-system";
 import { Users, FileText, AddressBook } from '@phosphor-icons/react';
 import { BusinessAppContextProps } from "@/common/BusinessAppContext";
@@ -27,7 +32,7 @@ import SectionWrapper from "@/common/components/common-relations/record-sections
 import { AiActions, AiAction } from '@/common/components/common-relations/record-sections/header-section/ai-actions';
 import { useAiSummary } from './hooks/useAiSummary';
 import { AppActionButton } from '@/components/app-action-button/AppActionButton';
-import { Bot } from 'lucide-react';
+import { Bot, Flag } from 'lucide-react';
 
 
 interface LeadRecordContentProps extends BusinessAppContextProps {
@@ -208,10 +213,33 @@ const InvestmentLeadRecordContent: React.FC<LeadRecordContentProps> = ({
   }, [leadId, refetch]);
 
   // Prepare header content for RecordLayout - MUST be before conditional returns
-  const headerTitle =
-    lead?.displayName ||
-    `${lead?.firstName || ""} ${lead?.lastName || ""}`.trim() ||
-    getTranslationFromI18nKeyAndLabel('crm.investments.lead.title', 'Investment Lead');
+  const headerTitle = (
+    <div className="gba:flex gba:items-center gba:gap-2">
+      <span>
+        {lead?.displayName ||
+          `${lead?.firstName || ""} ${lead?.lastName || ""}`.trim() ||
+          getTranslationFromI18nKeyAndLabel('crm.investments.lead.title', 'Investment Lead')}
+      </span>
+      {lead?.sensitive === true && (
+        <TooltipProvider>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Badge
+                data-testid="lead-sensitive-badge"
+                variant="warning"
+                className="gba:rounded-full gba:p-1 gba:h-5 gba:w-5 gba:flex gba:items-center gba:justify-center"
+              >
+                <Flag className="gba:h-3 gba:w-3" data-testid="lead-sensitive-badge-icon" />
+              </Badge>
+            </TooltipTrigger>
+            <TooltipContent data-testid="lead-sensitive-tooltip">
+              {getTranslationFromI18nKeyAndLabel('crm.lead.sensitive', 'Sensitive')}
+            </TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
+      )}
+    </div>
+  );
 
   const headerDetailGroups = useMemo(() => [
     {

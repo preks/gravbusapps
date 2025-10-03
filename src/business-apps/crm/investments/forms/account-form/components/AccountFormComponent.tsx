@@ -9,7 +9,6 @@ import {
 import { formatDataTestId } from "@/common/utils/formatDataTestId";
 import { dispatchProcessContinueEvent } from "@/common/utils/processEventUtils";
 import AccountInformationSection from "./AccountInformationSection";
-import ContactInformationSection from "./ContactInformationSection";
 import AddressInformationSection from "./AddressInformationSection";
 import FinancialInformationSection from "./FinancialInformationSection";
 
@@ -40,7 +39,6 @@ const AccountFormComponent: React.FC = () => {
       const investmentAccountPayload: any = {
         sourceApp: "IRM", // ✅ FIXED: Changed from CRM to IRM for Investment Relations Management
         name: toStringOrUndefined(formValues.accountName), // ✅ FIXED: accountName → name
-        code: toStringOrUndefined(formValues.tickerSymbol), // ✅ UPDATED: Use tickerSymbol as code
         legalFormRef: toStringOrUndefined(formValues.legalForm),
         industryClassRef: toStringOrUndefined(formValues.industry), // ✅ FIXED: industryRef → industryClassRef
         website: toStringOrUndefined(formValues.website),
@@ -57,16 +55,30 @@ const AccountFormComponent: React.FC = () => {
           addr.locality.trim() ||
           addr.regionRef.trim() ||
           addr.countryRef.trim()
-        ).map(addr => ({
-          addressType: "PRIMARY_ADDRESS", // Always set to PRIMARY_ADDRESS
-          addressLine: addr.addressLines.filter(line => line.trim()).length > 0 
-            ? { lines: addr.addressLines.filter(line => line.trim()) }
-            : null,
-          postalCode: addr.postalCode.trim() || null,
-          locality: addr.locality.trim() || null,
-          regionRef: addr.regionRef.trim() || null,
-          countryRef: addr.countryRef.trim() || null,
-        })) || [],
+        ).map(addr => {
+          const addressPayload: any = {
+            addressType: "PRIMARY_ADDRESS", // Always set to PRIMARY_ADDRESS
+            addressLine: addr.addressLines.filter(line => line.trim()).length > 0 
+              ? { lines: addr.addressLines.filter(line => line.trim()) }
+              : null,
+            postalCode: addr.postalCode.trim() || null,
+            locality: addr.locality.trim() || null,
+            regionRef: addr.regionRef.trim() || null,
+            countryRef: addr.countryRef.trim() || null,
+          };
+
+          // ✅ FIXED: Only include ID and version when updating an existing account
+          // This prevents the backend from treating addresses as new inserts during updates
+          if (isUpdate && addr.id && addr.id !== "default-address") {
+            addressPayload.id = addr.id;
+            // Include version for optimistic locking during address updates (only on update)
+            if (addr.version !== undefined && addr.version !== null) {
+              addressPayload.version = addr.version;
+            }
+          }
+
+          return addressPayload;
+        }) || [],
         specialty: undefined, // Not available in current form
         liquidationDate: undefined, // Not available in current form
         picture: undefined, // Not available in current form
@@ -147,9 +159,6 @@ const AccountFormComponent: React.FC = () => {
         <div className="gba:flex-1 gba:overflow-y-auto gba:space-y-8">
           {/* Account Information Section */}
           <AccountInformationSection />
-
-          {/* Contact Information Section */}
-          <ContactInformationSection />
 
           {/* Address Information Section */}
           <AddressInformationSection />

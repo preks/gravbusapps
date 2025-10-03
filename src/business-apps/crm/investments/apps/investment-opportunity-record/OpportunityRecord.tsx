@@ -345,14 +345,35 @@ const InvestmentOpportunityRecordContent: React.FC<OpportunityRecordContentProps
     </Badge>
   ) : undefined, [opportunity?.value, opportunity?.currency?.id]);
 
+  // Helper function to convert deal type codes to human-readable values
+  const getDealTypeDisplayValue = (dealType: string | undefined): string => {
+    if (!dealType) return getTranslationFromI18nKeyAndLabel('crm.common.notSet', 'Not set');
+    
+    const dealTypeMap: Record<string, string> = {
+      'INVESTMENT_DEAL': getTranslationFromI18nKeyAndLabel('crm.opportunity.dealType.investment', 'Investment Deal'),
+      'DIVESTMENT_DEAL': getTranslationFromI18nKeyAndLabel('crm.opportunity.dealType.divestment', 'Divestment Deal'),
+      'REFINANCING_DEAL': getTranslationFromI18nKeyAndLabel('crm.opportunity.dealType.refinancing', 'Refinancing Deal'),
+      'ACQUISITION_DEAL': getTranslationFromI18nKeyAndLabel('crm.opportunity.dealType.acquisition', 'Acquisition Deal'),
+      'MERGER_DEAL': getTranslationFromI18nKeyAndLabel('crm.opportunity.dealType.merger', 'Merger Deal'),
+    };
+    
+    return dealTypeMap[dealType] || dealType; // Fallback to original value if not mapped
+  };
+
   const headerDetailGroups = useMemo(() => [
     {
       id: 'opportunity-details',
       items: [
         {
-          label: getTranslationFromI18nKeyAndLabel('crm.opportunity.status', 'Status'),
-          value: opportunity?.status,
+          label: getTranslationFromI18nKeyAndLabel('crm.opportunity.dealType', 'Deal Type'),
+          value: getDealTypeDisplayValue(opportunity?.dealType),
           icon: Star
+        },
+        {
+          label: getTranslationFromI18nKeyAndLabel('crm.opportunity.expectedCloseDate', 'Expected Close Date'),
+          value: opportunity?.expectedCloseDate ? 
+            new Date(opportunity.expectedCloseDate).toLocaleDateString() : 
+            getTranslationFromI18nKeyAndLabel('crm.common.notSet', 'Not set')
         },
         {
           label: getTranslationFromI18nKeyAndLabel('crm.common.currency', 'Currency'),
@@ -373,7 +394,7 @@ const InvestmentOpportunityRecordContent: React.FC<OpportunityRecordContentProps
         }
       ]
     }
-  ], [opportunity?.status, opportunity?.currency?.id, opportunity?.value, opportunity?.ownerEmployee]);
+  ], [opportunity?.dealType, opportunity?.expectedCloseDate, opportunity?.currency?.id, opportunity?.value, opportunity?.ownerEmployee]);
 
   const headerActions = useMemo(() => {
     const actions: AiAction[] = [
@@ -843,7 +864,7 @@ const OpportunityRecord: React.FC<InvestmentOpportunityRecordProps> = ({
   const handleBack = async () => {
     // Always navigate to investment relations
     const { buildPlatformUrl } = await import('@/common/utils/navigationUtils');
-    navigateTo(buildPlatformUrl('irm/investment-relations', { view: 'opportunities' }));
+    navigateTo(buildPlatformUrl('/platform/irm/investment-relations', { view: 'opportunities' }));
   };
 
   const getBackButtonText = () => {
