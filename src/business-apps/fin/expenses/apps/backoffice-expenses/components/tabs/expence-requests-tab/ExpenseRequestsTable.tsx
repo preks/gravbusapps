@@ -495,7 +495,7 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = (props) => {
                     <Table data-testid="expense-requests-data-table" className="gba:min-w-[1600px] gba:w-full">
                       <TableHeader>
                         <TableRow className="gba:border-b gba:bg-gray-50">
-                          <TableHead className="gba:w-[50px] gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-3">
+                          <TableHead className="gba:w-[50px] gba:min-w-[50px] gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-3">
                             {bookableRecordsCount > 0 && (
                               <Checkbox
                                 checked={allBookableSelected}
@@ -582,7 +582,6 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = (props) => {
                 requestTypeLabel={(selectedExpense.requestTypeRef 
                   ? String(selectedExpense.requestTypeRef).split(':').pop() 
                   : (selectedExpense.type ? String(selectedExpense.type) : undefined))}
-                planTypeLabel={undefined}
               />
             )}
           </div>
