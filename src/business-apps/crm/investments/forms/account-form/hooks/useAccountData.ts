@@ -88,6 +88,9 @@ export const mapInvestmentAccountToFormValues = (
     tickerSymbol: account.code || "", // ✅ UPDATED: Use code as ticker symbol
     // ✅ REMOVED: sicCode mapping - sicCode field removed from form
 
+    // Contact Information
+    contactIds: account.investmentAccountContact?.map(rel => rel.contact.id) || [], // ✅ NEW: Array of contact IDs for contact selection
+
     // Legacy fields
     address: "",
     state: "",

@@ -105,6 +105,9 @@ const ContactFormComponent: React.FC = () => {
         investmentContactPayload.communicationChannels = communicationChannels;
       }
 
+      // ✅ NEW: Add account IDs to payload - always include as array
+      // Always include accountIds at top level to maintain/break associations
+
       // ✅ FIXED: Handle ID and version for UPDATE mode only
       if (isUpdate) {
         investmentContactPayload.id = formValues.id;
@@ -120,10 +123,11 @@ const ContactFormComponent: React.FC = () => {
       const cleanPayload = {
         investmentContact: investmentContactPayload,
         changeMode: changeMode,
+        accountIds: formValues.accountIds || [],
       };
 
       const isolatedPayload = JSON.parse(JSON.stringify(cleanPayload));
-
+      
 
       dispatchProcessContinueEvent("pse_submit", isolatedPayload);
 
@@ -167,7 +171,6 @@ const ContactFormComponent: React.FC = () => {
 
           {/* Personal Information Section */}
           <PersonalInformationSection />
-
 
           {/* Error Display */}
           {error && (

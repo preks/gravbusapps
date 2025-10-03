@@ -11,11 +11,12 @@ import { dispatchProcessContinueEvent } from "@/common/utils/processEventUtils";
 import AccountInformationSection from "./AccountInformationSection";
 import AddressInformationSection from "./AddressInformationSection";
 import FinancialInformationSection from "./FinancialInformationSection";
+import ContactSelector from "./ContactSelector";
 
 const prefixDataTestId = "AccountForm";
 
 const AccountFormComponent: React.FC = () => {
-  const { formValues, onSubmit, onCancel, isLoading, error, hideActions } =
+  const { formValues, setFormValues, onSubmit, onCancel, isLoading, error, hideActions } =
     useAccountFormContext();
 
   // Check if all mandatory fields are filled
@@ -113,6 +114,7 @@ const AccountFormComponent: React.FC = () => {
       const cleanPayload = {
         investmentAccount: investmentAccountPayload,
         changeMode: changeMode,
+        contactIds: formValues.contactIds || [], // ✅ NEW: Array of contact IDs for contact selection
       };
 
 
@@ -159,6 +161,17 @@ const AccountFormComponent: React.FC = () => {
         <div className="gba:flex-1 gba:overflow-y-auto gba:space-y-8">
           {/* Account Information Section */}
           <AccountInformationSection />
+
+          {/* Related Contact Selection - positioned right after Account Information */}
+          <div className="gba:space-y-2">
+            <ContactSelector
+              value={formValues.contactIds}
+              onChange={(contactIds) => setFormValues({ contactIds })}
+              dataTestId={formatDataTestId(prefixDataTestId, "contact-selector")}
+              error={null}
+            />
+          </div>
+
 
           {/* Address Information Section */}
           <AddressInformationSection />
