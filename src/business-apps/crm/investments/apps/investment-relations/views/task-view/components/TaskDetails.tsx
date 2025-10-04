@@ -26,6 +26,7 @@ import {
   Link,
   CalendarPlus,
   ClockCounterClockwise,
+  TextAlignLeft,
   Icon as PhosphorIcon
 } from '@phosphor-icons/react';
 import { Task } from '../types/TaskTypes';
@@ -54,12 +55,12 @@ interface FieldRowProps {
 }
 
 const FieldRow: React.FC<FieldRowProps> = ({ icon: IconComponent, label, children, testId }) => (
-  <div className="gba:flex gba:items-center gba:gap-3 gba:py-1.5" data-testid={testId}>
+  <div className="gba:flex gba:items-start gba:gap-3 gba:py-2" data-testid={testId}>
     <div className="gba:flex gba:items-center gba:gap-2 gba:min-w-[100px] gba:text-sm gba:text-muted-foreground">
       <IconComponent size={14} className="gba:text-muted-foreground" />
       <span>{label}</span>
     </div>
-    <div className="gba:flex-1 gba:min-h-[24px] gba:flex gba:items-center">
+    <div className="gba:flex-1">
       {children}
     </div>
   </div>
@@ -242,6 +243,14 @@ export const TaskDetails: React.FC<TaskDetailsProps> = ({ task, sourceApp }) => 
             <FieldRow icon={ClockCounterClockwise} label="Created" testId={`${DATA_TEST_ID_PREFIX}-created-field`}>
               <span className="gba:text-sm gba:text-muted-foreground">{formatDateTime(task.createdAt)}</span>
             </FieldRow>
+
+            {task.description && (
+              <FieldRow icon={TextAlignLeft} label="Description" testId={`${DATA_TEST_ID_PREFIX}-description-field`}>
+                <p className="gba:text-sm gba:text-foreground gba:whitespace-pre-wrap">
+                  {task.description}
+                </p>
+              </FieldRow>
+            )}
 
           </CardContent>
         </Card>

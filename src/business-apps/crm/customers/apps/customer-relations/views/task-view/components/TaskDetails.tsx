@@ -29,6 +29,7 @@ import {
   ClockCounterClockwise,
   Target,
   Hash,
+  TextAlignLeft,
   Icon as PhosphorIcon
 } from '@phosphor-icons/react';
 import { Task } from '../types/TaskTypes';
@@ -360,6 +361,19 @@ export const TaskDetails: React.FC<TaskDetailsProps> = ({
                 {formatDateTime(task.createdAt)}
               </span>
             </FieldRow>
+
+            {/* Description */}
+            {task.description && (
+              <FieldRow 
+                icon={TextAlignLeft} 
+                label="Description" 
+                testId={`${DATA_TEST_ID_PREFIX}-description-field`}
+              >
+                <p className="gba:text-sm gba:text-foreground gba:whitespace-pre-wrap">
+                  {task.description}
+                </p>
+              </FieldRow>
+            )}
 
             {/* Updated */}
             <FieldRow 

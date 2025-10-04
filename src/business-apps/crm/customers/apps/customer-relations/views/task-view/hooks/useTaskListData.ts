@@ -145,6 +145,7 @@ const transformSalesTaskToTask = (salesTask: SalesTask): Task | null => {
   return {
     id: salesTask.id,
     name: taskName, // Use validated task name
+    description: salesTask.description || undefined,
     assignedTo,
     type: taskType, // Use actual activity type value
     priority: priority,

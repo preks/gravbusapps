@@ -19,6 +19,7 @@ export interface TaskReference {
 export interface Task {
   id: string;
   name: string;
+  description?: string;
   assignedTo: TaskEmployee;
   type: string;
   priority: 'high' | 'medium' | 'urgent' | 'low';

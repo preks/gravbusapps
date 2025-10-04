@@ -389,7 +389,7 @@ export const TaskManagement: React.FC<TaskManagementProps> = (props: TaskManagem
         }}
         title="Task Details"
       >
-        <SheetContent className="gba:w-[450px] gba:sm:w-[600px] gba:max-w-[90vw] gba:p-0 gba:flex gba:flex-col">
+        <SheetContent className="gba:!w-[500px] gba:sm:!w-[500px] gba:!max-w-[90vw] gba:p-0 gba:flex gba:flex-col">
           <SheetHeader className="gba:px-6 gba:py-6 gba:border-b gba:border-border gba:shrink-0">
             <SheetTitle className="gba:text-xl gba:font-semibold gba:text-left">
               {selectedTask?.name || getTranslationFromI18nKeyAndLabel('investment.tasks.taskDetails', 'Task Details')}

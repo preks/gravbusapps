@@ -160,6 +160,7 @@ export const useTaskListData = (props: UseTaskListDataProps): UseTaskListDataRet
         return {
           id: it.id,
           name: it.displayName || it.name || it.code || `Task ${it.id}`,
+          description: it.description || undefined,
           assignedTo: {
             id: it.assignedEmployee?.id || it.id,
             firstName: it.assignedEmployee?.firstName || '',
