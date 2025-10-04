@@ -242,6 +242,37 @@ const ContactInformationSection: React.FC = () => {
               <p className="gba:text-sm gba:text-red-600">{emailError}</p>
             )}
           </div>
+
+          {/* LinkedIn and Xing - Side by side */}
+          <div className="gba:grid gba:grid-cols-1 gba:gap-6 gba:md:grid-cols-2">
+            <div className="gba:space-y-2">
+              <Label className="gba:text-sm gba:font-medium gba:text-gray-900">
+                LinkedIn
+              </Label>
+              <Input
+                name="linkedinUrl"
+                value={formValues.linkedinUrl}
+                onChange={(e) => setFormValues({ linkedinUrl: e.target.value })}
+                placeholder="Please Enter"
+                className="gba:border-gray-300 gba:bg-white"
+                data-testid={formatDataTestId(prefixDataTestId, "linkedin-input")}
+              />
+            </div>
+
+            <div className="gba:space-y-2">
+              <Label className="gba:text-sm gba:font-medium gba:text-gray-900">
+                Xing
+              </Label>
+              <Input
+                name="xingUrl"
+                value={formValues.xingUrl}
+                onChange={(e) => setFormValues({ xingUrl: e.target.value })}
+                placeholder="Please Enter"
+                className="gba:border-gray-300 gba:bg-white"
+                data-testid={formatDataTestId(prefixDataTestId, "xing-input")}
+              />
+            </div>
+          </div>
         </CardContent>
       )}
     </Card>

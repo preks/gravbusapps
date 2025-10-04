@@ -149,7 +149,36 @@ const LeadFormComponent: React.FC = () => {
       };
 
       leadPayload.tags = [];
-      leadPayload.communicationChannels = [];
+
+      // ✅ NEW: Add communication channels for LinkedIn and Xing
+      const communicationChannels = [];
+      
+      // Add LinkedIn communication channel if provided
+      if (formValues.linkedinUrl && formValues.linkedinUrl.trim()) {
+        communicationChannels.push({
+          communicationChannelRef: "CommunicationChannel:v1:LinkedIn",
+          value: formValues.linkedinUrl.trim(),
+          valueExtension: null,
+          source: "FORM_INPUT",
+          activeFrom: new Date().toISOString(),
+          activeTo: null,
+        });
+      }
+      
+      // Add Xing communication channel if provided
+      if (formValues.xingUrl && formValues.xingUrl.trim()) {
+        communicationChannels.push({
+          communicationChannelRef: "CommunicationChannel:v1:Xing", 
+          value: formValues.xingUrl.trim(),
+          valueExtension: null,
+          source: "FORM_INPUT",
+          activeFrom: new Date().toISOString(),
+          activeTo: null,
+        });
+      }
+
+      // Add communication channels to payload if any exist
+      leadPayload.communicationChannels = communicationChannels;
 
       // ✅ ADDED: Ensure numerical fields are properly set (API validation)
       leadPayload.stakePercentage = leadPayload.stakePercentage || 0;

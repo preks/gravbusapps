@@ -24,6 +24,10 @@ export interface LeadFormValues {
   email: string;
   sensitive?: string | boolean; // ✅ ADDED: Sensitive data flag
 
+  // Social Media Information
+  linkedinUrl: string; // ✅ Available in InvestmentLead via communication channels
+  xingUrl: string; // ✅ Available in InvestmentLead via communication channels
+
   // Company Information
   legalForm: string;
   industry: string;

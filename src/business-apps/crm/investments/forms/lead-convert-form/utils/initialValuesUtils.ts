@@ -125,9 +125,13 @@ export const getContactInitialValues = (leadData: any): Partial<ContactFormValue
     // ===== CONTACT TYPE (default for lead conversion) =====
     type: 'UNKNOWN_CONTACT', // Default contact type for lead conversion
     
-    // ===== SOCIAL MEDIA INFORMATION (not available in InvestmentLead) =====
-    linkedinUrl: '', // Not available in InvestmentLead - user will need to fill
-    xingUrl: '', // Not available in InvestmentLead - user will need to fill
+    // ===== SOCIAL MEDIA INFORMATION (extracted from communication channels) =====
+    linkedinUrl: leadData.communicationChannels?.find(
+      (channel: any) => channel.communicationChannelRef === "CommunicationChannel:v1:LinkedIn"
+    )?.value || '',
+    xingUrl: leadData.communicationChannels?.find(
+      (channel: any) => channel.communicationChannelRef === "CommunicationChannel:v1:Xing"
+    )?.value || '',
     
     // ===== OWNER INFORMATION (from InvestmentLead) =====
     ownerEmployeeId: leadData.ownerEmployeeId || leadData.ownerEmployee?.id || '',

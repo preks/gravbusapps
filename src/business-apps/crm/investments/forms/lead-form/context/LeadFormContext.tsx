@@ -250,6 +250,10 @@ export const LeadFormProvider: React.FC<LeadFormProviderProps> = ({
     email: "",
     sensitive: false, // ✅ ADDED: Sensitive data flag
 
+    // Social Media Information
+    linkedinUrl: "",
+    xingUrl: "",
+
     // Company Information
     legalForm: "",
     industry: "",

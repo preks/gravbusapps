@@ -49,6 +49,14 @@ export const useInvestmentLeadData = ({
         phone: lead.phoneNumber || "",
         jobPosition: lead.position || "",
 
+        // Social Media Information - Extract from communication channels
+        linkedinUrl: lead.communicationChannels?.find(
+          channel => channel.communicationChannelRef === "CommunicationChannel:v1:LinkedIn"
+        )?.value || "",
+        xingUrl: lead.communicationChannels?.find(
+          channel => channel.communicationChannelRef === "CommunicationChannel:v1:Xing"
+        )?.value || "",
+
         // Company Information
         company: lead.companyName || "",
         companyEmail: lead.companyEmail || "",
