@@ -32,7 +32,7 @@ import {
   TextAlignLeft,
   Icon as PhosphorIcon
 } from '@phosphor-icons/react';
-import { Task } from '../types/TaskTypes';
+import { Task } from '@/common/components/common-relations/detail-sheets/task-detail-sheet';
 import { 
   getTaskStatusBadgeVariant,
   getTaskPriorityBadgeVariant,

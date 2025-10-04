@@ -1,6 +1,6 @@
 import React from 'react';
 import { WidgetGroup, WidgetItem } from '@/components/widget-group';
-import { TaskStatistics as TaskStatisticsType } from '../types/TaskTypes';
+import { TaskStatistics as TaskStatisticsType } from '@/common/components/common-relations/detail-sheets/task-detail-sheet';
 import { 
   UserOutlined,
   ClockCircleOutlined,

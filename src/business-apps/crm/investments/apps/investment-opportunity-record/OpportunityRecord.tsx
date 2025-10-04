@@ -5,7 +5,7 @@ import {
   RecordLayout,
   Badge,
 } from "@newwork/nw-design-system";
-import { User, FileText, CurrencyDollar, Star, Lightbulb as LightbulbIcon, Trash as Trash2, PencilSimple as Edit } from '@phosphor-icons/react';
+import { User, FileText, Star, Lightbulb as LightbulbIcon, Trash as Trash2, PencilSimple as Edit } from '@phosphor-icons/react';
 import { BusinessAppContextProps } from "@/common/BusinessAppContext";
 import { navigateTo, buildPlatformUrl } from "@/common/utils/navigationUtils";
 import { getTranslationFromI18nKeyAndLabel } from "@/common/utils/windowUtils";
@@ -17,6 +17,7 @@ import { useAiSummary } from './hooks/useAiSummary';
 import { AiActions, AiAction } from "@/common/components/common-relations/record-sections/header-section/ai-actions";
 import { AppActionButton } from "@/components/app-action-button/AppActionButton";
 import { Bot } from 'lucide-react';
+import type { TaskReference } from '@/common/components/common-relations/detail-sheets/task-detail-sheet';
 import ConditionSection from "@/common/components/common-relations/record-sections/condition-section/ConditionSection";
 import InvestmentSection from "@/common/components/common-relations/record-sections/investment-section/InvestmentSection";
 import { OpportunityStageProgression } from "./components/OpportunityStageProgression";
@@ -90,6 +91,24 @@ const InvestmentOpportunityRecordContent: React.FC<OpportunityRecordContentProps
 
   // AI Summary hook for HeaderSection
   const aiSummaryHook = useAiSummary(opportunityId, props.accessToken);
+
+  // Build reference URLs for IRM context
+  const buildReferenceUrl = (reference: TaskReference): string => {
+    switch (reference.type) {
+      case 'lead': 
+        return buildPlatformUrl('/platform/irm/lead-record', { leadId: reference.id });
+      case 'account': 
+        return buildPlatformUrl('/platform/irm/account-record', { accountId: reference.id });
+      case 'contact': 
+        return buildPlatformUrl('/platform/irm/contact-record', { contactId: reference.id });
+      case 'opportunity': 
+        return buildPlatformUrl('/platform/irm/opportunity-record', { opportunityId: reference.id });
+      case 'investment':
+        return buildPlatformUrl('/platform/irm/investment-record', { investmentId: reference.id });
+      default: 
+        return '';
+    }
+  };
 
   // Activity data loading
   const { fetchInvestmentActivities } = useGetInvestmentActivities(props);
@@ -348,7 +367,6 @@ const InvestmentOpportunityRecordContent: React.FC<OpportunityRecordContentProps
       )}
       {opportunity?.value && (
         <Badge variant="outline" className="gba:gap-1">
-          <CurrencyDollar size={16} />
           {formatCurrency(
             opportunity.value, 
             opportunity?.currency?.id || 'Currency:v1:EUR'
@@ -661,16 +679,39 @@ const InvestmentOpportunityRecordContent: React.FC<OpportunityRecordContentProps
                   props: {
                     ...props,
                     opportunityId: opportunityId,
+                    buildReferenceUrl,
                     tasks: tasks.map(task => ({
                       id: task.id,
                       title: task.name,
+                      description: task.description,
                       createdAt: task.createdAt,
                       due: task.dueDate,
                       assignee: task.assignedEmployee?.displayName || task.assignedEmployee?.fullName,
                       statusCode: task.taskStatus?.value?.toUpperCase() as any,
                       taskStatus: task.taskStatus,
                       taskPriority: task.taskPriority,
-                      assigneeEmployee: task.assignedEmployee
+                      assigneeEmployee: task.assignedEmployee,
+                      reference: task.lead ? {
+                        type: 'lead' as const,
+                        id: task.lead.id,
+                        name: `${task.lead.firstName || ''} ${task.lead.lastName || ''}`.trim() || task.lead.code || 'Lead'
+                      } : task.account ? {
+                        type: 'account' as const,
+                        id: task.account.id,
+                        name: task.account.name || task.account.code || 'Account'
+                      } : task.contact ? {
+                        type: 'contact' as const,
+                        id: task.contact.id,
+                        name: `${task.contact.firstName || ''} ${task.contact.lastName || ''}`.trim() || task.contact.code || 'Contact'
+                      } : task.opportunity ? {
+                        type: 'opportunity' as const,
+                        id: task.opportunity.id,
+                        name: task.opportunity.name || task.opportunity.code || 'Opportunity'
+                      } : task.investment ? {
+                        type: 'investment' as const,
+                        id: task.investment.id,
+                        name: task.investment.name || task.investment.code || 'Investment'
+                      } : undefined
                     })),
                     taskActionProps: {
                       ...taskActionProps,
@@ -690,16 +731,39 @@ const InvestmentOpportunityRecordContent: React.FC<OpportunityRecordContentProps
                   props: {
                     ...props,
                     sectionTitle: 'Approval Tasks',
+                    buildReferenceUrl,
                     tasks: approvals.map(approval => ({
                       id: approval.id,
                       title: approval.name,
+                      description: approval.description,
                       createdAt: approval.createdAt,
                       due: approval.dueDate,
                       assignee: approval.assignedEmployee?.displayName || approval.assignedEmployee?.fullName,
                       statusCode: approval.taskStatus?.value?.toUpperCase() as any,
                       taskStatus: approval.taskStatus,
                       taskPriority: approval.taskPriority,
-                      assigneeEmployee: approval.assignedEmployee
+                      assigneeEmployee: approval.assignedEmployee,
+                      reference: approval.lead ? {
+                        type: 'lead' as const,
+                        id: approval.lead.id,
+                        name: `${approval.lead.firstName || ''} ${approval.lead.lastName || ''}`.trim() || approval.lead.code || 'Lead'
+                      } : approval.account ? {
+                        type: 'account' as const,
+                        id: approval.account.id,
+                        name: approval.account.name || approval.account.code || 'Account'
+                      } : approval.contact ? {
+                        type: 'contact' as const,
+                        id: approval.contact.id,
+                        name: `${approval.contact.firstName || ''} ${approval.contact.lastName || ''}`.trim() || approval.contact.code || 'Contact'
+                      } : approval.opportunity ? {
+                        type: 'opportunity' as const,
+                        id: approval.opportunity.id,
+                        name: approval.opportunity.name || approval.opportunity.code || 'Opportunity'
+                      } : approval.investment ? {
+                        type: 'investment' as const,
+                        id: approval.investment.id,
+                        name: approval.investment.name || approval.investment.code || 'Investment'
+                      } : undefined
                     })),
                     taskActionProps: {
                       ...approvalActionProps,

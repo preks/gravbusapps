@@ -5,7 +5,8 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle, DataDisplay, DataTable, B
 
 import { useTaskData } from './hooks/useTaskData';
 import { useTaskStatistics } from './hooks/useTaskStatistics';
-import { TaskDetails, TaskStatistics } from './components';
+import { TaskStatistics } from './components';
+import { TaskDetailSheet } from '@/common/components/common-relations/detail-sheets/task-detail-sheet';
 import { createTaskColumns, createTaskSortableColumns } from './config/taskColumns';
 import { taskFilterConfig } from './config/taskFilters';
 import { useTaskFilters } from './hooks/useTaskFilters';
@@ -13,9 +14,11 @@ import { AppActionMenu } from '@/components/app-action-menu/AppActionMenu';
 import { AppAction } from '@/components/app-action/AppAction';
 import { FlowContextName } from '@/common/types/FlowRegistryTypes';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
-import { Task } from './types/TaskTypes';
+import { Task } from '@/common/components/common-relations/detail-sheets/task-detail-sheet';
+import type { TaskReference } from '@/common/components/common-relations/detail-sheets/task-detail-sheet';
 import { PlusIcon } from '@phosphor-icons/react';
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
+import { buildPlatformUrl } from '@/common/utils/navigationUtils';
 
 // Filter configuration types
 export interface FilterOption {
@@ -37,6 +40,24 @@ export const TaskManagement: React.FC<TaskManagementProps> = (props: TaskManagem
   // Section state
   const [currentSection, setCurrentSection] = useState('my');
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
+
+  // Build reference URLs for IRM context
+  const buildReferenceUrl = (reference: TaskReference): string => {
+    switch (reference.type) {
+      case 'lead': 
+        return buildPlatformUrl('/platform/irm/lead-record', { leadId: reference.id });
+      case 'account': 
+        return buildPlatformUrl('/platform/irm/account-record', { accountId: reference.id });
+      case 'contact': 
+        return buildPlatformUrl('/platform/irm/contact-record', { contactId: reference.id });
+      case 'opportunity': 
+        return buildPlatformUrl('/platform/irm/opportunity-record', { opportunityId: reference.id });
+      case 'investment':
+        return buildPlatformUrl('/platform/irm/investment-record', { investmentId: reference.id });
+      default: 
+        return '';
+    }
+  };
 
   // Get dynamic filter data
   const { types, statuses, priorities } = useTaskFilters({ accessToken, userInfo });
@@ -397,7 +418,7 @@ export const TaskManagement: React.FC<TaskManagementProps> = (props: TaskManagem
           </SheetHeader>
               <div className="gba:flex-1 gba:overflow-hidden gba:px-6">
                 {selectedTask ? (
-                  <TaskDetails task={selectedTask} accessToken={accessToken} />
+                  <TaskDetailSheet task={selectedTask} buildReferenceUrl={buildReferenceUrl} data-testid="task-detail-sheet" />
                 ) : (
                   <div className="gba:p-4 gba:text-center gba:text-muted-foreground">
                     No task selected

@@ -246,6 +246,7 @@ export const INVESTMENT_ACCOUNT = `
     additionalProperties
     processInstanceId
     synchronizedAt
+    ${AUDIT_FIELDS}
     
     # Address information
     addresses {

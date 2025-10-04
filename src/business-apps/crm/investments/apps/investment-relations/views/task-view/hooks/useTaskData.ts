@@ -1,7 +1,7 @@
 import { useState, useMemo, useCallback, useEffect } from 'react';
 import type { SortingState } from '@tanstack/react-table';
 import { useTaskListData } from './useTaskListData';
-import { Task } from '../types/TaskTypes';
+import { Task } from '@/common/components/common-relations/detail-sheets/task-detail-sheet';
 import { UserInfoProps } from '@/common/BusinessAppContext';
 
 interface UseTaskDataProps {

@@ -1,4 +1,4 @@
-import { Task, TaskStatistics, TaskEmployee, TaskReference } from '../types/TaskTypes';
+import { Task, TaskStatistics, TaskEmployee, TaskReference } from '@/common/components/common-relations/detail-sheets/task-detail-sheet';
 
 // Mock employees
 const mockEmployees: TaskEmployee[] = [

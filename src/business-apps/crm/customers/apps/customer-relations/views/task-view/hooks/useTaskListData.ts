@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useCallback, useEffect, useRef } from 'react';
-import { Task } from '../types/TaskTypes';
+import { Task } from '@/common/components/common-relations/detail-sheets/task-detail-sheet';
 import { TaskFilters } from './useTaskFilters';
 import { useSalesTaskQueries } from './useSalesTaskQueries';
 import { SalesTask } from '../types/SalesTaskTypes';

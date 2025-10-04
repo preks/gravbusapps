@@ -25,7 +25,7 @@ import { PiUser, PiArrowUp, PiArrowDown, PiLightning } from "react-icons/pi";
 import { Clock, Calendar } from "lucide-react";
 import { AppActionButton } from "@/components/app-action-button/AppActionButton";
 import { FlowContextName } from "@/common/types/FlowRegistryTypes";
-import { Task } from "../types/TaskTypes";
+import { Task } from '@/common/components/common-relations/detail-sheets/task-detail-sheet';
 import {
   getTaskStatusBadgeVariant,
   getTaskPriorityBadgeVariant,

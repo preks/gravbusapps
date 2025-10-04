@@ -3,14 +3,14 @@ export interface TaskEmployee {
   firstName: string;
   lastName: string;
   displayName: string;
-  department: string;
+  department?: string;
   avatar?: string;
-  initials: string;
+  initials?: string;
   pictureThumbnail?: string;
 }
 
 export interface TaskReference {
-  type: 'opportunity' | 'account' | 'lead' | 'contact';
+  type: 'opportunity' | 'account' | 'lead' | 'contact' | 'investment';
   id: string;
   name: string;
   description?: string;
@@ -24,16 +24,16 @@ export interface Task {
   type: string;
   priority: 'high' | 'medium' | 'urgent' | 'low';
   status: 'in_progress' | 'pending' | 'completed' | 'overdue';
-  reference?: TaskReference; // Made optional to handle tasks without related entities
+  reference?: TaskReference;
   dueDate: string;
   scheduleDate?: string;
   timingType?: 'DEADLINE' | 'SCHEDULED' | 'UNKNOWN_TIMING_TYPE';
   createdAt: string;
   updatedAt: string;
   version?: number;
-  rawSalesTask?: any;
   createdBy?: string;
   creatorEmployee?: TaskEmployee;
+  rawSalesTask?: any; // Legacy field for backwards compatibility
 }
 
 export interface TaskStatisticItem {
