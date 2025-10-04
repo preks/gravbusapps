@@ -81,7 +81,7 @@ export const AccountOpportunities: React.FC<AccountOpportunitiesProps> = ({
 
 
   const handleOpportunityClick = (opportunityId: string) => {
-    const url = buildPlatformUrl('/platform/investments/investment-opportunity-record', { 
+    const url = buildPlatformUrl('/platform/irm/opportunity-record', { 
       opportunityId, 
       source: 'investments' 
     });
@@ -108,9 +108,28 @@ export const AccountOpportunities: React.FC<AccountOpportunitiesProps> = ({
     return variants[status] || 'outline';
   };
 
+  // Calculate total value and detect currency
   const totalValue = opportunities.reduce((sum, opp) => sum + (opp.estimatedAmount || 0), 0);
-  const openOpportunities = opportunities.filter(opp => opp.status !== 'Lost' && opp.status !== 'Won');
-  const wonOpportunities = opportunities.filter(opp => opp.status === 'Won');
+  
+  // Get unique currencies from opportunities
+  const currencies = Array.from(new Set(
+    opportunities
+      .filter(opp => opp.currency?.code)
+      .map(opp => opp.currency!.code)
+  ));
+  
+  // Use single currency if all opportunities share the same currency, otherwise indicate mixed
+  const totalCurrency = currencies.length === 1 ? currencies[0] : null;
+  const isMixedCurrency = currencies.length > 1;
+  
+  const openOpportunities = opportunities.filter(opp => {
+    const status = opp.opportunityStatus?.value || opp.opportunityStatus?.code || '';
+    return status !== 'Lost' && status !== 'Won';
+  });
+  const wonOpportunities = opportunities.filter(opp => {
+    const status = opp.opportunityStatus?.value || opp.opportunityStatus?.code || '';
+    return status === 'Won';
+  });
 
   return (
     <Card className="gba:w-full" data-testid="account-opportunities-card">
@@ -122,16 +141,23 @@ export const AccountOpportunities: React.FC<AccountOpportunitiesProps> = ({
           </CardTitle>
           <div className="gba:flex gba:gap-4 gba:text-sm">
             <div className="gba:text-center">
-              <div className="gba:font-medium gba:text-blue-600">Open</div>
+              <div className="gba:font-medium gba:text-info">Open</div>
               <div>{openOpportunities.length}</div>
             </div>
             <div className="gba:text-center">
-              <div className="gba:font-medium gba:text-green-600">Won</div>
+              <div className="gba:font-medium gba:text-success">Won</div>
               <div>{wonOpportunities.length}</div>
             </div>
             <div className="gba:text-center">
-              <div className="gba:font-medium gba:text-gray-600">Total Value</div>
-              <div className="gba:font-semibold">{formatCurrency(totalValue)}</div>
+              <div className="gba:font-medium gba:text-muted-foreground">Total Value</div>
+              <div className="gba:font-semibold">
+                {totalCurrency 
+                  ? formatCurrency(totalValue, totalCurrency)
+                  : isMixedCurrency 
+                    ? `${new Intl.NumberFormat('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(totalValue)} (Mixed)`
+                    : '-'
+                }
+              </div>
             </div>
           </div>
         </div>
@@ -140,7 +166,7 @@ export const AccountOpportunities: React.FC<AccountOpportunitiesProps> = ({
         {loading ? (
           <div className="gba:text-center gba:py-10">
             <Spinner size="lg" />
-            <p className="gba:mt-4 gba:text-gray-500">Loading opportunities...</p>
+            <p className="gba:mt-4 gba:text-muted-foreground">Loading opportunities...</p>
           </div>
         ) : error ? (
           <Alert variant="destructive" className="gba:mb-4">
@@ -150,10 +176,10 @@ export const AccountOpportunities: React.FC<AccountOpportunitiesProps> = ({
         ) : opportunities.length === 0 ? (
           <div className="gba:text-center gba:py-10" data-testid="no-opportunities-message">
             <div className="gba:text-4xl gba:mb-4">💼</div>
-            <h3 className="gba:text-lg gba:font-semibold gba:text-gray-700 gba:mb-2">
+            <h3 className="gba:text-lg gba:font-semibold gba:text-foreground gba:mb-2">
               No Opportunities Found
             </h3>
-            <p className="gba:text-gray-500">
+            <p className="gba:text-muted-foreground">
               This account doesn't have any opportunities yet.
             </p>
           </div>
@@ -178,7 +204,7 @@ export const AccountOpportunities: React.FC<AccountOpportunitiesProps> = ({
                       <Button
                         variant="ghost"
                         onClick={() => handleOpportunityClick(opportunity.id)}
-                        className="gba:p-0 gba:h-auto gba:text-blue-600 gba:hover:text-blue-800"
+                        className="gba:p-0 gba:h-auto gba:text-primary gba:hover:text-primary"
                         data-testid={`opportunity-link-${opportunity.id}`}
                       >
                         {opportunity.name || 'Unnamed Opportunity'}
@@ -192,16 +218,16 @@ export const AccountOpportunities: React.FC<AccountOpportunitiesProps> = ({
                     </TableCell>
                     <TableCell>
                       <Badge 
-                        variant={getStageVariant(opportunity.salesPipelineStage?.value || '')}
+                        variant={getStageVariant(opportunity.opportunityPipelineStage?.value || opportunity.opportunityPipelineStage?.code || '')}
                         data-testid={`opportunity-stage-${opportunity.id}`}
                       >
-                        {opportunity.salesPipelineStage?.value || '-'}
+                        {opportunity.opportunityPipelineStage?.value || opportunity.opportunityPipelineStage?.code || '-'}
                       </Badge>
                     </TableCell>
                     <TableCell>
-                      {opportunity.status ? (
-                        <Badge variant={getStatusVariant(opportunity.status)}>
-                          {opportunity.status}
+                      {opportunity.opportunityStatus ? (
+                        <Badge variant={getStatusVariant(opportunity.opportunityStatus.value || opportunity.opportunityStatus.code || '')}>
+                          {opportunity.opportunityStatus.value || opportunity.opportunityStatus.code || '-'}
                         </Badge>
                       ) : '-'}
                     </TableCell>
@@ -229,7 +255,7 @@ export const AccountOpportunities: React.FC<AccountOpportunitiesProps> = ({
             </Table>
             
             {/* Simple pagination info */}
-            <div className="gba:mt-4 gba:text-sm gba:text-gray-500 gba:text-center">
+            <div className="gba:mt-4 gba:text-sm gba:text-muted-foreground gba:text-center">
               Showing {opportunities.length} opportunities
             </div>
           </div>
