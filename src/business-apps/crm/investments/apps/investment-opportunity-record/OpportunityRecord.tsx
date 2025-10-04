@@ -7,7 +7,7 @@ import {
 } from "@newwork/nw-design-system";
 import { User, FileText, CurrencyDollar, Star, Lightbulb as LightbulbIcon, Trash as Trash2, PencilSimple as Edit } from '@phosphor-icons/react';
 import { BusinessAppContextProps } from "@/common/BusinessAppContext";
-import { navigateTo } from "@/common/utils/navigationUtils";
+import { navigateTo, buildPlatformUrl } from "@/common/utils/navigationUtils";
 import { getTranslationFromI18nKeyAndLabel } from "@/common/utils/windowUtils";
 import { useOpportunityData } from "./hooks/useOpportunityData";
 import { useProcessCompletion } from "@/common/hooks/useProcessCompletion";
@@ -540,6 +540,13 @@ const InvestmentOpportunityRecordContent: React.FC<OpportunityRecordContentProps
                       } : undefined;
                     })() : undefined,
                     accountId: opportunityData?.account?.id,
+                    recordUrl: opportunityData?.account?.id
+                      ? buildPlatformUrl('/platform/irm/account-record', {
+                          accountId: opportunityData.account.id,
+                          source: 'opportunity-relations',
+                          fromEntity: 'opportunities'
+                        })
+                      : undefined,
                     actionButtonProps: {
                       contextsArray: [FlowContextName.investmentAccountEntity],
                       externalContextData: { accountId: opportunityData?.account?.id },
@@ -574,6 +581,13 @@ const InvestmentOpportunityRecordContent: React.FC<OpportunityRecordContentProps
                       salutation: ioc.contact.salutation?.value || ioc.contact.salutation?.code,
                     } : null).filter(Boolean),
                     contactId: opportunityData?.investmentOpportunityContact?.[0]?.contact?.id,
+                    recordUrl: opportunityData?.investmentOpportunityContact?.[0]?.contact?.id
+                      ? buildPlatformUrl('/platform/irm/contact-record', {
+                          contactId: opportunityData.investmentOpportunityContact[0].contact.id,
+                          source: 'opportunity-relations',
+                          fromEntity: 'opportunities'
+                        })
+                      : undefined,
                     actionButtonProps: {
                       contextsArray: [FlowContextName.investmentContactEntity],
                       externalContextData: { contactId: opportunityData?.investmentOpportunityContact?.[0]?.contact?.id },

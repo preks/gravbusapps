@@ -433,6 +433,13 @@ const InvestmentAccountRecordContent: React.FC<AccountRecordContentProps> = ({ a
                     contacts: (accountData as any)?.investmentAccountContact?.map((accountContact: any) => accountContact.contact).filter(Boolean) || [],
                     contact: (accountData as any)?.investmentAccountContact?.[0]?.contact || undefined,
                     contactId: (accountData as any)?.investmentAccountContact?.[0]?.contact?.id || undefined,
+                    recordUrl: (accountData as any)?.investmentAccountContact?.[0]?.contact?.id
+                      ? buildPlatformUrl('/platform/irm/contact-record', {
+                          contactId: (accountData as any).investmentAccountContact[0].contact.id,
+                          source: 'account-relations',
+                          fromEntity: 'accounts'
+                        })
+                      : undefined,
                     actionButtonProps: {
                       contextsArray: [FlowContextName.customerContactEntity],
                       externalContextData: { accountId },

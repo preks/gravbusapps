@@ -356,6 +356,13 @@ const InvestmentContactRecordContent: React.FC<ContactRecordContentProps> = ({
                       } : undefined;
                     })() : undefined,
                     accountId: (rawContactData as any)?.investmentAccountContact?.[0]?.account?.id,
+                    recordUrl: (rawContactData as any)?.investmentAccountContact?.[0]?.account?.id
+                      ? buildPlatformUrl('/platform/irm/account-record', {
+                          accountId: (rawContactData as any).investmentAccountContact[0].account.id,
+                          source: 'contact-relations',
+                          fromEntity: 'contacts'
+                        })
+                      : undefined,
                     actionButtonProps: {
                       contextsArray: [FlowContextName.customerAccountEntity],
                       externalContextData: { accountId: (rawContactData as any)?.investmentAccountContact?.[0]?.account?.id },

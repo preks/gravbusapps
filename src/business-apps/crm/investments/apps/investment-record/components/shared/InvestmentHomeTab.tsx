@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
+import { buildPlatformUrl } from '@/common/utils/navigationUtils';
 import { useGetInvestmentTasksByInvestmentId } from '../../hooks/useInvestmentTasksByInvestmentId';
 import { useGetInvestmentActivitiesByInvestmentId } from '../../hooks/useInvestmentActivitiesByInvestmentId';
 import { useGetInvestmentNotesByInvestmentId } from '../../hooks/useInvestmentNotesByInvestmentId';
@@ -211,6 +212,13 @@ export const InvestmentHomeTab: React.FC<InvestmentHomeTabProps> = ({
                 } : undefined;
               })() : undefined,
               accountId: investment?.investmentAccount?.id,
+              recordUrl: investment?.investmentAccount?.id
+                ? buildPlatformUrl('/platform/irm/account-record', {
+                    accountId: investment.investmentAccount.id,
+                    source: 'investment-relations',
+                    fromEntity: 'investments'
+                  })
+                : undefined,
               actionButtonProps: investment?.investmentAccount?.id ? {
                 contextsArray: [FlowContextName.investmentAccountEntity],
                 externalContextData: { accountId: investment.investmentAccount.id },
@@ -239,6 +247,13 @@ export const InvestmentHomeTab: React.FC<InvestmentHomeTabProps> = ({
                 phone: investment?.investmentAccount?.investmentAccountContact?.[0]?.contact?.phone || null
               },
               contactId: investment?.investmentAccount?.investmentAccountContact?.[0]?.contact?.id || null,
+              recordUrl: investment?.investmentAccount?.investmentAccountContact?.[0]?.contact?.id
+                ? buildPlatformUrl('/platform/irm/contact-record', {
+                    contactId: investment.investmentAccount.investmentAccountContact[0].contact.id,
+                    source: 'investment-relations',
+                    fromEntity: 'investments'
+                  })
+                : undefined,
               actionButtonProps: investment?.investmentAccount?.investmentAccountContact?.[0]?.contact?.id ? {
                 contextsArray: [FlowContextName.investmentContactEntity],
                 externalContextData: { contactId: investment.investmentAccount.investmentAccountContact[0].contact.id },
