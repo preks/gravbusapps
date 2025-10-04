@@ -2,7 +2,7 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useFormContext } from 'react-hook-form';
 import { DynamicForm, DynamicFormFieldDefinition } from '@/components/dynamic-form';
 import { useInvestmentFormContext } from '../../context/InvestmentFormContext';
-import { InvestmentAccountField } from '../investment-field-types';
+import { InvestmentAccountField, InvestmentRolesField } from '../investment-field-types';
 import { mapInvestmentDataToFormFields } from '../../utils/dynamicFieldMapper';
 import { InvestmentFormValues } from '../../types';
 
@@ -104,6 +104,18 @@ const DynamicSegment: React.FC<DynamicSegmentProps> = ({
     if (entityType === 'InvestmentAccount') {
       return (
         <InvestmentAccountField
+          field={field}
+          fieldName={fieldName}
+          control={control}
+          businessAppContext={businessAppContext}
+          testIdPrefix={testIdPrefix}
+        />
+      );
+    }
+    
+    if (entityType === 'InvestmentRole') {
+      return (
+        <InvestmentRolesField
           field={field}
           fieldName={fieldName}
           control={control}

@@ -149,7 +149,23 @@ export const createDynamicInvestmentSchema = (formFieldsDefinition?: FormFieldsD
               if (field.type.startsWith('CATALOG_')) {
                 validationRule = catalogEntrySchema.refine(val => val, { message: errorMessage });
               } else if (field.type.startsWith('REF_')) {
-                validationRule = z.string().min(1, errorMessage);
+                // Check if it's an array reference field (e.g., REF_InvestmentRole)
+                const entityType = field.type.replace('REF_', '');
+                if (entityType === 'InvestmentRole') {
+                  // Array of investment roles
+                  validationRule = z.array(
+                    z.object({
+                      id: z.string().optional(),
+                      version: z.number().optional(),
+                      investmentRole: catalogEntrySchema,
+                      displayOrder: z.number(),
+                      isDeleted: z.boolean().optional()
+                    })
+                  ).min(1, errorMessage);
+                } else {
+                  // Single reference (like InvestmentAccount)
+                  validationRule = z.string().min(1, errorMessage);
+                }
               } else {
                 validationRule = z.string().min(1, errorMessage);
               }
@@ -201,7 +217,23 @@ export const createDynamicInvestmentSchema = (formFieldsDefinition?: FormFieldsD
               if (field.type.startsWith('CATALOG_')) {
                 validationRule = catalogEntrySchema.optional();
               } else if (field.type.startsWith('REF_')) {
-                validationRule = z.string().optional();
+                // Check if it's an array reference field (e.g., REF_InvestmentRole)
+                const entityType = field.type.replace('REF_', '');
+                if (entityType === 'InvestmentRole') {
+                  // Array of investment roles (optional)
+                  validationRule = z.array(
+                    z.object({
+                      id: z.string().optional(),
+                      version: z.number().optional(),
+                      investmentRole: catalogEntrySchema,
+                      displayOrder: z.number(),
+                      isDeleted: z.boolean().optional()
+                    })
+                  ).optional();
+                } else {
+                  // Single reference (like InvestmentAccount)
+                  validationRule = z.string().optional();
+                }
               } else {
                 validationRule = z.string().optional();
               }

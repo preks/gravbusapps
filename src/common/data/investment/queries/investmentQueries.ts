@@ -320,9 +320,11 @@ export const GET_INVESTMENTS = (variables: InvestmentQueryVariables = {}): strin
         }
 
         # Investment role relationship (array)
-        investmentRole {
+        investmentRole(where: { isDeleted: { _eq: false } }, orderBy: { displayOrder: ASC_NULLS_LAST }) {
           id
+          version
           displayOrder
+          isDeleted
           investmentRole {
             ${CATALOG_ENTRY}
           }

@@ -8,6 +8,15 @@ import { InvestmentAccountRef } from '@/common/data/investment/types/investmentR
 // Investment Payload Types
 // ==============================
 
+// Investment Role payload data
+export interface InvestmentRoleData {
+  id?: string;                      // For updates
+  version?: number;                 // For updates
+  investmentRole: CatalogEntry;     // Full catalog object (form state)
+  displayOrder: number;             // Position in list
+  isDeleted?: boolean;              // Soft delete flag
+}
+
 // ==============================
 // Investment Entity Interfaces
 // ==============================
@@ -56,6 +65,9 @@ export interface InvestmentData {
   investmentOpportunity?: string; // uuid
   loanRecipientInvestmentAccount?: string; // uuid
   additionalProperties?: any; // JSON object
+  
+  // Investment Roles (array) - GraphQL schema name is singular
+  investmentRole?: InvestmentRoleData[];
 
   // Support for dynamic additional properties fields
   [key: string]: any; // Allow dynamic additional properties fields
@@ -68,7 +80,6 @@ export interface EquityInvestmentData {
   marketValue?: number | string;
   turnoverAmount?: number | string;
   ebitdaAmount?: number | string;
-  investmentRole?: CatalogEntry; // Full catalog object
   investmentStakeType?: CatalogEntry; // Full catalog object
   stakePercentage?: number | string;
   additionalProperties?: any; // JSON object
@@ -95,7 +106,6 @@ export interface RealEstateInvestmentData {
   actualAnnualExpenses?: number | string;
   targetAnnualExpenses?: number | string;
   liquidityForecast?: any; // object
-  investmentRole?: CatalogEntry; // Full catalog object
   loanAmount?: number | string;
   loanInterestRate?: number | string;
   marketValue?: number | string;
@@ -254,6 +264,21 @@ export const buildInvestmentPayload = (
     baseInvestmentPayload.version = rawInvestmentData.version;
   }
 
+  // Process investment roles (array)
+  // NOTE: GraphQL returns "investmentRole" (singular), API expects "investmentRoles" (plural)
+  const investmentRolesPayload = investment.investmentRole?.map((role: InvestmentRoleData, index: number) => ({
+    ...(role.id && { id: role.id }),                    // Include ID if updating
+    ...(role.version !== undefined && { version: role.version }), // Include version if updating
+    investmentRoleRef: role.investmentRole?.id,         // Extract ID from catalog object
+    displayOrder: role.displayOrder ?? index,           // Use provided or index
+    ...(role.isDeleted !== undefined && { isDeleted: role.isDeleted }) // Include soft delete flag
+  }));
+
+  // Add investment roles to payload if present
+  if (investmentRolesPayload && investmentRolesPayload.length > 0) {
+    baseInvestmentPayload.investmentRoles = investmentRolesPayload;
+  }
+
   // Determine investment group type from the catalog object
   const getGroupType = (group: CatalogEntry | undefined): string => {
     if (!group?.id || typeof group.id !== 'string') {
@@ -300,7 +325,6 @@ export const buildInvestmentPayload = (
       if (equityData.marketValue !== undefined) equityPayload.marketValue = toNumber(equityData.marketValue);
       if (equityData.turnoverAmount !== undefined) equityPayload.turnoverAmount = toNumber(equityData.turnoverAmount);
       if (equityData.ebitdaAmount !== undefined) equityPayload.ebitdaAmount = toNumber(equityData.ebitdaAmount);
-      if (equityData.investmentRole?.id !== undefined) equityPayload.investmentRoleRef = equityData.investmentRole.id; // Extract ID from catalog object
       if (equityData.investmentStakeType?.id !== undefined) equityPayload.investmentStakeTypeRef = equityData.investmentStakeType.id; // Extract ID from catalog object
       if (equityData.stakePercentage !== undefined) equityPayload.stakePercentage = toNumber(equityData.stakePercentage);
       
@@ -340,7 +364,6 @@ export const buildInvestmentPayload = (
       if (realEstateData.buildingYear !== undefined) realEstatePayload.buildingYear = realEstateData.buildingYear;
       if (realEstateData.size !== undefined) realEstatePayload.size = toNumber(realEstateData.size);
       if (realEstateData.sizeMeasurementUnit?.id !== undefined) realEstatePayload.sizeMeasurementUnitRef = realEstateData.sizeMeasurementUnit.id; // Extract ID from catalog object
-      if (realEstateData.investmentRole?.id !== undefined) realEstatePayload.investmentRoleRef = realEstateData.investmentRole.id; // Extract ID from catalog object
       if (realEstateData.loanAmount !== undefined) realEstatePayload.loanAmount = toNumber(realEstateData.loanAmount);
       if (realEstateData.loanInterestRate !== undefined) realEstatePayload.loanInterestRate = toNumber(realEstateData.loanInterestRate);
       if (realEstateData.marketValue !== undefined) realEstatePayload.marketValue = toNumber(realEstateData.marketValue);

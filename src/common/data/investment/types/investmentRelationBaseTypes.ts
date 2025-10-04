@@ -84,6 +84,14 @@ export interface InvestmentLeadRef {
   lastName?: string;
 }
 
+export interface InvestmentRoleRef {
+  id: string;
+  displayOrder?: number;
+  investmentRole?: CatalogEntry;
+  isDeleted?: boolean;
+  version?: number;
+}
+
 // =====================================================
 // INVESTMENT RELATIONS ENTITIES (from DBML)
 // =====================================================

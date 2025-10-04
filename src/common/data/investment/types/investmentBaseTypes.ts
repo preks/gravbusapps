@@ -2,7 +2,7 @@
 // These should match the DBML schema exactly without any computed fields
 import type { CatalogEntry, BaseEntity } from '@/common/network/graphql/commonTypes';
 import type { EmployeeRef } from '@/common/data/employee/types/employeeBaseTypes';
-import type { InvestmentAccountRef, InvestmentOpportunityRef, InvestmentRef } from './investmentRelationBaseTypes';
+import type { InvestmentAccountRef, InvestmentOpportunityRef, InvestmentRef, InvestmentRoleRef } from './investmentRelationBaseTypes';
 import type { ReportScope } from './investmentEnums';
 
 // InvestmentRef is now imported from investmentRelationBaseTypes.ts to avoid circular dependencies
@@ -32,6 +32,9 @@ export interface BaseInvestment extends BaseEntity {
   investmentOpportunity?: InvestmentOpportunityRef;
   ownerEmployee?: EmployeeRef;
   loanRecipientInvestmentAccount?: InvestmentAccountRef;
+  
+  // Investment Role relationships (array of roles)
+  investmentRole?: InvestmentRoleRef[];
 
   // Investment fields
   acquisitionDate?: string; // ISO date string

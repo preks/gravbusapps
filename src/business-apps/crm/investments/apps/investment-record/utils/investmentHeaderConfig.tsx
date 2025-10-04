@@ -91,6 +91,28 @@ export const formatFieldValue = (value: any, fieldType: string, currencyCode: st
     default:
       // Handle catalog fields
       if (fieldType.startsWith('CATALOG_') || fieldType.startsWith('REF_')) {
+        // Check if it's an array (e.g., REF_InvestmentRole)
+        if (Array.isArray(value)) {
+          // Filter out deleted items and extract labels
+          const activeItems = value.filter((item: any) => !item.isDeleted);
+          if (activeItems.length === 0) return '-';
+          
+          const labels = activeItems
+            .map((item: any) => {
+              // Try investmentRole.value (for InvestmentRole type)
+              if (item.investmentRole?.value) return item.investmentRole.value;
+              if (item.investmentRole?.name) return item.investmentRole.name;
+              // Try direct value/name properties (for other ref types)
+              if (item.value) return item.value;
+              if (item.name) return item.name;
+              return null;
+            })
+            .filter(Boolean);
+          
+          return labels.length > 0 ? labels.join(', ') : '-';
+        }
+        
+        // Single object handling (existing logic)
         if (typeof value === 'object' && value.value) {
           return value.value; // Catalog entry
         }
