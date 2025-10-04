@@ -1,5 +1,8 @@
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 import { toISOFormat } from '@/common/utils/dateFormatter';
+import { CatalogEntry } from '@/common/network/graphql/commonTypes';
+import { EmployeeRef } from '@/common/data/employee/types/employeeBaseTypes';
+import { InvestmentAccountRef } from '@/common/data/investment/types/investmentRelationBaseTypes';
 
 // ==============================
 // Investment Payload Types
@@ -14,18 +17,18 @@ export interface InvestmentData {
   id?: string;
   version?: number;
   name: string;
-  initialInvestmentAmount: number | string;
-  investmentGroupRef: string; // Required - catalog reference
-  ownerEmployee: string; // Required - UUID reference
+  investmentGroup: CatalogEntry; // Required - full catalog object
+  ownerEmployee: EmployeeRef; // Required - full employee object
   
   // Optional investment fields
   code?: string;
   isin?: string;
-  investmentTypeRef?: string;
-  investmentStakeTypeRef?: string;
-  investmentPhaseRef?: string;
-  investmentStatusRef?: string;
-  investmentRiskLevelRef?: string;
+  initialInvestmentAmount?: number | string;
+  investmentType?: CatalogEntry; // Full catalog object
+  investmentStakeType?: CatalogEntry; // Full catalog object
+  investmentPhase?: CatalogEntry; // Full catalog object
+  investmentStatus?: CatalogEntry; // Full catalog object
+  investmentRiskLevel?: CatalogEntry; // Full catalog object
   acquisitionDate?: string;
   planedExit?: boolean; // TODO: typo in API model
   plannedExitDate?: string;
@@ -46,12 +49,13 @@ export interface InvestmentData {
   loanInterestClaim?: number | string;
   totalCommitmentAmount?: number | string;
   totalDistributionAmount?: number | string;
-  currencyRef?: string;
+  currency?: CatalogEntry; // Full catalog object
   fundManagerName?: string;
   identification?: any; // JSON object
-  investmentAccount?: string; // uuid
+  investmentAccount?: InvestmentAccountRef; // Full account object
   investmentOpportunity?: string; // uuid
   loanRecipientInvestmentAccount?: string; // uuid
+  additionalProperties?: any; // JSON object
 
   // Support for dynamic additional properties fields
   [key: string]: any; // Allow dynamic additional properties fields
@@ -64,6 +68,10 @@ export interface EquityInvestmentData {
   marketValue?: number | string;
   turnoverAmount?: number | string;
   ebitdaAmount?: number | string;
+  investmentRole?: CatalogEntry; // Full catalog object
+  investmentStakeType?: CatalogEntry; // Full catalog object
+  stakePercentage?: number | string;
+  additionalProperties?: any; // JSON object
 
   // Support for dynamic additional properties fields
   [key: string]: any; // Allow dynamic additional properties fields
@@ -72,14 +80,14 @@ export interface EquityInvestmentData {
 export interface RealEstateInvestmentData {
   id?: string;
   version?: number | string;
-  countryRef?: string;
-  regionRef?: string;
+  country?: CatalogEntry; // Full catalog object
+  region?: CatalogEntry; // Full catalog object
   addressLine?: any; // object
   postalCode?: string;
   locality?: string;
   buildingYear?: string; // Note: string in model, not number
   size?: number | string;
-  sizeMeasurementUnitRef?: string;
+  sizeMeasurementUnit?: CatalogEntry; // Full catalog object
   numberOfUnits?: number | string;
   occupancyPercent?: number | string;
   annualNetColdRent?: number | string;
@@ -87,6 +95,11 @@ export interface RealEstateInvestmentData {
   actualAnnualExpenses?: number | string;
   targetAnnualExpenses?: number | string;
   liquidityForecast?: any; // object
+  investmentRole?: CatalogEntry; // Full catalog object
+  loanAmount?: number | string;
+  loanInterestRate?: number | string;
+  marketValue?: number | string;
+  additionalProperties?: any; // JSON object
 
   // Support for dynamic additional properties fields
   [key: string]: any; // Allow dynamic additional properties fields
@@ -95,14 +108,15 @@ export interface RealEstateInvestmentData {
 export interface LiquidFundInvestmentData {
   id?: string;
   version?: number | string;
-  investmentLiquidFundTypeRef?: string;
+  investmentLiquidFundType?: CatalogEntry; // Full catalog object
   proprietorName?: string;
   bankName?: string;
   bankAccountNumber?: string;
   earlyTerminationAllowed?: boolean;
   interestRate?: number | string;
-  interestPaymentFrequencyRef?: string;
+  interestPaymentFrequency?: CatalogEntry; // Full catalog object
   maturityDate?: string;
+  additionalProperties?: any; // JSON object
 
   // Support for dynamic additional properties fields
   [key: string]: any; // Allow dynamic additional properties fields
@@ -184,28 +198,25 @@ export const buildInvestmentPayload = (
   // Extract investment-level additionalProperties
   const investmentAdditionalProperties = buildAdditionalProperties(investment, 'investment');
   
-  // Map accountId helper field to investment.investmentAccount (if provided)
-  // accountId is a form helper field, investmentAccount is the API field
-  const investmentAccountId = (formData as any).accountId || investment.investmentAccount;
-  
   // Base investment payload - include ALL fields from GraphQL schema
+  // NOTE: Form stores full objects, API expects IDs with "Ref" suffix for catalogs
   const baseInvestmentPayload: any = {
     name: investment.name,
     initialInvestmentAmount: toNumber(investment.initialInvestmentAmount),
-    investmentGroupRef: investment.investmentGroupRef, // Required
-    ownerEmployee: investment.ownerEmployee, // Required UUID
+    investmentGroupRef: investment.investmentGroup?.id, // Extract ID from catalog object
+    ownerEmployee: investment.ownerEmployee?.id, // Extract ID from employee object
     
     // Always set status to ACTIVE for new investments
     ...(!options.isUpdate && { investmentStatusRef: 'InvestmentStatus:v1:ACTIVE' }),
     
-    // Investment fields (matching model exactly)
+    // Investment fields (extract IDs from catalog objects)
     ...(investment.code && { code: investment.code }),
     ...(investment.isin && { isin: investment.isin }),
-    ...(investment.investmentTypeRef && { investmentTypeRef: investment.investmentTypeRef }),
-    ...(investment.investmentStakeTypeRef && { investmentStakeTypeRef: investment.investmentStakeTypeRef }),
-    ...(investment.investmentPhaseRef && { investmentPhaseRef: investment.investmentPhaseRef }),
-    ...(investment.investmentStatusRef && { investmentStatusRef: investment.investmentStatusRef }),
-    ...(investment.investmentRiskLevelRef && { investmentRiskLevelRef: investment.investmentRiskLevelRef }),
+    ...(investment.investmentType?.id && { investmentTypeRef: investment.investmentType.id }),
+    ...(investment.investmentStakeType?.id && { investmentStakeTypeRef: investment.investmentStakeType.id }),
+    ...(investment.investmentPhase?.id && { investmentPhaseRef: investment.investmentPhase.id }),
+    ...(investment.investmentStatus?.id && { investmentStatusRef: investment.investmentStatus.id }),
+    ...(investment.investmentRiskLevel?.id && { investmentRiskLevelRef: investment.investmentRiskLevel.id }),
     ...(investment.acquisitionDate && { acquisitionDate: toISOFormat(investment.acquisitionDate) }),
     ...(investment.planedExit !== undefined && { planedExit: investment.planedExit }),
     ...(investment.plannedExitDate && { plannedExitDate: toISOFormat(investment.plannedExitDate) }),
@@ -226,10 +237,10 @@ export const buildInvestmentPayload = (
     ...(investment.loanInterestClaim && { loanInterestClaim: toNumber(investment.loanInterestClaim) }),
     ...(investment.totalCommitmentAmount && { totalCommitmentAmount: toNumber(investment.totalCommitmentAmount) }),
     ...(investment.totalDistributionAmount && { totalDistributionAmount: toNumber(investment.totalDistributionAmount) }),
-    ...(investment.currencyRef && { currencyRef: investment.currencyRef }),
+    ...(investment.currency?.id && { currencyRef: investment.currency.id }), // Extract ID from catalog object
     ...(investment.fundManagerName && { fundManagerName: investment.fundManagerName }),
     ...(investment.identification && { identification: investment.identification }),
-    ...(investmentAccountId && { investmentAccount: investmentAccountId }),
+    ...(investment.investmentAccount?.id && { investmentAccount: investment.investmentAccount.id }), // Extract ID from account object
     ...(investment.investmentOpportunity && { investmentOpportunity: investment.investmentOpportunity }),
     ...(investment.loanRecipientInvestmentAccount && { loanRecipientInvestmentAccount: investment.loanRecipientInvestmentAccount }),
     
@@ -243,24 +254,24 @@ export const buildInvestmentPayload = (
     baseInvestmentPayload.version = rawInvestmentData.version;
   }
 
-  // Determine investment group type from the reference
-  const getGroupType = (groupRef: string | undefined): string => {
-    if (!groupRef || typeof groupRef !== 'string') {
+  // Determine investment group type from the catalog object
+  const getGroupType = (group: CatalogEntry | undefined): string => {
+    if (!group?.id || typeof group.id !== 'string') {
       return '';
     }
-    const parts = groupRef.split(':');
+    const parts = group.id.split(':');
     return parts.length > 2 ? parts[2] : '';
   };
 
   // Validate required fields
-  if (!investment.investmentGroupRef) {
+  if (!investment.investmentGroup) {
     throw new Error('Investment group is required but not provided');
   }
 
-  const groupType = getGroupType(investment.investmentGroupRef);
+  const groupType = getGroupType(investment.investmentGroup);
   
   if (!groupType) {
-    throw new Error(`Invalid investment group format: ${investment.investmentGroupRef}`);
+    throw new Error(`Invalid investment group format: ${investment.investmentGroup}`);
   }
 
   // Build the investment request wrapper
@@ -281,6 +292,7 @@ export const buildInvestmentPayload = (
       const equityAdditionalProperties = buildAdditionalProperties(equityData, 'equityInvestment');
       
       // Build equityInvestment using ONLY fields defined in EquityInvestmentData interface
+      // NOTE: Form state uses catalog fields WITHOUT "Ref", API expects WITH "Ref"
       const equityPayload: any = {};
       
       // Add fields from equityData (new/updated values)
@@ -288,6 +300,9 @@ export const buildInvestmentPayload = (
       if (equityData.marketValue !== undefined) equityPayload.marketValue = toNumber(equityData.marketValue);
       if (equityData.turnoverAmount !== undefined) equityPayload.turnoverAmount = toNumber(equityData.turnoverAmount);
       if (equityData.ebitdaAmount !== undefined) equityPayload.ebitdaAmount = toNumber(equityData.ebitdaAmount);
+      if (equityData.investmentRole?.id !== undefined) equityPayload.investmentRoleRef = equityData.investmentRole.id; // Extract ID from catalog object
+      if (equityData.investmentStakeType?.id !== undefined) equityPayload.investmentStakeTypeRef = equityData.investmentStakeType.id; // Extract ID from catalog object
+      if (equityData.stakePercentage !== undefined) equityPayload.stakePercentage = toNumber(equityData.stakePercentage);
       
       // Additional properties
       if (equityAdditionalProperties) equityPayload.additionalProperties = equityAdditionalProperties;
@@ -313,17 +328,22 @@ export const buildInvestmentPayload = (
       const realEstateAdditionalProperties = buildAdditionalProperties(realEstateData, 'realEstateInvestment');
       
       // Build realEstateInvestment using ONLY fields defined in RealEstateInvestmentData interface
+      // NOTE: Form state uses catalog fields WITHOUT "Ref", API expects WITH "Ref"
       const realEstatePayload: any = {};
       
       // Add fields from realEstateData (new/updated values)
-      if (realEstateData.countryRef !== undefined) realEstatePayload.countryRef = realEstateData.countryRef;
-      if (realEstateData.regionRef !== undefined) realEstatePayload.regionRef = realEstateData.regionRef;
+      if (realEstateData.country?.id !== undefined) realEstatePayload.countryRef = realEstateData.country.id; // Extract ID from catalog object
+      if (realEstateData.region?.id !== undefined) realEstatePayload.regionRef = realEstateData.region.id; // Extract ID from catalog object
       if (realEstateData.addressLine !== undefined) realEstatePayload.addressLine = realEstateData.addressLine;
       if (realEstateData.postalCode !== undefined) realEstatePayload.postalCode = realEstateData.postalCode;
       if (realEstateData.locality !== undefined) realEstatePayload.locality = realEstateData.locality;
       if (realEstateData.buildingYear !== undefined) realEstatePayload.buildingYear = realEstateData.buildingYear;
       if (realEstateData.size !== undefined) realEstatePayload.size = toNumber(realEstateData.size);
-      if (realEstateData.sizeMeasurementUnitRef !== undefined) realEstatePayload.sizeMeasurementUnitRef = realEstateData.sizeMeasurementUnitRef;
+      if (realEstateData.sizeMeasurementUnit?.id !== undefined) realEstatePayload.sizeMeasurementUnitRef = realEstateData.sizeMeasurementUnit.id; // Extract ID from catalog object
+      if (realEstateData.investmentRole?.id !== undefined) realEstatePayload.investmentRoleRef = realEstateData.investmentRole.id; // Extract ID from catalog object
+      if (realEstateData.loanAmount !== undefined) realEstatePayload.loanAmount = toNumber(realEstateData.loanAmount);
+      if (realEstateData.loanInterestRate !== undefined) realEstatePayload.loanInterestRate = toNumber(realEstateData.loanInterestRate);
+      if (realEstateData.marketValue !== undefined) realEstatePayload.marketValue = toNumber(realEstateData.marketValue);
       if (realEstateData.numberOfUnits !== undefined) realEstatePayload.numberOfUnits = toNumber(realEstateData.numberOfUnits);
       if (realEstateData.occupancyPercent !== undefined) realEstatePayload.occupancyPercent = toNumber(realEstateData.occupancyPercent);
       if (realEstateData.annualNetColdRent !== undefined) realEstatePayload.annualNetColdRent = toNumber(realEstateData.annualNetColdRent);
@@ -356,16 +376,17 @@ export const buildInvestmentPayload = (
       const liquidFundAdditionalProperties = buildAdditionalProperties(liquidFundData, 'liquidFundInvestment');
       
       // Build liquidFundInvestment using ONLY fields defined in LiquidFundInvestmentData interface
+      // NOTE: Form state uses catalog fields WITHOUT "Ref", API expects WITH "Ref"
       const liquidFundPayload: any = {};
       
       // Add fields from liquidFundData (new/updated values)
-      if (liquidFundData.investmentLiquidFundTypeRef !== undefined) liquidFundPayload.investmentLiquidFundTypeRef = liquidFundData.investmentLiquidFundTypeRef;
+      if (liquidFundData.investmentLiquidFundType?.id !== undefined) liquidFundPayload.investmentLiquidFundTypeRef = liquidFundData.investmentLiquidFundType.id; // Extract ID from catalog object
       if (liquidFundData.proprietorName !== undefined) liquidFundPayload.proprietorName = liquidFundData.proprietorName;
       if (liquidFundData.bankName !== undefined) liquidFundPayload.bankName = liquidFundData.bankName;
       if (liquidFundData.bankAccountNumber !== undefined) liquidFundPayload.bankAccountNumber = liquidFundData.bankAccountNumber;
       if (liquidFundData.earlyTerminationAllowed !== undefined) liquidFundPayload.earlyTerminationAllowed = liquidFundData.earlyTerminationAllowed;
       if (liquidFundData.interestRate !== undefined) liquidFundPayload.interestRate = toNumber(liquidFundData.interestRate);
-      if (liquidFundData.interestPaymentFrequencyRef !== undefined) liquidFundPayload.interestPaymentFrequencyRef = liquidFundData.interestPaymentFrequencyRef;
+      if (liquidFundData.interestPaymentFrequency?.id !== undefined) liquidFundPayload.interestPaymentFrequencyRef = liquidFundData.interestPaymentFrequency.id; // Extract ID from catalog object
       if (liquidFundData.maturityDate !== undefined) liquidFundPayload.maturityDate = toISOFormat(liquidFundData.maturityDate);
       
       // Additional properties

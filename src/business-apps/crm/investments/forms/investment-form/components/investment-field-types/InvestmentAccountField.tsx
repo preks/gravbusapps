@@ -105,8 +105,11 @@ export const InvestmentAccountField: React.FC<InvestmentAccountFieldProps> = ({
           </FormLabel>
           <FormControl>
             <Combobox
-              value={formField.value || ''}
-              onValueChange={formField.onChange}
+              value={typeof formField.value === 'object' ? formField.value?.id || '' : (formField.value || '')}
+              onValueChange={(value) => {
+                // Store as object if value exists, undefined if cleared
+                formField.onChange(value ? { id: value } as any : undefined);
+              }}
               options={investmentAccounts}
               placeholder={getTranslationFromI18nKeyAndLabel('investment.form.selectInvestmentAccount', 'Select investment account...')}
               searchPlaceholder="Search investment accounts..."

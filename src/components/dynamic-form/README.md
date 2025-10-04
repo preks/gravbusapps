@@ -216,14 +216,16 @@ Examples:
 
 ## Field Name Extraction
 
-Field names are automatically extracted from the `property` path:
-- `"investment.name"` → `"name"`
-- `"equityInvestment.marketValue"` → `"marketValue"`
+Field names use the FULL property path as-is (no transformations):
+- `"investment.name"` → `"investment.name"`
+- `"equityInvestment.marketValue"` → `"equityInvestment.marketValue"`
 - `"size"` → `"size"`
 
-For `CATALOG_*` fields, `Ref` is automatically appended if not present:
-- `"industry"` with type `CATALOG_IndustryType` → `"industryRef"`
-- `"industryRef"` with type `CATALOG_IndustryType` → `"industryRef"`
+**Catalog Fields**: Property paths are used WITHOUT `Ref` suffix:
+- `"investment.investmentType"` with type `CATALOG_InvestmentType` → `"investment.investmentType"`
+- `"equityInvestment.investmentStakeType"` with type `CATALOG_InvestmentStakeType` → `"equityInvestment.investmentStakeType"`
+
+**Important**: Form state uses catalog fields WITHOUT `Ref` suffix. The API payload builder adds `Ref` suffixes when submitting data.
 
 ## States
 

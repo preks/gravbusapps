@@ -94,8 +94,11 @@ export function CatalogField<TFieldValues extends FieldValues = FieldValues>({
             <Combobox
               className="gba:w-full"
               options={options}
-              value={formField.value || ''}
-              onValueChange={formField.onChange}
+              value={typeof formField.value === 'object' ? formField.value?.id || '' : (formField.value || '')}
+              onValueChange={(value) => {
+                // Store as object if value exists, undefined if cleared
+                formField.onChange(value ? { id: value } as any : undefined);
+              }}
               placeholder={`Select ${field.label.toLowerCase()}`}
               searchPlaceholder="Type to search..."
               emptyText={loading ? 'Loading...' : 'No results found'}

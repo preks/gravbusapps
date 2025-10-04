@@ -16,7 +16,7 @@ import { formatDataTestId } from '@/common/utils/formatDataTestId';
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
 import { useInvestmentFormContext } from '../../context/InvestmentFormContext';
 import { useGetInvestmentAccounts, useSearchInvestmentAccounts } from '@/common/data/investment';
-import { SelectOption } from '../../types';
+import { SelectOption, InvestmentFormValues } from '../../types';
 import { useCatalogManagerClient } from '@/common/network/catalogs/useCatalogManagerClient';
 
 const prefixDataTestId = 'InvestmentForm-InvestmentSegment';
@@ -201,7 +201,10 @@ const InvestmentSegment: React.FC = () => {
   })), [employeePositions]);
 
   // Get dynamic investment type name
-  const investmentTypeName = getInvestmentTypeName(formValues.investment.investmentGroupRef ?? '');
+  const investmentGroupId = typeof formValues.investment.investmentGroup === 'object' 
+    ? formValues.investment.investmentGroup?.id || '' 
+    : formValues.investment.investmentGroup || '';
+  const investmentTypeName = getInvestmentTypeName(investmentGroupId);
 
   return (
     <div 
@@ -222,27 +225,36 @@ const InvestmentSegment: React.FC = () => {
         <FormField
           control={control as any}
           name="investment.ownerEmployee"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>
-                {getTranslationFromI18nKeyAndLabel('investment.form.typeOwner', `${investmentTypeName} Owner`)} <span className="gba:text-destructive">*</span>
-              </FormLabel>
-              <FormControl>
-                <EmployeeSelect
-                  employees={assigneeOptions}
-                  value={field.value || ''}
-                  onValueChange={field.onChange}
-                  onSearch={searchEmployeePositions}
-                  loading={Boolean(employeePositionsLoading)}
-                  onLoadMore={loadMoreEmployeePositions}
-                  hasMore={Boolean(employeePositionsHasMore)}
-                  placeholder={getTranslationFromI18nKeyAndLabel('investment.form.selectTypeOwner', `Select ${investmentTypeName.toLowerCase()} owner`)}
-                  data-testid={formatDataTestId(prefixDataTestId, 'OwnerSelect')}
-                />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
+          render={({ field }) => {
+            const displayValue = field.value && typeof field.value === 'object' ? field.value.id || '' : (field.value || '');
+            return (
+              <FormItem>
+                <FormLabel>
+                  {getTranslationFromI18nKeyAndLabel('investment.form.typeOwner', `${investmentTypeName} Owner`)} <span className="gba:text-destructive">*</span>
+                </FormLabel>
+                <FormControl>
+                  <EmployeeSelect
+                    employees={assigneeOptions}
+                    value={displayValue}
+                    onValueChange={(value: string) => {
+                      if (value) {
+                        field.onChange({ id: value } as any);
+                      } else {
+                        field.onChange(null);
+                      }
+                    }}
+                    onSearch={searchEmployeePositions}
+                    loading={Boolean(employeePositionsLoading)}
+                    onLoadMore={loadMoreEmployeePositions}
+                    hasMore={Boolean(employeePositionsHasMore)}
+                    placeholder={getTranslationFromI18nKeyAndLabel('investment.form.selectTypeOwner', `Select ${investmentTypeName.toLowerCase()} owner`)}
+                    data-testid={formatDataTestId(prefixDataTestId, 'OwnerSelect')}
+                  />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            );
+          }}
         />
 
         {/* Investment Name and Currency Row */}
@@ -275,35 +287,36 @@ const InvestmentSegment: React.FC = () => {
           <div className="gba:col-span-2 gba:min-w-0">
             <FormField
               control={control as any}
-              name="investment.currencyRef"
+              name="investment.currency" // Without Ref suffix
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>
                     {getTranslationFromI18nKeyAndLabel('investment.form.currency', 'Currency')} <span className="gba:text-destructive">*</span>
                   </FormLabel>
                   <FormControl>
-                    <div className="gba:w-full gba:min-w-0">
-                      <Combobox
-                        className="gba:w-full gba:min-w-0"
-                        value={field.value || ''}
-                        onValueChange={(value) => {
-                          field.onChange(value);
-                          // Note: setFormValues automatically merges investment fields
-                          setFormValues({
-                            investment: {
-                              currencyRef: value
-                            }
-                          } as Partial<typeof formValues>);
-                        }}
-                        options={currencies}
-                        placeholder={getTranslationFromI18nKeyAndLabel('investment.form.selectCurrency', 'Select currency...')}
-                        searchPlaceholder="Search currencies..."
-                        emptyText="No currencies found"
-                        disabled={currenciesLoading}
-                        loading={currenciesLoading}
-                        data-testid={formatDataTestId(prefixDataTestId, 'CurrencySelect')}
-                      />
-                    </div>
+                    <Combobox
+                      className="gba:w-full gba:min-w-0"
+                      value={typeof field.value === 'object' ? field.value?.id || '' : (field.value || '')}
+                      onValueChange={(value) => {
+                        // Store as object if value exists, undefined if cleared
+                        const newValue = value ? { id: value } as any : undefined;
+                        field.onChange(newValue);
+                        // Note: setFormValues automatically merges investment fields
+                        // Form state stores catalog objects (or string IDs for backward compatibility)
+                        setFormValues({
+                          investment: {
+                            currency: newValue
+                          }
+                        } as Partial<InvestmentFormValues>);
+                      }}
+                      options={currencies}
+                      placeholder={getTranslationFromI18nKeyAndLabel('investment.form.selectCurrency', 'Select currency...')}
+                      searchPlaceholder="Search currencies..."
+                      emptyText="No currencies found"
+                      disabled={currenciesLoading}
+                      loading={currenciesLoading}
+                      data-testid={formatDataTestId(prefixDataTestId, 'CurrencySelect')}
+                    />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -315,7 +328,7 @@ const InvestmentSegment: React.FC = () => {
         {/* Related Account */}
         <FormField
           control={control as any}
-          name="accountId"
+          name="investment.investmentAccount"
           render={({ field }) => (
             <FormItem>
               <FormLabel>
@@ -323,8 +336,11 @@ const InvestmentSegment: React.FC = () => {
               </FormLabel>
               <FormControl>
                 <Combobox
-                  value={field.value || ''}
-                  onValueChange={field.onChange}
+                  value={typeof field.value === 'object' ? field.value?.id || '' : (field.value || '')}
+                  onValueChange={(value: string) => {
+                    // Store as object if value exists, undefined if cleared
+                    field.onChange(value ? { id: value } as any : undefined);
+                  }}
                   options={accounts}
                   placeholder={getTranslationFromI18nKeyAndLabel('investment.form.selectAccount', 'Select account...')}
                   searchPlaceholder="Search accounts..."

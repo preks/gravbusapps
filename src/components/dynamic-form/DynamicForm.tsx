@@ -39,19 +39,15 @@ export interface DynamicFormProps<TFieldValues extends FieldValues = FieldValues
  * - "equityInvestment.marketValue" → "equityInvestment.marketValue"
  * - "liquidFundInvestment.additionalProperties.name" → "liquidFundInvestment.additionalProperties.name"
  * - "size" → "size"
+ * 
+ * NOTE: Catalog fields use property WITHOUT "Ref" suffix in form state
+ * - Config property: "investment.investmentType" (no Ref)
+ * - Form field: "investment.investmentType" (no Ref)
+ * - API payload: "investment.investmentTypeRef" (has Ref - handled by payload builder)
  */
 function getFieldNameFromProperty(property: string, fieldType: string): string {
-  // For CATALOG_ fields, ensure the property path ends with "Ref"
-  if (fieldType.startsWith('CATALOG_') && !property.endsWith('Ref')) {
-    // Add Ref to the last segment of the path
-    // e.g., "equityInvestment.fundType" → "equityInvestment.fundTypeRef"
-    const parts = property.split('.');
-    const lastPart = parts[parts.length - 1];
-    parts[parts.length - 1] = `${lastPart}Ref`;
-    return parts.join('.');
-  }
-
-  // For nested structure, use the FULL property path
+  // Use the property path as-is (no Ref suffix manipulation needed)
+  // Form state uses catalog fields WITHOUT "Ref" suffix
   return property;
 }
 

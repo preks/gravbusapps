@@ -14,11 +14,12 @@ import {
 } from './segments';
 import { getCurrencySymbol } from '@/common/utils/currencyUtils';
 import { useCatalogManagerClient } from '@/common/network/catalogs/useCatalogManagerClient';
-import { useGetInvestmentById } from '@/common/data/investment';
+import { useGetInvestmentById, useGetInvestmentOpportunityById } from '@/common/data/investment';
 import { getInvestmentGroupFromContext } from '../utils/investmentDataTransformer';
 import { createInvestmentFormResolver } from '../utils/investmentFormSchema';
 import { InvestmentFormValues } from '../types';
 import { buildInvestmentPayload } from '@/common/data/investment';
+import { mapOpportunityToInvestmentFormValues } from '../utils/opportunityToInvestmentMapper';
 
 const prefixDataTestId = 'InvestmentForm';
 
@@ -36,8 +37,9 @@ export const InvestmentFormComponent: React.FC = () => {
     currentEmployee,
   } = useInvestmentFormContext();
   
-  // Add the investment fetch hook
+  // Add the investment and opportunity fetch hooks
   const { fetchInvestmentById } = useGetInvestmentById(businessAppContext);
+  const { fetchInvestmentOpportunityById } = useGetInvestmentOpportunityById(businessAppContext);
   
   // UI state
   const [currentStep, setCurrentStep] = useState<FormStep>('select');
@@ -47,10 +49,13 @@ export const InvestmentFormComponent: React.FC = () => {
   // Store raw investment data for payload building
   const [rawInvestmentData, setRawInvestmentData] = useState<any>(null);
 
-  // Extract investmentId the same way as lead forms
+  // Extract investmentId and opportunityId from additionalData
   const externalInvestmentId = formValues.investment.id || 
     businessAppContext.additionalData?.investmentId ||
     businessAppContext.additionalData?.psi_taskPayload?.psi_initialParameters?.investmentId;
+  const externalOpportunityId = 
+    businessAppContext.additionalData?.opportunityId ||
+    businessAppContext.additionalData?.psi_taskPayload?.psi_initialParameters?.opportunityId;
   const preSelectedGroup = getInvestmentGroupFromContext(businessAppContext.additionalData);
   const isUpdate = Boolean(externalInvestmentId);
   
@@ -63,10 +68,17 @@ export const InvestmentFormComponent: React.FC = () => {
 
 
   // Liquid fund flow states
-  const groupCode = formValues.investment.investmentGroupRef?.split(':').pop();
+  // NOTE: Form state can store catalog objects or string IDs (for backward compatibility)
+  // Extract ID from object if needed: object.id or string directly
+  const getGroupId = (group: any): string => {
+    if (!group) return '';
+    return typeof group === 'object' ? group.id : group;
+  };
+  const groupId = getGroupId(formValues.investment.investmentGroup);
+  const groupCode = groupId?.split(':').pop();
   const isLiquidFund = groupCode === 'LIQUID_FUND';
-  const hasInvestmentType = Boolean(formValues.investment.investmentTypeRef);
-  const hasLiquidFundType = Boolean(formValues.liquidFundInvestment?.investmentLiquidFundTypeRef);
+  const hasInvestmentType = Boolean(formValues.investment.investmentType);
+  const hasLiquidFundType = Boolean(formValues.liquidFundInvestment?.investmentLiquidFundType);
 
   // Clean workflow initialization
   useEffect(() => {
@@ -77,8 +89,25 @@ export const InvestmentFormComponent: React.FC = () => {
         try {
         // Step 1: Investment group & type hierarchy is loaded by context
         
-        // Step 2: Conditional flow based on investmentId
-        if (externalInvestmentId) {
+        // Step 2: Conditional flow based on opportunityId or investmentId
+        if (externalOpportunityId && !externalInvestmentId) {
+          // Opportunity pre-fill mode: Load opportunity data and map to investment form
+          const { opportunity } = await fetchInvestmentOpportunityById(externalOpportunityId);
+          
+          if (opportunity) {
+            // Extract form fields definition directly from the opportunity's investment group
+            // The opportunity already contains the full catalog entry with objectValue.formFields
+            const formFieldsDefinition = opportunity.investmentGroup?.objectValue as any;
+            
+            // Map ALL fields (static + dynamic) using the form fields definition from opportunity
+            const allMappedValues = mapOpportunityToInvestmentFormValues(opportunity, formFieldsDefinition);
+            
+            setFormValues(allMappedValues);
+            setCurrentStep('form');
+          } else {
+            setLoadingError('Opportunity not found');
+          }
+        } else if (externalInvestmentId) {
           // Update mode: Execute GET_INVESTMENT_BY_ID
           const result = await fetchInvestmentById(externalInvestmentId);
           const rawInvestment = result?.investment;
@@ -87,42 +116,34 @@ export const InvestmentFormComponent: React.FC = () => {
             // Store raw investment data for payload building
             setRawInvestmentData(rawInvestment);
             
-            // Step 3: Investment always has a group - extract and show investment segment
-            const groupCode = rawInvestment.investmentGroup?.code;
-            const typeCode = rawInvestment.investmentType?.code;
-            
-            if (!groupCode) {
+            // Validate investment has required data
+            if (!rawInvestment.investmentGroup) {
               setLoadingError('Investment must have a group');
               return;
             }
             
-            // Build catalog refs
-            const groupRef = `InvestmentGroup:v1:${groupCode}`;
-            const typeRef = typeCode ? `InvestmentType:v1:${typeCode}` : '';
-            
             // Prepare form data in nested structure
+            // NOTE: Form state stores FULL OBJECTS for catalog/entity fields
+            // This avoids redundant API calls and simplifies component code
             const nestedFormData: InvestmentFormValues = {
               investment: {
                 id: rawInvestment.id,
                 version: (rawInvestment as any).version || 1,
                 name: rawInvestment.name || '',
-                initialInvestmentAmount: rawInvestment.initialInvestmentAmount || '',
-                investmentGroupRef: groupRef,
-                ownerEmployee: rawInvestment.ownerEmployee?.id || '',
-                investmentStatusRef: rawInvestment.investmentStatus?.id || 'InvestmentStatus:v1:ACTIVE',
+                investmentGroup: rawInvestment.investmentGroup, // Full catalog object
+                ownerEmployee: rawInvestment.ownerEmployee, // Full employee object
+                investmentStatus: rawInvestment.investmentStatus || { id: 'InvestmentStatus:v1:ACTIVE', code: 'ACTIVE' },
                 ...(rawInvestment.code && { code: rawInvestment.code }),
-                ...(rawInvestment.currency?.id && { currencyRef: rawInvestment.currency.id }),
-                ...(rawInvestment.investmentAccount?.id && { investmentAccount: rawInvestment.investmentAccount.id }),
-                ...(typeRef && { investmentTypeRef: typeRef }),
+                ...(rawInvestment.currency && { currency: rawInvestment.currency }), // Full catalog object
+                ...(rawInvestment.investmentAccount && { investmentAccount: rawInvestment.investmentAccount }), // Full account object
+                ...(rawInvestment.investmentType && { investmentType: rawInvestment.investmentType }), // Full catalog object
               },
-              // Load subtype data (for liquid funds, this includes investmentLiquidFundTypeRef)
+              // Load subtype data (keep full catalog objects)
               ...((rawInvestment as any).liquidFundInvestment?.[0]?.investmentLiquidFundType && {
                 liquidFundInvestment: {
-                  investmentLiquidFundTypeRef: (rawInvestment as any).liquidFundInvestment[0].investmentLiquidFundType.id || '',
+                  investmentLiquidFundType: (rawInvestment as any).liquidFundInvestment[0].investmentLiquidFundType, // Full catalog object
                 }
               }),
-              // Form helper fields for selects (accountId is for UX, not sent to API)
-              accountId: rawInvestment.investmentAccount?.id || '',
             };
             
             // Set form values immediately (dynamic fields will be mapped separately after catalog loads)
@@ -133,13 +154,14 @@ export const InvestmentFormComponent: React.FC = () => {
           }
       } else if (preSelectedGroup) {
           // Create mode with pre-selected group: Skip selection step, show investment segment
+          // NOTE: Form state stores full objects (or IDs for backward compatibility)
+          // For preSelectedGroup, it's already a string ID - create minimal object
           setFormValues({ 
             investment: {
-              investmentGroupRef: preSelectedGroup,
-              ownerEmployee: currentEmployee?.id || businessAppContext.userInfo?.employeeDetails?.employeeId || '',
+              investmentGroup: { id: preSelectedGroup } as any, // Minimal catalog object (will be enriched by components)
+              ownerEmployee: currentEmployee as any, // Full employee object
               name: '',
-              initialInvestmentAmount: '',
-              investmentStatusRef: 'InvestmentStatus:v1:ACTIVE',
+              investmentStatus: { id: 'InvestmentStatus:v1:ACTIVE', code: 'ACTIVE' } as any, // Default status as object
             }
           } as Partial<InvestmentFormValues>);
         setCurrentStep('form');
@@ -156,34 +178,29 @@ export const InvestmentFormComponent: React.FC = () => {
     };
 
     initializeForm();
-  }, [externalInvestmentId, preSelectedGroup]);
+  }, [externalInvestmentId, externalOpportunityId, preSelectedGroup]);
 
 
   // Handle group selection from SelectSegment
   const handleGroupSelect = (group: string) => {
     // Clean form values when switching groups in create mode
-    // Preserve existing owner if it exists, fallback to currentEmployee or businessAppContext
-    const preservedOwnerId = formValues.investment.ownerEmployee || 
-                           currentEmployee?.id || 
-                           businessAppContext.userInfo?.employeeDetails?.employeeId || 
-                           '';
+    // NOTE: Form state stores full objects for catalog/entity fields
+    // Preserve existing owner if it exists, fallback to currentEmployee
+    const preservedOwner = formValues.investment.ownerEmployee || currentEmployee;
     
-    const cleanFormValues: InvestmentFormValues = {
+    setFormValues({ 
       investment: {
-        ownerEmployee: preservedOwnerId,
+        ownerEmployee: preservedOwner as any, // Full employee object
         name: formValues.investment.name || '',
-        initialInvestmentAmount: '',
-        investmentGroupRef: group,
-        investmentStatusRef: 'InvestmentStatus:v1:ACTIVE',
+        investmentGroup: { id: group } as any, // Minimal catalog object (will be enriched by components)
+        investmentStatus: { id: 'InvestmentStatus:v1:ACTIVE', code: 'ACTIVE' } as any, // Default status as object
         // Keep system fields if updating
         ...(isUpdate && { 
           id: formValues.investment.id, 
           version: formValues.investment.version 
         }),
       }
-    };
-    
-    setFormValues(cleanFormValues);
+    } as Partial<InvestmentFormValues>);
     setCurrentStep('form');
   };
 
@@ -191,12 +208,9 @@ export const InvestmentFormComponent: React.FC = () => {
   const handleBack = () => {
     if (!isUpdate && !preSelectedGroup) {
       // Preserve the owner employee when going back
-      const preservedOwnerId = formValues.investment.ownerEmployee || 
-                             currentEmployee?.id || 
-                             businessAppContext.userInfo?.employeeDetails?.employeeId || 
-                             '';
+      const preservedOwner = formValues.investment.ownerEmployee || currentEmployee;
       setFormValues({ 
-        investment: { ownerEmployee: preservedOwnerId }
+        investment: { ownerEmployee: preservedOwner } // Full employee object
       } as Partial<InvestmentFormValues>);
       setCurrentStep('select');
     }
@@ -213,7 +227,7 @@ export const InvestmentFormComponent: React.FC = () => {
   // Get form fields definition for validation
   useEffect(() => {
     const loadFormFields = async () => {
-      if (formValues.investment.investmentTypeRef) {
+      if (formValues.investment.investmentType) { // Without Ref suffix
         try {
           const fieldsDef = getFormFieldsDefinition();
           setFormFieldsDefinition(fieldsDef);
@@ -224,7 +238,7 @@ export const InvestmentFormComponent: React.FC = () => {
     };
     
     loadFormFields();
-  }, [formValues.investment.investmentGroupRef, formValues.investment.investmentTypeRef, formValues.liquidFundInvestment?.investmentLiquidFundTypeRef, getFormFieldsDefinition]);
+  }, [formValues.investment.investmentGroup, formValues.investment.investmentType, formValues.liquidFundInvestment?.investmentLiquidFundType, getFormFieldsDefinition]); // Without Ref suffixes
   
   const formResolver = createInvestmentFormResolver(formFieldsDefinition);
   
@@ -237,13 +251,13 @@ export const InvestmentFormComponent: React.FC = () => {
     },
   });
 
-  // Watch the currencyRef field for real-time updates
+  // Watch the currency field for real-time updates (without Ref suffix)
   const selectedCurrencyRef = useWatch({
     control: form.control,
-    name: 'investment.currencyRef',
+    name: 'investment.currency', // Without Ref suffix
   });
   
-  // Load currency entry when currencyRef changes
+  // Load currency entry when currency changes
   useEffect(() => {
     const loadCurrencyEntry = async () => {
       if (!selectedCurrencyRef || !businessAppContext.accessToken) {
@@ -251,9 +265,15 @@ export const InvestmentFormComponent: React.FC = () => {
         return;
       }
       
+      // If selectedCurrencyRef is already a catalog object, use it directly
+      if (typeof selectedCurrencyRef === 'object' && selectedCurrencyRef.id) {
+        setCurrencyEntry(selectedCurrencyRef);
+        return;
+      }
+      
       try {
-        // selectedCurrencyRef is the catalog entry ID (e.g., "Currency:v1:EUR")
-        const response = await catalogClient.getCatalogEntryById(selectedCurrencyRef);
+        // selectedCurrencyRef is a string ID (e.g., "Currency:v1:EUR")
+        const response = await catalogClient.getCatalogEntryById(selectedCurrencyRef as unknown as string);
         setCurrencyEntry(response);
       } catch (error) {
         console.error('Error loading currency entry:', error);
@@ -388,7 +408,11 @@ export const InvestmentFormComponent: React.FC = () => {
               {/* Liquid Fund Type Selector (for liquid funds with investment type selected) */}
               {isLiquidFund && hasInvestmentType && (
                 <LiquidFundTypeSelectSegment 
-                  currentInvestmentType={formValues.investment.investmentTypeRef || ''} 
+                  currentInvestmentType={
+                    typeof formValues.investment.investmentType === 'object' 
+                      ? formValues.investment.investmentType.id 
+                      : (formValues.investment.investmentType || '')
+                  }
                   isUpdate={isUpdate}
                 />
               )}

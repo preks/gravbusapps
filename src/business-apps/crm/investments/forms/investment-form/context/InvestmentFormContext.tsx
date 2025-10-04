@@ -132,24 +132,44 @@ export const InvestmentFormProvider: React.FC<InvestmentFormProviderProps> = ({
   onDelete,
 }) => {
   // Form state - nested structure matching API
+  // NOTE: Form state stores full catalog/entity objects
   const [formValues, setFormValuesState] = useState<InvestmentFormValues>(() => {
+    // Build initial investment data with proper defaults
+    // Only create objects if we have actual data, not empty defaults
+    const investment: any = {
+      name: initialValues.investment?.name || '',
+      // Only set these if they exist in initialValues, otherwise leave undefined
+      // The auto-selection effect will handle setting defaults
+    };
+    
+    // Add fields from initialValues if they exist
+    if (initialValues.investment?.investmentGroup) {
+      investment.investmentGroup = initialValues.investment.investmentGroup;
+    }
+    if (initialValues.investment?.ownerEmployee) {
+      investment.ownerEmployee = initialValues.investment.ownerEmployee;
+    }
+    if (initialValues.investment?.investmentStatus) {
+      investment.investmentStatus = initialValues.investment.investmentStatus;
+    }
+    if (initialValues.investment?.id) {
+      investment.id = initialValues.investment.id;
+    }
+    if (initialValues.investment?.version) {
+      investment.version = initialValues.investment.version;
+    }
+    if (initialValues.investment?.currency) {
+      investment.currency = initialValues.investment.currency;
+    }
+    if (initialValues.investment?.investmentAccount) {
+      investment.investmentAccount = initialValues.investment.investmentAccount;
+    }
+    
     return {
-      investment: {
-        name: initialValues.investment?.name || '',
-        initialInvestmentAmount: initialValues.investment?.initialInvestmentAmount || '',
-        investmentGroupRef: initialValues.investment?.investmentGroupRef || '',
-        ownerEmployee: initialValues.investment?.ownerEmployee || businessAppContext.userInfo?.employeeDetails?.employeeId || '',
-        investmentStatusRef: initialValues.investment?.investmentStatusRef || 'InvestmentStatus:v1:ACTIVE',
-        ...(initialValues.investment?.id && { id: initialValues.investment.id }),
-        ...(initialValues.investment?.version && { version: initialValues.investment.version }),
-        ...(initialValues.investment?.currencyRef && { currencyRef: initialValues.investment.currencyRef }),
-        ...(initialValues.investment?.investmentAccount && { investmentAccount: initialValues.investment.investmentAccount }),
-      },
+      investment,
       equityInvestment: initialValues.equityInvestment,
       realEstateInvestment: initialValues.realEstateInvestment,
       liquidFundInvestment: initialValues.liquidFundInvestment,
-      // Form helper fields
-      accountId: initialValues.accountId || '',
     };
   });
 
@@ -171,16 +191,20 @@ export const InvestmentFormProvider: React.FC<InvestmentFormProviderProps> = ({
         realEstateInvestment: updates.realEstateInvestment !== undefined 
           ? { ...prev.realEstateInvestment, ...updates.realEstateInvestment } 
           : prev.realEstateInvestment,
-        liquidFundInvestment: updates.liquidFundInvestment !== undefined 
-          ? { ...prev.liquidFundInvestment, ...updates.liquidFundInvestment } 
+        liquidFundInvestment: updates.liquidFundInvestment !== undefined
+          ? { ...prev.liquidFundInvestment, ...updates.liquidFundInvestment }
           : prev.liquidFundInvestment,
-        // Merge helper fields
-        accountId: updates.accountId !== undefined ? updates.accountId : prev.accountId,
       };
       
       // Extract group codes for cascade logic
-      const prevGroupCode = prev.investment.investmentGroupRef?.split(':').pop();
-      const newGroupCode = newValues.investment.investmentGroupRef?.split(':').pop();
+      // NOTE: Form state stores catalog objects or string IDs
+      const getGroupCode = (group: any): string | undefined => {
+        if (!group) return undefined;
+        const id = typeof group === 'object' ? group.id : group;
+        return id?.split(':').pop();
+      };
+      const prevGroupCode = getGroupCode(prev.investment.investmentGroup);
+      const newGroupCode = getGroupCode(newValues.investment.investmentGroup);
       
       // Clear downstream selections when group changes (but NOT if subtype data is being explicitly set in the update)
       const isExplicitlySettingSubtype = 
@@ -189,8 +213,8 @@ export const InvestmentFormProvider: React.FC<InvestmentFormProviderProps> = ({
         updates.liquidFundInvestment !== undefined;
       
       if (newGroupCode !== prevGroupCode && !isExplicitlySettingSubtype) {
-        if (updates.investment?.investmentTypeRef === undefined) {
-          newValues.investment.investmentTypeRef = undefined;
+        if (updates.investment?.investmentType === undefined) {
+          newValues.investment.investmentType = undefined; // Without Ref suffix
         }
         // Clear all subtype data when group changes (unless we're explicitly setting it)
         newValues.equityInvestment = undefined;
@@ -225,13 +249,25 @@ export const InvestmentFormProvider: React.FC<InvestmentFormProviderProps> = ({
   } = useEmployeePositions({ accessToken: businessAppContext.accessToken });
 
   // Current employee hook - for loading the owner's information
+  const ownerEmployeeForFetch = React.useMemo(() => {
+    const ownerEmployee = formValues.investment.ownerEmployee;
+    // Handle null explicitly (typeof null === 'object' in JavaScript)
+    if (ownerEmployee === null || ownerEmployee === undefined) {
+      return undefined;
+    }
+    const result = typeof ownerEmployee === 'object' 
+      ? ownerEmployee.id || undefined 
+      : (ownerEmployee || undefined);
+    return result;
+  }, [formValues.investment.ownerEmployee]);
+
   const {
     employee: currentEmployee,
     loading: currentEmployeeLoading,
     error: currentEmployeeError
   } = useEmployeeById({ 
     accessToken: businessAppContext.accessToken,
-    employeeId: formValues.investment.ownerEmployee || '' 
+    employeeId: ownerEmployeeForFetch
   });
 
   // Investment catalog data - load immediately when context initializes
@@ -272,9 +308,20 @@ export const InvestmentFormProvider: React.FC<InvestmentFormProviderProps> = ({
     const effectiveFormValues = overrideFormValues ? { ...formValues, ...overrideFormValues } : formValues;
 
     // Extract codes from nested structure
-    const groupCode = effectiveFormValues.investment.investmentGroupRef?.split(':').pop() || null;
-    const typeCode = effectiveFormValues.investment.investmentTypeRef?.split(':').pop() || null;
-    const liquidFundTypeCode = effectiveFormValues.liquidFundInvestment?.investmentLiquidFundType?.split(':').pop() || null;
+    // NOTE: Form state stores catalog objects or string IDs
+    // Extract ID from object if needed: object.id or string directly
+    const getIdFromField = (field: any): string | null => {
+      if (!field) return null;
+      const id = typeof field === 'object' ? field.id : field;
+      return id || null;
+    };
+    const groupId = getIdFromField(effectiveFormValues.investment.investmentGroup);
+    const typeId = getIdFromField(effectiveFormValues.investment.investmentType);
+    const liquidFundTypeId = getIdFromField(effectiveFormValues.liquidFundInvestment?.investmentLiquidFundType);
+    
+    const groupCode = groupId?.split(':').pop() || null;
+    const typeCode = typeId?.split(':').pop() || null;
+    const liquidFundTypeCode = liquidFundTypeId?.split(':').pop() || null;
 
     // PRIORITY 1: Investment Liquid Fund Type (highest priority for liquid funds)
     if (groupCode === 'LIQUID_FUND' && liquidFundTypeCode) {
@@ -303,7 +350,7 @@ export const InvestmentFormProvider: React.FC<InvestmentFormProviderProps> = ({
     }
 
     return null;
-  }, [investmentCatalogData, formValues.investment.investmentGroupRef, formValues.investment.investmentTypeRef, formValues.liquidFundInvestment]);
+  }, [investmentCatalogData, formValues.investment.investmentGroup, formValues.investment.investmentType, formValues.liquidFundInvestment]);
 
   // Current user employee hook - for ensuring current user is always available in the list
   const currentUserEmployeeId = businessAppContext.userInfo?.employeeDetails?.employeeId;
@@ -336,24 +383,27 @@ export const InvestmentFormProvider: React.FC<InvestmentFormProviderProps> = ({
   const interestPaymentFrequenciesHook = useInterestPaymentFrequencies(businessAppContext.accessToken);
 
   // Investment types hook (based on selected group)
-  const groupCode = formValues.investment.investmentGroupRef?.split(':').pop();
+  // NOTE: Form state stores catalog objects or string IDs
+  const groupId = typeof formValues.investment.investmentGroup === 'object' 
+    ? formValues.investment.investmentGroup?.id 
+    : formValues.investment.investmentGroup;
+  const groupCode = groupId?.split(':').pop();
   const investmentTypesHook = useInvestmentTypeCatalog(businessAppContext.accessToken, groupCode);
 
   // Investment liquid fund types hook (based on selected investment type)
+  const investmentTypeId = typeof formValues.investment.investmentType === 'object' 
+    ? formValues.investment.investmentType?.id 
+    : formValues.investment.investmentType;
   const investmentLiquidFundTypesHook = useInvestmentLiquidFundTypeCatalog(
     businessAppContext.accessToken, 
-    formValues.investment.investmentTypeRef
+    investmentTypeId
   );
 
   // Accounts data hook for account autocomplete  
   const { fetchInvestmentAccounts } = useGetInvestmentAccounts(businessAppContext);
 
-  // TODO: Need to implement form-specific investment loading for update mode
-
-  // TODO: Re-implement investment data transformation when investment loading is restored
-  // removed unused transform helper
-
-  // Removed obsolete update-mode warning; update loading is handled in component
+  // Note: Investment loading for update mode is handled in InvestmentFormComponent
+  // Note: Opportunity pre-filling is handled in InvestmentFormComponent
 
   // Initialize investment groups and roles on mount
   const hasInitialized = useRef(false);
@@ -372,23 +422,35 @@ export const InvestmentFormProvider: React.FC<InvestmentFormProviderProps> = ({
 
   // Note: Account loading now uses centralized fetchInvestmentAccounts
 
-  // Auto-select current user as owner when ownerEmployee is null or not provided
+  // Auto-select current user as owner ONLY on initial mount if empty
+  // This should NOT re-run when user manually clears the field
   useEffect(() => {
-    if (
-      businessAppContext.userInfo?.employeeDetails?.employeeId && 
-      (!formValues.investment.ownerEmployee || formValues.investment.ownerEmployee.trim() === '') && 
-      !autoSelectionDone.current
-    ) {
+    // Only run once on mount
+    if (autoSelectionDone.current) {
+      return;
+    }
+    
+    const ownerEmployee = formValues.investment.ownerEmployee;
+    // Extract ID from object or use string directly
+    const ownerIdValue = typeof ownerEmployee === 'object' && ownerEmployee 
+      ? ownerEmployee.id 
+      : ownerEmployee;
+    
+    const isOwnerEmpty = !ownerIdValue || (typeof ownerIdValue === 'string' && ownerIdValue.trim() === '');
+    
+    if (businessAppContext.userInfo?.employeeDetails?.employeeId && isOwnerEmpty) {
       setFormValuesState(prev => ({
         ...prev,
         investment: {
           ...prev.investment,
-          ownerEmployee: businessAppContext.userInfo?.employeeDetails?.employeeId || ''
+          ownerEmployee: { id: businessAppContext.userInfo?.employeeDetails?.employeeId || '' } as any
         }
       }));
-      autoSelectionDone.current = true;
     }
-  }, [businessAppContext.userInfo?.employeeDetails?.employeeId, formValues.investment.ownerEmployee]);
+    
+    // Mark as done regardless of whether we set it or not (owner might already be set from initialValues)
+    autoSelectionDone.current = true;
+  }, [businessAppContext.userInfo?.employeeDetails?.employeeId]); // Removed formValues dependency
 
   // Enhanced employee positions list that always includes current user at the top
   const enhancedEmployeePositions = useMemo(() => {
@@ -420,13 +482,17 @@ export const InvestmentFormProvider: React.FC<InvestmentFormProviderProps> = ({
     }
     
     // Ensure current owner (loaded from form) is present as an option
-    if (currentEmployee && formValues.investment.ownerEmployee &&
-        !positions.some(emp => emp.value === formValues.investment.ownerEmployee)) {
+    const ownerEmployeeId = typeof formValues.investment.ownerEmployee === 'object' 
+      ? formValues.investment.ownerEmployee?.id 
+      : formValues.investment.ownerEmployee;
+    
+    if (currentEmployee && ownerEmployeeId &&
+        !positions.some(emp => emp.value === ownerEmployeeId)) {
       const ownerDisplayName = currentEmployee.employee?.displayName || 
         `${currentEmployee.firstName || ''} ${currentEmployee.lastName || ''}`.trim();
       const ownerOption: SelectOption = {
-        id: formValues.investment.ownerEmployee,
-        value: formValues.investment.ownerEmployee,
+        id: ownerEmployeeId,
+        value: ownerEmployeeId,
         label: ownerDisplayName,
         name: ownerDisplayName,
         extraInfo: {

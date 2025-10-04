@@ -121,24 +121,24 @@ export const InvestmentStatusComponent: React.FC<InvestmentStatusComponentProps>
     const groupRef = investment.investmentGroup?.id || '';
     const groupType = groupRef.split(':').pop();
     
-    // Create investment form data using new nested structure
+    // Create investment form data using new nested structure with full objects
     const investmentFormData: any = {
       investment: {
         id: investmentId,
         version: investment.version,
         name: investment.name || '',
         initialInvestmentAmount: investment.initialInvestmentAmount || 0,
-        investmentGroupRef: groupRef,
-        ownerEmployee: investment.ownerEmployee?.id || '',
+        investmentGroup: investment.investmentGroup, // Full object
+        ownerEmployee: investment.ownerEmployee, // Full object
         
         // Include ALL existing investment fields to preserve them
         code: investment.code,
         isin: investment.isin,
-        investmentTypeRef: investment.investmentType?.id,
-        investmentStakeTypeRef: investment.investmentStakeType?.id,
-        investmentPhaseRef: investment.investmentPhase?.id,
-        investmentStatusRef: selectedStatus.id, // This is the field we're updating
-        investmentRiskLevelRef: investment.investmentRiskLevel?.id,
+        investmentType: investment.investmentType, // Full object
+        investmentStakeType: investment.investmentStakeType, // Full object
+        investmentPhase: investment.investmentPhase, // Full object
+        investmentStatus: selectedStatus, // This is the field we're updating - full object
+        investmentRiskLevel: investment.investmentRiskLevel, // Full object
         acquisitionDate: investment.acquisitionDate,
         planedExit: investment.planedExit,
         plannedExitDate: investment.plannedExitDate,
@@ -159,10 +159,10 @@ export const InvestmentStatusComponent: React.FC<InvestmentStatusComponentProps>
         loanInterestClaim: investment.loanInterestClaim,
         totalCommitmentAmount: investment.totalCommitmentAmount,
         totalDistributionAmount: investment.totalDistributionAmount,
-        currencyRef: investment.currency?.id,
+        currency: investment.currency, // Full object
         fundManagerName: investment.fundManagerName,
         identification: investment.identification,
-        investmentAccount: investment.investmentAccount?.id,
+        investmentAccount: investment.investmentAccount, // Full object
         investmentOpportunity: investment.investmentOpportunity?.id,
         loanRecipientInvestmentAccount: investment.loanRecipientInvestmentAccount?.id,
         additionalProperties: investment.additionalProperties

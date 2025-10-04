@@ -35,9 +35,15 @@ export function DateField<TFieldValues extends FieldValues = FieldValues>({
           </FormLabel>
           <FormControl>
             <Input
-              {...formField}
-              value={formField.value || ''}
               type="date"
+              // Convert ISO string to YYYY-MM-DD for display
+              value={formField.value ? formField.value.split('T')[0] : ''}
+              // Convert YYYY-MM-DD to ISO string with UTC midnight for storage
+              onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
+                const dateValue = e.target.value;
+                // Store as ISO string with UTC midnight to prevent timezone shifts
+                formField.onChange(dateValue ? `${dateValue}T00:00:00.000Z` : '');
+              }}
               data-testid={formatDataTestId(testIdPrefix, `${fieldName}Input`)}
             />
           </FormControl>

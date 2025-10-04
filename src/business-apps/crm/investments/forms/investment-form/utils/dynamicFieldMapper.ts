@@ -48,15 +48,15 @@ export const mapInvestmentDataToFormFields = (
         value = getValueByPath(rawInvestment, `additionalProperties.${propertyName}`);
       }
       
-      // CATALOG_ FIELD FIX: If the Ref field is empty but catalog entry object exists, use that
-      if ((value === undefined || value === null || value === '') && field.type.startsWith('CATALOG_')) {
-        const catalogObjectPath = lookupPath.endsWith('Ref') 
-          ? lookupPath.replace(/Ref$/, '') 
-          : lookupPath;
-        const catalogEntry = getValueByPath(rawInvestment, catalogObjectPath);
-        if (catalogEntry && typeof catalogEntry === 'object' && catalogEntry.id) {
-          value = catalogEntry.id;
+      // CATALOG_ FIELD: Keep full catalog object in form state
+      // This avoids re-fetching data and simplifies component code
+      // The payload builder will extract .id when needed for API submission
+      if (field.type.startsWith('CATALOG_')) {
+        const catalogEntry = getValueByPath(rawInvestment, lookupPath);
+        if (catalogEntry && typeof catalogEntry === 'object') {
+          value = catalogEntry; // Keep full catalog object
         }
+        // If it's already a string ID, leave it as-is (backward compatibility)
       }
       
       if (value !== undefined && value !== null && value !== '') {
@@ -64,10 +64,12 @@ export const mapInvestmentDataToFormFields = (
         let formattedValue = value;
         if (field.type === 'DATE') {
           formattedValue = formatDateForInput(value);
-        } else if (field.type.startsWith('CATALOG_')) {
+        } else if (field.type.startsWith('CATALOG_') && typeof value === 'object') {
+          formattedValue = value; // Keep catalog object as-is
+        } else if (typeof value !== 'string' && typeof value !== 'object') {
           formattedValue = String(value);
-        } else if (typeof value !== 'string') {
-          formattedValue = String(value);
+        } else {
+          formattedValue = value; // Keep as-is if string or object
         }
         
         // Set value at the nested path in the result object

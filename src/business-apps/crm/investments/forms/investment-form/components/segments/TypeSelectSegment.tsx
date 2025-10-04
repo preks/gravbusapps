@@ -21,7 +21,7 @@ const TypeSelectSegment: React.FC<TypeSelectSegmentProps> = ({ isUpdate = false 
 
   const handleTypeSelect = (typeValue: string) => {
     setFormValues({ 
-      investment: { investmentTypeRef: typeValue }
+      investment: { investmentType: { id: typeValue } as any } // Store as minimal object
     } as Partial<typeof formValues>);
   };
 
@@ -51,7 +51,12 @@ const TypeSelectSegment: React.FC<TypeSelectSegmentProps> = ({ isUpdate = false 
 
   // In update mode, show read-only selected type
   if (isUpdate) {
-    const selectedType = investmentTypes.find(type => type.value === formValues.investment.investmentTypeRef);
+    // Extract ID from object or use string directly
+    const investmentTypeId = typeof formValues.investment.investmentType === 'object' 
+      ? formValues.investment.investmentType?.id 
+      : formValues.investment.investmentType;
+    
+    const selectedType = investmentTypes.find(type => type.value === investmentTypeId);
     
     if (selectedType) {
       return (
@@ -77,6 +82,11 @@ const TypeSelectSegment: React.FC<TypeSelectSegmentProps> = ({ isUpdate = false 
   }
 
   // Create mode - show selection UI
+  // Extract ID from object or use string directly for comparison
+  const investmentTypeId = typeof formValues.investment.investmentType === 'object' 
+    ? formValues.investment.investmentType?.id 
+    : formValues.investment.investmentType;
+
   return (
     <div 
       data-testid={formatDataTestId(prefixDataTestId, 'Container')} 
@@ -95,7 +105,7 @@ const TypeSelectSegment: React.FC<TypeSelectSegmentProps> = ({ isUpdate = false 
         data-testid={formatDataTestId(prefixDataTestId, 'TypeGrid')}
       >
         {investmentTypes.map((type) => {
-          const isSelected = formValues.investment.investmentTypeRef === type.value;
+          const isSelected = investmentTypeId === type.value;
           return (
             <Button
               key={type.id}

@@ -11,13 +11,10 @@ export interface InvestmentFormValues {
   // Main investment data - matches InvestmentData interface exactly
   investment: InvestmentData;
   
-  // Group-specific data - exactly one must be present based on investmentGroupRef
+  // Group-specific data - exactly one must be present based on investmentGroup
   equityInvestment?: EquityInvestmentData;
   realEstateInvestment?: RealEstateInvestmentData;
   liquidFundInvestment?: LiquidFundInvestmentData;
-  
-  // Form-only helper fields (not sent to API, used for better UX in selects)
-  accountId?: string; // Helper for investmentAccount selection
 }
 
 export interface SelectOption {

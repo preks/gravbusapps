@@ -280,7 +280,7 @@ const TaskSegment: React.FC<TaskSegmentProps> = ({
         name="title"
         render={({ field }) => (
           <FormItem>
-            <FormLabel>{titleLabel}<span className="nw:text-destructive">*</span></FormLabel>
+            <FormLabel>{titleLabel}<span className="gba:text-destructive">*</span></FormLabel>
             <FormControl>
               <Input
                 placeholder="Please Enter..."

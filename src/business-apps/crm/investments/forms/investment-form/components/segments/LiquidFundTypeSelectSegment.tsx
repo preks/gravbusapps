@@ -25,7 +25,7 @@ const LiquidFundTypeSelectSegment: React.FC<LiquidFundTypeSelectSegmentProps> = 
 
   const handleLiquidFundTypeSelect = (liquidFundTypeValue: string) => {
     setFormValues({ 
-      liquidFundInvestment: { investmentLiquidFundTypeRef: liquidFundTypeValue }
+      liquidFundInvestment: { investmentLiquidFundType: { id: liquidFundTypeValue } as any } // Store as minimal object
     } as Partial<typeof formValues>);
   };
 
@@ -55,8 +55,13 @@ const LiquidFundTypeSelectSegment: React.FC<LiquidFundTypeSelectSegmentProps> = 
 
   // In update mode, show read-only selected type
   if (isUpdate) {
+    // Extract ID from object or use string directly
+    const liquidFundTypeId = typeof formValues.liquidFundInvestment?.investmentLiquidFundType === 'object'
+      ? formValues.liquidFundInvestment?.investmentLiquidFundType?.id
+      : formValues.liquidFundInvestment?.investmentLiquidFundType;
+    
     const selectedType = investmentLiquidFundTypes.find(
-      type => type.value === formValues.liquidFundInvestment?.investmentLiquidFundTypeRef
+      type => type.value === liquidFundTypeId
     );
     
     if (selectedType) {
@@ -83,6 +88,11 @@ const LiquidFundTypeSelectSegment: React.FC<LiquidFundTypeSelectSegmentProps> = 
   }
 
   // Create mode - show selection UI
+  // Extract ID from object or use string directly for comparison
+  const liquidFundTypeId = typeof formValues.liquidFundInvestment?.investmentLiquidFundType === 'object'
+    ? formValues.liquidFundInvestment?.investmentLiquidFundType?.id
+    : formValues.liquidFundInvestment?.investmentLiquidFundType;
+
   return (
     <div 
       data-testid={formatDataTestId(prefixDataTestId, 'Container')} 
@@ -101,7 +111,7 @@ const LiquidFundTypeSelectSegment: React.FC<LiquidFundTypeSelectSegmentProps> = 
         data-testid={formatDataTestId(prefixDataTestId, 'TypeGrid')}
       >
         {investmentLiquidFundTypes.map((type) => {
-          const isSelected = formValues.liquidFundInvestment?.investmentLiquidFundTypeRef === type.value;
+          const isSelected = liquidFundTypeId === type.value;
           return (
             <Button
               key={type.id}
