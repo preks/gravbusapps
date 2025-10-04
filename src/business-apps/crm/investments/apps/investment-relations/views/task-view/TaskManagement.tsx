@@ -102,6 +102,13 @@ export const TaskManagement: React.FC<TaskManagementProps> = (props: TaskManagem
   // Get current section data
   const current = currentSection === 'my' ? myTasks : teamTasks;
 
+  // Memoize filtered columns to avoid duplication and unnecessary recalculations
+  const filteredColumns = useMemo(() => {
+    return createTaskColumns().filter(
+      col => currentSection === 'my' ? col.id !== 'assignedTo' : true
+    );
+  }, [currentSection]);
+
   // Statistics hook - truly decoupled from table data and sections
   const {
     myTasksStatistics,
@@ -284,7 +291,7 @@ export const TaskManagement: React.FC<TaskManagementProps> = (props: TaskManagem
             onSortingChange={current.setSorting}
             
             // Column visibility
-            availableColumns={createTaskColumns().map(col => ({
+            availableColumns={filteredColumns.map(col => ({
               id: col.id!,
               label: col.header as string
             }))}
@@ -316,7 +323,7 @@ export const TaskManagement: React.FC<TaskManagementProps> = (props: TaskManagem
         <DataTable<Task>
           // Data
           data={current.data}
-          columns={createTaskColumns().filter(col => 
+          columns={filteredColumns.filter(col => 
             current.visibleColumns.includes(col.id!)
           )}
           loading={current.loading}

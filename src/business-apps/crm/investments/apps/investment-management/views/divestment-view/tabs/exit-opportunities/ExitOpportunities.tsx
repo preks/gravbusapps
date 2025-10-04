@@ -69,6 +69,8 @@ const ExitOpportunities: React.FC<ExitOpportunitiesProps> = ({
   // Created date range state (creation date)
   const [createdAfter, setCreatedAfter] = useState<string | undefined>(undefined);
   const [createdBefore, setCreatedBefore] = useState<string | undefined>(undefined);
+  // Board refresh trigger
+  const [boardRefreshTrigger, setBoardRefreshTrigger] = useState(0);
   // Owner backend search
   const { employees: employeeOptions, search: searchEmployees, loading: loadingEmployees, error: employeeError } = useEmployeeSearch(accessToken);
 
@@ -214,6 +216,7 @@ const ExitOpportunities: React.FC<ExitOpportunitiesProps> = ({
         // Check for successful completion
         if (event.detail?.resolution === 'success') {
           loadPage(currentPage, pageSize);
+          setBoardRefreshTrigger(prev => prev + 1); // Trigger board refresh
           return;
         }
         
@@ -223,12 +226,14 @@ const ExitOpportunities: React.FC<ExitOpportunitiesProps> = ({
             response?.opportunity || 
             response?.investment) {
           loadPage(currentPage, pageSize);
+          setBoardRefreshTrigger(prev => prev + 1); // Trigger board refresh
           return;
         }
         
         // Check for continue events with payload
         if (event.type === 'com.newwork.process.continue' && event.detail?.payload) {
           loadPage(currentPage, pageSize);
+          setBoardRefreshTrigger(prev => prev + 1); // Trigger board refresh
         }
       } catch (err) {
         // Log process completion event handling errors
@@ -804,6 +809,7 @@ const ExitOpportunities: React.FC<ExitOpportunitiesProps> = ({
             accessToken={accessToken}
             userInfo={userInfo}
             dealType="DIVESTMENT_DEAL"
+            refreshTrigger={boardRefreshTrigger}
           />
         </TabsContent>
       </Tabs>

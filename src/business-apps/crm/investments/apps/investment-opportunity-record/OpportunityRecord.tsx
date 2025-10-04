@@ -12,6 +12,7 @@ import { getTranslationFromI18nKeyAndLabel } from "@/common/utils/windowUtils";
 import { useOpportunityData } from "./hooks/useOpportunityData";
 import { useProcessCompletion } from "@/common/hooks/useProcessCompletion";
 import { formatCurrency, extractCurrencyCode } from '@/business-apps/crm/common/utils/currencyUtils';
+import { getOpportunityStatusBadgeVariant } from '@/common/utils/badgeUtils';
 import { useAiSummary } from './hooks/useAiSummary';
 import { AiActions, AiAction } from "@/common/components/common-relations/record-sections/header-section/ai-actions";
 import { AppActionButton } from "@/components/app-action-button/AppActionButton";
@@ -335,15 +336,27 @@ const InvestmentOpportunityRecordContent: React.FC<OpportunityRecordContentProps
   }), [opportunityId]);
 
   // Memoize RecordLayout data to prevent unnecessary re-renders (must be before early returns)
-  const headerMeta = useMemo(() => opportunity?.value ? (
-    <Badge variant="outline" className="gba:gap-1">
-      <CurrencyDollar size={16} />
-      {formatCurrency(
-        opportunity.value, 
-        opportunity?.currency?.id || 'Currency:v1:EUR'
+  const headerMeta = useMemo(() => (
+    <div className="gba:flex gba:items-center gba:gap-2">
+      {opportunityData?.opportunityStatus?.value && (
+        <Badge 
+          variant={getOpportunityStatusBadgeVariant(opportunityData.opportunityStatus)}
+          className="gba:gap-1"
+        >
+          {opportunityData.opportunityStatus.value}
+        </Badge>
       )}
-    </Badge>
-  ) : undefined, [opportunity?.value, opportunity?.currency?.id]);
+      {opportunity?.value && (
+        <Badge variant="outline" className="gba:gap-1">
+          <CurrencyDollar size={16} />
+          {formatCurrency(
+            opportunity.value, 
+            opportunity?.currency?.id || 'Currency:v1:EUR'
+          )}
+        </Badge>
+      )}
+    </div>
+  ), [opportunity?.value, opportunity?.currency?.id, opportunityData?.opportunityStatus?.value]);
 
   // Helper function to convert deal type codes to human-readable values
   const getDealTypeDisplayValue = (dealType: string | undefined): string => {
