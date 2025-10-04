@@ -77,6 +77,7 @@ export interface CatalogSelectController {
   onSearch: (q: string) => Promise<void>;
   onLoadMore: () => Promise<void>;
   disabled: boolean;
+  hasOptions: boolean;
   filterSignature?: string;
 }
 
@@ -353,13 +354,17 @@ export const useCatalogSelect = (
       const hasAnyFilterActive = Boolean(
         (cfg.parentConfigId && hasParentSelected) || (cfg.externalEqualsFilters && hasExternalFilterValue)
       );
-      // Only disable if loading is complete and no options found (not during loading)
+      // Keep disabled while loading when filters are active to prevent flicker
+      const disabledWhileLoading = Boolean(
+        hasAnyFilterActive && current?.loading
+      );
+      // Disable when loading is complete and no options found
       const disabledNoOptions = Boolean(
         hasAnyFilterActive && 
-        !current?.loading && // Wait for loading to complete
+        !current?.loading && 
         (current?.options?.length || 0) === 0
       );
-      const disabled = disabledRequire || disabledNoOptions;
+      const disabled = disabledRequire || disabledWhileLoading || disabledNoOptions;
 
       record[id] = {
         value: current?.value ?? null,
@@ -382,6 +387,7 @@ export const useCatalogSelect = (
         onSearch,
         onLoadMore,
         disabled,
+        hasOptions: (current?.options?.length || 0) > 0,
         filterSignature: current?.lastFiltersSig,
       };
     });

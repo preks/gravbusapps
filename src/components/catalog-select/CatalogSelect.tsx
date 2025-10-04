@@ -55,6 +55,7 @@ const CatalogSelect: React.FC<CatalogSelectProps> = ({
   const wiredOnLoadMore = onLoadMore ?? controller?.onLoadMore;
   const wiredOnSearch = onSearch ?? controller?.onSearch;
   const wiredDisabled = disabled ?? controller?.disabled ?? false;
+  const wiredHasOptions = controller?.hasOptions ?? true;
   const wiredControllerValue = controller?.value ?? null;
   const effectiveValue = value !== undefined ? value : wiredControllerValue;
   
@@ -148,6 +149,13 @@ const CatalogSelect: React.FC<CatalogSelectProps> = ({
     }
     onValueChange?.(normalized);
   }, [controller, onValueChange]);
+
+  // Clear value when field becomes disabled or has no options
+  React.useEffect(() => {
+    if ((wiredDisabled || !wiredHasOptions) && effectiveValue) {
+      handleExternalValueChange(null);
+    }
+  }, [wiredDisabled, wiredHasOptions, effectiveValue, handleExternalValueChange]);
 
   if (wiredVariant === 'combobox') {
     return (
