@@ -610,6 +610,7 @@ const InvestmentOpportunityRecordContent: React.FC<OpportunityRecordContentProps
                       picture: ioc.contact.picture || ioc.contact.pictureThumbnail,
                       academicTitle: ioc.contact.academicTitle?.value || ioc.contact.academicTitle?.code,
                       salutation: ioc.contact.salutation?.value || ioc.contact.salutation?.code,
+                      communicationChannels: ioc.contact.communicationChannels
                     } : null).filter(Boolean),
                     contactId: opportunityData?.investmentOpportunityContact?.[0]?.contact?.id,
                     recordUrl: opportunityData?.investmentOpportunityContact?.[0]?.contact?.id

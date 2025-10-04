@@ -162,6 +162,28 @@ const ContactPersonalInfo: React.FC<ContactPersonalInfoProps> = ({
     return parts.length > 0 ? parts.join(' • ') : '-';
   };
 
+  // Helper function to extract LinkedIn URL from communication channels
+  const getLinkedInUrl = () => {
+    const communicationChannels = (contact as any)?.communicationChannels;
+    if (!communicationChannels || !Array.isArray(communicationChannels)) {
+      return (contact as any)?.linkedinUrl || null;
+    }
+    return communicationChannels.find(
+      (channel: any) => channel.communicationChannelRef === "CommunicationChannel:v1:LinkedIn"
+    )?.value || null;
+  };
+
+  // Helper function to extract XING URL from communication channels
+  const getXingUrl = () => {
+    const communicationChannels = (contact as any)?.communicationChannels;
+    if (!communicationChannels || !Array.isArray(communicationChannels)) {
+      return (contact as any)?.xingUrl || null;
+    }
+    return communicationChannels.find(
+      (channel: any) => channel.communicationChannelRef === "CommunicationChannel:v1:Xing"
+    )?.value || null;
+  };
+
   // Check if contact has image/avatar
   const hasContactImage = (contact as any)?.pictureThumbnailUrl || (contact as any)?.pictureThumbnail || (contact as any)?.avatar;
   
@@ -281,7 +303,7 @@ const ContactPersonalInfo: React.FC<ContactPersonalInfoProps> = ({
               {
                 icon: PiLinkedinLogo,
                 title: "LinkedIn",
-                value: contact?.linkedinUrl,
+                value: getLinkedInUrl(),
                 render: (value: string) => value ? (
                   <a
                     href={value}
@@ -298,7 +320,7 @@ const ContactPersonalInfo: React.FC<ContactPersonalInfoProps> = ({
               {
                 icon: PiShareNetwork,
                 title: "XING",
-                value: contact?.xingUrl,
+                value: getXingUrl(),
                 render: (value: string) => value ? (
                   <a
                     href={value}

@@ -16,6 +16,7 @@ export interface Contact {
   email: string;
   phone: string;
   jobTitle: string;
+  department?: string;
   linkedinUrl?: string;
   xingUrl?: string;
   bio?: string;
@@ -72,15 +73,24 @@ export const useContactData = (contactId: string, accessToken: string) => {
         setContactData(result.contact);
         
         // Transform data for UI compatibility
+        // Extract LinkedIn and XING URLs from communication channels
+        const linkedinUrl = result.contact.communicationChannels?.find(
+          (channel: any) => channel.communicationChannelRef === "CommunicationChannel:v1:LinkedIn"
+        )?.value || '';
+        const xingUrl = result.contact.communicationChannels?.find(
+          (channel: any) => channel.communicationChannelRef === "CommunicationChannel:v1:Xing"
+        )?.value || '';
+
         const transformedContact: Contact = {
           id: result.contact.id,
           firstName: result.contact.firstName || '',
           lastName: result.contact.lastName || '',
           email: result.contact.email || '',
           phone: result.contact.phone || '',
-          jobTitle: result.contact.jobTitle || '',
-          linkedinUrl: result.contact.linkedinUrl || '',
-          xingUrl: result.contact.xingUrl || '',
+          jobTitle: (result.contact as any).jobPosition || '',
+          department: (result.contact as any).department || undefined,
+          linkedinUrl: linkedinUrl,
+          xingUrl: xingUrl,
           bio: result.contact.bio || '',
           contactType: result.contact.type || '', // Use 'type' field from GraphQL
           version: result.contact.version?.toString() || '1',

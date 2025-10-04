@@ -460,6 +460,7 @@ const InvestmentLeadRecordContent: React.FC<LeadRecordContentProps> = ({
                       jobTitle: leadData.position,
                       academicTitle: leadData.academicTitle?.value || leadData.academicTitle?.code,
                       salutation: leadData.salutation?.value || leadData.salutation?.code,
+                      communicationChannels: leadData.communicationChannels
                     } : undefined,
                   }
                 }

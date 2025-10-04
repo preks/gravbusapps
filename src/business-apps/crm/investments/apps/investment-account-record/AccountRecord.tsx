@@ -449,8 +449,14 @@ const InvestmentAccountRecordContent: React.FC<AccountRecordContentProps> = ({ a
                   component: ContactSection,
                   props: {
                     ...props,
-                    contacts: (accountData as any)?.investmentAccountContact?.map((accountContact: any) => accountContact.contact).filter(Boolean) || [],
-                    contact: (accountData as any)?.investmentAccountContact?.[0]?.contact || undefined,
+                    contacts: (accountData as any)?.investmentAccountContact?.map((accountContact: any) => {
+                      const c = accountContact.contact;
+                      return c ? { ...c, jobTitle: c.jobPosition } : null;
+                    }).filter(Boolean) || [],
+                    contact: (() => {
+                      const c = (accountData as any)?.investmentAccountContact?.[0]?.contact;
+                      return c ? { ...c, jobTitle: c.jobPosition } : undefined;
+                    })(),
                     contactId: (accountData as any)?.investmentAccountContact?.[0]?.contact?.id || undefined,
                     recordUrl: (accountData as any)?.investmentAccountContact?.[0]?.contact?.id
                       ? buildPlatformUrl('/platform/irm/contact-record', {

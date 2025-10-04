@@ -149,6 +149,9 @@ export const INVESTMENT_CONTACT_REF = `
     jobPosition
     picture
     pictureThumbnail
+    communicationChannels {
+        ${INVESTMENT_COMMUNICATION_CHANNEL}
+    }
     academicTitle {
         ${CATALOG_ENTRY}
     }
@@ -175,6 +178,11 @@ export const INVESTMENT_CONTACT = `
     pictureThumbnail
     
     ${AUDIT_FIELDS}
+    
+    # Communication channels
+    communicationChannels {
+        ${INVESTMENT_COMMUNICATION_CHANNEL}
+    }
     
     # Catalog relationships
     academicTitle {

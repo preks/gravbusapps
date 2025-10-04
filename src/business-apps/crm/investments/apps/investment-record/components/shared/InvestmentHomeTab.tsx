@@ -263,7 +263,10 @@ export const InvestmentHomeTab: React.FC<InvestmentHomeTabProps> = ({
                 firstName: investment?.investmentAccount?.investmentAccountContact?.[0]?.contact?.firstName || null,
                 lastName: investment?.investmentAccount?.investmentAccountContact?.[0]?.contact?.lastName || null,
                 email: investment?.investmentAccount?.investmentAccountContact?.[0]?.contact?.email || null,
-                phone: investment?.investmentAccount?.investmentAccountContact?.[0]?.contact?.phone || null
+                phone: investment?.investmentAccount?.investmentAccountContact?.[0]?.contact?.phone || null,
+                jobTitle: investment?.investmentAccount?.investmentAccountContact?.[0]?.contact?.jobPosition || null,
+                department: investment?.investmentAccount?.investmentAccountContact?.[0]?.contact?.department || null,
+                communicationChannels: investment?.investmentAccount?.investmentAccountContact?.[0]?.contact?.communicationChannels || null
               },
               contactId: investment?.investmentAccount?.investmentAccountContact?.[0]?.contact?.id || null,
               recordUrl: investment?.investmentAccount?.investmentAccountContact?.[0]?.contact?.id

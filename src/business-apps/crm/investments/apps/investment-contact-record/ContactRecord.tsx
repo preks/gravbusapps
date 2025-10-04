@@ -408,9 +408,11 @@ const InvestmentContactRecordContent: React.FC<ContactRecordContentProps> = ({
                       lastName: contact?.lastName,
                       email: contact?.email,
                       phone: contact?.phone,
-                      jobTitle: contact?.jobTitle,
+                      jobTitle: (contact as any)?.jobTitle || (rawContactData as any)?.jobPosition,
+                      department: (contact as any)?.department || (rawContactData as any)?.department,
                       academicTitle: contact?.academicTitle,
-                      professionalTitle: contact?.professionalTitle
+                      professionalTitle: contact?.professionalTitle,
+                      communicationChannels: rawContactData?.communicationChannels
                     },
                     contactId: contact?.id,
                     actionButtonProps: {
