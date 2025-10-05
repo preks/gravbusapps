@@ -35,7 +35,9 @@ interface TaskData {
   };
   assignedEmployee?: {
     id: string;
-    displayName: string;
+    firstName?: string;
+    lastName?: string;
+    displayName?: string;
   };
 }
 
@@ -88,6 +90,8 @@ const TaskDeletePopup: React.FC<TaskDeletePopupProps> = ({ initialValues = {}, .
               }
               assignedEmployee {
                 id
+                firstName
+                lastName
                 displayName
               }
             }
@@ -103,6 +107,16 @@ const TaskDeletePopup: React.FC<TaskDeletePopupProps> = ({ initialValues = {}, .
 
         const tsk = result.InvestmentTask[0];
         
+        // Compute assignedEmployee displayName if not provided
+        let assignedEmployee = tsk.assignedEmployee;
+        if (assignedEmployee && !assignedEmployee.displayName) {
+          const computedDisplayName = `${assignedEmployee.firstName || ''} ${assignedEmployee.lastName || ''}`.trim() || 'Unassigned';
+          assignedEmployee = {
+            ...assignedEmployee,
+            displayName: computedDisplayName
+          };
+        }
+        
         setTask({
           id: tsk.id,
           version: tsk.version || 0,
@@ -113,7 +127,7 @@ const TaskDeletePopup: React.FC<TaskDeletePopupProps> = ({ initialValues = {}, .
           taskType: tsk.taskType,
           taskPriority: tsk.taskPriority,
           taskStatus: tsk.taskStatus,
-          assignedEmployee: tsk.assignedEmployee
+          assignedEmployee
         });
       } catch (err) {
         console.error('Failed to load task:', err);
@@ -241,7 +255,11 @@ const TaskDeletePopup: React.FC<TaskDeletePopupProps> = ({ initialValues = {}, .
                 {task.assignedEmployee && (
                   <p className="gba:mt-1">
                     <strong>{getTranslationFromI18nKeyAndLabel('task.assignedTo', 'Assigned To')}:</strong>{' '}
-                    <Badge variant="outline" className="gba:ml-1">{task.assignedEmployee.displayName}</Badge>
+                    <Badge variant="outline" className="gba:ml-1">
+                      {task.assignedEmployee.displayName || 
+                       `${task.assignedEmployee.firstName || ''} ${task.assignedEmployee.lastName || ''}`.trim() || 
+                       'Unassigned'}
+                    </Badge>
                   </p>
                 )}
                 {task.dueDate && (

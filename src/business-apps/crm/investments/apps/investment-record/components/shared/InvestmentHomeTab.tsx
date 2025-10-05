@@ -341,6 +341,7 @@ export const InvestmentHomeTab: React.FC<InvestmentHomeTabProps> = ({
                 assigneeEmployee: task.assignedEmployee,
                 taskTiming: task.taskTiming,
                 startDate: task.startDate,
+                creatorEmployee: task.creatorEmployee,
                 reference: task.lead ? {
                   type: 'lead' as const,
                   id: task.lead.id,
@@ -397,6 +398,7 @@ export const InvestmentHomeTab: React.FC<InvestmentHomeTabProps> = ({
                 assigneeEmployee: approval.assignedEmployee,
                 taskTiming: approval.taskTiming,
                 startDate: approval.startDate,
+                creatorEmployee: approval.creatorEmployee,
                 reference: approval.lead ? {
                   type: 'lead' as const,
                   id: approval.lead.id,

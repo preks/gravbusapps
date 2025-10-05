@@ -32,6 +32,14 @@ type TaskItem = {
     displayName?: string;
     firstName?: string;
     lastName?: string;
+    pictureThumbnail?: string;
+  };
+  creatorEmployee?: {
+    id: string;
+    displayName?: string;
+    firstName?: string;
+    lastName?: string;
+    pictureThumbnail?: string;
   };
   reference?: TaskReference;
   taskTiming?: 'DEADLINE' | 'SCHEDULED' | 'UNKNOWN_TIMING_TYPE';
@@ -117,7 +125,17 @@ const TaskSection: React.FC<TaskSectionProps> = ({ accessToken, tasks, taskEntit
         firstName: taskItem.assigneeEmployee?.firstName || '',
         lastName: taskItem.assigneeEmployee?.lastName || '',
         displayName: taskItem.assigneeEmployee?.displayName || taskItem.assignee || 'Unknown',
+        pictureThumbnail: taskItem.assigneeEmployee?.pictureThumbnail,
       },
+      creatorEmployee: taskItem.creatorEmployee ? {
+        id: taskItem.creatorEmployee.id,
+        firstName: taskItem.creatorEmployee.firstName || '',
+        lastName: taskItem.creatorEmployee.lastName || '',
+        displayName: taskItem.creatorEmployee.displayName || 
+          `${taskItem.creatorEmployee.firstName || ''} ${taskItem.creatorEmployee.lastName || ''}`.trim() || 
+          'Unknown',
+        pictureThumbnail: taskItem.creatorEmployee.pictureThumbnail,
+      } : undefined,
       type: taskItem.taskPriority?.type || '',
       priority: (taskItem.taskPriority?.type?.toLowerCase() as any) || 'medium',
       status: (taskItem.statusCode?.toLowerCase() as any) || 'pending',
