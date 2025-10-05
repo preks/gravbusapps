@@ -75,21 +75,23 @@ export const useFlowExecutionTasks = (
     try {
       const flowMetricsClient = new FlowMetricsClient(accessToken);
 
+      // Fetch larger batch without API filter (API filterTaskName does exact match, misses variations)
+      // Then do client-side pattern matching to catch all task variations
       const params: FlowExecutionTasksParams = {
         cockpitPage: 'INBOX',
         state: 'Open', // Only fetch open/active tasks (capital O is required by API)
-        size: 1000, // Fetch more tasks to ensure we get all variations
-        page: currentPage - 1,
+        size: 500, // Fetch reasonable batch size for client-side filtering
+        page: 0, // Always fetch first page, we'll do client-side pagination
         field: 'CREATION_DATE',
         direction: 'DESC',
         ...(searchTerm && { search: searchTerm }),
         ...(context?.userInfo?.id && { userId: context.userInfo.id }),
-        // NOT using filterTaskName here - API does exact match only, won't catch variations
+        // NOT using filterTaskName - API does exact match only, won't catch variations like "approveAdvancePaymentStoreDirector"
       };
 
       const response = await flowMetricsClient.getFlowExecutionTasks(params);
 
-      const tasksData = response.processingStates || response.content || [];
+      let tasksData = response.processingStates || response.content || [];
       const totalCountData = response.totalCount || response.totalElements || 0;
 
       if (!response || !Array.isArray(tasksData)) {
@@ -110,7 +112,12 @@ export const useFlowExecutionTasks = (
         });
       }
 
-      setTasks(filteredTasks);
+      // Client-side pagination after filtering
+      const startIndex = (currentPage - 1) * pageSize;
+      const endIndex = startIndex + pageSize;
+      const paginatedTasks = filteredTasks.slice(startIndex, endIndex);
+
+      setTasks(paginatedTasks);
       setTotalCount(filteredTasks.length);
     } catch (err: any) {
       console.error('Error fetching flow execution tasks:', err);
