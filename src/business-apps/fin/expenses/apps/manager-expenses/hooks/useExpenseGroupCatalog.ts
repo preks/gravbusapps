@@ -58,7 +58,7 @@ export const useExpenseGroupCatalog = (accessToken: string): UseExpenseGroupCata
 
   useEffect(() => {
     const fetchExpenseGroups = async () => {
-      if (!accessToken) {
+      if (!accessToken || !graphqlClient) {
         setError("Missing authentication token");
         setIsLoading(false);
         return;
@@ -79,12 +79,15 @@ export const useExpenseGroupCatalog = (accessToken: string): UseExpenseGroupCata
             const translatedName = group.translations?.[0]?.name;
             const translatedDescription = group.translations?.[0]?.description;
 
-            // Store by ID for direct lookups
-            groupsMap[group.id] = {
+            // Create a single entry object and assign it to multiple keys to
+            // avoid memory duplication while keeping O(1) lookups by alias.
+            const entry: ExpenseGroupCatalogEntry = {
               id: group.id,
               name: translatedName || group.name || group.id,
               description: translatedDescription || group.description,
             };
+            // Store by ID for direct lookups
+            groupsMap[group.id] = entry;
 
             // Also store by reference format mapped by CODE (additionalValue1/name), not DB id
             // Example incoming ref: ExpenseGroup:v1:ACCOMMODATION
@@ -96,18 +99,10 @@ export const useExpenseGroupCatalog = (accessToken: string): UseExpenseGroupCata
             // Only store ref/CODE keys when we have a non-empty code
             if (codeKey) {
               const refKey = `ExpenseGroup:v1:${codeKey}`;
-              groupsMap[refKey] = {
-                id: group.id,
-                name: translatedName || group.name || group.id,
-                description: translatedDescription || group.description,
-              };
+              groupsMap[refKey] = entry;
 
               // Store by plain CODE as well for convenience lookups
-              groupsMap[codeKey] = {
-                id: group.id,
-                name: translatedName || group.name || group.id,
-                description: translatedDescription || group.description,
-              };
+              groupsMap[codeKey] = entry;
             }
           });
 
@@ -129,7 +124,7 @@ export const useExpenseGroupCatalog = (accessToken: string): UseExpenseGroupCata
     };
 
     fetchExpenseGroups();
-  }, [accessToken]);
+  }, [accessToken, graphqlClient]);
 
   return { isLoading, error, expenseGroups };
 };
