@@ -189,16 +189,12 @@ export const InvestmentFormComponent: React.FC = () => {
     // Preserve existing owner if it exists, fallback to currentEmployee
     const preservedOwner = formValues.investment.ownerEmployee || currentEmployee;
     
-    setFormValues({ 
+    const newFormValues = { 
       investment: {
         ownerEmployee: preservedOwner as any, // Full employee object
         name: formValues.investment.name || '',
         investmentGroup: { id: group } as any, // Minimal catalog object (will be enriched by components)
         investmentStatus: { id: 'InvestmentStatus:v1:ACTIVE', code: 'ACTIVE' } as any, // Default status as object
-        // Explicitly clear type and other fields when group changes
-        investmentType: undefined,
-        currency: undefined,
-        investmentAccount: undefined,
         // Keep system fields if updating
         ...(isUpdate && { 
           id: formValues.investment.id, 
@@ -209,7 +205,20 @@ export const InvestmentFormComponent: React.FC = () => {
       equityInvestment: undefined,
       realEstateInvestment: undefined,
       liquidFundInvestment: undefined,
-    } as Partial<InvestmentFormValues>);
+    } as Partial<InvestmentFormValues>;
+    
+    // Update context state
+    setFormValues(newFormValues);
+    
+    // Update react-hook-form state to match
+    form.setValue('investment.investmentGroup', { id: group } as any);
+    form.setValue('investment.investmentType', undefined as any);
+    form.setValue('investment.currency', undefined as any);
+    form.setValue('investment.investmentAccount', undefined as any);
+    form.setValue('equityInvestment', undefined as any);
+    form.setValue('realEstateInvestment', undefined as any);
+    form.setValue('liquidFundInvestment', undefined as any);
+    
     // Reset skip auto-detection flag after selection
     setSkipAutoDetection(false);
     setCurrentStep('form');
@@ -240,6 +249,16 @@ export const InvestmentFormComponent: React.FC = () => {
       };
       
       setFormValues(newFormValues);
+      
+      // Also clear react-hook-form state
+      form.setValue('investment.investmentGroup', undefined as any);
+      form.setValue('investment.investmentType', undefined as any);
+      form.setValue('investment.currency', undefined as any);
+      form.setValue('investment.investmentAccount', undefined as any);
+      form.setValue('equityInvestment', undefined as any);
+      form.setValue('realEstateInvestment', undefined as any);
+      form.setValue('liquidFundInvestment', undefined as any);
+      
       // Skip auto-detection when user explicitly clicks Back button
       setSkipAutoDetection(true);
       setCurrentStep('select');

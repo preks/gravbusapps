@@ -70,7 +70,11 @@ const baseInvestmentSchema = z.object({
         .refine((val) => val !== null && val !== undefined, {
           message: 'Related account is required',
         }),
-      investmentType: catalogEntrySchema.optional(),
+      investmentType: catalogEntrySchema
+        .optional()
+        .refine((val) => val !== null && val !== undefined, {
+          message: 'Investment type is required',
+        }),
     })
     .passthrough(),
 
@@ -78,7 +82,27 @@ const baseInvestmentSchema = z.object({
   equityInvestment: z.any().optional(),
   realEstateInvestment: z.any().optional(),
   liquidFundInvestment: z.any().optional(),
-});
+})
+  .superRefine((data, ctx) => {
+    // Check if investment group is LIQUID_FUND
+    const investmentGroup = data.investment.investmentGroup as any;
+    const groupId = typeof investmentGroup === 'object' 
+      ? investmentGroup?.id 
+      : investmentGroup;
+    const groupCode = groupId?.split(':').pop();
+    
+    // If LIQUID_FUND group, require liquid fund type
+    if (groupCode === 'LIQUID_FUND') {
+      const liquidFundType = (data.liquidFundInvestment as any)?.investmentLiquidFundType;
+      if (!liquidFundType || liquidFundType === null) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: 'Liquid fund type is required',
+          path: ['liquidFundInvestment', 'investmentLiquidFundType'],
+        });
+      }
+    }
+  });
 
 // Helper function to convert property path to field name for nested structure
 // With nested structure, we use the FULL property path as the field name
@@ -322,7 +346,8 @@ export const createDynamicInvestmentSchema = (formFieldsDefinition?: FormFieldsD
   }
 
   // Extend base schema with dynamic fields
-  return baseInvestmentSchema.extend({
+  // Note: We need to extract the base object schema before superRefine, extend it, then re-apply superRefine
+  const extendedSchema = z.object({
     investment: baseInvestmentSchema.shape.investment.extend(investmentFields),
     equityInvestment:
       Object.keys(equityInvestmentFields).length > 0
@@ -336,7 +361,29 @@ export const createDynamicInvestmentSchema = (formFieldsDefinition?: FormFieldsD
       Object.keys(liquidFundInvestmentFields).length > 0
         ? z.object(liquidFundInvestmentFields).passthrough().optional()
         : z.any().optional(),
-  });
+  })
+    .superRefine((data, ctx) => {
+      // Check if investment group is LIQUID_FUND
+      const investmentGroup = data.investment.investmentGroup as any;
+      const groupId = typeof investmentGroup === 'object' 
+        ? investmentGroup?.id 
+        : investmentGroup;
+      const groupCode = groupId?.split(':').pop();
+      
+      // If LIQUID_FUND group, require liquid fund type
+      if (groupCode === 'LIQUID_FUND') {
+        const liquidFundType = (data.liquidFundInvestment as any)?.investmentLiquidFundType;
+        if (!liquidFundType || liquidFundType === null) {
+          ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            message: 'Liquid fund type is required',
+            path: ['liquidFundInvestment', 'investmentLiquidFundType'],
+          });
+        }
+      }
+    });
+  
+  return extendedSchema;
 };
 
 /**
