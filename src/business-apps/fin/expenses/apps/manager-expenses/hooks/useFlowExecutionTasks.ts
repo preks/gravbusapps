@@ -39,6 +39,8 @@ export const useFlowExecutionTasks = (
   const [totalCount, setTotalCount] = useState<number>(0);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
+  // Cache all fetched tasks to avoid refetching on tab switch
+  const [cachedAllTasks, setCachedAllTasks] = useState<FlowExecutionTask[]>([]);
 
   // Pagination state - use external if provided, otherwise internal state
   const [internalCurrentPage, setInternalCurrentPage] = useState<number>(1);
@@ -65,7 +67,7 @@ export const useFlowExecutionTasks = (
   // Initialize the FlowMetrics client
   const accessToken = context?.accessToken || '';
 
-  // Fetch tasks data
+  // Fetch tasks data (only when search/user changes, not on tab switch)
   const fetchTasks = useCallback(async () => {
     if (!accessToken) return;
 
@@ -75,18 +77,19 @@ export const useFlowExecutionTasks = (
     try {
       const flowMetricsClient = new FlowMetricsClient(accessToken);
 
-      // Fetch larger batch without API filter (API filterTaskName does exact match, misses variations)
+      // Fetch all tasks once without API filter (API filterTaskName does exact match, misses variations)
       // Then do client-side pattern matching to catch all task variations
+      // Use smaller batch size for better performance
       const params: FlowExecutionTasksParams = {
         cockpitPage: 'INBOX',
         state: 'Open', // Only fetch open/active tasks (capital O is required by API)
-        size: 500, // Fetch reasonable batch size for client-side filtering
+        size: 300, // Reduced batch size for faster response
         page: 0, // Always fetch first page, we'll do client-side pagination
         field: 'CREATION_DATE',
         direction: 'DESC',
         ...(searchTerm && { search: searchTerm }),
         ...(context?.userInfo?.id && { userId: context.userInfo.id }),
-        // NOT using filterTaskName - API does exact match only, won't catch variations like "approveAdvancePaymentStoreDirector"
+        // NOT using filterTaskName - API does exact match only, won't catch variations
       };
 
       const response = await flowMetricsClient.getFlowExecutionTasks(params);
@@ -99,26 +102,8 @@ export const useFlowExecutionTasks = (
         throw new Error('Invalid data structure received from server');
       }
 
-      // Client-side pattern matching for task name filtering
-      // This allows us to match task variations like:
-      // - approveAdvancePayment
-      // - approveAdvancePaymentStoreDirector  
-      // - approveAdvancePaymentManager
-      let filteredTasks = tasksData;
-      if (filterTaskName) {
-        filteredTasks = tasksData.filter((task: FlowExecutionTask) => {
-          // Match tasks that start with the base process name
-          return task.name && task.name.startsWith(filterTaskName);
-        });
-      }
-
-      // Client-side pagination after filtering
-      const startIndex = (currentPage - 1) * pageSize;
-      const endIndex = startIndex + pageSize;
-      const paginatedTasks = filteredTasks.slice(startIndex, endIndex);
-
-      setTasks(paginatedTasks);
-      setTotalCount(filteredTasks.length);
+      // Cache all tasks for instant tab switching
+      setCachedAllTasks(tasksData);
     } catch (err: any) {
       console.error('Error fetching flow execution tasks:', err);
       let errorMessage = 'Failed to fetch flow execution tasks';
@@ -128,12 +113,31 @@ export const useFlowExecutionTasks = (
       }
 
       setError(errorMessage);
-      setTasks([]);
-      setTotalCount(0);
+      setCachedAllTasks([]);
     } finally {
       setIsLoading(false);
     }
-  }, [accessToken, currentPage, pageSize, searchTerm, filterTaskName, context?.userInfo?.id]);
+  }, [accessToken, searchTerm, context?.userInfo?.id]); // REMOVED: currentPage, pageSize, filterTaskName
+
+  // Apply filters and pagination to cached data (runs instantly on tab switch)
+  useEffect(() => {
+    // Client-side pattern matching for task name filtering
+    let filteredTasks = cachedAllTasks;
+    if (filterTaskName) {
+      filteredTasks = cachedAllTasks.filter((task: FlowExecutionTask) => {
+        // Match tasks that start with the base process name
+        return task.name && task.name.startsWith(filterTaskName);
+      });
+    }
+
+    // Client-side pagination after filtering
+    const startIndex = (currentPage - 1) * pageSize;
+    const endIndex = startIndex + pageSize;
+    const paginatedTasks = filteredTasks.slice(startIndex, endIndex);
+
+    setTasks(paginatedTasks);
+    setTotalCount(filteredTasks.length);
+  }, [cachedAllTasks, filterTaskName, currentPage, pageSize]);
 
   // Complete a task
   const completeTask = useCallback(
