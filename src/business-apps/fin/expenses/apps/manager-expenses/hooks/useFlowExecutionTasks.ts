@@ -97,8 +97,6 @@ export const useFlowExecutionTasks = (
 
       if (needsVariantFetch) {
         // Make 2 API calls: one for base, one for StoreDirector variant
-        console.log('🔍 [DUAL FETCH] Fetching base + StoreDirector variant for', filterTaskName);
-        
         const [baseResponse, variantResponse] = await Promise.all([
           flowMetricsClient.getFlowExecutionTasks({
             ...baseParams,
@@ -112,8 +110,6 @@ export const useFlowExecutionTasks = (
 
         const baseTasks = baseResponse.processingStates || baseResponse.content || [];
         const variantTasks = variantResponse.processingStates || variantResponse.content || [];
-
-        console.log('📦 Base tasks:', baseTasks.length, 'Variant tasks:', variantTasks.length);
 
         // Merge and deduplicate by ID
         const taskMap = new Map();
