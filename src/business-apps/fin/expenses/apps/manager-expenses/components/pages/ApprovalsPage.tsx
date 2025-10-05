@@ -63,7 +63,7 @@ const ApprovalsPage: React.FC<ApprovalsPageProps> = ({ onNavigateBack, ...props 
 
   const currentTab = getTabByKey(activeTab);
 
-  const { tasks, totalCount, isLoading, error } = useFlowExecutionTasks(props, {
+  const { tasks, totalCount, isLoading, error, refresh } = useFlowExecutionTasks(props, {
     currentPage: currentTabPagination.currentPage,
     pageSize: currentTabPagination.pageSize,
     searchTerm: currentTabPagination.searchTerm,
@@ -123,8 +123,8 @@ const ApprovalsPage: React.FC<ApprovalsPageProps> = ({ onNavigateBack, ...props 
   // Listen for process completion events and refresh data
   useProcessCompletion({
     onSuccess: () => {
-      refreshTabCounts();
-      // The useFlowExecutionTasks hook will automatically refresh when the component re-renders
+      refreshTabCounts(); // Refresh badge counts
+      refresh(); // Refresh the task list
     }
   });
 
