@@ -57,8 +57,14 @@ export const mapInvestmentContactToFormValues = (
     accountIds: Array.from(
       new Set(
         (contact.investmentAccountContact ?? [])
-          .map(rel => rel.account?.id)
-          .filter((id): id is string => Boolean(id))
+          .map(rel => {
+            if (!rel.account?.id) return null;
+            return {
+              id: rel.account.id,
+              name: rel.account.name || 'Unnamed Account'
+            };
+          })
+          .filter((account): account is { id: string; name: string } => Boolean(account))
       )
     ),
 

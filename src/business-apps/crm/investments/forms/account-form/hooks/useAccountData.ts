@@ -89,7 +89,10 @@ export const mapInvestmentAccountToFormValues = (
     // ✅ REMOVED: sicCode mapping - sicCode field removed from form
 
     // Contact Information
-    contactIds: account.investmentAccountContact?.map(rel => rel.contact.id) || [], // ✅ NEW: Array of contact IDs for contact selection
+    contactIds: account.investmentAccountContact?.map(rel => ({
+      id: rel.contact.id,
+      name: rel.contact.fullName || `${rel.contact.firstName || ''} ${rel.contact.lastName || ''}`.trim(),
+    })) || [], // ✅ UPDATED: Store full contact objects with id and name for proper display
 
     // Legacy fields
     address: "",
