@@ -77,6 +77,7 @@ export const useFlowExecutionTasks = (
 
       const params: FlowExecutionTasksParams = {
         cockpitPage: 'INBOX',
+        state: 'open', // Only fetch open/active tasks
         size: pageSize,
         page: currentPage - 1,
         field: 'CREATION_DATE',
