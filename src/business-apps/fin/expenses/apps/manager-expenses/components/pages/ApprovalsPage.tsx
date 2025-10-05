@@ -83,7 +83,7 @@ const ApprovalsPage: React.FC<ApprovalsPageProps> = ({ onNavigateBack, ...props 
         try {
           const response = await flowMetricsClient.getFlowExecutionTasks({
             cockpitPage: 'INBOX',
-            state: 'open', // Only count open/active tasks
+            state: 'Open', // Only count open/active tasks (capital O is required by API)
             size: 1,
             page: 0,
             field: 'CREATION_DATE',

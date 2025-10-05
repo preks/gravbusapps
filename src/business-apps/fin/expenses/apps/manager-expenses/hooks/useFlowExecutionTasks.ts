@@ -77,7 +77,7 @@ export const useFlowExecutionTasks = (
 
       const params: FlowExecutionTasksParams = {
         cockpitPage: 'INBOX',
-        state: 'open', // Only fetch open/active tasks
+        state: 'Open', // Only fetch open/active tasks (capital O is required by API)
         size: pageSize,
         page: currentPage - 1,
         field: 'CREATION_DATE',
@@ -96,6 +96,14 @@ export const useFlowExecutionTasks = (
         console.error('Invalid data structure received:', response);
         throw new Error('Invalid data structure received from server');
       }
+
+      // Debug logging to see what the API actually returns
+      console.log('API Response Debug:', {
+        totalTasks: tasksData.length,
+        totalCount: totalCountData,
+        sampleTask: tasksData[0],
+        requestParams: params
+      });
 
       setTasks(tasksData);
       setTotalCount(totalCountData);
