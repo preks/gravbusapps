@@ -73,7 +73,10 @@ const PieChartComponent: React.FC<PieChartProps> = ({
   const chartConfig = React.useMemo(() => {
     const config: ChartConfig = {
       [dataKey]: {
-        label: valueType === 'count' ? countLabel : getTranslationFromI18nKeyAndLabel("lowcoder:charts.tooltip.amount", "Amount"),
+        label:
+          valueType === 'count'
+            ? getTranslationFromI18nKeyAndLabel("lowcoder:charts.tooltip.count", "Count")
+            : getTranslationFromI18nKeyAndLabel("lowcoder:charts.tooltip.amount", "Amount"),
       },
     };
     
@@ -86,7 +89,7 @@ const PieChartComponent: React.FC<PieChartProps> = ({
     });
     
     return config;
-  }, [data, dataKey, valueType, countLabel]);
+  }, [data, dataKey, valueType]);
   if (!data || data.length === 0) {
     return (
       <Card className="gba:w-full">

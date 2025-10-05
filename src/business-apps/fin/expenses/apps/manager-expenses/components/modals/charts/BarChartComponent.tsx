@@ -65,11 +65,14 @@ const BarChartComponent: React.FC<BarChartProps> = ({
   const chartConfig = React.useMemo(() => {
     const config: ChartConfig = {
       [barDataKey]: {
-        label: valueType === 'count' ? countLabel : getTranslationFromI18nKeyAndLabel("lowcoder:charts.tooltip.amount", "Amount"),
+        label:
+          valueType === 'count'
+            ? getTranslationFromI18nKeyAndLabel("lowcoder:charts.tooltip.count", "Count")
+            : getTranslationFromI18nKeyAndLabel("lowcoder:charts.tooltip.amount", "Amount"),
       },
     };
     return config;
-  }, [barDataKey, valueType, countLabel]);
+  }, [barDataKey, valueType]);
 
   if (!data || data.length === 0) {
     return (
