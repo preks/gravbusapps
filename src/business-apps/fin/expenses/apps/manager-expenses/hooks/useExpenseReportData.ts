@@ -32,6 +32,10 @@ export interface ReportItem {
 }
 
 // Define expense item interface
+/**
+ * Flattened row used by the Expense Item report export/table.
+ * Values are already formatted to simple scalars suited for CSV/UI.
+ */
 export interface ExpenseItemReport extends ReportItem {
   date: string;
   title: string;
@@ -45,6 +49,7 @@ export interface ExpenseItemReport extends ReportItem {
 }
 
 // Define expense plan interface
+/** Row model for the Expense Plan report */
 export interface ExpensePlanReport extends ReportItem {
   code: string;
   title: string;
@@ -59,6 +64,7 @@ export interface ExpensePlanReport extends ReportItem {
 }
 
 // Define expense request interface
+/** Row model for the Expense Request report */
 export interface ExpenseRequestReport extends ReportItem {
   code: string;
   planCode?: string;
@@ -72,6 +78,7 @@ export interface ExpenseRequestReport extends ReportItem {
 }
 
 // Define advance payment interface
+/** Row model for the Advance Payment report */
 export interface AdvancePaymentReport extends ReportItem {
   code: string; // plan code
   title: string; // plan title
@@ -172,6 +179,36 @@ export const useExpenseReportData = ({
       selected: selectedReportType === ReportType.ADVANCE_PAYMENT,
     },
   ];
+
+  /**
+   * Build the Hasura where clause for ExpenseRequest queries.
+   * Duplicated in multiple places previously; centralised here to keep
+   * filtering in perfect sync between the table view and CSV export.
+   */
+  const buildExpenseRequestWhere = useCallback(
+    (managerIdInput: string, search: string) => {
+      const where: any = {
+        employee: { employeePosition: { supervisorEmployeeId: { _eq: managerIdInput } } },
+        isDeleted: { _eq: false },
+      };
+
+      if (search && search.trim()) {
+        const searchPattern = `%${search.trim()}%`;
+        where._or = [
+          { code: { _ilike: searchPattern } },
+          { title: { _ilike: searchPattern } },
+          { status: { _ilike: searchPattern } },
+          { employee: { fullName: { _ilike: searchPattern } } },
+          { employee: { firstName: { _ilike: searchPattern } } },
+          { employee: { lastName: { _ilike: searchPattern } } },
+          { expensePlan: { code: { _ilike: searchPattern } } },
+          { expensePlan: { title: { _ilike: searchPattern } } },
+        ];
+      }
+      return where;
+    },
+    [],
+  );
 
   // Process expense items data
   const processExpenseItemsData = (data: any): ExpenseItemReport[] => {
@@ -326,26 +363,8 @@ export const useExpenseReportData = ({
       setIsLoading(true);
       setError(null);
 
-      // Use the real manager ID from userInfo
-      const where: any = {
-        employee: { employeePosition: { supervisorEmployeeId: { _eq: managerId } } },
-        isDeleted: { _eq: false },
-      };
-
-      // Only add search conditions if searchTerm is not empty
-      if (searchTerm && searchTerm.trim()) {
-        const searchPattern = `%${searchTerm.trim()}%`;
-        where._or = [
-          { code: { _ilike: searchPattern } },
-          { title: { _ilike: searchPattern } },
-          { status: { _ilike: searchPattern } },
-          { employee: { fullName: { _ilike: searchPattern } } },
-          { employee: { firstName: { _ilike: searchPattern } } },
-          { employee: { lastName: { _ilike: searchPattern } } },
-          { expensePlan: { code: { _ilike: searchPattern } } },
-          { expensePlan: { title: { _ilike: searchPattern } } },
-        ];
-      }
+      // Use shared where-clause builder
+      const where = buildExpenseRequestWhere(managerId, searchTerm);
 
       const result = await graphqlClient.request(GET_EXPENSE_REQUESTS_BY_MANAGER, {
         where,
@@ -459,25 +478,7 @@ export const useExpenseReportData = ({
 
   // Fetch expense requests for export
   const fetchExpenseRequestsForExport = useCallback(async (offset: number, limit: number) => {
-    const where: any = {
-      employee: { employeePosition: { supervisorEmployeeId: { _eq: managerId } } },
-      isDeleted: { _eq: false },
-    };
-
-    if (searchTerm && searchTerm.trim()) {
-      const searchPattern = `%${searchTerm.trim()}%`;
-      where._or = [
-        { code: { _ilike: searchPattern } },
-        { title: { _ilike: searchPattern } },
-        { status: { _ilike: searchPattern } },
-        { employee: { fullName: { _ilike: searchPattern } } },
-        { employee: { firstName: { _ilike: searchPattern } } },
-        { employee: { lastName: { _ilike: searchPattern } } },
-        { expensePlan: { code: { _ilike: searchPattern } } },
-        { expensePlan: { title: { _ilike: searchPattern } } },
-      ];
-    }
-
+    const where = buildExpenseRequestWhere(managerId, searchTerm);
     const result = await graphqlClient.request(GET_EXPENSE_REQUESTS_BY_MANAGER, {
       where,
       limit,
@@ -485,7 +486,7 @@ export const useExpenseReportData = ({
       orderBy: [{ requestDate: "DESC" }],
     });
     return processExpenseRequestsData(result);
-  }, [graphqlClient, managerId, searchTerm]);
+  }, [graphqlClient, managerId, searchTerm, buildExpenseRequestWhere]);
 
   // Fetch advance payments for export
   const fetchAdvancePaymentsForExport = useCallback(async (offset: number, limit: number) => {
