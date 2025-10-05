@@ -458,7 +458,7 @@ const ExpenseReportsPage: React.FC<ExpenseReportsPageProps> = ({
         <div className="gba:flex gba:items-center gba:justify-between">
           <button
             onClick={onNavigateBack}
-            className="gba:flex gba:items-center gba:text-primary gba:hover:text-accent"
+            className="gba:flex gba:items-center gba:text-foreground gba:hover:text-primary"
             data-testid="expense-reports-back-button"
           >
             <PiArrowLeft className="gba:mr-2" />

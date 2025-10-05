@@ -175,7 +175,7 @@ const ApprovalsPage: React.FC<ApprovalsPageProps> = ({ onNavigateBack, ...props 
       <div className="gba:px-6 gba:pt-6 gba:pb-0">
         <button
           onClick={onNavigateBack}
-          className="gba:flex gba:items-center gba:text-primary gba:hover:text-accent"
+          className="gba:flex gba:items-center gba:text-foreground gba:hover:text-primary"
           data-testid="approvals-back-button"
         >
           <PiArrowLeft className="gba:mr-2" />
