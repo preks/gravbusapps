@@ -48,8 +48,10 @@ export const mapFlowTaskToApprovalRequest = (task: FlowExecutionTask): ApprovalR
   // Extract status from task state or variables
   const status = task.state || task.variables?.status || task.variables?.requestStatus || 'PENDING';
 
-  // Extract title from referenceName or task name
+  // Extract title with preference for linked entity titles (helps Handout/Transfer to show request/plan title)
   const title =
+    task.inputs?.expensePlan?.title ||
+    task.inputs?.expenseRequest?.title ||
     task.referenceName ||
     task.variables?.title ||
     task.variables?.requestTitle ||
