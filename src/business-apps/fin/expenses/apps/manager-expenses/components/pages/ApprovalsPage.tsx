@@ -39,11 +39,11 @@ const ApprovalsPage: React.FC<ApprovalsPageProps> = ({ onNavigateBack, ...props 
       }
     >
   >({
-    'expense-plan': { currentPage: 1, pageSize: 20, searchTerm: '' },
-    'expense-request': { currentPage: 1, pageSize: 20, searchTerm: '' },
-    'advance-payment': { currentPage: 1, pageSize: 20, searchTerm: '' },
-    'handout-payment': { currentPage: 1, pageSize: 20, searchTerm: '' },
-    'transfer-payment': { currentPage: 1, pageSize: 20, searchTerm: '' },
+    'expense-plan': { currentPage: 1, pageSize: 100, searchTerm: '' },
+    'expense-request': { currentPage: 1, pageSize: 100, searchTerm: '' },
+    'advance-payment': { currentPage: 1, pageSize: 100, searchTerm: '' },
+    'handout-payment': { currentPage: 1, pageSize: 100, searchTerm: '' },
+    'transfer-payment': { currentPage: 1, pageSize: 100, searchTerm: '' },
   });
 
   // State for tab counts
@@ -79,27 +79,47 @@ const ApprovalsPage: React.FC<ApprovalsPageProps> = ({ onNavigateBack, ...props 
       const { FlowMetricsClient } = await import('@/common/network/flow-metrics/FlowMetricsClient');
       const flowMetricsClient = new FlowMetricsClient(props.accessToken);
 
-      // Fetch all open tasks once and count client-side with pattern matching
-      const response = await flowMetricsClient.getFlowExecutionTasks({
-        cockpitPage: 'INBOX',
-        state: 'Open', // Only count open/active tasks (capital O is required by API)
-        size: 1000, // Fetch many tasks to count accurately
-        page: 0,
-        field: 'CREATION_DATE',
-        direction: 'DESC',
-        ...(props.userInfo?.id && { userId: props.userInfo.id }),
-      });
-
-      const allTasks = response.processingStates || response.content || [];
-
-      // Count tasks for each tab using pattern matching
+      // Fetch count for each tab - for some tabs, fetch both base and StoreDirector variants
       const countPromises = APPROVAL_TABS.map(async (tab) => {
         try {
-          // Filter tasks that start with the base process name
-          const matchingTasks = allTasks.filter((task: any) => 
-            task.name && task.name.startsWith(tab.processName)
-          );
-          return { tabKey: tab.key, count: matchingTasks.length };
+          const baseParams = {
+            cockpitPage: 'INBOX',
+            size: 1, // Only need count, not actual tasks
+            page: 0,
+            field: 'CREATION_DATE',
+            direction: 'DESC',
+            ...(props.userInfo?.id && { userId: props.userInfo.id }),
+          };
+
+          // For these tabs, fetch both base and StoreDirector variants
+          const needsVariantFetch = ['approveAdvancePayment', 'approveExpenseRequest', 'approveExpensePlan'].includes(tab.processName);
+
+          if (needsVariantFetch) {
+            const [baseResponse, variantResponse] = await Promise.all([
+              flowMetricsClient.getFlowExecutionTasks({
+                ...baseParams,
+                filterTaskName: tab.processName,
+              }),
+              flowMetricsClient.getFlowExecutionTasks({
+                ...baseParams,
+                filterTaskName: `${tab.processName}StoreDirector`,
+              }),
+            ]);
+
+            const baseCount = baseResponse.totalCount || baseResponse.totalElements || 0;
+            const variantCount = variantResponse.totalCount || variantResponse.totalElements || 0;
+            const totalCount = baseCount + variantCount;
+
+            return { tabKey: tab.key, count: totalCount };
+          } else {
+            const response = await flowMetricsClient.getFlowExecutionTasks({
+              ...baseParams,
+              filterTaskName: tab.processName,
+            });
+            
+            const count = response.totalCount || response.totalElements || 0;
+            return { tabKey: tab.key, count };
+          }
         } catch (error) {
           console.error(`Error counting tasks for ${tab.key}:`, error);
           return { tabKey: tab.key, count: 0 };

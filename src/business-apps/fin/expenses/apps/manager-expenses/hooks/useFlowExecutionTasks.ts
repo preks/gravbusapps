@@ -39,12 +39,10 @@ export const useFlowExecutionTasks = (
   const [totalCount, setTotalCount] = useState<number>(0);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
-  // Cache all fetched tasks to avoid refetching on tab switch
-  const [cachedAllTasks, setCachedAllTasks] = useState<FlowExecutionTask[]>([]);
 
   // Pagination state - use external if provided, otherwise internal state
   const [internalCurrentPage, setInternalCurrentPage] = useState<number>(1);
-  const [internalPageSize, setInternalPageSize] = useState<number>(20);
+  const [internalPageSize, setInternalPageSize] = useState<number>(100); // Increased to 100 to show all tasks
   const [internalSearchTerm, setInternalSearchTerm] = useState<string>('');
   const [internalFilterTaskName, setInternalFilterTaskName] = useState<string | null>(null);
 
@@ -67,7 +65,7 @@ export const useFlowExecutionTasks = (
   // Initialize the FlowMetrics client
   const accessToken = context?.accessToken || '';
 
-  // Fetch tasks data (only when search/user changes, not on tab switch)
+  // Fetch tasks data - for certain process types, fetch both base and StoreDirector variants
   const fetchTasks = useCallback(async () => {
     if (!accessToken) return;
 
@@ -77,33 +75,82 @@ export const useFlowExecutionTasks = (
     try {
       const flowMetricsClient = new FlowMetricsClient(accessToken);
 
-      // Fetch all tasks once without API filter (API filterTaskName does exact match, misses variations)
-      // Then do client-side pattern matching to catch all task variations
-      // Use smaller batch size for better performance
-      const params: FlowExecutionTasksParams = {
+      // Define task name variations that need separate fetches
+      const needsVariantFetch = filterTaskName && [
+        'approveAdvancePayment',
+        'approveExpenseRequest',
+        'approveExpensePlan',
+      ].includes(filterTaskName);
+
+      const baseParams: FlowExecutionTasksParams = {
         cockpitPage: 'INBOX',
-        state: 'Open', // Only fetch open/active tasks (capital O is required by API)
-        size: 300, // Reduced batch size for faster response
-        page: 0, // Always fetch first page, we'll do client-side pagination
+        size: pageSize,
+        page: currentPage - 1,
         field: 'CREATION_DATE',
         direction: 'DESC',
         ...(searchTerm && { search: searchTerm }),
         ...(context?.userInfo?.id && { userId: context.userInfo.id }),
-        // NOT using filterTaskName - API does exact match only, won't catch variations
       };
 
-      const response = await flowMetricsClient.getFlowExecutionTasks(params);
+      let allTasks: any[] = [];
+      let totalCount = 0;
 
-      let tasksData = response.processingStates || response.content || [];
-      const totalCountData = response.totalCount || response.totalElements || 0;
+      if (needsVariantFetch) {
+        // Make 2 API calls: one for base, one for StoreDirector variant
+        console.log('🔍 [DUAL FETCH] Fetching base + StoreDirector variant for', filterTaskName);
+        
+        const [baseResponse, variantResponse] = await Promise.all([
+          flowMetricsClient.getFlowExecutionTasks({
+            ...baseParams,
+            filterTaskName: filterTaskName, // Base: approveAdvancePayment
+          }),
+          flowMetricsClient.getFlowExecutionTasks({
+            ...baseParams,
+            filterTaskName: `${filterTaskName}StoreDirector`, // Variant: approveAdvancePaymentStoreDirector
+          }),
+        ]);
 
-      if (!response || !Array.isArray(tasksData)) {
-        console.error('Invalid data structure received:', response);
+        const baseTasks = baseResponse.processingStates || baseResponse.content || [];
+        const variantTasks = variantResponse.processingStates || variantResponse.content || [];
+
+        console.log('📦 Base tasks:', baseTasks.length, 'Variant tasks:', variantTasks.length);
+
+        // Merge and deduplicate by ID
+        const taskMap = new Map();
+        [...baseTasks, ...variantTasks].forEach((task) => {
+          if (!taskMap.has(task.id)) {
+            taskMap.set(task.id, task);
+          }
+        });
+        
+        allTasks = Array.from(taskMap.values());
+        
+        // Sort by creation date descending (most recent first)
+        allTasks.sort((a, b) => {
+          const dateA = new Date(a.started || a.lastUpdate || 0).getTime();
+          const dateB = new Date(b.started || b.lastUpdate || 0).getTime();
+          return dateB - dateA;
+        });
+
+        totalCount = (baseResponse.totalCount || 0) + (variantResponse.totalCount || 0);
+      } else {
+        // Single fetch for other task types
+        const response = await flowMetricsClient.getFlowExecutionTasks({
+          ...baseParams,
+          ...(filterTaskName && { filterTaskName }),
+        });
+
+        allTasks = response.processingStates || response.content || [];
+        totalCount = response.totalCount || response.totalElements || 0;
+      }
+
+      if (!Array.isArray(allTasks)) {
+        console.error('Invalid data structure received');
         throw new Error('Invalid data structure received from server');
       }
 
-      // Cache all tasks for instant tab switching
-      setCachedAllTasks(tasksData);
+      setTasks(allTasks);
+      setTotalCount(totalCount);
     } catch (err: any) {
       console.error('Error fetching flow execution tasks:', err);
       let errorMessage = 'Failed to fetch flow execution tasks';
@@ -113,31 +160,19 @@ export const useFlowExecutionTasks = (
       }
 
       setError(errorMessage);
-      setCachedAllTasks([]);
+      setTasks([]);
+      setTotalCount(0);
     } finally {
       setIsLoading(false);
     }
-  }, [accessToken, searchTerm, context?.userInfo?.id]); // REMOVED: currentPage, pageSize, filterTaskName
+  }, [accessToken, searchTerm, context?.userInfo?.id, filterTaskName, currentPage, pageSize]);
 
-  // Apply filters and pagination to cached data (runs instantly on tab switch)
+  // Fetch tasks when dependencies change (tab switch, page change, search, etc.)
   useEffect(() => {
-    // Client-side pattern matching for task name filtering
-    let filteredTasks = cachedAllTasks;
-    if (filterTaskName) {
-      filteredTasks = cachedAllTasks.filter((task: FlowExecutionTask) => {
-        // Match tasks that start with the base process name
-        return task.name && task.name.startsWith(filterTaskName);
-      });
+    if (accessToken) {
+      fetchTasks();
     }
-
-    // Client-side pagination after filtering
-    const startIndex = (currentPage - 1) * pageSize;
-    const endIndex = startIndex + pageSize;
-    const paginatedTasks = filteredTasks.slice(startIndex, endIndex);
-
-    setTasks(paginatedTasks);
-    setTotalCount(filteredTasks.length);
-  }, [cachedAllTasks, filterTaskName, currentPage, pageSize]);
+  }, [accessToken, fetchTasks]);
 
   // Complete a task
   const completeTask = useCallback(
