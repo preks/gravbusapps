@@ -187,7 +187,7 @@ export const NotesSection: React.FC<NotesSectionProps> = ({ contactId, context }
           )}
         </div>
         <AppAction
-          contextsArray={[FlowContextName.createInvestmentNote]}
+          contextsArray={[FlowContextName.investmentNoteCreate]}
           externalContextData={{
             contactId,
             contact: contactId,

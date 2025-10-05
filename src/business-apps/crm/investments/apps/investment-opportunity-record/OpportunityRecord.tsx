@@ -303,7 +303,7 @@ const InvestmentOpportunityRecordContent: React.FC<OpportunityRecordContentProps
   }), [opportunityId]);
 
   const noteActionProps = useMemo(() => ({
-    contextsArray: [FlowContextName.createInvestmentNote],
+    contextsArray: [FlowContextName.investmentNoteCreate],
     externalContextData: { opportunityId },
     prefixDataTestId: "opportunity-note"
   }), [opportunityId]);

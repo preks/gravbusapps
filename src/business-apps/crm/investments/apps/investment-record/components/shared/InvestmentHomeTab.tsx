@@ -462,7 +462,7 @@ export const InvestmentHomeTab: React.FC<InvestmentHomeTabProps> = ({
                 reminderAt: note.reminderDate
               })),
               noteActionProps: {
-                contextsArray: [FlowContextName.createInvestmentNote],
+                contextsArray: [FlowContextName.investmentNoteCreate],
                 externalContextData: { investmentId },
                 prefixDataTestId: "investment-note",
                 emptyStateBehavior: 'enable'

@@ -526,7 +526,7 @@ const InvestmentLeadRecordContent: React.FC<LeadRecordContentProps> = ({
                       reminderAt: note.reminderDate
                     })),
                     noteActionProps: {
-                      contextsArray: [FlowContextName.createInvestmentNote],
+                      contextsArray: [FlowContextName.investmentNoteCreate],
                       externalContextData: { leadId },
                       prefixDataTestId: "lead-notes",
                       emptyStateBehavior: 'enable'

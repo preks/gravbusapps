@@ -308,7 +308,7 @@ const InvestmentContactRecordContent: React.FC<ContactRecordContentProps> = ({
   }), [contactId]);
 
   const noteActionProps = useMemo(() => ({
-    contextsArray: [FlowContextName.createInvestmentNote],
+    contextsArray: [FlowContextName.investmentNoteCreate],
     externalContextData: { contactId },
     prefixDataTestId: "contact-note"
   }), [contactId]);
