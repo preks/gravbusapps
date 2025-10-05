@@ -15,6 +15,7 @@ import { useFlowExecutionTasks } from '../../hooks/useFlowExecutionTasks';
 import { APPROVAL_TABS, getTabByKey, getTabLabel } from '../../constants/approvalTabs';
 import ApprovalTable from '../ApprovalTable';
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
+import { useProcessCompletion } from '@/common/hooks/useProcessCompletion';
 
 interface ApprovalsPageProps extends BusinessAppContextProps {
   onNavigateBack: () => void;
@@ -113,58 +114,18 @@ const ApprovalsPage: React.FC<ApprovalsPageProps> = ({ onNavigateBack, ...props 
     }
   }, [props.accessToken, props.userInfo?.id]);
 
-  // Function to refresh all data
-  const refreshAllData = useCallback(() => {
-    refreshTabCounts();
-    // The useFlowExecutionTasks hook will automatically refresh when the component re-renders
-  }, [refreshTabCounts]);
-
   // Fetch counts for all tabs on mount
   useEffect(() => {
     refreshTabCounts();
   }, [props.accessToken, props.userInfo?.id, refreshTabCounts]);
 
-  // Listen for process completion events
-  useEffect(() => {
-    const handleProcessCompletion = (event: any) => {
-      // Check if this is a process continue event with payload
-      if (event.type === 'com.newwork.process.continue' && event.detail?.payload) {
-        refreshAllData();
-        return;
-      }
-
-      // Check for other process completion events
-      if (event.type && (event.type.includes('process') || event.type.includes('task'))) {
-        refreshAllData();
-      }
-    };
-
-    // Listen to multiple possible event names
-    const eventNames = [
-      'com.newwork.process.taskCompletion',
-      'com.newwork.process.completion',
-      'com.newwork.process.continue',
-      'com.newwork.process.processCompletion',
-      'processCompletion',
-      'taskCompletion',
-      'taskCompleted',
-      'processCompleted',
-      'task-completion',
-      'process-completion',
-      'test-approval-event', // Test event
-    ];
-
-    eventNames.forEach((eventName) => {
-      globalThis.addEventListener?.(eventName, handleProcessCompletion as EventListener);
-    });
-
-    // Cleanup function
-    return () => {
-      eventNames.forEach((eventName) => {
-        globalThis.removeEventListener?.(eventName, handleProcessCompletion as EventListener);
-      });
-    };
-  }, [refreshAllData]);
+  // Listen for process completion events and refresh data
+  useProcessCompletion({
+    onSuccess: () => {
+      refreshTabCounts();
+      // The useFlowExecutionTasks hook will automatically refresh when the component re-renders
+    }
+  });
 
   const handleTabChange = (value: string) => {
     setActiveTab(value as ApprovalTabKey);
