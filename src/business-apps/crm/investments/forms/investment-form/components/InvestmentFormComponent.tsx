@@ -364,7 +364,18 @@ export const InvestmentFormComponent: React.FC = () => {
         submitButtonText={isUpdate ? 'Update' : 'Create'}
         onSubmit={async (formData) => {
           try {
-            const payload = buildInvestmentPayload(formData, businessAppContext, { 
+            // Merge context data (selections) with form data (user input) to get complete state
+            const mergedData = {
+              investment: {
+                ...formValues.investment,  // Context data (selections, defaults)
+                ...formData.investment     // Form data (user input)
+              },
+              equityInvestment: formData.equityInvestment || formValues.equityInvestment,
+              realEstateInvestment: formData.realEstateInvestment || formValues.realEstateInvestment,
+              liquidFundInvestment: formData.liquidFundInvestment || formValues.liquidFundInvestment,
+            };
+            
+            const payload = buildInvestmentPayload(mergedData, businessAppContext, { 
               isUpdate, 
               rawInvestmentData 
             });

@@ -213,9 +213,6 @@ export const InvestmentFormProvider: React.FC<InvestmentFormProviderProps> = ({
         updates.liquidFundInvestment !== undefined;
       
       if (newGroupCode !== prevGroupCode && !isExplicitlySettingSubtype) {
-        if (updates.investment?.investmentType === undefined) {
-          newValues.investment.investmentType = undefined; // Without Ref suffix
-        }
         // Clear all subtype data when group changes (unless we're explicitly setting it)
         newValues.equityInvestment = undefined;
         newValues.realEstateInvestment = undefined;
