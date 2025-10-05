@@ -39,11 +39,11 @@ const ApprovalsPage: React.FC<ApprovalsPageProps> = ({ onNavigateBack, ...props 
       }
     >
   >({
-    'expense-plan': { currentPage: 1, pageSize: 100, searchTerm: '' },
-    'expense-request': { currentPage: 1, pageSize: 100, searchTerm: '' },
-    'advance-payment': { currentPage: 1, pageSize: 100, searchTerm: '' },
-    'handout-payment': { currentPage: 1, pageSize: 100, searchTerm: '' },
-    'transfer-payment': { currentPage: 1, pageSize: 100, searchTerm: '' },
+    'expense-plan': { currentPage: 1, pageSize: 50, searchTerm: '' },
+    'expense-request': { currentPage: 1, pageSize: 50, searchTerm: '' },
+    'advance-payment': { currentPage: 1, pageSize: 50, searchTerm: '' },
+    'handout-payment': { currentPage: 1, pageSize: 50, searchTerm: '' },
+    'transfer-payment': { currentPage: 1, pageSize: 50, searchTerm: '' },
   });
 
   // State for tab counts

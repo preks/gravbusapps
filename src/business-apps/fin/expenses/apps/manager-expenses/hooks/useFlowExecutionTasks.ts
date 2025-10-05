@@ -42,7 +42,7 @@ export const useFlowExecutionTasks = (
 
   // Pagination state - use external if provided, otherwise internal state
   const [internalCurrentPage, setInternalCurrentPage] = useState<number>(1);
-  const [internalPageSize, setInternalPageSize] = useState<number>(100); // Increased to 100 to show all tasks
+  const [internalPageSize, setInternalPageSize] = useState<number>(50); // Balanced page size for performance
   const [internalSearchTerm, setInternalSearchTerm] = useState<string>('');
   const [internalFilterTaskName, setInternalFilterTaskName] = useState<string | null>(null);
 
