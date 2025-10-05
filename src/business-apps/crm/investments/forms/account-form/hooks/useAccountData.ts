@@ -16,8 +16,9 @@ export const mapInvestmentAccountToFormValues = (
 
   const account = accountData.InvestmentAccount[0];
 
-  // ✅ UPDATED: Extract addresses from investmentAddress relationship
-  const addresses = account.investmentAddress?.map(addr => ({
+  // ✅ FIXED: Extract addresses from investmentAddress relationship
+  // Map addresses first, then check if we got any results
+  const addressData = account.investmentAddress?.map(addr => ({
     id: addr.id,
     version: addr.version,
     addressType: addr.addressType || "PRIMARY_ADDRESS",
@@ -26,7 +27,11 @@ export const mapInvestmentAccountToFormValues = (
     locality: addr.locality || "",
     regionRef: addr.regionRef || "",
     countryRef: addr.countryRef || "",
-  })) || [
+  }));
+
+  // ✅ FIXED: Check for empty array (not just undefined/null) and provide default address
+  // This ensures accounts without addresses still show the address section
+  const addresses = (addressData && addressData.length > 0) ? addressData : [
     {
       id: "default-address",
       addressType: "PRIMARY_ADDRESS",

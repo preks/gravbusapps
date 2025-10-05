@@ -50,9 +50,7 @@ const ContactFormComponent: React.FC = () => {
       const investmentContactPayload: any = {
         firstName: toStringOrUndefined(formValues.firstName),
         lastName: toStringOrUndefined(formValues.lastName),
-        fullName:
-          toStringOrUndefined(formValues.fullName) ||
-          `${formValues.firstName || ""} ${formValues.lastName || ""}`.trim(),
+        fullName: `${(formValues.firstName || "").trim()} ${(formValues.lastName || "").trim()}`.trim(),
         type: toStringOrUndefined(formValues.type),
         birthDate: toStringOrUndefined(formValues.birthDate),
 
