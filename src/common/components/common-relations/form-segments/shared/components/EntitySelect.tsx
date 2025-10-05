@@ -78,7 +78,7 @@ const EntitySelect = React.forwardRef<HTMLButtonElement, EntitySelectProps & Rec
   return (
     <Combobox
       ref={ref as any}
-      className={`gba:w-full gba:h-auto ${className || ''}`}
+      className={`gba:[&&]:h-auto ${className || ''}`}
       options={options as any}
       value={value || ''}
       onValueChange={onValueChange}
