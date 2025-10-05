@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useCallback } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useGraphQLClient } from "@/common/network/graphql/useGraphQLClient";
 import { GET_DISTINCT_ADVANCE_PAYMENT_CURRENCIES } from "../queries/distinctCurrencies";
 import { extractCurrencyCode } from "../utils/currencyUtils";
@@ -136,14 +136,9 @@ export const useAdvancePaymentCurrencies = ({
     storeCurrencies,
   ]);
 
-  // Combine local currencies with store currencies for the most complete list
-  const combinedCurrencies = useMemo(() => {
-    // Return only currencies detected from actual advance payment data (no fallbacks, no store currencies)
-    return localCurrencies;
-  }, [localCurrencies]);
-
+  // Return only currencies detected from actual advance payment data (no fallbacks, no store currencies)
   return {
-    availableCurrencies: combinedCurrencies,
+    availableCurrencies: localCurrencies,
     mostUsedCurrency,
     isLoading: isLoading && !storeInitialized, // Only show loading if both local and store are not ready
     error,

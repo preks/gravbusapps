@@ -76,7 +76,7 @@ const ExpensePlanDetails: React.FC<ExpensePlanDetailsProps> = ({ selectedItem })
       <Card>
         <CardContent className="gba:p-4 gba:space-y-3">
           {selectedItem.startDate && selectedItem.endDate && (
-            <div className="gba:flex gba:items-center gba:space-x-2">
+            <div className="gba:flex gba:items-center gba:space-x-2" data-testid="expense-plan-duration">
               <PiCalendarDuotone className="gba:text-gray-500" />
               <span className="gba:text-sm gba:text-gray-700">
                 {getTranslationFromI18nKeyAndLabel(
@@ -100,7 +100,7 @@ const ExpensePlanDetails: React.FC<ExpensePlanDetailsProps> = ({ selectedItem })
           )}
 
           {selectedItem.planDate && (
-            <div className="gba:flex gba:items-center gba:space-x-2">
+            <div className="gba:flex gba:items-center gba:space-x-2" data-testid="expense-plan-plan-date">
               <PiClock className="gba:text-gray-500" />
               <span className="gba:text-sm gba:text-gray-700">
                 {getTranslationFromI18nKeyAndLabel(
@@ -118,7 +118,7 @@ const ExpensePlanDetails: React.FC<ExpensePlanDetailsProps> = ({ selectedItem })
           )}
           
           {selectedItem.decisionDate && (
-            <div className="gba:flex gba:items-center gba:space-x-2">
+            <div className="gba:flex gba:items-center gba:space-x-2" data-testid="expense-plan-decision-date">
               <PiPath className="gba:text-gray-500" />
               <span className="gba:text-sm gba:text-gray-700">
                 {getTranslationFromI18nKeyAndLabel(

@@ -79,21 +79,29 @@ const ApprovalsPage: React.FC<ApprovalsPageProps> = ({ onNavigateBack, ...props 
       const { FlowMetricsClient } = await import('@/common/network/flow-metrics/FlowMetricsClient');
       const flowMetricsClient = new FlowMetricsClient(props.accessToken);
 
+      // Fetch all open tasks once and count client-side with pattern matching
+      const response = await flowMetricsClient.getFlowExecutionTasks({
+        cockpitPage: 'INBOX',
+        state: 'Open', // Only count open/active tasks (capital O is required by API)
+        size: 1000, // Fetch many tasks to count accurately
+        page: 0,
+        field: 'CREATION_DATE',
+        direction: 'DESC',
+        ...(props.userInfo?.id && { userId: props.userInfo.id }),
+      });
+
+      const allTasks = response.processingStates || response.content || [];
+
+      // Count tasks for each tab using pattern matching
       const countPromises = APPROVAL_TABS.map(async (tab) => {
         try {
-          const response = await flowMetricsClient.getFlowExecutionTasks({
-            cockpitPage: 'INBOX',
-            state: 'Open', // Only count open/active tasks (capital O is required by API)
-            size: 1,
-            page: 0,
-            field: 'CREATION_DATE',
-            direction: 'DESC',
-            filterTaskName: tab.processName,
-            ...(props.userInfo?.id && { userId: props.userInfo.id }),
-          });
-          return { tabKey: tab.key, count: response.totalCount || 0 };
+          // Filter tasks that start with the base process name
+          const matchingTasks = allTasks.filter((task: any) => 
+            task.name && task.name.startsWith(tab.processName)
+          );
+          return { tabKey: tab.key, count: matchingTasks.length };
         } catch (error) {
-          console.error(`Error fetching count for ${tab.key}:`, error);
+          console.error(`Error counting tasks for ${tab.key}:`, error);
           return { tabKey: tab.key, count: 0 };
         }
       });

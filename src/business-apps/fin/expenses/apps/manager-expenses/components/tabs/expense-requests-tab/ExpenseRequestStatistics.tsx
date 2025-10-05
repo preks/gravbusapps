@@ -1,7 +1,6 @@
-import React, { useCallback, useEffect, useMemo, useState } from "react";
+import React, { useCallback, useMemo } from "react";
 import { ExpenseRequestStatisticsData } from "../../../hooks/useGetExpenseRequests";
 import { WidgetGroup, WidgetItem } from "@/components/widget-group";
-import { Spinner } from "@newwork/nw-design-system";
 import { formatCurrencyDisplay } from "../../../../personal-expenses/utils";
 import { getTranslationFromI18nKeyAndLabel } from "@/common/utils/windowUtils";
 
@@ -76,6 +75,7 @@ const ExpenseRequestStatistics: React.FC<ExpenseRequestStatisticsProps> = ({
           ),
           active: selectedFilters.includes("PENDING"),
           onClick: () => handleCardClick("PENDING"),
+          "data-testid": "expense-request-stats-pending",
         },
         {
           key: "pending-amount",
@@ -91,7 +91,7 @@ const ExpenseRequestStatistics: React.FC<ExpenseRequestStatisticsProps> = ({
             "Total Pending Reimbursement",
           ),
           valueIsString: true,
-          // This card shows amount, not clickable for filtering
+          "data-testid": "expense-request-stats-pending-amount",
         },
         {
           key: "total-requests-submitted",
@@ -114,7 +114,8 @@ const ExpenseRequestStatistics: React.FC<ExpenseRequestStatisticsProps> = ({
             const multiFilters = ["PENDING", "APPROVED", "VERIFIED", "BOOKED", "TRANSFERRED"];
             return multiFilters.every((filter) => selectedFilters.includes(filter));
           })(),
-          onClick: () => handleCardClick("", true), // Use multi-filter mode
+          onClick: () => handleCardClick("", true),
+          "data-testid": "expense-request-stats-total-submitted",
         },
         {
           key: "total-submitted-amount",
@@ -131,10 +132,11 @@ const ExpenseRequestStatistics: React.FC<ExpenseRequestStatisticsProps> = ({
           ),
           valueIsString: true,
           active: selectedFilters.length === 0,
+          "data-testid": "expense-request-stats-total-amount",
         },
       ]
     : []
-  ), [requestStats, selectedFilters, displayCurrency]);
+  ), [requestStats, selectedFilters, displayCurrency, handleCardClick]);
 
   // Handle widget clicks from WidgetGroup
   const handleWidgetClick = useCallback(
@@ -154,42 +156,22 @@ const ExpenseRequestStatistics: React.FC<ExpenseRequestStatisticsProps> = ({
     [handleCardClick],
   );
 
-  // Preserve last widgets to prevent flicker
-  const [lastWidgets, setLastWidgets] = useState<WidgetItem[] | null>(null);
-  useEffect(() => {
-    if (widgets && widgets.length > 0) setLastWidgets(widgets);
-  }, [widgets]);
-  const renderWidgets = widgets.length > 0 ? widgets : lastWidgets || [];
-
-  const [hasLoadedOnce, setHasLoadedOnce] = useState(false);
-  useEffect(() => {
-    if (!requestStatsLoading) setHasLoadedOnce(true);
-  }, [requestStatsLoading]);
-
   return (
-    <div className="gba:relative gba:min-h-[160px]">
-      {(!hasLoadedOnce || requestStatsLoading) && (
-        <div className="gba:absolute gba:inset-0 gba:flex gba:items-center gba:justify-center">
-          <Spinner />
-        </div>
+    <WidgetGroup
+      widgets={widgets}
+      isLoading={requestStatsLoading}
+      error={requestStatsError ? "Failed to load statistics" : undefined}
+      onRetry={fetchRequestStatistics}
+      onWidgetClick={handleWidgetClick}
+      skeletonCount={4}
+      emptyText={getTranslationFromI18nKeyAndLabel(
+        "lowcoder:personal_expenses.no_expense_request_statistics_available",
+        "No expense request statistics available.",
       )}
-      <div className={!hasLoadedOnce || requestStatsLoading ? "gba:opacity-0" : "gba:opacity-100"}>
-        <WidgetGroup
-          widgets={renderWidgets}
-          isLoading={false}
-          error={hasLoadedOnce && requestStatsError ? "Failed to load statistics" : undefined}
-          onRetry={fetchRequestStatistics}
-          onWidgetClick={handleWidgetClick}
-          skeletonCount={4}
-          emptyText={hasLoadedOnce ? getTranslationFromI18nKeyAndLabel(
-            "lowcoder:personal_expenses.no_expense_request_statistics_available",
-            "No expense request statistics available.",
-          ) : undefined}
-          cardBackground="transparent"
-          className="gba:py-0"
-        />
-      </div>
-    </div>
+      cardBackground="transparent"
+      className="gba:py-0"
+      data-testid="expense-request-statistics"
+    />
   );
 };
 

@@ -1,7 +1,7 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useMemo } from "react";
 import { AdvancePaymentStatistics as AdvancePaymentStatisticsData } from "../../../hooks/useMainViewAdvancePayments";
 import { WidgetGroup, WidgetItem } from "@/components/widget-group";
-import { Spinner } from "@newwork/nw-design-system";
+import { DollarOutlined, ClockCircleOutlined } from "@ant-design/icons";
 import { getTranslationFromI18nKeyAndLabel } from "@/common/utils/windowUtils";
 import { useCurrencyStore } from "../../../store/useCurrencyStore";
 import { formatCurrencyDisplay } from "../../../../personal-expenses/utils";
@@ -30,17 +30,19 @@ const AdvancePaymentStatistics: React.FC<AdvancePaymentStatisticsProps> = ({
         key: "total-advance-payment",
         title: getTranslationFromI18nKeyAndLabel(
           "lowcoder:team_expenses_page.advance_payments_tab.total_advance_payments",
-          "Total Advance Payment",
+          "Total Advance Payments",
         ),
         value: advancePaymentStats.sumAmount
           ? formatCurrencyDisplay(advancePaymentStats.sumAmount, primaryCurrency)
           : formatCurrencyDisplay(0, primaryCurrency),
+        prefix: <DollarOutlined />,
         color: "var(--nw-success)",
         valueIsString: true,
         description: getTranslationFromI18nKeyAndLabel(
-          "lowcoder:team_expenses_page.advance_payments_tab.total_advance_payments",
-          "Total Advance Payments",
+          "lowcoder:team_expenses_page.advance_payments_tab.all_advance_payments",
+          "All advance payments",
         ),
+        "data-testid": "advance-payment-stats-total",
       },
       {
         key: "pending-amount",
@@ -51,52 +53,33 @@ const AdvancePaymentStatistics: React.FC<AdvancePaymentStatisticsProps> = ({
         value: advancePaymentStats.pendingAmount
           ? formatCurrencyDisplay(advancePaymentStats.pendingAmount, primaryCurrency)
           : formatCurrencyDisplay(0, primaryCurrency),
+        prefix: <ClockCircleOutlined />,
         color: "var(--nw-destructive)",
         valueIsString: true,
         description: getTranslationFromI18nKeyAndLabel(
           "lowcoder:team_expenses_page.expense_plans_tab.awaiting_approval",
           "Awaiting approval",
         ),
+        "data-testid": "advance-payment-stats-pending",
       },
     ];
   }, [advancePaymentStats, primaryCurrency]);
 
-  const [lastWidgets, setLastWidgets] = useState<WidgetItem[] | null>(null);
-  useEffect(() => {
-    if (widgets && widgets.length > 0) setLastWidgets(widgets);
-  }, [widgets]);
-  const renderWidgets = widgets.length > 0 ? widgets : lastWidgets || [];
-
-  const [hasLoadedOnce, setHasLoadedOnce] = useState(false);
-  useEffect(() => {
-    if (!statsLoading) setHasLoadedOnce(true);
-  }, [statsLoading]);
-
   return (
-    <div className="gba:relative gba:min-h-[160px]">
-      {(!hasLoadedOnce || statsLoading) && (
-        <div className="gba:absolute gba:inset-0 gba:flex gba:items-center gba:justify-center">
-          <Spinner />
-        </div>
+    <WidgetGroup
+      widgets={widgets}
+      isLoading={statsLoading}
+      error={statsError ? "Failed to load statistics" : undefined}
+      onRetry={fetchAdvancePaymentStatistics}
+      skeletonCount={2}
+      emptyText={getTranslationFromI18nKeyAndLabel(
+        "lowcoder:team_expenses_page.advance_payments_tab.no_statistics",
+        "No advance payment statistics available."
       )}
-      <div className={!hasLoadedOnce || statsLoading ? "gba:opacity-0" : "gba:opacity-100"}>
-        <WidgetGroup
-          widgets={renderWidgets}
-          isLoading={false}
-          error={hasLoadedOnce && statsError ? "Failed to load statistics" : undefined}
-          onRetry={fetchAdvancePaymentStatistics}
-          skeletonCount={4}
-          emptyText={hasLoadedOnce
-            ? getTranslationFromI18nKeyAndLabel(
-                "lowcoder:team_expenses_page.advance_payments_tab.no_statistics",
-                "No advance payment statistics available."
-              )
-            : undefined}
-          cardBackground="transparent"
-          className="gba:py-0"
-        />
-      </div>
-    </div>
+      cardBackground="transparent"
+      className="gba:py-0"
+      data-testid="advance-payment-statistics"
+    />
   );
 };
 

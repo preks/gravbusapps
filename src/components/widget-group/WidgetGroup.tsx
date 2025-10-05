@@ -1,6 +1,6 @@
 import React, { ReactNode, useEffect, useRef } from "react";
 import { SectionKpiCards, KpiCardData } from "@newwork/nw-design-system";
-import { Button, Spinner } from "@newwork/nw-design-system";
+import { Button } from "@newwork/nw-design-system";
 import { PiWarning, PiArrowClockwise } from "react-icons/pi";
 import { getTranslationFromI18nKeyAndLabel } from "@/common/utils/windowUtils";
 
@@ -213,12 +213,6 @@ export const WidgetGroup: React.FC<WidgetGroupProps> = ({
 
     return (
       <div className={className} data-testid={`${dataTestId}-loading`}>
-        <div
-          className="gba:flex gba:justify-center gba:p-4"
-          data-testid={`${dataTestId}-loading-spinner-container`}
-        >
-          <Spinner data-testid={`${dataTestId}-loading-spinner`} />
-        </div>
         <SectionKpiCards
           cards={placeholderCards}
           className="gba:opacity-50"

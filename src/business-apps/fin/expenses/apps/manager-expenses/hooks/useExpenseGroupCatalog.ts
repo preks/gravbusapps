@@ -89,7 +89,6 @@ export const useExpenseGroupCatalog = (accessToken: string): UseExpenseGroupCata
             // Also store by reference format mapped by CODE (additionalValue1/name), not DB id
             // Example incoming ref: ExpenseGroup:v1:ACCOMMODATION
             const codeKey = (group.name || "")
-              .toString()
               .trim()
               .toUpperCase()
               .replaceAll(/\s+/g, "_");

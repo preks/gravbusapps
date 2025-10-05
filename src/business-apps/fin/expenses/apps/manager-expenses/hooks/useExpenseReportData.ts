@@ -469,6 +469,7 @@ export const useExpenseReportData = ({
       where._or = [
         { code: { _ilike: searchPattern } },
         { title: { _ilike: searchPattern } },
+        { status: { _ilike: searchPattern } },
         { employee: { fullName: { _ilike: searchPattern } } },
         { employee: { firstName: { _ilike: searchPattern } } },
         { employee: { lastName: { _ilike: searchPattern } } },

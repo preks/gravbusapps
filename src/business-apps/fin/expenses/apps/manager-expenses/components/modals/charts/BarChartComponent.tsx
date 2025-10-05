@@ -12,6 +12,7 @@ import {
 import { getTranslationFromI18nKeyAndLabel } from "@/common/utils/windowUtils";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Cell } from "recharts";
 import { formatCurrencyDisplay } from "../../../../personal-expenses/utils";
+import { resolveCssVar } from "./chartUtils";
 
 interface BarChartProps {
   data: {
@@ -47,20 +48,6 @@ const BarChartComponent: React.FC<BarChartProps> = ({
   getColor,
   dataTestId,
 }) => {
-  const resolveCssVar = (color: string): string => {
-    if (!color?.startsWith('var(')) return color;
-    if (
-      typeof globalThis.window === 'undefined' ||
-      typeof globalThis.document === 'undefined' ||
-      typeof globalThis.window.getComputedStyle !== 'function'
-    ) {
-      return color;
-    }
-    const varName = color.substring(4, color.length - 1).trim();
-    const value = globalThis.window.getComputedStyle(globalThis.document.documentElement).getPropertyValue(varName).trim();
-    return value || color;
-  };
-
   const resolvedBarColor = React.useMemo(() => resolveCssVar(barColor), [barColor]);
   
   const chartConfig = React.useMemo(() => {

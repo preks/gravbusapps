@@ -111,16 +111,17 @@ export const mapFlowTaskToApprovalRequest = (task: FlowExecutionTask): ApprovalR
   }
 
   // Extract process instance ID from endpoint if available
+  // Use pattern matching to handle task name variations (e.g., approveAdvancePaymentStoreDirector)
   if (task.endpoint) {
     const endpointParts = task.endpoint.split('/');
     const processNameIndex = endpointParts.findIndex(
       (part: string) =>
-        part === 'approveExpensePlan' ||
-        part === 'approveExpenseRequest' ||
-        part === 'approveAdvancePayment' ||
-        part === 'payAdvancePayment' ||
-        part === 'handOutAdvancePayment' ||
-        part === 'transferAdvancePayment',
+        part.startsWith('approveExpensePlan') ||
+        part.startsWith('approveExpenseRequest') ||
+        part.startsWith('approveAdvancePayment') ||
+        part.startsWith('payAdvancePayment') ||
+        part.startsWith('handOutAdvancePayment') ||
+        part.startsWith('transferAdvancePayment'),
     );
 
     if (processNameIndex !== -1 && endpointParts[processNameIndex + 1]) {

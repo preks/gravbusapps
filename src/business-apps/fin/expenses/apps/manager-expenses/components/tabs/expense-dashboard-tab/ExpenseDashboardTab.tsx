@@ -1,5 +1,5 @@
 import React from "react";
-import { Card, CardContent, CardHeader, CardTitle, IconAvatar, Spinner } from "@newwork/nw-design-system";
+import { Card, CardContent, CardHeader, CardTitle, IconAvatar } from "@newwork/nw-design-system";
 import {
   PiListChecks,
   PiChartLineUp,
@@ -216,21 +216,16 @@ const ExpenseDashboardTab: React.FC<ExpenseDashboardTabProps> = (props) => {
         </div>
       </div>
       {/* Statistics Cards using WidgetGroup */}
-      <div className="gba:mb-6 gba:relative gba:min-h-[160px]">
+      <div className="gba:mb-6">
         <WidgetGroup
           widgets={widgets}
-          isLoading={false}
+          isLoading={isLoading}
           error={error ? getErrorMessage(error) : null}
           onRetry={() => globalThis.location?.reload?.()}
           skeletonCount={4}
           emptyText={undefined}
           data-testid="expense-dashboard-statistics"
         />
-        {isLoading && (
-          <div className="gba:absolute gba:inset-0 gba:flex gba:items-center gba:justify-center gba:bg-white/80 gba:backdrop-blur-sm gba:z-10">
-            <Spinner />
-          </div>
-        )}
       </div>
 
       {/* Main Content Area */}

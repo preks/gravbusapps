@@ -5,9 +5,17 @@ import { useCurrencyStore } from '../store/useCurrencyStore';
 import { GET_ALL_CURRENCIES } from '../queries/analytics';
 
 /**
- * Helper function to standardize currency reference format
+ * Helper function to standardize currency reference format.
+ * Exported publicly for use in other components that need to format currency references.
+ * 
+ * @param currencyRef - Currency reference string (either "USD" or "Currency:v1:USD")
+ * @returns Standardized currency reference in format "Currency:v1:CODE"
+ * 
+ * @example
+ * standardizeCurrencyRef("USD") // Returns "Currency:v1:USD"
+ * standardizeCurrencyRef("Currency:v1:EUR") // Returns "Currency:v1:EUR"
  */
-const standardizeCurrencyRef = (currencyRef: string): string => {
+export const standardizeCurrencyRef = (currencyRef: string): string => {
   if (!currencyRef) return '';
   
   // If it's already in the format Currency:v1:CODE, return as is
@@ -19,45 +27,44 @@ const standardizeCurrencyRef = (currencyRef: string): string => {
   return `Currency:v1:${currencyRef}`;
 };
 
-// Function to process currency data from API response
-function processCurrencyData(response: any) {
-  const currencyMap = new Map<string, number>();
-
-  if (response?.expenseItems) {
-    response.expenseItems.forEach((item: any) => {
-      const code = extractCurrencyCode(item.currencyRef);
-      if (code) currencyMap.set(code, (currencyMap.get(code) || 0) + 1);
-    });
-  }
-
-  if (response?.expenseRequests) {
-    response.expenseRequests.forEach((item: any) => {
-      const code = extractCurrencyCode(item.currencyRef);
-      if (code) currencyMap.set(code, (currencyMap.get(code) || 0) + 1);
-    });
-  }
-
-  if (response?.expensePlans) {
-    response.expensePlans.forEach((item: any) => {
-      const code = extractCurrencyCode(item.currencyRef);
-      if (code) currencyMap.set(code, (currencyMap.get(code) || 0) + 1);
-    });
-  }
-
-  if (response?.advancePayments) {
-    response.advancePayments.forEach((item: any) => {
-      const code = extractCurrencyCode(item.currencyRef);
-      if (code) currencyMap.set(code, (currencyMap.get(code) || 0) + 1);
-    });
-  }
-
-  return Array.from(currencyMap.entries()).map(([currencyCode, count]) => ({ currencyCode, count }));
-}
-
 /**
  * Hook to fetch available currencies and most used currency
  */
 export const useCurrencyData = (accessToken: string, managerId: string) => {
+  // Function to process currency data from API response
+  const processCurrencyData = (response: any) => {
+    const currencyMap = new Map<string, number>();
+
+    if (response?.expenseItems) {
+      response.expenseItems.forEach((item: any) => {
+        const code = extractCurrencyCode(item.currencyRef);
+        if (code) currencyMap.set(code, (currencyMap.get(code) || 0) + 1);
+      });
+    }
+
+    if (response?.expenseRequests) {
+      response.expenseRequests.forEach((item: any) => {
+        const code = extractCurrencyCode(item.currencyRef);
+        if (code) currencyMap.set(code, (currencyMap.get(code) || 0) + 1);
+      });
+    }
+
+    if (response?.expensePlans) {
+      response.expensePlans.forEach((item: any) => {
+        const code = extractCurrencyCode(item.currencyRef);
+        if (code) currencyMap.set(code, (currencyMap.get(code) || 0) + 1);
+      });
+    }
+
+    if (response?.advancePayments) {
+      response.advancePayments.forEach((item: any) => {
+        const code = extractCurrencyCode(item.currencyRef);
+        if (code) currencyMap.set(code, (currencyMap.get(code) || 0) + 1);
+      });
+    }
+
+    return Array.from(currencyMap.entries()).map(([currencyCode, count]) => ({ currencyCode, count }));
+  };
   const [availableCurrencies, setLocalCurrencies] = useState<string[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
@@ -148,5 +155,3 @@ export const useCurrencyData = (accessToken: string, managerId: string) => {
     refetch: fetchCurrencyData
   };
 };
-
-export { standardizeCurrencyRef };

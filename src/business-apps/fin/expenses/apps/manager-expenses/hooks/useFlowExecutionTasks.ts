@@ -78,13 +78,13 @@ export const useFlowExecutionTasks = (
       const params: FlowExecutionTasksParams = {
         cockpitPage: 'INBOX',
         state: 'Open', // Only fetch open/active tasks (capital O is required by API)
-        size: pageSize,
+        size: 1000, // Fetch more tasks to ensure we get all variations
         page: currentPage - 1,
         field: 'CREATION_DATE',
         direction: 'DESC',
         ...(searchTerm && { search: searchTerm }),
         ...(context?.userInfo?.id && { userId: context.userInfo.id }),
-        ...(filterTaskName && { filterTaskName: filterTaskName }),
+        // NOT using filterTaskName here - API does exact match only, won't catch variations
       };
 
       const response = await flowMetricsClient.getFlowExecutionTasks(params);
@@ -97,16 +97,21 @@ export const useFlowExecutionTasks = (
         throw new Error('Invalid data structure received from server');
       }
 
-      // Debug logging to see what the API actually returns
-      console.log('API Response Debug:', {
-        totalTasks: tasksData.length,
-        totalCount: totalCountData,
-        sampleTask: tasksData[0],
-        requestParams: params
-      });
+      // Client-side pattern matching for task name filtering
+      // This allows us to match task variations like:
+      // - approveAdvancePayment
+      // - approveAdvancePaymentStoreDirector  
+      // - approveAdvancePaymentManager
+      let filteredTasks = tasksData;
+      if (filterTaskName) {
+        filteredTasks = tasksData.filter((task: FlowExecutionTask) => {
+          // Match tasks that start with the base process name
+          return task.name && task.name.startsWith(filterTaskName);
+        });
+      }
 
-      setTasks(tasksData);
-      setTotalCount(totalCountData);
+      setTasks(filteredTasks);
+      setTotalCount(filteredTasks.length);
     } catch (err: any) {
       console.error('Error fetching flow execution tasks:', err);
       let errorMessage = 'Failed to fetch flow execution tasks';
