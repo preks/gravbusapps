@@ -26,6 +26,12 @@ export const useApprovalHandling = ({
 }: UseApprovalHandlingProps) => {
   const [isApproving, setIsApproving] = useState(false);
   const [approvalError, setApprovalError] = useState<string | null>(null);
+  const [currentProgressIndex, setCurrentProgressIndex] = useState<number>(0);
+  const [totalToApprove, setTotalToApprove] = useState<number>(0);
+
+  // Small delay between sequential requests to avoid backend concurrency conflicts
+  const sequentialDelayMs = 150;
+  const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
   const handleApproveClick = async () => {
     if (selectedTasks.length === 0) {
@@ -49,6 +55,12 @@ export const useApprovalHandling = ({
         userInfo,
         rawTasks,
       );
+
+      setTotalToApprove(selectedTasks.length);
+      setCurrentProgressIndex(0);
+
+      let approvedCount = 0;
+      const failedTasks: Array<{ id: string; error: string }> = [];
 
       for (const task of selectedTasks) {
         try {
@@ -223,27 +235,48 @@ export const useApprovalHandling = ({
           }
 
           await postResponse.json();
+          // Gentle pacing between sequential approvals
+          await delay(sequentialDelayMs);
+          approvedCount += 1;
         } catch (taskError) {
-          throw taskError; // Re-throw to be caught by the outer try-catch
+          const message = taskError instanceof Error ? taskError.message : 'Unknown error';
+          failedTasks.push({ id: task.id, error: message });
         }
+        setCurrentProgressIndex((prev) => prev + 1);
       }
 
-      // Clear selection and show success toast
+      // Clear selection
       setSelectedTasks([]);
       setApprovalError(null);
 
-      // Show success toast notification
-      toast.success('FLOW is complete', {
-        description: 'Task approved successfully',
-        duration: 4000,
-      });
+      // Summarize result
+      if (approvedCount > 0 && failedTasks.length === 0) {
+        toast.success('Approval completed', {
+          description: `${approvedCount} task${approvedCount > 1 ? 's' : ''} approved successfully`,
+          duration: 4000,
+        });
+      } else if (approvedCount > 0 && failedTasks.length > 0) {
+        toast.success('Partial approval completed', {
+          description: `${approvedCount} approved · ${failedTasks.length} failed`,
+          duration: 5000,
+        });
+      } else if (approvedCount === 0 && failedTasks.length > 0) {
+        const first = failedTasks[0];
+        const more = failedTasks.length - 1;
+        const details = more > 0 ? `${first.error} (+${more} more)` : first.error;
+        setApprovalError(details);
+        toast.error('All approvals failed', {
+          description: details,
+          duration: 6000,
+        });
+      }
 
-      // Call the success callback to refresh the list
-      if (onApprovalSuccess) {
+      // Refresh the list if at least one succeeded
+      if (approvedCount > 0 && onApprovalSuccess) {
         onApprovalSuccess();
       }
 
-      return { success: true };
+      return { success: true, approvedCount, failedCount: failedTasks.length };
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Failed to approve tasks';
       setApprovalError(errorMessage);
@@ -257,6 +290,8 @@ export const useApprovalHandling = ({
       return { error: errorMessage };
     } finally {
       setIsApproving(false);
+      setCurrentProgressIndex(0);
+      setTotalToApprove(0);
     }
   };
 
@@ -265,5 +300,6 @@ export const useApprovalHandling = ({
     approvalError,
     setApprovalError,
     handleApproveClick,
+    progress: { current: currentProgressIndex, total: totalToApprove },
   };
 };
