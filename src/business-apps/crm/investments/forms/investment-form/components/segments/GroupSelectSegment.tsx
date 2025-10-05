@@ -117,10 +117,12 @@ const detectInvestmentGroup = (
 
 export interface GroupSelectSegmentProps extends BusinessAppContextProps {
   onGroupSelect: (group: string) => void;
+  skipAutoDetection?: boolean;
 }
 
 const GroupSelectSegment: React.FC<GroupSelectSegmentProps> = ({
   onGroupSelect,
+  skipAutoDetection = false,
   ...businessAppContext
 }) => {
   const {
@@ -131,6 +133,11 @@ const GroupSelectSegment: React.FC<GroupSelectSegmentProps> = ({
 
   // Immediately check if we should auto-detect (before first render)
   const shouldAutoDetect = (() => {
+    // Skip auto-detection if explicitly requested (e.g., user clicked Back button)
+    if (skipAutoDetection) {
+      return false;
+    }
+    
     try {
       // Use simplified detection to determine if auto-detection is possible
       const sources = [

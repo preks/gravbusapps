@@ -63,7 +63,7 @@ export interface InvestmentData {
   identification?: any; // JSON object
   investmentAccount?: InvestmentAccountRef; // Full account object
   investmentOpportunity?: string; // uuid
-  loanRecipientInvestmentAccount?: string; // uuid
+  loanRecipientInvestmentAccount?: InvestmentAccountRef; // uuid
   additionalProperties?: any; // JSON object
   
   // Investment Roles (array) - GraphQL schema name is singular
@@ -205,23 +205,23 @@ export const buildInvestmentPayload = (
     throw new Error('Investment data is required but not provided');
   }
 
+
   // Extract investment-level additionalProperties
   const investmentAdditionalProperties = buildAdditionalProperties(investment, 'investment');
   
   // Base investment payload - include ALL fields from GraphQL schema
   // NOTE: Form stores full objects, API expects IDs with "Ref" suffix for catalogs
   const baseInvestmentPayload: any = {
-    name: investment.name,
-    initialInvestmentAmount: toNumber(investment.initialInvestmentAmount),
-    investmentGroupRef: investment.investmentGroup?.id, // Extract ID from catalog object
-    ownerEmployee: investment.ownerEmployee?.id, // Extract ID from employee object
-    
     // Always set status to ACTIVE for new investments
     ...(!options.isUpdate && { investmentStatusRef: 'InvestmentStatus:v1:ACTIVE' }),
     
     // Investment fields (extract IDs from catalog objects)
+    ...(investment.name && { name: investment.name }),
     ...(investment.code && { code: investment.code }),
     ...(investment.isin && { isin: investment.isin }),
+    ...(investment.investmentGroup?.id && { investmentGroupRef: investment.investmentGroup.id }),
+    ...(investment.ownerEmployee?.id && { ownerEmployee: investment.ownerEmployee.id }),
+    ...(investment.initialInvestmentAmount && { initialInvestmentAmount: toNumber(investment.initialInvestmentAmount) }),
     ...(investment.investmentType?.id && { investmentTypeRef: investment.investmentType.id }),
     ...(investment.investmentStakeType?.id && { investmentStakeTypeRef: investment.investmentStakeType.id }),
     ...(investment.investmentPhase?.id && { investmentPhaseRef: investment.investmentPhase.id }),
@@ -252,7 +252,7 @@ export const buildInvestmentPayload = (
     ...(investment.identification && { identification: investment.identification }),
     ...(investment.investmentAccount?.id && { investmentAccount: investment.investmentAccount.id }), // Extract ID from account object
     ...(investment.investmentOpportunity && { investmentOpportunity: investment.investmentOpportunity }),
-    ...(investment.loanRecipientInvestmentAccount && { loanRecipientInvestmentAccount: investment.loanRecipientInvestmentAccount }),
+    ...(investment.loanRecipientInvestmentAccount?.id && { loanRecipientInvestmentAccount: investment.loanRecipientInvestmentAccount.id }),
     
     // Investment additionalProperties as JSON string
     ...(investmentAdditionalProperties && { additionalProperties: investmentAdditionalProperties }),
