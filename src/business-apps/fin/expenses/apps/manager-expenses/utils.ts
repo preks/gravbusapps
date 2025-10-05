@@ -83,14 +83,16 @@ export const getEntityStatusDisplay = (
   if (!status) {
     return { label: '', type: 'draft' };
   }
-  const normalized = String(status) as StatusKey;
-  const base = BASE_STATUS_MAP[normalized];
+  
+  // Check if status is a known key without unsafe type assertion
+  const normalized = String(status);
+  const base = BASE_STATUS_MAP[normalized as keyof typeof BASE_STATUS_MAP];
 
   if (!base) {
     return { label: status, type: 'draft' };
   }
 
-  const overrideType = ENTITY_OVERRIDES[entity]?.[normalized];
+  const overrideType = ENTITY_OVERRIDES[entity]?.[normalized as StatusKey];
   const type = overrideType || base.defaultType;
   const label = getTranslationFromI18nKeyAndLabel(base.i18nKey, base.fallback);
   return { label, type };
@@ -109,12 +111,24 @@ export const getAdvancePaymentStatusDisplay = (status: string): StatusDisplayCon
   getEntityStatusDisplay('advance', status);
 
 /**
+ * Type guard to check if error has a message property
+ */
+const isErrorWithMessage = (err: unknown): err is { message: string } => {
+  return (
+    err !== null &&
+    typeof err === 'object' &&
+    'message' in err &&
+    typeof (err as Record<string, unknown>).message === 'string'
+  );
+};
+
+/**
  * Normalizes unknown error values into a user-friendly string message
  */
 export const getNormalizedErrorMessage = (err: unknown): string => {
   if (typeof err === 'string') return err;
-  if (err && typeof err === 'object' && 'message' in err && typeof (err as any).message === 'string') {
-    return (err as any).message as string;
+  if (isErrorWithMessage(err)) {
+    return err.message;
   }
   return 'An unknown error occurred';
 };
