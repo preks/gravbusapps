@@ -92,6 +92,42 @@ export const mapFlowTaskToApprovalRequest = (task: FlowExecutionTask): ApprovalR
     return 'Other';
   };
 
+  // Extract entity ID and data from task inputs (optimization to avoid GET calls during approval)
+  let entityId: string | undefined;
+  let rawEntityData: any = null;
+  let processInstanceId: string | undefined;
+
+  if (task.inputs) {
+    if (task.inputs.expensePlan) {
+      entityId = task.inputs.expensePlan.id;
+      rawEntityData = task.inputs.expensePlan;
+    } else if (task.inputs.expenseRequest) {
+      entityId = task.inputs.expenseRequest.id;
+      rawEntityData = task.inputs.expenseRequest;
+    } else if (task.inputs.advancePayment) {
+      entityId = task.inputs.advancePayment.id;
+      rawEntityData = task.inputs.advancePayment;
+    }
+  }
+
+  // Extract process instance ID from endpoint if available
+  if (task.endpoint) {
+    const endpointParts = task.endpoint.split('/');
+    const processNameIndex = endpointParts.findIndex(
+      (part: string) =>
+        part === 'approveExpensePlan' ||
+        part === 'approveExpenseRequest' ||
+        part === 'approveAdvancePayment' ||
+        part === 'payAdvancePayment' ||
+        part === 'handOutAdvancePayment' ||
+        part === 'transferAdvancePayment',
+    );
+
+    if (processNameIndex !== -1 && endpointParts[processNameIndex + 1]) {
+      processInstanceId = endpointParts[processNameIndex + 1];
+    }
+  }
+
   return {
     id: task.id,
     title,
@@ -109,6 +145,11 @@ export const mapFlowTaskToApprovalRequest = (task: FlowExecutionTask): ApprovalR
       firstName: employee.firstName,
       lastName: employee.lastName,
     },
+    // Optimization fields: store entity data to avoid GET calls during approval
+    entityId,
+    processInstanceId,
+    taskInstanceId: task.id,
+    rawEntityData,
   };
 };
 

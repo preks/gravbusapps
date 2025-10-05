@@ -106,59 +106,74 @@ export const useApprovalHandling = ({
 
           const baseUrl = env('NEXT_PUBLIC_BASE_URL') ?? '';
 
-          // First, make a GET call to get the actual entity ID
-          let getUrl: string;
-          if (tabConfig.key === 'handout-payment') {
-            // For handout payment, hardcode payAdvancePayment in the URL
-            getUrl = `${baseUrl}/processes/${domain}/payAdvancePayment/${processInstanceId}/${taskName}/${taskInstanceId}?user=${userId}`;
-          } else {
-            // For other tabs, use the dynamic process name
-            getUrl = `${baseUrl}/processes/${domain}/${processName}/${processInstanceId}/${taskName}/${taskInstanceId}?user=${userId}`;
+          // 🎯 OPTIMIZATION: For transfer-payment, try to use entity data from task list first
+          let actualEntityId: string | null = null;
+          
+          if (tabConfig.key === 'transfer-payment') {
+            // Check if we have entity data from the task list (optimization)
+            const selectedTask = selectedTasks.find(t => t.id === taskInstanceId);
+            if (selectedTask?.entityId) {
+              actualEntityId = selectedTask.entityId;
+              console.log('✅ [OPTIMIZATION] Using entity ID from task list (no GET call):', actualEntityId);
+            }
           }
 
-          const getResponse = await fetch(getUrl, {
-            method: 'GET',
-            headers: {
-              'Content-Type': 'application/json',
-              Authorization: `Bearer ${accessToken}`,
-            },
-          });
+          // If we don't have the entity ID from optimization, make the GET call
+          if (!actualEntityId) {
+            console.log('⚠️ Making GET call to fetch entity ID...');
+            
+            let getUrl: string;
+            if (tabConfig.key === 'handout-payment') {
+              // For handout payment, hardcode payAdvancePayment in the URL
+              getUrl = `${baseUrl}/processes/${domain}/payAdvancePayment/${processInstanceId}/${taskName}/${taskInstanceId}?user=${userId}`;
+            } else {
+              // For other tabs, use the dynamic process name
+              getUrl = `${baseUrl}/processes/${domain}/${processName}/${processInstanceId}/${taskName}/${taskInstanceId}?user=${userId}`;
+            }
 
-          if (!getResponse.ok) {
-            throw new Error(`GET request failed: ${getResponse.status} ${getResponse.statusText}`);
-          }
+            const getResponse = await fetch(getUrl, {
+              method: 'GET',
+              headers: {
+                'Content-Type': 'application/json',
+                Authorization: `Bearer ${accessToken}`,
+              },
+            });
 
-          const taskData = await getResponse.json();
+            if (!getResponse.ok) {
+              throw new Error(`GET request failed: ${getResponse.status} ${getResponse.statusText}`);
+            }
 
-          // Extract the actual entity ID from the response
-          let actualEntityId = null;
-          if (taskData.parameters) {
-            switch (tabConfig.key) {
-              case 'advance-payment':
-                actualEntityId = taskData.parameters.advancePayment?.id;
-                break;
-              case 'expense-request':
-                // Try different possible parameter names for expense request
-                actualEntityId =
-                  taskData.parameters.expenseRequest?.id ||
-                  taskData.parameters.request?.id ||
-                  taskData.parameters.expenseRequestId;
-                break;
-              case 'expense-plan':
-                // Try different possible parameter names for expense plan
-                actualEntityId =
-                  taskData.parameters.expensePlan?.id ||
-                  taskData.parameters.plan?.id ||
-                  taskData.parameters.expensePlanId;
-                break;
-              case 'handout-payment':
-                // For handout payment, use the advance payment ID from the response
-                actualEntityId = taskData.parameters.advancePayment?.id;
-                break;
-              case 'transfer-payment':
-                // For transfer advance payment, use the advance payment ID from the response
-                actualEntityId = taskData.parameters.advancePayment?.id;
-                break;
+            const taskData = await getResponse.json();
+
+            // Extract the actual entity ID from the response
+            if (taskData.parameters) {
+              switch (tabConfig.key) {
+                case 'advance-payment':
+                  actualEntityId = taskData.parameters.advancePayment?.id;
+                  break;
+                case 'expense-request':
+                  // Try different possible parameter names for expense request
+                  actualEntityId =
+                    taskData.parameters.expenseRequest?.id ||
+                    taskData.parameters.request?.id ||
+                    taskData.parameters.expenseRequestId;
+                  break;
+                case 'expense-plan':
+                  // Try different possible parameter names for expense plan
+                  actualEntityId =
+                    taskData.parameters.expensePlan?.id ||
+                    taskData.parameters.plan?.id ||
+                    taskData.parameters.expensePlanId;
+                  break;
+                case 'handout-payment':
+                  // For handout payment, use the advance payment ID from the response
+                  actualEntityId = taskData.parameters.advancePayment?.id;
+                  break;
+                case 'transfer-payment':
+                  // For transfer advance payment, use the advance payment ID from the response
+                  actualEntityId = taskData.parameters.advancePayment?.id;
+                  break;
+              }
             }
           }
 
