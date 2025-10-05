@@ -48,15 +48,35 @@ export const mapFlowTaskToApprovalRequest = (task: FlowExecutionTask): ApprovalR
   // Extract status from task state or variables
   const status = task.state || task.variables?.status || task.variables?.requestStatus || 'PENDING';
 
-  // Extract title with preference for linked entity titles (helps Handout/Transfer to show request/plan title)
-  const title =
+  // Build human friendly task name from camelCase (e.g., handOutAdvancePayment -> Hand Out Advance Payment)
+  const formatTaskName = (name?: string): string => {
+    if (!name) return 'Task';
+    const spaced = name
+      .replace(/([a-z])([A-Z])/g, '$1 $2')
+      .replace(/([A-Za-z])([0-9])/g, '$1 $2')
+      .replace(/([0-9])([A-Za-z])/g, '$1 $2')
+      .replace(/Store\s?Director/g, 'Store Director')
+      .trim();
+    return spaced.charAt(0).toUpperCase() + spaced.slice(1);
+  };
+
+  // Prefer linked entity titles for handout/transfer; if referenceName already contains "for \"Title\"" keep it
+  const linkedEntityTitle =
     task.inputs?.expensePlan?.title ||
     task.inputs?.expenseRequest?.title ||
-    task.referenceName ||
     task.variables?.title ||
     task.variables?.requestTitle ||
-    task.name ||
-    'Untitled Request';
+    null;
+
+  let title: string;
+  if (task.referenceName && /for\s+"/.test(task.referenceName)) {
+    // e.g., "Transfer Advance Payment for \"Trip to Berlin\"" already includes the request title
+    title = task.referenceName;
+  } else if (linkedEntityTitle) {
+    title = `${formatTaskName(task.name)} - ${linkedEntityTitle}`;
+  } else {
+    title = task.referenceName || formatTaskName(task.name) || 'Untitled Request';
+  }
 
   // Extract description from task variables or use task description
   const description =
