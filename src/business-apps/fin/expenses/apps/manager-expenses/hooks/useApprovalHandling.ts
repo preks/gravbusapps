@@ -108,21 +108,18 @@ export const useApprovalHandling = ({
 
           const baseUrl = env('NEXT_PUBLIC_BASE_URL') ?? '';
 
-          // 🎯 OPTIMIZATION: For transfer-payment, try to use entity data from task list first
+          // 🎯 OPTIMIZATION: Try to use entity data from task list first (all tabs)
           let actualEntityId: string | null = null;
+          const selectedTask = selectedTasks.find(t => t.id === taskInstanceId);
           
-          if (tabConfig.key === 'transfer-payment') {
-            // Check if we have entity data from the task list (optimization)
-            const selectedTask = selectedTasks.find(t => t.id === taskInstanceId);
-            if (selectedTask?.entityId) {
-              actualEntityId = selectedTask.entityId;
-              console.log('✅ [OPTIMIZATION] Using entity ID from task list (no GET call):', actualEntityId);
-            }
+          if (selectedTask?.entityId) {
+            actualEntityId = selectedTask.entityId;
+            console.log(`✅ [OPTIMIZATION - ${tabConfig.key}] Using entity ID from task list (no GET call):`, actualEntityId);
           }
 
           // If we don't have the entity ID from optimization, make the GET call
           if (!actualEntityId) {
-            console.log('⚠️ Making GET call to fetch entity ID...');
+            console.log(`⚠️ [${tabConfig.key}] Making GET call to fetch entity ID...`);
             
             let getUrl: string;
             if (tabConfig.key === 'handout-payment') {
