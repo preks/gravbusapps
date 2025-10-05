@@ -194,10 +194,7 @@ export const useFlowExecutionTasks = (
     [accessToken, fetchTasks],
   );
 
-  // Fetch data on component mount and when dependencies change
-  useEffect(() => {
-    fetchTasks();
-  }, [fetchTasks]);
+  // Note: initial load is handled by the accessToken-guarded effect above
 
   return {
     tasks,
