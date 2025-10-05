@@ -39,6 +39,7 @@ const ExpenseRequestDetails: React.FC<ExpenseRequestDetailsProps> = ({
 
   const canApprove = request.status === "IN_APPROVAL" || request.status === "VERIFICATION_REQUIRED";
   const canReject = request.status === "IN_APPROVAL" || request.status === "VERIFICATION_REQUIRED";
+  const statusConfig = getExpenseRequestStatusDisplay(request.status);
 
   const handleApprove = () => {
     if (onApprove) {
@@ -68,17 +69,12 @@ const ExpenseRequestDetails: React.FC<ExpenseRequestDetailsProps> = ({
           </p>
         </div>
         <div className="gba:flex gba:items-center gba:gap-3">
-          {(() => {
-            const statusConfig = getExpenseRequestStatusDisplay(request.status);
-            return (
-              <Pill
-                type={statusConfig.type}
-                label={statusConfig.label}
-                color={statusConfig.color}
-                data-testid="expense-request-status-badge"
-              />
-            );
-          })()}
+          <Pill
+            type={statusConfig.type}
+            label={statusConfig.label}
+            color={statusConfig.color}
+            data-testid="expense-request-status-badge"
+          />
         </div>
       </div>
 
