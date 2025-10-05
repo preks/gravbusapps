@@ -178,21 +178,40 @@ export const InvestmentFormProvider: React.FC<InvestmentFormProviderProps> = ({
   // Enhanced setFormValues with proper nested merging and cascade clearing
   const setFormValues = useCallback((updates: Partial<InvestmentFormValues>) => {
     setFormValuesState(prev => {
-      // Deep merge nested structures
+      // Deep merge investment object, handling undefined values explicitly
+      const mergedInvestment: any = { ...prev.investment };
+      if (updates.investment) {
+        for (const key in updates.investment) {
+          const value = (updates.investment as any)[key];
+          // Explicitly handle undefined to clear fields
+          if (value === undefined) {
+            delete mergedInvestment[key];
+          } else {
+            mergedInvestment[key] = value;
+          }
+        }
+      }
+      
       const newValues: InvestmentFormValues = {
-        investment: {
-          ...prev.investment,
-          ...updates.investment,
-        },
-        // Deep merge subtype objects to preserve dynamic fields
-        equityInvestment: updates.equityInvestment !== undefined 
-          ? { ...prev.equityInvestment, ...updates.equityInvestment } 
+        investment: mergedInvestment,
+        // Handle subtype data: check if key exists in updates
+        // - If key doesn't exist in updates: keep previous value
+        // - If key exists and is undefined: clear it (set to undefined)
+        // - If key exists and is an object: merge with previous
+        equityInvestment: 'equityInvestment' in updates 
+          ? (updates.equityInvestment === undefined 
+              ? undefined 
+              : { ...prev.equityInvestment, ...updates.equityInvestment })
           : prev.equityInvestment,
-        realEstateInvestment: updates.realEstateInvestment !== undefined 
-          ? { ...prev.realEstateInvestment, ...updates.realEstateInvestment } 
+        realEstateInvestment: 'realEstateInvestment' in updates
+          ? (updates.realEstateInvestment === undefined
+              ? undefined
+              : { ...prev.realEstateInvestment, ...updates.realEstateInvestment })
           : prev.realEstateInvestment,
-        liquidFundInvestment: updates.liquidFundInvestment !== undefined
-          ? { ...prev.liquidFundInvestment, ...updates.liquidFundInvestment }
+        liquidFundInvestment: 'liquidFundInvestment' in updates
+          ? (updates.liquidFundInvestment === undefined
+              ? undefined
+              : { ...prev.liquidFundInvestment, ...updates.liquidFundInvestment })
           : prev.liquidFundInvestment,
       };
       
@@ -206,14 +225,15 @@ export const InvestmentFormProvider: React.FC<InvestmentFormProviderProps> = ({
       const prevGroupCode = getGroupCode(prev.investment.investmentGroup);
       const newGroupCode = getGroupCode(newValues.investment.investmentGroup);
       
-      // Clear downstream selections when group changes (but NOT if subtype data is being explicitly set in the update)
-      const isExplicitlySettingSubtype = 
-        updates.equityInvestment !== undefined || 
-        updates.realEstateInvestment !== undefined || 
-        updates.liquidFundInvestment !== undefined;
+      // Clear downstream selections when group changes
+      // But NOT if subtype data is being explicitly set to an OBJECT in the update
+      const isExplicitlySettingSubtypeObject = 
+        (updates.equityInvestment && typeof updates.equityInvestment === 'object') || 
+        (updates.realEstateInvestment && typeof updates.realEstateInvestment === 'object') || 
+        (updates.liquidFundInvestment && typeof updates.liquidFundInvestment === 'object');
       
-      if (newGroupCode !== prevGroupCode && !isExplicitlySettingSubtype) {
-        // Clear all subtype data when group changes (unless we're explicitly setting it)
+      if (newGroupCode !== prevGroupCode && !isExplicitlySettingSubtypeObject) {
+        // Clear all subtype data when group changes (unless we're explicitly setting object data)
         newValues.equityInvestment = undefined;
         newValues.realEstateInvestment = undefined;
         newValues.liquidFundInvestment = undefined;

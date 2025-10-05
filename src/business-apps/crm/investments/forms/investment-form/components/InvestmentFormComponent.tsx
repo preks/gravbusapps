@@ -45,6 +45,7 @@ export const InvestmentFormComponent: React.FC = () => {
   const [currentStep, setCurrentStep] = useState<FormStep>('select');
   const [isLoadingInvestment, setIsLoadingInvestment] = useState(false);
   const [loadingError, setLoadingError] = useState<string | null>(null);
+  const [skipAutoDetection, setSkipAutoDetection] = useState(false);
 
   // Store raw investment data for payload building
   const [rawInvestmentData, setRawInvestmentData] = useState<any>(null);
@@ -194,24 +195,53 @@ export const InvestmentFormComponent: React.FC = () => {
         name: formValues.investment.name || '',
         investmentGroup: { id: group } as any, // Minimal catalog object (will be enriched by components)
         investmentStatus: { id: 'InvestmentStatus:v1:ACTIVE', code: 'ACTIVE' } as any, // Default status as object
+        // Explicitly clear type and other fields when group changes
+        investmentType: undefined,
+        currency: undefined,
+        investmentAccount: undefined,
         // Keep system fields if updating
         ...(isUpdate && { 
           id: formValues.investment.id, 
           version: formValues.investment.version 
         }),
-      }
+      } as any,
+      // Clear all subtype data when group changes
+      equityInvestment: undefined,
+      realEstateInvestment: undefined,
+      liquidFundInvestment: undefined,
     } as Partial<InvestmentFormValues>);
+    // Reset skip auto-detection flag after selection
+    setSkipAutoDetection(false);
     setCurrentStep('form');
   };
 
   // Handle going back to group selection (only for create mode without pre-selected group)
   const handleBack = () => {
     if (!isUpdate && !preSelectedGroup) {
-      // Preserve the owner employee when going back
+      // Preserve the owner employee when going back, clear everything else
       const preservedOwner = formValues.investment.ownerEmployee || currentEmployee;
-      setFormValues({ 
-        investment: { ownerEmployee: preservedOwner } // Full employee object
-      } as Partial<InvestmentFormValues>);
+      
+      // Create a new form state with only ownerEmployee preserved
+      const newFormValues: Partial<InvestmentFormValues> = {
+        investment: { 
+          ownerEmployee: preservedOwner,
+          name: '',
+          investmentStatus: { id: 'InvestmentStatus:v1:ACTIVE', code: 'ACTIVE' } as any,
+          // Explicitly set to undefined to clear them
+          investmentGroup: undefined,
+          investmentType: undefined,
+          currency: undefined,
+          investmentAccount: undefined,
+        } as any,
+        // Clear all subtype data
+        equityInvestment: undefined,
+        realEstateInvestment: undefined,
+        liquidFundInvestment: undefined,
+      };
+      
+      setFormValues(newFormValues);
+      // Skip auto-detection when user explicitly clicks Back button
+      setSkipAutoDetection(true);
       setCurrentStep('select');
     }
   };
@@ -346,8 +376,9 @@ export const InvestmentFormComponent: React.FC = () => {
     return (
       <div data-testid={`${prefixDataTestId}-group-selection`}>
         <GroupSelectSegment 
-          onGroupSelect={handleGroupSelect} 
           {...businessAppContext}
+          onGroupSelect={handleGroupSelect}
+          skipAutoDetection={skipAutoDetection}
         />
       </div>
     );
