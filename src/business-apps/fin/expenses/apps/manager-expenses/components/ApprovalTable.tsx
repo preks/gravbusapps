@@ -39,6 +39,7 @@ interface ApprovalTableProps extends BusinessAppContextProps {
   setValidationError: (error: string | null) => void;
   dataTestIdPrefix: string;
   tabKey: string; // The current tab key to determine approval process
+  onApprovalSuccess?: () => void; // Callback after successful approval
 }
 
 const ApprovalTable: React.FC<ApprovalTableProps> = ({
@@ -58,6 +59,7 @@ const ApprovalTable: React.FC<ApprovalTableProps> = ({
   tabKey,
   userInfo,
   accessToken,
+  onApprovalSuccess,
 }) => {
   const rawTasks = tasks;
   const approvalRequests = mapFlowTasksToApprovalRequests(tasks);
@@ -69,6 +71,7 @@ const ApprovalTable: React.FC<ApprovalTableProps> = ({
     tabKey,
     userInfo,
     accessToken,
+    onApprovalSuccess,
   });
 
   const handlePageSizeChange = (newPageSize: number) => {

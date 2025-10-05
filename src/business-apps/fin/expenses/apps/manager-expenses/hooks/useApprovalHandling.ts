@@ -12,6 +12,7 @@ interface UseApprovalHandlingProps {
   tabKey: string;
   userInfo: any;
   accessToken: string;
+  onApprovalSuccess?: () => void; // Callback after successful approval
 }
 
 export const useApprovalHandling = ({
@@ -21,6 +22,7 @@ export const useApprovalHandling = ({
   tabKey,
   userInfo,
   accessToken,
+  onApprovalSuccess,
 }: UseApprovalHandlingProps) => {
   const [isApproving, setIsApproving] = useState(false);
   const [approvalError, setApprovalError] = useState<string | null>(null);
@@ -238,6 +240,11 @@ export const useApprovalHandling = ({
         description: 'Task approved successfully',
         duration: 4000,
       });
+
+      // Call the success callback to refresh the list
+      if (onApprovalSuccess) {
+        onApprovalSuccess();
+      }
 
       return { success: true };
     } catch (error) {

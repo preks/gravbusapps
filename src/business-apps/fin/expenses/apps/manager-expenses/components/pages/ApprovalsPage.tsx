@@ -212,6 +212,10 @@ const ApprovalsPage: React.FC<ApprovalsPageProps> = ({ onNavigateBack, ...props 
                   setValidationError={setValidationError}
                   dataTestIdPrefix={`${DATA_TEST_ID_PREFIX}-${tab.key}`}
                   tabKey={tab.key}
+                  onApprovalSuccess={() => {
+                    refresh(); // Refresh task list
+                    refreshTabCounts(); // Refresh badge counts
+                  }}
                 />
               </TabsContent>
             ))}
