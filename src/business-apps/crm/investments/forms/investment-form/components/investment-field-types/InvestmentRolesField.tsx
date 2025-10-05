@@ -182,7 +182,29 @@ export const InvestmentRolesField: React.FC<InvestmentRolesFieldProps> = ({
       name={fieldName as any}
       control={control}
       render={({ field: formField, fieldState }) => {
-        const currentRoles: InvestmentRoleItem[] = formField.value || [];
+        // Normalize single object to array format on mount or when value changes
+        useEffect(() => {
+          if (formField.value && typeof formField.value === 'object' && !Array.isArray(formField.value)) {
+            const normalizedRoles: InvestmentRoleItem[] = [{
+              investmentRole: formField.value as CatalogEntry,
+              displayOrder: 0,
+            }];
+            formField.onChange(normalizedRoles);
+          }
+        }, [formField.value, formField.onChange]);
+
+        // Normalize to array format (handles both single object from opportunity and array from investment)
+        let currentRoles: InvestmentRoleItem[] = [];
+        if (Array.isArray(formField.value)) {
+          currentRoles = formField.value;
+        } else if (formField.value && typeof formField.value === 'object') {
+          // During render, just use the single object wrapped in array for display
+          currentRoles = [{
+            investmentRole: formField.value as CatalogEntry,
+            displayOrder: 0,
+          }];
+        }
+        
         // Filter out deleted roles for display
         const activeRoles = currentRoles.filter(role => !role.isDeleted);
         
