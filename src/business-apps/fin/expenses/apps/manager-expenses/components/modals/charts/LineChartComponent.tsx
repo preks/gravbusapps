@@ -20,6 +20,7 @@ import {
   CartesianGrid,
 } from "recharts";
 import { formatCurrencyDisplay } from "../../../../personal-expenses/utils";
+import { resolveCssVar } from "./chartUtils";
 
 interface LineChartProps {
   data: {
@@ -48,20 +49,6 @@ const LineChartComponent: React.FC<LineChartProps> = ({
   currency = "EUR",
   dataTestId,
 }) => {
-  const resolveCssVar = (color: string): string => {
-    if (!color?.startsWith('var(')) return color;
-    if (
-      typeof globalThis.window === 'undefined' ||
-      typeof globalThis.document === 'undefined' ||
-      typeof globalThis.window.getComputedStyle !== 'function'
-    ) {
-      return color;
-    }
-    const varName = color.substring(4, color.length - 1).trim();
-    const value = globalThis.window.getComputedStyle(globalThis.document.documentElement).getPropertyValue(varName).trim();
-    return value || color;
-  };
-
   const resolvedLineColor = React.useMemo(() => resolveCssVar(lineColor), [lineColor]);
   const lineName = getTranslationFromI18nKeyAndLabel(
     "lowcoder:charts.legend.amount",
@@ -111,7 +98,7 @@ const LineChartComponent: React.FC<LineChartProps> = ({
           config={chartConfig}
           className="gba:w-full"
           style={{ height: height }}
-          data-testid={dataTestId ?? `${title.toLowerCase().replace(/\s+/g, "-")}-chart`}
+          data-testid={dataTestId ?? "line-chart"}
         >
           <LineChart
             data={data}
