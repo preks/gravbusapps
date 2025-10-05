@@ -163,16 +163,6 @@ const PieChartComponent: React.FC<PieChartProps> = ({
               align="center"
               verticalAlign="bottom"
               iconSize={10}
-              wrapperStyle={{ 
-                paddingTop: '20px',
-                display: 'flex',
-                flexWrap: 'nowrap',
-                justifyContent: 'center',
-                gap: '16px'
-              }}
-              formatter={(value) => (
-                <span style={{ fontSize: '12px', whiteSpace: 'nowrap', color: '#000000' }}>{value}</span>
-              )}
             />
           </PieChart>
         </ChartContainer>
