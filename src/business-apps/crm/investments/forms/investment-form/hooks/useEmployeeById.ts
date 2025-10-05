@@ -127,10 +127,14 @@ export const useEmployeeById = ({ accessToken, employeeId }: UseEmployeeByIdProp
     [accessToken, graphqlClient]
   );
 
-  // Auto-fetch if employeeId is provided
+  // Auto-fetch if employeeId is provided, clear if not
   useEffect(() => {
     if (employeeId) {
       fetchEmployee(employeeId);
+    } else {
+      // Clear employee when ID is removed/empty
+      setEmployee(null);
+      setError(null);
     }
   }, [employeeId, fetchEmployee]);
 

@@ -1,4 +1,4 @@
-import { AccountFormValues } from '../../account-form/types';
+import { AccountFormValues, Address } from '../../account-form/types';
 import { ContactFormValues } from '../../contact-form/types';
 import { InvestmentOpportunityFormValues } from '../../opportunity-form/types';
 import { extractAddressFromObject } from '../../../../common/utils/addressUtils';
@@ -41,6 +41,42 @@ export const getAccountInitialValues = (leadData: any): Partial<AccountFormValue
     city: leadData.locality || '',
     state: '', // Not available in InvestmentLead
     address: leadData.locality || '', // Legacy field
+    
+    // ===== ADDRESS ARRAY (new structure for account form) =====
+    addresses: (() => {
+      // Only create address if we have meaningful address data
+      const hasAddressData = leadData.addressLine || leadData.postalCode || leadData.locality || leadData.countryRef || leadData.regionRef;
+      
+      if (!hasAddressData) {
+        // Return default empty address structure without ID (backend will generate UUID)
+        return [
+          {
+            addressType: "PRIMARY_ADDRESS",
+            addressLines: [""],
+            postalCode: "",
+            locality: "",
+            regionRef: "",
+            countryRef: "",
+          }
+        ];
+      }
+      
+      // Create address with lead data (without ID for new accounts)
+      return [
+        {
+          addressType: "PRIMARY_ADDRESS",
+          addressLines: leadData.addressLine 
+            ? (typeof leadData.addressLine === 'string' 
+                ? [leadData.addressLine] 
+                : (leadData.addressLine.lines || [leadData.addressLine.toString()]))
+            : [extractAddressFromObject(leadData.addressLine) || ''],
+          postalCode: leadData.postalCode || '',
+          locality: leadData.locality || '',
+          regionRef: leadData.regionRef || leadData.region?.id || '',
+          countryRef: leadData.countryRef || leadData.country?.id || '',
+        }
+      ];
+    })(),
     
     
     // ===== ADDITIONAL FIELDS (from InvestmentLead) =====
@@ -85,6 +121,17 @@ export const getContactInitialValues = (leadData: any): Partial<ContactFormValue
     // ===== CATALOG REFERENCES (from InvestmentLead) =====
     academicTitleRef: leadData.academicTitleRef || leadData.academicTitle?.id || '', // ✅ academicTitle{id,value} -> academicTitleRef mapping
     languageRef: '', // Not available in InvestmentLead - user will need to select
+    
+    // ===== CONTACT TYPE (default for lead conversion) =====
+    type: 'UNKNOWN_CONTACT', // Default contact type for lead conversion
+    
+    // ===== SOCIAL MEDIA INFORMATION (extracted from communication channels) =====
+    linkedinUrl: leadData.communicationChannels?.find(
+      (channel: any) => channel.communicationChannelRef === "CommunicationChannel:v1:LinkedIn"
+    )?.value || '',
+    xingUrl: leadData.communicationChannels?.find(
+      (channel: any) => channel.communicationChannelRef === "CommunicationChannel:v1:Xing"
+    )?.value || '',
     
     // ===== OWNER INFORMATION (from InvestmentLead) =====
     ownerEmployeeId: leadData.ownerEmployeeId || leadData.ownerEmployee?.id || '',

@@ -2,7 +2,7 @@ import type { ColumnDef } from '@tanstack/react-table';
 import { Badge, Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@newwork/nw-design-system';
 import { Clock, Calendar } from 'lucide-react';
 import { OwnerDisplay } from '../../../../../components/shared';
-import { Task, TaskEmployee } from '../types/TaskTypes';
+import { Task, TaskEmployee } from '@/common/components/common-relations/detail-sheets/task-detail-sheet';
 import { 
   getTaskStatusBadgeVariant,
   getTaskPriorityBadgeVariant,
@@ -38,13 +38,14 @@ const getTimingTypeIcon = (timingType?: string) => {
 const handleReferenceClick = (reference: Task['reference']) => {
   if (!reference) return;
   
-  const source = 'investments'; // Default to investments for IRM
+  // Use IRM paths for investment relations
   let url = '';
   switch (reference.type) {
-    case 'lead': url = buildPlatformUrl('/platform/crm/lead-record', { leadId: reference.id, source }); break;
-    case 'account': url = buildPlatformUrl('/platform/crm/account-record', { accountId: reference.id, source }); break;
-    case 'contact': url = buildPlatformUrl('/platform/crm/contact-record', { contactId: reference.id, source }); break;
-    case 'opportunity': url = buildPlatformUrl('/platform/crm/opportunity-record', { opportunityId: reference.id, source }); break;
+    case 'lead': url = buildPlatformUrl('/platform/irm/lead-record', { leadId: reference.id }); break;
+    case 'account': url = buildPlatformUrl('/platform/irm/account-record', { accountId: reference.id }); break;
+    case 'contact': url = buildPlatformUrl('/platform/irm/contact-record', { contactId: reference.id }); break;
+    case 'opportunity': url = buildPlatformUrl('/platform/irm/opportunity-record', { opportunityId: reference.id }); break;
+    case 'investment': url = buildPlatformUrl('/platform/irm/investment-record', { investmentId: reference.id }); break;
     default: return;
   }
   navigateTo(url);

@@ -9,7 +9,7 @@ import { useDocumentCatalogs } from '@/business-apps/crm/common/forms/document-u
 import { fileClient } from '@/common/network/files/FileClient';
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient';
 
-export type InvestmentDocumentEntityType = 'account' | 'contact' | 'lead' | 'opportunity';
+export type InvestmentDocumentEntityType = 'account' | 'contact' | 'lead' | 'opportunity' | 'investment';
 
 export interface DocumentPopupValues {
   entityType: InvestmentDocumentEntityType;
@@ -44,6 +44,7 @@ const DocumentPopup: React.FC<DocumentPopupProps> = ({ initialValues = {}, ...pr
     const contactId = src?.contactId || src?.contact || inv?.contact || urlParams.get('contactId') || '';
     const leadId = src?.leadId || src?.lead || inv?.lead || urlParams.get('leadId') || '';
     const opportunityId = src?.opportunityId || src?.opportunity || inv?.opportunity || urlParams.get('opportunityId') || '';
+    const investmentId = src?.investmentId || src?.investment || inv?.investment || urlParams.get('investmentId') || '';
 
     let entityType: InvestmentDocumentEntityType = 'account';
     let entityId = '';
@@ -51,6 +52,7 @@ const DocumentPopup: React.FC<DocumentPopupProps> = ({ initialValues = {}, ...pr
     else if (contactId) { entityType = 'contact'; entityId = String(contactId); }
     else if (leadId) { entityType = 'lead'; entityId = String(leadId); }
     else if (opportunityId) { entityType = 'opportunity'; entityId = String(opportunityId); }
+    else if (investmentId) { entityType = 'investment'; entityId = String(investmentId); }
 
     const computedFolder = Boolean(
       src?.folder === true || src?.createFolder === true || src?.createFolder === 'true' ||
@@ -65,7 +67,9 @@ const DocumentPopup: React.FC<DocumentPopupProps> = ({ initialValues = {}, ...pr
     const parentDocument = src?.parentDocument ?? ad?.parentDocument ?? ad?.psi_taskPayload?.psi_initialParameters?.parentDocument ?? ad?.psi_taskPayload?.initialParameters?.parentDocument ?? payload?.parentDocument ?? inv?.parentDocument ?? null;
     const name = inv?.name ?? src?.name ?? '';
 
-    return { entityType, entityId, parentDocument, folder: computedFolder, name };
+    const result = { entityType, entityId, parentDocument, folder: computedFolder, name };
+    
+    return result;
   }, [initialValues, props]);
 
   // Form setup
@@ -97,6 +101,22 @@ const DocumentPopup: React.FC<DocumentPopupProps> = ({ initialValues = {}, ...pr
   const [parentFolders, setParentFolders] = useState<{ id: string; name: string }[]>([]);
   const [parentLoading, setParentLoading] = useState<boolean>(false);
   const graphqlClient = useGraphQLClient(props.accessToken || '');
+
+  const isUpdateMode = !!(initialValues as any)?.investmentDocument?.id;
+
+  // Populate form with initial values when in update mode
+  useEffect(() => {
+    if (isUpdateMode && (initialValues as any)?.investmentDocument) {
+      const doc = (initialValues as any).investmentDocument;
+      
+      form.setValue('name', doc.name || '');
+      form.setValue('description', doc.description || '');
+      form.setValue('documentGroupRef', doc.documentGroupRef || '');
+      form.setValue('documentTypeRef', doc.documentTypeRef || '');
+      form.setValue('parentDocument', doc.parentDocument || '');
+      form.setValue('folder', doc.folder || false);
+    }
+  }, [isUpdateMode, initialValues, form]);
 
   // Determine if we are in rename mode via additionalData / payload
   const renameMode = useMemo(() => {
@@ -137,6 +157,7 @@ const DocumentPopup: React.FC<DocumentPopupProps> = ({ initialValues = {}, ...pr
             case 'contact': return 'contactId';
             case 'lead': return 'leadId';
             case 'opportunity': return 'opportunityId';
+            case 'investment': return 'investmentId';
             default: return 'account';
           }
         })();
@@ -159,7 +180,6 @@ const DocumentPopup: React.FC<DocumentPopupProps> = ({ initialValues = {}, ...pr
     loadParents();
   }, [props.accessToken, contextValues.entityId, contextValues.entityType, graphqlClient, renameMode]);
 
-  const isUpdateMode = !!(initialValues as any)?.investmentDocument?.id;
   const isUpdatingFolder = isUpdateMode && !!(initialValues as any)?.investmentDocument?.folder;
   const title = useMemo(() => {
     if (renameMode) return 'Rename Document';
@@ -174,6 +194,7 @@ const DocumentPopup: React.FC<DocumentPopupProps> = ({ initialValues = {}, ...pr
       case 'contact': return 'contactId';
       case 'lead': return 'leadId';
       case 'opportunity': return 'opportunityId';
+      case 'investment': return 'investmentId';
       default: return 'accountId';
     }
   }, [contextValues.entityType]);
@@ -223,6 +244,7 @@ const DocumentPopup: React.FC<DocumentPopupProps> = ({ initialValues = {}, ...pr
           case 'contact': return 'contact';
           case 'lead': return 'lead';
           case 'opportunity': return 'opportunity';
+          case 'investment': return 'investment';
           default: return 'account';
         }
       })();
@@ -235,20 +257,12 @@ const DocumentPopup: React.FC<DocumentPopupProps> = ({ initialValues = {}, ...pr
           case 'contact': return urlParams.get('contactId');
           case 'lead': return urlParams.get('leadId');
           case 'opportunity': return urlParams.get('opportunityId');
+          case 'investment': return urlParams.get('investmentId');
           default: return null;
         }
       })();
-      // Debug entity resolution (development only)
-      if (process.env.NODE_ENV === 'development') {
-        console.debug('DocumentPopup: Entity resolution -', {
-          entityType: contextValues.entityType,
-          hasEntityId: !!contextValues.entityId,
-          bindingKey: entityBindingKey,
-          hasUrlId: !!idFromUrl
-        });
-      }
-      
-      const resolvedId = contextValues.entityId || source?.investmentDocument?.[entityBindingKey] || source?.[entityBindingKey] || source?.accountId || source?.contactId || source?.leadId || source?.opportunityId || source?.account || source?.contact || source?.lead || source?.opportunity || idFromUrl || '';
+
+      const resolvedId = contextValues.entityId || source?.investmentDocument?.[entityBindingKey] || source?.[entityBindingKey] || source?.accountId || source?.contactId || source?.leadId || source?.opportunityId || source?.investmentId || source?.account || source?.contact || source?.lead || source?.opportunity || source?.investment || idFromUrl || '';
       
       const folderEntity = (() => {
         switch (contextValues.entityType) {
@@ -256,6 +270,7 @@ const DocumentPopup: React.FC<DocumentPopupProps> = ({ initialValues = {}, ...pr
           case 'contact': return 'contacts';
           case 'lead': return 'leads';
           case 'opportunity': return 'opportunities';
+          case 'investment': return 'investments';
           default: return 'accounts';
         }
       })();
@@ -303,12 +318,21 @@ const DocumentPopup: React.FC<DocumentPopupProps> = ({ initialValues = {}, ...pr
 
   // Submit handler for AppActionForm
   const handleSubmit = async (formData: DocumentPopupValues) => {
+    console.log('🔍 DocumentPopup handleSubmit - Debug Info:', {
+      formData,
+      contextValues,
+      initialValues,
+      renameMode,
+      props: props
+    });
+
     const entityBindingKey = (() => {
       switch (contextValues.entityType) {
         case 'account': return 'account';
         case 'contact': return 'contact';
         case 'lead': return 'lead';
         case 'opportunity': return 'opportunity';
+        case 'investment': return 'investment';
         default: return 'account';
       }
     })();
@@ -321,15 +345,17 @@ const DocumentPopup: React.FC<DocumentPopupProps> = ({ initialValues = {}, ...pr
         case 'contact': return urlParams.get('contactId');
         case 'lead': return urlParams.get('leadId');
         case 'opportunity': return urlParams.get('opportunityId');
+        case 'investment': return urlParams.get('investmentId');
         default: return null;
       }
     })();
-    const resolvedId = contextValues.entityId || source?.investmentDocument?.[entityBindingKey] || source?.[entityBindingKey] || source?.accountId || source?.contactId || source?.leadId || source?.opportunityId || source?.account || source?.contact || source?.lead || source?.opportunity || idFromUrl || '';
+    const resolvedId = contextValues.entityId || source?.[entityBindingKey] || source?.investmentId || source?.accountId || source?.contactId || source?.leadId || source?.opportunityId || source?.account || source?.contact || source?.lead || source?.opportunity || source?.investment || idFromUrl || '';
 
     const investmentDocument: Record<string, any> = { [entityBindingKey]: resolvedId };
 
-    if (renameMode || (initialValues && (initialValues as any)?.investmentDocument?.id)) {
+    if (renameMode || isUpdateMode) {
       const existing = (initialValues as any)?.investmentDocument || {};
+      
       investmentDocument.id = existing.id;
       investmentDocument.version = existing.version ?? 0;
       investmentDocument.name = formData.name.trim();
@@ -363,13 +389,15 @@ const DocumentPopup: React.FC<DocumentPopupProps> = ({ initialValues = {}, ...pr
       }
     }
 
-    return {
+    const finalPayload = {
       [entityIdKey]: resolvedId,
       folder: formData.folder,
       name: formData.name.trim(),
       parentDocument: investmentDocument.parentDocument,
       investmentDocument,
     };
+
+    return finalPayload;
   };
 
   // Validation function

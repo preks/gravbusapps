@@ -31,6 +31,7 @@ const AccountSelector: React.FC<AccountSelectorProps> = ({
 }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
+  const [hasInitialized, setHasInitialized] = useState(false);
 
   const {
     accounts,
@@ -44,10 +45,11 @@ const AccountSelector: React.FC<AccountSelectorProps> = ({
 
   // Load initial accounts
   useEffect(() => {
-    if (accounts.length === 0 && !loading) {
+    if (!hasInitialized && accounts.length === 0 && !loading) {
       clearSearch();
+      setHasInitialized(true);
     }
-  }, [accounts.length, loading, clearSearch]);
+  }, [accounts.length, loading, clearSearch, hasInitialized]);
 
   // Handle search
   useEffect(() => {

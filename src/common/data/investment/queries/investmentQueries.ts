@@ -2,7 +2,7 @@
 // Built using actual schema discovered via newwork-mcp
 import { CATALOG_ENTRY, AUDIT_FIELDS } from '@/common/network/graphql/commonFragments';
 import { INVESTMENT } from './fragments/investmentFragments';
-import { INVESTMENT_ACTIVITY, INVESTMENT_TASK, INVESTMENT_NOTE, INVESTMENT_DOCUMENT, INVESTMENT_ACCOUNT_REF } from './fragments/investmentRelationFragments';
+import { INVESTMENT_ACTIVITY, INVESTMENT_TASK, INVESTMENT_NOTE, INVESTMENT_DOCUMENT, INVESTMENT_ACCOUNT_REF, INVESTMENT_CONTACT_REF } from './fragments/investmentRelationFragments';
 
 export interface InvestmentQueryVariables {
   ids?: string[];
@@ -320,9 +320,11 @@ export const GET_INVESTMENTS = (variables: InvestmentQueryVariables = {}): strin
         }
 
         # Investment role relationship (array)
-        investmentRole {
+        investmentRole(where: { isDeleted: { _eq: false } }, orderBy: { displayOrder: ASC_NULLS_LAST }) {
           id
+          version
           displayOrder
+          isDeleted
           investmentRole {
             ${CATALOG_ENTRY}
           }
@@ -373,6 +375,9 @@ export const GET_INVESTMENTS = (variables: InvestmentQueryVariables = {}): strin
           occupancyPercent
           size
           sizeMeasurementUnitRef
+          sizeMeasurementUnit {
+            ${CATALOG_ENTRY}
+          }
           locality
           postalCode
           addressLine
@@ -581,15 +586,7 @@ export const GET_INVESTMENT_BY_ID = (id: string): string => {
           investmentAccountContact {
             contactType
             contact {
-              id
-              firstName
-              lastName
-              fullName
-              email
-              phone
-              department
-              jobPosition
-              ${AUDIT_FIELDS}
+              ${INVESTMENT_CONTACT_REF}
             }
           }
         }
@@ -650,6 +647,9 @@ export const GET_INVESTMENT_BY_ID = (id: string): string => {
           occupancyPercent
           size
           sizeMeasurementUnitRef
+          sizeMeasurementUnit {
+            ${CATALOG_ENTRY}
+          }
           locality
           postalCode
           addressLine

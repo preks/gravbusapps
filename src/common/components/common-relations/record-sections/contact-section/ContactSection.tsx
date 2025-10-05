@@ -6,6 +6,7 @@ import { FlowContextName } from '@/common/types/FlowRegistryTypes';
 import { ContactData } from '@/business-apps/crm/common/apps/contact-record/queries/ContactQueries';
 import { PiLinkedinLogo, PiShareNetwork, PiEnvelope, PiPhone, PiCaretLeft, PiCaretRight } from 'react-icons/pi';
 import { UserIcon } from '@phosphor-icons/react';
+import { navigateTo } from '@/common/utils/navigationUtils';
 
 interface ContactSectionProps extends Partial<BusinessAppContextProps> {
   contactId?: string;
@@ -19,9 +20,10 @@ interface ContactSectionProps extends Partial<BusinessAppContextProps> {
     externalContextData?: Record<string, any>;
     prefixDataTestId?: string;
   };
+  recordUrl?: string;
 }
 
-const ContactSection: React.FC<ContactSectionProps> = ({ contactId, contact, contacts, className = '', actionButtonProps, ...props }) => {
+const ContactSection: React.FC<ContactSectionProps> = ({ contactId, contact, contacts, className = '', actionButtonProps, recordUrl, ...props }) => {
   const contactList: ContactData[] = useMemo(() => {
     const arr = Array.isArray(contacts) ? (contacts as ContactData[]).filter(Boolean) : [];
     return arr;
@@ -57,6 +59,16 @@ const ContactSection: React.FC<ContactSectionProps> = ({ contactId, contact, con
     }
   };
 
+  // Navigation handler
+  const handleTitleClick = () => {
+    if (recordUrl) {
+      navigateTo(recordUrl);
+    }
+  };
+
+  // Conditional logic for clickable title
+  const shouldShowClickableTitle = !!recordUrl;
+
   // Use the correct contact data source
   const displayContact = hasMultiple ? selectedContact : (contact || initialSelected);
 
@@ -71,6 +83,7 @@ const ContactSection: React.FC<ContactSectionProps> = ({ contactId, contact, con
         onNext={handleNext}
         accessToken={props.accessToken}
         actionButtonProps={actionButtonProps}
+        onTitleClick={shouldShowClickableTitle ? handleTitleClick : undefined}
       />
     </div>
   );
@@ -117,6 +130,7 @@ interface ContactPersonalInfoProps {
     externalContextData?: Record<string, any>;
     prefixDataTestId?: string;
   };
+  onTitleClick?: () => void;
 }
 
 const ContactPersonalInfo: React.FC<ContactPersonalInfoProps> = ({ 
@@ -125,7 +139,8 @@ const ContactPersonalInfo: React.FC<ContactPersonalInfoProps> = ({
   currentIndex = 0,
   totalCount = 1,
   onPrevious,
-  onNext
+  onNext,
+  onTitleClick
 }) => {
   // Helper function to build full name
   const buildFullName = () => {
@@ -145,6 +160,28 @@ const ContactPersonalInfo: React.FC<ContactPersonalInfoProps> = ({
       parts.push(department.charAt(0).toUpperCase() + department.slice(1));
     }
     return parts.length > 0 ? parts.join(' • ') : '-';
+  };
+
+  // Helper function to extract LinkedIn URL from communication channels
+  const getLinkedInUrl = () => {
+    const communicationChannels = (contact as any)?.communicationChannels;
+    if (!communicationChannels || !Array.isArray(communicationChannels)) {
+      return (contact as any)?.linkedinUrl || null;
+    }
+    return communicationChannels.find(
+      (channel: any) => channel.communicationChannelRef === "CommunicationChannel:v1:LinkedIn"
+    )?.value || null;
+  };
+
+  // Helper function to extract XING URL from communication channels
+  const getXingUrl = () => {
+    const communicationChannels = (contact as any)?.communicationChannels;
+    if (!communicationChannels || !Array.isArray(communicationChannels)) {
+      return (contact as any)?.xingUrl || null;
+    }
+    return communicationChannels.find(
+      (channel: any) => channel.communicationChannelRef === "CommunicationChannel:v1:Xing"
+    )?.value || null;
   };
 
   // Check if contact has image/avatar
@@ -179,12 +216,23 @@ const ContactPersonalInfo: React.FC<ContactPersonalInfoProps> = ({
               <TooltipProvider>
                 <Tooltip>
                   <TooltipTrigger asChild>
-                    <h3 
-                      className="gba:text-sm gba:font-semibold gba:text-card-foreground gba:truncate gba:min-w-0"
-                      data-testid="contact-name"
-                    >
-                      {fullName || '-'}
-                    </h3>
+                    {onTitleClick ? (
+                      <button
+                        onClick={onTitleClick}
+                        className="gba:text-sm gba:font-semibold gba:text-card-foreground gba:truncate gba:min-w-0 gba:cursor-pointer gba:hover:underline gba:text-left gba:bg-transparent gba:border-none gba:p-0"
+                        data-testid="contact-name-clickable"
+                        title="Click to view contact record"
+                      >
+                        {fullName || '-'}
+                      </button>
+                    ) : (
+                      <h3 
+                        className="gba:text-sm gba:font-semibold gba:text-card-foreground gba:truncate gba:min-w-0"
+                        data-testid="contact-name"
+                      >
+                        {fullName || '-'}
+                      </h3>
+                    )}
                   </TooltipTrigger>
                   <TooltipContent>
                     <p className="gba:max-w-xs gba:break-words">
@@ -255,7 +303,7 @@ const ContactPersonalInfo: React.FC<ContactPersonalInfoProps> = ({
               {
                 icon: PiLinkedinLogo,
                 title: "LinkedIn",
-                value: contact?.linkedinUrl,
+                value: getLinkedInUrl(),
                 render: (value: string) => value ? (
                   <a
                     href={value}
@@ -272,7 +320,7 @@ const ContactPersonalInfo: React.FC<ContactPersonalInfoProps> = ({
               {
                 icon: PiShareNetwork,
                 title: "XING",
-                value: contact?.xingUrl,
+                value: getXingUrl(),
                 render: (value: string) => value ? (
                   <a
                     href={value}

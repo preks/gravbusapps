@@ -2,72 +2,114 @@ import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { FormFieldsDefinition } from '../queries/InvestmentCatalogQueries';
 
-// Base investment form schema - fields that are always required
+// Catalog entry schema - accepts either string ID, catalog object, or null (for clearing)
+const catalogEntrySchema = z.union([
+  z.string().min(1),
+  z.object({
+    id: z.string(),
+    code: z.string().optional(),
+    value: z.string().optional(),
+  }).passthrough(),
+  z.null(),
+]);
+
+// Employee reference schema - accepts either string ID, employee object, or null (for clearing)
+const employeeRefSchema = z.union([
+  z.string().min(1),
+  z.object({
+    id: z.string(),
+    firstName: z.string().optional(),
+    lastName: z.string().optional(),
+    displayName: z.string().optional(),
+  }).passthrough(),
+  z.null(),
+]);
+
+// Account reference schema - accepts either string ID, account object, or null (for clearing)
+const accountRefSchema = z.union([
+  z.string().min(1),
+  z.object({
+    id: z.string(),
+    name: z.string().optional(),
+  }).passthrough(),
+  z.null(),
+]);
+
+// Base investment form schema - nested structure matching form state
+// NOTE: Form state stores full objects for catalog/entity fields
 const baseInvestmentSchema = z.object({
-  // Basic investment info
-  name: z.string().min(1, 'Investment name is required'),
-  ownerEmployeeId: z.string().min(1, 'Investment owner is required'),
-  group: z.string().min(1, 'Investment group is required'),
-
-  // Required related entities - temporarily made optional for debugging
-  accountId: z.string().min(1, 'Related account is required'),
-  contactId: z.string().min(1, 'Related contact is required'),
-
-  // Optional fields that might be present
-  id: z.string().optional(),
-  description: z.string().optional(),
-  investmentTypeRef: z.string().optional(), // Made optional - will be conditionally required
-  investmentLiquidFundTypeRef: z.string().optional(), // Added for liquid funds
+  // Main investment object (required)
+  investment: z.object({
+    id: z.string().optional(),
+    version: z.number().optional(),
+    name: z.string().min(1, 'Investment name is required'),
+    investmentGroup: catalogEntrySchema.optional().refine(val => val !== null && val !== undefined, { message: 'Investment group is required' }),
+    ownerEmployee: employeeRefSchema.optional().refine(val => val !== null && val !== undefined, { message: 'Investment owner is required' }),
+    investmentStatus: catalogEntrySchema.optional(),
+    code: z.string().optional(),
+    currency: catalogEntrySchema.optional().refine(val => val !== null && val !== undefined, { message: 'Currency is required' }),
+    investmentAccount: accountRefSchema.optional().refine(val => val !== null && val !== undefined, { message: 'Related account is required' }),
+    investmentType: catalogEntrySchema.optional(),
+    // Allow additional investment fields (including initialInvestmentAmount if dynamic)
+  }).passthrough(),
+  
+  // Group-specific data (optional - one will be present based on group)
+  equityInvestment: z.any().optional(),
+  realEstateInvestment: z.any().optional(),
+  liquidFundInvestment: z.any().optional(),
 });
 
-// Helper function to extract field name from property path (e.g., "realEstateInvestment.totalCost" -> "totalCost")
-// For additionalProperties, we flatten the path: "investment.additionalProperties.openingBalance" -> "additionalProperties_openingBalance"
-// IMPORTANT: This must match the naming logic in DynamicGroupSegment.tsx
-const getPropertyName = (property: string, fieldType?: string): string => {
-  const parts = property.split('.');
-  
-  // Handle additionalProperties fields with special naming
-  if (parts.includes('additionalProperties') && parts.length >= 3) {
-    const additionalPropsIndex = parts.indexOf('additionalProperties');
-    // Create flattened name: additionalProperties_fieldName
-    const fieldName = parts.slice(additionalPropsIndex + 1).join('_');
-    return `additionalProperties_${fieldName}`;
-  }
-  
-  // Default behavior for regular fields
-  const baseName = parts.pop() || property;
-  
-  // For REF_ types, if the property points to a relationship, add "Id" suffix for form field
-  // This matches the logic in DynamicGroupSegment.tsx
-  if (fieldType?.startsWith('REF_') && !baseName.endsWith('Id')) {
-    return baseName + 'Id';
-  }
-  
-  return baseName;
+// Helper function to convert property path to field name for nested structure
+// With nested structure, we use the FULL property path as the field name
+// Examples:
+// - "investment.name" → "investment.name"
+// - "equityInvestment.marketValue" → "equityInvestment.marketValue"
+// - "liquidFundInvestment.additionalProperties.name" → "liquidFundInvestment.additionalProperties.name"
+// NOTE: For CATALOG_ fields, property is WITHOUT "Ref" suffix in both config and form state
+// IMPORTANT: This must match the naming logic in DynamicForm component
+const getPropertyName = (property: string, _fieldType?: string): string => {
+  // Use the property path as-is (no Ref suffix manipulation needed)
+  // Form state uses catalog fields WITHOUT "Ref" suffix
+  return property;
 };
 
 /**
  * Creates a dynamic Zod schema based on the form fields definition from catalog
  */
 export const createDynamicInvestmentSchema = (formFieldsDefinition?: FormFieldsDefinition) => {
-  let dynamicFields: Record<string, z.ZodTypeAny> = {};
+  // Separate dynamic fields by their parent object
+  const investmentFields: Record<string, z.ZodTypeAny> = {};
+  const equityInvestmentFields: Record<string, z.ZodTypeAny> = {};
+  const realEstateInvestmentFields: Record<string, z.ZodTypeAny> = {};
+  const liquidFundInvestmentFields: Record<string, z.ZodTypeAny> = {};
 
   if (formFieldsDefinition?.formFields) {
     for (const group of formFieldsDefinition.formFields) {
       for (const field of group.fields) {
-        // Use flattened property name to match DynamicGroupSegment implementation
+        // Use full property path
         const fieldName = getPropertyName(field.property, field.type);
+        
+        // Determine which nested object this field belongs to
+        const parts = fieldName.split('.');
+        const parentObject = parts[0]; // "investment", "equityInvestment", etc.
+        const fieldPath = parts.slice(1).join('.'); // rest of the path
+        
+        // Skip if no field path (shouldn't happen)
+        if (!fieldPath) continue;
 
+        // Build validation rule based on field type and required status
+        let validationRule: z.ZodTypeAny;
+        
         if (field.required) {
           const errorMessage = `${field.label} is required`;
 
           switch (field.type) {
             case 'TEXT':
             case 'TEXTAREA':
-              dynamicFields[fieldName] = z.string().min(1, errorMessage);
+              validationRule = z.string().min(1, errorMessage);
               break;
             case 'AMOUNT':
-              dynamicFields[fieldName] = z.preprocess(
+              validationRule = z.preprocess(
                 (val) => {
                   if (val === null || val === undefined || val === '') return undefined;
                   const num = Number(val);
@@ -77,7 +119,7 @@ export const createDynamicInvestmentSchema = (formFieldsDefinition?: FormFieldsD
               );
               break;
             case 'PERCENTAGE':
-              dynamicFields[fieldName] = z.preprocess(
+              validationRule = z.preprocess(
                 (val) => {
                   if (val === null || val === undefined || val === '') return undefined;
                   const num = Number(val);
@@ -90,7 +132,7 @@ export const createDynamicInvestmentSchema = (formFieldsDefinition?: FormFieldsD
               );
               break;
             case 'NUMBER':
-              dynamicFields[fieldName] = z.preprocess(
+              validationRule = z.preprocess(
                 (val) => {
                   if (val === null || val === undefined || val === '') return undefined;
                   const num = Number(val);
@@ -101,14 +143,31 @@ export const createDynamicInvestmentSchema = (formFieldsDefinition?: FormFieldsD
               break;
             case 'DATE':
             case 'DATETIME':
-              dynamicFields[fieldName] = z.string().min(1, errorMessage);
+              validationRule = z.string().min(1, errorMessage);
               break;
             default:
-              if (field.type.startsWith('CATALOG_') || field.type.startsWith('REF_')) {
-                dynamicFields[fieldName] = z.string().min(1, errorMessage);
+              if (field.type.startsWith('CATALOG_')) {
+                validationRule = catalogEntrySchema.refine(val => val, { message: errorMessage });
+              } else if (field.type.startsWith('REF_')) {
+                // Check if it's an array reference field (e.g., REF_InvestmentRole)
+                const entityType = field.type.replace('REF_', '');
+                if (entityType === 'InvestmentRole') {
+                  // Array of investment roles
+                  validationRule = z.array(
+                    z.object({
+                      id: z.string().optional(),
+                      version: z.number().optional(),
+                      investmentRole: catalogEntrySchema,
+                      displayOrder: z.number(),
+                      isDeleted: z.boolean().optional()
+                    })
+                  ).min(1, errorMessage);
+                } else {
+                  // Single reference (like InvestmentAccount)
+                  validationRule = z.string().min(1, errorMessage);
+                }
               } else {
-                // Fallback for unknown types
-                dynamicFields[fieldName] = z.string().min(1, errorMessage);
+                validationRule = z.string().min(1, errorMessage);
               }
               break;
           }
@@ -117,10 +176,10 @@ export const createDynamicInvestmentSchema = (formFieldsDefinition?: FormFieldsD
           switch (field.type) {
             case 'TEXT':
             case 'TEXTAREA':
-              dynamicFields[fieldName] = z.string().optional();
+              validationRule = z.string().optional();
               break;
             case 'AMOUNT':
-              dynamicFields[fieldName] = z.preprocess(
+              validationRule = z.preprocess(
                 (val) => {
                   if (val === null || val === undefined || val === '') return undefined;
                   const num = Number(val);
@@ -130,7 +189,7 @@ export const createDynamicInvestmentSchema = (formFieldsDefinition?: FormFieldsD
               );
               break;
             case 'PERCENTAGE':
-              dynamicFields[fieldName] = z.preprocess(
+              validationRule = z.preprocess(
                 (val) => {
                   if (val === null || val === undefined || val === '') return undefined;
                   const num = Number(val);
@@ -144,7 +203,7 @@ export const createDynamicInvestmentSchema = (formFieldsDefinition?: FormFieldsD
               );
               break;
             case 'NUMBER':
-              dynamicFields[fieldName] = z.preprocess((val) => {
+              validationRule = z.preprocess((val) => {
                 if (val === null || val === undefined || val === '') return undefined;
                 const num = Number(val);
                 return isNaN(num) ? undefined : num;
@@ -152,39 +211,68 @@ export const createDynamicInvestmentSchema = (formFieldsDefinition?: FormFieldsD
               break;
             case 'DATE':
             case 'DATETIME':
-              dynamicFields[fieldName] = z.string().optional();
+              validationRule = z.string().optional();
               break;
             default:
-              if (field.type.startsWith('CATALOG_') || field.type.startsWith('REF_')) {
-                dynamicFields[fieldName] = z.string().optional();
+              if (field.type.startsWith('CATALOG_')) {
+                validationRule = catalogEntrySchema.optional();
+              } else if (field.type.startsWith('REF_')) {
+                // Check if it's an array reference field (e.g., REF_InvestmentRole)
+                const entityType = field.type.replace('REF_', '');
+                if (entityType === 'InvestmentRole') {
+                  // Array of investment roles (optional)
+                  validationRule = z.array(
+                    z.object({
+                      id: z.string().optional(),
+                      version: z.number().optional(),
+                      investmentRole: catalogEntrySchema,
+                      displayOrder: z.number(),
+                      isDeleted: z.boolean().optional()
+                    })
+                  ).optional();
+                } else {
+                  // Single reference (like InvestmentAccount)
+                  validationRule = z.string().optional();
+                }
               } else {
-                dynamicFields[fieldName] = z.string().optional();
+                validationRule = z.string().optional();
               }
               break;
           }
+        }
+
+        // Add to appropriate object based on parent
+        switch (parentObject) {
+          case 'investment':
+            investmentFields[fieldPath] = validationRule;
+            break;
+          case 'equityInvestment':
+            equityInvestmentFields[fieldPath] = validationRule;
+            break;
+          case 'realEstateInvestment':
+            realEstateInvestmentFields[fieldPath] = validationRule;
+            break;
+          case 'liquidFundInvestment':
+            liquidFundInvestmentFields[fieldPath] = validationRule;
+            break;
         }
       }
     }
   }
 
-  // Create base schema with dynamic fields
-  const schemaWithDynamicFields = baseInvestmentSchema.extend(dynamicFields);
-
-  // Add conditional validation for investment flow
-  return schemaWithDynamicFields.refine(
-    (data) => {
-      // For liquid funds: either investmentTypeRef OR investmentLiquidFundTypeRef must be present
-      if (data.group === 'LIQUID_FUND') {
-        return data.investmentTypeRef || data.investmentLiquidFundTypeRef;
-      }
-      // For non-liquid funds: investmentTypeRef is required
-      return !!data.investmentTypeRef;
-    },
-    {
-      message: 'Investment type or liquid fund type is required',
-      path: ['investmentTypeRef'], // This will show the error on the investmentTypeRef field
-    },
-  );
+  // Extend base schema with dynamic fields
+  return baseInvestmentSchema.extend({
+    investment: baseInvestmentSchema.shape.investment.extend(investmentFields),
+    equityInvestment: Object.keys(equityInvestmentFields).length > 0 
+      ? z.object(equityInvestmentFields).passthrough().optional()
+      : z.any().optional(),
+    realEstateInvestment: Object.keys(realEstateInvestmentFields).length > 0 
+      ? z.object(realEstateInvestmentFields).passthrough().optional()
+      : z.any().optional(),
+    liquidFundInvestment: Object.keys(liquidFundInvestmentFields).length > 0 
+      ? z.object(liquidFundInvestmentFields).passthrough().optional()
+      : z.any().optional(),
+  });
 };
 
 /**

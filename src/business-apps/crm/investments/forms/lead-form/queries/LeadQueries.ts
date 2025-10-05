@@ -31,12 +31,6 @@ export interface InvestmentLeadQueryResult {
   };
 
   // Contact Information
-  salutationRef?: string; // ✅ ADDED
-  salutation?: {
-    id: string;
-    code: string;
-    value: string;
-  };
   academicTitleRef?: string; // ✅ ADDED
   academicTitle?: {
     id: string;
@@ -174,6 +168,22 @@ export interface InvestmentLeadQueryResult {
     value: string;
   };
 
+  // Communication Channels
+  communicationChannels?: Array<{
+    id: string;
+    communicationChannelRef: string;
+    value: string;
+    valueExtension?: string;
+    source?: string;
+    activeFrom?: string;
+    activeTo?: string;
+    communicationChannel?: {
+      id: string;
+      value: string;
+      code: string;
+    };
+  }>;
+
   // System fields
   version?: number;
   createdAt?: string; // ✅ ADDED
@@ -211,13 +221,7 @@ export const GET_INVESTMENT_LEAD_BY_ID = `
         displayName
       }
       
-      # Contact Information - ✅ ADDED: Salutation and Academic Title
-      salutationRef
-      salutation {
-        id
-        code
-        value
-      }
+      # Contact Information - ✅ ADDED: Academic Title
       academicTitleRef
       academicTitle {
         id
@@ -351,6 +355,22 @@ export const GET_INVESTMENT_LEAD_BY_ID = `
         id
         code
         value
+      }
+      
+      # Communication Channels
+      communicationChannels {
+        id
+        communicationChannelRef
+        value
+        valueExtension
+        source
+        activeFrom
+        activeTo
+        communicationChannel {
+          id
+          value
+          code
+        }
       }
       
       # System fields - ✅ ADDED: All system fields

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useCallback } from 'react';
-import { Task } from '../types/TaskTypes';
+import { Task } from '@/common/components/common-relations/detail-sheets/task-detail-sheet';
 import { TaskFilters } from './useTaskFilters';
 import { useInvestmentTasks } from '@/common/data/investment';
 
@@ -152,6 +152,9 @@ export const useTaskListData = (props: UseTaskListDataProps): UseTaskListDataRet
         } else if (it.contact?.id) {
           const contactName = it.contactDisplayName || `${it.contact.firstName || ''} ${it.contact.lastName || ''}`.trim() || 'Contact';
           reference = { type: 'contact', id: it.contact.id, name: contactName } as any;
+        } else if (it.investment?.id) {
+          const investmentName = it.investmentDisplayName || it.investment.name || it.investment.code || 'Investment';
+          reference = { type: 'investment', id: it.investment.id, name: investmentName } as any;
         } else {
           // No related entity - set reference to undefined instead of creating invalid reference
           reference = undefined;
@@ -160,6 +163,7 @@ export const useTaskListData = (props: UseTaskListDataProps): UseTaskListDataRet
         return {
           id: it.id,
           name: it.displayName || it.name || it.code || `Task ${it.id}`,
+          description: it.description || undefined,
           assignedTo: {
             id: it.assignedEmployee?.id || it.id,
             firstName: it.assignedEmployee?.firstName || '',

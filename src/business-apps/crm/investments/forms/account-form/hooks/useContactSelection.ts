@@ -5,11 +5,7 @@ import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 import { SelectOption } from '../types';
 
 // GraphQL query for fetching investment contacts
-const GET_INVESTMENT_CONTACTS_LIST = (variables: {
-  limit?: number;
-  offset?: number;
-  search?: string | null;
-}) => `
+const GET_INVESTMENT_CONTACTS_LIST = `
   query GetInvestmentContactsList(
     $limit: Int = 20
     $offset: Int = 0
@@ -18,13 +14,13 @@ const GET_INVESTMENT_CONTACTS_LIST = (variables: {
     InvestmentContact(
       where: { 
         isDeleted: { _eq: false }
-        ${variables.search ? `_or: [
-          { firstName: { _ilike: "%${variables.search}%" } }
-          { lastName: { _ilike: "%${variables.search}%" } }
-          { fullName: { _ilike: "%${variables.search}%" } }
-          { email: { _ilike: "%${variables.search}%" } }
-          { jobPosition: { _ilike: "%${variables.search}%" } }
-        ]` : ''}
+        _or: [
+          { firstName: { _ilike: $search } }
+          { lastName: { _ilike: $search } }
+          { fullName: { _ilike: $search } }
+          { email: { _ilike: $search } }
+          { jobPosition: { _ilike: $search } }
+        ]
       }
       limit: $limit
       offset: $offset
@@ -42,13 +38,13 @@ const GET_INVESTMENT_CONTACTS_LIST = (variables: {
     InvestmentContactAggregate(
       where: { 
         isDeleted: { _eq: false }
-        ${variables.search ? `_or: [
-          { firstName: { _ilike: "%${variables.search}%" } }
-          { lastName: { _ilike: "%${variables.search}%" } }
-          { fullName: { _ilike: "%${variables.search}%" } }
-          { email: { _ilike: "%${variables.search}%" } }
-          { jobPosition: { _ilike: "%${variables.search}%" } }
-        ]` : ''}
+        _or: [
+          { firstName: { _ilike: $search } }
+          { lastName: { _ilike: $search } }
+          { fullName: { _ilike: $search } }
+          { email: { _ilike: $search } }
+          { jobPosition: { _ilike: $search } }
+        ]
       }
     ) {
       aggregate {
@@ -89,8 +85,6 @@ export const useContactSelection = (context: BusinessAppContextProps) => {
         search: searchTerm.trim() || null,
       };
 
-      const query = GET_INVESTMENT_CONTACTS_LIST(variables);
-      
       const result = await graphqlClient.request<{
         InvestmentContact: Array<{
           id: string;
@@ -104,7 +98,11 @@ export const useContactSelection = (context: BusinessAppContextProps) => {
         InvestmentContactAggregate: {
           aggregate: { count: number };
         };
-      }>(query);
+      }>(GET_INVESTMENT_CONTACTS_LIST, {
+        limit: variables.limit,
+        offset: variables.offset,
+        search: variables.search ? `%${variables.search}%` : null,
+      });
 
       if (result?.InvestmentContact && result?.InvestmentContactAggregate) {
         const newContacts = result.InvestmentContact;

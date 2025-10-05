@@ -1,5 +1,5 @@
-import React, { useState, useEffect, useMemo, useRef } from 'react';
-import { useForm } from 'react-hook-form';
+import React, { useState, useEffect, useMemo } from 'react';
+import { useForm, useWatch } from 'react-hook-form';
 import { Button, Badge } from '@newwork/nw-design-system';
 import { PiSwap } from 'react-icons/pi';
 import { formatDataTestId } from '@/common/utils/formatDataTestId';
@@ -7,127 +7,21 @@ import { AppActionForm } from '@/components/app-action-form';
 import { useInvestmentFormContext } from '../context/InvestmentFormContext';
 import { 
   GroupSelectSegment, 
-  InvestmentSegment, 
-  DynamicGroupSegment
+  InvestmentSegment,
+  TypeSelectSegment,
+  LiquidFundTypeSelectSegment,
+  DynamicSegment
 } from './segments';
-import InvestmentTypeSelector from './InvestmentTypeSelector';
-import InvestmentLiquidFundTypeSelector from './InvestmentLiquidFundTypeSelector';
-import { useGetInvestmentById } from '@/common/data/investment';
+import { getCurrencySymbol } from '@/common/utils/currencyUtils';
+import { useCatalogManagerClient } from '@/common/network/catalogs/useCatalogManagerClient';
+import { useGetInvestmentById, useGetInvestmentOpportunityById } from '@/common/data/investment';
 import { getInvestmentGroupFromContext } from '../utils/investmentDataTransformer';
 import { createInvestmentFormResolver } from '../utils/investmentFormSchema';
 import { InvestmentFormValues } from '../types';
 import { buildInvestmentPayload } from '@/common/data/investment';
-import { BusinessAppContextProps } from '@/common/BusinessAppContext';
-import { getValueByPath } from '@/common/utils/objectUtils';
+import { mapOpportunityToInvestmentFormValues } from '../utils/opportunityToInvestmentMapper';
 
 const prefixDataTestId = 'InvestmentForm';
-
-// ============================================================================
-// CLEAN ARCHITECTURE: Data Transformation Layer
-// ============================================================================
-
-/**
- * Unified data transformation hook that computes all derived fields
- * Eliminates the need for manual synchronization and workarounds
- */
-const useUnifiedInvestmentData = (
-  rawFormValues: InvestmentFormValues,
-  businessAppContext: BusinessAppContextProps,
-  currentEmployee?: any
-): InvestmentFormValues => {
-  return useMemo(() => {
-    // Compute group reference
-    const investmentGroupRef = rawFormValues.investmentGroupRef || 
-      (rawFormValues.group ? `InvestmentGroup:v1:${rawFormValues.group}` : '');
-    
-    // Compute owner with clear priority order
-    const ownerEmployeeId = rawFormValues.ownerEmployeeId || 
-      businessAppContext.userInfo?.employeeDetails?.employeeId || 
-      currentEmployee?.id || 
-      '';
-    
-    return {
-      ...rawFormValues,
-      investmentGroupRef,
-      ownerEmployeeId,
-    };
-  }, [
-    // Recalculate when any form values change (including additional properties)
-    rawFormValues,
-    businessAppContext.userInfo?.employeeDetails?.employeeId,
-    currentEmployee?.id
-  ]);
-};
-
-
-// ============================================================================
-
-// Helper function to extract field name from property path, matching schema logic
-const getFormFieldName = (property: string): string => {
-  const parts = property.split('.');
-  
-  // Handle additionalProperties fields with special naming
-  if (parts.includes('additionalProperties') && parts.length >= 3) {
-    const additionalPropsIndex = parts.indexOf('additionalProperties');
-    // Create flattened name: additionalProperties_fieldName
-    const fieldName = parts.slice(additionalPropsIndex + 1).join('_');
-    return `additionalProperties_${fieldName}`;
-  }
-  
-  // Default behavior for regular fields
-  return parts.pop() || property;
-};
-
-// Generic helper function to map investment data to form fields based on property paths
-const mapInvestmentDataToFormFields = (rawInvestment: any, fieldsDef: any): Record<string, any> => {
-  const dynamicDefaults: Record<string, any> = {};
-  
-  if (fieldsDef?.formFields?.length) {
-    for (const group of fieldsDef.formFields) {
-      for (const field of group.fields) {
-        const fieldName = getFormFieldName(field.property);
-        let value = getValueByPath(rawInvestment, field.property);
-        
-        // SPECIAL FIX: If looking for liquidFundInvestment.additionalProperties but not found,
-        // try the investment.additionalProperties instead (common case for our setup)
-        if (value === undefined && field.property.startsWith('liquidFundInvestment.additionalProperties.')) {
-          const propertyName = field.property.replace('liquidFundInvestment.additionalProperties.', '');
-          value = getValueByPath(rawInvestment, `additionalProperties.${propertyName}`);
-        }
-        
-        if (value !== undefined && value !== null) {
-          // Handle different field types
-          if (field.type === 'DATE') {
-            // Convert ISO datetime to YYYY-MM-DD format for date inputs
-            dynamicDefaults[fieldName] = formatDateForInput(value);
-          } else {
-            // Convert other values to strings for form compatibility
-            dynamicDefaults[fieldName] = typeof value === 'string' ? value : String(value);
-          }
-        }
-      }
-    }
-  }
-  
-  return dynamicDefaults;
-};
-
-// Helper function to format date values for HTML date inputs
-const formatDateForInput = (dateValue: any): string => {
-  if (!dateValue) return '';
-  
-  try {
-    // Handle various date formats
-    const date = new Date(dateValue);
-    if (isNaN(date.getTime())) return '';
-    
-    // Convert to YYYY-MM-DD format
-    return date.toISOString().split('T')[0];
-  } catch (error) {
-    console.warn('Failed to format date:', dateValue, error);
-    return '';
-  }
-};
 
 
 
@@ -141,12 +35,11 @@ export const InvestmentFormComponent: React.FC = () => {
     setFormValues,
     getFormFieldsDefinition,
     currentEmployee,
-    investmentCatalogData,
-    investmentCatalogLoading
   } = useInvestmentFormContext();
   
-  // Add the investment fetch hook
+  // Add the investment and opportunity fetch hooks
   const { fetchInvestmentById } = useGetInvestmentById(businessAppContext);
+  const { fetchInvestmentOpportunityById } = useGetInvestmentOpportunityById(businessAppContext);
   
   // UI state
   const [currentStep, setCurrentStep] = useState<FormStep>('select');
@@ -156,19 +49,15 @@ export const InvestmentFormComponent: React.FC = () => {
   // Store raw investment data for payload building
   const [rawInvestmentData, setRawInvestmentData] = useState<any>(null);
 
-  // Extract investmentId the same way as lead forms
-  const externalInvestmentId = formValues.id || 
+  // Extract investmentId and opportunityId from additionalData
+  const externalInvestmentId = formValues.investment.id || 
     businessAppContext.additionalData?.investmentId ||
     businessAppContext.additionalData?.psi_taskPayload?.psi_initialParameters?.investmentId;
+  const externalOpportunityId = 
+    businessAppContext.additionalData?.opportunityId ||
+    businessAppContext.additionalData?.psi_taskPayload?.psi_initialParameters?.opportunityId;
   const preSelectedGroup = getInvestmentGroupFromContext(businessAppContext.additionalData);
   const isUpdate = Boolean(externalInvestmentId);
-  
-  // Debug logging with expanded objects
-  console.log('=== InvestmentFormComponent Debug ===');
-  console.log('additionalData (expanded):', JSON.stringify(businessAppContext.additionalData, null, 2));
-  console.log('preSelectedGroup:', preSelectedGroup);
-  console.log('isUpdate:', isUpdate);
-  console.log('====================================');
   
   // Helper function to detect if current context is Overview tab
   const isOverviewContext = () => {
@@ -179,9 +68,17 @@ export const InvestmentFormComponent: React.FC = () => {
 
 
   // Liquid fund flow states
-  const isLiquidFund = formValues.group === 'LIQUID_FUND';
-  const hasInvestmentType = Boolean(formValues.investmentTypeRef);
-  const hasLiquidFundType = Boolean(formValues.investmentLiquidFundTypeRef);
+  // NOTE: Form state can store catalog objects or string IDs (for backward compatibility)
+  // Extract ID from object if needed: object.id or string directly
+  const getGroupId = (group: any): string => {
+    if (!group) return '';
+    return typeof group === 'object' ? group.id : group;
+  };
+  const groupId = getGroupId(formValues.investment.investmentGroup);
+  const groupCode = groupId?.split(':').pop();
+  const isLiquidFund = groupCode === 'LIQUID_FUND';
+  const hasInvestmentType = Boolean(formValues.investment.investmentType);
+  const hasLiquidFundType = Boolean(formValues.liquidFundInvestment?.investmentLiquidFundType);
 
   // Clean workflow initialization
   useEffect(() => {
@@ -192,8 +89,25 @@ export const InvestmentFormComponent: React.FC = () => {
         try {
         // Step 1: Investment group & type hierarchy is loaded by context
         
-        // Step 2: Conditional flow based on investmentId
-        if (externalInvestmentId) {
+        // Step 2: Conditional flow based on opportunityId or investmentId
+        if (externalOpportunityId && !externalInvestmentId) {
+          // Opportunity pre-fill mode: Load opportunity data and map to investment form
+          const { opportunity } = await fetchInvestmentOpportunityById(externalOpportunityId);
+          
+          if (opportunity) {
+            // Extract form fields definition directly from the opportunity's investment group
+            // The opportunity already contains the full catalog entry with objectValue.formFields
+            const formFieldsDefinition = opportunity.investmentGroup?.objectValue as any;
+            
+            // Map ALL fields (static + dynamic) using the form fields definition from opportunity
+            const allMappedValues = mapOpportunityToInvestmentFormValues(opportunity, formFieldsDefinition);
+            
+            setFormValues(allMappedValues);
+            setCurrentStep('form');
+          } else {
+            setLoadingError('Opportunity not found');
+          }
+        } else if (externalInvestmentId) {
           // Update mode: Execute GET_INVESTMENT_BY_ID
           const result = await fetchInvestmentById(externalInvestmentId);
           const rawInvestment = result?.investment;
@@ -202,76 +116,57 @@ export const InvestmentFormComponent: React.FC = () => {
             // Store raw investment data for payload building
             setRawInvestmentData(rawInvestment);
             
-            // Step 3: Investment always has a group - extract and show investment segment
-            const groupCode = rawInvestment.investmentGroup?.code;
-            const typeCode = rawInvestment.investmentType?.code;
-            
-            if (!groupCode) {
+            // Validate investment has required data
+            if (!rawInvestment.investmentGroup) {
               setLoadingError('Investment must have a group');
               return;
             }
             
-            // Build catalog refs
-            const groupRef = `InvestmentGroup:v1:${groupCode}`;
-            const typeRef = typeCode ? `InvestmentType:v1:${typeCode}` : '';
-            
-             // Prepare base form data
-             const baseFormData = {
-               id: rawInvestment.id,
-               name: rawInvestment.name || '',
-               code: rawInvestment.code || '',
-               ownerEmployeeId: rawInvestment.ownerEmployee?.id || '',
-               version: (rawInvestment as any).version || 1,
-               group: groupCode,
-               investmentGroupRef: groupRef,
-               investmentTypeRef: typeRef,
-               // Related entities - extract from investment data
-               accountId: rawInvestment.investmentAccount?.id || '',
-               contactId: rawInvestment.investmentAccount?.investmentAccountContact?.[0]?.contact?.id || '',
-               // Basic investment fields
-              initialInvestmentAmount: rawInvestment.initialInvestmentAmount?.toString() || '',
-              totalInvestmentAmount: rawInvestment.totalInvestmentAmount?.toString() || '',
-              stakePercentage: rawInvestment.stakePercentage?.toString() || '',
-              acquisitionDate: formatDateForInput(rawInvestment.acquisitionDate),
-              // Loan fields from base investment - format dates properly
-              loanRecipientName: rawInvestment.loanRecipientName || '',
-              loanRecipientInvestmentAccountId: rawInvestment.loanRecipientInvestmentAccount?.id || '',
-              loanAmount: rawInvestment.loanAmount?.toString() || '',
-              loanOpenCommitmentAmount: rawInvestment.loanOpenCommitmentAmount?.toString() || '',
-              loanInterestRate: rawInvestment.loanInterestRate?.toString() || '',
-              loanStartDate: formatDateForInput(rawInvestment.loanStartDate),
-              loanEndDate: formatDateForInput(rawInvestment.loanEndDate),
-              loanInterestClaim: rawInvestment.loanInterestClaim?.toString() || '',
-              // Liquid fund type (for liquid fund investments)
-              investmentLiquidFundTypeRef: (rawInvestment as any).liquidFundInvestment?.[0]?.investmentLiquidFundType?.code 
-                ? `InvestmentLiquidFundType:v1:${(rawInvestment as any).liquidFundInvestment[0].investmentLiquidFundType.code}`
-                : '',
+            // Prepare form data in nested structure
+            // NOTE: Form state stores FULL OBJECTS for catalog/entity fields
+            // This avoids redundant API calls and simplifies component code
+            const nestedFormData: InvestmentFormValues = {
+              investment: {
+                id: rawInvestment.id,
+                version: (rawInvestment as any).version || 1,
+                name: rawInvestment.name || '',
+                investmentGroup: rawInvestment.investmentGroup, // Full catalog object
+                ownerEmployee: rawInvestment.ownerEmployee, // Full employee object
+                investmentStatus: rawInvestment.investmentStatus || { id: 'InvestmentStatus:v1:ACTIVE', code: 'ACTIVE' },
+                ...(rawInvestment.code && { code: rawInvestment.code }),
+                ...(rawInvestment.currency && { currency: rawInvestment.currency }), // Full catalog object
+                ...(rawInvestment.investmentAccount && { investmentAccount: rawInvestment.investmentAccount }), // Full account object
+                ...(rawInvestment.investmentType && { investmentType: rawInvestment.investmentType }), // Full catalog object
+              },
+              // Load subtype data (keep full catalog objects)
+              ...((rawInvestment as any).liquidFundInvestment?.[0]?.investmentLiquidFundType && {
+                liquidFundInvestment: {
+                  investmentLiquidFundType: (rawInvestment as any).liquidFundInvestment[0].investmentLiquidFundType, // Full catalog object
+                }
+              }),
             };
             
-            // Set base form values immediately (dynamic fields will be mapped separately after catalog loads)
-            setFormValues(baseFormData);
+            // Set form values immediately (dynamic fields will be mapped separately after catalog loads)
+            setFormValues(nestedFormData);
             setCurrentStep('form');
           } else {
             setLoadingError('Investment not found');
           }
       } else if (preSelectedGroup) {
           // Create mode with pre-selected group: Skip selection step, show investment segment
-          const groupCode = preSelectedGroup?.includes(':') ? preSelectedGroup.split(':')[2] : preSelectedGroup;
+          // NOTE: Form state stores full objects (or IDs for backward compatibility)
+          // For preSelectedGroup, it's already a string ID - create minimal object
           setFormValues({ 
-            group: groupCode, // Store just the code for internal logic
-            investmentGroupRef: preSelectedGroup, // Store the full reference for API
-            ownerEmployeeId: currentEmployee?.id || ''
-          });
+            investment: {
+              investmentGroup: { id: preSelectedGroup } as any, // Minimal catalog object (will be enriched by components)
+              ownerEmployee: currentEmployee as any, // Full employee object
+              name: '',
+              investmentStatus: { id: 'InvestmentStatus:v1:ACTIVE', code: 'ACTIVE' } as any, // Default status as object
+            }
+          } as Partial<InvestmentFormValues>);
         setCurrentStep('form');
       } else {
-          // Create mode without group: Start with group selection step, ensure owner is set
-          const initialOwnerId = formValues.ownerEmployeeId || 
-                                currentEmployee?.id || 
-                                businessAppContext.userInfo?.employeeDetails?.employeeId || 
-                                '';
-          if (initialOwnerId && !formValues.ownerEmployeeId) {
-            setFormValues({ ownerEmployeeId: initialOwnerId });
-          }
+          // Create mode without group: Start with group selection step
         setCurrentStep('select');
           }
     } catch (err) {
@@ -283,95 +178,40 @@ export const InvestmentFormComponent: React.FC = () => {
     };
 
     initializeForm();
-  }, [externalInvestmentId, preSelectedGroup]);
+  }, [externalInvestmentId, externalOpportunityId, preSelectedGroup]);
 
-  // Ref to track mapping state per investment ID
-  const lastMappedInvestmentId = useRef<string | null>(null);
 
-  // Separate effect: Map dynamic fields after catalog data is loaded
-  useEffect(() => {
-    if (!rawInvestmentData || !investmentCatalogData || investmentCatalogLoading) {
-      return; // Wait for both raw data and catalog to be available
-    }
-
-    const currentInvestmentId = formValues.id || 'create-mode';
-    
-    // Check if we've already mapped for this specific investment
-    if (lastMappedInvestmentId.current === currentInvestmentId) {
-      return; // Already mapped for this investment
-    }
-
-    const mapDynamicFields = () => {
-      const fieldsDef = getFormFieldsDefinition();
-      
-      if (fieldsDef) {
-        const dynamicDefaults = mapInvestmentDataToFormFields(rawInvestmentData, fieldsDef);
-        
-        if (Object.keys(dynamicDefaults).length > 0) {
-          // Create merged object directly and set form values
-          const mergedFormValues = { ...formValues, ...dynamicDefaults };
-          setFormValues(mergedFormValues);
-          
-          // Mark this investment as mapped
-          lastMappedInvestmentId.current = currentInvestmentId;
-        }
-      }
-    };
-
-    mapDynamicFields();
-  }, [rawInvestmentData, investmentCatalogData, investmentCatalogLoading, formValues.id, getFormFieldsDefinition]);
-
-  // Reset dynamic fields mapping when investment type or liquid fund type changes (only for create mode)
-  useEffect(() => {
-    const isUpdateMode = Boolean(formValues.id);
-    if (!isUpdateMode) {
-      lastMappedInvestmentId.current = null; // Reset for create mode when type changes
-    }
-  }, [formValues.investmentTypeRef, formValues.investmentLiquidFundTypeRef, formValues.id]);
-
-  // Step 3: Handle group selection from SelectSegment
+  // Handle group selection from SelectSegment
   const handleGroupSelect = (group: string) => {
-    // Reset dynamic fields mapping when group changes (only for create mode)
-    const isUpdateMode = Boolean(formValues.id);
-    if (!isUpdateMode) {
-      lastMappedInvestmentId.current = null;
-    }
-    
     // Clean form values when switching groups in create mode
-    // Preserve existing ownerEmployeeId if it exists, fallback to currentEmployee or businessAppContext
-    const preservedOwnerId = formValues.ownerEmployeeId || 
-                           currentEmployee?.id || 
-                           businessAppContext.userInfo?.employeeDetails?.employeeId || 
-                           '';
+    // NOTE: Form state stores full objects for catalog/entity fields
+    // Preserve existing owner if it exists, fallback to currentEmployee
+    const preservedOwner = formValues.investment.ownerEmployee || currentEmployee;
     
-    // Extract group code from the full reference for internal use
-    const groupCode = group?.includes(':') ? group.split(':')[2] : group;
-    
-    const cleanFormValues = {
-      ownerEmployeeId: preservedOwnerId,
-      name: formValues.name || '',
-      group: groupCode, // Store just the code for internal logic
-      investmentGroupRef: group, // Store the full reference for API
-      // Keep system fields if updating
-      ...(isUpdate && { 
-        id: formValues.id, 
-        version: formValues.version 
-      }),
-    };
-    
-    setFormValues(cleanFormValues);
+    setFormValues({ 
+      investment: {
+        ownerEmployee: preservedOwner as any, // Full employee object
+        name: formValues.investment.name || '',
+        investmentGroup: { id: group } as any, // Minimal catalog object (will be enriched by components)
+        investmentStatus: { id: 'InvestmentStatus:v1:ACTIVE', code: 'ACTIVE' } as any, // Default status as object
+        // Keep system fields if updating
+        ...(isUpdate && { 
+          id: formValues.investment.id, 
+          version: formValues.investment.version 
+        }),
+      }
+    } as Partial<InvestmentFormValues>);
     setCurrentStep('form');
   };
 
   // Handle going back to group selection (only for create mode without pre-selected group)
   const handleBack = () => {
     if (!isUpdate && !preSelectedGroup) {
-      // Preserve the owner employee ID when going back
-      const preservedOwnerId = formValues.ownerEmployeeId || 
-                             currentEmployee?.id || 
-                             businessAppContext.userInfo?.employeeDetails?.employeeId || 
-                             '';
-      setFormValues({ ownerEmployeeId: preservedOwnerId });
+      // Preserve the owner employee when going back
+      const preservedOwner = formValues.investment.ownerEmployee || currentEmployee;
+      setFormValues({ 
+        investment: { ownerEmployee: preservedOwner } // Full employee object
+      } as Partial<InvestmentFormValues>);
       setCurrentStep('select');
     }
   };
@@ -379,10 +219,15 @@ export const InvestmentFormComponent: React.FC = () => {
   // Create form resolver based on current form state and dynamic fields
   const [formFieldsDefinition, setFormFieldsDefinition] = useState<any>(null);
   
+  // State to store the current currency catalog entry
+  const [currencyEntry, setCurrencyEntry] = useState<any>(null);
+  
+  const catalogClient = useCatalogManagerClient(businessAppContext.accessToken);
+  
   // Get form fields definition for validation
   useEffect(() => {
     const loadFormFields = async () => {
-      if (formValues.investmentTypeRef) {
+      if (formValues.investment.investmentType) { // Without Ref suffix
         try {
           const fieldsDef = getFormFieldsDefinition();
           setFormFieldsDefinition(fieldsDef);
@@ -393,39 +238,76 @@ export const InvestmentFormComponent: React.FC = () => {
     };
     
     loadFormFields();
-  }, [formValues.group, formValues.investmentTypeRef, formValues.investmentLiquidFundTypeRef, getFormFieldsDefinition]);
+  }, [formValues.investment.investmentGroup, formValues.investment.investmentType, formValues.liquidFundInvestment?.investmentLiquidFundType, getFormFieldsDefinition]); // Without Ref suffixes
   
   const formResolver = createInvestmentFormResolver(formFieldsDefinition);
   
-  // CLEAN ARCHITECTURE: Use unified data transformation
-  const unifiedFormValues = useUnifiedInvestmentData(formValues, businessAppContext, currentEmployee);
-  
-  // Debug logging for form values (can be removed in production)
-  // useEffect(() => {
-  //   console.log('Current formValues:', formValues);
-  //   console.log('Unified form values:', unifiedFormValues);
-  // }, [formValues, unifiedFormValues]);
-  
+  // Form already uses nested structure - no transformation needed!
   const form = useForm<InvestmentFormValues>({
     resolver: formResolver as any,
-    values: unifiedFormValues, // Always sync with unified data
+    values: formValues, // Direct nested structure
     resetOptions: {
       keepDirtyValues: true, // Preserve user input during resets
     },
   });
 
-
-  // CLEAN ARCHITECTURE: No manual form reset needed
-  // The 'values' prop with 'keepDirtyValues: true' handles this automatically
+  // Watch the currency field for real-time updates (without Ref suffix)
+  const selectedCurrencyRef = useWatch({
+    control: form.control,
+    name: 'investment.currency', // Without Ref suffix
+  });
+  
+  // Load currency entry when currency changes
+  useEffect(() => {
+    const loadCurrencyEntry = async () => {
+      if (!selectedCurrencyRef || !businessAppContext.accessToken) {
+        setCurrencyEntry(null);
+        return;
+      }
+      
+      // If selectedCurrencyRef is already a catalog object, use it directly
+      if (typeof selectedCurrencyRef === 'object' && selectedCurrencyRef.id) {
+        setCurrencyEntry(selectedCurrencyRef);
+        return;
+      }
+      
+      try {
+        // selectedCurrencyRef is a string ID (e.g., "Currency:v1:EUR")
+        const response = await catalogClient.getCatalogEntryById(selectedCurrencyRef as unknown as string);
+        setCurrencyEntry(response);
+      } catch (error) {
+        console.error('Error loading currency entry:', error);
+        setCurrencyEntry(null);
+      }
+    };
+    
+    loadCurrencyEntry();
+  }, [selectedCurrencyRef, businessAppContext.accessToken, catalogClient]);
+  
+  // Get currency symbol from currency entry or raw investment data
+  const currencySymbol = useMemo(() => {
+    // Priority 1: Use the currently selected currency from the form
+    if (currencyEntry) {
+      return getCurrencySymbol(currencyEntry);
+    }
+    
+    // Priority 2: Try to get from raw investment data (for update mode initial load)
+    if (rawInvestmentData?.currency) {
+      return getCurrencySymbol(rawInvestmentData.currency);
+    }
+    
+    // Fallback to empty string (user needs to select currency)
+    return '';
+  }, [currencyEntry, rawInvestmentData]);
 
 
   // Show loading spinner
   if (isLoadingInvestment) {
   return (
-      <div className="loading-container" data-testid={`${prefixDataTestId}-loading`}>
-        <div className="loading-content">
-          <div className="loading-spinner" />
-          <p>Loading investment data...</p>
+      <div className="gba:flex gba:justify-center gba:items-center gba:p-8" data-testid={`${prefixDataTestId}-loading`}>
+        <div className="gba:flex gba:flex-col gba:items-center gba:gap-4">
+          <div className="gba:animate-spin gba:rounded-full gba:h-12 gba:w-12 gba:border-b-2 gba:border-primary" />
+          <p className="gba:text-muted-foreground">Loading investment data...</p>
                 </div>
               </div>
     );
@@ -434,11 +316,11 @@ export const InvestmentFormComponent: React.FC = () => {
   // Show error state
   if (loadingError) {
     return (
-      <div className="error-container" data-testid={`${prefixDataTestId}-error`}>
-        <div className="error-content">
-          <h3>Error Loading Investment</h3>
-          <p>{loadingError}</p>
-          <div className="error-actions">
+      <div className="gba:flex gba:justify-center gba:items-center gba:p-8" data-testid={`${prefixDataTestId}-error`}>
+        <div className="gba:flex gba:flex-col gba:items-center gba:gap-4 gba:max-w-md gba:text-center">
+          <h3 className="gba:text-lg gba:font-semibold gba:text-destructive">Error Loading Investment</h3>
+          <p className="gba:text-muted-foreground">{loadingError}</p>
+          <div className="gba:flex gba:gap-2 gba:mt-2">
             <Button
               variant="outline" 
               onClick={() => window.location.reload()}
@@ -477,38 +359,15 @@ export const InvestmentFormComponent: React.FC = () => {
   return (
       <AppActionForm
         form={form} 
-        formData={unifiedFormValues}
+        formData={formValues}
         processType={isUpdate ? 'update' : 'create'}
         submitButtonText={isUpdate ? 'Update' : 'Create'}
-        validateForm={() => {
-          // Use react-hook-form validation state instead of bypassing validation entirely
-          const errors = form.formState.errors;
-          if (Object.keys(errors).length > 0) {
-            const errorMessages = Object.entries(errors).map(([field, error]) => 
-              `${field}: ${error?.message || 'Invalid value'}`
-            );
-            return errorMessages; // Return array of error messages
-          }
-          return null; // Return null when validation passes
-        }}
         onSubmit={async (formData) => {
           try {
-            // CLEAN ARCHITECTURE: Ensure investmentGroupRef is properly formatted and required fields are present
-            const enhancedFormData = {
-              ...formData,
-              // Ensure investmentGroupRef is in correct format
-              investmentGroupRef: formData.investmentGroupRef || (formData.group ? `InvestmentGroup:v1:${formData.group}` : ''),
-              // Ensure ownerEmployeeId is present (should already be from unified data)
-              ownerEmployeeId: formData.ownerEmployeeId || businessAppContext.userInfo?.employeeDetails?.employeeId || '',
-              // Don't override accountId and contactId - let validation handle missing value
-            };
-            
-            // Build payload directly - no manual field injection needed
-            const payload = buildInvestmentPayload(enhancedFormData, businessAppContext, { 
+            const payload = buildInvestmentPayload(formData, businessAppContext, { 
               isUpdate, 
               rawInvestmentData 
             });
-            
             return payload;
           } catch (error) {
             console.error('❌ Error building payload:', error);
@@ -521,65 +380,54 @@ export const InvestmentFormComponent: React.FC = () => {
       <div data-testid={`${prefixDataTestId}-content`} className="gba:space-y-6">
         
         {/* Group Display Header (only show for overview context) */}
-        {formValues.group && isOverviewContext() && (
+        {groupCode && isOverviewContext() && (
           <div 
             data-testid={`${prefixDataTestId}-selected-group`}
-            style={{ 
-              display: 'flex', 
-              alignItems: 'center', 
-              gap: 'var(--nw-spacing-sm)', 
-              padding: 'var(--nw-spacing-md)',
-              backgroundColor: 'var(--nw-color-surface-secondary)',
-              borderRadius: 'var(--nw-border-radius-md)',
-              border: '1px solid var(--nw-color-border-default)'
-            }}
           >
             {/* Back Button for overview context (only in create mode) */}
             {!isUpdate ? (
               <Badge 
                 variant="secondary" 
-                style={{ 
-                  display: 'flex', 
-                  alignItems: 'center', 
-                  gap: 'var(--nw-spacing-xs)',
-                  fontSize: '0.875rem',
-                  fontWeight: 500,
-                  cursor: 'pointer',
-                  transition: 'background-color 0.2s ease',
-                }}
+                className="gba:flex gba:items-center gba:gap-1 gba:text-sm gba:font-medium gba:cursor-pointer gba:transition-colors gba:hover:bg-accent"
                 onClick={handleBack}
                 data-testid={formatDataTestId(`${prefixDataTestId}-back-badge`)}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.backgroundColor = 'var(--nw-color-surface-primary)';
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.backgroundColor = '';
-                }}
               >
                 Back
-                <PiSwap style={{ width: '14px', height: '14px', opacity: 0.7 }} />
+                <PiSwap className="gba:w-3.5 gba:h-3.5 gba:opacity-70" />
               </Badge>
             ) : null}
             </div>
           )}
 
-        {/* Investment Basic Information */}
-          <InvestmentSegment />
+              {/* Investment Basic Information */}
+              <InvestmentSegment />
 
-        {/* Investment Type Selector */}
-        <InvestmentTypeSelector currentGroup={formValues.group} />
+              {/* Investment Type Selector */}
+              <TypeSelectSegment currentGroup={groupCode || ''} isUpdate={isUpdate} />
 
-        {/* NEW: Liquid Fund Type Selector (for liquid funds with investment type selected) */}
-        {isLiquidFund && hasInvestmentType && (
-          <InvestmentLiquidFundTypeSelector currentInvestmentType={formValues.investmentTypeRef || ''} />
-        )}
+              {/* Liquid Fund Type Selector (for liquid funds with investment type selected) */}
+              {isLiquidFund && hasInvestmentType && (
+                <LiquidFundTypeSelectSegment 
+                  currentInvestmentType={
+                    typeof formValues.investment.investmentType === 'object' 
+                      ? formValues.investment.investmentType.id 
+                      : (formValues.investment.investmentType || '')
+                  }
+                  isUpdate={isUpdate}
+                />
+              )}
 
         {/* Dynamic Fields - Conditional Display:
              - For NON-liquid funds: Show when investment type is selected
              - For liquid funds: Show when BOTH investment type AND liquid fund type are selected */}
-        {((formValues.investmentTypeRef && !isLiquidFund) || 
-          (isLiquidFund && hasInvestmentType && hasLiquidFundType)) && (
-          <DynamicGroupSegment />
+        {((hasInvestmentType && !isLiquidFund) || 
+            (isLiquidFund && hasInvestmentType && hasLiquidFundType)) && (
+          <DynamicSegment
+            currencySymbol={currencySymbol}
+            testIdPrefix={prefixDataTestId}
+            rawInvestmentData={rawInvestmentData}
+            isUpdate={isUpdate}
+          />
         )}
           </div>
       </AppActionForm>

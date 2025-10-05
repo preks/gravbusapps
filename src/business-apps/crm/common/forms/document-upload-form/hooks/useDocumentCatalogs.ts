@@ -74,7 +74,6 @@ export const useDocumentCatalogs = (
         code: entry.code
       })) || [];
 
-      console.log('Document Groups fetched:', groupData);
       setDocumentGroups(groupData);
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Failed to fetch document groups';
@@ -102,7 +101,6 @@ export const useDocumentCatalogs = (
           includeChildCatalogEntries: true
         }
       );
-      console.log('Document Types fetched:', response.data);
 
       const typeData = response.data?.map((entry: any) => ({
         id: entry.id,
@@ -113,7 +111,6 @@ export const useDocumentCatalogs = (
         parentId: entry.parentEntryId || null, // Use the correct field name
       })) || [];
 
-      console.log('Document Types processed:', typeData);
       setDocumentTypes(typeData);
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Failed to fetch document types';
@@ -131,14 +128,6 @@ export const useDocumentCatalogs = (
     // Strict exact match - Selected: "DocumentGroup:v1:PERSONAL" should match parent: "DocumentGroup:v1:PERSONAL"
     return type.parentId === selectedGroupId;
   });
-
-  // Simple debug logging
-  console.log('Filtering - Selected Group:', selectedGroupId);
-  console.log('Total Document Types:', documentTypes.length);
-  console.log('Filtered Document Types:', filteredDocumentTypes.length);
-  if (filteredDocumentTypes.length > 0) {
-    console.log('Filtered types:', filteredDocumentTypes.map(t => t.value));
-  }
 
   const refetch = useCallback(() => {
     fetchDocumentGroups();

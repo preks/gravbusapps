@@ -35,7 +35,6 @@ import {
 } from "../hooks/useLeadCatalogs";
 
 // ✅ ADDED: New catalog constants for searchable dropdowns
-export const SALUTATION_CATALOG = "Salutation";
 export const ACADEMIC_TITLE_CATALOG = "AcademicTitle";
 
 import { useSalesCampaignsGraphQL } from "../../../hooks/useSalesCampaignsGraphQL";
@@ -243,7 +242,6 @@ export const LeadFormProvider: React.FC<LeadFormProviderProps> = ({
     rating: "",
 
     // Contact Information
-    salutation: "",
     academicTitle: "", // ✅ ADDED: Academic title (PhD, MBA, etc.)
     firstName: "",
     lastName: "",
@@ -251,6 +249,10 @@ export const LeadFormProvider: React.FC<LeadFormProviderProps> = ({
     phone: "",
     email: "",
     sensitive: false, // ✅ ADDED: Sensitive data flag
+
+    // Social Media Information
+    linkedinUrl: "",
+    xingUrl: "",
 
     // Company Information
     legalForm: "",
@@ -564,13 +566,6 @@ export const LeadFormProvider: React.FC<LeadFormProviderProps> = ({
   );
 
   // ✅ ADDED: New searchable catalog configs
-  const salutationsConfig = useMemo(
-    () => ({
-      accessToken: businessAppContext.accessToken,
-      catalogIdentifier: SALUTATION_CATALOG,
-    }),
-    [businessAppContext.accessToken]
-  );
 
   const academicTitlesConfig = useMemo(
     () => ({
@@ -632,7 +627,6 @@ export const LeadFormProvider: React.FC<LeadFormProviderProps> = ({
   const revenueSizesHook = useSearchableCatalog(revenueSizesConfig);
 
   // ✅ ADDED: New searchable catalog hooks
-  const salutationsHook = useSearchableCatalog(salutationsConfig);
   const academicTitlesHook = useSearchableCatalog(academicTitlesConfig);
   const investmentTypesHook = useSearchableCatalog(investmentTypesConfig);
   const investmentGroupsHook = useSearchableCatalog(investmentGroupsConfig);
@@ -667,7 +661,6 @@ export const LeadFormProvider: React.FC<LeadFormProviderProps> = ({
       employeeSizesHook.initialize();
       revenueSizesHook.initialize();
       // ✅ ADDED: Initialize new searchable catalogs
-      salutationsHook.initialize();
       academicTitlesHook.initialize();
       investmentTypesHook.initialize();
       investmentGroupsHook.initialize();
@@ -1105,17 +1098,6 @@ export const LeadFormProvider: React.FC<LeadFormProviderProps> = ({
     // ✅ ADDED: New searchable catalog properties
     regions: [], // Empty array placeholder - should be loaded from catalog
 
-    // Salutations
-    salutations: salutationsHook.allOptions,
-    salutationsLoading: salutationsHook.loading,
-    salutationsError: salutationsHook.error,
-    salutationsHasMore: salutationsHook.hasMore,
-    salutationsNeedsMoreData: salutationsHook.needsMoreData,
-    salutationsDisplayCount: salutationsHook.displayCount,
-    salutationsTotalFetched: salutationsHook.totalFetched,
-    searchSalutations: salutationsHook.search,
-    loadMoreSalutations: salutationsHook.loadMore,
-    showMoreSalutations: salutationsHook.showMore,
 
     // Academic Titles
     academicTitles: academicTitlesHook.allOptions,

@@ -1,9 +1,10 @@
-import React from 'react';
-import { Button, TimelineLayout, Badge } from '@newwork/nw-design-system';
+import React, { useState } from 'react';
+import { Button, TimelineLayout, Badge, Sheet, SheetContent, SheetHeader, SheetTitle } from '@newwork/nw-design-system';
 import { AppAction } from '@/components/app-action';
 import { AppActionMenu } from '@/components/app-action-menu/AppActionMenu';
 import type { AppActionCommonProps } from '@/common/hooks/useAppActionData';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
+import { TaskDetailSheet, Task as CommonTask, TaskReference } from '@/common/components/common-relations/detail-sheets/task-detail-sheet';
 import dayjs from 'dayjs';
 import { CheckIcon, ClockIcon, WarningIcon, PlayIcon, PlusIcon, DotsThreeVertical } from '@phosphor-icons/react';
 import { buildPlatformUrl } from '@/common/utils/navigationUtils';
@@ -19,6 +20,7 @@ type CatalogEntry = {
 type TaskItem = {
   id: string;
   title: string;
+  description?: string;
   createdAt?: string;
   due?: string;
   assignee?: string;
@@ -31,6 +33,7 @@ type TaskItem = {
     firstName?: string;
     lastName?: string;
   };
+  reference?: TaskReference;
 };
 
 interface TaskSectionProps extends BusinessAppContextProps {
@@ -44,9 +47,11 @@ interface TaskSectionProps extends BusinessAppContextProps {
   taskActionProps?: Omit<AppActionCommonProps, 'accessToken'>;
   taskEntityActionProps?: Omit<AppActionCommonProps, 'accessToken'>;
   sectionTitle?: string;
+  buildReferenceUrl?: (reference: TaskReference) => string;
 }
 
-const TaskSection: React.FC<TaskSectionProps> = ({ accessToken, tasks, taskEntityActionProps }) => {
+const TaskSection: React.FC<TaskSectionProps> = ({ accessToken, tasks, taskEntityActionProps, buildReferenceUrl }) => {
+  const [selectedTask, setSelectedTask] = useState<CommonTask | null>(null);
   // Determine color and icon based on status
   const getStatusColorAndIcon = (statusCode?: string) => {
     if (statusCode === 'COMPLETED') {
@@ -77,6 +82,33 @@ const TaskSection: React.FC<TaskSectionProps> = ({ accessToken, tasks, taskEntit
       color: 'info', 
       icon: (props: any) => <ClockIcon weight="bold" {...props} />
     };
+  };
+
+  // Convert TaskItem to CommonTask format
+  const convertToCommonTask = (taskItem: TaskItem): CommonTask => {
+    return {
+      id: taskItem.id,
+      name: taskItem.title,
+      description: taskItem.description || '',
+      assignedTo: {
+        id: taskItem.assigneeEmployee?.id || '',
+        firstName: taskItem.assigneeEmployee?.firstName || '',
+        lastName: taskItem.assigneeEmployee?.lastName || '',
+        displayName: taskItem.assigneeEmployee?.displayName || taskItem.assignee || 'Unknown',
+      },
+      type: taskItem.taskPriority?.type || '',
+      priority: (taskItem.taskPriority?.type?.toLowerCase() as any) || 'medium',
+      status: (taskItem.statusCode?.toLowerCase() as any) || 'pending',
+      dueDate: taskItem.due || taskItem.createdAt || '',
+      createdAt: taskItem.createdAt || '',
+      updatedAt: taskItem.createdAt || '',
+      reference: taskItem.reference,
+    };
+  };
+
+  const handleTaskClick = (taskItem: TaskItem) => {
+    const commonTask = convertToCommonTask(taskItem);
+    setSelectedTask(commonTask);
   };
 
   const getEmployeeDisplayName = (emp: any) => {
@@ -123,10 +155,11 @@ const TaskSection: React.FC<TaskSectionProps> = ({ accessToken, tasks, taskEntit
   };
 
   return (
-    <div data-testid="task-section">
-      {tasks && tasks.length > 0 ? (
-        <TimelineLayout
-          items={tasks.map((t, idx) => {
+    <>
+      <div data-testid="task-section">
+        {tasks && tasks.length > 0 ? (
+          <TimelineLayout
+            items={tasks.map((t, idx) => {
             const createdDate = t.createdAt ? (dayjs(t.createdAt).isValid() ? dayjs(t.createdAt).format('MMM D, YYYY [at] h:mm A') : t.createdAt) : '';
             const due = t.due ? (dayjs(t.due).isValid() ? dayjs(t.due).format('MMM D, YYYY [at] h:mm A') : t.due) : '';
             const descParts: string[] = [];
@@ -147,7 +180,8 @@ const TaskSection: React.FC<TaskSectionProps> = ({ accessToken, tasks, taskEntit
                   taskId: t.id
                 }}
                 prefixDataTestId={`${taskEntityActionProps.prefixDataTestId}-${t.id}`}
-                emptyStateBehavior={taskEntityActionProps.emptyStateBehavior}
+                deferMainContextRequestsUntilClick={true}
+                emptyStateBehavior="enable"
               >
                 <div 
                   className="gba:flex gba:items-center gba:justify-center gba:h-6 gba:w-6 gba:cursor-pointer gba:rounded gba:hover:bg-muted gba:transition-colors"
@@ -163,7 +197,11 @@ const TaskSection: React.FC<TaskSectionProps> = ({ accessToken, tasks, taskEntit
               date: createdDate,
               title: (
                 <div className="gba:flex gba:items-center gba:justify-between gba:w-full gba:gap-2">
-                  <div className="gba:flex gba:items-center gba:gap-2 gba:flex-1 gba:min-w-0">
+                  <div 
+                    className="gba:flex gba:items-center gba:gap-2 gba:flex-1 gba:min-w-0 gba:cursor-pointer hover:gba:bg-accent gba:rounded gba:px-2 gba:py-1 gba:-mx-2 gba:-my-1 gba:transition-colors"
+                    onClick={() => handleTaskClick(t)}
+                    data-testid={`task-item-${t.id}`}
+                  >
                     <span className="gba:truncate">{t.title}</span>
                     {t.taskStatus && (
                       <Badge variant={getStatusBadgeVariant(t.taskStatus)} size="sm">
@@ -186,6 +224,7 @@ const TaskSection: React.FC<TaskSectionProps> = ({ accessToken, tasks, taskEntit
                         href={buildPlatformUrl('/platform/employee-record', { employeeId: assigneeId })}
                         className="gba:underline gba:text-inherit hover:gba:text-primary"
                         data-testid={`task-assignee-link-${assigneeId}`}
+                        onClick={(e) => e.stopPropagation()}
                       >
                         {assigneeName}
                       </a>
@@ -202,12 +241,39 @@ const TaskSection: React.FC<TaskSectionProps> = ({ accessToken, tasks, taskEntit
           datePosition="inline"
           className="gba:w-full"
         />
-      ) : (
-        <div className="gba:text-center gba:text-sm gba:text-muted-foreground">
-          {getTranslationFromI18nKeyAndLabel('tasks.emptyState', 'No tasks yet. Create your first task.')}
-        </div>
-      )}
-    </div>
+        ) : (
+          <div className="gba:text-center gba:text-sm gba:text-muted-foreground">
+            {getTranslationFromI18nKeyAndLabel('tasks.emptyState', 'No tasks yet. Create your first task.')}
+          </div>
+        )}
+      </div>
+
+      {/* Task Details Sheet */}
+      <Sheet 
+        open={!!selectedTask} 
+        onOpenChange={(open) => {
+          if (!open) setSelectedTask(null);
+        }}
+        title="Task Details"
+      >
+        <SheetContent className="gba:!w-[500px] gba:sm:!w-[500px] gba:!max-w-[90vw] gba:p-0 gba:flex gba:flex-col">
+          <SheetHeader className="gba:px-6 gba:py-6 gba:border-b gba:border-border gba:shrink-0">
+            <SheetTitle className="gba:text-xl gba:font-semibold gba:text-left">
+              {selectedTask?.name || getTranslationFromI18nKeyAndLabel('tasks.taskDetails', 'Task Details')}
+            </SheetTitle>
+          </SheetHeader>
+          <div className="gba:flex-1 gba:overflow-hidden gba:px-6">
+            {selectedTask ? (
+              <TaskDetailSheet task={selectedTask} buildReferenceUrl={buildReferenceUrl} data-testid="task-section-detail-sheet" />
+            ) : (
+              <div className="gba:p-4 gba:text-center gba:text-muted-foreground">
+                No task selected
+              </div>
+            )}
+          </div>
+        </SheetContent>
+      </Sheet>
+    </>
   );
 };
 

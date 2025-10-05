@@ -62,6 +62,9 @@ export const INVESTMENT = `
     investmentStakeType {
         ${CATALOG_ENTRY}
     }
+    investmentPhase {
+        ${CATALOG_ENTRY}
+    }
     investmentStatus {
         ${CATALOG_ENTRY}
     }
@@ -75,6 +78,17 @@ export const INVESTMENT = `
     # Employee relationship
     ownerEmployee {
         ${EMPLOYEE_REF}
+    }
+    
+    # Investment Role relationships (array)
+    investmentRole(where: { isDeleted: { _eq: false } }, orderBy: { displayOrder: ASC_NULLS_LAST }) {
+        id
+        version
+        displayOrder
+        isDeleted
+        investmentRole {
+            ${CATALOG_ENTRY}
+        }
     }
 `;
 

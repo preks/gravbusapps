@@ -6,6 +6,7 @@ import { FlowContextName } from '@/common/types/FlowRegistryTypes';
 import { PiGlobe, PiPhone, PiUsers, PiMapPin, PiCaretLeft, PiCaretRight } from 'react-icons/pi';
 import { BankIcon, ChartLineUpIcon } from '@phosphor-icons/react';
 import { formatAddress } from '@/common/utils/addressFormatter';
+import { navigateTo } from '@/common/utils/navigationUtils';
 
 interface AddressObject {
   addressLine?: {
@@ -31,9 +32,10 @@ interface AccountSectionProps extends Partial<BusinessAppContextProps> {
     externalContextData?: Record<string, any>;
     prefixDataTestId?: string;
   };
+  recordUrl?: string;
 }
 
-const AccountSection: React.FC<AccountSectionProps> = ({ accountId, accountData, account, accounts, address, className = '', actionButtonProps, ...props }) => {
+const AccountSection: React.FC<AccountSectionProps> = ({ accountId, accountData, account, accounts, address, className = '', actionButtonProps, recordUrl, ...props }) => {
   const accountList = useMemo(() => {
     const arr = Array.isArray(accounts) ? accounts.filter(Boolean) : [];
     return arr;
@@ -69,6 +71,16 @@ const AccountSection: React.FC<AccountSectionProps> = ({ accountId, accountData,
     }
   };
 
+  // Navigation handler
+  const handleTitleClick = () => {
+    if (recordUrl) {
+      navigateTo(recordUrl);
+    }
+  };
+
+  // Conditional logic for clickable title
+  const shouldShowClickableTitle = !!recordUrl;
+
   // Use the correct account data source
   const displayAccount = hasMultiple ? selectedAccount : (accountData || account || initialSelected);
 
@@ -85,6 +97,7 @@ const AccountSection: React.FC<AccountSectionProps> = ({ accountId, accountData,
         onNext={handleNext}
         className={className}
         actionButtonProps={actionButtonProps}
+        onTitleClick={shouldShowClickableTitle ? handleTitleClick : undefined}
       />
     </div>
   );
@@ -134,6 +147,7 @@ interface InlinedCompanyInformationProps {
     externalContextData?: Record<string, any>;
     prefixDataTestId?: string;
   };
+  onTitleClick?: () => void;
 }
 
 const AccountCompanyInformation: React.FC<InlinedCompanyInformationProps> = ({ 
@@ -145,7 +159,8 @@ const AccountCompanyInformation: React.FC<InlinedCompanyInformationProps> = ({
   totalCount = 1,
   onPrevious,
   onNext,
-  className = ''
+  className = '',
+  onTitleClick
 }) => {
   const cardClassName = `gba:w-full ${className}`.trim();
   
@@ -174,12 +189,23 @@ const AccountCompanyInformation: React.FC<InlinedCompanyInformationProps> = ({
               <TooltipProvider>
                 <Tooltip>
                   <TooltipTrigger asChild>
-                    <h3 
-                      className="gba:text-sm gba:font-semibold gba:text-card-foreground gba:truncate gba:min-w-0"
-                      data-testid="account-name"
-                    >
-                      {accountData?.name || account?.name || '-'}
-                    </h3>
+                    {onTitleClick ? (
+                      <button
+                        onClick={onTitleClick}
+                        className="gba:text-sm gba:font-semibold gba:text-card-foreground gba:truncate gba:min-w-0 gba:cursor-pointer gba:hover:underline gba:text-left gba:bg-transparent gba:border-none gba:p-0"
+                        data-testid="account-name-clickable"
+                        title="Click to view account record"
+                      >
+                        {accountData?.name || account?.name || '-'}
+                      </button>
+                    ) : (
+                      <h3 
+                        className="gba:text-sm gba:font-semibold gba:text-card-foreground gba:truncate gba:min-w-0"
+                        data-testid="account-name"
+                      >
+                        {accountData?.name || account?.name || '-'}
+                      </h3>
+                    )}
                   </TooltipTrigger>
                   <TooltipContent>
                     <p className="gba:max-w-xs gba:break-words">
