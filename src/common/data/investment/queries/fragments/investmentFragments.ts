@@ -226,6 +226,11 @@ export const LIQUID_FUND_INVESTMENT_REF = `
     interestRate
     maturityDate
     additionalProperties
+    
+    # Investment liquid fund type
+    investmentLiquidFundType {
+        ${CATALOG_ENTRY}
+    }
 `;
 
 export const LIQUID_FUND_INVESTMENT = `
