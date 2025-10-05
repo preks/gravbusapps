@@ -121,6 +121,11 @@ export const INVESTMENT_LEAD = `
           ${CATALOG_ENTRY}
         }
         
+        # Communication channels
+        communicationChannels {
+          ${INVESTMENT_COMMUNICATION_CHANNEL}
+        }
+        
         # Employee relationship
         ownerEmployee {
           ${EMPLOYEE_REF}
