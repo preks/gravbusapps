@@ -17,6 +17,7 @@ interface BarChartProps {
   data: {
     name: string;
     value: number;
+    [key: string]: any;
   }[];
   title: string;
   xAxisDataKey?: string;
@@ -126,7 +127,7 @@ const BarChartComponent: React.FC<BarChartProps> = ({
               cursor={false}
               content={
                 <ChartTooltipContent
-                  formatter={(value: any, _name: any, props: any) => {
+                  formatter={(value: any, _name: string) => {
                     if (valueType === 'count') {
                       const num = typeof value === 'number' ? value : Number(value ?? 0);
                       const itemsLabel = getTranslationFromI18nKeyAndLabel(
@@ -135,13 +136,8 @@ const BarChartComponent: React.FC<BarChartProps> = ({
                       );
                       return `${num} ${itemsLabel}`;
                     }
-                    const count = props?.payload?.count ?? null;
-                    const amountText = formatCurrencyDisplay(value, currency);
-                    const countLabelText = getTranslationFromI18nKeyAndLabel(
-                      "lowcoder:charts.tooltip.count",
-                      "Count",
-                    );
-                    return count === null ? amountText : `${amountText} (${countLabelText}: ${count})`;
+                    // For amount type, just return the formatted currency
+                    return formatCurrencyDisplay(value, currency);
                   }}
                 />
               }
