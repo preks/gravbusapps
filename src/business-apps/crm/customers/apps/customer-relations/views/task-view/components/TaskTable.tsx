@@ -25,7 +25,7 @@ import { PiUser, PiArrowUp, PiArrowDown, PiLightning } from "react-icons/pi";
 import { Clock, Calendar } from "lucide-react";
 import { AppActionButton } from "@/components/app-action-button/AppActionButton";
 import { FlowContextName } from "@/common/types/FlowRegistryTypes";
-import { Task } from "../types/TaskTypes";
+import { Task } from '@/common/components/common-relations/detail-sheets/task-detail-sheet';
 import {
   getTaskStatusBadgeVariant,
   getTaskPriorityBadgeVariant,
@@ -493,7 +493,7 @@ export const TaskTable: React.FC<TaskTableProps> = ({
                   >
                     {record.creatorEmployee ? (
                       <div className="gba:flex gba:items-center gba:gap-3 gba:cursor-pointer gba:hover:bg-gray-50 gba:p-2 gba:rounded gba:transition-colors" onClick={(e) => { e.stopPropagation(); handleEmployeeClick(record.creatorEmployee!); }} data-testid={`${DATA_TEST_ID_PREFIX}-creator-link-${record.id}`}>
-                        <Avatar size="sm"><AvatarFallback>{getInitials(record.creatorEmployee.firstName, record.creatorEmployee.lastName)}</AvatarFallback></Avatar>
+                        <Avatar size="sm"><AvatarFallback>{getInitials(record.creatorEmployee.firstName || '', record.creatorEmployee.lastName || '')}</AvatarFallback></Avatar>
                         <div className="gba:flex gba:flex-col">
                           <span className="gba:font-medium gba:text-sm">{record.creatorEmployee.displayName}</span>
                           <span className="gba:text-xs gba:text-gray-500">{record.creatorEmployee.department}</span>

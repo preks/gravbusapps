@@ -58,9 +58,6 @@ const PersonalInformationSection: React.FC = () => {
       !academicTitlesLoading &&
       academicTitlesHasMore
     ) {
-      console.log(
-        `🚀 Auto-loading more academic titles from API (${academicTitlesTotalFetched} fetched so far, loading 100 more)`
-      );
       loadMoreAcademicTitles();
     }
   }, [
@@ -74,9 +71,6 @@ const PersonalInformationSection: React.FC = () => {
   // Auto-load languages when needed
   useEffect(() => {
     if (languagesNeedsMoreData && !languagesLoading && languagesHasMore) {
-      console.log(
-        `🚀 Auto-loading more languages from API (${languagesTotalFetched} fetched so far, loading 100 more)`
-      );
       loadMoreLanguages();
     }
   }, [
@@ -94,9 +88,6 @@ const PersonalInformationSection: React.FC = () => {
       academicTitlesDisplayCount < academicTitlesTotalFetched &&
       academicTitlesTotalFetched > 5
     ) {
-      console.log(
-        `🚀 Academic Title dropdown opened - showing more from cache (${academicTitlesDisplayCount}/${academicTitlesTotalFetched})`
-      );
       showMoreAcademicTitles();
     }
   }, [
@@ -113,9 +104,6 @@ const PersonalInformationSection: React.FC = () => {
       languagesDisplayCount < languagesTotalFetched &&
       languagesTotalFetched > 5
     ) {
-      console.log(
-        `🚀 Language dropdown opened - showing more from cache (${languagesDisplayCount}/${languagesTotalFetched})`
-      );
       showMoreLanguages();
     }
   }, [
@@ -198,6 +186,7 @@ const PersonalInformationSection: React.FC = () => {
               <AlertDescription>{error}</AlertDescription>
             </Alert>
           )}
+
 
 
 
@@ -297,23 +286,6 @@ const PersonalInformationSection: React.FC = () => {
             />
           </div>
 
-          {/* Description */}
-          <div className="gba:space-y-2">
-            <Label className="gba:text-sm gba:font-medium gba:text-gray-900">
-              Description
-            </Label>
-            <Textarea
-              name="description"
-              value={formValues.description}
-              onChange={(e) => setFormValues({ description: e.target.value })}
-              placeholder="Please enter description..."
-              className="gba:border-gray-300 gba:bg-white gba:h-24"
-              data-testid={formatDataTestId(
-                prefixDataTestId,
-                "description-input"
-              )}
-            />
-          </div>
         </CardContent>
       )}
     </Card>

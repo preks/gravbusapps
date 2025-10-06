@@ -1,10 +1,12 @@
 import React, { useMemo, useState, useEffect } from 'react';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
-import { Card, CardHeader, CardTitle, CardContent, Button, Avatar, AvatarImage, AvatarFallback } from '@newwork/nw-design-system';
+import { Avatar, AvatarImage, AvatarFallback, IconAvatar, Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@newwork/nw-design-system';
+import { AppActionButton } from '@/components/app-action-button/AppActionButton';
+import { FlowContextName } from '@/common/types/FlowRegistryTypes';
 import { ContactData } from '@/business-apps/crm/common/apps/contact-record/queries/ContactQueries';
-import { PiLinkedinLogo, PiShareNetwork, PiUser, PiIdentificationCard, PiEnvelope, PiPhone, PiCaretLeft, PiCaretRight } from 'react-icons/pi';
-
-// UPDATED: Redesigned ContactSection to match wireframe - v2.0
+import { PiLinkedinLogo, PiShareNetwork, PiEnvelope, PiPhone, PiCaretLeft, PiCaretRight } from 'react-icons/pi';
+import { UserIcon } from '@phosphor-icons/react';
+import { navigateTo } from '@/common/utils/navigationUtils';
 
 interface ContactSectionProps extends Partial<BusinessAppContextProps> {
   contactId?: string;
@@ -12,9 +14,16 @@ interface ContactSectionProps extends Partial<BusinessAppContextProps> {
   contacts?: any[];
   className?: string;
   'data-testid'?: string;
+  // Optional configurable action props
+  actionButtonProps?: {
+    contextsArray?: FlowContextName[];
+    externalContextData?: Record<string, any>;
+    prefixDataTestId?: string;
+  };
+  recordUrl?: string;
 }
 
-const ContactSection: React.FC<ContactSectionProps> = ({ contactId, contact, contacts, className = '', ...props }) => {
+const ContactSection: React.FC<ContactSectionProps> = ({ contactId, contact, contacts, className = '', actionButtonProps, recordUrl, ...props }) => {
   const contactList: ContactData[] = useMemo(() => {
     const arr = Array.isArray(contacts) ? (contacts as ContactData[]).filter(Boolean) : [];
     return arr;
@@ -50,11 +59,21 @@ const ContactSection: React.FC<ContactSectionProps> = ({ contactId, contact, con
     }
   };
 
+  // Navigation handler
+  const handleTitleClick = () => {
+    if (recordUrl) {
+      navigateTo(recordUrl);
+    }
+  };
+
+  // Conditional logic for clickable title
+  const shouldShowClickableTitle = !!recordUrl;
+
   // Use the correct contact data source
   const displayContact = hasMultiple ? selectedContact : (contact || initialSelected);
 
   return (
-    <div data-testid={props['data-testid'] || 'contact-section'} className={`gba:w-full ${className}`}>
+    <div data-testid={props['data-testid'] || 'contact-section'} className={`gba:w-full gba:h-full ${className}`}>
       <ContactPersonalInfo
         contact={displayContact as ContactData}
         hasMultiple={hasMultiple}
@@ -62,16 +81,42 @@ const ContactSection: React.FC<ContactSectionProps> = ({ contactId, contact, con
         totalCount={contactList.length}
         onPrevious={handlePrevious}
         onNext={handleNext}
+        accessToken={props.accessToken}
+        actionButtonProps={actionButtonProps}
+        onTitleClick={shouldShowClickableTitle ? handleTitleClick : undefined}
       />
     </div>
   );
 };
 
+// Static properties for SectionWrapper
+(ContactSection as any).sectionTitle = 'Contact Information';
+(ContactSection as any).sectionActions = (props: ContactSectionProps) => {
+  const { accessToken, actionButtonProps, contact } = props;
+  
+  if (!actionButtonProps) {
+    return null;
+  }
+
+  return (
+    <AppActionButton 
+      data-testid="contact-action-button"
+      size="icon"
+      contextsArray={actionButtonProps.contextsArray || [FlowContextName.customerAccountEntity]}
+      externalContextData={{
+        contactId: contact?.id,
+        ...actionButtonProps.externalContextData
+      }}
+      prefixDataTestId={actionButtonProps.prefixDataTestId || "contact-section-action"}
+      accessToken={accessToken}
+      emptyStateBehavior="enable"
+      deferMainContextRequestsUntilClick
+    />
+  );
+};
+
 export default ContactSection;
 
-// Removed redundant Company Information card for contacts
-
-// Inlined from '@/business-apps/crm/common/apps/contact-record/components/ContactPersonalInfo'
 interface ContactPersonalInfoProps {
   contact: ContactData;
   hasMultiple?: boolean;
@@ -79,6 +124,13 @@ interface ContactPersonalInfoProps {
   totalCount?: number;
   onPrevious?: () => void;
   onNext?: () => void;
+  accessToken?: string;
+  actionButtonProps?: {
+    contextsArray?: FlowContextName[];
+    externalContextData?: Record<string, any>;
+    prefixDataTestId?: string;
+  };
+  onTitleClick?: () => void;
 }
 
 const ContactPersonalInfo: React.FC<ContactPersonalInfoProps> = ({ 
@@ -87,7 +139,8 @@ const ContactPersonalInfo: React.FC<ContactPersonalInfoProps> = ({
   currentIndex = 0,
   totalCount = 1,
   onPrevious,
-  onNext 
+  onNext,
+  onTitleClick
 }) => {
   // Helper function to build full name
   const buildFullName = () => {
@@ -109,162 +162,225 @@ const ContactPersonalInfo: React.FC<ContactPersonalInfoProps> = ({
     return parts.length > 0 ? parts.join(' • ') : '-';
   };
 
+  // Helper function to extract LinkedIn URL from communication channels
+  const getLinkedInUrl = () => {
+    const communicationChannels = (contact as any)?.communicationChannels;
+    if (!communicationChannels || !Array.isArray(communicationChannels)) {
+      return (contact as any)?.linkedinUrl || null;
+    }
+    return communicationChannels.find(
+      (channel: any) => channel.communicationChannelRef === "CommunicationChannel:v1:LinkedIn"
+    )?.value || null;
+  };
+
+  // Helper function to extract XING URL from communication channels
+  const getXingUrl = () => {
+    const communicationChannels = (contact as any)?.communicationChannels;
+    if (!communicationChannels || !Array.isArray(communicationChannels)) {
+      return (contact as any)?.xingUrl || null;
+    }
+    return communicationChannels.find(
+      (channel: any) => channel.communicationChannelRef === "CommunicationChannel:v1:Xing"
+    )?.value || null;
+  };
+
   // Check if contact has image/avatar
   const hasContactImage = (contact as any)?.pictureThumbnailUrl || (contact as any)?.pictureThumbnail || (contact as any)?.avatar;
   
   // Get dynamic field values
   const fullName = buildFullName();
   const jobInfo = buildJobInfo();
-  const hasName = fullName && fullName !== '-';
-  const hasJobInfo = jobInfo && jobInfo !== '-';
-  const hasEmail = contact?.email;
-  const hasPhone = contact?.phone;
 
   return (
-    <Card className="gba:w-full">
-      <CardHeader className="gba:flex gba:items-center gba:justify-between">
-
-          <CardTitle className="gba:text-base">
-            Contact Information
-            {hasMultiple && (
-              <span className="gba:text-xs gba:opacity-60 gba:ml-2">
-                {currentIndex + 1} of {totalCount}
-              </span>
-            )}
-          </CardTitle>
-          {hasMultiple && (
-            <div className="gba:flex gba:items-center gba:gap-1">
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={onPrevious}
-                data-testid="contacts-carousel-prev"
-                className="gba:p-1 gba:h-6 gba:w-6"
-              >
-                <PiCaretLeft style={{ fontSize: '12px' }} />
-              </Button>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={onNext}
-                data-testid="contacts-carousel-next"
-                className="gba:p-1 gba:h-6 gba:w-6"
-              >
-                <PiCaretRight style={{ fontSize: '12px' }} />
-              </Button>
-            </div>
+     <div className="gba:w-full gba:relative gba:flex gba:flex-col gba:h-full">
+       <div className="gba:space-y-2 gba:flex-1">
+        {/* Contact Name and Avatar */}
+        <div className="gba:flex gba:items-center gba:gap-3">
+          {hasContactImage ? (
+            <Avatar className="gba:h-12 gba:w-12">
+              <AvatarImage src={(contact as any)?.pictureThumbnailUrl || (contact as any)?.pictureThumbnail || (contact as any)?.avatar} alt={fullName} />
+              <AvatarFallback>
+                <UserIcon/>
+              </AvatarFallback>
+            </Avatar>
+          ) : (
+            <IconAvatar 
+              icon={UserIcon} 
+              variant="default" 
+              size="lg"
+              title="Contact"
+            />
           )}
-
-      </CardHeader>
-      <CardContent>
-        {/* Full Name with carousel navigation - v3.1 */}
-        {hasName && (
-          <div style={{ marginBottom: hasJobInfo || hasEmail || hasPhone ? '6px' : '0', display: 'flex', alignItems: 'center', gap: '8px' }}>
-            {/* Show contact avatar if available, otherwise show icon */}
-            {hasContactImage ? (
-              <Avatar className="gba:h-7 gba:w-7">
-                <AvatarImage src={(contact as any)?.pictureThumbnailUrl || (contact as any)?.pictureThumbnail || (contact as any)?.avatar} alt={fullName} />
-                <AvatarFallback>
-                  <PiUser style={{ fontSize: '14px' }} />
-                </AvatarFallback>
-              </Avatar>
-            ) : (
-               <div className="gba:h-7 gba:w-7 gba:flex gba:items-center gba:justify-center gba:bg-blue-50 gba:rounded-full">
-                 <PiUser 
-                   style={{ fontSize: '14px', color: '#3b82f6' }} 
-                   title="Contact name"
-                 />
-               </div>
-            )}
-            <div style={{ fontSize: '14px', fontWeight: '600', color: '#111827' }}>
-              {fullName}
+          <div className="gba:flex gba:flex-col gba:gap-1 gba:min-w-0 gba:flex-1">
+            <div className="gba:h-5 gba:flex gba:items-center gba:min-w-0">
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    {onTitleClick ? (
+                      <button
+                        onClick={onTitleClick}
+                        className="gba:text-sm gba:font-semibold gba:text-card-foreground gba:truncate gba:min-w-0 gba:cursor-pointer gba:hover:underline gba:text-left gba:bg-transparent gba:border-none gba:p-0"
+                        data-testid="contact-name-clickable"
+                        title="Click to view contact record"
+                      >
+                        {fullName || '-'}
+                      </button>
+                    ) : (
+                      <h3 
+                        className="gba:text-sm gba:font-semibold gba:text-card-foreground gba:truncate gba:min-w-0"
+                        data-testid="contact-name"
+                      >
+                        {fullName || '-'}
+                      </h3>
+                    )}
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p className="gba:max-w-xs gba:break-words">
+                      {fullName || '-'}
+                    </p>
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+            </div>
+            {/* Job Title and Department - directly under name */}
+            <div className="gba:h-5 gba:flex gba:items-center gba:min-w-0">
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <div 
+                      className="gba:text-xs gba:text-muted-foreground gba:truncate gba:min-w-0"
+                      data-testid="contact-secondary-info"
+                    >
+                      {jobInfo || '-'}
+                    </div>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p className="gba:max-w-xs gba:break-words">
+                      {jobInfo || '-'}
+                    </p>
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
             </div>
           </div>
-        )}
+        </div>
 
-        {/* Job Title + Department - Only show if has job info */}
-        {hasJobInfo && (
-          <div style={{ marginBottom: hasEmail || hasPhone ? '6px' : '0', display: 'flex', alignItems: 'center', gap: '8px' }}>
-             <PiIdentificationCard 
-               style={{ fontSize: '14px', color: '#6b7280', minWidth: '14px' }} 
-               title="Job title and department"
-             />
-            <div style={{ fontSize: '13px', fontWeight: '500', color: '#111827' }}>
-              {jobInfo}
-            </div>
-          </div>
-        )}
+        {/* Separator */}
+        <div className="gba:border-t"></div>
 
-        {/* Email - Only show if has email */}
-        {hasEmail && (
-          <div style={{ marginBottom: hasPhone ? '6px' : '0', display: 'flex', alignItems: 'center', gap: '8px' }}>
-             <PiEnvelope 
-               style={{ fontSize: '14px', color: '#6b7280', minWidth: '14px' }} 
-               title="Email address"
-             />
-            <div style={{ fontSize: '13px', fontWeight: '500', color: '#111827' }}>
-              <a 
-                href={`mailto:${contact.email}`}
-                style={{ color: '#3b82f6', textDecoration: 'none' }}
-                data-testid="contact-personal-info-email-link"
-              >
-                {contact.email}
-              </a>
-            </div>
-          </div>
-        )}
-
-        {/* Phone with Social Media Icons - Only show if has phone or social links */}
-        {(hasPhone || contact?.linkedinUrl || contact?.xingUrl) && (
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-            {hasPhone && (
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <PiPhone 
-                  style={{ fontSize: '14px', color: '#6b7280', minWidth: '14px' }} 
-                  title="Phone number"
-                />
-                <div style={{ fontSize: '13px', fontWeight: '500', color: '#111827' }}>
-                  <a 
-                    href={`tel:${contact.phone}`}
-                    style={{ color: '#3b82f6', textDecoration: 'none' }}
+        {/* Contact Information */}
+        <div>
+          {(() => {
+            const infoItems = [
+              {
+                icon: PiEnvelope,
+                title: "Email",
+                value: contact?.email,
+                render: (value: string) => value ? (
+                  <a
+                    href={`mailto:${value}`}
+                    className="gba:text-sm gba:text-muted-foreground gba:no-underline gba:hover:underline"
+                    data-testid="contact-personal-info-email-link"
+                  >
+                    {value}
+                  </a>
+                ) : null
+              },
+              {
+                icon: PiPhone,
+                title: "Phone",
+                value: contact?.phone,
+                render: (value: string) => value ? (
+                  <a
+                    href={`tel:${value}`}
+                    className="gba:text-sm gba:text-muted-foreground gba:no-underline gba:hover:underline"
                     data-testid="contact-phone-link"
                   >
-                    {contact.phone}
+                    {value}
                   </a>
-                </div>
-              </div>
-            )}
-            
-            {/* Social Media Icons - right aligned */}
-            {(contact?.linkedinUrl || contact?.xingUrl) && (
-              <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                {contact?.linkedinUrl && (
-                  <button
-                    onClick={() => window.open(contact.linkedinUrl, '_blank', 'noopener,noreferrer')}
-                    className="gba:p-1 gba:text-blue-600 hover:gba:text-blue-800 gba:transition-colors"
-                    data-testid="contact-linkedin-icon"
+                ) : null
+              },
+              {
+                icon: PiLinkedinLogo,
+                title: "LinkedIn",
+                value: getLinkedInUrl(),
+                render: (value: string) => value ? (
+                  <a
+                    href={value}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="gba:text-sm gba:text-muted-foreground hover:gba:underline"
+                    data-testid="contact-linkedin-link"
                     title="LinkedIn Profile"
-                    style={{ padding: '2px' }}
                   >
-                    <PiLinkedinLogo style={{ fontSize: '14px' }} />
-                  </button>
-                )}
-                {contact?.xingUrl && (
-                  <button
-                    onClick={() => window.open(contact.xingUrl, '_blank', 'noopener,noreferrer')}
-                    className="gba:p-1 gba:text-green-600 hover:gba:text-green-800 gba:transition-colors"
-                    data-testid="contact-xing-icon"
+                    LinkedIn
+                  </a>
+                ) : null
+              },
+              {
+                icon: PiShareNetwork,
+                title: "XING",
+                value: getXingUrl(),
+                render: (value: string) => value ? (
+                  <a
+                    href={value}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="gba:text-sm gba:text-muted-foreground hover:gba:underline"
+                    data-testid="contact-xing-link"
                     title="XING Profile"
-                    style={{ padding: '2px' }}
                   >
-                    <PiShareNetwork style={{ fontSize: '14px' }} />
-                  </button>
-                )}
-              </div>
-            )}
-          </div>
-        )}
-      </CardContent>
-    </Card>
+                    XING
+                  </a>
+                ) : null
+              }
+            ];
+
+            return infoItems.map((item, index) => {
+              const IconComponent = item.icon;
+              const content = item.render(item.value || '');
+              
+              return (
+                <div key={index} className="gba:flex gba:items-center gba:gap-2 gba:px-2 gba:py-1 gba:rounded">
+                  <IconComponent className="gba:text-sm gba:text-muted-foreground" title={item.title} />
+                  {content ? (
+                    <span className="gba:text-sm gba:text-muted-foreground">
+                      {content}
+                    </span>
+                  ) : (
+                    <span className="gba:text-sm gba:text-muted-foreground">-</span>
+                  )}
+                </div>
+              );
+            });
+          })()}
+        </div>
+      </div>
+
+       {/* Carousel Navigation - Bottom Right */}
+       {hasMultiple && (
+         <div className="gba:absolute gba:bottom-2 gba:right-2 gba:z-10">
+           <div className="gba:flex gba:items-center gba:gap-1 gba:rounded gba:border gba:bg-muted gba:px-2 gba:py-1 gba:shadow-sm gba:border-border">
+             <span className="gba:text-xs gba:font-medium gba:text-muted-foreground">
+               {currentIndex + 1}/{totalCount}
+             </span>
+             <button
+               onClick={onPrevious}
+               data-testid="contacts-carousel-prev"
+               className="gba:h-4 gba:w-4 gba:flex gba:items-center gba:justify-center gba:rounded gba:transition-colors gba:p-1 gba:text-muted-foreground hover:gba:bg-muted-foreground/10"
+             >
+               <PiCaretLeft className="gba:text-[10px]" />
+             </button>
+             <button
+               onClick={onNext}
+               data-testid="contacts-carousel-next"
+               className="gba:h-4 gba:w-4 gba:flex gba:items-center gba:justify-center gba:rounded gba:transition-colors gba:p-1 gba:text-muted-foreground hover:gba:bg-muted-foreground/10"
+             >
+               <PiCaretRight className="gba:text-[10px]" />
+             </button>
+           </div>
+         </div>
+       )}
+    </div>
   );
 };

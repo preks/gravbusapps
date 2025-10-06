@@ -133,7 +133,8 @@ const InvestmentTileSection: React.FC<InvestmentTileSectionProps> = ({
                     contextsArray={[FlowContextName.investmentTileUpdate]}
                     externalContextData={{ 
                       investmentId: investment?.id,
-                      tileKey: tile.key 
+                      tileKey: tile.key,
+                      scope: 'tile'
                     }}
                     prefixDataTestId={`${dataTestId}-edit-${tile.key}`}
                     accessToken={accessToken}

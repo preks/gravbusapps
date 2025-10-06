@@ -23,6 +23,7 @@ const DocumentUpdatePopup: React.FC<DocumentUpdatePopupProps> = ({ initialValues
     const contactId = src?.contactId || src?.contact || docFromAd?.contact || urlParams.get('contactId') || '';
     const leadId = src?.leadId || src?.lead || docFromAd?.lead || urlParams.get('leadId') || '';
     const opportunityId = src?.opportunityId || src?.opportunity || docFromAd?.opportunity || urlParams.get('opportunityId') || '';
+    const investmentId = src?.investmentId || src?.investment || docFromAd?.investment || urlParams.get('investmentId') || '';
 
     // Prepare the initial values for DocumentPopup in update mode
     return {
@@ -31,33 +32,46 @@ const DocumentUpdatePopup: React.FC<DocumentUpdatePopupProps> = ({ initialValues
         id: documentId,
         version: docFromAd?.version || 0,
         name: docFromAd?.name || '',
-        documentGroupRef: docFromAd?.documentGroupRef,
-        documentTypeRef: docFromAd?.documentTypeRef,
+        documentGroupRef: docFromAd?.documentGroupRef || '',
+        documentTypeRef: docFromAd?.documentTypeRef || '',
         description: docFromAd?.description || '',
         expirationDate: docFromAd?.expirationDate,
-        parentDocument: docFromAd?.parentDocument,
+        parentDocument: docFromAd?.parentDocument || '',
         folder: docFromAd?.folder || false,
         // Entity associations
         account: accountId,
         contact: contactId,
         lead: leadId,
         opportunity: opportunityId,
+        investment: investmentId,
       },
       // Pass through entity IDs
       accountId,
       contactId,
       leadId,
       opportunityId,
+      investmentId,
       // Pass through any additional data
       ...src,
     };
   }, [initialValues, props]);
 
+
+  // Force the form to have the correct values by ensuring they're not undefined
+  const forcedInitialValues = {
+    ...documentUpdateInitialValues,
+    investmentDocument: {
+      ...documentUpdateInitialValues?.investmentDocument,
+      documentGroupRef: documentUpdateInitialValues?.investmentDocument?.documentGroupRef || '',
+      documentTypeRef: documentUpdateInitialValues?.investmentDocument?.documentTypeRef || '',
+    }
+  };
+
   // Use DocumentPopup in update mode
   return (
     <DocumentPopup
       {...props}
-      initialValues={documentUpdateInitialValues}
+      initialValues={forcedInitialValues}
     />
   );
 };

@@ -21,7 +21,8 @@ export interface BaseInvestmentSummary {
  * Equity Investment Summary
  */
 export interface EquityInvestmentSummary extends BaseInvestmentSummary {
-  equityInvestment?: EquityInvestment;
+  equityInvestment?: EquityInvestment | { id: string; ebitdaAmount: number; marketValue: number; turnoverAmount: number; };
+  stakeTypeColor: string;
   riskLevelColor: string;
   roi: number;
   ebitdaMargin: number;

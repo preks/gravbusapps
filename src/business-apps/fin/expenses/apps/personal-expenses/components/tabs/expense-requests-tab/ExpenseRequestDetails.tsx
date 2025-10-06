@@ -62,16 +62,17 @@ const ExpenseRequestDetails: React.FC<ExpenseRequestDetailsProps> = ({
             return <Pill type={statusConfig.type} label={statusConfig.label} color={statusConfig.color} data-testid="expense-request-status-badge" />;
           })()}
           {(() => {
-            const availableActions = generateExpenseRequestActions(
-              selectedItem,
-              {
-                employeeId: contextProps.userInfo?.employeeDetails?.employeeId || '',
-                accessToken: contextProps.accessToken || ''
-              },
-              {
-                includeDetails: false
-              }
-            );
+             const availableActions = generateExpenseRequestActions(
+               selectedItem,
+               {
+                 employeeId: contextProps.userInfo?.employeeDetails?.employeeId || '',
+                 accessToken: contextProps.accessToken || '',
+                 onClose: onClose
+               },
+               {
+                 includeDetails: false
+               }
+             );
             
             // Only show action button if there are available actions
             if (availableActions.length > 0) {

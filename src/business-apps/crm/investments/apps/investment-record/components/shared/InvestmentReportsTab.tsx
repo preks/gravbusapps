@@ -20,6 +20,7 @@ interface InvestmentReportsTabProps extends BusinessAppContextProps {
   liquidFundTypeCode?: string;
   investment?: any; // Add the full investment record from header
   typeSpecificData?: any; // Add type-specific data from header
+  filterHeaderActions?: React.ReactNode; // Optional actions for filter header
   'data-testid'?: string;
 }
 
@@ -33,6 +34,7 @@ const InvestmentReportsTab: React.FC<InvestmentReportsTabProps> = ({
   liquidFundTypeCode,
   investment,
   typeSpecificData,
+  filterHeaderActions,
   accessToken,
   userInfo,
   'data-testid': dataTestId = 'investment-reports-tab'
@@ -180,6 +182,7 @@ const InvestmentReportsTab: React.FC<InvestmentReportsTabProps> = ({
         onTimeFilterChange={handleTimeFilterChange}
         onDateRangeChange={handleDateRangeChange}
         onClearFilters={handleClearFilters}
+        headerActions={filterHeaderActions}
         data-testid={`${dataTestId}-filters`}
       />
 

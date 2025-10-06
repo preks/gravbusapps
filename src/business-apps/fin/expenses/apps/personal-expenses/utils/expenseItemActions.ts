@@ -6,6 +6,7 @@ import { ExpenseItem } from '../hooks/useGetExpenseItems';
 export interface ExpenseItemActionContext {
   employeeId: string;
   accessToken: string;
+  onClose?: () => void;
 }
 
 /**
@@ -31,6 +32,7 @@ export const generateExpenseItemActions = (
       key: 'update-expense-item',
       label: getTranslationFromI18nKeyAndLabel('lowcoder:create_expense_item.change_expense_item_container.update_title_module', 'Update Expense Item'),
       onClick: () => {
+        context.onClose?.(); // Close the sidebar first
         startProcess({
           domain: 'employee-expense',
           processName: 'changeExpenseItem',
@@ -51,6 +53,7 @@ export const generateExpenseItemActions = (
       key: 'delete-expense-item',
       label: getTranslationFromI18nKeyAndLabel('lowcoder:discard_expense_items.discard_expense_items', 'Delete Expense Item'),
       onClick: () => {
+        context.onClose?.(); // Close the sidebar first
         startProcess({
           domain: 'employee-expense',
           processName: 'discardExpenseItems',
@@ -69,7 +72,10 @@ export const generateExpenseItemActions = (
       category: getTranslationFromI18nKeyAndLabel('lowcoder:employee_list.flows_button.actions', 'Actions'),
       key: 'assign-to-request',
       label: getTranslationFromI18nKeyAndLabel('lowcoder:flows_button.create_expense_request', 'Create Expense Request'),
-      onClick: () => handleAssignToRequest(item, context)
+      onClick: () => {
+        context.onClose?.(); // Close the sidebar first
+        handleAssignToRequest(item, context);
+      }
     });
   }
 

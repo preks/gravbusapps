@@ -100,7 +100,7 @@ const RealEstateInvestmentsList: React.FC<RealEstateInvestmentsListProps> = (con
     { id: "status", label: getTranslationFromI18nKeyAndLabel('investment:list.columns.status','Status'), visible: false },
     { id: "created", label: getTranslationFromI18nKeyAndLabel('investment:list.columns.created','Created'), visible: false },
     // Actions column must be LAST
-    { id: "actions", label: getTranslationFromI18nKeyAndLabel('common:actions','Actions'), visible: true, disabled: true },
+    { id: "actions", label: "Actions", visible: true, disabled: true },
   ]);
 
   // Get visible columns for passing to table
@@ -324,8 +324,7 @@ const RealEstateInvestmentsList: React.FC<RealEstateInvestmentsListProps> = (con
           <AppAction
             contextsArray={[FlowContextName.createInvestment]}
             externalContextData={{ 
-              investmentGroup: 'REAL_ESTATE',
-              investmentGroupRef: 'InvestmentGroup:v1:REAL_ESTATE',
+              investmentGroup: 'InvestmentGroup:v1:REAL_ESTATE',
               fromView: 'investments',
               fromSubView: 'real-estate'
             }}
@@ -395,7 +394,7 @@ const RealEstateInvestmentsList: React.FC<RealEstateInvestmentsListProps> = (con
                     {getTranslationFromI18nKeyAndLabel('investment:list.columns.created','Created')}
                   </SortableTableHead>
                 )}
-                {visibleColumns.includes('actions') && <TableHead className="gba:w-[60px]">{getTranslationFromI18nKeyAndLabel('common:actions','Actions')}</TableHead>}
+                {visibleColumns.includes('actions') && <TableHead className="gba:w-[60px]">Actions</TableHead>}
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -459,12 +458,12 @@ const RealEstateInvestmentsList: React.FC<RealEstateInvestmentsListProps> = (con
                         <AppActionButton
                           data-testid={`real-estate-investment-update-button-${investment.id}`}
                           size="icon"
-                          contextsArray={[FlowContextName.realEstateInvestmentEntity]}
+                          contextsArray={[FlowContextName.investmentEntity]}
                           externalContextData={{ investmentId: investment.id }}
                           prefixDataTestId={`real-estate-investment-update`}
                           accessToken={accessToken}
                           emptyStateBehavior="enable"
-                          deferMainContextRequestsUntilClick
+                          deferMainContextRequestsUntilClick={true}
                           onClick={(e) => e.stopPropagation()}
                         />
                       </div>

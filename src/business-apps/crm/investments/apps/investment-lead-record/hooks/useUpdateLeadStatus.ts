@@ -19,14 +19,14 @@ export const useUpdateLeadStatus = (context: BusinessAppContextProps) => {
     setIsLoading(true);
     try {
       const payload = {
-        lead: {
+        investmentLead: {
           id: leadId,
           version: version,
           leadStatusRef: newStatusRef
         }
       };
 
-      await restClient.post('/customer-relations/updateLead', payload, {
+      await restClient.post('/investment-relations/updateInvestmentLead', payload, {
         headers: { Authorization: `Bearer ${context.accessToken}` }
       });
 

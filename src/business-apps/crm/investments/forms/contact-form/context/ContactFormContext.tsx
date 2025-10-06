@@ -17,6 +17,7 @@ import {
   mapInvestmentContactToFormValues,
 } from "../hooks/useContactData";
 import { useEmployeeByIdGraphQL } from "../hooks/useEmployeeByIdGraphQL";
+import { useAccountSelection } from "../hooks/useAccountSelection";
 
 // ✅ UPDATED: Catalog constants for InvestmentContact
 export const ACADEMIC_TITLE_CATALOG = "AcademicTitle";
@@ -64,6 +65,15 @@ interface ContactFormContextValue extends ContactContextState {
   searchLanguages: (search: string) => void;
   loadMoreLanguages: () => void;
   showMoreLanguages: () => void;
+
+  // Account selection
+  accounts: SelectOption[];
+  accountsLoading: boolean;
+  accountsError: string | null;
+  accountsHasMore: boolean;
+  searchAccounts: (search: string) => void;
+  loadMoreAccounts: () => void;
+  clearAccountSearch: () => void;
 }
 
 const ContactFormContext = createContext<ContactFormContextValue | null>(null);
@@ -91,15 +101,18 @@ export const ContactFormProvider: React.FC<ContactFormProviderProps> = ({
     firstName: "",
     lastName: "",
     fullName: "",
+    type: "",
     academicTitleRef: "",
     birthDate: "",
     languageRef: "",
-    description: "",
 
     // Professional Information
     jobPosition: "",
     department: "",
-    code: "",
+
+    // Social Media Information
+    linkedinUrl: "",
+    xingUrl: "",
 
     // Contact Information
     email: "",
@@ -114,6 +127,9 @@ export const ContactFormProvider: React.FC<ContactFormProviderProps> = ({
     // Owner Information
     ownerEmployeeId: "",
     owner: "",
+
+    // Account Information
+    accountIds: [], // ✅ NEW: Array of account IDs
 
     // Additional Information
     notesSummary: "",
@@ -155,12 +171,6 @@ export const ContactFormProvider: React.FC<ContactFormProviderProps> = ({
     accessToken: businessAppContext.accessToken,
   });
 
-  console.log("🔍 Investment Contact Context: Current user employee:", {
-    hasCurrentUserEmployee: !!currentUserEmployee,
-    employeeId: currentUserEmployee?.employeeId,
-    firstName: currentUserEmployee?.firstName,
-    lastName: currentUserEmployee?.lastName,
-  });
 
   // 🎯 Lead owner employee hook - for lead conversion scenarios
   const isLeadConversion = businessAppContext.additionalData?.isLeadConversion === true;
@@ -198,15 +208,6 @@ export const ContactFormProvider: React.FC<ContactFormProviderProps> = ({
     accessToken: businessAppContext.accessToken,
   });
 
-  console.log("🔍 Investment Contact Context: Academic Titles Hook:", {
-    catalog: ACADEMIC_TITLE_CATALOG,
-    version: CATALOG_VERSION,
-    hasAccessToken: !!businessAppContext.accessToken,
-    allOptionsLength: academicTitlesHook.allOptions?.length || 0,
-    loading: academicTitlesHook.loading,
-    error: academicTitlesHook.error,
-    hasMore: academicTitlesHook.hasMore,
-  });
 
   // Languages hook
   const languagesHook = useSearchableCatalog({
@@ -215,35 +216,26 @@ export const ContactFormProvider: React.FC<ContactFormProviderProps> = ({
     accessToken: businessAppContext.accessToken,
   });
 
-  console.log("🔍 Investment Contact Context: Languages Hook:", {
-    catalog: LANGUAGES_CATALOG,
-    version: CATALOG_VERSION,
-    hasAccessToken: !!businessAppContext.accessToken,
-    allOptionsLength: languagesHook.allOptions?.length || 0,
-    loading: languagesHook.loading,
-    error: languagesHook.error,
-    hasMore: languagesHook.hasMore,
-  });
+  // Account selection hook
+  const {
+    accounts: accountOptions,
+    loading: accountsLoading,
+    error: accountsError,
+    hasMore: accountsHasMore,
+    search: searchAccounts,
+    loadMore: loadMoreAccounts,
+    clearSearch: clearAccountSearch,
+  } = useAccountSelection(businessAppContext);
+
 
   // ✅ CRITICAL: Initialize catalogs on mount (MATCHES CRM PATTERN)
   useEffect(() => {
-    console.log("🚀 Investment Contact Context: Initializing catalogs...");
     academicTitlesHook.initialize();
     languagesHook.initialize();
   }, []); // ✅ FIX: Empty dependency array to run only once on mount
 
   // ✅ UPDATED: Populate form values when contact data is loaded (for editing existing contacts)
   useEffect(() => {
-    console.log("🔍 Investment Contact Form Context - Data Check:", {
-      hasContactData: !!contactData,
-      investmentContactExists: !!contactData?.InvestmentContact?.[0],
-      investmentContactId: contactData?.InvestmentContact?.[0]?.id,
-      currentFormId: formValues.id,
-      additionalDataContactId: businessAppContext.additionalData?.contactId,
-      taskPayloadContactId:
-        businessAppContext.additionalData?.psi_taskPayload
-          ?.psi_initialParameters?.contactId,
-    });
 
     // Only populate if we have investment contact data and the form doesn't already have this contact's data
     if (
@@ -251,21 +243,8 @@ export const ContactFormProvider: React.FC<ContactFormProviderProps> = ({
       contactData.InvestmentContact?.[0]?.id &&
       (!formValues.id || formValues.id !== contactData.InvestmentContact[0].id)
     ) {
-      console.log(
-        "✅ Investment Contact Form Context - Loading existing contact data:",
-        {
-          contactId: contactData.InvestmentContact[0].id,
-          contactName: `${contactData.InvestmentContact[0].firstName || ""} ${
-            contactData.InvestmentContact[0].lastName || ""
-          }`.trim(),
-        }
-      );
 
       const mappedData = mapInvestmentContactToFormValues(contactData);
-      console.log(
-        "🔄 Investment Contact Form Context - Mapped data:",
-        mappedData
-      );
 
       setFormValuesState((prev) => ({
         ...prev,
@@ -404,13 +383,6 @@ export const ContactFormProvider: React.FC<ContactFormProviderProps> = ({
         // Add lead owner at the beginning for easy access
         regularEmployees.unshift(leadOwnerOption);
         
-        console.log('🎯 Added lead owner to contact form employee options:', {
-          leadOwnerId,
-          leadOwnerDisplayName,
-          leadOwnerJobTitle,
-          isLeadConversion,
-          totalEmployees: regularEmployees.length
-        });
       }
     }
 
@@ -420,43 +392,36 @@ export const ContactFormProvider: React.FC<ContactFormProviderProps> = ({
   // Wrapper functions for hook methods (without hook dependencies to prevent infinite re-renders)
   const searchAcademicTitlesWrapper = useCallback(
     (search: string) => {
-      console.log(`🔍 Searching academic titles for: "${search}"`);
       academicTitlesHook.search(search);
     },
     [academicTitlesHook.search]
   );
 
   const loadMoreAcademicTitlesWrapper = useCallback(() => {
-    console.log("Loading more academic titles...");
     academicTitlesHook.loadMore();
   }, [academicTitlesHook.loadMore]);
 
   const showMoreAcademicTitlesWrapper = useCallback(() => {
-    console.log("👁️ Showing more academic titles from cache...");
     academicTitlesHook.showMore();
   }, [academicTitlesHook.showMore]);
 
   const searchLanguagesWrapper = useCallback(
     (search: string) => {
-      console.log(`🔍 Searching languages for: "${search}"`);
       languagesHook.search(search);
     },
     [languagesHook.search]
   );
 
   const loadMoreLanguagesWrapper = useCallback(() => {
-    console.log("Loading more languages...");
     languagesHook.loadMore();
   }, [languagesHook.loadMore]);
 
   const showMoreLanguagesWrapper = useCallback(() => {
-    console.log("👁️ Showing more languages from cache...");
     languagesHook.showMore();
   }, [languagesHook.showMore]);
 
   const searchEmployees = useCallback(
     (search: string) => {
-      console.log(`🔍 Searching employees for: "${search}"`);
       searchEmployeePositions(search);
     },
     [searchEmployeePositions]
@@ -466,27 +431,6 @@ export const ContactFormProvider: React.FC<ContactFormProviderProps> = ({
   useEffect(() => {
     const currentContactId = contactId;
 
-    console.log(
-      "🔍 Investment Contact Context: Auto-selection useEffect triggered with:",
-      {
-        hasCurrentUserEmployee: !!currentUserEmployee,
-        currentUserEmployeeId: currentUserEmployee?.employeeId,
-        formOwner: formValues.owner,
-        formOwnerEmployeeId: formValues.ownerEmployeeId,
-        autoSelectionDone: autoSelectionDone.current,
-        currentContactId: currentContactId,
-        hasContactData: !!contactData,
-        formValuesId: formValues.id,
-        shouldAutoSelect:
-          currentUserEmployee &&
-          !formValues.owner &&
-          !formValues.ownerEmployeeId &&
-          !autoSelectionDone.current &&
-          !currentContactId &&
-          !contactData &&
-          !formValues.id,
-      }
-    );
 
     // Only auto-select if:
     // 1. We have current user employee data
@@ -506,10 +450,6 @@ export const ContactFormProvider: React.FC<ContactFormProviderProps> = ({
       !formValues.id && // Don't auto-select when form has ID
       !businessAppContext.additionalData?.isLeadConversion // Don't auto-select during lead conversion
     ) {
-      console.log(
-        "✅ Investment Contact Context: Auto-selecting current user as owner:",
-        currentUserEmployee.employeeId
-      );
       setFormValuesState((prev) => ({
         ...prev,
         ownerEmployeeId: currentUserEmployee.employeeId,
@@ -517,17 +457,6 @@ export const ContactFormProvider: React.FC<ContactFormProviderProps> = ({
       }));
       autoSelectionDone.current = true;
     } else {
-      console.log("⏩ Contact auto-selection skipped - reasons:", {
-        hasCurrentUserEmployee: !!currentUserEmployee,
-        hasOwner: !!formValues.owner,
-        hasOwnerEmployeeId: !!formValues.ownerEmployeeId,
-        autoSelectionAlreadyDone: autoSelectionDone.current,
-        hasCurrentContactId: !!currentContactId,
-        hasContactData: !!contactData,
-        hasFormId: !!formValues.id,
-        isLeadConversion: !!businessAppContext.additionalData?.isLeadConversion,
-        leadOwnerId: businessAppContext.additionalData?.leadOwnerId
-      });
     }
   }, [
     currentUserEmployee,
@@ -583,6 +512,15 @@ export const ContactFormProvider: React.FC<ContactFormProviderProps> = ({
     searchLanguages: searchLanguagesWrapper,
     loadMoreLanguages: loadMoreLanguagesWrapper,
     showMoreLanguages: showMoreLanguagesWrapper,
+
+    // Account selection (with safe fallbacks)
+    accounts: accountOptions || [],
+    accountsLoading: accountsLoading || false,
+    accountsError: accountsError || null,
+    accountsHasMore: accountsHasMore || false,
+    searchAccounts: searchAccounts,
+    loadMoreAccounts: loadMoreAccounts,
+    clearAccountSearch: clearAccountSearch,
 
     // Additional required from ContactContextState interface
     departments: [], // Not used in simplified InvestmentContact form
