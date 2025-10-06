@@ -97,6 +97,8 @@ export const useDocumentCatalogs = (
           version: 'v1'
         },
         {
+          limit: 100,
+          offset: 0,
           returnTotalRecords: true,
           includeChildCatalogEntries: true
         }
