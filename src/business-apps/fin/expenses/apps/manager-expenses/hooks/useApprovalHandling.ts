@@ -299,10 +299,21 @@ export const useApprovalHandling = ({
       const failedTasks: Array<{ id: string; error: string }> = [];
 
       for (const task of selectedTasks) {
-        const result = await approveSingleTask(task, tabConfig, approvalPayload);
-        if (result.ok) approvedCount += 1;
-        else failedTasks.push({ id: task.id, error: result.error || 'Unknown error' });
-        setCurrentProgressIndex((prev) => prev + 1);
+        try {
+          const result = await approveSingleTask(task, tabConfig, approvalPayload);
+          if (result.ok) {
+            approvedCount += 1;
+          } else {
+            failedTasks.push({ id: task.id, error: result.error || 'Unknown error' });
+          }
+        } catch (error) {
+          const errorMessage = error instanceof Error
+            ? error.message
+            : getTranslationFromI18nKeyAndLabel('lowcoder:approvals.unknown_error', 'Unknown error');
+          failedTasks.push({ id: task.id, error: errorMessage });
+        } finally {
+          setCurrentProgressIndex((prev) => prev + 1);
+        }
       }
 
       // Clear selection
