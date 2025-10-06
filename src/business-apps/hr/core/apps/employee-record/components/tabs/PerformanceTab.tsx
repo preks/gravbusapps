@@ -227,7 +227,7 @@ const PerformanceTab: React.FC<PerformanceTabProps> = ({
               data-testid="empty-goals-state"
             />
           ) : (
-            <div className="gba:flex gba:flex-col gba:gap-3 gba:w-full gba:items-center">
+            <div className="gba:grid gba:grid-cols-1 gba:md:grid-cols-2 gba:gap-3">
               {sortedPerformanceGoals.map((goal) => {
                 if (!isGoalValid(goal)) {
                   return null
@@ -238,7 +238,7 @@ const PerformanceTab: React.FC<PerformanceTabProps> = ({
                   <Card
                     key={`goal-${goal.title ?? ''}-${goal.status ?? ''}`}
                     variant="outlined"
-                    className="gba:w-1/2 gba:border gba:border-gray-200 gba:shadow-md gba:hover:shadow-lg gba:transition-all"
+                    className="gba:w-full gba:border gba:border-gray-200 gba:shadow-md gba:hover:shadow-lg gba:transition-all"
                     data-testid={`goal-card-${goal.id}`}
                   >
                     <div className="gba:flex gba:flex-col gba:md:flex-row gba:md:items-center gba:justify-between gba:mb-4">

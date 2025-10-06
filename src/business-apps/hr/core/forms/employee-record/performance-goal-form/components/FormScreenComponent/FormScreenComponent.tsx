@@ -244,6 +244,7 @@ export const FormScreenComponent: React.FC<FormScreenComponentProps> = ({
                   max={100}
                   placeholder={t('performance_goal.progress_placeholder', 'Enter progress percentage')}
                   data-testid={`${prefixDataTestId}-progress-input`}
+                  className="gba:pr-8"
                   {...field}
                   onChange={e => {
                     let value = parseInt(e.target.value || '0', 10)
@@ -252,9 +253,6 @@ export const FormScreenComponent: React.FC<FormScreenComponentProps> = ({
                     field.onChange(value)
                   }}
                 />
-                <div className="gba:absolute gba:right-3 gba:top-1/2 gba:-translate-y-1/2 gba:pointer-events-none">
-                  <span className="gba:text-muted-foreground">%</span>
-                </div>
               </div>
             </FormControl>
             <FormMessage />
