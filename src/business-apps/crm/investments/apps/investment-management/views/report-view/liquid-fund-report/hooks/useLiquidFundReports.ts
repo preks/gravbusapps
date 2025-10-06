@@ -11,7 +11,9 @@ import { AnalyticsRowData } from '../types/AnalyticsTypes';
 export interface LiquidFundReportFilters {
   startDate?: string;
   endDate?: string;
+  currencyIds?: string[];
   investmentType?: string; // For client-side filtering by liquid fund type
+  onCurrenciesChange?: (currencies: string[]) => void; // Callback to report available currencies
 }
 
 export interface UseLiquidFundReportsReturn {
@@ -63,6 +65,9 @@ export const useLiquidFundReports = (
       }
       if (filters.endDate) {
         variables.reportDateTo = filters.endDate;
+      }
+      if (filters.currencyIds && filters.currencyIds.length > 0) {
+        variables.currencyIds = filters.currencyIds;
       }
 
       // Fetch using common data layer
@@ -128,6 +133,18 @@ export const useLiquidFundReports = (
       setReports(latestReports);
       setAnalyticsData(filteredData);
       
+      // Extract unique currency IDs from reports and notify parent
+      if (filters.onCurrenciesChange) {
+        const currencyIds = Array.from(
+          new Set(
+            latestReports
+              .map(report => report.currencyRef)
+              .filter(Boolean)
+          )
+        );
+        filters.onCurrenciesChange(currencyIds);
+      }
+      
       // Derive totalCount from actual visible data to match what user sees
       // (accounts for client-side deduping and filtering)
       const visibleCount = filters.investmentType ? filteredData.length : latestReports.length;
@@ -139,7 +156,7 @@ export const useLiquidFundReports = (
     } finally {
       setIsLoading(false);
     }
-  }, [context.accessToken, context.userInfo, filters.startDate, filters.endDate, filters.investmentType, fetchInvestmentReports]);
+  }, [context.accessToken, context.userInfo, filters.startDate, filters.endDate, filters.currencyIds, filters.investmentType, filters.onCurrenciesChange, fetchInvestmentReports]);
 
   useEffect(() => {
     loadReports();

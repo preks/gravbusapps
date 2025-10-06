@@ -186,6 +186,18 @@ export const EquityReport: React.FC<EquityReportProps> = ({
   // Shared filter state and logic
   const reportFilters = useReportFilters(initialColumns);
 
+  // Track available currencies from table data
+  const [availableCurrencies, setAvailableCurrencies] = useState<Set<string>>(new Set());
+
+  // Callback for tables to report their available currencies
+  const handleCurrenciesUpdate = useCallback((currencies: string[]) => {
+    setAvailableCurrencies(prev => {
+      const updated = new Set(prev);
+      currencies.forEach(id => updated.add(id));
+      return updated;
+    });
+  }, []);
+
   // Find the selected investment type from catalog
   const selectedInvestmentType = useMemo(() => {
     if (activeSubTab === 'overview') return undefined;
@@ -197,11 +209,12 @@ export const EquityReport: React.FC<EquityReportProps> = ({
     const filters = {
       startDate: reportFilters.computedFilters.startDate,
       endDate: reportFilters.computedFilters.endDate,
+      currencyIds: reportFilters.computedFilters.currencyIds,
       investmentType: selectedInvestmentType?.code || undefined
     };
 
     return filters;
-  }, [reportFilters.computedFilters.startDate, reportFilters.computedFilters.endDate, selectedInvestmentType, activeSubTab]);
+  }, [reportFilters.computedFilters.startDate, reportFilters.computedFilters.endDate, reportFilters.computedFilters.currencyIds, selectedInvestmentType, activeSubTab]);
 
 
 
@@ -236,6 +249,8 @@ export const EquityReport: React.FC<EquityReportProps> = ({
       {/* Filters Section */}
       <ReportFilterPanel
         filters={reportFilters}
+        accessToken={accessToken}
+        availableCurrencyIds={Array.from(availableCurrencies)}
         variant="card"
         title={getTranslationFromI18nKeyAndLabel('filters.title', 'Filters')}
         description={getTranslationFromI18nKeyAndLabel('equity.analytics.filters.description', 'Configure time period for the equity analytics view')}
@@ -267,6 +282,7 @@ export const EquityReport: React.FC<EquityReportProps> = ({
               title={`${type.value} Analytics`}
               catalogData={catalogData}
               isTransposed={reportFilters.isTransposed}
+              onCurrenciesChange={handleCurrenciesUpdate}
               visibleColumns={reportFilters.visibleColumns}
               data-testid={`${dataTestId}-${type.code.toLowerCase()}-table`}
             />
