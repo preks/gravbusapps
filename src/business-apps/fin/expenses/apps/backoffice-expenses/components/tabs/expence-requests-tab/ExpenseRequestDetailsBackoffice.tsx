@@ -156,7 +156,7 @@ const ExpenseRequestDetailsBackoffice: React.FC<ExpenseRequestDetailsBackofficeP
             
             <div className="gba:flex gba:justify-between gba:items-center">
               <span className="gba:text-sm gba:font-medium gba:text-gray-700">
-                {getTranslationFromI18nKeyAndLabel('lowcoder:expense_calculation_rule.expense_calculation_rule_modal.affected_expense_modal', 'Request Type')}
+                {getTranslationFromI18nKeyAndLabel('lowcoder:expense_calculation_rule.affected_expense_modal.request_type', 'Request Type')}
               </span>
               <span className="gba:text-sm gba:text-gray-900">{formatTypeLabel(requestTypeLabel)}</span>
             </div>
