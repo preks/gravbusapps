@@ -23,6 +23,7 @@ import {
 } from '@newwork/nw-design-system';
 import { WorkflowEngine, FlowTemplate } from '../../../types';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
+import { DateTimeField } from '../../../components/DateTimeField';
 import { 
   FileTextIcon, 
   CheckCircleIcon, 
@@ -1039,12 +1040,30 @@ Please try again in a few moments, or proceed with submitting your request.`);
                           )}
                           
                           {field.type?.toUpperCase() === 'DATE' && (
-                            <Input
-                              id={field.name}
+                            <DateTimeField
+                              name={field.name}
+                              label={field.label}
+                              showLabel={false}
                               type="date"
-                              value={formData[field.name] || ''}
-                              onChange={(e) => handleFieldChange(field.name, e.target.value)}
+                              value={formData[field.name] || null}
+                              onChange={(date) => handleFieldChange(field.name, date ? date.toISOString().split('T')[0] : '')}
                               required={field.required}
+                              placeholder={field.placeholder}
+                              description={field.description}
+                            />
+                          )}
+                          
+                          {field.type?.toUpperCase() === 'DATETIME' && (
+                            <DateTimeField
+                              name={field.name}
+                              label={field.label}
+                              showLabel={false}
+                              type="datetime"
+                              value={formData[field.name] || null}
+                              onChange={(date) => handleFieldChange(field.name, date ? date.toISOString() : '')}
+                              required={field.required}
+                              placeholder={field.placeholder}
+                              description={field.description}
                             />
                           )}
                           

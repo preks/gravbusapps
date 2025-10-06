@@ -37,7 +37,7 @@ import {
   ArrowLeftIcon, UserIcon, ClockIcon, WarningIcon, CheckCircleIcon, 
   ChatCircleIcon, PaperPlaneRightIcon, UserCheckIcon, UserMinusIcon, 
   ArrowClockwiseIcon, TargetIcon, ClipboardIcon, InfoIcon, WarningCircleIcon,
-  TrendUpIcon, Link as LinkIcon, EyeIcon, UsersIcon, LockIcon, CursorClickIcon
+  TrendUpIcon, Link as LinkIcon, EyeIcon, UsersIcon, LockIcon
 } from '@phosphor-icons/react';
 
 // Import types and hooks
@@ -541,7 +541,6 @@ export const TaskRecord: React.FC<TaskRecordProps> = ({
       taskFormFields = inputFields;
     }
     
-    
     return taskFormFields || [];
   };
 
@@ -761,7 +760,7 @@ export const TaskRecord: React.FC<TaskRecordProps> = ({
                   </div>
                   <div className="gba:bg-green-50 gba:rounded-lg gba:p-4 gba:border gba:border-green-200">
                     <div className="gba:space-y-3">
-                      {Object.entries(ticket.formData).map(([key, value]) => (
+                      {Object.entries(ticket.formData || {}).map(([key, value]) => (
                         <div key={key} className="gba:flex gba:flex-col gba:gap-1">
                           <div className="gba:text-xs gba:font-medium gba:text-green-800 gba:uppercase gba:tracking-wide">
                             {key.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase())}
@@ -1098,7 +1097,17 @@ export const TaskRecord: React.FC<TaskRecordProps> = ({
                       </Button>
                     )}
 
-                    {availableActions?.canComplete && (
+                    {availableActions?.canComplete && (() => {
+                      // Hide "Complete Ticket" button if there are form fields that need to be filled
+                      const hasFormFields = getTaskFormFields().length > 0;
+                      const ticketStatus = ticket?.status as string;
+                      const isTicketCompleted = !!(ticket && (ticketStatus === 'COMPLETED' || ticketStatus === 'DONE' || ticketStatus === 'SKIPPED' || 
+                                                              ticketStatus === 'REJECTED' || ticketStatus === 'CANCELLED' || ticketStatus === 'CANCELED'));
+                      const shouldShowForm = hasFormFields && !isTicketCompleted;
+                      
+                      // Only show button if there are no form fields to fill
+                      return !shouldShowForm;
+                    })() && (
                         <Button 
                           size="sm"
                           onClick={() => handleTaskAction('complete')}

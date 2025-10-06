@@ -18,8 +18,8 @@ export type DynamicFormFieldType =
 
 // Validation rule types
 export interface ValidationRule {
-  type: 'required' | 'minLength' | 'maxLength' | 'pattern' | 'min' | 'max' | 'email' | 'url';
-  value?: string | number;
+  type: 'required' | 'minLength' | 'maxLength' | 'pattern' | 'min' | 'max' | 'email' | 'url' | 'minDate' | 'maxDate' | 'dateRange';
+  value?: string | number | Date;
   message?: string;
 }
 

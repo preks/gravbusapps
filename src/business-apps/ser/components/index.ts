@@ -1,7 +1,4 @@
-/**
- * Shared SER Components
- */
-
-// Dynamic form components shared between Service Portal and Service Desk
+// Service (SER) Components
 export { DynamicFormGenerator } from './DynamicFormGenerator';
-export type { DynamicFormGeneratorProps } from './DynamicFormGenerator';
+export { DateTimeField } from './DateTimeField';
+export type { DateTimeFieldProps } from './DateTimeField';

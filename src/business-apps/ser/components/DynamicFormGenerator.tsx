@@ -9,14 +9,12 @@ import {
   SelectItem,
   SelectTrigger,
   SelectValue,
-  Alert,
   Badge,
   Spinner
 } from '@newwork/nw-design-system';
 import { 
   DynamicFormField, 
-  DynamicFormValues, 
-  ValidationRule 
+  DynamicFormValues
 } from '../types/flowTemplate';
 import { 
   CheckCircle, 
@@ -26,6 +24,7 @@ import {
   Envelope,
   Link as LinkIcon
 } from '@phosphor-icons/react';
+import { DateTimeField } from './DateTimeField';
 
 export interface DynamicFormGeneratorProps {
   schema: DynamicFormField[];
@@ -125,6 +124,36 @@ export const DynamicFormGenerator: React.FC<DynamicFormGeneratorProps> = ({
         case 'max':
           if (typeof value === 'number' && value > (rule.value as number)) {
             return rule.message || `${field.label} must not exceed ${rule.value}`;
+          }
+          break;
+          
+        case 'minDate':
+          if (value) {
+            const dateValue = value instanceof Date ? value : new Date(value);
+            const minDateValue = rule.value instanceof Date ? rule.value : new Date(rule.value as string);
+            if (dateValue < minDateValue) {
+              return rule.message || `${field.label} must be after ${minDateValue.toLocaleDateString()}`;
+            }
+          }
+          break;
+          
+        case 'maxDate':
+          if (value) {
+            const dateValue = value instanceof Date ? value : new Date(value);
+            const maxDateValue = rule.value instanceof Date ? rule.value : new Date(rule.value as string);
+            if (dateValue > maxDateValue) {
+              return rule.message || `${field.label} must be before ${maxDateValue.toLocaleDateString()}`;
+            }
+          }
+          break;
+          
+        case 'dateRange':
+          if (value && Array.isArray(rule.value) && rule.value.length === 2) {
+            const dateValue = value instanceof Date ? value : new Date(value);
+            const [minDate, maxDate] = rule.value.map(d => d instanceof Date ? d : new Date(d));
+            if (dateValue < minDate || dateValue > maxDate) {
+              return rule.message || `${field.label} must be between ${minDate.toLocaleDateString()} and ${maxDate.toLocaleDateString()}`;
+            }
           }
           break;
       }
@@ -369,58 +398,76 @@ export const DynamicFormGenerator: React.FC<DynamicFormGeneratorProps> = ({
         );
 
       case 'DATE':
-        return (
-          <div className="gba:space-y-2" key={field.name} data-testid={`field-container-${field.name}`}>
-            <label htmlFor={field.name} className="gba:block gba:text-sm gba:font-medium gba:text-foreground">
-              <Calendar className="gba:w-4 gba:h-4 gba:inline gba:mr-1" />
-              {field.label}
-              {field.required && <span className="gba:text-destructive gba:ml-1">*</span>}
-            </label>
-            {field.description && (
-              <p className="gba:text-xs gba:text-muted-foreground">{field.description}</p>
-            )}
-            <Input
-              {...commonProps}
-              type="date"
+          return (
+            <DateTimeField
+              key={field.name}
+              name={field.name}
+              label={field.label}
+              showLabel={false}
               value={value}
-              onChange={(e) => handleFieldChange(field.name, e.target.value)}
+              onChange={(date) => handleFieldChange(field.name, date)}
               onBlur={() => setTouchedFields(prev => new Set(prev).add(field.name))}
+              required={field.required}
+              placeholder={field.placeholder}
+              description={field.description}
+              hasError={!!hasError}
+              errorMessage={error || undefined}
+              type="date"
+              testId={`form-field-${field.name}`}
             />
-            {hasError && (
-              <div className="gba:flex gba:items-center gba:gap-1 gba:text-destructive gba:text-xs">
-                <Warning size={12} />
-                {error}
-              </div>
-            )}
-          </div>
-        );
+          );
 
       case 'DATETIME':
-        return (
-          <div className="gba:space-y-2" key={field.name} data-testid={`field-container-${field.name}`}>
-            <label htmlFor={field.name} className="gba:block gba:text-sm gba:font-medium gba:text-foreground">
-              <Calendar className="gba:w-4 gba:h-4 gba:inline gba:mr-1" />
-              {field.label}
-              {field.required && <span className="gba:text-destructive gba:ml-1">*</span>}
-            </label>
-            {field.description && (
-              <p className="gba:text-xs gba:text-muted-foreground">{field.description}</p>
-            )}
-            <Input
-              {...commonProps}
-              type="datetime-local"
+        try {
+          return (
+            <DateTimeField
+              key={field.name}
+              name={field.name}
+              label={field.label}
+              showLabel={false}
               value={value}
-              onChange={(e) => handleFieldChange(field.name, e.target.value)}
+              onChange={(date) => handleFieldChange(field.name, date)}
               onBlur={() => setTouchedFields(prev => new Set(prev).add(field.name))}
+              required={field.required}
+              placeholder={field.placeholder}
+              description={field.description}
+              hasError={!!hasError}
+              errorMessage={error || undefined}
+              type="datetime"
+              testId={`form-field-${field.name}`}
             />
-            {hasError && (
-              <div className="gba:flex gba:items-center gba:gap-1 gba:text-destructive gba:text-xs">
-                <Warning size={12} />
-                {error}
+          );
+        } catch (error) {
+          // Fallback to basic datetime input
+          return (
+            <div className="gba:space-y-2" key={field.name} data-testid={`field-container-${field.name}`}>
+              <label htmlFor={field.name} className="gba:block gba:text-sm gba:font-medium gba:text-foreground">
+                <Calendar className="gba:w-4 gba:h-4 gba:inline gba:mr-1" />
+                {field.label}
+                {field.required && <span className="gba:text-destructive gba:ml-1">*</span>}
+              </label>
+              {field.description && (
+                <p className="gba:text-xs gba:text-muted-foreground">{field.description}</p>
+              )}
+              <Input
+                {...commonProps}
+                type="datetime-local"
+                value={value}
+                onChange={(e) => handleFieldChange(field.name, e.target.value)}
+                onBlur={() => setTouchedFields(prev => new Set(prev).add(field.name))}
+              />
+              {hasError && (
+                <div className="gba:flex gba:items-center gba:gap-1 gba:text-destructive gba:text-xs">
+                  <Warning size={12} />
+                  {String(error)}
+                </div>
+              )}
+              <div className="gba:text-xs gba:text-amber-600 gba:bg-amber-50 gba:p-2 gba:rounded">
+                ⚠️ Using fallback datetime input. DateTimeField component error: {error instanceof Error ? error.message : String(error)}
               </div>
-            )}
-          </div>
-        );
+            </div>
+          );
+        }
 
       case 'CHECKBOX':
         return (
@@ -510,13 +557,24 @@ export const DynamicFormGenerator: React.FC<DynamicFormGeneratorProps> = ({
 
       default:
         return (
-          <Alert key={field.name} variant="destructive" data-testid={`unsupported-field-${field.name}`}>
-            <Warning className="gba:h-4 gba:w-4" />
-            <div>
-              <p className="gba:font-semibold">Unsupported Field Type</p>
-              <p className="gba:text-sm">Field "{field.name}" has unsupported type "{field.type}"</p>
+          <div key={field.name} className="gba:space-y-2" data-testid={`field-container-${field.name}`}>
+            <label htmlFor={field.name} className="gba:block gba:text-sm gba:font-medium gba:text-foreground">
+              {field.label}
+              {field.required && <span className="gba:text-destructive gba:ml-1">*</span>}
+            </label>
+            {field.description && (
+              <p className="gba:text-xs gba:text-muted-foreground">{field.description}</p>
+            )}
+            <div className="gba:p-4 gba:bg-muted/20 gba:border gba:border-dashed gba:border-muted gba:rounded-lg gba:text-center">
+              <div className="gba:flex gba:items-center gba:justify-center gba:gap-2 gba:text-muted-foreground">
+                <Warning className="gba:h-5 gba:w-5" />
+                <span className="gba:text-sm gba:font-medium">TBD</span>
+              </div>
+              <p className="gba:text-xs gba:text-muted-foreground gba:mt-1">
+                Field type "{field.type}" - Component under development
+              </p>
             </div>
-          </Alert>
+          </div>
         );
     }
   }, [values, errors, touchedFields, handleFieldChange, getFieldError, shouldShowValidation]);
