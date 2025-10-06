@@ -191,6 +191,15 @@ export const getHybridDataQuery = (timeFilter: string) => {
         id
         value
         parentEntryId
+        parentEntry {
+          objectValue
+          translations {
+            localeCode
+            value
+          }
+          id
+          value
+        }
       }
       employee {
         id
@@ -318,6 +327,15 @@ export const getCompleteAggregationsQuery = (
         id
         value
         parentEntryId
+        parentEntry {
+          objectValue
+          translations {
+            localeCode
+            value
+          }
+          id
+          value
+        }
       }
       employee {
         id

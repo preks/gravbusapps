@@ -2,7 +2,33 @@ import React, { useMemo, useState, useCallback, useEffect, useLayoutEffect } fro
 import dayjs from 'dayjs';
 import { PiArrowLeft, PiCalendarBlank } from 'react-icons/pi';
 import { Button, Card, CardContent, CardHeader, CardTitle } from '@newwork/nw-design-system';
-import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
+import { getTranslationFromI18nKeyAndLabel, getCurrentActiveUserLocale } from '@/common/utils/windowUtils';
+
+const getStatusTranslation = (status: string): string => {
+  const statusMap: Record<string, string> = {
+    'APPROVED': 'lowcoder:absence_calendar.approved',
+    'PENDING': 'lowcoder:absence_calendar.pending',
+    'REJECTED': 'lowcoder:absence_calendar.rejected',
+    'CANCELLED': 'lowcoder:absence_calendar.cancelled'
+  };
+  
+  const translationKey = statusMap[status];
+  if (translationKey) {
+    return getTranslationFromI18nKeyAndLabel(translationKey, status);
+  }
+  
+  return status;
+};
+
+const formatDateForLocale = (dateString: string): string => {
+  const userLocale = getCurrentActiveUserLocale();
+  const date = new Date(dateString);
+  return date.toLocaleDateString(userLocale, { 
+    year: 'numeric', 
+    month: '2-digit', 
+    day: '2-digit' 
+  });
+};
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 import { AbsenceList } from '../../tabs/absence-list-tab/AbsenceList/AbsenceList';
 import { DashboardData } from '../../../types';
@@ -403,7 +429,7 @@ const AbsenceDetails: React.FC<AbsenceDetailsProps> = ({
       });
     } else {
       statusBreakdown = filteredAbsences.reduce((acc: any, absence: any) => {
-        const s = absence.status || 'Unknown';
+        const s = absence.status || getTranslationFromI18nKeyAndLabel('lowcoder:absence_management_hub_backoffice.absence_details.unknown', 'Unknown');
         acc[s] = (acc[s] || 0) + 1;
         return acc;
       }, {});
@@ -411,7 +437,7 @@ const AbsenceDetails: React.FC<AbsenceDetailsProps> = ({
 
     // Department breakdown from current filtered data
     const departmentBreakdown = filteredAbsences.reduce((acc: any, absence: any) => {
-      const deptName = absence.employee?.employeePosition?.organizationalUnit?.name || 'No Department';
+      const deptName = absence.employee?.employeePosition?.organizationalUnit?.name || getTranslationFromI18nKeyAndLabel('lowcoder:absence_management_hub_backoffice.absence_details.no_department', 'No Department');
       acc[deptName] = (acc[deptName] || 0) + 1;
       return acc;
     }, {});
@@ -458,47 +484,47 @@ const AbsenceDetails: React.FC<AbsenceDetailsProps> = ({
       (currentEndDate !== endDate);
     
     // Determine current context
-    let title = 'Absence Details';
-    let description = 'Filtered absence results';
-    let breadcrumb = 'Filtered Details';
+    let title = getTranslationFromI18nKeyAndLabel('lowcoder:absence_management_hub_backoffice.absence_details.title', 'Absence Details');
+    let description = getTranslationFromI18nKeyAndLabel('lowcoder:absence_management_hub_backoffice.absence_details.filtered_results', 'Filtered absence results');
+    let breadcrumb = getTranslationFromI18nKeyAndLabel('lowcoder:absence_management_hub_backoffice.absence_details.filtered_details', 'Filtered Details');
     
     if (hasChangedFilters && currentFilteredData?.appliedFilters) {
       // User has applied filters - show current filter state
       const filters = currentFilteredData.appliedFilters;
       const parts = [];
       
-      if (filters.currentDateRange?.startDate && filters.currentDateRange?.endDate) {
-        parts.push(`${filters.currentDateRange.startDate} to ${filters.currentDateRange.endDate}`);
-      }
+        if (filters.currentDateRange?.startDate && filters.currentDateRange?.endDate) {
+          parts.push(`${formatDateForLocale(filters.currentDateRange.startDate)} ${getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.to_date', 'to')} ${formatDateForLocale(filters.currentDateRange.endDate)}`);
+        }
       
       if (filters.search) {
         parts.push(`"${filters.search}"`);
       }
       
       if (filters.selectedFilters?.length > 0) {
-        parts.push(`${filters.selectedFilters.length} filters`);
+        parts.push(`${filters.selectedFilters.length} ${getTranslationFromI18nKeyAndLabel('lowcoder:absence_management_hub_backoffice.absence_details.filters', 'filters')}`);
       }
       
-      title = parts.length > 0 ? `Filtered Absence Details` : 'Absence Details';
-      description = parts.length > 0 ? parts.join(' • ') : 'All absence results';
-      breadcrumb = 'Custom Filters';
+      title = parts.length > 0 ? getTranslationFromI18nKeyAndLabel('lowcoder:absence_management_hub_backoffice.absence_details.filtered_absence_details', 'Filtered Absence Details') : getTranslationFromI18nKeyAndLabel('lowcoder:absence_management_hub_backoffice.absence_details.title', 'Absence Details');
+      description = parts.length > 0 ? parts.join(' • ') : getTranslationFromI18nKeyAndLabel('lowcoder:absence_management_hub_backoffice.absence_details.all_absence_results', 'All absence results');
+      breadcrumb = getTranslationFromI18nKeyAndLabel('lowcoder:absence_management_hub_backoffice.absence_details.custom_filters', 'Custom Filters');
       
     } else {
       // No user filters - show original navigation context
       if (month) {
-        title = `${month} Absence Details`;
+        title = getTranslationFromI18nKeyAndLabel('lowcoder:absence_management_hub_backoffice.absence_details.month_absence_details', `${month} Absence Details`);
         description = currentStartDate && currentEndDate 
-          ? `${currentStartDate} to ${currentEndDate}` 
-          : `All absences for ${month}`;
-        breadcrumb = `${month} Details`;
+          ? `${formatDateForLocale(currentStartDate)} ${getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.to_date', 'to')} ${formatDateForLocale(currentEndDate)}` 
+          : getTranslationFromI18nKeyAndLabel('lowcoder:absence_management_hub_backoffice.absence_details.all_absences_for_month', `All absences for ${month}`);
+        breadcrumb = getTranslationFromI18nKeyAndLabel('lowcoder:absence_management_hub_backoffice.absence_details.month_details', `${month} Details`);
       } else if (department) {
-        title = `${department} Department Details`;
-        description = `All absences for ${department} department`;
-        breadcrumb = `${department} Department`;
+        title = getTranslationFromI18nKeyAndLabel('lowcoder:absence_management_hub_backoffice.absence_details.department_details', `${department} Department Details`);
+        description = getTranslationFromI18nKeyAndLabel('lowcoder:absence_management_hub_backoffice.absence_details.all_absences_for_department', `All absences for ${department} department`);
+        breadcrumb = getTranslationFromI18nKeyAndLabel('lowcoder:absence_management_hub_backoffice.absence_details.department', `${department} Department`);
       } else if (status) {
-        title = `${status} Status Details`;
-        description = `All ${status.toLowerCase()} absences`;
-        breadcrumb = `${status} Status`;
+        title = getTranslationFromI18nKeyAndLabel('lowcoder:absence_management_hub_backoffice.absence_details.status_details', `${status} Status Details`);
+        description = getTranslationFromI18nKeyAndLabel('lowcoder:absence_management_hub_backoffice.absence_details.all_status_absences', `All ${status.toLowerCase()} absences`);
+        breadcrumb = getTranslationFromI18nKeyAndLabel('lowcoder:absence_management_hub_backoffice.absence_details.status', `${status} Status`);
       }
     }
     
@@ -527,7 +553,7 @@ const AbsenceDetails: React.FC<AbsenceDetailsProps> = ({
         <div className="gba:flex gba:items-center gba:gap-4 gba:mb-6">
           <Button onClick={onNavigateBack} className="gba:flex gba:items-center gba:gap-2">
             <PiArrowLeft />
-            Back to Dashboard
+{getTranslationFromI18nKeyAndLabel('lowcoder:absence_management_hub_backoffice.absence_details.back_to_dashboard', 'Back to Dashboard')}
           </Button>
         </div>
         <div className="gba:flex gba:items-center gba:justify-center gba:py-8">
@@ -544,7 +570,7 @@ const AbsenceDetails: React.FC<AbsenceDetailsProps> = ({
         <div className="gba:flex gba:items-center gba:gap-4 gba:mb-6">
           <Button onClick={onNavigateBack} className="gba:flex gba:items-center gba:gap-2">
             <PiArrowLeft />
-            Back to Dashboard
+{getTranslationFromI18nKeyAndLabel('lowcoder:absence_management_hub_backoffice.absence_details.back_to_dashboard', 'Back to Dashboard')}
           </Button>
         </div>
         <div className="gba:bg-red-50 gba:border gba:border-red-200 gba:rounded-lg gba:p-4">
@@ -567,7 +593,7 @@ const AbsenceDetails: React.FC<AbsenceDetailsProps> = ({
           data-testid="back-to-dashboard-button"
         >
           <PiArrowLeft size={16} />
-          Back to Dashboard
+{getTranslationFromI18nKeyAndLabel('lowcoder:absence_management_hub_backoffice.absence_details.back_to_dashboard', 'Back to Dashboard')}
         </Button>
       </div>
 
@@ -593,7 +619,7 @@ const AbsenceDetails: React.FC<AbsenceDetailsProps> = ({
               className="gba:text-blue-600 gba:cursor-pointer hover:gba:underline"
               onClick={onNavigateBack}
             >
-              Absence Dashboard
+{getTranslationFromI18nKeyAndLabel('lowcoder:absence_management_hub_backoffice.absence_details.absence_dashboard', 'Absence Dashboard')}
             </span>
             <span className="gba:mx-2">/</span>
             <span>{currentUIState.breadcrumb}</span>
@@ -610,29 +636,29 @@ const AbsenceDetails: React.FC<AbsenceDetailsProps> = ({
             <div className="gba:text-gray-900 gba:font-medium gba:text-base gba:mb-1">
               {currentUIState.hasChangedFilters ? (
                 // User has changed filters - show generic analysis title
-                department ? `Analysis: ${department} Department` : 'Date Range Analysis'
+                department ? getTranslationFromI18nKeyAndLabel('lowcoder:absence_management_hub_backoffice.absence_details.analysis_department', `Analysis: ${department} Department`) : getTranslationFromI18nKeyAndLabel('lowcoder:absence_management_hub_backoffice.absence_details.date_range_analysis', 'Date Range Analysis')
               ) : (
                 // Original navigation context - show specific context
-                month ? `Analysis: ${month}` : 
-                department ? `Analysis: ${department} Department` : 'Absence Analysis'
+                month ? getTranslationFromI18nKeyAndLabel('lowcoder:absence_management_hub_backoffice.absence_details.analysis_month', `Analysis: ${month}`) : 
+                department ? getTranslationFromI18nKeyAndLabel('lowcoder:absence_management_hub_backoffice.absence_details.analysis_department', `Analysis: ${department} Department`) : getTranslationFromI18nKeyAndLabel('lowcoder:absence_management_hub_backoffice.absence_details.absence_analysis', 'Absence Analysis')
               )}
               <span className="gba:ml-2 gba:text-xs gba:bg-gray-100 gba:text-gray-700 gba:px-2 gba:py-1 gba:rounded">
-                {dynamicAnalysis.isFiltered ? 'Filtered' : 'Live'}
+{dynamicAnalysis.isFiltered ? getTranslationFromI18nKeyAndLabel('lowcoder:absence_management_hub_backoffice.absence_details.filtered', 'Filtered') : getTranslationFromI18nKeyAndLabel('lowcoder:absence_management_hub_backoffice.absence_details.live', 'Live')}
               </span>
                   </div>
             <div className="gba:text-gray-600 gba:text-sm">
               {currentUIState.hasChangedFilters ? (
                 currentUIState.currentDateRange.startDate && currentUIState.currentDateRange.endDate ? 
-                  `Live Analysis • ${currentUIState.currentDateRange.startDate} to ${currentUIState.currentDateRange.endDate}` :
-                  'Live Analysis • Custom filters applied'
+                  `${getTranslationFromI18nKeyAndLabel('lowcoder:absence_management_hub_backoffice.absence_details.live_analysis', 'Live Analysis')} • ${formatDateForLocale(currentUIState.currentDateRange.startDate)} ${getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.to_date', 'to')} ${formatDateForLocale(currentUIState.currentDateRange.endDate)}` :
+                  getTranslationFromI18nKeyAndLabel('lowcoder:absence_management_hub_backoffice.absence_details.live_analysis_custom_filters', 'Live Analysis • Custom filters applied')
               ) : (
-                month && startDate && endDate ? `Drilled down from trends chart • ${startDate} to ${endDate}` :
-                department ? `Drilled down from department chart` :
-                status ? `Drilled down from status chart` :
-                'Current table data analysis'
+                month && startDate && endDate ? `${getTranslationFromI18nKeyAndLabel('lowcoder:absence_management_hub_backoffice.absence_details.drilled_down_trends', 'Drilled down from trends chart')} • ${formatDateForLocale(startDate)} ${getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.to_date', 'to')} ${formatDateForLocale(endDate)}` :
+                department ? getTranslationFromI18nKeyAndLabel('lowcoder:absence_management_hub_backoffice.absence_details.drilled_down_department', 'Drilled down from department chart') :
+                status ? getTranslationFromI18nKeyAndLabel('lowcoder:absence_management_hub_backoffice.absence_details.drilled_down_status', 'Drilled down from status chart') :
+                getTranslationFromI18nKeyAndLabel('lowcoder:absence_management_hub_backoffice.absence_details.current_table_analysis', 'Current table data analysis')
               )}
               {dynamicAnalysis.isFiltered && (
-                <span className="gba:ml-2">• Updates automatically</span>
+                <span className="gba:ml-2">{getTranslationFromI18nKeyAndLabel('lowcoder:absence_management_hub_backoffice.absence_details.updates_automatically', '• Updates automatically')}</span>
               )}
                   </div>
                 </div>
@@ -641,49 +667,49 @@ const AbsenceDetails: React.FC<AbsenceDetailsProps> = ({
           <div className="gba:grid gba:grid-cols-2 gba:md:grid-cols-4 gba:gap-3">
             <Card data-testid="details-kpi-total-days">
               <CardHeader className="gba:pb-2">
-                <CardTitle className="gba:text-sm gba:font-medium">{getTranslationFromI18nKeyAndLabel('lowcoder:absence_hub.total_days', 'Total Days')}</CardTitle>
+                <CardTitle className="gba:text-sm gba:font-medium">{getTranslationFromI18nKeyAndLabel('lowcoder:absence_management_hub_backoffice.total_days', 'Total Days')}</CardTitle>
               </CardHeader>
               <CardContent className="gba:pt-0">
                 <div className="gba:text-2xl gba:font-bold gba:text-gray-900" data-testid="details-kpi-total-days-value">
                   {dynamicAnalysis.totalDays}
                 </div>
-                <div className="gba:text-xs gba:text-gray-600">{getTranslationFromI18nKeyAndLabel('lowcoder:absence_hub.filtered_results', 'Filtered Results')}</div>
+                <div className="gba:text-xs gba:text-gray-600">{getTranslationFromI18nKeyAndLabel('lowcoder:absence_management_hub_backoffice.absence_details.filtered_results', 'Filtered Results')}</div>
               </CardContent>
             </Card>
             
             <Card data-testid="details-kpi-total-requests">
               <CardHeader className="gba:pb-2">
-                <CardTitle className="gba:text-sm gba:font-medium">{getTranslationFromI18nKeyAndLabel('lowcoder:absence_hub.total_requests', 'Total Requests')}</CardTitle>
+                <CardTitle className="gba:text-sm gba:font-medium">{getTranslationFromI18nKeyAndLabel('lowcoder:absence_management_hub_backoffice.absence_details.total_requests', 'Total Requests')}</CardTitle>
               </CardHeader>
               <CardContent className="gba:pt-0">
                 <div className="gba:text-2xl gba:font-bold gba:text-gray-900" data-testid="details-kpi-total-requests-value">
                   {dynamicAnalysis.totalRequests}
                 </div>
-                <div className="gba:text-xs gba:text-gray-600">{getTranslationFromI18nKeyAndLabel('lowcoder:absence_hub.filtered_results', 'Filtered Results')}</div>
+                <div className="gba:text-xs gba:text-gray-600">{getTranslationFromI18nKeyAndLabel('lowcoder:absence_management_hub_backoffice.absence_details.filtered_results', 'Filtered Results')}</div>
               </CardContent>
             </Card>
             
             <Card data-testid="details-kpi-employees">
               <CardHeader className="gba:pb-2">
-                <CardTitle className="gba:text-sm gba:font-medium">{getTranslationFromI18nKeyAndLabel('lowcoder:absence_hub.employees', 'Employees')}</CardTitle>
+                <CardTitle className="gba:text-sm gba:font-medium">{getTranslationFromI18nKeyAndLabel('lowcoder:absence_management_hub_backoffice.absence_details.employees', 'Employees')}</CardTitle>
               </CardHeader>
               <CardContent className="gba:pt-0">
                 <div className="gba:text-2xl gba:font-bold gba:text-gray-900" data-testid="details-kpi-employees-value">
                   {dynamicAnalysis.uniqueEmployees}
                 </div>
-                <div className="gba:text-xs gba:text-gray-600">{getTranslationFromI18nKeyAndLabel('lowcoder:absence_hub.filtered_results', 'Filtered Results')}</div>
+                <div className="gba:text-xs gba:text-gray-600">{getTranslationFromI18nKeyAndLabel('lowcoder:absence_management_hub_backoffice.absence_details.filtered_results', 'Filtered Results')}</div>
               </CardContent>
             </Card>
             
             <Card data-testid="details-kpi-avg-days-per-employee">
               <CardHeader className="gba:pb-2">
-                <CardTitle className="gba:text-sm gba:font-medium">{getTranslationFromI18nKeyAndLabel('lowcoder:absence_hub.avg_days_per_employee', 'Avg Days/Employee')}</CardTitle>
+                <CardTitle className="gba:text-sm gba:font-medium">{getTranslationFromI18nKeyAndLabel('lowcoder:absence_management_hub_backoffice.absence_details.avg_days_per_employee', 'Avg Days/Employee')}</CardTitle>
               </CardHeader>
               <CardContent className="gba:pt-0">
                 <div className="gba:text-2xl gba:font-bold gba:text-gray-900" data-testid="details-kpi-avg-days-per-employee-value">
                   {dynamicAnalysis.avgDaysPerEmployee}
                 </div>
-                <div className="gba:text-xs gba:text-gray-600">{getTranslationFromI18nKeyAndLabel('lowcoder:absence_hub.filtered_results', 'Filtered Results')}</div>
+                <div className="gba:text-xs gba:text-gray-600">{getTranslationFromI18nKeyAndLabel('lowcoder:absence_management_hub_backoffice.absence_details.filtered_results', 'Filtered Results')}</div>
               </CardContent>
             </Card>
               </div>
@@ -694,7 +720,7 @@ const AbsenceDetails: React.FC<AbsenceDetailsProps> = ({
             <Card>
               <CardHeader className="gba:pb-2">
                 <CardTitle className="gba:text-sm gba:font-medium">
-                  {month ? `Cross-Month Analysis (${month})` : 'Request Details'}
+{month ? getTranslationFromI18nKeyAndLabel('lowcoder:absence_management_hub_backoffice.absence_details.cross_month_analysis', `Cross-Month Analysis (${month})`) : getTranslationFromI18nKeyAndLabel('lowcoder:absence_management_hub_backoffice.absence_details.request_details', 'Request Details')}
                 </CardTitle>
               </CardHeader>
               <CardContent className="gba:pt-0">
@@ -704,15 +730,15 @@ const AbsenceDetails: React.FC<AbsenceDetailsProps> = ({
                   filteredAbsencesForMonth.overlappingInfo.spanningAcross > 0
                 ) ? (
                   <div className="gba:text-xs gba:text-gray-600 gba:space-y-1">
-                    <div>Fully within period: {filteredAbsencesForMonth.overlappingInfo.fullyWithin} requests</div>
+                    <div>{getTranslationFromI18nKeyAndLabel('lowcoder:absence_management_hub_backoffice.absence_details.fully_within_period', 'Fully within period')}: {filteredAbsencesForMonth.overlappingInfo.fullyWithin} {getTranslationFromI18nKeyAndLabel('lowcoder:absence_management_hub_backoffice.absence_details.requests', 'requests')}</div>
                     {filteredAbsencesForMonth.overlappingInfo.spanningInto > 0 && (
-                      <div>Spanning INTO period: {filteredAbsencesForMonth.overlappingInfo.spanningInto} requests</div>
+                      <div>{getTranslationFromI18nKeyAndLabel('lowcoder:absence_management_hub_backoffice.absence_details.spanning_into_period', 'Spanning INTO period')}: {filteredAbsencesForMonth.overlappingInfo.spanningInto} {getTranslationFromI18nKeyAndLabel('lowcoder:absence_management_hub_backoffice.absence_details.requests', 'requests')}</div>
                     )}
                     {filteredAbsencesForMonth.overlappingInfo.spanningOut > 0 && (
-                      <div>Spanning OUT of period: {filteredAbsencesForMonth.overlappingInfo.spanningOut} requests</div>
+                      <div>{getTranslationFromI18nKeyAndLabel('lowcoder:absence_management_hub_backoffice.absence_details.spanning_out_period', 'Spanning OUT of period')}: {filteredAbsencesForMonth.overlappingInfo.spanningOut} {getTranslationFromI18nKeyAndLabel('lowcoder:absence_management_hub_backoffice.absence_details.requests', 'requests')}</div>
                     )}
                     {filteredAbsencesForMonth.overlappingInfo.spanningAcross > 0 && (
-                      <div>Spanning ACROSS period: {filteredAbsencesForMonth.overlappingInfo.spanningAcross} requests</div>
+                      <div>{getTranslationFromI18nKeyAndLabel('lowcoder:absence_management_hub_backoffice.absence_details.spanning_across_period', 'Spanning ACROSS period')}: {filteredAbsencesForMonth.overlappingInfo.spanningAcross} {getTranslationFromI18nKeyAndLabel('lowcoder:absence_management_hub_backoffice.absence_details.requests', 'requests')}</div>
                     )}
 
                     {/* Detailed Employee Info for Spanning Requests */}
@@ -721,9 +747,9 @@ const AbsenceDetails: React.FC<AbsenceDetailsProps> = ({
                       <div className="gba:mt-2 gba:pt-2 gba:border-t gba:border-gray-200">
                         {filteredAbsencesForMonth.overlappingInfo.spanningIntoRequests?.length > 0 && (
                           <div className="gba:mb-1">
-                            <span className="gba:font-medium">INTO:</span> {
+                            <span className="gba:font-medium">{getTranslationFromI18nKeyAndLabel('lowcoder:absence_management_hub_backoffice.absence_details.into', 'INTO')}:</span> {
                               filteredAbsencesForMonth.overlappingInfo.spanningIntoRequests.slice(0, 2).map((absence: any, index: number) => {
-                            const formatDate = (dateStr: string) => new Date(dateStr).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+                            const formatDate = (dateStr: string) => new Date(dateStr).toLocaleDateString(getCurrentActiveUserLocale(), { month: 'short', day: 'numeric' });
                                 const employeeName = absence.employeeName || `${absence.employee?.firstName || ''} ${absence.employee?.lastName || ''}`.trim();
                             return (
                                   <span key={absence.id || index} className="gba:text-gray-500">
@@ -734,15 +760,15 @@ const AbsenceDetails: React.FC<AbsenceDetailsProps> = ({
                           })
                         }
                             {filteredAbsencesForMonth.overlappingInfo.spanningIntoRequests.length > 2 && (
-                              <span className="gba:text-gray-500"> +{filteredAbsencesForMonth.overlappingInfo.spanningIntoRequests.length - 2} more</span>
+                              <span className="gba:text-gray-500"> +{filteredAbsencesForMonth.overlappingInfo.spanningIntoRequests.length - 2} {getTranslationFromI18nKeyAndLabel('lowcoder:absence_management_hub_backoffice.absence_details.more', 'more')}</span>
                             )}
                           </div>
                     )}
                         {filteredAbsencesForMonth.overlappingInfo.spanningOutRequests?.length > 0 && (
                           <div>
-                            <span className="gba:font-medium">OUT:</span> {
+                            <span className="gba:font-medium">{getTranslationFromI18nKeyAndLabel('lowcoder:absence_management_hub_backoffice.absence_details.out', 'OUT')}:</span> {
                               filteredAbsencesForMonth.overlappingInfo.spanningOutRequests.slice(0, 2).map((absence: any, index: number) => {
-                            const formatDate = (dateStr: string) => new Date(dateStr).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+                            const formatDate = (dateStr: string) => new Date(dateStr).toLocaleDateString(getCurrentActiveUserLocale(), { month: 'short', day: 'numeric' });
                                 const employeeName = absence.employeeName || `${absence.employee?.firstName || ''} ${absence.employee?.lastName || ''}`.trim();
                             return (
                                   <span key={absence.id || index} className="gba:text-gray-500">
@@ -753,7 +779,7 @@ const AbsenceDetails: React.FC<AbsenceDetailsProps> = ({
                           })
                         }
                             {filteredAbsencesForMonth.overlappingInfo.spanningOutRequests.length > 2 && (
-                              <span className="gba:text-gray-500"> +{filteredAbsencesForMonth.overlappingInfo.spanningOutRequests.length - 2} more</span>
+                              <span className="gba:text-gray-500"> +{filteredAbsencesForMonth.overlappingInfo.spanningOutRequests.length - 2} {getTranslationFromI18nKeyAndLabel('lowcoder:absence_management_hub_backoffice.absence_details.more', 'more')}</span>
                             )}
                           </div>
                         )}
@@ -762,7 +788,7 @@ const AbsenceDetails: React.FC<AbsenceDetailsProps> = ({
                   </div>
                 ) : (
                   <div className="gba:text-xs gba:text-gray-500">
-                    {month ? 'No cross-month requests' : 'All requests within period'}
+{month ? getTranslationFromI18nKeyAndLabel('lowcoder:absence_management_hub_backoffice.absence_details.no_cross_month_requests', 'No cross-month requests') : getTranslationFromI18nKeyAndLabel('lowcoder:absence_management_hub_backoffice.absence_details.all_requests_within_period', 'All requests within period')}
                   </div>
                 )}
               </CardContent>
@@ -771,12 +797,12 @@ const AbsenceDetails: React.FC<AbsenceDetailsProps> = ({
             {/* Performance Card */}
             <Card>
               <CardHeader className="gba:pb-2">
-                <CardTitle className="gba:text-sm gba:font-medium">{getTranslationFromI18nKeyAndLabel('lowcoder:absence_hub.performance', 'Performance')}</CardTitle>
+                <CardTitle className="gba:text-sm gba:font-medium">{getTranslationFromI18nKeyAndLabel('lowcoder:absence_management_hub_backoffice.absence_details.performance', 'Performance')}</CardTitle>
               </CardHeader>
               <CardContent className="gba:pt-0">
                 <div className="gba:text-xs gba:text-gray-600 gba:space-y-1">
-                  <div>Avg Duration per Request: {dynamicAnalysis.avgDaysPerRequest} days</div>
-                  <div>Requests per Employee: {dynamicAnalysis.uniqueEmployees > 0 ? Math.round((dynamicAnalysis.totalRequests / dynamicAnalysis.uniqueEmployees) * 100) / 100 : 0}</div>
+                  <div>{getTranslationFromI18nKeyAndLabel('lowcoder:absence_management_hub_backoffice.absence_details.avg_duration_per_request', 'Avg Duration per Request')}: {dynamicAnalysis.avgDaysPerRequest} {getTranslationFromI18nKeyAndLabel('lowcoder:absence_management_hub_backoffice.absence_details.days', 'days')}</div>
+                  <div>{getTranslationFromI18nKeyAndLabel('lowcoder:absence_management_hub_backoffice.absence_details.requests_per_employee', 'Requests per Employee')}: {dynamicAnalysis.uniqueEmployees > 0 ? Math.round((dynamicAnalysis.totalRequests / dynamicAnalysis.uniqueEmployees) * 100) / 100 : 0}</div>
                 </div>
               </CardContent>
             </Card>
@@ -791,12 +817,12 @@ const AbsenceDetails: React.FC<AbsenceDetailsProps> = ({
                   <div className="gba:flex gba:flex-wrap gba:gap-2 gba:text-xs">
                     {Object.entries(dynamicAnalysis.statusBreakdown).map(([status, count]) => (
                       <div key={status} className="gba:text-gray-600 gba:bg-gray-50 gba:px-2 gba:py-1 gba:rounded">
-                        <span className="gba:font-medium">{status}:</span> {count as number}
+                        <span className="gba:font-medium">{getStatusTranslation(status)}:</span> {count as number}
             </div>
                     ))}
           </div>
                 ) : (
-                  <div className="gba:text-xs gba:text-gray-500">{getTranslationFromI18nKeyAndLabel('lowcoder:absence_hub.no_status_data', 'No status data')}</div>
+                  <div className="gba:text-xs gba:text-gray-500">{getTranslationFromI18nKeyAndLabel('lowcoder:absence_management_hub_backoffice.absence_details.no_status_data', 'No status data')}</div>
                 )}
               </CardContent>
             </Card>
@@ -804,7 +830,7 @@ const AbsenceDetails: React.FC<AbsenceDetailsProps> = ({
             {/* Department Distribution Card */}
             <Card>
               <CardHeader className="gba:pb-2">
-                <CardTitle className="gba:text-sm gba:font-medium">{getTranslationFromI18nKeyAndLabel('lowcoder:absence_hub.department_distribution', 'Department Distribution')}</CardTitle>
+                <CardTitle className="gba:text-sm gba:font-medium">{getTranslationFromI18nKeyAndLabel('lowcoder:absence_management_hub_backoffice.absence_details.department_distribution', 'Department Distribution')}</CardTitle>
               </CardHeader>
               <CardContent className="gba:pt-0">
                 {Object.keys(dynamicAnalysis.departmentBreakdown).length > 0 ? (
@@ -816,7 +842,7 @@ const AbsenceDetails: React.FC<AbsenceDetailsProps> = ({
                     ))}
               </div>
                 ) : (
-                  <div className="gba:text-xs gba:text-gray-500">{getTranslationFromI18nKeyAndLabel('lowcoder:absence_hub.no_department_data', 'No department data')}</div>
+                  <div className="gba:text-xs gba:text-gray-500">{getTranslationFromI18nKeyAndLabel('lowcoder:absence_management_hub_backoffice.absence_details.no_department_data', 'No department data')}</div>
                 )}
               </CardContent>
             </Card>

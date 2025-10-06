@@ -1,11 +1,8 @@
-/**
- * Custom hook for fetching and processing dashboard data
- * ✅ USES: True server-side GraphQL aggregations for optimal performance
- */
 
 import { useEffect, useState } from 'react';
 import { useGraphQLClient } from '../../../../../../common/network/graphql/useGraphQLClient';
 import { useCatalogManagerClient } from '../../../../../../common/network/catalogs/useCatalogManagerClient';
+import { getCurrentActiveUserLocale } from '../../../../../../common/utils/windowUtils';
 import { getOptimizedDashboardQuery } from '../queries/ServerSideAggregationQueries';
 import { processCompleteServerSideAggregations } from '../utils/serverSideAggregationUtils';
 import { DashboardData, TimeFilter } from '../types';
@@ -55,14 +52,16 @@ export const useDashboardData = ({ accessToken, timeFilter = 'current-year' }: U
     try {
       setData(prev => ({ ...prev, isLoading: true, error: null }));
 
-      // ✅ STEP 1: Fetch absence groups catalog (required for proper type mapping)
       await catalogClient.setAccessToken(accessToken);
+      const userLocale = getCurrentActiveUserLocale() ?? 'en-US';
+      
       const absenceGroupsData = await catalogClient.getCatalogEntriesList(
         { catalogIdentifier: "AbsenceGroup", version: "v1" },
         { 
           limit: 100, 
           offset: 0, 
           returnTotalRecords: true,
+          localeCode: userLocale,
           includeChildCatalogEntries: true
         }
       );
@@ -74,8 +73,8 @@ export const useDashboardData = ({ accessToken, timeFilter = 'current-year' }: U
           absenceGroups[group.catalogEntryLocalId] = group.value;
         }
       });
+      
 
-      // ✅ STEP 2: Find vacation group ID for entitlement filtering (FIXED LOGIC)
       const vacationGroup = absenceGroupsData.data.find((group: any) => 
         group.value && (
           group.value.toLowerCase().includes('vacation') ||
@@ -86,12 +85,10 @@ export const useDashboardData = ({ accessToken, timeFilter = 'current-year' }: U
       );
       const vacationGroupId = vacationGroup?.id;
       
-      // ✅ SERVER-SIDE AGGREGATIONS: True server-side processing
       const query = getOptimizedDashboardQuery(timeFilter, vacationGroupId);
       
       const result = await graphQLClient.request<any>(query);
       
-      // Process aggregation results with minimal client-side work
       const processedData = processCompleteServerSideAggregations(
         result,
         absenceGroups,
@@ -119,5 +116,4 @@ export const useDashboardData = ({ accessToken, timeFilter = 'current-year' }: U
   return data;
 };
 
-// Default export for easier importing
 export default useDashboardData; 

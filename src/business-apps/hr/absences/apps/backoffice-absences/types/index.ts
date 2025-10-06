@@ -81,6 +81,7 @@ export interface DashboardData {
     type: string;
     totalDays: number;
     count: number;
+    color?: string;
   }>;
   
   // Entitlements data
