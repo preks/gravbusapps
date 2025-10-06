@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useCallback } from 'react'
 import dayjs from 'dayjs'
 import { Employee, EmployeePerformanceGoal } from '../../hooks/useEmployeeData'
 import { Card } from '@newwork/gravity-ui-catalog'
@@ -12,6 +12,7 @@ import { FlowContextName } from '@/common/types/FlowRegistryTypes'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { UserInfoProps } from '../../../../../../../common/BusinessAppContext'
 import { PiPencilSimple } from 'react-icons/pi'
+import { Button } from '@newwork/nw-design-system'
 
 interface PerformanceTabProps {
   employee: Employee
@@ -37,7 +38,8 @@ const PerformanceTab: React.FC<PerformanceTabProps> = ({
   employee,
   accessToken,
   employeePerformanceGoals = [],
-  isSelfView
+  isSelfView,
+  userInfo,
 }) => {
   const [localPerformanceGoals, setLocalPerformanceGoals] = useState<ExtendedEmployeePerformanceGoal[]>([])
   const [loading, setLoading] = useState<boolean>(false)
@@ -67,7 +69,7 @@ const PerformanceTab: React.FC<PerformanceTabProps> = ({
     } finally {
       setLoading(false)
     }
-  }
+  }, [employee?.id, graphQLClient])
 
   useEffect(() => {
     // Initialize with props if available, otherwise fetch from API
@@ -76,7 +78,7 @@ const PerformanceTab: React.FC<PerformanceTabProps> = ({
     } else {
       fetchPerformanceData()
     }
-  }, [employee?.id, accessToken])
+  }, [employee?.id, accessToken, employeePerformanceGoals, fetchPerformanceData])
 
   const statusMap: Record<string, { label: string; color: string }> = {
     ON_TRACK: {
@@ -106,14 +108,60 @@ const PerformanceTab: React.FC<PerformanceTabProps> = ({
   }
 
   // Map status to display values and styles
-  const getStatusInfo: (status: string) => { label: string; color: string } = (status: string) => {
-    return statusMap[status] || { label: status, color: 'gba:bg-gray-100 gba:text-gray-800' }
-  }
+  const getStatusInfo: (_status: string) => { label: string; color: string } = (status: string) => {
+    return statusMap[status] || { label: status, color: 'gba:bg-gray-100 gba:text-gray-800' };
+  };
+
+  // Sort performance goals according to the specified rules
+  const sortPerformanceGoals = (
+    goals: ExtendedEmployeePerformanceGoal[],
+  ): ExtendedEmployeePerformanceGoal[] => {
+    const today = dayjs().startOf('day');
+
+    return [...goals].sort((a, b) => {
+      // Primary sort: Status (Overdue > Active > Completed)
+      const getStatusPriority = (goal: ExtendedEmployeePerformanceGoal): number => {
+        const isOverdue =
+          goal.dueDate && dayjs(goal.dueDate).isBefore(today) && goal.progressPercent < 100;
+        const isCompleted = goal.progressPercent === 100;
+        const isActive = !isOverdue && !isCompleted && goal.progressPercent < 100;
+
+        if (isOverdue) return 1; // Highest priority
+        if (isActive) return 2; // Medium priority
+        if (isCompleted) return 3; // Lowest priority
+        return 4; // No due date or other cases
+      };
+
+      const statusPriorityA = getStatusPriority(a);
+      const statusPriorityB = getStatusPriority(b);
+
+      if (statusPriorityA !== statusPriorityB) {
+        return statusPriorityA - statusPriorityB;
+      }
+
+      // Secondary sort: Due Date ascending (earliest first, no due date last)
+      const dueDateA = a.dueDate ? dayjs(a.dueDate).valueOf() : Number.MAX_SAFE_INTEGER;
+      const dueDateB = b.dueDate ? dayjs(b.dueDate).valueOf() : Number.MAX_SAFE_INTEGER;
+
+      if (dueDateA !== dueDateB) {
+        return dueDateA - dueDateB;
+      }
+
+      // Tertiary sort: Progress ascending (lowest progress first)
+      return (a.progressPercent || 0) - (b.progressPercent || 0);
+    });
+  };
+
+  // Get sorted performance goals
+  const sortedPerformanceGoals = sortPerformanceGoals(localPerformanceGoals);
 
   // Handle loading state
   if (loading) {
     return (
-      <div className="gba:flex gba:justify-center gba:items-center gba:h-40" data-testid="performance-loading">
+      <div
+        className="gba:flex gba:justify-center gba:items-center gba:h-40"
+        data-testid="performance-loading"
+      >
         <Spin size="large" />
       </div>
     )
@@ -131,7 +179,10 @@ const PerformanceTab: React.FC<PerformanceTabProps> = ({
   return (
     <div className="gba:performance-tab gba:space-y-8" data-testid="performance-tab-container">
       {/* Performance Goals Headline with Action Button */}
-      <div className="gba:flex gba:justify-between gba:items-start" data-testid="performance-goals-header">
+      <div
+        className="gba:flex gba:justify-between gba:items-start"
+        data-testid="performance-goals-header"
+      >
         <div className="gba:performance-header">
           <div className="gba:font-bold gba:text-2xl" data-testid="performance-goals-title">
             {getTranslationFromI18nKeyAndLabel('lowcoder:hr_performance.performance_goals', 'Performance Goals')}
@@ -150,7 +201,7 @@ const PerformanceTab: React.FC<PerformanceTabProps> = ({
               data-testid="employee-goal-add-button"
               contextsArray={[FlowContextName.employeePerformanceGoal]}
               externalContextData={{
-                employeeId: employee?.id
+                employeeId: employee?.id,
               }}
               prefixDataTestId="employee-goal-add"
               accessToken={accessToken}
@@ -169,11 +220,15 @@ const PerformanceTab: React.FC<PerformanceTabProps> = ({
       {/* Goals Content */}
       <div className="gba:grid gba:grid-cols-1 gba:gap-6 gba:py-4">
         <section className="gba:flex gba:flex-col gba:gap-4">
-          {!localPerformanceGoals?.length ? (
-            <Empty description="No goals available" className="gba:py-10" data-testid="empty-goals-state" />
+          {!sortedPerformanceGoals?.length ? (
+            <Empty
+              description="No goals available"
+              className="gba:py-10"
+              data-testid="empty-goals-state"
+            />
           ) : (
-            <div className="gba:grid gba:grid-cols-1 gba:md:grid-cols-2 gba:gap-3">
-              {localPerformanceGoals.map(goal => {
+            <div className="gba:flex gba:flex-col gba:gap-3 gba:w-full gba:items-center">
+              {sortedPerformanceGoals.map((goal) => {
                 if (!isGoalValid(goal)) {
                   return null
                 }
@@ -183,7 +238,7 @@ const PerformanceTab: React.FC<PerformanceTabProps> = ({
                   <Card
                     key={`goal-${goal.title ?? ''}-${goal.status ?? ''}`}
                     variant="outlined"
-                    className="gba:border gba:border-gray-200 gba:shadow-md gba:hover:shadow-lg gba:transition-all"
+                    className="gba:w-1/2 gba:border gba:border-gray-200 gba:shadow-md gba:hover:shadow-lg gba:transition-all"
                     data-testid={`goal-card-${goal.id}`}
                   >
                     <div className="gba:flex gba:flex-col gba:md:flex-row gba:md:items-center gba:justify-between gba:mb-4">
@@ -219,35 +274,45 @@ const PerformanceTab: React.FC<PerformanceTabProps> = ({
                       </div>
                       <div>
                         <span className="gba:block gba:text-gray-500">Completion Date</span>
-                        <span>{goal.completionDate ? dayjs(goal.completionDate).format('MMM D, YYYY') : '-'}</span>
+                        <span>
+                          {goal.completionDate
+                            ? dayjs(goal.completionDate).format('MMM D, YYYY')
+                            : '-'}
+                        </span>
                       </div>
                     </div>
 
                     {/* Edit button at the bottom right */}
-                    <div className="gba:flex gba:justify-end gba:mt-4">
-                      <AppActionMenu
-                        data-testid={`employee-goal-edit-button-${goal.id}`}
-                        contextsArray={[FlowContextName.employeePerformanceGoal]}
-                        externalContextData={{
-                          employeeId: employee?.id,
-                          goalId: goal.id,
-                          title: goal.title,
-                          startDate: goal.startDate,
-                          dueDate: goal.dueDate,
-                          completionDate: goal.completionDate,
-                          progressPercent: goal.progressPercent,
-                          status: goal.status,
-                          version: goal.version
-                        }}
-                        prefixDataTestId={`employee-goal-edit-${goal.id}`}
-                        accessToken={accessToken}
-                        className="gba:text-sm gba:py-1 gba:px-3"
-                        autoExecuteSingleAction={true}
-                        deferMainContextRequestsUntilClick={true}
-                      >
-                        Edit
-                      </AppActionMenu>
-                    </div>
+                    {isSelfView && goal.progressPercent < 100 && (
+                      <div className="gba:flex gba:justify-end gba:mt-4">
+                        <AppActionMenu
+                          data-testid={`employee-goal-edit-button-${goal.id}`}
+                          contextsArray={[FlowContextName.employeePerformanceGoal]}
+                          externalContextData={{
+                            employeeId: employee?.id,
+                            goalId: goal.id,
+                            title: goal.title,
+                            startDate: goal.startDate,
+                            dueDate: goal.dueDate,
+                            completionDate: goal.completionDate,
+                            progressPercent: goal.progressPercent,
+                            status: goal.status,
+                            version: goal.version,
+                          }}
+                          prefixDataTestId={`employee-goal-edit-${goal.id}`}
+                          accessToken={accessToken}
+                          className="gba:text-sm gba:py-1 gba:px-3"
+                          autoExecuteSingleAction={true}
+                          deferMainContextRequestsUntilClick={true}
+                        >
+                          <Button variant="outline">
+                            <div className="gba:flex gba:items-center gba:gap-2 gba:cursor-pointer">
+                              <PiPencilSimple className="gba:cursor-pointer" />
+                            </div>
+                          </Button>
+                        </AppActionMenu>
+                      </div>
+                    )}
                   </Card>
                 )
               })}
