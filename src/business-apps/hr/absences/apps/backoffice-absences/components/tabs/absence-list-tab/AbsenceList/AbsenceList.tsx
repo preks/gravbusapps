@@ -908,7 +908,7 @@ export const AbsenceList: React.FC<AbsenceListProps> = (props) => {
     },
     {
       id: 'creationDateRange',
-      title: getTranslationFromI18nKeyAndLabel('lowcoder:absence_management_hub_backoffice.absence_list.creation_date', 'Creation Date'),
+      title: getTranslationFromI18nKeyAndLabel('lowcoder:manager_expense_request_list.expense_table.creation_date', 'Creation Date'),
       customComponent: React.createElement(CreationDateFilter, {
         key: `creationDateRange-${creationStartDate}-${creationEndDate}`, // Force re-render when dates change
         initialStartDate: creationStartDate,
@@ -1007,11 +1007,11 @@ export const AbsenceList: React.FC<AbsenceListProps> = (props) => {
           ? `${getTranslationFromI18nKeyAndLabel('lowcoder:absence_table.start_date', 'Start Date')} - ${getTranslationFromI18nKeyAndLabel('lowcoder:absence_table.end_date', 'End Date')}: Until ${formatDateForDisplay(endDate)}` 
           : 'Date Range',
     creationDateRange: creationStartDate && creationEndDate 
-      ? `${getTranslationFromI18nKeyAndLabel('lowcoder:absence_management_hub_backoffice.absence_list.creation_date', 'Creation Date')}: ${formatDateForDisplay(creationStartDate)} ${getTranslationFromI18nKeyAndLabel('lowcoder:absence_overview_screen.absence_overview_table.to', 'to')} ${formatDateForDisplay(creationEndDate)}` 
+      ? `${getTranslationFromI18nKeyAndLabel('lowcoder:manager_expense_request_list.expense_table.creation_date', 'Creation Date')}: ${formatDateForDisplay(creationStartDate)} ${getTranslationFromI18nKeyAndLabel('lowcoder:absence_overview_screen.absence_overview_table.to', 'to')} ${formatDateForDisplay(creationEndDate)}` 
       : creationStartDate 
-        ? `${getTranslationFromI18nKeyAndLabel('lowcoder:absence_management_hub_backoffice.absence_list.creation_date', 'Creation Date')}: ${getTranslationFromI18nKeyAndLabel('lowcoder:absence_overview_screen.absence_overview_table.from', 'from')} ${formatDateForDisplay(creationStartDate)}` 
+        ? `${getTranslationFromI18nKeyAndLabel('lowcoder:manager_expense_request_list.expense_table.creation_date', 'Creation Date')}: ${getTranslationFromI18nKeyAndLabel('lowcoder:absence_overview_screen.absence_overview_table.from', 'from')} ${formatDateForDisplay(creationStartDate)}` 
         : creationEndDate 
-          ? `${getTranslationFromI18nKeyAndLabel('lowcoder:absence_management_hub_backoffice.absence_list.creation_date', 'Creation Date')}: Until ${formatDateForDisplay(creationEndDate)}` 
+          ? `${getTranslationFromI18nKeyAndLabel('lowcoder:manager_expense_request_list.expense_table.creation_date', 'Creation Date')}: Until ${formatDateForDisplay(creationEndDate)}` 
           : 'Creation Date'
   };
 
