@@ -160,7 +160,7 @@ const ExpenseRequestStatistics: React.FC<ExpenseRequestStatisticsProps> = ({
         "lowcoder:personal_expenses.no_expense_request_statistics_available",
         "No expense request statistics available.",
       )}
-      cardBackground="transparent"
+      cardBackground="muted"
       className="gba:py-0"
       data-testid="expense-request-statistics"
     />

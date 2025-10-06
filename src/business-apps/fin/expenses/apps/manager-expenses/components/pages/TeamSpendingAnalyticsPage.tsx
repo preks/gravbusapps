@@ -366,7 +366,7 @@ const TeamSpendingAnalyticsPage: React.FC<TeamSpendingAnalyticsPageProps> = ({
     <div className="gba:flex gba:flex-col gba:gap-6">
       <div className="gba:grid gba:grid-cols-1 lg:gba:grid-cols-2 gba:gap-6">
         <Card data-testid="team-analytics-expense-requests-monthly-chart-card">
-          <CardHeader>
+          <CardHeader className="gba:bg-muted">
             <CardTitle>
               {getTranslationFromI18nKeyAndLabel(
                 "lowcoder:team_expenses_page.dashboard_tab.monthly_expense_requests",
@@ -386,7 +386,7 @@ const TeamSpendingAnalyticsPage: React.FC<TeamSpendingAnalyticsPageProps> = ({
         </Card>
 
         <Card data-testid="team-analytics-expense-requests-status-counts-chart-card">
-          <CardHeader>
+          <CardHeader className="gba:bg-muted">
             <CardTitle>
               {getTranslationFromI18nKeyAndLabel(
                 "lowcoder:team_expenses_page.dashboard_tab.expense_requests_by_status",
@@ -429,7 +429,7 @@ const TeamSpendingAnalyticsPage: React.FC<TeamSpendingAnalyticsPageProps> = ({
 
       <div className="gba:grid gba:grid-cols-1 lg:gba:grid-cols-2 gba:gap-6">
         <Card data-testid="team-analytics-expense-requests-status-amounts-chart-card">
-          <CardHeader>
+          <CardHeader className="gba:bg-muted">
             <CardTitle>
               {getTranslationFromI18nKeyAndLabel(
                 "lowcoder:team_expenses_page.dashboard_tab.expense_requests_by_status",
@@ -472,7 +472,7 @@ const TeamSpendingAnalyticsPage: React.FC<TeamSpendingAnalyticsPageProps> = ({
         </Card>
 
         <Card data-testid="team-analytics-expense-requests-summary-card">
-          <CardHeader>
+          <CardHeader className="gba:bg-muted">
             <CardTitle>
               {getTranslationFromI18nKeyAndLabel(
                 "lowcoder:team_expenses_page.dashboard_tab.summary_statistics",
