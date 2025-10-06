@@ -11,7 +11,8 @@ import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 import { AnalyticsFilters } from './types';
 import dayjs from 'dayjs';
 import { AnalyticsTable } from './components/LiquidFundReportTable';
-import { ReportFilterPanel, useReportFilters } from '../components/shared';
+import { ReportFilterPanel, useReportFilters, ColumnConfig } from '../components/shared';
+import { useInvestmentLiquidFundReportCatalog } from './hooks/useInvestmentLiquidFundReportCatalog';
 
 // Using separate DatePicker components for start and end dates
 
@@ -27,8 +28,68 @@ export const LiquidFundReport: React.FC<LiquidFundReportProps> = ({
   // Sub-tab management - Start with Bank Deposits since Overview is removed
   const [activeSubTab, setActiveSubTab] = useState<string>('tab1');
 
+  // Fetch catalog to get columns for each liquid fund type
+  const { catalogData, isLoading: catalogLoading } = useInvestmentLiquidFundReportCatalog({ accessToken, userInfo });
+
+  // Map tab IDs to liquid fund type codes
+  const tabToLiquidFundTypeCode: Record<string, string> = {
+    'tab1': 'BANK_DEPOSITE',
+    'tab2': 'FIXED_TERM_DEPOSIT',
+    'tab3': 'MONEY_MARKET_FUNDS' // Multiple types tab - use Money Market Funds as base
+  };
+
+  // Define initial columns dynamically based on the ACTIVE TAB's liquid fund type
+  const initialColumns: ColumnConfig[] = useMemo(() => {
+    const columns: ColumnConfig[] = [
+      { id: 'investment', label: 'Investment', visible: true, disabled: true },
+      { id: 'date', label: 'Date', visible: true },
+    ];
+
+    // Get the liquid fund type for the active tab
+    const activeTypeCode = tabToLiquidFundTypeCode[activeSubTab];
+
+    // If catalog is loaded, get columns for the active liquid fund type only
+    if (catalogData?.investmentLiquidFundTypes && activeTypeCode) {
+      const activeLiquidFundType = catalogData.investmentLiquidFundTypes.find(
+        type => type.code === activeTypeCode
+      );
+
+      if (activeLiquidFundType?.objectValue?.formFields) {
+        activeLiquidFundType.objectValue.formFields.forEach(group => {
+          group.fields.forEach(field => {
+            // Use the same ID generation as the table transformer (property with dots -> underscores)
+            const columnId = field.property.replace(/\./g, '_');
+            columns.push({
+              id: columnId,
+              label: field.label,
+              visible: true // All visible by default
+            });
+          });
+        });
+      }
+    } else {
+      // Fallback to common columns if catalog not loaded yet
+      columns.push(
+        { id: 'name', label: 'Name', visible: true },
+        { id: 'proprietor', label: 'Proprietor', visible: true },
+        { id: 'currency', label: 'Currency', visible: true },
+        { id: 'openingBalance', label: 'Opening Balance', visible: true },
+        { id: 'incoming', label: 'Incoming', visible: true },
+        { id: 'outgoing', label: 'Outgoing', visible: true },
+        { id: 'realized', label: 'Realized', visible: true },
+        { id: 'gainsLosses', label: 'Gains/Losses', visible: true },
+        { id: 'closingBalance', label: 'Closing Balance', visible: true },
+        { id: 'timeWeightedReturn', label: 'Time-Weighted Return', visible: true },
+        { id: 'interestRate', label: 'Interest Rate', visible: false },
+        { id: 'maturityDate', label: 'Maturity Date', visible: false }
+      );
+    }
+
+    return columns;
+  }, [catalogData, activeSubTab]);
+
   // Shared filter state and logic
-  const reportFilters = useReportFilters();
+  const reportFilters = useReportFilters(initialColumns);
 
   // Create filters for specific investment types (Overview removed)
   const bankDepositFilters = useMemo((): AnalyticsFilters => ({
@@ -93,6 +154,8 @@ export const LiquidFundReport: React.FC<LiquidFundReportProps> = ({
             filters={bankDepositFilters}
             investmentType="Bank Deposits"
             title="Liquid Fund Analytics - Bank Deposits"
+            isTransposed={reportFilters.isTransposed}
+            visibleColumns={reportFilters.visibleColumns}
             data-testid={`${dataTestId}-bank-deposits-table`}
           />
         </TabsContent>
@@ -104,6 +167,8 @@ export const LiquidFundReport: React.FC<LiquidFundReportProps> = ({
             filters={fixedTermDepositFilters}
             investmentType="Fixed-Term Deposits"
             title="Liquid Fund Analytics - Fixed-Term Deposits"
+            isTransposed={reportFilters.isTransposed}
+            visibleColumns={reportFilters.visibleColumns}
             data-testid={`${dataTestId}-fixed-term-deposits-table`}
           />
         </TabsContent>
@@ -115,6 +180,8 @@ export const LiquidFundReport: React.FC<LiquidFundReportProps> = ({
             filters={multipleTypesFilters}
             investmentType="Multiple Investment Types"
             title="Liquid Fund Analytics - Money Market, Pension, Equity & Bond"
+            isTransposed={reportFilters.isTransposed}
+            visibleColumns={reportFilters.visibleColumns}
             data-testid={`${dataTestId}-multiple-types-table`}
           />
         </TabsContent>

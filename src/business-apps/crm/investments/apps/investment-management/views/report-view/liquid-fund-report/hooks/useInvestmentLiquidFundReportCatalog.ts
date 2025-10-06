@@ -66,6 +66,7 @@ export const useInvestmentLiquidFundReportCatalog = (context: BusinessAppContext
           investmentTypes: relatedInvestmentTypes
         };
       });
+      
       setReportTypes(transformedReportTypes);
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Failed to load catalog data';

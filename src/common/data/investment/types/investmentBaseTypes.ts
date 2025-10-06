@@ -120,6 +120,13 @@ export interface BaseInvestmentReport extends BaseEntity {
   fundManagerName?: string;
   identification?: any; // Jsonb
   
+  // Additional metadata fields
+  additionalProperties?: any; // Jsonb - custom properties
+  businessKey?: string; // Business identifier for external integrations
+  currencyRef?: string; // Direct catalog reference
+  processInstanceId?: string; // Kogito process tracking
+  synchronizedAt?: string; // ISO timestamp
+  
   // Specific report type relationships
   equityInvestmentReport?: BaseEquityInvestmentReport[];
   liquidFundInvestmentReport?: BaseLiquidFundInvestmentReport[];
@@ -175,6 +182,13 @@ export interface BaseEquityInvestmentReport extends BaseEntity {
   marketValue?: number;
   turnoverAmount?: number;
   ebitdaAmount?: number;
+  equityInvestmentId?: string; // Foreign key
+
+  // Additional metadata fields
+  additionalProperties?: any; // Jsonb - custom properties
+  businessKey?: string; // Business identifier
+  processInstanceId?: string; // Kogito process tracking
+  synchronizedAt?: string; // ISO timestamp
 
   // Entity references (using Ref types)
   equityInvestment?: BaseEquityInvestment;
@@ -250,6 +264,13 @@ export interface BaseRealEstateInvestmentReport extends BaseEntity {
   actualAnnualExpenses?: number;
   targetAnnualExpenses?: number;
   liquidityForecast?: any; // Jsonb
+  realEstateInvestmentId?: string; // Foreign key
+
+  // Additional metadata fields
+  additionalProperties?: any; // Jsonb - custom properties
+  businessKey?: string; // Business identifier
+  processInstanceId?: string; // Kogito process tracking
+  synchronizedAt?: string; // ISO timestamp
 
   // Catalog references
   sizeMeasurementUnit?: CatalogEntry;
@@ -299,6 +320,17 @@ export interface BaseLiquidFundInvestmentReport extends BaseEntity {
   earlyTerminationAllowed?: boolean;
   interestRate?: number;
   maturityDate?: string; // ISO date string
+  liquidFundInvestmentId?: string; // Foreign key
+
+  // Additional metadata fields
+  additionalProperties?: any; // Jsonb - custom properties
+  businessKey?: string; // Business identifier
+  processInstanceId?: string; // Kogito process tracking
+  synchronizedAt?: string; // ISO timestamp
+
+  // Catalog reference fields
+  interestPaymentFrequencyRef?: string;
+  investmentLiquidFundTypeRef?: string;
 
   // Catalog references
   investmentLiquidFundType?: CatalogEntry;

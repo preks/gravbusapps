@@ -271,7 +271,14 @@ export const transformFormFieldsToHeaderItems = (
     }
 
     // Format the value
-    const formattedValue = formatFieldValue(value, field.type, currencyCode);
+    // Special handling: Interest rate fields should always be formatted as percentages
+    // even if catalog incorrectly defines them as AMOUNT
+    let effectiveFieldType = field.type;
+    if (field.property.toLowerCase().includes('interestrate')) {
+      effectiveFieldType = 'PERCENTAGE';
+    }
+    
+    const formattedValue = formatFieldValue(value, effectiveFieldType, currencyCode);
 
     items.push({
       label: field.label,
