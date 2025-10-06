@@ -34,7 +34,14 @@ const OpportunityFormComponent: React.FC = () => {
 
   // Handle form submission for Investment Opportunity
   const handleSubmit = async () => {
+    // Prevent duplicate submissions
+    if (isLoading) {
+      console.log('🚫 Duplicate submission prevented - already loading');
+      return;
+    }
+
     try {
+      console.log('⏳ Starting opportunity form submission');
       // Determine dealType: default to "INVESTMENT_DEAL" unless business context provides one
       const contextDealType = businessAppContext.additionalData?.dealType;
       const finalDealType = contextDealType || formValues.dealType || "INVESTMENT_DEAL";
@@ -218,13 +225,12 @@ const OpportunityFormComponent: React.FC = () => {
             <Button
               type="button"
               variant="default"
-              disabled={!isFormValid}
+              disabled={!isFormValid || isLoading}
               className="gba:flex-1"
               size="lg"
               onClick={handleSubmit}
               data-testid={formatDataTestId(prefixDataTestId, "submit-button")}
             >
-              {isLoading && <Spinner size="sm" className="gba:mr-2" />}
               {formValues.id
                 ? "Update Investment Opportunity"
                 : "Create Investment Opportunity"}

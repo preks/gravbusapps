@@ -30,6 +30,8 @@ interface ContactFormContextValue extends ContactContextState {
   onSubmit: (values: ContactFormValues) => Promise<void>;
   onCancel: () => Promise<void>;
   hideActions: boolean; // Hide submit/cancel buttons when embedded
+  isLoading: boolean;
+  error: string | null;
 
   // Business app context for child components
   businessAppContext: BusinessAppContextProps;
@@ -258,6 +260,58 @@ export const ContactFormProvider: React.FC<ContactFormProviderProps> = ({
     setFormValuesState((prev) => ({ ...prev, ...updates }));
   }, []);
 
+  // Wrap onSubmit with loading state management and process completion waiting
+  const handleSubmitWithLoading = useCallback(
+    async (values: ContactFormValues) => {
+      setIsLoading(true);
+      setError(null);
+      try {
+        console.log('⏳ Contact form submission started');
+        await onSubmit(values); // Call the original onSubmit
+
+        // Wait for process completion event
+        await new Promise<void>((resolve) => {
+          const TIMEOUT = 10000; // 10 second timeout for safety
+          const timeoutId = setTimeout(() => {
+            console.log('⏱️ Process completion timeout reached, proceeding...');
+            cleanup();
+            resolve();
+          }, TIMEOUT);
+
+          const handleProcessCompletion = (event: Event) => {
+            const customEvent = event as CustomEvent<{ resolution: 'success' | 'failure' }>;
+            console.log('🎉 Process completion event received:', customEvent.detail);
+            if (
+              customEvent.detail?.resolution === 'success' ||
+              customEvent.detail?.resolution === 'failure'
+            ) {
+              cleanup();
+              resolve();
+            }
+          };
+
+          const cleanup = () => {
+            clearTimeout(timeoutId);
+            window.removeEventListener('com.newwork.process.processCompletion', handleProcessCompletion);
+            window.removeEventListener('com.newwork.process.taskCompletion', handleProcessCompletion);
+          };
+
+          window.addEventListener('com.newwork.process.processCompletion', handleProcessCompletion);
+          window.addEventListener('com.newwork.process.taskCompletion', handleProcessCompletion);
+        });
+
+        console.log('✅ Process completed, form can close');
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'An error occurred');
+        console.error('❌ Submission error:', err);
+      } finally {
+        setIsLoading(false);
+        console.log('🔄 Loading state reset');
+      }
+    },
+    [onSubmit]
+  );
+
   // Convert employee position data to SelectOption format (MATCHES CRM PATTERN)
   const employeePositionsSelectOptions: SelectOption[] = useMemo(() => {
     if (!employeePositions) {
@@ -472,11 +526,11 @@ export const ContactFormProvider: React.FC<ContactFormProviderProps> = ({
     // Form state
     formValues,
     setFormValues,
-    onSubmit,
+    onSubmit: handleSubmitWithLoading, // Export the wrapped function
     onCancel,
     hideActions,
-    isLoading: false, // Simplified form doesn't track global loading state
-    error: null, // Simplified form doesn't track global error state
+    isLoading, // Track loading state during submission
+    error, // Track error state during submission
 
     // Business app context
     businessAppContext,

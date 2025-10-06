@@ -34,6 +34,8 @@ interface AccountFormContextValue extends AccountContextState {
   onSubmit: (values: AccountFormValues) => Promise<void>;
   onCancel: () => Promise<void>;
   hideActions: boolean; // Hide submit/cancel buttons when embedded
+  isLoading: boolean;
+  error: string | null;
 
   // Business app context for hooks
   businessAppContext: BusinessAppContextProps;
@@ -633,10 +635,18 @@ export const AccountFormProvider: React.FC<AccountFormProviderProps> = ({
 
   // Update global loading and error state to include account data loading
   useEffect(() => {
+    console.log('📊 Account Form Context - Loading state changed:', {
+      accountDataLoading,
+      accountDataError,
+      hasAccountData: !!accountData
+    });
     setIsLoading(accountDataLoading);
-  }, [accountDataLoading]);
+  }, [accountDataLoading, accountData, accountDataError]);
 
   useEffect(() => {
+    if (accountDataError) {
+      console.error('❌ Account Form Context - Error:', accountDataError);
+    }
     setError(accountDataError);
   }, [accountDataError]);
 

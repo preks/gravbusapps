@@ -257,8 +257,8 @@ export const OpportunityFormProvider: React.FC<
       return defaultValues;
     });
 
-  const [isLoading] = useState(false);
-  const [error] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   // Investment data state
   const [investmentData, setInvestmentData] = useState<RawInvestmentData | null>(null);
@@ -827,12 +827,64 @@ export const OpportunityFormProvider: React.FC<
     []
   );
 
+  // Wrap onSubmit with loading state management and process completion waiting
+  const handleSubmitWithLoading = useCallback(
+    async (values: InvestmentOpportunityFormValues) => {
+      setIsLoading(true);
+      setError(null);
+      try {
+        console.log('⏳ Opportunity form submission started');
+        await onSubmit(values); // Call the original onSubmit
+
+        // Wait for process completion event
+        await new Promise<void>((resolve) => {
+          const TIMEOUT = 10000; // 10 second timeout for safety
+          const timeoutId = setTimeout(() => {
+            console.log('⏱️ Process completion timeout reached, proceeding...');
+            cleanup();
+            resolve();
+          }, TIMEOUT);
+
+          const handleProcessCompletion = (event: Event) => {
+            const customEvent = event as CustomEvent<{ resolution: 'success' | 'failure' }>;
+            console.log('🎉 Process completion event received:', customEvent.detail);
+            if (
+              customEvent.detail?.resolution === 'success' ||
+              customEvent.detail?.resolution === 'failure'
+            ) {
+              cleanup();
+              resolve();
+            }
+          };
+
+          const cleanup = () => {
+            clearTimeout(timeoutId);
+            window.removeEventListener('com.newwork.process.processCompletion', handleProcessCompletion);
+            window.removeEventListener('com.newwork.process.taskCompletion', handleProcessCompletion);
+          };
+
+          window.addEventListener('com.newwork.process.processCompletion', handleProcessCompletion);
+          window.addEventListener('com.newwork.process.taskCompletion', handleProcessCompletion);
+        });
+
+        console.log('✅ Process completed, form can close');
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'An error occurred');
+        console.error('❌ Submission error:', err);
+      } finally {
+        setIsLoading(false);
+        console.log('🔄 Loading state reset');
+      }
+    },
+    [onSubmit]
+  );
+
   // Context value
   const contextValue: InvestmentOpportunityFormContextValue = useMemo(
     () => ({
       formValues,
       setFormValues,
-      onSubmit,
+      onSubmit: handleSubmitWithLoading, // Export the wrapped function
       onCancel,
       isLoading: isLoading || opportunityDataLoading || investmentDataLoading,
       error: error || opportunityDataError || investmentDataError,
@@ -901,7 +953,7 @@ export const OpportunityFormProvider: React.FC<
     [
       formValues,
       setFormValues,
-      onSubmit,
+      handleSubmitWithLoading,
       onCancel,
       isLoading,
       error,

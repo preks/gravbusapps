@@ -1,7 +1,6 @@
 import React from "react";
 import {
   Button,
-  Spinner,
   Alert,
   AlertDescription,
 } from "@newwork/nw-design-system";
@@ -42,7 +41,14 @@ const ContactFormComponent: React.FC = () => {
 
   // Handle form submission
   const handleSubmit = async () => {
+    // Prevent duplicate submissions
+    if (isLoading) {
+      console.log('🚫 Duplicate submission prevented - already loading');
+      return;
+    }
+
     try {
+      console.log('⏳ Starting contact form submission');
       // Determine if this is an update or create operation
       const isUpdate = formValues.id;
 
@@ -199,13 +205,12 @@ const ContactFormComponent: React.FC = () => {
             <Button
               type="button"
               variant="default"
-              disabled={!isFormValid}
+              disabled={!isFormValid || isLoading}
               className="gba:flex-1"
               size="lg"
               onClick={handleSubmit}
               data-testid={formatDataTestId(prefixDataTestId, "submit-button")}
             >
-              {isLoading && <Spinner size="sm" className="gba:mr-2" />}
               {formValues.id ? "Update Contact" : "Create Contact"}
             </Button>
           </div>
