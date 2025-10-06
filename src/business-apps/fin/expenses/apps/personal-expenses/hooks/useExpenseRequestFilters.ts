@@ -411,14 +411,14 @@ export const useExpenseRequestFilters = (): UseExpenseRequestFiltersReturn => {
       conditions.push({ requestDate: { _lte: formatEndDate(requestDateRange[1]) } });
     }
 
-    // Effective Date: EXPENSES -> requestDate, TRIP -> startDate
+    // Effective Date: EXPENSES -> expenseItem.expenseDate, TRIP -> startDate
     if (effectiveDateRange?.[0] || effectiveDateRange?.[1]) {
       const start = effectiveDateRange?.[0] ? formatStartDate(effectiveDateRange[0]) : undefined;
       const end = effectiveDateRange?.[1] ? formatEndDate(effectiveDateRange[1]) : undefined;
       const tripAnd: any[] = [];
       const expenseAnd: any[] = [];
-      if (start) { tripAnd.push({ startDate: { _gte: start } }); expenseAnd.push({ requestDate: { _gte: start } }); }
-      if (end) { tripAnd.push({ startDate: { _lte: end } }); expenseAnd.push({ requestDate: { _lte: end } }); }
+      if (start) { tripAnd.push({ startDate: { _gte: start } }); expenseAnd.push({ expenseItem: { expenseDate: { _gte: start } } }); }
+      if (end) { tripAnd.push({ startDate: { _lte: end } }); expenseAnd.push({ expenseItem: { expenseDate: { _lte: end } } }); }
       conditions.push({
         _or: [
           { _and: [ { requestTypeRef: { _eq: 'ExpenseRequestType:v1:TRIP' } }, ...tripAnd ] },

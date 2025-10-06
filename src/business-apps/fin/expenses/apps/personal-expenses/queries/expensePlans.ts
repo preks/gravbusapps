@@ -291,7 +291,7 @@ export const GET_CLOSED_PLANS_STATISTICS = `
           { status: {_in: ["CLOSED", "PAID"]} },
           { _or: [
               { _and: [
-                  { planDate: { _gte: $startDate, _lte: $endDate } },
+                  { expensePlanItem: { expenseDate: { _gte: $startDate, _lte: $endDate } } },
                   { requestTypeRef: {_eq: "ExpenseRequestType:v1:EXPENSES"} }
                 ] },
               { _and: [
@@ -318,7 +318,7 @@ export const GET_EXPENSE_PLAN_STATISTICS = `
           { isDeleted: {_eq: false} },
           { _or: [
               { _and: [
-                  { planDate: { _gte: $startDate, _lte: $endDate } },
+                  { expensePlanItem: { expenseDate: { _gte: $startDate, _lte: $endDate } } },
                   { requestTypeRef: {_eq: "ExpenseRequestType:v1:EXPENSES"} }
                 ] },
               { _and: [
@@ -342,8 +342,8 @@ export const GET_EXPENSE_PLAN_STATISTICS = `
           { currencyRef: {_eq: $currencyRef} },
           { _or: [
               { _and: [
-                  { planDate: { _gte: $startDate, _lte: $endDate } },
-                  { requestTypeRef: {_eq: "ExpenseRequestType:v1:EXPENSES"} }
+                 { requestTypeRef: {_eq: "ExpenseRequestType:v1:EXPENSES"} }
+                 { expensePlanItem: { expenseDate: { _gte: $startDate, _lte: $endDate } } },
                 ] },
               { _and: [
                   { requestTypeRef: {_eq: "ExpenseRequestType:v1:TRIP"} },

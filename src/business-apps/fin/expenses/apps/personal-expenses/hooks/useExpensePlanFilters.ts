@@ -146,14 +146,14 @@ export const useExpensePlanFilters = () => {
       conditions.push({ endDate: { _lte: formatEndDate(endDateRange[1]) } });
     }
 
-    // Effective Date filter: EXPENSES -> planDate, TRIP -> startDate
+    // Effective Date filter: EXPENSES -> expensePlanItem.expenseDate, TRIP -> startDate
     if (effectiveDateRange?.[0] || effectiveDateRange?.[1]) {
       const start = effectiveDateRange?.[0] ? formatStartDate(effectiveDateRange[0]) : undefined;
       const end = effectiveDateRange?.[1] ? formatEndDate(effectiveDateRange[1]) : undefined;
       const tripAnd = [] as any[];
       const expenseAnd = [] as any[];
-      if (start) { tripAnd.push({ startDate: { _gte: start } }); expenseAnd.push({ planDate: { _gte: start } }); }
-      if (end) { tripAnd.push({ startDate: { _lte: end } }); expenseAnd.push({ planDate: { _lte: end } }); }
+      if (start) { tripAnd.push({ startDate: { _gte: start } }); expenseAnd.push({ expensePlanItem: { expenseDate: { _gte: start } } }); }
+      if (end) { tripAnd.push({ startDate: { _lte: end } }); expenseAnd.push({ expensePlanItem: { expenseDate: { _lte: end } } }); }
       if (tripAnd.length > 0 || expenseAnd.length > 0) {
         conditions.push({
           _or: [
@@ -291,6 +291,7 @@ export const useExpensePlanFilters = () => {
       setPlanDateRange(null);
       setStartDateRange(null);
       setEndDateRange(null);
+      setEffectiveDateRange(null);
       setSearch('');
       return;
     }
