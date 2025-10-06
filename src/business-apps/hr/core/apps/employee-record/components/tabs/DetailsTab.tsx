@@ -164,14 +164,23 @@ const DetailsTab: React.FC<DetailsTabProps> = ({ employee, accessToken, employee
 
   // Prepare private communication data
   const getPrivateCommunication = () => {
+    // Safely extract private communication; it may be empty
     const communications = employee.communication || [];
     const privateComms = communications.filter(
-      comm => comm.purpose === 'PRIVATE'
+      comm => comm?.purpose === 'PRIVATE'
     );
 
-    const privatePhone = privateComms.find(comm => comm.channel.code === 'Phone');
-    const privateMobile = privateComms.find(comm => comm.channel.code === 'Mobile');
-    const privateEmail = privateComms.find(comm => comm.channel.code === 'e-mail');
+    // pick the last (most recent) entry for each channel code
+    const lastByCode = (code: string) => {
+      for (let i = privateComms.length - 1; i >= 0; i--) {
+        const comm = privateComms[i];
+        if (comm?.channel?.code === code) return comm;
+      }
+      return undefined;
+    };
+    const privatePhone = lastByCode('Phone');
+    const privateMobile = lastByCode('Mobile');
+    const privateEmail = lastByCode('e-mail');
 
     return [
       {
