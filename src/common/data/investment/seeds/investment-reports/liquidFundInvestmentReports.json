@@ -1,0 +1,801 @@
+[
+  {
+    "investmentReportRequest": {
+      "investmentReport": {
+        "date": "2024-10-01T00:00:00.000Z",
+        "scope": "MONTHLY",
+        "investmentGroupRef": "InvestmentGroup:v1:LIQUID_FUND",
+        "investmentTypeRef": "InvestmentType:v1:CAPTIAL_MARKET",
+        "investmentStakeTypeRef": "InvestmentStakeType:v1:MINORITY",
+        "investmentPhaseRef": "InvestmentPhase:v1:ACTIVE",
+        "investmentStatusRef": "InvestmentStatus:v1:ACTIVE",
+        "totalInvestmentAmount": 500000,
+        "investmentMarketValue": 1520000,
+        "currencyRef": "Currency:v1:EUR",
+        "investment": "60000000-0000-0000-0000-000000000009"
+      },
+      "liquidFundInvestmentReport": {
+        "date": "2024-10-01T00:00:00.000Z",
+        "scope": "MONTHLY",
+        "investmentLiquidFundTypeRef": "InvestmentLiquidFundType:v1:PENSION_FUNDS",
+        "proprietorName": "Ionis Capital",
+        "bankName": "BNP Paribas",
+        "bankAccountNumber": "FR1357924680135792468",
+        "earlyTerminationAllowed": true,
+        "interestRate": 4.8,
+        "interestPaymentFrequencyRef": "InterestPaymentFrequency:v1:QUARTERLY",
+        "maturityDate": "2033-07-15T00:00:00.000Z",
+        "liquidFundInvestment": "80000000-0000-0000-0000-000000000009",
+        "additionalProperties": {
+          "name": "Ionis AI Seed Pension Fund",
+          "proprietor": "Ionis Capital",
+          "bank": "BNP Paribas",
+          "isin": "FR0013412285",
+          "quantity": 1000,
+          "openingBalance": 1516000,
+          "incoming": 0,
+          "outgoing": 0,
+          "netIncome": 4000,
+          "realizedGainsLossesCurrency": 2800,
+          "unrealizedGainsLossesCurrency": 1200,
+          "realizedGainsLossesSharePrice": 2800,
+          "unrealizedGainsLossesSharePrice": 1200,
+          "closingBalance": 1520000,
+          "timeWeightedPerformance": 4.8
+        }
+      }
+    }
+  },
+  {
+    "investmentReportRequest": {
+      "investmentReport": {
+        "date": "2024-09-01T00:00:00.000Z",
+        "scope": "MONTHLY",
+        "investmentGroupRef": "InvestmentGroup:v1:LIQUID_FUND",
+        "investmentTypeRef": "InvestmentType:v1:CAPTIAL_MARKET",
+        "investmentStakeTypeRef": "InvestmentStakeType:v1:MINORITY",
+        "investmentPhaseRef": "InvestmentPhase:v1:ACTIVE",
+        "investmentStatusRef": "InvestmentStatus:v1:ACTIVE",
+        "totalInvestmentAmount": 500000,
+        "investmentMarketValue": 1516000,
+        "currencyRef": "Currency:v1:EUR",
+        "investment": "60000000-0000-0000-0000-000000000009"
+      },
+      "liquidFundInvestmentReport": {
+        "date": "2024-09-01T00:00:00.000Z",
+        "scope": "MONTHLY",
+        "investmentLiquidFundTypeRef": "InvestmentLiquidFundType:v1:PENSION_FUNDS",
+        "proprietorName": "Ionis Capital",
+        "bankName": "BNP Paribas",
+        "bankAccountNumber": "FR1357924680135792468",
+        "earlyTerminationAllowed": true,
+        "interestRate": 4.8,
+        "interestPaymentFrequencyRef": "InterestPaymentFrequency:v1:QUARTERLY",
+        "maturityDate": "2033-07-15T00:00:00.000Z",
+        "liquidFundInvestment": "80000000-0000-0000-0000-000000000009",
+        "additionalProperties": {
+          "name": "Ionis AI Seed Pension Fund",
+          "proprietor": "Ionis Capital",
+          "bank": "BNP Paribas",
+          "isin": "FR0013412285",
+          "quantity": 1000,
+          "openingBalance": 1512000,
+          "incoming": 0,
+          "outgoing": 0,
+          "netIncome": 4000,
+          "realizedGainsLossesCurrency": 2800,
+          "unrealizedGainsLossesCurrency": 1200,
+          "realizedGainsLossesSharePrice": 2800,
+          "unrealizedGainsLossesSharePrice": 1200,
+          "closingBalance": 1516000,
+          "timeWeightedPerformance": 4.8
+        }
+      }
+    }
+  },
+  {
+    "investmentReportRequest": {
+      "investmentReport": {
+        "date": "2024-08-01T00:00:00.000Z",
+        "scope": "MONTHLY",
+        "investmentGroupRef": "InvestmentGroup:v1:LIQUID_FUND",
+        "investmentTypeRef": "InvestmentType:v1:CAPTIAL_MARKET",
+        "investmentStakeTypeRef": "InvestmentStakeType:v1:MINORITY",
+        "investmentPhaseRef": "InvestmentPhase:v1:ACTIVE",
+        "investmentStatusRef": "InvestmentStatus:v1:ACTIVE",
+        "totalInvestmentAmount": 500000,
+        "investmentMarketValue": 1512000,
+        "currencyRef": "Currency:v1:EUR",
+        "investment": "60000000-0000-0000-0000-000000000009"
+      },
+      "liquidFundInvestmentReport": {
+        "date": "2024-08-01T00:00:00.000Z",
+        "scope": "MONTHLY",
+        "investmentLiquidFundTypeRef": "InvestmentLiquidFundType:v1:PENSION_FUNDS",
+        "proprietorName": "Ionis Capital",
+        "bankName": "BNP Paribas",
+        "bankAccountNumber": "FR1357924680135792468",
+        "earlyTerminationAllowed": true,
+        "interestRate": 4.8,
+        "interestPaymentFrequencyRef": "InterestPaymentFrequency:v1:QUARTERLY",
+        "maturityDate": "2033-07-15T00:00:00.000Z",
+        "liquidFundInvestment": "80000000-0000-0000-0000-000000000009",
+        "additionalProperties": {
+          "name": "Ionis AI Seed Pension Fund",
+          "proprietor": "Ionis Capital",
+          "bank": "BNP Paribas",
+          "isin": "FR0013412285",
+          "quantity": 1000,
+          "openingBalance": 1508000,
+          "incoming": 0,
+          "outgoing": 0,
+          "netIncome": 4000,
+          "realizedGainsLossesCurrency": 2800,
+          "unrealizedGainsLossesCurrency": 1200,
+          "realizedGainsLossesSharePrice": 2800,
+          "unrealizedGainsLossesSharePrice": 1200,
+          "closingBalance": 1512000,
+          "timeWeightedPerformance": 4.8
+        }
+      }
+    }
+  },
+  {
+    "investmentReportRequest": {
+      "investmentReport": {
+        "date": "2024-07-01T00:00:00.000Z",
+        "scope": "MONTHLY",
+        "investmentGroupRef": "InvestmentGroup:v1:LIQUID_FUND",
+        "investmentTypeRef": "InvestmentType:v1:CAPTIAL_MARKET",
+        "investmentStakeTypeRef": "InvestmentStakeType:v1:MINORITY",
+        "investmentPhaseRef": "InvestmentPhase:v1:ACTIVE",
+        "investmentStatusRef": "InvestmentStatus:v1:ACTIVE",
+        "totalInvestmentAmount": 500000,
+        "investmentMarketValue": 1508000,
+        "currencyRef": "Currency:v1:EUR",
+        "investment": "60000000-0000-0000-0000-000000000009"
+      },
+      "liquidFundInvestmentReport": {
+        "date": "2024-07-01T00:00:00.000Z",
+        "scope": "MONTHLY",
+        "investmentLiquidFundTypeRef": "InvestmentLiquidFundType:v1:PENSION_FUNDS",
+        "proprietorName": "Ionis Capital",
+        "bankName": "BNP Paribas",
+        "bankAccountNumber": "FR1357924680135792468",
+        "earlyTerminationAllowed": true,
+        "interestRate": 4.8,
+        "interestPaymentFrequencyRef": "InterestPaymentFrequency:v1:QUARTERLY",
+        "maturityDate": "2033-07-15T00:00:00.000Z",
+        "liquidFundInvestment": "80000000-0000-0000-0000-000000000009",
+        "additionalProperties": {
+          "name": "Ionis AI Seed Pension Fund",
+          "proprietor": "Ionis Capital",
+          "bank": "BNP Paribas",
+          "isin": "FR0013412285",
+          "quantity": 1000,
+          "openingBalance": 1504000,
+          "incoming": 0,
+          "outgoing": 0,
+          "netIncome": 4000,
+          "realizedGainsLossesCurrency": 2800,
+          "unrealizedGainsLossesCurrency": 1200,
+          "realizedGainsLossesSharePrice": 2800,
+          "unrealizedGainsLossesSharePrice": 1200,
+          "closingBalance": 1508000,
+          "timeWeightedPerformance": 4.8
+        }
+      }
+    }
+  },
+  {
+    "investmentReportRequest": {
+      "investmentReport": {
+        "date": "2024-06-01T00:00:00.000Z",
+        "scope": "MONTHLY",
+        "investmentGroupRef": "InvestmentGroup:v1:LIQUID_FUND",
+        "investmentTypeRef": "InvestmentType:v1:CAPTIAL_MARKET",
+        "investmentStakeTypeRef": "InvestmentStakeType:v1:MINORITY",
+        "investmentPhaseRef": "InvestmentPhase:v1:ACTIVE",
+        "investmentStatusRef": "InvestmentStatus:v1:ACTIVE",
+        "totalInvestmentAmount": 500000,
+        "investmentMarketValue": 1504000,
+        "currencyRef": "Currency:v1:EUR",
+        "investment": "60000000-0000-0000-0000-000000000009"
+      },
+      "liquidFundInvestmentReport": {
+        "date": "2024-06-01T00:00:00.000Z",
+        "scope": "MONTHLY",
+        "investmentLiquidFundTypeRef": "InvestmentLiquidFundType:v1:PENSION_FUNDS",
+        "proprietorName": "Ionis Capital",
+        "bankName": "BNP Paribas",
+        "bankAccountNumber": "FR1357924680135792468",
+        "earlyTerminationAllowed": true,
+        "interestRate": 4.8,
+        "interestPaymentFrequencyRef": "InterestPaymentFrequency:v1:QUARTERLY",
+        "maturityDate": "2033-07-15T00:00:00.000Z",
+        "liquidFundInvestment": "80000000-0000-0000-0000-000000000009",
+        "additionalProperties": {
+          "name": "Ionis AI Seed Pension Fund",
+          "proprietor": "Ionis Capital",
+          "bank": "BNP Paribas",
+          "isin": "FR0013412285",
+          "quantity": 1000,
+          "openingBalance": 1500000,
+          "incoming": 0,
+          "outgoing": 0,
+          "netIncome": 4000,
+          "realizedGainsLossesCurrency": 2800,
+          "unrealizedGainsLossesCurrency": 1200,
+          "realizedGainsLossesSharePrice": 2800,
+          "unrealizedGainsLossesSharePrice": 1200,
+          "closingBalance": 1504000,
+          "timeWeightedPerformance": 4.8
+        }
+      }
+    }
+  },
+  {
+    "investmentReportRequest": {
+      "investmentReport": {
+        "date": "2024-05-01T00:00:00.000Z",
+        "scope": "MONTHLY",
+        "investmentGroupRef": "InvestmentGroup:v1:LIQUID_FUND",
+        "investmentTypeRef": "InvestmentType:v1:CAPTIAL_MARKET",
+        "investmentStakeTypeRef": "InvestmentStakeType:v1:MINORITY",
+        "investmentPhaseRef": "InvestmentPhase:v1:ACTIVE",
+        "investmentStatusRef": "InvestmentStatus:v1:ACTIVE",
+        "totalInvestmentAmount": 500000,
+        "investmentMarketValue": 1500000,
+        "currencyRef": "Currency:v1:EUR",
+        "investment": "60000000-0000-0000-0000-000000000009"
+      },
+      "liquidFundInvestmentReport": {
+        "date": "2024-05-01T00:00:00.000Z",
+        "scope": "MONTHLY",
+        "investmentLiquidFundTypeRef": "InvestmentLiquidFundType:v1:PENSION_FUNDS",
+        "proprietorName": "Ionis Capital",
+        "bankName": "BNP Paribas",
+        "bankAccountNumber": "FR1357924680135792468",
+        "earlyTerminationAllowed": true,
+        "interestRate": 4.8,
+        "interestPaymentFrequencyRef": "InterestPaymentFrequency:v1:QUARTERLY",
+        "maturityDate": "2033-07-15T00:00:00.000Z",
+        "liquidFundInvestment": "80000000-0000-0000-0000-000000000009",
+        "additionalProperties": {
+          "name": "Ionis AI Seed Pension Fund",
+          "proprietor": "Ionis Capital",
+          "bank": "BNP Paribas",
+          "isin": "FR0013412285",
+          "quantity": 1000,
+          "openingBalance": 1496000,
+          "incoming": 0,
+          "outgoing": 0,
+          "netIncome": 4000,
+          "realizedGainsLossesCurrency": 2800,
+          "unrealizedGainsLossesCurrency": 1200,
+          "realizedGainsLossesSharePrice": 2800,
+          "unrealizedGainsLossesSharePrice": 1200,
+          "closingBalance": 1500000,
+          "timeWeightedPerformance": 4.8
+        }
+      }
+    }
+  },
+  {
+    "investmentReportRequest": {
+      "investmentReport": {
+        "date": "2024-10-01T00:00:00.000Z",
+        "scope": "MONTHLY",
+        "investmentGroupRef": "InvestmentGroup:v1:LIQUID_FUND",
+        "investmentTypeRef": "InvestmentType:v1:CAPTIAL_MARKET",
+        "investmentStakeTypeRef": "InvestmentStakeType:v1:MAJORITY",
+        "investmentPhaseRef": "InvestmentPhase:v1:ACTIVE",
+        "investmentStatusRef": "InvestmentStatus:v1:ACTIVE",
+        "totalInvestmentAmount": 10000000,
+        "investmentMarketValue": 25680000,
+        "currencyRef": "Currency:v1:USD",
+        "investment": "60000000-0000-0000-0000-000000000007"
+      },
+      "liquidFundInvestmentReport": {
+        "date": "2024-10-01T00:00:00.000Z",
+        "scope": "MONTHLY",
+        "investmentLiquidFundTypeRef": "InvestmentLiquidFundType:v1:BONDS",
+        "proprietorName": "Gamma Asset Management",
+        "bankName": "Goldman Sachs",
+        "bankAccountNumber": "US98765432109876543210",
+        "earlyTerminationAllowed": true,
+        "interestRate": 6.8,
+        "interestPaymentFrequencyRef": "InterestPaymentFrequency:v1:MATURITY",
+        "maturityDate": "2032-11-10T00:00:00.000Z",
+        "liquidFundInvestment": "80000000-0000-0000-0000-000000000003",
+        "additionalProperties": {
+          "name": "GammaTech PE Corporate Bond",
+          "proprietor": "Gamma Asset Management",
+          "bank": "Goldman Sachs",
+          "isin": "US98765432109876",
+          "quantity": 10000,
+          "openingBalance": 25570000,
+          "incoming": 0,
+          "outgoing": 0,
+          "netIncome": 110000,
+          "realizedGainsLossesCurrency": 77000,
+          "unrealizedGainsLossesCurrency": 33000,
+          "realizedGainsLossesSharePrice": 77000,
+          "unrealizedGainsLossesSharePrice": 33000,
+          "closingBalance": 25680000,
+          "timeWeightedPerformance": 6.8
+        }
+      }
+    }
+  },
+  {
+    "investmentReportRequest": {
+      "investmentReport": {
+        "date": "2024-09-01T00:00:00.000Z",
+        "scope": "MONTHLY",
+        "investmentGroupRef": "InvestmentGroup:v1:LIQUID_FUND",
+        "investmentTypeRef": "InvestmentType:v1:CAPTIAL_MARKET",
+        "investmentStakeTypeRef": "InvestmentStakeType:v1:MAJORITY",
+        "investmentPhaseRef": "InvestmentPhase:v1:ACTIVE",
+        "investmentStatusRef": "InvestmentStatus:v1:ACTIVE",
+        "totalInvestmentAmount": 10000000,
+        "investmentMarketValue": 25570000,
+        "currencyRef": "Currency:v1:USD",
+        "investment": "60000000-0000-0000-0000-000000000007"
+      },
+      "liquidFundInvestmentReport": {
+        "date": "2024-09-01T00:00:00.000Z",
+        "scope": "MONTHLY",
+        "investmentLiquidFundTypeRef": "InvestmentLiquidFundType:v1:BONDS",
+        "proprietorName": "Gamma Asset Management",
+        "bankName": "Goldman Sachs",
+        "bankAccountNumber": "US98765432109876543210",
+        "earlyTerminationAllowed": true,
+        "interestRate": 6.8,
+        "interestPaymentFrequencyRef": "InterestPaymentFrequency:v1:MATURITY",
+        "maturityDate": "2032-11-10T00:00:00.000Z",
+        "liquidFundInvestment": "80000000-0000-0000-0000-000000000003",
+        "additionalProperties": {
+          "name": "GammaTech PE Corporate Bond",
+          "proprietor": "Gamma Asset Management",
+          "bank": "Goldman Sachs",
+          "isin": "US98765432109876",
+          "quantity": 10000,
+          "openingBalance": 25450000,
+          "incoming": 0,
+          "outgoing": 0,
+          "netIncome": 120000,
+          "realizedGainsLossesCurrency": 84000,
+          "unrealizedGainsLossesCurrency": 36000,
+          "realizedGainsLossesSharePrice": 84000,
+          "unrealizedGainsLossesSharePrice": 36000,
+          "closingBalance": 25570000,
+          "timeWeightedPerformance": 6.8
+        }
+      }
+    }
+  },
+  {
+    "investmentReportRequest": {
+      "investmentReport": {
+        "date": "2024-08-01T00:00:00.000Z",
+        "scope": "MONTHLY",
+        "investmentGroupRef": "InvestmentGroup:v1:LIQUID_FUND",
+        "investmentTypeRef": "InvestmentType:v1:CAPTIAL_MARKET",
+        "investmentStakeTypeRef": "InvestmentStakeType:v1:MAJORITY",
+        "investmentPhaseRef": "InvestmentPhase:v1:ACTIVE",
+        "investmentStatusRef": "InvestmentStatus:v1:ACTIVE",
+        "totalInvestmentAmount": 10000000,
+        "investmentMarketValue": 25450000,
+        "currencyRef": "Currency:v1:USD",
+        "investment": "60000000-0000-0000-0000-000000000007"
+      },
+      "liquidFundInvestmentReport": {
+        "date": "2024-08-01T00:00:00.000Z",
+        "scope": "MONTHLY",
+        "investmentLiquidFundTypeRef": "InvestmentLiquidFundType:v1:BONDS",
+        "proprietorName": "Gamma Asset Management",
+        "bankName": "Goldman Sachs",
+        "bankAccountNumber": "US98765432109876543210",
+        "earlyTerminationAllowed": true,
+        "interestRate": 6.8,
+        "interestPaymentFrequencyRef": "InterestPaymentFrequency:v1:MATURITY",
+        "maturityDate": "2032-11-10T00:00:00.000Z",
+        "liquidFundInvestment": "80000000-0000-0000-0000-000000000003",
+        "additionalProperties": {
+          "name": "GammaTech PE Corporate Bond",
+          "proprietor": "Gamma Asset Management",
+          "bank": "Goldman Sachs",
+          "isin": "US98765432109876",
+          "quantity": 10000,
+          "openingBalance": 25330000,
+          "incoming": 0,
+          "outgoing": 0,
+          "netIncome": 120000,
+          "realizedGainsLossesCurrency": 84000,
+          "unrealizedGainsLossesCurrency": 36000,
+          "realizedGainsLossesSharePrice": 84000,
+          "unrealizedGainsLossesSharePrice": 36000,
+          "closingBalance": 25450000,
+          "timeWeightedPerformance": 6.8
+        }
+      }
+    }
+  },
+  {
+    "investmentReportRequest": {
+      "investmentReport": {
+        "date": "2024-07-01T00:00:00.000Z",
+        "scope": "MONTHLY",
+        "investmentGroupRef": "InvestmentGroup:v1:LIQUID_FUND",
+        "investmentTypeRef": "InvestmentType:v1:CAPTIAL_MARKET",
+        "investmentStakeTypeRef": "InvestmentStakeType:v1:MAJORITY",
+        "investmentPhaseRef": "InvestmentPhase:v1:ACTIVE",
+        "investmentStatusRef": "InvestmentStatus:v1:ACTIVE",
+        "totalInvestmentAmount": 10000000,
+        "investmentMarketValue": 25330000,
+        "currencyRef": "Currency:v1:USD",
+        "investment": "60000000-0000-0000-0000-000000000007"
+      },
+      "liquidFundInvestmentReport": {
+        "date": "2024-07-01T00:00:00.000Z",
+        "scope": "MONTHLY",
+        "investmentLiquidFundTypeRef": "InvestmentLiquidFundType:v1:BONDS",
+        "proprietorName": "Gamma Asset Management",
+        "bankName": "Goldman Sachs",
+        "bankAccountNumber": "US98765432109876543210",
+        "earlyTerminationAllowed": true,
+        "interestRate": 6.8,
+        "interestPaymentFrequencyRef": "InterestPaymentFrequency:v1:MATURITY",
+        "maturityDate": "2032-11-10T00:00:00.000Z",
+        "liquidFundInvestment": "80000000-0000-0000-0000-000000000003",
+        "additionalProperties": {
+          "name": "GammaTech PE Corporate Bond",
+          "proprietor": "Gamma Asset Management",
+          "bank": "Goldman Sachs",
+          "isin": "US98765432109876",
+          "quantity": 10000,
+          "openingBalance": 25200000,
+          "incoming": 0,
+          "outgoing": 0,
+          "netIncome": 130000,
+          "realizedGainsLossesCurrency": 91000,
+          "unrealizedGainsLossesCurrency": 39000,
+          "realizedGainsLossesSharePrice": 91000,
+          "unrealizedGainsLossesSharePrice": 39000,
+          "closingBalance": 25330000,
+          "timeWeightedPerformance": 6.8
+        }
+      }
+    }
+  },
+  {
+    "investmentReportRequest": {
+      "investmentReport": {
+        "date": "2024-06-01T00:00:00.000Z",
+        "scope": "MONTHLY",
+        "investmentGroupRef": "InvestmentGroup:v1:LIQUID_FUND",
+        "investmentTypeRef": "InvestmentType:v1:CAPTIAL_MARKET",
+        "investmentStakeTypeRef": "InvestmentStakeType:v1:MAJORITY",
+        "investmentPhaseRef": "InvestmentPhase:v1:ACTIVE",
+        "investmentStatusRef": "InvestmentStatus:v1:ACTIVE",
+        "totalInvestmentAmount": 10000000,
+        "investmentMarketValue": 25200000,
+        "currencyRef": "Currency:v1:USD",
+        "investment": "60000000-0000-0000-0000-000000000007"
+      },
+      "liquidFundInvestmentReport": {
+        "date": "2024-06-01T00:00:00.000Z",
+        "scope": "MONTHLY",
+        "investmentLiquidFundTypeRef": "InvestmentLiquidFundType:v1:BONDS",
+        "proprietorName": "Gamma Asset Management",
+        "bankName": "Goldman Sachs",
+        "bankAccountNumber": "US98765432109876543210",
+        "earlyTerminationAllowed": true,
+        "interestRate": 6.8,
+        "interestPaymentFrequencyRef": "InterestPaymentFrequency:v1:MATURITY",
+        "maturityDate": "2032-11-10T00:00:00.000Z",
+        "liquidFundInvestment": "80000000-0000-0000-0000-000000000003",
+        "additionalProperties": {
+          "name": "GammaTech PE Corporate Bond",
+          "proprietor": "Gamma Asset Management",
+          "bank": "Goldman Sachs",
+          "isin": "US98765432109876",
+          "quantity": 10000,
+          "openingBalance": 25000000,
+          "incoming": 0,
+          "outgoing": 0,
+          "netIncome": 200000,
+          "realizedGainsLossesCurrency": 140000,
+          "unrealizedGainsLossesCurrency": 60000,
+          "realizedGainsLossesSharePrice": 140000,
+          "unrealizedGainsLossesSharePrice": 60000,
+          "closingBalance": 25200000,
+          "timeWeightedPerformance": 6.8
+        }
+      }
+    }
+  },
+  {
+    "investmentReportRequest": {
+      "investmentReport": {
+        "date": "2024-05-01T00:00:00.000Z",
+        "scope": "MONTHLY",
+        "investmentGroupRef": "InvestmentGroup:v1:LIQUID_FUND",
+        "investmentTypeRef": "InvestmentType:v1:CAPTIAL_MARKET",
+        "investmentStakeTypeRef": "InvestmentStakeType:v1:MAJORITY",
+        "investmentPhaseRef": "InvestmentPhase:v1:ACTIVE",
+        "investmentStatusRef": "InvestmentStatus:v1:ACTIVE",
+        "totalInvestmentAmount": 10000000,
+        "investmentMarketValue": 25000000,
+        "currencyRef": "Currency:v1:USD",
+        "investment": "60000000-0000-0000-0000-000000000007"
+      },
+      "liquidFundInvestmentReport": {
+        "date": "2024-05-01T00:00:00.000Z",
+        "scope": "MONTHLY",
+        "investmentLiquidFundTypeRef": "InvestmentLiquidFundType:v1:BONDS",
+        "proprietorName": "Gamma Asset Management",
+        "bankName": "Goldman Sachs",
+        "bankAccountNumber": "US98765432109876543210",
+        "earlyTerminationAllowed": true,
+        "interestRate": 6.8,
+        "interestPaymentFrequencyRef": "InterestPaymentFrequency:v1:MATURITY",
+        "maturityDate": "2032-11-10T00:00:00.000Z",
+        "liquidFundInvestment": "80000000-0000-0000-0000-000000000003",
+        "additionalProperties": {
+          "name": "GammaTech PE Corporate Bond",
+          "proprietor": "Gamma Asset Management",
+          "bank": "Goldman Sachs",
+          "isin": "US98765432109876",
+          "quantity": 10000,
+          "openingBalance": 24800000,
+          "incoming": 0,
+          "outgoing": 0,
+          "netIncome": 200000,
+          "realizedGainsLossesCurrency": 140000,
+          "unrealizedGainsLossesCurrency": 60000,
+          "realizedGainsLossesSharePrice": 140000,
+          "unrealizedGainsLossesSharePrice": 60000,
+          "closingBalance": 25000000,
+          "timeWeightedPerformance": 6.8
+        }
+      }
+    }
+  },
+  {
+    "investmentReportRequest": {
+      "investmentReport": {
+        "date": "2024-10-01T00:00:00.000Z",
+        "scope": "MONTHLY",
+        "investmentGroupRef": "InvestmentGroup:v1:LIQUID_FUND",
+        "investmentTypeRef": "InvestmentType:v1:CAPTIAL_MARKET",
+        "investmentStakeTypeRef": "InvestmentStakeType:v1:MINORITY",
+        "investmentPhaseRef": "InvestmentPhase:v1:ACTIVE",
+        "investmentStatusRef": "InvestmentStatus:v1:ACTIVE",
+        "totalInvestmentAmount": 1000000,
+        "investmentMarketValue": 3052000,
+        "currencyRef": "Currency:v1:EUR",
+        "investment": "60000000-0000-0000-0000-000000000005"
+      },
+      "liquidFundInvestmentReport": {
+        "date": "2024-10-01T00:00:00.000Z",
+        "scope": "MONTHLY",
+        "investmentLiquidFundTypeRef": "InvestmentLiquidFundType:v1:PENSION_FUNDS",
+        "proprietorName": "Epsilon Group SE",
+        "bankName": "Commerzbank",
+        "bankAccountNumber": "DE09876543210987654321",
+        "earlyTerminationAllowed": false,
+        "interestRate": 5.2,
+        "interestPaymentFrequencyRef": "InterestPaymentFrequency:v1:MONTHLY",
+        "maturityDate": "2031-06-20T00:00:00.000Z",
+        "liquidFundInvestment": "80000000-0000-0000-0000-000000000002",
+        "additionalProperties": {
+          "name": "EpsilonBio Venture Pension",
+          "proprietor": "Epsilon Group SE",
+          "bank": "Commerzbank",
+          "isin": "DE0008491051",
+          "quantity": 2000,
+          "openingBalance": 3039000,
+          "incoming": 0,
+          "outgoing": 0,
+          "netIncome": 13000,
+          "realizedGainsLossesCurrency": 9100,
+          "unrealizedGainsLossesCurrency": 3900,
+          "realizedGainsLossesSharePrice": 9100,
+          "unrealizedGainsLossesSharePrice": 3900,
+          "closingBalance": 3052000,
+          "timeWeightedPerformance": 5.2
+        }
+      }
+    }
+  },
+  {
+    "investmentReportRequest": {
+      "investmentReport": {
+        "date": "2024-09-01T00:00:00.000Z",
+        "scope": "MONTHLY",
+        "investmentGroupRef": "InvestmentGroup:v1:LIQUID_FUND",
+        "investmentTypeRef": "InvestmentType:v1:CAPTIAL_MARKET",
+        "investmentStakeTypeRef": "InvestmentStakeType:v1:MINORITY",
+        "investmentPhaseRef": "InvestmentPhase:v1:ACTIVE",
+        "investmentStatusRef": "InvestmentStatus:v1:ACTIVE",
+        "totalInvestmentAmount": 1000000,
+        "investmentMarketValue": 3039000,
+        "currencyRef": "Currency:v1:EUR",
+        "investment": "60000000-0000-0000-0000-000000000005"
+      },
+      "liquidFundInvestmentReport": {
+        "date": "2024-09-01T00:00:00.000Z",
+        "scope": "MONTHLY",
+        "investmentLiquidFundTypeRef": "InvestmentLiquidFundType:v1:PENSION_FUNDS",
+        "proprietorName": "Epsilon Group SE",
+        "bankName": "Commerzbank",
+        "bankAccountNumber": "DE09876543210987654321",
+        "earlyTerminationAllowed": false,
+        "interestRate": 5.2,
+        "interestPaymentFrequencyRef": "InterestPaymentFrequency:v1:MONTHLY",
+        "maturityDate": "2031-06-20T00:00:00.000Z",
+        "liquidFundInvestment": "80000000-0000-0000-0000-000000000002",
+        "additionalProperties": {
+          "name": "EpsilonBio Venture Pension",
+          "proprietor": "Epsilon Group SE",
+          "bank": "Commerzbank",
+          "isin": "DE0008491051",
+          "quantity": 2000,
+          "openingBalance": 3026000,
+          "incoming": 0,
+          "outgoing": 0,
+          "netIncome": 13000,
+          "realizedGainsLossesCurrency": 9100,
+          "unrealizedGainsLossesCurrency": 3900,
+          "realizedGainsLossesSharePrice": 9100,
+          "unrealizedGainsLossesSharePrice": 3900,
+          "closingBalance": 3039000,
+          "timeWeightedPerformance": 5.2
+        }
+      }
+    }
+  },
+  {
+    "investmentReportRequest": {
+      "investmentReport": {
+        "date": "2024-08-01T00:00:00.000Z",
+        "scope": "MONTHLY",
+        "investmentGroupRef": "InvestmentGroup:v1:LIQUID_FUND",
+        "investmentTypeRef": "InvestmentType:v1:CAPTIAL_MARKET",
+        "investmentStakeTypeRef": "InvestmentStakeType:v1:MINORITY",
+        "investmentPhaseRef": "InvestmentPhase:v1:ACTIVE",
+        "investmentStatusRef": "InvestmentStatus:v1:ACTIVE",
+        "totalInvestmentAmount": 1000000,
+        "investmentMarketValue": 3026000,
+        "currencyRef": "Currency:v1:EUR",
+        "investment": "60000000-0000-0000-0000-000000000005"
+      },
+      "liquidFundInvestmentReport": {
+        "date": "2024-08-01T00:00:00.000Z",
+        "scope": "MONTHLY",
+        "investmentLiquidFundTypeRef": "InvestmentLiquidFundType:v1:PENSION_FUNDS",
+        "proprietorName": "Epsilon Group SE",
+        "bankName": "Commerzbank",
+        "bankAccountNumber": "DE09876543210987654321",
+        "earlyTerminationAllowed": false,
+        "interestRate": 5.2,
+        "interestPaymentFrequencyRef": "InterestPaymentFrequency:v1:MONTHLY",
+        "maturityDate": "2031-06-20T00:00:00.000Z",
+        "liquidFundInvestment": "80000000-0000-0000-0000-000000000002",
+        "additionalProperties": {
+          "name": "EpsilonBio Venture Pension",
+          "proprietor": "Epsilon Group SE",
+          "bank": "Commerzbank",
+          "isin": "DE0008491051",
+          "quantity": 2000,
+          "openingBalance": 3013000,
+          "incoming": 0,
+          "outgoing": 0,
+          "netIncome": 13000,
+          "realizedGainsLossesCurrency": 9100,
+          "unrealizedGainsLossesCurrency": 3900,
+          "realizedGainsLossesSharePrice": 9100,
+          "unrealizedGainsLossesSharePrice": 3900,
+          "closingBalance": 3026000,
+          "timeWeightedPerformance": 5.2
+        }
+      }
+    }
+  },
+  {
+    "investmentReportRequest": {
+      "investmentReport": {
+        "date": "2024-07-01T00:00:00.000Z",
+        "scope": "MONTHLY",
+        "investmentGroupRef": "InvestmentGroup:v1:LIQUID_FUND",
+        "investmentTypeRef": "InvestmentType:v1:CAPTIAL_MARKET",
+        "investmentStakeTypeRef": "InvestmentStakeType:v1:MINORITY",
+        "investmentPhaseRef": "InvestmentPhase:v1:ACTIVE",
+        "investmentStatusRef": "InvestmentStatus:v1:ACTIVE",
+        "totalInvestmentAmount": 1000000,
+        "investmentMarketValue": 3013000,
+        "currencyRef": "Currency:v1:EUR",
+        "investment": "60000000-0000-0000-0000-000000000005"
+      },
+      "liquidFundInvestmentReport": {
+        "date": "2024-07-01T00:00:00.000Z",
+        "scope": "MONTHLY",
+        "investmentLiquidFundTypeRef": "InvestmentLiquidFundType:v1:PENSION_FUNDS",
+        "proprietorName": "Epsilon Group SE",
+        "bankName": "Commerzbank",
+        "bankAccountNumber": "DE09876543210987654321",
+        "earlyTerminationAllowed": false,
+        "interestRate": 5.2,
+        "interestPaymentFrequencyRef": "InterestPaymentFrequency:v1:MONTHLY",
+        "maturityDate": "2031-06-20T00:00:00.000Z",
+        "liquidFundInvestment": "80000000-0000-0000-0000-000000000002",
+        "additionalProperties": {
+          "name": "EpsilonBio Venture Pension",
+          "proprietor": "Epsilon Group SE",
+          "bank": "Commerzbank",
+          "isin": "DE0008491051",
+          "quantity": 2000,
+          "openingBalance": 3000000,
+          "incoming": 0,
+          "outgoing": 0,
+          "netIncome": 13000,
+          "realizedGainsLossesCurrency": 9100,
+          "unrealizedGainsLossesCurrency": 3900,
+          "realizedGainsLossesSharePrice": 9100,
+          "unrealizedGainsLossesSharePrice": 3900,
+          "closingBalance": 3013000,
+          "timeWeightedPerformance": 5.2
+        }
+      }
+    }
+  },
+  {
+    "investmentReportRequest": {
+      "investmentReport": {
+        "date": "2024-06-01T00:00:00.000Z",
+        "scope": "MONTHLY",
+        "investmentGroupRef": "InvestmentGroup:v1:LIQUID_FUND",
+        "investmentTypeRef": "InvestmentType:v1:CAPTIAL_MARKET",
+        "investmentStakeTypeRef": "InvestmentStakeType:v1:MINORITY",
+        "investmentPhaseRef": "InvestmentPhase:v1:ACTIVE",
+        "investmentStatusRef": "InvestmentStatus:v1:ACTIVE",
+        "totalInvestmentAmount": 1000000,
+        "investmentMarketValue": 3000000,
+        "currencyRef": "Currency:v1:EUR",
+        "investment": "60000000-0000-0000-0000-000000000005"
+      },
+      "liquidFundInvestmentReport": {
+        "date": "2024-06-01T00:00:00.000Z",
+        "scope": "MONTHLY",
+        "investmentLiquidFundTypeRef": "InvestmentLiquidFundType:v1:PENSION_FUNDS",
+        "proprietorName": "Epsilon Group SE",
+        "bankName": "Commerzbank",
+        "bankAccountNumber": "DE09876543210987654321",
+        "earlyTerminationAllowed": false,
+        "interestRate": 5.2,
+        "interestPaymentFrequencyRef": "InterestPaymentFrequency:v1:MONTHLY",
+        "maturityDate": "2031-06-20T00:00:00.000Z",
+        "liquidFundInvestment": "80000000-0000-0000-0000-000000000002",
+        "additionalProperties": {
+          "name": "EpsilonBio Venture Pension",
+          "proprietor": "Epsilon Group SE",
+          "bank": "Commerzbank",
+          "isin": "DE0008491051",
+          "quantity": 2000,
+          "openingBalance": 2987000,
+          "incoming": 0,
+          "outgoing": 0,
+          "netIncome": 13000,
+          "realizedGainsLossesCurrency": 9100,
+          "unrealizedGainsLossesCurrency": 3900,
+          "realizedGainsLossesSharePrice": 9100,
+          "unrealizedGainsLossesSharePrice": 3900,
+          "closingBalance": 3000000,
+          "timeWeightedPerformance": 5.2
+        }
+      }
+    }
+  }
+]

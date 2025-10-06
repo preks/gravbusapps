@@ -89,6 +89,12 @@ export const transformFormFieldsToTableColumns = (
   allFields.forEach(field => {
     const currencyCode = extractCurrencyCode(defaultCurrency);
     
+    // Special handling: Interest rate fields should always be formatted as percentages
+    // even if catalog incorrectly defines them as AMOUNT
+    const effectiveFieldType = field.property.toLowerCase().includes('interestrate') 
+      ? 'PERCENTAGE' 
+      : field.type;
+    
     columns.push({
       id: field.property.replace(/\./g, '_'), // Convert dot notation to underscore for HTML IDs
       label: field.label,
@@ -113,10 +119,10 @@ export const transformFormFieldsToTableColumns = (
             tryFrom(row.investment, 'investment') ??
             tryFrom(row.liquidFundReport, 'liquidFundReport');
         }
-
-        return formatFieldValueForTable(value, field.type, currencyCode);
+        
+        return formatFieldValueForTable(value, effectiveFieldType, currencyCode);
       },
-      className: getColumnClassName(field.type)
+      className: getColumnClassName(effectiveFieldType)
     });
   });
   

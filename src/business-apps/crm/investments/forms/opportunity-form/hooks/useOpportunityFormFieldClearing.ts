@@ -3,7 +3,7 @@ import { useOpportunityFormContext } from "../context/OpportunityFormContext";
 import { useOpportunityInvestmentTypeDetection } from "./useOpportunityInvestmentTypeDetection";
 
 export const useOpportunityFormFieldClearing = () => {
-  const { formValues, setFormValues, dependentInvestmentTypes } = useOpportunityFormContext();
+  const { formValues, setFormValues, dependentInvestmentTypes, investmentGroupsSearchable } = useOpportunityFormContext();
   const {
     isEquityGroup,
     isRealEstateGroup,
@@ -28,26 +28,32 @@ export const useOpportunityFormFieldClearing = () => {
   // Clear investment role when neither group nor type is equity (same logic as lead form)
   useEffect(() => {
     const hasLoadedDependentTypes = !formValues.investmentGroupRef || dependentInvestmentTypes.length > 0;
+    const hasLoadedGroups = investmentGroupsSearchable.length > 0;
     
-    if (hasLoadedDependentTypes && !shouldShowInvestmentRole && formValues.investmentRoleRef) {
+    // Only clear if we have an investment group selected and BOTH groups and dependent types are loaded
+    if (hasLoadedDependentTypes && hasLoadedGroups && formValues.investmentGroupRef && !shouldShowInvestmentRole && formValues.investmentRoleRef) {
       handleInputChange("investmentRoleRef", "");
     }
-  }, [shouldShowInvestmentRole, formValues.investmentGroupRef, dependentInvestmentTypes.length]);
+  }, [shouldShowInvestmentRole, formValues.investmentGroupRef, dependentInvestmentTypes.length, investmentGroupsSearchable.length]);
 
   // Clear investment stake type when investment group is not equity (same logic as lead form)
   useEffect(() => {
     const hasLoadedDependentTypes = !formValues.investmentGroupRef || dependentInvestmentTypes.length > 0;
+    const hasLoadedGroups = investmentGroupsSearchable.length > 0;
     
-    if (hasLoadedDependentTypes && !isEquityGroup && formValues.investmentStakeTypeRef) {
+    // Only clear if we have an investment group selected and BOTH groups and dependent types are loaded
+    if (hasLoadedDependentTypes && hasLoadedGroups && formValues.investmentGroupRef && !isEquityGroup && formValues.investmentStakeTypeRef) {
       handleInputChange("investmentStakeTypeRef", "");
     }
-  }, [isEquityGroup, formValues.investmentGroupRef, dependentInvestmentTypes.length]);
+  }, [isEquityGroup, formValues.investmentGroupRef, dependentInvestmentTypes.length, investmentGroupsSearchable.length]);
 
   // Clear equity-specific financial fields when investment group is not equity (same logic as lead form)
   useEffect(() => {
     const hasLoadedDependentTypes = !formValues.investmentGroupRef || dependentInvestmentTypes.length > 0;
+    const hasLoadedGroups = investmentGroupsSearchable.length > 0;
     
-    if (hasLoadedDependentTypes && !isEquityGroup) {
+    // Only clear if we have an investment group selected and BOTH groups and dependent types are loaded
+    if (hasLoadedDependentTypes && hasLoadedGroups && formValues.investmentGroupRef && !isEquityGroup) {
       const updates: any = {};
       if (formValues.stakePercentage) updates.stakePercentage = "";
       if (formValues.marketValue) updates.marketValue = "";
@@ -59,13 +65,15 @@ export const useOpportunityFormFieldClearing = () => {
         });
       }
     }
-  }, [isEquityGroup, formValues.investmentGroupRef, dependentInvestmentTypes.length]);
+  }, [isEquityGroup, formValues.investmentGroupRef, dependentInvestmentTypes.length, investmentGroupsSearchable.length]);
 
   // Clear real estate specific fields when not Real Estate + Existing Properties (same logic as lead form)
   useEffect(() => {
     const hasLoadedDependentTypes = !formValues.investmentGroupRef || dependentInvestmentTypes.length > 0;
+    const hasLoadedGroups = investmentGroupsSearchable.length > 0;
     
-    if (hasLoadedDependentTypes && !(isRealEstateGroup && isExistingPropertiesType)) {
+    // Only clear if we have an investment group selected and BOTH groups and dependent types are loaded
+    if (hasLoadedDependentTypes && hasLoadedGroups && formValues.investmentGroupRef && !(isRealEstateGroup && isExistingPropertiesType)) {
       const updates: any = {};
       if (formValues.buildingYear) updates.buildingYear = "";
       if (formValues.size) updates.size = "";
@@ -78,13 +86,15 @@ export const useOpportunityFormFieldClearing = () => {
         });
       }
     }
-  }, [isRealEstateGroup, isExistingPropertiesType, formValues.investmentGroupRef, dependentInvestmentTypes.length]);
+  }, [isRealEstateGroup, isExistingPropertiesType, formValues.investmentGroupRef, dependentInvestmentTypes.length, investmentGroupsSearchable.length]);
 
   // Clear real estate mezzanine loans specific fields when not real estate group + mezzanine loans (same logic as lead form)
   useEffect(() => {
     const hasLoadedDependentTypes = !formValues.investmentGroupRef || dependentInvestmentTypes.length > 0;
+    const hasLoadedGroups = investmentGroupsSearchable.length > 0;
     
-    if (hasLoadedDependentTypes && !(isRealEstateGroup && isMezzanineLoansType)) {
+    // Only clear if we have an investment group selected and BOTH groups and dependent types are loaded
+    if (hasLoadedDependentTypes && hasLoadedGroups && formValues.investmentGroupRef && !(isRealEstateGroup && isMezzanineLoansType)) {
       const updates: any = {};
       if (formValues.loanAmount) updates.loanAmount = "";
       if (formValues.loanInterestRate) updates.loanInterestRate = "";
@@ -95,25 +105,29 @@ export const useOpportunityFormFieldClearing = () => {
         });
       }
     }
-  }, [isRealEstateGroup, isMezzanineLoansType, formValues.investmentGroupRef, dependentInvestmentTypes.length]);
+  }, [isRealEstateGroup, isMezzanineLoansType, formValues.investmentGroupRef, dependentInvestmentTypes.length, investmentGroupsSearchable.length]);
 
   // Clear initial investment amount when none of the equity or real estate conditions are met (shared field - same logic as lead form)
   useEffect(() => {
     const hasLoadedDependentTypes = !formValues.investmentGroupRef || dependentInvestmentTypes.length > 0;
+    const hasLoadedGroups = investmentGroupsSearchable.length > 0;
     
     const shouldShowInitialInvestment = isEquityGroup || 
                                         (isRealEstateGroup && isExistingPropertiesType) ||
                                         (isRealEstateGroup && isOthersType);
-    if (hasLoadedDependentTypes && !shouldShowInitialInvestment && formValues.initialInvestmentAmount) {
+    // Only clear if we have an investment group selected and BOTH groups and dependent types are loaded
+    if (hasLoadedDependentTypes && hasLoadedGroups && formValues.investmentGroupRef && !shouldShowInitialInvestment && formValues.initialInvestmentAmount) {
       handleInputChange("initialInvestmentAmount", "");
     }
-  }, [isEquityGroup, isRealEstateGroup, isExistingPropertiesType, isOthersType, formValues.investmentGroupRef, dependentInvestmentTypes.length]);
+  }, [isEquityGroup, isRealEstateGroup, isExistingPropertiesType, isOthersType, formValues.investmentGroupRef, dependentInvestmentTypes.length, investmentGroupsSearchable.length]);
 
   // Clear real estate project development specific fields when not real estate group + project development (same logic as lead form)
   useEffect(() => {
     const hasLoadedDependentTypes = !formValues.investmentGroupRef || dependentInvestmentTypes.length > 0;
+    const hasLoadedGroups = investmentGroupsSearchable.length > 0;
     
-    if (hasLoadedDependentTypes && !(isRealEstateGroup && isProjectDevelopmentType)) {
+    // Only clear if we have an investment group selected and BOTH groups and dependent types are loaded
+    if (hasLoadedDependentTypes && hasLoadedGroups && formValues.investmentGroupRef && !(isRealEstateGroup && isProjectDevelopmentType)) {
       const updates: any = {};
       if (formValues.requiredCapitalAmount) updates.requiredCapitalAmount = "";
       if (formValues.forecastedProfitAmount) updates.forecastedProfitAmount = "";
@@ -124,18 +138,20 @@ export const useOpportunityFormFieldClearing = () => {
         });
       }
     }
-  }, [isRealEstateGroup, isProjectDevelopmentType, formValues.investmentGroupRef, dependentInvestmentTypes.length]);
+  }, [isRealEstateGroup, isProjectDevelopmentType, formValues.investmentGroupRef, dependentInvestmentTypes.length, investmentGroupsSearchable.length]);
 
   // Clear forecasted profit amount when not real estate others or project development (same logic as lead form)  
   useEffect(() => {
     const hasLoadedDependentTypes = !formValues.investmentGroupRef || dependentInvestmentTypes.length > 0;
+    const hasLoadedGroups = investmentGroupsSearchable.length > 0;
     
     const shouldShowForecastedProfit = (isRealEstateGroup && isProjectDevelopmentType) ||
                                        (isRealEstateGroup && isOthersType);
-    if (hasLoadedDependentTypes && !shouldShowForecastedProfit && formValues.forecastedProfitAmount) {
+    // Only clear if we have an investment group selected and BOTH groups and dependent types are loaded
+    if (hasLoadedDependentTypes && hasLoadedGroups && formValues.investmentGroupRef && !shouldShowForecastedProfit && formValues.forecastedProfitAmount) {
       handleInputChange("forecastedProfitAmount", "");
     }
-  }, [isRealEstateGroup, isProjectDevelopmentType, isOthersType, formValues.investmentGroupRef, dependentInvestmentTypes.length]);
+  }, [isRealEstateGroup, isProjectDevelopmentType, isOthersType, formValues.investmentGroupRef, dependentInvestmentTypes.length, investmentGroupsSearchable.length]);
 
   return { handleInputChange };
 };

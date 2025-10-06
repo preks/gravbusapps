@@ -3,7 +3,7 @@ import { ActivityTimeline } from './ActivityTimeline';
 import { TasksSection } from './TasksSection';
 import { StatusProgression } from './StatusProgression';
 import { LeadDocuments } from './LeadDocuments';
-import { InvestmentSection, DynamicInvestmentFields } from '@/business-apps/crm/investments/components/record-sections/investment-section';
+import { InvestmentSection, DynamicInvestmentFields } from '@/common/components/common-relations/record-sections/investment-section';
 
 export { LeadHeader };
 export { ActivityTimeline };

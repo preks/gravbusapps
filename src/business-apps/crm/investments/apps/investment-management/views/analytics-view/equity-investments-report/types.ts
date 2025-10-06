@@ -29,14 +29,14 @@ export interface EquityInvestmentResponse {
     aggregate: {
       count: number;
       sum: {
-        currentCompanyValuation: number | null;
-        lastReportedEbitda: number | null;
-        lastReportedTurnover: number | null;
+        marketValue: number | null;
+        ebitdaAmount: number | null;
+        turnoverAmount: number | null;
       };
       avg: {
-        currentCompanyValuation: number | null;
-        lastReportedEbitda: number | null;
-        lastReportedTurnover: number | null;
+        marketValue: number | null;
+        ebitdaAmount: number | null;
+        turnoverAmount: number | null;
       };
     };
   };

@@ -3,8 +3,6 @@ import { InvestmentFormProvider } from './context/InvestmentFormContext';
 import InvestmentFormComponent from './components/InvestmentFormComponent';
 import { InvestmentFormValues } from './types';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
-import { dispatchProcessContinueEvent } from '@/common/utils/processEventUtils';
-import { buildInvestmentPayload } from '@/common/data/investment/payloads/investmentPayloads';
 
 interface InvestmentFormProps {
   initialValues?: Partial<InvestmentFormValues>;
@@ -46,78 +44,36 @@ const InvestmentForm: React.FC<BusinessAppContextProps & InvestmentFormProps> = 
   // Enhanced initial values with investmentId for updates
   const enhancedInitialValues = {
     ...initialValues,
-    ...(extractedInvestmentId && { id: extractedInvestmentId })
-  };
-  // Handle form submission with payload building for Kogito flow
-  const handleSubmit = async (values: InvestmentFormValues) => {
-    try {
-
-      // Call the provided onSubmit handler if available
-      if (onSubmit) {
-        await onSubmit(values);
+    ...(extractedInvestmentId && {
+      investment: {
+        ...initialValues?.investment,
+        id: extractedInvestmentId
       }
-      
-      // Prepare payload for process continuation using the payload builder
-      const payload = buildInvestmentPayload(
-        values,
-        businessAppContext,
-        { isUpdate: Boolean(values.id) }
-      );
-      
-      
-      // Dispatch process continue event on successful submission
-      dispatchProcessContinueEvent('pse_submit', payload);
-      
-    } catch (error) {
-      console.error('Error building investment payload:', error);
-      throw error; // Re-throw to let AppActionForm handle error display
+    })
+  };
+  // Handle form submission - just a pass-through for optional custom handler
+  // AppActionForm handles the process event dispatching
+  const handleSubmit = async (payload: any) => {
+    if (onSubmit) {
+      await onSubmit(payload);
     }
+    // Return payload so AppActionForm can dispatch it
+    return payload;
   };
 
-  // Handle form cancellation
+  // Handle form cancellation - just a pass-through for optional custom handler
+  // AppActionForm handles the process event dispatching
   const handleCancel = async () => {
-    try {
-      // Call the provided onCancel handler if available
-      if (onCancel) {
-        await onCancel();
-      }
-      
-      // Dispatch process continue event for cancellation (pause)
-      dispatchProcessContinueEvent('pse_pause', null);
-      
-    } catch (error) {
-      console.error('Error cancelling investment form:', error);
-      throw error; // Re-throw to let the form context handle it
+    if (onCancel) {
+      await onCancel();
     }
   };
 
-  // Handle investment deletion
+  // Handle investment deletion - just a pass-through for optional custom handler
+  // AppActionForm handles the process event dispatching
   const handleDelete = async (id: string) => {
-    try {
-      // Get the current version from initial values if available
-      const version = enhancedInitialValues.version;
-      
-      // Call the provided onDelete handler if available
-      if (onDelete) {
-        await onDelete(id);
-      }
-
-      // Prepare payload for process continuation
-      const payload = {
-        investment: {
-          id,
-          deleted: true,
-          version
-        }
-      };
-      
-      
-      // Dispatch process continue event on successful deletion
-      dispatchProcessContinueEvent('pse_submit', payload);
-      
-    } catch (error) {
-      console.error('Error deleting investment:', error);
-      throw error; // Re-throw to let the form context handle it
+    if (onDelete) {
+      await onDelete(id);
     }
   };
 

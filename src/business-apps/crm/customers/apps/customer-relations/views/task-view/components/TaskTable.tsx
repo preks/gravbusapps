@@ -25,7 +25,7 @@ import { PiUser, PiArrowUp, PiArrowDown, PiLightning } from "react-icons/pi";
 import { Clock, Calendar } from "lucide-react";
 import { AppActionButton } from "@/components/app-action-button/AppActionButton";
 import { FlowContextName } from "@/common/types/FlowRegistryTypes";
-import { Task } from "../types/TaskTypes";
+import { Task } from '@/common/components/common-relations/detail-sheets/task-detail-sheet';
 import {
   getTaskStatusBadgeVariant,
   getTaskPriorityBadgeVariant,
@@ -435,28 +435,28 @@ export const TaskTable: React.FC<TaskTableProps> = ({
                     data-testid={`${DATA_TEST_ID_PREFIX}-reference-cell-${record.id}`}
                   >
                     <div
-                      className="gba:cursor-pointer gba:hover:bg-gray-50 gba:p-2 gba:rounded gba:transition-colors"
+                      className="gba:cursor-pointer gba:hover:bg-gray-50 gba:p-2 gba:rounded gba:transition-colors gba:min-w-0"
                       onClick={(e) => {
                         e.stopPropagation();
                         handleReferenceClick(record.reference);
                       }}
                       data-testid={`${DATA_TEST_ID_PREFIX}-reference-link-${record.id}`}
                     >
-                      <div className="gba:font-medium gba:text-sm">
+                      <div className="gba:font-medium gba:text-sm" title={record.reference.name}>
                         {record.reference.name}
                       </div>
-                      <div className="gba:flex gba:items-center gba:gap-1 gba:mt-1">
+                      <div className="gba:flex gba:items-center gba:gap-1 gba:mt-1 gba:min-w-0">
                         <Badge
                           variant={getReferenceTypeBadgeVariant(
                             record.reference.type
                           )}
-                          className="gba:text-xs"
+                          className="gba:text-xs gba:shrink-0"
                         >
                           {record.reference.type.charAt(0).toUpperCase() +
                             record.reference.type.slice(1)}
                         </Badge>
                         {record.reference.description && (
-                          <span className="gba:text-xs gba:text-gray-500">
+                          <span className="gba:text-xs gba:text-gray-500 gba:truncate gba:min-w-0" title={record.reference.description}>
                             {record.reference.description}
                           </span>
                         )}
@@ -493,7 +493,7 @@ export const TaskTable: React.FC<TaskTableProps> = ({
                   >
                     {record.creatorEmployee ? (
                       <div className="gba:flex gba:items-center gba:gap-3 gba:cursor-pointer gba:hover:bg-gray-50 gba:p-2 gba:rounded gba:transition-colors" onClick={(e) => { e.stopPropagation(); handleEmployeeClick(record.creatorEmployee!); }} data-testid={`${DATA_TEST_ID_PREFIX}-creator-link-${record.id}`}>
-                        <Avatar size="sm"><AvatarFallback>{getInitials(record.creatorEmployee.firstName, record.creatorEmployee.lastName)}</AvatarFallback></Avatar>
+                        <Avatar size="sm"><AvatarFallback>{getInitials(record.creatorEmployee.firstName || '', record.creatorEmployee.lastName || '')}</AvatarFallback></Avatar>
                         <div className="gba:flex gba:flex-col">
                           <span className="gba:font-medium gba:text-sm">{record.creatorEmployee.displayName}</span>
                           <span className="gba:text-xs gba:text-gray-500">{record.creatorEmployee.department}</span>

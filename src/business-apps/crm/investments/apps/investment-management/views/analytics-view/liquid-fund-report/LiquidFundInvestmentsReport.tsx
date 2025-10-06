@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
-import { Alert, AlertTitle, AlertDescription, Spinner, Tabs, TabsContent, TabsList, TabsTrigger, Button } from '@newwork/nw-design-system';
+import { Alert, AlertTitle, AlertDescription, Spinner, Tabs, TabsContent, TabsList, TabsTrigger, Button, Badge } from '@newwork/nw-design-system';
 import { PieChart, TrendingUp, BarChart } from 'lucide-react';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
+import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
 import { formatDataTestId } from '@/common/utils/formatDataTestId';
 import type { LiquidFundInvestment } from '@/common/data/investment';
 import { useInvestmentDataIntegration } from '@/common/data/investment';
@@ -145,6 +146,24 @@ export const LiquidFundInvestmentsReport: React.FC<LiquidFundInvestmentsReportPr
       data-testid={formatDataTestId(prefixDataTestId, 'LiquidFundInvestmentsReport')}
       className="gba:bg-gradient-to-b gba:from-gray-50 gba:to-gray-100 gba:min-h-full gba:p-6 gba:rounded-lg"
     >
+      {/* Header */}
+      <div className="gba:flex gba:justify-between gba:items-center gba:mb-6">
+        <div className="gba:flex gba:items-center gba:gap-4">
+          <h3 
+            className="gba:text-2xl gba:font-bold gba:text-gray-900 gba:m-0"
+            data-testid="liquid-fund-investments-title"
+          >
+            {getTranslationFromI18nKeyAndLabel('liquidFund.investments.title', 'Liquid Fund Investments Report')}
+          </h3>
+          <Badge 
+            variant="secondary"
+            data-testid="liquid-fund-investments-count"
+          >
+            {kpis?.totalInvestments || 0} {getTranslationFromI18nKeyAndLabel('liquidFund.investments.items', 'funds')}
+          </Badge>
+        </div>
+      </div>
+
       {/* KPI Cards */}
       <LiquidFundKPICards 
         kpis={kpis}

@@ -784,6 +784,7 @@ export const AccountDocuments: React.FC<AccountDocumentsProps> = ({
             version: version,
             // Backend expects empty string to detach from parent (root level)
             parentDocument: newParentId ?? '',
+            folder: !documents.find(d => d.id === docId)?.format || documents.find(d => d.id === docId)?.format?.toUpperCase() !== 'FILE', // Preserve folder status
             account: accountId,
           },
         },

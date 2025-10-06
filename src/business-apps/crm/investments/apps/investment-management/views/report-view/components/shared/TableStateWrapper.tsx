@@ -11,7 +11,7 @@ import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
 export interface TableStateWrapperProps {
   isLoading: boolean;
   error: string | Error | null;
-  onRetry: () => void;
+  onRetry: () => void | Promise<void>;
   children: React.ReactNode;
   dataTestId: string;
   icon?: React.ReactNode;

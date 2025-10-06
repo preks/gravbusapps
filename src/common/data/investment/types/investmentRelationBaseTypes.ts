@@ -13,6 +13,11 @@ export interface InvestmentRef {
   initialInvestmentAmount?: number;
   totalInvestmentAmount?: number;
   investmentMarketValue?: number;
+  investmentRole?: Array<{
+    id: string;
+    displayOrder?: number;
+    investmentRole?: CatalogEntry;
+  }>;
 }
 
 // Forward declarations for reference types to avoid circular dependencies
@@ -28,6 +33,16 @@ export interface InvestmentAccountRef {
   geographicPresence?: string;
   picture?: string;
   pictureThumbnail?: string;
+  // Address information
+  addresses?: Array<{
+    id: string;
+    addressType?: string;
+    addressLine?: any; // Jsonb
+    postalCode?: string;
+    locality?: string;
+    region?: CatalogEntry;
+    country?: CatalogEntry;
+  }>;
   // Catalog references (inline)
   legalForm?: CatalogEntry;
   companySize?: CatalogEntry;
@@ -72,6 +87,14 @@ export interface InvestmentLeadRef {
   code: string;
   firstName?: string;
   lastName?: string;
+}
+
+export interface InvestmentRoleRef {
+  id: string;
+  displayOrder?: number;
+  investmentRole?: CatalogEntry;
+  isDeleted?: boolean;
+  version?: number;
 }
 
 // =====================================================
@@ -147,8 +170,8 @@ export interface BaseInvestmentAccount extends BaseEntity {
   // Common Fields (from nw_common_relations.account)
   code?: string;
   name: string;
-  foundationDate?: string; // ISO date string // ISO date string
-  liquidationDate?: string; // ISO date string // ISO date string
+  foundationDate?: string; // ISO date string
+  liquidationDate?: string; // ISO date string
   website?: string;
   email?: string;
   phone?: string;
@@ -158,6 +181,41 @@ export interface BaseInvestmentAccount extends BaseEntity {
   geographicPresence?: string;
   specialty?: string;
   notesSummary?: string;
+  
+  // Additional fields from GraphQL schema
+  businessKey?: string;
+  additionalProperties?: any; // Jsonb
+  processInstanceId?: string;
+  synchronizedAt?: string; // timestamptz
+
+  // Address information
+  addresses?: Array<{
+    id: string;
+    addressType?: string;
+    addressLine?: any; // Jsonb
+    postalCode?: string;
+    locality?: string;
+    region?: CatalogEntry;
+    country?: CatalogEntry;
+  }>;
+
+  // Communication channels
+  communicationChannels?: Array<{
+    id: string;
+    source?: string;
+    value?: string;
+    valueExtension?: string;
+    communicationChannel?: CatalogEntry;
+    communicationChannelRef?: string;
+    accountId?: string; // uuid
+    contactId?: string; // uuid
+    leadId?: string; // uuid
+    opportunityId?: string; // uuid
+    additionalProperties?: any; // Jsonb
+    businessKey?: string;
+    processInstanceId?: string;
+    synchronizedAt?: string; // timestamptz
+  } & BaseEntity>;
 
   // Catalog references
   legalForm?: CatalogEntry;
@@ -192,6 +250,24 @@ export interface BaseInvestmentContact extends BaseEntity {
   pictureThumbnail?: string;
   description?: string;
   notesSummary?: string;
+
+  // Communication channels
+  communicationChannels?: Array<{
+    id: string;
+    source?: string;
+    value?: string;
+    valueExtension?: string;
+    communicationChannel?: CatalogEntry;
+    communicationChannelRef?: string;
+    accountId?: string; // uuid
+    contactId?: string; // uuid
+    leadId?: string; // uuid
+    opportunityId?: string; // uuid
+    additionalProperties?: any; // Jsonb
+    businessKey?: string;
+    processInstanceId?: string;
+    synchronizedAt?: string; // timestamptz
+  } & BaseEntity>;
 
   // Catalog references
   salutation?: CatalogEntry;
@@ -367,7 +443,7 @@ export interface BaseInvestmentDocument extends BaseEntity {
   authenticationDate?: string; // ISO date string
   mandatory?: boolean;
   expirationDate?: string; // ISO date string
-  version?: number;
+  version: number;
   
   // Catalog references
   documentGroup?: CatalogEntry;

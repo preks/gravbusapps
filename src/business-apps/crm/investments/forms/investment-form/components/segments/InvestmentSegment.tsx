@@ -15,8 +15,9 @@ import { EmployeeSelect } from '@/components/employee-select';
 import { formatDataTestId } from '@/common/utils/formatDataTestId';
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
 import { useInvestmentFormContext } from '../../context/InvestmentFormContext';
-import { useGetInvestmentAccounts, useGetInvestmentContacts, useSearchInvestmentAccounts, useSearchInvestmentContacts } from '@/common/data/investment';
-import { SelectOption } from '../../types';
+import { useGetInvestmentAccounts, useSearchInvestmentAccounts } from '@/common/data/investment';
+import { SelectOption, InvestmentFormValues } from '../../types';
+import { useCatalogManagerClient } from '@/common/network/catalogs/useCatalogManagerClient';
 
 const prefixDataTestId = 'InvestmentForm-InvestmentSegment';
 
@@ -43,6 +44,7 @@ const InvestmentSegment: React.FC = () => {
   const {
     // Form values to get selected group
     formValues,
+    setFormValues,
     // Employee positions for owner selection
     employeePositions,
     employeePositionsLoading,
@@ -53,30 +55,28 @@ const InvestmentSegment: React.FC = () => {
     businessAppContext,
   } = useInvestmentFormContext();
 
-  // Account and contact data loading
+  // Account data loading
   const [accounts, setAccounts] = useState<SelectOption[]>([]);
-  const [contacts, setContacts] = useState<SelectOption[]>([]);
   const [accountsLoading, setAccountsLoading] = useState(false);
-  const [contactsLoading, setContactsLoading] = useState(false);
+  
+  // Currency data loading
+  const [currencies, setCurrencies] = useState<SelectOption[]>([]);
+  const [currenciesLoading, setCurrenciesLoading] = useState(false);
   
   // Error state
   const [accountsError, setAccountsError] = useState<string | null>(null);
-  const [contactsError, setContactsError] = useState<string | null>(null);
   
   // Refs to track current lengths for pagination
   const accountsLengthRef = useRef(0);
-  const contactsLengthRef = useRef(0);
   
   // Search state
   const [accountSearchTerm, setAccountSearchTerm] = useState('');
-  const [contactSearchTerm, setContactSearchTerm] = useState('');
   const [accountsHasMore, setAccountsHasMore] = useState(false);
-  const [contactsHasMore, setContactsHasMore] = useState(false);
 
   const { fetchInvestmentAccounts } = useGetInvestmentAccounts(businessAppContext);
-  const { fetchInvestmentContacts } = useGetInvestmentContacts(businessAppContext);
   const { searchInvestmentAccounts } = useSearchInvestmentAccounts(businessAppContext);
-  const { searchInvestmentContacts } = useSearchInvestmentContacts(businessAppContext);
+  
+  const catalogClient = useCatalogManagerClient(businessAppContext.accessToken);
 
   // Load accounts (initial load)
   const loadAccounts = useCallback(async (searchTerm = '', append = false) => {
@@ -133,70 +133,10 @@ const InvestmentSegment: React.FC = () => {
     }
   }, [fetchInvestmentAccounts, searchInvestmentAccounts, businessAppContext.accessToken]);
 
-  // Load contacts (initial load)
-  const loadContacts = useCallback(async (searchTerm = '', append = false) => {
-    if (!businessAppContext.accessToken) return;
-    
-    setContactsLoading(true);
-    if (!append) {
-      setContactsError(null); // Clear previous errors on new search
-    }
-    try {
-      const limit = 50; // Decreased from 100 to 50 for better performance
-      const offset = append ? contactsLengthRef.current : 0;
-      
-      let result;
-      if (searchTerm.trim()) {
-        result = await searchInvestmentContacts(searchTerm, { limit, offset });
-      } else {
-        result = await fetchInvestmentContacts({ limit, offset });
-      }
-      
-      const contactOptions = result.InvestmentContact.map((contact: any) => ({
-        id: contact.id,
-        value: contact.id,
-        label: `${contact.firstName} ${contact.lastName}${contact.companyName ? ` (${contact.companyName})` : ''}`,
-        name: `${contact.firstName} ${contact.lastName}`,
-        extraInfo: {
-          email: contact.email,
-          companyName: contact.companyName,
-        },
-      }));
-      
-      if (append) {
-        setContacts(prev => {
-          const newContacts = [...prev, ...contactOptions];
-          contactsLengthRef.current = newContacts.length;
-          return newContacts;
-        });
-      } else {
-        setContacts(contactOptions);
-        contactsLengthRef.current = contactOptions.length;
-      }
-      
-      // Check if there are more results
-      setContactsHasMore(result.InvestmentContact.length === limit);
-    } catch (error) {
-      console.error('Error loading contacts:', error);
-      const errorMessage = error instanceof Error ? error.message : 'Failed to load contacts. Please try again.';
-      setContactsError(errorMessage);
-      
-      // Don't clear existing contacts on append errors, only on initial load errors
-      if (!append) {
-        setContacts([]);
-        contactsLengthRef.current = 0;
-        setContactsHasMore(false);
-      }
-    } finally {
-      setContactsLoading(false);
-    }
-  }, [fetchInvestmentContacts, searchInvestmentContacts, businessAppContext.accessToken]);
-
   // Load data on mount
   useEffect(() => {
     loadAccounts();
-    loadContacts();
-  }, [loadAccounts, loadContacts]);
+  }, [loadAccounts]);
   
   // Search handlers
   const handleAccountSearch = useCallback((searchTerm: string) => {
@@ -205,26 +145,53 @@ const InvestmentSegment: React.FC = () => {
     loadAccounts(searchTerm, false);
   }, [loadAccounts]);
   
-  const handleContactSearch = useCallback((searchTerm: string) => {
-    setContactSearchTerm(searchTerm);
-    setContactsError(null); // Clear errors when starting new search
-    loadContacts(searchTerm, false);
-  }, [loadContacts]);
-  
   // Load more handlers
   const handleLoadMoreAccounts = useCallback(() => {
     if (!accountsLoading && accountsHasMore) {
       loadAccounts(accountSearchTerm, true);
     }
   }, [loadAccounts, accountSearchTerm, accountsLoading, accountsHasMore]);
-  
-  const handleLoadMoreContacts = useCallback(() => {
-    if (!contactsLoading && contactsHasMore) {
-      loadContacts(contactSearchTerm, true);
-    }
-  }, [loadContacts, contactSearchTerm, contactsLoading, contactsHasMore]);
 
   // Transform SelectOption[] to EmployeeOption[] format that EmployeeSelect expects
+  // Load currencies
+  const loadCurrencies = useCallback(async () => {
+    if (!businessAppContext.accessToken) return;
+    
+    setCurrenciesLoading(true);
+    try {
+      const response = await catalogClient.getCatalogEntriesList(
+        {
+          catalogIdentifier: 'Currency',
+          version: 'v1',
+        },
+        {
+          limit: 200,
+          offset: 0,
+          returnTotalRecords: false,
+          includeChildCatalogEntries: true,
+        }
+      );
+
+      const currencyOptions = (response.data || []).map((entry: any) => ({
+        id: entry.id,
+        value: entry.id,
+        label: entry.value || entry.code,
+        name: entry.value || entry.code,
+      }));
+
+      setCurrencies(currencyOptions);
+    } catch (error) {
+      console.error('Error loading currencies:', error);
+    } finally {
+      setCurrenciesLoading(false);
+    }
+  }, [businessAppContext.accessToken, catalogClient]);
+
+  // Load currencies on mount
+  useEffect(() => {
+    loadCurrencies();
+  }, [loadCurrencies]);
+
   const assigneeOptions = useMemo(() => (employeePositions || []).map((emp) => ({
     id: emp.id,
     displayName: emp.label,
@@ -234,7 +201,10 @@ const InvestmentSegment: React.FC = () => {
   })), [employeePositions]);
 
   // Get dynamic investment type name
-  const investmentTypeName = getInvestmentTypeName(formValues.group);
+  const investmentGroupId = typeof formValues.investment.investmentGroup === 'object' 
+    ? formValues.investment.investmentGroup?.id || '' 
+    : formValues.investment.investmentGroup || '';
+  const investmentTypeName = getInvestmentTypeName(investmentGroupId);
 
   return (
     <div 
@@ -242,20 +212,10 @@ const InvestmentSegment: React.FC = () => {
       className="gba:space-y-6"
     >
       <div>
-        <h3 style={{ 
-          margin: 0, 
-          color: 'var(--nw-color-text-primary)', 
-          fontSize: '1.125rem', 
-          fontWeight: 600,
-          marginBottom: 'var(--nw-spacing-xs)'
-        }}>
+        <h3 className="gba:m-0 gba:text-foreground gba:text-lg gba:font-semibold gba:mb-2">
           {getTranslationFromI18nKeyAndLabel('investment.form.typeInformation', `${investmentTypeName} Information`)}
         </h3>
-        <p style={{
-          margin: 0,
-          color: 'var(--nw-color-text-secondary)',
-          fontSize: '0.875rem'
-        }}>
+        <p className="gba:m-0 gba:text-muted-foreground gba:text-sm">
           {getTranslationFromI18nKeyAndLabel('investment.form.basicInformation', `Basic information about the ${investmentTypeName.toLowerCase()}`)}
         </p>
       </div>
@@ -264,65 +224,123 @@ const InvestmentSegment: React.FC = () => {
         {/* Owner Selection */}
         <FormField
           control={control as any}
-          name="ownerEmployeeId"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>
-                {getTranslationFromI18nKeyAndLabel('investment.form.typeOwner', `${investmentTypeName} Owner`)} <span style={{ color: 'var(--nw-color-danger-500)' }}>*</span>
-              </FormLabel>
-              <FormControl>
-                <EmployeeSelect
-                  employees={assigneeOptions}
-                  value={field.value || ''}
-                  onValueChange={field.onChange}
-                  onSearch={searchEmployeePositions}
-                  loading={Boolean(employeePositionsLoading)}
-                  onLoadMore={loadMoreEmployeePositions}
-                  hasMore={Boolean(employeePositionsHasMore)}
-                  placeholder={getTranslationFromI18nKeyAndLabel('investment.form.selectTypeOwner', `Select ${investmentTypeName.toLowerCase()} owner`)}
-                  data-testid={formatDataTestId(prefixDataTestId, 'OwnerSelect')}
-                />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
+          name="investment.ownerEmployee"
+          render={({ field }) => {
+            const displayValue = field.value && typeof field.value === 'object' ? field.value.id || '' : (field.value || '');
+            return (
+              <FormItem>
+                <FormLabel>
+                  {getTranslationFromI18nKeyAndLabel('investment.form.typeOwner', `${investmentTypeName} Owner`)} <span className="gba:text-destructive">*</span>
+                </FormLabel>
+                <FormControl>
+                  <EmployeeSelect
+                    employees={assigneeOptions}
+                    value={displayValue}
+                    onValueChange={(value: string) => {
+                      if (value) {
+                        field.onChange({ id: value } as any);
+                      } else {
+                        field.onChange(null);
+                      }
+                    }}
+                    onSearch={searchEmployeePositions}
+                    loading={Boolean(employeePositionsLoading)}
+                    onLoadMore={loadMoreEmployeePositions}
+                    hasMore={Boolean(employeePositionsHasMore)}
+                    placeholder={getTranslationFromI18nKeyAndLabel('investment.form.selectTypeOwner', `Select ${investmentTypeName.toLowerCase()} owner`)}
+                    data-testid={formatDataTestId(prefixDataTestId, 'OwnerSelect')}
+                  />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            );
+          }}
         />
 
-        {/* Investment Name */}
-        <FormField
-          control={control as any}
-          name="name"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>
-                {getTranslationFromI18nKeyAndLabel('investment.form.typeName', `${investmentTypeName} Name`)} <span style={{ color: 'var(--nw-color-danger-500)' }}>*</span>
-              </FormLabel>
-              <FormControl>
-                <Input
-                  {...field}
-                  value={field.value || ''}
-                  placeholder={getTranslationFromI18nKeyAndLabel('investment.form.enterTypeName', `Enter ${investmentTypeName.toLowerCase()} name`)}
-                  data-testid={formatDataTestId(prefixDataTestId, 'NameInput')}
-                />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
+        {/* Investment Name and Currency Row */}
+        <div className="gba:grid gba:grid-cols-5 gba:gap-4 gba:w-full gba:min-w-0">
+          {/* Investment Name - 2/3 width */}
+          <div className="gba:col-span-3">
+            <FormField
+              control={control as any}
+              name="investment.name"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>
+                    {getTranslationFromI18nKeyAndLabel('investment.form.typeName', `${investmentTypeName} Name`)} <span className="gba:text-destructive">*</span>
+                  </FormLabel>
+                  <FormControl>
+                    <Input
+                      {...field}
+                      value={field.value || ''}
+                      placeholder={getTranslationFromI18nKeyAndLabel('investment.form.enterTypeName', `Enter ${investmentTypeName.toLowerCase()} name`)}
+                      data-testid={formatDataTestId(prefixDataTestId, 'NameInput')}
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+          </div>
+          
+          {/* Currency - 1/3 width */}
+          <div className="gba:col-span-2 gba:min-w-0">
+            <FormField
+              control={control as any}
+              name="investment.currency" // Without Ref suffix
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>
+                    {getTranslationFromI18nKeyAndLabel('investment.form.currency', 'Currency')} <span className="gba:text-destructive">*</span>
+                  </FormLabel>
+                  <FormControl>
+                    <Combobox
+                      className="gba:w-full gba:min-w-0"
+                      value={typeof field.value === 'object' ? field.value?.id || '' : (field.value || '')}
+                      onValueChange={(value) => {
+                        // Store as object if value exists, undefined if cleared
+                        const newValue = value ? { id: value } as any : undefined;
+                        field.onChange(newValue);
+                        // Note: setFormValues automatically merges investment fields
+                        // Form state stores catalog objects (or string IDs for backward compatibility)
+                        setFormValues({
+                          investment: {
+                            currency: newValue
+                          }
+                        } as Partial<InvestmentFormValues>);
+                      }}
+                      options={currencies}
+                      placeholder={getTranslationFromI18nKeyAndLabel('investment.form.selectCurrency', 'Select currency...')}
+                      searchPlaceholder="Search currencies..."
+                      emptyText="No currencies found"
+                      disabled={currenciesLoading}
+                      loading={currenciesLoading}
+                      data-testid={formatDataTestId(prefixDataTestId, 'CurrencySelect')}
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+          </div>
+        </div>
 
         {/* Related Account */}
         <FormField
           control={control as any}
-          name="accountId"
+          name="investment.investmentAccount"
           render={({ field }) => (
             <FormItem>
               <FormLabel>
-                {getTranslationFromI18nKeyAndLabel('investment.form.relatedAccount', 'Related Account')} <span style={{ color: 'var(--nw-color-danger-500)' }}>*</span>
+                {getTranslationFromI18nKeyAndLabel('investment.form.relatedAccount', 'Related Account')} <span className="gba:text-destructive">*</span>
               </FormLabel>
               <FormControl>
                 <Combobox
-                  value={field.value || ''}
-                  onValueChange={field.onChange}
+                  value={typeof field.value === 'object' ? field.value?.id || '' : (field.value || '')}
+                  onValueChange={(value: string) => {
+                    // Store as object if value exists, undefined if cleared
+                    field.onChange(value ? { id: value } as any : undefined);
+                  }}
                   options={accounts}
                   placeholder={getTranslationFromI18nKeyAndLabel('investment.form.selectAccount', 'Select account...')}
                   searchPlaceholder="Search accounts..."
@@ -352,58 +370,6 @@ const InvestmentSegment: React.FC = () => {
                         loadAccounts(accountSearchTerm, false);
                       }}
                       data-testid={formatDataTestId(prefixDataTestId, 'account-retry-button')}
-                    >
-                      {getTranslationFromI18nKeyAndLabel('common.retry', 'Retry')}
-                    </Button>
-                  </div>
-                </Alert>
-              )}
-            </FormItem>
-          )}
-        />
-
-        {/* Related Contact */}
-        <FormField
-          control={control as any}
-          name="contactId"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>
-                {getTranslationFromI18nKeyAndLabel('investment.form.relatedContact', 'Related Contact')} <span style={{ color: 'var(--nw-color-danger-500)' }}>*</span>
-              </FormLabel>
-              <FormControl>
-                <Combobox
-                  value={field.value || ''}
-                  onValueChange={field.onChange}
-                  options={contacts}
-                  placeholder={getTranslationFromI18nKeyAndLabel('investment.form.selectContact', 'Select contact...')}
-                  searchPlaceholder={getTranslationFromI18nKeyAndLabel('investment.form.searchContacts', 'Search contacts...')}
-                  emptyText={getTranslationFromI18nKeyAndLabel('investment.form.noContactsFound', 'No contacts found')}
-                  disabled={contactsLoading}
-                  loading={contactsLoading}
-                  onSearch={handleContactSearch}
-                  onLoadMore={handleLoadMoreContacts}
-                  hasMore={contactsHasMore}
-                  data-testid={formatDataTestId(prefixDataTestId, 'ContactSelect')}
-                />
-              </FormControl>
-              <FormMessage />
-              {contactsError && (
-                <Alert 
-                  variant="destructive" 
-                  style={{ marginTop: 'var(--nw-spacing-sm)' }}
-                  data-testid={formatDataTestId(prefixDataTestId, 'contact-error-alert')}
-                >
-                  <div className="gba:flex gba:items-center gba:justify-between">
-                    <span>{contactsError}</span>
-                    <Button 
-                      variant="outline" 
-                      size="sm" 
-                      onClick={() => {
-                        setContactsError(null);
-                        loadContacts(contactSearchTerm, false);
-                      }}
-                      data-testid={formatDataTestId(prefixDataTestId, 'contact-retry-button')}
                     >
                       {getTranslationFromI18nKeyAndLabel('common.retry', 'Retry')}
                     </Button>

@@ -8,7 +8,8 @@ import {
 import { 
   useAppActionData, 
   extractAppActionProps,
-  AppActionCommonProps 
+  AppActionCommonProps,
+  appActionPropsComparison
 } from "@/common/hooks/useAppActionData";
 import { formatDataTestId } from "@/common/utils/formatDataTestId";
 
@@ -36,10 +37,11 @@ const DATA_TEST_ID_PREFIX = "AppActionMenu";
  * Displays an action menu with flow items from the flow registry
  * Based on the ActionMenu from nw-design-system
  */
-export const AppActionMenu: React.FC<AppActionMenuProps> = (props) => {
+export const AppActionMenu: React.FC<AppActionMenuProps> = React.memo((props) => {
   // Extract App Action specific props and get clean props for ActionMenu
   const { appActionConfig, cleanProps } = extractAppActionProps(props);
   
+
   // Use shared logic for data fetching and state management
   const {
     combinedData,
@@ -155,6 +157,8 @@ export const AppActionMenu: React.FC<AppActionMenuProps> = (props) => {
       </ActionMenu>
     </div>
   );
-};
+}, appActionPropsComparison);
+
+AppActionMenu.displayName = 'AppActionMenu';
 
 export default AppActionMenu;

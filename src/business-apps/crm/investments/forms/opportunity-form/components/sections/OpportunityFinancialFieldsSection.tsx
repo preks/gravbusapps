@@ -108,7 +108,7 @@ const OpportunityFinancialFieldsSection: React.FC = () => {
       {/* Financial Fields - Only show if Investment Group is equity */}
       {isEquityGroup && (
         <div className="gba:space-y-6">
-          {/* Row 1: Stake Percentage and Market Value */}
+          {/* Row 1: Stake Percentage and Entity Market Value */}
           <div className="gba:grid gba:grid-cols-1 gba:gap-6 gba:md:grid-cols-2">
             {/* Stake Percentage */}
             <div className="gba:space-y-2">
@@ -126,10 +126,10 @@ const OpportunityFinancialFieldsSection: React.FC = () => {
               />
             </div>
 
-            {/* Market Value */}
+            {/* Entity Market Value */}
             <div className="gba:space-y-2">
               <Label className="gba:text-sm gba:font-medium gba:text-gray-900">
-                Market Value
+                Entity Market Value
               </Label>
               <Input
                 name="marketValue"

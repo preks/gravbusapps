@@ -893,13 +893,36 @@ const calculateSalesCycleLength = (opportunities: any): number => {
   const totalDays = wonOpportunities.reduce((sum: number, opp: any) => {
     const created = new Date(opp.createdAt);
     const closed = new Date(opp.closeDate);
+    
+    // Validate that closeDate is not before createdAt (data quality check)
+    if (closed < created) {
+      console.warn(`Opportunity ${opp.id} has closeDate (${opp.closeDate}) before createdAt (${opp.createdAt}). Skipping this opportunity.`);
+      return sum; // Skip this opportunity
+    }
+    
     const days = Math.ceil(
       (closed.getTime() - created.getTime()) / (1000 * 60 * 60 * 24)
     );
+    
+    // Additional safety check - ensure days is not negative
+    if (days < 0) {
+      console.warn(`Opportunity ${opp.id} calculated negative days (${days}). Skipping this opportunity.`);
+      return sum; // Skip this opportunity
+    }
+    
     return sum + days;
   }, 0);
 
-  return Math.round(totalDays / wonOpportunities.length);
+  // Count only valid opportunities (those that passed validation)
+  const validOpportunities = wonOpportunities.filter((opp: any) => {
+    const created = new Date(opp.createdAt);
+    const closed = new Date(opp.closeDate);
+    return closed >= created;
+  });
+
+  if (validOpportunities.length === 0) return 0;
+
+  return Math.round(totalDays / validOpportunities.length);
 };
 
 const calculatePipelineVelocity = (opportunities: any): number => {

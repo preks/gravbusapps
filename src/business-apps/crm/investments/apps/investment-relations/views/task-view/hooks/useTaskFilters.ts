@@ -27,6 +27,8 @@ export interface TaskFilters {
   referenceTypes: string[];
   createdAfter?: string;
   createdBefore?: string;
+  dueDateAfter?: string;
+  dueDateBefore?: string;
 }
 
 export const useTaskFilters = (context: BusinessAppContextProps & { sourceApp?: string }) => {
@@ -193,7 +195,10 @@ export const useTaskFilters = (context: BusinessAppContextProps & { sourceApp?: 
     getFilters,
     createdAfter,
     createdBefore,
-    handleDateRangeChange
+    handleDateRangeChange,
+    types,
+    statuses,
+    priorities
   };
 };
 
