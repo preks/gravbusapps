@@ -3,11 +3,11 @@ import { ApprovalRequest } from '../types';
 
 // --- Small helpers to keep mapping logic simple and readable ---
 const getTaskGroup = (taskName: string = ''): string => {
-  if (name.includes('ExpensePlan')) return 'Expense Plan';
-  if (name.includes('ExpenseRequest')) return 'Request';
-  if (name.includes('AdvancePayment')) return 'Advance Payment Request';
-  if (name.includes('Transfer')) return 'Transfer';
-  if (name.includes('Handout')) return 'Handout';
+  if (taskName.includes('ExpensePlan')) return 'Expense Plan';
+  if (taskName.includes('ExpenseRequest')) return 'Request';
+  if (taskName.includes('AdvancePayment')) return 'Advance Payment Request';
+  if (taskName.includes('Transfer')) return 'Transfer';
+  if (taskName.includes('Handout')) return 'Handout';
   return 'Request';
 };
 

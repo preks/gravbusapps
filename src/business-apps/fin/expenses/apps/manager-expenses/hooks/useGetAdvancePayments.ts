@@ -163,7 +163,7 @@ export const useGetAdvancePayments = (context?: BusinessAppContextProps): Advanc
       setIsLoading(false);
       return;
     }
-  }, [context?.accessToken]);
+  }, [context]);
 
   const fetchAdvancePaymentStatistics = useCallback(async () => {
     const managerId = getManagerIdFromContext();
@@ -195,7 +195,7 @@ export const useGetAdvancePayments = (context?: BusinessAppContextProps): Advanc
       setStatsLoading(false);
       return;
     }
-  }, [context?.accessToken]);
+  }, [context]);
 
   return {
     payments,

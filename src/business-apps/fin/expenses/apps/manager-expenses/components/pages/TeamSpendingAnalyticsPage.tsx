@@ -266,11 +266,11 @@ const TeamSpendingAnalyticsPage: React.FC<TeamSpendingAnalyticsPageProps> = ({
           <CardContent>
             <BarChartComponent
               data={
-              data?.expenseItemsByStatus.map((item) => ({
+              data?.expenseItemsByStatus?.map((item) => ({
                 name: getExpenseRequestStatusDisplay(item.status).label,
                 value: item.count,
                 status: item.status,
-              })) || []
+              })) ?? []
               }
               title=""
               barColor="var(--nw-chart-1)"
@@ -401,11 +401,11 @@ const TeamSpendingAnalyticsPage: React.FC<TeamSpendingAnalyticsPageProps> = ({
           <CardContent>
             <BarChartComponent
               data={
-              data?.expenseRequestsByStatus.map((item) => ({
+              data?.expenseRequestsByStatus?.map((item) => ({
                 name: getExpenseRequestStatusDisplay(item.status).label,
                 value: item.count,
                 status: item.status,
-              })) || []
+              })) ?? []
               }
               title=""
               barColor="var(--nw-chart-2)"
@@ -444,11 +444,11 @@ const TeamSpendingAnalyticsPage: React.FC<TeamSpendingAnalyticsPageProps> = ({
           <CardContent>
             <PieChartComponent
               data={
-              data?.expenseRequestsByStatus.map((item) => ({
+              data?.expenseRequestsByStatus?.map((item) => ({
                 name: getExpenseRequestStatusDisplay(item.status).label,
                 value: item.amount ?? 0,
                 status: item.status,
-              })) || []
+              })) ?? []
               }
               title=""
               currency={currencyFilter || primaryCurrency}
@@ -550,11 +550,11 @@ const TeamSpendingAnalyticsPage: React.FC<TeamSpendingAnalyticsPageProps> = ({
           <CardContent>
             <BarChartComponent
               data={
-              data?.expensePlansByStatus.map((item) => ({
+              data?.expensePlansByStatus?.map((item) => ({
                 name: getExpensePlanStatusDisplay(item.status).label,
                 value: item.count,
                 status: item.status,
-              })) || []
+              })) ?? []
               }
               title=""
               barColor="var(--nw-chart-3)"
@@ -592,11 +592,11 @@ const TeamSpendingAnalyticsPage: React.FC<TeamSpendingAnalyticsPageProps> = ({
           <CardContent>
             <PieChartComponent
               data={
-              data?.expensePlansByStatus.map((item) => ({
+              data?.expensePlansByStatus?.map((item) => ({
                 name: getExpensePlanStatusDisplay(item.status).label,
                 value: item.amount ?? 0,
                 status: item.status,
-              })) || []
+              })) ?? []
               }
               title=""
               currency={currencyFilter || primaryCurrency}
@@ -698,11 +698,11 @@ const TeamSpendingAnalyticsPage: React.FC<TeamSpendingAnalyticsPageProps> = ({
           <CardContent>
             <BarChartComponent
               data={
-              data?.advancePaymentsByStatus.map((item: any) => ({
+              data?.advancePaymentsByStatus?.map((item: any) => ({
                 name: getAdvancePaymentStatusDisplay(item.status).label,
                 value: item.count ?? 0,
                 status: item.status,
-              })) || []
+              })) ?? []
               }
               title=""
               barColor="var(--nw-chart-5)"
@@ -740,11 +740,11 @@ const TeamSpendingAnalyticsPage: React.FC<TeamSpendingAnalyticsPageProps> = ({
           <CardContent>
             <PieChartComponent
               data={
-              data?.advancePaymentsByStatus.map((item: any) => ({
+              data?.advancePaymentsByStatus?.map((item: any) => ({
                 name: getAdvancePaymentStatusDisplay(item.status).label,
                 value: item.amount ?? 0,
                 status: item.status,
-              })) || []
+              })) ?? []
               }
               title=""
               colors={[

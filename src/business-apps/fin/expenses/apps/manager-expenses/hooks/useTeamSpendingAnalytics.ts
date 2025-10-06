@@ -732,8 +732,8 @@ export const useTeamSpendingAnalytics = (
       const monthMap = new Map<string, number>();
       
       items.forEach(item => {
-        if (!item || !item[dateField]) return;
-        const date = dayjs(item[dateField]).format('YYYY-MM');
+        if (!item?.[dateField]) return;
+        const date = dayjs(item?.[dateField]).format('YYYY-MM');
         const currentAmount = monthMap.get(date) || 0;
         const addAmount = Number(item?.[amountField] ?? 0);
         monthMap.set(date, currentAmount + (Number.isNaN(addAmount) ? 0 : addAmount));
