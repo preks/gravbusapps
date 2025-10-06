@@ -23,7 +23,6 @@ export const useExpenseRequests = (context: BusinessAppContextProps) => {
   const [statusFilter, setStatusFilter] = useState<string>("BOOKED");
   const [amountMinFilter, setAmountMinFilter] = useState<string>("");
   const [amountMaxFilter, setAmountMaxFilter] = useState<string>("");
-  
 
   const transformExpenseRequest = (item: any): ExpenseData => {
     return {
