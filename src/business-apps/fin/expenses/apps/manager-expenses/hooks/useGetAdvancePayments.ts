@@ -138,30 +138,30 @@ export const useGetAdvancePayments = (context?: BusinessAppContextProps): Advanc
     const managerId = getManagerIdFromContext();
     const accessToken = context?.accessToken || '';
 
-    if (!managerId || !accessToken) {
+    if (managerId && accessToken) {
+      setIsLoading(true);
+      setError(null);
+
+      try {
+        const variables = buildQueryVariables(managerId, searchTerm, page, pageSize, status);
+        const data = await requestGraphQL(accessToken, GET_ADVANCE_PAYMENTS_REPORT_BY_MANAGER, variables);
+        const mappedPayments = mapResponseToPayments(data);
+        setPayments(mappedPayments);
+        setTotalCount(data.AdvancePaymentAggregate?.aggregate?.count ?? 0);
+
+      } catch (err: any) {
+        setError(err.message ?? 'Failed to fetch advance payments.');
+        setPayments([]);
+        setTotalCount(0);
+      } finally {
+        setIsLoading(false);
+      }
+    } else {
       setError(!managerId ? 'Manager ID not found. Cannot fetch advance payments.' : 'Access token not found. Cannot fetch advance payments.');
       setPayments([]);
       setTotalCount(0);
       setIsLoading(false);
       return;
-    }
-
-    setIsLoading(true);
-    setError(null);
-
-    try {
-      const variables = buildQueryVariables(managerId, searchTerm, page, pageSize, status);
-      const data = await requestGraphQL(accessToken, GET_ADVANCE_PAYMENTS_REPORT_BY_MANAGER, variables);
-      const mappedPayments = mapResponseToPayments(data);
-      setPayments(mappedPayments);
-      setTotalCount(data.AdvancePaymentAggregate?.aggregate?.count ?? 0);
-
-    } catch (err: any) {
-      setError(err.message ?? 'Failed to fetch advance payments.');
-      setPayments([]);
-      setTotalCount(0);
-    } finally {
-      setIsLoading(false);
     }
   }, [context?.accessToken]);
 
@@ -169,31 +169,31 @@ export const useGetAdvancePayments = (context?: BusinessAppContextProps): Advanc
     const managerId = getManagerIdFromContext();
     const accessToken = context?.accessToken || '';
 
-    if (!managerId || !accessToken) {
+    if (managerId && accessToken) {
+      setStatsLoading(true);
+      setStatsError(null);
+
+      try {
+        const variables = { employeeId: managerId };
+        const data = await requestGraphQL(accessToken, GET_ADVANCE_PAYMENT_STATISTICS, variables);
+
+        const sumNode = data?.advancePaymentStats?.aggregate?.sum;
+        if (!sumNode || typeof sumNode.amount !== 'number') {
+          setAdvancePaymentStats({ totalAmount: null });
+        } else {
+          setAdvancePaymentStats({ totalAmount: sumNode.amount });
+        }
+      } catch (err: any) {
+        setStatsError(err.message ?? 'Failed to fetch advance payment statistics.');
+        setAdvancePaymentStats(null);
+      } finally {
+        setStatsLoading(false);
+      }
+    } else {
       setStatsError(!managerId ? 'Manager ID not found. Cannot fetch advance payment statistics.' : 'Access token not found. Cannot fetch advance payment statistics.');
       setAdvancePaymentStats(null);
       setStatsLoading(false);
       return;
-    }
-
-    setStatsLoading(true);
-    setStatsError(null);
-
-    try {
-      const variables = { employeeId: managerId };
-      const data = await requestGraphQL(accessToken, GET_ADVANCE_PAYMENT_STATISTICS, variables);
-
-      const sumNode = data?.advancePaymentStats?.aggregate?.sum;
-      if (!sumNode || typeof sumNode.amount !== 'number') {
-        setAdvancePaymentStats({ totalAmount: null });
-      } else {
-        setAdvancePaymentStats({ totalAmount: sumNode.amount });
-      }
-    } catch (err: any) {
-      setStatsError(err.message ?? 'Failed to fetch advance payment statistics.');
-      setAdvancePaymentStats(null);
-    } finally {
-      setStatsLoading(false);
     }
   }, [context?.accessToken]);
 

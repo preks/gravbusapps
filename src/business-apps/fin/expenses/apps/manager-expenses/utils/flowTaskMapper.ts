@@ -2,8 +2,7 @@ import { FlowExecutionTask } from '@/common/network/flow-metrics/FlowMetricsClie
 import { ApprovalRequest } from '../types';
 
 // --- Small helpers to keep mapping logic simple and readable ---
-const getTaskGroup = (taskName: string | undefined): string => {
-  const name = taskName || '';
+const getTaskGroup = (taskName: string = ''): string => {
   if (name.includes('ExpensePlan')) return 'Expense Plan';
   if (name.includes('ExpenseRequest')) return 'Request';
   if (name.includes('AdvancePayment')) return 'Advance Payment Request';

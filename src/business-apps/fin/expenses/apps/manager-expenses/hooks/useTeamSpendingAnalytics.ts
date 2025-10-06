@@ -675,7 +675,8 @@ export const useTeamSpendingAnalytics = (
     // Helper function to get localized category display name
     const getCategoryDisplayName = (position: ExpensePosition): string => {
       const catalog = position.expenseGroup;
-      const locale = getCurrentActiveUserLocale().toLowerCase();
+      const safeLocale = (globalThis.window === undefined ? 'en-US' : getCurrentActiveUserLocale());
+      const locale = String(safeLocale).toLowerCase();
       const translated = catalog?.translations?.find((t) => t?.localeCode?.toLowerCase() === locale)?.value;
       const display = translated || catalog?.value;
       const codeKey = position.expenseGroupRef || 'Uncategorized';
@@ -721,17 +722,21 @@ export const useTeamSpendingAnalytics = (
       .sort((a, b) => b.value - a.value); // Sort by value descending
     
     // Process time series data
-    const processTimeSeriesData = (items: any[], amountField: string = 'totalAmount') => {
+    const processTimeSeriesData = (
+      items: any[],
+      amountField: string = 'totalAmount',
+      dateField: string = 'createdAt'
+    ) => {
       if (!Array.isArray(items)) return [];
       
       const monthMap = new Map<string, number>();
       
       items.forEach(item => {
-        if (!item || !item.createdAt) return;
-        
-        const date = dayjs(item.createdAt).format('YYYY-MM');
+        if (!item || !item[dateField]) return;
+        const date = dayjs(item[dateField]).format('YYYY-MM');
         const currentAmount = monthMap.get(date) || 0;
-        monthMap.set(date, currentAmount + (item[amountField] || 0));
+        const addAmount = Number(item?.[amountField] ?? 0);
+        monthMap.set(date, currentAmount + (Number.isNaN(addAmount) ? 0 : addAmount));
       });
       
       // Sort by date
@@ -776,10 +781,10 @@ export const useTeamSpendingAnalytics = (
         
         const orgUnit = employee.employeePosition?.organizationalUnit?.name || 'Unknown';
         const current = orgUnitMap.get(orgUnit) || { count: 0, amount: 0 };
-        
+        const addAmount = Number(item?.[amountField] ?? 0);
         orgUnitMap.set(orgUnit, {
           count: current.count + 1,
-          amount: current.amount + (item[amountField] || 0)
+          amount: current.amount + (Number.isNaN(addAmount) ? 0 : addAmount)
         });
       });
     };
@@ -797,10 +802,10 @@ export const useTeamSpendingAnalytics = (
         
         const location = employee.employeePosition?.siteLocation?.name || 'Unknown';
         const current = locationMap.get(location) || { count: 0, amount: 0 };
-        
+        const addAmount = Number(item?.[amountField] ?? 0);
         locationMap.set(location, {
           count: current.count + 1,
-          amount: current.amount + (item[amountField] || 0)
+          amount: current.amount + (Number.isNaN(addAmount) ? 0 : addAmount)
         });
       });
     };
@@ -817,10 +822,10 @@ export const useTeamSpendingAnalytics = (
     processLocationData(filteredAdvancePayments, 'amount');
     
     // Calculate totals
-    const totalExpenseAmount = filteredExpenseItems.reduce((sum, item) => sum + (item.totalAmount || 0), 0);
-    const totalRequestAmount = filteredExpenseRequests.reduce((sum, item) => sum + (item.totalAmount || 0), 0);
-    const totalPlanAmount = filteredExpensePlans.reduce((sum, item) => sum + (item.totalAmount || 0), 0);
-    const totalAdvanceAmount = filteredAdvancePayments.reduce((sum, item) => sum + (item.amount || 0), 0);
+    const totalExpenseAmount = filteredExpenseItems.reduce((sum, item) => sum + (Number(item.totalAmount ?? 0) || 0), 0);
+    const totalRequestAmount = filteredExpenseRequests.reduce((sum, item) => sum + (Number(item.totalAmount ?? 0) || 0), 0);
+    const totalPlanAmount = filteredExpensePlans.reduce((sum, item) => sum + (Number(item.totalAmount ?? 0) || 0), 0);
+    const totalAdvanceAmount = filteredAdvancePayments.reduce((sum, item) => sum + (Number(item.amount ?? 0) || 0), 0);
     
     return {
       expenseItemsByCategory,
@@ -830,7 +835,7 @@ export const useTeamSpendingAnalytics = (
       expenseRequestsByStatus: processStatusData(filteredExpenseRequests),
       expensePlansByMonth: processTimeSeriesData(filteredExpensePlans),
       expensePlansByStatus: processStatusData(filteredExpensePlans),
-      advancePaymentsByMonth: processTimeSeriesData(filteredAdvancePayments, 'amount'),
+      advancePaymentsByMonth: processTimeSeriesData(filteredAdvancePayments, 'amount', 'transactionDate'),
       advancePaymentsByStatus: processStatusData(filteredAdvancePayments, 'amount'),
       expensesByOrgUnit: Array.from(orgUnitMap.entries()).map(([orgUnit, data]) => ({
         orgUnit,
