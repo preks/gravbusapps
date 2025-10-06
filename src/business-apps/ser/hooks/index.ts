@@ -5,6 +5,7 @@ export { useSharedFlowTemplates } from './useSharedFlowTemplates';
 export { useServicePortalCategories } from './useServicePortalCategories';
 export { useDeskTablePreferences } from './useDeskTablePreferences';
 export { useDeskTablePreferencesSimple } from './useDeskTablePreferencesSimple';
+export { useMyRequestsTablePreferences } from './useMyRequestsTablePreferences';
 export { useMyRequestsCount } from './useMyRequestsCount';
 export { useServiceDeskCatalogCache } from './useServiceDeskCatalogCache';
 

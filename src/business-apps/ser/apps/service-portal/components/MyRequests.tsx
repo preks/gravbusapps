@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useRef } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { 
   PageLayout, 
   Card, 
@@ -6,67 +6,19 @@ import {
   Badge, 
   Alert,
   Spinner,
-  Tooltip,
-  TooltipTrigger,
-  TooltipContent,
-  DataTable,
-  DataTableDataSet,
+  SectionKpiCards,
   type KpiCardData
 } from '@newwork/nw-design-system';
-import { ColumnDef } from "@tanstack/react-table";
 import { SubmittedRequest, WorkflowEngine, StepStatus } from '../../../types';
 import { formatRequestId } from '../../../utils';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
-import { ClockCounterClockwise, CheckCircle, XCircle, FileText, User, Calendar, CurrencyDollar, Building, Phone, Globe, X, ChatCircle, ArrowLeft } from '@phosphor-icons/react';
+import { ClockCounterClockwise, CheckCircle, XCircle, FileText, User, Calendar, CurrencyDollar, Building, Phone, Globe, X, ArrowLeft } from '@phosphor-icons/react';
 import { UserDisplayName } from '../../../components/UserDisplayName';
 import { RequestComments } from './RequestComments';
 import { useFlowComments } from '../hooks/useFlowComments';
+import { MyRequestsTable, FilterGroup, RequestAction } from '../../../components/shared/MyRequestsTable';
+import { ColumnConfig } from '@/components/dataController';
 
-// Animated Progress Component
-const AnimatedProgress: React.FC<{ 
-  targetValue: number; 
-  duration?: number; 
-  suffix?: string;
-}> = ({ targetValue, duration = 1500, suffix = '%' }) => {
-  const [currentValue, setCurrentValue] = useState(0);
-  const animationRef = useRef<number>();
-  const startTimeRef = useRef<number>();
-
-  useEffect(() => {
-    const animate = (timestamp: number) => {
-      if (!startTimeRef.current) {
-        startTimeRef.current = timestamp;
-      }
-
-      const elapsed = timestamp - startTimeRef.current;
-      const progress = Math.min(elapsed / duration, 1);
-      
-      // Easing function for smooth animation
-      const easeOutCubic = (t: number) => 1 - Math.pow(1 - t, 3);
-      const easedProgress = easeOutCubic(progress);
-      
-      const animatedValue = Math.round(easedProgress * targetValue);
-      setCurrentValue(animatedValue);
-
-      if (progress < 1) {
-        animationRef.current = requestAnimationFrame(animate);
-      }
-    };
-
-    // Reset and start animation
-    setCurrentValue(0);
-    startTimeRef.current = undefined;
-    animationRef.current = requestAnimationFrame(animate);
-
-    return () => {
-      if (animationRef.current) {
-        cancelAnimationFrame(animationRef.current);
-      }
-    };
-  }, [targetValue, duration]);
-
-  return <span>{currentValue}{suffix}</span>;
-};
 
 export interface MyRequestsProps extends BusinessAppContextProps {
   workflowEngine: WorkflowEngine;
@@ -78,109 +30,6 @@ interface RequestTimelineProps {
   contextProps: BusinessAppContextProps & { workflowEngine: WorkflowEngine };
 }
 
-// Component to show comment count for a request in the table
-const CommentCountIndicator: React.FC<{
-  flowId: string;
-  contextProps: BusinessAppContextProps;
-  workflowEngine: WorkflowEngine;
-}> = ({ flowId, contextProps, workflowEngine }) => {
-  const { comments, totalComments, isLoading, error } = useFlowComments(flowId, contextProps, workflowEngine);
-
-
-  // Get the latest comment for tooltip
-  const latestComment = comments.length > 0 ? comments[0] : null;
-
-  // Format time ago for tooltip
-  const formatTimeAgo = (dateString: string): string => {
-    const now = new Date();
-    const commentDate = new Date(dateString);
-    const diffMs = now.getTime() - commentDate.getTime();
-    const diffMinutes = Math.floor(diffMs / (1000 * 60));
-    
-    if (diffMinutes < 1) return 'Just now';
-    if (diffMinutes < 60) return `${diffMinutes}m ago`;
-    
-    const diffHours = Math.floor(diffMinutes / 60);
-    if (diffHours < 24) return `${diffHours}h ago`;
-    
-    const diffDays = Math.floor(diffHours / 24);
-    if (diffDays < 7) return `${diffDays}d ago`;
-    
-    return commentDate.toLocaleDateString();
-  };
-
-  // Create tooltip content
-  const tooltipContent = latestComment ? (
-    <div className="gba:max-w-xs">
-      <div className="gba:font-semibold gba:mb-1">Latest Comment</div>
-      <div className="gba:text-sm gba:mb-2 gba:line-clamp-3">
-        "{latestComment.body.length > 100 ? latestComment.body.substring(0, 100) + '...' : latestComment.body}"
-      </div>
-      <div className="gba:text-xs gba:text-gray-300 gba:flex gba:justify-between gba:gap-4">
-        <span>{latestComment.stepName}</span>
-        <span>{formatTimeAgo(latestComment.createdAt)}</span>
-      </div>
-      {totalComments > 1 && (
-        <div className="gba:text-xs gba:text-gray-400 gba:mt-1 gba:pt-1 gba:border-t gba:border-gray-600">
-          +{totalComments - 1} more comment{totalComments - 1 !== 1 ? 's' : ''}
-        </div>
-      )}
-    </div>
-  ) : null;
-
-  // Show loading state for debugging
-  if (isLoading) {
-    return (
-      <Tooltip>
-        <TooltipTrigger asChild>
-          <Badge variant="outline" className="gba:text-xs gba:bg-gray-50 gba:text-gray-500 gba:border-gray-200 gba:flex gba:items-center gba:gap-1 gba:px-2 gba:py-1 gba:cursor-help">
-            <ChatCircle className="gba:w-3 gba:h-3" />
-            ...
-          </Badge>
-        </TooltipTrigger>
-        <TooltipContent>
-          Loading comments...
-        </TooltipContent>
-      </Tooltip>
-    );
-  }
-
-  // Show error state for debugging
-  if (error) {
-    return (
-      <Tooltip>
-        <TooltipTrigger asChild>
-          <Badge variant="outline" className="gba:text-xs gba:bg-red-50 gba:text-red-500 gba:border-red-200 gba:flex gba:items-center gba:gap-1 gba:px-2 gba:py-1 gba:cursor-help">
-            <ChatCircle className="gba:w-3 gba:h-3" />
-            !
-          </Badge>
-        </TooltipTrigger>
-        <TooltipContent>
-          Error loading comments: {error}
-        </TooltipContent>
-      </Tooltip>
-    );
-  }
-
-  // Don't show anything if no comments
-  if (totalComments === 0) {
-    return null;
-  }
-
-  return (
-    <Tooltip>
-      <TooltipTrigger asChild>
-        <Badge variant="outline" className="gba:text-xs gba:bg-blue-50 gba:text-blue-700 gba:border-blue-200 gba:flex gba:items-center gba:gap-1 gba:px-2 gba:py-1 gba:cursor-help hover:gba:bg-blue-100 gba:transition-colors">
-          <ChatCircle className="gba:w-3 gba:h-3" />
-          {totalComments}
-        </Badge>
-      </TooltipTrigger>
-      <TooltipContent>
-        {tooltipContent}
-      </TooltipContent>
-    </Tooltip>
-  );
-};
 
 const RequestTimeline: React.FC<RequestTimelineProps> = ({ request: initialRequest, contextProps }) => {
   const [request, setRequest] = useState<SubmittedRequest>(initialRequest);
@@ -224,7 +73,7 @@ const RequestTimeline: React.FC<RequestTimelineProps> = ({ request: initialReque
       console.log(`[RequestTimeline] ✅ Updated request data:`, {
         id: updatedRequest.id,
         status: updatedRequest.status,
-        stepsCompleted: updatedRequest.steps.filter(s => s.status === 'done').length,
+        stepsCompleted: updatedRequest.steps.filter(s => s.status === 'DONE' || s.status === 'COMPLETED').length,
         totalSteps: updatedRequest.steps.length,
         timelineEvents: updatedRequest.timeline.length
       });
@@ -263,10 +112,15 @@ const RequestTimeline: React.FC<RequestTimelineProps> = ({ request: initialReque
 
   const getStepIcon = (status: StepStatus) => {
     switch (status) {
-      case 'done': return <CheckCircle className="gba:text-green-600" size={20} />;
-      case 'in_progress': return <ClockCounterClockwise className="gba:text-blue-600 gba:animate-spin" size={20} />;
-      case 'blocked': return <XCircle className="gba:text-red-600" size={20} />;
-      case 'ready': return <div className="gba:w-5 gba:h-5 gba:bg-yellow-400 gba:rounded-full gba:flex gba:items-center gba:justify-center">
+      case 'DONE':
+      case 'COMPLETED': return <CheckCircle className="gba:text-green-600" size={20} />;
+      case 'IN_PROGRESS':
+      case 'RUNNING': return <ClockCounterClockwise className="gba:text-blue-600 gba:animate-spin" size={20} />;
+      case 'REJECTED':
+      case 'FAILED':
+      case 'ERROR': return <XCircle className="gba:text-red-600" size={20} />;
+      case 'READY':
+      case 'QUEUED': return <div className="gba:w-5 gba:h-5 gba:bg-yellow-400 gba:rounded-full gba:flex gba:items-center gba:justify-center">
         <div className="gba:w-2 gba:h-2 gba:bg-white gba:rounded-full"></div>
       </div>;
       default: return <div className="gba:w-5 gba:h-5 gba:bg-gray-300 gba:rounded-full"></div>;
@@ -275,10 +129,15 @@ const RequestTimeline: React.FC<RequestTimelineProps> = ({ request: initialReque
 
   const getStepStatusColor = (status: StepStatus) => {
     switch (status) {
-      case 'done': return 'gba:border-green-200 gba:bg-green-50';
-      case 'in_progress': return 'gba:border-blue-200 gba:bg-blue-50';
-      case 'blocked': return 'gba:border-red-200 gba:bg-red-50';
-      case 'ready': return 'gba:border-yellow-200 gba:bg-yellow-50';
+      case 'DONE':
+      case 'COMPLETED': return 'gba:border-green-200 gba:bg-green-50';
+      case 'IN_PROGRESS':
+      case 'RUNNING': return 'gba:border-blue-200 gba:bg-blue-50';
+      case 'REJECTED':
+      case 'FAILED':
+      case 'ERROR': return 'gba:border-red-200 gba:bg-red-50';
+      case 'READY':
+      case 'QUEUED': return 'gba:border-yellow-200 gba:bg-yellow-50';
       default: return 'gba:border-gray-200 gba:bg-gray-50';
     }
   };
@@ -396,7 +255,7 @@ const RequestTimeline: React.FC<RequestTimelineProps> = ({ request: initialReque
               >
                 {(() => {
                   // Use actual step completion logic matching the table
-                  const completedSteps = request.steps.filter(s => s.status === 'COMPLETED' || s.status === 'done').length;
+                  const completedSteps = request.steps.filter(s => s.status === 'COMPLETED' || s.status === 'DONE').length;
                   const totalSteps = request.steps.length;
                   return `${completedSteps} of ${totalSteps} steps completed`;
                 })()}
@@ -414,7 +273,7 @@ const RequestTimeline: React.FC<RequestTimelineProps> = ({ request: initialReque
         {/* Progress Bar */}
         {(() => {
           // Calculate progress using the same logic as the table
-          const completedSteps = request.steps.filter(s => s.status === 'COMPLETED' || s.status === 'done').length;
+          const completedSteps = request.steps.filter(s => s.status === 'COMPLETED' || s.status === 'DONE').length;
           const totalSteps = request.steps.length;
           const progressPercentage = totalSteps > 0 ? Math.round((completedSteps / totalSteps) * 100) : 0;
           
@@ -755,10 +614,10 @@ const RequestTimeline: React.FC<RequestTimelineProps> = ({ request: initialReque
                     <Badge 
                       variant="default"
                       className={
-                        step.status === 'done' ? 'gba:bg-green-100 gba:text-green-800' :
-                        step.status === 'in_progress' ? 'gba:bg-blue-100 gba:text-blue-800' :
-                        step.status === 'blocked' ? 'gba:bg-red-100 gba:text-red-800' :
-                        step.status === 'ready' ? 'gba:bg-yellow-100 gba:text-yellow-800' :
+                        (step.status === 'DONE' || step.status === 'COMPLETED') ? 'gba:bg-green-100 gba:text-green-800' :
+                        (step.status === 'IN_PROGRESS' || step.status === 'RUNNING') ? 'gba:bg-blue-100 gba:text-blue-800' :
+                        (step.status === 'REJECTED' || step.status === 'FAILED' || step.status === 'ERROR') ? 'gba:bg-red-100 gba:text-red-800' :
+                        (step.status === 'READY' || step.status === 'QUEUED') ? 'gba:bg-yellow-100 gba:text-yellow-800' :
                         'gba:bg-gray-100 gba:text-gray-800'
                       }
                     >
@@ -901,18 +760,6 @@ const RequestTimeline: React.FC<RequestTimelineProps> = ({ request: initialReque
   );
 };
 
-const getStatusBadgeProps = (status: string) => {
-  switch (status) {
-    case 'completed':
-      return { variant: 'default' as const, className: 'gba:bg-green-100 gba:text-green-800' };
-    case 'open':
-      return { variant: 'secondary' as const, className: 'gba:bg-blue-100 gba:text-blue-800' };
-    case 'cancelled':
-      return { variant: 'outline' as const, className: 'gba:bg-red-100 gba:text-red-800' };
-    default:
-      return { variant: 'secondary' as const };
-  }
-};
 
 export const MyRequests: React.FC<MyRequestsProps> = ({
   workflowEngine,
@@ -969,38 +816,36 @@ export const MyRequests: React.FC<MyRequestsProps> = ({
     loadRequests();
   }, [workflowEngine]);
 
-  // Calculate KPI statistics
+  // Calculate KPI statistics with enhanced modern features
   const kpiCards: KpiCardData[] = useMemo(() => {
     const totalRequests = requests.length;
     
     // Debug: Log actual status values to understand the data
     console.log('[MyRequests] Debug - Request statuses:', requests.map(r => ({ id: r.id, status: r.status })));
     
-    // Check for both uppercase and lowercase variants
+    // Check for request status values
     const activeRequests = requests.filter(r => 
-      r.status === 'OPEN' || r.status === 'open' || 
-      r.status === 'IN_PROGRESS' || r.status === 'in_progress'
+      r.status === 'open' || r.status === 'in_progress'
     ).length;
     
     const completedRequests = requests.filter(r => 
-      r.status === 'COMPLETED' || r.status === 'completed'
+      r.status === 'completed'
     ).length;
     
     const rejectedRequests = requests.filter(r => 
-      r.status === 'REJECTED' || r.status === 'rejected'
+      r.status === 'canceled'
     ).length;
     
     // Calculate average progress percentage for active requests
     const activeRequestsWithProgress = requests.filter(r => 
-      r.status === 'OPEN' || r.status === 'open' || 
-      r.status === 'IN_PROGRESS' || r.status === 'in_progress'
+      r.status === 'open' || r.status === 'in_progress'
     );
     
     console.log('[MyRequests] Debug - Active requests with progress:', activeRequestsWithProgress.map(r => ({
       id: r.id,
       status: r.status,
       steps: r.steps.map(s => ({ name: s.name, status: s.status })),
-      completedSteps: r.steps.filter(s => s.status === 'done').length,
+      completedSteps: r.steps.filter(s => s.status === 'DONE' || s.status === 'COMPLETED').length,
       totalSteps: r.steps.length
     })));
     
@@ -1008,7 +853,7 @@ export const MyRequests: React.FC<MyRequestsProps> = ({
       ? Math.round(activeRequestsWithProgress.reduce((sum, req) => {
         // Check for completed step status (based on actual data)
         const completed = req.steps.filter(s => 
-          s.status === 'COMPLETED'
+          s.status === 'COMPLETED' || s.status === 'DONE'
         ).length;
           const total = req.steps.length;
           const progress = total > 0 ? (completed / total) * 100 : 0;
@@ -1022,8 +867,7 @@ export const MyRequests: React.FC<MyRequestsProps> = ({
     const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
     
     const longRunningRequests = requests.filter(r => {
-      const isActive = r.status === 'OPEN' || r.status === 'open' || 
-                      r.status === 'IN_PROGRESS' || r.status === 'in_progress';
+      const isActive = r.status === 'open' || r.status === 'in_progress';
       
       if (!isActive) return false;
       
@@ -1035,22 +879,23 @@ export const MyRequests: React.FC<MyRequestsProps> = ({
     
     console.log(`[MyRequests] Long-running analysis: ${longRunningRequests} requests older than 7 days out of ${requests.length} total`);
 
-    // Calculate actual average completion time for completed requests
-    const completedWithTimes = requests.filter(r => r.status === 'COMPLETED' && r.createdAt);
-    const avgCompletionDays = completedWithTimes.length > 0 
-      ? Math.round(completedWithTimes.reduce((sum, req) => {
-          const created = new Date(req.createdAt);
-          const lastStep = req.steps
-            .filter(s => s.finishedAt)
-            .sort((a, b) => new Date(b.finishedAt!).getTime() - new Date(a.finishedAt!).getTime())[0];
-          
-          if (lastStep?.finishedAt) {
-            const finished = new Date(lastStep.finishedAt);
-            const diffDays = (finished.getTime() - created.getTime()) / (1000 * 60 * 60 * 24);
-            return sum + diffDays;
-          }
-          return sum;
-        }, 0) / completedWithTimes.length)
+
+    // Calculate trend data for enhanced KPI cards
+    const previousPeriodRequests = requests.filter(r => {
+      const createdDate = new Date(r.createdAt);
+      const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+      const sixtyDaysAgo = new Date(now.getTime() - 60 * 24 * 60 * 60 * 1000);
+      return createdDate >= sixtyDaysAgo && createdDate < thirtyDaysAgo;
+    }).length;
+
+    const currentPeriodRequests = requests.filter(r => {
+      const createdDate = new Date(r.createdAt);
+      const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+      return createdDate >= thirtyDaysAgo;
+    }).length;
+
+    const requestsTrend = previousPeriodRequests > 0 
+      ? ((currentPeriodRequests - previousPeriodRequests) / previousPeriodRequests * 100)
       : 0;
 
     return [
@@ -1058,341 +903,178 @@ export const MyRequests: React.FC<MyRequestsProps> = ({
         id: 'total-requests',
         title: 'Total Requests',
         value: totalRequests,
-        description: 'All submitted requests'
+        icon: <FileText className="gba:w-4 gba:h-4" />,
+        footer: 'All submitted requests',
+        trend: totalRequests > 0 ? {
+          value: `${requestsTrend > 0 ? '+' : ''}${requestsTrend.toFixed(1)}%`,
+          positive: requestsTrend >= 0,
+          description: 'vs last 30 days'
+        } : undefined
       },
       {
         id: 'active-requests',
         title: 'Active Requests',
         value: activeRequests,
-        description: 'Currently being processed'
+        icon: <ClockCounterClockwise className="gba:w-4 gba:h-4" />,
+        footer: 'Currently being processed',
+        trend: activeRequests > 0 ? {
+          value: `${activeRequests}/${totalRequests}`,
+          positive: activeRequests < totalRequests * 0.8, // Good if less than 80% are active
+          description: 'of total requests',
+          badgeVariant: activeRequests === 0 ? 'success' : 
+                       activeRequests < totalRequests * 0.5 ? 'info' : 
+                       activeRequests < totalRequests * 0.8 ? 'warning' : 'destructive'
+        } : undefined
       },
       {
         id: 'avg-progress',
-        title: 'Avg. Progress',
-        value: <AnimatedProgress targetValue={avgProgress} duration={1500} suffix="%" />,
-        description: 'Average completion of active requests'
+        title: 'Average Progress',
+        value: avgProgress,
+        suffix: '%',
+        icon: <CheckCircle className="gba:w-4 gba:h-4" />,
+        footer: 'Completion of active requests',
+        progress: activeRequests > 0 ? {
+          value: avgProgress,
+          target: 100,
+          label: `${avgProgress}% average completion`
+        } : undefined,
+        trend: avgProgress > 0 ? {
+          value: `${avgProgress}%`,
+          positive: avgProgress >= 50,
+          description: avgProgress >= 75 ? 'Excellent progress' : 
+                      avgProgress >= 50 ? 'Good progress' : 
+                      avgProgress >= 25 ? 'Moderate progress' : 'Early stage',
+          badgeVariant: avgProgress >= 75 ? 'success' : 
+                       avgProgress >= 50 ? 'info' : 
+                       avgProgress >= 25 ? 'warning' : 'default'
+        } : undefined
       },
       {
-        id: 'long-running-requests',
-        title: 'Long-Running',
-        value: longRunningRequests,
-        description: longRunningRequests > 0 ? 'Active requests older than 7 days' : 'No long-running requests'
+        id: 'completion-rate',
+        title: 'Completion Rate',
+        value: totalRequests > 0 ? Math.round((completedRequests / totalRequests) * 100) : 0,
+        suffix: '%',
+        icon: <CheckCircle className="gba:w-4 gba:h-4" />,
+        footer: `${completedRequests} of ${totalRequests} completed`,
+        trend: completedRequests > 0 ? {
+          value: `${completedRequests}`,
+          positive: completedRequests > rejectedRequests,
+          description: rejectedRequests > 0 ? `${rejectedRequests} rejected` : 'All successful',
+          badgeVariant: rejectedRequests === 0 ? 'success' : 
+                       completedRequests > rejectedRequests * 3 ? 'info' : 'warning'
+        } : undefined,
+        progress: totalRequests > 0 ? {
+          value: Math.round((completedRequests / totalRequests) * 100),
+          target: 100,
+          label: `${completedRequests}/${totalRequests} requests completed`
+        } : undefined
       }
     ];
   }, [requests]);
 
-  // DataTable column definitions with enhanced styling
-  const columns: ColumnDef<SubmittedRequest>[] = [
+  // Column configuration for MyRequestsTable
+  const myRequestsColumns: ColumnConfig[] = useMemo(() => [
     {
-      accessorKey: 'id',
-      header: ({ column }) => (
-        <div className="gba:font-semibold gba:text-gray-700">Request ID</div>
-      ),
-      cell: ({ row }) => {
-        const record = row.original;
-        return (
-          <div className="gba:flex gba:items-center">
-            <code 
-              className="gba:text-sm gba:font-mono gba:px-3 gba:py-1.5 gba:whitespace-nowrap"
-              style={{
-                backgroundColor: 'var(--nw-muted)',
-                color: 'var(--nw-muted-foreground)',
-                border: '1px solid var(--nw-border)',
-                borderRadius: 'var(--border-radius-sm, 0.25rem)'
-              }}
-            >
-              {formatRequestId(record.id)}
-        </code>
-          </div>
-        );
-      },
+      id: 'requestId',
+      label: 'Request ID',
+      visible: true
+      // Will be marked as disabled (non-togglable) in MyRequestsTable
     },
     {
-      accessorKey: 'titleSnapshot',
-      header: ({ column }) => (
-        <div className="gba:font-semibold gba:text-gray-700">Service</div>
-      ),
-      cell: ({ row }) => {
-        const record = row.original;
-        // Use progress.currentStep to get the actual current step
-        let currentStepName = '';
-        
-        if (record.progress && record.progress.currentStep && record.steps.length > 0) {
-          // currentStep is 1-based, so subtract 1 for array index
-          const currentStepIndex = record.progress.currentStep - 1;
-          const currentStep = record.steps[currentStepIndex];
-          currentStepName = currentStep?.name || '';
-        } else {
-          // Fallback to finding active step if progress info is not available
-          const activeStep = record.steps.find(s => s.status === 'in_progress' || s.status === 'ready') || 
-                            record.steps[record.steps.length - 1];
-          currentStepName = activeStep?.name || '';
-        }
-
-        return (
-          <div className="gba:space-y-2 gba:py-1">
-            <div className="gba:flex gba:items-center gba:gap-3">
-              <div className="gba:flex-1 gba:min-w-0">
-                <div 
-                  className="gba:text-sm gba:font-semibold gba:truncate" 
-                  title={record.titleSnapshot}
-                  style={{ color: 'var(--nw-foreground)' }}
-                >
-                  {record.titleSnapshot}
-                </div>
-                {currentStepName && (
-                  <div 
-                    className="gba:text-xs gba:truncate gba:mt-1 gba:flex gba:items-center gba:gap-1" 
-                    title={currentStepName}
-                    style={{ color: 'var(--nw-muted-foreground)' }}
-                  >
-                    <div 
-                      className="gba:w-1.5 gba:h-1.5 gba:rounded-full"
-                      style={{ backgroundColor: 'var(--nw-muted-foreground)' }}
-                    ></div>
-                    {currentStepName}
-                  </div>
-                )}
-              </div>
-              {/* Show comment count using flow ID */}
-              <CommentCountIndicator 
-                flowId={record.id} 
-                contextProps={contextProps}
-                workflowEngine={workflowEngine}
-              />
-            </div>
-          </div>
-        );
-      },
+      id: 'name',
+      label: 'Service',
+      visible: true
+      // Will be marked as disabled (non-togglable) in MyRequestsTable
+    },
+    {
+      id: 'comments',
+      label: 'Comments',
+      visible: true
+      // Togglable - can be hidden/shown by user
     },
     {
       id: 'progress',
-      header: ({ column }) => (
-        <div className="gba:font-semibold gba:text-gray-700">Progress</div>
-      ),
-      cell: ({ row }) => {
-        const record = row.original;
-        // Use progress data from response if available, otherwise fallback to calculated values
-        let percentage, completed, total;
-        
-        if (record.progress) {
-          percentage = record.progress.percentage || 0;
-          completed = record.progress.completedSteps || 0;
-          total = record.progress.totalSteps || record.steps.length;
-        } else {
-          // Fallback to calculated values if progress data is not available
-          completed = record.steps.filter(s => s.status === 'COMPLETED').length;
-          total = record.steps.length;
-          percentage = total > 0 ? Math.round((completed / total) * 100) : 0;
-        }
-
-         const getProgressColor = (percent: number) => {
-           if (percent === 100) return 'var(--nw-foreground)';
-           if (percent >= 75) return 'var(--nw-muted-foreground)';
-           if (percent >= 50) return 'var(--nw-muted-foreground)';
-           if (percent >= 25) return 'var(--nw-muted-foreground)';
-           if (percent > 0) return 'var(--nw-muted-foreground)';
-           return 'var(--nw-muted)';
-         };
-        
-        return (
-          <div className="gba:space-y-2 gba:py-1 gba:min-w-[120px]">
-            <div className="gba:flex gba:items-center gba:gap-3">
-              <span 
-                className="gba:text-sm gba:font-semibold gba:min-w-[35px]"
-                style={{ color: 'var(--nw-foreground)' }}
-              >
-                {Math.round(percentage)}%
-              </span>
-              <div 
-                className="gba:flex-1 gba:h-2"
-                style={{ 
-                  backgroundColor: 'var(--nw-muted)',
-                  borderRadius: 'var(--border-radius-sm, 0.25rem)'
-                }}
-              >
-                <div 
-                  className="gba:h-2 gba:transition-all gba:duration-300"
-                  style={{ 
-                    width: `${percentage}%`,
-                    backgroundColor: getProgressColor(percentage),
-                    borderRadius: 'var(--border-radius-sm, 0.25rem)'
-                  }}
-                />
-              </div>
-            </div>
-            <div 
-              className="gba:text-xs gba:flex gba:items-center gba:gap-1"
-              style={{ color: 'var(--nw-muted-foreground)' }}
-            >
-              <CheckCircle className="gba:w-3 gba:h-3" />
-              {completed} of {total} steps
-            </div>
-          </div>
-        );
-      },
+      label: 'Progress',
+      visible: true
+      // Togglable - can be hidden/shown by user
     },
     {
-      accessorKey: 'categoryIdSnapshot',
-      header: ({ column }) => (
-        <div className="gba:font-semibold gba:text-gray-700">Category</div>
-      ),
-      cell: ({ row }) => {
-        const record = row.original;
-        // Extract readable category from categoryIdSnapshot  
-        const category = record.categoryIdSnapshot || 'general';
-        const displayCategory = category
-          .replace(/[-_]/g, ' ')
-          .replace(/\b\w/g, l => l.toUpperCase());
-
-        const getCategoryStyle = () => {
-          return {
-            backgroundColor: 'var(--nw-muted)',
-            color: 'var(--nw-muted-foreground)',
-            borderColor: 'var(--nw-border)'
-          };
-        };
-        
-        return (
-          <div className="gba:flex gba:items-center">
-            <Badge 
-              variant="outline" 
-              className="gba:text-xs gba:font-medium gba:px-2.5 gba:py-1 gba:border"
-              style={{
-                ...getCategoryStyle(),
-                borderRadius: 'var(--border-radius-sm, 0.25rem)'
-              }}
-            >
-              {displayCategory}
-            </Badge>
-          </div>
-        );
-      },
+      id: 'category',
+      label: 'Category',
+      visible: true
+      // Togglable - can be hidden/shown by user
     },
     {
-      accessorKey: 'status',
-      header: ({ column }) => (
-        <div className="gba:font-semibold gba:text-gray-700">Status</div>
-      ),
-      cell: ({ row }) => {
-        const record = row.original;
-        const badgeProps = getStatusBadgeProps(record.status);
-        const statusText = record.status.toUpperCase().replace(/_/g, ' ');
-        
-        const getStatusIcon = (status: string) => {
-          if (status.includes('COMPLETED')) return <CheckCircle className="gba:w-3 gba:h-3" />;
-          if (status.includes('PROGRESS')) return <ClockCounterClockwise className="gba:w-3 gba:h-3" />;
-          if (status.includes('OPEN')) return <FileText className="gba:w-3 gba:h-3" />;
-          return <XCircle className="gba:w-3 gba:h-3" />;
-        };
-        
-        return (
-          <div className="gba:flex gba:items-center">
-            <Badge 
-              {...badgeProps} 
-              className="gba:flex gba:items-center gba:gap-1.5 gba:px-3 gba:py-1 gba:font-medium gba:text-xs"
-              style={{
-                borderRadius: 'var(--border-radius-sm, 0.25rem)',
-                ...badgeProps.style
-              }}
-            >
-              {getStatusIcon(statusText)}
-              {statusText}
-            </Badge>
-          </div>
-        );
-      },
+      id: 'status',
+      label: 'Status',
+      visible: true
+      // Will be marked as disabled (non-togglable) in MyRequestsTable
     },
     {
-      accessorKey: 'createdAt',
-      header: ({ column }) => (
-        <div className="gba:font-semibold gba:text-gray-700">Created</div>
-      ),
-      cell: ({ row }) => {
-        const record = row.original;
-        const createdDate = new Date(record.createdAt);
-        const now = new Date();
-        const diffDays = Math.floor((now.getTime() - createdDate.getTime()) / (1000 * 60 * 60 * 24));
-        
-        const getTimeColor = () => {
-          return 'var(--nw-muted-foreground)';
-        };
-
-        const getTimeText = (days: number) => {
-          if (days === 0) return 'Today';
-          if (days === 1) return '1 day ago';
-          if (days <= 7) return `${days} days ago`;
-          if (days <= 30) return `${Math.floor(days / 7)} week${Math.floor(days / 7) > 1 ? 's' : ''} ago`;
-          return `${Math.floor(days / 30)} month${Math.floor(days / 30) > 1 ? 's' : ''} ago`;
-        };
-        
-        return (
-          <div className="gba:space-y-1.5 gba:py-1">
-            <div className="gba:flex gba:items-center gba:gap-2">
-              <Calendar 
-                className="gba:w-3.5 gba:h-3.5" 
-                style={{ color: 'var(--nw-muted-foreground)' }}
-              />
-              <div 
-                className="gba:text-sm gba:font-medium"
-                style={{ color: 'var(--nw-foreground)' }}
-              >
-                {createdDate.toLocaleDateString()}
-              </div>
-            </div>
-            <div 
-              className="gba:text-xs gba:font-medium gba:flex gba:items-center gba:gap-1"
-              style={{ color: getTimeColor() }}
-            >
-              <div 
-                className="gba:w-1.5 gba:h-1.5 gba:rounded-full"
-                style={{ backgroundColor: 'var(--nw-muted-foreground)' }}
-              ></div>
-              {getTimeText(diffDays)}
-            </div>
-          </div>
-        );
-      },
-    },
-    {
-      id: 'actions',
-      header: ({ column }) => (
-        <div className="gba:font-semibold gba:text-gray-700">Actions</div>
-      ),
-      cell: ({ row }) => {
-        const record = row.original;
-        return (
-          <div className="gba:flex gba:items-center">
-            <Button 
-              variant="outline" 
-              size="sm"
-              onClick={() => handleViewRequest(record)}
-              className="gba:flex gba:items-center gba:gap-2 gba:px-3 gba:py-1.5 gba:font-medium gba:transition-colors gba:duration-200"
-              style={{
-                border: '1px solid var(--nw-border)',
-                backgroundColor: 'var(--nw-background)',
-                color: 'var(--nw-foreground)',
-                borderRadius: 'var(--border-radius-sm, 0.25rem)'
-              }}
-            >
-              <FileText className="gba:w-4 gba:h-4" />
-              View Details
-            </Button>
-          </div>
-        );
-      },
-    },
-  ];
-
-  // Create data set for DataTable
-  const dataSets: DataTableDataSet[] = useMemo(() => [
-    {
-      id: 'my-requests',
-      label: 'My Requests',
-      data: requests,
-      columns: columns,
+      id: 'createdAt',
+      label: 'Created',
+      visible: true
+      // Togglable - can be hidden/shown by user
     }
-  ], [requests, columns]);
+  ], []);
+
+  // Filter groups for My Requests
+  const myRequestsFilterGroups: FilterGroup[] = useMemo(() => {
+    // Get unique statuses from requests
+    const uniqueStatuses = [...new Set(requests.map(r => r.status))];
+    const statusFilters = uniqueStatuses.map(status => ({
+      id: `status:${status}`,
+      label: status.toUpperCase().replace(/_/g, ' '),
+      value: status,
+      selected: false
+    }));
+
+    // Get unique categories from requests
+    const uniqueCategories = [...new Set(requests.map(r => r.categoryIdSnapshot || 'general'))];
+    const categoryFilters = uniqueCategories.map(category => ({
+      id: `category:${category}`,
+      label: category.replace(/[-_]/g, ' ').replace(/\b\w/g, l => l.toUpperCase()),
+      value: category,
+      selected: false
+    }));
+
+    // Progress-based filters
+    const progressFilters = [
+      { id: 'progress:not-started', label: 'Not Started (0%)', value: 'not-started', selected: false },
+      { id: 'progress:in-progress', label: 'In Progress (1-99%)', value: 'in-progress', selected: false },
+      { id: 'progress:completed', label: 'Completed (100%)', value: 'completed', selected: false }
+    ];
+
+    return [
+      {
+        id: 'status',
+        title: 'Status',
+        filters: statusFilters
+      },
+      {
+        id: 'category',
+        title: 'Category',
+        filters: categoryFilters
+      },
+      {
+        id: 'progress',
+        title: 'Progress',
+        filters: progressFilters
+      }
+    ];
+  }, [requests]);
+
+  // Actions for My Requests
+  const myRequestsActions: RequestAction[] = useMemo(() => [
+    {
+      type: 'view',
+      label: 'View Details',
+      icon: <FileText className="gba:w-4 gba:h-4" />,
+      onClick: (request: SubmittedRequest) => handleViewRequest(request),
+      show: () => true,
+      disabled: () => false
+    }
+  ], []);
 
   if (isLoading) {
     return (
@@ -1481,7 +1163,12 @@ export const MyRequests: React.FC<MyRequestsProps> = ({
         headerDescription="Track the status of your submitted service requests"
         sectionTitle="Request Statistics"
         sectionDescription="Overview of your service requests"
-        kpiCardsData={kpiCards}
+        kpiCardsContent={
+          <SectionKpiCards 
+            cards={kpiCards}
+            className="gba:mb-6"
+          />
+        }
       >
         <div>
         {/* Request List */}
@@ -1489,24 +1176,21 @@ export const MyRequests: React.FC<MyRequestsProps> = ({
           {requests.length > 0 ? (
             <div className="gba:space-y-4">
               <h3 className="gba:text-lg gba:font-semibold">All Requests</h3>
-              <div className="gba:flex-1 gba:flex gba:flex-col gba:overflow-hidden my-requests-datatable-container">
-                <style>{`
-                  .my-requests-datatable-container .nw\\:max-h-\\[calc\\(100vh-300px\\)\\] {
-                    max-height: none !important;
-                    height: 100% !important;
-                  }
-                  .my-requests-datatable-container .nw\\:overflow-auto {
-                    overflow: visible !important;
-                  }
-                  .my-requests-datatable-container .nw\\:flex-col {
-                    height: 100% !important;
-                  }
-                `}</style>
-                <DataTable
-                  dataSets={dataSets}
-                  defaultDataSetId="my-requests"
-                />
-              </div>
+              <MyRequestsTable
+                requests={requests}
+                isLoading={isLoading}
+                tableId="myRequests"
+                customColumns={myRequestsColumns}
+                filterGroups={myRequestsFilterGroups}
+                actions={myRequestsActions}
+                onRequestSelect={handleViewRequest}
+                showDebug={false}
+                emptyMessage="No service requests found"
+                emptySearchMessage="No requests match your search criteria"
+                accessToken={contextProps.accessToken}
+                userInfo={contextProps.userInfo}
+                workflowEngine={workflowEngine}
+              />
             </div>
           ) : (
             <div className="gba:text-center gba:py-12">
