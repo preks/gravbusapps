@@ -29,8 +29,7 @@ import { getTranslationFromI18nKeyAndLabel } from "@/common/utils/windowUtils";
 import { UserInfoProps } from "@/common/BusinessAppContext";
 import { AppActionMenu } from "@/components/app-action-menu";
 import { FlowContextName } from "@/common/types/FlowRegistryTypes";
-import { Button } from "antd";
-import { Tooltip } from "antd";
+import { Button, Tooltip } from 'antd';
 import JobDetailsDrawer from "./JobDetailsDrawer";
 import JobFamilyDrawerContent, {
   getJobFamilyIcon,
