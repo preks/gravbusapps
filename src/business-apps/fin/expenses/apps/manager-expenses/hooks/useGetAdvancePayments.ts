@@ -59,8 +59,8 @@ export const useGetAdvancePayments = (context?: BusinessAppContextProps): Advanc
   const [statsError, setStatsError] = useState<string | null>(null);
 
   // --- Helpers to reduce cognitive complexity ---
-  const getManagerIdFromContext = (): string =>
-    context?.userInfo?.employeeDetails?.employeeId || context?.userInfo?.id || '00000000-0000-0000-0000-000000000000';
+  const getManagerIdFromContext = (): string | undefined =>
+    context?.userInfo?.employeeDetails?.employeeId ?? context?.userInfo?.id;
 
   const requestGraphQL = async (accessToken: string, query: string, variables: Record<string, any>) => {
     const response = await fetch(env('NEXT_PUBLIC_GRAPHQL_ENDPOINT_NEWWORK')!, {
