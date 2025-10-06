@@ -157,11 +157,13 @@ export const useGetAdvancePayments = (context?: BusinessAppContextProps): Advanc
         setIsLoading(false);
       }
     } else {
-      setError(!managerId ? 'Manager ID not found. Cannot fetch advance payments.' : 'Access token not found. Cannot fetch advance payments.');
+      const missingCredsMessage = managerId
+        ? 'Access token not found. Cannot fetch advance payments.'
+        : 'Manager ID not found. Cannot fetch advance payments.';
+      setError(missingCredsMessage);
       setPayments([]);
       setTotalCount(0);
       setIsLoading(false);
-      return;
     }
   }, [context]);
 
@@ -190,10 +192,12 @@ export const useGetAdvancePayments = (context?: BusinessAppContextProps): Advanc
         setStatsLoading(false);
       }
     } else {
-      setStatsError(!managerId ? 'Manager ID not found. Cannot fetch advance payment statistics.' : 'Access token not found. Cannot fetch advance payment statistics.');
+      const missingCredsMessage = managerId
+        ? 'Access token not found. Cannot fetch advance payment statistics.'
+        : 'Manager ID not found. Cannot fetch advance payment statistics.';
+      setStatsError(missingCredsMessage);
       setAdvancePaymentStats(null);
       setStatsLoading(false);
-      return;
     }
   }, [context]);
 
