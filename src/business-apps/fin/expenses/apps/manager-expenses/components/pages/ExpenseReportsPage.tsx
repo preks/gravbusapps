@@ -22,6 +22,46 @@ import { ensureShortDateFormat } from "../../utils/dateUtils";
 import { getTranslationFromI18nKeyAndLabel } from "@/common/utils/windowUtils";
 import { formatCurrencyDisplay } from "../../../personal-expenses/utils";
 
+// Shared helpers for rendering/exporting values
+const dateKeys = new Set([
+  "date",
+  "startDate",
+  "endDate",
+  "submissionDate",
+  "requestDate",
+  "createdAt",
+  "planDate",
+]);
+
+const formatCellValue = (key: string, raw: any): string => {
+  if (raw == null) return "";
+  if (dateKeys.has(key)) {
+    return raw ? ensureShortDateFormat(raw) : "";
+  }
+  if (typeof raw === "number") return String(raw);
+  return String(raw);
+};
+
+const escapeCsv = (value: string) => {
+  const needsQuotes = /[",\r\n]/.test(value);
+  const out = value.replaceAll('"', '""');
+  return needsQuotes ? `"${out}"` : out;
+};
+
+const htmlEscape = (value: string) =>
+  value
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#39;");
+
+const buildFilename = (type: string, ext: string) => {
+  const ts = new Date();
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `expense-report-${type}-${ts.getFullYear()}${pad(ts.getMonth() + 1)}${pad(ts.getDate())}-${pad(ts.getHours())}${pad(ts.getMinutes())}${pad(ts.getSeconds())}.${ext}`;
+};
+
 interface ExpenseReportsPageProps extends BusinessAppContextProps {
   onNavigateBack: () => void;
 }
@@ -315,22 +355,6 @@ const ExpenseReportsPage: React.FC<ExpenseReportsPageProps> = ({
       return;
     }
 
-    const dateKeys = new Set([
-      "date",
-      "startDate",
-      "endDate",
-      "submissionDate",
-      "requestDate",
-      "createdAt",
-      "planDate",
-    ]);
-
-    const escapeCsv = (value: string) => {
-      const needsQuotes = /[",\r\n]/.test(value);
-      let out = value.replaceAll('"', '""');
-      return needsQuotes ? `"${out}"` : out;
-    };
-
     const header = cols.map((c) => {
       const title = typeof c.title === "string" ? c.title : String(c.key);
       return escapeCsv(title);
@@ -338,32 +362,14 @@ const ExpenseReportsPage: React.FC<ExpenseReportsPageProps> = ({
 
     const allRows = await fetchAllForExport();
     const rows = (allRows as any[]).map((row) => {
-      return cols.map((c) => {
-        const key = c.key as string;
-        const raw = row[key];
-        let val: string;
-        if (raw == null) {
-          val = "";
-        } else if (dateKeys.has(key)) {
-          val = raw ? ensureShortDateFormat(raw) : "";
-        } else if (typeof raw === "number") {
-          val = String(raw);
-        } else {
-          val = String(raw);
-        }
-        return escapeCsv(val);
-      });
+      return cols.map((c) => escapeCsv(formatCellValue(c.key as string, row[c.key as string])));
     });
 
     const csvLines = [header.join(","), ...rows.map((r) => r.join(","))];
     const csvContent = csvLines.join("\n");
     const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
     const url = URL.createObjectURL(blob);
-    const ts = new Date();
-    const pad = (n: number) => String(n).padStart(2, "0");
-    const filename = `expense-report-${selectedReportType}-${ts.getFullYear()}${pad(
-      ts.getMonth() + 1,
-    )}${pad(ts.getDate())}-${pad(ts.getHours())}${pad(ts.getMinutes())}${pad(ts.getSeconds())}.csv`;
+    const filename = buildFilename(String(selectedReportType), 'csv');
 
     const link = document.createElement("a");
     link.href = url;
@@ -381,24 +387,6 @@ const ExpenseReportsPage: React.FC<ExpenseReportsPageProps> = ({
       return;
     }
 
-    const dateKeys = new Set([
-      "date",
-      "startDate",
-      "endDate",
-      "submissionDate",
-      "requestDate",
-      "createdAt",
-      "planDate",
-    ]);
-
-    const htmlEscape = (value: string) =>
-      value
-        .replaceAll("&", "&amp;")
-        .replaceAll("<", "&lt;")
-        .replaceAll(">", "&gt;")
-        .replaceAll('"', "&quot;")
-        .replaceAll("'", "&#39;");
-
     const headerCells = cols
       .map((c) => {
         const title = typeof c.title === "string" ? c.title : String(c.key);
@@ -410,21 +398,7 @@ const ExpenseReportsPage: React.FC<ExpenseReportsPageProps> = ({
     const bodyRows = (allRows as any[])
       .map((row) => {
         const tds = cols
-          .map((c) => {
-            const key = c.key as string;
-            const raw = row[key];
-            let val: string;
-            if (raw == null) {
-              val = "";
-            } else if (dateKeys.has(key)) {
-              val = raw ? ensureShortDateFormat(raw) : "";
-            } else if (typeof raw === "number") {
-              val = String(raw);
-            } else {
-              val = String(raw);
-            }
-            return `<td>${htmlEscape(val)}</td>`;
-          })
+          .map((c) => `<td>${htmlEscape(formatCellValue(c.key as string, row[c.key as string]))}</td>`) 
           .join("");
         return `<tr>${tds}</tr>`;
       })
@@ -434,11 +408,7 @@ const ExpenseReportsPage: React.FC<ExpenseReportsPageProps> = ({
 
     const blob = new Blob([html], { type: "application/vnd.ms-excel" });
     const url = URL.createObjectURL(blob);
-    const ts = new Date();
-    const pad = (n: number) => String(n).padStart(2, "0");
-    const filename = `expense-report-${selectedReportType}-${ts.getFullYear()}${pad(
-      ts.getMonth() + 1,
-    )}${pad(ts.getDate())}-${pad(ts.getHours())}${pad(ts.getMinutes())}${pad(ts.getSeconds())}.xls`;
+    const filename = buildFilename(String(selectedReportType), 'xls');
 
     const link = document.createElement("a");
     link.href = url;

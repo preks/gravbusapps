@@ -4,7 +4,7 @@ import { useGraphqlClient } from "@/common/network/graphql/useGraphQLClient";
 import { GET_EXPENSE_PLANS_BY_MANAGER } from "../queries/expensePlans";
 import { GET_EXPENSE_REQUESTS_BY_MANAGER } from "../queries/expenseRequests";
 import { GET_EXPENSE_ITEMS_BY_MANAGER } from "../queries/expenseItems";
-import { formatDate, getTranslationFromI18nKeyAndLabel } from "@/common/utils/windowUtils";
+import { getTranslationFromI18nKeyAndLabel } from "@/common/utils/windowUtils";
 import { GET_ADVANCE_PAYMENTS_REPORT_BY_MANAGER } from "../queries/advancePayments";
 import { getExpenseRequestStatusDisplay, getExpensePlanStatusDisplay, getAdvancePaymentStatusDisplay } from "../utils";
 
@@ -214,6 +214,15 @@ export const useExpenseReportData = ({
   const processExpenseItemsData = (data: any): ExpenseItemReport[] => {
     if (!data?.ExpenseItem?.length) return [];
 
+    const getEmployeeName = (e: any): string => {
+      if (!e) return '';
+      const full = (e.fullName || '').trim();
+      if (full) return full;
+      const first = e.firstName || '';
+      const last = e.lastName || '';
+      return `${first} ${last}`.trim();
+    };
+
     return data.ExpenseItem.map((item: any) => {
       // Get the first expense group from positions or use 'Uncategorized'
       const expenseGroup =
@@ -234,14 +243,13 @@ export const useExpenseReportData = ({
           item.expenseRequest?.currencyRef
             ? String(item.expenseRequest.currencyRef).split(":").pop() || ""
             : "",
-        date: item.expenseRequest?.createdAt
-          ? formatDate(item.expenseRequest.createdAt, "date.short")
-          : "-",
+        // Keep raw date; UI/export formats via ensureShortDateFormat
+        date: item.expenseRequest?.createdAt || "",
         title: item.title || "",
         description: item.description || "",
         category: expenseGroup,
         amount: item.totalAmount || 0,
-        employeeName: item.employee?.firstName + " " + item.employee?.lastName || "",
+        employeeName: getEmployeeName(item.employee),
         status: statusDisplay.label,
       };
     });
@@ -256,23 +264,30 @@ export const useExpenseReportData = ({
         ? getExpensePlanStatusDisplay(plan.status)
         : { label: "", type: "draft" };
 
-      const employeeName = plan.employee?.fullName || "";
+      const getEmployeeName = (e: any): string => {
+        if (!e) return '';
+        const full = (e.fullName || '').trim();
+        if (full) return full;
+        const first = e.firstName || '';
+        const last = e.lastName || '';
+        return `${first} ${last}`.trim();
+      };
 
       return {
         id: plan.id,
         code: plan.code || "",
         title: plan.title || "",
-        startDate: plan.startDate ? formatDate(plan.startDate, "date.short") : "",
-        endDate: plan.endDate ? formatDate(plan.endDate, "date.short") : "",
+        startDate: plan.startDate || "",
+        endDate: plan.endDate || "",
         status: statusDisplay.label,
         totalAmount: plan.totalAmount || 0,
         currency: plan.currencyRef ? String(plan.currencyRef).split(":").pop() || "" : "",
-        employeeName,
+        employeeName: getEmployeeName(plan.employee),
         expenseRequestCode:
           Array.isArray(plan.expenseRequest) && plan.expenseRequest.length > 0
             ? plan.expenseRequest[0].code || ""
             : "",
-        createdAt: plan.createdAt ? formatDate(plan.createdAt, "date.short") : "",
+        createdAt: plan.createdAt || "",
       };
     });
   };
@@ -286,17 +301,26 @@ export const useExpenseReportData = ({
         ? getExpenseRequestStatusDisplay(request.status)
         : { label: "", type: "draft" };
 
+      const getEmployeeName = (e: any): string => {
+        if (!e) return '';
+        const full = (e.fullName || '').trim();
+        if (full) return full;
+        const first = e.firstName || '';
+        const last = e.lastName || '';
+        return `${first} ${last}`.trim();
+      };
+
       return {
         id: request.id,
         code: request.code || "",
         planCode: request.expensePlan?.code || "",
         title: request.title || "",
-        requestDate: request.requestDate ? formatDate(request.requestDate, "date.short") : "",
-        createdAt: request.createdAt ? formatDate(request.createdAt, "date.short") : "",
+        requestDate: request.requestDate || "",
+        createdAt: request.createdAt || "",
         status: statusDisplay.label,
         totalAmount: request.totalAmount || 0,
         currency: request.currencyRef ? String(request.currencyRef).split(":").pop() || "" : "",
-        employeeName: request.employee?.firstName + " " + request.employee?.lastName || "",
+        employeeName: getEmployeeName(request.employee),
       };
     });
   };
@@ -416,14 +440,22 @@ export const useExpenseReportData = ({
       ? getAdvancePaymentStatusDisplay(p.status)
       : { label: "", type: "draft" };
     const currencyCode = p?.currencyRef ? String(p.currencyRef).split(":").pop() || "" : "";
+    const getEmployeeName = (e: any): string => {
+      if (!e) return '';
+      const full = (e.fullName || '').trim();
+      if (full) return full;
+      const first = e.firstName || '';
+      const last = e.lastName || '';
+      return `${first} ${last}`.trim();
+    };
     return {
       id: p.id,
       code: p.expensePlan?.code || p.code || "",
       title: p.expensePlan?.title || "",
-      requestDate: p.createdAt ? formatDate(p.createdAt, "date.short") || "-" : "-",
+      requestDate: p.createdAt || "",
       status: statusDisplay.label,
       amount: p.amount || 0,
-      employeeName: p.expensePlan?.employee?.fullName || "",
+      employeeName: getEmployeeName(p.expensePlan?.employee) || getEmployeeName(p.employee),
       paymentMethod: p.paymentMethod || undefined,
       costCenter: p.costCenter?.name || p.costCenter?.code || undefined,
       currency: currencyCode,

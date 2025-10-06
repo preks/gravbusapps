@@ -177,7 +177,7 @@ const ExpensePlanDetails: React.FC<ExpensePlanDetailsProps> = ({ selectedItem })
                   )}
                 </span>
                 <span className="gba:text-sm gba:text-gray-900">
-                  {selectedItem.employee.displayName || selectedItem.employee.fullName}
+                  {selectedItem.employee.fullName || `${selectedItem.employee.firstName ?? ''} ${selectedItem.employee.lastName ?? ''}`.trim()}
                 </span>
               </div>
             )}

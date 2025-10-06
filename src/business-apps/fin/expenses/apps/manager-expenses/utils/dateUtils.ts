@@ -2,7 +2,7 @@
  * Date utilities for the Expense Manager module
  */
 import dayjs from 'dayjs';
-import { formatDate } from '@/common/utils/windowUtils';
+import { getDateFormat, formatDate } from '@/common/utils/windowUtils';
 
 /**
  * Ensures consistent date formatting in DD.MM.YYYY format
@@ -14,29 +14,17 @@ import { formatDate } from '@/common/utils/windowUtils';
  */
 export const ensureShortDateFormat = (dateValue: string | Date | undefined | null): string => {
   if (!dateValue) return '-';
-  
+
+  // Prefer platform formatter when available to ensure parity with other tabs
   try {
-    // First try the global formatDate function
-    const formattedDate = formatDate(dateValue, 'date.short');
-    
-    // If the result is still in ISO format, format it manually
-    if (formattedDate && formattedDate.includes('T')) {
-      const date = new Date(dateValue);
-      if (isNaN(date.getTime())) return '-';
-      
-      return `${String(date.getDate()).padStart(2, '0')}.${String(date.getMonth() + 1).padStart(2, '0')}.${date.getFullYear()}`;
+    const platformFormatted = formatDate(dateValue as any, 'date.short');
+    if (platformFormatted && typeof platformFormatted === 'string' && !platformFormatted.includes('T')) {
+      return platformFormatted;
     }
-    
-    return formattedDate || '-';
-  } catch (error) {
-    // Fallback to manual formatting if anything goes wrong
-    try {
-      const date = new Date(dateValue);
-      if (isNaN(date.getTime())) return '-';
-      
-      return `${String(date.getDate()).padStart(2, '0')}.${String(date.getMonth() + 1).padStart(2, '0')}.${date.getFullYear()}`;
-    } catch {
-      return '-';
-    }
-  }
+  } catch {}
+
+  // Fallback to dayjs using the platform-provided pattern
+  const d = dayjs(dateValue);
+  if (!d.isValid()) return '-';
+  return d.format(getDateFormat('date.short'));
 };

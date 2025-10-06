@@ -146,8 +146,7 @@ const AdvancePaymentDetails: React.FC<AdvancePaymentDetailsProps> = ({ payment }
                   )}
                 </span>
                 <span className="gba:text-sm gba:text-gray-900">
-                  {payment.expensePlan.employee.displayName ||
-                    payment.expensePlan.employee.fullName}
+                  {payment.expensePlan.employee.fullName || `${payment.expensePlan.employee.firstName ?? ''} ${payment.expensePlan.employee.lastName ?? ''}`.trim()}
                 </span>
               </div>
             )}
