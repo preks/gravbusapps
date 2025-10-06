@@ -43,12 +43,10 @@ const ContactFormComponent: React.FC = () => {
   const handleSubmit = async () => {
     // Prevent duplicate submissions
     if (isLoading) {
-      console.log('🚫 Duplicate submission prevented - already loading');
       return;
     }
 
     try {
-      console.log('⏳ Starting contact form submission');
       // Determine if this is an update or create operation
       const isUpdate = formValues.id;
 

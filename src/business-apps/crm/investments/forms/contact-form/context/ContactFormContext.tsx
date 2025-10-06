@@ -273,14 +273,12 @@ export const ContactFormProvider: React.FC<ContactFormProviderProps> = ({
         await new Promise<void>((resolve) => {
           const TIMEOUT = 10000; // 10 second timeout for safety
           const timeoutId = setTimeout(() => {
-            console.log('⏱️ Process completion timeout reached, proceeding...');
             cleanup();
             resolve();
           }, TIMEOUT);
 
           const handleProcessCompletion = (event: Event) => {
             const customEvent = event as CustomEvent<{ resolution: 'success' | 'failure' }>;
-            console.log('🎉 Process completion event received:', customEvent.detail);
             if (
               customEvent.detail?.resolution === 'success' ||
               customEvent.detail?.resolution === 'failure'
@@ -300,13 +298,11 @@ export const ContactFormProvider: React.FC<ContactFormProviderProps> = ({
           window.addEventListener('com.newwork.process.taskCompletion', handleProcessCompletion);
         });
 
-        console.log('✅ Process completed, form can close');
       } catch (err) {
         setError(err instanceof Error ? err.message : 'An error occurred');
-        console.error('❌ Submission error:', err);
+        console.error('Submission error:', err);
       } finally {
         setIsLoading(false);
-        console.log('🔄 Loading state reset');
       }
     },
     [onSubmit]

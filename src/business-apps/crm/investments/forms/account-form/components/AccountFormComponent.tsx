@@ -24,17 +24,6 @@ const AccountFormComponent: React.FC = () => {
   // Check if all mandatory fields are filled
   const isFormValid = Boolean(formValues.owner && formValues.accountName);
 
-  // Debug logging
-  React.useEffect(() => {
-    console.log('🔍 Account Form Validation:', {
-      owner: formValues.owner,
-      accountName: formValues.accountName,
-      isFormValid,
-      isLoading,
-      isSubmitting
-    });
-  }, [formValues.owner, formValues.accountName, isFormValid, isLoading, isSubmitting]);
-
   // Helper function to convert values to strings safely
   const toStringOrUndefined = (
     value: string | undefined
@@ -46,13 +35,11 @@ const AccountFormComponent: React.FC = () => {
   const handleSubmit = async () => {
     // Prevent duplicate submissions
     if (isLoading || isSubmitting) {
-      console.log('🚫 Duplicate submission prevented - already loading');
       return;
     }
 
     setIsSubmitting(true);
     try {
-      console.log('⏳ Starting account form submission');
       // ✅ FIXED: Determine operation mode based on account ID presence
       const isUpdate = formValues.id && formValues.id.trim();
 
@@ -151,16 +138,14 @@ const AccountFormComponent: React.FC = () => {
 
       // Wait for process completion event
       await new Promise<void>((resolve) => {
-        const TIMEOUT = 10000; // 10 second timeout for safety
+        const TIMEOUT = 10000;
         const timeoutId = setTimeout(() => {
-          console.log('⏱️ Process completion timeout reached, proceeding...');
           cleanup();
           resolve();
         }, TIMEOUT);
 
         const handleProcessCompletion = (event: Event) => {
           const customEvent = event as CustomEvent<{ resolution: 'success' | 'failure' }>;
-          console.log('🎉 Process completion event received:', customEvent.detail);
           if (
             customEvent.detail?.resolution === 'success' ||
             customEvent.detail?.resolution === 'failure'
@@ -179,8 +164,6 @@ const AccountFormComponent: React.FC = () => {
         window.addEventListener('com.newwork.process.processCompletion', handleProcessCompletion);
         window.addEventListener('com.newwork.process.taskCompletion', handleProcessCompletion);
       });
-
-      console.log('✅ Account form submitted and process completed');
     } catch (err) {
       console.error("Error submitting account form:", err);
     } finally {

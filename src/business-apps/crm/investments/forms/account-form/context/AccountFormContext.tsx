@@ -635,18 +635,10 @@ export const AccountFormProvider: React.FC<AccountFormProviderProps> = ({
 
   // Update global loading and error state to include account data loading
   useEffect(() => {
-    console.log('📊 Account Form Context - Loading state changed:', {
-      accountDataLoading,
-      accountDataError,
-      hasAccountData: !!accountData
-    });
     setIsLoading(accountDataLoading);
-  }, [accountDataLoading, accountData, accountDataError]);
+  }, [accountDataLoading]);
 
   useEffect(() => {
-    if (accountDataError) {
-      console.error('❌ Account Form Context - Error:', accountDataError);
-    }
     setError(accountDataError);
   }, [accountDataError]);
 

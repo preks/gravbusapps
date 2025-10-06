@@ -813,16 +813,14 @@ export const LeadFormProvider: React.FC<LeadFormProviderProps> = ({
       
       // Wait for process completion event
       await new Promise<void>((resolve) => {
-        const TIMEOUT = 10000; // 10 second timeout
+        const TIMEOUT = 10000;
         const timeoutId = setTimeout(() => {
-          console.log('⏱️ Process completion timeout reached');
           cleanup();
           resolve();
         }, TIMEOUT);
 
         const handleProcessCompletion = (event: Event) => {
           const customEvent = event as CustomEvent<{ resolution: 'success' | 'failure' }>;
-          console.log('🎉 Process completion event received:', customEvent.detail);
           
           if (customEvent.detail?.resolution === 'success' || customEvent.detail?.resolution === 'failure') {
             cleanup();

@@ -46,7 +46,6 @@ const LeadFormComponent: React.FC = () => {
   const handleSubmit = async () => {
     // Prevent duplicate submissions
     if (isLoading || isSubmitting) {
-      console.log('🚫 Duplicate lead submission prevented - already loading');
       return;
     }
 
@@ -222,16 +221,14 @@ const LeadFormComponent: React.FC = () => {
 
       // Wait for process completion event
       await new Promise<void>((resolve) => {
-        const TIMEOUT = 10000; // 10 second timeout for safety
+        const TIMEOUT = 10000;
         const timeoutId = setTimeout(() => {
-          console.log('⏱️ Process completion timeout reached, proceeding...');
           cleanup();
           resolve();
         }, TIMEOUT);
 
         const handleProcessCompletion = (event: Event) => {
           const customEvent = event as CustomEvent<{ resolution: 'success' | 'failure' }>;
-          console.log('🎉 Process completion event received:', customEvent.detail);
           if (
             customEvent.detail?.resolution === 'success' ||
             customEvent.detail?.resolution === 'failure'
@@ -250,8 +247,6 @@ const LeadFormComponent: React.FC = () => {
         window.addEventListener('com.newwork.process.processCompletion', handleProcessCompletion);
         window.addEventListener('com.newwork.process.taskCompletion', handleProcessCompletion);
       });
-
-      console.log('✅ Lead form submitted and process completed');
     } catch (err) {
       console.error("Error submitting lead form:", err);
     } finally {
