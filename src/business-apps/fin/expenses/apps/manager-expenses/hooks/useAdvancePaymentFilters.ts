@@ -77,6 +77,13 @@ export const useAdvancePaymentFilters = ({
     }
   }, [filtersInitialized, currenciesLoading, currenciesInitialized]);
 
+  // Fallback: initialize filters when no credentials to avoid deadlock
+  useEffect(() => {
+    if (!filtersInitialized && (!accessToken || !managerId)) {
+      setFiltersInitialized(true);
+    }
+  }, [filtersInitialized, accessToken, managerId]);
+
   const handleStatusFilterChange = useCallback(
     (newStatus: string[] | null) => {
       if (newStatus === null || newStatus.length === 0) {
