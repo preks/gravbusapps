@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useEffect } from 'react';
+import React, { useState, useCallback, useEffect, useRef } from 'react';
 import { Button, Alert, Spinner, Form, WizardForm, useWizard, type WizardStep } from '@newwork/nw-design-system';
 import { useForm, type Resolver, type UseFormReturn } from 'react-hook-form';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
@@ -199,18 +199,20 @@ export const AppActionForm: React.FC<AppActionFormProps> = ({
 }) => {
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState<ProcessMessage | null>(null);
+  const isSubmittingRef = useRef(false);
 
   useEffect(() => {
     setMessage(null);
   }, [processType]);
 
   const handleSubmit = useCallback(async (values?: any) => {
-    // Prevent duplicate submissions
-    if (loading) {
+    // Prevent duplicate submissions using ref for synchronous check
+    if (isSubmittingRef.current) {
       return;
     }
 
     try {
+      isSubmittingRef.current = true;
       setLoading(true);
       setMessage(null);
       const dataForValidation = values ?? formData;
@@ -219,7 +221,8 @@ export const AppActionForm: React.FC<AppActionFormProps> = ({
         const errors = validateForm(dataForValidation);
         if (errors && errors.length > 0) {
           setMessage({ type: 'error', message: errors.join(', ') });
-          setLoading(false); // Stop loading on validation error
+          setLoading(false);
+          isSubmittingRef.current = false;
           return;
         }
       }
@@ -280,8 +283,9 @@ export const AppActionForm: React.FC<AppActionFormProps> = ({
       setMessage({ type: 'error', message: errorMessage });
     } finally {
       setLoading(false);
+      isSubmittingRef.current = false;
     }
-  }, [processType, submitEventType, onSubmit, validateForm, onSuccess, formData, handlePreSubmit, loading]);
+  }, [processType, submitEventType, onSubmit, validateForm, onSuccess, formData, handlePreSubmit]);
 
   const handleCancel = useCallback(() => {
     dispatchProcessContinueEvent(cancelEventType, {});
