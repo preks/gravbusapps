@@ -6,6 +6,7 @@ export const EMPLOYEE_DATA_QUERY = `query fetchEmployee($idEmployee: uuid!) {
     birthName
     birthDate
     firstName
+    notes
     genderRef
     birthPlace
     title
