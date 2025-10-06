@@ -1,28 +1,39 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState, useCallback } from "react";
 import {
   Spinner,
-  Tabs,
-  TabsList,
-  TabsTrigger,
-  TabsContent,
   Button,
+  RecordLayout,
+  Badge,
+  Tooltip,
+  TooltipProvider,
+  TooltipTrigger,
+  TooltipContent,
 } from "@newwork/nw-design-system";
-import {
-  ArrowLeftOutlined,
-  UserOutlined,
-  FileOutlined,
-} from "@ant-design/icons";
+import { Users, FileText, AddressBook } from '@phosphor-icons/react';
 import { BusinessAppContextProps } from "@/common/BusinessAppContext";
-import { navigateTo } from "@/common/utils/navigationUtils";
+import { navigateTo, buildPlatformUrl } from "@/common/utils/navigationUtils";
+import { getTranslationFromI18nKeyAndLabel } from "@/common/utils/windowUtils";
+import { FlowContextName } from "@/common/types/FlowRegistryTypes";
 import { useLeadData } from "./hooks/useLeadData";
-import { LeadHeader } from "./components/LeadHeader";
 import { StatusProgression } from "./components/StatusProgression";
-import { InvestmentSection } from "../../components/record-sections/investment-section";
-import { ActivityTimeline } from "./components/ActivityTimeline";
-import { TasksSection } from "./components/TasksSection";
+import { 
+  useGetInvestmentActivitiesByLeadId,
+  useGetInvestmentNotesByLeadId,
+  useGetInvestmentTasksByLeadId
+} from '@/common/data/investment/hooks/useInvestmentLeads';
 import { LeadDocuments } from "./components/LeadDocuments";
 import AccountSection from "@/common/components/common-relations/record-sections/account-section/AccountSection";
 import ContactSection from "@/common/components/common-relations/record-sections/contact-section/ContactSection";
+import InvestmentSection from "@/common/components/common-relations/record-sections/investment-section/InvestmentSection";
+import ActivitySection from "@/common/components/common-relations/record-sections/activity-section/ActivitySection";
+import NoteSection from "@/common/components/common-relations/record-sections/note-section/NoteSection";
+import TaskSection from "@/common/components/common-relations/record-sections/task-section/TaskSection";
+import SectionWrapper from "@/common/components/common-relations/record-sections/section-card/SectionCard";
+import { AiActions, AiAction } from '@/common/components/common-relations/record-sections/header-section/ai-actions';
+import { useAiSummary } from './hooks/useAiSummary';
+import { AppActionButton } from '@/components/app-action-button/AppActionButton';
+import { Bot, Flag } from 'lucide-react';
+import type { TaskReference } from '@/common/components/common-relations/detail-sheets/task-detail-sheet';
 
 
 interface LeadRecordContentProps extends BusinessAppContextProps {
@@ -37,7 +48,26 @@ const InvestmentLeadRecordContent: React.FC<LeadRecordContentProps> = ({
   fromEntity,
   ...props
 }) => {
-  const [activeTab, setActiveTab] = useState("overview");
+  const ALLOWED_TABS = ["overview", "documents"] as const;
+  type LeadRecordTab = (typeof ALLOWED_TABS)[number];
+
+  const getValidTab = (value: string | null): LeadRecordTab =>
+    (ALLOWED_TABS as readonly string[]).includes(value ?? "")
+      ? (value as LeadRecordTab)
+      : "overview";
+
+  const [activeTab, setActiveTab] = useState<LeadRecordTab>(() => {
+    if (typeof window === 'undefined') return 'overview';
+    return getValidTab(new URLSearchParams(window.location.search).get('tab'));
+  });
+  
+  // Construct businessAppContext from props for sections
+  const businessAppContext: BusinessAppContextProps = {
+    accessToken: props.accessToken,
+    userInfo: props.userInfo,
+    additionalData: props.additionalData,
+  };
+  
   const {
     lead,
     leadData,
@@ -47,6 +77,99 @@ const InvestmentLeadRecordContent: React.FC<LeadRecordContentProps> = ({
     loadingStatuses,
     refetch,
   } = useLeadData(leadId, props.accessToken);
+
+  // Always call useAiSummary hook, but conditionally use its result
+  const aiSummary = useAiSummary(leadId, props.accessToken);
+
+  // Data fetching hooks for sections
+  const { fetchInvestmentActivitiesByLeadId } = useGetInvestmentActivitiesByLeadId(props);
+  const { fetchInvestmentNotesByLeadId } = useGetInvestmentNotesByLeadId(props);
+  const { fetchInvestmentTasksByLeadId } = useGetInvestmentTasksByLeadId(props);
+
+  // State for section data
+  const [activities, setActivities] = useState<any[]>([]);
+  const [notes, setNotes] = useState<any[]>([]);
+  const [tasks, setTasks] = useState<any[]>([]);
+  const [approvals, setApprovals] = useState<any[]>([]);
+  const [sectionsLoading, setSectionsLoading] = useState(true);
+  const [sectionsError, setSectionsError] = useState<string | null>(null);
+
+  // Build reference URLs for IRM context
+  const buildReferenceUrl = (reference: TaskReference): string => {
+    switch (reference.type) {
+      case 'lead': 
+        return buildPlatformUrl('/platform/irm/lead-record', { leadId: reference.id });
+      case 'account': 
+        return buildPlatformUrl('/platform/irm/account-record', { accountId: reference.id });
+      case 'contact': 
+        return buildPlatformUrl('/platform/irm/contact-record', { contactId: reference.id });
+      case 'opportunity': 
+        return buildPlatformUrl('/platform/irm/opportunity-record', { opportunityId: reference.id });
+      case 'investment':
+        return buildPlatformUrl('/platform/irm/investment-record', { investmentId: reference.id });
+      default: 
+        return '';
+    }
+  };
+
+  // Load section data
+  const loadSectionData = useCallback(async () => {
+    if (!leadId || !props.accessToken) return;
+
+    setSectionsLoading(true);
+    setSectionsError(null);
+
+    try {
+      const [activitiesData, notesData, tasksData] = await Promise.all([
+        fetchInvestmentActivitiesByLeadId(leadId),
+        fetchInvestmentNotesByLeadId(leadId),
+        fetchInvestmentTasksByLeadId(leadId)
+      ]);
+
+      // Sort by creation date (newest first)
+      const sortedActivities = (activitiesData || []).sort(
+        (a: any, b: any) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+      );
+      const sortedNotes = (notesData || []).sort(
+        (a: any, b: any) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+      );
+      const sortedTasks = (tasksData || []).sort(
+        (a: any, b: any) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+      );
+
+      // Separate tasks from approvals based on taskType catalog entry
+      const regularTasks = sortedTasks.filter((task: any) => {
+        const taskTypeCode = task?.taskType?.code || '';
+        const taskTypeValue = task?.taskType?.value || '';
+        return taskTypeCode?.toUpperCase() !== 'APPROVAL' && taskTypeValue?.toUpperCase() !== 'APPROVAL';
+      });
+      const approvalTasks = sortedTasks.filter((task: any) => {
+        const taskTypeCode = task?.taskType?.code || '';
+        const taskTypeValue = task?.taskType?.value || '';
+        return taskTypeCode?.toUpperCase() === 'APPROVAL' || taskTypeValue?.toUpperCase() === 'APPROVAL';
+      });
+
+      setActivities(sortedActivities);
+      setNotes(sortedNotes);
+      setTasks(regularTasks);
+      setApprovals(approvalTasks);
+
+    } catch (error) {
+      console.error('Error loading section data:', error);
+      setSectionsError(
+        error instanceof Error
+          ? error.message
+          : getTranslationFromI18nKeyAndLabel('common.loadFailed', 'Failed to load data')
+      );
+    } finally {
+      setSectionsLoading(false);
+    }
+  }, [leadId, props.accessToken, fetchInvestmentActivitiesByLeadId, fetchInvestmentNotesByLeadId, fetchInvestmentTasksByLeadId]);
+
+  // Load data when component mounts or leadId changes
+  useEffect(() => {
+    loadSectionData();
+  }, [loadSectionData]);
 
   const getBackButtonText = () => {
     if (fromEntity === "investment-relations") {
@@ -59,20 +182,18 @@ const InvestmentLeadRecordContent: React.FC<LeadRecordContentProps> = ({
   useEffect(() => {
     const handleProcessCompletion = (event: any) => {
       try {
-        console.log("LeadRecord: Process completion event received:", event);
-
         // Check for successful completion
         if (event.detail?.resolution === "success") {
-          console.log("LeadRecord: Refreshing lead data...");
           refetch();
+          loadSectionData(); // Also refresh section data
           return;
         }
 
         // Also check for different event structure
         const response = event.detail?.response;
         if (response?.detail?.resolution === "success" || response?.lead) {
-          console.log("LeadRecord: Refreshing lead data from response...");
           refetch();
+          loadSectionData(); // Also refresh section data
         }
       } catch (err) {
         console.error("Error handling process completion in LeadRecord:", err);
@@ -110,6 +231,124 @@ const InvestmentLeadRecordContent: React.FC<LeadRecordContentProps> = ({
     };
   }, [leadId, refetch]);
 
+  // Prepare header content for RecordLayout - MUST be before conditional returns
+  const headerTitle = (
+    <div className="gba:flex gba:items-center gba:gap-2">
+      <span>
+        {lead?.displayName ||
+          `${lead?.firstName || ""} ${lead?.lastName || ""}`.trim() ||
+          getTranslationFromI18nKeyAndLabel('crm.investments.lead.title', 'Investment Lead')}
+      </span>
+      {lead?.sensitive === true && (
+        <TooltipProvider>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Badge
+                data-testid="lead-sensitive-badge"
+                variant="warning"
+                className="gba:rounded-full gba:p-1 gba:h-5 gba:w-5 gba:flex gba:items-center gba:justify-center"
+              >
+                <Flag className="gba:h-3 gba:w-3" data-testid="lead-sensitive-badge-icon" />
+              </Badge>
+            </TooltipTrigger>
+            <TooltipContent data-testid="lead-sensitive-tooltip">
+              {getTranslationFromI18nKeyAndLabel('crm.lead.sensitive', 'Sensitive')}
+            </TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
+      )}
+    </div>
+  );
+
+  const headerDetailGroups = useMemo(() => [
+    {
+      id: 'lead-details',
+      items: [
+        {
+          label: getTranslationFromI18nKeyAndLabel('crm.lead.source', 'Source'),
+          value: lead?.leadSource?.value || getTranslationFromI18nKeyAndLabel('crm.common.unknown', 'Unknown'),
+          icon: Users
+        },
+        {
+          label: getTranslationFromI18nKeyAndLabel('crm.lead.rating', 'Rating'),
+          value: lead?.leadRating?.value || getTranslationFromI18nKeyAndLabel('crm.common.unknown', 'Unknown'),
+          icon: AddressBook
+        },
+        {
+          label: getTranslationFromI18nKeyAndLabel('crm.common.owner', 'Owner'),
+          value: lead?.ownerEmployee
+            ? `${lead.ownerEmployee.firstName} ${lead.ownerEmployee.lastName}`
+            : getTranslationFromI18nKeyAndLabel('crm.common.unknown', 'Unknown'),
+          icon: Users
+        }
+      ]
+    }
+  ], [lead?.leadSource?.value, lead?.leadRating?.value, lead?.ownerEmployee]);
+
+  const headerActions = useMemo(() => {
+    if (!props.accessToken || !leadId) return null;
+    
+    const actions: AiAction[] = [
+      {
+        key: 'ai-summary',
+        label: getTranslationFromI18nKeyAndLabel('crm.ai.summary', 'AI Summary'),
+        icon: <Bot size={16} />,
+        hook: aiSummary,
+        config: {
+          entityType: 'lead',
+          loadingMessage: getTranslationFromI18nKeyAndLabel('crm.ai.summary.loading', 'Generating AI Summary...'),
+          loadingSubtitle: getTranslationFromI18nKeyAndLabel('crm.ai.summary.subtitle', 'Analyzing lead data and activities')
+        }
+      }
+    ];
+    
+    return <AiActions actions={actions} dataTestId={`lead-update-button-${leadId}`} buttonText={getTranslationFromI18nKeyAndLabel('crm.ai.summary', 'AI Summary')} />;
+  }, [props.accessToken, leadId, aiSummary]);
+
+  const headerActionButton = useMemo(() => (
+    props.accessToken && (
+      <AppActionButton
+        data-testid="investment-lead-record-action-button"
+        size="icon"
+        contextsArray={[FlowContextName.investmentLeadEntity]}
+        externalContextData={{
+          leadId: leadId,
+        }}
+        prefixDataTestId="lead-record-action"
+        accessToken={props.accessToken}
+        emptyStateBehavior="hide"
+        deferMainContextRequestsUntilClick={false}
+      />
+    )
+  ), [props.accessToken, leadId]);
+
+  // Tab handling hooks - MUST be before conditional returns to comply with Rules of Hooks
+  const handleTabChange = useCallback((value: string) => {
+    const tab = getValidTab(value);
+    setActiveTab(tab);
+    if (typeof window === 'undefined') return;
+    const url = new URL(window.location.href);
+    url.searchParams.set('tab', tab);
+    window.history.replaceState(null, '', url.toString());
+  }, []);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const params = new URLSearchParams(window.location.search);
+    if (!params.get('tab')) {
+      const url = new URL(window.location.href);
+      url.searchParams.set('tab', activeTab);
+      window.history.replaceState(null, '', url.toString());
+    }
+    const onPop = () => {
+      setActiveTab(
+        getValidTab(new URLSearchParams(window.location.search).get('tab'))
+      );
+    };
+    window.addEventListener('popstate', onPop);
+    return () => window.removeEventListener('popstate', onPop);
+  }, [activeTab]);
+
   if (loading) {
     return (
       <div className="gba:flex gba:items-center gba:justify-center gba:min-h-screen">
@@ -123,7 +362,7 @@ const InvestmentLeadRecordContent: React.FC<LeadRecordContentProps> = ({
       <div className="gba:flex gba:items-center gba:justify-center gba:min-h-screen">
         <div className="gba:text-center">
           <p className="gba:text-red-500 gba:text-lg">
-            {error || "Lead not found"}
+            {error || getTranslationFromI18nKeyAndLabel('crm.investments.lead.notFound', 'Lead not found')}
           </p>
           <Button onClick={onBack} className="gba:mt-4" variant="default">
             {getBackButtonText()}
@@ -133,38 +372,12 @@ const InvestmentLeadRecordContent: React.FC<LeadRecordContentProps> = ({
     );
   }
 
-  return (
-    <div
-      className="gba:lead-details-container"
-      data-testid="investment-lead-detail"
-      style={{ backgroundColor: "white", padding: "16px" }}
-    >
-      {/* Back navigation */}
-      <div className="gba:back-navigation" style={{ marginBottom: "16px" }}>
-        <button
-          onClick={onBack}
-          className="gba:flex gba:items-center gba:text-blue-500 gba:hover:text-blue-600"
-          data-testid="investment-lead-back-button"
-        >
-          <ArrowLeftOutlined className="gba:mr-2" />
-          <span>{getBackButtonText()}</span>
-        </button>
-      </div>
-
-      {/* Lead header */}
-      <LeadHeader
-        lead={lead}
-        leadData={leadData}
-        leadId={leadId}
-        additionalData={props}
-        accessToken={props.accessToken}
-        onStatusUpdate={refetch}
-      />
-
-      {/* Status Progression */}
+  // Status progression content
+  const headerContent = (
+    <>
       {!loadingStatuses && leadStatuses.length > 0 && lead && (
         <StatusProgression
-          currentStatus={lead?.leadStatus?.value || "New"}
+          currentStatus={lead?.leadStatus?.value || getTranslationFromI18nKeyAndLabel('crm.common.status.new', 'New')}
           statuses={leadStatuses}
           leadId={leadId}
           leadVersion={typeof lead.version === 'string' ? parseInt(lead.version) : (lead.version || 0)}
@@ -172,99 +385,321 @@ const InvestmentLeadRecordContent: React.FC<LeadRecordContentProps> = ({
           onStatusUpdate={refetch}
         />
       )}
+    </>
+  );
 
-      {/* Main content with tabs */}
-      <div
-        className="gba:lead-details-content"
-        data-testid="investment-lead-details-content"
-      >
-        <Tabs
-          value={activeTab}
-          onValueChange={setActiveTab}
-          className="gba:w-full"
-        >
-          <TabsList className="gba:bg-white gba:border gba:mb-6">
-            <TabsTrigger value="overview" data-testid="investment-lead-overview-tab">
-              <UserOutlined className="gba:mr-2" />
-              Overview
-            </TabsTrigger>
-            <TabsTrigger value="documents" data-testid="investment-lead-documents-tab">
-              <FileOutlined className="gba:mr-2" />
-              Documents
-            </TabsTrigger>
-          </TabsList>
-
-          <TabsContent value="overview" data-testid="investment-lead-overview-content">
-            {/* First Row: Company Information + Contacts */}
-            <div className="gba:grid gba:grid-cols-4 gba:gap-6 gba:mb-6 gba:items-stretch">
-              {/* Company Information - 3/4 width */}
-              <div className="gba:col-span-3 gba:flex">
-                <AccountSection 
-                  account={leadData ? {
-                    name: leadData.companyName,
-                    email: leadData.companyEmail,
-                    phone: leadData.companyPhone,
-                    website: leadData.companyWebsite,
-                    legalForm: leadData.legalForm?.value || leadData.legalForm?.code,
-                    industry: leadData.industryClass?.value || leadData.industryClass?.code,
-                    companySize: leadData.companySize?.value || leadData.companySize?.code,
-                    // Add other mapping as needed
-                  } : undefined}
-                  data-testid="lead-account-section"
-                  className="gba:h-full"
-                  {...props}
-                />
-              </div>
-
-              {/* Contacts - 1/4 width */}
-              <div className="gba:col-span-1 gba:flex">
-                <ContactSection 
-                  contact={leadData ? {
-                    firstName: leadData.firstName,
-                    lastName: leadData.lastName,
-                    email: leadData.email,
-                    phone: leadData.phoneNumber,
-                    jobTitle: leadData.position,
-                    academicTitle: leadData.academicTitle?.value || leadData.academicTitle?.code,
-                    salutation: leadData.salutation?.value || leadData.salutation?.code,
-                  } : undefined}
-                  data-testid="lead-contact-section"
-                  className="gba:h-full"
-                  {...props}
-                />
-              </div>
-            </div>
-
-            {/* Second Row: Investment Information */}
-            <div className="gba:mb-6">
-            <InvestmentSection 
-              investmentData={leadData} 
-              businessAppContext={props}
-              isLoading={loading}
-              error={error}
+  // Configure subViews for RecordLayout
+  const subViewsConfig = {
+    defaultValue: activeTab,
+    onValueChange: handleTabChange,
+    items: [
+      {
+        value: 'overview',
+        label: getTranslationFromI18nKeyAndLabel('crm.common.overview', 'Overview'),
+        icon: <Users />,
+        content: (
+          <>
+            {/* Account Information - 1/4 width */}
+            <SectionWrapper
+              className="gba:col-span-1 gba:sm:col-span-3 gba:md:col-span-3 gba:lg:col-span-3 gba:row-span-1"
+              sections={[
+                {
+                  id: 'account-section',
+                  component: AccountSection,
+                  props: {
+                    ...props,
+                    account: leadData ? {
+                      name: leadData.companyName,
+                      email: leadData.companyEmail,
+                      phone: leadData.companyPhone,
+                      website: leadData.companyWebsite,
+                      legalForm: leadData.legalForm?.value || leadData.legalForm?.code || leadData.legalForm,
+                      industry: leadData.industryClass?.value || leadData.industryClass?.code || leadData.industryClass,
+                      size: leadData.companySize?.value || leadData.companySize?.code || leadData.companySize,
+                      revenue: leadData.annualRevenue?.value || leadData.annualRevenue,
+                      // Add numberOfEmployees for AccountSection compatibility
+                      numberOfEmployees: leadData.companySize,
+                    } : {
+                      name: getTranslationFromI18nKeyAndLabel('crm.account.companyName', 'Company Name'),
+                      email: null,
+                      phone: null,
+                      website: null,
+                      legalForm: null,
+                      industry: null,
+                      size: null,
+                      revenue: null,
+                      numberOfEmployees: null,
+                    },
+                    address: leadData ? {
+                      addressLine: leadData.addressLine,
+                      postalCode: leadData.postalCode,
+                      locality: leadData.locality,
+                      country: typeof leadData.country === 'string' ? leadData.country : leadData.country?.value,
+                      region: typeof leadData.region === 'string' ? leadData.region : leadData.region?.value,
+                    } : undefined,
+                  }
+                }
+              ]}
+              data-testid="lead-account-section-wrapper"
             />
-            </div>
 
-            {/* Third Row: Activity Timeline + Tasks */}
-            <div className="gba:grid gba:grid-cols-2 gba:gap-6">
-              {/* Activity Timeline - 1/2 width */}
-              <div>
-                <ActivityTimeline leadId={leadId} context={props} />
-              </div>
+            {/* Contact Information - 1/4 width */}
+            <SectionWrapper
+              className="gba:col-span-1 gba:sm:col-span-3 gba:md:col-span-3 gba:lg:col-span-3 gba:row-span-1"
+              sections={[
+                {
+                  id: 'contact-section',
+                  component: ContactSection,
+                  props: {
+                    ...props,
+                    contact: leadData ? {
+                      firstName: leadData.firstName,
+                      lastName: leadData.lastName,
+                      email: leadData.email,
+                      phone: leadData.phoneNumber,
+                      jobTitle: leadData.position,
+                      academicTitle: leadData.academicTitle?.value || leadData.academicTitle?.code,
+                      salutation: leadData.salutation?.value || leadData.salutation?.code,
+                      communicationChannels: leadData.communicationChannels
+                    } : undefined,
+                  }
+                }
+              ]}
+              data-testid="lead-contact-section-wrapper"
+            />
 
-              {/* Tasks - 1/2 width */}
-              <div>
-                <TasksSection leadId={leadId} context={props} />
-              </div>
-            </div>
-          </TabsContent>
+            {/* Investment Information - 2/4 width (half) */}
+            <SectionWrapper
+              className="gba:col-span-1 gba:sm:col-span-3 gba:md:col-span-6 gba:lg:col-span-6 gba:row-span-1"
+              sections={[
+                {
+                  id: 'investment-section',
+                  component: InvestmentSection,
+                  props: {
+                    investmentData: leadData,
+                    businessAppContext: businessAppContext,
+                    isLoading: loading,
+                    error: error,
+                  }
+                }
+              ]}
+              data-testid="lead-investment-section-wrapper"
+            />
 
-          <TabsContent value="documents" data-testid="investment-lead-documents-content">
+            {/* Activities & Notes - 1/2 width, spans 2 rows */}
+            <SectionWrapper
+              className="gba:col-span-1 gba:sm:col-span-3 gba:md:col-span-6 gba:lg:col-span-6 gba:row-span-2"
+              sections={[
+                {
+                  id: 'activities-section',
+                  component: ActivitySection,
+                  props: {
+                    ...props,
+                    activities: activities,
+                    activitiesLoading: sectionsLoading,
+                    activitiesError: sectionsError,
+                    onReloadActivities: loadSectionData,
+                    activitySectionActionProps: {
+                      contextsArray: [FlowContextName.createInvestmentActivity],
+                      externalContextData: { leadId },
+                      prefixDataTestId: "lead-activities",
+                    },
+                    activityEntityActionProps: {
+                      contextsArray: [FlowContextName.investmentActivityEntity],
+                      externalContextData: { leadId },
+                      prefixDataTestId: "lead-activity-entity",
+                    }
+                  }
+                },
+                {
+                  id: 'notes-section',
+                  component: NoteSection as React.ComponentType<any>,
+                  props: {
+                    ...props,
+                    notes: notes.map(note => ({
+                      id: note.id,
+                      noteTitle: note.title || note.displayName || getTranslationFromI18nKeyAndLabel('crm.notes.untitled', 'Untitled Note'),
+                      noteText: note.text || '',
+                      createdAt: note.createdAt,
+                      createdBy: note.authorDisplayName || note.authorEmployee?.displayName || getTranslationFromI18nKeyAndLabel('crm.common.unknown', 'Unknown'),
+                      authorEmployee: note.authorEmployee,
+                      reminderAt: note.reminderDate
+                    })),
+                    noteActionProps: {
+                      contextsArray: [FlowContextName.investmentNoteCreate],
+                      externalContextData: { leadId },
+                      prefixDataTestId: "lead-notes",
+                      emptyStateBehavior: 'enable'
+                    },
+                    noteEntityActionProps: {
+                      contextsArray: [FlowContextName.investmentNoteEntity],
+                      externalContextData: { leadId },
+                      prefixDataTestId: "lead-note-entity",
+                      emptyStateBehavior: 'enable'
+                    }
+                  }
+                }
+              ]}
+              data-testid="lead-activities-notes-section-wrapper"
+            />
+
+            {/* Tasks & Approvals - 1/2 width, spans 2 rows */}
+            <SectionWrapper
+              className="gba:col-span-1 gba:sm:col-span-3 gba:md:col-span-6 gba:lg:col-span-6 gba:row-span-2"
+              sections={[
+                {
+                  id: 'tasks-section',
+                  component: TaskSection,
+                  props: {
+                    ...props,
+                    leadId: leadId,
+                    buildReferenceUrl,
+                    tasks: tasks.map(task => ({
+                      id: task.id,
+                      title: task.name || task.displayName || getTranslationFromI18nKeyAndLabel('crm.tasks.untitled', 'Untitled Task'),
+                      description: task.description,
+                      createdAt: task.createdAt,
+                      due: task.dueDate,
+                      assignee: task.assignedEmployee?.displayName || task.assignedEmployee?.fullName,
+                      statusCode: task.taskStatus?.value?.toUpperCase() as any,
+                      taskStatus: task.taskStatus,
+                      taskPriority: task.taskPriority,
+                      assigneeEmployee: task.assignedEmployee,
+                      taskTiming: task.taskTiming,
+                      startDate: task.startDate,
+                      creatorEmployee: task.creatorEmployee,
+                      reference: task.lead ? {
+                        type: 'lead' as const,
+                        id: task.lead.id,
+                        name: `${task.lead.firstName || ''} ${task.lead.lastName || ''}`.trim() || task.lead.code || 'Lead'
+                      } : task.account ? {
+                        type: 'account' as const,
+                        id: task.account.id,
+                        name: task.account.name || task.account.code || 'Account'
+                      } : task.contact ? {
+                        type: 'contact' as const,
+                        id: task.contact.id,
+                        name: `${task.contact.firstName || ''} ${task.contact.lastName || ''}`.trim() || task.contact.code || 'Contact'
+                      } : task.opportunity ? {
+                        type: 'opportunity' as const,
+                        id: task.opportunity.id,
+                        name: task.opportunity.name || task.opportunity.code || 'Opportunity'
+                      } : task.investment ? {
+                        type: 'investment' as const,
+                        id: task.investment.id,
+                        name: task.investment.name || task.investment.code || 'Investment'
+                      } : undefined
+                    })),
+                    taskActionProps: {
+                      contextsArray: [FlowContextName.investmentTaskCreate],
+                      externalContextData: { leadId },
+                      prefixDataTestId: "lead-tasks",
+                      emptyStateBehavior: 'enable'
+                    },
+                    taskEntityActionProps: {
+                      contextsArray: [FlowContextName.investmentTaskEntity],
+                      externalContextData: { leadId },
+                      prefixDataTestId: "lead-task-entity",
+                      emptyStateBehavior: 'enable'
+                    }
+                  }
+                },
+                {
+                  id: 'approval-tasks-section',
+                  component: TaskSection,
+                  props: {
+                    ...props,
+                    sectionTitle: 'Approval Tasks',
+                    leadId: leadId,
+                    buildReferenceUrl,
+                    tasks: approvals.map(approval => ({
+                      id: approval.id,
+                      title: approval.name || approval.displayName || getTranslationFromI18nKeyAndLabel('crm.approvals.request', 'Approval Request'),
+                      description: approval.description,
+                      createdAt: approval.createdAt,
+                      due: approval.dueDate,
+                      assignee: approval.assignedEmployee?.displayName || approval.assignedEmployee?.fullName,
+                      statusCode: approval.taskStatus?.value?.toUpperCase() as any,
+                      taskStatus: approval.taskStatus,
+                      taskPriority: approval.taskPriority,
+                      assigneeEmployee: approval.assignedEmployee,
+                      taskTiming: approval.taskTiming,
+                      startDate: approval.startDate,
+                      creatorEmployee: approval.creatorEmployee,
+                      reference: approval.lead ? {
+                        type: 'lead' as const,
+                        id: approval.lead.id,
+                        name: `${approval.lead.firstName || ''} ${approval.lead.lastName || ''}`.trim() || approval.lead.code || 'Lead'
+                      } : approval.account ? {
+                        type: 'account' as const,
+                        id: approval.account.id,
+                        name: approval.account.name || approval.account.code || 'Account'
+                      } : approval.contact ? {
+                        type: 'contact' as const,
+                        id: approval.contact.id,
+                        name: `${approval.contact.firstName || ''} ${approval.contact.lastName || ''}`.trim() || approval.contact.code || 'Contact'
+                      } : approval.opportunity ? {
+                        type: 'opportunity' as const,
+                        id: approval.opportunity.id,
+                        name: approval.opportunity.name || approval.opportunity.code || 'Opportunity'
+                      } : approval.investment ? {
+                        type: 'investment' as const,
+                        id: approval.investment.id,
+                        name: approval.investment.name || approval.investment.code || 'Investment'
+                      } : undefined
+                    })),
+                    taskEntityActionProps: {
+                      contextsArray: [FlowContextName.investmentTaskEntity],
+                      externalContextData: { leadId },
+                      prefixDataTestId: "lead-approval-entity",
+                      emptyStateBehavior: 'enable'
+                    },
+                    taskActionProps: {
+                      contextsArray: [FlowContextName.investmentTaskCreate],
+                      externalContextData: { 
+                        leadId,
+                        lead: leadId,
+                        typeRef: 'InvestmentTaskType:v1:APPROVAL',
+                        investmentTask: { lead: leadId, type: 'InvestmentTaskType:v1:APPROVAL' }
+                      },
+                      prefixDataTestId: "lead-approvals",
+                      emptyStateBehavior: 'enable'
+                    }
+                  }
+                }
+              ]}
+              data-testid="lead-tasks-approvals-section-wrapper"
+            />
+          </>
+        ),
+      },
+      {
+        value: 'documents',
+        label: getTranslationFromI18nKeyAndLabel('crm.common.documents', 'Documents'),
+        icon: <FileText />,
+        content: (
+          <div className="gba:col-span-12">
             <LeadDocuments leadId={leadId} context={props} />
-          </TabsContent>
+          </div>
+        ),
+      },
+    ],
+  };
 
-        </Tabs>
-      </div>
+  return (
+    <div data-testid="investment-lead-detail">
+      <RecordLayout
+        headerOrientation="horizontal"
+        headerIcon={AddressBook}
+        headerCategory={getTranslationFromI18nKeyAndLabel('crm.lead.category', 'LEAD')}
+        onBack={onBack}
+        headerTitle={headerTitle}
+        headerDetailGroups={headerDetailGroups}
+        headerActions={headerActions}
+        headerActionButton={headerActionButton}
+        headerContent={headerContent}
+        subViews={subViewsConfig}
+      />
     </div>
   );
 };
@@ -300,7 +735,7 @@ const LeadRecord: React.FC<LeadRecordProps> = (props) => {
   if (!leadId) {
     return (
       <div data-testid="investment-lead-record-no-id">
-        <p>No lead ID provided</p>
+        <p>{getTranslationFromI18nKeyAndLabel('crm.investments.lead.noIdProvided', 'No lead ID provided')}</p>
       </div>
     );
   }

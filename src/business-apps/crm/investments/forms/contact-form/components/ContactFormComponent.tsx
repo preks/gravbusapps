@@ -1,7 +1,6 @@
 import React from "react";
 import {
   Button,
-  Spinner,
   Alert,
   AlertDescription,
 } from "@newwork/nw-design-system";
@@ -9,9 +8,7 @@ import { formatDataTestId } from "@/common/utils/formatDataTestId";
 import { dispatchProcessContinueEvent } from "@/common/utils/processEventUtils";
 import { useContactFormContext } from "../context/ContactFormContext";
 import PersonalInformationSection from "./PersonalInformationSection";
-import ProfessionalInformationSection from "./ProfessionalInformationSection";
 import OwnerInformationSection from "./OwnerInformationSection";
-import AdditionalInformationSection from "./AdditionalInformationSection";
 
 const prefixDataTestId = "ContactForm";
 
@@ -44,9 +41,12 @@ const ContactFormComponent: React.FC = () => {
 
   // Handle form submission
   const handleSubmit = async () => {
-    try {
-      await onSubmit(formValues);
+    // Prevent duplicate submissions
+    if (isLoading) {
+      return;
+    }
 
+    try {
       // Determine if this is an update or create operation
       const isUpdate = formValues.id;
 
@@ -54,15 +54,12 @@ const ContactFormComponent: React.FC = () => {
       const investmentContactPayload: any = {
         firstName: toStringOrUndefined(formValues.firstName),
         lastName: toStringOrUndefined(formValues.lastName),
-        fullName:
-          toStringOrUndefined(formValues.fullName) ||
-          `${formValues.firstName || ""} ${formValues.lastName || ""}`.trim(),
+        fullName: `${(formValues.firstName || "").trim()} ${(formValues.lastName || "").trim()}`.trim(),
+        type: toStringOrUndefined(formValues.type),
         birthDate: toStringOrUndefined(formValues.birthDate),
-        description: toStringOrUndefined(formValues.description),
 
         jobPosition: toStringOrUndefined(formValues.jobPosition),
         department: toStringOrUndefined(formValues.department),
-        code: toStringOrUndefined(formValues.code),
 
         email: toStringOrUndefined(formValues.email),
         phone: toStringOrUndefined(formValues.phone),
@@ -78,6 +75,41 @@ const ContactFormComponent: React.FC = () => {
         additionalProperties: formValues.additionalProperties || {},
       };
 
+      // ✅ NEW: Add communication channels for LinkedIn and Xing
+      const communicationChannels = [];
+      
+      // Add LinkedIn communication channel if provided
+      if (formValues.linkedinUrl && formValues.linkedinUrl.trim()) {
+        communicationChannels.push({
+          communicationChannelRef: "CommunicationChannel:v1:LinkedIn",
+          value: formValues.linkedinUrl.trim(),
+          valueExtension: null,
+          source: "FORM_INPUT",
+          activeFrom: new Date().toISOString(),
+          activeTo: null,
+        });
+      }
+      
+      // Add Xing communication channel if provided
+      if (formValues.xingUrl && formValues.xingUrl.trim()) {
+        communicationChannels.push({
+          communicationChannelRef: "CommunicationChannel:v1:Xing", 
+          value: formValues.xingUrl.trim(),
+          valueExtension: null,
+          source: "FORM_INPUT",
+          activeFrom: new Date().toISOString(),
+          activeTo: null,
+        });
+      }
+
+      // Add communication channels to payload if any exist
+      if (communicationChannels.length > 0) {
+        investmentContactPayload.communicationChannels = communicationChannels;
+      }
+
+      // ✅ NEW: Add account IDs to payload - always include as array
+      // Always include accountIds at top level to maintain/break associations
+
       // ✅ FIXED: Handle ID and version for UPDATE mode only
       if (isUpdate) {
         investmentContactPayload.id = formValues.id;
@@ -89,22 +121,20 @@ const ContactFormComponent: React.FC = () => {
       // Determine change mode based on whether we have an ID
       const changeMode = isUpdate ? "UPDATE" : "INSERT";
 
+      // ✅ FIXED: Extract account IDs from accountIds (handle both string[] and object[] formats)
+      const extractedAccountIds = (formValues.accountIds || []).map(account => 
+        typeof account === 'object' ? account.id : account
+      );
+
       // ✅ FIXED: Create clean payload structure to prevent context field pollution
       const cleanPayload = {
         investmentContact: investmentContactPayload,
         changeMode: changeMode,
+        accountIds: extractedAccountIds, // ✅ UPDATED: Array of account IDs (extracted from objects if needed)
       };
 
       const isolatedPayload = JSON.parse(JSON.stringify(cleanPayload));
-
-      console.log(
-        "✅ Investment Contact form dispatching pse_submit event with ISOLATED payload:",
-        isolatedPayload
-      );
-      console.log(
-        "🔍 Contact Payload keys before dispatch:",
-        Object.keys(isolatedPayload)
-      );
+      
 
       dispatchProcessContinueEvent("pse_submit", isolatedPayload);
 
@@ -149,12 +179,6 @@ const ContactFormComponent: React.FC = () => {
           {/* Personal Information Section */}
           <PersonalInformationSection />
 
-          {/* Professional Information Section */}
-          <ProfessionalInformationSection />
-
-          {/* Additional Information Section */}
-          <AdditionalInformationSection />
-
           {/* Error Display */}
           {error && (
             <Alert variant="destructive">
@@ -172,20 +196,19 @@ const ContactFormComponent: React.FC = () => {
               className="gba:flex-1"
               size="lg"
               onClick={handleCancel}
-              data-testid={formatDataTestId(prefixDataTestId, "CancelButton")}
+              data-testid={formatDataTestId(prefixDataTestId, "cancel-button")}
             >
               Cancel
             </Button>
             <Button
               type="button"
               variant="default"
-              disabled={!isFormValid}
+              disabled={!isFormValid || isLoading}
               className="gba:flex-1"
               size="lg"
               onClick={handleSubmit}
-              data-testid={formatDataTestId(prefixDataTestId, "SubmitButton")}
+              data-testid={formatDataTestId(prefixDataTestId, "submit-button")}
             >
-              {isLoading && <Spinner size="sm" className="gba:mr-2" />}
               {formValues.id ? "Update Contact" : "Create Contact"}
             </Button>
           </div>

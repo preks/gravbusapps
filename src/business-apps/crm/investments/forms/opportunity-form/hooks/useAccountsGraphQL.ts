@@ -202,7 +202,6 @@ export const useAccountsGraphQL = ({
     if (accessToken) {
       initialize();
     } else {
-      console.log("⚠️ Accounts GraphQL hook: No access token, waiting...");
     }
   }, [accessToken, initialize]);
 

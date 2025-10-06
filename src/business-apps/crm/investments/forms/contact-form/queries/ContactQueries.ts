@@ -14,20 +14,33 @@ export interface InvestmentContactDataResponse {
     firstName?: string;
     lastName?: string;
     fullName?: string;
+    type?: string;
     birthDate?: string;
-    description?: string;
 
     // Professional Information
     jobPosition?: string;
     department?: string;
-    code?: string;
 
     // Contact Information
     email?: string;
     phone?: string;
 
-    // ✅ REMOVED: Fields NOT in InvestmentContact database
-    // type?: string; // ❌ NOT in schema
+    // Communication Channels
+    communicationChannels?: Array<{
+      id: string;
+      communicationChannelRef: string;
+      value: string;
+      valueExtension?: string;
+      source?: string;
+      activeFrom?: string;
+      activeTo?: string;
+      communicationChannel?: {
+        id: string;
+        value: string;
+        code: string;
+      };
+    }>;
+
     // picture?: string; // ❌ NOT in schema
     // pictureThumbnail?: string; // ❌ NOT in schema
 
@@ -58,6 +71,15 @@ export interface InvestmentContactDataResponse {
     // ✅ REMOVED: Fields NOT in InvestmentContact database
     // salutationRef?: string; // ❌ NOT in schema
 
+    // Account relationships
+    investmentAccountContact?: Array<{
+      id: string;
+      account: {
+        id: string;
+        name: string;
+      };
+    }>;
+
     // System fields
     createdAt?: string;
     createdBy?: string;
@@ -81,15 +103,30 @@ export const GET_INVESTMENT_CONTACT_BY_ID = `
       firstName
       lastName
       fullName
+      type
       birthDate
-      description
       
       jobPosition
       department
-      code
       
       email
       phone
+      
+      # Communication Channels
+      communicationChannels {
+        id
+        communicationChannelRef
+        value
+        valueExtension
+        source
+        activeFrom
+        activeTo
+        communicationChannel {
+          id
+          value
+          code
+        }
+      }
       
       ownerEmployeeId
       ownerEmployee {
@@ -111,6 +148,15 @@ export const GET_INVESTMENT_CONTACT_BY_ID = `
       }
       academicTitleRef
       languageRef
+      
+      # Account relationships
+      investmentAccountContact(where: { isDeleted: { _eq: false } }) {
+        id
+        account {
+          id
+          name
+        }
+      }
       
       createdAt
       createdBy

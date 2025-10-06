@@ -206,7 +206,6 @@ export const useCurrenciesGraphQL = ({
     if (accessToken) {
       initialize();
     } else {
-      console.log("⚠️ Currencies GraphQL hook: No access token, waiting...");
     }
   }, [accessToken, initialize]);
 

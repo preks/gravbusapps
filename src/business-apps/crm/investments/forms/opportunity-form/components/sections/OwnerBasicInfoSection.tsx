@@ -1,15 +1,17 @@
 import React from "react";
 import { Input, Label } from "@newwork/nw-design-system";
 import { formatDataTestId } from "@/common/utils/formatDataTestId";
+import { getTranslationFromI18nKeyAndLabel } from "@/common/utils/windowUtils";
 import { useOpportunityFormContext } from "../../context/OpportunityFormContext";
+import { useOpportunityFormFieldClearing } from "../../hooks/useOpportunityFormFieldClearing";
 import OwnerSelector from "../OwnerSelector";
+import AccountSelectionSection from "./AccountSelectionSection";
 
 const prefixDataTestId = "InvestmentOpportunityForm";
 
 const OwnerBasicInfoSection: React.FC = () => {
   const {
     formValues,
-    setFormValues,
     employeePositions,
     employeePositionsLoading,
     employeePositionsError,
@@ -18,10 +20,8 @@ const OwnerBasicInfoSection: React.FC = () => {
     loadMoreEmployeePositions,
   } = useOpportunityFormContext();
 
-  // Handle form field changes
-  const handleInputChange = (field: string, value: string) => {
-    setFormValues({ [field]: value });
-  };
+  const { handleInputChange } = useOpportunityFormFieldClearing();
+
 
   return (
     <div className="gba:space-y-6">
@@ -43,23 +43,34 @@ const OwnerBasicInfoSection: React.FC = () => {
         />
       </div>
 
-      {/* Investment Name */}
+      {/* Opportunity Name */}
       <div className="gba:space-y-2">
         <Label
-          htmlFor="investmentName"
+          htmlFor="opportunityName"
           className="gba:block gba:text-sm gba:font-medium gba:text-gray-900"
         >
-          Investment Name <span className="gba:text-red-500">*</span>
+          {getTranslationFromI18nKeyAndLabel(
+            "opportunity.form.opportunityName",
+            "Opportunity Name"
+          )}{" "}
+          <span className="gba:text-red-500">*</span>
         </Label>
         <Input
-          id="investmentName"
+          id="opportunityName"
           value={formValues.name || ""}
           onChange={(e) => handleInputChange("name", e.target.value)}
-          placeholder="Please enter investment name..."
+          placeholder={getTranslationFromI18nKeyAndLabel(
+            "opportunity.form.opportunityNamePlaceholder",
+            "Please enter opportunity name..."
+          )}
           className="gba:border-gray-300 gba:bg-white"
-          data-testid={formatDataTestId(prefixDataTestId, "investment-name")}
+          data-testid={formatDataTestId(prefixDataTestId, "opportunity-name")}
         />
       </div>
+
+      {/* Account Selection */}
+      <AccountSelectionSection />
+
     </div>
   );
 };

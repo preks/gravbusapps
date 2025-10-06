@@ -73,7 +73,12 @@ export const useSearchableCatalog = ({
       );
 
       if (response?.data) {
-        const newOptions: SelectOption[] = response.data.map((item: any) => ({
+        // Filter investment groups to only include entries with prospectEnabled = true
+        const filteredData = catalogIdentifier === 'InvestmentGroup' 
+          ? response.data.filter((item: any) => item.objectValue?.prospectEnabled === true)
+          : response.data;
+
+        const newOptions: SelectOption[] = filteredData.map((item: any) => ({
           id: item.id,
           value: item.id,
           label: item.value || item.name || item.code,

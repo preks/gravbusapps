@@ -8,6 +8,7 @@ export interface InvestmentOpportunityQueryVariables {
   search?: string;
   dealType?: string; // Added dealType filtering
   accountIds?: string[];
+  accountSearch?: string; // Search account by name
   stageIds?: string[];
   pipelineIds?: string[];
   statusIds?: string[];
@@ -113,6 +114,15 @@ const buildBaseFilters = (variables: InvestmentOpportunityQueryVariables = {}): 
   if (variables.accountIds?.length) {
     filters.push({
       accountId: { _in: variables.accountIds }
+    });
+  }
+  
+  if (variables.accountSearch?.trim()) {
+    const accountSearchTerm = variables.accountSearch.trim();
+    filters.push({
+      account: {
+        name: { _ilike: `%${accountSearchTerm}%` }
+      }
     });
   }
   

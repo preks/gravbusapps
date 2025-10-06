@@ -4,7 +4,7 @@ import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 import { formatDataTestId } from '@/common/utils/formatDataTestId';
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient';
 
-export type InvestmentDocumentEntityType = 'account' | 'contact' | 'lead' | 'opportunity';
+export type InvestmentDocumentEntityType = 'account' | 'contact' | 'lead' | 'opportunity' | 'investment';
 
 export interface DocumentDeletePopupValues {
   documentId: string;
@@ -73,6 +73,9 @@ const DocumentDeletePopup: React.FC<DocumentDeletePopupProps> = ({ initialValues
               opportunity {
                 id
               }
+              investment {
+                id
+              }
             }
           }
         `;
@@ -102,6 +105,9 @@ const DocumentDeletePopup: React.FC<DocumentDeletePopupProps> = ({ initialValues
         } else if (doc.opportunity?.id) {
           entityType = 'opportunity';
           entityId = doc.opportunity.id;
+        } else if (doc.investment?.id) {
+          entityType = 'investment';
+          entityId = doc.investment.id;
         }
 
         setDocument({
@@ -136,6 +142,7 @@ const DocumentDeletePopup: React.FC<DocumentDeletePopupProps> = ({ initialValues
         case 'contact': return 'contactId';
         case 'lead': return 'leadId';
         case 'opportunity': return 'opportunityId';
+        case 'investment': return 'investmentId';
         default: return 'accountId';
       }
     })();

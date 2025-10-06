@@ -1,6 +1,6 @@
 import React, { useState, useCallback, useEffect, useRef } from 'react';
 import { Button } from '@newwork/nw-design-system';
-import { PiArrowLeft, PiListBullets } from 'react-icons/pi';
+import { PiArrowLeft } from 'react-icons/pi';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 import { DataContainer } from '@/components/layout/dataContainer';
 import { AbsenceTable } from '../AbsenceTable';
@@ -46,8 +46,8 @@ export const AbsenceListPage: React.FC<AbsenceListPageProps> = (props) => {
     creationStartDate,
     creationEndDate,
     handleDateRangeChange,
-    handleCreationDateRangeChange
-    } = useAbsenceFilters(props);
+    handleCreationDateRangeChange,
+  } = useAbsenceFilters(props);
 
   // Get absence groups from catalog for dynamic filtering
   const { absenceGroups } = useAbsenceCatalogs(props);
@@ -65,101 +65,100 @@ export const AbsenceListPage: React.FC<AbsenceListPageProps> = (props) => {
   useEffect(() => {
     if (preFilter && !preFiltersApplied.current && absenceGroups.length > 0) {
       preFiltersApplied.current = true;
-      
-      // Use setTimeout to ensure state updates are complete before applying filters
-      setTimeout(() => {
-        // Clear all existing filters first
-        resetFilters();
-        
-        // Use another setTimeout to apply new filters after reset
-        setTimeout(() => {
-          if (preFilter.type === 'top-absentees') {
-            // For top-absentees, apply employee filters and exclude work leave
-            if (preFilter.employees) {
-              preFilter.employees.forEach(employeeId => {
-                addFilter(employeeId);
-              });
-            }
-            
-            // Add all absence groups except work leave
-            absenceGroups.forEach(group => {
-              if (group.id !== 'AbsenceGroup:v1:WORK') {
-                addFilter(group.id);
-              }
-            });
-            
-            // Clear date ranges
-            handleDateRangeChange(undefined, undefined);
-            handleCreationDateRangeChange(undefined, undefined);
-          } else if (preFilter.type === 'recent') {
-            // For recent requests, set current month creation date range
-            const now = new Date();
-            const startOfMonth = new Date(Date.UTC(now.getFullYear(), now.getMonth(), 1));
-            const endOfMonth = new Date(Date.UTC(now.getFullYear(), now.getMonth() + 1, 0));
-            
-            handleCreationDateRangeChange(
-              startOfMonth.toISOString().split('T')[0],
-              endOfMonth.toISOString().split('T')[0]
-            );
-            handleDateRangeChange(undefined, undefined);
-          } else {
-            // Apply status filters for other pre-filter types
-            if (preFilter.status) {
-              preFilter.status.forEach(status => {
-                addFilter(`status-${status.toLowerCase()}`);
-              });
-            }
 
-            // Apply group filters
-            if (preFilter.groups) {
-              preFilter.groups.forEach(group => {
-                addFilter(`group-${group.toLowerCase()}`);
-              });
-            }
+      // Clear all existing filters first
+      resetFilters();
 
-            // Apply employee filters
-            if (preFilter.employees) {
-              preFilter.employees.forEach(employeeId => {
-                addFilter(employeeId);
-              });
-            }
+      // Apply pre-filters immediately
+      if (preFilter.type === 'top-absentees') {
+        // For top-absentees, apply employee filters and exclude work leave
+        if (preFilter.employees) {
+          preFilter.employees.forEach((employeeId) => {
+            addFilter(employeeId);
+          });
+        }
 
-            // Apply date range only if explicitly provided
-            if (preFilter.dateRange) {
-              handleDateRangeChange(preFilter.dateRange.startDate, preFilter.dateRange.endDate);
-            } else {
-              handleDateRangeChange(undefined, undefined);
-            }
-            handleCreationDateRangeChange(undefined, undefined);
+        // Add all absence groups except work leave
+        absenceGroups.forEach((group) => {
+          if (group.id !== 'AbsenceGroup:v1:WORK') {
+            addFilter(group.id);
           }
-        }, 50);
-      }, 50);
+        });
+
+        // Clear date ranges
+        handleDateRangeChange(undefined, undefined);
+        handleCreationDateRangeChange(undefined, undefined);
+      } else if (preFilter.type === 'recent') {
+        // For recent requests, set current month creation date range
+        const now = new Date();
+        const startOfMonth = new Date(Date.UTC(now.getFullYear(), now.getMonth(), 1));
+        const endOfMonth = new Date(Date.UTC(now.getFullYear(), now.getMonth() + 1, 0));
+
+        handleCreationDateRangeChange(
+          startOfMonth.toISOString().split('T')[0],
+          endOfMonth.toISOString().split('T')[0],
+        );
+        handleDateRangeChange(undefined, undefined);
+      } else {
+        // Apply status filters for other pre-filter types
+        if (preFilter.status) {
+          preFilter.status.forEach((status) => {
+            addFilter(`status-${status.toLowerCase()}`);
+          });
+        }
+
+        // Apply group filters
+        if (preFilter.groups) {
+          preFilter.groups.forEach((group) => {
+            addFilter(`group-${group}`);
+          });
+        }
+
+        // Apply employee filters
+        if (preFilter.employees) {
+          preFilter.employees.forEach((employeeId) => {
+            addFilter(employeeId);
+          });
+        }
+
+        // Apply date range only if explicitly provided
+        if (preFilter.dateRange) {
+          handleDateRangeChange(preFilter.dateRange.startDate, preFilter.dateRange.endDate);
+        } else {
+          handleDateRangeChange(undefined, undefined);
+        }
+        handleCreationDateRangeChange(undefined, undefined);
+      }
     }
-  }, [preFilter, addFilter, resetFilters, handleDateRangeChange, handleCreationDateRangeChange, absenceGroups]);
+  }, [
+    preFilter,
+    addFilter,
+    resetFilters,
+    handleDateRangeChange,
+    handleCreationDateRangeChange,
+    absenceGroups,
+  ]);
 
   // Get absence data with search, sorting, and filters
   const filters = getFilters();
-  
-  const { 
-    absences, 
-    total, 
-    loading, 
-    error, 
-    hasMore, 
-    loadMore, 
-    loadPage,
-    retry 
-  } = useAbsenceListDataSimple({
-    ...filters,
-    accessToken,
-    orgUnitId: supervisorId
-  });
 
+  const { absences, total, loading, error, hasMore, loadMore, loadPage, retry } =
+    useAbsenceListDataSimple({
+      ...filters,
+      sortField,
+      sortOrder,
+      accessToken,
+      orgUnitId: supervisorId,
+    });
 
-  
   // Consolidated data loading effect
   useEffect(() => {
     if (accessToken && supervisorId) {
+      // If we have a preFilter, wait for it to be applied before loading data
+      if (preFilter && !preFiltersApplied.current) {
+        return; // Don't load data yet, wait for pre-filters to be applied
+      }
+
       if (!initialLoadDone.current) {
         // Initial load
         initialLoadDone.current = true;
@@ -170,59 +169,99 @@ export const AbsenceListPage: React.FC<AbsenceListPageProps> = (props) => {
         loadPage(1, pageSize);
       }
     }
-  }, [accessToken, supervisorId, search, JSON.stringify(selectedFilters), startDate, endDate, creationStartDate, creationEndDate, pageSize, loadPage]);
+  }, [
+    accessToken,
+    supervisorId,
+    search,
+    JSON.stringify(selectedFilters),
+    startDate,
+    endDate,
+    creationStartDate,
+    creationEndDate,
+    pageSize,
+    loadPage,
+    preFilter,
+    preFiltersApplied,
+  ]);
 
-
+  // Handle sorting changes - separate useEffect for cleaner separation
+  useEffect(() => {
+    if (initialLoadDone.current) {
+      setCurrentPage(1);
+      loadPage(1, pageSize);
+    }
+  }, [sortField, sortOrder, loadPage, pageSize]);
 
   // Handle filter changes from the filter sidebar
-  const handleFilterChange = useCallback((filterId: string, selected: boolean) => {
-    selected ? addFilter(filterId) : removeFilter(filterId);
-    setCurrentPage(1);
-  }, [addFilter, removeFilter]);
+  const handleFilterChange = useCallback(
+    (filterId: string, selected: boolean) => {
+      selected ? addFilter(filterId) : removeFilter(filterId);
+      setCurrentPage(1);
+    },
+    [addFilter, removeFilter],
+  );
 
   // Handle search changes
-  const handleSearchChange = useCallback((value: string) => {
-    setSearch(value);
-    setCurrentPage(1);
-  }, [setSearch]);
+  const handleSearchChange = useCallback(
+    (value: string) => {
+      setSearch(value);
+      setCurrentPage(1);
+    },
+    [setSearch],
+  );
 
   // Handle filter set changes
-  const handleSetFilter = useCallback((filters: string[]) => {
-    if (filters.length === 0) {
-      resetFilters();
-      // Also clear creation date filter when clearing all filters
-      handleCreationDateRangeChange(undefined, undefined);
-    } else {
-      const removedFilters = selectedFilters.filter(f => !filters.includes(f));
-      removedFilters.forEach(filterId => removeFilter(filterId));
-    }
-    setCurrentPage(1);
-  }, [selectedFilters, removeFilter, resetFilters, handleCreationDateRangeChange]);
+  const handleSetFilter = useCallback(
+    (filters: string[]) => {
+      if (filters.length === 0) {
+        resetFilters();
+        // Also clear creation date filter when clearing all filters
+        handleCreationDateRangeChange(undefined, undefined);
+      } else {
+        const removedFilters = selectedFilters.filter((f) => !filters.includes(f));
+        removedFilters.forEach((filterId) => removeFilter(filterId));
+      }
+      setCurrentPage(1);
+    },
+    [selectedFilters, removeFilter, resetFilters, handleCreationDateRangeChange],
+  );
 
   // Handle sorting changes
-  const handleSortChange = useCallback((field: string, order: 'ASC' | 'DESC') => {
-    setSortField(field);
-    setSortOrder(order);
-    setCurrentPage(1);
+  const handleSortChange = useCallback((field: string, order: '' | 'ASC' | 'DESC') => {
+    if (order === '') {
+      setSortField('');
+      setSortOrder('DESC');
+      setCurrentPage(1);
+    } else {
+      setSortField(field);
+      setSortOrder(order);
+      setCurrentPage(1);
+    }
   }, []);
 
   // Handle page size changes
-  const handlePageSizeChange = useCallback((newPageSize: number) => {
-    setPageSize(newPageSize);
-    setCurrentPage(1);
-    loadPage(1, newPageSize);
-  }, [loadPage]);
+  const handlePageSizeChange = useCallback(
+    (newPageSize: number) => {
+      setPageSize(newPageSize);
+      setCurrentPage(1);
+      loadPage(1, newPageSize);
+    },
+    [loadPage],
+  );
 
   // Handle page changes
-  const handlePageChange = useCallback((newPage: number) => {
-    setCurrentPage(newPage);
-    loadPage(newPage, pageSize);
-  }, [loadPage, pageSize]);
+  const handlePageChange = useCallback(
+    (newPage: number) => {
+      setCurrentPage(newPage);
+      loadPage(newPage, pageSize);
+    },
+    [loadPage, pageSize],
+  );
 
   // Get page title based on pre-filter
   const getPageTitle = () => {
     if (!preFilter) return 'Absence List';
-    
+
     switch (preFilter.type) {
       case 'pending':
         return 'Pending Requests';
@@ -246,7 +285,7 @@ export const AbsenceListPage: React.FC<AbsenceListPageProps> = (props) => {
   // Get page description based on pre-filter
   const getPageDescription = () => {
     if (!preFilter) return 'View and manage all absence requests';
-    
+
     switch (preFilter.type) {
       case 'pending':
         return 'Review and approve pending absence requests';
@@ -282,10 +321,13 @@ export const AbsenceListPage: React.FC<AbsenceListPageProps> = (props) => {
             <PiArrowLeft className="gba:text-lg" />
             Back to Dashboard
           </Button>
-          
+
           {/* Title and Subtitle */}
           <div>
-            <h1 className="gba:text-2xl gba:font-bold gba:text-gray-900" data-testid="absence-list-page-title">
+            <h1
+              className="gba:text-2xl gba:font-bold gba:text-gray-900"
+              data-testid="absence-list-page-title"
+            >
               {getPageTitle()}
             </h1>
             <p className="gba:text-gray-600 gba:mt-1" data-testid="absence-list-page-subtitle">
@@ -301,15 +343,16 @@ export const AbsenceListPage: React.FC<AbsenceListPageProps> = (props) => {
           dataControllerProps={{
             search: search,
             setSearch: handleSearchChange,
-            placeholder: "Search absences...",
+            debounceDelay: 500,
+            placeholder: 'Search absences...',
             filter: selectedFilters,
             setFilter: handleSetFilter,
             filterLabelMap: filterLabelMap,
-            hideFilter: false
+            hideFilter: false,
           }}
           dataFilterProps={{
             filterGroups: filterGroups,
-            onFilterChange: handleFilterChange
+            onFilterChange: handleFilterChange,
           }}
           dataBody={
             <AbsenceTable
@@ -331,7 +374,7 @@ export const AbsenceListPage: React.FC<AbsenceListPageProps> = (props) => {
                 handlePageChange(page);
                 if (size) handlePageSizeChange(size);
               }}
-              onSortingChange={(field, order) => handleSortChange(field, order as 'ASC' | 'DESC')}
+              onSortingChange={handleSortChange}
               selectedAbsenceId={selectedAbsence?.id}
             />
           }
@@ -340,4 +383,4 @@ export const AbsenceListPage: React.FC<AbsenceListPageProps> = (props) => {
       </div>
     </div>
   );
-}; 
+};

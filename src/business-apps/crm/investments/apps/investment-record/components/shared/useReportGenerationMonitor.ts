@@ -1,7 +1,7 @@
 import { useEffect } from 'react';
 
 // =============================================================================
-// REPORT GENERATION MONITORING HOOK
+// REPORT GENERATION MONITORING HOOK (Enhanced with Debugging)
 // =============================================================================
 
 interface ReportGenerationMonitorProps {
@@ -21,8 +21,15 @@ export const useReportGenerationMonitor = ({
   useEffect(() => {
     const globalEventHandler = (event: any) => {
       // Check for any event that might contain our response
-      if (event.type && (event.type.includes('process') || event.type.includes('task') || event.type.includes('flow') || event.type.includes('report') || event.type.includes('complete') || event.type.includes('finish') || event.type.includes('success'))) {
-        
+      if (event.type && (
+        event.type.includes('process') || 
+        event.type.includes('task') || 
+        event.type.includes('flow') || 
+        event.type.includes('report') || 
+        event.type.includes('complete') || 
+        event.type.includes('finish') || 
+        event.type.includes('success')
+      )) {
         // Check if this event contains our reportPath
         if (event.detail && typeof event.detail === 'object') {
           const checkForReportPath = (obj: any, path = ''): any => {
@@ -43,18 +50,16 @@ export const useReportGenerationMonitor = ({
             return null;
           };
 
-           const result = checkForReportPath(event.detail);
-           if (result) {
-             const downloadPath = extractFilePathFromReportPath(result.reportPath);
-             const fileName = extractFileNameFromReportPath(result.reportPath);
-             
-             if (downloadPath && downloadPath.trim() !== '') {
-               onReportGenerated(downloadPath, fileName);
-               setIsGenerating(false);
-             } else {
-               console.error('❌ Could not extract download path from event reportPath');
-             }
-          } 
+          const result = checkForReportPath(event.detail);
+          if (result) {
+            const downloadPath = extractFilePathFromReportPath(result.reportPath);
+            const fileName = extractFileNameFromReportPath(result.reportPath);
+            
+            if (downloadPath && downloadPath.trim() !== '') {
+              onReportGenerated(downloadPath, fileName);
+              setIsGenerating(false);
+            }
+          }
         }
       }
     };
@@ -129,17 +134,15 @@ export const useReportGenerationMonitor = ({
             
             const reportData = checkResponseForReportPath(data);
             
-             if (reportData) {
-               const downloadPath = extractFilePathFromReportPath(reportData.reportPath);
-               const fileName = extractFileNameFromReportPath(reportData.reportPath);
-               
-               if (downloadPath && downloadPath.trim() !== '') {
-                 setIsGenerating(false);
-                 onReportGenerated(downloadPath, fileName);
-               } else {
-                 console.error('❌ Could not extract download path from network reportPath');
-               }
-             }
+            if (reportData) {
+              const downloadPath = extractFilePathFromReportPath(reportData.reportPath);
+              const fileName = extractFileNameFromReportPath(reportData.reportPath);
+              
+              if (downloadPath && downloadPath.trim() !== '') {
+                setIsGenerating(false);
+                onReportGenerated(downloadPath, fileName);
+              }
+            }
           }
         } catch (e) {
           // Ignore parsing errors
@@ -180,7 +183,7 @@ export const useReportGenerationMonitor = ({
     };
   }, [onReportGenerated, setIsGenerating, extractFilePathFromReportPath, extractFileNameFromReportPath]);
 
-  // 🔥 ALSO MONITOR XMLHttpRequest (in case response comes through XHR)
+  // Monitor XMLHttpRequest (in case response comes through XHR)
   useEffect(() => {
     const originalXHROpen = XMLHttpRequest.prototype.open;
     const originalXHRSend = XMLHttpRequest.prototype.send;
@@ -204,6 +207,7 @@ export const useReportGenerationMonitor = ({
         if ((xhr.status === 200 || xhr.status === 201) && xhr.getResponseHeader('content-type')?.includes('application/json')) {
           try {
             const responseData = JSON.parse(xhr.responseText);
+            
             // Check for reportPath in XHR response
             if (responseData && responseData.reportPath) {
               const downloadPath = extractFilePathFromReportPath(responseData.reportPath);
@@ -214,11 +218,10 @@ export const useReportGenerationMonitor = ({
                 onReportGenerated(downloadPath, fileName);
               } else {
                 setIsGenerating(false);
-                console.error('❌ Could not extract download path from XHR reportPath');
               }
             }
           } catch (e) {
-            // Ignore JSON parsing errors
+            // Ignore parsing errors
           }
         }
       });
@@ -230,5 +233,5 @@ export const useReportGenerationMonitor = ({
       XMLHttpRequest.prototype.open = originalXHROpen;
       XMLHttpRequest.prototype.send = originalXHRSend;
     };
-  }, [onReportGenerated, extractFilePathFromReportPath, extractFileNameFromReportPath]);
+  }, [onReportGenerated, extractFilePathFromReportPath, extractFileNameFromReportPath, setIsGenerating]);
 };

@@ -53,6 +53,11 @@ export interface ExpensePlansTableProps extends BusinessAppContextProps {
   addFilter: (filterId: string, selected: boolean) => void;
   removeFilter: (filterId: string) => void;
   tableRefreshTrigger?: number;
+  // injected from tab: computed currency stats for building currency group and pills
+  currencyStats?: Array<{ ref: string; code: string; count: number }>;
+  // Sorting state from parent
+  sortField?: string;
+  sortOrder?: 'ascend' | 'descend' | null;
 }
 
 const ExpensePlansTable: React.FC<ExpensePlansTableProps> = React.memo((props) => {
@@ -66,6 +71,8 @@ const ExpensePlansTable: React.FC<ExpensePlansTableProps> = React.memo((props) =
     onTableChange,
     search,
     selectedFilters,
+    sortField,
+    sortOrder,
     ...contextProps
   } = props;
 
@@ -79,8 +86,7 @@ const ExpensePlansTable: React.FC<ExpensePlansTableProps> = React.memo((props) =
   }, [search, selectedFilters]);
 
   // Server-side sorting state - managed by parent component
-  const [sortField, setSortField] = useState<string>('createdAt');
-  const [sortOrder, setSortOrder] = useState<'ascend' | 'descend' | undefined>('descend');
+  // Remove local sorting state as it should be managed by parent
 
   const [selectedItem, setSelectedItem] = useState<ExpensePlan | null>(null);
   const [selectedExpenseRequest, setSelectedExpenseRequest] = useState<any>(null);
@@ -102,25 +108,27 @@ const ExpensePlansTable: React.FC<ExpensePlansTableProps> = React.memo((props) =
 
   // Enhanced server-side sorting handler
   const handleSort = useCallback((field: string) => {
+    let newOrder: 'ascend' | 'descend' | undefined;
+    
     if (sortField === field) {
       // Cycle through: ascend -> descend -> clear
       if (sortOrder === 'ascend') {
-        setSortOrder('descend');
+        newOrder = 'descend';
       } else if (sortOrder === 'descend') {
-        setSortField('');
-        setSortOrder(undefined);
+        newOrder = undefined;
       } else {
-        setSortOrder('ascend');
+        newOrder = 'ascend';
       }
     } else {
-      setSortField(field);
-      setSortOrder('ascend');
+      // New field - start with ascend
+      newOrder = 'ascend';
     }
-    // Reset to first page when sorting changes
+    
+    // Call parent's onTableChange with proper sorting parameters
     if (onTableChange) {
-      onTableChange({ current: 1, pageSize }, {}, { field, order: sortOrder === 'ascend' ? 'descend' : 'ascend' });
+      onTableChange({ current: 1, pageSize }, {}, { field, order: newOrder });
     }
-  }, [sortField, sortOrder, onTableChange, pageSize]);
+  }, [onTableChange, pageSize, sortField, sortOrder]);
 
   // Helper function to render sort icon
   const renderSortIcon = useCallback((field: string) => {
@@ -187,11 +195,6 @@ const ExpensePlansTable: React.FC<ExpensePlansTableProps> = React.memo((props) =
   // Enhanced table change handler for server-side sorting
   const handleEnhancedTableChange = useCallback((pagination: any, _filters: any, sorter: any) => {
     if (onTableChange) {
-      // Update sorting state if sorter is provided
-      if (sorter && sorter.field) {
-        setSortField(sorter.field);
-        setSortOrder(sorter.order);
-      }
       onTableChange(pagination, _filters, sorter);
     }
   }, [onTableChange]);
@@ -249,7 +252,7 @@ const ExpensePlansTable: React.FC<ExpensePlansTableProps> = React.memo((props) =
                 <TableHeader>
                   <TableRow className="gba:border-b gba:bg-gray-50">
                     <TableHead
-                      className="gba:w-[72px] gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-3"
+                      className="gba:w-[50px] gba:min-w-[50px] gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-3"
                       data-testid={`${DATA_TEST_ID_PREFIX}-actions-header`}
                     />
                     <TableHead
@@ -453,7 +456,7 @@ const ExpensePlansTable: React.FC<ExpensePlansTableProps> = React.memo((props) =
                               ]}
                               prefixDataTestId={`${DATA_TEST_ID_PREFIX}-update-expense-plan`}
                               accessToken={contextProps.accessToken}
-                              emptyStateBehavior="disable"
+                              emptyStateBehavior="enable"
                               deferMainContextRequestsUntilClick={true}
                             />
                           </div>
@@ -651,7 +654,13 @@ const ExpensePlansTable: React.FC<ExpensePlansTableProps> = React.memo((props) =
           setSearch: props.onSearchChange,
           filter: props.selectedFilters,
           setFilter: props.setFilters,
-          filterLabelMap: props.filterLabelMap,
+          filterLabelMap: useMemo(() => {
+            const currencyLabelMap: Record<string, string> = {};
+            (props.currencyStats || []).forEach((cs) => {
+              currencyLabelMap[`currency:${cs.ref}`] = cs.code;
+            });
+            return { ...props.filterLabelMap, ...currencyLabelMap };
+          }, [props.filterLabelMap, props.currencyStats]),
           placeholder: getTranslationFromI18nKeyAndLabel('lowcoder:employee_list.employee_report_filter.job_search','Search') + '...',
           addButton: {
             onClick: handleAddExpensePlan,
@@ -662,7 +671,14 @@ const ExpensePlansTable: React.FC<ExpensePlansTableProps> = React.memo((props) =
           listAmount: totalCount ? `${totalCount}` : undefined,
         }}
         dataFilterProps={{
-          filterGroups: props.filterGroups,
+          filterGroups: useMemo(() => {
+            const currencyFilters = props.currencyStats?.map((cs) => ({              id: `currency:${cs.ref}`,
+              label: cs.code,
+              selected: (props.selectedFilters || []).includes(`currency:${cs.ref}`)
+            })) || [];
+            const currencyGroup = currencyFilters.length > 0 ? [{ id: 'currency', title: getTranslationFromI18nKeyAndLabel('lowcoder:expense_item_list.currency','Currency'), filters: currencyFilters }] : [];
+            return [...currencyGroup, ...props.filterGroups];
+          }, [props.filterGroups, props.selectedFilters, (props as any).currencyStats]),
           onFilterChange: props.handleFilterChange,
         }}
         hideFilter={false}
@@ -672,7 +688,7 @@ const ExpensePlansTable: React.FC<ExpensePlansTableProps> = React.memo((props) =
       />
 
       {/* Expense Plan Details Sheet */}
-      <Sheet open={!!selectedItem} onOpenChange={(open) => !open && handleCloseDetails()}>
+      <Sheet open={!!selectedItem} onOpenChange={(open) => !open && handleCloseDetails()} title={selectedItem?.title || getTranslationFromI18nKeyAndLabel('lowcoder:approve_expense_plan.expense_subtitle_details','Expense Plan Details')} data-testid="expense-plan-details-sheet">
         <SheetContent className="gba:w-[600px] gba:sm:gba:w-[600px] gba:max-w-none">
           <SheetHeader>
             <SheetTitle className="gba:text-xl gba:font-semibold gba:text-gray-900">
@@ -693,7 +709,7 @@ const ExpensePlansTable: React.FC<ExpensePlansTableProps> = React.memo((props) =
       </Sheet>
 
       {/* Expense Request Details Sheet */}
-      <Sheet open={!!selectedExpenseRequest} onOpenChange={(open) => !open && handleCloseDetails()}>
+      <Sheet open={!!selectedExpenseRequest} onOpenChange={(open) => !open && handleCloseDetails()} title={selectedExpenseRequest?.title || getTranslationFromI18nKeyAndLabel('lowcoder:expense_request_list.modal_list_or_flow_button.expense_request_details','Expense Request Details')} data-testid="expense-request-details-sheet">
         <SheetContent className="gba:w-[600px] gba:sm:gba:w-[600px] gba:max-w-none">
           <SheetHeader>
             <SheetTitle className="gba:text-xl gba:font-semibold gba:text-gray-900">

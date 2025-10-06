@@ -12,7 +12,8 @@ export interface InvestmentOpportunityQueryResult {
   businessKey?: string;
   code?: string;
 
-  // Investment-specific fields
+  // Basic Information
+  name?: string;
   investmentName?: string;
   dealType?: string;
 
@@ -99,7 +100,6 @@ export interface InvestmentOpportunityQueryResult {
 
   // Process and system fields
   processInstanceId?: string;
-  recordState?: string;
 
   // Additional Properties
   additionalProperties?: Record<string, any>;
@@ -127,6 +127,7 @@ export const GET_INVESTMENT_OPPORTUNITY_BY_ID = `
       code
       
       # Investment-specific fields
+      name
       investmentName
       dealType
       
@@ -213,7 +214,6 @@ export const GET_INVESTMENT_OPPORTUNITY_BY_ID = `
       
       # Process and system fields
       processInstanceId
-      recordState
       
       # Additional Properties
       additionalProperties

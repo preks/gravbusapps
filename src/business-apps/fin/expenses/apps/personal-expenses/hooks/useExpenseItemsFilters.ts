@@ -5,6 +5,7 @@ import { ExpenseStatus } from '../utils';
 import { ExpenseDateRangeFilter } from '../components/tabs/expense-items-tab/ExpenseDateRangeFilter';
 import { ExpenseAmountRangeFilter } from '../components/tabs/expense-items-tab/ExpenseAmountRangeFilter';
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
+import { CurrencyStat } from './useExpenseCurrencies';
 
 // Define these as constants for stable references outside the hook
 const EXPENSE_TYPE_OPTIONS = ['expense', 'trip'];
@@ -33,17 +34,20 @@ export interface UseExpenseItemsFiltersReturn {
   amountRange: { min?: number; max?: number } | null;
   setAmountRange: (range: { min?: number; max?: number } | null) => void;
   onStatusFilterChange: (status: string, selected: boolean) => void;
+  currencyStats: CurrencyStat[];
+  setCurrencyStats: (stats: CurrencyStat[]) => void;
 }
 
 /**
  * Hook to manage filter selection for expense items with all available statuses
  */
-export const useExpenseItemsFilters = (availableStatuses: string[] = []): UseExpenseItemsFiltersReturn => {
+export const useExpenseItemsFilters = (availableStatuses: string[] = [], initialSelectedFilters: string[] = []): UseExpenseItemsFiltersReturn => {
   // State for search and selected filters
   const [search, setSearch] = useState<string>('');
-  const [selectedFilters, setSelectedFilters] = useState<string[]>([]);
+  const [selectedFilters, setSelectedFilters] = useState<string[]>(initialSelectedFilters);
   const [expenseDateRange, setExpenseDateRange] = useState<[Date | null, Date | null] | null>(null);
   const [amountRange, setAmountRange] = useState<{ min?: number; max?: number } | null>(null);
+  const [currencyStats, setCurrencyStats] = useState<CurrencyStat[]>([]);
 
   // Helper function to format status display names using platform translations
   const formatStatusName = (status: string): string => {
@@ -105,49 +109,65 @@ export const useExpenseItemsFilters = (availableStatuses: string[] = []): UseExp
   }, [availableStatuses]);
 
   // Define filter groups - memoized so they don't cause re-renders
-  const filterGroups = useMemo<DataFilterGroup[]>(() => [
-    {
-      id: 'expenseDateRange',
-      title: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.expense_date_range','Expense Date'),
-      type: DataFilterType.DATE_RANGE,
-      customComponent: React.createElement(ExpenseDateRangeFilter, {
-        expenseDateRange: expenseDateRange,
-        onDateRangeChange: setExpenseDateRange,
-        placeholder: [getTranslationFromI18nKeyAndLabel('lowcoder:expense_plan_list.expense_plan_table.start_date','Start date'), getTranslationFromI18nKeyAndLabel('lowcoder:expense_plan_list.expense_plan_table.end_date','End date')]
-      }),
-      hideSearch: true,
-    },
+  const filterGroups = useMemo<DataFilterGroup[]>(() => {
+    const groups: DataFilterGroup[] = [
+      {
+        id: 'expenseDateRange',
+        title: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.expense_date_range','Expense Date'),
+        type: DataFilterType.DATE_RANGE,
+        customComponent: React.createElement(ExpenseDateRangeFilter, {
+          expenseDateRange: expenseDateRange,
+          onDateRangeChange: setExpenseDateRange,
+          placeholder: [getTranslationFromI18nKeyAndLabel('lowcoder:expense_plan_list.expense_plan_table.start_date','Start date'), getTranslationFromI18nKeyAndLabel('lowcoder:expense_plan_list.expense_plan_table.end_date','End date')]
+        }),
+        hideSearch: true,
+      },
+      {
+        id: 'expenseType',
+        title: getTranslationFromI18nKeyAndLabel('lowcoder:create_expense_item.change_expense_item_container.current_expense_type_label','Expense Type'),
+        filters: [
+          { id: 'expense', label: getTranslationFromI18nKeyAndLabel('lowcoder:create_expense_request.expense_select_button','Expense'), selected: selectedFilters.includes('expense') },
+          { id: 'trip', label: getTranslationFromI18nKeyAndLabel('lowcoder:create_expense_request.trip_select_button','Trip'), selected: selectedFilters.includes('trip') }
+        ]
+      },
+      {
+        id: 'status',
+        title: getTranslationFromI18nKeyAndLabel('lowcoder:expense_item_list.expense_table.status','Status'),
+        filters: allStatuses.map(status => ({
+          id: status.toLowerCase(),
+          label: formatStatusName(status),
+          selected: selectedFilters.includes(status.toLowerCase())
+        }))
+      },
+      {
+        id: 'amountRange',
+        title: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.amount_range','Amount Range'),
+        type: DataFilterType.NUMBER_RANGE,
+        customComponent: React.createElement(ExpenseAmountRangeFilter, {
+          amountRange: amountRange,
+          onAmountRangeChange: setAmountRange,
+          label: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.amount_range','Amount Range'),
+          dataTestIdPrefix: 'expense-amount-range'
+        }),
+        hideSearch: true,
+      }
+    ];
 
-    {
-      id: 'expenseType',
-      title: getTranslationFromI18nKeyAndLabel('lowcoder:create_expense_item.change_expense_item_container.current_expense_type_label','Expense Type'),
-      filters: [
-        { id: 'expense', label: getTranslationFromI18nKeyAndLabel('lowcoder:create_expense_request.expense_select_button','Expense'), selected: selectedFilters.includes('expense') },
-        { id: 'trip', label: getTranslationFromI18nKeyAndLabel('lowcoder:create_expense_request.trip_select_button','Trip'), selected: selectedFilters.includes('trip') }
-      ]
-    },
-    {
-      id: 'status',
-      title: getTranslationFromI18nKeyAndLabel('lowcoder:expense_item_list.expense_table.status','Status'),
-      filters: allStatuses.map(status => ({
-        id: status.toLowerCase(),
-        label: formatStatusName(status),
-        selected: selectedFilters.includes(status.toLowerCase())
-      }))
-    },
-    {
-      id: 'amountRange',
-      title: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.amount_range','Amount Range'),
-      type: DataFilterType.NUMBER_RANGE,
-      customComponent: React.createElement(ExpenseAmountRangeFilter, {
-        amountRange: amountRange,
-        onAmountRangeChange: setAmountRange,
-        label: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.amount_range','Amount Range'),
-        dataTestIdPrefix: 'expense-amount-range'
-      }),
-      hideSearch: true,
+    // Add currency filter group if we have currency stats
+    if (currencyStats.length > 0) {
+      groups.unshift({
+        id: 'currency',
+        title: getTranslationFromI18nKeyAndLabel('lowcoder:expense_item_list.currency','Currency'),
+        filters: currencyStats.map(cs => ({
+          id: `currency:${cs.ref}`,
+          label: cs.code,
+          selected: selectedFilters.includes(`currency:${cs.ref}`)
+        }))
+      });
     }
-      ], [selectedFilters, expenseDateRange, allStatuses, amountRange]);
+
+    return groups;
+  }, [selectedFilters, expenseDateRange, allStatuses, amountRange, currencyStats]);
 
   // Create filter label map including date range and amount range
   const filterLabelMap = useMemo<Record<string, string>>(() => {
@@ -167,6 +187,11 @@ export const useExpenseItemsFilters = (availableStatuses: string[] = []): UseExp
       const statusKey = status.toLowerCase();
       const displayName = formatStatusName(status);
       map[statusKey] = displayName;
+    });
+    
+    // Add currency labels
+    currencyStats.forEach(cs => {
+      map[`currency:${cs.ref}`] = cs.code;
     });
     
     // Add date range label if active
@@ -190,7 +215,7 @@ export const useExpenseItemsFilters = (availableStatuses: string[] = []): UseExp
     }
     
     return map;
-  }, [filterGroups, expenseDateRange, amountRange, allStatuses, formatStatusName]);
+  }, [filterGroups, expenseDateRange, amountRange, allStatuses, formatStatusName, currencyStats]);
 
   // Get all selected filters including amount range when active (exclude date range to prevent duplicate pills)
   const getAllSelectedFilters = useMemo(() => {
@@ -368,6 +393,8 @@ export const useExpenseItemsFilters = (availableStatuses: string[] = []): UseExp
     setExpenseDateRange,
     amountRange,
     setAmountRange,
-    onStatusFilterChange
+    onStatusFilterChange,
+    currencyStats,
+    setCurrencyStats
   };
 }; 

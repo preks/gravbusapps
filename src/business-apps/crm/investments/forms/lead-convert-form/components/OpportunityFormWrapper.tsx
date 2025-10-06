@@ -23,6 +23,7 @@ const OpportunityFormWrapper: React.FC<OpportunityFormWrapperProps> = ({
   userInfo,
   additionalData,
 }) => {
+
   if (!accessToken) {
     return (
       <div className="gba:p-6 gba:text-center">
@@ -49,17 +50,7 @@ const OpportunityFormWrapper: React.FC<OpportunityFormWrapperProps> = ({
         onCancel={onCancel}
         hideActions={hideActions}
       >
-        {/* Wrap in a form element to prevent submission bubbling to parent */}
-        <form 
-          onSubmit={(e) => {
-            e.preventDefault();
-            e.stopPropagation();
-            // Don't trigger any submission - this is just for containment
-          }}
-        >
-          <OpportunityFormComponent />
-        </form>
-        {/* Monitor form changes inside the context */}
+        <OpportunityFormComponent />
         <OpportunityFormChangeMonitor onFormChange={onFormChange} />
       </OpportunityFormProvider>
     </div>

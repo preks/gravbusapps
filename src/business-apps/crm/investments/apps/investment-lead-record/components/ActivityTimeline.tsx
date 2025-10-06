@@ -441,7 +441,7 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({ leadId, cont
               Notes
             </div>
             <AppAction
-              contextsArray={[FlowContextName.createInvestmentNote]}
+              contextsArray={[FlowContextName.investmentNoteCreate]}
               externalContextData={{
                 leadId,
                 lead: leadId,

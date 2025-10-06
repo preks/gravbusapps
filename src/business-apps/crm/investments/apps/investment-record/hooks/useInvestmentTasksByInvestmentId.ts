@@ -2,10 +2,11 @@ import { useCallback } from 'react';
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 import { GET_INVESTMENT_TASKS_BY_INVESTMENT_ID } from '@/common/data/investment/queries/investmentQueries';
-import type { InvestmentTask } from '@/common/data/investment/types';
+import type { BaseInvestmentTask, InvestmentTask } from '@/common/data/investment/types';
+import { toInvestmentTask } from '@/common/data/investment/mappers';
 
 interface InvestmentTasksByInvestmentIdResponse {
-  InvestmentTask: InvestmentTask[];
+  InvestmentTask: BaseInvestmentTask[];
 }
 
 export const useGetInvestmentTasksByInvestmentId = (context: BusinessAppContextProps) => {
@@ -16,7 +17,8 @@ export const useGetInvestmentTasksByInvestmentId = (context: BusinessAppContextP
 
     try {
       const result = await graphqlClient.request<InvestmentTasksByInvestmentIdResponse>(query);
-      return result.InvestmentTask || [];
+      // Transform base types to enhanced types using mapper
+      return result.InvestmentTask.map(toInvestmentTask);
     } catch (error) {
       console.error('Error fetching investment tasks by investment ID:', error);
       throw error;

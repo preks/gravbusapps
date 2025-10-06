@@ -12,24 +12,11 @@ export const mapInvestmentContactToFormValues = (
   contactData: InvestmentContactDataResponse
 ): Partial<ContactFormValues> => {
   if (!contactData?.InvestmentContact?.[0]) {
-    console.log("⚠️ No InvestmentContact data found for mapping");
     return {};
   }
 
   const contact = contactData.InvestmentContact[0];
 
-  console.log("🔄 Mapping InvestmentContact data to form values:", {
-    contactId: contact.id,
-    firstName: contact.firstName,
-    lastName: contact.lastName,
-    email: contact.email,
-    phone: contact.phone,
-    jobPosition: contact.jobPosition,
-    department: contact.department,
-    ownerEmployeeId: contact.ownerEmployeeId,
-    academicTitleRef: contact.academicTitleRef,
-    languageRef: contact.languageRef,
-  });
 
   const formValues: Partial<ContactFormValues> = {
     // System fields
@@ -40,26 +27,46 @@ export const mapInvestmentContactToFormValues = (
     firstName: contact.firstName || "",
     lastName: contact.lastName || "",
     fullName: contact.fullName || "",
-    birthDate: contact.birthDate || "",
-    description: contact.description || "", // ✅ Using description field
+    type: contact.type || "UNKNOWN_CONTACT",
+    birthDate: contact.birthDate ? contact.birthDate.split('T')[0] : "",
 
     // Professional Information
     jobPosition: contact.jobPosition || "",
     department: contact.department || "",
-    code: contact.code || "",
+
+    // Social Media Information - Extract from communication channels
+    linkedinUrl: contact.communicationChannels?.find(
+      channel => channel.communicationChannelRef === "CommunicationChannel:v1:LinkedIn"
+    )?.value || "",
+    xingUrl: contact.communicationChannels?.find(
+      channel => channel.communicationChannelRef === "CommunicationChannel:v1:Xing"
+    )?.value || "",
 
     // Contact Information
     email: contact.email || "",
     phone: contact.phone || "",
 
-    // ✅ REMOVED: Fields NOT in InvestmentContact database
-    // type: contact.type || "UNKNOWN_CONTACT", // ❌ NOT in schema
     // picture: contact.picture || "", // ❌ NOT in schema
     // pictureThumbnail: contact.pictureThumbnail || "", // ❌ NOT in schema
 
     // Owner Information
     ownerEmployeeId: contact.ownerEmployeeId || "",
     owner: contact.ownerEmployeeId || "", // Map to owner field for form
+
+    // Account Information
+    accountIds: Array.from(
+      new Set(
+        (contact.investmentAccountContact ?? [])
+          .map(rel => {
+            if (!rel.account?.id) return null;
+            return {
+              id: rel.account.id,
+              name: rel.account.name || 'Unnamed Account'
+            };
+          })
+          .filter((account): account is { id: string; name: string } => Boolean(account))
+      )
+    ),
 
     // Additional Information
     notesSummary: contact.notesSummary || "",
@@ -88,7 +95,6 @@ export const mapInvestmentContactToFormValues = (
     // sourceApp: "IRM", // ❌ NOT a database field (used in payload only)
   };
 
-  console.log("✅ Mapped InvestmentContact form values:", formValues);
   return formValues;
 };
 
@@ -111,17 +117,8 @@ export const useInvestmentContactData = (
 
   useEffect(() => {
     const loadContactData = async () => {
-      console.log("🔍 Investment Contact Data Hook - Starting load:", {
-        contactId,
-        hasAccessToken: !!businessAppContext.accessToken,
-        additionalData: businessAppContext.additionalData,
-      });
 
       if (!contactId || !businessAppContext.accessToken) {
-        console.log("❌ Investment Contact Data Hook - Missing requirements:", {
-          hasContactId: !!contactId,
-          hasAccessToken: !!businessAppContext.accessToken,
-        });
         return;
       }
 
@@ -129,22 +126,7 @@ export const useInvestmentContactData = (
         setLoading(true);
         setError(null);
 
-        console.log(
-          "🚀 Investment Contact Data Hook - Fetching data for contactId:",
-          contactId
-        );
         const result = await fetchInvestmentContactData({ contactId });
-        console.log(
-          "✅ Investment Contact Data Hook - Data loaded successfully:",
-          {
-            hasResult: !!result,
-            investmentContactCount: result?.InvestmentContact?.length || 0,
-            firstContactId: result?.InvestmentContact?.[0]?.id,
-            firstContactName: `${
-              result?.InvestmentContact?.[0]?.firstName || ""
-            } ${result?.InvestmentContact?.[0]?.lastName || ""}`.trim(),
-          }
-        );
 
         setContactData(result);
       } catch (err) {
@@ -162,9 +144,6 @@ export const useInvestmentContactData = (
     if (contactId) {
       loadContactData();
     } else {
-      console.log(
-        "⏳ Investment Contact Data Hook - No contactId provided, waiting..."
-      );
     }
   }, [contactId, businessAppContext.accessToken]);
 

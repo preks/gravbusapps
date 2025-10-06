@@ -69,6 +69,22 @@ export const GET_INVESTMENT_LEAD_PREFILL_DATA = `
       }
       salutationRef
       
+      # Communication Channels (for LinkedIn, Xing, etc.)
+      communicationChannels {
+        id
+        communicationChannelRef
+        value
+        valueExtension
+        source
+        activeFrom
+        activeTo
+        communicationChannel {
+          id
+          value
+          code
+        }
+      }
+      
       # Owner information
       ownerEmployee {
         id

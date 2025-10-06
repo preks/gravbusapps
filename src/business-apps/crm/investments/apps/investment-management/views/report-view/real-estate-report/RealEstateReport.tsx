@@ -15,7 +15,7 @@ import { useRealEstateInvestmentTypes } from './hooks/useRealEstateInvestmentTyp
 import { useGetInvestmentCatalogData } from '@/business-apps/crm/investments/forms/investment-form/queries/InvestmentCatalogQueries';
 import type { RealEstateReportFilters } from './types';
 import { buildPlatformUrl } from '@/common/utils/navigationUtils';
-import { ReportFilterPanel, useReportFilters } from '../components/shared';
+import { ReportFilterPanel, useReportFilters, ColumnConfig } from '../components/shared';
 
 // Using separate DatePicker components for start and end dates
 
@@ -126,8 +126,52 @@ export const RealEstateReport: React.FC<RealEstateReportProps> = ({
     };
   }, [getInitialInvestmentType]);
 
+  // Define initial columns dynamically based on the ACTIVE TAB's investment type
+  const initialColumns: ColumnConfig[] = useMemo(() => {
+    const columns: ColumnConfig[] = [
+      { id: 'investment', label: 'Investment', visible: true, disabled: true },
+      { id: 'date', label: 'Date', visible: true },
+    ];
+
+    // If catalog is loaded and we have an active sub-tab, get columns for that investment type
+    if (catalogData?.investmentTypes && activeSubTab && activeSubTab !== 'overview') {
+      // Find the active investment type in the catalog
+      const activeInvestmentType = catalogData.investmentTypes.find(
+        (type: any) => type.code === activeSubTab
+      );
+
+      if (activeInvestmentType?.objectValue?.formFields) {
+        activeInvestmentType.objectValue.formFields.forEach((group: any) => {
+          group.fields.forEach((field: any) => {
+            // Use the same ID generation as the table transformer (property with dots -> underscores)
+            const columnId = field.property.replace(/\./g, '_');
+            columns.push({
+              id: columnId,
+              label: field.label,
+              visible: true // All visible by default
+            });
+          });
+        });
+      }
+    } else {
+      // Fallback to common columns if catalog not loaded yet or on overview tab
+      columns.push(
+        { id: 'name', label: 'Name', visible: true },
+        { id: 'proprietor', label: 'Proprietor', visible: true },
+        { id: 'location', label: 'Location', visible: true },
+        { id: 'size', label: 'Size', visible: true },
+        { id: 'buildingYear', label: 'Building Year', visible: true },
+        { id: 'annualNetColdRent', label: 'Annual Net Cold Rent', visible: true },
+        { id: 'occupancyPercent', label: 'Occupancy %', visible: true },
+        { id: 'funding', label: 'Funding', visible: true }
+      );
+    }
+
+    return columns;
+  }, [catalogData, activeSubTab]);
+
   // Shared filter state and logic
-  const reportFilters = useReportFilters();
+  const reportFilters = useReportFilters(initialColumns);
 
   // Find the selected investment type from catalog
   const selectedInvestmentType = useMemo(() => {
@@ -216,6 +260,8 @@ export const RealEstateReport: React.FC<RealEstateReportProps> = ({
                     investmentTypeValue={type.value}
                     title={`${type.value} Analytics`}
                     catalogData={catalogData}
+                    isTransposed={reportFilters.isTransposed}
+                    visibleColumns={reportFilters.visibleColumns}
                     data-testid={`${dataTestId}-${type.code.toLowerCase()}-table`}
                   />
                 </TabsContent>

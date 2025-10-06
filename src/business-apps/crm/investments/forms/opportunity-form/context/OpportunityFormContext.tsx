@@ -14,9 +14,9 @@ import {
   InvestmentOpportunityFormValues,
   SelectOption,
   DEAL_TYPES,
-  RECORD_STATES,
 } from "../types";
 import { useInvestmentOpportunityData } from "../hooks/useOpportunityData";
+import { useGetInvestmentById } from "@/common/data/investment";
 import { usePipelineCatalogs } from "../hooks/usePipelineCatalogs";
 import { useSearchableCatalog } from "../hooks/useSearchableCatalog";
 import { useInvestmentGroupTypes } from "../hooks/useInvestmentGroupTypes";
@@ -30,6 +30,56 @@ import {
   MEASUREMENT_UNIT_CATALOG,
   MEASUREMENT_UNIT_VERSION
 } from "../hooks/useInvestmentCatalogs";
+import { getTranslationFromI18nKeyAndLabel } from "@/common/utils/windowUtils";
+
+// Interface for raw GraphQL Investment data with nested specializations
+// This represents the actual structure returned by the GraphQL API before mapping
+interface RawInvestmentData {
+  id?: string;
+  code?: string;
+  name?: string;
+  dealType?: string;
+  businessKey?: string;
+  estimatedAmount?: number;
+  forecastedProfitAmount?: number;
+  initialInvestmentAmount?: number;
+  investmentMarketValue?: number;
+  requiredCapitalAmount?: number;
+  stakePercentage?: number;
+  loanAmount?: number;
+  loanInterestRate?: number;
+  closeDate?: string;
+  notesSummary?: string;
+  
+  // Catalog references (raw format)
+  currency?: { id: string } | null;
+  currencyRef?: string;
+  investmentGroup?: { id: string } | null;
+  investmentRole?: { id: string } | null;
+  
+  // Entity references
+  investmentAccount?: { id: string } | null;
+  ownerEmployee?: { id: string } | null;
+  
+  // Nested specialization arrays (as returned by GraphQL)
+  equityInvestment?: Array<{
+    marketValue?: number;
+    [key: string]: any;
+  }>;
+  realEstateInvestment?: Array<{
+    annualNetColdRent?: number;
+    buildingYear?: number;
+    size?: number;
+    sizeMeasurementUnit?: { id: string } | null;
+    [key: string]: any;
+  }>;
+  liquidFundInvestment?: Array<{
+    interestRate?: number;
+    [key: string]: any;
+  }>;
+  
+  [key: string]: any; // Allow additional properties from GraphQL
+}
 
 interface InvestmentOpportunityFormContextValue {
   formValues: InvestmentOpportunityFormValues;
@@ -50,7 +100,6 @@ interface InvestmentOpportunityFormContextValue {
 
   // Static data
   dealTypes: SelectOption[];
-  recordStates: SelectOption[];
 
   // Pipeline data
   pipelines: SelectOption[];
@@ -128,83 +177,93 @@ export const OpportunityFormProvider: React.FC<
 
   // Form state
   const [formValues, setFormValuesState] =
-    useState<InvestmentOpportunityFormValues>({
-      // Basic Information
-      owner: "",
-      name: "",
-      dealType: "",
-      code: "",
-      businessKey: "",
-      sourceApp: "IRM",
+    useState<InvestmentOpportunityFormValues>(() => {
+      const defaultValues = {
+        // Basic Information
+        owner: "",
+        name: "",
+        investmentName: "",
+        dealType: "",
+        code: "",
+        businessKey: "",
+        sourceApp: "IRM",
 
-      // Financial Information
-      estimatedAmount: "",
-      forecastedProfitAmount: "",
-      initialInvestmentAmount: "",
-      currency: "",
-      currencyRef: "",
-      closeDate: "",
+        // Financial Information
+        estimatedAmount: "",
+        forecastedProfitAmount: "",
+        initialInvestmentAmount: "",
+        currency: "",
+        currencyRef: "",
+        closeDate: "",
 
-      // Pipeline Information
-      pipeline: "",
-      pipelineStage: "",
+        // Pipeline Information
+        pipeline: "",
+        pipelineStage: "",
 
-      // Investment-Specific Information
-      investmentGroupRef: "",
-      investmentRoleRef: "",
-      investmentStakeTypeRef: "",
-      investmentTypeRef: "",
-      stakePercentage: "",
+        // Investment-Specific Information
+        investmentGroupRef: "",
+        investmentRoleRef: "",
+        investmentStakeTypeRef: "",
+        investmentTypeRef: "",
+        stakePercentage: "",
 
-      // Loan Information
-      loanAmount: "",
-      loanInterestRate: "",
-      marketValue: "",
-      requiredCapitalAmount: "",
+        // Loan Information
+        loanAmount: "",
+        loanInterestRate: "",
+        marketValue: "",
+        requiredCapitalAmount: "",
 
-      // Real Estate Specific
-      annualNetColdRent: "",
-      buildingYear: "",
-      size: "",
-      measurementUnit: "",
+        // Real Estate Specific
+        annualNetColdRent: "",
+        buildingYear: "",
+        size: "",
+        measurementUnit: "",
 
-      // Relationship Information
-      account: "",
-      accountId: "",
+        // Relationship Information
+        account: "",
+        accountId: "",
 
-      // Additional Information
-      notesSummary: "",
+        // Additional Information
+        notesSummary: "",
 
-      // System and Process fields
-      processInstanceId: "",
-      recordState: "ACTIVE",
+        // System and Process fields
+        processInstanceId: "",
 
-      // Additional Properties
-      additionalProperties: {},
+        // Additional Properties
+        additionalProperties: {},
 
-      // Audit information
-      activeFrom: "",
-      activeTo: "",
-      createdAt: "",
-      createdBy: "",
-      updatedAt: "",
-      updatedBy: "",
-      synchronizedAt: "",
+        // Audit information
+        activeFrom: "",
+        activeTo: "",
+        createdAt: "",
+        createdBy: "",
+        updatedAt: "",
+        updatedBy: "",
+        synchronizedAt: "",
 
-      // System fields
-      id: undefined,
-      version: undefined,
+        // System fields
+        id: undefined,
+        version: undefined,
 
-      // Legacy fields
-      ownerEmployeeId: "",
-      ownerOrganizationId: "",
+        // Legacy fields
+        ownerEmployeeId: "",
+        ownerOrganizationId: "",
 
-      // Apply initial values
-      ...initialValues,
+        // Apply initial values
+        ...initialValues,
+      };
+
+
+      return defaultValues;
     });
 
-  const [isLoading] = useState(false);
-  const [error] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  // Investment data state
+  const [investmentData, setInvestmentData] = useState<RawInvestmentData | null>(null);
+  const [investmentDataLoading, setInvestmentDataLoading] = useState(false);
+  const [investmentDataError, setInvestmentDataError] = useState<string | null>(null);
 
   // Auto-selection tracking
   const autoSelectionDone = useRef(false);
@@ -217,6 +276,12 @@ export const OpportunityFormProvider: React.FC<
     employeeId: currentUserId,
   });
 
+  // Get initial owner employee data (for lead conversion)
+  const { employee: initialOwnerEmployee } = useEmployeeById({
+    accessToken,
+    employeeId: initialValues?.owner,
+  });
+
   // Investment Opportunity data fetching hook for pre-filling form when updating existing opportunity (MUST BE BEFORE employee positions)
   const {
     opportunityData,
@@ -224,6 +289,82 @@ export const OpportunityFormProvider: React.FC<
     error: opportunityDataError,
     mapOpportunityToFormValues,
   } = useInvestmentOpportunityData({ businessAppContext });
+
+  // Investment data fetching hook for pre-filling form when creating opportunity from investment
+  const { fetchInvestmentById } = useGetInvestmentById(businessAppContext);
+
+  // Investment data mapping function
+  const mapInvestmentToFormValues = useCallback((investment: RawInvestmentData): Partial<InvestmentOpportunityFormValues> => {
+    if (!investment) return {};
+
+    // Extract specialization data
+    const equityInvestment = investment.equityInvestment?.[0];
+    const realEstateInvestment = investment.realEstateInvestment?.[0];
+    const liquidFundInvestment = investment.liquidFundInvestment?.[0];
+    
+    // Extract account information
+    const investmentAccount = investment.investmentAccount;
+
+    return {
+      // System fields - omitted to ensure form remains in "create" mode
+      // id: "", // Leave unset for new opportunity
+      // version: "", // Leave unset for new opportunity
+
+      // Basic Information - Map investment name to opportunity name
+      name: investment.name || "",
+      investmentName: investment.name || "",
+      dealType: investment.dealType || "",
+      code: investment.code || "",
+      businessKey: investment.businessKey || "",
+
+      // Pipeline Information - These might not exist on investment, so leave empty
+      pipeline: "",
+      pipelineStage: "",
+
+      // Financial Information
+      estimatedAmount: investment.estimatedAmount?.toString() || "",
+      forecastedProfitAmount: investment.forecastedProfitAmount?.toString() || "",
+      initialInvestmentAmount: investment.initialInvestmentAmount?.toString() || "",
+      currencyRef: investment.currency?.id || investment.currencyRef || "",
+      currency: investment.currency?.id || investment.currencyRef || "",
+      closeDate: investment.closeDate ? investment.closeDate.split("T")[0] : "",
+
+      // Investment-Specific Information (from root and specializations)
+      loanAmount: investment.loanAmount?.toString() || "",
+      loanInterestRate: investment.loanInterestRate?.toString() || liquidFundInvestment?.interestRate?.toString() || "",
+      marketValue: equityInvestment?.marketValue?.toString() || investment.investmentMarketValue?.toString() || "",
+      requiredCapitalAmount: investment.requiredCapitalAmount?.toString() || "",
+      stakePercentage: investment.stakePercentage?.toString() || "",
+
+      // Real Estate Specific Fields (from realEstateInvestment specialization)
+      annualNetColdRent: realEstateInvestment?.annualNetColdRent?.toString() || "",
+      buildingYear: realEstateInvestment?.buildingYear?.toString() || "",
+      size: realEstateInvestment?.size?.toString() || "",
+      measurementUnit: realEstateInvestment?.sizeMeasurementUnit?.id || "",
+
+      // Relationships (corrected account mapping)
+      accountId: investmentAccount?.id || "",
+      account: investmentAccount?.id || "",
+
+      // Owner Information
+      owner: investment.ownerEmployee?.id || "",
+
+      // Additional Information
+      notesSummary: investment.notesSummary || "",
+
+      // Investment Classification (corrected catalog reference mapping)
+      investmentGroupRef: investment.investmentGroup?.id || "",
+      investmentRoleRef: investment.investmentRole?.id || "",
+      investmentStakeTypeRef: investment.investmentStakeType?.id || "",
+      investmentTypeRef: investment.investmentType?.id || "",
+
+      // Additional Properties
+      additionalProperties: investment.additionalProperties || {},
+
+      activeFrom: investment.activeFrom || "",
+      activeTo: investment.activeTo || "",
+    };
+  }, []);
 
   // Employee positions hook (for owner dropdown)
   const {
@@ -332,8 +473,57 @@ export const OpportunityFormProvider: React.FC<
       }
     }
 
+    // Add initial values owner (e.g., from lead conversion) if not in the list
+    if (initialValues?.owner && !opportunityData) {
+      const isInitialOwnerInList = finalEmployees.some(
+        (emp) => emp.value === initialValues.owner
+      );
+
+      if (!isInitialOwnerInList) {
+        if (initialOwnerEmployee) {
+          // Use actual employee data when available
+          const initialOwnerDisplayName =
+            initialOwnerEmployee.employee?.displayName ||
+            `${initialOwnerEmployee.firstName} ${initialOwnerEmployee.lastName}`.trim();
+
+          const initialOwnerOption: SelectOption = {
+            id: initialOwnerEmployee.employeeId,
+            value: initialOwnerEmployee.employeeId,
+            label: `${initialOwnerDisplayName} - Lead Owner`,
+            name: initialOwnerDisplayName,
+            extraInfo: {
+              picture: undefined,
+              pictureThumbnail: initialOwnerEmployee.employee?.pictureThumbnail || undefined,
+              jobPosition: initialOwnerEmployee.jobPosition?.name || "Lead Owner",
+              organizationalUnit: initialOwnerEmployee.organizationalUnit?.name || "N/A",
+              userId: undefined,
+            },
+          };
+
+          finalEmployees.unshift(initialOwnerOption);
+        } else {
+          // Create a placeholder option while employee data loads
+          const initialOwnerOption: SelectOption = {
+            id: initialValues.owner,
+            value: initialValues.owner,
+            label: `Loading owner data...`,
+            name: `Loading owner data...`,
+            extraInfo: {
+              picture: undefined,
+              pictureThumbnail: undefined,
+              jobPosition: "Loading...",
+              organizationalUnit: "Loading...",
+              userId: undefined,
+            },
+          };
+
+          finalEmployees.unshift(initialOwnerOption);
+        }
+      }
+    }
+
     return finalEmployees;
-  }, [rawEmployeePositions, currentUserEmployee, opportunityData]);
+  }, [rawEmployeePositions, currentUserEmployee, opportunityData, initialOwnerEmployee, initialValues?.owner]);
 
   // Auto-select current user once their employee data has loaded (only for new opportunities, not editing)
   useEffect(() => {
@@ -347,7 +537,8 @@ export const OpportunityFormProvider: React.FC<
       !formValues.owner &&
       !autoSelectionDone.current &&
       !currentOpportunityId && // Don't auto-select when editing existing opportunity
-      !opportunityData // Don't auto-select when we have opportunity data
+      !opportunityData && // Don't auto-select when we have opportunity data
+      !initialValues?.owner // Don't auto-select when initial values already contain an owner (e.g., from lead conversion)
     ) {
       setFormValuesState((prev) => ({
         ...prev,
@@ -362,6 +553,7 @@ export const OpportunityFormProvider: React.FC<
     businessAppContext.additionalData?.psi_taskPayload?.psi_initialParameters
       ?.opportunityId,
     opportunityData,
+    initialValues?.owner, // Add initialValues.owner to dependencies
   ]);
 
   // Pipeline catalogs hook (for pipeline and stage dropdowns)
@@ -427,7 +619,7 @@ export const OpportunityFormProvider: React.FC<
     catalogIdentifier: MEASUREMENT_UNIT_CATALOG,
     version: MEASUREMENT_UNIT_VERSION,
     businessAppContext,
-    whereConditions: { additionalValue1: "AREA" }
+    whereConditions: { type: "AREA" }
   }), [businessAppContext]);
 
   const measurementUnitsHook = useSearchableCatalog(measurementUnitsConfig);
@@ -438,20 +630,117 @@ export const OpportunityFormProvider: React.FC<
     businessAppContext.accessToken
   );
 
-  // Dependent investment types are already in SelectOption format from the hook
-  const dependentInvestmentTypesSelectOptions: SelectOption[] = dependentInvestmentTypesHook.investmentTypes;
-
-  // Extract opportunityId for tracking changes
+  // Extract opportunityId and investmentId for tracking changes
   const opportunityId =
     businessAppContext.additionalData?.opportunityId ||
     businessAppContext.additionalData?.psi_taskPayload?.psi_initialParameters
       ?.opportunityId ||
     initialValues?.id;
 
-  // Reset auto-selection flag when opportunity changes or when creating new opportunity
+  const investmentId =
+    businessAppContext.additionalData?.investmentId ||
+    businessAppContext.additionalData?.psi_taskPayload?.psi_initialParameters
+      ?.investmentId;
+
+  // Load investment data when investment ID is present
+  useEffect(() => {
+    let isActive = true;
+
+    const loadInvestmentData = async () => {
+      if (!investmentId || !businessAppContext.accessToken) {
+        return;
+      }
+
+      try {
+        if (isActive) {
+          setInvestmentDataLoading(true);
+          setInvestmentDataError(null);
+        }
+
+        const result = await fetchInvestmentById(investmentId);
+
+        if (!isActive) return;
+
+        if (result.investment) {
+          setInvestmentData(result.investment);
+        } else {
+          // Clear stale investment data when no investment is found
+          setInvestmentData(null);
+          const errorMessage = getTranslationFromI18nKeyAndLabel(
+            "crm.investments.errors.investmentNotFound",
+            "Investment not found"
+          );
+          setInvestmentDataError(errorMessage);
+        }
+      } catch (err) {
+        if (!isActive) return;
+
+        // Clear stale investment data when an error occurs
+        setInvestmentData(null);
+        const errorMessage =
+          err instanceof Error
+            ? err.message
+            : getTranslationFromI18nKeyAndLabel(
+                "crm.investments.errors.unknownErrorLoadingData",
+                "Unknown error loading investment data"
+              );
+        console.error(
+          "❌ Investment Data: Error loading investment data:",
+          err
+        );
+        setInvestmentDataError(errorMessage);
+      } finally {
+        if (isActive) {
+          setInvestmentDataLoading(false);
+        }
+      }
+    };
+
+    if (investmentId) {
+      loadInvestmentData();
+    } else {
+      // Reset investment data/loading/error immediately when investmentId becomes falsy
+      setInvestmentData(null);
+      setInvestmentDataLoading(false);
+      setInvestmentDataError(null);
+    }
+
+    return () => {
+      isActive = false;
+    };
+  }, [investmentId, businessAppContext.accessToken, fetchInvestmentById]);
+
+  // Reset auto-selection flag when opportunity or investment changes or when creating new opportunity
   useEffect(() => {
     autoSelectionDone.current = false;
-  }, [opportunityId]);
+  }, [opportunityId, investmentId]);
+
+  // Set auto-selection flag when initial values contain prefilled data (e.g., from lead conversion)
+  useEffect(() => {
+    if (
+      initialValues?.owner ||
+      initialValues?.investmentGroupRef ||
+      initialValues?.investmentRoleRef ||
+      initialValues?.investmentStakeTypeRef ||
+      initialValues?.investmentTypeRef ||
+      initialValues?.estimatedAmount ||
+      initialValues?.initialInvestmentAmount ||
+      initialValues?.name ||
+      initialValues?.investmentName
+    ) {
+      autoSelectionDone.current = true; // Prevent auto-selection when we have prefilled data
+    }
+  }, [
+    initialValues?.owner,
+    initialValues?.investmentGroupRef,
+    initialValues?.investmentRoleRef,
+    initialValues?.investmentStakeTypeRef,
+    initialValues?.investmentTypeRef,
+    initialValues?.estimatedAmount,
+    initialValues?.initialInvestmentAmount,
+    initialValues?.name,
+    initialValues?.investmentName,
+  ]);
 
   // Populate form values when opportunity data is loaded (for editing existing opportunities)
   useEffect(() => {
@@ -476,6 +765,34 @@ export const OpportunityFormProvider: React.FC<
     businessAppContext.additionalData?.opportunityId,
     businessAppContext.additionalData?.psi_taskPayload?.psi_initialParameters
       ?.opportunityId,
+  ]);
+
+  // Populate form values when investment data is loaded (for creating opportunity from investment)
+  useEffect(() => {
+    // Only populate if we have investment data and no opportunity data (to avoid conflicts)
+    if (
+      investmentData &&
+      investmentData.id &&
+      !opportunityData && // Don't populate from investment if we have opportunity data
+      !formValues.id // Don't populate if form already has an ID (editing existing opportunity)
+    ) {
+      const mappedValues = mapInvestmentToFormValues(investmentData);
+      setFormValuesState((prev) => ({
+        ...prev,
+        ...mappedValues,
+      }));
+
+      // Don't auto-select current user if we're creating from investment data
+      autoSelectionDone.current = true;
+    }
+  }, [
+    investmentData,
+    mapInvestmentToFormValues,
+    opportunityData,
+    formValues.id,
+    businessAppContext.additionalData?.investmentId,
+    businessAppContext.additionalData?.psi_taskPayload?.psi_initialParameters
+      ?.investmentId,
   ]);
 
   // Auto-load stages when pipeline is set (for loaded opportunity data)
@@ -510,15 +827,62 @@ export const OpportunityFormProvider: React.FC<
     []
   );
 
+  // Wrap onSubmit with loading state management and process completion waiting
+  const handleSubmitWithLoading = useCallback(
+    async (values: InvestmentOpportunityFormValues) => {
+      setIsLoading(true);
+      setError(null);
+      try {
+        await onSubmit(values); // Call the original onSubmit
+
+        // Wait for process completion event
+        await new Promise<void>((resolve) => {
+          const TIMEOUT = 10000; // 10 second timeout for safety
+          const timeoutId = setTimeout(() => {
+            cleanup();
+            resolve();
+          }, TIMEOUT);
+
+          const handleProcessCompletion = (event: Event) => {
+            const customEvent = event as CustomEvent<{ resolution: 'success' | 'failure' }>;
+            if (
+              customEvent.detail?.resolution === 'success' ||
+              customEvent.detail?.resolution === 'failure'
+            ) {
+              cleanup();
+              resolve();
+            }
+          };
+
+          const cleanup = () => {
+            clearTimeout(timeoutId);
+            window.removeEventListener('com.newwork.process.processCompletion', handleProcessCompletion);
+            window.removeEventListener('com.newwork.process.taskCompletion', handleProcessCompletion);
+          };
+
+          window.addEventListener('com.newwork.process.processCompletion', handleProcessCompletion);
+          window.addEventListener('com.newwork.process.taskCompletion', handleProcessCompletion);
+        });
+
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'An error occurred');
+        console.error('Submission error:', err);
+      } finally {
+        setIsLoading(false);
+      }
+    },
+    [onSubmit]
+  );
+
   // Context value
   const contextValue: InvestmentOpportunityFormContextValue = useMemo(
     () => ({
       formValues,
       setFormValues,
-      onSubmit,
+      onSubmit: handleSubmitWithLoading, // Export the wrapped function
       onCancel,
-      isLoading: isLoading || opportunityDataLoading,
-      error: error || opportunityDataError,
+      isLoading: isLoading || opportunityDataLoading || investmentDataLoading,
+      error: error || opportunityDataError || investmentDataError,
       hideActions,
 
       // Employee positions
@@ -531,7 +895,6 @@ export const OpportunityFormProvider: React.FC<
 
       // Static data
       dealTypes: DEAL_TYPES,
-      recordStates: RECORD_STATES,
 
       // Pipeline data
       pipelines: pipelineSelectOptions,
@@ -585,12 +948,14 @@ export const OpportunityFormProvider: React.FC<
     [
       formValues,
       setFormValues,
-      onSubmit,
+      handleSubmitWithLoading,
       onCancel,
       isLoading,
       error,
       opportunityDataLoading,
       opportunityDataError,
+      investmentDataLoading,
+      investmentDataError,
       hideActions,
       employeePositionsSelectOptions,
       employeePositionsLoading,

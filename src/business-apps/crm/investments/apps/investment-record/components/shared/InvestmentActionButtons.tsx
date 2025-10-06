@@ -1,5 +1,5 @@
 import React from 'react';
-import { Button } from '@newwork/nw-design-system';
+import { AiButton } from '@newwork/nw-design-system';
 import { Upload } from 'lucide-react';
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
@@ -155,16 +155,16 @@ export const UploadReportButton: React.FC<UploadReportButtonProps> = ({
       emptyStateBehavior="enable"
       prefixDataTestId="investment-record-upload-report"
     >
-      <Button
+      <AiButton
         variant={variant}
         size={size}
-        className="gba:flex gba:items-center"
-        style={{ gap: 'var(--nw-spacing-sm)' }}
+        showIcon={true}
+        icon={<Upload style={{ height: '1rem', width: '1rem' }} />}
+        iconPosition="before"
         data-testid="upload-investment-report-button"
       >
-        <Upload style={{ height: '1rem', width: '1rem' }} />
         {getTranslationFromI18nKeyAndLabel('investment.reports.uploadReport', 'Upload Report')}
-      </Button>
+      </AiButton>
     </AppAction>
   );
 };
