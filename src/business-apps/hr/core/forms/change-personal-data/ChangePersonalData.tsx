@@ -47,11 +47,14 @@ const ChangePersonalDataContent: React.FC<ChangePersonalDataFormProps> = ({ acce
   const computeDisplayName = (emp: any): string => {
     const hasDisplay = emp?.displayName && String(emp.displayName).trim().length > 0;
     if (hasDisplay) return String(emp.displayName).trim();
-    const preferred = (emp?.preferredName || '').toString().trim();
-    const last = (emp?.lastName || '').toString().trim();
     const title = (emp?.title || '').toString().trim();
-    const composed = [preferred, last, title].filter(Boolean).join(' ').trim();
-    return composed;
+    const preferred = (emp?.preferredName || '').toString().trim();
+    const first = (emp?.firstName || '').toString().trim();
+    const last = (emp?.lastName || '').toString().trim();
+    const parts = preferred
+      ? [title, preferred, last]
+      : [title, first, last];
+    return parts.filter(Boolean).join(' ').trim();
   };
 
   const defaultValues: PersonalDataFormValues = useMemo(() => ({
