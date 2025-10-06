@@ -3,10 +3,11 @@ import { FormField, FormItem, FormLabel, FormControl, FormMessage, Select, Selec
 import type { Control } from 'react-hook-form';
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
 import { Percent } from '@phosphor-icons/react';
+import type { PersonalDataFormValues, CatalogEntry } from '../../types';
 
 export interface NationalityLanguageStatusGroupProps {
-  control: Control<any>;
-  catalogs: { nationality?: any[]; language?: any[]; maritalStatus?: any[] };
+  control: Control<PersonalDataFormValues>;
+  catalogs: { nationality?: CatalogEntry[]; language?: CatalogEntry[]; maritalStatus?: CatalogEntry[] };
 }
 
 const NationalityLanguageStatusGroup: React.FC<NationalityLanguageStatusGroupProps> = ({ control, catalogs }) => {
@@ -34,7 +35,7 @@ const NationalityLanguageStatusGroup: React.FC<NationalityLanguageStatusGroupPro
                 </SelectTrigger>
               </FormControl>
               <SelectContent>
-                {(catalogs.nationality || []).map((entry: any) => (
+                {(catalogs.nationality || []).map((entry) => (
                   <SelectItem key={entry.id} value={String(entry.id)} data-testid={`change-personal-data-nationality-option-${entry.id}`}>
                     {entry?.translations?.[0]?.value || entry?.value}
                   </SelectItem>
@@ -65,7 +66,7 @@ const NationalityLanguageStatusGroup: React.FC<NationalityLanguageStatusGroupPro
                 </SelectTrigger>
               </FormControl>
               <SelectContent>
-                {(catalogs.language || []).map((entry: any) => (
+                {(catalogs.language || []).map((entry) => (
                   <SelectItem key={entry.id} value={String(entry.id)} data-testid={`change-personal-data-language-option-${entry.id}`}>
                     {entry?.translations?.[0]?.value || entry?.value}
                   </SelectItem>
@@ -96,7 +97,7 @@ const NationalityLanguageStatusGroup: React.FC<NationalityLanguageStatusGroupPro
                 </SelectTrigger>
               </FormControl>
               <SelectContent>
-                {(catalogs.maritalStatus || []).map((entry: any) => (
+                {(catalogs.maritalStatus || []).map((entry) => (
                   <SelectItem key={entry.id} value={String(entry.id)} data-testid={`change-personal-data-marital-status-option-${entry.id}`}>
                     {entry?.translations?.[0]?.value || entry?.value}
                   </SelectItem>

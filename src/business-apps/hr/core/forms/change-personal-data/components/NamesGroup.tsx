@@ -2,10 +2,11 @@ import React from 'react';
 import { FormField, FormItem, FormLabel, FormControl, FormMessage, Input, Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@newwork/nw-design-system';
 import type { Control } from 'react-hook-form';
 import { getTranslationFromI18nKeyAndLabel, getCatalogValue } from '@/common/utils/windowUtils';
+import type { PersonalDataFormValues, CatalogEntry } from '../types';
 
 export interface NamesGroupProps {
-  control: Control<any>;
-  catalogs: { salutation?: any[] };
+  control: Control<PersonalDataFormValues>;
+  catalogs: { salutation?: CatalogEntry[] };
 }
 
 const NamesGroup: React.FC<NamesGroupProps> = ({ control, catalogs }) => {
@@ -87,7 +88,7 @@ const NamesGroup: React.FC<NamesGroupProps> = ({ control, catalogs }) => {
           <FormItem>
             <FormLabel data-testid="change-personal-data-first-name-label">
               {getTranslationFromI18nKeyAndLabel('lowcoder:employee_profile.details_layout.personal_information_container.first_name', 'First Name')}
-              <span style={{ color: 'var(--nw-color-danger-500)' }}> *</span>
+              <span className="gba:text-destructive"> *</span>
             </FormLabel>
             <FormControl>
               <Input className="gba:w-full" {...field} placeholder={placeholderEnter} data-testid="change-personal-data-first-name-input" />
@@ -117,7 +118,7 @@ const NamesGroup: React.FC<NamesGroupProps> = ({ control, catalogs }) => {
           <FormItem>
             <FormLabel data-testid="change-personal-data-last-name-label">
               {getTranslationFromI18nKeyAndLabel('lowcoder:employee_profile.details_layout.personal_information_container.last_name', 'Last Name')}
-              <span style={{ color: 'var(--nw-color-danger-500)' }}> *</span>
+              <span className="gba:text-destructive"> *</span>
             </FormLabel>
             <FormControl>
               <Input className="gba:w-full" {...field} placeholder={placeholderEnter} data-testid="change-personal-data-last-name-input" />

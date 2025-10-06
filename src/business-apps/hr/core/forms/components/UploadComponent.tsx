@@ -1,7 +1,7 @@
-import React from 'react';
-import { Upload } from 'antd';
+import React, { useRef } from 'react';
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
 import { ICONS } from '@/business-apps/fin/expenses/utils/icons';
+import { XCircleIcon } from 'lucide-react';
 
 interface UploadComponentProps {
   fileList: any[];
@@ -20,121 +20,100 @@ const UploadComponent: React.FC<UploadComponentProps> = ({ fileList, setFileList
     originFileObj: file
   });
 
-  const handleBeforeUpload = (file: File) => {
-    // Intercept to manage file list ourselves for both single and multiple modes
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const moreFileInputRef = useRef<HTMLInputElement | null>(null);
+
+  const appendFiles = (files: FileList | null) => {
+    if (!files || files.length === 0) return;
     if (!multiple) {
-      setFileList([createUploadItem(file)]);
-    } else {
-      setFileList([...fileList, createUploadItem(file)]);
+      const first = files.item(0);
+      if (first) setFileList([createUploadItem(first)]);
+      return;
     }
-    return false;
+    const next = [...fileList];
+    Array.from(files).forEach((f) => next.push(createUploadItem(f)));
+    setFileList(next);
   };
 
-  const handleChange = (info: any) => {
-    // Only act on removals; additions are handled in beforeUpload
-    if (info?.file?.status === 'removed' || (Array.isArray(info.fileList) && info.fileList.length < fileList.length)) {
-      setFileList(info.fileList || []);
-    }
-  };
-
-  const handleRemove = (file: any) => {
+  const handleRemove = (file: { uid: string }) => {
     const newFileList = fileList.filter((item) => item.uid !== file.uid);
     setFileList(newFileList);
   };
 
-  const getContainerStyles = (): React.CSSProperties => {
-    if (fileList.length > 0) {
-      return {
-        border: '2px solid #EFEFEF',
-        borderRadius: '4px',
-        padding: '20px 20px',
-        position: 'relative' as const,
-        backgroundColor: '#fff',
-        minHeight: '80px'
-      };
-    }
-    return {
-      border: '2px solid #EFEFEF',
-      borderRadius: '4px',
-      padding: '0',
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'center',
-      backgroundColor: '#fff',
-      height: '204px'
-    };
-  };
+  const containerClass = fileList.length > 0
+    ? 'gba:border gba:border-muted gba:rounded-md gba:p-5 gba:relative gba:bg-card'
+    : 'gba:border gba:border-muted gba:rounded-md gba:p-0 gba:flex gba:items-center gba:justify-center gba:bg-card gba:h-[204px]';
 
   const attachText = getTranslationFromI18nKeyAndLabel('lowcoder:hr_absences.create_absence.upload_document', 'Attach Document');
   const focusAlt = getTranslationFromI18nKeyAndLabel('lowcoder:create_expense_type_item.focus_alt_text', 'Focus');
 
   return (
-    <div style={getContainerStyles()} data-testid={`${dataTestIdPrefix}-upload-container`}>
+    <div className={containerClass} data-testid={`${dataTestIdPrefix}-upload-container`}>
       {fileList.length === 0 ? (
-        <Upload
-          listType="text"
-          fileList={fileList}
-          beforeUpload={handleBeforeUpload}
-          onChange={handleChange}
-          onRemove={handleRemove}
-          multiple={multiple}
-          accept={acceptedFileTypes}
-          style={{ width: '100%', height: '100%' }}
-          data-testid={`${dataTestIdPrefix}-upload-input-empty`}
-        >
-          <div style={{
-            display: 'flex',
-            alignItems: 'center',
-            flexDirection: 'column-reverse',
-            justifyContent: 'center',
-            cursor: 'pointer',
-            padding: '20px 20px',
-            width: '100%',
-            height: '100%',
-            gap: '16px'
-          }} data-testid={`${dataTestIdPrefix}-attach-area`}>
+        <>
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept={acceptedFileTypes}
+            multiple={multiple}
+            className="gba:hidden"
+            onChange={(e) => appendFiles(e.target.files)}
+            data-testid={`${dataTestIdPrefix}-upload-input-empty`}
+          />
+          <div
+            className="gba:flex gba:items-center gba:flex-col-reverse gba:justify-center gba:cursor-pointer gba:p-5 gba:w-full gba:h-full gba:gap-4"
+            data-testid={`${dataTestIdPrefix}-attach-area`}
+            onClick={() => fileInputRef.current?.click()}
+            role="button"
+            tabIndex={0}
+            onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') fileInputRef.current?.click(); }}
+          >
             <span className="gba:font-medium gba:text-black" data-testid={`${dataTestIdPrefix}-attach-text`}>{attachText}</span>
-            <img src={ICONS.FOCUS} alt={focusAlt} style={{ width: '36px', height: '36px' }}
-                width="36"
-                height="36" data-testid={`${dataTestIdPrefix}-attach-icon`} />
+            <img src={ICONS.FOCUS} alt={focusAlt} width="36" height="36" data-testid={`${dataTestIdPrefix}-attach-icon`} />
           </div>
-        </Upload>
+        </>
       ) : (
-        <div style={{ width: '100%', display: 'flex', flexDirection: 'column' }} data-testid={`${dataTestIdPrefix}-files-flex-container`}>
-          <div style={{ width: '100%' }} data-testid={`${dataTestIdPrefix}-file-list-row`} className="gba:[&_.ant-upload-list-item-name]:flex">
-            <Upload
-              listType="text"
-              fileList={fileList}
-              beforeUpload={handleBeforeUpload}
-              onChange={handleChange}
-              onRemove={handleRemove}
-              multiple={multiple}
-              accept={acceptedFileTypes}
-              style={{ width: '100%', height: '100%' }}
-              showUploadList={{
-                showPreviewIcon: false,
-                showDownloadIcon: false,
-                showRemoveIcon: true
-              }}
-              data-testid={`${dataTestIdPrefix}-upload-input-with-files`}
-            />
+        <div className="gba:w-[100%] gba:flex gba:flex-col" data-testid={`${dataTestIdPrefix}-files-flex-container`}>
+          <div className="gba:w-[100%]" data-testid={`${dataTestIdPrefix}-file-list-row`}>
+            <ul className="gba:flex gba:flex-col gba:gap-2">
+              {fileList.map((f) => (
+                <li key={f.uid} className="gba:flex gba:items-center gba:justify-between gba:gap-3">
+                  <span className="gba:truncate" data-testid={`${dataTestIdPrefix}-file-name-${f.uid}`}>{f.name}</span>
+                  <button
+                    type="button"
+                    onClick={() => handleRemove(f)}
+                    className="gba:flex gba:items-center gba:gap-1 gba:text-destructive"
+                    data-testid={`${dataTestIdPrefix}-remove-file-${f.uid}`}
+                  >
+                    <XCircleIcon className="gba:w-4 gba:h-4" />
+                  </button>
+                </li>
+              ))}
+            </ul>
           </div>
 
           {true && (
-            <div style={{ width: '100%', display: 'flex', justifyContent: 'flex-end', marginTop: '16px' }} data-testid={`${dataTestIdPrefix}-attach-button-row`}>
-              <Upload
-                showUploadList={false}
-                beforeUpload={handleBeforeUpload}
-                onChange={handleChange}
-                multiple={multiple}
+            <div className="gba:w-full gba:flex gba:justify-end gba:mt-4" data-testid={`${dataTestIdPrefix}-attach-button-row`}>
+              <input
+                ref={moreFileInputRef}
+                type="file"
                 accept={acceptedFileTypes}
-                data-testid={`${dataTestIdPrefix}-attach-more-upload`}
+                multiple={multiple}
+                className="gba:hidden"
+                onChange={(e) => appendFiles(e.target.files)}
+                data-testid={`${dataTestIdPrefix}-upload-input-with-files`}
+              />
+              <div
+                className="gba:flex gba:items-center gba:justify-end gba:cursor-pointer gba:gap-4"
+                data-testid={`${dataTestIdPrefix}-attach-more-container`}
+                onClick={() => moreFileInputRef.current?.click()}
+                role="button"
+                tabIndex={0}
+                onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') moreFileInputRef.current?.click(); }}
               >
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', cursor: 'pointer', gap: '16px' }} data-testid={`${dataTestIdPrefix}-attach-more-container`}>
-                  <span className="gba:font-medium gba:text-black" data-testid={`${dataTestIdPrefix}-attach-more-text`}>{attachText}</span>
-                  <img src={ICONS.FOCUS} alt={focusAlt} style={{ width: '18px', height: '18px' }} data-testid={`${dataTestIdPrefix}-attach-more-icon`} />
-                </div>
-              </Upload>
+                <span className="gba:font-medium gba:text-black" data-testid={`${dataTestIdPrefix}-attach-more-text`}>{attachText}</span>
+                <img src={ICONS.FOCUS} alt={focusAlt} width="18" height="18" data-testid={`${dataTestIdPrefix}-attach-more-icon`} />
+              </div>
             </div>
           )}
         </div>

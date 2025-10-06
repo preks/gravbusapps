@@ -8,8 +8,8 @@ interface FormHeaderProps {
 
 const FormHeader: React.FC<FormHeaderProps> = ({ title, flowIconUrl }) => {
   return (
-    <div className="gba:mx-auto gba:font-primary gba:flex gba:flex-col" style={{ width: '100%', maxWidth: '800px' }} data-testid="hr-form-header-container">
-      <div className="gba:flex gba:items-center gba:py-[30px] gba:font-primary gba:relative gba:h-8 gba:box-content" data-testid="hr-form-header-row">
+    <div className="gba:mx-auto gba:font-primary gba:flex gba:flex-col gba:w-[100%] gba:max-w-[800px]" data-testid="hr-form-header-container">
+      <div className="gba:flex gba:items-center gba:py-8 gba:font-primary gba:relative gba:h-8 gba:box-content" data-testid="hr-form-header-row">
         <div className="gba:flex gba:items-center gba:gap-3" data-testid="hr-form-header-title-container">
           <img
             src={flowIconUrl}
@@ -23,7 +23,7 @@ const FormHeader: React.FC<FormHeaderProps> = ({ title, flowIconUrl }) => {
           </div>
         </div>
       </div>
-      <Separator className="gba:m-0 gba:ml-0 gba:mb-[30px]" data-testid="hr-form-header-divider" />
+      <Separator className="gba:m-0 gba:ml-0 gba:mb-8" data-testid="hr-form-header-divider" />
     </div>
   );
 };

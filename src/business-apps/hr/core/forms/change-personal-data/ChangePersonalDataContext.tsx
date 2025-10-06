@@ -3,9 +3,10 @@ import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient';
 import { EMPLOYEE_DATA_QUERY, CATALOG_DATA_QUERY } from './ChangePersonalDataQueries';
 import { getCurrentActiveUserLocale } from '@/common/utils/windowUtils';
+import type { ChangePersonalDataContextData, EmployeeDataResponse, CatalogsDataResponse } from './types';
 
 interface ChangePersonalDataContextValue {
-  data: any | null;
+  data: ChangePersonalDataContextData | null;
   isLoading: boolean;
   error: string | null;
   refetch: () => Promise<void>;
@@ -19,7 +20,7 @@ interface ProviderProps extends BusinessAppContextProps {
 
 export const ChangePersonalDataProvider: React.FC<ProviderProps> = ({ children, accessToken, additionalData, userInfo }) => {
   const graphqlClient = useGraphQLClient(accessToken);
-  const [data, setData] = useState<any | null>(null);
+  const [data, setData] = useState<ChangePersonalDataContextData | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -44,15 +45,15 @@ export const ChangePersonalDataProvider: React.FC<ProviderProps> = ({ children, 
     try {
       // Fetch employee first
       const empVariables = { idEmployee: employeeId };
-      const employeeData = await graphqlClient.request<any>(EMPLOYEE_DATA_QUERY, empVariables);
+      const employeeData = await graphqlClient.request<EmployeeDataResponse>(EMPLOYEE_DATA_QUERY, empVariables);
       setData({ employee: employeeData, catalogs: null });
       setIsLoading(false);
 
       // Fetch catalogs in background and merge
       try {
         const catalogVariables = { activeUserLocale };
-        const catalogData = await graphqlClient.request<any>(CATALOG_DATA_QUERY, catalogVariables);
-        setData((prev: any) => ({ ...(prev || {}), catalogs: catalogData }));
+        const catalogData = await graphqlClient.request<CatalogsDataResponse>(CATALOG_DATA_QUERY, catalogVariables);
+        setData((prev) => ({ ...(prev || {}), catalogs: catalogData }));
       } catch (catalogErr: any) {
         setError(catalogErr?.message || 'Catalogs load failed');
       }

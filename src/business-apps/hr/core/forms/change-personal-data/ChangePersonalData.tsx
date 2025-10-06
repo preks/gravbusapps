@@ -7,6 +7,7 @@ import flowIconUrl from '@/assets/icons/flowSmall.svg';
 import { ChangePersonalDataProvider, useChangePersonalData } from './ChangePersonalDataContext';
 import { useForm } from 'react-hook-form';
 import { Separator, Button } from '@newwork/nw-design-system';
+import type { PersonalDataFormValues, CatalogEntry } from './types';
 import NamesGroup from './components/NamesGroup';
 import BirthAndGenderGroup from './components/BirthAndGenderGroup';
 import NationalityLanguageStatusGroup from './components/NationalityLanguageStatusGroup';
@@ -14,39 +15,20 @@ import QualificationFields from './components/QualificationFields';
 import { useFileClient } from '@/common/network/files/useFileClient';
 import { env } from '@/common/env/EnvUtils';
 import { AppActionForm } from '@/components/app-action-form/AppActionForm';
-import { useProcessEventState } from '@/business-apps/fin/expenses/utils/useProcessEventState';
+// import { useProcessEventState } from '@/business-apps/fin/expenses/utils/useProcessEventState';
 import { dispatchProcessContinueEvent } from '@/common/utils/processEventUtils';
  
 
 export interface ChangePersonalDataFormProps extends BusinessAppContextProps {}
 
-type PersonalDataFormValues = {
-  salutationRef: string | null;
-  title: string;
-  firstName: string;
-  lastName: string;
-  displayName: string;
-  preferredName: string;
-  birthName: string;
-  birthDate: string;
-  birthPlace?: string;
-  genderRef?: string | null;
-  nationalityRef?: string | null;
-  languageRef?: string | null;
-  maritalStatusRef?: string | null;
-  severelyDisabilityDegree?: string | number;
-  schoolQualificationRef?: string | null;
-  academicTitleRefs?: string[];
-  comment?: string;
-  employeeDocumentId?: string;
-};
+// form values type moved to types.ts
 
 const ChangePersonalDataContent: React.FC<ChangePersonalDataFormProps> = ({ accessToken, additionalData }) => {
   const [fileList, setFileList] = useState<any[]>([]);
   const { data } = useChangePersonalData();
  
   const employee = useMemo(() => data?.employee?.EmployeeByPk, [data]);
-  const catalogSalutation: any[] = useMemo(() => data?.catalogs?.salutation || [], [data]);
+  const catalogSalutation: CatalogEntry[] = useMemo(() => data?.catalogs?.salutation || [], [data]);
   const catalogs = useMemo(() => ({
     gender: data?.catalogs?.gender || [],
     nationality: data?.catalogs?.nationality || [],
@@ -65,13 +47,11 @@ const ChangePersonalDataContent: React.FC<ChangePersonalDataFormProps> = ({ acce
   const computeDisplayName = (emp: any): string => {
     const hasDisplay = emp?.displayName && String(emp.displayName).trim().length > 0;
     if (hasDisplay) return String(emp.displayName).trim();
-    const title = (emp?.title || '').toString().trim();
-    const first = (emp?.firstName || '').toString().trim();
+    const preferred = (emp?.preferredName || '').toString().trim();
     const last = (emp?.lastName || '').toString().trim();
-    const fullWithTitle = [title, first, last].filter(Boolean).join(' ').trim();
-    if (fullWithTitle.length > 0) return fullWithTitle;
-    const full = [first, last].filter(Boolean).join(' ').trim();
-    return full;
+    const title = (emp?.title || '').toString().trim();
+    const composed = [preferred, last, title].filter(Boolean).join(' ').trim();
+    return composed;
   };
 
   const defaultValues: PersonalDataFormValues = useMemo(() => ({
@@ -105,10 +85,10 @@ const ChangePersonalDataContent: React.FC<ChangePersonalDataFormProps> = ({ acce
   // Normalize default values to match Select option value types (string ids)
   const normalizedDefaults: PersonalDataFormValues = useMemo(() => {
     const toIdString = (val: any) => (val === null || val === undefined || val === '' ? null : String(val));
-    const findId = (list: any[] | undefined, current: any) => {
+    const findId = (list: CatalogEntry[] | undefined, current: any) => {
       if (!list || current === null || current === undefined || current === '') return null;
       const currentStr = String(current);
-      const match = list.find((e: any) => String(e?.id) === currentStr || String(e?.value) === currentStr || String(e?.translations?.[0]?.value) === currentStr);
+      const match = list.find((e) => String(e?.id) === currentStr || String(e?.value) === currentStr || String(e?.translations?.[0]?.value) === currentStr);
       return match ? String(match.id) : toIdString(current);
     };
 
@@ -132,10 +112,10 @@ const ChangePersonalDataContent: React.FC<ChangePersonalDataFormProps> = ({ acce
   }, [normalizedDefaults]);
 
   // Track initial values for change detection
-  const initialRef = useRef<PersonalDataFormValues>(defaultValues);
+  const initialRef = useRef<PersonalDataFormValues>(normalizedDefaults);
   useEffect(() => {
-    initialRef.current = defaultValues;
-  }, [defaultValues]);
+    initialRef.current = normalizedDefaults;
+  }, [normalizedDefaults]);
 
   const normalizeForCompare = (v: PersonalDataFormValues) => ({
     salutationRef: v.salutationRef || null,
@@ -175,7 +155,7 @@ const ChangePersonalDataContent: React.FC<ChangePersonalDataFormProps> = ({ acce
 
 
   return (
-    <div className="gba:mx-auto gba:font-primary gba:flex gba:flex-col" style={{ width: '100%', maxWidth: '800px' }} data-testid="change-personal-data-form-container">
+    <div className="gba:mx-auto gba:font-primary gba:flex gba:flex-col gba:w-[100%] gba:max-w-[800px]" data-testid="change-personal-data-form-container">
       <FormHeader title={title} flowIconUrl={flowIconUrl} />
 
       <div className="gba:flex gba:flex-col gba:gap-4 gba:[&>div[data-testid='change-personal-data']]:!px-0" data-testid="change-personal-data-form-content">
@@ -189,9 +169,12 @@ const ChangePersonalDataContent: React.FC<ChangePersonalDataFormProps> = ({ acce
         <AppActionForm
           processType="update"
           form={form as any}
-          formData={defaultValues}
+          formData={normalizedDefaults}
           submitEventType="pse_submit"
-          onCancel={() => form.reset(defaultValues)}
+          onCancel={() => {
+            form.reset(normalizedDefaults);
+            initialRef.current = normalizedDefaults;
+          }}
           customFormLayout
           handlePreSubmit={async (values) => {
             let uploadedEmployeeDocumentId: string | undefined;

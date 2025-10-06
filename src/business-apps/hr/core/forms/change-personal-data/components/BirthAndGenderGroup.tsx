@@ -2,10 +2,11 @@ import React from 'react';
 import { FormField, FormItem, FormLabel, FormControl, FormMessage, Input, Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@newwork/nw-design-system';
 import type { Control } from 'react-hook-form';
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
+import type { PersonalDataFormValues, CatalogEntry } from '../types';
 
 export interface BirthAndGenderGroupProps {
-  control: Control<any>;
-  catalogs: { gender?: any[] };
+  control: Control<PersonalDataFormValues>;
+  catalogs: { gender?: CatalogEntry[] };
 }
 
 const BirthAndGenderGroup: React.FC<BirthAndGenderGroupProps> = ({ control, catalogs }) => {
@@ -35,14 +36,21 @@ const BirthAndGenderGroup: React.FC<BirthAndGenderGroupProps> = ({ control, cata
       <FormField
         control={control}
         name={"birthDate" as any}
+        rules={{
+          required: getTranslationFromI18nKeyAndLabel(
+            'lowcoder:employee_profile.details_layout.personal_information_container.date_of_birth_validation_message',
+            'Date of birth is not selected.'
+          ),
+        }}
         render={({ field }) => (
           <FormItem>
             <FormLabel data-testid="change-personal-data-dob-label">
               {getTranslationFromI18nKeyAndLabel('lowcoder:employee_profile.details_layout.personal_information_container.date_of_birth', 'Date of Birth')}
+              <span className="gba:text-destructive"> *</span>
             </FormLabel>
             <FormControl>
               <Input
-                className="gba:w-full"
+                className="gba:w-[100%]"
                 {...field}
                 type="date"
                 placeholder={placeholderSelect}
