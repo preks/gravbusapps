@@ -68,12 +68,12 @@ const PieChartComponent: React.FC<PieChartProps> = ({
     };
     
     // Add each data item to config
-    data.forEach((item, index) => {
-      const key = item.name.toLowerCase().replace(/\s+/g, '_');
+    for (const item of data) {
+      const key = item.name.toLowerCase().replaceAll(/\s+/g, '_');
       config[key] = {
         label: item.name,
       };
-    });
+    }
     
     return config;
   }, [data, dataKey, valueType]);
@@ -111,7 +111,7 @@ const PieChartComponent: React.FC<PieChartProps> = ({
           config={chartConfig}
           className="gba:mx-auto"
           style={{ minHeight: height, width: '100%' }}
-          data-testid={dataTestId ?? `${title.toLowerCase().replace(/\s+/g, "-")}-chart`}
+          data-testid={dataTestId ?? `${title.toLowerCase().replaceAll(/\s+/g, "-")}-chart`}
         >
           <PieChart width={500} height={400}>
             <ChartTooltip

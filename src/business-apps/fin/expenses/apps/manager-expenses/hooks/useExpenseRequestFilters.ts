@@ -112,7 +112,7 @@ export const useExpenseRequestFilters = ({
   const handleDataFilterChange = useCallback(
     (filterId: string, selected: boolean) => {
       if (filterId.startsWith("currency:")) {
-        const currency = filterId.replace("currency:", "");
+        const currency = filterId.replaceAll("currency:", "");
 
         if (selected) {
           setLocalPrimaryCurrency(currency);

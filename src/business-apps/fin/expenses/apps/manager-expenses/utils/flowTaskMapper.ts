@@ -53,8 +53,8 @@ export const mapFlowTaskToApprovalRequest = (task: FlowExecutionTask): ApprovalR
     if (!name) return 'Task';
     const spaced = name
       .replace(/([a-z])([A-Z])/g, '$1 $2')
-      .replace(/([A-Za-z])([0-9])/g, '$1 $2')
-      .replace(/([0-9])([A-Za-z])/g, '$1 $2')
+      .replace(/([A-Za-z])(\d)/g, '$1 $2')
+      .replace(/(\d)([A-Za-z])/g, '$1 $2')
       .replace(/Store\s?Director/g, 'Store Director')
       .trim();
     return spaced.charAt(0).toUpperCase() + spaced.slice(1);

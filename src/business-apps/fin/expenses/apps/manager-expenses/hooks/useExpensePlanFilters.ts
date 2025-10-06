@@ -111,7 +111,7 @@ export const useExpensePlanFilters = ({
   const handleDataFilterChange = useCallback((filterId: string, isSelected: boolean) => {
     // Check if this is a currency filter (starts with 'currency:')
     if (filterId.startsWith("currency:")) {
-      const currencyCode = filterId.replace("currency:", "");
+      const currencyCode = filterId.replaceAll("currency:", "");
       if (isSelected) {
         setLocalPrimaryCurrency(currencyCode); // Use local state instead of global store
         setUserHasManuallySelectedCurrency(true); // Mark that user has made a manual selection

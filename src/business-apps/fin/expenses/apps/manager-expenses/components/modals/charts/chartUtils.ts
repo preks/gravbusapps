@@ -46,8 +46,8 @@ export const resolveCssVar = (color?: string | null): string => {
   // SSR or environments without DOM → return original input (can't resolve),
   // but if we have a fallback, return a normalized fallback instead.
   if (
-    typeof globalThis.window === 'undefined' ||
-    typeof globalThis.document === 'undefined' ||
+    globalThis.window === undefined ||
+    globalThis.document === undefined ||
     typeof globalThis.window.getComputedStyle !== 'function'
   ) {
     return fallback ? resolveCssVar(fallback) : input;

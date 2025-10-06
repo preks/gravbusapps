@@ -96,7 +96,7 @@ export const useGetExpensePlans = ({
   const managerId = userInfo?.employeeDetails?.employeeId || "00000000-0000-0000-0000-000000000000";
   
   // Log the managerId to help with debugging
-  console.log('useGetExpensePlans - managerId:', managerId);
+  if (import.meta.env?.DEV) console.log('useGetExpensePlans - managerId:', managerId);
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<Error | null>(null);
   const [plans, setPlans] = useState<ExpensePlan[]>([]);
@@ -110,7 +110,7 @@ export const useGetExpensePlans = ({
   const [statsError, setStatsError] = useState<Error | null>(null);
 
   const fetchPlans = useCallback(async () => {
-    console.log('fetchPlans called with accessToken:', !!accessToken, 'managerId:', managerId);
+    if (import.meta.env?.DEV) console.log('fetchPlans called with accessToken:', !!accessToken, 'managerId:', managerId);
     
     if (!accessToken) {
       setError(new Error('Access token not found. Cannot fetch expense plans.'));
@@ -131,7 +131,7 @@ export const useGetExpensePlans = ({
       const searchValue = searchTerm ? `%${searchTerm}%` : '%%'; 
       const offset = (currentPage - 1) * pageSize;
       
-      console.log('Fetching expense plans with managerId:', managerId);
+      if (import.meta.env?.DEV) console.log('Fetching expense plans with managerId:', managerId);
       
       const response = await fetch(env('NEXT_PUBLIC_GRAPHQL_ENDPOINT_NEWWORK')!, {
         method: 'POST',
@@ -158,7 +158,7 @@ export const useGetExpensePlans = ({
       }
 
       const data = result.data as ExpensePlanResponse;
-      console.log('Expense plans data received:', {
+      if (import.meta.env?.DEV) console.log('Expense plans data received:', {
         plansCount: data.ExpensePlan?.length,
         totalCount: data.ExpensePlanAggregate?.aggregate?.count,
         firstPlan: data.ExpensePlan?.[0],
@@ -171,7 +171,7 @@ export const useGetExpensePlans = ({
       // Map currency information from currencyRef field
       filteredPlans = filteredPlans.map(plan => ({
         ...plan,
-        currency: plan.currencyRef ? plan.currencyRef.replace('Currency:v1:', '') : 'EUR'
+        currency: plan.currencyRef ? plan.currencyRef.replaceAll('Currency:v1:', '') : 'EUR'
       }));
       
       // Filter by employee if employeeFilter is set (client-side for now)
@@ -184,7 +184,7 @@ export const useGetExpensePlans = ({
       setTotalCount(data.ExpensePlanAggregate.aggregate.count);
     } catch (err) {
       setError(err instanceof Error ? err : new Error('Failed to fetch expense plans'));
-      console.error('Error fetching expense plans:', err);
+      if (import.meta.env?.DEV) console.error('Error fetching expense plans:', err);
     } finally {
       setLoading(false);
     }
@@ -220,7 +220,7 @@ export const useGetExpensePlans = ({
       }
       const data = result.data as ExpensePlanStatisticsResponse;
       
-      console.log('Expense plan statistics received:', {
+      if (import.meta.env?.DEV) console.log('Expense plan statistics received:', {
         totalCount: data.allPlansStats?.aggregate.totalCount,
         sumTotalAmount: data.allPlansStats?.aggregate.sum?.totalAmount,
         pendingCount: data.pendingPlansStats?.aggregate.pendingCount,
@@ -235,7 +235,7 @@ export const useGetExpensePlans = ({
       });
     } catch (err) {
       setStatsError(err instanceof Error ? err : new Error('Failed to fetch expense plan statistics'));
-      console.error('Error fetching expense plan statistics:', err);
+      if (import.meta.env?.DEV) console.error('Error fetching expense plan statistics:', err);
     } finally {
       setStatsLoading(false);
     }
@@ -286,7 +286,7 @@ export const useGetExpensePlans = ({
     } catch (err) {
       setError(err instanceof Error ? err : new Error('Failed to approve expense plan'));
       message.error('Failed to approve expense plan');
-      console.error('Error approving expense plan:', err);
+      if (import.meta.env?.DEV) console.error('Error approving expense plan:', err);
     } finally {
       setApproving(false);
     }
@@ -323,7 +323,7 @@ export const useGetExpensePlans = ({
       fetchPlans();
       fetchPlanStatistics();
     } catch (err) {
-      console.error('Error rejecting expense plan:', err);
+      if (import.meta.env?.DEV) console.error('Error rejecting expense plan:', err);
       message.error('Failed to reject expense plan');
     } finally {
       setRejecting(false);

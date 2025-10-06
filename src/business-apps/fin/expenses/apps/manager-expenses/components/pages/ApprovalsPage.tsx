@@ -119,10 +119,14 @@ const ApprovalsPage: React.FC<ApprovalsPageProps> = ({ onNavigateBack, ...props 
         headerSubViews={{
           value: activeTab,
           onValueChange: handleTabChange,
-          items: APPROVAL_TABS.map((tab) => ({
-            value: tab.key,
-            label: `${getTabLabel(tab.key)} ${isLoadingCounts ? '' : `(${tabCounts[tab.key as ApprovalTabKey] || 0})`}`.trim(),
-          })),
+          items: APPROVAL_TABS.map((tab) => {
+            const base = getTabLabel(tab.key);
+            const count = isLoadingCounts ? '' : ` (${tabCounts[tab.key as ApprovalTabKey] || 0})`;
+            return {
+              value: tab.key,
+              label: `${base}${count}`,
+            };
+          }),
         }}
         className="gba:min-h-screen"
       >

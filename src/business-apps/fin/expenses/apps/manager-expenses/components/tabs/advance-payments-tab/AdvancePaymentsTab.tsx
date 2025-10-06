@@ -90,10 +90,10 @@ const AdvancePaymentsTab: React.FC<AdvancePaymentsTabProps> = (props) => {
 
   // Transform sorting to match expected format
   const transformedSorting = useMemo(() => {
-    if (!sorting || !sorting.field || !sorting.order) return null;
+    if (!sorting?.field || !sorting?.order) return null;
     return {
       field: sorting.field,
-      direction: sorting.order.toLowerCase() as "asc" | "desc"
+      direction: sorting.order.toLowerCase() as "asc" | "desc",
     };
   }, [sorting]);
 
@@ -118,18 +118,22 @@ const AdvancePaymentsTab: React.FC<AdvancePaymentsTabProps> = (props) => {
           search: searchTerm,
           filter: statusFilter || [],
           setSearch: handleSearchChange,
-          setFilter: (newFilters) => {
+          setFilter: (newFilters: string[]) => {
             // Convert filters to string IDs for comparison
-            const currentFilters = (statusFilter || []).map((status) => status as unknown as string);
-            const incomingFilters = newFilters.map((status) => status as unknown as string);
+            const currentFilters: string[] = statusFilter || [];
+            const incomingFilters: string[] = newFilters;
 
             // Find filters to remove and add
             const filtersToRemove = currentFilters.filter((f) => !incomingFilters.includes(f));
             const filtersToAdd = incomingFilters.filter((f) => !currentFilters.includes(f));
 
             // Apply filter changes
-            filtersToRemove.forEach((filter) => handleDataFilterChange(filter, false));
-            filtersToAdd.forEach((filter) => handleDataFilterChange(filter, true));
+            for (const filter of filtersToRemove) {
+              handleDataFilterChange(filter, false);
+            }
+            for (const filter of filtersToAdd) {
+              handleDataFilterChange(filter, true);
+            }
           },
           filterLabelMap: filterLabelMap,
           listTitle: (

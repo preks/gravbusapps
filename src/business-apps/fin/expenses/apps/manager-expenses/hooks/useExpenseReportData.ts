@@ -140,6 +140,16 @@ export const useExpenseReportData = ({
     ReportType.EXPENSE_ITEM,
   );
 
+  // Shared helper to build a human-readable employee name
+  const buildEmployeeDisplayName = (e: any): string => {
+    if (!e) return '';
+    const full = (e.fullName || '').trim();
+    if (full) return full;
+    const first = e.firstName || '';
+    const last = e.lastName || '';
+    return `${first} ${last}`.trim();
+  };
+
   // Define report types
   const reportTypes: ReportMetadata[] = [
     {
@@ -192,7 +202,7 @@ export const useExpenseReportData = ({
         isDeleted: { _eq: false },
       };
 
-      if (search && search.trim()) {
+      if (search?.trim()) {
         const searchPattern = `%${search.trim()}%`;
         where._or = [
           { code: { _ilike: searchPattern } },
@@ -214,14 +224,7 @@ export const useExpenseReportData = ({
   const processExpenseItemsData = (data: any): ExpenseItemReport[] => {
     if (!data?.ExpenseItem?.length) return [];
 
-    const getEmployeeName = (e: any): string => {
-      if (!e) return '';
-      const full = (e.fullName || '').trim();
-      if (full) return full;
-      const first = e.firstName || '';
-      const last = e.lastName || '';
-      return `${first} ${last}`.trim();
-    };
+    
 
     return data.ExpenseItem.map((item: any) => {
       // Get the first expense group from positions or use 'Uncategorized'
@@ -229,7 +232,7 @@ export const useExpenseReportData = ({
         item.expensePosition &&
         item.expensePosition.length > 0 &&
         item.expensePosition[0].expenseGroupRef
-          ? item.expensePosition[0].expenseGroupRef.replace("ExpenseGroup:v1:", "")
+          ? item.expensePosition[0].expenseGroupRef.replaceAll("ExpenseGroup:v1:", "")
           : "Uncategorized";
 
       const statusDisplay = item.expenseRequest?.status
@@ -241,15 +244,15 @@ export const useExpenseReportData = ({
         code: item.expenseRequest?.code || "",
         currency:
           item.expenseRequest?.currencyRef
-            ? String(item.expenseRequest.currencyRef).split(":").pop() || ""
-            : "",
+            ? String(item.expenseRequest.currencyRef).split(":").pop() || "EUR"
+            : "EUR",
         // Keep raw date; UI/export formats via ensureShortDateFormat
         date: item.expenseRequest?.createdAt || "",
         title: item.title || "",
         description: item.description || "",
         category: expenseGroup,
         amount: item.totalAmount || 0,
-        employeeName: getEmployeeName(item.employee),
+        employeeName: buildEmployeeDisplayName(item.employee),
         status: statusDisplay.label,
       };
     });
@@ -264,14 +267,7 @@ export const useExpenseReportData = ({
         ? getExpensePlanStatusDisplay(plan.status)
         : { label: "", type: "draft" };
 
-      const getEmployeeName = (e: any): string => {
-        if (!e) return '';
-        const full = (e.fullName || '').trim();
-        if (full) return full;
-        const first = e.firstName || '';
-        const last = e.lastName || '';
-        return `${first} ${last}`.trim();
-      };
+      
 
       return {
         id: plan.id,
@@ -281,8 +277,8 @@ export const useExpenseReportData = ({
         endDate: plan.endDate || "",
         status: statusDisplay.label,
         totalAmount: plan.totalAmount || 0,
-        currency: plan.currencyRef ? String(plan.currencyRef).split(":").pop() || "" : "",
-        employeeName: getEmployeeName(plan.employee),
+        currency: plan.currencyRef ? String(plan.currencyRef).split(":").pop() || "EUR" : "EUR",
+        employeeName: buildEmployeeDisplayName(plan.employee),
         expenseRequestCode:
           Array.isArray(plan.expenseRequest) && plan.expenseRequest.length > 0
             ? plan.expenseRequest[0].code || ""
@@ -301,14 +297,7 @@ export const useExpenseReportData = ({
         ? getExpenseRequestStatusDisplay(request.status)
         : { label: "", type: "draft" };
 
-      const getEmployeeName = (e: any): string => {
-        if (!e) return '';
-        const full = (e.fullName || '').trim();
-        if (full) return full;
-        const first = e.firstName || '';
-        const last = e.lastName || '';
-        return `${first} ${last}`.trim();
-      };
+      
 
       return {
         id: request.id,
@@ -319,8 +308,8 @@ export const useExpenseReportData = ({
         createdAt: request.createdAt || "",
         status: statusDisplay.label,
         totalAmount: request.totalAmount || 0,
-        currency: request.currencyRef ? String(request.currencyRef).split(":").pop() || "" : "",
-        employeeName: getEmployeeName(request.employee),
+        currency: request.currencyRef ? String(request.currencyRef).split(":").pop() || "EUR" : "EUR",
+        employeeName: buildEmployeeDisplayName(request.employee),
       };
     });
   };
@@ -439,15 +428,8 @@ export const useExpenseReportData = ({
     const statusDisplay = p.status
       ? getAdvancePaymentStatusDisplay(p.status)
       : { label: "", type: "draft" };
-    const currencyCode = p?.currencyRef ? String(p.currencyRef).split(":").pop() || "" : "";
-    const getEmployeeName = (e: any): string => {
-      if (!e) return '';
-      const full = (e.fullName || '').trim();
-      if (full) return full;
-      const first = e.firstName || '';
-      const last = e.lastName || '';
-      return `${first} ${last}`.trim();
-    };
+    const currencyCode = p?.currencyRef ? String(p.currencyRef).split(":").pop() || "EUR" : "EUR";
+    
     return {
       id: p.id,
       code: p.expensePlan?.code || p.code || "",
@@ -455,7 +437,7 @@ export const useExpenseReportData = ({
       requestDate: p.createdAt || "",
       status: statusDisplay.label,
       amount: p.amount || 0,
-      employeeName: getEmployeeName(p.expensePlan?.employee) || getEmployeeName(p.employee),
+      employeeName: buildEmployeeDisplayName(p.expensePlan?.employee) || buildEmployeeDisplayName(p.employee),
       paymentMethod: p.paymentMethod || undefined,
       costCenter: p.costCenter?.name || p.costCenter?.code || undefined,
       currency: currencyCode,
@@ -581,7 +563,7 @@ export const useExpenseReportData = ({
         await fetchAdvancePayments();
         break;
       default:
-        console.warn(`Unknown report type: ${selectedReportType}`);
+        if (import.meta.env?.DEV) console.warn(`Unknown report type: ${selectedReportType}`);
     }
   }, [
     selectedReportType,

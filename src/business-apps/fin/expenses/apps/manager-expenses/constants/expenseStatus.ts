@@ -5,8 +5,8 @@ export const EXPENSE_STATUS_NORMALIZE: Record<string, string> = {
   IN_APPROVAL: 'PENDING',
 };
 
-export const normalizeStatus = (status?: string): string => {
-  const raw = status || 'Unknown';
+export const normalizeStatus = (status: string = 'Unknown'): string => {
+  const raw = status;
   return EXPENSE_STATUS_NORMALIZE[raw] ?? raw;
 };
 

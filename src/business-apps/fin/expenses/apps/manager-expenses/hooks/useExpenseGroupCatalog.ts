@@ -74,7 +74,7 @@ export const useExpenseGroupCatalog = (accessToken: string): UseExpenseGroupCata
           // Create a map of id -> catalog entry
           const groupsMap: Record<string, ExpenseGroupCatalogEntry> = {};
 
-          response.expenseGroups.forEach((group: ExpenseGroupResponse) => {
+          for (const group of response.expenseGroups as ExpenseGroupResponse[]) {
             // Use translated name if available, otherwise use default name
             const translatedName = group.translations?.[0]?.name;
             const translatedDescription = group.translations?.[0]?.description;
@@ -104,7 +104,7 @@ export const useExpenseGroupCatalog = (accessToken: string): UseExpenseGroupCata
               // Store by plain CODE as well for convenience lookups
               groupsMap[codeKey] = entry;
             }
-          });
+          }
 
           // Add special case for uncategorized
           groupsMap["Uncategorized"] = {

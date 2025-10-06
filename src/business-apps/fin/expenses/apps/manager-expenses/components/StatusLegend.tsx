@@ -75,7 +75,7 @@ export const pillTypeClassMap: Record<PillType, string> = Object.fromEntries(
 // Helper function to get label with SSR safety
 const getPillTypeLabel = (type: PillType): string => {
   const cfg = STATUS_CONFIG[type];
-  if (typeof globalThis.window !== 'undefined') {
+  if (globalThis.window !== undefined) {
     return getTranslationFromI18nKeyAndLabel(cfg.i18nKey, cfg.fallbackLabel);
   }
   return cfg.fallbackLabel;

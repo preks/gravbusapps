@@ -66,9 +66,9 @@ const resolveCssVar = (color: string): string => {
   
   // During SSR, return the CSS variable as-is (client will resolve after hydration)
   if (
-    typeof globalThis.window === 'undefined' ||
-    typeof globalThis.document === 'undefined' ||
-    typeof globalThis.window.getComputedStyle !== 'function'
+    globalThis.window === undefined ||
+    globalThis.document === undefined ||
+    globalThis.window.getComputedStyle === undefined
   ) {
     return color;
   }
@@ -870,18 +870,7 @@ const TeamSpendingAnalyticsPage: React.FC<TeamSpendingAnalyticsPageProps> = ({
                 )}
               </Label>
             </div>
-            <div className="gba:flex gba:items-center gba:space-x-3 gba:py-1">
-              <RadioGroupItem value={DateRangeOption.CUSTOM} id="custom" data-testid="team-analytics-date-range-custom" />
-              <Label
-                htmlFor="custom"
-                className="gba:text-sm gba:leading-relaxed gba:cursor-pointer"
-              >
-                {getTranslationFromI18nKeyAndLabel(
-                  "lowcoder:team_expenses_page.dashboard_tab.custom_range",
-                  "Custom Range",
-                )}
-              </Label>
-            </div>
+            {/* Custom range option removed */}
           </RadioGroup>
         </div>
 

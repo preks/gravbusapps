@@ -131,9 +131,12 @@ export const useGetExpenseDashboard = (
       })();
 
       // Format the currency reference for the database query (Currency:v1:CODE format)
-      // Always provide a valid code; default to EUR if empty
-      const safeCode = (currencyFilter || '').trim() || 'EUR';
-      const formattedCurrencyRef = `Currency:v1:${safeCode}`;
+      // Normalize to avoid double prefix when the incoming filter already includes it
+      const trimmedCurrency = (currencyFilter || '').trim();
+      const normalizedCurrency = trimmedCurrency.startsWith('Currency:v1:')
+        ? trimmedCurrency
+        : `Currency:v1:${trimmedCurrency || 'EUR'}`;
+      const formattedCurrencyRef = normalizedCurrency;
 
       // Make the request using the GraphQL client
       const result = await graphQLClient.request(GET_EXPENSE_DASHBOARD_BY_MANAGER, {

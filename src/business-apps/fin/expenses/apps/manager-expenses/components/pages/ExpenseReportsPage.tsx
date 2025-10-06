@@ -345,8 +345,7 @@ const ExpenseReportsPage: React.FC<ExpenseReportsPageProps> = ({
     }
   };
 
-  // Server-side search is now handled in the hook, no need for client-side filtering
-  const filteredData = reportData || [];
+  // Server-side search is now handled in the hook; no client-side filtering here
 
   // Handle download action (CSV export)
   const handleDownload = async () => {
@@ -362,7 +361,7 @@ const ExpenseReportsPage: React.FC<ExpenseReportsPageProps> = ({
 
     const allRows = await fetchAllForExport();
     const rows = (allRows as any[]).map((row) => {
-      return cols.map((c) => escapeCsv(formatCellValue(c.key as string, row[c.key as string])));
+      return cols.map((c) => escapeCsv(formatCellValue(c.key, row[c.key])));
     });
 
     const csvLines = [header.join(","), ...rows.map((r) => r.join(","))];
@@ -398,13 +397,14 @@ const ExpenseReportsPage: React.FC<ExpenseReportsPageProps> = ({
     const bodyRows = (allRows as any[])
       .map((row) => {
         const tds = cols
-          .map((c) => `<td>${htmlEscape(formatCellValue(c.key as string, row[c.key as string]))}</td>`) 
+          .map((c) => `<td>${htmlEscape(formatCellValue(c.key, row[c.key]))}</td>`) 
           .join("");
         return `<tr>${tds}</tr>`;
       })
       .join("");
 
-    const html = `<!DOCTYPE html><html><head><meta charset="utf-8" /></head><body><table>${`<thead><tr>${headerCells}</tr></thead>`}<tbody>${bodyRows}</tbody></table></body></html>`;
+    const headerHtml = `<thead><tr>${headerCells}</tr></thead>`;
+    const html = `<!DOCTYPE html><html><head><meta charset="utf-8" /></head><body><table>${headerHtml}<tbody>${bodyRows}</tbody></table></body></html>`;
 
     const blob = new Blob([html], { type: "application/vnd.ms-excel" });
     const url = URL.createObjectURL(blob);
@@ -560,111 +560,114 @@ const ExpenseReportsPage: React.FC<ExpenseReportsPageProps> = ({
               </div>
             </div>
 
-            {/* Report Table */}
-            {isLoading ? (
-              <div className="gba:flex gba:justify-center gba:p-8">
-                <Spinner data-testid="expense-reports-loading-spinner" />
-              </div>
-            ) : reportData && reportData.length > 0 ? (
-              <div className="gba:border gba:border-border gba:rounded-md gba:bg-white">
-                <div className="gba:overflow-x-auto gba:pr-4 gba:border-b gba:border-border">
-                  <Table data-testid="expense-reports-table" className="gba:w-full">
-                    <TableHeader className="gba:sticky gba:top-0 gba:bg-white gba:z-10 gba:border-b gba:border-border">
-                      <TableRow>
-                        {columns.map((column) => (
-                          <TableHead key={column.key} className={`${column.widthClass ?? ''} gba:bg-muted gba:font-semibold`}>{column.title}</TableHead>
-                        ))}
-                      </TableRow>
-                    </TableHeader>
-                  <TableBody>
-                    {reportData.map((row: any, index: number) => (
-                      <TableRow key={`${selectedReportType}-${index}`}>
-                        {columns.map((column) => {
-                          // Extract nested ternary into independent statement
-                          let cellContent: React.ReactNode;
-                          
-                          if (column.key.includes("amount") || column.key.includes("Amount")) {
-                            // Amount columns - format as currency
-                            cellContent = (
-                              <span className="gba:text-sm">
-                                {formatCurrencyDisplay(row[column.key] || 0, row.currency || "EUR")}
-                              </span>
-                            );
-                          } else if ([
-                            "date",
-                            "startDate",
-                            "endDate",
-                            "submissionDate",
-                            "requestDate",
-                            "createdAt",
-                            "planDate",
-                          ].includes(column.key)) {
-                            // Date columns - format as date
-                            cellContent = (
-                              <span className="gba:text-sm">
-                                {row[column.key] ? ensureShortDateFormat(row[column.key]) : "-"}
-                              </span>
-                            );
-                          } else {
-                            // All other columns - display as text
-                            cellContent = (
-                              <span className="gba:text-sm">{row[column.key] || "-"}</span>
-                            );
-                          }
-
-                          return (
-                            <TableCell
-                              key={column.key}
-                              data-testid={`expense-reports-cell-${column.key}`}
-                            >
-                              {cellContent}
-                            </TableCell>
-                          );
-                        })}
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                  </Table>
+          {/* Report Table */}
+          {(() => {
+            if (isLoading) {
+              return (
+                <div className="gba:flex gba:justify-center gba:p-8">
+                  <Spinner data-testid="expense-reports-loading-spinner" />
                 </div>
-                {/* Pagination Footer */}
-                {totalCount > 0 && (
-                  <div className="gba:flex gba:items-center gba:justify-between gba:px-2 gba:py-4 gba:border-t gba:border-border" data-testid="expense-reports-pagination">
-                    <div className="gba:text-sm gba:text-muted-foreground" data-testid="expense-reports-pagination-info">
-                      {`${(currentPage - 1) * pageSize + 1}-${Math.min(currentPage * pageSize, totalCount)} ${getTranslationFromI18nKeyAndLabel("lowcoder:personal_expenses.of", "of")} ${totalCount}`}
-                    </div>
-                    <div className="gba:flex gba:items-center gba:space-x-6 gba:lg:space-x-8">
-                      <div className="gba:flex gba:items-center gba:space-x-2">
-                        <p className="gba:text-sm gba:font-medium">{getTranslationFromI18nKeyAndLabel("lowcoder:personal_expenses.rows_per_page", "Rows per page")}</p>
-                        <select
-                          value={pageSize}
-                          onChange={(e) => {
-                            const size = Number(e.target.value);
-                            setPageSize(size);
-                            setCurrentPage(1);
-                          }}
-                          className="gba:h-8 gba:w-[70px] gba:rounded gba:border gba:border-input gba:px-3 gba:py-1 gba:text-sm"
-                          data-testid="expense-reports-page-size-select"
-                        >
-                          <option value={10}>10</option>
-                          <option value={20}>20</option>
-                          <option value={50}>50</option>
-                          <option value={100}>100</option>
-                        </select>
-                      </div>
-                      <div className="gba:flex gba:w-[100px] gba:items-center gba:justify-center gba:text-sm gba:font-medium" data-testid="expense-reports-page-info">
-                        {getTranslationFromI18nKeyAndLabel("lowcoder:personal_expenses.page", "Page")} {currentPage} {getTranslationFromI18nKeyAndLabel("lowcoder:personal_expenses.of", "of")} {Math.ceil(totalCount / pageSize)}
-                      </div>
-                      <div className="gba:flex gba:items-center gba:space-x-2">
-                        <Button variant="outline" className="gba:h-8 gba:w-8 gba:p-0" onClick={() => setCurrentPage(1)} disabled={currentPage === 1} data-testid="expense-reports-first-page-button">⟪⟪</Button>
-                        <Button variant="outline" className="gba:h-8 gba:w-8 gba:p-0" onClick={() => setCurrentPage(Math.max(1, currentPage - 1))} disabled={currentPage === 1} data-testid="expense-reports-previous-page-button">⟪</Button>
-                        <Button variant="outline" className="gba:h-8 gba:w-8 gba:p-0" onClick={() => setCurrentPage(Math.min(Math.ceil(totalCount / pageSize), currentPage + 1))} disabled={currentPage >= Math.ceil(totalCount / pageSize)} data-testid="expense-reports-next-page-button">⟫</Button>
-                        <Button variant="outline" className="gba:h-8 gba:w-8 gba:p-0" onClick={() => setCurrentPage(Math.ceil(totalCount / pageSize))} disabled={currentPage >= Math.ceil(totalCount / pageSize)} data-testid="expense-reports-last-page-button">⟫⟫</Button>
-                      </div>
-                    </div>
+              );
+            }
+            if (reportData && reportData.length > 0) {
+              return (
+                <div className="gba:border gba:border-border gba:rounded-md gba:bg-white">
+                  <div className="gba:overflow-x-auto gba:pr-4 gba:border-b gba:border-border">
+                    <Table data-testid="expense-reports-table" className="gba:w-full">
+                      <TableHeader className="gba:sticky gba:top-0 gba:bg-white gba:z-10 gba:border-b gba:border-border">
+                        <TableRow>
+                          {columns.map((column) => (
+                            <TableHead key={column.key} className={`${column.widthClass ?? ''} gba:bg-muted gba:font-semibold`}>{column.title}</TableHead>
+                          ))}
+                        </TableRow>
+                      </TableHeader>
+                    <TableBody>
+                      {reportData.map((row: any, index: number) => (
+                        <TableRow key={`${selectedReportType}-${index}`}>
+                          {columns.map((column) => {
+                            let cellContent: React.ReactNode;
+
+                            if (column.key.includes("amount") || column.key.includes("Amount")) {
+                              cellContent = (
+                                <span className="gba:text-sm">
+                                  {formatCurrencyDisplay(row[column.key] || 0, row.currency || "EUR")}
+                                </span>
+                              );
+                            } else if ([
+                              "date",
+                              "startDate",
+                              "endDate",
+                              "submissionDate",
+                              "requestDate",
+                              "createdAt",
+                              "planDate",
+                            ].includes(column.key)) {
+                              cellContent = (
+                                <span className="gba:text-sm">
+                                  {row[column.key] ? ensureShortDateFormat(row[column.key]) : "-"}
+                                </span>
+                              );
+                            } else {
+                              cellContent = (
+                                <span className="gba:text-sm">{row[column.key] || "-"}</span>
+                              );
+                            }
+
+                            return (
+                              <TableCell
+                                key={column.key}
+                                data-testid={`expense-reports-cell-${column.key}`}
+                              >
+                                {cellContent}
+                              </TableCell>
+                            );
+                          })}
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                    </Table>
                   </div>
-                )}
-              </div>
-            ) : (
+                  {/* Pagination Footer */}
+                  {totalCount > 0 && (
+                    <div className="gba:flex gba:items-center gba:justify-between gba:px-2 gba:py-4 gba:border-t gba:border-border" data-testid="expense-reports-pagination">
+                      <div className="gba:text-sm gba:text-muted-foreground" data-testid="expense-reports-pagination-info">
+                        {`${(currentPage - 1) * pageSize + 1}-${Math.min(currentPage * pageSize, totalCount)} ${getTranslationFromI18nKeyAndLabel("lowcoder:personal_expenses.of", "of")} ${totalCount}`}
+                      </div>
+                      <div className="gba:flex gba:items-center gba:space-x-6 gba:lg:space-x-8">
+                        <div className="gba:flex gba:items-center gba:space-x-2">
+                          <p className="gba:text-sm gba:font-medium">{getTranslationFromI18nKeyAndLabel("lowcoder:personal_expenses.rows_per_page", "Rows per page")}</p>
+                          <select
+                            value={pageSize}
+                            onChange={(e) => {
+                              const size = Number(e.target.value);
+                              setPageSize(size);
+                              setCurrentPage(1);
+                            }}
+                            className="gba:h-8 gba:w-[70px] gba:rounded gba:border gba:border-input gba:px-3 gba:py-1 gba:text-sm"
+                            data-testid="expense-reports-page-size-select"
+                          >
+                            <option value={10}>10</option>
+                            <option value={20}>20</option>
+                            <option value={50}>50</option>
+                            <option value={100}>100</option>
+                          </select>
+                        </div>
+                        <div className="gba:flex gba:w-[100px] gba:items-center gba:justify-center gba:text-sm gba:font-medium" data-testid="expense-reports-page-info">
+                          {getTranslationFromI18nKeyAndLabel("lowcoder:personal_expenses.page", "Page")} {currentPage} {getTranslationFromI18nKeyAndLabel("lowcoder:personal_expenses.of", "of")} {Math.ceil(totalCount / pageSize)}
+                        </div>
+                        <div className="gba:flex gba:items-center gba:space-x-2">
+                          <Button variant="outline" className="gba:h-8 gba:w-8 gba:p-0" onClick={() => setCurrentPage(1)} disabled={currentPage === 1} data-testid="expense-reports-first-page-button">⟪⟪</Button>
+                          <Button variant="outline" className="gba:h-8 gba:w-8 gba:p-0" onClick={() => setCurrentPage(Math.max(1, currentPage - 1))} disabled={currentPage === 1} data-testid="expense-reports-previous-page-button">⟪</Button>
+                          <Button variant="outline" className="gba:h-8 gba:w-8 gba:p-0" onClick={() => setCurrentPage(Math.min(Math.ceil(totalCount / pageSize), currentPage + 1))} disabled={currentPage >= Math.ceil(totalCount / pageSize)} data-testid="expense-reports-next-page-button">⟫</Button>
+                          <Button variant="outline" className="gba:h-8 gba:w-8 gba:p-0" onClick={() => setCurrentPage(Math.ceil(totalCount / pageSize))} disabled={currentPage >= Math.ceil(totalCount / pageSize)} data-testid="expense-reports-last-page-button">⟫⟫</Button>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              );
+            }
+            return (
               <div className="gba:flex gba:flex-col gba:items-center gba:justify-center gba:p-8 gba:text-center">
                 <div className="gba:text-muted-foreground gba:text-lg gba:font-medium gba:mb-2">
                   {getTranslationFromI18nKeyAndLabel(
@@ -679,7 +682,8 @@ const ExpenseReportsPage: React.FC<ExpenseReportsPageProps> = ({
                   )}
                 </div>
               </div>
-            )}
+            );
+          })()}
           </div>
         </div>
       </PageLayout>

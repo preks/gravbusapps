@@ -38,8 +38,8 @@ import { formatCurrencyDisplay } from "../../../../personal-expenses/utils";
 import { getAdvancePaymentStatusDisplay } from "../../../utils";
 import {
   getTranslationFromI18nKeyAndLabel,
-  getCurrentActiveUserLocale,
 } from "@/common/utils/windowUtils";
+import { ensureShortDateFormat } from "../../../utils/dateUtils";
 import { navigateTo, buildPlatformUrl } from "@/common/utils/navigationUtils";
 import { AdvancePayment as AdvancePaymentItem } from "../../../hooks/useMainViewAdvancePayments";
 import AdvancePaymentDetails from "./AdvancePaymentDetails";
@@ -345,38 +345,10 @@ const AdvancePaymentsTable: React.FC<AdvancePaymentsTableProps> = (props) => {
                     </div>
                   </TableCell>
                   <TableCell className="gba:text-sm gba:py-3 gba:px-4">
-                    {record.expensePlan?.startDate
-                      ? (() => {
-                          try {
-                            const date = new Date(record.expensePlan.startDate);
-                            const userLocale = getCurrentActiveUserLocale();
-                            return date.toLocaleDateString(userLocale, {
-                              month: "2-digit",
-                              day: "2-digit",
-                              year: "2-digit",
-                            });
-                          } catch (error) {
-                            return getTranslationFromI18nKeyAndLabel("lowcoder:common.not_available","N/A");
-                          }
-                        })()
-                      : getTranslationFromI18nKeyAndLabel("lowcoder:common.not_available","N/A")}
+                    {ensureShortDateFormat(record.expensePlan?.startDate)}
                   </TableCell>
                   <TableCell className="gba:text-sm gba:py-3 gba:px-4">
-                    {record.expensePlan?.endDate
-                      ? (() => {
-                          try {
-                            const date = new Date(record.expensePlan.endDate);
-                            const userLocale = getCurrentActiveUserLocale();
-                            return date.toLocaleDateString(userLocale, {
-                              month: "2-digit",
-                              day: "2-digit",
-                              year: "2-digit",
-                            });
-                          } catch (error) {
-                            return getTranslationFromI18nKeyAndLabel("lowcoder:common.not_available","N/A");
-                          }
-                        })()
-                      : getTranslationFromI18nKeyAndLabel("lowcoder:common.not_available","N/A")}
+                    {ensureShortDateFormat(record.expensePlan?.endDate)}
                   </TableCell>
                   <TableCell>
                     <div className="gba:flex gba:items-center gba:gap-2">
@@ -394,28 +366,17 @@ const AdvancePaymentsTable: React.FC<AdvancePaymentsTableProps> = (props) => {
                         </AvatarFallback>
                       </Avatar>
                       <span className="gba:font-medium gba:text-sm">
-                        {record.expensePlan?.employee?.displayName ??
-                          record.expensePlan?.employee?.fullName ??
-                          getTranslationFromI18nKeyAndLabel("lowcoder:common.not_available","N/A")}
+                        {(() => {
+                          const emp = record.expensePlan?.employee as any;
+                          const full = (emp?.fullName || "").trim();
+                          const fallback = `${emp?.firstName || ""} ${emp?.lastName || ""}`.trim();
+                          return full || fallback || getTranslationFromI18nKeyAndLabel("lowcoder:common.not_available","N/A");
+                        })()}
                       </span>
                     </div>
                   </TableCell>
                   <TableCell className="gba:text-sm gba:py-3 gba:px-4">
-                    {record.createdAt
-                      ? (() => {
-                          try {
-                            const date = new Date(record.createdAt);
-                            const userLocale = getCurrentActiveUserLocale();
-                            return date.toLocaleDateString(userLocale, {
-                              month: "2-digit",
-                              day: "2-digit",
-                              year: "2-digit",
-                            });
-                          } catch (error) {
-                            return getTranslationFromI18nKeyAndLabel("lowcoder:common.not_available","N/A");
-                          }
-                        })()
-                      : getTranslationFromI18nKeyAndLabel("lowcoder:common.not_available","N/A")}
+                    {ensureShortDateFormat(record.createdAt)}
                   </TableCell>
                   <TableCell
                     className="gba:text-right"
@@ -425,7 +386,7 @@ const AdvancePaymentsTable: React.FC<AdvancePaymentsTableProps> = (props) => {
                       {typeof record.amount === "number"
                         ? formatCurrencyDisplay(
                             record.amount,
-                            (record.currencyRef || currencyFilter || "").replace(
+                            (record.currencyRef || currencyFilter || "").replaceAll(
                               "Currency:v1:",
                               "",
                             ) || "EUR",

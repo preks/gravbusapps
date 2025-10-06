@@ -151,8 +151,7 @@ export enum DateRangeOption {
   LAST_6_MONTHS = 'last6Months',
   LAST_YEAR = 'lastYear',
   YEAR_TO_DATE = 'yearToDate',
-  ALL_TIME = 'allTime',
-  CUSTOM = 'custom'
+  ALL_TIME = 'allTime'
 }
 
 export interface DateRangeValues {
@@ -181,7 +180,7 @@ export const useTeamSpendingAnalytics = (
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
   const [dateRange, setDateRange] = useState<DateRangeOption>(DateRangeOption.LAST_30_DAYS);
-  const [customDateRange, setCustomDateRange] = useState<DateRangeValues>({ startDate: null, endDate: null });
+  // Removed custom date range handling
   const [locationFilters, setLocationFilters] = useState<LocationFilter[]>([]);
   const [departmentFilters, setDepartmentFilters] = useState<DepartmentFilter[]>([]);
   const [searchTerm, setSearchTerm] = useState<string>('');
@@ -195,13 +194,6 @@ export const useTeamSpendingAnalytics = (
     const now = dayjs();
     let startDate: string | null = null;
     let endDate = now.format('YYYY-MM-DD');
-    
-    if (dateRange === DateRangeOption.CUSTOM && customDateRange.startDate && customDateRange.endDate) {
-      return {
-        startDate: customDateRange.startDate,
-        endDate: customDateRange.endDate
-      };
-    }
     
     switch (dateRange) {
       case DateRangeOption.LAST_30_DAYS:
@@ -227,7 +219,7 @@ export const useTeamSpendingAnalytics = (
     }
     
     return { startDate, endDate };
-  }, [dateRange, customDateRange]);
+  }, [dateRange]);
   
   // Fetch analytics data
   useEffect(() => {
@@ -540,14 +532,7 @@ export const useTeamSpendingAnalytics = (
           break;
         case DateRangeOption.ALL_TIME:
           return true; // No date filtering
-        case DateRangeOption.CUSTOM:
-          if (customDateRange.startDate) {
-            startDate = dayjs(customDateRange.startDate);
-          }
-          if (customDateRange.endDate) {
-            endDate = dayjs(customDateRange.endDate);
-          }
-          break;
+        // CUSTOM removed
       }
 
       // Check if date is within range
@@ -879,7 +864,7 @@ export const useTeamSpendingAnalytics = (
       totalPlanAmount,
       totalAdvanceAmount
     };
-  }, [rawData, locationFilters, departmentFilters, dateRange, customDateRange, currencyFilter]);
+  }, [rawData, locationFilters, departmentFilters, dateRange, currencyFilter]);
 
   return {
     isLoading,
@@ -887,8 +872,7 @@ export const useTeamSpendingAnalytics = (
     data: processedData,
     dateRange,
     setDateRange,
-    customDateRange,
-    setCustomDateRange,
+    // custom range removed
     locationFilters: filteredLocationFilters,
     toggleLocationFilter,
     searchTerm,

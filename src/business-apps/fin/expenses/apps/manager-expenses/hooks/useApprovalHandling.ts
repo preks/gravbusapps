@@ -47,43 +47,36 @@ export const useApprovalHandling = ({
     if (!originalTask?.endpoint) return undefined;
     const parts: string[] = String(originalTask.endpoint).split('/');
     if (tabKeyLocal === 'handout-payment') {
-      const idx = parts.findIndex((p) => p === 'payAdvancePayment');
+      const idx = parts.indexOf('payAdvancePayment');
       return idx !== -1 ? parts[idx + 1] : undefined;
     }
-    const idx = parts.findIndex((p) => p === processName);
+    const idx = parts.indexOf(processName);
     return idx !== -1 ? parts[idx + 1] : undefined;
   };
 
-  const buildGetUrl = (
-    baseUrl: string,
-    domain: string,
-    processName: string,
-    processInstanceId: string,
-    taskName: string,
-    taskInstanceId: string,
-    userId: string,
-    tabKeyLocal: string,
-  ): string => {
-    if (tabKeyLocal === 'handout-payment') {
-      return `${baseUrl}/processes/${domain}/payAdvancePayment/${processInstanceId}/${taskName}/${taskInstanceId}?user=${userId}`;
-    }
-    return `${baseUrl}/processes/${domain}/${processName}/${processInstanceId}/${taskName}/${taskInstanceId}?user=${userId}`;
+  type RequestContext = {
+    baseUrl: string;
+    domain: string;
+    processName: string;
+    processInstanceId: string;
+    taskName: string;
+    taskInstanceId: string;
+    userId: string;
+    tabKeyLocal: string;
   };
 
-  const buildPostUrl = (
-    baseUrl: string,
-    domain: string,
-    processName: string,
-    processInstanceId: string,
-    taskName: string,
-    taskInstanceId: string,
-    userId: string,
-    tabKeyLocal: string,
-  ): string => {
-    if (tabKeyLocal === 'handout-payment') {
-      return `${baseUrl}/processes/${domain}/payAdvancePayment/${processInstanceId}/${taskName}/${taskInstanceId}?phase=complete&user=${userId}`;
+  const buildGetUrl = (ctx: RequestContext): string => {
+    if (ctx.tabKeyLocal === 'handout-payment') {
+      return `${ctx.baseUrl}/processes/${ctx.domain}/payAdvancePayment/${ctx.processInstanceId}/${ctx.taskName}/${ctx.taskInstanceId}?user=${ctx.userId}`;
     }
-    return `${baseUrl}/processes/${domain}/${processName}/${processInstanceId}/${taskName}/${taskInstanceId}?phase=complete&user=${userId}`;
+    return `${ctx.baseUrl}/processes/${ctx.domain}/${ctx.processName}/${ctx.processInstanceId}/${ctx.taskName}/${ctx.taskInstanceId}?user=${ctx.userId}`;
+  };
+
+  const buildPostUrl = (ctx: RequestContext): string => {
+    if (ctx.tabKeyLocal === 'handout-payment') {
+      return `${ctx.baseUrl}/processes/${ctx.domain}/payAdvancePayment/${ctx.processInstanceId}/${ctx.taskName}/${ctx.taskInstanceId}?phase=complete&user=${ctx.userId}`;
+    }
+    return `${ctx.baseUrl}/processes/${ctx.domain}/${ctx.processName}/${ctx.processInstanceId}/${ctx.taskName}/${ctx.taskInstanceId}?phase=complete&user=${ctx.userId}`;
   };
 
   const extractEntityIdFromTaskData = (tabKeyLocal: string, taskData: any): string | undefined => {
@@ -97,8 +90,9 @@ export const useApprovalHandling = ({
       case 'expense-plan':
         return p.expensePlan?.id || p.plan?.id || p.expensePlanId;
       case 'handout-payment':
-      case 'transfer-payment':
         return p.advancePayment?.id;
+      case 'transfer-payment':
+        return p.transferPayment?.id || p.advancePayment?.id; // Prefer transferPayment id, fallback for legacy payloads
       default:
         return undefined;
     }
@@ -112,36 +106,21 @@ export const useApprovalHandling = ({
       updated.expenseRequestComment.expenseRequest = entityId;
     } else if (tabKeyLocal === 'expense-plan' && updated.expensePlanComment) {
       updated.expensePlanComment.expensePlan = entityId;
-    } else if ((tabKeyLocal === 'handout-payment' || tabKeyLocal === 'transfer-payment') && updated.advancePaymentComment) {
-      updated.advancePaymentComment.advancePayment = entityId;
+    } else if (tabKeyLocal === 'handout-payment' && updated.handoutPaymentComment) {
+      updated.handoutPaymentComment.handoutPayment = entityId;
+    } else if (tabKeyLocal === 'transfer-payment' && updated.transferPaymentComment) {
+      updated.transferPaymentComment.transferPayment = entityId;
     }
     return updated;
   };
 
   const fetchEntityIdIfNeeded = async (
     selectedTask: ApprovalRequest | undefined,
-    originalTask: any,
-    baseUrl: string,
-    domain: string,
-    processName: string,
-    processInstanceId: string,
-    taskName: string,
-    taskInstanceId: string,
-    userId: string,
-    tabKeyLocal: string,
+    ctx: RequestContext,
   ): Promise<string> => {
     if (selectedTask?.entityId) return selectedTask.entityId;
 
-    const getUrl = buildGetUrl(
-      baseUrl,
-      domain,
-      processName,
-      processInstanceId,
-      taskName,
-      taskInstanceId,
-      userId,
-      tabKeyLocal,
-    );
+    const getUrl = buildGetUrl(ctx);
 
     const getResponse = await fetch(getUrl, {
       method: 'GET',
@@ -159,12 +138,12 @@ export const useApprovalHandling = ({
       );
     }
     const taskData = await getResponse.json();
-    const entityId = extractEntityIdFromTaskData(tabKeyLocal, taskData);
+    const entityId = extractEntityIdFromTaskData(ctx.tabKeyLocal, taskData);
     if (!entityId) {
       throw new Error(
         getTranslationFromI18nKeyAndLabel(
           'lowcoder:approvals.entity_id_missing',
-          `Could not find entity ID in task data for ${tabKeyLocal}`,
+          `Could not find entity ID in task data for ${ctx.tabKeyLocal}`,
         ),
       );
     }
@@ -194,9 +173,7 @@ export const useApprovalHandling = ({
 
     const baseUrl = env('NEXT_PUBLIC_BASE_URL') ?? '';
     const selectedTask = selectedTasks.find((t) => t.id === taskInstanceId);
-    const entityId = await fetchEntityIdIfNeeded(
-      selectedTask,
-      originalTask,
+    const ctx: RequestContext = {
       baseUrl,
       domain,
       processName,
@@ -204,20 +181,12 @@ export const useApprovalHandling = ({
       taskName,
       taskInstanceId,
       userId,
-      tabConfig.key,
-    );
+      tabKeyLocal: tabConfig.key,
+    };
+    const entityId = await fetchEntityIdIfNeeded(selectedTask, ctx);
 
     const updatedPayload = applyEntityIdToPayload(tabConfig.key, approvalPayload, entityId);
-    const postUrl = buildPostUrl(
-      baseUrl,
-      domain,
-      processName,
-      processInstanceId,
-      taskName,
-      taskInstanceId,
-      userId,
-      tabConfig.key,
-    );
+    const postUrl = buildPostUrl(ctx);
 
     const postResponse = await fetch(postUrl, {
       method: 'POST',

@@ -68,7 +68,7 @@ export const useExpensePlanCurrencies = (
 
           plans.forEach((plan) => {
             if (plan.currencyRef) {
-              const currency = plan.currencyRef.replace("Currency:v1:", "");
+              const currency = plan.currencyRef.replaceAll("Currency:v1:", "");
               currencyMap.set(currency, (currencyMap.get(currency) || 0) + 1);
             }
           });

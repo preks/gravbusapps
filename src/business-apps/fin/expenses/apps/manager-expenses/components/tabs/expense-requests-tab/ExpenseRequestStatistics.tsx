@@ -98,11 +98,7 @@ const ExpenseRequestStatistics: React.FC<ExpenseRequestStatisticsProps> = ({
             "Total Requests Submitted",
           ),
           value: requestStats.totalRequestsSubmitted,
-          color: (() => {
-            const multiFilters = ["PENDING", "APPROVED", "VERIFIED", "BOOKED", "TRANSFERRED"];
-            const allActive = multiFilters.every((filter) => selectedFilters.includes(filter));
-            return allActive ? "var(--nw-primary)" : "var(--nw-primary)";
-          })(),
+          color: "var(--nw-primary)",
           
           description: getTranslationFromI18nKeyAndLabel(
             "lowcoder:team_expenses_page.expense_requests_tab.all_submitted_requests",

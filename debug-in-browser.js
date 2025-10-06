@@ -123,7 +123,9 @@ if (myEmployeeId && accessToken) {
     
     if (data.data?.ExpenseRequest?.length > 0) {
       console.log(`✅ Found ${data.data.ExpenseRequest.length} expense request(s) for Razvan:`);
-      data.data.ExpenseRequest.forEach((req, idx) => {
+      const list = data.data.ExpenseRequest;
+      for (let idx = 0; idx < list.length; idx++) {
+        const req = list[idx];
         console.log(`   Request ${idx + 1}:`);
         console.log('     Code:', req.code);
         console.log('     Title:', req.title);
@@ -132,7 +134,7 @@ if (myEmployeeId && accessToken) {
         console.log('     Currency:', req.currencyRef);
         console.log('     Supervisor ID:', req.employee.employeePosition?.supervisorEmployeeId);
         console.log('     Reports to you?', req.employee.employeePosition?.supervisorEmployeeId === myEmployeeId ? '✅ YES' : '❌ NO');
-      });
+      }
     } else {
       console.log('❌ PROBLEM: No expense requests found for Razvan!');
     }
@@ -188,9 +190,9 @@ if (myEmployeeId && accessToken) {
       
       if (razvanRequests.length > 0) {
         console.log(`✅ ${razvanRequests.length} of these are from Razvan!`);
-        razvanRequests.forEach(req => {
+        for (const req of razvanRequests) {
           console.log('   -', req.title, '(', req.status, ')');
-        });
+        }
       } else {
         console.log('❌ PROBLEM: None of these requests are from Razvan!');
         console.log('Team members found:', [...new Set(data.data.ExpenseRequest.map(r => r.employee.fullName))]);

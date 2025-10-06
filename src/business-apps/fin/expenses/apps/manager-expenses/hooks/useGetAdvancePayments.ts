@@ -111,7 +111,7 @@ export const useGetAdvancePayments = (context?: BusinessAppContextProps): Advanc
     const employeeId = context?.userInfo?.employeeDetails?.employeeId || context?.userInfo?.id || '00000000-0000-0000-0000-000000000000'; // Use real user info with fallback UUID
     const accessToken = context?.accessToken;
     
-    console.log('fetchAdvancePayments called with accessToken:', !!accessToken, 'employeeId:', employeeId);
+    if (import.meta.env?.DEV) console.log('fetchAdvancePayments called with accessToken:', !!accessToken, 'employeeId:', employeeId);
 
     if (!employeeId) {
       setError('Employee ID (Manager ID) not found. Cannot fetch advance payments.');
@@ -154,16 +154,16 @@ export const useGetAdvancePayments = (context?: BusinessAppContextProps): Advanc
       const result = await response.json();
       
       if (result.errors && result.errors.length > 0) {
-        console.error('GraphQL Errors:', result.errors);
+        if (import.meta.env?.DEV) console.error('GraphQL Errors:', result.errors);
         throw new Error(result.errors.map((e: any) => e.message).join(', '));
       }
       
       if (!result.data) {
-        console.error('No data returned from GraphQL query:', result);
+        if (import.meta.env?.DEV) console.error('No data returned from GraphQL query:', result);
         throw new Error('No data returned from query.');
       }
 
-      console.log('Advance payments data received:', {
+      if (import.meta.env?.DEV) console.log('Advance payments data received:', {
         paymentsCount: result.data.AdvancePayment?.length,
         totalCount: result.data.AdvancePaymentAggregate?.aggregate?.count,
         variables: {
@@ -180,7 +180,7 @@ export const useGetAdvancePayments = (context?: BusinessAppContextProps): Advanc
       setTotalCount(result.data.AdvancePaymentAggregate?.aggregate?.count ?? 0);
 
     } catch (err: any) {
-      console.error('Error fetching advance payments by manager:', err);
+      if (import.meta.env?.DEV) console.error('Error fetching advance payments by manager:', err);
       setError(err.message ?? 'Failed to fetch advance payments.');
       setPayments([]);
       setTotalCount(0);
@@ -194,7 +194,7 @@ export const useGetAdvancePayments = (context?: BusinessAppContextProps): Advanc
     const employeeId = context?.userInfo?.employeeDetails?.employeeId || context?.userInfo?.id || '00000000-0000-0000-0000-000000000000'; // Use real user info with fallback UUID
     const accessToken = context?.accessToken;
     
-    console.log('fetchAdvancePaymentStatistics called with accessToken:', !!accessToken, 'employeeId:', employeeId);
+    if (import.meta.env?.DEV) console.log('fetchAdvancePaymentStatistics called with accessToken:', !!accessToken, 'employeeId:', employeeId);
 
     if (!employeeId) {
       setStatsError('Employee ID (Manager ID) not found. Cannot fetch advance payment statistics.');
@@ -235,29 +235,29 @@ export const useGetAdvancePayments = (context?: BusinessAppContextProps): Advanc
       const result = await response.json();
 
       if (result.errors && result.errors.length > 0) {
-        console.error('GraphQL Errors (Statistics):', result.errors);
+        if (import.meta.env?.DEV) console.error('GraphQL Errors (Statistics):', result.errors);
         throw new Error(result.errors.map((e: any) => e.message).join(', '));
       }
       
-      console.log('Advance payment statistics received:', {
+      if (import.meta.env?.DEV) console.log('Advance payment statistics received:', {
         data: result.data,
         employeeId
       });
       
       if (!result.data?.advancePaymentStats?.aggregate?.sum) {
         // It's possible advancePaymentStats is null or sum is null if no records match, handle gracefully
-        console.log('No advance payment statistics data available');
+        if (import.meta.env?.DEV) console.log('No advance payment statistics data available');
         setAdvancePaymentStats({ totalAmount: null }); 
       } else {
          const stats = {
            totalAmount: result.data.advancePaymentStats.aggregate.sum.amount,
          };
-         console.log('Setting advance payment statistics:', stats);
+         if (import.meta.env?.DEV) console.log('Setting advance payment statistics:', stats);
          setAdvancePaymentStats(stats);
       }
 
     } catch (err: any) {
-      console.error('Error fetching advance payment statistics:', err);
+      if (import.meta.env?.DEV) console.error('Error fetching advance payment statistics:', err);
       setStatsError(err.message ?? 'Failed to fetch advance payment statistics.');
       setAdvancePaymentStats(null);
     } finally {

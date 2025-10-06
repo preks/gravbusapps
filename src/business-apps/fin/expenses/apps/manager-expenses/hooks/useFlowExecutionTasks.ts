@@ -4,6 +4,7 @@ import {
   FlowMetricsClient,
   FlowExecutionTask,
   FlowExecutionTasksParams,
+  FlowExecutionTasksResponse,
 } from '@/common/network/flow-metrics/FlowMetricsClient';
 
 type FetchVariantTasksResult = {
@@ -29,26 +30,31 @@ const fetchTasksWithVariants = async (
     }),
   ]);
 
-  const baseTasks = (baseResponse as any).processingStates || (baseResponse as any).content || [];
-  const variantTasks = (variantResponse as any).processingStates || (variantResponse as any).content || [];
+  const getTasks = (res: FlowExecutionTasksResponse): FlowExecutionTask[] =>
+    res.processingStates ?? res.content ?? [];
+
+  const baseTasks = getTasks(baseResponse);
+  const variantTasks = getTasks(variantResponse);
 
   const taskMap = new Map<string, FlowExecutionTask>();
-  [...baseTasks, ...variantTasks].forEach((task: FlowExecutionTask) => {
-    if (!taskMap.has(task.id)) {
-      taskMap.set(task.id, task);
-    }
-  });
+  for (const task of baseTasks) {
+    if (!taskMap.has(task.id)) taskMap.set(task.id, task);
+  }
+  for (const task of variantTasks) {
+    if (!taskMap.has(task.id)) taskMap.set(task.id, task);
+  }
 
   const merged = Array.from(taskMap.values());
-  merged.sort((a: any, b: any) => {
-    const dateA = new Date((a as any).started || (a as any).lastUpdate || 0).getTime();
-    const dateB = new Date((b as any).started || (b as any).lastUpdate || 0).getTime();
+  merged.sort((a, b) => {
+    const dateA = new Date(a.started ?? a.lastUpdate ?? 0).getTime();
+    const dateB = new Date(b.started ?? b.lastUpdate ?? 0).getTime();
     return dateB - dateA;
   });
 
-  const totalCount =
-    (baseResponse.totalCount || (baseResponse as any).totalElements || 0) +
-    (variantResponse.totalCount || (variantResponse as any).totalElements || 0);
+  const getTotal = (res: FlowExecutionTasksResponse): number =>
+    res.totalCount ?? res.totalElements ?? 0;
+
+  const totalCount = getTotal(baseResponse) + getTotal(variantResponse);
 
   return { tasks: merged, totalCount };
 };
@@ -151,7 +157,7 @@ export const useFlowExecutionTasks = (
         // Merge result can exceed the requested page size because we fetch
         // two independent pages (base + variant). To keep the UI contract
         // consistent with the selected page size, trim to `pageSize`.
-        allTasks = (result.tasks as any[]).slice(0, pageSize);
+        allTasks = result.tasks.slice(0, pageSize);
         totalCount = result.totalCount;
       } else {
         // Single fetch for other task types

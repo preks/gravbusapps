@@ -642,30 +642,38 @@ const ExpensePlansTable: React.FC<ExpensePlansTableProps> = (props) => {
               {getTranslationFromI18nKeyAndLabel("lowcoder:print.title", "Print Expense Plan")}
             </DialogTitle>
           </DialogHeader>
-          {printLoading ? (
-            <div className="gba:flex gba:justify-center gba:items-center gba:py-8">
-              <Spinner />
-            </div>
-          ) : printPdfUrl ? (
-            <iframe
-              src={printPdfUrl}
-              className="gba:w-full gba:h-full gba:border-0"
-              title={getTranslationFromI18nKeyAndLabel("lowcoder:print.preview_title","Print Preview")}
-              data-testid="print-plan-iframe"
-            />
-          ) : (
-            <div className="gba:flex gba:flex-col gba:items-center gba:justify-center gba:py-8 gba:text-center">
-              <div className="gba:text-muted-foreground gba:mb-4">
-                {getTranslationFromI18nKeyAndLabel("lowcoder:print.no_document","No document available for printing")}
+          {(() => {
+            if (printLoading) {
+              return (
+                <div className="gba:flex gba:justify-center gba:items-center gba:py-8">
+                  <Spinner />
+                </div>
+              );
+            }
+            if (printPdfUrl) {
+              return (
+                <iframe
+                  src={printPdfUrl}
+                  className="gba:w-full gba:h-full gba:border-0"
+                  title={getTranslationFromI18nKeyAndLabel("lowcoder:print.preview_title","Print Preview")}
+                  data-testid="print-plan-iframe"
+                />
+              );
+            }
+            return (
+              <div className="gba:flex gba:flex-col gba:items-center gba:justify-center gba:py-8 gba:text-center">
+                <div className="gba:text-muted-foreground gba:mb-4">
+                  {getTranslationFromI18nKeyAndLabel("lowcoder:print.no_document","No document available for printing")}
+                </div>
+                <div className="gba:text-sm gba:text-muted-foreground">
+                  {getTranslationFromI18nKeyAndLabel(
+                    "lowcoder:print.no_document_details",
+                    "This expense plan does not have an associated document to print."
+                  )}
+                </div>
               </div>
-              <div className="gba:text-sm gba:text-muted-foreground">
-                {getTranslationFromI18nKeyAndLabel(
-                  "lowcoder:print.no_document_details",
-                  "This expense plan does not have an associated document to print."
-                )}
-              </div>
-            </div>
-          )}
+            );
+          })()}
         </DialogContent>
       </Dialog>
 

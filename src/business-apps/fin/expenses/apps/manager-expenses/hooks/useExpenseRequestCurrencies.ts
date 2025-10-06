@@ -79,7 +79,7 @@ export const useExpenseRequestCurrencies = (
 
           requests.forEach((request) => {
             if (request.currencyRef) {
-              const currency = request.currencyRef.replace("Currency:v1:", "");
+              const currency = request.currencyRef.replaceAll("Currency:v1:", "");
               currencyMap.set(currency, (currencyMap.get(currency) || 0) + 1);
             }
           });

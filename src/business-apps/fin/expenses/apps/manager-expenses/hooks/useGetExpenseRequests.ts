@@ -185,7 +185,7 @@ export const useGetExpenseRequests = ({
         amount: request.totalAmount,
         currency: (() => {
           const extractedCurrency = request.currencyRef
-            ? request.currencyRef.replace("Currency:v1:", "")
+            ? request.currencyRef.replaceAll("Currency:v1:", "")
             : "EUR";
 
           return extractedCurrency;

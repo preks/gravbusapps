@@ -1,6 +1,5 @@
 import React, { ReactNode, useEffect, useRef } from "react";
-import { SectionKpiCards, KpiCardData } from "@newwork/nw-design-system";
-import { Button } from "@newwork/nw-design-system";
+import { SectionKpiCards, KpiCardData, Button } from "@newwork/nw-design-system";
 import { PiWarning, PiArrowClockwise } from "react-icons/pi";
 import { getTranslationFromI18nKeyAndLabel } from "@/common/utils/windowUtils";
 
