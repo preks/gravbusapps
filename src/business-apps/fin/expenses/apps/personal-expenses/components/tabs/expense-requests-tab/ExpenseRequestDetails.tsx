@@ -32,10 +32,16 @@ const ExpenseRequestDetails: React.FC<ExpenseRequestDetailsProps> = ({
   if (!selectedItem) return null;
   
   const formatTypeLabel = (value?: string) => {
-    if (!value) return 'N/A';
+    if (value === null || value === undefined) return 'N/A';
     const trimmed = String(value).trim();
     if (!trimmed) return 'N/A';
-    return trimmed.charAt(0).toUpperCase() + trimmed.slice(1).toLowerCase();
+    if (trimmed.toUpperCase() === 'N/A') return 'N/A';
+    return trimmed
+      .replace(/[_-]/g, ' ')
+      .toLowerCase()
+      .split(' ')
+      .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+      .join(' ');
   };
 
   const getRequestType = () => {

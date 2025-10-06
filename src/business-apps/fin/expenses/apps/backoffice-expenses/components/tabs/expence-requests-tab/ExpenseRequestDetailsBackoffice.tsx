@@ -29,10 +29,16 @@ const ExpenseRequestDetailsBackoffice: React.FC<ExpenseRequestDetailsBackofficeP
   
   // Trip type removed in favor of explicit request/plan type labels passed from parent
   const formatTypeLabel = (value?: string) => {
-    if (!value) return 'N/A';
+    if (value === null || value === undefined) return 'N/A';
     const trimmed = String(value).trim();
     if (!trimmed) return 'N/A';
-    return trimmed.charAt(0).toUpperCase() + trimmed.slice(1).toLowerCase();
+    if (trimmed.toUpperCase() === 'N/A') return 'N/A';
+    return trimmed
+      .replace(/[_-]/g, ' ')
+      .toLowerCase()
+      .split(' ')
+      .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+      .join(' ');
   };
 
   return (

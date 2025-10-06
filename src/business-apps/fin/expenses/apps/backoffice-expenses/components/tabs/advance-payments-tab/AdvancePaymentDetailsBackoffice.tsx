@@ -17,14 +17,16 @@ interface AdvancePaymentDetailsBackofficeProps extends BusinessAppContextProps {
   onClose?: () => void;
 }
 
-const AdvancePaymentDetailsBackoffice: React.FC<AdvancePaymentDetailsBackofficeProps> = ({ payment, onClose }) => {
+const AdvancePaymentDetailsBackoffice: React.FC<AdvancePaymentDetailsBackofficeProps> = ({ payment }) => {
   if (!payment) return null;
 
   const toTitleCase = (value?: string) => {
-    if (!value) return '';
-    const normalized = String(value).replace(/[_-]+/g, ' ').trim();
+    if (value === null || value === undefined) return '';
+    const normalized = String(value).trim();
     if (!normalized) return '';
+    if (normalized.toUpperCase() === 'N/A') return 'N/A';
     return normalized
+      .replace(/[_-]+/g, ' ')
       .toLowerCase()
       .split(' ')
       .filter(Boolean)
