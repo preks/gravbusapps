@@ -9,14 +9,14 @@ import {
 import { formatDataTestId } from "@/common/utils/formatDataTestId";
 import { dispatchProcessContinueEvent } from "@/common/utils/processEventUtils";
 import AccountInformationSection from "./AccountInformationSection";
-import ContactInformationSection from "./ContactInformationSection";
 import AddressInformationSection from "./AddressInformationSection";
 import FinancialInformationSection from "./FinancialInformationSection";
+import ContactSelector from "./ContactSelector";
 
 const prefixDataTestId = "AccountForm";
 
 const AccountFormComponent: React.FC = () => {
-  const { formValues, onSubmit, onCancel, isLoading, error, hideActions } =
+  const { formValues, setFormValues, onSubmit, onCancel, isLoading, error, hideActions } =
     useAccountFormContext();
 
   // Check if all mandatory fields are filled
@@ -40,7 +40,6 @@ const AccountFormComponent: React.FC = () => {
       const investmentAccountPayload: any = {
         sourceApp: "IRM", // ✅ FIXED: Changed from CRM to IRM for Investment Relations Management
         name: toStringOrUndefined(formValues.accountName), // ✅ FIXED: accountName → name
-        code: toStringOrUndefined(formValues.tickerSymbol), // ✅ UPDATED: Use tickerSymbol as code
         legalFormRef: toStringOrUndefined(formValues.legalForm),
         industryClassRef: toStringOrUndefined(formValues.industry), // ✅ FIXED: industryRef → industryClassRef
         website: toStringOrUndefined(formValues.website),
@@ -57,16 +56,30 @@ const AccountFormComponent: React.FC = () => {
           addr.locality.trim() ||
           addr.regionRef.trim() ||
           addr.countryRef.trim()
-        ).map(addr => ({
-          addressType: "PRIMARY_ADDRESS", // Always set to PRIMARY_ADDRESS
-          addressLine: addr.addressLines.filter(line => line.trim()).length > 0 
-            ? { lines: addr.addressLines.filter(line => line.trim()) }
-            : null,
-          postalCode: addr.postalCode.trim() || null,
-          locality: addr.locality.trim() || null,
-          regionRef: addr.regionRef.trim() || null,
-          countryRef: addr.countryRef.trim() || null,
-        })) || [],
+        ).map(addr => {
+          const addressPayload: any = {
+            addressType: "PRIMARY_ADDRESS", // Always set to PRIMARY_ADDRESS
+            addressLine: addr.addressLines.filter(line => line.trim()).length > 0 
+              ? { lines: addr.addressLines.filter(line => line.trim()) }
+              : null,
+            postalCode: addr.postalCode.trim() || null,
+            locality: addr.locality.trim() || null,
+            regionRef: addr.regionRef.trim() || null,
+            countryRef: addr.countryRef.trim() || null,
+          };
+
+          // ✅ FIXED: Only include ID and version when updating an existing account
+          // This prevents the backend from treating addresses as new inserts during updates
+          if (isUpdate && addr.id && addr.id !== "default-address") {
+            addressPayload.id = addr.id;
+            // Include version for optimistic locking during address updates (only on update)
+            if (addr.version !== undefined && addr.version !== null) {
+              addressPayload.version = addr.version;
+            }
+          }
+
+          return addressPayload;
+        }) || [],
         specialty: undefined, // Not available in current form
         liquidationDate: undefined, // Not available in current form
         picture: undefined, // Not available in current form
@@ -97,10 +110,16 @@ const AccountFormComponent: React.FC = () => {
       // Determine change mode based on whether we have an ID
       const changeMode = isUpdate ? "UPDATE" : "INSERT";
 
+      // ✅ FIXED: Extract contact IDs from contactIds (handle both string[] and object[] formats)
+      const extractedContactIds = (formValues.contactIds || []).map(contact => 
+        typeof contact === 'object' ? contact.id : contact
+      );
+
       // ✅ FIXED: Create clean payload structure to prevent context field pollution
       const cleanPayload = {
         investmentAccount: investmentAccountPayload,
         changeMode: changeMode,
+        contactIds: extractedContactIds, // ✅ UPDATED: Array of contact IDs (extracted from objects if needed)
       };
 
 
@@ -148,8 +167,16 @@ const AccountFormComponent: React.FC = () => {
           {/* Account Information Section */}
           <AccountInformationSection />
 
-          {/* Contact Information Section */}
-          <ContactInformationSection />
+          {/* Related Contact Selection - positioned right after Account Information */}
+          <div className="gba:space-y-2">
+            <ContactSelector
+              value={formValues.contactIds}
+              onChange={(contactIds) => setFormValues({ contactIds })}
+              dataTestId={formatDataTestId(prefixDataTestId, "contact-selector")}
+              error={null}
+            />
+          </div>
+
 
           {/* Address Information Section */}
           <AddressInformationSection />

@@ -210,6 +210,7 @@ export const useDocumentOperations = ({
             id: docId,
             version: documents.find(d => d.id === docId)?.version,
             parentDocument: newParentId,
+            folder: documents.find(d => d.id === docId)?.folder || false, // Preserve folder status
             opportunity: opportunityId,
           },
         },

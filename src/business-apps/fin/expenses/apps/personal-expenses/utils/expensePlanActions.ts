@@ -4,6 +4,7 @@ import { startProcess } from '@/common/utils/start-process';
 export interface ExpensePlanActionContext {
   employeeId: string;
   accessToken: string;
+  onClose?: () => void;
 }
 
 /**
@@ -28,6 +29,7 @@ export const generateExpensePlanActions = (
       key: 'update-expense-plan',
       label: getTranslationFromI18nKeyAndLabel('lowcoder:expense_plan_list.expense_plan_flows.update_plan', 'Update Plan'),
       onClick: () => {
+        context.onClose?.(); // Close the sidebar first
         startProcess({
           domain: 'employee-expense',
           processName: 'changeExpensePlan',

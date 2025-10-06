@@ -34,6 +34,13 @@ export interface TrendData {
   totalContactsLastMonth: number;
   currentMonthWonOpportunities: number;
   previousMonthWonOpportunities: number;
+  // New trend metrics for conversion rates and performance indicators
+  currentMonthLeadConversionRate: number;
+  previousMonthLeadConversionRate: number;
+  currentMonthAvgDealSize: number;
+  previousMonthAvgDealSize: number;
+  currentMonthSalesCycleLength: number;
+  previousMonthSalesCycleLength: number;
 }
 
 export interface OverviewMetricsWidgetsProps {
@@ -101,6 +108,7 @@ export const OverviewMetricsWidgets: React.FC<OverviewMetricsWidgetsProps> = ({
       valueIsString: true,
       prefix: <PercentageOutlined />,
       description: "Lead conversion efficiency",
+      ...(trendData && !trendLoading ? { trend: calculateTrend(trendData.currentMonthLeadConversionRate, trendData.previousMonthLeadConversionRate) } : {}),
     },
     {
       key: "opportunity-win-rate",
@@ -118,6 +126,7 @@ export const OverviewMetricsWidgets: React.FC<OverviewMetricsWidgetsProps> = ({
       prefix: <DollarCircleOutlined />,
       description: "Average opportunity value",
       precision: 0,
+      ...(trendData && !trendLoading ? { trend: calculateTrend(trendData.currentMonthAvgDealSize, trendData.previousMonthAvgDealSize) } : {}),
     },
     {
       key: "sales-cycle-length",
@@ -126,6 +135,7 @@ export const OverviewMetricsWidgets: React.FC<OverviewMetricsWidgetsProps> = ({
       valueIsString: true,
       prefix: <UserOutlined />,
       description: "Average time to close deals",
+      ...(trendData && !trendLoading ? { trend: calculateTrend(trendData.currentMonthSalesCycleLength, trendData.previousMonthSalesCycleLength) } : {}),
     },
   ];
 

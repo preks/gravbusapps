@@ -27,26 +27,46 @@ export const mapInvestmentContactToFormValues = (
     firstName: contact.firstName || "",
     lastName: contact.lastName || "",
     fullName: contact.fullName || "",
-    birthDate: contact.birthDate || "",
-    description: contact.description || "", // ✅ Using description field
+    type: contact.type || "UNKNOWN_CONTACT",
+    birthDate: contact.birthDate ? contact.birthDate.split('T')[0] : "",
 
     // Professional Information
     jobPosition: contact.jobPosition || "",
     department: contact.department || "",
-    code: contact.code || "",
+
+    // Social Media Information - Extract from communication channels
+    linkedinUrl: contact.communicationChannels?.find(
+      channel => channel.communicationChannelRef === "CommunicationChannel:v1:LinkedIn"
+    )?.value || "",
+    xingUrl: contact.communicationChannels?.find(
+      channel => channel.communicationChannelRef === "CommunicationChannel:v1:Xing"
+    )?.value || "",
 
     // Contact Information
     email: contact.email || "",
     phone: contact.phone || "",
 
-    // ✅ REMOVED: Fields NOT in InvestmentContact database
-    // type: contact.type || "UNKNOWN_CONTACT", // ❌ NOT in schema
     // picture: contact.picture || "", // ❌ NOT in schema
     // pictureThumbnail: contact.pictureThumbnail || "", // ❌ NOT in schema
 
     // Owner Information
     ownerEmployeeId: contact.ownerEmployeeId || "",
     owner: contact.ownerEmployeeId || "", // Map to owner field for form
+
+    // Account Information
+    accountIds: Array.from(
+      new Set(
+        (contact.investmentAccountContact ?? [])
+          .map(rel => {
+            if (!rel.account?.id) return null;
+            return {
+              id: rel.account.id,
+              name: rel.account.name || 'Unnamed Account'
+            };
+          })
+          .filter((account): account is { id: string; name: string } => Boolean(account))
+      )
+    ),
 
     // Additional Information
     notesSummary: contact.notesSummary || "",

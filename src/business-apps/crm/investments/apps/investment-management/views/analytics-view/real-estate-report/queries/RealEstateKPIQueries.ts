@@ -32,9 +32,24 @@ const GET_REAL_ESTATE_KPIS_WITH_COMPARISON = (comparisonDate: string): string =>
             totalInvestmentAmount
             investmentMarketValue
           }
+        }
+      }
+      
+      # Current average occupancy rate from real estate table (exclude nulls, include zeros)
+      currentRealEstateAggregate: RealEstateInvestmentAggregate(
+        where: {
+          _and: [
+            { isDeleted: { _eq: false } }
+            { occupancyPercent: { _gte: 0 } }
+            { investment: { isDeleted: { _eq: false } } }
+          ]
+        }
+      ) {
+        aggregate {
           avg {
-            investmentMarketValue
+            occupancyPercent
           }
+          count
         }
       }
       
@@ -54,38 +69,25 @@ const GET_REAL_ESTATE_KPIS_WITH_COMPARISON = (comparisonDate: string): string =>
             totalInvestmentAmount
             investmentMarketValue
           }
-          avg {
-            investmentMarketValue
-          }
         }
       }
       
-      # Get real estate investments for occupancy rate calculation
-      currentRealEstateInvestments: Investment(
+      # Previous average occupancy rate from real estate table (exclude nulls, include zeros)
+      previousRealEstateAggregate: RealEstateInvestmentAggregate(
         where: {
           _and: [
             { isDeleted: { _eq: false } }
-            { realEstateInvestment: {} }
-          ]
-        }
-      ) {
-        realEstateInvestment {
-          occupancyPercent
-        }
-      }
-      
-      # Previous real estate investments for occupancy comparison
-      previousRealEstateInvestments: Investment(
-        where: {
-          _and: [
-            { isDeleted: { _eq: false } }
+            { occupancyPercent: { _gte: 0 } }
             { createdAt: { _lt: "${comparisonDate}" } }
-            { realEstateInvestment: {} }
+            { investment: { isDeleted: { _eq: false } } }
           ]
         }
       ) {
-        realEstateInvestment {
-          occupancyPercent
+        aggregate {
+          avg {
+            occupancyPercent
+          }
+          count
         }
       }
     }
@@ -100,9 +102,14 @@ export interface RealEstateKPIResponse {
         totalInvestmentAmount: number | null;
         investmentMarketValue: number | null;
       };
+    };
+  };
+  currentRealEstateAggregate: {
+    aggregate: {
       avg: {
-        investmentMarketValue: number | null;
+        occupancyPercent: number | null;
       };
+      count: number;
     };
   };
   previousAggregate: {
@@ -112,21 +119,16 @@ export interface RealEstateKPIResponse {
         totalInvestmentAmount: number | null;
         investmentMarketValue: number | null;
       };
-      avg: {
-        investmentMarketValue: number | null;
-      };
     };
   };
-  currentRealEstateInvestments: Array<{
-    realEstateInvestment: {
-      occupancyPercent: number | null;
+  previousRealEstateAggregate: {
+    aggregate: {
+      avg: {
+        occupancyPercent: number | null;
+      };
+      count: number;
     };
-  }>;
-  previousRealEstateInvestments: Array<{
-    realEstateInvestment: {
-      occupancyPercent: number | null;
-    };
-  }>;
+  };
 }
 
 export const useGetRealEstateKPIs = (context: BusinessAppContextProps) => {
@@ -142,18 +144,11 @@ export const useGetRealEstateKPIs = (context: BusinessAppContextProps) => {
     try {
       const result = await graphqlClient.request<RealEstateKPIResponse>(query);
       
-      // Calculate current occupancy rate
-      const currentOccupancyRates = result.currentRealEstateInvestments
-        .map(inv => inv.realEstateInvestment?.occupancyPercent || 0)
-        .filter(rate => rate > 0);
-      const currentAvgOccupancy = currentOccupancyRates.length > 0 
-        ? currentOccupancyRates.reduce((sum, rate) => sum + rate, 0) / currentOccupancyRates.length 
-        : 0;
-      
       // Transform current data
       const currentCount = result.currentAggregate.aggregate.count;
       const currentTotalAmount = result.currentAggregate.aggregate.sum.totalInvestmentAmount || 0;
       const currentMarketValue = result.currentAggregate.aggregate.sum.investmentMarketValue || 0;
+      const currentAvgOccupancy = result.currentRealEstateAggregate.aggregate.avg.occupancyPercent || 0;
 
       const current: RealEstateKPIData = {
         totalInvestments: currentCount,
@@ -166,14 +161,7 @@ export const useGetRealEstateKPIs = (context: BusinessAppContextProps) => {
       const previousCount = result.previousAggregate.aggregate.count;
       const previousTotalAmount = result.previousAggregate.aggregate.sum.totalInvestmentAmount || 0;
       const previousMarketValue = result.previousAggregate.aggregate.sum.investmentMarketValue || 0;
-      
-      // Calculate previous occupancy rate
-      const previousOccupancyRates = result.previousRealEstateInvestments
-        .map(inv => inv.realEstateInvestment?.occupancyPercent || 0)
-        .filter(rate => rate > 0);
-      const previousAvgOccupancy = previousOccupancyRates.length > 0 
-        ? previousOccupancyRates.reduce((sum, rate) => sum + rate, 0) / previousOccupancyRates.length 
-        : 0;
+      const previousAvgOccupancy = result.previousRealEstateAggregate.aggregate.avg.occupancyPercent || 0;
 
       let previous: RealEstateKPIData;
 

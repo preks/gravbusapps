@@ -39,6 +39,7 @@ export interface NoteSegmentProps {
 }
 
 export interface NoteSegmentSchema {
+  id?: string;
   title: string;
   text: string;
   reminderDate?: string | null;

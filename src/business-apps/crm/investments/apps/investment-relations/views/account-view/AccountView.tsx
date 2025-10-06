@@ -1,5 +1,6 @@
 import React, { useState, useCallback, useEffect, useMemo } from "react";
 import { Button, Spinner, Alert } from "@newwork/nw-design-system";
+import { Plus } from "lucide-react";
 import { BusinessAppContextProps } from "@/common/BusinessAppContext";
 import { useGetInvestmentAccounts } from "@/common/data/investment/hooks/useInvestmentAccounts";
 import type { InvestmentAccount } from "@/common/data/investment/types";
@@ -10,8 +11,8 @@ import { AccountList } from "./components/AccountList";
 import { ColumnConfig } from "@/components/dataController";
 import { AppAction } from "@/components/app-action/AppAction";
 import { FlowContextName } from "@/common/types/FlowRegistryTypes";
-import { PlusSquareIcon } from "@phosphor-icons/react";
 import { useInvestmentAccountFilters } from "./hooks/useInvestmentAccountFilters";
+import { getTranslationFromI18nKeyAndLabel } from "@/common/utils/windowUtils";
 
 export interface AccountViewProps extends BusinessAppContextProps { }
 
@@ -32,6 +33,7 @@ export const AccountView: React.FC<AccountViewProps> = (context) => {
     pushAll("annualRevenueBand", "annualRevenueBand");
     pushAll("company", "company");
     pushAll("location", "location");
+    pushAll("status", "status");
     const search = urlParams.get("search") || "";
     return { search, filters };
   };
@@ -55,6 +57,7 @@ export const AccountView: React.FC<AccountViewProps> = (context) => {
     handleFilterChange,
     createdAfter,
     createdBefore,
+    filtersInitialized,
   } = useInvestmentAccountFilters(context, selectedFilters, setSelectedFilters);
 
   // Data state
@@ -109,7 +112,9 @@ export const AccountView: React.FC<AccountViewProps> = (context) => {
       hasPhone = false,
       missingPhone = false,
       hasContact = false,
-      missingContact = false;
+      missingContact = false,
+      isActive = false,
+      isInactive = false;
 
     selectedFilters.forEach((f) => {
       if (f.startsWith("owner:")) ownerIds.push(f.slice(6));
@@ -135,6 +140,8 @@ export const AccountView: React.FC<AccountViewProps> = (context) => {
       }
       else if (f.startsWith("company:")) names.push(f.slice(8));
       else if (f.startsWith("location:")) geoPresence.push(f.slice(9));
+      else if (f === "status:active") isActive = true;
+      else if (f === "status:inactive") isInactive = true;
       else if (f === "has:website") hasWebsite = true;
       else if (f === "missing:website") missingWebsite = true;
       else if (f === "has:email") hasEmail = true;
@@ -170,6 +177,8 @@ export const AccountView: React.FC<AccountViewProps> = (context) => {
       ...(missingPhone ? { missingPhone: true } : {}),
       ...(hasContact ? { hasContact: true } : {}),
       ...(missingContact ? { missingContact: true } : {}),
+      ...(isActive ? { isActive: true } : {}),
+      ...(isInactive ? { isInactive: true } : {}),
       ...vars,
     };
     return base;
@@ -186,7 +195,7 @@ export const AccountView: React.FC<AccountViewProps> = (context) => {
 
   // Load data
   const loadData = useCallback(async () => {
-    if (!accessToken) return;
+    if (!accessToken || !filtersInitialized) return;
 
     setIsLoading(true);
     setError(null);
@@ -196,28 +205,18 @@ export const AccountView: React.FC<AccountViewProps> = (context) => {
       setAccounts(result.InvestmentAccount || []);
       setTotalCount(result.InvestmentAccountAggregate?.aggregate?.count || 0);
     } catch (err) {
-      console.error("Error loading investment accounts:", err);
       setError(err instanceof Error ? err.message : "Unknown error occurred");
     } finally {
       setIsLoading(false);
     }
-  }, [accessToken, fetchInvestmentAccounts, queryVariables]);
+  }, [accessToken, filtersInitialized, fetchInvestmentAccounts, queryVariables]);
 
   // Listen for process events and refresh data when investment account processes complete
   useEffect(() => {
     const handleProcessEvent = (event: any) => {
       try {
-        console.log(
-          "✅ Investment Account process event received:",
-          event.type,
-          event
-        );
-
         // Check for successful completion from different event structures
         if (event.detail?.resolution === "success") {
-          console.log(
-            "✅ Success resolution detected, refreshing account data"
-          );
           loadData(); // Refresh account list data
           return;
         }
@@ -228,9 +227,6 @@ export const AccountView: React.FC<AccountViewProps> = (context) => {
           response?.detail?.resolution === "success" ||
           response?.investmentAccount
         ) {
-          console.log(
-            "✅ Success in response or investmentAccount detected, refreshing data"
-          );
           loadData();
           return;
         }
@@ -240,13 +236,10 @@ export const AccountView: React.FC<AccountViewProps> = (context) => {
           event.type === "com.newwork.process.continue" &&
           event.detail?.payload
         ) {
-          console.log(
-            "✅ Continue event with payload detected, refreshing account data"
-          );
           loadData();
         }
       } catch (err) {
-        console.error("Error handling process event:", err);
+        // Silently handle errors in process event handling
       }
     };
 
@@ -339,6 +332,7 @@ export const AccountView: React.FC<AccountViewProps> = (context) => {
     setList("annualRevenueBand", collect("annualRevenueBand"));
     setList("company", collect("company"));
     setList("location", collect("location"));
+    setList("status", collect("status"));
 
     if (searchTerm) urlParams.set("search", searchTerm); else urlParams.delete("search");
 
@@ -417,13 +411,15 @@ export const AccountView: React.FC<AccountViewProps> = (context) => {
               data-testid="add-account-action"
               emptyStateBehavior="hide"
             >
-              <div
-                className="gba:flex gba:flex-row gba:justify-center gba:items-center gba:rounded gba:gap-1 gba:cursor-pointer"
-                data-testid="add-account-trigger"
-              >
-                <PlusSquareIcon />
-                Add
-              </div>
+            <Button
+              size="sm"
+              variant="default"
+              data-testid="add-account-button"
+              type="button"
+            >
+              <Plus size={16} />
+              {getTranslationFromI18nKeyAndLabel('crm:account.addAccount', 'Add Account')}
+            </Button>
             </AppAction>
           ),
         }}

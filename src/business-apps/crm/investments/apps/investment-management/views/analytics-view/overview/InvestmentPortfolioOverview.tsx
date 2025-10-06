@@ -75,7 +75,7 @@ const InvestmentPortfolioOverview: React.FC<InvestmentPortfolioOverviewProps> = 
             {getTranslationFromI18nKeyAndLabel('investment.portfolio.title', 'Investment Portfolio Overview')}
           </h1>
           <Badge variant="secondary" className="gba:text-sm">
-            {investments.length} {getTranslationFromI18nKeyAndLabel('investment.portfolio.items', 'investments')}
+            {kpis?.totalInvestments || 0} {getTranslationFromI18nKeyAndLabel('investment.portfolio.items', 'investments')}
           </Badge>
         </div>
       </div>

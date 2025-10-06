@@ -32,8 +32,21 @@ const GET_EQUITY_KPIS_WITH_COMPARISON = (comparisonDate: string): string => {
             totalInvestmentAmount
             investmentMarketValue
           }
+        }
+      }
+      
+      # Current average company valuation from equity table
+      currentEquityAggregate: EquityInvestmentAggregate(
+        where: {
+          _and: [
+            { isDeleted: { _eq: false } }
+            { investment: { isDeleted: { _eq: false } } }
+          ]
+        }
+      ) {
+        aggregate {
           avg {
-            investmentMarketValue
+            marketValue
           }
         }
       }
@@ -54,8 +67,22 @@ const GET_EQUITY_KPIS_WITH_COMPARISON = (comparisonDate: string): string => {
             totalInvestmentAmount
             investmentMarketValue
           }
+        }
+      }
+      
+      # Previous average company valuation from equity table
+      previousEquityAggregate: EquityInvestmentAggregate(
+        where: {
+          _and: [
+            { isDeleted: { _eq: false } }
+            { createdAt: { _lt: "${comparisonDate}" } }
+            { investment: { isDeleted: { _eq: false } } }
+          ]
+        }
+      ) {
+        aggregate {
           avg {
-            investmentMarketValue
+            marketValue
           }
         }
       }
@@ -71,8 +98,12 @@ export interface EquityKPIResponse {
         totalInvestmentAmount: number | null;
         investmentMarketValue: number | null;
       };
+    };
+  };
+  currentEquityAggregate: {
+    aggregate: {
       avg: {
-        investmentMarketValue: number | null;
+        marketValue: number | null;
       };
     };
   };
@@ -83,8 +114,12 @@ export interface EquityKPIResponse {
         totalInvestmentAmount: number | null;
         investmentMarketValue: number | null;
       };
+    };
+  };
+  previousEquityAggregate: {
+    aggregate: {
       avg: {
-        investmentMarketValue: number | null;
+        marketValue: number | null;
       };
     };
   };
@@ -107,7 +142,7 @@ export const useGetEquityKPIs = (context: BusinessAppContextProps) => {
       const currentCount = result.currentAggregate.aggregate.count;
       const currentTotalAmount = result.currentAggregate.aggregate.sum.totalInvestmentAmount || 0;
       const currentMarketValue = result.currentAggregate.aggregate.sum.investmentMarketValue || 0;
-      const currentAvgValuation = result.currentAggregate.aggregate.avg.investmentMarketValue || 0;
+      const currentAvgValuation = result.currentEquityAggregate.aggregate.avg.marketValue || 0;
 
       const current: EquityKPIData = {
         totalInvestments: currentCount,
@@ -120,7 +155,7 @@ export const useGetEquityKPIs = (context: BusinessAppContextProps) => {
       const previousCount = result.previousAggregate.aggregate.count;
       const previousTotalAmount = result.previousAggregate.aggregate.sum.totalInvestmentAmount || 0;
       const previousMarketValue = result.previousAggregate.aggregate.sum.investmentMarketValue || 0;
-      const previousAvgValuation = result.previousAggregate.aggregate.avg.investmentMarketValue || 0;
+      const previousAvgValuation = result.previousEquityAggregate.aggregate.avg.marketValue || 0;
 
       let previous: EquityKPIData;
 

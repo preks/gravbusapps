@@ -13,6 +13,7 @@ interface ReportFiltersProps {
   onTimeFilterChange: (value: string) => void;
   onDateRangeChange: (dates: [dayjs.Dayjs | null, dayjs.Dayjs | null] | null) => void;
   onClearFilters: () => void;
+  headerActions?: React.ReactNode;
   'data-testid'?: string;
 }
 
@@ -22,14 +23,22 @@ const ReportFilters: React.FC<ReportFiltersProps> = ({
   onTimeFilterChange,
   onDateRangeChange,
   onClearFilters,
+  headerActions,
   'data-testid': dataTestId = 'report-filters'
 }) => {
   return (
     <div className="gba:bg-white gba:rounded-lg gba:border gba:shadow-sm gba:mb-6" data-testid={dataTestId}>
       <div className="gba:p-4 gba:border-b">
-        <div className="gba:flex gba:items-center gba:gap-2">
-          <FilterIcon className="gba:w-4 gba:h-4" />
-          <h3 className="gba:text-sm gba:font-medium">Filters</h3>
+        <div className="gba:flex gba:items-center gba:justify-between">
+          <div className="gba:flex gba:items-center gba:gap-2">
+            <FilterIcon className="gba:w-4 gba:h-4" />
+            <h3 className="gba:text-sm gba:font-medium">Filters</h3>
+          </div>
+          {headerActions && (
+            <div className="gba:flex gba:items-center gba:gap-2" data-testid="report-filters-header-actions">
+              {headerActions}
+            </div>
+          )}
         </div>
       </div>
       <div className="gba:p-4">

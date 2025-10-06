@@ -19,8 +19,9 @@ import { ColumnConfig } from "@/components/dataController";
 import { OpportunityBoard } from "./components/opportunity-board/OpportunityBoard";
 import { AppAction } from "@/components/app-action/AppAction";
 import { FlowContextName } from "@/common/types/FlowRegistryTypes";
-import { PlusSquareIcon } from "@phosphor-icons/react";
+import { Plus } from "lucide-react";
 import { useInvestmentOpportunityFilters } from "./hooks/useInvestmentOpportunityFilters";
+import { getTranslationFromI18nKeyAndLabel } from "@/common/utils/windowUtils";
 
 export interface OpportunityViewProps extends BusinessAppContextProps {}
 
@@ -180,7 +181,6 @@ export const OpportunityView: React.FC<OpportunityViewProps> = (context) => {
         result.InvestmentOpportunityAggregate?.aggregate?.count || 0
       );
     } catch (err) {
-      console.error("Error loading investment opportunities:", err);
       setError(err instanceof Error ? err.message : "Unknown error occurred");
     } finally {
       setIsLoading(false);
@@ -196,17 +196,8 @@ export const OpportunityView: React.FC<OpportunityViewProps> = (context) => {
   useEffect(() => {
     const handleProcessEvent = (event: any) => {
       try {
-        console.log(
-          "✅ Investment Opportunity process event received:",
-          event.type,
-          event
-        );
-
         // Check for successful completion from different event structures (MATCHING ACCOUNT VIEW PATTERN)
         if (event.detail?.resolution === "success") {
-          console.log(
-            "✅ Success resolution detected, refreshing opportunity data"
-          );
           loadData(); // Refresh opportunity list data
           setBoardRefreshTrigger(prev => prev + 1); // Trigger board refresh
           return;
@@ -218,9 +209,6 @@ export const OpportunityView: React.FC<OpportunityViewProps> = (context) => {
           response?.detail?.resolution === "success" ||
           response?.investmentOpportunity
         ) {
-          console.log(
-            "✅ Success in response or investmentOpportunity detected, refreshing data"
-          );
           loadData();
           setBoardRefreshTrigger(prev => prev + 1); // Trigger board refresh
           return;
@@ -231,14 +219,11 @@ export const OpportunityView: React.FC<OpportunityViewProps> = (context) => {
           event.type === "com.newwork.process.continue" &&
           event.detail?.payload
         ) {
-          console.log(
-            "✅ Continue event with payload detected, refreshing opportunity data"
-          );
           loadData();
           setBoardRefreshTrigger(prev => prev + 1); // Trigger board refresh
         }
       } catch (err) {
-        console.error("Error handling process event:", err);
+        console.error('Error handling process event:', err);
       }
     };
 
@@ -439,18 +424,15 @@ export const OpportunityView: React.FC<OpportunityViewProps> = (context) => {
                   data-testid="add-opportunity-action"
                   emptyStateBehavior="hide"
                 >
-                  <button
-                    className="gba:flex gba:flex-row gba:justify-center gba:items-center gba:px-3 gba:py-0 gba:h-8 gba:rounded gba:gap-1"
-                    data-testid="add-opportunity-action"
+                  <Button
+                    size="sm"
+                    variant="default"
+                    data-testid="add-opportunity-button"
                     type="button"
                   >
-                    <span className="gba:w-5 gba:h-5 gba:flex gba:items-center gba:justify-center gba:flex-none order-0 gba:grow-0">
-                      <PlusSquareIcon />
-                    </span>
-                    <span className="gba:h-4 gba:font-normal gba:text-sm gba:leading-4 gba:flex gba:items-center gba:text-black gba:flex-none order-1 gba:grow-0">
-                      Add
-                    </span>
-                  </button>
+                    <Plus size={16} />
+                    {getTranslationFromI18nKeyAndLabel('crm:opportunity.addOpportunity', 'Add Opportunity')}
+                  </Button>
                 </AppAction>
               ),
             }}

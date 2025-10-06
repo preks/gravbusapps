@@ -30,6 +30,7 @@ export interface Opportunity {
   probability: number;
   expectedCloseDate: string;
   actualCloseDate: string;
+  dealType: string;
   source: {
     id: string;
     type: string;
@@ -160,6 +161,7 @@ export const useOpportunityData = (opportunityId: string, accessToken: string) =
           probability: 0, // Not available in investment opportunity
           expectedCloseDate: rawOpportunityData.closeDate || '',
           actualCloseDate: rawOpportunityData.closeDate || '',
+          dealType: rawOpportunityData.dealType || '',
           source: {
             id: 'unknown',
             type: 'opportunitySource',

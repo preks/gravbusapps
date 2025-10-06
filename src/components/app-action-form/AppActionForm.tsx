@@ -209,6 +209,7 @@ export const AppActionForm: React.FC<AppActionFormProps> = ({
       setLoading(true);
       setMessage(null);
       const dataForValidation = values ?? formData;
+      
       if (validateForm) {
         const errors = validateForm(dataForValidation);
         if (errors && errors.length > 0) {
@@ -224,7 +225,18 @@ export const AppActionForm: React.FC<AppActionFormProps> = ({
         enhancedData = await handlePreSubmit(dataForValidation);
       }
 
+      // Development-only payload logging (input data)
+      if (process.env.NODE_ENV !== 'production') {
+        console.log('[AppActionForm] Form data (before transformation):', enhancedData);
+      }
+
       const result = await onSubmit(enhancedData);
+      
+      // Development-only payload logging (final payload)
+      if (process.env.NODE_ENV !== 'production') {
+        console.log('[AppActionForm] Final payload (after transformation):', result);
+      }
+      
       // Success messages are no longer displayed in the form
       // They should be handled by the calling component or shown via other means
       dispatchProcessContinueEvent(submitEventType, result);

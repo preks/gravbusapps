@@ -4,6 +4,7 @@ import { startProcess } from '@/common/utils/start-process';
 export interface ExpenseRequestActionContext {
   employeeId: string;
   accessToken: string;
+  onClose?: () => void;
 }
 
 /**
@@ -29,6 +30,7 @@ export const generateExpenseRequestActions = (
       label: getTranslationFromI18nKeyAndLabel('lowcoder:expense_request_list.modal_list_or_flow_button.update_request_btn', 'Update Request'),
       onClick: (e?: React.MouseEvent) => {
         e?.stopPropagation();
+        context.onClose?.(); // Close the sidebar first
         startProcess({
           domain: 'employee-expense',
           processName: 'changeExpenseRequest',

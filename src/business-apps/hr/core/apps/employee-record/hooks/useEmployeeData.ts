@@ -1,5 +1,6 @@
 import { useEffect, useCallback, useState } from 'react';
 import { useGraphqlClient } from '../../../../../../common/network/graphql/useGraphQLClient';
+import { getCurrentActiveUserLocale } from '../../../../../../common/utils/windowUtils';
 
 /**
  * GraphQL query to fetch employee data including:
@@ -9,8 +10,8 @@ import { useGraphqlClient } from '../../../../../../common/network/graphql/useGr
  * - Absence entitlements
  * - Performance goals
  */
-export const GET_EMPLOYEE_DATA = /*sql*/`
- query GetEmployeeData($employeeId: uuid!, $structureId: uuid, $hasStructureId: Boolean!) {
+export const GET_EMPLOYEE_DATA = /*sql*/ `
+ query GetEmployeeData($employeeId: uuid!, $structureId: uuid, $hasStructureId: Boolean!, $activeUserLocale: String!) {
   EmployeePosition(where: {employeeId: {_eq: $employeeId}}) {
     id
     organizationalUnitId
@@ -264,6 +265,11 @@ export const GET_EMPLOYEE_DATA = /*sql*/`
     type {
       id
       value
+      objectValue
+      translations(where: {localeCode: {_eq: $activeUserLocale}}) {
+        localeCode
+        value
+      }
     }
     available
     pending
@@ -291,10 +297,15 @@ export const GET_EMPLOYEE_DATA = /*sql*/`
  * @param structureId - The ID of the organizational structure
  * @param skipRequest - Whether to skip the request (optional)
  */
-export const useEmployeeData = (accessToken: string, activeStructureId: string, employeeId: string, skipRequest = false) => {
+export const useEmployeeData = (
+  accessToken: string,
+  activeStructureId: string,
+  employeeId: string,
+  skipRequest = false,
+) => {
   const client = useGraphqlClient(accessToken);
   const structureId = activeStructureId;
-  
+
   const [data, setData] = useState<EmployeeData | null>(null);
   const [error, setError] = useState<Error | null>(null);
   const [isLoading, setIsLoading] = useState(false);
@@ -312,7 +323,8 @@ export const useEmployeeData = (accessToken: string, activeStructureId: string, 
       const variables = {
         employeeId,
         structureId: structureId ?? '',
-        hasStructureId: !!structureId
+        hasStructureId: !!structureId,
+        activeUserLocale: getCurrentActiveUserLocale(),
       };
       const result = await client.request<EmployeeData>(GET_EMPLOYEE_DATA, variables);
       setData(result);
@@ -335,12 +347,12 @@ export const useEmployeeData = (accessToken: string, activeStructureId: string, 
   if (employeePosition?.employee) {
     const enhancedEmployeePosition = {
       ...employeePosition,
-      subordinates
+      subordinates,
     };
-    
+
     employee = {
       ...employeePosition.employee,
-      employeePosition: enhancedEmployeePosition
+      employeePosition: enhancedEmployeePosition,
     };
   }
 
@@ -353,7 +365,7 @@ export const useEmployeeData = (accessToken: string, activeStructureId: string, 
     performanceGoals: data?.EmployeePerformanceGoal || [],
     loading: isLoading,
     error,
-    refetch: fetchData
+    refetch: fetchData,
   };
 };
 

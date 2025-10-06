@@ -32,19 +32,3 @@ export const isOpportunityOpen = (status?: string): boolean => {
   return !closedStatuses.some(closedStatus => statusUpper.includes(closedStatus));
 };
 
-/**
- * Gets the appropriate badge variant for an opportunity status
- * @param status - The opportunity status value
- * @returns Badge variant string
- */
-export const getOpportunityStatusBadgeVariant = (status?: string): "default" | "secondary" | "destructive" | "outline" => {
-  if (!status) return "outline";
-  
-  const statusLower = status.toLowerCase();
-  
-  if (statusLower.includes('open')) return "default";
-  if (statusLower.includes('won') || statusLower.includes('success')) return "secondary";
-  if (statusLower.includes('lost') || statusLower.includes('failed') || statusLower.includes('cancelled')) return "destructive";
-  
-  return "outline";
-};

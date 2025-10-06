@@ -13,8 +13,6 @@ import OwnerSelector from "./OwnerSelector";
 import LeadInformationSection from "./LeadInformationSection";
 import ContactInformationSection from "./ContactInformationSection";
 import CompanyInformationSection from "./CompanyInformationSection";
-import AddressInformationSection from "./AddressInformationSection";
-import DescriptionSection from "./DescriptionSection";
 
 const prefixDataTestId = "LeadForm";
 
@@ -50,21 +48,18 @@ const LeadFormComponent: React.FC = () => {
         sourceApp: "IRM", // ✅ FIXED: Changed from CRM to IRM for Investment Relations Management
 
         // ✅ UPDATED: Contact Information with new fields
-        salutationRef: toStringOrUndefined(formValues.salutation),
         academicTitleRef: toStringOrUndefined(formValues.academicTitle),
         firstName: toStringOrUndefined(formValues.firstName),
         lastName: toStringOrUndefined(formValues.lastName),
         phoneNumber: toStringOrUndefined(formValues.phone),
         email: toStringOrUndefined(formValues.email),
         position: toStringOrUndefined(formValues.jobPosition),
-        description: toStringOrUndefined(formValues.notes),
         sensitive: formValues.sensitive,
 
         // ✅ UPDATED: Lead Information with new fields
         leadRatingRef: toStringOrUndefined(formValues.rating),
         leadStatusRef: toStringOrUndefined(formValues.leadStatus),
         leadSourceRef: toStringOrUndefined(formValues.leadSource),
-        leadSourceType: toStringOrUndefined(formValues.leadSourceType),
 
         // ✅ UPDATED: Company Information with fixed field names
         companyName: toStringOrUndefined(formValues.company),
@@ -154,7 +149,36 @@ const LeadFormComponent: React.FC = () => {
       };
 
       leadPayload.tags = [];
-      leadPayload.communicationChannels = [];
+
+      // ✅ NEW: Add communication channels for LinkedIn and Xing
+      const communicationChannels = [];
+      
+      // Add LinkedIn communication channel if provided
+      if (formValues.linkedinUrl && formValues.linkedinUrl.trim()) {
+        communicationChannels.push({
+          communicationChannelRef: "CommunicationChannel:v1:LinkedIn",
+          value: formValues.linkedinUrl.trim(),
+          valueExtension: null,
+          source: "FORM_INPUT",
+          activeFrom: new Date().toISOString(),
+          activeTo: null,
+        });
+      }
+      
+      // Add Xing communication channel if provided
+      if (formValues.xingUrl && formValues.xingUrl.trim()) {
+        communicationChannels.push({
+          communicationChannelRef: "CommunicationChannel:v1:Xing", 
+          value: formValues.xingUrl.trim(),
+          valueExtension: null,
+          source: "FORM_INPUT",
+          activeFrom: new Date().toISOString(),
+          activeTo: null,
+        });
+      }
+
+      // Add communication channels to payload if any exist
+      leadPayload.communicationChannels = communicationChannels;
 
       // ✅ ADDED: Ensure numerical fields are properly set (API validation)
       leadPayload.stakePercentage = leadPayload.stakePercentage || 0;
@@ -238,12 +262,6 @@ const LeadFormComponent: React.FC = () => {
           {/* Company Information Section */}
           <CompanyInformationSection />
 
-
-          {/* Address Information Section */}
-          <AddressInformationSection />
-
-          {/* Description Section */}
-          <DescriptionSection />
 
           {/* Error Display */}
           {error && (

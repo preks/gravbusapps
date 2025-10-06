@@ -2,6 +2,7 @@ import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
 
 export interface Address {
   id: string; // Unique identifier for the address
+  version?: number; // Version for optimistic locking during updates
   addressType: string; // "PRIMARY_ADDRESS", "SECONDARY_ADDRESS", "UNKNOWN_ADDRESS", etc.
   addressLines: string[]; // Dynamic array of address lines (stored in additional properties)
   postalCode: string;
@@ -89,6 +90,9 @@ export interface AccountFormValues {
   foundationDate: string;
   tickerSymbol: string;
   // ✅ REMOVED: sicCode: string; // Not available in InvestmentAccount schema
+
+  // Contact Information
+  contactIds: Array<string | { id: string; name: string }>; // ✅ UPDATED: Array of contact IDs or objects with id/name for proper display
 
   // System fields
   id?: string;

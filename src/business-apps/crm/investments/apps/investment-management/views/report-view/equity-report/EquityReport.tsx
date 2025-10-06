@@ -15,7 +15,7 @@ import { EquityAnalyticsTable } from './components/EquityAnalyticsTable';
 import { useEquityInvestmentTypes } from './hooks/useEquityInvestmentTypes';
 import { useGetInvestmentCatalogData } from '@/business-apps/crm/investments/forms/investment-form/queries/InvestmentCatalogQueries';
 import { buildPlatformUrl } from '@/common/utils/navigationUtils';
-import { ReportFilterPanel, useReportFilters } from '../components/shared';
+import { ReportFilterPanel, useReportFilters, ColumnConfig } from '../components/shared';
 
 // Using separate DatePicker components for start and end dates
 
@@ -139,8 +139,52 @@ export const EquityReport: React.FC<EquityReportProps> = ({
     return () => window.removeEventListener('popstate', handlePopState);
   }, [getInitialInvestmentType]);
 
+  // Define initial columns - same for all equity tabs since they share the same structure
+  const initialColumns: ColumnConfig[] = useMemo(() => {
+    const columns: ColumnConfig[] = [
+      { id: 'investment', label: 'Investment', visible: true, disabled: true },
+      { id: 'date', label: 'Date', visible: true },
+    ];
+
+    // If catalog is loaded, get columns from the EQUITY investment group
+    if (catalogData?.investmentGroups) {
+      // Find the equity investment group
+      const equityGroup = catalogData.investmentGroups.find(
+        (group: any) => group.code === 'EQUITY'
+      );
+
+      if (equityGroup?.objectValue?.formFields) {
+        equityGroup.objectValue.formFields.forEach((group: any) => {
+          group.fields.forEach((field: any) => {
+            // Use the same ID generation as the table transformer (property with dots -> underscores)
+            const columnId = field.property.replace(/\./g, '_');
+            columns.push({
+              id: columnId,
+              label: field.label,
+              visible: true // All visible by default
+            });
+          });
+        });
+      }
+    } else {
+      // Fallback to common columns if catalog not loaded yet
+      columns.push(
+        { id: 'name', label: 'Name', visible: true },
+        { id: 'company', label: 'Company', visible: true },
+        { id: 'sector', label: 'Sector', visible: true },
+        { id: 'shares', label: 'Shares', visible: true },
+        { id: 'sharePrice', label: 'Share Price', visible: true },
+        { id: 'totalValue', label: 'Total Value', visible: true },
+        { id: 'gainLoss', label: 'Gain/Loss', visible: true },
+        { id: 'returnPercent', label: 'Return %', visible: true }
+      );
+    }
+
+    return columns;
+  }, [catalogData]);
+
   // Shared filter state and logic
-  const reportFilters = useReportFilters();
+  const reportFilters = useReportFilters(initialColumns);
 
   // Find the selected investment type from catalog
   const selectedInvestmentType = useMemo(() => {
@@ -222,6 +266,8 @@ export const EquityReport: React.FC<EquityReportProps> = ({
               investmentTypeValue={type.value}
               title={`${type.value} Analytics`}
               catalogData={catalogData}
+              isTransposed={reportFilters.isTransposed}
+              visibleColumns={reportFilters.visibleColumns}
               data-testid={`${dataTestId}-${type.code.toLowerCase()}-table`}
             />
           </TabsContent>

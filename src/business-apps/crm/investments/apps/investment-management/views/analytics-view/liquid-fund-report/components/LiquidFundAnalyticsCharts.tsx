@@ -101,15 +101,35 @@ export const LiquidFundAnalyticsCharts: React.FC<LiquidFundAnalyticsChartsProps>
                 tickFormatter={(value) => formatCurrency(value)}
               />
               <ChartTooltip 
-                content={<ChartTooltipContent 
-                  formatter={(value, name, props) => {
-                    if (name === 'interestRate') {
-                      return [`${value}%`, 'Interest Rate'];
-                    }
-                    return [formatCurrency(value as number), 'Investment Amount'];
-                  }}
-                  labelFormatter={() => ''}
-                />} 
+                content={({ active, payload }) => {
+                  if (active && payload && payload.length) {
+                    const data = payload[0].payload;
+                    return (
+                      <div className="gba:bg-white gba:p-3 gba:border gba:border-gray-200 gba:rounded-lg gba:shadow-lg">
+                        <div className="gba:mb-2 gba:font-medium gba:text-gray-700">
+                          Fixed-Term Deposit
+                        </div>
+                        <div className="gba:flex gba:items-center gba:gap-2 gba:mb-1">
+                          <div 
+                            className="gba:w-3 gba:h-3 gba:rounded-full" 
+                            style={{ backgroundColor: 'var(--color-ratevsamount)' }}
+                          />
+                          <span className="gba:font-medium">Interest Rate:</span>
+                          <span className="gba:font-semibold">{data.interestRate}%</span>
+                        </div>
+                        <div className="gba:flex gba:items-center gba:gap-2 gba:mb-1">
+                          <div 
+                            className="gba:w-3 gba:h-3 gba:rounded-full" 
+                            style={{ backgroundColor: 'var(--color-ratevsamount)' }}
+                          />
+                          <span className="gba:font-medium">Investment Amount:</span>
+                          <span className="gba:font-semibold">{formatCurrency(data.investmentAmount)}</span>
+                        </div>
+                      </div>
+                    );
+                  }
+                  return null;
+                }}
               />
               <Scatter 
                 name="ratevsamount"
@@ -153,14 +173,45 @@ export const LiquidFundAnalyticsCharts: React.FC<LiquidFundAnalyticsChartsProps>
                 tickFormatter={(value) => formatCurrency(value)}
               />
               <ChartTooltip 
-                content={<ChartTooltipContent 
-                  formatter={(value, name) => {
-                    if (name === 'averageinterestrate') {
-                      return [`${(value as number).toFixed(2)}%`, 'Average Interest Rate'];
-                    }
-                    return [formatCurrency(value as number), 'Average Investment Amount'];
-                  }}
-                />} 
+                content={({ active, payload, label }) => {
+                  if (active && payload && payload.length) {
+                    const data = payload[0].payload;
+                    return (
+                      <div className="gba:bg-white gba:p-3 gba:border gba:border-gray-200 gba:rounded-lg gba:shadow-lg">
+                        <div className="gba:mb-2 gba:font-medium gba:text-gray-700">
+                          {label}
+                        </div>
+                        {payload.map((entry, index) => {
+                          let formattedValue = '';
+                          let properLabel = '';
+                          let dotColor = '';
+                          
+                          if (entry.dataKey === 'averageInterestRate') {
+                            formattedValue = `${(entry.value as number).toFixed(2)}%`;
+                            properLabel = 'Average Interest Rate';
+                            dotColor = 'var(--color-averageinterestrate)';
+                          } else if (entry.dataKey === 'averageInvestmentAmount') {
+                            formattedValue = formatCurrency(entry.value as number);
+                            properLabel = 'Average Investment Amount';
+                            dotColor = 'var(--color-averageinvestmentamount)';
+                          }
+                          
+                          return (
+                            <div key={index} className="gba:flex gba:items-center gba:gap-2 gba:mb-1">
+                              <div 
+                                className="gba:w-3 gba:h-3 gba:rounded-full" 
+                                style={{ backgroundColor: dotColor }}
+                              />
+                              <span className="gba:font-medium">{properLabel}:</span>
+                              <span className="gba:font-semibold">{formattedValue}</span>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    );
+                  }
+                  return null;
+                }}
               />
               <ChartLegend content={<ChartLegendContent />} />
               <Bar 
