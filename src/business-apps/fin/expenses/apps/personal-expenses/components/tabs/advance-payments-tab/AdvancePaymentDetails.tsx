@@ -16,10 +16,21 @@ import { formatCurrencyDisplay } from '../../../utils';
 
 interface AdvancePaymentDetailsProps extends BusinessAppContextProps {
   payment: AdvancePayment;
-  onClose: () => void;
+  onClose?: () => void;
 }
 
-const AdvancePaymentDetails: React.FC<AdvancePaymentDetailsProps> = ({ payment, onClose }) => {
+const AdvancePaymentDetails: React.FC<AdvancePaymentDetailsProps> = ({ payment }) => {
+  const formatPaymentMethod = (value?: string) => {
+    if (!value) return '';
+    const normalized = String(value).replace(/[_-]+/g, ' ').trim();
+    if (!normalized) return '';
+    return normalized
+      .toLowerCase()
+      .split(/\s+/)
+      .filter(Boolean)
+      .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+      .join(' ');
+  };
   return (
     <div className="gba:p-6 gba:space-y-6" data-testid="advance-payment-details-content">
       {/* Header Section */}
@@ -86,7 +97,9 @@ const AdvancePaymentDetails: React.FC<AdvancePaymentDetailsProps> = ({ payment, 
                 {getTranslationFromI18nKeyAndLabel('lowcoder:create_expense_request.add_request_trip_details.payment_method', 'Payment Method')}
               </span>
               <span className="gba:text-sm gba:text-gray-900">
-                {payment.paymentMethod ?? getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.not_specified', 'Not specified')}
+                {payment.paymentMethod
+                  ? formatPaymentMethod(String(payment.paymentMethod))
+                  : getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.not_specified', 'Not specified')}
               </span>
             </div>
           </div>
