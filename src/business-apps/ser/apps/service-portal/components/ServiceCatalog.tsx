@@ -14,10 +14,10 @@ import { navigateTo } from '@/common/utils/navigationUtils';
 import { DebouncedInput } from '@/components/data-filter/DebouncedInput';
 import { 
   ClockCounterClockwise,
-  Notepad,
   ChartLine,
   MagnifyingGlass,
-  X
+  X,
+  Sparkle
 } from '@phosphor-icons/react';
 
 export interface ServiceCatalogProps extends BusinessAppContextProps {
@@ -25,6 +25,182 @@ export interface ServiceCatalogProps extends BusinessAppContextProps {
   onMyRequestsClick: () => void;
   onServiceDeskClick?: () => void;
 }
+
+// AI Button Icon Component - Animated Gradient Sparkle
+const AnimatedGradientSparkle = React.forwardRef<SVGSVGElement, { className?: string }>((props, ref) => {
+  const { className, ...restProps } = props;
+  const maskId = React.useId();
+
+  return (
+    <svg
+      ref={ref}
+      xmlns="http://www.w3.org/2000/svg"
+      viewBox="0 0 256 256"
+      preserveAspectRatio="xMidYMid meet"
+      className={`gba:block ${className || ''}`}
+      {...restProps}
+    >
+      <defs>
+        <mask
+          id={maskId}
+          maskUnits="userSpaceOnUse"
+          maskContentUnits="userSpaceOnUse"
+        >
+          {/* IMPORTANT: add a class containing 'size-' to bypass global [&_svg]:size-4 override */}
+          <Sparkle
+            weight="fill"
+            color="#ffffff"
+            size={256}
+            className="size-internal"
+          />
+        </mask>
+      </defs>
+      {/* CSS-driven gradient animation via foreignObject + mask */}
+      <foreignObject
+        x="0"
+        y="0"
+        width="256"
+        height="256"
+        mask={`url(#${maskId})`}
+      >
+        <div className="gba:w-full gba:h-full gba:bg-gradient-to-r gba:from-purple-500 gba:via-pink-500 gba:to-blue-500 gba:animate-pulse" />
+      </foreignObject>
+    </svg>
+  );
+});
+
+AnimatedGradientSparkle.displayName = "AnimatedGradientSparkle";
+
+// Chat opening function - extracted from AIOnboardingTooltip.tsx
+const openAIChat = () => {
+  console.log('🤖 [AI Help Center] Opening AI chat...');
+  
+  // Trigger the existing chat system - targeting the specific gravity-platform chat button
+  try {
+    console.log('🤖 [AI Help Center] Attempting to open gravity-platform chat...');
+    
+    // Method 1: Target the specific chat button structure from gravity-platform
+    const specificChatSelectors = [
+      // Exact match for the gravity-platform chat button
+      'button[title="Open AI Assistant"]',
+      // Backup selectors based on the HTML structure
+      'button.fixed.bottom-4.right-4.z-30',
+      '.fixed.bottom-4.right-4 button',
+      // Generic chat selectors as fallback
+      '[title*="AI Assistant"]',
+      '[title*="Chat"]',
+      '[class*="fixed"][class*="bottom-4"][class*="right-4"]'
+    ];
+
+    let chatOpened = false;
+    
+    // Debug: Log all buttons found
+    console.log('🤖 [Debug] Searching for chat buttons...');
+    specificChatSelectors.forEach((selector, index) => {
+      const elements = document.querySelectorAll(selector);
+      console.log(`🤖 [Debug] Selector ${index + 1} "${selector}": Found ${elements.length} elements`);
+      elements.forEach((el, i) => {
+        const rect = el.getBoundingClientRect();
+        console.log(`  Element ${i + 1}:`, {
+          visible: rect.width > 0 && rect.height > 0,
+          rect: { width: rect.width, height: rect.height },
+          title: el.getAttribute('title'),
+          classes: el.className
+        });
+      });
+    });
+    
+    for (const selector of specificChatSelectors) {
+      const chatButton = document.querySelector(selector);
+      if (chatButton && chatButton instanceof HTMLElement) {
+        // Verify it's visible and clickable
+        const rect = chatButton.getBoundingClientRect();
+        if (rect.width > 0 && rect.height > 0) {
+          console.log(`🤖 Found chat button with selector: ${selector}`);
+          console.log('🤖 Button details:', {
+            title: chatButton.getAttribute('title'),
+            classes: chatButton.className,
+            rect: { width: rect.width, height: rect.height }
+          });
+          
+          // Add visual highlight before clicking
+          chatButton.style.boxShadow = '0 0 20px rgba(59, 130, 246, 0.8)';
+          setTimeout(() => {
+            chatButton.style.boxShadow = '';
+          }, 1000);
+          
+          chatButton.click();
+          console.log('🤖 ✅ Successfully clicked gravity-platform chat button!');
+          chatOpened = true;
+          break;
+        }
+      }
+    }
+
+    // Method 2: If specific selectors fail, try broader search
+    if (!chatOpened) {
+      console.log('🤖 [Debug] Trying fallback selectors...');
+      const fallbackSelectors = [
+        '[data-testid*="chat"]',
+        '[class*="chat"]', 
+        '[id*="chat"]',
+        'button[class*="fixed"][class*="bottom"]',
+        '.fixed button[title*="Assistant"]'
+      ];
+
+      for (const selector of fallbackSelectors) {
+        const chatElement = document.querySelector(selector);
+        if (chatElement && chatElement instanceof HTMLElement) {
+          const rect = chatElement.getBoundingClientRect();
+          if (rect.width > 0 && rect.height > 0) {
+            chatElement.click();
+            console.log(`🤖 ✅ Clicked fallback chat element: ${selector}`);
+            chatOpened = true;
+            break;
+          }
+        }
+      }
+    }
+
+    // Method 3: Dispatch custom events for gravity-platform chat system
+    if (!chatOpened) {
+      console.log('🤖 [Debug] Dispatching custom events...');
+      const events = [
+        'openAIChat',
+        'showAIAssistant', 
+        'toggleChat',
+        'openGravityChat'
+      ];
+
+      events.forEach(eventName => {
+        window.dispatchEvent(new CustomEvent(eventName, { 
+          detail: { 
+            source: 'ai-help-center-button',
+            prefilledMessage: 'Hi! I need help finding the right service or assistance with my request.',
+            context: 'service-portal-help-center',
+            platform: 'gravity-platform'
+          }
+        }));
+        console.log(`🤖 Dispatched event: ${eventName}`);
+      });
+      
+      console.log('🤖 Dispatched gravity-platform chat events');
+      chatOpened = true;
+    }
+
+    if (chatOpened) {
+      console.log('🤖 ✅ Chat integration successful with gravity-platform!');
+    } else {
+      console.log('🤖 ❌ No chat button found, showing fallback message');
+      alert('Chat button not found. Please look for the chat icon in the bottom-right corner of your screen.');
+    }
+    
+  } catch (error) {
+    console.error('🤖 ❌ Error opening chat:', error);
+    // Fallback: show a message or redirect to a help page
+    alert('Chat system is temporarily unavailable. Please try again later.');
+  }
+};
 
 // Search input component defined outside to prevent re-creation and focus loss
 const SearchInput = React.memo<{
@@ -417,14 +593,14 @@ export const ServiceCatalog: React.FC<ServiceCatalogProps> = ({
       });
     }
 
-    // Help Center is always available
+    // Help Center is always available - now with AI-powered assistance
     actions.push({
       id: 'knowledge-base',
-      label: 'Help Center',
-      icon: Notepad,
+      label: 'Ask AI Assistant',
+      icon: AnimatedGradientSparkle,
       onClick: () => {
-        // TODO: Open knowledge base
-        alert('Help Center - Coming Soon!\nThis will contain service documentation and FAQs.');
+        // Open AI chat using the same logic as AIOnboardingTooltip
+        openAIChat();
       },
       variant: 'ext3'
     });
