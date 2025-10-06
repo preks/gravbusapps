@@ -41,8 +41,8 @@ const UploadComponent: React.FC<UploadComponentProps> = ({ fileList, setFileList
   };
 
   const containerClass = fileList.length > 0
-    ? 'gba:border gba:border-muted gba:rounded-md gba:p-5 gba:relative gba:bg-card'
-    : 'gba:border gba:border-muted gba:rounded-md gba:p-0 gba:flex gba:items-center gba:justify-center gba:bg-card gba:h-[204px]';
+    ? 'gba:border gba:border-solid gba:border-ring gba:rounded-md gba:p-5 gba:relative gba:bg-card'
+    : 'gba:border gba:border-solid gba:border-ring gba:rounded-md gba:p-0 gba:flex gba:items-center gba:justify-center gba:bg-card gba:h-[204px]';
 
   const attachText = getTranslationFromI18nKeyAndLabel('lowcoder:hr_absences.create_absence.upload_document', 'Attach Document');
   const focusAlt = getTranslationFromI18nKeyAndLabel('lowcoder:create_expense_type_item.focus_alt_text', 'Focus');
