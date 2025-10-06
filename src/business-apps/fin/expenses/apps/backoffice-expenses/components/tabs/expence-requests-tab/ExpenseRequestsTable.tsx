@@ -39,7 +39,6 @@ import {
   ExpenseRequestTableRow,
   ExpenseRequestPagination
 } from './components';
-import EffectiveDateFilter from './components/EffectiveDateFilter';
 
 import {
   useExpenseRequestFilters,
@@ -78,7 +77,6 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = (props) => {
   const [selectedRowKeys, setSelectedRowKeys] = useState<React.Key[]>([]);
   const [selectedRecords, setSelectedRecords] = useState<ExpenseData[]>([]);
   const [availableStatuses, setAvailableStatuses] = useState<string[]>([]);
-  const [effectiveDateRange, setEffectiveDateRange] = useState<[Date | null, Date | null] | null>(null);
 
   const clearSelection = useCallback(() => {
     setSelectedRecords([]);
@@ -151,7 +149,6 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = (props) => {
     handleEmployeeFilter,
     handleStatusFilter,
     handleAmountFilter,
-    handleEffectiveDateFilter,
     handleTableChange, 
     handleSearch,
     amountMinFilter,
@@ -328,22 +325,7 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = (props) => {
 
   const filterGroups: DataFilterGroup[] = useMemo(() => {
     return [
-      {
-        id: 'effectiveDate',
-        title: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.effective_date', 'Effective Date'),
-        type: 'custom',
-        customComponent: (
-          <EffectiveDateFilter
-            effectiveDateRange={effectiveDateRange}
-            onDateRangeChange={(range) => {
-              setEffectiveDateRange(range);
-              const start = range?.[0] ? new Date(range[0]).toISOString().slice(0, 19).replace('T', ' ') : undefined;
-              const end = range?.[1] ? new Date(range[1]).toISOString().slice(0, 19).replace('T', ' ') : undefined;
-              handleEffectiveDateFilter(start, end);
-            }}
-          />
-        )
-      },
+      
       {
         id: 'status',
         title: getTranslationFromI18nKeyAndLabel('lowcoder:expense_request_list.expense_plan_table.status', 'Status'),
@@ -389,16 +371,13 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = (props) => {
         )
       }
     ];
-  }, [effectiveDateRange, availableStatuses, statusFilter, employeeSearchText, showEmployeeDropdown, employeeSearchResults, employeeSearchLoading, selectedEmployees, handleEmployeeFilter, debouncedSearchEmployees, localAmountMin, setLocalAmountMin, localAmountMax, setLocalAmountMax, debouncedAmountFilter]);
+  }, [availableStatuses, statusFilter, employeeSearchText, showEmployeeDropdown, employeeSearchResults, employeeSearchLoading, selectedEmployees, handleEmployeeFilter, debouncedSearchEmployees, localAmountMin, setLocalAmountMin, localAmountMax, setLocalAmountMax, debouncedAmountFilter]);
 
   const getFilters = useCallback((_filtersToApply?: string[]) => {
     const filters: Record<string, any> = {};
     if (employeeFilter) filters.employee = employeeFilter;
-    if (effectiveDateRange && (effectiveDateRange[0] || effectiveDateRange[1])) {
-      filters.effectiveDateRange = effectiveDateRange;
-    }
     return filters;
-  }, [employeeFilter, effectiveDateRange]);
+  }, [employeeFilter]);
 
   const setFilters = useCallback((_filters: string[]) => {
     setEmployeeFilter('');
@@ -459,13 +438,6 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = (props) => {
             status: statusFilter.length > 0 ? `Status: ${statusFilter.map(s => getExpenseRequestStatusDisplay(s).label).join(', ')}` : 'Status: All',
             employee: employeeFilter ? `Employee: ${selectedEmployees.map(e => e.name).join(', ')}` : 'Employee: All',
             amount: `Amount: ${amountMinFilter || '0'} - ${amountMaxFilter || '∞'}`,
-            ...(effectiveDateRange && (effectiveDateRange[0] || effectiveDateRange[1]) ? {
-              effectiveDateRange: `Effective Date: ${
-                effectiveDateRange[0] ? new Date(effectiveDateRange[0]).toLocaleDateString('en-US', { month: '2-digit', day: '2-digit', year: '2-digit' }) : ''
-              }${effectiveDateRange[0] && effectiveDateRange[1] ? ' - ' : ''}${
-                effectiveDateRange[1] ? new Date(effectiveDateRange[1]).toLocaleDateString('en-US', { month: '2-digit', day: '2-digit', year: '2-digit' }) : ''
-              }`
-            } : {})
           },
           // Always provide a truthy actions prop to keep hook order stable in DataController
           // Include the dynamic count in key/testid so memoized DataControllerActions detects changes
@@ -494,12 +466,10 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = (props) => {
                 setStatusFilter([]);
                 setLocalAmountMin('');
                 setLocalAmountMax('');
-                setEffectiveDateRange(null);
                 
                 handleEmployeeFilter('');
                 handleStatusFilter('');
                 handleAmountFilter('', '');
-                handleEffectiveDateFilter('', '');
               }
             } else {
               if (filterId === 'employee') {
@@ -509,11 +479,6 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = (props) => {
                   setSelectedEmployees([]);
                   setEmployeeSearchText('');
                   handleEmployeeFilter('');
-                }
-              } else if (filterId === 'effectiveDate') {
-                if (!selected) {
-                  setEffectiveDateRange(null);
-                  handleEffectiveDateFilter('', '');
                 }
               } else if (availableStatuses.includes(filterId)) {
                 handleStatusFilterChange(filterId, selected);
