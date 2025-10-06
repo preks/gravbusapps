@@ -42,6 +42,23 @@ export const TeamCoverageOptimizerPage: React.FC<TeamCoverageOptimizerPageProps>
     }
   };
 
+  const getImpactLevelTranslation = (impactLevel: string) => {
+    switch (impactLevel) {
+      case 'low':
+        return getTranslationFromI18nKeyAndLabel('lowcoder:absence_management_hub_manager.statistics_tab.low_impact', 'LOW IMPACT');
+      case 'medium':
+        return getTranslationFromI18nKeyAndLabel('lowcoder:absence_management_hub_manager.statistics_tab.medium_impact', 'MEDIUM IMPACT');
+      case 'high':
+        return getTranslationFromI18nKeyAndLabel('lowcoder:absence_management_hub_manager.statistics_tab.high_impact', 'HIGH IMPACT');
+      case 'critical':
+        return getTranslationFromI18nKeyAndLabel('lowcoder:absence_management_hub_manager.statistics_tab.critical_impact', 'CRITICAL IMPACT');
+      case 'none':
+        return getTranslationFromI18nKeyAndLabel('lowcoder:absence_management_hub_manager.statistics_tab.no_impact', 'NO IMPACT');
+      default:
+        return getTranslationFromI18nKeyAndLabel('lowcoder:absence_management_hub_manager.statistics_tab.unknown', 'UNKNOWN');
+    }
+  };
+
   const getCoverageColor = (coverage: number) => {
     if (coverage >= 80) return 'gba:text-gray-900';
     if (coverage >= 60) return 'gba:text-gray-700';
@@ -165,7 +182,7 @@ export const TeamCoverageOptimizerPage: React.FC<TeamCoverageOptimizerPageProps>
                         variant={getImpactBadgeColor(scenario.impactLevel)}
                         data-testid={`scenario-impact-level-${scenario.employeeId}`}
                       >
-                        {scenario.impactLevel.toUpperCase()} {getTranslationFromI18nKeyAndLabel('lowcoder:absence_management_hub_manager.statistics_tab.impact', 'IMPACT')}
+                        {getImpactLevelTranslation(scenario.impactLevel)}
                       </Badge>
                       <div className={`gba:text-sm gba:font-medium gba:mt-1 ${getCoverageColor(scenario.newCoverage)}`}>
                         {scenario.newCoverage}% {getTranslationFromI18nKeyAndLabel('lowcoder:absence_management_hub_manager.statistics_tab.coverage', 'Coverage')}
@@ -296,7 +313,7 @@ export const TeamCoverageOptimizerPage: React.FC<TeamCoverageOptimizerPageProps>
                 {getRiskText(orgUnit.currentRisk)}
               </Badge>
               <span className="gba:text-sm gba:text-gray-600">
-                {orgUnit.teamMembers.length} {getTranslationFromI18nKeyAndLabel('lowcoder:team_expenses_page.dashboard_tab.members', 'members')}, {orgUnit.absentMembers.length} {getTranslationFromI18nKeyAndLabel('lowcoder:absence_management_hub_manager.statistics_tab.absent_lowercase', 'absent')}
+                {orgUnit.teamMembers.length} {getTranslationFromI18nKeyAndLabel('lowcoder:absence_management_hub_manager.statistics_tab.members', 'members')}, {orgUnit.absentMembers.length} {getTranslationFromI18nKeyAndLabel('lowcoder:absence_management_hub_manager.statistics_tab.absent_lowercase', 'absents')}
               </span>
             </div>
           </div>
@@ -361,7 +378,7 @@ export const TeamCoverageOptimizerPage: React.FC<TeamCoverageOptimizerPageProps>
                         {matrixTeam.currentMatrixCoverage}% {getTranslationFromI18nKeyAndLabel('lowcoder:absence_management_hub_manager.statistics_tab.coverage', 'coverage')}
                       </div>
                       <div className="gba:text-xs gba:text-gray-500">
-                        {matrixTeam.orgUnitMembersInMatrix.length} {getTranslationFromI18nKeyAndLabel('lowcoder:team_expenses_page.dashboard_tab.members', 'members')} {getTranslationFromI18nKeyAndLabel('lowcoder:absence_management_hub_manager.statistics_tab.from_this_org_unit', 'from this org unit')}
+                        {matrixTeam.orgUnitMembersInMatrix.length} {getTranslationFromI18nKeyAndLabel('lowcoder:absence_management_hub_manager.statistics_tab.members', 'members')} {getTranslationFromI18nKeyAndLabel('lowcoder:absence_management_hub_manager.statistics_tab.from_this_org_unit', 'from this org unit')}
                       </div>
                     </div>
                   </div>
@@ -416,7 +433,7 @@ export const TeamCoverageOptimizerPage: React.FC<TeamCoverageOptimizerPageProps>
                                 variant={getImpactBadgeColor(scenario.impactLevel)}
                                 data-testid={`matrix-impact-level-${orgUnit.orgUnitId}-${index}-${scenarioIndex}`}
                               >
-                                {scenario.impactLevel.toUpperCase()} {getTranslationFromI18nKeyAndLabel('lowcoder:absence_management_hub_manager.statistics_tab.impact', 'IMPACT')}
+                                {getImpactLevelTranslation(scenario.impactLevel)}
                               </Badge>
                               <span className="gba:text-xs gba:text-gray-500">
                                 → {scenario.newMatrixCoverage}% {getTranslationFromI18nKeyAndLabel('lowcoder:absence_management_hub_manager.statistics_tab.coverage', 'coverage')}
