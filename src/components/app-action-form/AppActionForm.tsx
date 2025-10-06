@@ -43,6 +43,7 @@ export interface AppActionFormProps {
   allowStepJumping?: boolean;
   // Pre-submission handler (e.g., for file uploads)
   handlePreSubmit?: (formData: any) => Promise<any>;
+  isSubmitDisabled?: boolean;
 }
 
 const getSuccessMessage = (processType: string): string => {
@@ -196,6 +197,7 @@ export const AppActionForm: React.FC<AppActionFormProps> = ({
   showStepIndicator = true,
   allowStepJumping = false,
   handlePreSubmit,
+  isSubmitDisabled = false,
 }) => {
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState<ProcessMessage | null>(null);
@@ -267,6 +269,7 @@ export const AppActionForm: React.FC<AppActionFormProps> = ({
       cancelButtonText={cancelButtonText}
       submitButtonText={submitButtonText || getSuccessMessage(processType).replace('Successfully ', '')}
       isLoading={loading}
+      isSubmitDisabled={isSubmitDisabled}
       submitButtonVariant={submitButtonVariant}
       dataTestId={dataTestId}
     />
@@ -291,6 +294,7 @@ export const AppActionForm: React.FC<AppActionFormProps> = ({
         cancelButtonText={cancelButtonText}
         submitButtonText={submitButtonText || getSuccessMessage(processType).replace('Successfully ', '')}
         isLoading={loading}
+        isSubmitDisabled={isSubmitDisabled}
         submitButtonVariant={submitButtonVariant}
         dataTestId={dataTestId}
       />

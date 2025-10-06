@@ -47,6 +47,7 @@ const ChangePrivateCommunicationScreen: React.FC<ChangePrivateCommunicationScree
       onSubmit={(data) => data}
       validateForm={validateForm}
       handlePreSubmit={handlePreSubmit}
+      isSubmitDisabled={!isValid}
       submitButtonText={getTranslationFromI18nKeyAndLabel('common.submit', 'Submit')}
       cancelButtonText={getTranslationFromI18nKeyAndLabel('common.cancel', 'Cancel')}
       data-testid={formatDataTestId(prefixDataTestId, 'Container')}
