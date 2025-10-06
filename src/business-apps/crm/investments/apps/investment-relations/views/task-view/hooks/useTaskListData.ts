@@ -1,7 +1,7 @@
 "use client";
 
-import { useState, useCallback, useRef } from 'react';
-import { Task } from '../types/TaskTypes';
+import { useState, useCallback } from 'react';
+import { Task } from '@/common/components/common-relations/detail-sheets/task-detail-sheet';
 import { TaskFilters } from './useTaskFilters';
 import { useInvestmentTasks } from '@/common/data/investment';
 
@@ -9,7 +9,6 @@ interface UseTaskListDataProps extends TaskFilters {
   sortField: string;
   sortOrder: 'ASC' | 'DESC';
   accessToken: string;
-  sourceApp?: string;
 }
 
 interface UseTaskListDataReturn {
@@ -33,6 +32,8 @@ export const useTaskListData = (props: UseTaskListDataProps): UseTaskListDataRet
     referenceTypes,
     createdAfter,
     createdBefore,
+    dueDateAfter,
+    dueDateBefore,
     sortField,
     sortOrder,
     accessToken
@@ -56,28 +57,46 @@ export const useTaskListData = (props: UseTaskListDataProps): UseTaskListDataRet
     };
 
     if (statusRefs.length > 0) {
-      // Convert statusRefs like SalesTaskStatus to InvestmentTask catalog
-      variables.taskStatusIds = statusRefs.map((ref) => ref.split(':').pop()).filter(Boolean);
+      // Pass full catalog IDs directly to GraphQL query
+      variables.taskStatusIds = statusRefs;
     }
 
     if (priorityRefs.length > 0) {
-      variables.taskPriorityIds = priorityRefs.map((ref) => ref.split(':').pop()).filter(Boolean);
+      // Pass full catalog IDs directly to GraphQL query
+      variables.taskPriorityIds = priorityRefs;
     }
 
     if (taskTypes.length > 0) {
-      variables.taskTypeIds = taskTypes.map((ref) => ref.split(':').pop()).filter(Boolean);
+      // Pass full catalog IDs directly to GraphQL query
+      variables.taskTypeIds = taskTypes;
     }
 
     if (assignedEmployeeIds.length > 0) {
       variables.assignedEmployeeIds = assignedEmployeeIds;
     }
 
+    // Handle reference type filtering
+    if (referenceTypes && referenceTypes.length > 0) {
+      // For reference type filtering, we need to use a different approach
+      // Since we can't filter by reference type directly in GraphQL,
+      // we'll need to handle this in the where condition
+      variables.referenceTypes = referenceTypes;
+    }
+
     if (createdAfter) {
-      variables.dueDateFrom = createdAfter;
+      variables.createdAfter = createdAfter;
     }
 
     if (createdBefore) {
-      variables.dueDateTo = createdBefore;
+      variables.createdBefore = createdBefore;
+    }
+
+    if (dueDateAfter) {
+      variables.dueDateFrom = dueDateAfter;
+    }
+
+    if (dueDateBefore) {
+      variables.dueDateTo = dueDateBefore;
     }
 
     if (sortField && sortOrder) {
@@ -92,8 +111,11 @@ export const useTaskListData = (props: UseTaskListDataProps): UseTaskListDataRet
       variables.orderBy = [{ field, direction: sortOrder }];
     }
 
+    // Debug logging
+    console.log('useTaskListData - Building query variables:', variables);
+    
     return variables;
-  }, [search, statusRefs, priorityRefs, taskTypes, assignedEmployeeIds, createdAfter, createdBefore, sortField, sortOrder]);
+  }, [search, statusRefs, priorityRefs, taskTypes, assignedEmployeeIds, referenceTypes, createdAfter, createdBefore, dueDateAfter, dueDateBefore, sortField, sortOrder]);
 
   const loadData = useCallback(async (page: number, size: number) => {
     if (!accessToken) {
@@ -130,6 +152,9 @@ export const useTaskListData = (props: UseTaskListDataProps): UseTaskListDataRet
         } else if (it.contact?.id) {
           const contactName = it.contactDisplayName || `${it.contact.firstName || ''} ${it.contact.lastName || ''}`.trim() || 'Contact';
           reference = { type: 'contact', id: it.contact.id, name: contactName } as any;
+        } else if (it.investment?.id) {
+          const investmentName = it.investmentDisplayName || it.investment.name || it.investment.code || 'Investment';
+          reference = { type: 'investment', id: it.investment.id, name: investmentName } as any;
         } else {
           // No related entity - set reference to undefined instead of creating invalid reference
           reference = undefined;
@@ -138,14 +163,18 @@ export const useTaskListData = (props: UseTaskListDataProps): UseTaskListDataRet
         return {
           id: it.id,
           name: it.displayName || it.name || it.code || `Task ${it.id}`,
+          description: it.description || undefined,
           assignedTo: {
             id: it.assignedEmployee?.id || it.id,
             firstName: it.assignedEmployee?.firstName || '',
             lastName: it.assignedEmployee?.lastName || '',
-            displayName: it.assignedDisplayName || it.assignedEmployee?.displayName || 'Unassigned',
+            displayName: it.assignedDisplayName || 
+              it.assignedEmployee?.displayName || 
+              `${it.assignedEmployee?.firstName || ''} ${it.assignedEmployee?.lastName || ''}`.trim() || 
+              'Unassigned',
             department: '',
             initials: '',
-            pictureThumbnail: it.assignedEmployee?.pictureThumbnail || undefined
+            pictureThumbnail: it.assignedEmployee?.pictureThumbnail
           },
           type,
           priority: normalizedPriority,
@@ -159,25 +188,17 @@ export const useTaskListData = (props: UseTaskListDataProps): UseTaskListDataRet
           version: it.version as any,
           rawSalesTask: undefined,
           createdBy: it.creatorUserId,
-          creatorEmployee: (() => {
-            // Check for flattened creator display name first (like assignedDisplayName)
-            const creatorDisplayName = (it as any).creatorDisplayName;
-            const creatorEmployeeId = typeof it.creatorEmployee === 'string' ? it.creatorEmployee : it.creatorEmployee?.id;
-
-            if (creatorEmployeeId) {
-              return {
-                id: creatorEmployeeId,
-                firstName: it.creatorEmployee?.firstName || '',
-                lastName: it.creatorEmployee?.lastName || '',
-                displayName: creatorDisplayName || it.creatorEmployee?.displayName || 'Unknown Creator',
-                department: '',
-                initials: '',
-                pictureThumbnail: it.creatorEmployee?.pictureThumbnail || undefined
-              };
-            }
-            
-            return undefined;
-          })()
+          creatorEmployee: it.creatorEmployee ? {
+            id: it.creatorEmployee.id,
+            firstName: it.creatorEmployee.firstName || '',
+            lastName: it.creatorEmployee.lastName || '',
+            displayName: it.creatorEmployee.displayName || 
+              `${it.creatorEmployee.firstName || ''} ${it.creatorEmployee.lastName || ''}`.trim() || 
+              'Unknown',
+            department: '',
+            initials: '',
+            pictureThumbnail: it.creatorEmployee.pictureThumbnail
+          } : undefined
         } as Task;
       });
 

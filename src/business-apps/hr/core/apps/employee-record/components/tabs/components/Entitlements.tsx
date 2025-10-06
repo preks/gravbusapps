@@ -114,7 +114,7 @@ const Entitlements: React.FC<EntitlementsProps> = ({ entitlements, loading, erro
                   <span className="gba:text-amber-500 gba:font-medium">{entitlement.pending}</span>
                   <span className="gba:text-xs gba:text-gray-500">
                     {getTranslationFromI18nKeyAndLabel(
-                      'lowcoder:absence_hub.days_pending',
+                      'lowcoder:absence_landing_page.vacation_card_header_container.vacation_card_days_pending_text',
                       'days in approval',
                     )}
                   </span>

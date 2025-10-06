@@ -58,7 +58,7 @@ async function main() {
 
     console.log(`Publishing: ${publishPath}`);
     try {
-      execSync(`yarn publish:screen -- "${publishPath}" --no-interaction`, {
+      execSync(`npm run publish:screen -- "${publishPath}" --no-interaction`, {
         stdio: "inherit",
       });
     } catch (e) {

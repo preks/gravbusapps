@@ -1,5 +1,5 @@
-// Core task types
-export * from './TaskTypes';
+// Core task types - now using common types
+export { Task, TaskEmployee, TaskReference, TaskStatistics, TaskStatisticItem } from '@/common/components/common-relations/detail-sheets/task-detail-sheet';
 export * from './SalesTaskTypes';
 
 // Dynamic hook types

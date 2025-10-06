@@ -1,17 +1,27 @@
 import { useState, useCallback, useMemo, useEffect } from 'react';
 import dayjs from 'dayjs';
 
+export interface ColumnConfig {
+  id: string;
+  label: string;
+  visible: boolean;
+  disabled?: boolean;
+}
+
 export interface ReportFiltersState {
-  timeFilter: string;
   startDate: dayjs.Dayjs | null;
   endDate: dayjs.Dayjs | null;
+  isTransposed: boolean;
+  columnConfig: ColumnConfig[];
+  visibleColumns: string[];
 }
 
 export interface ReportFiltersCallbacks {
-  handleTimeFilterChange: (value: string) => void;
   handleStartDateChange: (date: dayjs.Dayjs | null) => void;
   handleEndDateChange: (date: dayjs.Dayjs | null) => void;
   handleClearFilters: () => void;
+  handleTransposeToggle: () => void;
+  handleColumnVisibilityChange: (columnId: string, visible: boolean) => void;
 }
 
 export interface UseReportFiltersReturn extends ReportFiltersState, ReportFiltersCallbacks {
@@ -26,84 +36,90 @@ export interface UseReportFiltersReturn extends ReportFiltersState, ReportFilter
 
 /**
  * Shared hook for report filter state management across all investment report types
- * Handles the common pattern of time period selection vs individual date selection
+ * Handles date range filtering and column visibility
  */
-export const useReportFilters = (): UseReportFiltersReturn => {
-  const [timeFilter, setTimeFilter] = useState<string>('all');
+export const useReportFilters = (initialColumns?: ColumnConfig[]): UseReportFiltersReturn => {
   const [startDate, setStartDate] = useState<dayjs.Dayjs | null>(null);
   const [endDate, setEndDate] = useState<dayjs.Dayjs | null>(null);
+  const [isTransposed, setIsTransposed] = useState(false);
   const [filtersInitialized, setFiltersInitialized] = useState(false);
+  
+  // Column visibility management
+  const [columnConfig, setColumnConfig] = useState<ColumnConfig[]>(initialColumns || []);
+
+  // Update columnConfig when initialColumns changes (e.g., after catalog loads or tab switch)
+  useEffect(() => {
+    if (initialColumns && initialColumns.length > 0) {
+      setColumnConfig((prevConfig) => {
+        if (prevConfig.length === 0) {
+          // First time initialization - use initialColumns as-is
+          return initialColumns;
+        }
+
+        // Check how many columns from prevConfig exist in initialColumns
+        const prevIds = new Set(prevConfig.map(col => col.id));
+        const newIds = new Set(initialColumns.map(col => col.id));
+        const commonIds = prevConfig.filter(col => newIds.has(col.id));
+        const overlapPercentage = prevConfig.length > 0 ? (commonIds.length / prevConfig.length) : 0;
+
+        // If less than 50% overlap, this is likely a tab switch - reset all columns to default
+        if (overlapPercentage < 0.5) {
+          return initialColumns;
+        }
+
+        // Otherwise, preserve user's visibility preferences for columns that exist in both configs
+        const prevVisibilityMap = new Map(
+          prevConfig.map((col) => [col.id, col.visible])
+        );
+
+        // Merge: keep user's visibility choices, but add new columns from initialColumns
+        return initialColumns.map((col) => ({
+          ...col,
+          visible: prevVisibilityMap.has(col.id) 
+            ? prevVisibilityMap.get(col.id)! 
+            : col.visible // Use default for new columns
+        }));
+      });
+    }
+  }, [initialColumns]);
+
+  // Get visible columns
+  const visibleColumns = useMemo(() => 
+    columnConfig.filter((col) => col.visible).map((col) => col.id),
+    [columnConfig]
+  );
 
   // Filter change handlers - consistent across all reports
-  const handleTimeFilterChange = useCallback((value: string) => {
-    setTimeFilter(value);
-    if (value !== 'all') {
-      setStartDate(null); // Clear individual dates when using time filter
-      setEndDate(null);
-    }
-  }, []);
-
   const handleStartDateChange = useCallback((date: dayjs.Dayjs | null) => {
     setStartDate(date);
-    if (date) {
-      setTimeFilter('all'); // Clear time filter when using individual dates
-    }
   }, []);
 
   const handleEndDateChange = useCallback((date: dayjs.Dayjs | null) => {
     setEndDate(date);
-    if (date) {
-      setTimeFilter('all'); // Clear time filter when using individual dates
-    }
+  }, []);
+
+  const handleTransposeToggle = useCallback(() => {
+    setIsTransposed(prev => !prev);
+  }, []);
+
+  const handleColumnVisibilityChange = useCallback((columnId: string, visible: boolean) => {
+    setColumnConfig((prev) =>
+      prev.map((col) => (col.id === columnId ? { ...col, visible } : col))
+    );
   }, []);
 
   const handleClearFilters = useCallback(() => {
-    setTimeFilter('all');
     setStartDate(null);
     setEndDate(null);
   }, []);
 
   // Compute final filter values for API calls
   const computedFilters = useMemo(() => {
-    let computedStartDate: string | undefined;
-    let computedEndDate: string | undefined;
-
-    if (timeFilter !== 'all') {
-      // Use time filter logic
-      const now = dayjs();
-      switch (timeFilter) {
-        case 'last7days':
-          computedStartDate = now.subtract(7, 'day').format('YYYY-MM-DD');
-          computedEndDate = now.format('YYYY-MM-DD');
-          break;
-        case 'last30days':
-          computedStartDate = now.subtract(30, 'day').format('YYYY-MM-DD');
-          computedEndDate = now.format('YYYY-MM-DD');
-          break;
-        case 'last3months':
-          computedStartDate = now.subtract(3, 'month').format('YYYY-MM-DD');
-          computedEndDate = now.format('YYYY-MM-DD');
-          break;
-        case 'last6months':
-          computedStartDate = now.subtract(6, 'month').format('YYYY-MM-DD');
-          computedEndDate = now.format('YYYY-MM-DD');
-          break;
-        case 'lastyear':
-          computedStartDate = now.subtract(1, 'year').format('YYYY-MM-DD');
-          computedEndDate = now.format('YYYY-MM-DD');
-          break;
-      }
-    } else {
-      // Use individual dates if provided
-      computedStartDate = startDate?.format('YYYY-MM-DD');
-      computedEndDate = endDate?.format('YYYY-MM-DD');
-    }
-
     return {
-      startDate: computedStartDate,
-      endDate: computedEndDate
+      startDate: startDate?.format('YYYY-MM-DD'),
+      endDate: endDate?.format('YYYY-MM-DD')
     };
-  }, [timeFilter, startDate, endDate]);
+  }, [startDate, endDate]);
 
   // Initialize filters after initial state setup
   useEffect(() => {
@@ -112,13 +128,16 @@ export const useReportFilters = (): UseReportFiltersReturn => {
 
   return {
     // State
-    timeFilter,
     startDate,
     endDate,
+    isTransposed,
+    columnConfig,
+    visibleColumns,
     // Callbacks
-    handleTimeFilterChange,
     handleStartDateChange,
     handleEndDateChange,
+    handleTransposeToggle,
+    handleColumnVisibilityChange,
     handleClearFilters,
     // Computed values
     computedFilters,

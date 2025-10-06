@@ -39,13 +39,25 @@ const ActivityForm: React.FC<ActivityFormProps> = ({
     ownerEmployee: userInfo?.employeeDetails?.employeeId ? { id: userInfo.employeeDetails.employeeId } : undefined
   });
 
+  // Resolve IDs from additionalData (platform may pass ids inside psi_taskPayload.psi_initialParameters)
+  const platformParams = React.useMemo(() => {
+    const nested = (additionalData as any)?.psi_taskPayload?.psi_initialParameters || (additionalData as any)?.psi_initialParameters || {};
+    return {
+      activityId: (additionalData as any)?.activityId || nested?.activityId,
+      investmentId: (additionalData as any)?.investmentId || nested?.investmentId,
+      accountId: (additionalData as any)?.accountId || nested?.accountId,
+      contactId: (additionalData as any)?.contactId || nested?.contactId,
+      opportunityId: (additionalData as any)?.opportunityId || nested?.opportunityId,
+      leadId: (additionalData as any)?.leadId || nested?.leadId,
+    };
+  }, [additionalData]);
+
   // Check if we're in update mode
-  const activityId = additionalData?.activityId;
+  const activityId = platformParams.activityId;
   const isUpdateMode = !!activityId;
 
-  // Get entity IDs from business app context (support externalContextData from AppAction)
-  const { accountId, leadId, contactId, opportunityId } = additionalData || {};
-  // const hasEntityFromContext = accountId || leadId || contactId || opportunityId; // not used after forcing hide
+  // Get entity IDs from platform params
+  const { accountId, leadId, contactId, opportunityId } = platformParams;
   
   // For investment activities, we hide entity selection since investment + account context is sufficient
   // In the investment record context, this specialized form must never ask for a related entity
@@ -100,6 +112,7 @@ const ActivityForm: React.FC<ActivityFormProps> = ({
           
           // Set form data
           setFormData({
+            id: activity.id,
             title: activity.title || '',
             activityTypeRef: activity.activityType?.id || '',
             occurredAt: activity.occurredAt || '',
@@ -126,10 +139,20 @@ const ActivityForm: React.FC<ActivityFormProps> = ({
             else if (activity.opportunity?.id) hydrateEntityById('opportunity', activity.opportunity.id);
             else if (activity.lead?.id) hydrateEntityById('lead', activity.lead.id);
           }
+
+          // Prefill owner employee for the combobox
+          if (activity.ownerEmployee?.id) {
+            const displayName = activity.ownerEmployee.displayName || 
+              `${activity.ownerEmployee.firstName || ''} ${activity.ownerEmployee.lastName || ''}`.trim() || 
+              'Unknown';
+            setAssigneePrefill([{ id: activity.ownerEmployee.id, displayName }]);
+            // Hydrate details for the selected employee so avatar/job/unit appear immediately
+            hydrateById(activity.ownerEmployee.id);
+          }
         }
       });
     }
-  }, [isUpdateMode, activityId, fetchInvestmentActivityById]);
+  }, [isUpdateMode, activityId, fetchInvestmentActivityById, hydrateEntityById, hydrateById]);
 
   const handleEntitySearch = useCallback((searchTerm: string) => {
     // Allow empty string to fetch first page
@@ -150,12 +173,17 @@ const ActivityForm: React.FC<ActivityFormProps> = ({
   }, [shouldShowEntitySelection]);
 
   // Form submission handler - business logic only
-  const handleSubmit = useCallback(async (formData: Activity) => {
-    const payload = buildActivityPayload(formData, { accessToken, userInfo, additionalData } as any, {
+  const handleSubmit = useCallback(async (data: Activity) => {
+    // Merge form data with state to include id and version
+    const activityData = formData.id 
+      ? { ...data, id: formData.id, version: formData.version }
+      : data;
+    
+    const payload = buildActivityPayload(activityData, { accessToken, userInfo, additionalData } as any, {
       isUpdate: isUpdateMode,
     });
     return payload;
-  }, [accessToken, userInfo, additionalData, isUpdateMode]);
+  }, [accessToken, userInfo, additionalData, isUpdateMode, formData]);
 
   // Success handler
   const handleSuccess = useCallback(() => {

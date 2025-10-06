@@ -36,7 +36,7 @@ export const GET_INVESTMENT_WIN_RATE_WITH_TREND = `
     }) { aggregate { count } }
     currentWins: InvestmentOpportunityAggregate(where: {
       isDeleted: {_eq: false},
-      opportunityStatus: { code: {_in: ["HIGH_PROBABILITY", "LIKELY_TO_WIN", "CLOSED_WON"] } }
+      opportunityStatus: { code: {_eq: "WON"} }
     }) { aggregate { count } }
     previousTotal: InvestmentOpportunityAggregate(where: {
       isDeleted: {_eq: false},
@@ -44,7 +44,7 @@ export const GET_INVESTMENT_WIN_RATE_WITH_TREND = `
     }) { aggregate { count } }
     previousWins: InvestmentOpportunityAggregate(where: {
       isDeleted: {_eq: false},
-      opportunityStatus: { code: {_in: ["HIGH_PROBABILITY", "LIKELY_TO_WIN", "CLOSED_WON"] } },
+      opportunityStatus: { code: {_eq: "WON"} },
       createdAt: {_lt: $lastQuarter}
     }) { aggregate { count } }
   }
@@ -133,5 +133,3 @@ export const useOpportunityStatisticsQueries = (context: BusinessAppContextProps
     fetchOpportunitiesThisYearWithTrend,
   };
 };
-
-

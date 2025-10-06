@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useCallback } from 'react';
 import { Button } from '@newwork/nw-design-system';
 import { Eye } from 'lucide-react';
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
@@ -28,12 +28,31 @@ export const FlowBasedGenerateButton: React.FC<FlowBasedGenerateButtonProps> = (
   userInfo,
   investmentData
 }) => {
+  // Storage keys for persisting modal state across re-renders
+  const MODAL_STORAGE_KEY = `investment-report-modal-${investmentId}`;
+  const MODAL_DATA_STORAGE_KEY = `investment-report-modal-data-${investmentId}`;
+  
+  // Initialize state from sessionStorage to survive component remounts
   const [isGenerating, setIsGenerating] = useState(false);
-  const [showPdfModal, setShowPdfModal] = useState(false);
+  const [showPdfModal, setShowPdfModal] = useState(() => {
+    try {
+      const stored = sessionStorage.getItem(MODAL_STORAGE_KEY);
+      return stored === 'true';
+    } catch {
+      return false;
+    }
+  });
   const [pdfModalData, setPdfModalData] = useState<{
     url: string;
     fileName: string;
-  } | null>(null);
+  } | null>(() => {
+    try {
+      const stored = sessionStorage.getItem(MODAL_DATA_STORAGE_KEY);
+      return stored ? JSON.parse(stored) : null;
+    } catch {
+      return null;
+    }
+  });
 
   // Initialize hooks to prepare complete payload
   const { transformInvestmentToPayload } = useInvestmentReportData({ 
@@ -73,11 +92,10 @@ export const FlowBasedGenerateButton: React.FC<FlowBasedGenerateButtonProps> = (
   };
 
   // Show generated report in PDF modal viewer
-  const handleShowGeneratedReport = (downloadPath: string, fileName: string) => {
-
+  const handleShowGeneratedReport = useCallback((downloadPath: string, fileName: string) => {
     try {
       if (!accessToken) {
-        console.error('❌ Authentication error:', getTranslationFromI18nKeyAndLabel('investment.reports.viewerError', 'Authentication required to view report'));
+        console.error('Authentication required to view report');
         return;
       }
 
@@ -89,16 +107,23 @@ export const FlowBasedGenerateButton: React.FC<FlowBasedGenerateButtonProps> = (
       // Set modal data and show it
       const modalData = { url: fullUrl, fileName };
       
+      // Persist to sessionStorage so state survives component remounts
+      try {
+        sessionStorage.setItem(MODAL_STORAGE_KEY, 'true');
+        sessionStorage.setItem(MODAL_DATA_STORAGE_KEY, JSON.stringify(modalData));
+      } catch (e) {
+        console.warn('Could not persist modal state:', e);
+      }
+      
       setPdfModalData(modalData);
       setShowPdfModal(true);
       setIsGenerating(false);
 
     } catch (error) {
-      console.error('❌ Error in handleShowGeneratedReport:', error);
-      console.error('❌ PDF viewer error:', getTranslationFromI18nKeyAndLabel('investment.reports.viewerError', 'Failed to open report viewer: ' + (error as Error).message));
+      console.error('Failed to open report viewer:', error);
       setIsGenerating(false);
     }
-  };
+  }, [accessToken, MODAL_STORAGE_KEY, MODAL_DATA_STORAGE_KEY]);
 
   // Use monitoring hook for report generation events
   useReportGenerationMonitor({
@@ -159,17 +184,27 @@ export const FlowBasedGenerateButton: React.FC<FlowBasedGenerateButtonProps> = (
       </div>
 
       {/* PDF Modal */}
-      <InvestmentReportPdfModal
-        isVisible={showPdfModal}
-        reportUrl={pdfModalData?.url || ''}
-        reportFileName={pdfModalData?.fileName || 'investment-report.pdf'}
-        isLoading={isGenerating}
-        onClose={() => {
-          setShowPdfModal(false);
-          setPdfModalData(null);
-        }}
-        accessToken={accessToken}
-      />
+      {showPdfModal && (
+        <InvestmentReportPdfModal
+          isVisible={showPdfModal}
+          reportUrl={pdfModalData?.url || ''}
+          reportFileName={pdfModalData?.fileName || 'investment-report.pdf'}
+          isLoading={isGenerating}
+          onClose={() => {
+            // Clear sessionStorage when modal closes
+            try {
+              sessionStorage.removeItem(MODAL_STORAGE_KEY);
+              sessionStorage.removeItem(MODAL_DATA_STORAGE_KEY);
+            } catch (e) {
+              console.warn('Could not clear modal state:', e);
+            }
+            
+            setShowPdfModal(false);
+            setPdfModalData(null);
+          }}
+          accessToken={accessToken}
+        />
+      )}
 
     </>
   );

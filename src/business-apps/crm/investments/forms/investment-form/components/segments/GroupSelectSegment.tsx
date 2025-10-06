@@ -117,10 +117,12 @@ const detectInvestmentGroup = (
 
 export interface GroupSelectSegmentProps extends BusinessAppContextProps {
   onGroupSelect: (group: string) => void;
+  skipAutoDetection?: boolean;
 }
 
 const GroupSelectSegment: React.FC<GroupSelectSegmentProps> = ({
   onGroupSelect,
+  skipAutoDetection = false,
   ...businessAppContext
 }) => {
   const {
@@ -131,6 +133,11 @@ const GroupSelectSegment: React.FC<GroupSelectSegmentProps> = ({
 
   // Immediately check if we should auto-detect (before first render)
   const shouldAutoDetect = (() => {
+    // Skip auto-detection if explicitly requested (e.g., user clicked Back button)
+    if (skipAutoDetection) {
+      return false;
+    }
+    
     try {
       // Use simplified detection to determine if auto-detection is possible
       const sources = [
@@ -213,7 +220,7 @@ const GroupSelectSegment: React.FC<GroupSelectSegmentProps> = ({
       {/* Only show title when we're not detecting context or when showing manual selection */}
       {(!isDetectingContext && contextDetectionComplete) && (
         <div className="gba:text-center gba:mb-8">
-          <h2 className="gba:m-0 gba:mb-2 gba:text-xl gba:font-semibold" style={{ color: 'var(--nw-color-text-primary)' }}>
+          <h2 className="gba:m-0 gba:mb-2 gba:text-xl gba:font-semibold gba:text-foreground">
             {getTranslationFromI18nKeyAndLabel('investment.form.selectGroup', 'Select Investment Group')}
           </h2>
           <p className="gba:m-0 gba:text-base gba:text-secondary-foreground">
@@ -258,8 +265,7 @@ const GroupSelectSegment: React.FC<GroupSelectSegmentProps> = ({
       {!isDetectingContext && investmentCatalogError && (
         <div
           data-testid={formatDataTestId(prefixDataTestId, 'error-container')}
-          className="gba:text-center gba:p-8"
-          style={{ color: 'var(--nw-color-danger-500)' }}
+          className="gba:text-center gba:p-8 gba:text-destructive"
         >
           <p 
             data-testid={formatDataTestId(prefixDataTestId, 'error-message')}

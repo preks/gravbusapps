@@ -52,7 +52,8 @@ const AddressInformationSection: React.FC = () => {
   }, [address?.countryRef, selectedCountryCode, setSelectedCountry]);
 
   // Safety check - if no address exists, don't render (after all hooks)
-  if (!address) {
+  // Also check if addresses array is empty or undefined
+  if (!address || !formValues.addresses || formValues.addresses.length === 0) {
     return null;
   }
 

@@ -191,7 +191,7 @@ const FinancialInformationSection: React.FC = () => {
         <div className="gba:flex gba:items-center gba:gap-2 gba:flex-1">
           <div className="gba:w-2 gba:h-2 gba:bg-red-500 gba:rounded-full"></div>
           <span className="gba:font-medium gba:text-gray-900">
-            Financial Information
+            Additional Information
           </span>
         </div>
         <div className="gba:flex gba:items-center">
@@ -215,7 +215,7 @@ const FinancialInformationSection: React.FC = () => {
             marginTop: "0",
           }}
         >
-          {/* Annual Revenue and Currency - Side by side */}
+          {/* Annual Revenue and Foundation Date - Side by side */}
           <div className="gba:grid gba:grid-cols-1 gba:gap-6 gba:md:grid-cols-2">
             <div className="gba:space-y-2">
               <Label className="gba:text-sm gba:font-medium gba:text-gray-900">
@@ -272,7 +272,24 @@ const FinancialInformationSection: React.FC = () => {
               </Select>
             </div>
 
-            {/* ✅ REMOVED: Currency field - not available in InvestmentAccount schema */}
+            <div className="gba:space-y-2">
+              <Label className="gba:text-sm gba:font-medium gba:text-gray-900">
+                Foundation Date
+              </Label>
+              <Input
+                name="foundationDate"
+                type="date"
+                value={formValues.foundationDate || ""}
+                onChange={(e) =>
+                  setFormValues({ foundationDate: e.target.value })
+                }
+                className="gba:border-gray-300 gba:bg-white gba:focus:border-blue-500 gba:focus:ring-2 gba:focus:ring-blue-200 gba:transition-all gba:duration-200"
+                data-testid={formatDataTestId(
+                  prefixDataTestId,
+                  "foundation-date-input"
+                )}
+              />
+            </div>
           </div>
 
           {/* Number of Employees */}
@@ -339,46 +356,6 @@ const FinancialInformationSection: React.FC = () => {
             </Select>
           </div>
 
-          {/* Foundation Date and Ticker Symbol - Side by side */}
-          <div className="gba:grid gba:grid-cols-1 gba:gap-6 gba:md:grid-cols-2">
-            <div className="gba:space-y-2">
-              <Label className="gba:text-sm gba:font-medium gba:text-gray-900">
-                Foundation Date
-              </Label>
-              <Input
-                name="foundationDate"
-                type="date"
-                value={formValues.foundationDate || ""}
-                onChange={(e) =>
-                  setFormValues({ foundationDate: e.target.value })
-                }
-                className="gba:border-gray-300 gba:bg-white gba:focus:border-blue-500 gba:focus:ring-2 gba:focus:ring-blue-200 gba:transition-all gba:duration-200"
-                data-testid={formatDataTestId(
-                  prefixDataTestId,
-                  "foundation-date-input"
-                )}
-              />
-            </div>
-
-            <div className="gba:space-y-2">
-              <Label className="gba:text-sm gba:font-medium gba:text-gray-900">
-                Ticker Symbol
-              </Label>
-              <Input
-                name="tickerSymbol"
-                value={formValues.tickerSymbol}
-                onChange={(e) =>
-                  setFormValues({ tickerSymbol: e.target.value })
-                }
-                placeholder="Please Enter..."
-                className="gba:border-gray-300 gba:bg-white"
-                data-testid={formatDataTestId(
-                  prefixDataTestId,
-                  "ticker-symbol-input"
-                )}
-              />
-            </div>
-          </div>
 
           {/* ✅ REMOVED: SIC Code - not available in InvestmentAccount schema */}
         </CardContent>
