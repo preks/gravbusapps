@@ -42,7 +42,7 @@ export function PercentageField<TFieldValues extends FieldValues = FieldValues>(
                 formField.onChange(value);
               }}
               type="number"
-              step="1"
+              step="0.01"
               min="0"
               max="100"
               placeholder="0"

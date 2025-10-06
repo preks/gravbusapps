@@ -308,7 +308,7 @@ const InvestmentContactRecordContent: React.FC<ContactRecordContentProps> = ({
   }), [contactId]);
 
   const noteActionProps = useMemo(() => ({
-    contextsArray: [FlowContextName.createInvestmentNote],
+    contextsArray: [FlowContextName.investmentNoteCreate],
     externalContextData: { contactId },
     prefixDataTestId: "contact-note"
   }), [contactId]);
@@ -477,6 +477,9 @@ const InvestmentContactRecordContent: React.FC<ContactRecordContentProps> = ({
                       taskStatus: task.taskStatus,
                       taskPriority: task.taskPriority,
                       assigneeEmployee: task.assignedEmployee,
+                      taskTiming: task.taskTiming,
+                      startDate: task.startDate,
+                      creatorEmployee: task.creatorEmployee,
                       reference: task.lead ? {
                         type: 'lead' as const,
                         id: task.lead.id,
@@ -529,6 +532,9 @@ const InvestmentContactRecordContent: React.FC<ContactRecordContentProps> = ({
                       taskStatus: approval.taskStatus,
                       taskPriority: approval.taskPriority,
                       assigneeEmployee: approval.assignedEmployee,
+                      taskTiming: approval.taskTiming,
+                      startDate: approval.startDate,
+                      creatorEmployee: approval.creatorEmployee,
                       reference: approval.lead ? {
                         type: 'lead' as const,
                         id: approval.lead.id,

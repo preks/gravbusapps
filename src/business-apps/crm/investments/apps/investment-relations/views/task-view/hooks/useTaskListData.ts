@@ -168,7 +168,10 @@ export const useTaskListData = (props: UseTaskListDataProps): UseTaskListDataRet
             id: it.assignedEmployee?.id || it.id,
             firstName: it.assignedEmployee?.firstName || '',
             lastName: it.assignedEmployee?.lastName || '',
-            displayName: it.assignedDisplayName || it.assignedEmployee?.displayName || 'Unassigned',
+            displayName: it.assignedDisplayName || 
+              it.assignedEmployee?.displayName || 
+              `${it.assignedEmployee?.firstName || ''} ${it.assignedEmployee?.lastName || ''}`.trim() || 
+              'Unassigned',
             department: '',
             initials: '',
             pictureThumbnail: it.assignedEmployee?.pictureThumbnail
@@ -189,7 +192,9 @@ export const useTaskListData = (props: UseTaskListDataProps): UseTaskListDataRet
             id: it.creatorEmployee.id,
             firstName: it.creatorEmployee.firstName || '',
             lastName: it.creatorEmployee.lastName || '',
-            displayName: it.creatorEmployee.displayName || '',
+            displayName: it.creatorEmployee.displayName || 
+              `${it.creatorEmployee.firstName || ''} ${it.creatorEmployee.lastName || ''}`.trim() || 
+              'Unknown',
             department: '',
             initials: '',
             pictureThumbnail: it.creatorEmployee.pictureThumbnail

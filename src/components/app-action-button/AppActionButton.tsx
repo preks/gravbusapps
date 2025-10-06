@@ -8,7 +8,8 @@ import {
 import { 
   useAppActionData, 
   extractAppActionProps,
-  AppActionCommonProps 
+  AppActionCommonProps,
+  appActionPropsComparison
 } from "@/common/hooks/useAppActionData";
 import { formatDataTestId } from "@/common/utils/formatDataTestId";
 
@@ -26,9 +27,10 @@ const DATA_TEST_ID_PREFIX = "AppActionButton";
  * AppActionButton Component
  * Displays an action button with flow items from the flow registry
  */
-export const AppActionButton: React.FC<AppActionButtonProps> = (props) => {
+export const AppActionButton: React.FC<AppActionButtonProps> = React.memo((props) => {
   // Extract App Action specific props and get clean props for ActionButton
   const { appActionConfig, cleanProps } = extractAppActionProps(props);
+
 
   // Use shared logic for data fetching and state management
   const {
@@ -76,6 +78,8 @@ export const AppActionButton: React.FC<AppActionButtonProps> = (props) => {
       }}
     />
   );
-};
+}, appActionPropsComparison);
+
+AppActionButton.displayName = 'AppActionButton';
 
 export default AppActionButton;

@@ -92,7 +92,7 @@ export interface AccountFormValues {
   // ✅ REMOVED: sicCode: string; // Not available in InvestmentAccount schema
 
   // Contact Information
-  contactIds: string[]; // ✅ NEW: Array of contact IDs for contact selection
+  contactIds: Array<string | { id: string; name: string }>; // ✅ UPDATED: Array of contact IDs or objects with id/name for proper display
 
   // System fields
   id?: string;

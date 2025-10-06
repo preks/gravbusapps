@@ -1,5 +1,14 @@
 import React from 'react';
-import { Button, Badge } from '@newwork/nw-design-system';
+import { 
+  Button, 
+  Badge,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormControl,
+  FormMessage 
+} from '@newwork/nw-design-system';
+import { useFormContext } from 'react-hook-form';
 import { formatDataTestId } from '@/common/utils/formatDataTestId';
 import { useInvestmentFormContext } from '../../context/InvestmentFormContext';
 
@@ -11,6 +20,7 @@ export interface TypeSelectSegmentProps {
 }
 
 const TypeSelectSegment: React.FC<TypeSelectSegmentProps> = ({ isUpdate = false }) => {
+  const { control, setValue } = useFormContext();
   const {
     formValues,
     setFormValues,
@@ -19,10 +29,21 @@ const TypeSelectSegment: React.FC<TypeSelectSegmentProps> = ({ isUpdate = false 
     investmentTypesError,
   } = useInvestmentFormContext();
 
-  const handleTypeSelect = (typeValue: string) => {
+  const handleTypeSelect = (typeValue: string, onChange: (value: any) => void) => {
+    const newValue = { id: typeValue } as any;
+    onChange(newValue); // Update react-hook-form
     setFormValues({ 
-      investment: { investmentType: { id: typeValue } as any } // Store as minimal object
+      investment: { investmentType: newValue }, // Store as minimal object
+      // Clear all subtype data when type changes
+      equityInvestment: undefined,
+      realEstateInvestment: undefined,
+      liquidFundInvestment: undefined,
     } as Partial<typeof formValues>);
+    
+    // Also clear react-hook-form fields
+    setValue('equityInvestment', undefined as any);
+    setValue('realEstateInvestment', undefined as any);
+    setValue('liquidFundInvestment', undefined as any);
   };
 
   if (investmentTypesLoading) {
@@ -81,46 +102,52 @@ const TypeSelectSegment: React.FC<TypeSelectSegmentProps> = ({ isUpdate = false 
     return null; // No type selected in update mode
   }
 
-  // Create mode - show selection UI
-  // Extract ID from object or use string directly for comparison
-  const investmentTypeId = typeof formValues.investment.investmentType === 'object' 
-    ? formValues.investment.investmentType?.id 
-    : formValues.investment.investmentType;
-
+  // Create mode - show selection UI with form field integration
   return (
-    <div 
-      data-testid={formatDataTestId(prefixDataTestId, 'Container')} 
-      className="gba:space-y-4"
-    >
-      <div>
-        <h3 className="gba:m-0 gba:text-foreground gba:text-lg gba:font-semibold gba:mb-1">
-          Select Investment Type
-        </h3>
-        <p className="gba:m-0 gba:text-muted-foreground gba:text-sm">
-          Choose the type of investment you want to create
-        </p>
-      </div>
-      <div 
-        className="gba:grid gba:grid-cols-[repeat(auto-fill,minmax(200px,1fr))] gba:gap-4 gba:items-stretch"
-        data-testid={formatDataTestId(prefixDataTestId, 'TypeGrid')}
-      >
-        {investmentTypes.map((type) => {
-          const isSelected = investmentTypeId === type.value;
-          return (
-            <Button
-              key={type.id}
-              type="button"
-              variant={isSelected ? 'default' : 'outline'}
-              onClick={() => handleTypeSelect(type.value)}
-              data-testid={formatDataTestId(prefixDataTestId, `type-${type.id}-button`)}
-              className="gba:min-h-12 gba:justify-center gba:text-center gba:whitespace-normal gba:px-4 gba:py-2"
-            >
-              {type.label}
-            </Button>
-          );
-        })}
-      </div>
-    </div>
+    <FormField
+      control={control}
+      name="investment.investmentType"
+      render={({ field }) => {
+        // Extract ID from object or use string directly for comparison
+        const investmentTypeId = typeof field.value === 'object' 
+          ? field.value?.id 
+          : field.value;
+
+        return (
+          <FormItem data-testid={formatDataTestId(prefixDataTestId, 'Container')}>
+            <FormLabel className="gba:text-lg gba:font-semibold">
+              Select Investment Type <span className="gba:text-destructive">*</span>
+            </FormLabel>
+            <p className="gba:m-0 gba:text-muted-foreground gba:text-sm gba:mb-4">
+              Choose the type of investment you want to create
+            </p>
+            <FormControl>
+              <div 
+                className="gba:grid gba:grid-cols-[repeat(auto-fill,minmax(200px,1fr))] gba:gap-4 gba:items-stretch"
+                data-testid={formatDataTestId(prefixDataTestId, 'TypeGrid')}
+              >
+                {investmentTypes.map((type) => {
+                  const isSelected = investmentTypeId === type.value;
+                  return (
+                    <Button
+                      key={type.id}
+                      type="button"
+                      variant={isSelected ? 'default' : 'outline'}
+                      onClick={() => handleTypeSelect(type.value, field.onChange)}
+                      data-testid={formatDataTestId(prefixDataTestId, `type-${type.id}-button`)}
+                      className="gba:min-h-12 gba:justify-center gba:text-center gba:whitespace-normal gba:px-4 gba:py-2"
+                    >
+                      {type.label}
+                    </Button>
+                  );
+                })}
+              </div>
+            </FormControl>
+            <FormMessage />
+          </FormItem>
+        );
+      }}
+    />
   );
 };
 

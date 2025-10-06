@@ -45,6 +45,7 @@ export const InvestmentFormComponent: React.FC = () => {
   const [currentStep, setCurrentStep] = useState<FormStep>('select');
   const [isLoadingInvestment, setIsLoadingInvestment] = useState(false);
   const [loadingError, setLoadingError] = useState<string | null>(null);
+  const [skipAutoDetection, setSkipAutoDetection] = useState(false);
 
   // Store raw investment data for payload building
   const [rawInvestmentData, setRawInvestmentData] = useState<any>(null);
@@ -188,7 +189,7 @@ export const InvestmentFormComponent: React.FC = () => {
     // Preserve existing owner if it exists, fallback to currentEmployee
     const preservedOwner = formValues.investment.ownerEmployee || currentEmployee;
     
-    setFormValues({ 
+    const newFormValues = { 
       investment: {
         ownerEmployee: preservedOwner as any, // Full employee object
         name: formValues.investment.name || '',
@@ -199,19 +200,67 @@ export const InvestmentFormComponent: React.FC = () => {
           id: formValues.investment.id, 
           version: formValues.investment.version 
         }),
-      }
-    } as Partial<InvestmentFormValues>);
+      } as any,
+      // Clear all subtype data when group changes
+      equityInvestment: undefined,
+      realEstateInvestment: undefined,
+      liquidFundInvestment: undefined,
+    } as Partial<InvestmentFormValues>;
+    
+    // Update context state
+    setFormValues(newFormValues);
+    
+    // Update react-hook-form state to match
+    form.setValue('investment.investmentGroup', { id: group } as any);
+    form.setValue('investment.investmentType', undefined as any);
+    form.setValue('investment.currency', undefined as any);
+    form.setValue('investment.investmentAccount', undefined as any);
+    form.setValue('equityInvestment', undefined as any);
+    form.setValue('realEstateInvestment', undefined as any);
+    form.setValue('liquidFundInvestment', undefined as any);
+    
+    // Reset skip auto-detection flag after selection
+    setSkipAutoDetection(false);
     setCurrentStep('form');
   };
 
   // Handle going back to group selection (only for create mode without pre-selected group)
   const handleBack = () => {
     if (!isUpdate && !preSelectedGroup) {
-      // Preserve the owner employee when going back
+      // Preserve the owner employee when going back, clear everything else
       const preservedOwner = formValues.investment.ownerEmployee || currentEmployee;
-      setFormValues({ 
-        investment: { ownerEmployee: preservedOwner } // Full employee object
-      } as Partial<InvestmentFormValues>);
+      
+      // Create a new form state with only ownerEmployee preserved
+      const newFormValues: Partial<InvestmentFormValues> = {
+        investment: { 
+          ownerEmployee: preservedOwner,
+          name: '',
+          investmentStatus: { id: 'InvestmentStatus:v1:ACTIVE', code: 'ACTIVE' } as any,
+          // Explicitly set to undefined to clear them
+          investmentGroup: undefined,
+          investmentType: undefined,
+          currency: undefined,
+          investmentAccount: undefined,
+        } as any,
+        // Clear all subtype data
+        equityInvestment: undefined,
+        realEstateInvestment: undefined,
+        liquidFundInvestment: undefined,
+      };
+      
+      setFormValues(newFormValues);
+      
+      // Also clear react-hook-form state
+      form.setValue('investment.investmentGroup', undefined as any);
+      form.setValue('investment.investmentType', undefined as any);
+      form.setValue('investment.currency', undefined as any);
+      form.setValue('investment.investmentAccount', undefined as any);
+      form.setValue('equityInvestment', undefined as any);
+      form.setValue('realEstateInvestment', undefined as any);
+      form.setValue('liquidFundInvestment', undefined as any);
+      
+      // Skip auto-detection when user explicitly clicks Back button
+      setSkipAutoDetection(true);
       setCurrentStep('select');
     }
   };
@@ -346,8 +395,9 @@ export const InvestmentFormComponent: React.FC = () => {
     return (
       <div data-testid={`${prefixDataTestId}-group-selection`}>
         <GroupSelectSegment 
-          onGroupSelect={handleGroupSelect} 
           {...businessAppContext}
+          onGroupSelect={handleGroupSelect}
+          skipAutoDetection={skipAutoDetection}
         />
       </div>
     );
@@ -364,7 +414,18 @@ export const InvestmentFormComponent: React.FC = () => {
         submitButtonText={isUpdate ? 'Update' : 'Create'}
         onSubmit={async (formData) => {
           try {
-            const payload = buildInvestmentPayload(formData, businessAppContext, { 
+            // Merge context data (selections) with form data (user input) to get complete state
+            const mergedData = {
+              investment: {
+                ...formValues.investment,  // Context data (selections, defaults)
+                ...formData.investment     // Form data (user input)
+              },
+              equityInvestment: formData.equityInvestment || formValues.equityInvestment,
+              realEstateInvestment: formData.realEstateInvestment || formValues.realEstateInvestment,
+              liquidFundInvestment: formData.liquidFundInvestment || formValues.liquidFundInvestment,
+            };
+            
+            const payload = buildInvestmentPayload(mergedData, businessAppContext, { 
               isUpdate, 
               rawInvestmentData 
             });

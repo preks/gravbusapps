@@ -47,7 +47,7 @@ const InvestmentTaskForm: React.FC<InvestmentTaskFormProps> = ({ accessToken, us
   // Resolve IDs from additionalData (platform may pass ids inside psi_taskPayload.psi_initialParameters)
   const platformParams = React.useMemo(() => {
     const nested = (additionalData as any)?.psi_taskPayload?.psi_initialParameters || (additionalData as any)?.psi_initialParameters || {};
-    return {
+    const params = {
       taskId: (additionalData as any)?.taskId || nested?.taskId,
       employeeId: (additionalData as any)?.employeeId || nested?.employeeId,
       investmentId: (additionalData as any)?.investmentId || nested?.investmentId,
@@ -58,6 +58,7 @@ const InvestmentTaskForm: React.FC<InvestmentTaskFormProps> = ({ accessToken, us
     } as {
       taskId?: string; employeeId?: string; investmentId?: string; accountId?: string; contactId?: string; opportunityId?: string; leadId?: string;
     };
+    return params;
   }, [additionalData]);
 
   const investmentId = platformParams.investmentId;
@@ -85,7 +86,6 @@ const InvestmentTaskForm: React.FC<InvestmentTaskFormProps> = ({ accessToken, us
           return;
         }
         
-        console.log('✅ Fetched investment task data:', task);
         // Map fetched task to form fields
         const newFormData = {
           id: task.id,
@@ -102,12 +102,10 @@ const InvestmentTaskForm: React.FC<InvestmentTaskFormProps> = ({ accessToken, us
           relatedEntityId: task.investment?.id || task.account?.id || task.contact?.id || task.opportunity?.id || task.lead?.id || '',
         };
         
-        console.log('📝 Setting form data from fetched task:', newFormData);
         _setFormData((prev) => ({ ...prev, ...newFormData }));
         
         // CRITICAL: Also update the React Hook Form values
         form.reset(newFormData);
-        console.log('🔄 Reset form with new data:', newFormData);
         // Ensure the related entity is hydrated and pinned so the combobox trigger keeps rich label
         const relId = task.investment?.id || task.account?.id || task.contact?.id || task.opportunity?.id || task.lead?.id;
         if (relId) {
@@ -145,9 +143,7 @@ const InvestmentTaskForm: React.FC<InvestmentTaskFormProps> = ({ accessToken, us
           lead: task.lead ? { id: task.lead.id } : undefined,
         });
       } catch (e) {
-        console.error('❌ Error in form data mapping:', e);
-        console.error('❌ Task ID that failed to map:', taskId);
-        // Don't fail silently - let's see what's wrong
+        console.error('Error loading task:', e);
       }
     })();
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -190,13 +186,6 @@ const InvestmentTaskForm: React.FC<InvestmentTaskFormProps> = ({ accessToken, us
   });
 
   const handleSubmit = useCallback(async (data: TaskSegmentSchema) => {
-    console.log('🔍 Investment Task Form handleSubmit called:', {
-      data,
-      formData,
-      isUpdate: Boolean(formData.id),
-      taskId: formData.id
-    });
-    
     try {
       // Pull full form values to include non-registered fields (account/contact/opportunity/lead)
       const allValues = (form as any).getValues?.() || {};
@@ -206,6 +195,7 @@ const InvestmentTaskForm: React.FC<InvestmentTaskFormProps> = ({ accessToken, us
 
     // Build entity ref from whichever field is set
     const entityRef = (() => {
+      if (allValues.investment?.id) return { investment: { id: allValues.investment.id } };
       if (allValues.account?.id) return { account: { id: allValues.account.id } };
       if (allValues.contact?.id) return { contact: { id: allValues.contact.id } };
       if (allValues.opportunity?.id) return { opportunity: { id: allValues.opportunity.id } };
@@ -239,7 +229,7 @@ const InvestmentTaskForm: React.FC<InvestmentTaskFormProps> = ({ accessToken, us
     
     return payload;
     } catch (error) {
-      console.error('❌ Error in handleSubmit:', error);
+      console.error('Error submitting task:', error);
       throw error;
     }
   }, [accessToken, userInfo, additionalData, formData, employees, form]);
@@ -253,7 +243,7 @@ const InvestmentTaskForm: React.FC<InvestmentTaskFormProps> = ({ accessToken, us
       const result = await handleSubmit(data);
       return result;
     } catch (error) {
-      console.error('handleSubmit failed:', error);
+      console.error('Form submission failed:', error);
       throw error;
     }
   }, [handleSubmit, formData]);

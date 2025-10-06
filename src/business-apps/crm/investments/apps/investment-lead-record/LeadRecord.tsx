@@ -526,7 +526,7 @@ const InvestmentLeadRecordContent: React.FC<LeadRecordContentProps> = ({
                       reminderAt: note.reminderDate
                     })),
                     noteActionProps: {
-                      contextsArray: [FlowContextName.createInvestmentNote],
+                      contextsArray: [FlowContextName.investmentNoteCreate],
                       externalContextData: { leadId },
                       prefixDataTestId: "lead-notes",
                       emptyStateBehavior: 'enable'
@@ -565,6 +565,9 @@ const InvestmentLeadRecordContent: React.FC<LeadRecordContentProps> = ({
                       taskStatus: task.taskStatus,
                       taskPriority: task.taskPriority,
                       assigneeEmployee: task.assignedEmployee,
+                      taskTiming: task.taskTiming,
+                      startDate: task.startDate,
+                      creatorEmployee: task.creatorEmployee,
                       reference: task.lead ? {
                         type: 'lead' as const,
                         id: task.lead.id,
@@ -620,6 +623,9 @@ const InvestmentLeadRecordContent: React.FC<LeadRecordContentProps> = ({
                       taskStatus: approval.taskStatus,
                       taskPriority: approval.taskPriority,
                       assigneeEmployee: approval.assignedEmployee,
+                      taskTiming: approval.taskTiming,
+                      startDate: approval.startDate,
+                      creatorEmployee: approval.creatorEmployee,
                       reference: approval.lead ? {
                         type: 'lead' as const,
                         id: approval.lead.id,

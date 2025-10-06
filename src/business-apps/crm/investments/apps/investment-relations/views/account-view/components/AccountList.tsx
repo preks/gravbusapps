@@ -208,11 +208,6 @@ export const AccountList: React.FC<AccountListProps> = ({
                     </div>
                   </TableHead>
                 )}
-                {visibleColumns.includes("status") && (
-                  <TableHead>
-                    Status
-                  </TableHead>
-                )}
                 {visibleColumns.includes("industry") && (
                   <TableHead
                     className="gba:cursor-pointer gba:hover:gba:bg-gray-50"
@@ -379,22 +374,6 @@ export const AccountList: React.FC<AccountListProps> = ({
                             );
                           })()}
                         </div>
-                      </TableCell>
-                    )}
-                    {visibleColumns.includes("status") && (
-                      <TableCell data-testid={`investment-account-status-cell-${account.id}`}>
-                        {(() => {
-                          // Determine status based on liquidation date
-                          const isActive = !account.liquidationDate;
-                          return (
-                            <Badge
-                              variant={isActive ? "success" : "offline"}
-                              data-testid={`investment-account-status-badge-${account.id}`}
-                            >
-                              {isActive ? "Active" : "Inactive"}
-                            </Badge>
-                          );
-                        })()}
                       </TableCell>
                     )}
                     {visibleColumns.includes("industry") && (

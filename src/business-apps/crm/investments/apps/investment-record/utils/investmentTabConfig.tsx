@@ -191,19 +191,7 @@ export const createInvestmentTabsConfig = (
       label: getTranslationFromI18nKeyAndLabel('crm.investments.tabs.reports', 'Reports'),
       icon: <FileText className="gba:h-4 gba:w-4 gba:mr-2" />,
       content: (
-        <div className="gba:col-span-12 gba:space-y-6">
-          {/* Upload Report Action */}
-          <div 
-            className="gba:flex gba:justify-end"
-            style={{ marginBottom: 'var(--nw-spacing-lg)' }}
-            data-testid="investment-upload-report-section"
-          >
-            <UploadReportButton
-              investmentId={investment?.id}
-              accessToken={props.accessToken}
-            />
-          </div>
-
+        <div className="gba:col-span-12">
           {/* Investment Reports Tab */}
           <InvestmentReportsTab
             investmentId={investmentId}
@@ -214,6 +202,13 @@ export const createInvestmentTabsConfig = (
             liquidFundTypeCode={typeSpecificData?.liquidFundInvestment?.investmentLiquidFundType?.code}
             investment={investment}
             typeSpecificData={typeSpecificData}
+            filterHeaderActions={
+              <UploadReportButton
+                investmentId={investment?.id}
+                accessToken={props.accessToken}
+                data-testid="investment-upload-report-button"
+              />
+            }
             accessToken={props.accessToken}
             userInfo={props.userInfo}
             additionalData={props.additionalData}

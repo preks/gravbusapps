@@ -1,5 +1,14 @@
 import React from 'react';
-import { Button, Badge } from '@newwork/nw-design-system';
+import { 
+  Button, 
+  Badge,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormControl,
+  FormMessage 
+} from '@newwork/nw-design-system';
+import { useFormContext } from 'react-hook-form';
 import { formatDataTestId } from '@/common/utils/formatDataTestId';
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
 import { useInvestmentFormContext } from '../../context/InvestmentFormContext';
@@ -15,6 +24,7 @@ const LiquidFundTypeSelectSegment: React.FC<LiquidFundTypeSelectSegmentProps> = 
   currentInvestmentType: _currentInvestmentType, // Received for consistency with other selectors, filtering handled by context
   isUpdate = false
 }) => {
+  const { control } = useFormContext();
   const {
     formValues,
     setFormValues,
@@ -23,9 +33,11 @@ const LiquidFundTypeSelectSegment: React.FC<LiquidFundTypeSelectSegmentProps> = 
     investmentLiquidFundTypesError,
   } = useInvestmentFormContext();
 
-  const handleLiquidFundTypeSelect = (liquidFundTypeValue: string) => {
+  const handleLiquidFundTypeSelect = (liquidFundTypeValue: string, onChange: (value: any) => void) => {
+    const newValue = { id: liquidFundTypeValue } as any;
+    onChange(newValue); // Update react-hook-form
     setFormValues({ 
-      liquidFundInvestment: { investmentLiquidFundType: { id: liquidFundTypeValue } as any } // Store as minimal object
+      liquidFundInvestment: { investmentLiquidFundType: newValue } // Store as minimal object
     } as Partial<typeof formValues>);
   };
 
@@ -87,46 +99,52 @@ const LiquidFundTypeSelectSegment: React.FC<LiquidFundTypeSelectSegmentProps> = 
     return null; // No type selected in update mode
   }
 
-  // Create mode - show selection UI
-  // Extract ID from object or use string directly for comparison
-  const liquidFundTypeId = typeof formValues.liquidFundInvestment?.investmentLiquidFundType === 'object'
-    ? formValues.liquidFundInvestment?.investmentLiquidFundType?.id
-    : formValues.liquidFundInvestment?.investmentLiquidFundType;
-
+  // Create mode - show selection UI with form field integration
   return (
-    <div 
-      data-testid={formatDataTestId(prefixDataTestId, 'Container')} 
-      className="gba:space-y-4"
-    >
-      <div>
-        <h3 className="gba:m-0 gba:text-foreground gba:text-lg gba:font-semibold gba:mb-1">
-          {getTranslationFromI18nKeyAndLabel('LIQUID_FUND_TYPE_SELECTION', 'Liquid Fund Type Selection')}
-        </h3>
-        <p className="gba:m-0 gba:text-muted-foreground gba:text-sm">
-          {getTranslationFromI18nKeyAndLabel('SELECT_LIQUID_FUND_TYPE_DESCRIPTION', 'Select the specific type of liquid fund to configure type-specific fields')}
-        </p>
-      </div>
-      <div 
-        className="gba:grid gba:grid-cols-[repeat(auto-fill,minmax(200px,1fr))] gba:gap-4 gba:items-stretch"
-        data-testid={formatDataTestId(prefixDataTestId, 'TypeGrid')}
-      >
-        {investmentLiquidFundTypes.map((type) => {
-          const isSelected = liquidFundTypeId === type.value;
-          return (
-            <Button
-              key={type.id}
-              type="button"
-              variant={isSelected ? 'default' : 'outline'}
-              onClick={() => handleLiquidFundTypeSelect(type.value)}
-              data-testid={formatDataTestId(prefixDataTestId, `type-${type.id}-button`)}
-              className="gba:min-h-12 gba:justify-center gba:text-center gba:whitespace-normal gba:px-4 gba:py-2"
-            >
-              {type.label}
-            </Button>
-          );
-        })}
-      </div>
-    </div>
+    <FormField
+      control={control}
+      name="liquidFundInvestment.investmentLiquidFundType"
+      render={({ field }) => {
+        // Extract ID from object or use string directly for comparison
+        const liquidFundTypeId = typeof field.value === 'object'
+          ? field.value?.id
+          : field.value;
+
+        return (
+          <FormItem data-testid={formatDataTestId(prefixDataTestId, 'Container')}>
+            <FormLabel className="gba:text-lg gba:font-semibold">
+              {getTranslationFromI18nKeyAndLabel('LIQUID_FUND_TYPE_SELECTION', 'Liquid Fund Type Selection')} <span className="gba:text-destructive">*</span>
+            </FormLabel>
+            <p className="gba:m-0 gba:text-muted-foreground gba:text-sm gba:mb-4">
+              {getTranslationFromI18nKeyAndLabel('SELECT_LIQUID_FUND_TYPE_DESCRIPTION', 'Select the specific type of liquid fund to configure type-specific fields')}
+            </p>
+            <FormControl>
+              <div 
+                className="gba:grid gba:grid-cols-[repeat(auto-fill,minmax(200px,1fr))] gba:gap-4 gba:items-stretch"
+                data-testid={formatDataTestId(prefixDataTestId, 'TypeGrid')}
+              >
+                {investmentLiquidFundTypes.map((type) => {
+                  const isSelected = liquidFundTypeId === type.value;
+                  return (
+                    <Button
+                      key={type.id}
+                      type="button"
+                      variant={isSelected ? 'default' : 'outline'}
+                      onClick={() => handleLiquidFundTypeSelect(type.value, field.onChange)}
+                      data-testid={formatDataTestId(prefixDataTestId, `type-${type.id}-button`)}
+                      className="gba:min-h-12 gba:justify-center gba:text-center gba:whitespace-normal gba:px-4 gba:py-2"
+                    >
+                      {type.label}
+                    </Button>
+                  );
+                })}
+              </div>
+            </FormControl>
+            <FormMessage />
+          </FormItem>
+        );
+      }}
+    />
   );
 };
 

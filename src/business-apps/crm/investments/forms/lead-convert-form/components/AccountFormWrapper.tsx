@@ -49,17 +49,7 @@ const AccountFormWrapper: React.FC<AccountFormWrapperProps> = ({
         onCancel={onCancel}
         hideActions={hideActions}
       >
-        {/* Wrap in a form element to prevent submission bubbling to parent */}
-        <form 
-          onSubmit={(e) => {
-            e.preventDefault();
-            e.stopPropagation();
-            // Don't trigger any submission - this is just for containment
-          }}
-        >
-          <AccountFormComponent />
-        </form>
-        {/* Monitor form changes inside the context */}
+        <AccountFormComponent />
         <FormChangeMonitor onFormChange={onFormChange} />
       </AccountFormProvider>
     </div>

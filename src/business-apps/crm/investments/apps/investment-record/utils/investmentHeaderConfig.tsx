@@ -33,8 +33,15 @@ export const formatDate = (dateString: string | null): string => {
 const getValueByPath = (obj: any, path: string): any => {
   if (!obj || !path) return undefined;
 
-  return path.split('.').reduce((current, key, index, parts) => {
-    if (!current || current[key] === undefined) return undefined;
+  const parts = path.split('.');
+  let current = obj;
+
+  for (let i = 0; i < parts.length; i++) {
+    const key = parts[i];
+    
+    if (!current || current[key] === undefined) {
+      return undefined;
+    }
 
     // Special handling for additionalProperties
     if (key === 'additionalProperties') {
@@ -43,32 +50,40 @@ const getValueByPath = (obj: any, path: string): any => {
         try {
           const parsed = JSON.parse(current[key]);
           // If this is the last key in the path, return the whole parsed object
-          // Otherwise, continue navigation through the parsed object
-          if (index === parts.length - 1) {
+          if (i === parts.length - 1) {
             return parsed;
           }
-          return parsed;
+          // Otherwise, set current to parsed and continue with remaining path
+          current = parsed;
+          continue;
         } catch (error) {
           return undefined;
         }
-      } else if (typeof current[key] === 'object') {
+      } else if (typeof current[key] === 'object' && current[key] !== null) {
         // New case: additionalProperties stored as object (direct access)
-        if (index === parts.length - 1) {
+        if (i === parts.length - 1) {
           return current[key];
         }
-        return current[key];
+        // Continue navigating through the object
+        current = current[key];
+        continue;
+      } else {
+        return undefined;
       }
     }
 
-    return current[key];
-  }, obj);
+    // Regular navigation
+    current = current[key];
+  }
+
+  return current;
 };
 
 /**
  * Formats a field value based on its type
  */
 export const formatFieldValue = (value: any, fieldType: string, currencyCode: string): string => {
-  if (value === null || value === undefined) return '-';
+  if (value === null || value === undefined || value === '') return '-';
 
   switch (fieldType) {
     case 'DATE':
@@ -76,13 +91,34 @@ export const formatFieldValue = (value: any, fieldType: string, currencyCode: st
       return formatDate(value);
 
     case 'AMOUNT':
-      return typeof value === 'number' ? formatCurrency(value, currencyCode) : '-';
+      // Handle both number and string values (additionalProperties stores as strings)
+      if (typeof value === 'number') {
+        return formatCurrency(value, currencyCode);
+      } else if (typeof value === 'string') {
+        const numValue = parseFloat(value);
+        return !isNaN(numValue) ? formatCurrency(numValue, currencyCode) : '-';
+      }
+      return '-';
 
     case 'PERCENTAGE':
-      return typeof value === 'number' ? `${value}%` : '-';
+      // Handle both number and string values (additionalProperties stores as strings)
+      if (typeof value === 'number') {
+        return `${value}%`;
+      } else if (typeof value === 'string') {
+        const numValue = parseFloat(value);
+        return !isNaN(numValue) ? `${numValue}%` : '-';
+      }
+      return '-';
 
     case 'NUMBER':
-      return typeof value === 'number' ? value.toString() : '-';
+      // Handle both number and string values (additionalProperties stores as strings)
+      if (typeof value === 'number') {
+        return value.toString();
+      } else if (typeof value === 'string') {
+        const numValue = parseFloat(value);
+        return !isNaN(numValue) ? numValue.toString() : '-';
+      }
+      return '-';
 
     case 'TEXT':
     case 'TEXTAREA':
@@ -235,7 +271,14 @@ export const transformFormFieldsToHeaderItems = (
     }
 
     // Format the value
-    const formattedValue = formatFieldValue(value, field.type, currencyCode);
+    // Special handling: Interest rate fields should always be formatted as percentages
+    // even if catalog incorrectly defines them as AMOUNT
+    let effectiveFieldType = field.type;
+    if (field.property.toLowerCase().includes('interestrate')) {
+      effectiveFieldType = 'PERCENTAGE';
+    }
+    
+    const formattedValue = formatFieldValue(value, effectiveFieldType, currencyCode);
 
     items.push({
       label: field.label,
@@ -718,3 +761,4 @@ export const getTypeSpecificDetailGroups = (
     ];
   }
 };
+

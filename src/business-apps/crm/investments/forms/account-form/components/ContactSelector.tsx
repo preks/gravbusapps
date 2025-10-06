@@ -16,8 +16,8 @@ import { SelectOption } from '../types';
 import { useAccountFormContext } from '../context/AccountFormContext';
 
 interface ContactSelectorProps {
-  value: string[];
-  onChange: (contactIds: string[]) => void;
+  value: Array<string | { id: string; name: string }>;
+  onChange: (contactIds: Array<string | { id: string; name: string }>) => void;
   dataTestId?: string;
   error?: string | null;
 }
@@ -30,6 +30,7 @@ const ContactSelector: React.FC<ContactSelectorProps> = ({
 }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
+  const [mergedContacts, setMergedContacts] = useState<SelectOption[]>([]);
   
   const {
     contacts,
@@ -39,6 +40,30 @@ const ContactSelector: React.FC<ContactSelectorProps> = ({
     searchContacts,
     loadMoreContacts,
   } = useAccountFormContext();
+
+  // Merge pre-selected contacts with loaded contacts
+  useEffect(() => {
+    const preSelectedContacts: SelectOption[] = [];
+    
+    // Add pre-selected contact if it has name and isn't already in the list
+    if (value.length > 0) {
+      const firstValue = value[0];
+      if (typeof firstValue === 'object' && firstValue.id && firstValue.name) {
+        const existsInLoadedContacts = contacts.some(c => c.id === firstValue.id);
+        if (!existsInLoadedContacts) {
+          preSelectedContacts.push({
+            id: firstValue.id,
+            value: firstValue.id,
+            label: firstValue.name,
+            name: firstValue.name,
+          });
+        }
+      }
+    }
+    
+    // Merge: pre-selected contacts first, then loaded contacts
+    setMergedContacts([...preSelectedContacts, ...contacts]);
+  }, [value, contacts]);
 
   // Handle search input change
   const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -55,13 +80,41 @@ const ContactSelector: React.FC<ContactSelectorProps> = ({
   };
 
   // Handle contact selection
+  // Helper function to extract ID from value (string or object)
+  const getContactId = (contactValue: string | { id: string; name: string }): string => {
+    return typeof contactValue === 'object' ? contactValue.id : contactValue;
+  };
+
+  // Get current contact ID
+  const currentContactId = value.length > 0 ? getContactId(value[0]) : '';
+
+  // Helper to get contact name for display
+  const getContactLabel = (): string | undefined => {
+    if (value.length === 0) return undefined;
+    
+    const firstValue = value[0];
+    if (typeof firstValue === 'object' && firstValue.name) {
+      return firstValue.name;
+    }
+    
+    // Try to find in the merged contacts list
+    const contact = mergedContacts.find(c => c.id === currentContactId);
+    return contact?.label;
+  };
+
   const handleContactSelect = (contactId: string) => {
-    if (value.includes(contactId)) {
+    if (currentContactId === contactId) {
       // Remove contact if already selected (deselect)
       onChange([]);
     } else {
       // Select only this contact (single selection)
-      onChange([contactId]);
+      // Find the full contact object to store
+      const selectedContact = mergedContacts.find(c => c.id === contactId);
+      if (selectedContact) {
+        onChange([{ id: contactId, name: selectedContact.label }]);
+      } else {
+        onChange([contactId]);
+      }
     }
   };
 
@@ -78,10 +131,15 @@ const ContactSelector: React.FC<ContactSelectorProps> = ({
       </Label>
       
       <Select
-        value={value.length > 0 ? value[0] : ""}
+        value={currentContactId}
         onValueChange={(selectedValue) => {
-          if (selectedValue && selectedValue !== value[0]) {
-            onChange([selectedValue]);
+          if (selectedValue && selectedValue !== currentContactId) {
+            const selectedContact = mergedContacts.find(c => c.id === selectedValue);
+            if (selectedContact) {
+              onChange([{ id: selectedValue, name: selectedContact.label }]);
+            } else {
+              onChange([selectedValue]);
+            }
           }
         }}
         open={isOpen}
@@ -116,7 +174,7 @@ const ContactSelector: React.FC<ContactSelectorProps> = ({
 
           {/* Contact Options */}
           <div className="gba:max-h-48 gba:overflow-y-auto">
-            {contacts.map((contact) => (
+            {mergedContacts.map((contact) => (
               <SelectItem
                 key={contact.id}
                 value={contact.value}

@@ -49,17 +49,7 @@ const ContactFormWrapper: React.FC<ContactFormWrapperProps> = ({
         onCancel={onCancel}
         hideActions={hideActions}
       >
-        {/* Wrap in a form element to prevent submission bubbling to parent */}
-        <form 
-          onSubmit={(e) => {
-            e.preventDefault();
-            e.stopPropagation();
-            // Don't trigger any submission - this is just for containment
-          }}
-        >
-          <ContactFormComponent />
-        </form>
-        {/* Monitor form changes inside the context */}
+        <ContactFormComponent />
         <ContactFormChangeMonitor onFormChange={onFormChange} />
       </ContactFormProvider>
     </div>

@@ -146,7 +146,7 @@ export const TaskDetailSheet: React.FC<TaskDetailSheetProps> = ({ task, buildRef
                           alt={task.assignedTo.displayName}
                         />
                       )}
-                      <AvatarFallback className="gba:text-xs">{getInitials(task.assignedTo.firstName, task.assignedTo.lastName)}</AvatarFallback>
+                      <AvatarFallback className="gba:text-xs">{getInitials(task.assignedTo.firstName || '', task.assignedTo.lastName || '')}</AvatarFallback>
                     </Avatar>
                     <span className="gba:text-sm gba:font-medium">{task.assignedTo.displayName}</span>
                     <ArrowSquareOut size={12} className="gba:text-muted-foreground" />
@@ -211,9 +211,19 @@ export const TaskDetailSheet: React.FC<TaskDetailSheetProps> = ({ task, buildRef
                       data-testid={`${dataTestId || DATA_TEST_ID_PREFIX}-creator-link`}
                     >
                       <Avatar size="sm" className="gba:size-6">
-                        <AvatarFallback className="gba:text-xs">{getInitials(task.creatorEmployee.firstName, task.creatorEmployee.lastName)}</AvatarFallback>
+                        {task.creatorEmployee.pictureThumbnail && (
+                          <AvatarImage
+                            src={`data:image/gif;base64,${task.creatorEmployee.pictureThumbnail}`}
+                            alt={task.creatorEmployee.displayName || `${task.creatorEmployee.firstName} ${task.creatorEmployee.lastName}`}
+                          />
+                        )}
+                        <AvatarFallback className="gba:text-xs">{getInitials(task.creatorEmployee.firstName || '', task.creatorEmployee.lastName || '')}</AvatarFallback>
                       </Avatar>
-                      <span className="gba:text-sm gba:font-medium">{task.creatorEmployee.displayName}</span>
+                      <span className="gba:text-sm gba:font-medium">
+                        {task.creatorEmployee.displayName || 
+                         `${task.creatorEmployee.firstName || ''} ${task.creatorEmployee.lastName || ''}`.trim() || 
+                         'Unknown'}
+                      </span>
                       <ArrowSquareOut size={12} className="gba:text-muted-foreground" />
                     </div>
                   </TooltipTrigger>
