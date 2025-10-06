@@ -4,11 +4,24 @@ import { GET_DISTINCT_ADVANCE_PAYMENT_CURRENCIES } from "../queries/distinctCurr
 import { extractCurrencyCode } from "../utils/currencyUtils";
 import { useCurrencyStore } from "../store/useCurrencyStore";
 
+/**
+ * Input parameters for `useAdvancePaymentCurrencies`.
+ */
 interface UseAdvancePaymentCurrenciesProps {
   accessToken: string;
   managerId: string;
 }
 
+/**
+ * Return shape for `useAdvancePaymentCurrencies`.
+ *
+ * Notes about behavior:
+ * - `availableCurrencies` is derived strictly from advance payment records (no hardcoded defaults).
+ * - When the shared currency store is already initialized, this hook reuses that value to avoid refetching; the
+ *   store is itself filled from real data by this hook, so it remains data-driven.
+ * - `mostUsedCurrency` is computed by frequency; `null` when no data is present.
+ * - On errors, the hook returns an empty currency list and exposes the error; no fallback currency is injected.
+ */
 interface UseAdvancePaymentCurrenciesReturn {
   availableCurrencies: string[];
   mostUsedCurrency: string | null;
@@ -19,7 +32,16 @@ interface UseAdvancePaymentCurrenciesReturn {
 }
 
 /**
- * Hook to fetch distinct currencies used in advance payments
+ * Fetches and caches distinct currency codes present in advance payments for the given manager.
+ *
+ * Behavior
+ * - Derives currency codes only from persisted advance payment data (no design-time defaults or fallbacks).
+ * - Populates and reuses a shared currency store to reduce network requests across the app.
+ * - Computes the most-used currency by occurrence frequency.
+ * - On error, exposes the error and returns an empty currency list.
+ *
+ * This design keeps currency options consistent with the actual dataset visible to the user and avoids
+ * accidental mixing of unrelated or unused currencies.
  */
 export const useAdvancePaymentCurrencies = ({
   accessToken,
@@ -90,7 +112,9 @@ export const useAdvancePaymentCurrencies = ({
       setLocalInitialized(true);
       setInitialized(true);
     } catch (err) {
-      console.error("Error fetching advance payment currencies:", err);
+      if (import.meta.env?.DEV) {
+        console.error("Error fetching advance payment currencies:", err);
+      }
       setError(
         err instanceof Error ? err : new Error("Failed to fetch advance payment currencies"),
       );
@@ -136,7 +160,7 @@ export const useAdvancePaymentCurrencies = ({
     storeCurrencies,
   ]);
 
-  // Return only currencies detected from actual advance payment data (no fallbacks, no store currencies)
+  // Return currencies derived from actual advance payment data (may reuse store when already initialized)
   return {
     availableCurrencies: localCurrencies,
     mostUsedCurrency,

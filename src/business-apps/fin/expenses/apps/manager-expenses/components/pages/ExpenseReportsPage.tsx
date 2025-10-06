@@ -566,15 +566,16 @@ const ExpenseReportsPage: React.FC<ExpenseReportsPageProps> = ({
                 <Spinner data-testid="expense-reports-loading-spinner" />
               </div>
             ) : reportData && reportData.length > 0 ? (
-              <div className="gba:overflow-x-auto gba:flex-1 gba:min-w-[115%] gba:pr-4">
-                <Table data-testid="expense-reports-table">
-                  <TableHeader>
-                    <TableRow>
-                      {columns.map((column) => (
-                        <TableHead key={column.key} className={column.widthClass}>{column.title}</TableHead>
-                      ))}
-                    </TableRow>
-                  </TableHeader>
+              <div className="gba:border gba:border-border gba:rounded-md gba:bg-white">
+                <div className="gba:overflow-x-auto gba:pr-4 gba:border-b gba:border-border">
+                  <Table data-testid="expense-reports-table" className="gba:w-full">
+                    <TableHeader className="gba:sticky gba:top-0 gba:bg-white gba:z-10 gba:border-b gba:border-border">
+                      <TableRow>
+                        {columns.map((column) => (
+                          <TableHead key={column.key} className={`${column.widthClass ?? ''} gba:bg-muted gba:font-semibold`}>{column.title}</TableHead>
+                        ))}
+                      </TableRow>
+                    </TableHeader>
                   <TableBody>
                     {reportData.map((row: any, index: number) => (
                       <TableRow key={`${selectedReportType}-${index}`}>
@@ -623,10 +624,11 @@ const ExpenseReportsPage: React.FC<ExpenseReportsPageProps> = ({
                       </TableRow>
                     ))}
                   </TableBody>
-                </Table>
+                  </Table>
+                </div>
                 {/* Pagination Footer */}
                 {totalCount > 0 && (
-                  <div className="gba:flex gba:items-center gba:justify-between gba:px-2 gba:py-4" data-testid="expense-reports-pagination">
+                  <div className="gba:flex gba:items-center gba:justify-between gba:px-2 gba:py-4 gba:border-t gba:border-border" data-testid="expense-reports-pagination">
                     <div className="gba:text-sm gba:text-muted-foreground" data-testid="expense-reports-pagination-info">
                       {`${(currentPage - 1) * pageSize + 1}-${Math.min(currentPage * pageSize, totalCount)} ${getTranslationFromI18nKeyAndLabel("lowcoder:personal_expenses.of", "of")} ${totalCount}`}
                     </div>

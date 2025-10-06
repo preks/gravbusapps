@@ -29,9 +29,12 @@ const ExpensePlanDetails: React.FC<ExpensePlanDetailsProps> = ({ selectedItem })
   // Get user locale for currency and date formatting
   const userLocale = getCurrentActiveUserLocale();
 
-  // Get trip type - for manager view, we'll use a default since we don't have requestType
+  // Get trip type - localized default since we may not have requestType on manager view
   const getTripType = () => {
-    return "Business Travel";
+    return getTranslationFromI18nKeyAndLabel(
+      "lowcoder:trip_type.business_travel",
+      "Business Travel",
+    );
   };
 
   // Format amount with proper currency formatting

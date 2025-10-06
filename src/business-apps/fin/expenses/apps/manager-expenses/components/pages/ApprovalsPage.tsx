@@ -16,6 +16,7 @@ import { APPROVAL_TABS, getTabByKey, getTabLabel } from '../../constants/approva
 import ApprovalTable from '../ApprovalTable';
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
 import { useProcessCompletion } from '@/common/hooks/useProcessCompletion';
+import { useApprovalTabCounts } from '../../hooks/useApprovalTabCounts';
 
 interface ApprovalsPageProps extends BusinessAppContextProps {
   onNavigateBack: () => void;
@@ -39,24 +40,15 @@ const ApprovalsPage: React.FC<ApprovalsPageProps> = ({ onNavigateBack, ...props 
       }
     >
   >({
-    'expense-plan': { currentPage: 1, pageSize: 50, searchTerm: '' },
-    'expense-request': { currentPage: 1, pageSize: 50, searchTerm: '' },
-    'advance-payment': { currentPage: 1, pageSize: 50, searchTerm: '' },
-    'handout-payment': { currentPage: 1, pageSize: 50, searchTerm: '' },
-    'transfer-payment': { currentPage: 1, pageSize: 50, searchTerm: '' },
+    'expense-plan': { currentPage: 1, pageSize: 20, searchTerm: '' },
+    'expense-request': { currentPage: 1, pageSize: 20, searchTerm: '' },
+    'advance-payment': { currentPage: 1, pageSize: 20, searchTerm: '' },
+    'handout-payment': { currentPage: 1, pageSize: 20, searchTerm: '' },
+    'transfer-payment': { currentPage: 1, pageSize: 20, searchTerm: '' },
   });
 
-  // State for tab counts
-  const [tabCounts, setTabCounts] = useState<Record<ApprovalTabKey, number>>({
-    'expense-plan': 0,
-    'expense-request': 0,
-    'advance-payment': 0,
-    'handout-payment': 0,
-    'transfer-payment': 0,
-  });
-
-  // State for loading tab counts
-  const [isLoadingCounts, setIsLoadingCounts] = useState(true);
+  // Tab counts via dedicated hook
+  const { tabCounts, isLoadingCounts, refreshTabCounts } = useApprovalTabCounts(props);
 
   // Get current tab's pagination state
   const currentTabPagination = tabPagination[activeTab];
@@ -70,82 +62,9 @@ const ApprovalsPage: React.FC<ApprovalsPageProps> = ({ onNavigateBack, ...props 
     filterTaskName: currentTab?.processName || null,
   });
 
-  // Function to refresh tab counts
-  const refreshTabCounts = useCallback(async () => {
-    if (!props.accessToken) return;
-
-    setIsLoadingCounts(true);
-    try {
-      const { FlowMetricsClient } = await import('@/common/network/flow-metrics/FlowMetricsClient');
-      const flowMetricsClient = new FlowMetricsClient(props.accessToken);
-
-      // Fetch count for each tab - for some tabs, fetch both base and StoreDirector variants
-      const countPromises = APPROVAL_TABS.map(async (tab) => {
-        try {
-          const baseParams = {
-            cockpitPage: 'INBOX',
-            size: 1, // Only need count, not actual tasks
-            page: 0,
-            field: 'CREATION_DATE',
-            direction: 'DESC',
-            ...(props.userInfo?.id && { userId: props.userInfo.id }),
-          };
-
-          // For these tabs, fetch both base and StoreDirector variants
-          const needsVariantFetch = ['approveAdvancePayment', 'approveExpenseRequest', 'approveExpensePlan'].includes(tab.processName);
-
-          if (needsVariantFetch) {
-            const [baseResponse, variantResponse] = await Promise.all([
-              flowMetricsClient.getFlowExecutionTasks({
-                ...baseParams,
-                filterTaskName: tab.processName,
-              }),
-              flowMetricsClient.getFlowExecutionTasks({
-                ...baseParams,
-                filterTaskName: `${tab.processName}StoreDirector`,
-              }),
-            ]);
-
-            const baseCount = baseResponse.totalCount || baseResponse.totalElements || 0;
-            const variantCount = variantResponse.totalCount || variantResponse.totalElements || 0;
-            const totalCount = baseCount + variantCount;
-
-            return { tabKey: tab.key, count: totalCount };
-          } else {
-            const response = await flowMetricsClient.getFlowExecutionTasks({
-              ...baseParams,
-              filterTaskName: tab.processName,
-            });
-            
-            const count = response.totalCount || response.totalElements || 0;
-            return { tabKey: tab.key, count };
-          }
-        } catch (error) {
-          console.error(`Error counting tasks for ${tab.key}:`, error);
-          return { tabKey: tab.key, count: 0 };
-        }
-      });
-
-      const results = await Promise.all(countPromises);
-      const newCounts = results.reduce(
-        (acc, { tabKey, count }) => {
-          acc[tabKey as ApprovalTabKey] = count;
-          return acc;
-        },
-        {} as Record<ApprovalTabKey, number>,
-      );
-
-      setTabCounts(newCounts);
-    } catch (error) {
-      console.error('Error refreshing tab counts:', error);
-    } finally {
-      setIsLoadingCounts(false);
-    }
-  }, [props.accessToken, props.userInfo?.id]);
-
-  // Fetch counts for all tabs on mount
+  // Fetch counts for all tabs on mount (hook handles effect internally, this keeps dependency for clarity)
   useEffect(() => {
-    refreshTabCounts();
+    // no-op; hook already loads on mount
   }, [props.accessToken, props.userInfo?.id, refreshTabCounts]);
 
   // Listen for process completion events and refresh data
@@ -197,57 +116,38 @@ const ApprovalsPage: React.FC<ApprovalsPageProps> = ({ onNavigateBack, ...props 
           'lowcoder:team_expenses_page.dashboard_tab.review_subheader',
           'Review and process pending expense approval requests from your team',
         )}
+        headerSubViews={{
+          value: activeTab,
+          onValueChange: handleTabChange,
+          items: APPROVAL_TABS.map((tab) => ({
+            value: tab.key,
+            label: `${getTabLabel(tab.key)} ${isLoadingCounts ? '' : `(${tabCounts[tab.key as ApprovalTabKey] || 0})`}`.trim(),
+          })),
+        }}
         className="gba:min-h-screen"
       >
         <div className="gba:px-6" data-testid="approvals-page">
-          <Tabs value={activeTab} onValueChange={handleTabChange} className="gba:w-[100%]">
-            <TabsList className="gba:grid gba:w-[100%] gba:grid-cols-5 gba:mb-6">
-              {APPROVAL_TABS.map((tab) => (
-                <TabsTrigger
-                  key={tab.key}
-                  value={tab.key}
-                  data-testid={`${DATA_TEST_ID_PREFIX}-tab-${tab.key}`}
-                  className="gba:flex gba:flex-col gba:items-center gba:gap-1 gba:py-3"
-                >
-                  <span className="gba:text-sm gba:font-medium">{getTabLabel(tab.key)}</span>
-                  <TabsBadge variant="accent" className="gba:text-xs">
-                    {isLoadingCounts ? '...' : tabCounts[tab.key as ApprovalTabKey] || 0}
-                  </TabsBadge>
-                </TabsTrigger>
-              ))}
-            </TabsList>
-
-            {APPROVAL_TABS.map((tab) => (
-              <TabsContent
-                key={tab.key}
-                value={tab.key}
-                data-testid={`${DATA_TEST_ID_PREFIX}-content-${tab.key}`}
-                className="gba:mt-0"
-              >
-                <ApprovalTable
-                  {...props}
-                  tasks={tasks}
-                  totalCount={totalCount}
-                  isLoading={isLoading}
-                  error={error}
-                  currentPage={currentTabPagination.currentPage}
-                  setCurrentPage={(page: number) => updateTabPagination({ currentPage: page })}
-                  pageSize={currentTabPagination.pageSize}
-                  setPageSize={(size: number) => updateTabPagination({ pageSize: size })}
-                  selectedTasks={selectedTasks}
-                  setSelectedTasks={setSelectedTasks}
-                  validationError={validationError}
-                  setValidationError={setValidationError}
-                  dataTestIdPrefix={`${DATA_TEST_ID_PREFIX}-${tab.key}`}
-                  tabKey={tab.key}
-                  onApprovalSuccess={() => {
-                    refresh(); // Refresh task list
-                    refreshTabCounts(); // Refresh badge counts
-                  }}
-                />
-              </TabsContent>
-            ))}
-          </Tabs>
+          <ApprovalTable
+            {...props}
+            tasks={tasks}
+            totalCount={totalCount}
+            isLoading={isLoading}
+            error={error}
+            currentPage={currentTabPagination.currentPage}
+            setCurrentPage={(page: number) => updateTabPagination({ currentPage: page })}
+            pageSize={currentTabPagination.pageSize}
+            setPageSize={(size: number) => updateTabPagination({ pageSize: size })}
+            selectedTasks={selectedTasks}
+            setSelectedTasks={setSelectedTasks}
+            validationError={validationError}
+            setValidationError={setValidationError}
+            dataTestIdPrefix={`${DATA_TEST_ID_PREFIX}-${activeTab}`}
+            tabKey={activeTab}
+            onApprovalSuccess={() => {
+              refresh(); // Refresh task list
+              refreshTabCounts(); // Refresh badge counts
+            }}
+          />
         </div>
       </PageLayout>
       <Toaster position="bottom-right" />

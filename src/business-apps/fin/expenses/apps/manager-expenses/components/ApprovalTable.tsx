@@ -176,11 +176,12 @@ const ApprovalTable: React.FC<ApprovalTableProps> = ({
         dataTestIdPrefix={dataTestIdPrefix}
       />
 
-      <div className="gba:overflow-x-auto">
-        <Table data-testid={`${dataTestIdPrefix}-table`}>
-          <TableHeader>
-            <TableRow>
-              <TableHead className="gba:w-[5%]">
+      <div className="gba:border gba:border-border gba:rounded-md gba:bg-white">
+        <div className="gba:overflow-x-auto gba:pr-4 gba:border-b gba:border-border">
+          <Table data-testid={`${dataTestIdPrefix}-table`} className="gba:w-full">
+            <TableHeader className="gba:sticky gba:top-0 gba:bg-white gba:z-10 gba:border-b gba:border-border">
+              <TableRow>
+                <TableHead className="gba:w-[5%] gba:bg-muted gba:font-semibold">
                 <input
                   type="checkbox"
                   checked={
@@ -203,45 +204,45 @@ const ApprovalTable: React.FC<ApprovalTableProps> = ({
                   }}
                   data-testid={`${dataTestIdPrefix}-select-all-checkbox`}
                 />
-              </TableHead>
-              <TableHead className="gba:w-[15%]">
+                </TableHead>
+                <TableHead className="gba:w-[15%] gba:bg-muted gba:font-semibold">
                 {getTranslationFromI18nKeyAndLabel(
                   'lowcoder:expense_plan_list.expense_plan_table.create_date',
                   'Date',
                 )}
-              </TableHead>
-              <TableHead className="gba:w-[20%]">
+                </TableHead>
+                <TableHead className="gba:w-[20%] gba:bg-muted gba:font-semibold">
                 {getTranslationFromI18nKeyAndLabel(
                   'lowcoder:employee_landing_page.request',
                   'Title',
                 )}
-              </TableHead>
-              <TableHead className="gba:w-[15%]">
+                </TableHead>
+                <TableHead className="gba:w-[15%] gba:bg-muted gba:font-semibold">
                 {getTranslationFromI18nKeyAndLabel(
                   'lowcoder:manager_expenses_landing_page.task_group',
                   'Task Group',
                 )}
-              </TableHead>
-              <TableHead className="gba:w-[15%]">
+                </TableHead>
+                <TableHead className="gba:w-[15%] gba:bg-muted gba:font-semibold">
                 {getTranslationFromI18nKeyAndLabel(
                   'lowcoder:expense_request_list.expense_plan_table.amount',
                   'Amount',
                 )}
-              </TableHead>
-              <TableHead className="gba:w-[15%]">
+                </TableHead>
+                <TableHead className="gba:w-[15%] gba:bg-muted gba:font-semibold">
                 {getTranslationFromI18nKeyAndLabel(
                   'lowcoder:hr_absences.create_absence.employee',
                   'Employee',
                 )}
-              </TableHead>
-              <TableHead className="gba:w-[10%]">
+                </TableHead>
+                <TableHead className="gba:w-[10%] gba:bg-muted gba:font-semibold">
                 {getTranslationFromI18nKeyAndLabel(
                   'lowcoder:expense_request_list.expense_plan_table.status',
                   'Status',
                 )}
-              </TableHead>
-            </TableRow>
-          </TableHeader>
+                </TableHead>
+              </TableRow>
+            </TableHeader>
           <TableBody>
             {approvalRequests.map((request: ApprovalRequest) => (
               <TableRow
@@ -303,8 +304,9 @@ const ApprovalTable: React.FC<ApprovalTableProps> = ({
                 </TableCell>
               </TableRow>
             ))}
-          </TableBody>
-        </Table>
+            </TableBody>
+          </Table>
+        </div>
       </div>
 
       <ApprovalTablePagination

@@ -131,14 +131,10 @@ const BarChartComponent: React.FC<BarChartProps> = ({
             />
             <Bar dataKey={barDataKey} fill={resolvedBarColor}>
               {data.map((entry, index) => {
-                // Use entry name or value as key fallback to ensure uniqueness
                 const entryKey = entry[xAxisDataKey] || entry[barDataKey] || index;
-                return (
-                  <Cell key={`cell-${entryKey}`} fill={(() => {
-                    const candidate = getColor ? (getColor(entry, index) || resolvedBarColor) : resolvedBarColor;
-                    return resolveCssVar(candidate);
-                  })()} />
-                );
+                const candidate = getColor ? (getColor(entry, index) || resolvedBarColor) : resolvedBarColor;
+                const fill = resolveCssVar(candidate);
+                return <Cell key={`cell-${entryKey}`} fill={fill} />;
               })}
             </Bar>
           </BarChart>

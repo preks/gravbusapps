@@ -4,6 +4,7 @@ import { createApprovalPayload } from '../utils/approvalPayloadCreator';
 import { getTabByKey } from '../constants/approvalTabs';
 import { env } from '@/common/env/EnvUtils';
 import { toast } from 'sonner';
+import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
 
 interface UseApprovalHandlingProps {
   selectedTasks: ApprovalRequest[];
@@ -35,12 +36,12 @@ export const useApprovalHandling = ({
 
   const handleApproveClick = async () => {
     if (selectedTasks.length === 0) {
-      return { error: 'Please select at least one task to approve' };
+      return { error: getTranslationFromI18nKeyAndLabel('lowcoder:manager_expenses_landing_page.select_task_to_approve', 'Please select at least one task to approve') };
     }
 
     const tabConfig = getTabByKey(tabKey);
     if (!tabConfig || !userInfo) {
-      return { error: 'Missing configuration or user information' };
+      return { error: getTranslationFromI18nKeyAndLabel('lowcoder:common.configuration_missing', 'Missing configuration or user information') };
     }
 
     setIsApproving(true);
@@ -66,7 +67,7 @@ export const useApprovalHandling = ({
         try {
           const originalTask = rawTasks.find((t) => t.id === task.id);
           if (!originalTask) {
-            throw new Error(`Could not find original task data for ${task.id}`);
+            throw new Error(getTranslationFromI18nKeyAndLabel('lowcoder:approvals.could_not_find_task_data', `Could not find original task data for ${task.id}`));
           }
 
           // Use different domain for transfer payment and handout payment
@@ -111,11 +112,11 @@ export const useApprovalHandling = ({
           }
 
           if (!userId) {
-            throw new Error('User ID not available');
+            throw new Error(getTranslationFromI18nKeyAndLabel('lowcoder:common.user_id_not_available', 'User ID not available'));
           }
 
           if (!processInstanceId) {
-            throw new Error('Process instance ID not available');
+            throw new Error(getTranslationFromI18nKeyAndLabel('lowcoder:approvals.process_instance_missing', 'Process instance ID not available'));
           }
 
           const baseUrl = env('NEXT_PUBLIC_BASE_URL') ?? '';
@@ -151,7 +152,7 @@ export const useApprovalHandling = ({
             });
 
             if (!getResponse.ok) {
-              throw new Error(`GET request failed: ${getResponse.status} ${getResponse.statusText}`);
+            throw new Error(getTranslationFromI18nKeyAndLabel('lowcoder:network.get_failed', `GET request failed: ${getResponse.status} ${getResponse.statusText}`));
             }
 
             const taskData = await getResponse.json();
@@ -189,7 +190,7 @@ export const useApprovalHandling = ({
           }
 
           if (!actualEntityId) {
-            throw new Error(`Could not find entity ID in task data for ${tabConfig.key}`);
+            throw new Error(getTranslationFromI18nKeyAndLabel('lowcoder:approvals.entity_id_missing', `Could not find entity ID in task data for ${tabConfig.key}`));
           }
 
           // Update the approval payload with the actual entity ID
@@ -230,7 +231,10 @@ export const useApprovalHandling = ({
           if (!postResponse.ok) {
             const responseText = await postResponse.text();
             throw new Error(
-              `POST request failed: ${postResponse.status} - ${postResponse.statusText} - ${responseText}`,
+              getTranslationFromI18nKeyAndLabel(
+                'lowcoder:network.post_failed',
+                `POST request failed: ${postResponse.status} - ${postResponse.statusText} - ${responseText}`,
+              ),
             );
           }
 
@@ -251,13 +255,23 @@ export const useApprovalHandling = ({
 
       // Summarize result
       if (approvedCount > 0 && failedTasks.length === 0) {
-        toast.success('Approval completed', {
-          description: `${approvedCount} task${approvedCount > 1 ? 's' : ''} approved successfully`,
+        toast.success(
+          getTranslationFromI18nKeyAndLabel('lowcoder:approvals.approval_completed', 'Approval completed'),
+          {
+          description: getTranslationFromI18nKeyAndLabel(
+            'lowcoder:approvals.approved_successfully_count',
+            `${approvedCount} task${approvedCount > 1 ? 's' : ''} approved successfully`,
+          ),
           duration: 4000,
         });
       } else if (approvedCount > 0 && failedTasks.length > 0) {
-        toast.success('Partial approval completed', {
-          description: `${approvedCount} approved · ${failedTasks.length} failed`,
+        toast.success(
+          getTranslationFromI18nKeyAndLabel('lowcoder:approvals.partial_approval_completed', 'Partial approval completed'),
+          {
+          description: getTranslationFromI18nKeyAndLabel(
+            'lowcoder:approvals.partial_approval_summary',
+            `${approvedCount} approved · ${failedTasks.length} failed`,
+          ),
           duration: 5000,
         });
       } else if (approvedCount === 0 && failedTasks.length > 0) {
@@ -265,8 +279,10 @@ export const useApprovalHandling = ({
         const more = failedTasks.length - 1;
         const details = more > 0 ? `${first.error} (+${more} more)` : first.error;
         setApprovalError(details);
-        toast.error('All approvals failed', {
-          description: details,
+        toast.error(
+          getTranslationFromI18nKeyAndLabel('lowcoder:approvals.all_failed', 'All approvals failed'),
+          {
+          description: getTranslationFromI18nKeyAndLabel('lowcoder:approvals.error_details', details),
           duration: 6000,
         });
       }
@@ -278,12 +294,14 @@ export const useApprovalHandling = ({
 
       return { success: true, approvedCount, failedCount: failedTasks.length };
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'Failed to approve tasks';
+      const errorMessage = error instanceof Error ? error.message : getTranslationFromI18nKeyAndLabel('lowcoder:approvals.failed_to_approve', 'Failed to approve tasks');
       setApprovalError(errorMessage);
 
       // Show error toast notification
-      toast.error('Approval failed', {
-        description: errorMessage,
+      toast.error(
+        getTranslationFromI18nKeyAndLabel('lowcoder:approvals.approval_failed', 'Approval failed'),
+        {
+        description: getTranslationFromI18nKeyAndLabel('lowcoder:approvals.error_details', errorMessage),
         duration: 5000,
       });
 

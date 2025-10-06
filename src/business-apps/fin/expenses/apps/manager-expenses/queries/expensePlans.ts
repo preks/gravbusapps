@@ -63,7 +63,7 @@ export const GET_EXPENSE_PLANS_BY_MANAGER = `
         id
         file
         fileSize
-        fileName
+        name
         mimeType
       }
       employee {

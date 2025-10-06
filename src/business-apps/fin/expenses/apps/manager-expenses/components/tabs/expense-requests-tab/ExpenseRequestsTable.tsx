@@ -28,10 +28,10 @@ import { PiArrowUp, PiArrowDown } from "react-icons/pi";
 // Enable localized date formatting
 dayjs.extend(localizedFormat);
 import { DataContainer } from "@/components/layout/dataContainer/DataContainer";
-// (replaced by REQUEST_STATUS_CLASSES)
 import { BusinessAppContextProps } from "@/common/BusinessAppContext";
 import { ExpenseRequest, SortField } from "../../../hooks/useGetExpenseRequests";
 import { getExpenseRequestStatusDisplay } from "../../../utils";
+import { pillTypeClassMap } from "../../../components/StatusLegend";
 import ExpenseRequestDetails from "./ExpenseRequestDetails";
 import {
   getTranslationFromI18nKeyAndLabel,
@@ -42,21 +42,7 @@ import { formatCurrencyDisplay } from "../../../../personal-expenses/utils";
 import { useExpensePlanFileService } from "../../../../personal-expenses/utils/expensePlanFileService";
 import { navigateTo, buildPlatformUrl } from "@/common/utils/navigationUtils";
 
-// Status → token classes (design-system)
-const REQUEST_STATUS_CLASSES: Record<string, string> = {
-  success: "gba:bg-success gba:text-success-foreground",
-  warning: "gba:bg-warning gba:text-warning-foreground",
-  info: "gba:bg-info gba:text-info-foreground",
-  destructive: "gba:bg-destructive gba:text-destructive-foreground",
-  offline: "gba:bg-offline gba:text-offline-foreground",
-  // domain-specific aliases
-  draft: "gba:bg-muted gba:text-muted-foreground",
-  completed: "gba:bg-success gba:text-success-foreground",
-  waiting: "gba:bg-info gba:text-info-foreground",
-  task: "gba:bg-warning gba:text-warning-foreground",
-  error: "gba:bg-destructive gba:text-destructive-foreground",
-  preparing: "gba:bg-muted gba:text-muted-foreground",
-};
+// Use shared pill classes from StatusLegend to avoid duplication
 
 interface ExpenseRequestsTableProps extends BusinessAppContextProps {
   expenseRequests: ExpenseRequest[];
@@ -622,7 +608,7 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = (props) => {
                     <TableCell className="gba:pr-6 gba:w-[20%]">
                       <span
                         className={`gba:inline-block gba:rounded-full gba:px-3 gba:py-1 gba:text-xs gba:font-medium gba:whitespace-nowrap ${
-                          REQUEST_STATUS_CLASSES[String(type).toLowerCase()] || REQUEST_STATUS_CLASSES.draft
+                          pillTypeClassMap[String(type).toLowerCase() as keyof typeof pillTypeClassMap] || pillTypeClassMap.draft
                         }`}
                         data-testid={`status-pill-${record.status?.toLowerCase()}`}
                       >
@@ -839,11 +825,7 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = (props) => {
         data-testid="expense-requests-container"
       />
 
-      {/* Expense Request Details Sheet */}
-      {/* IMPORTANT: The 'title' prop is REQUIRED by @newwork/nw-design-system Sheet interface (line 20).
-          Removing it causes TypeScript error: "Property 'title' is missing but required in type 'SheetProps'".
-          SonarCloud incorrectly flags it as unsupported. Verified in Sheet.d.ts - title: string (required).
-          The component renders the title internally. DO NOT REMOVE. */}
+      {/* Expense Request Details Sheet - title is required by DS Sheet props */}
       <Sheet
         open={!!selectedRequest}
         onOpenChange={(open) => !open && setSelectedRequest(null)}

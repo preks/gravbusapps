@@ -1,4 +1,11 @@
 import { useState, useEffect, useMemo } from 'react';
+import {
+  normalizeStatus,
+  EXCLUDE_ITEM_STATUSES,
+  EXCLUDE_REQUEST_STATUSES,
+  EXCLUDE_PLAN_STATUSES,
+  EXCLUDE_ADV_PAYMENT_STATUSES,
+} from '../constants/expenseStatus';
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient';
 import { getCurrentActiveUserLocale } from '@/common/utils/windowUtils';
 import { GET_EXPENSE_ANALYTICS_DATA } from '../queries/analytics';
@@ -227,14 +234,15 @@ export const useTeamSpendingAnalytics = (
     const fetchAnalyticsData = async () => {
       // Validate required parameters
       if (!accessToken) {
-        console.error('useTeamSpendingAnalytics - Missing accessToken');
+        // silent fail in production; keep user-friendly error only
+        if (import.meta?.env?.DEV) console.error('useTeamSpendingAnalytics - Missing accessToken');
         setError('Missing authentication token');
         setIsLoading(false);
         return;
       }
       
       if (!managerId || managerId === 'undefined' || managerId === 'null') {
-        console.error('useTeamSpendingAnalytics - Invalid managerId:', managerId);
+        if (import.meta?.env?.DEV) console.error('useTeamSpendingAnalytics - Invalid managerId:', managerId);
         setError('Invalid manager ID');
         setIsLoading(false);
         return;
@@ -256,7 +264,7 @@ export const useTeamSpendingAnalytics = (
         // Format the currency reference for the database query (Currency:v1:CODE format)
         const formattedCurrencyRef = standardizeCurrencyRef(currencyFilter);
         
-        console.log('useTeamSpendingAnalytics - Using currency reference:', formattedCurrencyRef);
+        // debug log removed
         
         const variables = {
           managerId: validManagerId,
@@ -265,10 +273,7 @@ export const useTeamSpendingAnalytics = (
           currencyRef: formattedCurrencyRef
         };
         
-        console.log('useTeamSpendingAnalytics - Fetching data with variables:', { 
-          ...variables, 
-          currencyRef: formattedCurrencyRef 
-        });
+        // debug log removed
         
         const response = await graphqlClient.request(GET_EXPENSE_ANALYTICS_DATA, variables);
         // Map the snake_case response to our camelCase interface
@@ -279,7 +284,7 @@ export const useTeamSpendingAnalytics = (
           advancePayments: response.advancePayments || []
         });
       } catch (err) {
-        console.error('Error fetching analytics data:', err);
+        if (import.meta?.env?.DEV) console.error('Error fetching analytics data:', err);
         setError('Failed to fetch analytics data. Please try again later.');
       } finally {
         setIsLoading(false);
@@ -557,11 +562,7 @@ export const useTeamSpendingAnalytics = (
       return true;
     };
 
-    // Define status exclusion lists to align with Manager Expenses tabs
-    const EXCLUDE_ITEM_STATUSES = new Set<string>(['DISCARDED']);
-    const EXCLUDE_REQUEST_STATUSES = new Set<string>(['REJECTED', 'DISCARDED', 'CREATED']);
-    const EXCLUDE_PLAN_STATUSES = new Set<string>(['DISCARDED', 'REJECTED']);
-    const EXCLUDE_ADV_PAYMENT_STATUSES = new Set<string>(['CREATED', 'RETURNED', 'REJECTED', 'DISCARDED']);
+    // Status exclusion lists centralized in constants
 
     // Filter expense items
     const filteredExpenseItems = rawData.expenseItems ? rawData.expenseItems.filter(item => {
@@ -779,9 +780,8 @@ export const useTeamSpendingAnalytics = (
       
       items.forEach(item => {
         if (!item) return;
-        // Normalize to the canonical statuses used in Personal/Backoffice Expenses
-        const rawStatus = item.status || 'Unknown';
-        const status = rawStatus === 'IN_APPROVAL' ? 'PENDING' : rawStatus;
+        // Normalize to canonical statuses used in Expenses
+        const status = normalizeStatus(item.status);
         const prev = statusMap.get(status) || { count: 0, amount: 0 };
         const addAmount = Number(item?.[amountField] ?? 0);
         statusMap.set(status, {

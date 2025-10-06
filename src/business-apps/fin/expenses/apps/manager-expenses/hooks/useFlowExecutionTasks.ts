@@ -6,6 +6,53 @@ import {
   FlowExecutionTasksParams,
 } from '@/common/network/flow-metrics/FlowMetricsClient';
 
+type FetchVariantTasksResult = {
+  tasks: FlowExecutionTask[];
+  totalCount: number;
+};
+
+// Fetches both the base and StoreDirector variants for a given task name,
+// merges and de-duplicates by ID, sorts by most recent, and sums counts.
+const fetchTasksWithVariants = async (
+  client: FlowMetricsClient,
+  baseParams: FlowExecutionTasksParams,
+  baseTaskName: string,
+): Promise<FetchVariantTasksResult> => {
+  const [baseResponse, variantResponse] = await Promise.all([
+    client.getFlowExecutionTasks({
+      ...baseParams,
+      filterTaskName: baseTaskName,
+    }),
+    client.getFlowExecutionTasks({
+      ...baseParams,
+      filterTaskName: `${baseTaskName}StoreDirector`,
+    }),
+  ]);
+
+  const baseTasks = (baseResponse as any).processingStates || (baseResponse as any).content || [];
+  const variantTasks = (variantResponse as any).processingStates || (variantResponse as any).content || [];
+
+  const taskMap = new Map<string, FlowExecutionTask>();
+  [...baseTasks, ...variantTasks].forEach((task: FlowExecutionTask) => {
+    if (!taskMap.has(task.id)) {
+      taskMap.set(task.id, task);
+    }
+  });
+
+  const merged = Array.from(taskMap.values());
+  merged.sort((a: any, b: any) => {
+    const dateA = new Date((a as any).started || (a as any).lastUpdate || 0).getTime();
+    const dateB = new Date((b as any).started || (b as any).lastUpdate || 0).getTime();
+    return dateB - dateA;
+  });
+
+  const totalCount =
+    (baseResponse.totalCount || (baseResponse as any).totalElements || 0) +
+    (variantResponse.totalCount || (variantResponse as any).totalElements || 0);
+
+  return { tasks: merged, totalCount };
+};
+
 export interface UseFlowExecutionTasksResult {
   tasks: FlowExecutionTask[];
   totalCount: number;
@@ -95,40 +142,17 @@ export const useFlowExecutionTasks = (
       let allTasks: any[] = [];
       let totalCount = 0;
 
-      if (needsVariantFetch) {
-        // Make 2 API calls: one for base, one for StoreDirector variant
-        const [baseResponse, variantResponse] = await Promise.all([
-          flowMetricsClient.getFlowExecutionTasks({
-            ...baseParams,
-            filterTaskName: filterTaskName, // Base: approveAdvancePayment
-          }),
-          flowMetricsClient.getFlowExecutionTasks({
-            ...baseParams,
-            filterTaskName: `${filterTaskName}StoreDirector`, // Variant: approveAdvancePaymentStoreDirector
-          }),
-        ]);
-
-        const baseTasks = baseResponse.processingStates || baseResponse.content || [];
-        const variantTasks = variantResponse.processingStates || variantResponse.content || [];
-
-        // Merge and deduplicate by ID
-        const taskMap = new Map();
-        [...baseTasks, ...variantTasks].forEach((task) => {
-          if (!taskMap.has(task.id)) {
-            taskMap.set(task.id, task);
-          }
-        });
-        
-        allTasks = Array.from(taskMap.values());
-        
-        // Sort by creation date descending (most recent first)
-        allTasks.sort((a, b) => {
-          const dateA = new Date(a.started || a.lastUpdate || 0).getTime();
-          const dateB = new Date(b.started || b.lastUpdate || 0).getTime();
-          return dateB - dateA;
-        });
-
-        totalCount = (baseResponse.totalCount || 0) + (variantResponse.totalCount || 0);
+      if (needsVariantFetch && filterTaskName) {
+        const result = await fetchTasksWithVariants(
+          flowMetricsClient,
+          baseParams,
+          filterTaskName,
+        );
+        // Merge result can exceed the requested page size because we fetch
+        // two independent pages (base + variant). To keep the UI contract
+        // consistent with the selected page size, trim to `pageSize`.
+        allTasks = (result.tasks as any[]).slice(0, pageSize);
+        totalCount = result.totalCount;
       } else {
         // Single fetch for other task types
         const response = await flowMetricsClient.getFlowExecutionTasks({
@@ -141,14 +165,14 @@ export const useFlowExecutionTasks = (
       }
 
       if (!Array.isArray(allTasks)) {
-        console.error('Invalid data structure received');
+        if (import.meta.env?.DEV) console.error('Invalid data structure received');
         throw new Error('Invalid data structure received from server');
       }
 
       setTasks(allTasks);
       setTotalCount(totalCount);
     } catch (err: any) {
-      console.error('Error fetching flow execution tasks:', err);
+      if (import.meta.env?.DEV) console.error('Error fetching flow execution tasks:', err);
       let errorMessage = 'Failed to fetch flow execution tasks';
 
       if (err.message) {

@@ -22,7 +22,6 @@ import {
 } from "@newwork/nw-design-system";
 import { PiArrowUp, PiArrowDown } from "react-icons/pi";
 import { BusinessAppContextProps } from "@/common/BusinessAppContext";
-// (replaced by PLAN_STATUS_CLASSES)
 import { ExpensePlan, SortField } from "../../../hooks/useMainViewExpensePlans";
 import { getExpensePlanStatusDisplay, ExpenseStatus } from "../../../utils";
 
@@ -49,6 +48,7 @@ import { navigateTo, buildPlatformUrl } from "@/common/utils/navigationUtils";
 import { AppActionButton } from "@/components/app-action-button/AppActionButton";
 import { useExpensePlanFileService } from "../../../../personal-expenses/utils/expensePlanFileService";
 import ExpensePlanDetails from "./ExpensePlanDetails";
+import { ensureShortDateFormat } from "../../../utils/dateUtils";
 
 interface ExpensePlansTableProps extends BusinessAppContextProps {
   search?: string;
@@ -409,7 +409,7 @@ const ExpensePlansTable: React.FC<ExpensePlansTableProps> = (props) => {
                       <div className="gba:flex gba:justify-start gba:gap-2">
                         <AppActionButton
                           onClick={(e) => e.stopPropagation()}
-                          data-testid={`${DATA_TEST_ID_PREFIX}-update-plan-button-${plan.id}`}
+                          data-testid={`${DATA_TEST_ID_PREFIX}-update-expense-plan-button-${plan.id}`}
                           size="icon"
                           staticFlowData={[
                             // Print action - only available for finalized plans with documents
@@ -468,42 +468,18 @@ const ExpensePlansTable: React.FC<ExpensePlansTableProps> = (props) => {
                       </div>
                     </TableCell>
                     <TableCell className="gba:w-[10%] gba:py-4 gba:px-3 gba:text-sm">
-                      {(plan as any).expenseRequest && Array.isArray((plan as any).expenseRequest) && (plan as any).expenseRequest.length > 0
-                        ? ((plan as any).expenseRequest[0]?.code || getTranslationFromI18nKeyAndLabel("lowcoder:common.not_available","N/A"))
+                      {Array.isArray(plan.expenseRequest) && plan.expenseRequest.length > 0
+                        ? (plan.expenseRequest[0]?.code || getTranslationFromI18nKeyAndLabel("lowcoder:common.not_available","N/A"))
                         : getTranslationFromI18nKeyAndLabel("lowcoder:common.not_available","N/A")}
                     </TableCell>
                     <TableCell className="gba:text-sm gba:py-3 gba:px-4">
                       {plan.startDate
-                        ? (() => {
-                            try {
-                              const date = new Date(plan.startDate);
-                              const userLocale = getCurrentActiveUserLocale();
-                              return date.toLocaleDateString(userLocale, {
-                                month: "2-digit",
-                                day: "2-digit",
-                                year: "2-digit",
-                              });
-                            } catch (error) {
-                              return getTranslationFromI18nKeyAndLabel("lowcoder:common.not_available","N/A");
-                            }
-                          })()
+                        ? ensureShortDateFormat(plan.startDate)
                         : getTranslationFromI18nKeyAndLabel("lowcoder:common.not_available","N/A")}
                     </TableCell>
                     <TableCell className="gba:text-sm gba:py-3 gba:px-4">
                       {plan.endDate
-                        ? (() => {
-                            try {
-                              const date = new Date(plan.endDate);
-                              const userLocale = getCurrentActiveUserLocale();
-                              return date.toLocaleDateString(userLocale, {
-                                month: "2-digit",
-                                day: "2-digit",
-                                year: "2-digit",
-                              });
-                            } catch (error) {
-                              return getTranslationFromI18nKeyAndLabel("lowcoder:common.not_available","N/A");
-                            }
-                          })()
+                        ? ensureShortDateFormat(plan.endDate)
                         : getTranslationFromI18nKeyAndLabel("lowcoder:common.not_available","N/A")}
                     </TableCell>
                     <TableCell>
@@ -528,19 +504,7 @@ const ExpensePlansTable: React.FC<ExpensePlansTableProps> = (props) => {
                     </TableCell>
                     <TableCell className="gba:text-sm gba:py-3 gba:px-4">
                       {plan.createdAt
-                        ? (() => {
-                            try {
-                              const date = new Date(plan.createdAt);
-                              const userLocale = getCurrentActiveUserLocale();
-                              return date.toLocaleDateString(userLocale, {
-                                month: "2-digit",
-                                day: "2-digit",
-                                year: "2-digit",
-                              });
-                            } catch (error) {
-                              return getTranslationFromI18nKeyAndLabel("lowcoder:common.not_available","N/A");
-                            }
-                          })()
+                        ? ensureShortDateFormat(plan.createdAt)
                         : getTranslationFromI18nKeyAndLabel("lowcoder:common.not_available","N/A")}
                     </TableCell>
                     <TableCell className="gba:text-right">
@@ -705,11 +669,7 @@ const ExpensePlansTable: React.FC<ExpensePlansTableProps> = (props) => {
         </DialogContent>
       </Dialog>
 
-      {/* Expense Plan Details Sheet */}
-      {/* IMPORTANT: The 'title' prop is REQUIRED by @newwork/nw-design-system Sheet interface (line 20).
-          Removing it causes TypeScript error: "Property 'title' is missing but required in type 'SheetProps'".
-          SonarCloud incorrectly flags it as unsupported. Verified in Sheet.d.ts - title: string (required).
-          The component renders the title internally. DO NOT REMOVE. */}
+      {/* Expense Plan Details Sheet - title is required by DS Sheet props */}
       <Sheet
         open={!!selectedItem}
         onOpenChange={(open) => !open && handleCloseDetails()}

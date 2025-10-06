@@ -129,7 +129,7 @@ export const GET_ADVANCE_PAYMENTS_REPORT_BY_MANAGER = `
       expensePlan {
         code
         title
-        employee { fullName }
+        employee { fullName firstName lastName }
       }
     }
   }

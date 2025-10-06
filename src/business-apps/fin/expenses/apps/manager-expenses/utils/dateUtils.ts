@@ -2,7 +2,7 @@
  * Date utilities for the Expense Manager module
  */
 import dayjs from 'dayjs';
-import { getDateFormat, formatDate } from '@/common/utils/windowUtils';
+import { getCurrentActiveUserLocale } from '@/common/utils/windowUtils';
 
 /**
  * Ensures consistent date formatting in DD.MM.YYYY format
@@ -15,16 +15,17 @@ import { getDateFormat, formatDate } from '@/common/utils/windowUtils';
 export const ensureShortDateFormat = (dateValue: string | Date | undefined | null): string => {
   if (!dateValue) return '-';
 
-  // Prefer platform formatter when available to ensure parity with other tabs
   try {
-    const platformFormatted = formatDate(dateValue as any, 'date.short');
-    if (platformFormatted && typeof platformFormatted === 'string' && !platformFormatted.includes('T')) {
-      return platformFormatted;
-    }
-  } catch {}
-
-  // Fallback to dayjs using the platform-provided pattern
-  const d = dayjs(dateValue);
-  if (!d.isValid()) return '-';
-  return d.format(getDateFormat('date.short'));
+    const date = new Date(dateValue);
+    if (isNaN(date.getTime())) return '-';
+    const userLocale = getCurrentActiveUserLocale();
+    return date.toLocaleDateString(userLocale, {
+      month: '2-digit',
+      day: '2-digit',
+      year: '2-digit',
+    });
+  } catch {
+    const d = dayjs(dateValue);
+    return d.isValid() ? d.format('DD.MM.YYYY') : '-';
+  }
 };

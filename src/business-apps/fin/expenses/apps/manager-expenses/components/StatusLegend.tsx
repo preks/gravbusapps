@@ -1,120 +1,101 @@
 import React from 'react';
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
 import { PillType } from '@/components/pill/Pill';
+import { resolveCssVar } from './modals/charts';
 
-// Design token utility class map for legend color dots
-// Using Tailwind utility classes with design system tokens instead of inline styles
-const pillTypeClassMap: Record<PillType, string> = {
-  draft: 'gba:bg-muted',           // gray (draft status)
-  completed: 'gba:bg-success',     // green (completed status)
-  waiting: 'gba:bg-info',          // blue (waiting/pending status)
-  task: 'gba:bg-warning',          // amber/orange (task status)
-  error: 'gba:bg-destructive',     // red (error/rejected status)
-  preparing: 'gba:bg-muted'        // gray (preparing status)
+// Unified status config to avoid duplication across maps/switches
+// Each entry controls: dot class, text class, chart color token, i18n key and fallback label
+type PillConfig = {
+  dotClass: string;
+  textClass: string;
+  colorToken: string;
+  i18nKey: string;
+  fallbackLabel: string;
 };
 
-// Text color map for status labels (black for preparing)
-const pillTypeTextColorMap: Record<PillType, string> = {
-  draft: 'gba:text-muted-foreground',
-  completed: 'gba:text-muted-foreground',
-  waiting: 'gba:text-muted-foreground',
-  task: 'gba:text-muted-foreground',
-  error: 'gba:text-muted-foreground',
-  preparing: 'gba:text-foreground'     // black text for better visibility
-};
-
-// Design token CSS variables for charts (will be resolved to hex at runtime)
-// Recharts requires actual color values, so we use CSS variables that get resolved
-const pillTypeColorTokens: Record<PillType, string> = {
-  draft: 'var(--nw-muted)',
-  completed: 'var(--nw-success)',
-  waiting: 'var(--nw-info)',
-  task: 'var(--nw-warning)',
-  error: 'var(--nw-destructive)',
-  preparing: 'var(--nw-muted)'
-};
-
-// Helper function to resolve CSS variables to hex colors (client-side only)
-// This is needed because Recharts requires actual hex/rgb values, not CSS variables
-// During SSR, we return the CSS variable as-is and let the client resolve it after hydration
-const resolveCssVar = (color: string): string => {
-  if (!color?.startsWith('var(')) return color;
-  
-  // During SSR, return the CSS variable as-is (client will resolve after hydration)
-  if (
-    typeof globalThis.window === 'undefined' ||
-    typeof globalThis.document === 'undefined' ||
-    typeof globalThis.window.getComputedStyle !== 'function'
-  ) {
-    return color;
-  }
-  
-  // Client-side: resolve CSS variable from computed styles
-  const varName = color.substring(4, color.length - 1).trim();
-  const value = globalThis.window.getComputedStyle(globalThis.document.documentElement).getPropertyValue(varName).trim();
-  return value || color;
-};
-
-// Resolved color map for charts (hex values resolved from CSS variables)
-const pillTypeColorMap: Record<PillType, string> = Object.entries(pillTypeColorTokens).reduce(
-  (acc, [key, token]) => {
-    acc[key as PillType] = resolveCssVar(token);
-    return acc;
+const STATUS_CONFIG: Record<PillType, PillConfig> = {
+  draft: {
+    dotClass: 'gba:bg-muted',
+    textClass: 'gba:text-muted-foreground',
+    colorToken: 'var(--nw-muted)',
+    i18nKey: 'lowcoder:status_legend.draft',
+    fallbackLabel: 'Draft',
   },
-  {} as Record<PillType, string>
-);
-
-// Fallback labels for SSR (when window is not available)
-const pillTypeFallbackLabels: Record<PillType, string> = {
-  draft: 'Draft',
-  completed: 'Completed',
-  waiting: 'Waiting',
-  task: 'Task',
-  error: 'Error',
-  preparing: 'Preparing',
+  completed: {
+    dotClass: 'gba:bg-success',
+    textClass: 'gba:text-muted-foreground',
+    colorToken: 'var(--nw-success)',
+    i18nKey: 'lowcoder:status_legend.completed',
+    fallbackLabel: 'Completed',
+  },
+  waiting: {
+    dotClass: 'gba:bg-info',
+    textClass: 'gba:text-muted-foreground',
+    colorToken: 'var(--nw-info)',
+    i18nKey: 'lowcoder:status_legend.waiting',
+    fallbackLabel: 'Waiting',
+  },
+  task: {
+    dotClass: 'gba:bg-warning',
+    textClass: 'gba:text-muted-foreground',
+    colorToken: 'var(--nw-warning)',
+    i18nKey: 'lowcoder:status_legend.task',
+    fallbackLabel: 'Task',
+  },
+  error: {
+    dotClass: 'gba:bg-destructive',
+    textClass: 'gba:text-muted-foreground',
+    colorToken: 'var(--nw-destructive)',
+    i18nKey: 'lowcoder:status_legend.error',
+    fallbackLabel: 'Error',
+  },
+  preparing: {
+    dotClass: 'gba:bg-muted',
+    textClass: 'gba:text-foreground',
+    colorToken: 'var(--nw-muted)',
+    i18nKey: 'lowcoder:status_legend.preparing',
+    fallbackLabel: 'Preparing',
+  },
 };
+
+// Derived tokens and resolved color maps for charts/consumers (exported via named consts)
+export const pillTypeColorTokens: Record<PillType, string> = Object.fromEntries(
+  (Object.keys(STATUS_CONFIG) as PillType[]).map((k) => [k, STATUS_CONFIG[k].colorToken])
+) as Record<PillType, string>;
+
+export const pillTypeColorMap: Record<PillType, string> = Object.fromEntries(
+  (Object.keys(STATUS_CONFIG) as PillType[]).map((k) => [k, resolveCssVar(STATUS_CONFIG[k].colorToken)])
+) as Record<PillType, string>;
+
+// Expose the dot/text class map for table badges
+export const pillTypeClassMap: Record<PillType, string> = Object.fromEntries(
+  (Object.keys(STATUS_CONFIG) as PillType[]).map((k) => [k, `${STATUS_CONFIG[k].dotClass}`])
+) as Record<PillType, string>;
 
 // Helper function to get label with SSR safety
 const getPillTypeLabel = (type: PillType): string => {
-  // Only call translation function in browser environment
+  const cfg = STATUS_CONFIG[type];
   if (typeof globalThis.window !== 'undefined') {
-    switch (type) {
-      case 'draft':
-        return getTranslationFromI18nKeyAndLabel('lowcoder:status_legend.draft', 'Draft');
-      case 'completed':
-        return getTranslationFromI18nKeyAndLabel('lowcoder:status_legend.completed', 'Completed');
-      case 'waiting':
-        return getTranslationFromI18nKeyAndLabel('lowcoder:status_legend.waiting', 'Waiting');
-      case 'task':
-        return getTranslationFromI18nKeyAndLabel('lowcoder:status_legend.task', 'Task');
-      case 'error':
-        return getTranslationFromI18nKeyAndLabel('lowcoder:status_legend.error', 'Error');
-      case 'preparing':
-        return getTranslationFromI18nKeyAndLabel('lowcoder:status_legend.preparing', 'Preparing');
-      default:
-        return pillTypeFallbackLabels[type];
-    }
+    return getTranslationFromI18nKeyAndLabel(cfg.i18nKey, cfg.fallbackLabel);
   }
-  // Fallback to static labels during SSR
-  return pillTypeFallbackLabels[type];
+  return cfg.fallbackLabel;
 };
 
 export const StatusLegend: React.FC<{ id?: string }> = ({ id }) => (
   <div className="gba:mt-3 gba:flex gba:flex-wrap gba:gap-3" data-testid={id ? `${id}-status-legend` : 'status-legend'}>
-    {(Object.keys(pillTypeClassMap) as PillType[]).map((type) => (
-      <div key={type} className="gba:flex gba:items-center gba:gap-2">
-        <span
-          aria-hidden="true"
-          className={`gba:inline-block gba:h-3 gba:w-3 gba:rounded-full ${pillTypeClassMap[type]}`}
-        />
-        <span className={`gba:text-xs ${pillTypeTextColorMap[type]}`}>{getPillTypeLabel(type)}</span>
-      </div>
-    ))}
+    {(Object.keys(STATUS_CONFIG) as PillType[]).map((type) => {
+      const cfg = STATUS_CONFIG[type];
+      return (
+        <div key={type} className="gba:flex gba:items-center gba:gap-2">
+          <span aria-hidden="true" className={`gba:inline-block gba:h-3 gba:w-3 gba:rounded-full ${cfg.dotClass}`} />
+          <span className={`gba:text-xs ${cfg.textClass}`}>{getPillTypeLabel(type)}</span>
+        </div>
+      );
+    })}
   </div>
 );
 
-// Export color maps for consumers that need them (e.g., charts)
-export { pillTypeColorMap, pillTypeColorTokens };
+// keep component default export only below for stable Fast Refresh
 
 export default StatusLegend;
 
