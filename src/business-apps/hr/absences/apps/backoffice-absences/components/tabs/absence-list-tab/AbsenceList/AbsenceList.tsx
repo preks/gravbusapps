@@ -17,6 +17,7 @@ import {
 import { PiCalendar, PiUser, PiArrowUp, PiArrowDown } from 'react-icons/pi';
 import { useGraphQLClient } from '../../../../../../../../../common/network/graphql/useGraphQLClient';
 import { useCatalogManagerClient } from '../../../../../../../../../common/network/catalogs/useCatalogManagerClient';
+import { getTranslationFromI18nKeyAndLabel, getCurrentActiveUserLocale, formatDate } from '../../../../../../../../../common/utils/windowUtils';
 import dayjs from 'dayjs';
 import { DateRangeFilter } from './DateRangeFilter';
 import { CreationDateFilter } from './CreationDateFilter';
@@ -92,6 +93,7 @@ export const AbsenceList: React.FC<AbsenceListProps> = (props) => {
   const [sortOrder, setSortOrder] = useState<'ASC' | 'DESC' | ''>('DESC');
   const [selectedAbsence, setSelectedAbsence] = useState<EnhancedAbsence | null>(null);
   const [absenceGroups, setAbsenceGroups] = useState<Record<string, string>>({});
+  const [originalAbsenceGroups, setOriginalAbsenceGroups] = useState<Record<string, string>>({});
   const [teamEmployees, setTeamEmployees] = useState<any[]>([]);
   const [employeesLoading, setEmployeesLoading] = useState(false);
   const [organizationalUnits, setOrganizationalUnits] = useState<any[]>([]);
@@ -164,6 +166,15 @@ export const AbsenceList: React.FC<AbsenceListProps> = (props) => {
               id
               value
               parentEntryId
+              parentEntry {
+                objectValue
+                translations {
+                  localeCode
+                  value
+                }
+                id
+                value
+              }
             }
             employee {
               id
@@ -196,16 +207,32 @@ export const AbsenceList: React.FC<AbsenceListProps> = (props) => {
       const result = await graphQLClient.request(query, variables);
 
       // Transform and enhance the data (similar to dashboard processing)
-      const enhancedAbsences: EnhancedAbsence[] = result.EmployeeAbsence.map((absence: any) => ({
-        ...absence,
-        employeeName: absence.employee 
-          ? `${absence.employee.firstName || ''} ${absence.employee.lastName || ''}`.trim() || 'Unknown Employee'
-          : 'Unknown Employee',
-        groupName: absence.type?.parentEntryId && absenceGroups[absence.type.parentEntryId]
-          ? absenceGroups[absence.type.parentEntryId]
-          : 'Unknown Group',
-        typeName: absence.type?.value || 'Unknown Type'
-      }));
+      const enhancedAbsences: EnhancedAbsence[] = result.EmployeeAbsence.map((absence: any) => {
+        // Ensure employee object exists and has required properties
+        const employee = absence.employee || {};
+        const employeeName = employee.firstName || employee.lastName 
+          ? `${employee.firstName || ''} ${employee.lastName || ''}`.trim() || 'Unknown Employee'
+          : 'Unknown Employee';
+
+        return {
+          ...absence,
+          employee: {
+            id: employee.id || '',
+            firstName: employee.firstName || '',
+            lastName: employee.lastName || '',
+            employeePosition: employee.employeePosition || null
+          },
+          employeeName,
+          groupName: absence.type?.parentEntryId && absenceGroups[absence.type.parentEntryId]
+            ? absenceGroups[absence.type.parentEntryId]
+            : 'Unknown Group',
+          originalGroupName: absence.type?.parentEntryId && originalAbsenceGroups[absence.type.parentEntryId]
+            ? originalAbsenceGroups[absence.type.parentEntryId]
+            : absence.type?.value || 'Unknown Group',
+          typeName: absence.type?.value || 'Unknown Type',
+          color: extractColorFromObjectValue(absence.type?.parentEntry?.objectValue)
+        };
+      });
 
       setAbsences(enhancedAbsences);
       setTotal(result.EmployeeAbsenceAggregate.aggregate.count);
@@ -301,7 +328,17 @@ export const AbsenceList: React.FC<AbsenceListProps> = (props) => {
       `;
 
       const result = await graphQLClient.request(employeesQuery);
-      setTeamEmployees(result?.Employee || []);
+      const employees = result?.Employee || [];
+      
+      // Deduplicate employees by ID to avoid duplicates from the database
+      const uniqueEmployees = employees.reduce((acc: any[], employee: any) => {
+        if (!acc.find((emp: any) => emp.id === employee.id)) {
+          acc.push(employee);
+        }
+        return acc;
+      }, []);
+      
+      setTeamEmployees(uniqueEmployees);
     } catch (error) {
       console.error('Error fetching employees:', error);
       setTeamEmployees([]);
@@ -321,26 +358,45 @@ export const AbsenceList: React.FC<AbsenceListProps> = (props) => {
       if (!accessToken) return;
 
       try {
-        // Fetch catalog data for absence groups with proper auth parameters
-        const catalogData = await catalogClient.getCatalogEntriesList(
+        const userLocale = getCurrentActiveUserLocale();
+        
+        // Fetch translated catalog data for absence groups
+        const translatedCatalogData = await catalogClient.getCatalogEntriesList(
           { catalogIdentifier: 'AbsenceGroup', version: 'v1' },
-          { limit: 100, offset: 0, returnTotalRecords: true }
+          { limit: 100, offset: 0, returnTotalRecords: true, localeCode: userLocale }
         );
         
-        const groupsMap: Record<string, string> = {};
-        catalogData.data.forEach((entry: any) => {
-          groupsMap[entry.id] = entry.value;
-          // Map by both the main id and the catalogEntryLocalId for compatibility
+        // Fetch original English catalog data for color lookup
+        const originalCatalogData = await catalogClient.getCatalogEntriesList(
+          { catalogIdentifier: 'AbsenceGroup', version: 'v1' },
+          { limit: 100, offset: 0, returnTotalRecords: true, localeCode: 'en-US' }
+        );
+        
+        const translatedGroupsMap: Record<string, string> = {};
+        translatedCatalogData.data.forEach((entry: any) => {
+          translatedGroupsMap[entry.id] = entry.value;
+          // Only add catalogEntryLocalId mapping for data processing, not for filter display
           if (entry.catalogEntryLocalId) {
-            groupsMap[entry.catalogEntryLocalId] = entry.value;
+            translatedGroupsMap[entry.catalogEntryLocalId] = entry.value;
           }
         });
         
-        setAbsenceGroups(groupsMap);
+        const originalGroupsMap: Record<string, string> = {};
+        originalCatalogData.data.forEach((entry: any) => {
+          originalGroupsMap[entry.id] = entry.value;
+          // Only add catalogEntryLocalId mapping for data processing, not for filter display
+          if (entry.catalogEntryLocalId) {
+            originalGroupsMap[entry.catalogEntryLocalId] = entry.value;
+          }
+        });
+        
+        setAbsenceGroups(translatedGroupsMap);
+        setOriginalAbsenceGroups(originalGroupsMap);
         
       } catch (error) {
         console.error('❌ Error fetching absence groups catalog:', error);
         setAbsenceGroups({});
+        setOriginalAbsenceGroups({});
       }
     };
 
@@ -402,23 +458,81 @@ export const AbsenceList: React.FC<AbsenceListProps> = (props) => {
     fetchOrganizationalUnits();
   }, [fetchOrganizationalUnits]);
 
-  // Get absence color (simplified version)
-  const getColorForAbsence = (groupName: string) => {
+  // Get original group name for color lookup (before translation)
+  const getOriginalGroupName = (absence: EnhancedAbsence) => {
+    return absence.originalGroupName || absence.groupName || '-';
+  };
+
+  // Extract color from GraphQL objectValue
+  const extractColorFromObjectValue = (objectValue: any): string => {
+    if (!objectValue || typeof objectValue !== 'object') {
+      return '#6b7280'; // Default fallback color
+    }
+    
+    const color = objectValue.color;
+    if (!color) {
+      return '#6b7280'; // Default fallback color
+    }
+    
+    // Add # prefix if missing
+    return color.startsWith('#') ? color : `#${color}`;
+  };
+
+  // Get absence color - use GraphQL color if available, otherwise fallback to hardcoded
+  const getColorForAbsence = (absence: EnhancedAbsence) => {
+    // First try to use the color from GraphQL
+    if (absence.color) {
+      return absence.color;
+    }
+    
+    // Fallback to hardcoded colors using original group name
     const colorMap: Record<string, string> = {
       'Sick Leave': '#f87171',
       'Vacation': '#10b981',
       'Special Leave': '#8b5cf6',
       'Work Leave': '#f59e0b',
     };
-    return colorMap[groupName] || '#6b7280';
+    return colorMap[getOriginalGroupName(absence)] || '#6b7280';
   };
 
   // Get employee display name
   const getEmployeeName = (absence: EnhancedAbsence) => {
-    if (absence.employee.firstName || absence.employee.lastName) {
+    if (absence.employee && (absence.employee.firstName || absence.employee.lastName)) {
       return `${absence.employee.firstName || ''} ${absence.employee.lastName || ''}`.trim();
     }
     return '-';
+  };
+
+
+  // Format date for filter display (matching manager-absences pattern)
+  const formatDateForDisplay = (dateString: string) => {
+    const userLocale = getCurrentActiveUserLocale();
+    try {
+      const date = new Date(dateString);
+      return date.toLocaleDateString(userLocale, {
+        day: '2-digit',
+        month: '2-digit',
+        year: 'numeric'
+      });
+    } catch {
+      return dateString;
+    }
+  };
+
+  // Get translated status (matching manager-absences exactly)
+  const getTranslatedStatus = (status: string) => {
+    switch (status?.toUpperCase()) {
+      case 'PENDING':
+        return getTranslationFromI18nKeyAndLabel('lowcoder:expense_statuses.pending', 'Pending');
+      case 'APPROVED':
+        return getTranslationFromI18nKeyAndLabel('lowcoder:expense_statuses.approved', 'Approved');
+      case 'REJECTED':
+        return getTranslationFromI18nKeyAndLabel('lowcoder:expense_statuses.rejected', 'Rejected');
+      case 'CANCELLED':
+        return getTranslationFromI18nKeyAndLabel('lowcoder:absences_overview_entry_screen.cancelled_status', 'Cancelled');
+      default:
+        return status || '-';
+    }
   };
 
   // Get status badge variant (matching manager-absences exactly)
@@ -695,8 +809,16 @@ export const AbsenceList: React.FC<AbsenceListProps> = (props) => {
       return fullName.includes(searchTerm.toLowerCase()) || orgUnit.includes(searchTerm.toLowerCase());
     });
 
+    // Deduplicate employees by ID to avoid showing the same person multiple times
+    const uniqueEmployees = filteredEmployees.reduce((acc: any[], employee: any) => {
+      if (!acc.find((emp: any) => emp.id === employee.id)) {
+        acc.push(employee);
+      }
+      return acc;
+    }, []);
+
     return {
-      filters: filteredEmployees.map(employee => ({
+      filters: uniqueEmployees.map(employee => ({
         id: employee.id,
         label: `${employee.firstName || ''} ${employee.lastName || ''}`.trim() || 'Unknown Employee',
         selected: selectedFilters.includes(employee.id)
@@ -711,7 +833,7 @@ export const AbsenceList: React.FC<AbsenceListProps> = (props) => {
     // Special "No Department" filter for employees without department assignment
     const noDepartmentFilter = {
       id: 'department-no-department',
-      label: 'No Department',
+      label: getTranslationFromI18nKeyAndLabel('lowcoder:absence_management_hub_backoffice.absence_list.no_department', 'No Department'),
       selected: selectedFilters.includes('department-no-department')
     };
 
@@ -759,17 +881,23 @@ export const AbsenceList: React.FC<AbsenceListProps> = (props) => {
     };
   }, [organizationalUnits, selectedFilters, orgUnitsLoading]);
 
-  // Create dynamic groups from catalog data
-  const dynamicGroups = Object.entries(absenceGroups).map(([id, name]) => ({
-    id,
-    name
-  }));
+  // Create dynamic groups from catalog data (only main IDs, no duplicates)
+  const dynamicGroups = Object.entries(absenceGroups)
+    .filter(([id]) => {
+      // Only include main catalog IDs (not catalogEntryLocalId duplicates)
+      // Main IDs typically start with "AbsenceGroup:v1:" pattern
+      return id.startsWith('AbsenceGroup:v1:');
+    })
+    .map(([id, name]) => ({
+      id,
+      name
+    }));
 
   // Filter configuration matching manager-absences pattern exactly
   const filterGroups: DataFilterGroup[] = [
     {
       id: 'absenceDateRange',
-      title: 'Start - End Date',
+      title: `${getTranslationFromI18nKeyAndLabel('lowcoder:absence_table.start_date', 'Start')} - ${getTranslationFromI18nKeyAndLabel('lowcoder:hr_absences.create_absence.end_date', 'End Date')}`,
       customComponent: React.createElement(DateRangeFilter, {
         key: `absenceDateRange-${startDate}-${endDate}`, // Force re-render when dates change
         initialStartDate: startDate,
@@ -780,7 +908,7 @@ export const AbsenceList: React.FC<AbsenceListProps> = (props) => {
     },
     {
       id: 'creationDateRange',
-      title: 'Creation Date',
+      title: getTranslationFromI18nKeyAndLabel('lowcoder:absence_management_hub_backoffice.absence_list.creation_date', 'Creation Date'),
       customComponent: React.createElement(CreationDateFilter, {
         key: `creationDateRange-${creationStartDate}-${creationEndDate}`, // Force re-render when dates change
         initialStartDate: creationStartDate,
@@ -791,26 +919,26 @@ export const AbsenceList: React.FC<AbsenceListProps> = (props) => {
     },
     {
       id: 'employee',
-      title: 'Employee (Requester)',
+      title: getTranslationFromI18nKeyAndLabel('lowcoder:absence_table.employee', 'Employee'),
       backendSearch: getEmployeeFilters
     },
     {
       id: 'department',
-      title: 'Department',
+      title: getTranslationFromI18nKeyAndLabel('lowcoder:absence_management_hub_backoffice.absence_list.department', 'Department'),
       backendSearch: getDepartmentFilters
     },
     {
       id: 'status',
-      title: 'Status',
+      title: getTranslationFromI18nKeyAndLabel('lowcoder:expense_request_list.expense_plan_table.status', 'Status'),
       filters: ABSENCE_STATUSES.map(status => ({
         id: `status-${status.id}`,
-        label: status.name,
+        label: getTranslatedStatus(status.name),
         selected: selectedFilters.includes(`status-${status.id}`)
       }))
     },
     {
       id: 'group',
-      title: 'Absence Group',
+      title: getTranslationFromI18nKeyAndLabel('lowcoder:absence_table.group', 'Group'),
       filters: dynamicGroups.map(group => ({
         id: `group-${group.id}`,
         label: group.name,
@@ -828,7 +956,7 @@ export const AbsenceList: React.FC<AbsenceListProps> = (props) => {
   if (selectedFilters.includes('department-no-department')) {
     selectedDepartmentsWithNoDepOption.push({
       id: 'no-department',
-      name: 'No Department'
+      name: getTranslationFromI18nKeyAndLabel('lowcoder:absence_management_hub_backoffice.absence_list.no_department', 'No Department')
     } as any);
   }
   
@@ -866,13 +994,25 @@ export const AbsenceList: React.FC<AbsenceListProps> = (props) => {
   }, [selectedFilters, startDate, endDate, creationStartDate, creationEndDate]);
 
   const filterLabelMap = {
-    ...Object.fromEntries(selectedEmployees.map(e => [e.id, `${e.firstName || ''} ${e.lastName || ''}`.trim() || 'Unknown Employee'])),
+    ...Object.fromEntries(selectedEmployees.map(e => [e.id, `${e.firstName || ''} ${e.lastName || ''}`.trim() || getTranslationFromI18nKeyAndLabel('lowcoder:absence_management_hub_backoffice.absence_list.unknown_employee', 'Unknown Employee')])),
     ...Object.fromEntries(selectedDepartmentsWithNoDepOption.map(d => [`department-${d.id}`, d.name || 'Unknown Department'])),
-    ...Object.fromEntries(ABSENCE_STATUSES.map(s => [`status-${s.id}`, s.name])),
+    ...Object.fromEntries(ABSENCE_STATUSES.map(s => [`status-${s.id}`, getTranslatedStatus(s.name)])),
     ...Object.fromEntries(dynamicGroups.map(g => [`group-${g.id}`, g.name])),
-    // Date range labels (exactly like manager-absences)
-    absenceDateRange: startDate && endDate ? `${startDate} - ${endDate}` : startDate ? `From ${startDate}` : endDate ? `Until ${endDate}` : 'Date Range',
-    creationDateRange: creationStartDate && creationEndDate ? `Created ${creationStartDate} - ${creationEndDate}` : creationStartDate ? `Created from ${creationStartDate}` : creationEndDate ? `Created until ${creationEndDate}` : 'Creation Date'
+    // Date range labels (exactly like manager-absences with locale formatting)
+    absenceDateRange: startDate && endDate 
+      ? `${getTranslationFromI18nKeyAndLabel('lowcoder:absence_table.start_date', 'Start Date')} - ${getTranslationFromI18nKeyAndLabel('lowcoder:absence_table.end_date', 'End Date')}: ${formatDateForDisplay(startDate)} ${getTranslationFromI18nKeyAndLabel('lowcoder:absence_overview_screen.absence_overview_table.to', 'to')} ${formatDateForDisplay(endDate)}` 
+      : startDate 
+        ? `${getTranslationFromI18nKeyAndLabel('lowcoder:absence_table.start_date', 'Start Date')} - ${getTranslationFromI18nKeyAndLabel('lowcoder:absence_table.end_date', 'End Date')}: ${getTranslationFromI18nKeyAndLabel('lowcoder:absence_overview_screen.absence_overview_table.from', 'from')} ${formatDateForDisplay(startDate)}` 
+        : endDate 
+          ? `${getTranslationFromI18nKeyAndLabel('lowcoder:absence_table.start_date', 'Start Date')} - ${getTranslationFromI18nKeyAndLabel('lowcoder:absence_table.end_date', 'End Date')}: Until ${formatDateForDisplay(endDate)}` 
+          : 'Date Range',
+    creationDateRange: creationStartDate && creationEndDate 
+      ? `${getTranslationFromI18nKeyAndLabel('lowcoder:absence_management_hub_backoffice.absence_list.creation_date', 'Creation Date')}: ${formatDateForDisplay(creationStartDate)} ${getTranslationFromI18nKeyAndLabel('lowcoder:absence_overview_screen.absence_overview_table.to', 'to')} ${formatDateForDisplay(creationEndDate)}` 
+      : creationStartDate 
+        ? `${getTranslationFromI18nKeyAndLabel('lowcoder:absence_management_hub_backoffice.absence_list.creation_date', 'Creation Date')}: ${getTranslationFromI18nKeyAndLabel('lowcoder:absence_overview_screen.absence_overview_table.from', 'from')} ${formatDateForDisplay(creationStartDate)}` 
+        : creationEndDate 
+          ? `${getTranslationFromI18nKeyAndLabel('lowcoder:absence_management_hub_backoffice.absence_list.creation_date', 'Creation Date')}: Until ${formatDateForDisplay(creationEndDate)}` 
+          : 'Creation Date'
   };
 
   // Filter handlers (enhanced for date ranges)
@@ -961,7 +1101,7 @@ export const AbsenceList: React.FC<AbsenceListProps> = (props) => {
   const absencesWithUpdatedGroups = useMemo(() => {
     return absences.map(absence => ({
       ...absence,
-      groupName: (absence.type?.parentEntryId && absenceGroups[absence.type.parentEntryId]) || absence.type?.value || 'Unknown Group'
+      groupName: (absence.type?.parentEntryId && absenceGroups[absence.type.parentEntryId]) || absence.type?.value || getTranslationFromI18nKeyAndLabel('lowcoder:absence_management_hub_backoffice.absence_list.unknown_group', 'Unknown Group')
     }));
   }, [absences, absenceGroups]);
 
@@ -974,7 +1114,7 @@ export const AbsenceList: React.FC<AbsenceListProps> = (props) => {
           data-testid={`${DATA_TEST_ID_PREFIX}-error-state`}
         >
           <div className="gba:text-red-500 gba:text-lg gba:font-medium gba:mb-2">
-            Error Loading Absences
+            {getTranslationFromI18nKeyAndLabel('lowcoder:absence_table.error_loading_absences', 'Error Loading Absences')}
           </div>
           <div className="gba:text-gray-600 gba:mb-4">
             {error.message}
@@ -984,7 +1124,7 @@ export const AbsenceList: React.FC<AbsenceListProps> = (props) => {
             onClick={fetchAbsences}
             data-testid={`${DATA_TEST_ID_PREFIX}-retry-button`}
           >
-            Retry
+            {getTranslationFromI18nKeyAndLabel('lowcoder:absence_table.retry', 'Retry')}
           </Button>
         </div>
       );
@@ -1009,7 +1149,7 @@ export const AbsenceList: React.FC<AbsenceListProps> = (props) => {
                     data-testid={`${DATA_TEST_ID_PREFIX}-employee-header`}
                   >
                     <div className="gba:flex gba:items-center">
-                      Employee
+                      {getTranslationFromI18nKeyAndLabel('lowcoder:absence_table.employee', 'Employee')}
                       {renderSortIcon('employeeName')}
                     </div>
                   </TableHead>
@@ -1019,7 +1159,7 @@ export const AbsenceList: React.FC<AbsenceListProps> = (props) => {
                     data-testid={`${DATA_TEST_ID_PREFIX}-group-header`}
                   >
                     <div className="gba:flex gba:items-center">
-                      Group
+                      {getTranslationFromI18nKeyAndLabel('lowcoder:absence_table.group', 'Group')}
                       {renderSortIcon('groupName')}
                     </div>
                   </TableHead>
@@ -1029,7 +1169,7 @@ export const AbsenceList: React.FC<AbsenceListProps> = (props) => {
                     data-testid={`${DATA_TEST_ID_PREFIX}-start-date-header`}
                   >
                     <div className="gba:flex gba:items-center">
-                      Start Date
+                      {getTranslationFromI18nKeyAndLabel('lowcoder:absence_table.start_date', 'Start Date')}
                       {renderSortIcon('startDate')}
                     </div>
                   </TableHead>
@@ -1039,7 +1179,7 @@ export const AbsenceList: React.FC<AbsenceListProps> = (props) => {
                     data-testid={`${DATA_TEST_ID_PREFIX}-end-date-header`}
                   >
                     <div className="gba:flex gba:items-center">
-                      End Date
+                      {getTranslationFromI18nKeyAndLabel('lowcoder:absence_table.end_date', 'End Date')}
                       {renderSortIcon('endDate')}
                     </div>
                   </TableHead>
@@ -1049,7 +1189,7 @@ export const AbsenceList: React.FC<AbsenceListProps> = (props) => {
                     data-testid={`${DATA_TEST_ID_PREFIX}-status-header`}
                   >
                     <div className="gba:flex gba:items-center">
-                      Status
+                      {getTranslationFromI18nKeyAndLabel('lowcoder:expense_request_list.expense_plan_table.status', 'Status')}
                       {renderSortIcon('status')}
                     </div>
                   </TableHead>
@@ -1059,7 +1199,7 @@ export const AbsenceList: React.FC<AbsenceListProps> = (props) => {
                     data-testid={`${DATA_TEST_ID_PREFIX}-days-header`}
                   >
                     <div className="gba:flex gba:items-center">
-                      Days
+                      {getTranslationFromI18nKeyAndLabel('lowcoder:absence_table.days', 'Days')}
                       {renderSortIcon('effectiveDays')}
                     </div>
                   </TableHead>
@@ -1069,7 +1209,7 @@ export const AbsenceList: React.FC<AbsenceListProps> = (props) => {
                     data-testid={`${DATA_TEST_ID_PREFIX}-created-header`}
                   >
                     <div className="gba:flex gba:items-center">
-                      Created
+                      {getTranslationFromI18nKeyAndLabel('lowcoder:expense_plan_list.expense_plan_table.create_date', 'Created At')}
                       {renderSortIcon('createdAt')}
                     </div>
                   </TableHead>
@@ -1100,12 +1240,12 @@ export const AbsenceList: React.FC<AbsenceListProps> = (props) => {
                       </div>
                     </TableCell>
                     <TableCell className="gba:py-4 gba:px-6" data-testid={`${DATA_TEST_ID_PREFIX}-group-cell-${record.id}`}>
-                      <Badge 
+                      <Badge
                         variant="outline"
                         style={{ 
-                          backgroundColor: getColorForAbsence(record.groupName),
+                          backgroundColor: getColorForAbsence(record),
                           color: 'white',
-                          borderColor: getColorForAbsence(record.groupName)
+                          borderColor: getColorForAbsence(record)
                         }}
                       >
                         {record.groupName}
@@ -1116,7 +1256,7 @@ export const AbsenceList: React.FC<AbsenceListProps> = (props) => {
                         <div className="gba:flex gba:items-center gba:gap-2">
                           <PiCalendar size={16} className="gba:text-gray-400" />
                           <span className="gba:text-sm">
-                            {dayjs(record.startDate).format('MMM DD, YYYY')}
+                            {formatDate(record.startDate, 'date.short')}
                           </span>
                         </div>
                       ) : '-'}
@@ -1126,14 +1266,14 @@ export const AbsenceList: React.FC<AbsenceListProps> = (props) => {
                         <div className="gba:flex gba:items-center gba:gap-2">
                           <PiCalendar size={16} className="gba:text-gray-400" />
                           <span className="gba:text-sm">
-                            {dayjs(record.endDate).format('MMM DD, YYYY')}
+                            {formatDate(record.endDate, 'date.short')}
                           </span>
                         </div>
                       ) : '-'}
                     </TableCell>
                     <TableCell className="gba:py-4 gba:px-6" data-testid={`${DATA_TEST_ID_PREFIX}-status-cell-${record.id}`}>
                       <Badge variant={getStatusBadgeVariant(record.status)}>
-                        {record.status || '-'}
+                        {getTranslatedStatus(record.status)}
                       </Badge>
                     </TableCell>
                     <TableCell className="gba:py-4 gba:px-6" data-testid={`${DATA_TEST_ID_PREFIX}-days-cell-${record.id}`}>
@@ -1144,7 +1284,7 @@ export const AbsenceList: React.FC<AbsenceListProps> = (props) => {
                         <div className="gba:flex gba:items-center gba:gap-2">
                           <PiCalendar size={16} className="gba:text-gray-400" />
                           <span className="gba:text-sm">
-                            {dayjs(record.createdAt).format('MMM DD, YYYY')}
+                            {formatDate(record.createdAt, 'date.short')}
                           </span>
                         </div>
                       ) : '-'}
@@ -1173,7 +1313,7 @@ export const AbsenceList: React.FC<AbsenceListProps> = (props) => {
           listTitle: (
             <div className="gba:flex gba:items-center gba:gap-4">
               <div className="gba:flex gba:items-center gba:gap-2">
-                <span>Absences</span>
+                <span>{getTranslationFromI18nKeyAndLabel('lowcoder:absence_table.absences', 'Absences')}</span>
                 <span className="gba:text-gray-500">({total})</span>
               </div>
             </div>
@@ -1190,11 +1330,11 @@ export const AbsenceList: React.FC<AbsenceListProps> = (props) => {
             {total > pageSize ? (
               <div className="gba:flex gba:items-center gba:justify-between gba:px-2 gba:py-4" data-testid={`${DATA_TEST_ID_PREFIX}-pagination`}>
                 <div className="gba:text-sm gba:text-muted-foreground" data-testid={`${DATA_TEST_ID_PREFIX}-pagination-info`}>
-                  {`${(currentPage - 1) * pageSize + 1}-${Math.min(currentPage * pageSize, total)} of ${total} absences`}
+                  {`${(currentPage - 1) * pageSize + 1}-${Math.min(currentPage * pageSize, total)} ${getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.of', 'of')} ${total} ${getTranslationFromI18nKeyAndLabel('lowcoder:absence_management_hub_manager.absence_list_screen.title', 'absences')}`}
                 </div>
                 <div className="gba:flex gba:items-center gba:space-x-6 gba:lg:space-x-8">
                   <div className="gba:flex gba:items-center gba:space-x-2">
-                    <p className="gba:text-sm gba:font-medium">Rows per page</p>
+                    <p className="gba:text-sm gba:font-medium">{getTranslationFromI18nKeyAndLabel('lowcoder:absence_table.rows_per_page', 'Rows per page')}</p>
                     <select
                       value={pageSize}
                       onChange={(e) => handlePaginationChange(1, Number(e.target.value))}
@@ -1208,7 +1348,7 @@ export const AbsenceList: React.FC<AbsenceListProps> = (props) => {
                     </select>
                   </div>
                   <div className="gba:flex gba:w-[100px] gba:items-center gba:justify-center gba:text-sm gba:font-medium" data-testid={`${DATA_TEST_ID_PREFIX}-page-info`}>
-                    Page {currentPage} of {Math.ceil(total / pageSize)}
+                    {getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.page', 'Page')} {currentPage} {getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.of', 'of')} {Math.ceil(total / pageSize)}
                   </div>
                   <div className="gba:flex gba:items-center gba:space-x-2">
                     <Button
@@ -1218,7 +1358,7 @@ export const AbsenceList: React.FC<AbsenceListProps> = (props) => {
                       disabled={currentPage === 1}
                       data-testid={`${DATA_TEST_ID_PREFIX}-first-page-button`}
                     >
-                      <span className="gba:sr-only">Go to first page</span>
+                      <span className="gba:sr-only">{getTranslationFromI18nKeyAndLabel('lowcoder:absence_management_hub_backoffice.absence_list.go_to_first_page', 'Go to first page')}</span>
                       ⟨⟨
                     </Button>
                     <Button
@@ -1228,7 +1368,7 @@ export const AbsenceList: React.FC<AbsenceListProps> = (props) => {
                       disabled={currentPage === 1}
                       data-testid={`${DATA_TEST_ID_PREFIX}-previous-page-button`}
                     >
-                      <span className="gba:sr-only">Go to previous page</span>
+                      <span className="gba:sr-only">{getTranslationFromI18nKeyAndLabel('lowcoder:absence_management_hub_backoffice.absence_list.go_to_previous_page', 'Go to previous page')}</span>
                       ⟨
                     </Button>
                     <Button
@@ -1238,7 +1378,7 @@ export const AbsenceList: React.FC<AbsenceListProps> = (props) => {
                       disabled={currentPage >= Math.ceil(total / pageSize)}
                       data-testid={`${DATA_TEST_ID_PREFIX}-next-page-button`}
                     >
-                      <span className="gba:sr-only">Go to next page</span>
+                      <span className="gba:sr-only">{getTranslationFromI18nKeyAndLabel('lowcoder:absence_management_hub_backoffice.absence_list.go_to_next_page', 'Go to next page')}</span>
                       ⟩
                     </Button>
                     <Button
@@ -1248,7 +1388,7 @@ export const AbsenceList: React.FC<AbsenceListProps> = (props) => {
                       disabled={currentPage >= Math.ceil(total / pageSize)}
                       data-testid={`${DATA_TEST_ID_PREFIX}-last-page-button`}
                     >
-                      <span className="gba:sr-only">Go to last page</span>
+                      <span className="gba:sr-only">{getTranslationFromI18nKeyAndLabel('lowcoder:absence_management_hub_backoffice.absence_list.go_to_last_page', 'Go to last page')}</span>
                       ⟩⟩
                     </Button>
                   </div>
@@ -1257,10 +1397,10 @@ export const AbsenceList: React.FC<AbsenceListProps> = (props) => {
             ) : (
               <div className="gba:flex gba:items-center gba:justify-between gba:px-2 gba:py-4" data-testid={`${DATA_TEST_ID_PREFIX}-pagination-info-single-page`}>
                 <div className="gba:text-sm gba:text-muted-foreground">
-                  {`${total} absences`}
+                  {`${total} ${getTranslationFromI18nKeyAndLabel('lowcoder:absence_table.absences', 'absences')}`}
                 </div>
                 <div className="gba:flex gba:items-center gba:space-x-2">
-                  <p className="gba:text-sm gba:font-medium">Rows per page</p>
+                  <p className="gba:text-sm gba:font-medium">{getTranslationFromI18nKeyAndLabel('lowcoder:absence_table.rows_per_page', 'Rows per page')}</p>
                   <select
                     value={pageSize}
                     onChange={(e) => handlePaginationChange(1, Number(e.target.value))}

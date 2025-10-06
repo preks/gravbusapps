@@ -123,7 +123,9 @@ export interface EnhancedAbsence {
   // Additional computed fields
   employeeName: string;
   groupName: string;
+  originalGroupName: string;
   typeName: string;
+  color?: string;
   pictureThumbnail?: string;
   createdAt?: string;
 }
