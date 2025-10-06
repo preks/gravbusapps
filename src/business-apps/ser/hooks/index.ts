@@ -1,16 +1,41 @@
+// Service (SER) Hooks
 export { useDesksForUser } from './useDesksForUser';
-export { useUserCapabilitiesGraphQL } from './useUserCapabilitiesGraphQL';
-export { useUserDetails } from './useUserDetails';
-export { useSharedFlowTemplates } from './useSharedFlowTemplates';
-export { useServicePortalCategories } from './useServicePortalCategories';
 export { useDeskTablePreferences } from './useDeskTablePreferences';
 export { useDeskTablePreferencesSimple } from './useDeskTablePreferencesSimple';
-export { useMyRequestsTablePreferences } from './useMyRequestsTablePreferences';
+export { useEmployeeNameCache } from './useEmployeeNameCache';
+export { useEmployeeNamesBatch } from './useEmployeeNamesBatch';
+export { 
+  useFlowAnalytics,
+  useFlowManagementAnalytics,
+  useTaskPerformanceAnalytics,
+  useTemplatePerformanceAnalytics,
+  useTrendAnalytics,
+  useUsageAnalytics,
+  useAuditLogs,
+  useManagerDashboard
+} from './useManagerAnalytics';
 export { useMyRequestsCount } from './useMyRequestsCount';
+export { useMyRequestsTablePreferences } from './useMyRequestsTablePreferences';
 export { useServiceDeskCatalogCache } from './useServiceDeskCatalogCache';
+export { useServiceFileUpload } from './useServiceFileUpload';
+export { useServicePortalCategories } from './useServicePortalCategories';
+export { useSharedFlowTemplates } from './useSharedFlowTemplates';
+export { useUserCapabilitiesGraphQL } from './useUserCapabilitiesGraphQL';
+export { useUserDetails } from './useUserDetails';
 
-// Service Desk specific hooks
+// Re-export service-desk specific hooks for convenience
 export { useMultipleDeskCounts } from '../apps/service-desk/hooks/useMultipleDeskCounts';
 
-// Manager Analytics hooks
-export * from './useManagerAnalytics';
+// Export types from useServiceFileUpload
+export type { 
+  UseServiceFileUploadProps, 
+  UseServiceFileUploadReturn, 
+  UploadFile, 
+  UploadProgress 
+} from './useServiceFileUpload';
+
+// Export types from service-desk hooks
+export type { 
+  UseMultipleDeskCountsProps, 
+  UseMultipleDeskCountsReturn 
+} from '../apps/service-desk/hooks/useMultipleDeskCounts';

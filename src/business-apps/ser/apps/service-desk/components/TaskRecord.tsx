@@ -760,30 +760,92 @@ export const TaskRecord: React.FC<TaskRecordProps> = ({
                   </div>
                   <div className="gba:bg-green-50 gba:rounded-lg gba:p-4 gba:border gba:border-green-200">
                     <div className="gba:space-y-3">
-                      {Object.entries(ticket.formData || {}).map(([key, value]) => (
-                        <div key={key} className="gba:flex gba:flex-col gba:gap-1">
-                          <div className="gba:text-xs gba:font-medium gba:text-green-800 gba:uppercase gba:tracking-wide">
-                            {key.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase())}
-                          </div>
-                          <div className="gba:text-sm gba:text-green-700">
-                            {Array.isArray(value) ? (
+                      {Object.entries(ticket.formData || {}).map(([key, value]) => {
+                        // Helper function to render form data values properly
+                        const renderValue = (key: string, value: any) => {
+                          // Handle file upload results specially
+                          if (key.endsWith('_uploadResults') && Array.isArray(value)) {
+                            return (
+                              <div className="gba:space-y-2">
+                                {value.map((fileResult: any, index: number) => (
+                                  <div key={index} className="gba:bg-green-100 gba:p-3 gba:rounded gba:border gba:border-green-300">
+                                    <div className="gba:flex gba:items-center gba:gap-2 gba:mb-2">
+                                      <Badge variant="outline" className="gba:text-xs gba:bg-blue-100 gba:text-blue-700 gba:border-blue-300">
+                                        📎 File
+                                      </Badge>
+                                      <span className="gba:font-medium gba:text-green-800">
+                                        {fileResult.fileName || fileResult.summary || 'Uploaded File'}
+                                      </span>
+                                    </div>
+                                    <div className="gba:text-xs gba:text-green-600 gba:space-y-1">
+                                      {fileResult.fileId && (
+                                        <div><strong>ID:</strong> {fileResult.fileId}</div>
+                                      )}
+                                      {fileResult.mimeType && (
+                                        <div><strong>Type:</strong> {fileResult.mimeType}</div>
+                                      )}
+                                      {fileResult.uploadTimestamp && (
+                                        <div><strong>Uploaded:</strong> {new Date(fileResult.uploadTimestamp).toLocaleString()}</div>
+                                      )}
+                                      {fileResult.downloadPath && (
+                                        <div className="gba:mt-2">
+                                          <Button 
+                                            size="sm" 
+                                            variant="outline"
+                                            onClick={() => window.open(`https://newwork-dev.newwork.com/files${fileResult.downloadPath}`, '_blank')}
+                                            className="gba:text-xs gba:h-6"
+                                          >
+                                            📥 Download
+                                          </Button>
+                                        </div>
+                                      )}
+                                    </div>
+                                  </div>
+                                ))}
+                              </div>
+                            );
+                          }
+                          
+                          // Handle regular arrays
+                          if (Array.isArray(value)) {
+                            return (
                               <div className="gba:flex gba:flex-wrap gba:gap-1">
                                 {value.map((item, index) => (
                                   <Badge key={index} variant="outline" className="gba:text-xs gba:bg-green-100 gba:text-green-700 gba:border-green-300">
-                                    {String(item)}
+                                    {typeof item === 'object' && item !== null ? 
+                                      (item.name || item.label || item.value || JSON.stringify(item)) : 
+                                      String(item)
+                                    }
                                   </Badge>
                                 ))}
                               </div>
-                            ) : typeof value === 'object' && value !== null ? (
+                            );
+                          }
+                          
+                          // Handle objects
+                          if (typeof value === 'object' && value !== null) {
+                            return (
                               <pre className="gba:text-xs gba:bg-green-100 gba:p-2 gba:rounded gba:overflow-x-auto">
                                 {JSON.stringify(value, null, 2)}
                               </pre>
-                            ) : (
-                              <span className="gba:break-words">{String(value)}</span>
-                            )}
+                            );
+                          }
+                          
+                          // Handle primitive values
+                          return <span className="gba:break-words">{String(value)}</span>;
+                        };
+
+                        return (
+                          <div key={key} className="gba:flex gba:flex-col gba:gap-1">
+                            <div className="gba:text-xs gba:font-medium gba:text-green-800 gba:uppercase gba:tracking-wide">
+                              {key.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase())}
+                            </div>
+                            <div className="gba:text-sm gba:text-green-700">
+                              {renderValue(key, value)}
+                            </div>
                           </div>
-                        </div>
-                      ))}
+                        );
+                      })}
                     </div>
                   </div>
                 </div>

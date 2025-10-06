@@ -25,6 +25,9 @@ import {
   Link as LinkIcon
 } from '@phosphor-icons/react';
 import { DateTimeField } from './DateTimeField';
+import { FileUploadField } from './FileUploadField';
+import type { UploadFile } from './FileUploadField';
+import { serializeUploadResults } from '../utils/fileUploadUtils';
 
 export interface DynamicFormGeneratorProps {
   schema: DynamicFormField[];
@@ -37,6 +40,10 @@ export interface DynamicFormGeneratorProps {
   description?: string;
   showSubmitButton?: boolean;
   showCard?: boolean;
+  // File upload support
+  accessToken?: string;
+  requestId?: string;
+  onFileUploadComplete?: (fieldName: string, uploadResults: any[]) => void;
 }
 
 interface FieldError {
@@ -59,7 +66,10 @@ export const DynamicFormGenerator: React.FC<DynamicFormGeneratorProps> = ({
   title = 'Form Details',
   description,
   showSubmitButton = true,
-  showCard = true
+  showCard = true,
+  accessToken,
+  requestId,
+  onFileUploadComplete
 }) => {
   const [values, setValues] = useState<DynamicFormValues>(initialValues);
   const [errors, setErrors] = useState<FieldError[]>([]);
@@ -553,6 +563,65 @@ export const DynamicFormGenerator: React.FC<DynamicFormGeneratorProps> = ({
               </div>
             )}
           </div>
+        );
+
+      case 'FILE':
+        if (!accessToken) {
+          return (
+            <div key={field.name} className="gba:space-y-2" data-testid={`field-container-${field.name}`}>
+              <label className="gba:block gba:text-sm gba:font-medium gba:text-foreground">
+                {field.label}
+                {field.required && <span className="gba:text-destructive gba:ml-1">*</span>}
+              </label>
+              <div className="gba:p-4 gba:bg-muted/20 gba:border gba:border-dashed gba:border-muted gba:rounded-lg gba:text-center">
+                <div className="gba:flex gba:items-center gba:justify-center gba:gap-2 gba:text-muted-foreground">
+                  <Warning className="gba:h-5 gba:w-5" />
+                  <span className="gba:text-sm gba:font-medium">Authentication Required</span>
+                </div>
+                <p className="gba:text-xs gba:text-muted-foreground gba:mt-1">
+                  Access token is required for file uploads
+                </p>
+              </div>
+            </div>
+          );
+        }
+
+        return (
+          <FileUploadField
+            key={field.name}
+            name={field.name}
+            showLabel={false}
+            value={Array.isArray(value) ? value : []}
+            onChange={(files: UploadFile[]) => handleFieldChange(field.name, files)}
+            onUploadComplete={(uploadResults) => {
+              // Debug: Log the raw upload results
+              console.log('🔍 [DynamicFormGenerator] Raw upload results:', uploadResults);
+              
+              // Use utility function to serialize upload results properly
+              const serializedResults = serializeUploadResults(uploadResults);
+              
+              console.log('🔍 [DynamicFormGenerator] Serialized upload results:', serializedResults);
+              console.log('🔍 [DynamicFormGenerator] Serialized as JSON:', JSON.stringify(serializedResults, null, 2));
+              
+              // Update form values with serialized file upload results
+              handleFieldChange(`${field.name}_uploadResults`, serializedResults);
+              
+              // Notify parent component
+              if (onFileUploadComplete) {
+                onFileUploadComplete(field.name, uploadResults);
+              }
+            }}
+            required={field.required}
+            description={field.description}
+            hasError={!!hasError}
+            errorMessage={error || undefined}
+            maxFiles={field.fileUpload?.maxFiles}
+            allowedFileTypes={field.fileUpload?.allowedFileTypes}
+            maxFileSize={field.fileUpload?.maxFileSize}
+            accessToken={accessToken}
+            requestId={requestId}
+            disabled={isSubmitting}
+          />
         );
 
       default:

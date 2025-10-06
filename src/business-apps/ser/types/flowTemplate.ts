@@ -14,7 +14,8 @@ export type DynamicFormFieldType =
   | 'NUMBER'
   | 'EMAIL'
   | 'URL'
-  | 'MULTISELECT';
+  | 'MULTISELECT'
+  | 'FILE';
 
 // Validation rule types
 export interface ValidationRule {
@@ -42,6 +43,12 @@ export interface DynamicFormField {
   // UI hints
   colspan?: number;
   order?: number;
+  // File upload specific options
+  fileUpload?: {
+    maxFiles?: number;
+    allowedFileTypes?: string[];
+    maxFileSize?: number; // in MB
+  };
 }
 
 // Step definition from workflow template

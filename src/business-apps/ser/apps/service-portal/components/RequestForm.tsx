@@ -24,6 +24,10 @@ import {
 import { WorkflowEngine, FlowTemplate } from '../../../types';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 import { DateTimeField } from '../../../components/DateTimeField';
+import { FileUploadField } from '../../../components/FileUploadField';
+import type { UploadFile } from '../../../components/FileUploadField';
+import { serializeUploadResults } from '../../../utils/fileUploadUtils';
+import { useServiceFileUpload } from '../../../hooks/useServiceFileUpload';
 import { 
   FileTextIcon, 
   CheckCircleIcon, 
@@ -85,7 +89,6 @@ const MultiSelect: React.FC<MultiSelectProps> = ({
   onChange,
   options,
   placeholder = "Select options...",
-  required = false,
   className = ""
 }) => {
   const [isOpen, setIsOpen] = useState(false);
@@ -217,7 +220,6 @@ const FileUpload: React.FC<FileUploadProps> = ({
   multiple = false,
   maxSize = 10, // 10MB default
   maxFiles = 5,
-  required = false,
   className = ""
 }) => {
   const [dragOver, setDragOver] = useState(false);
@@ -451,6 +453,8 @@ export const RequestForm: React.FC<RequestFormProps> = ({
   });
   const [formData, setFormData] = useState<any>({});
   const [isLoading, setIsLoading] = useState(false);
+  const [isUploadingFiles, setIsUploadingFiles] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState<string>('');
   const [error, setError] = useState<{ message: string; payload?: any } | null>(null);
   const [stepsRequiringAssignment, setStepsRequiringAssignment] = useState<Array<{
     stepId: string;
@@ -530,6 +534,17 @@ export const RequestForm: React.FC<RequestFormProps> = ({
     error: dataError
   } = useRealEmployeeData(contextProps);
 
+  // Initialize file upload hook
+  const { uploadFiles } = useServiceFileUpload({
+    accessToken: contextProps.accessToken,
+    onSuccess: (results) => {
+      console.log('🔍 [RequestForm] File upload completed:', results);
+    },
+    onError: (error) => {
+      console.error('🔍 [RequestForm] File upload error:', error);
+    }
+  });
+
   // Handle form field changes
   const handleFieldChange = (field: string, value: any) => {
     setFormData((prev: any) => ({ ...prev, [field]: value }));
@@ -559,29 +574,89 @@ export const RequestForm: React.FC<RequestFormProps> = ({
 
     // Build complete payload for debugging
     let completePayload: any = {};
+    let finalFormData = { ...formData };
 
     try {
+      // Step 1: Check if there are any file fields with files to upload
+      const fileFields = flowTemplate?.formSchema?.filter(field => field.type?.toUpperCase() === 'FILE') || [];
+      const filesToUpload: { fieldName: string; files: File[] }[] = [];
+
+      for (const field of fileFields) {
+        const fieldValue = formData[field.name];
+        if (Array.isArray(fieldValue) && fieldValue.length > 0) {
+          // Extract actual File objects from UploadFile array
+          const files = fieldValue
+            .filter((uploadFile: UploadFile) => uploadFile.originFileObj instanceof File)
+            .map((uploadFile: UploadFile) => uploadFile.originFileObj!);
+          
+          if (files.length > 0) {
+            filesToUpload.push({ fieldName: field.name, files });
+          }
+        }
+      }
+
+      // Step 2: Upload files if any exist
+      if (filesToUpload.length > 0) {
+        setIsUploadingFiles(true);
+        setUploadProgress('Preparing file uploads...');
+
+        for (const { fieldName, files } of filesToUpload) {
+          setUploadProgress(`Uploading files for ${fieldName}...`);
+          
+          try {
+            // Generate a temporary request ID for file organization
+            const tempRequestId = `temp/${Date.now()}`;
+            
+            // Upload files for this field
+            const uploadResults = await uploadFiles(files, tempRequestId);
+            
+            // Serialize and store upload results
+            const serializedResults = serializeUploadResults(uploadResults);
+            finalFormData[`${fieldName}_uploadResults`] = serializedResults;
+            
+            console.log(`🔍 [RequestForm] Uploaded files for ${fieldName}:`, serializedResults);
+          } catch (uploadErr) {
+            throw new Error(`Failed to upload files for ${fieldName}: ${uploadErr instanceof Error ? uploadErr.message : 'Unknown error'}`);
+          }
+        }
+
+        setUploadProgress('Files uploaded successfully!');
+        setIsUploadingFiles(false);
+      }
+
+      // Step 3: Submit the form with upload results
       if (flowTemplate) {
         // For flow templates, we need to execute the template with the form data
         // The workflowEngine should have a method to execute templates by ID
         if (typeof workflowEngine.executeTemplate === 'function') {
           // Build the actual API payload that will be sent to custom-flow-engine
+          // Debug: Log the complete form data before submission
+          console.log('🔍 [RequestForm] Complete form data before submission:', finalFormData);
+          
+          // Debug: Log file upload results specifically
+          Object.keys(finalFormData).forEach(key => {
+            if (key.endsWith('_uploadResults')) {
+              console.log(`🔍 [RequestForm] File upload results for ${key}:`, finalFormData[key]);
+              console.log(`🔍 [RequestForm] File upload results stringified:`, JSON.stringify(finalFormData[key], null, 2));
+            }
+          });
+          
           completePayload = {
             apiEndpoint: `POST /api/templates/${flowTemplate.id || flowTemplate.name}/execute`,
             expectedCustomFlowEnginePayload: {
               initiatorId: contextProps.userInfo?.id || 'unknown-user',
-              input: formData,
+              input: finalFormData,
               correlationId: `REQ-${Date.now()}`
             },
             actualPayloadSent: 'Will be logged by ConductorWorkflowEngineAdapter',
-            formData: formData,
+            formData: finalFormData,
             templateInfo: {
               id: flowTemplate.id,
               name: flowTemplate.name,
               description: flowTemplate.description
             }
           };
-          const newRequestId = await workflowEngine.executeTemplate(flowTemplate.id || flowTemplate.name, formData);
+          const newRequestId = await workflowEngine.executeTemplate(flowTemplate.id || flowTemplate.name, finalFormData);
           onSuccess(newRequestId);
         } else {
           // Fallback to startRequest with template name as key
@@ -589,18 +664,18 @@ export const RequestForm: React.FC<RequestFormProps> = ({
             apiEndpoint: `POST /api/templates/${flowTemplate.id || flowTemplate.name}/execute`,
             expectedCustomFlowEnginePayload: {
               initiatorId: contextProps.userInfo?.id || 'unknown-user',
-              input: formData,
+              input: finalFormData,
               correlationId: `REQ-${Date.now()}`
             },
             actualPayloadSent: 'Check browser console for ConductorWorkflowEngineAdapter logs',
-            formData: formData,
+            formData: finalFormData,
             templateInfo: {
               id: flowTemplate.id,
               name: flowTemplate.name,
               description: flowTemplate.description
             }
           };
-          const newRequestId = await workflowEngine.startRequest(flowTemplate.name, formData);
+          const newRequestId = await workflowEngine.startRequest(flowTemplate.name, finalFormData);
           onSuccess(newRequestId);
         }
       } else {
@@ -618,6 +693,8 @@ export const RequestForm: React.FC<RequestFormProps> = ({
       });
     } finally {
       setIsLoading(false);
+      setIsUploadingFiles(false);
+      setUploadProgress('');
     }
   };
 
@@ -713,14 +790,8 @@ export const RequestForm: React.FC<RequestFormProps> = ({
     setShowAIResponse(true);
     setError(null);
     
-    try {
-      // Set access token for the API call
-      if (contextProps.accessToken) {
-        flowbotClient.setAccessToken(contextProps.accessToken);
-      }
-      
-      // Prepare AI payload with form data for the ticket_data structure
-      const ticketData = {
+    // Prepare AI payload with form data for the ticket_data structure
+    const ticketData = {
         timestamp: new Date().toISOString(),
         templateInfo: {
           type: 'flow-template',
@@ -762,6 +833,12 @@ export const RequestForm: React.FC<RequestFormProps> = ({
       };
 
       console.log('🤖 [Ask AI] Prepared payload for AI service:', ticketData);
+      
+    try {
+      // Set access token for the API call
+      if (contextProps.accessToken) {
+        flowbotClient.setAccessToken(contextProps.accessToken);
+      }
       
       // Call the real AI API
       const response = await flowbotClient.getQuickTipsForTicket(ticketData);
@@ -876,7 +953,7 @@ Please try again in a few moments, or proceed with submitting your request.`);
           <div className="gba:lg:col-span-2 gba:space-y-6">
             {error && (
               <Alert variant="destructive" className="gba:mb-4" style={{ display: 'block' }}>
-                <Warning className="gba:h-4 gba:w-4" />
+                <WarningIcon className="gba:h-4 gba:w-4" />
                 <h4 className="gba:font-semibold">Request Failed</h4>
                 <div style={{ display: 'block', wordWrap: 'break-word', whiteSpace: 'normal' }} className="gba:text-sm gba:mt-2">
                   <strong>Error:</strong> {error.message}
@@ -1166,15 +1243,19 @@ Please try again in a few moments, or proceed with submitting your request.`);
                           )}
                           
                           {field.type?.toUpperCase() === 'FILE' && (
-                            <FileUpload
-                              id={field.name}
+                            <FileUploadField
+                              name={field.name}
+                              showLabel={false}
                               value={Array.isArray(formData[field.name]) ? formData[field.name] : []}
-                              onChange={(files) => handleFieldChange(field.name, files)}
-                              accept={field.accept || "*/*"}
-                              multiple={field.multiple || false}
-                              maxSize={field.maxSize || 10}
-                              maxFiles={field.maxFiles || 5}
+                              onChange={(files: UploadFile[]) => handleFieldChange(field.name, files)}
                               required={field.required}
+                              description={field.description}
+                              maxFiles={field.fileUpload?.maxFiles || 5}
+                              allowedFileTypes={field.fileUpload?.allowedFileTypes}
+                              maxFileSize={field.fileUpload?.maxFileSize || 10}
+                              accessToken={contextProps.accessToken}
+                              disabled={isLoading || isUploadingFiles}
+                              hideUploadButton={true}
                             />
                           )}
                         </div>
@@ -1386,11 +1467,16 @@ Please try again in a few moments, or proceed with submitting your request.`);
                   <div className="gba:flex gba:gap-4">
                     <Button 
                       type="submit" 
-                      disabled={isLoading || completionPercentage < 100}
+                      disabled={isLoading || isUploadingFiles || completionPercentage < 100}
                       className="gba:flex-1 gba:py-3"
                       size="lg"
                     >
-                      {isLoading ? (
+                      {isUploadingFiles ? (
+                        <>
+                          <Spinner size="sm" className="gba:mr-2" />
+                          {uploadProgress || 'Uploading files...'}
+                        </>
+                      ) : isLoading ? (
                         <>
                           <Spinner size="sm" className="gba:mr-2" />
                           Submitting Request...
