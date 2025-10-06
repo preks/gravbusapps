@@ -75,7 +75,6 @@ const ExpenseRequestStatistics: React.FC<ExpenseRequestStatisticsProps> = ({
           ),
           active: selectedFilters.includes("PENDING"),
           onClick: () => handleCardClick("PENDING"),
-          "data-testid": "expense-request-stats-pending",
         },
         {
           key: "pending-amount",
@@ -91,7 +90,6 @@ const ExpenseRequestStatistics: React.FC<ExpenseRequestStatisticsProps> = ({
             "Total Pending Reimbursement",
           ),
           valueIsString: true,
-          "data-testid": "expense-request-stats-pending-amount",
         },
         {
           key: "total-requests-submitted",
@@ -115,7 +113,6 @@ const ExpenseRequestStatistics: React.FC<ExpenseRequestStatisticsProps> = ({
             return multiFilters.every((filter) => selectedFilters.includes(filter));
           })(),
           onClick: () => handleCardClick("", true),
-          "data-testid": "expense-request-stats-total-submitted",
         },
         {
           key: "total-submitted-amount",
@@ -132,7 +129,6 @@ const ExpenseRequestStatistics: React.FC<ExpenseRequestStatisticsProps> = ({
           ),
           valueIsString: true,
           active: selectedFilters.length === 0,
-          "data-testid": "expense-request-stats-total-amount",
         },
       ]
     : []

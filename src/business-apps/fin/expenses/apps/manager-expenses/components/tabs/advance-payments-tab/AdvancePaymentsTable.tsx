@@ -99,43 +99,43 @@ const AdvancePaymentsTable: React.FC<AdvancePaymentsTableProps> = (props) => {
     setCurrentPage(1);
   }, [setPageSize, setCurrentPage]);
 
-  // Render the table
-  const renderDataBody = useCallback(() => {
-    if (error) {
-      return (
-        <Alert variant="destructive" data-testid="advance-payments-error-alert">
-          <div className="gba:font-medium">
-            {getTranslationFromI18nKeyAndLabel(
-              "lowcoder:advance_payments.error_title",
-              "Error loading advance payments"
-            )}
-          </div>
-          <div className="gba:text-sm gba:py-3 gba:px-4">
-            {error.message || getTranslationFromI18nKeyAndLabel(
-              "lowcoder:advance_payments.error_description",
-              "An error occurred while loading advance payments."
-            )}
-          </div>
-        </Alert>
-      );
-    }
-
-    if (!isLoading && filteredPayments.length === 0) {
-      return (
-        <div 
-          className="gba:flex gba:items-center gba:justify-center gba:h-64"
-          data-testid="advance-payments-empty-state"
-        >
-          <span className="gba:text-muted-foreground">
-            {getTranslationFromI18nKeyAndLabel(
-              "lowcoder:personal_expenses.no_advance_payments_found",
-              "No advance payments found.",
-            )}
-          </span>
+  // Small helpers to reduce cognitive complexity of render function
+  const renderErrorAlert = useCallback(() => {
+    return (
+      <Alert variant="destructive" data-testid="advance-payments-error-alert">
+        <div className="gba:font-medium">
+          {getTranslationFromI18nKeyAndLabel(
+            "lowcoder:advance_payments.error_title",
+            "Error loading advance payments"
+          )}
         </div>
-      );
-    }
+        <div className="gba:text-sm gba:py-3 gba:px-4">
+          {error?.message || getTranslationFromI18nKeyAndLabel(
+            "lowcoder:advance_payments.error_description",
+            "An error occurred while loading advance payments."
+          )}
+        </div>
+      </Alert>
+    );
+  }, [error]);
 
+  const renderEmptyState = useCallback(() => {
+    return (
+      <div 
+        className="gba:flex gba:items-center gba:justify-center gba:h-64"
+        data-testid="advance-payments-empty-state"
+      >
+        <span className="gba:text-muted-foreground">
+          {getTranslationFromI18nKeyAndLabel(
+            "lowcoder:personal_expenses.no_advance_payments_found",
+            "No advance payments found.",
+          )}
+        </span>
+      </div>
+    );
+  }, []);
+
+  const renderTableContent = useCallback(() => {
     return (
         <div className="gba:border gba:border-border gba:rounded-md">
         {/* Table with horizontal scrolling */}
@@ -545,8 +545,6 @@ const AdvancePaymentsTable: React.FC<AdvancePaymentsTableProps> = (props) => {
       </div>
     );
   }, [
-    error,
-    isLoading,
     filteredPayments,
     totalCount,
     pageSize,
@@ -557,6 +555,13 @@ const AdvancePaymentsTable: React.FC<AdvancePaymentsTableProps> = (props) => {
     handlePageSizeChange,
     sorting,
   ]);
+
+  // Render the table (low-complexity orchestrator)
+  const renderDataBody = useCallback(() => {
+    if (error) return renderErrorAlert();
+    if (!isLoading && filteredPayments.length === 0) return renderEmptyState();
+    return renderTableContent();
+  }, [error, isLoading, filteredPayments.length, renderErrorAlert, renderEmptyState, renderTableContent]);
 
   return (
     <>

@@ -34,6 +34,208 @@ export const useApprovalHandling = ({
   const sequentialDelayMs = 150;
   const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
+  // Helpers to reduce cognitive complexity
+  const getDomainForTab = (key: string): string =>
+    key === 'transfer-payment' || key === 'handout-payment' ? 'cs-selgros' : 'employee-expense';
+
+  const extractProcessInstanceId = (
+    originalTask: any,
+    processName: string,
+    tabKeyLocal: string,
+  ): string | undefined => {
+    if (originalTask?.processInstanceId) return originalTask.processInstanceId;
+    if (!originalTask?.endpoint) return undefined;
+    const parts: string[] = String(originalTask.endpoint).split('/');
+    if (tabKeyLocal === 'handout-payment') {
+      const idx = parts.findIndex((p) => p === 'payAdvancePayment');
+      return idx !== -1 ? parts[idx + 1] : undefined;
+    }
+    const idx = parts.findIndex((p) => p === processName);
+    return idx !== -1 ? parts[idx + 1] : undefined;
+  };
+
+  const buildGetUrl = (
+    baseUrl: string,
+    domain: string,
+    processName: string,
+    processInstanceId: string,
+    taskName: string,
+    taskInstanceId: string,
+    userId: string,
+    tabKeyLocal: string,
+  ): string => {
+    if (tabKeyLocal === 'handout-payment') {
+      return `${baseUrl}/processes/${domain}/payAdvancePayment/${processInstanceId}/${taskName}/${taskInstanceId}?user=${userId}`;
+    }
+    return `${baseUrl}/processes/${domain}/${processName}/${processInstanceId}/${taskName}/${taskInstanceId}?user=${userId}`;
+  };
+
+  const buildPostUrl = (
+    baseUrl: string,
+    domain: string,
+    processName: string,
+    processInstanceId: string,
+    taskName: string,
+    taskInstanceId: string,
+    userId: string,
+    tabKeyLocal: string,
+  ): string => {
+    if (tabKeyLocal === 'handout-payment') {
+      return `${baseUrl}/processes/${domain}/payAdvancePayment/${processInstanceId}/${taskName}/${taskInstanceId}?phase=complete&user=${userId}`;
+    }
+    return `${baseUrl}/processes/${domain}/${processName}/${processInstanceId}/${taskName}/${taskInstanceId}?phase=complete&user=${userId}`;
+  };
+
+  const extractEntityIdFromTaskData = (tabKeyLocal: string, taskData: any): string | undefined => {
+    const p = taskData?.parameters;
+    if (!p) return undefined;
+    switch (tabKeyLocal) {
+      case 'advance-payment':
+        return p.advancePayment?.id;
+      case 'expense-request':
+        return p.expenseRequest?.id || p.request?.id || p.expenseRequestId;
+      case 'expense-plan':
+        return p.expensePlan?.id || p.plan?.id || p.expensePlanId;
+      case 'handout-payment':
+      case 'transfer-payment':
+        return p.advancePayment?.id;
+      default:
+        return undefined;
+    }
+  };
+
+  const applyEntityIdToPayload = (tabKeyLocal: string, payload: any, entityId: string) => {
+    const updated = { ...payload };
+    if (tabKeyLocal === 'advance-payment' && updated.advancePaymentComment) {
+      updated.advancePaymentComment.advancePayment = entityId;
+    } else if (tabKeyLocal === 'expense-request' && updated.expenseRequestComment) {
+      updated.expenseRequestComment.expenseRequest = entityId;
+    } else if (tabKeyLocal === 'expense-plan' && updated.expensePlanComment) {
+      updated.expensePlanComment.expensePlan = entityId;
+    } else if ((tabKeyLocal === 'handout-payment' || tabKeyLocal === 'transfer-payment') && updated.advancePaymentComment) {
+      updated.advancePaymentComment.advancePayment = entityId;
+    }
+    return updated;
+  };
+
+  const fetchEntityIdIfNeeded = async (
+    selectedTask: ApprovalRequest | undefined,
+    originalTask: any,
+    baseUrl: string,
+    domain: string,
+    processName: string,
+    processInstanceId: string,
+    taskName: string,
+    taskInstanceId: string,
+    userId: string,
+    tabKeyLocal: string,
+  ): Promise<string> => {
+    if (selectedTask?.entityId) return selectedTask.entityId;
+
+    const getUrl = buildGetUrl(
+      baseUrl,
+      domain,
+      processName,
+      processInstanceId,
+      taskName,
+      taskInstanceId,
+      userId,
+      tabKeyLocal,
+    );
+
+    const getResponse = await fetch(getUrl, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${accessToken}`,
+      },
+    });
+    if (!getResponse.ok) {
+      throw new Error(
+        getTranslationFromI18nKeyAndLabel(
+          'lowcoder:network.get_failed',
+          `GET request failed: ${getResponse.status} ${getResponse.statusText}`,
+        ),
+      );
+    }
+    const taskData = await getResponse.json();
+    const entityId = extractEntityIdFromTaskData(tabKeyLocal, taskData);
+    if (!entityId) {
+      throw new Error(
+        getTranslationFromI18nKeyAndLabel(
+          'lowcoder:approvals.entity_id_missing',
+          `Could not find entity ID in task data for ${tabKeyLocal}`,
+        ),
+      );
+    }
+    return entityId;
+  };
+
+  const approveSingleTask = async (
+    task: ApprovalRequest,
+    tabConfig: any,
+    approvalPayload: any,
+  ): Promise<{ ok: boolean; error?: string }> => {
+    const originalTask = rawTasks.find((t) => t.id === task.id);
+    if (!originalTask) {
+      return { ok: false, error: getTranslationFromI18nKeyAndLabel('lowcoder:approvals.could_not_find_task_data', `Could not find original task data for ${task.id}`) };
+    }
+
+    const domain = getDomainForTab(tabConfig.key);
+    const processName = tabConfig.processName;
+    const taskInstanceId = task.id;
+    const taskName = originalTask.name || 'approveTask';
+    const userId = userInfo?.id;
+    if (!userId) return { ok: false, error: getTranslationFromI18nKeyAndLabel('lowcoder:common.user_id_not_available', 'User ID not available') };
+
+    let processInstanceId = extractProcessInstanceId(originalTask, processName, tabConfig.key);
+    if (!processInstanceId) processInstanceId = task.id;
+    if (!processInstanceId) return { ok: false, error: getTranslationFromI18nKeyAndLabel('lowcoder:approvals.process_instance_missing', 'Process instance ID not available') };
+
+    const baseUrl = env('NEXT_PUBLIC_BASE_URL') ?? '';
+    const selectedTask = selectedTasks.find((t) => t.id === taskInstanceId);
+    const entityId = await fetchEntityIdIfNeeded(
+      selectedTask,
+      originalTask,
+      baseUrl,
+      domain,
+      processName,
+      processInstanceId,
+      taskName,
+      taskInstanceId,
+      userId,
+      tabConfig.key,
+    );
+
+    const updatedPayload = applyEntityIdToPayload(tabConfig.key, approvalPayload, entityId);
+    const postUrl = buildPostUrl(
+      baseUrl,
+      domain,
+      processName,
+      processInstanceId,
+      taskName,
+      taskInstanceId,
+      userId,
+      tabConfig.key,
+    );
+
+    const postResponse = await fetch(postUrl, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${accessToken}`,
+      },
+      body: JSON.stringify(updatedPayload),
+    });
+    if (!postResponse.ok) {
+      const responseText = await postResponse.text();
+      return { ok: false, error: getTranslationFromI18nKeyAndLabel('lowcoder:network.post_failed', `POST request failed: ${postResponse.status} - ${postResponse.statusText} - ${responseText}`) };
+    }
+    await postResponse.json();
+    await delay(sequentialDelayMs);
+    return { ok: true };
+  };
+
   const handleApproveClick = async () => {
     if (selectedTasks.length === 0) {
       return { error: getTranslationFromI18nKeyAndLabel('lowcoder:manager_expenses_landing_page.select_task_to_approve', 'Please select at least one task to approve') };
@@ -64,188 +266,9 @@ export const useApprovalHandling = ({
       const failedTasks: Array<{ id: string; error: string }> = [];
 
       for (const task of selectedTasks) {
-        try {
-          const originalTask = rawTasks.find((t) => t.id === task.id);
-          if (!originalTask) {
-            throw new Error(getTranslationFromI18nKeyAndLabel('lowcoder:approvals.could_not_find_task_data', `Could not find original task data for ${task.id}`));
-          }
-
-          // Use different domain for transfer payment and handout payment
-          const domain =
-            tabConfig.key === 'transfer-payment' || tabConfig.key === 'handout-payment'
-              ? 'cs-selgros'
-              : 'employee-expense';
-          const processName = tabConfig.processName;
-
-          const taskInstanceId = task.id;
-
-          const taskName = originalTask.name || 'approveTask';
-
-          const userId = userInfo?.id;
-
-          let processInstanceId = originalTask.processInstanceId;
-
-          if (!processInstanceId && originalTask.endpoint) {
-            const endpointParts = originalTask.endpoint.split('/');
-
-            if (tabConfig.key === 'handout-payment') {
-              // For handout payment, look for 'payAdvancePayment' in the endpoint
-              const processNameIndex = endpointParts.findIndex(
-                (part: string) => part === 'payAdvancePayment',
-              );
-              if (processNameIndex !== -1 && endpointParts[processNameIndex + 1]) {
-                processInstanceId = endpointParts[processNameIndex + 1];
-              }
-            } else {
-              // For other tabs, use the dynamic process name
-              const processNameIndex = endpointParts.findIndex(
-                (part: string) => part === processName,
-              );
-              if (processNameIndex !== -1 && endpointParts[processNameIndex + 1]) {
-                processInstanceId = endpointParts[processNameIndex + 1];
-              }
-            }
-          }
-
-          if (!processInstanceId) {
-            processInstanceId = task.id;
-          }
-
-          if (!userId) {
-            throw new Error(getTranslationFromI18nKeyAndLabel('lowcoder:common.user_id_not_available', 'User ID not available'));
-          }
-
-          if (!processInstanceId) {
-            throw new Error(getTranslationFromI18nKeyAndLabel('lowcoder:approvals.process_instance_missing', 'Process instance ID not available'));
-          }
-
-          const baseUrl = env('NEXT_PUBLIC_BASE_URL') ?? '';
-
-          // 🎯 OPTIMIZATION: Try to use entity data from task list first (all tabs)
-          let actualEntityId: string | null = null;
-          const selectedTask = selectedTasks.find(t => t.id === taskInstanceId);
-          
-          if (selectedTask?.entityId) {
-            actualEntityId = selectedTask.entityId;
-            console.log(`✅ [OPTIMIZATION - ${tabConfig.key}] Using entity ID from task list (no GET call):`, actualEntityId);
-          }
-
-          // If we don't have the entity ID from optimization, make the GET call
-          if (!actualEntityId) {
-            console.log(`⚠️ [${tabConfig.key}] Making GET call to fetch entity ID...`);
-            
-            let getUrl: string;
-            if (tabConfig.key === 'handout-payment') {
-              // For handout payment, hardcode payAdvancePayment in the URL
-              getUrl = `${baseUrl}/processes/${domain}/payAdvancePayment/${processInstanceId}/${taskName}/${taskInstanceId}?user=${userId}`;
-            } else {
-              // For other tabs, use the dynamic process name
-              getUrl = `${baseUrl}/processes/${domain}/${processName}/${processInstanceId}/${taskName}/${taskInstanceId}?user=${userId}`;
-            }
-
-            const getResponse = await fetch(getUrl, {
-              method: 'GET',
-              headers: {
-                'Content-Type': 'application/json',
-                Authorization: `Bearer ${accessToken}`,
-              },
-            });
-
-            if (!getResponse.ok) {
-            throw new Error(getTranslationFromI18nKeyAndLabel('lowcoder:network.get_failed', `GET request failed: ${getResponse.status} ${getResponse.statusText}`));
-            }
-
-            const taskData = await getResponse.json();
-
-            // Extract the actual entity ID from the response
-            if (taskData.parameters) {
-              switch (tabConfig.key) {
-                case 'advance-payment':
-                  actualEntityId = taskData.parameters.advancePayment?.id;
-                  break;
-                case 'expense-request':
-                  // Try different possible parameter names for expense request
-                  actualEntityId =
-                    taskData.parameters.expenseRequest?.id ||
-                    taskData.parameters.request?.id ||
-                    taskData.parameters.expenseRequestId;
-                  break;
-                case 'expense-plan':
-                  // Try different possible parameter names for expense plan
-                  actualEntityId =
-                    taskData.parameters.expensePlan?.id ||
-                    taskData.parameters.plan?.id ||
-                    taskData.parameters.expensePlanId;
-                  break;
-                case 'handout-payment':
-                  // For handout payment, use the advance payment ID from the response
-                  actualEntityId = taskData.parameters.advancePayment?.id;
-                  break;
-                case 'transfer-payment':
-                  // For transfer advance payment, use the advance payment ID from the response
-                  actualEntityId = taskData.parameters.advancePayment?.id;
-                  break;
-              }
-            }
-          }
-
-          if (!actualEntityId) {
-            throw new Error(getTranslationFromI18nKeyAndLabel('lowcoder:approvals.entity_id_missing', `Could not find entity ID in task data for ${tabConfig.key}`));
-          }
-
-          // Update the approval payload with the actual entity ID
-          const updatedPayload = { ...approvalPayload };
-          if (tabConfig.key === 'advance-payment' && updatedPayload.advancePaymentComment) {
-            updatedPayload.advancePaymentComment.advancePayment = actualEntityId;
-          } else if (tabConfig.key === 'expense-request' && updatedPayload.expenseRequestComment) {
-            updatedPayload.expenseRequestComment.expenseRequest = actualEntityId;
-          } else if (tabConfig.key === 'expense-plan' && updatedPayload.expensePlanComment) {
-            updatedPayload.expensePlanComment.expensePlan = actualEntityId;
-          } else if (tabConfig.key === 'handout-payment' && updatedPayload.advancePaymentComment) {
-            // Handout payment uses the same payload structure as advance payment
-            updatedPayload.advancePaymentComment.advancePayment = actualEntityId;
-          } else if (tabConfig.key === 'transfer-payment' && updatedPayload.advancePaymentComment) {
-            // Transfer advance payment uses the same payload structure as advance payment
-            updatedPayload.advancePaymentComment.advancePayment = actualEntityId;
-          }
-
-          // Now make the POST call with the correct entity ID
-          let postUrl: string;
-          if (tabConfig.key === 'handout-payment') {
-            // For handout payment, hardcode payAdvancePayment in the URL
-            postUrl = `${baseUrl}/processes/${domain}/payAdvancePayment/${processInstanceId}/${taskName}/${taskInstanceId}?phase=complete&user=${userId}`;
-          } else {
-            // For other tabs, use the dynamic process name
-            postUrl = `${baseUrl}/processes/${domain}/${processName}/${processInstanceId}/${taskName}/${taskInstanceId}?phase=complete&user=${userId}`;
-          }
-
-          const postResponse = await fetch(postUrl, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              Authorization: `Bearer ${accessToken}`,
-            },
-            body: JSON.stringify(updatedPayload),
-          });
-
-          if (!postResponse.ok) {
-            const responseText = await postResponse.text();
-            throw new Error(
-              getTranslationFromI18nKeyAndLabel(
-                'lowcoder:network.post_failed',
-                `POST request failed: ${postResponse.status} - ${postResponse.statusText} - ${responseText}`,
-              ),
-            );
-          }
-
-          await postResponse.json();
-          // Gentle pacing between sequential approvals
-          await delay(sequentialDelayMs);
-          approvedCount += 1;
-        } catch (taskError) {
-          const message = taskError instanceof Error ? taskError.message : 'Unknown error';
-          failedTasks.push({ id: task.id, error: message });
-        }
+        const result = await approveSingleTask(task, tabConfig, approvalPayload);
+        if (result.ok) approvedCount += 1;
+        else failedTasks.push({ id: task.id, error: result.error || 'Unknown error' });
         setCurrentProgressIndex((prev) => prev + 1);
       }
 

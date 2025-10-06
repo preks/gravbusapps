@@ -281,6 +281,84 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = (props) => {
     setSelectedRequest(null);
   }, []);
 
+  // Helpers to reduce render complexity
+  const formatShortDateSafe = useCallback((dateValue?: string | null) => {
+    if (!dateValue) return getTranslationFromI18nKeyAndLabel("lowcoder:common.not_available","N/A");
+    try {
+      const userLocale = getCurrentActiveUserLocale();
+      return dayjs(dateValue).locale(userLocale).format("L");
+    } catch {
+      return getTranslationFromI18nKeyAndLabel("lowcoder:common.not_available","N/A");
+    }
+  }, []);
+
+  const renderError = useCallback(() => (
+    <Alert variant="destructive">
+      <div className="gba:font-medium">
+        {getTranslationFromI18nKeyAndLabel(
+          "lowcoder:team_expenses_page.dashboard_tab.error_loading_data",
+          "Error loading data",
+        )}
+      </div>
+      <div className="gba:text-sm gba:py-3 gba:px-4">{error}</div>
+    </Alert>
+  ), [error]);
+
+  const renderEmpty = useCallback(() => (
+    <div className="gba:flex gba:justify-center gba:items-center gba:py-12 gba:text-muted-foreground">
+      {getTranslationFromI18nKeyAndLabel(
+        "lowcoder:personal_expenses.no_expense_data_available",
+        "No expense data available.",
+      )}
+    </div>
+  ), []);
+
+  const buildStaticFlowData = useCallback((record: ExpenseRequest) => {
+    const hasValidStatus =
+      record.status === "APPROVED" ||
+      record.status === "VERIFIED" ||
+      record.status === "BOOKED" ||
+      record.status === "TRANSFERRED" ||
+      record.status === "PAID";
+
+    const hasDocument = !!record.employeeDocument?.file?.trim();
+
+    const items: any[] = [];
+    if (hasValidStatus && hasDocument) {
+      items.push({
+        category: getTranslationFromI18nKeyAndLabel(
+          "lowcoder:employee_list.flows_button.actions",
+          "Actions",
+        ),
+        key: "print",
+        label: getTranslationFromI18nKeyAndLabel(
+          "lowcoder:expense_plan_list.expense_plan_flows.print",
+          "Print",
+        ),
+        onClick: () => {
+          handlePrintRequest(record);
+        },
+      });
+    }
+
+    items.push({
+      category: getTranslationFromI18nKeyAndLabel(
+        "lowcoder:employee_list.flows_button.navigations",
+        "Navigations",
+      ),
+      key: "view-request-details",
+      label: getTranslationFromI18nKeyAndLabel(
+        "lowcoder:expense_request_list.expense_request_flows.view_request_details",
+        "View Request Details",
+      ),
+      onClick: () => {
+        handleViewRequestDetails(record);
+      },
+    });
+
+    return items;
+  }, [handlePrintRequest, handleViewRequestDetails]);
+
   const renderDataBody = useCallback(() => {
     if (isLoading && requests.length === 0) {
       return (
@@ -291,28 +369,11 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = (props) => {
     }
 
     if (error) {
-      return (
-        <Alert variant="destructive">
-          <div className="gba:font-medium">
-            {getTranslationFromI18nKeyAndLabel(
-              "lowcoder:team_expenses_page.dashboard_tab.error_loading_data",
-              "Error loading data",
-            )}
-          </div>
-          <div className="gba:text-sm gba:py-3 gba:px-4">{error}</div>
-        </Alert>
-      );
+      return renderError();
     }
 
     if (requests.length === 0) {
-      return (
-        <div className="gba:flex gba:justify-center gba:items-center gba:py-12 gba:text-muted-foreground">
-          {getTranslationFromI18nKeyAndLabel(
-            "lowcoder:personal_expenses.no_expense_data_available",
-            "No expense data available.",
-          )}
-        </div>
-      );
+      return renderEmpty();
     }
 
     return (
@@ -463,50 +524,7 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = (props) => {
                           onClick={(e) => e.stopPropagation()}
                           data-testid={`expense-requests-update-button-${record.id}`}
                           size="icon"
-                          staticFlowData={(() => {
-                            // Check print button conditions
-                            const hasValidStatus = record.status === "APPROVED" ||
-                              record.status === "VERIFIED" ||
-                              record.status === "BOOKED" ||
-                              record.status === "TRANSFERRED" ||
-                              record.status === "PAID";
-                            const hasDocument = !!record.employeeDocument?.file?.trim();
-                            
-                            return [
-                              ...(hasValidStatus && hasDocument
-                                ? [
-                                    {
-                                      category: getTranslationFromI18nKeyAndLabel(
-                                        "lowcoder:employee_list.flows_button.actions",
-                                        "Actions",
-                                      ),
-                                      key: "print",
-                                      label: getTranslationFromI18nKeyAndLabel(
-                                        "lowcoder:expense_plan_list.expense_plan_flows.print",
-                                        "Print",
-                                      ),
-                                      onClick: () => {
-                                        handlePrintRequest(record);
-                                      },
-                                    },
-                                  ]
-                                : []),
-                              {
-                                category: getTranslationFromI18nKeyAndLabel(
-                                  "lowcoder:employee_list.flows_button.navigations",
-                                  "Navigations",
-                                ),
-                                key: "view-request-details",
-                                label: getTranslationFromI18nKeyAndLabel(
-                                  "lowcoder:expense_request_list.expense_request_flows.view_request_details",
-                                  "View Request Details",
-                                ),
-                                onClick: () => {
-                                  handleViewRequestDetails(record);
-                                },
-                              },
-                            ];
-                          })()}
+                          staticFlowData={buildStaticFlowData(record)}
                           prefixDataTestId="expense-requests-update"
                           accessToken={props.accessToken}
                           emptyStateBehavior="enable"
@@ -529,31 +547,13 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = (props) => {
                       className="gba:text-sm gba:py-3 gba:px-4"
                       data-testid={`expense-requests-start-date-cell-${record.id}`}
                     >
-                      {record.startDate
-                        ? (() => {
-                            try {
-                              const userLocale = getCurrentActiveUserLocale();
-                              return dayjs(record.startDate).locale(userLocale).format("L");
-                            } catch (error) {
-                              return getTranslationFromI18nKeyAndLabel("lowcoder:common.not_available","N/A");
-                            }
-                          })()
-                        : getTranslationFromI18nKeyAndLabel("lowcoder:common.not_available","N/A")}
+                      {formatShortDateSafe(record.startDate)}
                     </TableCell>
                     <TableCell
                       className="gba:text-sm gba:py-3 gba:px-4"
                       data-testid={`expense-requests-end-date-cell-${record.id}`}
                     >
-                      {record.endDate
-                        ? (() => {
-                            try {
-                              const userLocale = getCurrentActiveUserLocale();
-                              return dayjs(record.endDate).locale(userLocale).format("L");
-                            } catch (error) {
-                              return getTranslationFromI18nKeyAndLabel("lowcoder:common.not_available","N/A");
-                            }
-                          })()
-                        : getTranslationFromI18nKeyAndLabel("lowcoder:common.not_available","N/A")}
+                      {formatShortDateSafe(record.endDate)}
                     </TableCell>
                     <TableCell data-testid={`expense-requests-employee-cell-${record.id}`}>
                       <div className="gba:flex gba:items-center gba:gap-2">
@@ -586,16 +586,7 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = (props) => {
                       className="gba:text-sm gba:py-3 gba:px-4"
                       data-testid={`expense-requests-request-date-cell-${record.id}`}
                     >
-                      {record.requestDate
-                        ? (() => {
-                            try {
-                              const userLocale = getCurrentActiveUserLocale();
-                              return dayjs(record.requestDate).locale(userLocale).format("L");
-                            } catch (error) {
-                              return getTranslationFromI18nKeyAndLabel("lowcoder:common.not_available","N/A");
-                            }
-                          })()
-                        : getTranslationFromI18nKeyAndLabel("lowcoder:common.not_available","N/A")}
+                      {formatShortDateSafe(record.requestDate)}
                     </TableCell>
                     <TableCell
                       className="gba:text-right gba:text-sm"

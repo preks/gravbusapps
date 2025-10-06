@@ -42,7 +42,6 @@ const AdvancePaymentStatistics: React.FC<AdvancePaymentStatisticsProps> = ({
           "lowcoder:team_expenses_page.advance_payments_tab.all_advance_payments",
           "All advance payments",
         ),
-        "data-testid": "advance-payment-stats-total",
       },
       {
         key: "pending-amount",
@@ -60,7 +59,6 @@ const AdvancePaymentStatistics: React.FC<AdvancePaymentStatisticsProps> = ({
           "lowcoder:team_expenses_page.expense_plans_tab.awaiting_approval",
           "Awaiting approval",
         ),
-        "data-testid": "advance-payment-stats-pending",
       },
     ];
   }, [advancePaymentStats, primaryCurrency]);
