@@ -168,8 +168,9 @@ export const TaskManagement: React.FC<TaskManagementProps> = (props: TaskManagem
         // Check for successful completion from different event structures
         if (event.detail?.resolution === 'success') {
           console.log("✅ Success resolution detected, refreshing task data");
-          // Refresh both task data and statistics
-          current.refetch?.();
+          // Refresh BOTH tabs since a task update could affect either/both
+          myTasks.refetch?.();
+          teamTasks.refetch?.();
           refetchStatistics();
           return;
         }
@@ -182,7 +183,9 @@ export const TaskManagement: React.FC<TaskManagementProps> = (props: TaskManagem
           response?.task
         ) {
           console.log("✅ Success in response or task detected, refreshing data");
-          current.refetch?.();
+          // Refresh BOTH tabs since a task update could affect either/both
+          myTasks.refetch?.();
+          teamTasks.refetch?.();
           refetchStatistics();
           return;
         }
@@ -193,7 +196,9 @@ export const TaskManagement: React.FC<TaskManagementProps> = (props: TaskManagem
           event.detail?.payload
         ) {
           console.log("✅ Continue event with payload detected, refreshing task data");
-          current.refetch?.();
+          // Refresh BOTH tabs since a task update could affect either/both
+          myTasks.refetch?.();
+          teamTasks.refetch?.();
           refetchStatistics();
         }
       } catch (err) {
@@ -223,7 +228,7 @@ export const TaskManagement: React.FC<TaskManagementProps> = (props: TaskManagem
         window.removeEventListener(eventName, handleProcessCompletion as EventListener);
       });
     };
-  }, [refetchStatistics]);
+  }, [myTasks.refetch, teamTasks.refetch, refetchStatistics]);
 
   return (
     <div className="gba:p-6" data-testid="task-management-content">
@@ -373,29 +378,58 @@ export const TaskManagement: React.FC<TaskManagementProps> = (props: TaskManagem
           emptyMessage="No tasks found"
           
               // Row Actions - Using AppActionMenu for flow integration
-              actions={(row) => (
-                <AppActionMenu
-                  data-testid={`task-actions-menu-${row.original.id}`}
-                  contextsArray={[FlowContextName.investmentTaskEntity]}
-                  externalContextData={{ taskId: row.original.id }}
-                  prefixDataTestId="task-actions"
-                  accessToken={accessToken}
-                  emptyStateBehavior="enable"
-                  deferMainContextRequestsUntilClick
-                >
-                  <Button
-                    size="icon"
-                    variant="ghost"
-                    aria-label="Task actions"
-                    data-testid={`task-actions-trigger-${row.original.id}`}
-                    onClick={(e) => e.stopPropagation()}
+              actions={(row) => {
+                // Build external context data with parent reference
+                const externalContextData: Record<string, string> = { taskId: row.original.id };
+                
+                // Add parent reference ID based on task reference type
+                if (row.original.reference) {
+                  const refType = row.original.reference.type;
+                  const refId = row.original.reference.id;
+                  
+                  switch (refType) {
+                    case 'investment':
+                      externalContextData.investmentId = refId;
+                      break;
+                    case 'lead':
+                      externalContextData.leadId = refId;
+                      break;
+                    case 'account':
+                      externalContextData.accountId = refId;
+                      break;
+                    case 'contact':
+                      externalContextData.contactId = refId;
+                      break;
+                    case 'opportunity':
+                      externalContextData.opportunityId = refId;
+                      break;
+                  }
+                }
+
+                return (
+                  <AppActionMenu
+                    data-testid={`task-actions-menu-${row.original.id}`}
+                    contextsArray={[FlowContextName.investmentTaskEntity]}
+                    externalContextData={externalContextData}
+                    prefixDataTestId="task-actions"
+                    accessToken={accessToken}
+                    emptyStateBehavior="enable"
+                    deferMainContextRequestsUntilClick
                   >
-                    <svg className="gba:w-4 gba:h-4 gba:text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z" />
-                    </svg>
-                  </Button>
-                </AppActionMenu>
-              )}
+                    <Button
+                      size="icon"
+                      variant="ghost"
+                      aria-label="Task actions"
+                      data-testid={`task-actions-trigger-${row.original.id}`}
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      <svg className="gba:w-4 gba:h-4 gba:text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z" />
+                      </svg>
+                    </Button>
+                  </AppActionMenu>
+                );
+              }}
           
           // Row Click
           onRowClick={(task) => handleSelectTask(task)}

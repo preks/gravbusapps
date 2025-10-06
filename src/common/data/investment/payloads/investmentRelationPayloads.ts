@@ -149,6 +149,7 @@ export interface InvestmentTaskFormData {
   creatorEmployeeId?: string;
   creatorUserId?: string;
   // related entity (only one)
+  investment?: { id: string };
   account?: { id: string };
   contact?: { id: string };
   opportunity?: { id: string };
@@ -162,28 +163,33 @@ export const buildInvestmentTaskPayload = (
 ) => {
   const getEntityRef = () => {
     const refs: Record<string, any> = {};
+    // Check task object first for all entity types
+    if (task.investment) refs.investment = task.investment.id;
     if (task.account) refs.account = task.account.id;
     if (task.contact) refs.contact = task.contact.id;
     if (task.opportunity) refs.opportunity = task.opportunity.id;
     if (task.lead) refs.lead = task.lead.id;
-    // Always include parent investment when provided via additionalData
-    const additional: any = (businessAppContext as any)?.additionalData || {};
-    const external: any = additional.externalContextData || {};
-    const investmentId =
-      // Primary: AppAction externalContextData (most common)
-      external.investmentId ||
-      external.investment?.id ||
-      external.investment ||
-      external.investmentTask?.investment ||
-      external.investmentTask?.investmentId ||
-      // Fallback: direct additionalData
-      additional.investmentId ||
-      additional.investment?.id ||
-      additional.investment ||
-      additional.investmentTask?.investment ||
-      additional.investmentTask?.investmentId;
-    if (investmentId) refs.investment = investmentId;
-    // Task payload debug - Investment search (sensitive data removed)
+    
+    // Fallback: Always include parent investment when provided via additionalData/externalContextData
+    // This handles cases where the form doesn't have the investment object but context does
+    if (!refs.investment) {
+      const additional: any = (businessAppContext as any)?.additionalData || {};
+      const external: any = additional.externalContextData || {};
+      const investmentId =
+        // Primary: AppAction externalContextData (most common)
+        external.investmentId ||
+        external.investment?.id ||
+        external.investment ||
+        external.investmentTask?.investment ||
+        external.investmentTask?.investmentId ||
+        // Fallback: direct additionalData
+        additional.investmentId ||
+        additional.investment?.id ||
+        additional.investment ||
+        additional.investmentTask?.investment ||
+        additional.investmentTask?.investmentId;
+      if (investmentId) refs.investment = investmentId;
+    }
     return refs;
   };
 
