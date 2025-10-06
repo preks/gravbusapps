@@ -294,7 +294,7 @@ export const useTeamSpendingAnalytics = (
     const uniqueLocations = new Map<string, { id: string; name: string }>();
     
     // Extract from expense items
-    rawData.expenseItems.forEach(item => {
+    for (const item of rawData.expenseItems) {
       if (item.employee?.employeePosition?.siteLocation?.id && item.employee?.employeePosition?.siteLocation?.name) {
         const location = item.employee.employeePosition.siteLocation;
         uniqueLocations.set(location.id, {
@@ -302,10 +302,10 @@ export const useTeamSpendingAnalytics = (
           name: location.name
         });
       }
-    });
+    }
     
     // Extract from expense requests
-    rawData.expenseRequests.forEach(item => {
+    for (const item of rawData.expenseRequests) {
       if (item.employee?.employeePosition?.siteLocation?.id && item.employee?.employeePosition?.siteLocation?.name) {
         const location = item.employee.employeePosition.siteLocation;
         uniqueLocations.set(location.id, {
@@ -313,10 +313,10 @@ export const useTeamSpendingAnalytics = (
           name: location.name
         });
       }
-    });
+    }
     
     // Extract from expense plans
-    rawData.expensePlans.forEach(item => {
+    for (const item of rawData.expensePlans) {
       if (item.employee?.employeePosition?.siteLocation?.id && item.employee?.employeePosition?.siteLocation?.name) {
         const location = item.employee.employeePosition.siteLocation;
         uniqueLocations.set(location.id, {
@@ -324,7 +324,7 @@ export const useTeamSpendingAnalytics = (
           name: location.name
         });
       }
-    });
+    }
     
     // Convert to array and sort by name
     const locations = Array.from(uniqueLocations.values())
@@ -346,7 +346,7 @@ export const useTeamSpendingAnalytics = (
     const uniqueDepartments = new Map<string, { id: string; name: string }>();
     
     // Extract from expense items
-    rawData.expenseItems.forEach(item => {
+    for (const item of rawData.expenseItems) {
       if (item.employee?.employeePosition?.organizationalUnit?.id && item.employee?.employeePosition?.organizationalUnit?.name) {
         const department = item.employee.employeePosition.organizationalUnit;
         uniqueDepartments.set(department.id, {
@@ -354,10 +354,10 @@ export const useTeamSpendingAnalytics = (
           name: department.name
         });
       }
-    });
+    }
     
     // Extract from expense requests
-    rawData.expenseRequests.forEach(item => {
+    for (const item of rawData.expenseRequests) {
       if (item.employee?.employeePosition?.organizationalUnit?.id && item.employee?.employeePosition?.organizationalUnit?.name) {
         const department = item.employee.employeePosition.organizationalUnit;
         uniqueDepartments.set(department.id, {
@@ -365,10 +365,10 @@ export const useTeamSpendingAnalytics = (
           name: department.name
         });
       }
-    });
+    }
     
     // Extract from expense plans
-    rawData.expensePlans.forEach(item => {
+    for (const item of rawData.expensePlans) {
       if (item.employee?.employeePosition?.organizationalUnit?.id && item.employee?.employeePosition?.organizationalUnit?.name) {
         const department = item.employee.employeePosition.organizationalUnit;
         uniqueDepartments.set(department.id, {
@@ -376,7 +376,7 @@ export const useTeamSpendingAnalytics = (
           name: department.name
         });
       }
-    });
+    }
     
     // Convert to array and sort by name
     const departments = Array.from(uniqueDepartments.values())
@@ -449,37 +449,45 @@ export const useTeamSpendingAnalytics = (
     const currencySet = new Set<string>();
     
     // Collect from expense items
-    rawData.expenseItems?.forEach(item => {
+    if (rawData.expenseItems) {
+      for (const item of rawData.expenseItems) {
       if (item.currencyRef) {
         // Extract currency code from Currency:v1:EUR format
         const code = item.currencyRef.split(':').pop();
         if (code) currencySet.add(code);
       }
-    });
+      }
+    }
     
     // Collect from expense requests
-    rawData.expenseRequests?.forEach(request => {
-      if (request.currencyRef) {
-        const code = request.currencyRef.split(':').pop();
-        if (code) currencySet.add(code);
+    if (rawData.expenseRequests) {
+      for (const request of rawData.expenseRequests) {
+        if (request.currencyRef) {
+          const code = request.currencyRef.split(':').pop();
+          if (code) currencySet.add(code);
+        }
       }
-    });
+    }
     
     // Collect from expense plans
-    rawData.expensePlans?.forEach(plan => {
-      if (plan.currencyRef) {
-        const code = plan.currencyRef.split(':').pop();
-        if (code) currencySet.add(code);
+    if (rawData.expensePlans) {
+      for (const plan of rawData.expensePlans) {
+        if (plan.currencyRef) {
+          const code = plan.currencyRef.split(':').pop();
+          if (code) currencySet.add(code);
+        }
       }
-    });
+    }
     
     // Collect from advance payments
-    rawData.advancePayments?.forEach(payment => {
-      if (payment.currencyRef) {
-        const code = payment.currencyRef.split(':').pop();
-        if (code) currencySet.add(code);
+    if (rawData.advancePayments) {
+      for (const payment of rawData.advancePayments) {
+        if (payment.currencyRef) {
+          const code = payment.currencyRef.split(':').pop();
+          if (code) currencySet.add(code);
+        }
       }
-    });
+    }
     
     return Array.from(currencySet).sort((a, b) => a.localeCompare(b));
   }, [rawData]);
@@ -712,10 +720,10 @@ export const useTeamSpendingAnalytics = (
         if (positions.length > 0) {
           // Divide total amount equally among positions
           const amountPerPosition = (item.totalAmount || 0) / positions.length;
-          positions.forEach((position: ExpensePosition) => {
+          for (const position of positions as ExpensePosition[]) {
             const category = getCategoryDisplayName(position);
             addToCategory(categoryMap, category, amountPerPosition);
-          });
+          }
         } else {
           addToCategory(categoryMap, 'Uncategorized', item.totalAmount || 0);
         }

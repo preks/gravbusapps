@@ -58,6 +58,34 @@ export const useGetAdvancePayments = (context?: BusinessAppContextProps): Advanc
   const [statsLoading, setStatsLoading] = useState<boolean>(false);
   const [statsError, setStatsError] = useState<string | null>(null);
 
+  // --- Helpers to reduce cognitive complexity ---
+  const getEmployeeIdFromContext = (): string =>
+    context?.userInfo?.employeeDetails?.employeeId || context?.userInfo?.id || '00000000-0000-0000-0000-000000000000';
+
+  const requestGraphQL = async (accessToken: string, query: string, variables: Record<string, any>) => {
+    const response = await fetch(env('NEXT_PUBLIC_GRAPHQL_ENDPOINT_NEWWORK')!, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${accessToken}`,
+      },
+      body: JSON.stringify({ query, variables }),
+    });
+
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status} ${response.statusText}`);
+    }
+
+    const result = await response.json();
+    if (result.errors?.length) {
+      throw new Error(result.errors.map((e: any) => e.message).join(', '));
+    }
+    if (!result.data) {
+      throw new Error('No data returned from query.');
+    }
+    return result.data;
+  };
+
   const buildQueryVariables = (
     employeeId: string, // Changed from managerId to employeeId to match query
     searchTerm: string,
@@ -107,22 +135,11 @@ export const useGetAdvancePayments = (context?: BusinessAppContextProps): Advanc
     pageSize: number = 10,
     status?: string,
   ) => {
-    // Use the same hardcoded manager ID for consistency with dashboard and expense plans
-    const employeeId = context?.userInfo?.employeeDetails?.employeeId || context?.userInfo?.id || '00000000-0000-0000-0000-000000000000'; // Use real user info with fallback UUID
-    const accessToken = context?.accessToken;
-    
-    if (import.meta.env?.DEV) console.log('fetchAdvancePayments called with accessToken:', !!accessToken, 'employeeId:', employeeId);
+    const employeeId = getEmployeeIdFromContext();
+    const accessToken = context?.accessToken || '';
 
-    if (!employeeId) {
-      setError('Employee ID (Manager ID) not found. Cannot fetch advance payments.');
-      setPayments([]);
-      setTotalCount(0);
-      setIsLoading(false);
-      return;
-    }
-
-    if (!accessToken) {
-      setError('Access token not found. Cannot fetch advance payments.');
+    if (!employeeId || !accessToken) {
+      setError(!employeeId ? 'Employee ID (Manager ID) not found. Cannot fetch advance payments.' : 'Access token not found. Cannot fetch advance payments.');
       setPayments([]);
       setTotalCount(0);
       setIsLoading(false);
@@ -134,53 +151,12 @@ export const useGetAdvancePayments = (context?: BusinessAppContextProps): Advanc
 
     try {
       const variables = buildQueryVariables(employeeId, searchTerm, page, pageSize, status);
-      
-      const response = await fetch(env('NEXT_PUBLIC_GRAPHQL_ENDPOINT_NEWWORK')!, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${accessToken}`,
-        },
-        body: JSON.stringify({
-          query: GET_ADVANCE_PAYMENTS_BY_MANAGER,
-          variables,
-        }),
-      });
-
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status} ${response.statusText}`);
-      }
-
-      const result = await response.json();
-      
-      if (result.errors && result.errors.length > 0) {
-        if (import.meta.env?.DEV) console.error('GraphQL Errors:', result.errors);
-        throw new Error(result.errors.map((e: any) => e.message).join(', '));
-      }
-      
-      if (!result.data) {
-        if (import.meta.env?.DEV) console.error('No data returned from GraphQL query:', result);
-        throw new Error('No data returned from query.');
-      }
-
-      if (import.meta.env?.DEV) console.log('Advance payments data received:', {
-        paymentsCount: result.data.AdvancePayment?.length,
-        totalCount: result.data.AdvancePaymentAggregate?.aggregate?.count,
-        variables: {
-          employeeId,
-          limit: pageSize,
-          offset: (page - 1) * pageSize,
-          searchTerm: searchTerm ? `%${searchTerm}%` : '%%',
-          status: status === 'all' || !status ? null : status
-        }
-      });
-
-      const mappedPayments = mapResponseToPayments(result.data);
+      const data = await requestGraphQL(accessToken, GET_ADVANCE_PAYMENTS_BY_MANAGER, variables);
+      const mappedPayments = mapResponseToPayments(data);
       setPayments(mappedPayments);
-      setTotalCount(result.data.AdvancePaymentAggregate?.aggregate?.count ?? 0);
+      setTotalCount(data.AdvancePaymentAggregate?.aggregate?.count ?? 0);
 
     } catch (err: any) {
-      if (import.meta.env?.DEV) console.error('Error fetching advance payments by manager:', err);
       setError(err.message ?? 'Failed to fetch advance payments.');
       setPayments([]);
       setTotalCount(0);
@@ -190,21 +166,11 @@ export const useGetAdvancePayments = (context?: BusinessAppContextProps): Advanc
   }, [context?.accessToken]);
 
   const fetchAdvancePaymentStatistics = useCallback(async () => {
-    // Use the same hardcoded manager ID for consistency with dashboard and expense plans
-    const employeeId = context?.userInfo?.employeeDetails?.employeeId || context?.userInfo?.id || '00000000-0000-0000-0000-000000000000'; // Use real user info with fallback UUID
-    const accessToken = context?.accessToken;
-    
-    if (import.meta.env?.DEV) console.log('fetchAdvancePaymentStatistics called with accessToken:', !!accessToken, 'employeeId:', employeeId);
+    const employeeId = getEmployeeIdFromContext();
+    const accessToken = context?.accessToken || '';
 
-    if (!employeeId) {
-      setStatsError('Employee ID (Manager ID) not found. Cannot fetch advance payment statistics.');
-      setAdvancePaymentStats(null);
-      setStatsLoading(false);
-      return;
-    }
-
-    if (!accessToken) {
-      setStatsError('Access token not found. Cannot fetch advance payment statistics.');
+    if (!employeeId || !accessToken) {
+      setStatsError(!employeeId ? 'Employee ID (Manager ID) not found. Cannot fetch advance payment statistics.' : 'Access token not found. Cannot fetch advance payment statistics.');
       setAdvancePaymentStats(null);
       setStatsLoading(false);
       return;
@@ -215,49 +181,15 @@ export const useGetAdvancePayments = (context?: BusinessAppContextProps): Advanc
 
     try {
       const variables = { employeeId };
-      
-      const response = await fetch(env('NEXT_PUBLIC_GRAPHQL_ENDPOINT_NEWWORK')!, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${accessToken}`,
-        },
-        body: JSON.stringify({
-          query: GET_ADVANCE_PAYMENT_STATISTICS,
-          variables,
-        }),
-      });
+      const data = await requestGraphQL(accessToken, GET_ADVANCE_PAYMENT_STATISTICS, variables);
 
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status} ${response.statusText}`);
-      }
-
-      const result = await response.json();
-
-      if (result.errors && result.errors.length > 0) {
-        if (import.meta.env?.DEV) console.error('GraphQL Errors (Statistics):', result.errors);
-        throw new Error(result.errors.map((e: any) => e.message).join(', '));
-      }
-      
-      if (import.meta.env?.DEV) console.log('Advance payment statistics received:', {
-        data: result.data,
-        employeeId
-      });
-      
-      if (!result.data?.advancePaymentStats?.aggregate?.sum) {
-        // It's possible advancePaymentStats is null or sum is null if no records match, handle gracefully
-        if (import.meta.env?.DEV) console.log('No advance payment statistics data available');
-        setAdvancePaymentStats({ totalAmount: null }); 
+      const sumNode = data?.advancePaymentStats?.aggregate?.sum;
+      if (!sumNode || typeof sumNode.amount !== 'number') {
+        setAdvancePaymentStats({ totalAmount: null });
       } else {
-         const stats = {
-           totalAmount: result.data.advancePaymentStats.aggregate.sum.amount,
-         };
-         if (import.meta.env?.DEV) console.log('Setting advance payment statistics:', stats);
-         setAdvancePaymentStats(stats);
+        setAdvancePaymentStats({ totalAmount: sumNode.amount });
       }
-
     } catch (err: any) {
-      if (import.meta.env?.DEV) console.error('Error fetching advance payment statistics:', err);
       setStatsError(err.message ?? 'Failed to fetch advance payment statistics.');
       setAdvancePaymentStats(null);
     } finally {

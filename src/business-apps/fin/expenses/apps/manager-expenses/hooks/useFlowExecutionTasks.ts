@@ -125,66 +125,51 @@ export const useFlowExecutionTasks = (
     setIsLoading(true);
     setError(null);
 
-    try {
-      const flowMetricsClient = new FlowMetricsClient(accessToken);
+    // Small helpers to keep this function simple
+    const isVariantProcess = (name: string | null | undefined) =>
+      !!name && ['approveAdvancePayment', 'approveExpenseRequest', 'approveExpensePlan'].includes(name);
 
-      // Define task name variations that need separate fetches
-      const needsVariantFetch = filterTaskName && [
-        'approveAdvancePayment',
-        'approveExpenseRequest',
-        'approveExpensePlan',
-      ].includes(filterTaskName);
+    const buildBaseParams = (): FlowExecutionTasksParams => ({
+      cockpitPage: 'INBOX',
+      size: pageSize,
+      page: currentPage - 1,
+      field: 'CREATION_DATE',
+      direction: 'DESC',
+      ...(searchTerm && { search: searchTerm }),
+      ...(context?.userInfo?.id && { userId: context.userInfo.id }),
+    });
 
-      const baseParams: FlowExecutionTasksParams = {
-        cockpitPage: 'INBOX',
-        size: pageSize,
-        page: currentPage - 1,
-        field: 'CREATION_DATE',
-        direction: 'DESC',
-        ...(searchTerm && { search: searchTerm }),
-        ...(context?.userInfo?.id && { userId: context.userInfo.id }),
-      };
+    const runFetch = async (client: FlowMetricsClient) => {
+      const baseParams = buildBaseParams();
 
-      let allTasks: any[] = [];
-      let totalCount = 0;
-
-      if (needsVariantFetch && filterTaskName) {
-        const result = await fetchTasksWithVariants(
-          flowMetricsClient,
-          baseParams,
-          filterTaskName,
-        );
-        // Merge result can exceed the requested page size because we fetch
-        // two independent pages (base + variant). To keep the UI contract
-        // consistent with the selected page size, trim to `pageSize`.
-        allTasks = result.tasks.slice(0, pageSize);
-        totalCount = result.totalCount;
-      } else {
-        // Single fetch for other task types
-        const response = await flowMetricsClient.getFlowExecutionTasks({
-          ...baseParams,
-          ...(filterTaskName && { filterTaskName }),
-        });
-
-        allTasks = response.processingStates || response.content || [];
-        totalCount = response.totalCount || response.totalElements || 0;
+      if (isVariantProcess(filterTaskName) && filterTaskName) {
+        const res = await fetchTasksWithVariants(client, baseParams, filterTaskName);
+        return { tasks: res.tasks.slice(0, pageSize), total: res.totalCount } as const;
       }
 
-      if (!Array.isArray(allTasks)) {
+      const response = await client.getFlowExecutionTasks({
+        ...baseParams,
+        ...(filterTaskName && { filterTaskName }),
+      });
+      const tasks = response.processingStates || response.content || [];
+      const total = response.totalCount || response.totalElements || 0;
+      return { tasks, total } as const;
+    };
+
+    try {
+      const client = new FlowMetricsClient(accessToken);
+      const { tasks, total } = await runFetch(client);
+
+      if (!Array.isArray(tasks)) {
         if (import.meta.env?.DEV) console.error('Invalid data structure received');
         throw new Error('Invalid data structure received from server');
       }
 
-      setTasks(allTasks);
-      setTotalCount(totalCount);
+      setTasks(tasks);
+      setTotalCount(total);
     } catch (err: any) {
       if (import.meta.env?.DEV) console.error('Error fetching flow execution tasks:', err);
-      let errorMessage = 'Failed to fetch flow execution tasks';
-
-      if (err.message) {
-        errorMessage = err.message;
-      }
-
+      const errorMessage = err?.message || 'Failed to fetch flow execution tasks';
       setError(errorMessage);
       setTasks([]);
       setTotalCount(0);

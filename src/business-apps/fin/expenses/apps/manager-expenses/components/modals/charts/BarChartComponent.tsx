@@ -96,7 +96,7 @@ const BarChartComponent: React.FC<BarChartProps> = ({
           config={chartConfig}
           className="gba:w-full"
           style={{ height: height }}
-          data-testid={dataTestId ?? `${title.toLowerCase().replace(/\s+/g, "-")}-chart`}
+          data-testid={dataTestId ?? "bar-chart"}
         >
           <BarChart
             data={data}

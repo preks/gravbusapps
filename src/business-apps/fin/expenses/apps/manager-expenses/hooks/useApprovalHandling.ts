@@ -48,10 +48,12 @@ export const useApprovalHandling = ({
     const parts: string[] = String(originalTask.endpoint).split('/');
     if (tabKeyLocal === 'handout-payment') {
       const idx = parts.indexOf('payAdvancePayment');
-      return idx !== -1 ? parts[idx + 1] : undefined;
+      if (idx === -1) return undefined;
+      return parts[idx + 1];
     }
     const idx = parts.indexOf(processName);
-    return idx !== -1 ? parts[idx + 1] : undefined;
+    if (idx === -1) return undefined;
+    return parts[idx + 1];
   };
 
   type RequestContext = {
@@ -205,15 +207,77 @@ export const useApprovalHandling = ({
     return { ok: true };
   };
 
-  const handleApproveClick = async () => {
-    if (selectedTasks.length === 0) {
-      return { error: getTranslationFromI18nKeyAndLabel('lowcoder:manager_expenses_landing_page.select_task_to_approve', 'Please select at least one task to approve') };
+  // --- Small helpers to reduce cognitive complexity in handleApproveClick ---
+  const validatePreconditions = (tasks: ApprovalRequest[], key: string, user: any) => {
+    if (tasks.length === 0) {
+      return {
+        error: getTranslationFromI18nKeyAndLabel(
+          'lowcoder:manager_expenses_landing_page.select_task_to_approve',
+          'Please select at least one task to approve',
+        ),
+      } as const;
     }
 
-    const tabConfig = getTabByKey(tabKey);
-    if (!tabConfig || !userInfo) {
-      return { error: getTranslationFromI18nKeyAndLabel('lowcoder:common.configuration_missing', 'Missing configuration or user information') };
+    const cfg = getTabByKey(key);
+    if (!cfg || !user) {
+      return {
+        error: getTranslationFromI18nKeyAndLabel(
+          'lowcoder:common.configuration_missing',
+          'Missing configuration or user information',
+        ),
+      } as const;
     }
+    return { tabConfig: cfg } as const;
+  };
+
+  const showSummaryToasts = (approvedCount: number, failedTasks: Array<{ id: string; error: string }>) => {
+    if (approvedCount > 0 && failedTasks.length === 0) {
+      toast.success(
+        getTranslationFromI18nKeyAndLabel('lowcoder:approvals.approval_completed', 'Approval completed'),
+        {
+          description: getTranslationFromI18nKeyAndLabel(
+            'lowcoder:approvals.approved_successfully_count',
+            `${approvedCount} task${approvedCount > 1 ? 's' : ''} approved successfully`,
+          ),
+          duration: 4000,
+        },
+      );
+      return;
+    }
+
+    if (approvedCount > 0 && failedTasks.length > 0) {
+      toast.success(
+        getTranslationFromI18nKeyAndLabel('lowcoder:approvals.partial_approval_completed', 'Partial approval completed'),
+        {
+          description: getTranslationFromI18nKeyAndLabel(
+            'lowcoder:approvals.partial_approval_summary',
+            `${approvedCount} approved · ${failedTasks.length} failed`,
+          ),
+          duration: 5000,
+        },
+      );
+      return;
+    }
+
+    if (approvedCount === 0 && failedTasks.length > 0) {
+      const first = failedTasks[0];
+      const more = failedTasks.length - 1;
+      const details = more > 0 ? `${first.error} (+${more} more)` : first.error;
+      setApprovalError(details);
+      toast.error(
+        getTranslationFromI18nKeyAndLabel('lowcoder:approvals.all_failed', 'All approvals failed'),
+        {
+          description: getTranslationFromI18nKeyAndLabel('lowcoder:approvals.error_details', details),
+          duration: 6000,
+        },
+      );
+    }
+  };
+
+  const handleApproveClick = async () => {
+    const validation = validatePreconditions(selectedTasks, tabKey, userInfo);
+    if ('error' in validation) return { error: validation.error };
+    const tabConfig = validation.tabConfig;
 
     setIsApproving(true);
     setApprovalError(null);
@@ -246,38 +310,7 @@ export const useApprovalHandling = ({
       setApprovalError(null);
 
       // Summarize result
-      if (approvedCount > 0 && failedTasks.length === 0) {
-        toast.success(
-          getTranslationFromI18nKeyAndLabel('lowcoder:approvals.approval_completed', 'Approval completed'),
-          {
-          description: getTranslationFromI18nKeyAndLabel(
-            'lowcoder:approvals.approved_successfully_count',
-            `${approvedCount} task${approvedCount > 1 ? 's' : ''} approved successfully`,
-          ),
-          duration: 4000,
-        });
-      } else if (approvedCount > 0 && failedTasks.length > 0) {
-        toast.success(
-          getTranslationFromI18nKeyAndLabel('lowcoder:approvals.partial_approval_completed', 'Partial approval completed'),
-          {
-          description: getTranslationFromI18nKeyAndLabel(
-            'lowcoder:approvals.partial_approval_summary',
-            `${approvedCount} approved · ${failedTasks.length} failed`,
-          ),
-          duration: 5000,
-        });
-      } else if (approvedCount === 0 && failedTasks.length > 0) {
-        const first = failedTasks[0];
-        const more = failedTasks.length - 1;
-        const details = more > 0 ? `${first.error} (+${more} more)` : first.error;
-        setApprovalError(details);
-        toast.error(
-          getTranslationFromI18nKeyAndLabel('lowcoder:approvals.all_failed', 'All approvals failed'),
-          {
-          description: getTranslationFromI18nKeyAndLabel('lowcoder:approvals.error_details', details),
-          duration: 6000,
-        });
-      }
+      showSummaryToasts(approvedCount, failedTasks);
 
       // Refresh the list if at least one succeeded
       if (approvedCount > 0 && onApprovalSuccess) {

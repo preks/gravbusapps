@@ -141,10 +141,10 @@ export const useAdvancePaymentFilters = ({
     const map: Record<string, string> = {};
 
     // Add status filters - use the getAdvancePaymentStatusDisplay function for consistent translated labels
-    availableFilterStatuses.forEach((status) => {
+    for (const status of availableFilterStatuses) {
       const display = getAdvancePaymentStatusDisplay(status);
       map[status] = display.label;
-    });
+    }
 
     // Add currency filters from dynamic data
     dynamicCurrencies.forEach((currency) => {
@@ -165,12 +165,15 @@ export const useAdvancePaymentFilters = ({
     }));
 
     // Use dynamic currency options from actual data
-    const currencyItems: DataFilter[] = dynamicCurrencies.map((currency) => ({
-      id: currency,
-      label: currency,
-      selected: currency === localPrimaryCurrency,
-      group: "currencyGroup",
-    }));
+    const currencyItems: DataFilter[] = [];
+    for (const currency of dynamicCurrencies) {
+      currencyItems.push({
+        id: currency,
+        label: currency,
+        selected: currency === localPrimaryCurrency,
+        group: "currencyGroup",
+      });
+    }
 
     return [
       {

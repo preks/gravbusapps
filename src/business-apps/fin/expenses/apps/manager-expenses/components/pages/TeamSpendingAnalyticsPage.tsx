@@ -22,7 +22,7 @@ import {
   Separator,
 } from "@newwork/nw-design-system";
 import { PiArrowLeft, PiMagnifyingGlass } from "react-icons/pi";
-import { ChartLine } from "@phosphor-icons/react";
+import { TrendUp } from "@phosphor-icons/react";
 import { BusinessAppContextProps } from "@/common/BusinessAppContext";
 import { useTeamSpendingAnalytics, DateRangeOption } from "../../hooks/useTeamSpendingAnalytics";
 import { LineChartComponent, PieChartComponent, BarChartComponent } from "../modals/charts";
@@ -1037,7 +1037,7 @@ const TeamSpendingAnalyticsPage: React.FC<TeamSpendingAnalyticsPageProps> = ({
           "lowcoder:team_expenses_page.dashboard_tab.team_spending_analytics_description",
           "Comprehensive analysis of team spending patterns, trends, and budget allocations across all expense categories",
         )}
-        headerIcon={ChartLine}
+        headerIcon={TrendUp}
         className="gba:min-h-screen"
       >
         {/* Layout with consistent sidebar spacing */}
