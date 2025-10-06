@@ -1,6 +1,6 @@
 import { useState, useCallback } from 'react';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
-import { GET_ADVANCE_PAYMENTS_BY_MANAGER, GET_ADVANCE_PAYMENT_STATISTICS } from '../queries/advancePayments';
+import { GET_ADVANCE_PAYMENTS_REPORT_BY_MANAGER, GET_ADVANCE_PAYMENT_STATISTICS } from '../queries/advancePayments';
 import { env } from '@/common/env/EnvUtils';
 
 // Define types for the hook
@@ -59,7 +59,7 @@ export const useGetAdvancePayments = (context?: BusinessAppContextProps): Advanc
   const [statsError, setStatsError] = useState<string | null>(null);
 
   // --- Helpers to reduce cognitive complexity ---
-  const getEmployeeIdFromContext = (): string =>
+  const getManagerIdFromContext = (): string =>
     context?.userInfo?.employeeDetails?.employeeId || context?.userInfo?.id || '00000000-0000-0000-0000-000000000000';
 
   const requestGraphQL = async (accessToken: string, query: string, variables: Record<string, any>) => {
@@ -87,7 +87,7 @@ export const useGetAdvancePayments = (context?: BusinessAppContextProps): Advanc
   };
 
   const buildQueryVariables = (
-    employeeId: string, // Changed from managerId to employeeId to match query
+    managerId: string,
     searchTerm: string,
     page: number,
     pageSize: number,
@@ -97,7 +97,7 @@ export const useGetAdvancePayments = (context?: BusinessAppContextProps): Advanc
     const offset = (page - 1) * pageSize;
 
     const variables: Record<string, any> = {
-      employeeId, // Use employeeId here
+      managerId,
       limit: pageSize,
       offset: offset,
     };
@@ -135,11 +135,11 @@ export const useGetAdvancePayments = (context?: BusinessAppContextProps): Advanc
     pageSize: number = 10,
     status?: string,
   ) => {
-    const employeeId = getEmployeeIdFromContext();
+    const managerId = getManagerIdFromContext();
     const accessToken = context?.accessToken || '';
 
-    if (!employeeId || !accessToken) {
-      setError(!employeeId ? 'Employee ID (Manager ID) not found. Cannot fetch advance payments.' : 'Access token not found. Cannot fetch advance payments.');
+    if (!managerId || !accessToken) {
+      setError(!managerId ? 'Manager ID not found. Cannot fetch advance payments.' : 'Access token not found. Cannot fetch advance payments.');
       setPayments([]);
       setTotalCount(0);
       setIsLoading(false);
@@ -150,8 +150,8 @@ export const useGetAdvancePayments = (context?: BusinessAppContextProps): Advanc
     setError(null);
 
     try {
-      const variables = buildQueryVariables(employeeId, searchTerm, page, pageSize, status);
-      const data = await requestGraphQL(accessToken, GET_ADVANCE_PAYMENTS_BY_MANAGER, variables);
+      const variables = buildQueryVariables(managerId, searchTerm, page, pageSize, status);
+      const data = await requestGraphQL(accessToken, GET_ADVANCE_PAYMENTS_REPORT_BY_MANAGER, variables);
       const mappedPayments = mapResponseToPayments(data);
       setPayments(mappedPayments);
       setTotalCount(data.AdvancePaymentAggregate?.aggregate?.count ?? 0);
@@ -166,11 +166,11 @@ export const useGetAdvancePayments = (context?: BusinessAppContextProps): Advanc
   }, [context?.accessToken]);
 
   const fetchAdvancePaymentStatistics = useCallback(async () => {
-    const employeeId = getEmployeeIdFromContext();
+    const managerId = getManagerIdFromContext();
     const accessToken = context?.accessToken || '';
 
-    if (!employeeId || !accessToken) {
-      setStatsError(!employeeId ? 'Employee ID (Manager ID) not found. Cannot fetch advance payment statistics.' : 'Access token not found. Cannot fetch advance payment statistics.');
+    if (!managerId || !accessToken) {
+      setStatsError(!managerId ? 'Manager ID not found. Cannot fetch advance payment statistics.' : 'Access token not found. Cannot fetch advance payment statistics.');
       setAdvancePaymentStats(null);
       setStatsLoading(false);
       return;
@@ -180,7 +180,7 @@ export const useGetAdvancePayments = (context?: BusinessAppContextProps): Advanc
     setStatsError(null);
 
     try {
-      const variables = { employeeId };
+      const variables = { employeeId: managerId };
       const data = await requestGraphQL(accessToken, GET_ADVANCE_PAYMENT_STATISTICS, variables);
 
       const sumNode = data?.advancePaymentStats?.aggregate?.sum;
