@@ -12,6 +12,7 @@ import { AiActions, AiAction } from "@/common/components/common-relations/record
 import { useAccountAiSummary } from "./hooks/useAccountAiSummary";
 import { useGenerateAIBooklet } from "./hooks/useGenerateAIBooklet";
 import { Bot } from 'lucide-react';
+import type { TaskReference } from '@/common/components/common-relations/detail-sheets/task-detail-sheet';
 import { 
   useGetInvestmentActivitiesByAccountId,
   useGetInvestmentNotesByAccountId,
@@ -114,6 +115,24 @@ const InvestmentAccountRecordContent: React.FC<AccountRecordContentProps> = ({ a
   const [sectionsLoading, setSectionsLoading] = useState(true);
   const [sectionsError, setSectionsError] = useState<string | null>(null);
 
+  // Build reference URLs for IRM context
+  const buildReferenceUrl = (reference: TaskReference): string => {
+    switch (reference.type) {
+      case 'lead': 
+        return buildPlatformUrl('/platform/irm/lead-record', { leadId: reference.id });
+      case 'account': 
+        return buildPlatformUrl('/platform/irm/account-record', { accountId: reference.id });
+      case 'contact': 
+        return buildPlatformUrl('/platform/irm/contact-record', { contactId: reference.id });
+      case 'opportunity': 
+        return buildPlatformUrl('/platform/irm/opportunity-record', { opportunityId: reference.id });
+      case 'investment':
+        return buildPlatformUrl('/platform/irm/investment-record', { investmentId: reference.id });
+      default: 
+        return '';
+    }
+  };
+
 
   const handleTabChange = useCallback((value: string) => {
     if ((ALLOWED_TABS as readonly string[]).includes(value)) {
@@ -183,6 +202,78 @@ const InvestmentAccountRecordContent: React.FC<AccountRecordContentProps> = ({ a
   useEffect(() => {
     loadSectionData();
   }, [loadSectionData]);
+
+  // Refetch function for process completion
+  const refetchAccountData = useCallback(async () => {
+    if (!accountId) return;
+    
+    try {
+      setDataLoading(true);
+      setDataError(null);
+      const result = await fetchInvestmentAccountById(accountId);
+      if (result?.account) {
+        setAccountData(result.account);
+      }
+    } catch (error) {
+      console.error('Error refetching investment account:', error);
+      setDataError(error instanceof Error ? error.message : 'Unknown error');
+    } finally {
+      setDataLoading(false);
+    }
+  }, [accountId, fetchInvestmentAccountById]);
+
+  // Listen for process completion events to refresh account data
+  useEffect(() => {
+    const handleProcessCompletion = (event: any) => {
+      try {
+        // Check for successful completion
+        if (event.detail?.resolution === "success") {
+          refetchAccountData();
+          loadSectionData(); // Also refresh section data
+          return;
+        }
+
+        // Also check for different event structure
+        const response = event.detail?.response;
+        if (response?.detail?.resolution === "success" || response?.account) {
+          refetchAccountData();
+          loadSectionData(); // Also refresh section data
+        }
+      } catch (err) {
+        console.error("Error handling process completion in AccountRecord:", err);
+      }
+    };
+
+    // Listen to multiple possible event names for account updates
+    const eventNames = [
+      "com.newwork.process.taskCompletion",
+      "com.newwork.process.completion",
+      "com.newwork.process.continue",
+      "com.newwork.process.processCompletion",
+      "processCompletion",
+      "taskCompletion",
+      "taskCompleted",
+      "processCompleted",
+      "task-completion",
+      "process-completion",
+    ];
+
+    eventNames.forEach((eventName) => {
+      window.addEventListener(
+        eventName,
+        handleProcessCompletion as EventListener
+      );
+    });
+
+    return () => {
+      eventNames.forEach((eventName) => {
+        window.removeEventListener(
+          eventName,
+          handleProcessCompletion as EventListener
+        );
+      });
+    };
+  }, [accountId, refetchAccountData, loadSectionData]);
 
   // Memoize header data - must be called before conditional returns
   const headerDetailGroups = useMemo(() => [
@@ -268,7 +359,7 @@ const InvestmentAccountRecordContent: React.FC<AccountRecordContentProps> = ({ a
   }), [accountId]);
 
   const noteActionProps = useMemo(() => ({
-    contextsArray: [FlowContextName.createInvestmentNote],
+    contextsArray: [FlowContextName.investmentNoteCreate],
     externalContextData: { accountId },
     prefixDataTestId: "account-note"
   }), [accountId]);
@@ -358,9 +449,22 @@ const InvestmentAccountRecordContent: React.FC<AccountRecordContentProps> = ({ a
                   component: ContactSection,
                   props: {
                     ...props,
-                    contacts: accountData?.investmentAccountContact?.map(accountContact => accountContact.contact).filter(Boolean) || [],
-                    contact: accountData?.investmentAccountContact?.[0]?.contact || undefined,
-                    contactId: accountData?.investmentAccountContact?.[0]?.contact?.id || undefined,
+                    contacts: (accountData as any)?.investmentAccountContact?.map((accountContact: any) => {
+                      const c = accountContact.contact;
+                      return c ? { ...c, jobTitle: c.jobPosition } : null;
+                    }).filter(Boolean) || [],
+                    contact: (() => {
+                      const c = (accountData as any)?.investmentAccountContact?.[0]?.contact;
+                      return c ? { ...c, jobTitle: c.jobPosition } : undefined;
+                    })(),
+                    contactId: (accountData as any)?.investmentAccountContact?.[0]?.contact?.id || undefined,
+                    recordUrl: (accountData as any)?.investmentAccountContact?.[0]?.contact?.id
+                      ? buildPlatformUrl('/platform/irm/contact-record', {
+                          contactId: (accountData as any).investmentAccountContact[0].contact.id,
+                          source: 'account-relations',
+                          fromEntity: 'accounts'
+                        })
+                      : undefined,
                     actionButtonProps: {
                       contextsArray: [FlowContextName.customerContactEntity],
                       externalContextData: { accountId },
@@ -409,16 +513,42 @@ const InvestmentAccountRecordContent: React.FC<AccountRecordContentProps> = ({ a
                   component: TaskSection,
                   props: {
                     ...props,
+                    buildReferenceUrl,
                     tasks: tasks.map(task => ({
                       id: task.id,
                       title: task.name || task.displayName || getTranslationFromI18nKeyAndLabel('crm.tasks.untitled', 'Untitled Task'),
+                      description: task.description,
                       createdAt: task.createdAt,
                       due: task.dueDate,
                       assignee: task.assignedEmployee?.displayName || task.assignedEmployee?.fullName,
                       statusCode: task.taskStatus?.value?.toUpperCase() as any,
                       taskStatus: task.taskStatus,
                       taskPriority: task.taskPriority,
-                      assigneeEmployee: task.assignedEmployee
+                      assigneeEmployee: task.assignedEmployee,
+                      taskTiming: task.taskTiming,
+                      startDate: task.startDate,
+                      creatorEmployee: task.creatorEmployee,
+                      reference: task.lead ? {
+                        type: 'lead' as const,
+                        id: task.lead.id,
+                        name: `${task.lead.firstName || ''} ${task.lead.lastName || ''}`.trim() || task.lead.code || 'Lead'
+                      } : task.account ? {
+                        type: 'account' as const,
+                        id: task.account.id,
+                        name: task.account.name || task.account.code || 'Account'
+                      } : task.contact ? {
+                        type: 'contact' as const,
+                        id: task.contact.id,
+                        name: `${task.contact.firstName || ''} ${task.contact.lastName || ''}`.trim() || task.contact.code || 'Contact'
+                      } : task.opportunity ? {
+                        type: 'opportunity' as const,
+                        id: task.opportunity.id,
+                        name: task.opportunity.name || task.opportunity.code || 'Opportunity'
+                      } : task.investment ? {
+                        type: 'investment' as const,
+                        id: task.investment.id,
+                        name: task.investment.name || task.investment.code || 'Investment'
+                      } : undefined
                     })),
                     taskActionProps: {
                       ...taskActionProps,
@@ -438,16 +568,42 @@ const InvestmentAccountRecordContent: React.FC<AccountRecordContentProps> = ({ a
                   props: {
                     ...props,
                     sectionTitle: 'Approval Tasks',
+                    buildReferenceUrl,
                     tasks: approvals.map(approval => ({
                       id: approval.id,
                       title: approval.name || approval.displayName || getTranslationFromI18nKeyAndLabel('crm.approvals.request', 'Approval Request'),
+                      description: approval.description,
                       createdAt: approval.createdAt,
                       due: approval.dueDate,
                       assignee: approval.assignedEmployee?.displayName || approval.assignedEmployee?.fullName,
                       statusCode: approval.taskStatus?.value?.toUpperCase() as any,
                       taskStatus: approval.taskStatus,
                       taskPriority: approval.taskPriority,
-                      assigneeEmployee: approval.assignedEmployee
+                      assigneeEmployee: approval.assignedEmployee,
+                      taskTiming: approval.taskTiming,
+                      startDate: approval.startDate,
+                      creatorEmployee: approval.creatorEmployee,
+                      reference: approval.lead ? {
+                        type: 'lead' as const,
+                        id: approval.lead.id,
+                        name: `${approval.lead.firstName || ''} ${approval.lead.lastName || ''}`.trim() || approval.lead.code || 'Lead'
+                      } : approval.account ? {
+                        type: 'account' as const,
+                        id: approval.account.id,
+                        name: approval.account.name || approval.account.code || 'Account'
+                      } : approval.contact ? {
+                        type: 'contact' as const,
+                        id: approval.contact.id,
+                        name: `${approval.contact.firstName || ''} ${approval.contact.lastName || ''}`.trim() || approval.contact.code || 'Contact'
+                      } : approval.opportunity ? {
+                        type: 'opportunity' as const,
+                        id: approval.opportunity.id,
+                        name: approval.opportunity.name || approval.opportunity.code || 'Opportunity'
+                      } : approval.investment ? {
+                        type: 'investment' as const,
+                        id: approval.investment.id,
+                        name: approval.investment.name || approval.investment.code || 'Investment'
+                      } : undefined
                     })),
                     taskEntityActionProps: {
                       contextsArray: [FlowContextName.investmentTaskEntity],

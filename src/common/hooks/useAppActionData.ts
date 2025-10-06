@@ -5,6 +5,46 @@ import { useFlowItems, ExternalContextData } from './useFlowItems';
 import { FlowContextName } from '../types/FlowRegistryTypes';
 import { formatDataTestId } from '../utils/formatDataTestId';
 
+/**
+ * Shared comparison function for AppAction components to prevent unnecessary re-renders
+ * This ensures consistent behavior across AppAction, AppActionButton, and AppActionMenu
+ */
+export const appActionPropsComparison = (prevProps: any, nextProps: any): boolean => {
+  // Deep comparison for contextsArray (arrays with same values should be equal)
+  const prevContexts = prevProps.contextsArray || [];
+  const nextContexts = nextProps.contextsArray || [];
+  if (prevContexts.length !== nextContexts.length) {
+    return false;
+  }
+  
+  for (let i = 0; i < prevContexts.length; i++) {
+    if (prevContexts[i] !== nextContexts[i]) {
+      return false;
+    }
+  }
+  
+  // Compare other props
+  const propsToCompare = ['externalContextData', 'accessToken', 'prefixDataTestId', 'emptyStateBehavior', 'deferMainContextRequestsUntilClick'] as const;
+  
+  for (const key of propsToCompare) {
+    const prevValue = prevProps[key];
+    const nextValue = nextProps[key];
+    
+    // Deep comparison for objects
+    if (typeof prevValue === 'object' && typeof nextValue === 'object' && prevValue !== null && nextValue !== null) {
+      const prevStr = JSON.stringify(prevValue);
+      const nextStr = JSON.stringify(nextValue);
+      if (prevStr !== nextStr) {
+        return false;
+      }
+    } else if (prevValue !== nextValue) {
+      return false;
+    }
+  }
+  
+  return true;
+};
+
 // Create stable empty array and object to prevent re-renders
 export const EMPTY_CONTEXTS_ARRAY: FlowContextName[] = [];
 export const EMPTY_EXTERNAL_CONTEXT_DATA: ExternalContextData = {};

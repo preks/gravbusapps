@@ -121,6 +121,11 @@ export const INVESTMENT_LEAD = `
           ${CATALOG_ENTRY}
         }
         
+        # Communication channels
+        communicationChannels {
+          ${INVESTMENT_COMMUNICATION_CHANNEL}
+        }
+        
         # Employee relationship
         ownerEmployee {
           ${EMPLOYEE_REF}
@@ -149,6 +154,9 @@ export const INVESTMENT_CONTACT_REF = `
     jobPosition
     picture
     pictureThumbnail
+    communicationChannels {
+        ${INVESTMENT_COMMUNICATION_CHANNEL}
+    }
     academicTitle {
         ${CATALOG_ENTRY}
     }
@@ -175,6 +183,11 @@ export const INVESTMENT_CONTACT = `
     pictureThumbnail
     
     ${AUDIT_FIELDS}
+    
+    # Communication channels
+    communicationChannels {
+        ${INVESTMENT_COMMUNICATION_CHANNEL}
+    }
     
     # Catalog relationships
     academicTitle {
@@ -246,6 +259,7 @@ export const INVESTMENT_ACCOUNT = `
     additionalProperties
     processInstanceId
     synchronizedAt
+    ${AUDIT_FIELDS}
     
     # Address information
     addresses {

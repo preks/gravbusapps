@@ -17,8 +17,8 @@ import { SelectOption } from '../types';
 import { useContactFormContext } from '../context/ContactFormContext';
 
 interface AccountSelectorProps {
-  value: string[];
-  onChange: (accountIds: string[]) => void;
+  value: Array<string | { id: string; name: string }>;
+  onChange: (accountIds: Array<string | { id: string; name: string }>) => void;
   dataTestId?: string;
   error?: string | null;
 }
@@ -32,6 +32,7 @@ const AccountSelector: React.FC<AccountSelectorProps> = ({
   const [isOpen, setIsOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [hasInitialized, setHasInitialized] = useState(false);
+  const [mergedAccounts, setMergedAccounts] = useState<SelectOption[]>([]);
 
   const {
     accounts,
@@ -42,6 +43,30 @@ const AccountSelector: React.FC<AccountSelectorProps> = ({
     loadMoreAccounts: loadMore,
     clearAccountSearch: clearSearch,
   } = useContactFormContext();
+
+  // Merge pre-selected accounts with loaded accounts
+  useEffect(() => {
+    const preSelectedAccounts: SelectOption[] = [];
+    
+    // Add pre-selected account if it has name and isn't already in the list
+    if (value.length > 0) {
+      const firstValue = value[0];
+      if (typeof firstValue === 'object' && firstValue.id && firstValue.name) {
+        const existsInLoadedAccounts = accounts.some(a => a.id === firstValue.id);
+        if (!existsInLoadedAccounts) {
+          preSelectedAccounts.push({
+            id: firstValue.id,
+            value: firstValue.id,
+            label: firstValue.name,
+            name: firstValue.name,
+          });
+        }
+      }
+    }
+    
+    // Merge: pre-selected accounts first, then loaded accounts
+    setMergedAccounts([...preSelectedAccounts, ...accounts]);
+  }, [value, accounts]);
 
   // Load initial accounts
   useEffect(() => {
@@ -60,11 +85,27 @@ const AccountSelector: React.FC<AccountSelectorProps> = ({
     }
   }, [searchTerm, search, clearSearch]);
 
-  // Get selected accounts for display
-  const selectedAccounts = accounts.filter(account => 
-    value.includes(account.value)
-  );
+  // Helper function to extract ID from value (string or object)
+  const getAccountId = (accountValue: string | { id: string; name: string }): string => {
+    return typeof accountValue === 'object' ? accountValue.id : accountValue;
+  };
 
+  // Get current account ID
+  const currentAccountId = value.length > 0 ? getAccountId(value[0]) : '';
+
+  // Helper to get account name for display
+  const getAccountLabel = (): string | undefined => {
+    if (value.length === 0) return undefined;
+    
+    const firstValue = value[0];
+    if (typeof firstValue === 'object' && firstValue.name) {
+      return firstValue.name;
+    }
+    
+    // Try to find in the merged accounts list
+    const account = mergedAccounts.find(a => a.id === currentAccountId);
+    return account?.label;
+  };
 
   const handleLoadMore = () => {
     if (hasMore && !loading) {
@@ -81,10 +122,15 @@ const AccountSelector: React.FC<AccountSelectorProps> = ({
 
       {/* Account Selection Dropdown */}
       <Select
-        value={value.length > 0 ? value[0] : ""}
+        value={currentAccountId}
         onValueChange={(selectedValue) => {
-          if (selectedValue && selectedValue !== value[0]) {
-            onChange([selectedValue]);
+          if (selectedValue && selectedValue !== currentAccountId) {
+            const selectedAccount = mergedAccounts.find(a => a.id === selectedValue);
+            if (selectedAccount) {
+              onChange([{ id: selectedValue, name: selectedAccount.label }]);
+            } else {
+              onChange([selectedValue]);
+            }
           }
         }}
         open={isOpen}
@@ -119,7 +165,7 @@ const AccountSelector: React.FC<AccountSelectorProps> = ({
 
           {/* Account Options */}
           <div className="gba:max-h-48 gba:overflow-y-auto">
-            {accounts.map((account) => (
+            {mergedAccounts.map((account) => (
               <SelectItem
                 key={account.id}
                 value={account.value}
@@ -150,7 +196,7 @@ const AccountSelector: React.FC<AccountSelectorProps> = ({
           )}
 
           {/* No Results */}
-          {!loading && accounts.length === 0 && searchTerm && (
+          {!loading && mergedAccounts.length === 0 && searchTerm && (
             <div className="gba:px-3 gba:py-4 gba:text-center gba:text-gray-500 gba:text-sm">
               No accounts found for "{searchTerm}"
             </div>

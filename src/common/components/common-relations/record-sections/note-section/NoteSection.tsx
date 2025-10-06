@@ -68,7 +68,8 @@ const NoteSection: React.FC<NoteSectionProps> = (props) => {
                   contextsArray={noteEntityActionProps.contextsArray}
                   externalContextData={{ ...noteEntityActionProps.externalContextData, noteId: note.id }}
                   prefixDataTestId={`${noteEntityActionProps.prefixDataTestId}-${note.id}`}
-                  emptyStateBehavior={noteEntityActionProps.emptyStateBehavior}
+                  deferMainContextRequestsUntilClick={true}
+                  emptyStateBehavior="enable"
                 >
                   <div 
                     className="gba:flex gba:items-center gba:justify-center gba:h-6 gba:w-6 gba:cursor-pointer gba:rounded gba:hover:bg-gray-100 gba:transition-colors gba:flex-shrink-0"

@@ -13,6 +13,11 @@ export interface InvestmentRef {
   initialInvestmentAmount?: number;
   totalInvestmentAmount?: number;
   investmentMarketValue?: number;
+  investmentRole?: Array<{
+    id: string;
+    displayOrder?: number;
+    investmentRole?: CatalogEntry;
+  }>;
 }
 
 // Forward declarations for reference types to avoid circular dependencies
@@ -82,6 +87,14 @@ export interface InvestmentLeadRef {
   code: string;
   firstName?: string;
   lastName?: string;
+}
+
+export interface InvestmentRoleRef {
+  id: string;
+  displayOrder?: number;
+  investmentRole?: CatalogEntry;
+  isDeleted?: boolean;
+  version?: number;
 }
 
 // =====================================================

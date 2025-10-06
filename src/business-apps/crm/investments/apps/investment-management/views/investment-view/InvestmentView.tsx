@@ -6,6 +6,9 @@ import EquityInvestmentsList from "./components/EquityInvestmentsList";
 import RealEstateInvestmentsList from "./components/RealEstateInvestmentsList";
 import LiquidFundInvestmentsList from "./components/LiquidFundInvestmentsList";
 import InvestmentStatistics from "./components/InvestmentStatistics";
+import EquityInvestmentStatistics from "./components/EquityInvestmentStatistics";
+import LiquidFundInvestmentStatistics from "./components/LiquidFundInvestmentStatistics";
+import RealEstateInvestmentStatistics from "./components/RealEstateInvestmentStatistics";
 
 
 export interface InvestmentViewProps extends BusinessAppContextProps {
@@ -53,9 +56,12 @@ export const InvestmentView: React.FC<InvestmentViewProps> = (context) => {
         </div>
       </div>
 
-      {/* Statistics */}
+      {/* Statistics - Render different KPIs based on active tab */}
       <div className="gba:mb-6">
-        <InvestmentStatistics {...context} />
+        {activeTab === "overview" && <InvestmentStatistics {...context} />}
+        {activeTab === "equity" && <EquityInvestmentStatistics {...context} />}
+        {activeTab === "liquid-funds" && <LiquidFundInvestmentStatistics {...context} />}
+        {activeTab === "real-estate" && <RealEstateInvestmentStatistics {...context} />}
       </div>
 
       {/* Tabs */}

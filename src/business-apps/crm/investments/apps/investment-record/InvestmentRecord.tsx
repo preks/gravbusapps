@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { RecordLayout, Spinner } from '@newwork/nw-design-system';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
-import { useGetInvestmentById, useGetInvestmentDocumentsByInvestmentId } from '@/common/data/investment';
+import { useGetInvestmentById } from '@/common/data/investment';
 import { useGetInvestmentCatalogData } from '@/business-apps/crm/investments/forms/investment-form/queries/InvestmentCatalogQueries';
 import { AiActions, AiAction } from '@/common/components/common-relations/record-sections/header-section/ai-actions';
 import { AppActionButton } from '@/components/app-action-button/AppActionButton';
@@ -23,14 +23,17 @@ interface InvestmentRecordProps extends BusinessAppContextProps {}
 
 const InvestmentRecord: React.FC<InvestmentRecordProps> = (props) => {
   const [investmentId, setInvestmentId] = useState<string | null>(null);
-  const getInitialTab = () => {
+  const ALLOWED_TABS = ['home', 'overview', 'documents', 'reports'] as const;
+  type TabKey = (typeof ALLOWED_TABS)[number];
+  
+  const getInitialTab = (): TabKey => {
     if (typeof window === 'undefined') return 'home';
     const params = new URLSearchParams(window.location.search);
-    return params.get('tab') || 'home';
+    const tab = params.get('tab') || 'home';
+    return (ALLOWED_TABS as readonly string[]).includes(tab) ? (tab as TabKey) : 'home';
   };
-  const [activeTab, setActiveTab] = useState<string>(getInitialTab);
+  const [activeTab, setActiveTab] = useState<TabKey>(getInitialTab);
   const [investmentData, setInvestmentData] = useState<any>(null);
-  const [documents, setDocuments] = useState<any[]>([]);
   const [catalogData, setCatalogData] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -122,7 +125,6 @@ const InvestmentRecord: React.FC<InvestmentRecordProps> = (props) => {
   
   // Central hooks for data fetching
   const { fetchInvestmentById } = useGetInvestmentById(props);
-  const { fetchInvestmentDocumentsByInvestmentId } = useGetInvestmentDocumentsByInvestmentId(props);
   const { fetchInvestmentCatalogData } = useGetInvestmentCatalogData(props);
 
   // Get investmentId from URL
@@ -151,7 +153,7 @@ const InvestmentRecord: React.FC<InvestmentRecordProps> = (props) => {
     }
   }, [props.accessToken, fetchInvestmentCatalogData]);
 
-  // Load investment and document data
+  // Load investment data
   const loadData = useCallback(async () => {
     if (!investmentId || !props.accessToken) {
       setIsLoading(false);
@@ -162,10 +164,7 @@ const InvestmentRecord: React.FC<InvestmentRecordProps> = (props) => {
     setError(null);
     
     try {
-      const [investmentResult, documentsResult] = await Promise.all([
-        fetchInvestmentById(investmentId),
-        fetchInvestmentDocumentsByInvestmentId(investmentId)
-      ]);
+      const investmentResult = await fetchInvestmentById(investmentId);
       
       if (!investmentResult.investment) {
         setError(`No investment found for ID: ${investmentId}`);
@@ -173,13 +172,12 @@ const InvestmentRecord: React.FC<InvestmentRecordProps> = (props) => {
       }
 
       setInvestmentData(investmentResult.investment);
-      setDocuments(documentsResult || []);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Unknown error');
     } finally {
       setIsLoading(false);
     }
-  }, [investmentId, props.accessToken, fetchInvestmentById, fetchInvestmentDocumentsByInvestmentId]);
+  }, [investmentId, props.accessToken, fetchInvestmentById]);
 
   useEffect(() => {
     loadData();
@@ -194,7 +192,7 @@ const InvestmentRecord: React.FC<InvestmentRecordProps> = (props) => {
 
   // Determine investment type and type-specific data using dynamic approach
   const investmentType = useMemo(() => determineInvestmentType(investmentData), [investmentData, determineInvestmentType]);
-  const typeSpecificData = useMemo(() => extractTypeSpecificData(investmentData, documents), [investmentData, documents, extractTypeSpecificData]);
+  const typeSpecificData = useMemo(() => extractTypeSpecificData(investmentData, []), [investmentData, extractTypeSpecificData]);
 
   // Hook for tile fields and AI summary
   const { processedTiles } = useInvestmentTileFields(props, investmentData);
@@ -227,31 +225,41 @@ const InvestmentRecord: React.FC<InvestmentRecordProps> = (props) => {
     }
   }, []);
 
-  const updateUrlTab = useCallback((tab: string) => {
-    if (typeof window === 'undefined') return;
-    const url = new URL(window.location.href);
-    url.searchParams.set('tab', tab);
-    window.history.replaceState(null, '', url.toString());
-  }, []);
-
-  const setActiveTabAndUrl = useCallback((tab: string) => {
-    setActiveTab(tab);
-    updateUrlTab(tab);
-  }, [updateUrlTab]);
-
+  // Set default tab in URL on initial load
   useEffect(() => {
     if (typeof window === 'undefined') return;
     const params = new URLSearchParams(window.location.search);
     if (!params.get('tab')) {
-      updateUrlTab(activeTab);
+      params.set('tab', activeTab);
+      window.history.replaceState(null, '', `${window.location.pathname}?${params.toString()}`);
     }
-    const onPop = () => {
-      const next = new URLSearchParams(window.location.search).get('tab') || 'home';
-      setActiveTab(next);
+  }, []); // Only run once on mount
+
+  // Handle browser back/forward navigation
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const onPopState = () => {
+      const params = new URLSearchParams(window.location.search);
+      const tab = params.get('tab');
+      if ((ALLOWED_TABS as readonly string[]).includes(tab || '')) {
+        setActiveTab(tab as TabKey);
+      }
     };
-    window.addEventListener('popstate', onPop);
-    return () => window.removeEventListener('popstate', onPop);
-  }, [activeTab, updateUrlTab]);
+    window.addEventListener('popstate', onPopState);
+    return () => window.removeEventListener('popstate', onPopState);
+  }, []);
+
+  // Tab change handler that updates URL without navigation
+  const handleTabChange = useCallback((value: string) => {
+    if ((ALLOWED_TABS as readonly string[]).includes(value)) {
+      setActiveTab(value as TabKey);
+      if (typeof window === 'undefined') return;
+      const params = new URLSearchParams(window.location.search);
+      params.set('tab', value);
+      params.delete('subView'); // Clear subView when changing main tab
+      window.history.replaceState(null, '', `${window.location.pathname}?${params.toString()}`);
+    }
+  }, []);
 
   // Loading state
   if (isLoading) {
@@ -288,7 +296,7 @@ const InvestmentRecord: React.FC<InvestmentRecordProps> = (props) => {
   const investment = investmentData;
 
   // Header configuration using centralized utilities
-  const headerMeta = createHeaderMeta(investment, investmentType, typeSpecificData);
+  const headerMeta = createHeaderMeta(investment, investmentType, typeSpecificData, props.accessToken);
 
   const actions: AiAction[] = [
     {
@@ -330,13 +338,12 @@ const InvestmentRecord: React.FC<InvestmentRecordProps> = (props) => {
   // Tab configuration using centralized utilities
   const subViewsConfig = createInvestmentTabsConfig(
     activeTab,
-    setActiveTabAndUrl,
+    handleTabChange,
     investmentId || '',
     investment,
     investmentType,
     typeSpecificData,
     processedTiles,
-    documents,
     loadData,
     props,
     catalogData

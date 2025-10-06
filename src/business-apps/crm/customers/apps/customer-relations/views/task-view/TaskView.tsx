@@ -12,7 +12,7 @@ import { TaskTable } from './components/TaskTable';
 import { TaskDetails } from './components/TaskDetails';
 import TaskStatistics from './components/TaskStatistics';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
-import { Task } from './types/TaskTypes';
+import { Task } from '@/common/components/common-relations/detail-sheets/task-detail-sheet';
 import { AppAction } from '@/components/app-action/AppAction';
 import { FlowContextName } from '@/common/types/FlowRegistryTypes';
 import { PlusSquareIcon } from '@phosphor-icons/react';

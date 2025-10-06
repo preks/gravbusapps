@@ -169,7 +169,7 @@ const PlannedExitsMetrics: React.FC<PlannedExitsMetricsProps> = ({ context }) =>
       trend: {
         value: formatPercentageChange(metrics.countChange),
         positive: metrics.countChange < 0, // Fewer exits is positive from portfolio perspective
-        description: getTranslationFromI18nKeyAndLabel("vs_previous_period", "vs previous period")
+        description: getTranslationFromI18nKeyAndLabel("vs_last_30_days", "vs last 30 days")
       }
     },
     {
@@ -184,7 +184,7 @@ const PlannedExitsMetrics: React.FC<PlannedExitsMetricsProps> = ({ context }) =>
       trend: {
         value: formatPercentageChange(metrics.investmentValueChange),
         positive: metrics.investmentValueChange >= 0,
-        description: getTranslationFromI18nKeyAndLabel("vs_previous_period", "vs previous period")
+        description: getTranslationFromI18nKeyAndLabel("vs_last_30_days", "vs last 30 days")
       }
     },
     {
@@ -199,7 +199,7 @@ const PlannedExitsMetrics: React.FC<PlannedExitsMetricsProps> = ({ context }) =>
       trend: {
         value: formatPercentageChange(metrics.marketValueChange),
         positive: metrics.marketValueChange >= 0,
-        description: getTranslationFromI18nKeyAndLabel("vs_previous_period", "vs previous period")
+        description: getTranslationFromI18nKeyAndLabel("vs_last_30_days", "vs last 30 days")
       }
     },
     {
@@ -215,7 +215,7 @@ const PlannedExitsMetrics: React.FC<PlannedExitsMetricsProps> = ({ context }) =>
       trend: {
         value: formatPercentageChange(metrics.performanceChange),
         positive: metrics.performanceChange >= 0,
-        description: getTranslationFromI18nKeyAndLabel("vs_previous_period", "vs previous period")
+        description: getTranslationFromI18nKeyAndLabel("vs_last_30_days", "vs last 30 days")
       }
     },
   ] : [];

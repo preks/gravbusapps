@@ -110,11 +110,16 @@ const AccountFormComponent: React.FC = () => {
       // Determine change mode based on whether we have an ID
       const changeMode = isUpdate ? "UPDATE" : "INSERT";
 
+      // ✅ FIXED: Extract contact IDs from contactIds (handle both string[] and object[] formats)
+      const extractedContactIds = (formValues.contactIds || []).map(contact => 
+        typeof contact === 'object' ? contact.id : contact
+      );
+
       // ✅ FIXED: Create clean payload structure to prevent context field pollution
       const cleanPayload = {
         investmentAccount: investmentAccountPayload,
         changeMode: changeMode,
-        contactIds: formValues.contactIds || [], // ✅ NEW: Array of contact IDs for contact selection
+        contactIds: extractedContactIds, // ✅ UPDATED: Array of contact IDs (extracted from objects if needed)
       };
 
 

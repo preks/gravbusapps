@@ -123,7 +123,8 @@ const ActivitySection: React.FC<ActivitySectionProps> = (props) => {
                   activityType: activity.activityType?.value
                 }}
                 prefixDataTestId={`${activityEntityActionProps.prefixDataTestId}-${activity.id}`}
-                emptyStateBehavior={activityEntityActionProps.emptyStateBehavior}
+                deferMainContextRequestsUntilClick={true}
+                emptyStateBehavior="enable"
               >
                 <div 
                   className="gba:flex gba:items-center gba:justify-center gba:h-6 gba:w-6 gba:cursor-pointer gba:rounded gba:hover:bg-muted gba:transition-colors"

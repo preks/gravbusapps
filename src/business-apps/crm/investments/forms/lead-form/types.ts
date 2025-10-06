@@ -16,7 +16,6 @@ export interface LeadFormValues {
   rating: string;
 
   // Contact Information
-  salutation: string;
   academicTitle?: string; // ✅ ADDED: Academic title (PhD, MBA, etc.)
   firstName: string;
   lastName: string;
@@ -24,6 +23,10 @@ export interface LeadFormValues {
   phone: string;
   email: string;
   sensitive?: string | boolean; // ✅ ADDED: Sensitive data flag
+
+  // Social Media Information
+  linkedinUrl: string; // ✅ Available in InvestmentLead via communication channels
+  xingUrl: string; // ✅ Available in InvestmentLead via communication channels
 
   // Company Information
   legalForm: string;
@@ -127,16 +130,6 @@ export interface LeadContextState {
   regions: SelectOption[]; // ✅ ADDED: Regions catalog
 
   // ✅ ADDED: Contact information catalogs with searchable functionality
-  salutations: SelectOption[];
-  salutationsLoading: boolean;
-  salutationsError: string | null;
-  salutationsHasMore: boolean;
-  salutationsNeedsMoreData: boolean;
-  salutationsDisplayCount: number;
-  salutationsTotalFetched: number;
-  searchSalutations: (search: string) => void;
-  loadMoreSalutations: () => void;
-  showMoreSalutations: () => void;
 
   academicTitles: SelectOption[];
   academicTitlesLoading: boolean;

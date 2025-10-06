@@ -42,13 +42,20 @@ export const useInvestmentLeadData = ({
         id: lead.id,
         version: lead.version,
 
-        // Contact Information - ✅ ADDED: salutation and academic title
-        salutation: lead.salutationRef || lead.salutation?.id || "",
+        // Contact Information - ✅ ADDED: academic title
         firstName: lead.firstName || "",
         lastName: lead.lastName || "",
         email: lead.email || "",
         phone: lead.phoneNumber || "",
         jobPosition: lead.position || "",
+
+        // Social Media Information - Extract from communication channels
+        linkedinUrl: lead.communicationChannels?.find(
+          channel => channel.communicationChannelRef === "CommunicationChannel:v1:LinkedIn"
+        )?.value || "",
+        xingUrl: lead.communicationChannels?.find(
+          channel => channel.communicationChannelRef === "CommunicationChannel:v1:Xing"
+        )?.value || "",
 
         // Company Information
         company: lead.companyName || "",

@@ -5,7 +5,8 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle, DataDisplay, DataTable, B
 
 import { useTaskData } from './hooks/useTaskData';
 import { useTaskStatistics } from './hooks/useTaskStatistics';
-import { TaskDetails, TaskStatistics } from './components';
+import { TaskStatistics } from './components';
+import { TaskDetailSheet } from '@/common/components/common-relations/detail-sheets/task-detail-sheet';
 import { createTaskColumns, createTaskSortableColumns } from './config/taskColumns';
 import { taskFilterConfig } from './config/taskFilters';
 import { useTaskFilters } from './hooks/useTaskFilters';
@@ -13,9 +14,11 @@ import { AppActionMenu } from '@/components/app-action-menu/AppActionMenu';
 import { AppAction } from '@/components/app-action/AppAction';
 import { FlowContextName } from '@/common/types/FlowRegistryTypes';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
-import { Task } from './types/TaskTypes';
+import { Task } from '@/common/components/common-relations/detail-sheets/task-detail-sheet';
+import type { TaskReference } from '@/common/components/common-relations/detail-sheets/task-detail-sheet';
 import { PlusIcon } from '@phosphor-icons/react';
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
+import { buildPlatformUrl } from '@/common/utils/navigationUtils';
 
 // Filter configuration types
 export interface FilterOption {
@@ -37,6 +40,24 @@ export const TaskManagement: React.FC<TaskManagementProps> = (props: TaskManagem
   // Section state
   const [currentSection, setCurrentSection] = useState('my');
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
+
+  // Build reference URLs for IRM context
+  const buildReferenceUrl = (reference: TaskReference): string => {
+    switch (reference.type) {
+      case 'lead': 
+        return buildPlatformUrl('/platform/irm/lead-record', { leadId: reference.id });
+      case 'account': 
+        return buildPlatformUrl('/platform/irm/account-record', { accountId: reference.id });
+      case 'contact': 
+        return buildPlatformUrl('/platform/irm/contact-record', { contactId: reference.id });
+      case 'opportunity': 
+        return buildPlatformUrl('/platform/irm/opportunity-record', { opportunityId: reference.id });
+      case 'investment':
+        return buildPlatformUrl('/platform/irm/investment-record', { investmentId: reference.id });
+      default: 
+        return '';
+    }
+  };
 
   // Get dynamic filter data
   const { types, statuses, priorities } = useTaskFilters({ accessToken, userInfo });
@@ -102,6 +123,13 @@ export const TaskManagement: React.FC<TaskManagementProps> = (props: TaskManagem
   // Get current section data
   const current = currentSection === 'my' ? myTasks : teamTasks;
 
+  // Memoize filtered columns to avoid duplication and unnecessary recalculations
+  const filteredColumns = useMemo(() => {
+    return createTaskColumns().filter(
+      col => currentSection === 'my' ? col.id !== 'assignedTo' : true
+    );
+  }, [currentSection]);
+
   // Statistics hook - truly decoupled from table data and sections
   const {
     myTasksStatistics,
@@ -140,8 +168,9 @@ export const TaskManagement: React.FC<TaskManagementProps> = (props: TaskManagem
         // Check for successful completion from different event structures
         if (event.detail?.resolution === 'success') {
           console.log("✅ Success resolution detected, refreshing task data");
-          // Refresh both task data and statistics
-          current.refetch?.();
+          // Refresh BOTH tabs since a task update could affect either/both
+          myTasks.refetch?.();
+          teamTasks.refetch?.();
           refetchStatistics();
           return;
         }
@@ -154,7 +183,9 @@ export const TaskManagement: React.FC<TaskManagementProps> = (props: TaskManagem
           response?.task
         ) {
           console.log("✅ Success in response or task detected, refreshing data");
-          current.refetch?.();
+          // Refresh BOTH tabs since a task update could affect either/both
+          myTasks.refetch?.();
+          teamTasks.refetch?.();
           refetchStatistics();
           return;
         }
@@ -165,7 +196,9 @@ export const TaskManagement: React.FC<TaskManagementProps> = (props: TaskManagem
           event.detail?.payload
         ) {
           console.log("✅ Continue event with payload detected, refreshing task data");
-          current.refetch?.();
+          // Refresh BOTH tabs since a task update could affect either/both
+          myTasks.refetch?.();
+          teamTasks.refetch?.();
           refetchStatistics();
         }
       } catch (err) {
@@ -195,7 +228,7 @@ export const TaskManagement: React.FC<TaskManagementProps> = (props: TaskManagem
         window.removeEventListener(eventName, handleProcessCompletion as EventListener);
       });
     };
-  }, [refetchStatistics]);
+  }, [myTasks.refetch, teamTasks.refetch, refetchStatistics]);
 
   return (
     <div className="gba:p-6" data-testid="task-management-content">
@@ -284,7 +317,7 @@ export const TaskManagement: React.FC<TaskManagementProps> = (props: TaskManagem
             onSortingChange={current.setSorting}
             
             // Column visibility
-            availableColumns={createTaskColumns().map(col => ({
+            availableColumns={filteredColumns.map(col => ({
               id: col.id!,
               label: col.header as string
             }))}
@@ -316,7 +349,7 @@ export const TaskManagement: React.FC<TaskManagementProps> = (props: TaskManagem
         <DataTable<Task>
           // Data
           data={current.data}
-          columns={createTaskColumns().filter(col => 
+          columns={filteredColumns.filter(col => 
             current.visibleColumns.includes(col.id!)
           )}
           loading={current.loading}
@@ -345,29 +378,58 @@ export const TaskManagement: React.FC<TaskManagementProps> = (props: TaskManagem
           emptyMessage="No tasks found"
           
               // Row Actions - Using AppActionMenu for flow integration
-              actions={(row) => (
-                <AppActionMenu
-                  data-testid={`task-actions-menu-${row.original.id}`}
-                  contextsArray={[FlowContextName.investmentTaskEntity]}
-                  externalContextData={{ taskId: row.original.id }}
-                  prefixDataTestId="task-actions"
-                  accessToken={accessToken}
-                  emptyStateBehavior="enable"
-                  deferMainContextRequestsUntilClick
-                >
-                  <Button
-                    size="icon"
-                    variant="ghost"
-                    aria-label="Task actions"
-                    data-testid={`task-actions-trigger-${row.original.id}`}
-                    onClick={(e) => e.stopPropagation()}
+              actions={(row) => {
+                // Build external context data with parent reference
+                const externalContextData: Record<string, string> = { taskId: row.original.id };
+                
+                // Add parent reference ID based on task reference type
+                if (row.original.reference) {
+                  const refType = row.original.reference.type;
+                  const refId = row.original.reference.id;
+                  
+                  switch (refType) {
+                    case 'investment':
+                      externalContextData.investmentId = refId;
+                      break;
+                    case 'lead':
+                      externalContextData.leadId = refId;
+                      break;
+                    case 'account':
+                      externalContextData.accountId = refId;
+                      break;
+                    case 'contact':
+                      externalContextData.contactId = refId;
+                      break;
+                    case 'opportunity':
+                      externalContextData.opportunityId = refId;
+                      break;
+                  }
+                }
+
+                return (
+                  <AppActionMenu
+                    data-testid={`task-actions-menu-${row.original.id}`}
+                    contextsArray={[FlowContextName.investmentTaskEntity]}
+                    externalContextData={externalContextData}
+                    prefixDataTestId="task-actions"
+                    accessToken={accessToken}
+                    emptyStateBehavior="enable"
+                    deferMainContextRequestsUntilClick
                   >
-                    <svg className="gba:w-4 gba:h-4 gba:text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z" />
-                    </svg>
-                  </Button>
-                </AppActionMenu>
-              )}
+                    <Button
+                      size="icon"
+                      variant="ghost"
+                      aria-label="Task actions"
+                      data-testid={`task-actions-trigger-${row.original.id}`}
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      <svg className="gba:w-4 gba:h-4 gba:text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z" />
+                      </svg>
+                    </Button>
+                  </AppActionMenu>
+                );
+              }}
           
           // Row Click
           onRowClick={(task) => handleSelectTask(task)}
@@ -382,7 +444,7 @@ export const TaskManagement: React.FC<TaskManagementProps> = (props: TaskManagem
         }}
         title="Task Details"
       >
-        <SheetContent className="gba:w-[450px] gba:sm:w-[600px] gba:max-w-[90vw] gba:p-0 gba:flex gba:flex-col">
+        <SheetContent className="gba:!w-[500px] gba:sm:!w-[500px] gba:!max-w-[90vw] gba:p-0 gba:flex gba:flex-col">
           <SheetHeader className="gba:px-6 gba:py-6 gba:border-b gba:border-border gba:shrink-0">
             <SheetTitle className="gba:text-xl gba:font-semibold gba:text-left">
               {selectedTask?.name || getTranslationFromI18nKeyAndLabel('investment.tasks.taskDetails', 'Task Details')}
@@ -390,7 +452,7 @@ export const TaskManagement: React.FC<TaskManagementProps> = (props: TaskManagem
           </SheetHeader>
               <div className="gba:flex-1 gba:overflow-hidden gba:px-6">
                 {selectedTask ? (
-                  <TaskDetails task={selectedTask} accessToken={accessToken} />
+                  <TaskDetailSheet task={selectedTask} buildReferenceUrl={buildReferenceUrl} data-testid="task-detail-sheet" />
                 ) : (
                   <div className="gba:p-4 gba:text-center gba:text-muted-foreground">
                     No task selected

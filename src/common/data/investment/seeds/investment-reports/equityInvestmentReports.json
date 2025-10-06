@@ -1,0 +1,650 @@
+[
+  {
+    "investmentReportRequest": {
+      "investmentReport": {
+        "date": "2024-10-01T00:00:00.000Z",
+        "scope": "QUARTERLY",
+        "investmentGroupRef": "InvestmentGroup:v1:EQUITY",
+        "investmentTypeRef": "InvestmentType:v1:DISRUPTIVE_TECHNOLOGY",
+        "investmentStakeTypeRef": "InvestmentStakeType:v1:MINORITY",
+        "investmentPhaseRef": "InvestmentPhase:v1:ACTIVE",
+        "investmentStatusRef": "InvestmentStatus:v1:ACTIVE",
+        "acquisitionDate": "2023-01-15T00:00:00.000Z",
+        "totalInvestmentAmount": 100000,
+        "stakePercentage": 15,
+        "investmentMarketValue": 110000,
+        "currencyRef": "Currency:v1:EUR",
+        "investment": "5e4bcd54-2395-4c2d-868f-9cb2fbb0ec1e"
+      },
+      "equityInvestmentReport": {
+        "date": "2024-10-01T00:00:00.000Z",
+        "scope": "QUARTERLY",
+        "marketValue": 110000,
+        "turnoverAmount": 165000,
+        "ebitdaAmount": 55000,
+        "equityInvestment": "6996c3d6-952b-4071-9f5e-552f96c331ec"
+      }
+    }
+  },
+  {
+    "investmentReportRequest": {
+      "investmentReport": {
+        "date": "2024-07-01T00:00:00.000Z",
+        "scope": "QUARTERLY",
+        "investmentGroupRef": "InvestmentGroup:v1:EQUITY",
+        "investmentTypeRef": "InvestmentType:v1:DISRUPTIVE_TECHNOLOGY",
+        "investmentStakeTypeRef": "InvestmentStakeType:v1:MINORITY",
+        "investmentPhaseRef": "InvestmentPhase:v1:ACTIVE",
+        "investmentStatusRef": "InvestmentStatus:v1:ACTIVE",
+        "acquisitionDate": "2023-01-15T00:00:00.000Z",
+        "totalInvestmentAmount": 100000,
+        "stakePercentage": 15,
+        "investmentMarketValue": 107000,
+        "currencyRef": "Currency:v1:EUR",
+        "investment": "5e4bcd54-2395-4c2d-868f-9cb2fbb0ec1e"
+      },
+      "equityInvestmentReport": {
+        "date": "2024-07-01T00:00:00.000Z",
+        "scope": "QUARTERLY",
+        "marketValue": 107000,
+        "turnoverAmount": 160000,
+        "ebitdaAmount": 53000,
+        "equityInvestment": "6996c3d6-952b-4071-9f5e-552f96c331ec"
+      }
+    }
+  },
+  {
+    "investmentReportRequest": {
+      "investmentReport": {
+        "date": "2024-04-01T00:00:00.000Z",
+        "scope": "QUARTERLY",
+        "investmentGroupRef": "InvestmentGroup:v1:EQUITY",
+        "investmentTypeRef": "InvestmentType:v1:DISRUPTIVE_TECHNOLOGY",
+        "investmentStakeTypeRef": "InvestmentStakeType:v1:MINORITY",
+        "investmentPhaseRef": "InvestmentPhase:v1:ACTIVE",
+        "investmentStatusRef": "InvestmentStatus:v1:ACTIVE",
+        "acquisitionDate": "2023-01-15T00:00:00.000Z",
+        "totalInvestmentAmount": 100000,
+        "stakePercentage": 15,
+        "investmentMarketValue": 104000,
+        "currencyRef": "Currency:v1:EUR",
+        "investment": "5e4bcd54-2395-4c2d-868f-9cb2fbb0ec1e"
+      },
+      "equityInvestmentReport": {
+        "date": "2024-04-01T00:00:00.000Z",
+        "scope": "QUARTERLY",
+        "marketValue": 104000,
+        "turnoverAmount": 155000,
+        "ebitdaAmount": 51000,
+        "equityInvestment": "6996c3d6-952b-4071-9f5e-552f96c331ec"
+      }
+    }
+  },
+  {
+    "investmentReportRequest": {
+      "investmentReport": {
+        "date": "2024-01-01T00:00:00.000Z",
+        "scope": "QUARTERLY",
+        "investmentGroupRef": "InvestmentGroup:v1:EQUITY",
+        "investmentTypeRef": "InvestmentType:v1:DISRUPTIVE_TECHNOLOGY",
+        "investmentStakeTypeRef": "InvestmentStakeType:v1:MINORITY",
+        "investmentPhaseRef": "InvestmentPhase:v1:ACTIVE",
+        "investmentStatusRef": "InvestmentStatus:v1:ACTIVE",
+        "acquisitionDate": "2023-01-15T00:00:00.000Z",
+        "totalInvestmentAmount": 100000,
+        "stakePercentage": 15,
+        "investmentMarketValue": 100000,
+        "currencyRef": "Currency:v1:EUR",
+        "investment": "5e4bcd54-2395-4c2d-868f-9cb2fbb0ec1e"
+      },
+      "equityInvestmentReport": {
+        "date": "2024-01-01T00:00:00.000Z",
+        "scope": "QUARTERLY",
+        "marketValue": 100000,
+        "turnoverAmount": 150000,
+        "ebitdaAmount": 50000,
+        "equityInvestment": "6996c3d6-952b-4071-9f5e-552f96c331ec"
+      }
+    }
+  },
+  {
+    "investmentReportRequest": {
+      "investmentReport": {
+        "date": "2023-10-01T00:00:00.000Z",
+        "scope": "QUARTERLY",
+        "investmentGroupRef": "InvestmentGroup:v1:EQUITY",
+        "investmentTypeRef": "InvestmentType:v1:DISRUPTIVE_TECHNOLOGY",
+        "investmentStakeTypeRef": "InvestmentStakeType:v1:MINORITY",
+        "investmentPhaseRef": "InvestmentPhase:v1:ACTIVE",
+        "investmentStatusRef": "InvestmentStatus:v1:ACTIVE",
+        "acquisitionDate": "2023-01-15T00:00:00.000Z",
+        "totalInvestmentAmount": 100000,
+        "stakePercentage": 15,
+        "investmentMarketValue": 97000,
+        "currencyRef": "Currency:v1:EUR",
+        "investment": "5e4bcd54-2395-4c2d-868f-9cb2fbb0ec1e"
+      },
+      "equityInvestmentReport": {
+        "date": "2023-10-01T00:00:00.000Z",
+        "scope": "QUARTERLY",
+        "marketValue": 97000,
+        "turnoverAmount": 145000,
+        "ebitdaAmount": 48000,
+        "equityInvestment": "6996c3d6-952b-4071-9f5e-552f96c331ec"
+      }
+    }
+  },
+  {
+    "investmentReportRequest": {
+      "investmentReport": {
+        "date": "2023-07-01T00:00:00.000Z",
+        "scope": "QUARTERLY",
+        "investmentGroupRef": "InvestmentGroup:v1:EQUITY",
+        "investmentTypeRef": "InvestmentType:v1:DISRUPTIVE_TECHNOLOGY",
+        "investmentStakeTypeRef": "InvestmentStakeType:v1:MINORITY",
+        "investmentPhaseRef": "InvestmentPhase:v1:ACTIVE",
+        "investmentStatusRef": "InvestmentStatus:v1:ACTIVE",
+        "acquisitionDate": "2023-01-15T00:00:00.000Z",
+        "totalInvestmentAmount": 100000,
+        "stakePercentage": 15,
+        "investmentMarketValue": 95000,
+        "currencyRef": "Currency:v1:EUR",
+        "investment": "5e4bcd54-2395-4c2d-868f-9cb2fbb0ec1e"
+      },
+      "equityInvestmentReport": {
+        "date": "2023-07-01T00:00:00.000Z",
+        "scope": "QUARTERLY",
+        "marketValue": 95000,
+        "turnoverAmount": 142000,
+        "ebitdaAmount": 47000,
+        "equityInvestment": "6996c3d6-952b-4071-9f5e-552f96c331ec"
+      }
+    }
+  },
+  {
+    "investmentReportRequest": {
+      "investmentReport": {
+        "date": "2023-04-01T00:00:00.000Z",
+        "scope": "QUARTERLY",
+        "investmentGroupRef": "InvestmentGroup:v1:EQUITY",
+        "investmentTypeRef": "InvestmentType:v1:DISRUPTIVE_TECHNOLOGY",
+        "investmentStakeTypeRef": "InvestmentStakeType:v1:MINORITY",
+        "investmentPhaseRef": "InvestmentPhase:v1:ACTIVE",
+        "investmentStatusRef": "InvestmentStatus:v1:ACTIVE",
+        "acquisitionDate": "2023-01-15T00:00:00.000Z",
+        "totalInvestmentAmount": 100000,
+        "stakePercentage": 15,
+        "investmentMarketValue": 93000,
+        "currencyRef": "Currency:v1:EUR",
+        "investment": "5e4bcd54-2395-4c2d-868f-9cb2fbb0ec1e"
+      },
+      "equityInvestmentReport": {
+        "date": "2023-04-01T00:00:00.000Z",
+        "scope": "QUARTERLY",
+        "marketValue": 93000,
+        "turnoverAmount": 138000,
+        "ebitdaAmount": 46000,
+        "equityInvestment": "6996c3d6-952b-4071-9f5e-552f96c331ec"
+      }
+    }
+  },
+  {
+    "investmentReportRequest": {
+      "investmentReport": {
+        "date": "2023-01-01T00:00:00.000Z",
+        "scope": "QUARTERLY",
+        "investmentGroupRef": "InvestmentGroup:v1:EQUITY",
+        "investmentTypeRef": "InvestmentType:v1:DISRUPTIVE_TECHNOLOGY",
+        "investmentStakeTypeRef": "InvestmentStakeType:v1:MINORITY",
+        "investmentPhaseRef": "InvestmentPhase:v1:ACTIVE",
+        "investmentStatusRef": "InvestmentStatus:v1:ACTIVE",
+        "acquisitionDate": "2023-01-15T00:00:00.000Z",
+        "totalInvestmentAmount": 100000,
+        "stakePercentage": 15,
+        "investmentMarketValue": 90000,
+        "currencyRef": "Currency:v1:EUR",
+        "investment": "5e4bcd54-2395-4c2d-868f-9cb2fbb0ec1e"
+      },
+      "equityInvestmentReport": {
+        "date": "2023-01-01T00:00:00.000Z",
+        "scope": "QUARTERLY",
+        "marketValue": 90000,
+        "turnoverAmount": 135000,
+        "ebitdaAmount": 45000,
+        "equityInvestment": "6996c3d6-952b-4071-9f5e-552f96c331ec"
+      }
+    }
+  },
+  {
+    "investmentReportRequest": {
+      "investmentReport": {
+        "date": "2024-10-01T00:00:00.000Z",
+        "scope": "QUARTERLY",
+        "investmentGroupRef": "InvestmentGroup:v1:EQUITY",
+        "investmentTypeRef": "InvestmentType:v1:CO_INVESTMENTS",
+        "investmentStakeTypeRef": "InvestmentStakeType:v1:MAJORITY",
+        "investmentPhaseRef": "InvestmentPhase:v1:ACTIVE",
+        "investmentStatusRef": "InvestmentStatus:v1:ACTIVE",
+        "acquisitionDate": "2023-06-10T00:00:00.000Z",
+        "totalInvestmentAmount": 10000000,
+        "stakePercentage": 65,
+        "investmentMarketValue": 108000000,
+        "currencyRef": "Currency:v1:EUR",
+        "investment": "6bfedaa0-dc38-4825-9a6a-927516599a78"
+      },
+      "equityInvestmentReport": {
+        "date": "2024-10-01T00:00:00.000Z",
+        "scope": "QUARTERLY",
+        "marketValue": 108000000,
+        "turnoverAmount": 1080000,
+        "ebitdaAmount": 540000,
+        "equityInvestment": "25fc9039-c378-4f9e-8f87-c4272e886e23"
+      }
+    }
+  },
+  {
+    "investmentReportRequest": {
+      "investmentReport": {
+        "date": "2024-07-01T00:00:00.000Z",
+        "scope": "QUARTERLY",
+        "investmentGroupRef": "InvestmentGroup:v1:EQUITY",
+        "investmentTypeRef": "InvestmentType:v1:CO_INVESTMENTS",
+        "investmentStakeTypeRef": "InvestmentStakeType:v1:MAJORITY",
+        "investmentPhaseRef": "InvestmentPhase:v1:ACTIVE",
+        "investmentStatusRef": "InvestmentStatus:v1:ACTIVE",
+        "acquisitionDate": "2023-06-10T00:00:00.000Z",
+        "totalInvestmentAmount": 10000000,
+        "stakePercentage": 65,
+        "investmentMarketValue": 105000000,
+        "currencyRef": "Currency:v1:EUR",
+        "investment": "6bfedaa0-dc38-4825-9a6a-927516599a78"
+      },
+      "equityInvestmentReport": {
+        "date": "2024-07-01T00:00:00.000Z",
+        "scope": "QUARTERLY",
+        "marketValue": 105000000,
+        "turnoverAmount": 1050000,
+        "ebitdaAmount": 525000,
+        "equityInvestment": "25fc9039-c378-4f9e-8f87-c4272e886e23"
+      }
+    }
+  },
+  {
+    "investmentReportRequest": {
+      "investmentReport": {
+        "date": "2024-04-01T00:00:00.000Z",
+        "scope": "QUARTERLY",
+        "investmentGroupRef": "InvestmentGroup:v1:EQUITY",
+        "investmentTypeRef": "InvestmentType:v1:CO_INVESTMENTS",
+        "investmentStakeTypeRef": "InvestmentStakeType:v1:MAJORITY",
+        "investmentPhaseRef": "InvestmentPhase:v1:ACTIVE",
+        "investmentStatusRef": "InvestmentStatus:v1:ACTIVE",
+        "acquisitionDate": "2023-06-10T00:00:00.000Z",
+        "totalInvestmentAmount": 10000000,
+        "stakePercentage": 65,
+        "investmentMarketValue": 103000000,
+        "currencyRef": "Currency:v1:EUR",
+        "investment": "6bfedaa0-dc38-4825-9a6a-927516599a78"
+      },
+      "equityInvestmentReport": {
+        "date": "2024-04-01T00:00:00.000Z",
+        "scope": "QUARTERLY",
+        "marketValue": 103000000,
+        "turnoverAmount": 1030000,
+        "ebitdaAmount": 515000,
+        "equityInvestment": "25fc9039-c378-4f9e-8f87-c4272e886e23"
+      }
+    }
+  },
+  {
+    "investmentReportRequest": {
+      "investmentReport": {
+        "date": "2024-01-01T00:00:00.000Z",
+        "scope": "QUARTERLY",
+        "investmentGroupRef": "InvestmentGroup:v1:EQUITY",
+        "investmentTypeRef": "InvestmentType:v1:CO_INVESTMENTS",
+        "investmentStakeTypeRef": "InvestmentStakeType:v1:MAJORITY",
+        "investmentPhaseRef": "InvestmentPhase:v1:ACTIVE",
+        "investmentStatusRef": "InvestmentStatus:v1:ACTIVE",
+        "acquisitionDate": "2023-06-10T00:00:00.000Z",
+        "totalInvestmentAmount": 10000000,
+        "stakePercentage": 65,
+        "investmentMarketValue": 100000000,
+        "currencyRef": "Currency:v1:EUR",
+        "investment": "6bfedaa0-dc38-4825-9a6a-927516599a78"
+      },
+      "equityInvestmentReport": {
+        "date": "2024-01-01T00:00:00.000Z",
+        "scope": "QUARTERLY",
+        "marketValue": 100000000,
+        "turnoverAmount": 1000000,
+        "ebitdaAmount": 500000,
+        "equityInvestment": "25fc9039-c378-4f9e-8f87-c4272e886e23"
+      }
+    }
+  },
+  {
+    "investmentReportRequest": {
+      "investmentReport": {
+        "date": "2023-10-01T00:00:00.000Z",
+        "scope": "QUARTERLY",
+        "investmentGroupRef": "InvestmentGroup:v1:EQUITY",
+        "investmentTypeRef": "InvestmentType:v1:CO_INVESTMENTS",
+        "investmentStakeTypeRef": "InvestmentStakeType:v1:MAJORITY",
+        "investmentPhaseRef": "InvestmentPhase:v1:ACTIVE",
+        "investmentStatusRef": "InvestmentStatus:v1:ACTIVE",
+        "acquisitionDate": "2023-06-10T00:00:00.000Z",
+        "totalInvestmentAmount": 10000000,
+        "stakePercentage": 65,
+        "investmentMarketValue": 97000000,
+        "currencyRef": "Currency:v1:EUR",
+        "investment": "6bfedaa0-dc38-4825-9a6a-927516599a78"
+      },
+      "equityInvestmentReport": {
+        "date": "2023-10-01T00:00:00.000Z",
+        "scope": "QUARTERLY",
+        "marketValue": 97000000,
+        "turnoverAmount": 970000,
+        "ebitdaAmount": 485000,
+        "equityInvestment": "25fc9039-c378-4f9e-8f87-c4272e886e23"
+      }
+    }
+  },
+  {
+    "investmentReportRequest": {
+      "investmentReport": {
+        "date": "2023-07-01T00:00:00.000Z",
+        "scope": "QUARTERLY",
+        "investmentGroupRef": "InvestmentGroup:v1:EQUITY",
+        "investmentTypeRef": "InvestmentType:v1:CO_INVESTMENTS",
+        "investmentStakeTypeRef": "InvestmentStakeType:v1:MAJORITY",
+        "investmentPhaseRef": "InvestmentPhase:v1:ACTIVE",
+        "investmentStatusRef": "InvestmentStatus:v1:ACTIVE",
+        "acquisitionDate": "2023-06-10T00:00:00.000Z",
+        "totalInvestmentAmount": 10000000,
+        "stakePercentage": 65,
+        "investmentMarketValue": 95000000,
+        "currencyRef": "Currency:v1:EUR",
+        "investment": "6bfedaa0-dc38-4825-9a6a-927516599a78"
+      },
+      "equityInvestmentReport": {
+        "date": "2023-07-01T00:00:00.000Z",
+        "scope": "QUARTERLY",
+        "marketValue": 95000000,
+        "turnoverAmount": 950000,
+        "ebitdaAmount": 475000,
+        "equityInvestment": "25fc9039-c378-4f9e-8f87-c4272e886e23"
+      }
+    }
+  },
+  {
+    "investmentReportRequest": {
+      "investmentReport": {
+        "date": "2023-04-01T00:00:00.000Z",
+        "scope": "QUARTERLY",
+        "investmentGroupRef": "InvestmentGroup:v1:EQUITY",
+        "investmentTypeRef": "InvestmentType:v1:CO_INVESTMENTS",
+        "investmentStakeTypeRef": "InvestmentStakeType:v1:MAJORITY",
+        "investmentPhaseRef": "InvestmentPhase:v1:ACTIVE",
+        "investmentStatusRef": "InvestmentStatus:v1:ACTIVE",
+        "acquisitionDate": "2023-06-10T00:00:00.000Z",
+        "totalInvestmentAmount": 10000000,
+        "stakePercentage": 65,
+        "investmentMarketValue": 93000000,
+        "currencyRef": "Currency:v1:EUR",
+        "investment": "6bfedaa0-dc38-4825-9a6a-927516599a78"
+      },
+      "equityInvestmentReport": {
+        "date": "2023-04-01T00:00:00.000Z",
+        "scope": "QUARTERLY",
+        "marketValue": 93000000,
+        "turnoverAmount": 930000,
+        "ebitdaAmount": 465000,
+        "equityInvestment": "25fc9039-c378-4f9e-8f87-c4272e886e23"
+      }
+    }
+  },
+  {
+    "investmentReportRequest": {
+      "investmentReport": {
+        "date": "2023-01-01T00:00:00.000Z",
+        "scope": "QUARTERLY",
+        "investmentGroupRef": "InvestmentGroup:v1:EQUITY",
+        "investmentTypeRef": "InvestmentType:v1:CO_INVESTMENTS",
+        "investmentStakeTypeRef": "InvestmentStakeType:v1:MAJORITY",
+        "investmentPhaseRef": "InvestmentPhase:v1:ACTIVE",
+        "investmentStatusRef": "InvestmentStatus:v1:ACTIVE",
+        "acquisitionDate": "2023-06-10T00:00:00.000Z",
+        "totalInvestmentAmount": 10000000,
+        "stakePercentage": 65,
+        "investmentMarketValue": 90000000,
+        "currencyRef": "Currency:v1:EUR",
+        "investment": "6bfedaa0-dc38-4825-9a6a-927516599a78"
+      },
+      "equityInvestmentReport": {
+        "date": "2023-01-01T00:00:00.000Z",
+        "scope": "QUARTERLY",
+        "marketValue": 90000000,
+        "turnoverAmount": 900000,
+        "ebitdaAmount": 450000,
+        "equityInvestment": "25fc9039-c378-4f9e-8f87-c4272e886e23"
+      }
+    }
+  },
+  {
+    "investmentReportRequest": {
+      "investmentReport": {
+        "date": "2024-10-01T00:00:00.000Z",
+        "scope": "QUARTERLY",
+        "investmentGroupRef": "InvestmentGroup:v1:EQUITY",
+        "investmentTypeRef": "InvestmentType:v1:CO_INVESTMENTS",
+        "investmentStakeTypeRef": "InvestmentStakeType:v1:MINORITY",
+        "investmentPhaseRef": "InvestmentPhase:v1:ACTIVE",
+        "investmentStatusRef": "InvestmentStatus:v1:ACTIVE",
+        "acquisitionDate": "2023-03-20T00:00:00.000Z",
+        "totalInvestmentAmount": 12000000,
+        "stakePercentage": 25,
+        "investmentMarketValue": 13000000,
+        "currencyRef": "Currency:v1:CHF",
+        "investment": "90e298a0-e19f-4244-84b6-3b8dfb83c746"
+      },
+      "equityInvestmentReport": {
+        "date": "2024-10-01T00:00:00.000Z",
+        "scope": "QUARTERLY",
+        "marketValue": 13000000,
+        "turnoverAmount": 1370000,
+        "ebitdaAmount": 291000,
+        "equityInvestment": "2460cabc-3e9e-4443-bbb9-67a7c5295408"
+      }
+    }
+  },
+  {
+    "investmentReportRequest": {
+      "investmentReport": {
+        "date": "2024-07-01T00:00:00.000Z",
+        "scope": "QUARTERLY",
+        "investmentGroupRef": "InvestmentGroup:v1:EQUITY",
+        "investmentTypeRef": "InvestmentType:v1:CO_INVESTMENTS",
+        "investmentStakeTypeRef": "InvestmentStakeType:v1:MINORITY",
+        "investmentPhaseRef": "InvestmentPhase:v1:ACTIVE",
+        "investmentStatusRef": "InvestmentStatus:v1:ACTIVE",
+        "acquisitionDate": "2023-03-20T00:00:00.000Z",
+        "totalInvestmentAmount": 12000000,
+        "stakePercentage": 25,
+        "investmentMarketValue": 12600000,
+        "currencyRef": "Currency:v1:CHF",
+        "investment": "90e298a0-e19f-4244-84b6-3b8dfb83c746"
+      },
+      "equityInvestmentReport": {
+        "date": "2024-07-01T00:00:00.000Z",
+        "scope": "QUARTERLY",
+        "marketValue": 12600000,
+        "turnoverAmount": 1320000,
+        "ebitdaAmount": 280000,
+        "equityInvestment": "2460cabc-3e9e-4443-bbb9-67a7c5295408"
+      }
+    }
+  },
+  {
+    "investmentReportRequest": {
+      "investmentReport": {
+        "date": "2024-04-01T00:00:00.000Z",
+        "scope": "QUARTERLY",
+        "investmentGroupRef": "InvestmentGroup:v1:EQUITY",
+        "investmentTypeRef": "InvestmentType:v1:CO_INVESTMENTS",
+        "investmentStakeTypeRef": "InvestmentStakeType:v1:MINORITY",
+        "investmentPhaseRef": "InvestmentPhase:v1:ACTIVE",
+        "investmentStatusRef": "InvestmentStatus:v1:ACTIVE",
+        "acquisitionDate": "2023-03-20T00:00:00.000Z",
+        "totalInvestmentAmount": 12000000,
+        "stakePercentage": 25,
+        "investmentMarketValue": 12300000,
+        "currencyRef": "Currency:v1:CHF",
+        "investment": "90e298a0-e19f-4244-84b6-3b8dfb83c746"
+      },
+      "equityInvestmentReport": {
+        "date": "2024-04-01T00:00:00.000Z",
+        "scope": "QUARTERLY",
+        "marketValue": 12300000,
+        "turnoverAmount": 1295000,
+        "ebitdaAmount": 275000,
+        "equityInvestment": "2460cabc-3e9e-4443-bbb9-67a7c5295408"
+      }
+    }
+  },
+  {
+    "investmentReportRequest": {
+      "investmentReport": {
+        "date": "2024-01-01T00:00:00.000Z",
+        "scope": "QUARTERLY",
+        "investmentGroupRef": "InvestmentGroup:v1:EQUITY",
+        "investmentTypeRef": "InvestmentType:v1:CO_INVESTMENTS",
+        "investmentStakeTypeRef": "InvestmentStakeType:v1:MINORITY",
+        "investmentPhaseRef": "InvestmentPhase:v1:ACTIVE",
+        "investmentStatusRef": "InvestmentStatus:v1:ACTIVE",
+        "acquisitionDate": "2023-03-20T00:00:00.000Z",
+        "totalInvestmentAmount": 12000000,
+        "stakePercentage": 25,
+        "investmentMarketValue": 12000000,
+        "currencyRef": "Currency:v1:CHF",
+        "investment": "90e298a0-e19f-4244-84b6-3b8dfb83c746"
+      },
+      "equityInvestmentReport": {
+        "date": "2024-01-01T00:00:00.000Z",
+        "scope": "QUARTERLY",
+        "marketValue": 12000000,
+        "turnoverAmount": 1270000,
+        "ebitdaAmount": 270000,
+        "equityInvestment": "2460cabc-3e9e-4443-bbb9-67a7c5295408"
+      }
+    }
+  },
+  {
+    "investmentReportRequest": {
+      "investmentReport": {
+        "date": "2023-10-01T00:00:00.000Z",
+        "scope": "QUARTERLY",
+        "investmentGroupRef": "InvestmentGroup:v1:EQUITY",
+        "investmentTypeRef": "InvestmentType:v1:CO_INVESTMENTS",
+        "investmentStakeTypeRef": "InvestmentStakeType:v1:MINORITY",
+        "investmentPhaseRef": "InvestmentPhase:v1:ACTIVE",
+        "investmentStatusRef": "InvestmentStatus:v1:ACTIVE",
+        "acquisitionDate": "2023-03-20T00:00:00.000Z",
+        "totalInvestmentAmount": 12000000,
+        "stakePercentage": 25,
+        "investmentMarketValue": 11700000,
+        "currencyRef": "Currency:v1:CHF",
+        "investment": "90e298a0-e19f-4244-84b6-3b8dfb83c746"
+      },
+      "equityInvestmentReport": {
+        "date": "2023-10-01T00:00:00.000Z",
+        "scope": "QUARTERLY",
+        "marketValue": 11700000,
+        "turnoverAmount": 1230000,
+        "ebitdaAmount": 260000,
+        "equityInvestment": "2460cabc-3e9e-4443-bbb9-67a7c5295408"
+      }
+    }
+  },
+  {
+    "investmentReportRequest": {
+      "investmentReport": {
+        "date": "2023-07-01T00:00:00.000Z",
+        "scope": "QUARTERLY",
+        "investmentGroupRef": "InvestmentGroup:v1:EQUITY",
+        "investmentTypeRef": "InvestmentType:v1:CO_INVESTMENTS",
+        "investmentStakeTypeRef": "InvestmentStakeType:v1:MINORITY",
+        "investmentPhaseRef": "InvestmentPhase:v1:ACTIVE",
+        "investmentStatusRef": "InvestmentStatus:v1:ACTIVE",
+        "acquisitionDate": "2023-03-20T00:00:00.000Z",
+        "totalInvestmentAmount": 12000000,
+        "stakePercentage": 25,
+        "investmentMarketValue": 11400000,
+        "currencyRef": "Currency:v1:CHF",
+        "investment": "90e298a0-e19f-4244-84b6-3b8dfb83c746"
+      },
+      "equityInvestmentReport": {
+        "date": "2023-07-01T00:00:00.000Z",
+        "scope": "QUARTERLY",
+        "marketValue": 11400000,
+        "turnoverAmount": 1200000,
+        "ebitdaAmount": 255000,
+        "equityInvestment": "2460cabc-3e9e-4443-bbb9-67a7c5295408"
+      }
+    }
+  },
+  {
+    "investmentReportRequest": {
+      "investmentReport": {
+        "date": "2023-04-01T00:00:00.000Z",
+        "scope": "QUARTERLY",
+        "investmentGroupRef": "InvestmentGroup:v1:EQUITY",
+        "investmentTypeRef": "InvestmentType:v1:CO_INVESTMENTS",
+        "investmentStakeTypeRef": "InvestmentStakeType:v1:MINORITY",
+        "investmentPhaseRef": "InvestmentPhase:v1:ACTIVE",
+        "investmentStatusRef": "InvestmentStatus:v1:ACTIVE",
+        "acquisitionDate": "2023-03-20T00:00:00.000Z",
+        "totalInvestmentAmount": 12000000,
+        "stakePercentage": 25,
+        "investmentMarketValue": 11100000,
+        "currencyRef": "Currency:v1:CHF",
+        "investment": "90e298a0-e19f-4244-84b6-3b8dfb83c746"
+      },
+      "equityInvestmentReport": {
+        "date": "2023-04-01T00:00:00.000Z",
+        "scope": "QUARTERLY",
+        "marketValue": 11100000,
+        "turnoverAmount": 1160000,
+        "ebitdaAmount": 246000,
+        "equityInvestment": "2460cabc-3e9e-4443-bbb9-67a7c5295408"
+      }
+    }
+  },
+  {
+    "investmentReportRequest": {
+      "investmentReport": {
+        "date": "2023-01-01T00:00:00.000Z",
+        "scope": "QUARTERLY",
+        "investmentGroupRef": "InvestmentGroup:v1:EQUITY",
+        "investmentTypeRef": "InvestmentType:v1:CO_INVESTMENTS",
+        "investmentStakeTypeRef": "InvestmentStakeType:v1:MINORITY",
+        "investmentPhaseRef": "InvestmentPhase:v1:ACTIVE",
+        "investmentStatusRef": "InvestmentStatus:v1:ACTIVE",
+        "acquisitionDate": "2023-03-20T00:00:00.000Z",
+        "totalInvestmentAmount": 12000000,
+        "stakePercentage": 25,
+        "investmentMarketValue": 10800000,
+        "currencyRef": "Currency:v1:CHF",
+        "investment": "90e298a0-e19f-4244-84b6-3b8dfb83c746"
+      },
+      "equityInvestmentReport": {
+        "date": "2023-01-01T00:00:00.000Z",
+        "scope": "QUARTERLY",
+        "marketValue": 10800000,
+        "turnoverAmount": 1140000,
+        "ebitdaAmount": 242000,
+        "equityInvestment": "2460cabc-3e9e-4443-bbb9-67a7c5295408"
+      }
+    }
+  }
+]
