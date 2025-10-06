@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useEffect } from 'react';
+import React, { useState, useCallback, useEffect, useRef } from 'react';
 import { Button, Alert, Spinner, Form, WizardForm, useWizard, type WizardStep } from '@newwork/nw-design-system';
 import { useForm, type Resolver, type UseFormReturn } from 'react-hook-form';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
@@ -159,9 +159,7 @@ const FormNavigation: React.FC<FormNavigationProps> = ({
             type="submit" 
             variant={submitButtonVariant}
             disabled={isLoading || isSubmitDisabled}
-            onClick={onSubmit}
           >
-            {isLoading ? <Spinner size="sm" className="gba:mr-2" /> : null}
             {submitButtonText || getTranslationFromI18nKeyAndLabel('process:button.submit', 'Submit')}
           </Button>
         )}
@@ -201,13 +199,20 @@ export const AppActionForm: React.FC<AppActionFormProps> = ({
 }) => {
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState<ProcessMessage | null>(null);
+  const isSubmittingRef = useRef(false);
 
   useEffect(() => {
     setMessage(null);
   }, [processType]);
 
   const handleSubmit = useCallback(async (values?: any) => {
+    // Prevent duplicate submissions using ref for synchronous check
+    if (isSubmittingRef.current) {
+      return;
+    }
+
     try {
+      isSubmittingRef.current = true;
       setLoading(true);
       setMessage(null);
       const dataForValidation = values ?? formData;
@@ -216,7 +221,8 @@ export const AppActionForm: React.FC<AppActionFormProps> = ({
         const errors = validateForm(dataForValidation);
         if (errors && errors.length > 0) {
           setMessage({ type: 'error', message: errors.join(', ') });
-          setLoading(false); // Stop loading on validation error
+          setLoading(false);
+          isSubmittingRef.current = false;
           return;
         }
       }
@@ -234,22 +240,50 @@ export const AppActionForm: React.FC<AppActionFormProps> = ({
 
       const result = await onSubmit(enhancedData);
       
-      // Development-only payload logging (final payload)
-      if (process.env.NODE_ENV !== 'production') {
-        console.log('[AppActionForm] Final payload (after transformation):', result);
-      }
+      // Create a promise that resolves when process completes OR after timeout
+      const waitForProcessCompletion = new Promise<void>((resolve) => {
+        const TIMEOUT = 10000;
+        const timeoutId = setTimeout(() => {
+          cleanup();
+          resolve();
+        }, TIMEOUT);
+
+        const handleProcessCompletion = (event: Event) => {
+          const customEvent = event as CustomEvent<{ resolution: 'success' | 'failure' }>;
+          
+          if (customEvent.detail?.resolution === 'success' || customEvent.detail?.resolution === 'failure') {
+            cleanup();
+            resolve();
+          }
+        };
+
+        const cleanup = () => {
+          clearTimeout(timeoutId);
+          window.removeEventListener('com.newwork.process.processCompletion', handleProcessCompletion);
+          window.removeEventListener('com.newwork.process.taskCompletion', handleProcessCompletion);
+        };
+
+        // Listen for process completion events
+        window.addEventListener('com.newwork.process.processCompletion', handleProcessCompletion);
+        window.addEventListener('com.newwork.process.taskCompletion', handleProcessCompletion);
+      });
       
-      // Success messages are no longer displayed in the form
-      // They should be handled by the calling component or shown via other means
+      // Dispatch the process event
       dispatchProcessContinueEvent(submitEventType, result);
+      
+      // Wait for the process to complete
+      await waitForProcessCompletion;
+      
       if (onSuccess) {
         onSuccess(result);
       }
     } catch (error) {
+      console.error('Submission error:', error);
       const errorMessage = error instanceof Error ? error.message : 'An unexpected error occurred';
       setMessage({ type: 'error', message: errorMessage });
     } finally {
       setLoading(false);
+      isSubmittingRef.current = false;
     }
   }, [processType, submitEventType, onSubmit, validateForm, onSuccess, formData, handlePreSubmit]);
 
@@ -280,8 +314,7 @@ export const AppActionForm: React.FC<AppActionFormProps> = ({
       onSubmit={undefined} // Will be handled by form onSubmit
       cancelButtonText={cancelButtonText}
       submitButtonText={submitButtonText || getSuccessMessage(processType).replace('Successfully ', '')}
-      isLoading={loading}
-      isSubmitDisabled={isSubmitDisabled}
+      isLoading={loading || form?.formState?.isSubmitting}
       submitButtonVariant={submitButtonVariant}
       dataTestId={dataTestId}
     />
@@ -305,8 +338,7 @@ export const AppActionForm: React.FC<AppActionFormProps> = ({
         onSubmit={undefined} // Will be handled by WizardForm onSubmit
         cancelButtonText={cancelButtonText}
         submitButtonText={submitButtonText || getSuccessMessage(processType).replace('Successfully ', '')}
-        isLoading={loading}
-        isSubmitDisabled={isSubmitDisabled}
+        isLoading={loading || form?.formState?.isSubmitting}
         submitButtonVariant={submitButtonVariant}
         dataTestId={dataTestId}
       />
