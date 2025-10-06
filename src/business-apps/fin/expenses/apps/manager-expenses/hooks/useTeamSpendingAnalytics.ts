@@ -445,50 +445,25 @@ export const useTeamSpendingAnalytics = (
   // Extract available currencies from raw data
   const availableCurrencies = useMemo(() => {
     if (!rawData) return [];
-    
+
     const currencySet = new Set<string>();
-    
-    // Collect from expense items
-    if (rawData.expenseItems) {
-      for (const item of rawData.expenseItems) {
-      if (item.currencyRef) {
-        // Extract currency code from Currency:v1:EUR format
-        const code = item.currencyRef.split(':').pop();
-        if (code) currencySet.add(code);
-      }
-      }
-    }
-    
-    // Collect from expense requests
-    if (rawData.expenseRequests) {
-      for (const request of rawData.expenseRequests) {
-        if (request.currencyRef) {
-          const code = request.currencyRef.split(':').pop();
-          if (code) currencySet.add(code);
-        }
-      }
-    }
-    
-    // Collect from expense plans
-    if (rawData.expensePlans) {
-      for (const plan of rawData.expensePlans) {
-        if (plan.currencyRef) {
-          const code = plan.currencyRef.split(':').pop();
-          if (code) currencySet.add(code);
-        }
-      }
-    }
-    
-    // Collect from advance payments
-    if (rawData.advancePayments) {
-      for (const payment of rawData.advancePayments) {
-        if (payment.currencyRef) {
-          const code = payment.currencyRef.split(':').pop();
-          if (code) currencySet.add(code);
-        }
-      }
-    }
-    
+
+    const addFromRef = (ref?: string) => {
+      if (!ref) return;
+      const code = ref.split(':').pop();
+      if (code) currencySet.add(code);
+    };
+
+    const collect = <T,>(list: T[] | undefined, getRef: (item: T) => string | undefined) => {
+      if (!Array.isArray(list)) return;
+      for (const item of list) addFromRef(getRef(item));
+    };
+
+    collect(rawData.expenseItems, (i) => i.currencyRef);
+    collect(rawData.expenseRequests, (r) => r.currencyRef);
+    collect(rawData.expensePlans, (p) => p.currencyRef);
+    collect(rawData.advancePayments, (p) => p.currencyRef);
+
     return Array.from(currencySet).sort((a, b) => a.localeCompare(b));
   }, [rawData]);
   
@@ -543,12 +518,12 @@ export const useTeamSpendingAnalytics = (
         // CUSTOM removed
       }
 
-      // Check if date is within range
-      if (startDate && !date.isAfter(startDate)) {
+      // Check if date is within range (inclusive)
+      if (startDate && date.isBefore(startDate)) {
         return false;
       }
 
-      if (endDate && !date.isBefore(endDate)) {
+      if (endDate && date.isAfter(endDate)) {
         return false;
       }
 
@@ -720,7 +695,7 @@ export const useTeamSpendingAnalytics = (
         if (positions.length > 0) {
           // Divide total amount equally among positions
           const amountPerPosition = (item.totalAmount || 0) / positions.length;
-          for (const position of positions as ExpensePosition[]) {
+          for (const position of positions) {
             const category = getCategoryDisplayName(position);
             addToCategory(categoryMap, category, amountPerPosition);
           }

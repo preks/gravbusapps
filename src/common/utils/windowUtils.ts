@@ -105,6 +105,9 @@ export function getTranslationFromI18nKeyAndLabel(
   defaultValue: string,
   translationVariables?: {},
 ) {
+  if (typeof window === 'undefined') {
+    return defaultValue;
+  }
   if (typeof window?.lowcoder?.i18n?.t !== "function") {
     return defaultValue;
   }

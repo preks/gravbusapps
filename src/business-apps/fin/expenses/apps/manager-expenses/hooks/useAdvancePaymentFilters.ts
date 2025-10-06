@@ -154,9 +154,9 @@ export const useAdvancePaymentFilters = ({
     }
 
     // Add currency filters from dynamic data
-    dynamicCurrencies.forEach((currency) => {
+    for (const currency of dynamicCurrencies) {
       map[currency] = currency;
-    });
+    }
 
     return map;
   }, [availableFilterStatuses, dynamicCurrencies]);
