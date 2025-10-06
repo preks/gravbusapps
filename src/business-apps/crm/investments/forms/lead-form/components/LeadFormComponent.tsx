@@ -32,6 +32,9 @@ const LeadFormComponent: React.FC = () => {
     searchEmployeePositions,
   } = useLeadFormContext();
 
+  // Local loading state for submission
+  const [isSubmitting, setIsSubmitting] = React.useState(false);
+
   // Check if all mandatory fields are filled
   const isFormValid =
     toStringOrUndefined(formValues.firstName) &&
@@ -41,8 +44,13 @@ const LeadFormComponent: React.FC = () => {
 
   // Handle form submission
   const handleSubmit = async () => {
+    // Prevent duplicate submissions
+    if (isLoading || isSubmitting) {
+      return;
+    }
+
+    setIsSubmitting(true);
     try {
-      await onSubmit(formValues);
       // Prepare comprehensive InvestmentLead payload following the API structure
       const leadPayload: any = {
         sourceApp: "IRM", // ✅ FIXED: Changed from CRM to IRM for Investment Relations Management
@@ -210,8 +218,39 @@ const LeadFormComponent: React.FC = () => {
 
       // Dispatch process continue event on successful submission
       dispatchProcessContinueEvent("pse_submit", payload);
+
+      // Wait for process completion event
+      await new Promise<void>((resolve) => {
+        const TIMEOUT = 10000;
+        const timeoutId = setTimeout(() => {
+          cleanup();
+          resolve();
+        }, TIMEOUT);
+
+        const handleProcessCompletion = (event: Event) => {
+          const customEvent = event as CustomEvent<{ resolution: 'success' | 'failure' }>;
+          if (
+            customEvent.detail?.resolution === 'success' ||
+            customEvent.detail?.resolution === 'failure'
+          ) {
+            cleanup();
+            resolve();
+          }
+        };
+
+        const cleanup = () => {
+          clearTimeout(timeoutId);
+          window.removeEventListener('com.newwork.process.processCompletion', handleProcessCompletion);
+          window.removeEventListener('com.newwork.process.taskCompletion', handleProcessCompletion);
+        };
+
+        window.addEventListener('com.newwork.process.processCompletion', handleProcessCompletion);
+        window.addEventListener('com.newwork.process.taskCompletion', handleProcessCompletion);
+      });
     } catch (err) {
       console.error("Error submitting lead form:", err);
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -284,17 +323,13 @@ const LeadFormComponent: React.FC = () => {
           </Button>
           <Button
             variant="default"
-            disabled={!isFormValid}
+            disabled={!isFormValid || isLoading || isSubmitting}
             className="gba:flex-1"
             size="lg"
             onClick={handleSubmit}
             data-testid={formatDataTestId(prefixDataTestId, "submit-button")}
           >
-            {isLoading
-              ? "Processing..."
-              : formValues.id
-              ? "Update Lead"
-              : "Create Lead"}
+            {formValues.id ? "Update Lead" : "Create Lead"}
           </Button>
         </div>
       </div>

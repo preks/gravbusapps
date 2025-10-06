@@ -802,6 +802,49 @@ export const LeadFormProvider: React.FC<LeadFormProviderProps> = ({
     setFormValuesState((prev) => ({ ...prev, ...updates }));
   }, []);
 
+  // Wrap onSubmit to handle loading state and wait for process completion
+  const handleSubmitWithLoading = useCallback(async (values: LeadFormValues) => {
+    setIsLoading(true);
+    setError(null);
+    
+    try {
+      // Call the original onSubmit
+      await onSubmit(values);
+      
+      // Wait for process completion event
+      await new Promise<void>((resolve) => {
+        const TIMEOUT = 10000;
+        const timeoutId = setTimeout(() => {
+          cleanup();
+          resolve();
+        }, TIMEOUT);
+
+        const handleProcessCompletion = (event: Event) => {
+          const customEvent = event as CustomEvent<{ resolution: 'success' | 'failure' }>;
+          
+          if (customEvent.detail?.resolution === 'success' || customEvent.detail?.resolution === 'failure') {
+            cleanup();
+            resolve();
+          }
+        };
+
+        const cleanup = () => {
+          clearTimeout(timeoutId);
+          window.removeEventListener('com.newwork.process.processCompletion', handleProcessCompletion);
+          window.removeEventListener('com.newwork.process.taskCompletion', handleProcessCompletion);
+        };
+
+        window.addEventListener('com.newwork.process.processCompletion', handleProcessCompletion);
+        window.addEventListener('com.newwork.process.taskCompletion', handleProcessCompletion);
+      });
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'An error occurred');
+      console.error('❌ Submission error:', err);
+    } finally {
+      setIsLoading(false);
+    }
+  }, [onSubmit]);
+
   // Clear investment type when investment group changes (but NOT during initial data load)
   useEffect(() => {
     if (previousInvestmentGroup.current !== formValues.investmentGroup) {
@@ -949,7 +992,7 @@ export const LeadFormProvider: React.FC<LeadFormProviderProps> = ({
     // Form state
     formValues,
     setFormValues,
-    onSubmit,
+    onSubmit: handleSubmitWithLoading,
     onCancel,
     accessToken: businessAppContext.accessToken,
 
