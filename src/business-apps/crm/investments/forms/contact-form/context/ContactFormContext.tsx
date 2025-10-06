@@ -266,7 +266,6 @@ export const ContactFormProvider: React.FC<ContactFormProviderProps> = ({
       setIsLoading(true);
       setError(null);
       try {
-        console.log('⏳ Contact form submission started');
         await onSubmit(values); // Call the original onSubmit
 
         // Wait for process completion event
