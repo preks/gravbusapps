@@ -1,18 +1,18 @@
 'use client'
 
-import React, { useState, useEffect, useCallback } from 'react'
-import dayjs from 'dayjs'
-import { Employee, EmployeePerformanceGoal } from '../../hooks/useEmployeeData'
-import { Card } from '@newwork/gravity-ui-catalog'
-import { Empty, Spin } from 'antd'
-import { useGraphqlClient } from '@/common/network/graphql/useGraphQLClient'
-import { employeePerformanceQuery } from '../../queries/performanceQueries'
-import { AppActionMenu } from '@/components/app-action-menu/AppActionMenu'
-import { FlowContextName } from '@/common/types/FlowRegistryTypes'
-import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
-import { UserInfoProps } from '../../../../../../../common/BusinessAppContext'
-import { PiPencilSimple } from 'react-icons/pi'
-import { Button } from '@newwork/nw-design-system'
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import dayjs from 'dayjs';
+import { Employee, EmployeePerformanceGoal } from '../../hooks/useEmployeeData';
+import { Card } from '@newwork/gravity-ui-catalog';
+import { Empty, Spin } from 'antd';
+import { useGraphqlClient } from '@/common/network/graphql/useGraphQLClient';
+import { employeePerformanceQuery } from '../../queries/performanceQueries';
+import { AppActionMenu } from '@/components/app-action-menu/AppActionMenu';
+import { FlowContextName } from '@/common/types/FlowRegistryTypes';
+import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
+import { UserInfoProps } from '../../../../../../../common/BusinessAppContext';
+import { PiPencilSimple } from 'react-icons/pi';
+import { Button } from '@newwork/nw-design-system';
 
 interface PerformanceTabProps {
   employee: Employee
@@ -41,11 +41,12 @@ const PerformanceTab: React.FC<PerformanceTabProps> = ({
   isSelfView,
   userInfo,
 }) => {
-  const [localPerformanceGoals, setLocalPerformanceGoals] = useState<ExtendedEmployeePerformanceGoal[]>([])
-  const [loading, setLoading] = useState<boolean>(false)
-  const [error, setError] = useState<string | null>(null)
-
-  // No longer need drawer state as we're showing edit buttons directly on cards
+  const [localPerformanceGoals, setLocalPerformanceGoals] = useState<
+    ExtendedEmployeePerformanceGoal[]
+  >([]);
+  const [loading, setLoading] = useState<boolean>(false);
+  const [error, setError] = useState<string | null>(null);
+  const supevisor = useMemo(() => employee.employeePosition?.supervisor?.id, [employee]);
 
   // Initialize GraphQL client
   const graphQLClient = useGraphqlClient(accessToken)
@@ -139,16 +140,28 @@ const PerformanceTab: React.FC<PerformanceTabProps> = ({
         return statusPriorityA - statusPriorityB;
       }
 
-      // Secondary sort: Due Date ascending (earliest first, no due date last)
+      // Secondary sort: Due Date (depends on status group)
       const dueDateA = a.dueDate ? dayjs(a.dueDate).valueOf() : Number.MAX_SAFE_INTEGER;
       const dueDateB = b.dueDate ? dayjs(b.dueDate).valueOf() : Number.MAX_SAFE_INTEGER;
 
-      if (dueDateA !== dueDateB) {
+      // Check if due dates are the same (within the same day)
+      const sameDueDate =
+        a.dueDate && b.dueDate && dayjs(a.dueDate).isSame(dayjs(b.dueDate), 'day');
+
+      if (!sameDueDate && dueDateA !== dueDateB) {
+        // For overdue goals: sort by due date DESCENDING (most overdue first)
+        if (statusPriorityA === 1) {
+          return dueDateB - dueDateA; // Most overdue (oldest due date) first
+        }
+        // For active and completed goals: sort by due date ASCENDING (earliest first)
         return dueDateA - dueDateB;
       }
 
       // Tertiary sort: Progress ascending (lowest progress first)
-      return (a.progressPercent || 0) - (b.progressPercent || 0);
+      const progressA = a.progressPercent || 0;
+      const progressB = b.progressPercent || 0;
+
+      return progressA - progressB;
     });
   };
 
@@ -283,36 +296,37 @@ const PerformanceTab: React.FC<PerformanceTabProps> = ({
                     </div>
 
                     {/* Edit button at the bottom right */}
-                    {isSelfView && goal.progressPercent < 100 && (
-                      <div className="gba:flex gba:justify-end gba:mt-4">
-                        <AppActionMenu
-                          data-testid={`employee-goal-edit-button-${goal.id}`}
-                          contextsArray={[FlowContextName.employeePerformanceGoal]}
-                          externalContextData={{
-                            employeeId: employee?.id,
-                            goalId: goal.id,
-                            title: goal.title,
-                            startDate: goal.startDate,
-                            dueDate: goal.dueDate,
-                            completionDate: goal.completionDate,
-                            progressPercent: goal.progressPercent,
-                            status: goal.status,
-                            version: goal.version,
-                          }}
-                          prefixDataTestId={`employee-goal-edit-${goal.id}`}
-                          accessToken={accessToken}
-                          className="gba:text-sm gba:py-1 gba:px-3"
-                          autoExecuteSingleAction={true}
-                          deferMainContextRequestsUntilClick={true}
-                        >
-                          <Button variant="outline">
-                            <div className="gba:flex gba:items-center gba:gap-2 gba:cursor-pointer">
-                              <PiPencilSimple className="gba:cursor-pointer" />
-                            </div>
-                          </Button>
-                        </AppActionMenu>
-                      </div>
-                    )}
+                    {(isSelfView || userInfo?.employeeDetails?.employeeId === supevisor) &&
+                      goal.progressPercent < 100 && (
+                        <div className="gba:flex gba:justify-end gba:mt-4">
+                          <AppActionMenu
+                            data-testid={`employee-goal-edit-button-${goal.id}`}
+                            contextsArray={[FlowContextName.employeePerformanceGoal]}
+                            externalContextData={{
+                              employeeId: employee?.id,
+                              goalId: goal.id,
+                              title: goal.title,
+                              startDate: goal.startDate,
+                              dueDate: goal.dueDate,
+                              completionDate: goal.completionDate,
+                              progressPercent: goal.progressPercent,
+                              status: goal.status,
+                              version: goal.version,
+                            }}
+                            prefixDataTestId={`employee-goal-edit-${goal.id}`}
+                            accessToken={accessToken}
+                            className="gba:text-sm gba:py-1 gba:px-3"
+                            autoExecuteSingleAction={true}
+                            deferMainContextRequestsUntilClick={true}
+                          >
+                            <Button variant="outline">
+                              <div className="gba:flex gba:items-center gba:gap-2 gba:cursor-pointer">
+                                <PiPencilSimple className="gba:cursor-pointer" />
+                              </div>
+                            </Button>
+                          </AppActionMenu>
+                        </div>
+                      )}
                   </Card>
                 )
               })}
