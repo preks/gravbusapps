@@ -179,8 +179,9 @@ const EnhancedEmployeeDisplay: React.FC<{
   // Handle click to navigate to employee record
   const handleEmployeeClick = (e: React.MouseEvent) => {
     e.stopPropagation();
-    if (userId && userId !== 'unknown') {
-      navigateTo(`/platform/employee-record?employeeId=${userId}`);
+    if (userId && userId !== 'unknown' && employeeData?.id) {
+      const employeeId = employeeData.id;
+      navigateTo(`/platform/employee-record?employeeId=${employeeId}`);
     }
   };
 
