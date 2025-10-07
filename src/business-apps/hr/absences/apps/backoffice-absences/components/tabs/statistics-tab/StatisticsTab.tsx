@@ -213,7 +213,7 @@ export const StatisticsTab: React.FC<TabComponentProps & { dashboardData: Dashbo
                   })()
                 )}
               </div>
-              <div className="gba:mt-2 gba:text-xs gba:text-gray-500" data-testid="leave-type-distribution-status-note">{getTranslationFromI18nKeyAndLabel('lowcoder:absence_hub.statuses_considered_approved', 'Statuses considered: APPROVED')}</div>
+              <div className="gba:mt-2 gba:text-xs gba:text-gray-500" data-testid="leave-type-distribution-status-note">{getTranslationFromI18nKeyAndLabel('lowcoder:absence_hub.statuses_considered_approved', 'Statuses considered: Approved')}</div>
             </CardContent>
           </Card>
         </div>

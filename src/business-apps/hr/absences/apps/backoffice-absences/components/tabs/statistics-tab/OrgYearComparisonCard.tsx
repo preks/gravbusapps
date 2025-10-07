@@ -65,7 +65,7 @@ export const OrgYearComparisonCard: React.FC<OrgYearComparisonCardProps> = ({ ab
           if (prev === 0) {
             if (total > 0) {
               // New requests vs zero baseline
-              label = `+${total} New requests`;
+              label = `+${total} ${getTranslationFromI18nKeyAndLabel('lowcoder:absence_hub.new_requests', 'New requests')}`;
               badgeClass = 'gba:text-blue-700 gba:bg-blue-50';
             } else {
               label = '0%';
@@ -112,7 +112,7 @@ export const OrgYearComparisonCard: React.FC<OrgYearComparisonCardProps> = ({ ab
   return (
     <Card data-testid="org-year-comparison-card">
       <CardHeader className="gba:pb-2">
-        <CardTitle className="gba:text-base">{getTranslationFromI18nKeyAndLabel('lowcoder:absence_hub.yoy_title', 'Year-over-Year Comparison')}</CardTitle>
+        <CardTitle className="gba:text-base">{getTranslationFromI18nKeyAndLabel('lowcoder:absence_hub.year_over_year_comparison', 'Year-over-Year Comparison')}</CardTitle>
       </CardHeader>
       <CardContent className="gba:pt-0">
         <div className="gba:space-y-2.5">
@@ -144,7 +144,7 @@ export const OrgYearComparisonCard: React.FC<OrgYearComparisonCardProps> = ({ ab
             );
           })}
         </div>
-        <div className="gba:mt-2 gba:text-xs gba:text-gray-500">{getTranslationFromI18nKeyAndLabel('lowcoder:absence_hub.statuses_considered_approved', 'Statuses considered: APPROVED')}</div>
+        <div className="gba:mt-2 gba:text-xs gba:text-gray-500">{getTranslationFromI18nKeyAndLabel('lowcoder:absence_hub.statuses_considered_approved', 'Statuses considered: Approved')}</div>
       </CardContent>
     </Card>
   );

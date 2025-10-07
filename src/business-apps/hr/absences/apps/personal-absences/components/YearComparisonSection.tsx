@@ -98,13 +98,13 @@ const YearComparisonSection: React.FC<YearComparisonSectionProps> = ({ absences 
       <div className="gba:yearComparisonImprovement" data-testid="year-comparison-section-improvement">
         <span className="gba:improvementIcon">{improvementIcon}</span> {improvementMsg}
       </div>
-      <div className="gba:leaveTypeTitle" data-testid="year-comparison-section-leave-type-title">Leave Type Distribution by Year</div>
+      <div className="gba:leaveTypeTitle" data-testid="year-comparison-section-leave-type-title">{getTranslationFromI18nKeyAndLabel('lowcoder:absence_hub.leave_type_title', `Leave Type Distribution by Year`)}</div>
       <div className="gba:leaveTypeRows" data-testid="year-comparison-section-leave-type-rows">
         {leaveTypeData.map((row: { year: number; total: number; types: { label: string; value: number; color: string }[] }) => (
           <div className="gba:leaveTypeRow" key={row.year}>
             <div className="gba:leaveTypeYear" data-testid="year-comparison-section-leave-type-year">{row.year}<span style={{
                 
-              }}>{row.total} days total</span></div>
+              }}>{row.total} {getTranslationFromI18nKeyAndLabel('lowcoder:absence_management_hub_backoffice.days','days')} total</span></div>
             <div className="gba:leaveTypeBarBg" data-testid="year-comparison-section-leave-type-bar-bg">
               {row.types.map((type: { label: string; value: number; color: string }, idx: number) => (
                 <div
