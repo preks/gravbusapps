@@ -12,7 +12,7 @@ import { useMissingJobProfiles } from './hooks/useMissingJobProfiles';
 import { useRequestsToApprove, getPriorityVariant, getPriorityLabel, getPriorityOrder, getTimeAgo, formatCurrency } from './hooks/useRequestsToApprove';
 import { usePersonalDataChanges, getPersonalChangePriorityVariant, getPersonalChangePriorityLabel, formatChangeType } from './hooks/usePersonalDataChanges';
 import { useCurrentUserProfile } from './hooks/useCurrentUserProfile';
-import { getCurrentActiveStructureId } from '@/common/utils/windowUtils';
+import { getCurrentActiveStructureId, getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
 import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils';
 // Removed useTeamAbsences import as it was replaced by useRequestsToApprove
 // Removed dayjs and env imports as they're no longer needed
@@ -1201,7 +1201,10 @@ ${managerName}`;
               data-testid="manager-dashboard-teammates-back-button"
             >
               <PiCaretLeft size={16} className="gba:mr-1" />
-              Back to Dashboard
+              {getTranslationFromI18nKeyAndLabel(
+              'lowcoder:team_expenses_page.dashboard_tab.back_to_btn',
+              'Back to Dashboard',
+            )}
             </Button>
             <h1 className="gba:text-xl gba:font-semibold">My Direct Reports</h1>
             <Badge variant="info" className="gba:ml-3">
@@ -1250,7 +1253,10 @@ ${managerName}`;
               className="gba:mr-4"
             >
               <PiCaretLeft size={16} className="gba:mr-1" />
-              Back to Dashboard
+              {getTranslationFromI18nKeyAndLabel(
+              'lowcoder:team_expenses_page.dashboard_tab.back_to_btn',
+              'Back to Dashboard',
+            )}            
             </Button>
             <h1 className="gba:text-xl gba:font-semibold">Requests to Approve</h1>
             <Badge variant="info" className="gba:ml-3">
