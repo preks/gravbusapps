@@ -2018,6 +2018,9 @@ export class ConductorWorkflowEngineAdapter implements WorkflowEngine {
       claimedByUserId,
       allowReassignment: task.assignment?.allowReassignment || false,
       
+      // ✅ PRESERVE flowName from custom-flow-engine response
+      flowName: task.flowName,
+      
       // ✅ PRESERVE message from custom-flow-engine response
       message: task.message,
       

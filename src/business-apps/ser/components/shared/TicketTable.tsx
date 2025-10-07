@@ -821,7 +821,7 @@ export const TicketTable: React.FC<TicketTableProps> = ({
                               {ticket.name}
                             </div>
                             <div className="gba:text-xs gba:text-muted-foreground gba:break-words gba:whitespace-normal">
-                              {(ticket as any).message || `ID: ${ticket.id}`}
+                              {ticket.flowName || `ID: ${ticket.id}`}
                             </div>
                           </div>
                         </TableCell>
