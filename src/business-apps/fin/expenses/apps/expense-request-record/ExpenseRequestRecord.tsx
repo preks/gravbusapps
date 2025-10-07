@@ -10,6 +10,7 @@ import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
 import { useGetExpenseRequestRecord } from './hooks/useGetExpenseRequestRecord';
 import { getExpenseRequestStatusDisplay } from './utils';
 import { formatCurrencyDisplay } from '../expense-plan-record/utils/currency';
+import { BackButton } from '@/components/back-button';
 
 // Import tab components
 import ExpenseRequestItems from './components/ExpenseRequestItems.tsx';
@@ -282,8 +283,13 @@ const ExpenseRequestRecord: React.FC<BusinessAppContextProps> = ({ accessToken, 
   if (loading) {
     return (
       <PageLayout 
-      headerIcon={<PiWalletDuotone color="#c92559"/>}
+        headerIcon={<PiWalletDuotone color="#c92559"/>}
         headerLabel={getTranslationFromI18nKeyAndLabel('lowcoder:expense_records.request.title', 'Expense Request Record')}
+        headerTopLeft={
+          <BackButton 
+            dataTestId="expense-request-record-back-button"
+          />
+        }
         contentContainer={
           <div className="gba:flex gba:justify-center gba:items-center gba:h-64" data-testid="expense-request-record-loading">
             <Spinner />
@@ -315,8 +321,13 @@ const ExpenseRequestRecord: React.FC<BusinessAppContextProps> = ({ accessToken, 
     
     return (
       <PageLayout 
-      headerIcon={<PiWalletDuotone color="#c92559"/>}
+        headerIcon={<PiWalletDuotone color="#c92559"/>}
         headerLabel={getTranslationFromI18nKeyAndLabel('lowcoder:expense_records.request.title', 'Expense Request Record')}
+        headerTopLeft={
+          <BackButton 
+            dataTestId="expense-request-record-back-button"
+          />
+        }
         contentContainer={
           <Alert variant="destructive" data-testid="expense-request-record-error">
             <AlertTitle>{errorTitle}</AlertTitle>
@@ -331,6 +342,11 @@ const ExpenseRequestRecord: React.FC<BusinessAppContextProps> = ({ accessToken, 
     <PageLayout 
       headerIcon={<PiWalletDuotone color="#c92559"/>}
       headerLabel={getTranslationFromI18nKeyAndLabel('lowcoder:expense_records.request.title', 'Expense Request Record')}
+      headerTopLeft={
+        <BackButton 
+          dataTestId="expense-request-record-back-button"
+        />
+      }
       contentContainer={
         <div className="gba:overflow-y-auto gba:overflow-x-hidden" style={{ maxHeight: 'calc(100vh - 160px)' }}>
           <div className="gba:p-3 gba:flex gba:flex-row gba:gap-3" data-testid="expense-request-record-container">
