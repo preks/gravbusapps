@@ -189,6 +189,7 @@ const PersonalInformationSection: React.FC = () => {
 
 
 
+
           {/* Academic Title and Language - Side by side */}
           <div className="gba:grid gba:grid-cols-1 gba:gap-6 gba:md:grid-cols-2">
             {/* Academic Title dropdown */}

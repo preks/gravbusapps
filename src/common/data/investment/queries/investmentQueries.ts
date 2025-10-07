@@ -1,8 +1,16 @@
 // Investment Queries - Core investment entities and their specializations
 // Built using actual schema discovered via newwork-mcp
 import { CATALOG_ENTRY, AUDIT_FIELDS } from '@/common/network/graphql/commonFragments';
-import { INVESTMENT } from './fragments/investmentFragments';
-import { INVESTMENT_ACTIVITY, INVESTMENT_TASK, INVESTMENT_NOTE, INVESTMENT_DOCUMENT, INVESTMENT_ACCOUNT_REF } from './fragments/investmentRelationFragments';
+import { 
+  INVESTMENT, 
+  EQUITY_INVESTMENT_REF,
+  EQUITY_INVESTMENT,
+  REAL_ESTATE_INVESTMENT_REF,
+  REAL_ESTATE_INVESTMENT,
+  LIQUID_FUND_INVESTMENT_REF,
+  LIQUID_FUND_INVESTMENT
+} from './fragments/investmentFragments';
+import { INVESTMENT_ACTIVITY, INVESTMENT_TASK, INVESTMENT_NOTE, INVESTMENT_DOCUMENT, INVESTMENT_ACCOUNT_REF, INVESTMENT_CONTACT_REF, INVESTMENT_OPPORTUNITY_REF } from './fragments/investmentRelationFragments';
 
 export interface InvestmentQueryVariables {
   ids?: string[];
@@ -263,143 +271,27 @@ export const GET_INVESTMENTS = (variables: InvestmentQueryVariables = {}): strin
         ${orderByClause}
         ${where}
       ) {
-        # Core Investment fields (explicit to avoid fragment issues)
-        id
-        code
-        name
-        isin
-        acquisitionDate
-        planedExit
-        plannedExitDate
-        exitDate
-        initialInvestmentAmount
-        totalInvestmentAmount
-        investmentMarketValue
-        debtFinancingAmount
-        requiredCapitalAmount
-        forecastedRevenueAmount
-        forecastedProfitAmount
-        stakePercentage
-        loanRecipientName
-        loanAmount
-        loanOpenCommitmentAmount
-        loanInterestRate
-        loanStartDate
-        loanEndDate
-        loanInterestClaim
-        totalCommitmentAmount
-        totalDistributionAmount
-        fundManagerName
-        
-        # Audit fields
-        createdAt
-        createdBy
-        updatedAt
-        updatedBy
-        isDeleted
-        recordState
-        activeFrom
-        activeTo
-        version
-
-        # Catalog relationships
-        investmentGroup {
-          ${CATALOG_ENTRY}
-        }
-        investmentType {
-          ${CATALOG_ENTRY}
-        }
-        investmentStakeType {
-          ${CATALOG_ENTRY}
-        }
-        investmentStatus {
-          ${CATALOG_ENTRY}
-        }
-        currency {
-          ${CATALOG_ENTRY}
-        }
-
-        # Investment role relationship (array)
-        investmentRole {
-          id
-          displayOrder
-          investmentRole {
-            ${CATALOG_ENTRY}
-          }
-        }
-
-        # Employee relationship (simplified)
-        ownerEmployee {
-          id
-          code
-          firstName
-          lastName
-          displayName
-          fullName
-          picture
-          pictureThumbnail
-        }
+        ${INVESTMENT}
         
         # Entity relationships (simplified)
         investmentAccount {
-          id
-          code
-          name
-          email
+          ${INVESTMENT_ACCOUNT_REF}
         }
         investmentOpportunity {
-          id
-          name
-          code
+          ${INVESTMENT_OPPORTUNITY_REF}
         }
         
         # Investment specializations (simplified)
         equityInvestment {
-          id
-          foundationDate
-          marketValue
-          ebitdaAmount
-          turnoverAmount
+          ${EQUITY_INVESTMENT_REF}
         }
         
         realEstateInvestment {
-          id
-          buildingYear
-          numberOfUnits
-          annualNetColdRent
-          actualAnnualExpenses
-          targetAnnualExpenses
-          funding
-          occupancyPercent
-          size
-          sizeMeasurementUnitRef
-          locality
-          postalCode
-          addressLine
-          liquidityForecast
-          investment {
-            id
-            name
-            code
-          }
+          ${REAL_ESTATE_INVESTMENT_REF}
         }
         
         liquidFundInvestment {
-          id
-          proprietorName
-          bankName
-          bankAccountNumber
-          earlyTerminationAllowed
-          interestRate
-          maturityDate
-          investment {
-            id
-            name
-            code
-          }
-          investmentLiquidFundType {
-            ${CATALOG_ENTRY}
-          }
+          ${LIQUID_FUND_INVESTMENT_REF}
         }
       }
       
@@ -581,15 +473,7 @@ export const GET_INVESTMENT_BY_ID = (id: string): string => {
           investmentAccountContact {
             contactType
             contact {
-              id
-              firstName
-              lastName
-              fullName
-              email
-              phone
-              department
-              jobPosition
-              ${AUDIT_FIELDS}
+              ${INVESTMENT_CONTACT_REF}
             }
           }
         }
@@ -616,84 +500,15 @@ export const GET_INVESTMENT_BY_ID = (id: string): string => {
         
         # All investment specializations with full details
         equityInvestment {
-          id
-          foundationDate
-          marketValue
-          ebitdaAmount
-          turnoverAmount
-          ${AUDIT_FIELDS}
-          
-          # Investment rounds
-          equityInvestmentRound {
-            id
-            name
-            year
-            preValue
-            investmentVolume
-            volumeShare
-            roundSharePercentage
-            currency {
-              ${CATALOG_ENTRY}
-            }
-            ${AUDIT_FIELDS}
-          }
+          ${EQUITY_INVESTMENT}
         }
         
         realEstateInvestment {
-          id
-          buildingYear
-          numberOfUnits
-          annualNetColdRent
-          actualAnnualExpenses
-          targetAnnualExpenses
-          funding
-          occupancyPercent
-          size
-          sizeMeasurementUnitRef
-          locality
-          postalCode
-          addressLine
-          liquidityForecast
-          investment {
-            id
-            name
-            code
-          }
-          ${AUDIT_FIELDS}
-          country {
-            ${CATALOG_ENTRY}
-          }
-          region {
-            ${CATALOG_ENTRY}
-          }
+          ${REAL_ESTATE_INVESTMENT}
         }
         
         liquidFundInvestment {
-          id
-          proprietorName
-          bankName
-          bankAccountNumber
-          earlyTerminationAllowed
-          interestRate
-          maturityDate
-          investment {
-            id
-            name
-            code
-          }
-          ${AUDIT_FIELDS}
-          investmentLiquidFundType {
-            ${CATALOG_ENTRY}
-          }
-          interestPaymentFrequency {
-            ${CATALOG_ENTRY}
-          }
-          liquidFundInvestmentReport {
-            id
-            date
-            interestRate
-            maturityDate
-          }
+          ${LIQUID_FUND_INVESTMENT}
         }
       }
     }
@@ -748,9 +563,7 @@ export const SEARCH_INVESTMENTS = (variables: InvestmentQueryVariables): string 
           displayName
         }
         investmentAccount {
-          id
-          name
-          code
+          ${INVESTMENT_ACCOUNT_REF}
         }
       }
     }

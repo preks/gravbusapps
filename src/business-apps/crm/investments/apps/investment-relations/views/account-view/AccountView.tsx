@@ -72,7 +72,6 @@ export const AccountView: React.FC<AccountViewProps> = (context) => {
     { id: "account", label: "Account", visible: true },
     { id: "contact", label: "Contact Info", visible: true },
     { id: "location", label: "Location", visible: true },
-    { id: "status", label: "Status", visible: true },
     { id: "industry", label: "Industry", visible: true },
     { id: "legalForm", label: "Legal Form", visible: true },
     { id: "size", label: "Company Size", visible: false },

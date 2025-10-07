@@ -28,7 +28,7 @@ export const mapInvestmentContactToFormValues = (
     lastName: contact.lastName || "",
     fullName: contact.fullName || "",
     type: contact.type || "UNKNOWN_CONTACT",
-    birthDate: contact.birthDate || "",
+    birthDate: contact.birthDate ? contact.birthDate.split('T')[0] : "",
 
     // Professional Information
     jobPosition: contact.jobPosition || "",
@@ -52,6 +52,21 @@ export const mapInvestmentContactToFormValues = (
     // Owner Information
     ownerEmployeeId: contact.ownerEmployeeId || "",
     owner: contact.ownerEmployeeId || "", // Map to owner field for form
+
+    // Account Information
+    accountIds: Array.from(
+      new Set(
+        (contact.investmentAccountContact ?? [])
+          .map(rel => {
+            if (!rel.account?.id) return null;
+            return {
+              id: rel.account.id,
+              name: rel.account.name || 'Unnamed Account'
+            };
+          })
+          .filter((account): account is { id: string; name: string } => Boolean(account))
+      )
+    ),
 
     // Additional Information
     notesSummary: contact.notesSummary || "",

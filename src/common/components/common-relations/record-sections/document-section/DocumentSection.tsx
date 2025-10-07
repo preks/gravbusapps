@@ -347,7 +347,7 @@ const DocumentSection: React.FC<DocumentSectionProps> = ({
           className="gba:text-xs"
           data-testid={`${dataTestId}-type-${document.id}`}
         >
-          {document.folder ? "Folder" : (document.documentType?.value || "Document")}
+          {document.folder === true ? "Folder" : (document.documentType?.value || "-")}
         </Badge>
       ),
     },
@@ -401,8 +401,8 @@ const DocumentSection: React.FC<DocumentSectionProps> = ({
   // State for selected document for actions menu
   const [selectedDocument, setSelectedDocument] = useState<DocumentItem | null>(null);
   
-  // State for view mode (tree vs list)
-  const [viewMode, setViewMode] = useState<'tree' | 'list'>('list');
+  // State for view mode (tree vs list) - default to tree view
+  const [viewMode, setViewMode] = useState<'tree' | 'list'>('tree');
   
   // State for expanded folders in tree view
   const [expandedFolders, setExpandedFolders] = useState<Set<string>>(new Set());
@@ -622,10 +622,40 @@ const DocumentSection: React.FC<DocumentSectionProps> = ({
      return filteredDocuments.filter(doc => doc.folder);
    }, [filteredDocuments]);
    
-   // Helper function to count children of a folder
-   const getFolderChildrenCount = (folderId: string): number => {
-     return documents.filter(doc => doc.parentDocument === folderId).length;
-   };
+  // Helper function to count children of a folder
+  const getFolderChildrenCount = (folderId: string): number => {
+    return documents.filter(doc => doc.parentDocument === folderId).length;
+  };
+  
+  // Check if targetId is a descendant of ancestorId (prevents circular references)
+  const isFolderDescendant = (targetId: string, ancestorId: string): boolean => {
+    if (targetId === ancestorId) return true;
+    
+    let currentId: string | null = targetId;
+    const visited = new Set<string>(); // Prevent infinite loops
+    const maxDepth = 100; // Safety limit
+    let depth = 0;
+    
+    while (currentId && depth < maxDepth) {
+      if (visited.has(currentId)) {
+        // Circular reference detected in data
+        console.warn('Circular reference detected in folder structure');
+        return false;
+      }
+      visited.add(currentId);
+      
+      if (currentId === ancestorId) {
+        return true; // Target is a descendant of ancestor
+      }
+      
+      // Find parent of current folder
+      const currentFolder = documents.find(doc => doc.id === currentId);
+      currentId = currentFolder?.parentDocument || null;
+      depth++;
+    }
+    
+    return false; // No circular reference found
+  };
   
   // Toggle folder expansion
   const toggleFolderExpansion = (folderId: string) => {
@@ -708,7 +738,7 @@ const DocumentSection: React.FC<DocumentSectionProps> = ({
      try {
        // Extract entity ID from deleteActionProps (fallback for compatibility)
        const externalData = deleteActionProps?.externalContextData || {};
-       const entityId = externalData.opportunityId || externalData.leadId || externalData.accountId || externalData.contactId || '';
+       const entityId = externalData.opportunityId || externalData.leadId || externalData.accountId || externalData.contactId || externalData.investmentId || '';
        
        if (!entityId) {
          toast.error('Entity ID not found');
@@ -805,51 +835,68 @@ const DocumentSection: React.FC<DocumentSectionProps> = ({
      e.dataTransfer.setData('text/plain', document.id);
    };
    
-   const handleDragOver = (e: React.DragEvent, targetDocument: DocumentItem) => {
-     e.preventDefault();
-     e.stopPropagation();
-     
-     // Only allow dropping on folders
-     if (targetDocument.folder && draggedDocument && draggedDocument.id !== targetDocument.id) {
-       e.dataTransfer.dropEffect = 'move';
-       setDropTarget(targetDocument.id);
-     } else if (targetDocument.folder) {
-       // Show that this is a valid drop zone even if no document is being dragged
-       e.dataTransfer.dropEffect = 'move';
-     } else {
-       e.dataTransfer.dropEffect = 'none';
-     }
-   };
+  const handleDragOver = (e: React.DragEvent, targetDocument: DocumentItem) => {
+    e.preventDefault();
+    e.stopPropagation();
+    
+    // Only allow dropping on folders
+    if (targetDocument.folder && draggedDocument && draggedDocument.id !== targetDocument.id) {
+      // If dragging a folder, check for circular reference
+      if (draggedDocument.folder) {
+        // Check if target folder is a descendant of the dragged folder
+        if (isFolderDescendant(targetDocument.id, draggedDocument.id)) {
+          e.dataTransfer.dropEffect = 'none';
+          return;
+        }
+      }
+      
+      e.dataTransfer.dropEffect = 'move';
+      setDropTarget(targetDocument.id);
+    } else if (targetDocument.folder) {
+      // Show that this is a valid drop zone even if no document is being dragged
+      e.dataTransfer.dropEffect = 'move';
+    } else {
+      e.dataTransfer.dropEffect = 'none';
+    }
+  };
    
-   const handleDragLeave = (e: React.DragEvent) => {
-     e.preventDefault();
-     e.stopPropagation();
-     
-     // Use a timeout to allow for smooth transitions between drop zones
-     setTimeout(() => {
-       const relatedTarget = e.relatedTarget as HTMLElement;
-       const currentTarget = e.currentTarget as HTMLElement;
-       
-       // Only clear if we're not moving to a child element or another drop zone
-       if (!relatedTarget || !currentTarget.contains(relatedTarget)) {
-         setDropTarget(null);
-       }
-     }, 50);
-   };
+  const handleDragLeave = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    
+    // Capture references before setTimeout (React synthetic events are pooled)
+    const relatedTarget = e.relatedTarget as HTMLElement;
+    const currentTarget = e.currentTarget as HTMLElement;
+    
+    // Use a timeout to allow for smooth transitions between drop zones
+    setTimeout(() => {
+      // Only clear if we're not moving to a child element or another drop zone
+      if (!relatedTarget || !currentTarget || !currentTarget.contains(relatedTarget)) {
+        setDropTarget(null);
+      }
+    }, 50);
+  };
    
-   const handleDrop = async (e: React.DragEvent, targetFolder: DocumentItem) => {
-     e.preventDefault();
-     e.stopPropagation();
-     setDropTarget(null);
-     
-     if (!draggedDocument || !targetFolder.folder || draggedDocument.id === targetFolder.id) {
-       return;
-     }
-     
-     // Move document to target folder
-     await moveDocumentToFolder(draggedDocument.id, targetFolder.id);
-     setDraggedDocument(null);
-   };
+  const handleDrop = async (e: React.DragEvent, targetFolder: DocumentItem) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setDropTarget(null);
+    
+    if (!draggedDocument || !targetFolder.folder || draggedDocument.id === targetFolder.id) {
+      return;
+    }
+    
+    // Prevent circular references when moving folders
+    if (draggedDocument.folder && isFolderDescendant(targetFolder.id, draggedDocument.id)) {
+      toast.error('Cannot move a folder into itself or its descendants');
+      setDraggedDocument(null);
+      return;
+    }
+    
+    // Move document/folder to target folder
+    await moveDocumentToFolder(draggedDocument.id, targetFolder.id);
+    setDraggedDocument(null);
+  };
    
    const handleDragEnd = () => {
      setDraggedDocument(null);
@@ -879,21 +926,22 @@ const DocumentSection: React.FC<DocumentSectionProps> = ({
      }
    };
    
-   // Handle drag leave from root area
-   const handleRootDragLeave = (e: React.DragEvent) => {
-     e.preventDefault();
-     
-     // Use a timeout to allow for smooth transitions
-     setTimeout(() => {
-       const relatedTarget = e.relatedTarget as HTMLElement;
-       const currentTarget = e.currentTarget as HTMLElement;
-       
-       // Only clear if we're not moving to a child element
-       if (!relatedTarget || !currentTarget.contains(relatedTarget)) {
-         setIsDroppingOnRoot(false);
-       }
-     }, 50);
-   };
+  // Handle drag leave from root area
+  const handleRootDragLeave = (e: React.DragEvent) => {
+    e.preventDefault();
+    
+    // Capture references before setTimeout (React synthetic events are pooled)
+    const relatedTarget = e.relatedTarget as HTMLElement;
+    const currentTarget = e.currentTarget as HTMLElement;
+    
+    // Use a timeout to allow for smooth transitions
+    setTimeout(() => {
+      // Only clear if we're not moving to a child element
+      if (!relatedTarget || !currentTarget || !currentTarget.contains(relatedTarget)) {
+        setIsDroppingOnRoot(false);
+      }
+    }, 50);
+  };
    
    // Handle drop on root area
    const handleRootDrop = async (e: React.DragEvent) => {
@@ -929,7 +977,7 @@ const DocumentSection: React.FC<DocumentSectionProps> = ({
        
        // Extract entity ID from deleteActionProps (fallback for compatibility)
        const externalData = deleteActionProps?.externalContextData || {};
-       const entityId = externalData.opportunityId || externalData.leadId || externalData.accountId || externalData.contactId || '';
+       const entityId = externalData.opportunityId || externalData.leadId || externalData.accountId || externalData.contactId || externalData.investmentId || '';
        
        if (!entityId) {
          toast.error('Entity ID not found');
@@ -947,22 +995,23 @@ const DocumentSection: React.FC<DocumentSectionProps> = ({
        };
        
        // Use createInvestmentDocument with changeMode: 'UPDATE' like the working implementation
-       await restClient.post(`${apiConfig.baseEndpoint}/createInvestmentDocument`, {
-         changeMode: 'UPDATE',
-         investmentDocument: documentPayload
-       }, {
-         headers: { Authorization: `Bearer ${accessToken}` }
-       });
-       
-       toast.success('Document moved successfully');
-       
-       // Refresh the documents list after a short delay
-       // This ensures the UI updates even if useProcessCompletion doesn't trigger
-       setTimeout(() => {
-         if (onRefresh) {
-           onRefresh();
-         }
-       }, 500);
+      await restClient.post(`${apiConfig.baseEndpoint}/createInvestmentDocument`, {
+        changeMode: 'UPDATE',
+        investmentDocument: documentPayload
+      }, {
+        headers: { Authorization: `Bearer ${accessToken}` }
+      });
+      
+      const itemType = document.folder ? 'Folder' : 'Document';
+      toast.success(`${itemType} moved successfully`);
+      
+      // Refresh the documents list after a short delay
+      // This ensures the UI updates even if useProcessCompletion doesn't trigger
+      setTimeout(() => {
+        if (onRefresh) {
+          onRefresh();
+        }
+      }, 500);
      } catch (e: any) {
        console.error('Error moving document:', e);
        toast.error(e?.message || 'Failed to move document');
@@ -985,7 +1034,7 @@ const DocumentSection: React.FC<DocumentSectionProps> = ({
        
        // Extract entity ID from deleteActionProps (fallback for compatibility)
        const externalData = deleteActionProps?.externalContextData || {};
-       const entityId = externalData.opportunityId || externalData.leadId || externalData.accountId || externalData.contactId || '';
+       const entityId = externalData.opportunityId || externalData.leadId || externalData.accountId || externalData.contactId || externalData.investmentId || '';
        
        if (!entityId) {
          toast.error('Entity ID not found');
@@ -1002,22 +1051,23 @@ const DocumentSection: React.FC<DocumentSectionProps> = ({
          [apiConfig.entityFieldName]: entityId
        };
        
-       await restClient.post(`${apiConfig.baseEndpoint}/createInvestmentDocument`, {
-         changeMode: 'UPDATE',
-         investmentDocument: documentPayload
-       }, {
-         headers: { Authorization: `Bearer ${accessToken}` }
-       });
-       
-       toast.success('Document moved to root level');
-       
-       // Refresh the documents list after a short delay
-       // This ensures the UI updates even if useProcessCompletion doesn't trigger
-       setTimeout(() => {
-         if (onRefresh) {
-           onRefresh();
-         }
-       }, 500);
+      await restClient.post(`${apiConfig.baseEndpoint}/createInvestmentDocument`, {
+        changeMode: 'UPDATE',
+        investmentDocument: documentPayload
+      }, {
+        headers: { Authorization: `Bearer ${accessToken}` }
+      });
+      
+      const itemType = document.folder ? 'Folder' : 'Document';
+      toast.success(`${itemType} moved to root level`);
+      
+      // Refresh the documents list after a short delay
+      // This ensures the UI updates even if useProcessCompletion doesn't trigger
+      setTimeout(() => {
+        if (onRefresh) {
+          onRefresh();
+        }
+      }, 500);
      } catch (e: any) {
        console.error('Error moving document to root:', e);
        toast.error(e?.message || 'Failed to move document to root');
@@ -1066,7 +1116,7 @@ const DocumentSection: React.FC<DocumentSectionProps> = ({
 
       // Extract entity ID from deleteActionProps (fallback for compatibility)
       const externalData = deleteActionProps?.externalContextData || {};
-      const entityId = externalData.opportunityId || externalData.leadId || externalData.accountId || externalData.contactId;
+      const entityId = externalData.opportunityId || externalData.leadId || externalData.accountId || externalData.contactId || externalData.investmentId;
 
       // Handle custom onClick function (this will handle update action)
       if (action.onClick) {
@@ -1520,13 +1570,14 @@ const DocumentSection: React.FC<DocumentSectionProps> = ({
                          ${isDraggedOver ? 'gba:bg-primary/20 gba:border-2 gba:border-primary gba:border-dashed' : ''}
                          ${isDragging ? 'gba:opacity-50' : ''}
                          ${document.folder && draggedDocument ? 'gba:transition-all gba:duration-200 hover:gba:bg-primary/10' : ''}
-                         ${document.folder ? 'gba:transition-all gba:duration-200' : ''}
+                         ${document.folder ? 'gba:transition-all gba:duration-200 gba:cursor-move' : ''}
+                         ${!document.folder ? 'gba:cursor-move' : ''}
                        `}
                        onClick={(e) => handleRowClick(document.id, e)}
                        onMouseDown={handleMouseDown}
                        onMouseMove={handleMouseMove}
                        onMouseUp={handleMouseUp}
-                       draggable={!document.folder} // Only allow dragging documents, not folders
+                       draggable={true} // Allow dragging both documents and folders
                        onDragStart={(e) => handleDragStart(e, document)}
                        onDragEnter={(e) => document.folder ? handleDragOver(e, document) : undefined}
                        onDragOver={(e) => document.folder ? handleDragOver(e, document) : undefined}

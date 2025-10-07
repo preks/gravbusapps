@@ -4,23 +4,25 @@ import {
   Button,
   Alert,
   AlertDescription,
-  Spinner,
 } from "@newwork/nw-design-system";
 import { formatDataTestId } from "@/common/utils/formatDataTestId";
 import { dispatchProcessContinueEvent } from "@/common/utils/processEventUtils";
 import AccountInformationSection from "./AccountInformationSection";
 import AddressInformationSection from "./AddressInformationSection";
 import FinancialInformationSection from "./FinancialInformationSection";
+import ContactSelector from "./ContactSelector";
 
 const prefixDataTestId = "AccountForm";
 
 const AccountFormComponent: React.FC = () => {
-  const { formValues, onSubmit, onCancel, isLoading, error, hideActions } =
+  const { formValues, onSubmit, onCancel, isLoading, error, hideActions, setFormValues } =
     useAccountFormContext();
+  
+  // Local loading state for submission
+  const [isSubmitting, setIsSubmitting] = React.useState(false);
 
   // Check if all mandatory fields are filled
-  const isFormValid =
-    formValues.owner && formValues.accountName;
+  const isFormValid = Boolean(formValues.owner && formValues.accountName);
 
   // Helper function to convert values to strings safely
   const toStringOrUndefined = (
@@ -31,6 +33,12 @@ const AccountFormComponent: React.FC = () => {
 
   // Handle form submission
   const handleSubmit = async () => {
+    // Prevent duplicate submissions
+    if (isLoading || isSubmitting) {
+      return;
+    }
+
+    setIsSubmitting(true);
     try {
       // ✅ FIXED: Determine operation mode based on account ID presence
       const isUpdate = formValues.id && formValues.id.trim();
@@ -109,10 +117,16 @@ const AccountFormComponent: React.FC = () => {
       // Determine change mode based on whether we have an ID
       const changeMode = isUpdate ? "UPDATE" : "INSERT";
 
+      // ✅ FIXED: Extract contact IDs from contactIds (handle both string[] and object[] formats)
+      const extractedContactIds = (formValues.contactIds || []).map(contact => 
+        typeof contact === 'object' ? contact.id : contact
+      );
+
       // ✅ FIXED: Create clean payload structure to prevent context field pollution
       const cleanPayload = {
         investmentAccount: investmentAccountPayload,
         changeMode: changeMode,
+        contactIds: extractedContactIds, // ✅ UPDATED: Array of contact IDs (extracted from objects if needed)
       };
 
 
@@ -122,18 +136,38 @@ const AccountFormComponent: React.FC = () => {
 
       dispatchProcessContinueEvent("pse_submit", isolatedPayload);
 
-      // Call the onSubmit callback after dispatching the process event
-      // This ensures the process event is always dispatched even if onSubmit fails
-      try {
-        await onSubmit(formValues);
-      } catch (submitError) {
-        console.warn(
-          "onSubmit callback failed, but process event was dispatched:",
-          submitError
-        );
-      }
+      // Wait for process completion event
+      await new Promise<void>((resolve) => {
+        const TIMEOUT = 10000;
+        const timeoutId = setTimeout(() => {
+          cleanup();
+          resolve();
+        }, TIMEOUT);
+
+        const handleProcessCompletion = (event: Event) => {
+          const customEvent = event as CustomEvent<{ resolution: 'success' | 'failure' }>;
+          if (
+            customEvent.detail?.resolution === 'success' ||
+            customEvent.detail?.resolution === 'failure'
+          ) {
+            cleanup();
+            resolve();
+          }
+        };
+
+        const cleanup = () => {
+          clearTimeout(timeoutId);
+          window.removeEventListener('com.newwork.process.processCompletion', handleProcessCompletion);
+          window.removeEventListener('com.newwork.process.taskCompletion', handleProcessCompletion);
+        };
+
+        window.addEventListener('com.newwork.process.processCompletion', handleProcessCompletion);
+        window.addEventListener('com.newwork.process.taskCompletion', handleProcessCompletion);
+      });
     } catch (err) {
       console.error("Error submitting account form:", err);
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -159,6 +193,17 @@ const AccountFormComponent: React.FC = () => {
         <div className="gba:flex-1 gba:overflow-y-auto gba:space-y-8">
           {/* Account Information Section */}
           <AccountInformationSection />
+
+          {/* Related Contact Selection - positioned right after Account Information */}
+          <div className="gba:space-y-2">
+            <ContactSelector
+              value={formValues.contactIds}
+              onChange={(contactIds) => setFormValues({ contactIds })}
+              dataTestId={formatDataTestId(prefixDataTestId, "contact-selector")}
+              error={null}
+            />
+          </div>
+
 
           {/* Address Information Section */}
           <AddressInformationSection />
@@ -190,13 +235,12 @@ const AccountFormComponent: React.FC = () => {
             <Button
               type="button"
               variant="default"
-              disabled={!isFormValid}
+              disabled={!isFormValid || isLoading || isSubmitting}
               className="gba:flex-1"
               size="lg"
               onClick={handleSubmit}
               data-testid={formatDataTestId(prefixDataTestId, "submit-button")}
             >
-              {isLoading && <Spinner size="sm" className="gba:mr-2" />}
               {formValues.id ? "Update Account" : "Create Account"}
             </Button>
           </div>

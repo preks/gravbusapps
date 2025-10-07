@@ -1,9 +1,7 @@
 // Investment Tab Configuration Utilities
 import { Home, BarChart3, Folder, FileText } from 'lucide-react';
-import { DocumentSection } from '@/common/components/common-relations/record-sections/document-section';
-import { FlowContextName } from '@/common/types/FlowRegistryTypes';
+import { InvestmentDocuments } from '../components/InvestmentDocuments';
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
-import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 import { 
   GenerateOnePagerButton, 
@@ -85,13 +83,12 @@ export const getTypeSpecificOverviewContent = (investmentType: string, typeSpeci
  */
 export const createInvestmentTabsConfig = (
   activeTab: string,
-  setActiveTab: (tab: string) => void,
+  setActiveTabAndUrl: (tab: string) => void,
   investmentId: string,
   investment: any,
   investmentType: string,
   typeSpecificData: any,
   processedTiles: any[],
-  documents: any[],
   loadData: () => void,
   props: BusinessAppContextProps,
   catalogData?: any
@@ -174,25 +171,17 @@ export const createInvestmentTabsConfig = (
       icon: <Folder className="gba:h-4 gba:w-4 gba:mr-2" />,
       content: (
         <div className="gba:col-span-12">
-          <DocumentSection
-            entityId={investmentId}
-            documents={documents}
-            isLoading={false}
-            error={null}
-            onRefresh={loadData}
-            uploadActionProps={{
-              contextsArray: [FlowContextName.investmentDocumentCreate],
-              externalContextData: { investmentId },
-              prefixDataTestId: 'investment-document-upload'
-            }}
-            createFolderActionProps={{
-              contextsArray: [FlowContextName.investmentDocumentCreate],
-              externalContextData: { investmentId },
-              prefixDataTestId: 'investment-document-create-folder'
-            }}
-            data-testid="investment-document-section"
-            {...props}
-          />
+          {investmentId ? (
+            <InvestmentDocuments 
+              investmentId={investmentId} 
+              context={props}
+              data-testid="investment-documents-section"
+            />
+          ) : (
+            <div className="gba:p-8 gba:text-center gba:text-gray-500">
+              <p data-testid="investment-documents-loading">{getTranslationFromI18nKeyAndLabel('investment.record.loading', 'Loading investment data...')}</p>
+            </div>
+          )}
         </div>
       )
     },
@@ -202,19 +191,7 @@ export const createInvestmentTabsConfig = (
       label: getTranslationFromI18nKeyAndLabel('crm.investments.tabs.reports', 'Reports'),
       icon: <FileText className="gba:h-4 gba:w-4 gba:mr-2" />,
       content: (
-        <div className="gba:col-span-12 gba:space-y-6">
-          {/* Upload Report Action */}
-          <div 
-            className="gba:flex gba:justify-end"
-            style={{ marginBottom: 'var(--nw-spacing-lg)' }}
-            data-testid="investment-upload-report-section"
-          >
-            <UploadReportButton
-              investmentId={investment?.id}
-              accessToken={props.accessToken}
-            />
-          </div>
-
+        <div className="gba:col-span-12">
           {/* Investment Reports Tab */}
           <InvestmentReportsTab
             investmentId={investmentId}
@@ -225,6 +202,13 @@ export const createInvestmentTabsConfig = (
             liquidFundTypeCode={typeSpecificData?.liquidFundInvestment?.investmentLiquidFundType?.code}
             investment={investment}
             typeSpecificData={typeSpecificData}
+            filterHeaderActions={
+              <UploadReportButton
+                investmentId={investment?.id}
+                accessToken={props.accessToken}
+                data-testid="investment-upload-report-button"
+              />
+            }
             accessToken={props.accessToken}
             userInfo={props.userInfo}
             additionalData={props.additionalData}
@@ -237,9 +221,7 @@ export const createInvestmentTabsConfig = (
   return {
     defaultValue: activeTab,
     onValueChange: (val: string) => {
-      setActiveTab(val);
-      const url = buildPlatformUrl(window.location.pathname, { tab: val });
-      navigateTo(url);
+      setActiveTabAndUrl(val);
     },
     items: tabs
   };

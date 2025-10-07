@@ -99,7 +99,7 @@ export const AiActions: React.FC<AiActionsProps> = ({
 
     if (action.hook.state?.type === "success" && action.hook.state.content) {
       return (
-        <div className="gba:w-[600px] gba:p-5">
+        <div className="gba:w-[600px] gba:p-5" style={{ paddingRight: '35px' }}>
           {/* Main Summary */}
           <Card className="gba:mb-4 gba:!gap-1" data-testid="ai-action-success-card-summary">
             <CardHeader>

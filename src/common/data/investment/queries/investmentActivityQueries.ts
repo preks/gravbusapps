@@ -14,9 +14,34 @@ export interface InvestmentActivityQueryVariables {
 
 // Get investment activity by ID
 export const GET_INVESTMENT_ACTIVITY_BY_ID = (id: string): string => `
-  query GetInvestmentActivityById($id: uuid!) {
-    InvestmentActivity(where: { id: { _eq: $id } }) {
+  query GetInvestmentActivityById {
+    InvestmentActivity(where: { id: { _eq: "${id}" }, isDeleted: { _eq: false } }) {
       ${INVESTMENT_ACTIVITY}
+      
+      # Entity references
+      investment {
+        id
+        code
+        name
+      }
+      account {
+        id
+        name
+      }
+      contact {
+        id
+        firstName
+        lastName
+      }
+      opportunity {
+        id
+        name
+      }
+      lead {
+        id
+        firstName
+        lastName
+      }
     }
   }
 `;

@@ -74,6 +74,17 @@ export interface InvestmentAccountDataResponse {
         code: string;
       };
     }>;
+    // Contact relationships
+    investmentAccountContact?: Array<{
+      id: string;
+      contact: {
+        id: string;
+        firstName?: string;
+        lastName?: string;
+        fullName?: string;
+        email?: string;
+      };
+    }>;
     // Audit fields
     createdAt: string;
     createdBy: string;
@@ -155,6 +166,18 @@ export const GET_INVESTMENT_ACCOUNT_BY_ID = `
           id
           value
           code
+        }
+      }
+      
+      # Contact relationships
+      investmentAccountContact(where: { isDeleted: { _eq: false } }) {
+        id
+        contact {
+          id
+          firstName
+          lastName
+          fullName
+          email
         }
       }
       

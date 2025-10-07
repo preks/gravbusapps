@@ -9,7 +9,6 @@ import ContactSection from '@/common/components/common-relations/record-sections
 import InvestmentSection from '@/common/components/common-relations/record-sections/investment-section/InvestmentSection';
 import ActivitySection from '@/common/components/common-relations/record-sections/activity-section/ActivitySection';
 import NoteSection from '@/common/components/common-relations/record-sections/note-section/NoteSection';
-import ApprovalSection from '@/common/components/common-relations/record-sections/approval-section/ApprovalSection';
 import ConditionSection from '@/common/components/common-relations/record-sections/condition-section/ConditionSection';
 import { FlowContextName } from '@/common/types/FlowRegistryTypes';
 import { FileText, Users, Building } from '@phosphor-icons/react';
@@ -605,48 +604,6 @@ const RecordExample: React.FC<BusinessAppContextProps> = (context) => {
                 }
               ]}
               data-testid="record-example-activity-section-wrapper"
-            />
-
-            {/* Tasks & Approvals - 2/3 width, spans 2 rows */}
-            <SectionWrapper
-              className="gba:col-span-8 gba:row-span-2"
-              sections={[
-                {
-                  id: 'approval-section',
-                  component: ApprovalSection,
-                  props: {
-                    ...context,
-                    approvalActionProps: {
-                      contextsArray: [FlowContextName.customerAccountEntity],
-                      externalContextData: { ...entityIds },
-                      prefixDataTestId: 'record-example-approvals',
-                      emptyStateBehavior: 'enable'
-                    },
-                    approvals: [
-                      { 
-                        id: 1, 
-                        date: 'Created today', 
-                        title: 'Budget Approval', 
-                        status: 'pending',
-                        actorEmployee: {
-                          id: context.userInfo?.employeeDetails.employeeId || 'emp_current_user',
-                          displayName: 'Current User',
-                          firstName: 'Current',
-                          lastName: 'User'
-                        }
-                      },
-                      { 
-                        id: 2, 
-                        date: 'Yesterday', 
-                        title: 'Legal Review', 
-                        status: 'approved', 
-                        actor: 'Legal Team'
-                      }
-                    ]
-                  }
-                }
-              ]}
-              data-testid="record-example-approval-section-wrapper"
             />
 
             {/* Notes Section - 2/3 width, spans 2 rows */}

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { Card, CardHeader, CardTitle, CardContent, Button } from '@newwork/nw-design-system';
 
 export interface Section<T = Record<string, any>> {
@@ -14,7 +14,38 @@ export interface SectionWrapperProps<T = Record<string, any>> {
 }
 
 const SectionWrapper = <T = Record<string, any>>({ sections, className, 'data-testid': dataTestId }: SectionWrapperProps<T>) => {
-  const [activeTab, setActiveTab] = useState(sections[0]?.id || '');
+  // Create a stable storage key based on sections (memoized for performance)
+  const storageKey = useMemo(
+    () => `sectionWrapper_${sections.map(s => s.id).join('_')}`,
+    [sections]
+  );
+  
+  // Get initial tab from sessionStorage or default to first section
+  const getInitialTab = () => {
+    try {
+      const storedTab = sessionStorage.getItem(storageKey);
+      // Verify the stored tab still exists in sections
+      if (storedTab && sections.some(s => s.id === storedTab)) {
+        return storedTab;
+      }
+    } catch (_e) {
+      // ignore storage errors
+    }
+    return sections[0]?.id || '';
+  };
+  
+  const [activeTab, setActiveTab] = useState(getInitialTab);
+  
+  // Persist tab changes to sessionStorage
+  const handleTabChange = (tabId: string) => {
+    setActiveTab(tabId);
+    try {
+      sessionStorage.setItem(storageKey, tabId);
+    } catch (_e) {
+      // ignore storage errors
+    }
+  };
+
   const isSingleSection = sections.length === 1;
   const singleSection = sections[0];
 
@@ -67,7 +98,7 @@ const SectionWrapper = <T = Record<string, any>>({ sections, className, 'data-te
                   key={section.id}
                   variant={activeTab === section.id ? "default" : "ghost"}
                   size="sm"
-                  onClick={() => setActiveTab(section.id)}
+                  onClick={() => handleTabChange(section.id)}
                   data-testid={`${section.id}-tab`}
                 >
                   {sectionInfo.title}

@@ -13,14 +13,14 @@ export const useMarkLeadAsLost = (context: BusinessAppContextProps) => {
     setIsLoading(true);
     try {
       const payload = {
-        lead: {
+        investmentLead: {
           id: leadId,
           version: parseInt(version, 10),
           leadStatusRef: 'InvestmentLeadStatus:v1:LOST'
         }
       };
 
-      await restClient.post('/investments/updateLead', payload, {
+      await restClient.post('/investment-relations/updateInvestmentLead', payload, {
         headers: { Authorization: `Bearer ${context.accessToken}` }
       });
 

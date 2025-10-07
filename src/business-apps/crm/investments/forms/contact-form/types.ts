@@ -32,6 +32,9 @@ export interface ContactFormValues {
   ownerEmployeeId: string; // ✅ Available in InvestmentContact
   owner: string; // Owner employee ID for selection
 
+  // Account Information
+  accountIds: Array<string | { id: string; name: string }>; // ✅ UPDATED: Array of account IDs or objects with id/name for proper display
+
   // Additional Information
   notesSummary: string; // ✅ Available in InvestmentContact
   businessKey: string; // ✅ Available in InvestmentContact

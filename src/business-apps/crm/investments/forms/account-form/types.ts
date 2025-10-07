@@ -91,6 +91,9 @@ export interface AccountFormValues {
   tickerSymbol: string;
   // ✅ REMOVED: sicCode: string; // Not available in InvestmentAccount schema
 
+  // Contact Information
+  contactIds: Array<string | { id: string; name: string }>; // ✅ UPDATED: Array of contact IDs or objects with id/name for proper display
+
   // System fields
   id?: string;
   version?: number;
