@@ -49,8 +49,7 @@ export const useTotalPayroll = (accessToken: string) => {
         setLoading(true);
         setError(null);
       }
-      
-      console.log('[useTotalPayroll] Fetching total payroll data...');
+
       
       // Execute the GraphQL query with variables
       const response = await graphQLClient.request<TotalPayrollResponse>(
@@ -92,9 +91,7 @@ export const useTotalPayroll = (accessToken: string) => {
         setEmployeeCount(count);
         setError(null);
       }
-      
-      console.log(`[useTotalPayroll] Total annual payroll: ${payroll.toLocaleString()} from ${count} employees`);
-      
+           
     } catch (err) {
       console.error('[useTotalPayroll] Error fetching payroll data:', err);
       if (isMounted.current) {
