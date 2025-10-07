@@ -25,6 +25,7 @@ import { WorkflowEngine, FlowTemplate } from '../../../types';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 import { DateTimeField } from '../../../components/DateTimeField';
 import { FileUploadField } from '../../../components/FileUploadField';
+import { NumberField } from '../../../components/NumberField';
 import type { UploadFile } from '../../../components/FileUploadField';
 import { serializeUploadResults } from '../../../utils/fileUploadUtils';
 import { useServiceFileUpload } from '../../../hooks/useServiceFileUpload';
@@ -789,9 +790,9 @@ export const RequestForm: React.FC<RequestFormProps> = ({
     setAILoading(true);
     setShowAIResponse(true);
     setError(null);
-    
-    // Prepare AI payload with form data for the ticket_data structure
-    const ticketData = {
+      
+      // Prepare AI payload with form data for the ticket_data structure
+      const ticketData = {
         timestamp: new Date().toISOString(),
         templateInfo: {
           type: 'flow-template',
@@ -1145,21 +1146,16 @@ Please try again in a few moments, or proceed with submitting your request.`);
                           )}
                           
                           {field.type?.toUpperCase() === 'NUMBER' && (
-                            <Input
-                              id={field.name}
-                              type="number"
+                            <NumberField
+                              name={field.name}
+                              label={field.label}
+                              showLabel={false}
                               value={formData[field.name] ?? ''}
-                              onChange={(e) => {
-                                const value = e.target.value;
-                                if (value === '') {
-                                  handleFieldChange(field.name, '');
-                                } else {
-                                  const numValue = parseFloat(value);
-                                  handleFieldChange(field.name, isNaN(numValue) ? '' : numValue);
-                                }
-                              }}
-                              placeholder={field.placeholder}
+                              onChange={(parsedValue) => handleFieldChange(field.name, parsedValue)}
                               required={field.required}
+                              placeholder={field.placeholder}
+                              description={field.description}
+                              id={field.name}
                             />
                           )}
                           

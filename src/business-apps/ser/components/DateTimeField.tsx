@@ -216,7 +216,7 @@ export const DateTimeField: React.FC<DateTimeFieldProps> = ({
   return (
     <div className="gba:space-y-2" data-testid={`${testId}-container`}>
       {/* Label - only show if showLabel is true */}
-      {showLabel && (
+      {/* {showLabel && (
         <Label 
           htmlFor={name} 
           className="gba:block gba:text-sm gba:font-medium gba:text-foreground"
@@ -230,7 +230,7 @@ export const DateTimeField: React.FC<DateTimeFieldProps> = ({
           {label}
           {required && <span className="gba:text-destructive gba:ml-1">*</span>}
         </Label>
-      )}
+      )} */}
 
       {/* Description */}
       {description && (
