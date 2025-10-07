@@ -25,7 +25,7 @@ const BirthAndGenderGroup: React.FC<BirthAndGenderGroupProps> = ({ control, cata
               {getTranslationFromI18nKeyAndLabel('lowcoder:employee_profile.details_layout.personal_information_container.birth_mame', 'Birth Name')}
             </FormLabel>
             <FormControl>
-              <Input {...field} placeholder={placeholderEnter} data-testid="change-personal-data-birth-name-input" />
+              <Input {...field} placeholder={placeholderEnter} data-testid="flw_changePersonalData_currentBirthName" />
             </FormControl>
             <FormMessage />
           </FormItem>
@@ -54,7 +54,7 @@ const BirthAndGenderGroup: React.FC<BirthAndGenderGroupProps> = ({ control, cata
                 {...field}
                 type="date"
                 placeholder={placeholderSelect}
-                data-testid="change-personal-data-date-of-birth-input"
+                data-testid="flw_changePersonalData_currentBirthDate"
                 title={getTranslationFromI18nKeyAndLabel('lowcoder:employee_profile.details_layout.personal_information_container.select_placeholder', 'Please Select')}
               />
             </FormControl>
@@ -73,7 +73,7 @@ const BirthAndGenderGroup: React.FC<BirthAndGenderGroupProps> = ({ control, cata
               {getTranslationFromI18nKeyAndLabel('lowcoder:employee_profile.details_layout.personal_information_container.place_of_birth', 'Place of Birth')}
             </FormLabel>
             <FormControl>
-              <Input className="gba:w-full" {...field} placeholder={placeholderEnter} data-testid="change-personal-data-birth-place-input" />
+              <Input className="gba:w-full" {...field} placeholder={placeholderEnter} data-testid="flw_changePersonalData_placeInput" />
             </FormControl>
             <FormMessage />
           </FormItem>
@@ -94,7 +94,7 @@ const BirthAndGenderGroup: React.FC<BirthAndGenderGroupProps> = ({ control, cata
               onValueChange={(v) => field.onChange(v || null)}
             >
               <FormControl>
-                <SelectTrigger className="gba:block gba:!w-full gba:min-w-0 gba:!max-w-none" data-testid="change-personal-data-gender-select">
+                <SelectTrigger className="gba:block gba:!w-full gba:min-w-0 gba:!max-w-none" data-testid="flw_changePersonalData_currentGender">
                   <SelectValue placeholder={placeholderSelect} />
                 </SelectTrigger>
               </FormControl>

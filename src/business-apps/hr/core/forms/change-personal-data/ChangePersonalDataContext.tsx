@@ -53,7 +53,7 @@ export const ChangePersonalDataProvider: React.FC<ProviderProps> = ({ children, 
       try {
         const catalogVariables = { activeUserLocale };
         const catalogData = await graphqlClient.request<CatalogsDataResponse>(CATALOG_DATA_QUERY, catalogVariables);
-        setData((prev) => ({ ...(prev || {}), catalogs: catalogData }));
+        setData((prev) => ({ employee: (prev?.employee ?? null), catalogs: catalogData }));
       } catch (catalogErr: any) {
         setError(catalogErr?.message || 'Catalogs load failed');
       }

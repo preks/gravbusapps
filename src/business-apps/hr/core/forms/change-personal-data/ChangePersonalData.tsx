@@ -17,6 +17,7 @@ import { env } from '@/common/env/EnvUtils';
 import { AppActionForm } from '@/components/app-action-form/AppActionForm';
 // import { useProcessEventState } from '@/business-apps/fin/expenses/utils/useProcessEventState';
 import { dispatchProcessContinueEvent } from '@/common/utils/processEventUtils';
+import ChangeEmployeeAddress from '../change-employee-address';
  
 
 export interface ChangePersonalDataFormProps extends BusinessAppContextProps {}
@@ -158,12 +159,12 @@ const ChangePersonalDataContent: React.FC<ChangePersonalDataFormProps> = ({ acce
 
 
   return (
-    <div className="gba:mx-auto gba:font-primary gba:flex gba:flex-col gba:w-[100%] gba:max-w-[800px]" data-testid="change-personal-data-form-container">
+    <div className="gba:mx-auto gba:font-primary gba:flex gba:flex-col gba:w-[100%] gba:max-w-[800px]" data-testid="flw_changePersonalData_screenContentLayout">
       <FormHeader title={title} flowIconUrl={flowIconUrl} />
 
       <div className="gba:flex gba:flex-col gba:gap-4 gba:[&>div[data-testid='change-personal-data']]:!px-0" data-testid="change-personal-data-form-content">
         <UploadComponent
-          dataTestIdPrefix="change-personal-data"
+          dataTestIdPrefix="flw_changePersonalData_uploadFile"
           multiple={false}
           fileList={fileList}
           setFileList={setFileList}
@@ -330,7 +331,7 @@ const ChangePersonalDataContent: React.FC<ChangePersonalDataFormProps> = ({ acce
                   });
                   form.reset(defaultValues);
                 }}
-                data-testid="change-personal-data-cancel-button"
+                data-testid="flw_changePersonalData_btnCancel"
               >
                 {getTranslationFromI18nKeyAndLabel('lowcoder:create_expense_request.initiate_cancel_button', 'Cancel')}
               </Button>
@@ -340,7 +341,7 @@ const ChangePersonalDataContent: React.FC<ChangePersonalDataFormProps> = ({ acce
                 type="submit"
                 variant="default"
                 disabled={!form.formState.isValid || isUnchangedNow}
-                data-testid="change-personal-data-submit-button"
+                data-testid="flw_changePersonalData_btnSubmit"
               >
                 {getTranslationFromI18nKeyAndLabel('lowcoder:hr_absences.create_absence.submit', 'Submit')}
               </Button>
@@ -354,9 +355,11 @@ const ChangePersonalDataContent: React.FC<ChangePersonalDataFormProps> = ({ acce
 
 export const ChangePersonalData: React.FC<ChangePersonalDataFormProps> = (context) => {
   return (
-    <ChangePersonalDataProvider {...context}>
+    <><ChangePersonalDataProvider {...context}>
       <ChangePersonalDataContent {...context} />
     </ChangePersonalDataProvider>
+    <ChangeEmployeeAddress {...context}/>
+    </>
   );
 };
 

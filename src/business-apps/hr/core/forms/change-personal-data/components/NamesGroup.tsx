@@ -34,7 +34,7 @@ const NamesGroup: React.FC<NamesGroupProps> = ({ control, catalogs }) => {
               onValueChange={(v) => field.onChange(v || null)}
             >
               <FormControl>
-                <SelectTrigger className="gba:block gba:!w-full gba:min-w-0 gba:!max-w-none" data-testid="change-personal-data-salutation-select">
+                <SelectTrigger className="gba:block gba:!w-full gba:min-w-0 gba:!max-w-none" data-testid="flw_changePersonalData_currentSalutation">
                   <SelectValue placeholder={placeholderSelect} />
                 </SelectTrigger>
               </FormControl>
@@ -61,7 +61,7 @@ const NamesGroup: React.FC<NamesGroupProps> = ({ control, catalogs }) => {
               {getTranslationFromI18nKeyAndLabel('lowcoder:employee_profile.details_layout.personal_information_container.title', 'Title')}
             </FormLabel>
             <FormControl>
-              <Input className="gba:w-full" {...field} placeholder={placeholderEnter} data-testid="change-personal-data-title-input" />
+              <Input className="gba:w-full" {...field} placeholder={placeholderEnter} data-testid="flw_changePersonalData_titleInput" />
             </FormControl>
             <FormMessage />
           </FormItem>
@@ -91,7 +91,7 @@ const NamesGroup: React.FC<NamesGroupProps> = ({ control, catalogs }) => {
               <span className="gba:text-destructive"> *</span>
             </FormLabel>
             <FormControl>
-              <Input className="gba:w-full" {...field} placeholder={placeholderEnter} data-testid="change-personal-data-first-name-input" />
+              <Input className="gba:w-full" {...field} placeholder={placeholderEnter} data-testid="flw_changePersonalData_currentFirstName" />
             </FormControl>
             <FormMessage />
           </FormItem>
@@ -121,7 +121,7 @@ const NamesGroup: React.FC<NamesGroupProps> = ({ control, catalogs }) => {
               <span className="gba:text-destructive"> *</span>
             </FormLabel>
             <FormControl>
-              <Input className="gba:w-full" {...field} placeholder={placeholderEnter} data-testid="change-personal-data-last-name-input" />
+              <Input className="gba:w-full" {...field} placeholder={placeholderEnter} data-testid="flw_changePersonalData_currentLastName" />
             </FormControl>
             <FormMessage />
           </FormItem>
@@ -138,7 +138,7 @@ const NamesGroup: React.FC<NamesGroupProps> = ({ control, catalogs }) => {
               {getTranslationFromI18nKeyAndLabel('lowcoder:employee_profile.details_layout.personal_information_container.preferred_name', 'Display Name')}
             </FormLabel>
             <FormControl>
-              <Input className="gba:w-full" {...field} placeholder={placeholderEnter} data-testid="change-personal-data-display-name-input" />
+              <Input className="gba:w-full" {...field} placeholder={placeholderEnter} data-testid="flw_changePersonalData_currentDisplayName" />
             </FormControl>
             <FormMessage />
           </FormItem>
@@ -155,7 +155,7 @@ const NamesGroup: React.FC<NamesGroupProps> = ({ control, catalogs }) => {
               {getTranslationFromI18nKeyAndLabel('lowcoder:employee_profile.summary_layout.public_profile_container.display_name', 'Preferred Name')}
             </FormLabel>
             <FormControl>
-              <Input {...field} placeholder={placeholderEnter} data-testid="change-personal-data-preferred-name-input" />
+            <Input {...field} placeholder={placeholderEnter} data-testid="flw_changePersonalData_currentPreferredName" />
             </FormControl>
             <FormMessage />
           </FormItem>
