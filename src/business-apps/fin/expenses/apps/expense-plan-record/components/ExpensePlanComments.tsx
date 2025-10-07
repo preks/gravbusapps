@@ -27,7 +27,6 @@ interface ExpensePlanCommentsProps {
 
 const ExpensePlanComments: React.FC<ExpensePlanCommentsProps> = ({ comments, advancePaymentComments = [] }) => {
 
-  // Merge and sort comments chronologically (oldest first)
   const mergedComments: MergedComment[] = [
     // Add plan comments
     ...comments.map(comment => ({

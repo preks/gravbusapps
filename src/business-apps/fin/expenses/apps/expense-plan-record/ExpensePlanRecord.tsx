@@ -95,7 +95,6 @@ const ExpensePlanRecord: React.FC<BusinessAppContextProps> = ({ accessToken, add
     url.searchParams.set('tab', key);
     window.history.pushState({}, '', url.toString());
   };
-  console.log('expensePlan', expensePlan);
   // Handle browser back/forward navigation
   useEffect(() => {
     const handlePopState = () => {
@@ -113,7 +112,6 @@ const ExpensePlanRecord: React.FC<BusinessAppContextProps> = ({ accessToken, add
       const hasTrips = expensePlan?.expenseRequestTrip && expensePlan.expenseRequestTrip.length > 0;
       const hasAdvancePayments = expensePlan?.advancePayment && expensePlan.advancePayment.length > 0;
       const hasCommentsResult = hasComments(expensePlan);
-    console.log('expensePlan inside', expensePlan?.advancePayment);
                          // Map tabs to their data availability
       const availableTabs: Record<string, boolean> = {
         'items': true, // Always available
