@@ -17,11 +17,11 @@ import {
   DynamicFormValues
 } from '../types/flowTemplate';
 import { 
-  CheckCircle, 
-  Warning, 
-  Calendar,
-  Envelope,
-  Link as LinkIcon
+  CheckCircleIcon, 
+  WarningIcon, 
+  CalendarIcon,
+  EnvelopeIcon,
+  LinkIcon
 } from '@phosphor-icons/react';
 import { DateTimeField } from './DateTimeField';
 import { FileUploadField } from './FileUploadField';
@@ -259,7 +259,7 @@ export const DynamicFormGenerator: React.FC<DynamicFormGeneratorProps> = ({
             />
             {hasError && (
               <div className="gba:flex gba:items-center gba:gap-1 gba:text-destructive gba:text-xs">
-                <Warning size={12} />
+                <WarningIcon size={12} />
                 {error}
               </div>
             )}
@@ -270,7 +270,7 @@ export const DynamicFormGenerator: React.FC<DynamicFormGeneratorProps> = ({
         return (
           <div className="gba:space-y-2" key={field.name} data-testid={`field-container-${field.name}`}>
             <label htmlFor={field.name} className="gba:block gba:text-sm gba:font-medium gba:text-foreground">
-              <Envelope className="gba:w-4 gba:h-4 gba:inline gba:mr-1" />
+              <EnvelopeIcon className="gba:w-4 gba:h-4 gba:inline gba:mr-1" />
               {field.label}
               {field.required && <span className="gba:text-destructive gba:ml-1">*</span>}
             </label>
@@ -286,7 +286,7 @@ export const DynamicFormGenerator: React.FC<DynamicFormGeneratorProps> = ({
             />
             {hasError && (
               <div className="gba:flex gba:items-center gba:gap-1 gba:text-destructive gba:text-xs">
-                <Warning size={12} />
+                <WarningIcon size={12} />
                 {error}
               </div>
             )}
@@ -313,7 +313,7 @@ export const DynamicFormGenerator: React.FC<DynamicFormGeneratorProps> = ({
             />
             {hasError && (
               <div className="gba:flex gba:items-center gba:gap-1 gba:text-destructive gba:text-xs">
-                <Warning size={12} />
+                <WarningIcon size={12} />
                 {error}
               </div>
             )}
@@ -368,7 +368,7 @@ export const DynamicFormGenerator: React.FC<DynamicFormGeneratorProps> = ({
             />
             {hasError && (
               <div className="gba:flex gba:items-center gba:gap-1 gba:text-destructive gba:text-xs">
-                <Warning size={12} />
+                <WarningIcon size={12} />
                 {error}
               </div>
             )}
@@ -402,7 +402,7 @@ export const DynamicFormGenerator: React.FC<DynamicFormGeneratorProps> = ({
             </Select>
             {hasError && (
               <div className="gba:flex gba:items-center gba:gap-1 gba:text-destructive gba:text-xs">
-                <Warning size={12} />
+                <WarningIcon size={12} />
                 {error}
               </div>
             )}
@@ -435,7 +435,7 @@ export const DynamicFormGenerator: React.FC<DynamicFormGeneratorProps> = ({
             />
             {hasError && (
               <div className="gba:flex gba:items-center gba:gap-1 gba:text-destructive gba:text-xs">
-                <Warning size={12} />
+                <WarningIcon size={12} />
                 {error}
               </div>
             )}
@@ -469,7 +469,7 @@ export const DynamicFormGenerator: React.FC<DynamicFormGeneratorProps> = ({
               />
               {hasError && (
                 <div className="gba:flex gba:items-center gba:gap-1 gba:text-destructive gba:text-xs">
-                  <Warning size={12} />
+                  <WarningIcon size={12} />
                   {error}
                 </div>
               )}
@@ -480,7 +480,7 @@ export const DynamicFormGenerator: React.FC<DynamicFormGeneratorProps> = ({
           return (
             <div className="gba:space-y-2" key={field.name} data-testid={`field-container-${field.name}`}>
               <label htmlFor={field.name} className="gba:block gba:text-sm gba:font-medium gba:text-foreground">
-                <Calendar className="gba:w-4 gba:h-4 gba:inline gba:mr-1" />
+                <CalendarIcon className="gba:w-4 gba:h-4 gba:inline gba:mr-1" />
                 {field.label}
                 {field.required && <span className="gba:text-destructive gba:ml-1">*</span>}
               </label>
@@ -496,7 +496,7 @@ export const DynamicFormGenerator: React.FC<DynamicFormGeneratorProps> = ({
               />
               {hasError && (
                 <div className="gba:flex gba:items-center gba:gap-1 gba:text-destructive gba:text-xs">
-                  <Warning size={12} />
+                  <WarningIcon size={12} />
                   {String(error)}
                 </div>
               )}
@@ -543,7 +543,7 @@ export const DynamicFormGenerator: React.FC<DynamicFormGeneratorProps> = ({
             </div>
             {hasError && (
               <div className="gba:flex gba:items-center gba:gap-1 gba:text-destructive gba:text-xs">
-                <Warning size={12} />
+                <WarningIcon size={12} />
                 {error}
               </div>
             )}
@@ -586,7 +586,7 @@ export const DynamicFormGenerator: React.FC<DynamicFormGeneratorProps> = ({
             </div>
             {hasError && (
               <div className="gba:flex gba:items-center gba:gap-1 gba:text-destructive gba:text-xs">
-                <Warning size={12} />
+                <WarningIcon size={12} />
                 {error}
               </div>
             )}
@@ -603,7 +603,7 @@ export const DynamicFormGenerator: React.FC<DynamicFormGeneratorProps> = ({
               </label>
               <div className="gba:p-4 gba:bg-muted/20 gba:border gba:border-dashed gba:border-muted gba:rounded-lg gba:text-center">
                 <div className="gba:flex gba:items-center gba:justify-center gba:gap-2 gba:text-muted-foreground">
-                  <Warning className="gba:h-5 gba:w-5" />
+                  <WarningIcon className="gba:h-5 gba:w-5" />
                   <span className="gba:text-sm gba:font-medium">Authentication Required</span>
                 </div>
                 <p className="gba:text-xs gba:text-muted-foreground gba:mt-1">
@@ -664,7 +664,7 @@ export const DynamicFormGenerator: React.FC<DynamicFormGeneratorProps> = ({
             )}
             <div className="gba:p-4 gba:bg-muted/20 gba:border gba:border-dashed gba:border-muted gba:rounded-lg gba:text-center">
               <div className="gba:flex gba:items-center gba:justify-center gba:gap-2 gba:text-muted-foreground">
-                <Warning className="gba:h-5 gba:w-5" />
+                <WarningIcon className="gba:h-5 gba:w-5" />
                 <span className="gba:text-sm gba:font-medium">TBD</span>
               </div>
               <p className="gba:text-xs gba:text-muted-foreground gba:mt-1">
@@ -732,7 +732,7 @@ export const DynamicFormGenerator: React.FC<DynamicFormGeneratorProps> = ({
                 </>
               ) : (
                 <>
-                  <CheckCircle className="gba:w-4 gba:h-4 gba:mr-2" />
+                  <CheckCircleIcon className="gba:w-4 gba:h-4 gba:mr-2" />
                   {submitButtonText}
                 </>
               )}

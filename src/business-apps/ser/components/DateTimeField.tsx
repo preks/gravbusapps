@@ -14,7 +14,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@newwork/nw-design-system';
-import { Calendar as CalendarIcon, Clock } from '@phosphor-icons/react';
+import { CalendarIcon, ClockIcon } from '@phosphor-icons/react';
 import dayjs from 'dayjs';
 import weekday from 'dayjs/plugin/weekday';
 import localeData from 'dayjs/plugin/localeData';
@@ -216,21 +216,21 @@ export const DateTimeField: React.FC<DateTimeFieldProps> = ({
   return (
     <div className="gba:space-y-2" data-testid={`${testId}-container`}>
       {/* Label - only show if showLabel is true */}
-      {/* {showLabel && (
+      {showLabel && (
         <Label 
           htmlFor={name} 
           className="gba:block gba:text-sm gba:font-medium gba:text-foreground"
           data-testid={`${testId}-label`}
         >
           {type === 'datetime' ? (
-            <Clock className="gba:w-4 gba:h-4 gba:inline gba:mr-1" />
+            <ClockIcon className="gba:w-4 gba:h-4 gba:inline gba:mr-1" />
           ) : (
             <CalendarIcon className="gba:w-4 gba:h-4 gba:inline gba:mr-1" />
           )}
           {label}
           {required && <span className="gba:text-destructive gba:ml-1">*</span>}
         </Label>
-      )} */}
+      )}
 
       {/* Description */}
       {description && (

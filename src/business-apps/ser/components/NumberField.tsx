@@ -3,7 +3,7 @@ import {
   Input,
   Label,
 } from '@newwork/nw-design-system';
-import { Hash } from '@phosphor-icons/react';
+import { HashIcon } from '@phosphor-icons/react';
 
 export interface NumberFieldProps {
   /** Field name for form identification */
@@ -121,7 +121,7 @@ export const NumberField: React.FC<NumberFieldProps> = ({
           className="gba:block gba:text-sm gba:font-medium gba:text-foreground"
           data-testid={`${testId}-label`}
         >
-          <Hash className="gba:w-4 gba:h-4 gba:inline gba:mr-1" />
+          <HashIcon className="gba:w-4 gba:h-4 gba:inline gba:mr-1" />
           {label}
           {required && <span className="gba:text-destructive gba:ml-1">*</span>}
         </Label>
@@ -154,7 +154,7 @@ export const NumberField: React.FC<NumberFieldProps> = ({
       {/* Error Message */}
       {hasError && errorMessage && (
         <div className="gba:flex gba:items-center gba:gap-1 gba:text-destructive gba:text-xs" data-testid={`${testId}-error`}>
-          <Hash className="gba:w-3 gba:h-3" />
+          <HashIcon className="gba:w-3 gba:h-3" />
           {errorMessage}
         </div>
       )}
