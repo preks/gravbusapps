@@ -4,6 +4,8 @@ export type RequestsCardContext = {
   setRequestDateRange: (range: [Date | null, Date | null] | null) => void;
   setStartDateRange: (range: [Date | null, Date | null] | null) => void;
   setEndDateRange: (range: [Date | null, Date | null] | null) => void;
+  // New: use effective date instead of request/start directly
+  setEffectiveDateRange?: (range: [Date | null, Date | null] | null) => void;
   handleFilterChange: (filterId: string, selected: boolean) => void;
 };
 
@@ -21,13 +23,21 @@ const currentMonthRange = (): [Date, Date] => {
 export const getRequestCardStrategies = (ctx: RequestsCardContext): Record<string, CardStrategy> => ({
   'total-requests': {
     apply: () => {
-      ctx.setRequestDateRange(currentMonthRange());
+      if (ctx.setEffectiveDateRange) {
+        ctx.setEffectiveDateRange(currentMonthRange());
+      } else {
+        ctx.setRequestDateRange(currentMonthRange());
+      }
       ctx.handleFilterChange('PAID', true);
       ctx.handleFilterChange('CLOSED', true);
       ctx.handleFilterChange('TRANSFERRED', true);
     },
     remove: () => {
-      ctx.setRequestDateRange(null);
+      if (ctx.setEffectiveDateRange) {
+        ctx.setEffectiveDateRange(null);
+      } else {
+        ctx.setRequestDateRange(null);
+      }
       ctx.handleFilterChange('PAID', false);
       ctx.handleFilterChange('CLOSED', false);
       ctx.handleFilterChange('TRANSFERRED', false);
@@ -35,13 +45,21 @@ export const getRequestCardStrategies = (ctx: RequestsCardContext): Record<strin
   },
   'total-amount': {
     apply: () => {
-      ctx.setRequestDateRange(currentMonthRange());
+      if (ctx.setEffectiveDateRange) {
+        ctx.setEffectiveDateRange(currentMonthRange());
+      } else {
+        ctx.setRequestDateRange(currentMonthRange());
+      }
       ctx.handleFilterChange('PAID', true);
       ctx.handleFilterChange('CLOSED', true);
       ctx.handleFilterChange('TRANSFERRED', true);
     },
     remove: () => {
-      ctx.setRequestDateRange(null);
+      if (ctx.setEffectiveDateRange) {
+        ctx.setEffectiveDateRange(null);
+      } else {
+        ctx.setRequestDateRange(null);
+      }
       ctx.handleFilterChange('PAID', false);
       ctx.handleFilterChange('CLOSED', false);
       ctx.handleFilterChange('TRANSFERRED', false);
