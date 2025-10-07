@@ -1,4 +1,4 @@
-import React, { useMemo, useRef, useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { Button, Input, Label, Switch, Select, SelectTrigger, SelectValue, SelectContent, SelectItem, Calendar, Popover, PopoverTrigger, PopoverContent, Spinner } from '@newwork/nw-design-system';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
@@ -11,6 +11,7 @@ import { Upload } from 'antd';
 import type { UploadFile } from 'antd';
 import { UploadOutlined } from '@ant-design/icons';
 import { useRelationshipTypes } from './hooks/useRelationshipTypes';
+import { env } from '@/common/env/EnvUtils';
 
 interface ChangeRelationshipScreenProps extends BusinessAppContextProps {}
 
@@ -26,13 +27,19 @@ const ChangeRelationshipScreen: React.FC<ChangeRelationshipScreenProps> = ({ add
   const [fileList, setFileList] = useState<UploadFile[]>([]);
   const [isUploading, setIsUploading] = useState(false);
 
-  const { options: relationshipTypeOptions } = useRelationshipTypes(accessToken);
+  const { options: relationshipTypeOptions } = useRelationshipTypes({ accessToken, userInfo, additionalData } as any);
 
   const fileClient = useFileClient({ accessToken, userInfo });
 
   const employeeId = userInfo?.employeeDetails?.employeeId;
 
   const initialPayload = useMemo(() => (additionalData as any) || {}, [additionalData]);
+
+  const isValid = useMemo(() => {
+    const requiredOk = relationshipTypeId && firstName.trim() && lastName.trim();
+    const phoneOk = !isEmergencyContact || phoneNumber.trim().length > 0;
+    return Boolean(requiredOk && phoneOk);
+  }, [relationshipTypeId, firstName, lastName, isEmergencyContact, phoneNumber]);
 
   const validateForm = () => {
     const errors: string[] = [];
@@ -45,6 +52,9 @@ const ChangeRelationshipScreen: React.FC<ChangeRelationshipScreenProps> = ({ add
     if (!lastName.trim()) {
       errors.push(getTranslationFromI18nKeyAndLabel('lowcoder:relationship_form.last_name_required', 'Last Name is required'));
     }
+    if (isEmergencyContact && !phoneNumber.trim()) {
+      errors.push(getTranslationFromI18nKeyAndLabel('lowcoder:relationship_form.phone_required', 'Phone Number is required for emergency contacts'));
+    }
     return errors.length ? errors : null;
   };
 
@@ -52,20 +62,49 @@ const ChangeRelationshipScreen: React.FC<ChangeRelationshipScreenProps> = ({ add
     if (!employeeId) return {};
 
     // Optional document upload (single file). If provided upload and attach meta.
-    let uploadedDocument: any | undefined;
+    let uploadedDocumentId: string | undefined;
     if (fileList.length > 0 && fileList[0].originFileObj) {
       try {
         setIsUploading(true);
         const pathParams = { accessScope: 'public' } as const;
-        const appName = 'employee-profile';
-        const folderPath = `/documents/${employeeId}/relationships`;
+        const appName = 'userProfile';
+        const folderPath = `/pics/${employeeId}`;
         const uploadResponse = await fileClient.uploadFile(fileList[0].originFileObj as File, pathParams, { appName, folderPath });
-        uploadedDocument = {
-          name: uploadResponse.fileInfo.fileMetadata?.originalFileName || fileList[0].name,
-          file: uploadResponse.fileInfo.fileId,
-          mimeType: uploadResponse.fileInfo.fileMetadata?.mimeType || (fileList[0].type || ''),
-          fileSize: (fileList[0].originFileObj as File).size,
-        };
+        const rawFileId = String(uploadResponse.fileInfo.fileId || '');
+        const fileIdNoExt = rawFileId.replace(/\.[^/.]+$/, '');
+
+        // Create EmployeeDocument via processes API (same pattern as ChangePersonalData)
+        try {
+          const processesBase = env('NEXT_PUBLIC_PROCESSES_ENDPOINT') || 'https://newwork-dev.newwork.com/processes';
+          const createDocUrl = `${processesBase}/employee/employeeDocuments`;
+          const body = {
+            employeeDocument: {
+              employeeId: employeeId,
+              documentGroup: 'DocumentGroup:v1:PERSONAL',
+              type: 'DocumentType:v1:20',
+              description: '',
+              name: uploadResponse?.fileInfo?.fileMetadata?.originalFileName || fileList[0].name,
+              file: rawFileId,
+              mimeType: uploadResponse?.fileInfo?.fileMetadata?.mimeType || (fileList[0].type || ''),
+              fileSize: (fileList[0].originFileObj as File).size || 0,
+              validFrom: new Date().toISOString(),
+            },
+          } as any;
+
+          const r = await fetch(createDocUrl, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              Authorization: accessToken ? `Bearer ${accessToken}` : '',
+            },
+            body: JSON.stringify(body),
+          });
+          const json = await r.json().catch(() => null);
+          uploadedDocumentId = json?.employeeDocument?.id || fileIdNoExt;
+        } catch (_) {
+          // Fallback to file id without extension if processes API fails
+          uploadedDocumentId = fileIdNoExt;
+        }
       } catch (e) {
         // Silent fail for upload; form can continue without a document
       } finally {
@@ -73,20 +112,24 @@ const ChangeRelationshipScreen: React.FC<ChangeRelationshipScreenProps> = ({ add
       }
     }
 
-    const relationshipChange = {
+    // Build payload with uploaded file info (like ChangeProfilePictureScreen)
+    const employeeRelationship = {
+      ...(initialPayload?.relationship?.id ? { id: initialPayload.relationship.id } : {}),
+      ...(typeof initialPayload?.relationship?.version === 'number' ? { version: initialPayload.relationship.version } : {}),
+      businessKey: initialPayload?.relationship?.businessKey || '',
+      additionalProperties: initialPayload?.relationship?.additionalProperties || {},
       employeeId,
-      relationship: {
-        // If editing existing relationship, the process should provide id/version via additionalData
-        ...(initialPayload?.relationship?.id ? { id: initialPayload.relationship.id } : {}),
-        ...(typeof initialPayload?.relationship?.version === 'number' ? { version: initialPayload.relationship.version } : {}),
-        type: relationshipTypeId || undefined,
-        firstName: firstName.trim() || undefined,
-        lastName: lastName.trim() || undefined,
-        birthDate: birthDate ? dayjs(birthDate).format('YYYY-MM-DD') : undefined,
-        phoneNumber: phoneNumber.trim() || undefined,
-        isEmergencyContact,
-      },
-      ...(uploadedDocument ? { employeeDocument: uploadedDocument } : {}),
+      firstName: firstName.trim() || undefined,
+      lastName: lastName.trim() || undefined,
+      phoneNumber: phoneNumber.trim() || undefined,
+      typeRef: relationshipTypeId || undefined,
+      birthDate: birthDate ? dayjs(birthDate).toISOString() : undefined,
+      emergencyContact: isEmergencyContact,
+      relationshipDocument: uploadedDocumentId,
+    } as any;
+
+    const relationshipChange = {
+      employeeRelationship,
     };
 
     return relationshipChange;
@@ -103,6 +146,7 @@ const ChangeRelationshipScreen: React.FC<ChangeRelationshipScreenProps> = ({ add
       businessAppContext={{ accessToken, userInfo, additionalData }}
       validateForm={validateForm}
       handlePreSubmit={handlePreSubmit}
+      isSubmitDisabled={!isValid}
       submitButtonText={getTranslationFromI18nKeyAndLabel('common.submit', 'Submit')}
       cancelButtonText={getTranslationFromI18nKeyAndLabel('common.cancel', 'Cancel')}
       data-testid={formatDataTestId(prefixDataTestId, 'Container')}
@@ -199,9 +243,14 @@ const ChangeRelationshipScreen: React.FC<ChangeRelationshipScreenProps> = ({ add
 
           {/* Phone Number */}
           <div>
-            <Label>{getTranslationFromI18nKeyAndLabel('lowcoder:relationship_form.phone_number', 'Phone Number')}</Label>
+            <Label>
+              {getTranslationFromI18nKeyAndLabel('lowcoder:relationship_form.phone_number', 'Phone Number')}
+              {isEmergencyContact ? '*' : ''}
+            </Label>
             <Input value={phoneNumber} onChange={(e) => setPhoneNumber(e.target.value)} placeholder={getTranslationFromI18nKeyAndLabel('lowcoder:relationship_form.phone_number_placeholder', 'Enter Phone Number')} data-testid={formatDataTestId(prefixDataTestId, 'PhoneNumber')} />
           </div>
+
+          
 
           {/* Emergency Contact */}
           <div className="gba:flex gba:items-center gba:justify-between">

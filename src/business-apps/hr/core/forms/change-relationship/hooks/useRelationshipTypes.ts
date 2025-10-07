@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
-import { useCatalogManagerClient } from '@/common/network/catalogs/useCatalogManagerClient';
+import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient';
+import { BusinessAppContextProps } from '@/common/BusinessAppContext';
+import { getCurrentActiveUserLocale } from '@/common/utils/windowUtils';
 
 export interface SelectOption {
   id: string;
@@ -7,12 +9,80 @@ export interface SelectOption {
   value: string;
 }
 
-// Catalog identifiers for employee relationship types
-const RELATIONSHIP_TYPE_CATALOG = 'RelationshipType';
-const CATALOG_VERSION = 'v1';
+// GraphQL query to fetch relationship types from CatalogEntry (EmployeeRelationships)
+export const GET_RELATIONSHIP_TYPES = `
+ query fetchEmployee($idEmployee: uuid!, $activeUserLocale: String!) {
+ EmployeeByPk(id: $idEmployee) {    
+   id
+   relationship {
+    id
+    version
+    birthDate
+    email
+    employeeId
+    firstName
+    isEmergencyContact
+    phoneNumber
+    lastName
+    relationshipDocumentId
+    typeRef
+    notes
+   }
+ }
+ EmployeePosition(where: {employeeId: {_eq: $idEmployee}}) {
+    siteLocation{
+      name
+    }
+    structureId
+    jobPosition{
+      name
+    }
+    organizationalUnit{
+      id
+      name
+    }
+  }
+  relationships: CatalogEntry(where: {catalog: {version: {_eq: "v1"}, identifier: {_eq: "EmployeeRelationships"}}}) {
+    id
+    value
+    translations(where: {localeCode: {_eq: $activeUserLocale}}) {
+      localeCode
+      value
+    }
+    catalog {
+      defaultLocale
+    }
+    code
+  }
+  documentGroup: CatalogEntry(where: {catalog: {version: {_eq: "v1"}, identifier: {_eq: "DocumentGroup"}}}) {
+    id
+    value
+    translations(where: {localeCode: {_eq: $activeUserLocale}}) {
+      localeCode
+      value
+    }
+    catalog {
+      defaultLocale
+    }
+    code
+  }
+  documentType: CatalogEntry(where: {catalog: {version: {_eq: "v1"}, identifier: {_eq: "DocumentType"}}}) {
+    id
+    value
+    translations(where: {localeCode: {_eq: $activeUserLocale}}) {
+      localeCode
+      value
+    }
+    catalog {
+      defaultLocale
+    }
+    code
+  }
+}
+`;
 
-export const useRelationshipTypes = (accessToken: string) => {
-  const catalogClient = useCatalogManagerClient(accessToken);
+export const useRelationshipTypes = (context: BusinessAppContextProps) => {
+  const graphqlClient = useGraphQLClient(context.accessToken);
   const [options, setOptions] = useState<SelectOption[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -21,22 +91,29 @@ export const useRelationshipTypes = (accessToken: string) => {
     try {
       setLoading(true);
       setError(null);
-      const response = await catalogClient.getCatalogEntriesList(
-        { catalogIdentifier: RELATIONSHIP_TYPE_CATALOG, version: CATALOG_VERSION },
-        { limit: 100, offset: 0, returnTotalRecords: true, includeChildCatalogEntries: false }
-      );
-      const entries = response.data || [];
-      setOptions(entries.map((e: any) => ({ id: e.id, label: e.value || e.code || '—', value: e.id })));
+      const employeeId = context.userInfo?.employeeDetails?.employeeId;
+      if (!employeeId) {
+        setOptions([]);
+        setLoading(false);
+        return;
+      }
+      const activeUserLocale = getCurrentActiveUserLocale() || 'en-US';
+      const res = await graphqlClient.request<any>(GET_RELATIONSHIP_TYPES, {
+        idEmployee: employeeId,
+        activeUserLocale,
+      });
+      const entries = res?.relationships || [];
+      setOptions(entries.map((e: any) => ({ id: e.id, label: e.translations?.[0]?.value || e.value || e.code || '—', value: e.id })));
     } catch (e: any) {
       setError(e?.message || 'Failed to load relationship types');
     } finally {
       setLoading(false);
     }
-  }, [catalogClient]);
+  }, [context.userInfo?.employeeDetails?.employeeId, graphqlClient]);
 
   useEffect(() => {
-    if (accessToken) fetchOptions();
-  }, [accessToken, fetchOptions]);
+    if (context.accessToken) fetchOptions();
+  }, [context.accessToken, fetchOptions]);
 
   return { options, loading, error, refetch: fetchOptions };
 };
