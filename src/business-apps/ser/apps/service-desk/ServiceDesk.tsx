@@ -229,13 +229,23 @@ const ServiceDesk: React.FC<ServiceDeskProps> = ({
     );
   }
 
+  // Get current user ID
+  const currentUserId = userInfo?.id;
+  
+  // Define allowed user IDs for diagnostic tab (add your user ID here)
+  const diagnosticAllowedUserIds = ['c2c0b944-8f68-4599-810f-6faccecd1a68'];
+  
+  // Check if current user can see diagnostic tab
+  const canSeeDiagnostic = diagnosticAllowedUserIds.includes(currentUserId || '');
+
   // Debug info for development
   console.log('ServiceDesk Debug:', {
     servicesFeature,
     isServicesEnabled,
     accessToken: !!accessToken,
     userInfo: !!userInfo,
-    employeeId: getUserEmployeeId(userInfo)
+    userId: currentUserId,
+    canSeeDiagnostic
   });
 
   // Enable cache debug console in development
@@ -377,14 +387,15 @@ const ServiceDesk: React.FC<ServiceDeskProps> = ({
               ),
               icon: <ChartBarIcon size={16} />
             },
-            { 
+            // Only show diagnostic tab for allowed users
+            ...(canSeeDiagnostic ? [{ 
               value: 'diagnostic', 
               label: getTranslationFromI18nKeyAndLabel(
                 'services.desk.submenu.diagnostic',
                 'Diagnostic'
               ),
               icon: <BugIcon size={16} />
-            },
+            }] : []),
           ],
           onValueChange: handleSubViewChange,
         }}
