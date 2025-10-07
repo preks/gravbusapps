@@ -1,6 +1,6 @@
 import React from "react";
 import { BusinessAppContextProps } from "@/common/BusinessAppContext";
-import { DashboardHeader, DashboardNavigation, InvestmentTypesTab } from "./components";
+import { InvestmentTypesTab } from "./components";
 
 interface DashboardViewProps extends BusinessAppContextProps {
   onNavigateToInvestments?: (subTab?: string) => void;
@@ -16,11 +16,6 @@ const DashboardView: React.FC<DashboardViewProps> = ({
   onNavigateToInvestments,
 }) => {
 
-  const handleInvestmentClick = (investmentId: string) => {
-    const detailsUrl = `/platform/irm/investment-record?investmentId=${investmentId}&fromView=dashboard`;
-    window.location.href = detailsUrl;
-  };
-
   const handleNavigateToInvestmentType = (investmentType: string) => {
     // Navigate to the investments tab with the specific subtab
     if (onNavigateToInvestments) {
@@ -29,24 +24,23 @@ const DashboardView: React.FC<DashboardViewProps> = ({
   };
 
   return (
-    <div
-      className="gba:min-h-screen gba:bg-gray-50"
-      data-testid="dashboard-view"
-    >
+    <div data-testid="dashboard-view">
       {/* Header */}
-      <DashboardHeader />
-
-      {/* Navigation header retained; tabs removed */}
-      <DashboardNavigation activeTab={"investment-types"} setActiveTab={() => {}} />
-
-      {/* Main Content: Show breakdown content directly */}
-      <div className="gba:p-6">
-        <InvestmentTypesTab
-          accessToken={accessToken}
-          userInfo={userInfo}
-          onNavigateToInvestmentType={handleNavigateToInvestmentType}
-        />
+      <div className="gba:mb-6">
+        <div className="gba:flex gba:items-center gba:justify-between gba:mb-4">
+          <div>
+            <h1 className="gba:text-2xl gba:font-bold gba:text-gray-900">Investment Portfolio</h1>
+            <p className="gba:text-gray-600">Overview of all investments and portfolio metrics</p>
+          </div>
+        </div>
       </div>
+
+      {/* Main Content */}
+      <InvestmentTypesTab
+        accessToken={accessToken}
+        userInfo={userInfo}
+        onNavigateToInvestmentType={handleNavigateToInvestmentType}
+      />
     </div>
   );
 };

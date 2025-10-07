@@ -176,16 +176,13 @@ export const LiquidFundInvestmentsReport: React.FC<LiquidFundInvestmentsReportPr
       {/* Tabs */}
       <Tabs value={activeTab} onValueChange={setActiveTab} className="gba:mt-6">
         <TabsList className="gba:grid gba:w-full gba:grid-cols-3">
-          <TabsTrigger value="distribution" className="gba:flex gba:items-center gba:gap-2" data-testid={`${prefixDataTestId}-distribution-tab`}>
-            <PieChart className="gba:h-4 gba:w-4" />
+          <TabsTrigger value="distribution" startIcon={<PieChart />} data-testid={`${prefixDataTestId}-distribution-tab`}>
             Distribution Analysis
           </TabsTrigger>
-          <TabsTrigger value="timeline" className="gba:flex gba:items-center gba:gap-2" data-testid={`${prefixDataTestId}-timeline-tab`}>
-            <TrendingUp className="gba:h-4 gba:w-4" />
+          <TabsTrigger value="timeline" startIcon={<TrendingUp />} data-testid={`${prefixDataTestId}-timeline-tab`}>
             Timeline Analysis  
           </TabsTrigger>
-          <TabsTrigger value="analytics" className="gba:flex gba:items-center gba:gap-2" data-testid={`${prefixDataTestId}-analytics-tab`}>
-            <BarChart className="gba:h-4 gba:w-4" />
+          <TabsTrigger value="analytics" startIcon={<BarChart />} data-testid={`${prefixDataTestId}-analytics-tab`}>
             Performance Analysis
           </TabsTrigger>
         </TabsList>

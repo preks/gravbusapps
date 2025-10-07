@@ -131,6 +131,9 @@ export interface InvestmentReportQueryVariables {
   investmentTypeIds?: string[];
   investmentGroupIds?: string[];
   
+  // Catalog filters
+  currencyIds?: string[];
+  
   // Date ranges for reports
   reportDateFrom?: string;
   reportDateTo?: string;
@@ -237,6 +240,12 @@ export const buildInvestmentReportWhereCondition = (variables: InvestmentReportQ
     if (variables.loanRecipientNameContains?.trim()) {
       const v = escapeGraphQLString(variables.loanRecipientNameContains.trim());
       conditions.push(`loanRecipientName: { _ilike: "%${v}%" }`);
+    }
+
+    // Catalog filters
+    if (variables.currencyIds?.length) {
+      const safeCurrencyIds = variables.currencyIds.map(id => `"${escapeGraphQLString(id)}"`).join(', ');
+      conditions.push(`currency: { id: { _in: [${safeCurrencyIds}] } }`);
     }
 
     // Investment-level filters (through relationship)
