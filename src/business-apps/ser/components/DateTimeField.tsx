@@ -251,11 +251,6 @@ export const DateTimeField: React.FC<DateTimeFieldProps> = ({
               disabled={disabled}
               data-testid={`${testId}-trigger`}
             >
-              {type === 'datetime' ? (
-                <Clock className="gba:mr-2 gba:h-4 gba:w-4" />
-              ) : (
-                <CalendarIcon className="gba:mr-2 gba:h-4 gba:w-4" />
-              )}
               {displayValue || placeholder || `Select ${label.toLowerCase()}`}
             </Button>
           </PopoverTrigger>

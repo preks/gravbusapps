@@ -408,9 +408,16 @@ export const DynamicFormGenerator: React.FC<DynamicFormGeneratorProps> = ({
         );
 
       case 'DATE':
-          return (
+        return (
+          <div className="gba:space-y-2" key={field.name} data-testid={`field-container-${field.name}`}>
+            <label htmlFor={field.name} className="gba:block gba:text-sm gba:font-medium gba:text-foreground">
+              {field.label}
+              {field.required && <span className="gba:text-destructive gba:ml-1">*</span>}
+            </label>
+            {field.description && (
+              <p className="gba:text-xs gba:text-muted-foreground">{field.description}</p>
+            )}
             <DateTimeField
-              key={field.name}
               name={field.name}
               label={field.label}
               showLabel={false}
@@ -419,33 +426,53 @@ export const DynamicFormGenerator: React.FC<DynamicFormGeneratorProps> = ({
               onBlur={() => setTouchedFields(prev => new Set(prev).add(field.name))}
               required={field.required}
               placeholder={field.placeholder}
-              description={field.description}
               hasError={!!hasError}
               errorMessage={error || undefined}
               type="date"
               testId={`form-field-${field.name}`}
             />
-          );
+            {hasError && (
+              <div className="gba:flex gba:items-center gba:gap-1 gba:text-destructive gba:text-xs">
+                <Warning size={12} />
+                {error}
+              </div>
+            )}
+          </div>
+        );
 
       case 'DATETIME':
         try {
           return (
-            <DateTimeField
-              key={field.name}
-              name={field.name}
-              label={field.label}
-              showLabel={false}
-              value={value}
-              onChange={(date) => handleFieldChange(field.name, date)}
-              onBlur={() => setTouchedFields(prev => new Set(prev).add(field.name))}
-              required={field.required}
-              placeholder={field.placeholder}
-              description={field.description}
-              hasError={!!hasError}
-              errorMessage={error || undefined}
-              type="datetime"
-              testId={`form-field-${field.name}`}
-            />
+            <div className="gba:space-y-2" key={field.name} data-testid={`field-container-${field.name}`}>
+              <label htmlFor={field.name} className="gba:block gba:text-sm gba:font-medium gba:text-foreground">
+                <Calendar className="gba:w-4 gba:h-4 gba:inline gba:mr-1" />
+                {field.label}
+                {field.required && <span className="gba:text-destructive gba:ml-1">*</span>}
+              </label>
+              {field.description && (
+                <p className="gba:text-xs gba:text-muted-foreground">{field.description}</p>
+              )}
+              <DateTimeField
+                name={field.name}
+                label={field.label}
+                showLabel={false}
+                value={value}
+                onChange={(date) => handleFieldChange(field.name, date)}
+                onBlur={() => setTouchedFields(prev => new Set(prev).add(field.name))}
+                required={field.required}
+                placeholder={field.placeholder}
+                hasError={!!hasError}
+                errorMessage={error || undefined}
+                type="datetime"
+                testId={`form-field-${field.name}`}
+              />
+              {hasError && (
+                <div className="gba:flex gba:items-center gba:gap-1 gba:text-destructive gba:text-xs">
+                  <Warning size={12} />
+                  {error}
+                </div>
+              )}
+            </div>
           );
         } catch (error) {
           // Fallback to basic datetime input
