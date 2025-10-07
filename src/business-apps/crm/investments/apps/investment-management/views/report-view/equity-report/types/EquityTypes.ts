@@ -10,6 +10,7 @@ export interface EquityAnalyticsQueryVariables {
 export interface EquityAnalyticsFilters {
   startDate?: string;
   endDate?: string;
+  currencyIds?: string[];
   investmentType?: string;
 }
 

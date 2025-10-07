@@ -157,25 +157,22 @@ const InvestmentPortfolioOverview: React.FC<InvestmentPortfolioOverviewProps> = 
             <TabsTrigger 
               value="distribution" 
               data-testid={formatDataTestId(prefixDataTestId, 'DistributionTab')}
-              className="gba:flex gba:items-center gba:gap-2"
+              startIcon={<PieChartOutlined />}
             >
-              <PieChartOutlined />
               {getTranslationFromI18nKeyAndLabel('tab.distribution.analysis', 'Distribution Analysis')}
             </TabsTrigger>
             <TabsTrigger 
               value="timeline" 
               data-testid={formatDataTestId(prefixDataTestId, 'TimelineTab')}
-              className="gba:flex gba:items-center gba:gap-2"
+              startIcon={<RiseOutlined />}
             >
-                  <RiseOutlined />
-                  {getTranslationFromI18nKeyAndLabel('tab.timeline.analysis', 'Timeline Analysis')}
+              {getTranslationFromI18nKeyAndLabel('tab.timeline.analysis', 'Timeline Analysis')}
             </TabsTrigger>
             <TabsTrigger 
               value="analytics" 
               data-testid={formatDataTestId(prefixDataTestId, 'AnalyticsTab')}
-              className="gba:flex gba:items-center gba:gap-2"
+              startIcon={<BarChart />}
             >
-              <BarChart className="gba:h-4 gba:w-4" />
               {getTranslationFromI18nKeyAndLabel('tab.performance.analytics', 'Performance Analysis')}
             </TabsTrigger>
           </TabsList>
