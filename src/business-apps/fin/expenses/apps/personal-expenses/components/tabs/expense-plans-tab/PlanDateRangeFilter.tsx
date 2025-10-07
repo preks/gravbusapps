@@ -35,7 +35,7 @@ const PlanDateRangeFilter: React.FC<PlanDateRangeFilterProps> = ({
       value={value as [Dayjs | null, Dayjs | null] | null}
       onChange={handleDateChange}
       placeholder={placeholder}
-      style={{ width: '100%' }}
+      className="gba:w-full"
       data-testid="plan-date-range-filter"
     />
   );

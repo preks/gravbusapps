@@ -324,7 +324,7 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = (props) => {
   }, [expenses]);
 
   const filterGroups: DataFilterGroup[] = useMemo(() => {
-    return [
+    return [ 
       {
         id: 'status',
         title: getTranslationFromI18nKeyAndLabel('lowcoder:expense_request_list.expense_plan_table.status', 'Status'),
