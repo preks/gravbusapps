@@ -40,7 +40,7 @@ const RequestDateRangeFilter: React.FC<RequestDateRangeFilterProps> = ({
         value={value as [Dayjs | null, Dayjs | null] | null}
         onChange={handleDateChange}
         placeholder={placeholder}
-        style={{ width: '100%' }}
+        className="gba:w-full"
         data-testid="effective-date-range-filter"
       />  
      {isEffectiveDateRange && (

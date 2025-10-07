@@ -41,7 +41,7 @@ const EffectiveDateRangeFilter: React.FC<EffectiveDateRangeFilterProps> = ({
         value={value as [Dayjs | null, Dayjs | null] | null}
         onChange={handleDateChange}
         placeholder={placeholder}
-        style={{ width: '100%' }}
+        className="gba:w-full"
         data-testid="effective-date-range-filter"
       />
        <div className="gba:mt-2 gba:text-xs gba:text-muted-foreground gba:flex gba:items-center gba:gap-1" data-testid="effective-date-hint">
