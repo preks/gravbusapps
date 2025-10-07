@@ -37,10 +37,10 @@ export const useCatalogTableActions = ({
 
   // Helper function to build complete entry data with proper translation format
   const buildCompleteEntryData = useCallback((entryId: string) => {
-    // Helper function to convert empty strings to null (API requirement)
+    // Helper function to ensure empty strings are preserved when clearing fields
     const normalizeValue = (value: any): any => {
       if (typeof value === 'string' && value.trim() === '') {
-        return null;
+        return ''; // Keep empty string instead of converting to null
       }
       return value;
     };
@@ -391,7 +391,7 @@ export const useCatalogTableActions = ({
             // Build create payload from edits for draft
             const originalEntry = state.allEntries.find(e => e.id === entryId)!;
             const edits = state.editedEntries.get(entryId) || {};
-            const normalizeValue = (value: any): any => (typeof value === 'string' && value.trim() === '') ? null : value;
+            const normalizeValue = (value: any): any => (typeof value === 'string' && value.trim() === '') ? '' : value;
 
             const createData: any = {
               code: (edits.code as string) || '',
@@ -494,7 +494,7 @@ export const useCatalogTableActions = ({
         if (isDraft) {
           // Create new entry
           const originalEntry = state.allEntries.find(e => e.id === entryId)!;
-          const normalizeValue = (value: any): any => (typeof value === 'string' && value.trim() === '') ? null : value;
+          const normalizeValue = (value: any): any => (typeof value === 'string' && value.trim() === '') ? '' : value;
           const createData: any = {
             code: (entryEdits.code as string) || '',
             alternativeCode: normalizeValue(entryEdits.alternativeCode ?? originalEntry.alternativeCode),

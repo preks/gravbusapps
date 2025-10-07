@@ -31,9 +31,7 @@ export const InvestmentReportPdfModal: React.FC<InvestmentReportPdfModalProps> =
 
   // Fetch document with authentication when modal opens
   useEffect(() => {
-
     if (!isVisible || !reportUrl || !accessToken) {
-
       return;
     }
 

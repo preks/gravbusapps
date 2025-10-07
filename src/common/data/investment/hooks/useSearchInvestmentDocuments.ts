@@ -12,6 +12,7 @@ export interface InvestmentDocumentSearchVariables {
   leadId?: string;
   contactId?: string;
   accountId?: string;
+  investmentId?: string;
   search?: string;
   limit?: number;
   offset?: number;
@@ -28,7 +29,7 @@ export interface InvestmentDocumentSearchResponse {
 
 // Build GraphQL search query for investment documents
 const buildInvestmentDocumentSearchQuery = (variables: InvestmentDocumentSearchVariables): string => {
-  const { opportunityId, leadId, contactId, accountId, search, limit = 50, offset = 0 } = variables;
+  const { opportunityId, leadId, contactId, accountId, investmentId, search, limit = 50, offset = 0 } = variables;
   
   // Build entity filter based on which ID is provided
   let entityFilter = '';
@@ -40,6 +41,8 @@ const buildInvestmentDocumentSearchQuery = (variables: InvestmentDocumentSearchV
     entityFilter = `contact: { id: { _eq: "${contactId}" } }`;
   } else if (accountId) {
     entityFilter = `account: { id: { _eq: "${accountId}" } }`;
+  } else if (investmentId) {
+    entityFilter = `investment: { id: { _eq: "${investmentId}" } }`;
   }
   
   // Build search filter if search term is provided
@@ -109,6 +112,13 @@ const buildInvestmentDocumentSearchQuery = (variables: InvestmentDocumentSearchV
         ` : ''}
         ${accountId ? `
         account {
+          id
+          code
+          name
+        }
+        ` : ''}
+        ${investmentId ? `
+        investment {
           id
           code
           name

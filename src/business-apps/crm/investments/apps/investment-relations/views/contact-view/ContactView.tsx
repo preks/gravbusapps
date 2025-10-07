@@ -19,14 +19,30 @@ export interface ContactViewProps extends BusinessAppContextProps {}
 export const ContactView: React.FC<ContactViewProps> = (context) => {
   const { accessToken } = context;
 
+  // Read initial filters/search from URL (before first render)
+  const getInitialFromUrl = () => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const filters: string[] = [];
+    const pushAll = (key: string, prefix: string) => {
+      urlParams.getAll(key).forEach((v) => v && filters.push(`${prefix}:${v}`));
+    };
+    pushAll("contactType", "type");
+    pushAll("owner", "owner");
+    pushAll("account", "account");
+    pushAll("department", "department");
+    const search = urlParams.get("search") || "";
+    return { search, filters };
+  };
+  const initial = getInitialFromUrl();
+
   // State management
-  const [searchTerm, setSearchTerm] = useState("");
+  const [searchTerm, setSearchTerm] = useState(initial.search);
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize] = useState(20);
   type SortOrder = "ASC" | "DESC" | undefined;
   const [sortField, setSortField] = useState<string | undefined>("createdAt");
   const [sortOrder, setSortOrder] = useState<SortOrder>("DESC");
-  const [selectedFilters, setSelectedFilters] = useState<string[]>([]);
+  const [selectedFilters, setSelectedFilters] = useState<string[]>(initial.filters);
   // const [showDataFilter, setShowDataFilter] = useState(false);
   const {
     filterGroups,
@@ -34,6 +50,7 @@ export const ContactView: React.FC<ContactViewProps> = (context) => {
     handleFilterChange,
     birthDateAfter,
     birthDateBefore,
+    filtersInitialized,
   } = useInvestmentContactFilters(context, selectedFilters, setSelectedFilters);
 
   // Hooks for data fetching
@@ -131,7 +148,7 @@ export const ContactView: React.FC<ContactViewProps> = (context) => {
 
   // Load data
   const loadData = useCallback(async () => {
-    if (!accessToken) return;
+    if (!accessToken || !filtersInitialized) return;
 
     setIsLoading(true);
     setError(null);
@@ -145,7 +162,7 @@ export const ContactView: React.FC<ContactViewProps> = (context) => {
     } finally {
       setIsLoading(false);
     }
-  }, [accessToken, fetchInvestmentContacts, queryVariables]);
+  }, [accessToken, filtersInitialized, fetchInvestmentContacts, queryVariables]);
 
   // Load data on mount and when variables change
   useEffect(() => {
@@ -217,33 +234,6 @@ export const ContactView: React.FC<ContactViewProps> = (context) => {
       });
     };
   }, [loadData]);
-
-  // Initialize from URL parameters (search and common filters)
-  useEffect(() => {
-    const urlParams = new URLSearchParams(window.location.search);
-    const initialFilters: string[] = [];
-    const pushAll = (key: string, prefix: string) => {
-      urlParams
-        .getAll(key)
-        .forEach((v) => v && initialFilters.push(`${prefix}:${v}`));
-    };
-    pushAll("owner", "owner");
-    pushAll("language", "language");
-    pushAll("salutation", "salutation");
-    pushAll("title", "title");
-    // Additional supported filters
-    pushAll("type", "type");
-    pushAll("department", "department");
-    pushAll("account", "account");
-    pushAll("contact", "contact");
-
-    if (initialFilters.length) {
-      setSelectedFilters((prev) => (prev.length ? prev : initialFilters));
-    }
-
-    const search = urlParams.get("search");
-    if (search) setSearchTerm(search);
-  }, []);
 
   // Handle search
   const handleSearch = useCallback((value: string) => {

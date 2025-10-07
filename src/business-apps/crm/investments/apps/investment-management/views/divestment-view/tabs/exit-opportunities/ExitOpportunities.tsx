@@ -25,7 +25,6 @@ import {
   Building2, 
   Calendar, 
   User,
-  Award,
   Plus
 } from "lucide-react";
 import { BusinessAppContextProps } from "@/common/BusinessAppContext";
@@ -69,6 +68,10 @@ const ExitOpportunities: React.FC<ExitOpportunitiesProps> = ({
   // Created date range state (creation date)
   const [createdAfter, setCreatedAfter] = useState<string | undefined>(undefined);
   const [createdBefore, setCreatedBefore] = useState<string | undefined>(undefined);
+  // Account search term
+  const [accountSearchTerm, setAccountSearchTerm] = useState("");
+  // Board refresh trigger
+  const [boardRefreshTrigger, setBoardRefreshTrigger] = useState(0);
   // Owner backend search
   const { employees: employeeOptions, search: searchEmployees, loading: loadingEmployees, error: employeeError } = useEmployeeSearch(accessToken);
 
@@ -121,6 +124,7 @@ const ExitOpportunities: React.FC<ExitOpportunitiesProps> = ({
         offset: (page - 1) * pageSize,
         dealType: "DIVESTMENT_DEAL", // Filter for divestment opportunities using dealType
         search: additionalFilters?.search || searchTerm,
+        accountSearch: additionalFilters?.accountSearch,
       };
 
       // Add sorting
@@ -151,6 +155,7 @@ const ExitOpportunities: React.FC<ExitOpportunitiesProps> = ({
           ownerEmployeeIds: additionalFilters?.ownerEmployeeIds,
           createdAfter: additionalFilters?.createdAfter,
           createdBefore: additionalFilters?.createdBefore,
+          accountSearch: additionalFilters?.accountSearch,
         };
         
         // Trigger optimized metrics calculation in the background
@@ -203,9 +208,10 @@ const ExitOpportunities: React.FC<ExitOpportunitiesProps> = ({
         ownerEmployeeIds: ownerIds,
         createdAfter,
         createdBefore,
+        accountSearch: accountSearchTerm,
       }
     );
-  }, [currentPage, pageSize, searchTerm, sortField, sortOrder, selectedFilters, createdAfter, createdBefore]); // Removed loadPage from dependencies
+  }, [currentPage, pageSize, searchTerm, sortField, sortOrder, selectedFilters, createdAfter, createdBefore, accountSearchTerm]); // Removed loadPage from dependencies
 
   // Listen for process completion events to refresh data
   useEffect(() => {
@@ -214,6 +220,7 @@ const ExitOpportunities: React.FC<ExitOpportunitiesProps> = ({
         // Check for successful completion
         if (event.detail?.resolution === 'success') {
           loadPage(currentPage, pageSize);
+          setBoardRefreshTrigger(prev => prev + 1); // Trigger board refresh
           return;
         }
         
@@ -223,12 +230,14 @@ const ExitOpportunities: React.FC<ExitOpportunitiesProps> = ({
             response?.opportunity || 
             response?.investment) {
           loadPage(currentPage, pageSize);
+          setBoardRefreshTrigger(prev => prev + 1); // Trigger board refresh
           return;
         }
         
         // Check for continue events with payload
         if (event.type === 'com.newwork.process.continue' && event.detail?.payload) {
           loadPage(currentPage, pageSize);
+          setBoardRefreshTrigger(prev => prev + 1); // Trigger board refresh
         }
       } catch (err) {
         // Log process completion event handling errors
@@ -285,10 +294,10 @@ const ExitOpportunities: React.FC<ExitOpportunitiesProps> = ({
     { id: 'actions', label: 'Actions', visible: true, disabled: true },
     { id: 'opportunity', label: 'Opportunity', visible: true },
     { id: 'investment', label: 'Investment', visible: true },
+    { id: 'account', label: 'Account', visible: true },
     { id: 'amount', label: 'Amount', visible: true },
     { id: 'stage', label: 'Stage', visible: true },
     { id: 'status', label: 'Status', visible: true },
-    { id: 'probability', label: 'Probability', visible: true },
     { id: 'closeDate', label: 'Close Date', visible: true },
     { id: 'owner', label: 'Owner', visible: true },
     { id: 'created', label: 'Created', visible: false },
@@ -303,10 +312,10 @@ const ExitOpportunities: React.FC<ExitOpportunitiesProps> = ({
   const columnToFilterMap: Record<string, string> = {
     opportunity: 'opportunityName',
     investment: 'investmentName',
+    account: 'accountName',
     amount: 'amountRange',
     stage: 'stage',
     status: 'opportunityStatus',
-    probability: 'probabilityRange',
     closeDate: 'closeDate',
     owner: 'owner',
     created: 'creationDate',
@@ -348,7 +357,7 @@ const ExitOpportunities: React.FC<ExitOpportunitiesProps> = ({
         trend: {
           value: formatPercentageChange(metricsToUse.countChange),
           positive: metricsToUse.countChange >= 0,
-          description: getTranslationFromI18nKeyAndLabel("vs_previous_period", "vs previous period")
+          description: getTranslationFromI18nKeyAndLabel("vs_last_30_days", "vs last 30 days")
         }
       },
       {
@@ -362,7 +371,7 @@ const ExitOpportunities: React.FC<ExitOpportunitiesProps> = ({
         trend: {
           value: formatPercentageChange(metricsToUse.totalValueChange),
           positive: metricsToUse.totalValueChange >= 0,
-          description: getTranslationFromI18nKeyAndLabel("vs_previous_period", "vs previous period")
+          description: getTranslationFromI18nKeyAndLabel("vs_last_30_days", "vs last 30 days")
         }
       },
       {
@@ -376,7 +385,7 @@ const ExitOpportunities: React.FC<ExitOpportunitiesProps> = ({
         trend: {
           value: formatPercentageChange(metricsToUse.averageValueChange),
           positive: metricsToUse.averageValueChange >= 0,
-          description: getTranslationFromI18nKeyAndLabel("vs_previous_period", "vs previous period")
+          description: getTranslationFromI18nKeyAndLabel("vs_last_30_days", "vs last 30 days")
         }
       },
       {
@@ -390,7 +399,7 @@ const ExitOpportunities: React.FC<ExitOpportunitiesProps> = ({
         trend: {
           value: formatPercentageChange(metricsToUse.winRateChange),
           positive: metricsToUse.winRateChange >= 0,
-          description: getTranslationFromI18nKeyAndLabel("vs_previous_period", "vs previous period")
+          description: getTranslationFromI18nKeyAndLabel("vs_last_30_days", "vs last 30 days")
         }
       }
     ];
@@ -523,6 +532,22 @@ const ExitOpportunities: React.FC<ExitOpportunitiesProps> = ({
               hideSearch: true,
             },
             {
+              id: 'accountName',
+              title: 'Account',
+              filters: [],
+              customComponent: React.createElement('input', {
+                value: accountSearchTerm,
+                onChange: (e: any) => {
+                  setAccountSearchTerm(e?.target?.value || '');
+                  setCurrentPage(1);
+                },
+                placeholder: 'Search account',
+                className: 'gba:w-full gba:h-8 gba:px-2 gba:text-sm gba:bg-gray-100/40 gba:rounded gba:border-none gba:outline-none',
+                'data-testid': 'exit-opportunities-account-search-input',
+              }),
+              hideSearch: true,
+            },
+            {
               id: 'amountRange',
               title: 'Amount',
               filters: [],
@@ -599,10 +624,10 @@ const ExitOpportunities: React.FC<ExitOpportunitiesProps> = ({
                 <TableRow>
                   {visibleColumns.includes('opportunity') && (<TableHead className="gba:cursor-pointer" onClick={() => handleSort('name')}>Opportunity</TableHead>)}
                   {visibleColumns.includes('investment') && (<TableHead className="gba:cursor-pointer" onClick={() => handleSort('investmentName')}>Investment</TableHead>)}
+                  {visibleColumns.includes('account') && (<TableHead className="gba:cursor-pointer" onClick={() => handleSort('accountName')}>Account</TableHead>)}
                   {visibleColumns.includes('amount') && (<TableHead className="gba:cursor-pointer" onClick={() => handleSort('estimatedAmount')}>Amount</TableHead>)}
                   {visibleColumns.includes('stage') && (<TableHead className="gba:cursor-pointer" onClick={() => handleSort('opportunityPipelineStage')}>Stage</TableHead>)}
                   {visibleColumns.includes('status') && (<TableHead className="gba:cursor-pointer" onClick={() => handleSort('opportunityStatus')}>Status</TableHead>)}
-                  {visibleColumns.includes('probability') && (<TableHead className="gba:cursor-pointer" onClick={() => handleSort('probability')}>Probability</TableHead>)}
                   {visibleColumns.includes('closeDate') && (<TableHead className="gba:cursor-pointer" onClick={() => handleSort('closeDate')}>Close Date</TableHead>)}
                   {visibleColumns.includes('owner') && (<TableHead className="gba:cursor-pointer" onClick={() => handleSort('ownerEmployee')}>Owner</TableHead>)}
                   {visibleColumns.includes('created') && (<TableHead className="gba:cursor-pointer" onClick={() => handleSort('createdAt')}>Created</TableHead>)}
@@ -630,7 +655,13 @@ const ExitOpportunities: React.FC<ExitOpportunitiesProps> = ({
                     {visibleColumns.includes('investment') && (<TableCell>
                       <div className="gba:flex gba:items-center gba:gap-2">
                         <Target className="gba:w-4 gba:h-4 gba:text-gray-500" />
-                        <span>{opportunity.investmentName || opportunity.account?.name || "N/A"}</span>
+                        <span>{opportunity.investmentName || "N/A"}</span>
+                      </div>
+                    </TableCell>)}
+                    {visibleColumns.includes('account') && (<TableCell>
+                      <div className="gba:flex gba:items-center gba:gap-2">
+                        <Building2 className="gba:w-4 gba:h-4 gba:text-gray-500" />
+                        <span>{opportunity.account?.name || "N/A"}</span>
                       </div>
                     </TableCell>)}
                     {visibleColumns.includes('amount') && (<TableCell>
@@ -647,12 +678,6 @@ const ExitOpportunities: React.FC<ExitOpportunitiesProps> = ({
                       <Badge variant={getStatusBadgeVariant(opportunity.opportunityStatus?.value)}>
                         {opportunity.opportunityStatus?.value || "Unknown"}
                       </Badge>
-                    </TableCell>)}
-                    {visibleColumns.includes('probability') && (<TableCell>
-                      <div className="gba:flex gba:items-center gba:gap-1">
-                        <Award className="gba:w-4 gba:h-4 gba:text-gray-500" />
-                        <span>{opportunity.probability ? `${opportunity.probability}%` : "N/A"}</span>
-                      </div>
                     </TableCell>)}
                     {visibleColumns.includes('closeDate') && (<TableCell>
                       {opportunity.closeDate ? (
@@ -768,18 +793,16 @@ const ExitOpportunities: React.FC<ExitOpportunitiesProps> = ({
         <TabsList className="gba:grid gba:w-full gba:max-w-md gba:grid-cols-2">
           <TabsTrigger 
             value="list" 
-            className="gba:flex gba:items-center gba:gap-2"
+            startIcon={<List />}
             data-testid="exit-opportunities-list-tab"
           >
-            <List className="gba:h-4 gba:w-4" />
             {getTranslationFromI18nKeyAndLabel("list_view", "List View")}
           </TabsTrigger>
           <TabsTrigger 
             value="board" 
-            className="gba:flex gba:items-center gba:gap-2"
+            startIcon={<Grid3X3 />}
             data-testid="exit-opportunities-board-tab"
           >
-            <Grid3X3 className="gba:h-4 gba:w-4" />
             {getTranslationFromI18nKeyAndLabel("board_view", "Board View")}
           </TabsTrigger>
         </TabsList>
@@ -804,6 +827,7 @@ const ExitOpportunities: React.FC<ExitOpportunitiesProps> = ({
             accessToken={accessToken}
             userInfo={userInfo}
             dealType="DIVESTMENT_DEAL"
+            refreshTrigger={boardRefreshTrigger}
           />
         </TabsContent>
       </Tabs>

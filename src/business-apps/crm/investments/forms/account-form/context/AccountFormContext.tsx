@@ -26,6 +26,7 @@ import {
 } from "../hooks/useAccountData";
 import { useEmployeeByIdGraphQL } from "../hooks/useEmployeeByIdGraphQL";
 import { useCountriesRegions } from "../../lead-form/hooks/useCountriesRegions";
+import { useContactSelection } from "../hooks/useContactSelection";
 
 interface AccountFormContextValue extends AccountContextState {
   formValues: AccountFormValues;
@@ -33,6 +34,8 @@ interface AccountFormContextValue extends AccountContextState {
   onSubmit: (values: AccountFormValues) => Promise<void>;
   onCancel: () => Promise<void>;
   hideActions: boolean; // Hide submit/cancel buttons when embedded
+  isLoading: boolean;
+  error: string | null;
 
   // Business app context for hooks
   businessAppContext: BusinessAppContextProps;
@@ -141,6 +144,14 @@ interface AccountFormContextValue extends AccountContextState {
   removeAddress: (addressId: string) => void;
   updateAddress: (addressId: string, updates: Partial<Address>) => void;
 
+  // Contact selection
+  contacts: SelectOption[];
+  contactsLoading: boolean;
+  contactsError: string | null;
+  contactsHasMore: boolean;
+  searchContacts: (search: string) => void;
+  loadMoreContacts: () => void;
+
   // Legacy compatibility (using employeeSizes data)
   numberOfEmployeesOptions: SelectOption[];
 }
@@ -220,6 +231,9 @@ export const AccountFormProvider: React.FC<AccountFormProviderProps> = ({
     foundationDate: "",
     tickerSymbol: "",
     // ✅ REMOVED: sicCode: "", // Not available in InvestmentAccount schema
+
+    // Contact Information
+    contactIds: [], // ✅ NEW: Array of contact IDs for contact selection
 
     // System fields
     id: undefined,
@@ -324,6 +338,16 @@ export const AccountFormProvider: React.FC<AccountFormProviderProps> = ({
     selectedCountryCode,
     setSelectedCountry,
   } = useCountriesRegions(businessAppContext);
+
+  // Contact selection hook
+  const {
+    contacts,
+    isLoading: contactsLoading,
+    hasMore: contactsHasMore,
+    error: contactsError,
+    searchContacts,
+    loadMoreContacts,
+  } = useContactSelection(businessAppContext);
 
   // Countries hook
   const {
@@ -772,6 +796,14 @@ export const AccountFormProvider: React.FC<AccountFormProviderProps> = ({
     addAddress,
     removeAddress,
     updateAddress,
+
+    // Contact selection
+    contacts,
+    contactsLoading,
+    contactsError,
+    contactsHasMore,
+    searchContacts,
+    loadMoreContacts,
 
     // Legacy compatibility (using employeeSizes data)
     numberOfEmployeesOptions: employeeSizesHook.allOptions,

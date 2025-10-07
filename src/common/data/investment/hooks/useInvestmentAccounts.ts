@@ -81,9 +81,18 @@ export const useGetInvestmentAccountById = (context: BusinessAppContextProps) =>
     const query = GET_INVESTMENT_ACCOUNT_BY_ID(id);
     
     try {
-      const result = await graphqlClient.request<{ InvestmentAccount: BaseInvestmentAccount[] }>(query);
+      // Use a more specific type that includes the contact relationship
+      const result = await graphqlClient.request<{ 
+        InvestmentAccount: (BaseInvestmentAccount & {
+          investmentAccountContact?: Array<{
+            id: string;
+            contactType?: string;
+            contact?: any;
+          }>;
+        })[]
+      }>(query);
       const baseAccount = result.InvestmentAccount[0];
-      
+
       return {
         account: baseAccount ? toInvestmentAccount(baseAccount) : undefined
       } as InvestmentAccountByIdData;

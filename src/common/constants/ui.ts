@@ -1,8 +1,8 @@
 export const MODULE_COLORS = {
-  HR: 'ext3',
-  CRM: 'ext3',
-  IRM: 'ext3',
-  FIN: 'ext3',
-  ERP: 'ext3',
-  SER: 'ext3',
+  HR: 'decorative',
+  CRM: 'decorative',
+  IRM: 'decorative',
+  FIN: 'decorative',
+  ERP: 'decorative',
+  SER: 'decorative',
 } as const

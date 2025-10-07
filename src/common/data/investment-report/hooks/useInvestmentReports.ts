@@ -53,9 +53,10 @@ export const useGetInvestmentReports = (context: BusinessAppContextProps) => {
       // Transform base types to enhanced types using mapper
       const enhancedReports = result.InvestmentReport.map(toInvestmentReport);
       
+      // Return cleaner API: { reports, total } instead of raw GraphQL shape
       return {
-        ...result,
-        InvestmentReport: enhancedReports
+        reports: enhancedReports,
+        total: result.InvestmentReportAggregate?.aggregate?.count ?? 0
       };
     } catch (error) {
       console.error('Error fetching investment reports:', error);

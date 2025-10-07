@@ -39,12 +39,6 @@ export const getValueByPath = (obj: any, path: string): any => {
         }
       }
       
-      // Special handling: if requesting a relationship object but we need the ID for form field
-      if (key === 'loanRecipientInvestmentAccount' && current[key]?.id) {
-        // Return the ID of the related object for form compatibility
-        return current[key].id;
-      }
-      
       return current[key] !== undefined ? current[key] : undefined;
     }
     return undefined;

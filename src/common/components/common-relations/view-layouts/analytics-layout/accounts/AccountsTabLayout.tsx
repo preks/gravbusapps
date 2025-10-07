@@ -13,6 +13,8 @@ export interface AccountsTrendData {
   previousMonthAccounts: number;
   currentMonthOpportunities: number;
   previousMonthOpportunities: number;
+  currentMonthAccountsWithOpportunities?: number;
+  previousMonthAccountsWithOpportunities?: number;
 }
 
 export interface AccountsTabLayoutProps {
@@ -33,10 +35,10 @@ export interface AccountsTabLayoutProps {
 
 const calculateTrend = (current: number, previous: number): { value: string; positive: boolean; description: string } => {
   if (previous === 0) {
-    return { value: current > 0 ? "100%" : "0%", positive: current >= 0, description: `${current} this period vs ${previous} last period` };
+    return { value: current > 0 ? "100%" : "0%", positive: current >= 0, description: `${current.toFixed(1)} this period vs ${previous.toFixed(1)} last period` };
   }
   const change = ((current - previous) / previous) * 100;
-  return { value: `${Math.abs(change).toFixed(1)}%`, positive: change >= 0, description: `${current} this period vs ${previous} last period` };
+  return { value: `${Math.abs(change).toFixed(1)}%`, positive: change >= 0, description: `${current.toFixed(1)} this period vs ${previous.toFixed(1)} last period` };
 };
 
 export const AccountsTabLayout: React.FC<AccountsTabLayoutProps> = ({
@@ -123,7 +125,7 @@ export const AccountsTabLayout: React.FC<AccountsTabLayoutProps> = ({
       value: totalAccounts || 0,
       prefix: <BankOutlined />,
       description: "All accounts in the system",
-      ...(trendData && !trendLoading ? { trend: { value: `+${trendData.currentMonthAccounts}`, positive: trendData.currentMonthAccounts > 0, description: `${trendData.currentMonthAccounts} new accounts this month` } } : {}),
+      ...(trendData && !trendLoading ? { trend: calculateTrend(totalAccounts || 0, (totalAccounts || 0) - (trendData.currentMonthAccounts || 0)) } : {}),
     },
     {
       key: "accounts-with-opportunities",
@@ -131,7 +133,9 @@ export const AccountsTabLayout: React.FC<AccountsTabLayoutProps> = ({
       value: accountsWithOpportunities || 0,
       prefix: <DollarCircleOutlined />,
       description: "Accounts that have opportunities",
-      ...(trendData && !trendLoading ? { trend: { value: `${Math.abs(trendData.currentMonthOpportunities - trendData.previousMonthOpportunities)}`, positive: trendData.currentMonthOpportunities >= trendData.previousMonthOpportunities, description: `${trendData.currentMonthOpportunities} new opportunities this month vs ${trendData.previousMonthOpportunities} last month` } } : {}),
+      ...(trendData && !trendLoading && trendData.currentMonthAccountsWithOpportunities !== undefined && trendData.previousMonthAccountsWithOpportunities !== undefined ? {
+        trend: calculateTrend(trendData.currentMonthAccountsWithOpportunities, trendData.previousMonthAccountsWithOpportunities)
+      } : {}),
     },
     {
       key: "avg-opportunities-per-account",
@@ -140,7 +144,12 @@ export const AccountsTabLayout: React.FC<AccountsTabLayoutProps> = ({
       precision: 1,
       prefix: <TeamOutlined />,
       description: "Average opportunities per account",
-      ...(trendData && !trendLoading ? { trend: { value: `${Math.abs(trendData.currentMonthOpportunities - trendData.previousMonthOpportunities)}`, positive: trendData.currentMonthOpportunities >= trendData.previousMonthOpportunities, description: `${trendData.currentMonthOpportunities > trendData.previousMonthOpportunities ? 'Increased' : 'Decreased'} opportunity activity` } } : {}),
+      ...(trendData && !trendLoading ? {
+        trend: calculateTrend(
+          (trendData.currentMonthOpportunities || 0) / Math.max(trendData.currentMonthAccounts || 0, 1),
+          (trendData.previousMonthOpportunities || 0) / Math.max(trendData.previousMonthAccounts || 0, 1)
+        )
+      } : {}),
     },
     {
       key: "accounts-this-period",

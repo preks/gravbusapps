@@ -16,7 +16,32 @@ export const mapInvestmentAccountToFormValues = (
 
   const account = accountData.InvestmentAccount[0];
 
-  // ✅ REMOVED: InvestmentAccount doesn't have addresses array - uses simple geographicPresence field
+  // ✅ FIXED: Extract addresses from investmentAddress relationship
+  // Map addresses first, then check if we got any results
+  const addressData = account.investmentAddress?.map(addr => ({
+    id: addr.id,
+    version: addr.version,
+    addressType: addr.addressType || "PRIMARY_ADDRESS",
+    addressLines: addr.addressLine?.lines || [""],
+    postalCode: addr.postalCode || "",
+    locality: addr.locality || "",
+    regionRef: addr.regionRef || "",
+    countryRef: addr.countryRef || "",
+  }));
+
+  // ✅ FIXED: Check for empty array (not just undefined/null) and provide default address
+  // This ensures accounts without addresses still show the address section
+  const addresses = (addressData && addressData.length > 0) ? addressData : [
+    {
+      id: "default-address",
+      addressType: "PRIMARY_ADDRESS",
+      addressLines: [""],
+      postalCode: "",
+      locality: "",
+      regionRef: "",
+      countryRef: "",
+    },
+  ];
 
   const formValues: Partial<AccountFormValues> = {
     // System fields
@@ -45,7 +70,9 @@ export const mapInvestmentAccountToFormValues = (
     // Geographic Presence (simplified for InvestmentAccount)
     geographicPresence: account.geographicPresence || "",
 
-    // ✅ REMOVED: Complex address handling - InvestmentAccount only has geographicPresence field
+    // ✅ UPDATED: Address Information - Extract from investmentAddress relationship
+    addresses: addresses,
+    
     // Legacy fields kept for form compatibility but not populated from database
     country: "",
     region: "",
@@ -55,7 +82,6 @@ export const mapInvestmentAccountToFormValues = (
     addressLine4: "",
     postalCode: "",
     city: "",
-    addresses: [], // Dynamic addresses array - not used
 
     // Financial Information (✅ UPDATED to match InvestmentAccount schema)
     annualRevenue: account.accountAnnualRevenueBand?.id || "", // ✅ FIXED: annualRevenue -> accountAnnualRevenueBand
@@ -63,9 +89,15 @@ export const mapInvestmentAccountToFormValues = (
     // ✅ REMOVED: currency: "", // Not available in InvestmentAccount schema
 
     // Additional Information (✅ UPDATED for InvestmentAccount)
-    foundationDate: account.foundationDate || "",
+    foundationDate: account.foundationDate ? new Date(account.foundationDate).toISOString().split('T')[0] : "",
     tickerSymbol: account.code || "", // ✅ UPDATED: Use code as ticker symbol
     // ✅ REMOVED: sicCode mapping - sicCode field removed from form
+
+    // Contact Information
+    contactIds: account.investmentAccountContact?.map(rel => ({
+      id: rel.contact.id,
+      name: rel.contact.fullName || `${rel.contact.firstName || ''} ${rel.contact.lastName || ''}`.trim(),
+    })) || [], // ✅ UPDATED: Store full contact objects with id and name for proper display
 
     // Legacy fields
     address: "",

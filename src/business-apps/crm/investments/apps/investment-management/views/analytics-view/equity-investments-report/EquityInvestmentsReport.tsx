@@ -1,19 +1,32 @@
 import React, { useState, useCallback, useEffect } from 'react';
-import { Card, CardHeader, CardTitle, CardContent } from '@newwork/nw-design-system';
 import { Button } from '@newwork/nw-design-system';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@newwork/nw-design-system';
 import { Alert, AlertTitle, AlertDescription } from '@newwork/nw-design-system';
 import { Spinner } from '@newwork/nw-design-system';
 import { Badge } from '@newwork/nw-design-system';
-import { DollarSign, Building, TrendingUp, Users, BarChart, PieChart, Activity } from 'lucide-react';
-import { WidgetGroup, WidgetItem } from '@/components/widget-group';
+import { TrendingUp, BarChart, PieChart } from 'lucide-react';
+import { WidgetGroup } from '@/components/widget-group';
 import { DollarCircleOutlined, BankOutlined, RiseOutlined, TeamOutlined } from '@ant-design/icons';
-import dayjs from 'dayjs';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
 import { formatDataTestId } from '@/common/utils/formatDataTestId';
 import { useGetInvestments } from '@/common/data/investment';
 import type { Investment, EquityInvestment } from '@/common/data/investment';
+
+// Extended Investment type that includes specialization fields from GraphQL queries
+interface InvestmentWithSpecializations extends Investment {
+  equityInvestment?: EquityInvestment[];
+  realEstateInvestment?: any[];
+  liquidFundInvestment?: any[];
+  bookValue?: number;
+  investmentRole?: Array<{
+    id: string;
+    displayOrder?: number;
+    investmentRole?: {
+      value?: string;
+    };
+  }>;
+}
 import { useEquityChartData, useEquityKPIIntegration } from './hooks';
 import { 
   calculateChange,
@@ -70,11 +83,21 @@ const EquityInvestmentsReport: React.FC<EquityInvestmentsReportProps> = (props) 
   const error = dataError || kpiError;
 
   // Transform equity data
-  const transformEquityData = useCallback((investments: Investment[]): EquityInvestmentSummary[] => {
+  const transformEquityData = useCallback((investments: InvestmentWithSpecializations[]): EquityInvestmentSummary[] => {
     return investments
-      .filter(investment => investment.equityInvestment && Object.keys(investment.equityInvestment).length > 0)
+      .filter(investment => {
+        // Include investments that have equityInvestment data OR are equity-related by investment type
+        const hasEquityData = investment.equityInvestment && Array.isArray(investment.equityInvestment) && investment.equityInvestment.length > 0;
+        const isEquityType = (investment.investmentType?.value ?? '').toLowerCase().includes('equity') || 
+                           (investment.investmentGroup?.value ?? '').toLowerCase().includes('equity');
+        return hasEquityData || isEquityType;
+      })
       .map(investment => {
-        const equityInvestment = investment.equityInvestment!;
+        // Get the first equity investment or create a default one
+        const equityInvestment = (investment.equityInvestment && investment.equityInvestment.length > 0) 
+          ? investment.equityInvestment[0] 
+          : { id: investment.id, ebitdaAmount: 0, marketValue: 0, turnoverAmount: 0 };
+        
         const bookValue = investment.bookValue || 0;
         const marketValue = investment.investmentMarketValue || bookValue;
         const roi = bookValue > 0 ? ((marketValue - bookValue) / bookValue) * 100 : 0;
@@ -83,14 +106,19 @@ const EquityInvestmentsReport: React.FC<EquityInvestmentsReportProps> = (props) 
           id: equityInvestment.id,
           investment,
           equityInvestment,
-          displayName: investment.displayName || investment.name || equityInvestment.companyName || 'Unknown Equity',
+          displayName: investment.displayName || investment.name || 'Unknown Equity',
           statusColor: getInvestmentStatusColor(investment.investmentStatus?.value || ''),
+          stakeTypeColor: getInvestmentRoleColor(investment.investmentStakeType?.value || ''),
           riskLevelColor: getRiskLevelColor(investment.investmentRiskLevel?.value || ''),
           currencyCode: safeCurrencyExtraction(investment.currency),
           roi,
           isActive: investment.investmentStatus?.value?.toLowerCase() === 'active',
-          ebitdaMargin: equityInvestment.ebitdaMargin || 0,
-          roleColor: getInvestmentRoleColor(equityInvestment.investmentRole?.value || '')
+          ebitdaMargin: (equityInvestment as any).ebitdaMargin || 0,
+          roleColor: getInvestmentRoleColor(
+            (Array.isArray(investment.investmentRole) && investment.investmentRole.length > 0)
+              ? investment.investmentRole[0]?.investmentRole?.value || ''
+              : ''
+          )
         };
       });
   }, []);
@@ -108,7 +136,7 @@ const EquityInvestmentsReport: React.FC<EquityInvestmentsReportProps> = (props) 
     
     try {
       const result = await fetchInvestments();
-      const enhancedEquityInvestments = transformEquityData(result.Investment);
+      const enhancedEquityInvestments = transformEquityData(result.Investment as InvestmentWithSpecializations[]);
       setEquityInvestments(enhancedEquityInvestments);
     } catch (err) {
       setDataError(err instanceof Error ? err.message : 'Unknown error');
@@ -166,13 +194,7 @@ const EquityInvestmentsReport: React.FC<EquityInvestmentsReportProps> = (props) 
   const {
     // Original chart data
     roleData,
-    valuationEbitdaData,
-    ebitdaMarginData,
     statusData,
-    phaseData,
-    riskLevelData,
-    currencyData,
-    roiData,
     stakeTypeData,
     investmentTypeData,
     // Enhanced chart data
@@ -194,7 +216,7 @@ const EquityInvestmentsReport: React.FC<EquityInvestmentsReportProps> = (props) 
           <h3 className="gba:text-2xl gba:font-bold gba:text-gray-900 gba:m-0">
             {getTranslationFromI18nKeyAndLabel('equity.investments.title', 'Equity Investments Report')}
           </h3>
-          <Badge variant="secondary">{equityInvestments.length} {getTranslationFromI18nKeyAndLabel('equity.investments.items', 'equity investments')}</Badge>
+          <Badge variant="secondary">{kpis?.totalInvestments || 0} {getTranslationFromI18nKeyAndLabel('equity.investments.items', 'equity investments')}</Badge>
         </div>
       </div>
 
@@ -277,16 +299,13 @@ const EquityInvestmentsReport: React.FC<EquityInvestmentsReportProps> = (props) 
           data-testid={formatDataTestId(prefixDataTestId, 'ChartTabs')}
         >
           <TabsList className="gba:grid gba:w-full gba:grid-cols-3">
-            <TabsTrigger value="distribution" className="gba:flex gba:items-center gba:gap-2">
-              <PieChart className="gba:h-4 gba:w-4" />
+            <TabsTrigger value="distribution" startIcon={<PieChart />}>
               {getTranslationFromI18nKeyAndLabel('tab.distribution', 'Distribution Analysis')}
             </TabsTrigger>
-            <TabsTrigger value="timeline" className="gba:flex gba:items-center gba:gap-2">
-              <TrendingUp className="gba:h-4 gba:w-4" />
+            <TabsTrigger value="timeline" startIcon={<TrendingUp />}>
               {getTranslationFromI18nKeyAndLabel('tab.timeline', 'Timeline Analysis')}
             </TabsTrigger>
-            <TabsTrigger value="analytics" className="gba:flex gba:items-center gba:gap-2">
-              <BarChart className="gba:h-4 gba:w-4" />
+            <TabsTrigger value="analytics" startIcon={<BarChart />}>
               {getTranslationFromI18nKeyAndLabel('tab.analytics', 'Performance Analysis')}
             </TabsTrigger>
           </TabsList>
