@@ -189,6 +189,22 @@ const CalendarList: React.FC<BusinessAppContextProps> = ({ accessToken, userInfo
     return translation?.value || type.value || type.objectValue || 'Unknown Type';
   };
 
+  // Helper function to get translated status name
+  const getStatusName = (status: string): string => {
+    switch (status) {
+      case 'APPROVED':
+        return getTranslationFromI18nKeyAndLabel('lowcoder:absence_calendar.approved', 'Approved');
+      case 'PENDING':
+        return getTranslationFromI18nKeyAndLabel('lowcoder:absence_calendar.pending', 'Pending');
+      case 'REJECTED':
+        return getTranslationFromI18nKeyAndLabel('lowcoder:absence_calendar.rejected', 'Rejected');
+      case 'CANCELLED':
+        return getTranslationFromI18nKeyAndLabel('lowcoder:absence_calendar.cancelled', 'Cancelled');
+      default:
+        return status;
+    }
+  };
+
       const fetchData = useCallback(async (departments: string[] = selectedOrgUnits) => {
     setIsLoading(true)
     setError(null)
@@ -472,7 +488,7 @@ const CalendarList: React.FC<BusinessAppContextProps> = ({ accessToken, userInfo
           startDate: new Date(absence.startDate).toISOString(),
           endDate: new Date(absence.endDate).toISOString(),
           color: getStatusColor(absence.status), // Use STATUS color, not type color
-          status: absence.status,
+          status: getStatusName(absence.status), // Use translated status
           type: getStatusType(absence.status), // Use STATUS type for CalendarTimeline
           note: absenceType
         });

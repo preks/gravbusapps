@@ -1,10 +1,8 @@
 import React, { useMemo } from 'react';
 import { TabComponentProps } from '../../../types';
 import { DashboardData } from '../../../types';
-// Reuse personal absences statistics sections across all employees
+
 import PersonalKeyInsightsSection from '../../../../personal-absences/components/KeyInsightsSection';
-// import PersonalUsageTrendsSection from '../../../../personal-absences/components/UsageTrendsSection';
-// import PersonalYearComparisonSection from '../../../../personal-absences/components/YearComparisonSection';
 import OrgWorkPatternsPanel from './OrgWorkPatternsPanel';
 import OrgYearComparisonCard from './OrgYearComparisonCard';
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient';
@@ -12,7 +10,7 @@ import { getOverlapTypeCountsByYear } from '../../../utils/getOverlapTypeCounts'
 import { getKeyInsightsStatsByYear } from '../../../utils/getKeyInsightsStats';
 import dayjs from 'dayjs';
 import { Card, CardHeader, CardTitle, CardContent } from '@newwork/nw-design-system';
-import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
+import { getTranslationFromI18nKeyAndLabel, getCurrentActiveUserLocale } from '@/common/utils/windowUtils';
 
 interface AbsenceListCardAbsence {
   type: string;
@@ -33,7 +31,23 @@ export const StatisticsTab: React.FC<TabComponentProps & { dashboardData: Dashbo
   // Fixed AbsenceGroup IDs provided by admin (parentEntryId values)
   const FIXED_VACATION_GROUP_ID = 'AbsenceGroup:v1:RECR';
   const FIXED_SICK_GROUP_ID = 'AbsenceGroup:v1:HEALTH';
-  // Map org-wide raw absences to the structure expected by personal statistics components
+  
+  const userLocale = getCurrentActiveUserLocale() ?? 'en-US';
+  
+  const getTranslatedLeaveTypeName = (typeName: string): string => {
+    const matchingAbsence = dashboardData?.rawAbsences?.find((absence: any) => 
+      absence.typeName === typeName || absence.groupName === typeName
+    );
+    
+    if (matchingAbsence?.type?.translations) {
+      const translation = matchingAbsence.type.translations.find(
+        (t: any) => t.localeCode === userLocale
+      );
+      return translation?.value || matchingAbsence.type.value || typeName;
+    }
+    
+    return typeName;
+  };
   const absences: AbsenceListCardAbsence[] = useMemo(() => {
     const items = dashboardData?.rawAbsences || [];
     return items.map((a: any) => ({
@@ -198,9 +212,10 @@ export const StatisticsTab: React.FC<TabComponentProps & { dashboardData: Dashbo
                     const maxVal = Math.max(...Object.values(typeCounts));
                     return Object.entries(typeCounts).map(([type, cnt]) => {
                       const pct = maxVal > 0 ? Math.max(4, Math.round((Number(cnt) / maxVal) * 100)) : 0;
+                      const translatedType = getTranslatedLeaveTypeName(type);
                       return (
                         <div key={type} className="gba:flex gba:items-center">
-                          <div className="gba:w-28 gba:text-sm gba:text-gray-700">{type}</div>
+                          <div className="gba:w-28 gba:text-sm gba:text-gray-700">{translatedType}</div>
                           <div className="gba:flex-1 gba:px-3">
                             <div className="gba:bg-gray-100 gba:rounded">
                               <div style={{ width: `${pct}%`, height: 10, background: '#3b82f6', borderRadius: 6 }} />

@@ -446,7 +446,7 @@ export const OptimizedKPISection: React.FC<OptimizedKPISectionProps> = ({
               <div className="gba:text-lg gba:font-bold gba:text-blue-600">
                 {entitlements.averageVacationPerEmployee}
               </div>
-              <div className="gba:text-xs gba:text-gray-600">{getTranslationFromI18nKeyAndLabel('lowcoder:absence_management_hub_backoffice.avg_vacation_days', 'Avg Vacation Days')}</div>
+              <div className="gba:text-xs gba:text-gray-600">{getTranslationFromI18nKeyAndLabel('lowcoder:absence_management_hub_backoffice.avg_vacation_days', 'Total vacation days')}</div>
             </div>
             <div className="gba:text-center gba:p-2 gba:bg-green-50 gba:rounded">
               <div className="gba:text-lg gba:font-bold gba:text-green-600">
