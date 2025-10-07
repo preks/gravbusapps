@@ -39,6 +39,9 @@ const ExpensePlansTab: React.FC<ExpensePlansTabProps> = (props) => {
     setStartDateRange,
     setEndDateRange,
     setPlanDateRange,
+    // expose effective date setter from filters hook
+    // @ts-ignore - new field exists in hook state
+    setEffectiveDateRange,
     filterLabelMap,
     addFilter,
     removeFilter
@@ -100,6 +103,7 @@ const ExpensePlansTab: React.FC<ExpensePlansTabProps> = (props) => {
       setPlanDateRange,
       setStartDateRange,
       setEndDateRange,
+      setEffectiveDateRange,
       handleFilterChange,
       setDestinationFilter,
       topDestination: statistics.topDestination

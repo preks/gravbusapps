@@ -4,10 +4,6 @@ import { GET_EXPENSE_REQUESTS, PROCESS_PAYMENT_MUTATION } from "../queries";
 import { ExpenseData, ExpenseRequestQueryData } from "../types";
 import { BusinessAppContextProps } from "@/common/BusinessAppContext";
 
-const MAX_QUERY_LIMIT = 1000;
-const enforceQueryLimit = (limit: number): number => {
-  return Math.min(limit, MAX_QUERY_LIMIT);
-};
 
 export const useExpenseRequests = (context: BusinessAppContextProps) => {
   const { accessToken } = context;
@@ -130,6 +126,7 @@ export const useExpenseRequests = (context: BusinessAppContextProps) => {
           });
         }
       }
+
 
       if (searchTerm && searchTerm.trim() !== "") {
         const searchValue = `%${searchTerm.trim()}%`;
@@ -256,6 +253,7 @@ export const useExpenseRequests = (context: BusinessAppContextProps) => {
     },
     []
   );
+
 
   const departments = useMemo(() => {
     const deptSet = new Set<string>();

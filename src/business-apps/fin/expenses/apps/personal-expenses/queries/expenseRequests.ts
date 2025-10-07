@@ -129,7 +129,7 @@ export const GET_EXPENSE_REQUEST_STATISTICS = `
           { currencyRef: {_eq: $currencyRef} },
           { _or: [
               { _and: [
-                  { requestDate: { _gte: $startDate, _lt: $endDate } },
+                  { expenseItem: { expenseDate: { _gte: $startDate, _lt: $endDate } } },
                   { requestTypeRef: {_eq: "ExpenseRequestType:v1:EXPENSES"} }
                 ] },
               { _and: [

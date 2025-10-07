@@ -54,6 +54,19 @@ export interface ExpenseRequestTrip {
   };
 }
 
+export interface AdvancePaymentComment {
+  commentType?: string;
+  commentDate: string;
+  comment: string;
+  id: string;
+  authorEmployee: {
+    fullName: string;
+    firstName: string;
+    lastName: string;
+    pictureThumbnail: string;
+  };
+}
+
 export interface AdvancePayment {
   code: string | null;
   description: string | null;
@@ -68,6 +81,7 @@ export interface AdvancePayment {
   transactionNumber: string | null;
   transactionConfirmed: boolean;
   transactionConfirmedByEmployee: string | null;
+  advancePaymentComment: AdvancePaymentComment[];
 }
 
 export interface ExpensePlanComment {
