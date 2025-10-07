@@ -118,7 +118,7 @@ const FormNavigation: React.FC<FormNavigationProps> = ({
   cancelButtonDataTestId,
 }) => {
   return (
-    <div className="gba:flex gba:justify-between gba:items-center gba:mt-auto gba:pt-4" data-testid={`${dataTestId}-form-navigation`}>
+    <div className="gba:flex gba:justify-end gba:gap-2 gba:items-center gba:mt-auto gba:pt-4" data-testid={`${dataTestId}-form-navigation`}>
       {/* Left side: Cancel and Back buttons */}
       <div className="gba:flex gba:gap-2">
         {showCancelButton && (
@@ -326,6 +326,7 @@ export const AppActionForm: React.FC<AppActionFormProps> = ({
       isLoading={loading || form?.formState?.isSubmitting}
       submitButtonVariant={submitButtonVariant}
       dataTestId={dataTestId}
+      isSubmitDisabled={isSubmitDisabled}
       submitButtonDataTestId={submitButtonTestId}
       cancelButtonDataTestId={cancelButtonTestId}
     />

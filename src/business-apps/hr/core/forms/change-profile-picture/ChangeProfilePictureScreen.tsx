@@ -83,8 +83,9 @@ const ChangeProfilePictureScreen: React.FC<ChangeProfilePictureScreenProps> = ({
   const imageSrc = previewUrl || currentImageUrl || undefined;
 
   const validateForm = () => {
-    const hasImage = Boolean(selectedFile || previewUrl);
-    if (!hasImage) {
+    // Require uploading a new file; existing preview/current image is not sufficient
+    const hasNewUpload = Boolean(selectedFile);
+    if (!hasNewUpload) {
       return [getTranslationFromI18nKeyAndLabel('lowcoder:profile_picture_form.required', 'Please upload a profile picture.')];
     }
     return null;
@@ -134,6 +135,8 @@ const ChangeProfilePictureScreen: React.FC<ChangeProfilePictureScreenProps> = ({
       businessAppContext={{ accessToken, userInfo, additionalData }}
       validateForm={validateForm}
       handlePreSubmit={handlePreSubmit}
+      // Disable submit until a new file is selected
+      isSubmitDisabled={!selectedFile}
       submitButtonText={getTranslationFromI18nKeyAndLabel('common.submit', 'Submit')}
       cancelButtonText={getTranslationFromI18nKeyAndLabel('common.cancel', 'Cancel')}
       submitButtonTestId="flw_changePicture_btnSubmit"
