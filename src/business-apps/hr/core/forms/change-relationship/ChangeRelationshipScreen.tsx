@@ -12,6 +12,7 @@ import type { UploadFile } from 'antd';
 import { UploadOutlined } from '@ant-design/icons';
 import { useRelationshipTypes } from './hooks/useRelationshipTypes';
 import { env } from '@/common/env/EnvUtils';
+import { dispatchProcessContinueEvent } from '@/common/utils/processEventUtils';
 
 interface ChangeRelationshipScreenProps extends BusinessAppContextProps {}
 
@@ -150,6 +151,19 @@ const ChangeRelationshipScreen: React.FC<ChangeRelationshipScreenProps> = ({ add
       submitButtonText={getTranslationFromI18nKeyAndLabel('common.submit', 'Submit')}
       cancelButtonText={getTranslationFromI18nKeyAndLabel('common.cancel', 'Cancel')}
       data-testid={formatDataTestId(prefixDataTestId, 'Container')}
+      onCancel={() => {
+        dispatchProcessContinueEvent('pse_abort', {
+          event: 'pse_abort',
+          pso_exitStrategy: 'abort',
+          pso_completeNotification: {
+            type: 'error',
+            messageKey: getTranslationFromI18nKeyAndLabel(
+              'lowcoder:absence_module.toast_notification_cancel_create_absence',
+              'The action has been canceled.'
+            )
+          }
+        });
+      }}
     >
       <div className="gba:bg-white gba:w-full gba:max-w-xl gba:max-h-[90vh] gba:overflow-hidden">
         {/* Header */}
@@ -182,7 +196,7 @@ const ChangeRelationshipScreen: React.FC<ChangeRelationshipScreenProps> = ({ add
             <Label>{getTranslationFromI18nKeyAndLabel('lowcoder:relationship_form.relationship', 'Relationship')}</Label>
             <div className="gba:mt-2">
               <Select value={initialPayload?.relationship?.id ? 'existing' : 'new'} disabled>
-                <SelectTrigger>
+                <SelectTrigger data-testid="flw_changeRelationship_currentRelationship">
                   <SelectValue placeholder={getTranslationFromI18nKeyAndLabel('lowcoder:relationship_form.relationship_placeholder', 'Select Relationship')} />
                 </SelectTrigger>
                 <SelectContent>
@@ -198,7 +212,7 @@ const ChangeRelationshipScreen: React.FC<ChangeRelationshipScreenProps> = ({ add
             <Label>{getTranslationFromI18nKeyAndLabel('lowcoder:relationship_form.type', 'Relationship Type')}*</Label>
             <div className="gba:mt-2">
               <Select value={relationshipTypeId} onValueChange={setRelationshipTypeId}>
-                <SelectTrigger data-testid={formatDataTestId(prefixDataTestId, 'RelationshipType')}>
+                <SelectTrigger data-testid="flw_changeRelationship_currentRelationshipType">
                   <SelectValue placeholder={getTranslationFromI18nKeyAndLabel('lowcoder:relationship_form.type_placeholder', 'Select Relationship Type')} />
                 </SelectTrigger>
                 <SelectContent>
@@ -213,13 +227,13 @@ const ChangeRelationshipScreen: React.FC<ChangeRelationshipScreenProps> = ({ add
           {/* First Name */}
           <div>
             <Label>{getTranslationFromI18nKeyAndLabel('lowcoder:relationship_form.first_name', 'First Name')}*</Label>
-            <Input value={firstName} onChange={(e) => setFirstName(e.target.value)} placeholder={getTranslationFromI18nKeyAndLabel('lowcoder:relationship_form.first_name_placeholder', 'Enter First Name')} data-testid={formatDataTestId(prefixDataTestId, 'FirstName')} />
+            <Input value={firstName} onChange={(e) => setFirstName(e.target.value)} placeholder={getTranslationFromI18nKeyAndLabel('lowcoder:relationship_form.first_name_placeholder', 'Enter First Name')} data-testid="flw_changeRelationship_currentFirstName" />
           </div>
 
           {/* Last Name */}
           <div>
             <Label>{getTranslationFromI18nKeyAndLabel('lowcoder:relationship_form.last_name', 'Last Name')}*</Label>
-            <Input value={lastName} onChange={(e) => setLastName(e.target.value)} placeholder={getTranslationFromI18nKeyAndLabel('lowcoder:relationship_form.last_name_placeholder', 'Enter Last Name')} data-testid={formatDataTestId(prefixDataTestId, 'LastName')} />
+            <Input value={lastName} onChange={(e) => setLastName(e.target.value)} placeholder={getTranslationFromI18nKeyAndLabel('lowcoder:relationship_form.last_name_placeholder', 'Enter Last Name')} data-testid="flw_changeRelationship_currentLastName" />
           </div>
 
           {/* Birth Date */}
@@ -227,7 +241,7 @@ const ChangeRelationshipScreen: React.FC<ChangeRelationshipScreenProps> = ({ add
             <Label>{getTranslationFromI18nKeyAndLabel('lowcoder:relationship_form.birth_date', 'Birth Date')}</Label>
             <Popover>
               <PopoverTrigger asChild>
-                <Button variant="outline" className="gba:justify-between" data-testid={formatDataTestId(prefixDataTestId, 'BirthDateTrigger')}>
+                <Button variant="outline" className="gba:justify-between" data-testid="flw_changeRelationship_currentBirthDate">
                   {birthDate ? dayjs(birthDate).format('YYYY-MM-DD') : getTranslationFromI18nKeyAndLabel('lowcoder:relationship_form.birth_date_placeholder', 'Select Birth Date')}
                 </Button>
               </PopoverTrigger>
@@ -247,7 +261,7 @@ const ChangeRelationshipScreen: React.FC<ChangeRelationshipScreenProps> = ({ add
               {getTranslationFromI18nKeyAndLabel('lowcoder:relationship_form.phone_number', 'Phone Number')}
               {isEmergencyContact ? '*' : ''}
             </Label>
-            <Input value={phoneNumber} onChange={(e) => setPhoneNumber(e.target.value)} placeholder={getTranslationFromI18nKeyAndLabel('lowcoder:relationship_form.phone_number_placeholder', 'Enter Phone Number')} data-testid={formatDataTestId(prefixDataTestId, 'PhoneNumber')} />
+            <Input value={phoneNumber} onChange={(e) => setPhoneNumber(e.target.value)} placeholder={getTranslationFromI18nKeyAndLabel('lowcoder:relationship_form.phone_number_placeholder', 'Enter Phone Number')} data-testid="flw_changeRelationship_currentPhoneNumber" />
           </div>
 
           
@@ -255,7 +269,7 @@ const ChangeRelationshipScreen: React.FC<ChangeRelationshipScreenProps> = ({ add
           {/* Emergency Contact */}
           <div className="gba:flex gba:items-center gba:justify-between">
             <Label>{getTranslationFromI18nKeyAndLabel('lowcoder:relationship_form.emergency_contact', 'Emergency Contact')}</Label>
-            <Switch checked={isEmergencyContact} onCheckedChange={setIsEmergencyContact} data-testid={formatDataTestId(prefixDataTestId, 'EmergencyContactSwitch')} />
+            <Switch checked={isEmergencyContact} onCheckedChange={setIsEmergencyContact} data-testid="flw_changeRelationship_currentEmergencyContact" />
           </div>
 
           {/* Upload Document */}
@@ -269,7 +283,7 @@ const ChangeRelationshipScreen: React.FC<ChangeRelationshipScreenProps> = ({ add
                 maxCount={1}
                 data-testid={formatDataTestId(prefixDataTestId, 'UploadDocument')}
               >
-                <Button variant="secondary" type="button" disabled={isUploading}>
+                <Button variant="secondary" type="button" disabled={isUploading} data-testid="flw_changeRelationship_fileAddDocument">
                   {isUploading ? <Spinner size="sm" className="gba:mr-2" /> : null}
                   <UploadOutlined />
                   <span className="gba:ml-2">{getTranslationFromI18nKeyAndLabel('lowcoder:relationship_form.upload', 'Upload Document')}</span>
