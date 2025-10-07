@@ -31,6 +31,7 @@ interface EquityAnalyticsTableProps extends BusinessAppContextProps {
   catalogData: any; // Required for dynamic columns
   isTransposed?: boolean; // Toggle for transposed table view
   visibleColumns?: string[]; // Column visibility control
+  onCurrenciesChange?: (currencies: string[]) => void; // Callback to report available currencies
 }
 
 export const EquityAnalyticsTable: React.FC<EquityAnalyticsTableProps> = ({
@@ -43,7 +44,8 @@ export const EquityAnalyticsTable: React.FC<EquityAnalyticsTableProps> = ({
   title,
   catalogData,
   isTransposed = false,
-  visibleColumns = ['investment', 'date'] // Default to showing investment and date columns
+  visibleColumns = ['investment', 'date'], // Default to showing investment and date columns
+  onCurrenciesChange
 }) => {
   // State management
   const [reports, setReports] = useState<any[]>([]);
@@ -78,6 +80,9 @@ export const EquityAnalyticsTable: React.FC<EquityAnalyticsTableProps> = ({
       if (filters.endDate) {
         variables.reportDateTo = filters.endDate;
       }
+      if (filters.currencyIds && filters.currencyIds.length > 0) {
+        variables.currencyIds = filters.currencyIds;
+      }
       if (investmentType && investmentType !== 'all') {
         variables.investmentTypeIds = [`InvestmentType:v1:${investmentType}`];
       }
@@ -99,6 +104,18 @@ export const EquityAnalyticsTable: React.FC<EquityAnalyticsTableProps> = ({
       const latestReports = Array.from(latestReportsByInvestment.values());
       setReports(latestReports);
       
+      // Extract unique currency IDs from reports and notify parent
+      if (onCurrenciesChange) {
+        const currencyIds = Array.from(
+          new Set(
+            latestReports
+              .map(report => report.currencyRef)
+              .filter(Boolean)
+          )
+        );
+        onCurrenciesChange(currencyIds);
+      }
+      
       // Derive totalCount from actual visible data to match what user sees
       // (accounts for client-side deduping)
       setTotalCount(latestReports.length || total);
@@ -108,7 +125,7 @@ export const EquityAnalyticsTable: React.FC<EquityAnalyticsTableProps> = ({
     } finally {
       setIsLoading(false);
     }
-  }, [accessToken, userInfo, filters.startDate, filters.endDate, investmentType, fetchInvestmentReports]);
+  }, [accessToken, userInfo, filters.startDate, filters.endDate, filters.currencyIds, investmentType, fetchInvestmentReports]);
 
   // Load data on mount and when filters change
   useEffect(() => {

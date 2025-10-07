@@ -73,6 +73,7 @@ export const AnalyticsTable: React.FC<AnalyticsTableProps> = ({
     {
       startDate: filters.startDate,
       endDate: filters.endDate,
+      currencyIds: filters.currencyIds,
       investmentType: filters.investmentType
     }
   );

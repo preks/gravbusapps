@@ -1,5 +1,6 @@
 import React, { useEffect, useState, useCallback } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@newwork/nw-design-system";
+import { LayoutGrid, TrendingUp, Building2, PieChart } from "lucide-react";
 import { BusinessAppContextProps } from "@/common/BusinessAppContext";
 import AllInvestmentsList from "./components/AllInvestmentsList";
 import EquityInvestmentsList from "./components/EquityInvestmentsList";
@@ -67,10 +68,10 @@ export const InvestmentView: React.FC<InvestmentViewProps> = (context) => {
       {/* Tabs */}
       <Tabs value={activeTab} onValueChange={handleTabChange} className="gba:w-full">
         <TabsList className="gba:grid gba:w-full gba:grid-cols-4">
-          <TabsTrigger value="overview">Overview</TabsTrigger>
-          <TabsTrigger value="liquid-funds">Liquid Fund</TabsTrigger>
-          <TabsTrigger value="real-estate">Real Estate</TabsTrigger>
-          <TabsTrigger value="equity">Equity</TabsTrigger>
+          <TabsTrigger value="overview" startIcon={<LayoutGrid />}>Overview</TabsTrigger>
+          <TabsTrigger value="liquid-funds" startIcon={<TrendingUp />}>Liquid Fund</TabsTrigger>
+          <TabsTrigger value="real-estate" startIcon={<Building2 />}>Real Estate</TabsTrigger>
+          <TabsTrigger value="equity" startIcon={<PieChart />}>Equity</TabsTrigger>
         </TabsList>
 
         <TabsContent value="overview" className="gba:mt-6">

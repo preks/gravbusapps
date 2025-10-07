@@ -2,6 +2,7 @@ export interface RealEstateAnalyticsFilters {
   startDate?: string;
   endDate?: string;
   currency?: string;
+  currencyIds?: string[];
   propertyType?: string;
   investmentType?: string; // Added for dynamic filtering by investment type
   fundManagerName?: string;
