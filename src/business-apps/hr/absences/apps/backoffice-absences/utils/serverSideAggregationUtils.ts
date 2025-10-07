@@ -44,7 +44,9 @@ export const processCompleteServerSideAggregations = (
   ];
 
   const rawEntitlements = aggregationResult?.EmployeeAbsenceEntitlement || [];
-  const vacationMetrics = calculateVacationMetrics(rawEntitlements);
+  const activeEmployeesCount = aggregationResult?.activeEmployeesCount?.aggregate?.count || 0;
+  const vacationAbsenceBalance = aggregationResult?.vacationAbsenceBalance?.aggregate?.sum?.balance || 0;
+  const vacationMetrics = calculateVacationMetrics(rawEntitlements, activeEmployeesCount, vacationAbsenceBalance);
 
   const averageDuration = Math.round((aggregationResult.totalAbsences?.aggregate?.avg?.effectiveDays || 0) * 100) / 100;
   
@@ -125,7 +127,8 @@ export const processCompleteServerSideAggregations = (
       totalActiveEmployees: vacationMetrics.totalActiveEmployees || 0,
       averageAvailable: vacationMetrics.averageAvailable || 0,
       averageUsed: vacationMetrics.averageUsed,
-      totalVacationLiability: vacationMetrics.totalVacationLiability || 0
+      totalVacationLiability: vacationMetrics.totalVacationLiability || 0,
+      totalVacationEntitlement: vacationMetrics.totalVacationEntitlement || 0
     },
     
     isLoading: false,

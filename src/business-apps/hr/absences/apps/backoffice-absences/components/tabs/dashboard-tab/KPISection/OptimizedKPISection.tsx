@@ -444,9 +444,9 @@ export const OptimizedKPISection: React.FC<OptimizedKPISectionProps> = ({
           <div className="gba:grid gba:grid-cols-2 gba:gap-3 gba:mb-4">
             <div className="gba:text-center gba:p-2 gba:bg-blue-50 gba:rounded">
               <div className="gba:text-lg gba:font-bold gba:text-blue-600">
-                {entitlements.averageVacationPerEmployee}
+                {entitlements.totalVacationEntitlement.toFixed(0)}
               </div>
-              <div className="gba:text-xs gba:text-gray-600">{getTranslationFromI18nKeyAndLabel('lowcoder:absence_management_hub_backoffice.avg_vacation_days', 'Total vacation days')}</div>
+              <div className="gba:text-xs gba:text-gray-600">{getTranslationFromI18nKeyAndLabel('lowcoder:absence_management_hub_backoffice.total_vacation_days', 'Total vacation days')}</div>
             </div>
             <div className="gba:text-center gba:p-2 gba:bg-green-50 gba:rounded">
               <div className="gba:text-lg gba:font-bold gba:text-green-600">
@@ -459,17 +459,17 @@ export const OptimizedKPISection: React.FC<OptimizedKPISectionProps> = ({
           {/* Detailed Breakdown */}
           <div className="gba:flex gba:justify-between gba:items-center">
             <span className="gba:text-sm gba:text-gray-600">{getTranslationFromI18nKeyAndLabel('lowcoder:absence_management_hub_backoffice.avg_available_per_employee', 'Avg Available per Employee')}</span>
-            <span className="gba:font-medium gba:text-blue-600">{entitlements.averageAvailable} {getTranslationFromI18nKeyAndLabel('lowcoder:absence_management_hub_backoffice.days', 'days')}</span>
+            <span className="gba:font-medium gba:text-blue-600">{entitlements.averageAvailable.toFixed(1)} {getTranslationFromI18nKeyAndLabel('lowcoder:absence_management_hub_backoffice.days', 'days')}</span>
           </div>
           
           <div className="gba:flex gba:justify-between gba:items-center">
             <span className="gba:text-sm gba:text-gray-600">{getTranslationFromI18nKeyAndLabel('lowcoder:absence_management_hub_backoffice.avg_used_per_employee', 'Avg Used per Employee')}</span>
-            <span className="gba:font-medium gba:text-orange-600">{entitlements.averageUsed} {getTranslationFromI18nKeyAndLabel('lowcoder:absence_management_hub_backoffice.days', 'days')}</span>
+            <span className="gba:font-medium gba:text-orange-600">{entitlements.averageUsed.toFixed(1)} {getTranslationFromI18nKeyAndLabel('lowcoder:absence_management_hub_backoffice.days', 'days')}</span>
           </div>
           
           <div className="gba:flex gba:justify-between gba:items-center">
-            <span className="gba:text-sm gba:text-gray-600">{getTranslationFromI18nKeyAndLabel('lowcoder:absence_management_hub_backoffice.total_vacation_entitlement', 'Total Vacation Entitlement')}</span>
-            <span className="gba:font-medium gba:text-purple-600">{entitlements.averageVacationPerEmployee} {getTranslationFromI18nKeyAndLabel('lowcoder:absence_management_hub_backoffice.days', 'days')}</span>
+          <span className="gba:text-sm gba:text-gray-600">{getTranslationFromI18nKeyAndLabel('lowcoder:absence_management_hub_backoffice.total_vacation_entitlement', 'Total Vacation Entitlement')}</span>
+            <span className="gba:font-medium gba:text-purple-600">{entitlements.totalVacationEntitlement} {getTranslationFromI18nKeyAndLabel('lowcoder:absence_management_hub_backoffice.days', 'days')}</span>
           </div>
 
           {/* Real data indicator */}
@@ -496,7 +496,7 @@ export const OptimizedKPISection: React.FC<OptimizedKPISectionProps> = ({
           <div className="gba:grid gba:grid-cols-2 gba:gap-3">
             <div className="gba:text-center gba:p-3 gba:bg-red-50 gba:rounded">
               <div className="gba:text-xl gba:font-bold gba:text-red-600">
-                {(entitlements.averageAvailable * entitlements.totalActiveEmployees).toFixed(0)}
+                {entitlements.totalVacationLiability.toFixed(0)}
               </div>
               <div className="gba:text-xs gba:text-gray-600">{getTranslationFromI18nKeyAndLabel('lowcoder:absence_management_hub_backoffice.remaining_days_total', 'Remaining Days Total')}</div>
             </div>
@@ -512,7 +512,7 @@ export const OptimizedKPISection: React.FC<OptimizedKPISectionProps> = ({
           <div className="gba:space-y-2">
             <div className="gba:flex gba:justify-between gba:items-center">
               <span className="gba:text-sm gba:text-gray-600">{getTranslationFromI18nKeyAndLabel('lowcoder:absence_management_hub_backoffice.avg_remaining_per_employee', 'Avg Remaining per Employee')}</span>
-              <span className="gba:font-medium gba:text-red-600">{entitlements.averageAvailable} {getTranslationFromI18nKeyAndLabel('lowcoder:absence_management_hub_backoffice.days', 'days')}</span>
+              <span className="gba:font-medium gba:text-red-600">{(entitlements.totalVacationLiability / entitlements.totalActiveEmployees).toFixed(1)} {getTranslationFromI18nKeyAndLabel('lowcoder:absence_management_hub_backoffice.days', 'days')}</span>
             </div>
             
             <div className="gba:flex gba:justify-between gba:items-center">

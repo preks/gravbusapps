@@ -38,7 +38,8 @@ export const useDashboardData = ({ accessToken, timeFilter = 'current-year' }: U
       totalActiveEmployees: 0,
       averageAvailable: 0,
       averageUsed: 0,
-      totalVacationLiability: 0
+      totalVacationLiability: 0,
+      totalVacationEntitlement: 0
     },
     
     isLoading: true,
@@ -74,26 +75,36 @@ export const useDashboardData = ({ accessToken, timeFilter = 'current-year' }: U
         }
       });
       
-
-      const vacationGroup = absenceGroupsData.data.find((group: any) => 
-        group.value && (
-          group.value.toLowerCase().includes('vacation') ||
-          group.value.toLowerCase().includes('annual') ||
-          group.value.toLowerCase().includes('holiday') ||
-          (group.value.toLowerCase().includes('leave') && !group.value.toLowerCase().includes('sick'))
-        )
+      // Get absence types catalog to find AbsenceType:v1:A001
+      const absenceTypesData = await catalogClient.getCatalogEntriesList(
+        { catalogIdentifier: "AbsenceType", version: "v1" },
+        { 
+          limit: 100, 
+          offset: 0, 
+          returnTotalRecords: true,
+          localeCode: userLocale,
+          includeChildCatalogEntries: true
+        }
       );
-      const vacationGroupId = vacationGroup?.id;
+
+      // Use specific AbsenceType:v1:A001 for vacation entitlements
+      const vacationType = absenceTypesData.data.find((type: any) => 
+        type.id === 'AbsenceType:v1:A001'
+      );
+      const vacationGroupId = vacationType?.id;
+
       
       const query = getOptimizedDashboardQuery(timeFilter, vacationGroupId);
-      
+
       const result = await graphQLClient.request<any>(query);
+
       
       const processedData = processCompleteServerSideAggregations(
         result,
         absenceGroups,
         timeFilter
       );
+
 
       setData(processedData);
       

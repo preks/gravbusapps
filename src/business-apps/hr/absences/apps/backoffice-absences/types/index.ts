@@ -91,6 +91,7 @@ export interface DashboardData {
     averageAvailable: number;
     averageUsed: number;
     totalVacationLiability: number; // ✅ Add vacation liability field
+    totalVacationEntitlement: number; // ✅ Add total vacation entitlement field
   };
   
   // Loading states

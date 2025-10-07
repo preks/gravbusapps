@@ -188,7 +188,7 @@ export const StatisticsTab: React.FC<TabComponentProps & { dashboardData: Dashbo
             sickCount: keyStats.sickCount
           } : undefined}
           disableLocalCalc
-          errorMessage={!keyStats ? uiError || 'Failed to load Planned Absences' : undefined}
+          errorMessage={!keyStats ? uiError || getTranslationFromI18nKeyAndLabel('lowcoder:absence_hub.error_loading', 'Failed to load absence data') : undefined}
         />
       </div>
       {/* Work Patterns and Monthly Patterns side by side (custom panel) */}

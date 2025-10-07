@@ -233,16 +233,21 @@ export const getCompleteAggregationsQuery = (
   // Base where condition for all absences
   const baseWhere = buildBaseWhere(dateFilters.startDate, dateFilters.endDate);
 
-  // Vacation entitlements specific where condition
+  // Vacation entitlements specific where condition - ALWAYS filter by current year for vacation entitlements
   let vacationWhereCondition = '';
   if (vacationGroupId) {
+    const currentYear = new Date().getFullYear();
+    const currentYearStart = `${currentYear}-01-01`;
+    const currentYearEnd = `${currentYear}-12-31`;
+    
     vacationWhereCondition = `
     where: {
       _and: [
         { isDeleted: { _eq: false } },
-        { validFrom: { _lte: "${dateFilters.endDate}" } },
-        { validTo: { _gte: "${dateFilters.startDate}" } },
-        { type: { parentEntryId: { _eq: "${vacationGroupId}" } } },
+        { validFrom: { _lte: "${currentYearEnd}" } },
+        { validTo: { _gte: "${currentYearStart}" } },
+        { type: { id: { _eq: "AbsenceType:v1:A001" } } },
+        { employee: { employeePosition: { id: { _isNull: false } } } }
       ]
     }`;
   }
@@ -306,6 +311,29 @@ export const getCompleteAggregationsQuery = (
         avg { total }
         avg { approved }
         avg { pending }
+      }
+    }
+    ` : ''}
+
+    # ✅ ACTIVE EMPLOYEES COUNT (from employeePosition table)
+    activeEmployeesCount: EmployeePositionAggregate(where: { id: { _isNull: false } }) {
+      aggregate {
+        count
+      }
+    }
+
+    # ✅ VACATION ABSENCE BALANCE DAYS (for avg used per employee calculation and remaining days total)
+    ${vacationGroupId ? `
+    vacationAbsenceBalance: EmployeeAbsenceAggregate(where: {
+      _and: [
+        { isDeleted: { _eq: false } },
+        { type: { id: { _eq: "AbsenceType:v1:A001" } } },
+        { employee: { employeePosition: { id: { _isNull: false } } } },
+        { status: { _nin: ["APPROVED", "REJECTED"] } }
+      ]
+    }) {
+      aggregate {
+        sum { balance }
       }
     }
     ` : ''}
