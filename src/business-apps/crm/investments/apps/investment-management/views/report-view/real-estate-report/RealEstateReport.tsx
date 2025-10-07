@@ -8,6 +8,7 @@ import {
   Alert,
   Spinner
 } from '@newwork/nw-design-system';
+import { Building2 } from 'lucide-react';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 import { RealEstateAnalyticsTable } from './components/RealEstateAnalyticsTable';
 import { useRealEstateInvestmentTypes } from './hooks/useRealEstateInvestmentTypes';
@@ -255,6 +256,7 @@ export const RealEstateReport: React.FC<RealEstateReportProps> = ({
                   <TabsTrigger 
                     key={type.code}
                     value={type.code}
+                    startIcon={<Building2 />}
                     data-testid={`${dataTestId}-${type.code.toLowerCase()}-tab`}
                   >
                     {type.value}

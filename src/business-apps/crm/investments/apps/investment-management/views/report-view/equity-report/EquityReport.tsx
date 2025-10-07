@@ -7,6 +7,7 @@ import {
   Alert,
   Spinner
 } from '@newwork/nw-design-system';
+import { PieChart } from 'lucide-react';
 import { toast } from 'sonner';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
@@ -264,6 +265,7 @@ export const EquityReport: React.FC<EquityReportProps> = ({
             <TabsTrigger 
               key={type.code} 
               value={type.code} 
+              startIcon={<PieChart />}
               data-testid={`${dataTestId}-${type.code.toLowerCase()}-tab-trigger`}
             >
               {type.value}

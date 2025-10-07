@@ -107,34 +107,30 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = (props) => {
           <TabsList className="gba:grid gba:w-full gba:grid-cols-4 gba:p-1">
             <TabsTrigger 
               value="overview" 
-              className="gba:flex gba:items-center gba:gap-2"
+              startIcon={<LayoutDashboard />}
               data-testid={formatDataTestId('AnalyticsView', 'OverviewTab')}
             >
-              <LayoutDashboard className="gba:h-4 gba:w-4" />
               {getTranslationFromI18nKeyAndLabel('analytics.tabs.overview', 'Overview')}
             </TabsTrigger>
             <TabsTrigger 
               value="equity" 
-              className="gba:flex gba:items-center gba:gap-2"
+              startIcon={<BarChart3 />}
               data-testid={formatDataTestId('AnalyticsView', 'EquityTab')}
             >
-              <BarChart3 className="gba:h-4 gba:w-4" />
               {getTranslationFromI18nKeyAndLabel('analytics.tabs.equity', 'Equity Investments')}
             </TabsTrigger>
             <TabsTrigger 
               value="liquid-funds" 
-              className="gba:flex gba:items-center gba:gap-2"
+              startIcon={<Droplets />}
               data-testid={formatDataTestId('AnalyticsView', 'LiquidFundsTab')}
             >
-              <Droplets className="gba:h-4 gba:w-4" />
               {getTranslationFromI18nKeyAndLabel('analytics.tabs.liquidFunds', 'Liquid Funds')}
             </TabsTrigger>
             <TabsTrigger 
               value="real-estate" 
-              className="gba:flex gba:items-center gba:gap-2"
+              startIcon={<Home />}
               data-testid={formatDataTestId('AnalyticsView', 'RealEstateTab')}
             >
-              <Home className="gba:h-4 gba:w-4" />
               {getTranslationFromI18nKeyAndLabel('analytics.tabs.realEstate', 'Real Estate')}
             </TabsTrigger>
           </TabsList>

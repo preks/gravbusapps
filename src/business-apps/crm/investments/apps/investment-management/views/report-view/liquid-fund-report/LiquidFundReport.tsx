@@ -7,6 +7,7 @@ import {
   TabsTrigger,
   Spinner
 } from '@newwork/nw-design-system';
+import { Landmark, Clock, Layers } from 'lucide-react';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 import { AnalyticsFilters } from './types';
 import dayjs from 'dayjs';
@@ -156,13 +157,13 @@ export const LiquidFundReport: React.FC<LiquidFundReportProps> = ({
       {/* Analytics Tables with Sub-tabs - Overview removed */}
       <Tabs value={activeSubTab} onValueChange={setActiveSubTab} className="gba:w-full">
         <TabsList className="gba:grid gba:w-full gba:grid-cols-3">
-          <TabsTrigger value="tab1" data-testid={`${dataTestId}-tab1`}>
+          <TabsTrigger value="tab1" startIcon={<Landmark />} data-testid={`${dataTestId}-tab1`}>
             Bank Deposits
           </TabsTrigger>
-          <TabsTrigger value="tab2" data-testid={`${dataTestId}-tab2`}>
+          <TabsTrigger value="tab2" startIcon={<Clock />} data-testid={`${dataTestId}-tab2`}>
             Fixed-Term Deposits
           </TabsTrigger>
-          <TabsTrigger value="tab3" data-testid={`${dataTestId}-tab3`}>
+          <TabsTrigger value="tab3" startIcon={<Layers />} data-testid={`${dataTestId}-tab3`}>
             Multiple Types
           </TabsTrigger>
         </TabsList>
