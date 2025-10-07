@@ -1,6 +1,8 @@
 import React from 'react';
-import { DatePicker } from 'antd';
+import { DatePicker, Tooltip } from 'antd';
 import dayjs, { Dayjs } from 'dayjs';
+import { InfoCircleOutlined } from '@ant-design/icons';
+import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
 
 const { RangePicker } = DatePicker;
 
@@ -8,12 +10,14 @@ interface RequestDateRangeFilterProps {
   requestDateRange: [Date | null, Date | null] | null;
   onDateRangeChange: (dateRange: [Date | null, Date | null] | null) => void;
   placeholder?: [string, string];
+  isEffectiveDateRange?: boolean;
 }
 
 const RequestDateRangeFilter: React.FC<RequestDateRangeFilterProps> = ({
   requestDateRange,
   onDateRangeChange,
-  placeholder = ['Start date', 'End date']
+  placeholder = ['Start date', 'End date'],
+  isEffectiveDateRange = false  // This is for the effective date range filter to show the hint
 }) => {
   const handleDateChange = (dates: any) => {
     if (!dates || dates.length === 0) {
@@ -30,14 +34,23 @@ const RequestDateRangeFilter: React.FC<RequestDateRangeFilterProps> = ({
     ? [dayjs(requestDateRange[0]), dayjs(requestDateRange[1])]
     : null;
 
-  return (
-    <RangePicker
-      value={value as [Dayjs | null, Dayjs | null] | null}
-      onChange={handleDateChange}
-      placeholder={placeholder}
-      style={{ width: '100%' }}
-      data-testid="request-date-range-filter"
-    />
+  return (    
+    <div>
+      <RangePicker
+        value={value as [Dayjs | null, Dayjs | null] | null}
+        onChange={handleDateChange}
+        placeholder={placeholder}
+        style={{ width: '100%' }}
+        data-testid="effective-date-range-filter"
+      />  
+     {isEffectiveDateRange && (
+      <div className="gba:mt-2 gba:text-xs gba:text-muted-foreground gba:flex gba:items-center gba:gap-1" data-testid="effective-date-hint">
+          <Tooltip title= {getTranslationFromI18nKeyAndLabel("lowcoder:personal_expenses.effective_date_info","For type TRIP, the start date is used. For type EXPENSE, the item expense date is used.")} placement="right">
+            <InfoCircleOutlined data-testid="effective-date-info" />
+          </Tooltip>
+      </div>
+     )}
+   </div>
   );
 };
 

@@ -1,5 +1,6 @@
 import React, { useCallback } from 'react';
-import { DatePicker } from 'antd';
+import { DatePicker, Tooltip } from 'antd';
+import { InfoCircleOutlined } from '@ant-design/icons';
 import dayjs, { Dayjs } from 'dayjs';
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
 
@@ -35,13 +36,20 @@ const EffectiveDateRangeFilter: React.FC<EffectiveDateRangeFilterProps> = ({
     : null;
 
   return (
-    <RangePicker
-      value={value as [Dayjs | null, Dayjs | null] | null}
-      onChange={handleDateChange}
-      placeholder={placeholder}
-      style={{ width: '100%' }}
-      data-testid="effective-date-range-filter"
-    />
+    <div>
+      <RangePicker
+        value={value as [Dayjs | null, Dayjs | null] | null}
+        onChange={handleDateChange}
+        placeholder={placeholder}
+        style={{ width: '100%' }}
+        data-testid="effective-date-range-filter"
+      />
+       <div className="gba:mt-2 gba:text-xs gba:text-muted-foreground gba:flex gba:items-center gba:gap-1" data-testid="effective-date-hint">
+        <Tooltip title={getTranslationFromI18nKeyAndLabel("lowcoder:personal_expenses.effective_date_info","For type TRIP, the start date is used. For type EXPENSE, the item expense date is used.")} placement="right">
+          <InfoCircleOutlined data-testid="effective-date-info" />
+        </Tooltip>
+      </div>
+    </div>
   );
 };
 

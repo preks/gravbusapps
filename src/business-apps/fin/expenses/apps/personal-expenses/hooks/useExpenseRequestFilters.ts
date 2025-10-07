@@ -123,7 +123,8 @@ export const useExpenseRequestFilters = (): UseExpenseRequestFiltersReturn => {
       customComponent: React.createElement(RequestDateRangeFilter, {
         requestDateRange: effectiveDateRange as any,
         onDateRangeChange: setEffectiveDateRange,
-        placeholder: [getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.start_date','Start date'), getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.end_date','End date')]
+        placeholder: [getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.start_date','Start date'), getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.end_date','End date')],
+        isEffectiveDateRange: true
       }),
       hideSearch: true,
     },
