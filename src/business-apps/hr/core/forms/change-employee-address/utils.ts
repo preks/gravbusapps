@@ -133,7 +133,6 @@ export const buildUpdatePayload = (params: {
   comment?: string;
   selected: any;
 }) => {
-  console.log('employeeId: ', params.employeeId);
   const sel = params.selected || {};
   return {
     event: 'pse_submit',

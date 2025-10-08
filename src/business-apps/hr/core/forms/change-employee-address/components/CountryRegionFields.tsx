@@ -1,26 +1,36 @@
 import React, { useEffect } from 'react';
 import { FormField, FormItem, FormLabel, FormControl, FormMessage, Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@newwork/nw-design-system';
 import { getTranslationFromI18nKeyAndLabel, getCatalogValue } from '@/common/utils/windowUtils';
-import { useWatch } from 'react-hook-form';
+import { useWatch, useFormState } from 'react-hook-form';
 
 interface CountryRegionFieldsProps {
   control: any;
   catalogs: { countries?: any[]; regions?: any[] };
   setValue: (name: string, value: any) => void;
+  isDeleteMode?: boolean;
 }
 
-const CountryRegionFields: React.FC<CountryRegionFieldsProps> = ({ control, catalogs, setValue }) => {
+const CountryRegionFields: React.FC<CountryRegionFieldsProps> = ({ control, catalogs, setValue, isDeleteMode }) => {
   const countryField = useWatch({ control, name: 'countryId' });
   const regionField = useWatch({ control, name: 'regionId' });
+  const { isSubmitted, submitCount, touchedFields } = useFormState({ control });
   return (
     <>
       <FormField
         control={control}
         name={"countryId" as any}
         rules={{
-          required: getTranslationFromI18nKeyAndLabel('lowcoder:employee_profile.details_layout.address_container.country_validation_message','The Country field is required. Please select a value.'),
+          validate: (v: any) => {
+            if (isDeleteMode) return true;
+            const enforce = isSubmitted || submitCount > 0 || Boolean((touchedFields as any)?.countryId);
+            if (!enforce) return true;
+            if (v === null || v === undefined || v === '') {
+              return getTranslationFromI18nKeyAndLabel('lowcoder:employee_profile.details_layout.address_container.country_validation_message','The Country field is required. Please select a value.');
+            }
+            return true;
+          },
         }}
-        render={({ field }) => (
+        render={({ field, fieldState }) => (
           <FormItem>
             <FormLabel>
               {getTranslationFromI18nKeyAndLabel('lowcoder:employee_profile.details_layout.address_container.country','Country')}<span className="gba:text-destructive"> *</span>
@@ -42,7 +52,7 @@ const CountryRegionFields: React.FC<CountryRegionFieldsProps> = ({ control, cata
                 ))}
               </SelectContent>
             </Select>
-            <FormMessage />
+            {(isDeleteMode ? false : (fieldState.isTouched || isSubmitted || submitCount > 0)) ? <FormMessage /> : null}
           </FormItem>
         )}
       />
@@ -72,6 +82,7 @@ const CountryRegionFields: React.FC<CountryRegionFieldsProps> = ({ control, cata
               name={"regionId" as any}
               rules={{
                 validate: (v: any) => {
+                  if (isDeleteMode) return true;
                   if (countryVal === 'Country:v1:DE' || countryVal === 'Country:v1:US' || countryVal === 'Country:v1:RO') {
                     if (!v) {
                       return getTranslationFromI18nKeyAndLabel('lowcoder:employee_profile.details_layout.address_container.region_validation_message','Please select a value.');
@@ -80,7 +91,7 @@ const CountryRegionFields: React.FC<CountryRegionFieldsProps> = ({ control, cata
                   return true;
                 }
               }}
-              render={({ field }) => {
+              render={({ field, fieldState }) => {
                 const selected = regions.find((r: any) => String(r.id) === String(field.value));
                 const regionDisplay = countryVal === 'Country:v1:RO' ? selected?.additionalValue1 : selected?.alternativeCode;
                 useEffect(() => {
@@ -106,7 +117,7 @@ const CountryRegionFields: React.FC<CountryRegionFieldsProps> = ({ control, cata
                         ))}
                       </SelectContent>
                     </Select>
-                    <FormMessage />
+                    {(isDeleteMode ? false : (fieldState.isTouched || isSubmitted || submitCount > 0)) ? <FormMessage /> : null}
                   </FormItem>
                 );
               }}
@@ -118,7 +129,6 @@ const CountryRegionFields: React.FC<CountryRegionFieldsProps> = ({ control, cata
                   {(countryVal === 'Country:v1:RO' ? getCatalogValue(regions.find((r: any) => String(r.id) === String(regionField))) : getCatalogValue(regions.find((r: any) => String(r.id) === String(regionField)))) || ''}
                 </span>
               </div>
-              <FormMessage />
             </FormItem>
           </div>
         );

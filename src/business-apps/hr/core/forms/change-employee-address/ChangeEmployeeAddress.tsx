@@ -38,6 +38,8 @@ const ChangeEmployeeAddressContent: React.FC<ChangeEmployeeAddressFormProps> = (
   const { data, refetchAddresses } = useChangeEmployeeAddress();
   const ADD_SENTINEL = '__ADD_ADDRESS__';
   const [isDeleteMode, setIsDeleteMode] = useState(false);
+  const [deletePayload, setDeletePayload] = useState<any | null>(null);
+  const deletePayloadRef = useRef<any>(null);
 
   const emptyAddressLines: string[] = useMemo(() => [''], []);
 
@@ -158,11 +160,14 @@ const ChangeEmployeeAddressContent: React.FC<ChangeEmployeeAddressFormProps> = (
         setAddressLineCount(Math.max(1, lastNonEmpty + 1));
         setAddressLinesError(null);
         setIsDeleteMode(false);
+        setDeletePayload(null);
+        deletePayloadRef.current = null;
         defaultSelectAppliedFor.current = key;
       }
     } else {
       if (currentSelected !== ADD_SENTINEL && defaultSelectAppliedFor.current !== key) {
         form.setValue('selectedAddressId', ADD_SENTINEL, { shouldDirty: false, shouldValidate: false, shouldTouch: false } as any);
+        setDeletePayload(null);
         defaultSelectAppliedFor.current = key;
       }
     }
@@ -191,13 +196,14 @@ const ChangeEmployeeAddressContent: React.FC<ChangeEmployeeAddressFormProps> = (
           onCancel={() => {
             if (isDeleteMode) {
               setIsDeleteMode(false);
+              setDeletePayload(null);
               return;
             }
             form.reset(normalizedDefaults);
             initialRef.current = normalizedDefaults;
           }}
           customFormLayout
-          validateForm={(values) => validateAddressForm(values as any, { countries: data?.catalogs?.countries })}
+          validateForm={(values) => (isDeleteMode ? null : validateAddressForm(values as any, { countries: data?.catalogs?.countries }))}
           handlePreSubmit={async (values) => {
             let uploadedEmployeeDocumentId: string | undefined;
             try {
@@ -268,20 +274,9 @@ const ChangeEmployeeAddressContent: React.FC<ChangeEmployeeAddressFormProps> = (
             void hasPrimary; void hasSecondary;
             const addingNew = !values.selectedAddressId || values.selectedAddressId === ADD_SENTINEL;
             const selected = addingNew ? null : addresses.find((a: any) => String(a.id) === String(values.selectedAddressId));
-
-            if (isDeleteMode && selected) {
-              // DELETE mode
-              return buildDeletePayload({
-                employeeId,
-                employeeDocumentId: values.employeeDocumentId || null,
-                lines,
-                postalCode: values.postalCode,
-                city: values.city,
-                regionId: values.regionId,
-                countryId: values.countryId,
-                comment: values.comment,
-                selected,
-              });
+            if (isDeleteMode) {
+              if (deletePayload) return deletePayload;
+              return null as any;
             }
 
             if (addingNew) {
@@ -343,18 +338,42 @@ const ChangeEmployeeAddressContent: React.FC<ChangeEmployeeAddressFormProps> = (
                           setAddressLineCount(Math.max(1, lastNonEmpty + 1));
                           setAddressLinesError(null);
                           setIsDeleteMode(false);
+                          setDeletePayload(null);
                         } else {
                           form.reset({ ...normalizedDefaults, selectedAddressId: ADD_SENTINEL });
+                          try { (form as any).clearErrors && (form as any).clearErrors(['countryId','regionId']); } catch {}
                           setAddressLineCount(1);
                           setAddressLinesError(null);
                           setIsDeleteMode(false);
+                          setDeletePayload(null);
                         }
                         refetchAddresses();
                       }}
                       addresses={addresses}
                       addSentinel={ADD_SENTINEL}
                       canShowDelete={Boolean(isSecondary && field.value !== ADD_SENTINEL)}
-                      onRequestDelete={() => setIsDeleteMode(true)}
+                      onRequestDelete={() => {
+                        // Build delete payload first and cache it
+                        const selId = String(field.value);
+                        const selected = addresses.find((a: any) => String(a.id) === selId);
+                        const employeeId = selected?.employeeId ||
+                          userInfo?.employeeDetails?.employeeId ||
+                          data?.address?.EmployeeAddress?.[0]?.employeeId || '';
+                        const linesSnapshot = ensureFourLines((selected?.addressLine || []) as string[]);
+                        const payload = buildDeletePayload({
+                          employeeId,
+                          employeeDocumentId: selected?.employeeDocumentId || null,
+                          lines: linesSnapshot,
+                          postalCode: selected?.postalCode || '',
+                          city: selected?.locality || '',
+                          regionId: selected?.region?.id || null,
+                          countryId: selected?.country?.id || null,
+                          comment: selected?.comment || '',
+                          selected,
+                        });
+                        setDeletePayload(payload);
+                        setIsDeleteMode(true);
+                      }}
                     />
                   );
                 }}
@@ -363,7 +382,7 @@ const ChangeEmployeeAddressContent: React.FC<ChangeEmployeeAddressFormProps> = (
             {isDeleteMode ? (
               <div className="gba:space-y-4">
                 {(() => {
-                  const selectedIdForDelete = form.getValues('selectedAddressId');
+                  const selectedIdForDelete = deletePayload?.address?.id || form.getValues('selectedAddressId');
                   const isLinked = (data?.address?.EmployeeBankAccount || []).some((b: any) => String(b.employeeAddressId) === String(selectedIdForDelete));
                   const text = isLinked
                     ? getTranslationFromI18nKeyAndLabel('lowcoder:employee_profile.details_layout.address_container.linked_address_error_message','The selected address is linked to a bank account.')
@@ -374,7 +393,7 @@ const ChangeEmployeeAddressContent: React.FC<ChangeEmployeeAddressFormProps> = (
             ) : (
               <>
                 {/* Country */}
-                <CountryRegionFields control={form.control as any} catalogs={{ countries: data?.catalogs?.countries || [], regions: data?.catalogs?.regions || [] }} setValue={form.setValue as any} />
+                <CountryRegionFields control={form.control as any} catalogs={{ countries: data?.catalogs?.countries || [], regions: data?.catalogs?.regions || [] }} setValue={form.setValue as any} isDeleteMode={isDeleteMode} />
 
                 {/* Address Line (dynamic up to 4) */}
                 <AddressLines
@@ -519,7 +538,7 @@ const ChangeEmployeeAddressContent: React.FC<ChangeEmployeeAddressFormProps> = (
                 <Button
                   type="submit"
                   variant="destructive"
-                  disabled={Boolean((data?.address?.EmployeeBankAccount || []).some((b: any) => String(b.employeeAddressId) === String(form.getValues('selectedAddressId'))))}
+                  disabled={Boolean((data?.address?.EmployeeBankAccount || []).some((b: any) => String(b.employeeAddressId) === String(deletePayload?.address?.id || form.getValues('selectedAddressId'))))}
                   data-testid="change-employee-address-delete-button"
                 >
                   {getTranslationFromI18nKeyAndLabel('lowcoder:expense_calculation_rule.expense_table.delete','Delete')}
