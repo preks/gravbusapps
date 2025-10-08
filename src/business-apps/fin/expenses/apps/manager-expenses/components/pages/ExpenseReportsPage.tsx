@@ -16,7 +16,7 @@ import {
   PageLayout,
 } from "@newwork/nw-design-system";
 import { PiMagnifyingGlass, PiDownload, PiArrowLeft, PiFileText } from "react-icons/pi";
-import { DebouncedInput } from "@/components/debounced-input/DebouncedInput";
+import { DebouncedInput } from "@/components/data-filter/DebouncedInput";
 import { BusinessAppContextProps } from "@/common/BusinessAppContext";
 import { useExpenseReportData, ReportType } from "../../hooks/useExpenseReportData";
 import { ensureShortDateFormat } from "../../utils/dateUtils";
@@ -494,17 +494,19 @@ const ExpenseReportsPage: React.FC<ExpenseReportsPageProps> = ({
               </h3>
 
               {/* Search Report Types */}
-              <DebouncedInput
-                placeholder={getTranslationFromI18nKeyAndLabel(
-                  "lowcoder:team_expenses_page.dashboard_tab.search_report_types",
-                  "Search report types...",
-                )}
-                onChange={(val) => setReportTypeSearchTerm(val)}
-                value={reportTypeSearchTerm}
-                className="gba:h-10 gba:text-sm gba:border-input"
-                icon={<PiMagnifyingGlass className="gba:w-4 gba:h-4 gba:text-muted-foreground" />}
-                data-testid="expense-reports-type-search-input"
-              />
+              <div className="gba:relative gba:mb-4">
+                <PiMagnifyingGlass className="gba:absolute gba:left-3 gba:top-1/2 gba:transform gba:-translate-y-1/2 gba:text-muted-foreground gba:w-4 gba:h-4 gba:pointer-events-none" />
+                <DebouncedInput
+                  placeholder={getTranslationFromI18nKeyAndLabel(
+                    "lowcoder:team_expenses_page.dashboard_tab.search_report_types",
+                    "Search report types...",
+                  )}
+                  onChange={(val) => setReportTypeSearchTerm(val)}
+                  value={reportTypeSearchTerm}
+                  className="gba:pl-10 gba:h-10 gba:text-sm gba:border-input"
+                  data-testid="expense-reports-type-search-input"
+                />
+              </div>
 
               {/* Report Type List */}
               <div className="gba:space-y-2">
@@ -541,20 +543,22 @@ const ExpenseReportsPage: React.FC<ExpenseReportsPageProps> = ({
 
             {/* Search Bar for Table Data */}
             <div className="gba:mb-4">
-              <DebouncedInput
-                placeholder={getTranslationFromI18nKeyAndLabel(
-                  "lowcoder:team_expenses_page.dashboard_tab.search_report_data",
-                  "Search report data...",
-                )}
-                onChange={(val) => {
-                  setSearchTerm(val);
-                  setCurrentPage(1);
-                }}
-                value={searchTerm}
-                className="gba:h-10 gba:text-sm gba:border-input"
-                icon={<PiMagnifyingGlass className="gba:w-4 gba:h-4 gba:text-muted-foreground" />}
-                data-testid="expense-reports-data-search-input"
-              />
+              <div className="gba:relative gba:w-64">
+                <PiMagnifyingGlass className="gba:absolute gba:left-3 gba:top-1/2 gba:transform gba:-translate-y-1/2 gba:text-muted-foreground gba:w-4 gba:h-4 gba:pointer-events-none" />
+                <DebouncedInput
+                  placeholder={getTranslationFromI18nKeyAndLabel(
+                    "lowcoder:team_expenses_page.dashboard_tab.search_report_data",
+                    "Search report data...",
+                  )}
+                  onChange={(val) => {
+                    setSearchTerm(val);
+                    setCurrentPage(1);
+                  }}
+                  value={searchTerm}
+                  className="gba:pl-10 gba:h-10 gba:text-sm gba:border-input"
+                  data-testid="expense-reports-data-search-input"
+                />
+              </div>
             </div>
 
           {/* Report Table */}

@@ -21,7 +21,7 @@ import {
   Separator,
 } from "@newwork/nw-design-system";
 import { PiArrowLeft, PiMagnifyingGlass } from "react-icons/pi";
-import { DebouncedInput } from "@/components/debounced-input/DebouncedInput";
+import { DebouncedInput } from "@/components/data-filter/DebouncedInput";
 import { BusinessAppContextProps } from "@/common/BusinessAppContext";
 import { useTeamSpendingAnalytics, DateRangeOption } from "../../hooks/useTeamSpendingAnalytics";
 import { LineChartComponent, PieChartComponent, BarChartComponent } from "../modals/charts";
@@ -883,17 +883,19 @@ const TeamSpendingAnalyticsPage: React.FC<TeamSpendingAnalyticsPageProps> = ({
               "Location Filters",
             )}
           </Label>
-          <DebouncedInput
-            placeholder={getTranslationFromI18nKeyAndLabel(
-              "lowcoder:team_expenses_page.dashboard_tab.search_locations",
-              "Search locations...",
-            )}
-            value={searchTerm}
-            onChange={(val) => setSearchTerm(val)}
-            className="gba:h-10 gba:text-sm gba:border-input"
-            icon={<PiMagnifyingGlass className="gba:w-4 gba:h-4 gba:text-muted-foreground" />}
-            data-testid="team-analytics-location-search-input"
-          />
+          <div className="gba:relative">
+            <PiMagnifyingGlass className="gba:absolute gba:left-3 gba:top-1/2 gba:transform gba:-translate-y-1/2 gba:text-muted-foreground gba:w-4 gba:h-4 gba:pointer-events-none" />
+            <DebouncedInput
+              placeholder={getTranslationFromI18nKeyAndLabel(
+                "lowcoder:team_expenses_page.dashboard_tab.search_locations",
+                "Search locations...",
+              )}
+              value={searchTerm}
+              onChange={(val) => setSearchTerm(val)}
+              className="gba:pl-10 gba:h-10 gba:text-sm gba:border-input"
+              data-testid="team-analytics-location-search-input"
+            />
+          </div>
           <div className="gba:space-y-3 gba:max-h-40 gba:overflow-y-auto gba:pr-2" data-testid="team-analytics-location-filters-list">
             {locationFilters.map((location) => (
               <div
@@ -959,17 +961,19 @@ const TeamSpendingAnalyticsPage: React.FC<TeamSpendingAnalyticsPageProps> = ({
               "Department Filters",
             )}
           </Label>
-          <DebouncedInput
-            placeholder={getTranslationFromI18nKeyAndLabel(
-              "lowcoder:team_expenses_page.dashboard_tab.search_departments",
-              "Search departments...",
-            )}
-            value={departmentSearchTerm}
-            onChange={(val) => setDepartmentSearchTerm(val)}
-            className="gba:h-10 gba:text-sm gba:border-input"
-            icon={<PiMagnifyingGlass className="gba:w-4 gba:h-4 gba:text-muted-foreground" />}
-            data-testid="team-analytics-department-search-input"
-          />
+          <div className="gba:relative">
+            <PiMagnifyingGlass className="gba:absolute gba:left-3 gba:top-1/2 gba:transform gba:-translate-y-1/2 gba:text-muted-foreground gba:w-4 gba:h-4 gba:pointer-events-none" />
+            <DebouncedInput
+              placeholder={getTranslationFromI18nKeyAndLabel(
+                "lowcoder:team_expenses_page.dashboard_tab.search_departments",
+                "Search departments...",
+              )}
+              value={departmentSearchTerm}
+              onChange={(val) => setDepartmentSearchTerm(val)}
+              className="gba:pl-10 gba:h-10 gba:text-sm gba:border-input"
+              data-testid="team-analytics-department-search-input"
+            />
+          </div>
           <div className="gba:space-y-3 gba:max-h-40 gba:overflow-y-auto gba:pr-2" data-testid="team-analytics-department-filters-list">
             {departmentFilters.map((department) => (
               <div
