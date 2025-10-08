@@ -1,11 +1,15 @@
 import React, { useEffect, useState, useCallback } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@newwork/nw-design-system";
+import { LayoutGrid, TrendingUp, Building2, PieChart } from "lucide-react";
 import { BusinessAppContextProps } from "@/common/BusinessAppContext";
 import AllInvestmentsList from "./components/AllInvestmentsList";
 import EquityInvestmentsList from "./components/EquityInvestmentsList";
 import RealEstateInvestmentsList from "./components/RealEstateInvestmentsList";
 import LiquidFundInvestmentsList from "./components/LiquidFundInvestmentsList";
 import InvestmentStatistics from "./components/InvestmentStatistics";
+import EquityInvestmentStatistics from "./components/EquityInvestmentStatistics";
+import LiquidFundInvestmentStatistics from "./components/LiquidFundInvestmentStatistics";
+import RealEstateInvestmentStatistics from "./components/RealEstateInvestmentStatistics";
 
 
 export interface InvestmentViewProps extends BusinessAppContextProps {
@@ -53,18 +57,21 @@ export const InvestmentView: React.FC<InvestmentViewProps> = (context) => {
         </div>
       </div>
 
-      {/* Statistics */}
+      {/* Statistics - Render different KPIs based on active tab */}
       <div className="gba:mb-6">
-        <InvestmentStatistics {...context} />
+        {activeTab === "overview" && <InvestmentStatistics {...context} />}
+        {activeTab === "equity" && <EquityInvestmentStatistics {...context} />}
+        {activeTab === "liquid-funds" && <LiquidFundInvestmentStatistics {...context} />}
+        {activeTab === "real-estate" && <RealEstateInvestmentStatistics {...context} />}
       </div>
 
       {/* Tabs */}
       <Tabs value={activeTab} onValueChange={handleTabChange} className="gba:w-full">
         <TabsList className="gba:grid gba:w-full gba:grid-cols-4">
-          <TabsTrigger value="overview">Overview</TabsTrigger>
-          <TabsTrigger value="liquid-funds">Liquid Fund</TabsTrigger>
-          <TabsTrigger value="real-estate">Real Estate</TabsTrigger>
-          <TabsTrigger value="equity">Equity</TabsTrigger>
+          <TabsTrigger value="overview" startIcon={<LayoutGrid />}>Overview</TabsTrigger>
+          <TabsTrigger value="liquid-funds" startIcon={<TrendingUp />}>Liquid Fund</TabsTrigger>
+          <TabsTrigger value="real-estate" startIcon={<Building2 />}>Real Estate</TabsTrigger>
+          <TabsTrigger value="equity" startIcon={<PieChart />}>Equity</TabsTrigger>
         </TabsList>
 
         <TabsContent value="overview" className="gba:mt-6">

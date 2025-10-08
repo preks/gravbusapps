@@ -10,8 +10,6 @@ export interface LiquidFundInvestmentsFilters {
   currencyIds?: string[];
   acquisitionDateFrom?: string;
   acquisitionDateTo?: string;
-  liquidFundBankAccountContains?: string;
-  liquidFundEarlyTermination?: boolean;
 }
 
 export interface FilterGroup {
@@ -50,7 +48,6 @@ export const useLiquidFundInvestmentsFilters = (context: BusinessAppContextProps
   const [investmentTypes, setInvestmentTypes] = useState<Array<{id: string, label: string}>>([]);
   const [investmentStatuses, setInvestmentStatuses] = useState<Array<{id: string, label: string}>>([]);
   const [employees, setEmployees] = useState<Array<{id: string, label: string}>>([]);
-  const [accountNumberText, setAccountNumberText] = useState<string>('');
 
   const graphqlClient = useGraphQLClient(context.accessToken);
 
@@ -162,28 +159,7 @@ export const useLiquidFundInvestmentsFilters = (context: BusinessAppContextProps
       filters: [],
       hideSearch: true,
     },
-    // Account Number (text)
-    {
-      id: "accountNumber",
-      title: "Account Number",
-      filters: [],
-      customComponent: React.createElement('input', {
-        value: accountNumberText,
-        onChange: (e: any) => setAccountNumberText(e?.target?.value || ''),
-        placeholder: 'Search Account Number',
-      }),
-      hideSearch: true,
-    },
-    // Early Termination (boolean)
-    {
-      id: "earlyTermination",
-      title: "Early Termination",
-      filters: [
-        { id: 'early_yes', label: 'Allowed', value: 'true', selected: selectedFilters.includes('early_yes') },
-        { id: 'early_no', label: 'Not Allowed', value: 'false', selected: selectedFilters.includes('early_no') },
-      ] as any,
-    },
-  ], [investmentTypes, investmentStatuses, employees, selectedFilters, accountNumberText]);
+  ], [investmentTypes, investmentStatuses, employees, selectedFilters]);
 
   // Create filter label map for display
   const filterLabelMap = useMemo(() => {
@@ -230,20 +206,14 @@ export const useLiquidFundInvestmentsFilters = (context: BusinessAppContextProps
           } else if (group.id === "owner") {
             if (!filters.ownerEmployeeIds) filters.ownerEmployeeIds = [];
             filters.ownerEmployeeIds.push(filter.value);
-          } else if (group.id === 'earlyTermination') {
-            filters.liquidFundEarlyTermination = filter.value === 'true';
           }
           break;
         }
       }
     });
 
-    if ((accountNumberText || '').trim()) {
-      filters.liquidFundBankAccountContains = (accountNumberText || '').trim();
-    }
-
     return filters;
-  }, [selectedFilters, filterGroups, accountNumberText]);
+  }, [selectedFilters, filterGroups]);
 
   return {
     search,

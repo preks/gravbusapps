@@ -16,7 +16,7 @@ const AccountNameSegment: React.FC<Props> = ({ label, "data-testid": dataTestId 
       render={({ field }) => (
         <FormItem>
           <FormLabel>
-            {label} <span className="nw:text-danger-500">*</span>
+            {label} <span className="gba:text-destructive">*</span>
           </FormLabel>
           <FormControl>
             <Input data-testid={dataTestId} {...field} />

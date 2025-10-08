@@ -26,7 +26,8 @@ export interface SelectOption {
 export interface InvestmentOpportunityFormValues {
   // Basic Information
   owner: string;
-  name: string; // investmentName in schema
+  name: string; // opportunity name
+  investmentName: string; // investment name (separate from opportunity name)
   dealType: string;
   code: string;
   businessKey: string;
@@ -72,7 +73,6 @@ export interface InvestmentOpportunityFormValues {
 
   // System and Process fields
   processInstanceId: string;
-  recordState: string;
 
   // Additional Properties for custom fields
   additionalProperties: Record<string, any>;
@@ -129,10 +129,3 @@ export const DEAL_TYPES: SelectOption[] = [
   },
 ];
 
-// Record state options
-export const RECORD_STATES: SelectOption[] = [
-  { id: "DRAFT", value: "DRAFT", label: "Draft", name: "Draft" },
-  { id: "ACTIVE", value: "ACTIVE", label: "Active", name: "Active" },
-  { id: "INACTIVE", value: "INACTIVE", label: "Inactive", name: "Inactive" },
-  { id: "ARCHIVED", value: "ARCHIVED", label: "Archived", name: "Archived" },
-];

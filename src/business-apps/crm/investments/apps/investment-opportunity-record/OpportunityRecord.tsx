@@ -1,39 +1,38 @@
-import React, { useState, useEffect, useMemo, useCallback } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import {
   Spinner,
   Button,
   RecordLayout,
   Badge,
 } from "@newwork/nw-design-system";
-import {
-  UserOutlined,
-  FileOutlined,
-  DollarOutlined,
-  StarOutlined,
-} from "@ant-design/icons";
-import { LightbulbIcon } from '@phosphor-icons/react';
+import { User, FileText, Star, Lightbulb as LightbulbIcon, Trash as Trash2, PencilSimple as Edit } from '@phosphor-icons/react';
 import { BusinessAppContextProps } from "@/common/BusinessAppContext";
-import { navigateTo } from "@/common/utils/navigationUtils";
+import { navigateTo, buildPlatformUrl } from "@/common/utils/navigationUtils";
+import { getTranslationFromI18nKeyAndLabel } from "@/common/utils/windowUtils";
 import { useOpportunityData } from "./hooks/useOpportunityData";
 import { useProcessCompletion } from "@/common/hooks/useProcessCompletion";
 import { formatCurrency, extractCurrencyCode } from '@/business-apps/crm/common/utils/currencyUtils';
+import { getOpportunityStatusBadgeVariant } from '@/common/utils/badgeUtils';
 import { useAiSummary } from './hooks/useAiSummary';
-import { AiSummaryButton } from "@/common/components/common-relations/record-sections/header-section/ai-summary-button";
+import { AiActions, AiAction } from "@/common/components/common-relations/record-sections/header-section/ai-actions";
 import { AppActionButton } from "@/components/app-action-button/AppActionButton";
+import { Bot } from 'lucide-react';
+import type { TaskReference } from '@/common/components/common-relations/detail-sheets/task-detail-sheet';
 import ConditionSection from "@/common/components/common-relations/record-sections/condition-section/ConditionSection";
-import { InvestmentSection } from "../../components/record-sections/investment-section";
+import InvestmentSection from "@/common/components/common-relations/record-sections/investment-section/InvestmentSection";
 import { OpportunityStageProgression } from "./components/OpportunityStageProgression";
 import { isOpportunityOpen } from "./utils/opportunityStatusUtils";
-import { AccountSection } from "@/common/components/common-relations/record-sections/account-section";
-import { ContactSection } from "@/common/components/common-relations/record-sections/contact-section";
-import { ActivitySection } from "@/common/components/common-relations/record-sections/activity-section";
-import { NoteSection } from "@/common/components/common-relations/record-sections/note-section";
-import { TaskSection } from "@/common/components/common-relations/record-sections/task-section";
-import { ApprovalSection } from "@/common/components/common-relations/record-sections/approval-section";
+import AccountSection from "@/common/components/common-relations/record-sections/account-section/AccountSection";
+import ContactSection from "@/common/components/common-relations/record-sections/contact-section/ContactSection";
+import ActivitySection from "@/common/components/common-relations/record-sections/activity-section/ActivitySection";
+import NoteSection from "@/common/components/common-relations/record-sections/note-section/NoteSection";
+import TaskSection from "@/common/components/common-relations/record-sections/task-section/TaskSection";
+import SectionWrapper from "@/common/components/common-relations/record-sections/section-card/SectionCard";
 import { DocumentSection, type DocumentItem } from "@/common/components/common-relations/record-sections/document-section";
 import { useGetInvestmentActivities } from "@/common/data/investment/hooks/useInvestmentActivities";
 import { useGetInvestmentNotesByOpportunityId, useGetInvestmentTasksByOpportunityId, useGetInvestmentDocumentsByOpportunityId } from "@/common/data/investment/hooks/useInvestmentOpportunities";
 import { FlowContextName } from "@/common/types/FlowRegistryTypes";
+import { startProcess } from "@/common/utils/start-process";
 
 interface OpportunityRecordContentProps extends BusinessAppContextProps {
   opportunityId: string;
@@ -48,7 +47,36 @@ const InvestmentOpportunityRecordContent: React.FC<OpportunityRecordContentProps
   getBackButtonText,
   ...props
 }) => {
+  const ALLOWED_TABS = ['overview', 'documents'] as const;
+  type TabKey = typeof ALLOWED_TABS[number];
   const [activeTab, setActiveTab] = useState("overview");
+  
+  // Construct businessAppContext from props for sections
+  const businessAppContext: BusinessAppContextProps = {
+    accessToken: props.accessToken,
+    userInfo: props.userInfo,
+    additionalData: props.additionalData,
+  };
+  
+  // Initialize activeTab from URL on mount and write default if missing
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const params = new URLSearchParams(window.location.search);
+    const initial = params.get('tab') || 'overview';
+    const validated = ALLOWED_TABS.includes(initial as TabKey) ? (initial as TabKey) : 'overview';
+    setActiveTab(validated);
+    if (!params.get('tab') || initial !== validated) {
+      params.set('tab', validated);
+      window.history.replaceState(null, '', `${window.location.pathname}?${params.toString()}`);
+    }
+    const onPopState = () => {
+      const p = new URLSearchParams(window.location.search);
+      const t = p.get('tab') || 'overview';
+      setActiveTab(ALLOWED_TABS.includes(t as TabKey) ? (t as TabKey) : 'overview');
+    };
+    window.addEventListener('popstate', onPopState);
+    return () => window.removeEventListener('popstate', onPopState);
+  }, []);
   const {
     opportunity,
     opportunityData,
@@ -63,6 +91,24 @@ const InvestmentOpportunityRecordContent: React.FC<OpportunityRecordContentProps
 
   // AI Summary hook for HeaderSection
   const aiSummaryHook = useAiSummary(opportunityId, props.accessToken);
+
+  // Build reference URLs for IRM context
+  const buildReferenceUrl = (reference: TaskReference): string => {
+    switch (reference.type) {
+      case 'lead': 
+        return buildPlatformUrl('/platform/irm/lead-record', { leadId: reference.id });
+      case 'account': 
+        return buildPlatformUrl('/platform/irm/account-record', { accountId: reference.id });
+      case 'contact': 
+        return buildPlatformUrl('/platform/irm/contact-record', { contactId: reference.id });
+      case 'opportunity': 
+        return buildPlatformUrl('/platform/irm/opportunity-record', { opportunityId: reference.id });
+      case 'investment':
+        return buildPlatformUrl('/platform/irm/investment-record', { investmentId: reference.id });
+      default: 
+        return '';
+    }
+  };
 
   // Activity data loading
   const { fetchInvestmentActivities } = useGetInvestmentActivities(props);
@@ -115,10 +161,12 @@ const InvestmentOpportunityRecordContent: React.FC<OpportunityRecordContentProps
         noteText: note.text || '',
         createdAt: note.createdAt,
         createdBy: note.authorEmployee?.displayName || note.authorDisplayName || note.authorEmployee?.id || '', 
-        assigneeEmployee: note.authorEmployee ? {
+        authorEmployee: note.authorEmployee ? {
           id: note.authorEmployee.id,
           displayName: note.authorEmployee.displayName || note.authorDisplayName || 
-                      `${note.authorEmployee.firstName || ''} ${note.authorEmployee.lastName || ''}`.trim()
+                      `${note.authorEmployee.firstName || ''} ${note.authorEmployee.lastName || ''}`.trim(),
+          firstName: note.authorEmployee.firstName,
+          lastName: note.authorEmployee.lastName
         } : undefined,
         reminderAt: note.reminderDate
       }));
@@ -210,15 +258,9 @@ const InvestmentOpportunityRecordContent: React.FC<OpportunityRecordContentProps
     loadDocuments();
   }, [opportunityId]);
 
-  // Listen for process completion events to refresh only opportunity data
-  const refreshOnProcessCompletion = useCallback(() => {
-    console.log("InvestmentOpportunityRecord: Refreshing opportunity data after process completion...");
-    refetchOpportunityData();
-  }, [refetchOpportunityData]);
 
   useProcessCompletion({
     onSuccess: () => {
-      console.log("InvestmentOpportunityRecord: Refreshing all data after process completion...");
       refetchOpportunityData();
       loadActivities();
       loadNotes();
@@ -261,7 +303,7 @@ const InvestmentOpportunityRecordContent: React.FC<OpportunityRecordContentProps
   }), [opportunityId]);
 
   const noteActionProps = useMemo(() => ({
-    contextsArray: [FlowContextName.createInvestmentNote],
+    contextsArray: [FlowContextName.investmentNoteCreate],
     externalContextData: { opportunityId },
     prefixDataTestId: "opportunity-note"
   }), [opportunityId]);
@@ -272,11 +314,6 @@ const InvestmentOpportunityRecordContent: React.FC<OpportunityRecordContentProps
     prefixDataTestId: "opportunity-note-entity"
   }), [opportunityId]);
 
-  const taskEntityActionProps = useMemo(() => ({
-    contextsArray: [FlowContextName.investmentTaskEntity],
-    externalContextData: { opportunityId },
-    prefixDataTestId: "opportunity-task-entity"
-  }), [opportunityId]);
 
   const approvalEntityActionProps = useMemo(() => ({
     contextsArray: [FlowContextName.investmentTaskEntity],
@@ -318,57 +355,95 @@ const InvestmentOpportunityRecordContent: React.FC<OpportunityRecordContentProps
   }), [opportunityId]);
 
   // Memoize RecordLayout data to prevent unnecessary re-renders (must be before early returns)
-  const headerMeta = useMemo(() => opportunity?.value ? (
-    <Badge variant="outline" className="gba:gap-1">
-      <DollarOutlined className="gba:w-4 gba:h-4" />
-      {formatCurrency(
-        opportunity.value, 
-        opportunity?.currency?.id || 'Currency:v1:EUR'
+  const headerMeta = useMemo(() => (
+    <div className="gba:flex gba:items-center gba:gap-2">
+      {opportunityData?.opportunityStatus?.value && (
+        <Badge 
+          variant={getOpportunityStatusBadgeVariant(opportunityData.opportunityStatus)}
+          className="gba:gap-1"
+        >
+          {opportunityData.opportunityStatus.value}
+        </Badge>
       )}
-    </Badge>
-  ) : undefined, [opportunity?.value, opportunity?.currency?.id]);
+      {opportunity?.value && (
+        <Badge variant="outline" className="gba:gap-1">
+          {formatCurrency(
+            opportunity.value, 
+            opportunity?.currency?.id || 'Currency:v1:EUR'
+          )}
+        </Badge>
+      )}
+    </div>
+  ), [opportunity?.value, opportunity?.currency?.id, opportunityData?.opportunityStatus?.value]);
+
+  // Helper function to convert deal type codes to human-readable values
+  const getDealTypeDisplayValue = (dealType: string | undefined): string => {
+    if (!dealType) return getTranslationFromI18nKeyAndLabel('crm.common.notSet', 'Not set');
+    
+    const dealTypeMap: Record<string, string> = {
+      'INVESTMENT_DEAL': getTranslationFromI18nKeyAndLabel('crm.opportunity.dealType.investment', 'Investment Deal'),
+      'DIVESTMENT_DEAL': getTranslationFromI18nKeyAndLabel('crm.opportunity.dealType.divestment', 'Divestment Deal'),
+      'REFINANCING_DEAL': getTranslationFromI18nKeyAndLabel('crm.opportunity.dealType.refinancing', 'Refinancing Deal'),
+      'ACQUISITION_DEAL': getTranslationFromI18nKeyAndLabel('crm.opportunity.dealType.acquisition', 'Acquisition Deal'),
+      'MERGER_DEAL': getTranslationFromI18nKeyAndLabel('crm.opportunity.dealType.merger', 'Merger Deal'),
+    };
+    
+    return dealTypeMap[dealType] || dealType; // Fallback to original value if not mapped
+  };
 
   const headerDetailGroups = useMemo(() => [
     {
       id: 'opportunity-details',
       items: [
         {
-          label: 'Status',
-          value: opportunity?.status,
-          icon: StarOutlined
+          label: getTranslationFromI18nKeyAndLabel('crm.opportunity.dealType', 'Deal Type'),
+          value: getDealTypeDisplayValue(opportunity?.dealType),
+          icon: Star
         },
         {
-          label: 'Currency',
+          label: getTranslationFromI18nKeyAndLabel('crm.opportunity.expectedCloseDate', 'Expected Close Date'),
+          value: opportunity?.expectedCloseDate ? 
+            new Date(opportunity.expectedCloseDate).toLocaleDateString() : 
+            getTranslationFromI18nKeyAndLabel('crm.common.notSet', 'Not set')
+        },
+        {
+          label: getTranslationFromI18nKeyAndLabel('crm.common.currency', 'Currency'),
           value: extractCurrencyCode(opportunity?.currency?.id || 'Currency:v1:EUR')
         },
         {
-          label: 'Estimated Amount',
+          label: getTranslationFromI18nKeyAndLabel('crm.opportunity.estimatedAmount', 'Estimated Amount'),
           value: opportunity?.value ? 
             formatCurrency(opportunity.value, opportunity.currency.id) : 
-            'Not set'
+            getTranslationFromI18nKeyAndLabel('crm.common.notSet', 'Not set')
         },
         {
-          label: 'Owner',
+          label: getTranslationFromI18nKeyAndLabel('crm.common.owner', 'Owner'),
           value: opportunity?.ownerEmployee ? 
             `${opportunity.ownerEmployee.firstName} ${opportunity.ownerEmployee.lastName}` : 
-            'Not assigned',
-          icon: UserOutlined
+            getTranslationFromI18nKeyAndLabel('crm.common.notAssigned', 'Not assigned'),
+          icon: User
         }
       ]
     }
-  ], [opportunity?.status, opportunity?.currency?.id, opportunity?.value, opportunity?.ownerEmployee]);
+  ], [opportunity?.dealType, opportunity?.expectedCloseDate, opportunity?.currency?.id, opportunity?.value, opportunity?.ownerEmployee]);
 
-  const headerActions = useMemo(() => (
-    <AiSummaryButton
-      config={{
-        entityType: 'opportunity',
-        loadingMessage: 'Generating AI Summary...',
-        loadingSubtitle: 'Analyzing opportunity data and activities'
-      }}
-      summaryHook={aiSummaryHook}
-      dataTestId={`opportunity-update-button-${opportunityId}`}
-    />
-  ), [aiSummaryHook, opportunityId]);
+  const headerActions = useMemo(() => {
+    const actions: AiAction[] = [
+      {
+        key: 'ai-summary',
+        label: getTranslationFromI18nKeyAndLabel('crm.ai.summary', 'AI Summary'),
+        icon: <Bot size={16} />,
+        hook: aiSummaryHook,
+        config: {
+          entityType: 'opportunity',
+          loadingMessage: getTranslationFromI18nKeyAndLabel('crm.ai.summary.loading', 'Generating AI Summary...'),
+          loadingSubtitle: getTranslationFromI18nKeyAndLabel('crm.ai.summary.subtitle', 'Analyzing opportunity data and activities')
+        }
+      }
+    ];
+    
+    return <AiActions actions={actions} dataTestId={`opportunity-update-button-${opportunityId}`} buttonText={getTranslationFromI18nKeyAndLabel('crm.ai.summary', 'AI Summary')} />;
+  }, [aiSummaryHook, opportunityId]);
 
   const headerContent = useMemo(() => {
     const isReadonly = !isOpportunityOpen(opportunityData?.opportunityStatus?.value);
@@ -392,15 +467,13 @@ const InvestmentOpportunityRecordContent: React.FC<OpportunityRecordContentProps
           padding: "var(--nw-spacing-lg)" 
         }}>
           <Spinner size="sm" />
-          <span style={{ marginLeft: "var(--nw-spacing-sm)" }}>Loading pipeline stages...</span>
+          <span style={{ marginLeft: "var(--nw-spacing-sm)" }}>
+            {getTranslationFromI18nKeyAndLabel('crm.opportunity.loadingStages', 'Loading pipeline stages...')}
+          </span>
         </div>
       ) : stagesError ? (
-        <div style={{ 
-          textAlign: "center", 
-          padding: "var(--nw-spacing-lg)", 
-          color: "var(--nw-color-danger-500)" 
-        }}>
-          <p>Failed to load pipeline stages: {stagesError}</p>
+        <div style={{ textAlign: "center", padding: "var(--nw-spacing-lg)", color: "var(--nw-color-danger-500)" }}>
+          <p>{getTranslationFromI18nKeyAndLabel('crm.opportunity.failedToLoadStages', 'Failed to load pipeline stages')}: {stagesError}</p>
         </div>
       ) : !opportunityData?.opportunityPipelineStage ? (
         <div style={{ 
@@ -408,7 +481,7 @@ const InvestmentOpportunityRecordContent: React.FC<OpportunityRecordContentProps
           padding: "var(--nw-spacing-lg)", 
           color: "var(--nw-color-text-secondary)" 
         }}>
-          <p>No pipeline stage assigned to this opportunity</p>
+          <p>{getTranslationFromI18nKeyAndLabel('crm.opportunity.noStageAssigned', 'No pipeline stage assigned to this opportunity')}</p>
         </div>
       ) : undefined;
   }, [loadingStages, stagesError, opportunityStages, opportunityData?.opportunityPipelineStage, opportunity?.stage, opportunityId, stageConditionStatuses, props.accessToken, opportunityData?.opportunityStatus?.value]);
@@ -425,13 +498,16 @@ const InvestmentOpportunityRecordContent: React.FC<OpportunityRecordContentProps
     return (
       <div className="gba:flex gba:items-center gba:justify-center gba:min-h-screen">
         <div className="gba:text-center">
-          <p className="gba:text-red-500 gba:text-lg">{error || 'Investment Opportunity not found'}</p>
+          <p style={{ color: 'var(--nw-color-danger-500)' }} data-testid="opportunity-error-text">
+            {error || getTranslationFromI18nKeyAndLabel('crm.opportunity.notFound', 'Investment Opportunity not found')}
+          </p>
           <Button
             onClick={onBack}
-            className="gba:mt-4"
+            style={{ marginTop: 'var(--nw-spacing-md)' }}
             variant="default"
+            data-testid="opportunity-error-back-button"
           >
-            {getBackButtonText()}
+            {getTranslationFromI18nKeyAndLabel('crm.opportunity.back', getBackButtonText())}
           </Button>
         </div>
       </div>
@@ -440,159 +516,399 @@ const InvestmentOpportunityRecordContent: React.FC<OpportunityRecordContentProps
 
   const subViewsConfig = {
     defaultValue: activeTab,
-    onValueChange: setActiveTab,
+    onValueChange: (val: string) => {
+      const next = ALLOWED_TABS.includes(val as TabKey) ? (val as TabKey) : 'overview';
+      setActiveTab(next);
+      if (typeof window !== 'undefined') {
+        const params = new URLSearchParams(window.location.search);
+        params.set('tab', next);
+        window.history.replaceState(null, '', `${window.location.pathname}?${params.toString()}`);
+      }
+    },
     items: [
       {
         value: 'overview',
-        label: 'Overview',
-        icon: <UserOutlined className="gba:mr-2" />,
+        label: getTranslationFromI18nKeyAndLabel('crm.common.overview', 'Overview'),
+        icon: <User size={16} style={{ marginRight: 'var(--nw-spacing-xs)' }} />,
         content: (
           <>
-            {/* Left side: Main content - spans 8/11 on lg, 7/11 on md */}
-            <div className="gba:col-span-3 gba:sm:col-span-6 gba:md:col-span-9 gba:lg:col-span-9 gba:flex gba:flex-col gba:gap-6">
-              {/* Account and Contact info */}
-              <div className="gba:grid gba:grid-cols-3 gba:gap-6 gba:items-stretch">
-                <AccountSection 
-                  account={opportunityData?.account ? {
-                    id: opportunityData.account.id,
-                    name: opportunityData.account.name,
-                    email: opportunityData.account.email,
-                    phone: opportunityData.account.phone,
-                    website: opportunityData.account.website,
-                    legalForm: opportunityData.account.legalForm?.value || opportunityData.account.legalForm?.code,
-                    industry: opportunityData.account.industryClass?.value || opportunityData.account.industryClass?.code,
-                    size: opportunityData.account.companySize?.value || opportunityData.account.companySize?.code,
-                    revenue: opportunityData.account.accountAnnualRevenueBand?.value || opportunityData.account.accountAnnualRevenueBand?.code,
-                    numberOfEmployees: opportunityData.account.companySize,
-                    annualRevenue: opportunityData.account.accountAnnualRevenueBand,
-                    logoUrl: opportunityData.account.picture || opportunityData.account.pictureThumbnail,
-                    foundationDate: opportunityData.account.foundationDate,
-                    geographicPresence: opportunityData.account.geographicPresence,
-                  } : undefined}
-                  data-testid="opportunity-account-section"
-                  className="gba:h-full gba:flex"
-                  {...props}
-                />
+            {/* Account Information - 1/4 width */}
+            <SectionWrapper
+              className="gba:col-span-1 gba:sm:col-span-3 gba:md:col-span-3 gba:lg:col-span-3 gba:row-span-1"
+              sections={[
+                {
+                  id: 'account-section',
+                  component: AccountSection,
+                  props: {
+                    ...props,
+                    account: opportunityData?.account ? {
+                      id: opportunityData.account.id,
+                      name: opportunityData.account.name,
+                      email: opportunityData.account.email,
+                      phone: opportunityData.account.phone,
+                      website: opportunityData.account.website,
+                      legalForm: opportunityData.account.legalForm?.value || opportunityData.account.legalForm?.code,
+                      industry: opportunityData.account.industryClass?.value || opportunityData.account.industryClass?.code,
+                      size: opportunityData.account.companySize?.value || opportunityData.account.companySize?.code,
+                      revenue: opportunityData.account.accountAnnualRevenueBand?.value || opportunityData.account.accountAnnualRevenueBand?.code,
+                      numberOfEmployees: opportunityData.account.companySize,
+                      annualRevenue: opportunityData.account.accountAnnualRevenueBand,
+                      logoUrl: opportunityData.account.picture || opportunityData.account.pictureThumbnail,
+                      foundationDate: opportunityData.account.foundationDate,
+                      geographicPresence: opportunityData.account.geographicPresence,
+                    } : undefined,
+                    address: opportunityData?.account ? (() => {
+                      const addresses = opportunityData.account.addresses || [];
+                      const primaryAddress = addresses.find(addr => addr.addressType === 'PRIMARY_ADDRESS');
+                      const address = primaryAddress || addresses[0];
+                      
+                      return address ? {
+                        addressLine: address.addressLine,
+                        postalCode: address.postalCode,
+                        locality: address.locality,
+                        country: typeof address.country === 'string' ? address.country : address.country?.value,
+                        region: typeof address.region === 'string' ? address.region : address.region?.value,
+                      } : undefined;
+                    })() : undefined,
+                    accountId: opportunityData?.account?.id,
+                    recordUrl: opportunityData?.account?.id
+                      ? buildPlatformUrl('/platform/irm/account-record', {
+                          accountId: opportunityData.account.id,
+                          source: 'opportunity-relations',
+                          fromEntity: 'opportunities'
+                        })
+                      : undefined,
+                    actionButtonProps: {
+                      contextsArray: [FlowContextName.investmentAccountEntity],
+                      externalContextData: { accountId: opportunityData?.account?.id },
+                      prefixDataTestId: "investment-opportunity-account-action"
+                    }
+                  }
+                }
+              ]}
+              data-testid="opportunity-account-section-wrapper"
+            />
 
-                <ContactSection 
-                  contacts={opportunityData?.investmentOpportunityContact?.map((ioc: any) => ioc.contact ? {
-                    id: ioc.contact.id,
-                    firstName: ioc.contact.firstName,
-                    lastName: ioc.contact.lastName,
-                    fullName: ioc.contact.fullName,
-                    email: ioc.contact.email,
-                    phone: ioc.contact.phone,
-                    jobTitle: ioc.contact.jobPosition,
-                    department: ioc.contact.department,
-                    picture: ioc.contact.picture || ioc.contact.pictureThumbnail,
-                    academicTitle: ioc.contact.academicTitle?.value || ioc.contact.academicTitle?.code,
-                    salutation: ioc.contact.salutation?.value || ioc.contact.salutation?.code,
-                  } : null).filter(Boolean)}
-                  data-testid="opportunity-contact-section"
-                  className="gba:h-full gba:flex"
-                  {...props}
-                />
-                <InvestmentSection 
-                  investmentData={opportunityData} 
-                  businessAppContext={props}
-                  isLoading={loading}
-                  error={error}
-                  className="gba:h-full"
-                />
-              </div>
+            {/* Contact Information - 1/4 width */}
+            <SectionWrapper
+              className="gba:col-span-1 gba:sm:col-span-3 gba:md:col-span-3 gba:lg:col-span-3 gba:row-span-1"
+              sections={[
+                {
+                  id: 'contact-section',
+                  component: ContactSection,
+                  props: {
+                    ...props,
+                    contacts: opportunityData?.investmentOpportunityContact?.map((ioc: any) => ioc.contact ? {
+                      id: ioc.contact.id,
+                      firstName: ioc.contact.firstName,
+                      lastName: ioc.contact.lastName,
+                      fullName: ioc.contact.fullName,
+                      email: ioc.contact.email,
+                      phone: ioc.contact.phone,
+                      jobTitle: ioc.contact.jobPosition,
+                      department: ioc.contact.department,
+                      picture: ioc.contact.picture || ioc.contact.pictureThumbnail,
+                      academicTitle: ioc.contact.academicTitle?.value || ioc.contact.academicTitle?.code,
+                      salutation: ioc.contact.salutation?.value || ioc.contact.salutation?.code,
+                      communicationChannels: ioc.contact.communicationChannels
+                    } : null).filter(Boolean),
+                    contactId: opportunityData?.investmentOpportunityContact?.[0]?.contact?.id,
+                    recordUrl: opportunityData?.investmentOpportunityContact?.[0]?.contact?.id
+                      ? buildPlatformUrl('/platform/irm/contact-record', {
+                          contactId: opportunityData.investmentOpportunityContact[0].contact.id,
+                          source: 'opportunity-relations',
+                          fromEntity: 'opportunities'
+                        })
+                      : undefined,
+                    actionButtonProps: {
+                      contextsArray: [FlowContextName.investmentContactEntity],
+                      externalContextData: { contactId: opportunityData?.investmentOpportunityContact?.[0]?.contact?.id },
+                      prefixDataTestId: "investment-opportunity-contact-action"
+                    }
+                  }
+                }
+              ]}
+              data-testid="opportunity-contact-section-wrapper"
+            />
 
-              {/* Stage conditions + Tasks/Approvals row */}
-              <div className="gba:grid gba:grid-cols-2 gba:gap-6">
-                <div>
-                  <ConditionSection
-                    opportunity={opportunityData}
-                    stageConditionStatuses={stageConditionStatuses || []}
-                    stageConditionActionProps={stageConditionActionProps}
-                    accessToken={props.accessToken}
-                    data-testid="opportunity-condition-section"
-                  />
-                </div>
-                <div className="gba:flex gba:flex-col gba:gap-6">
-                  <TaskSection
-                    opportunityId={opportunityId}
-                    tasks={tasks.map(task => ({
+            {/* Investment Information - 2/4 width (half) */}
+            <SectionWrapper
+              className="gba:col-span-1 gba:sm:col-span-3 gba:md:col-span-6 gba:lg:col-span-6 gba:row-span-1"
+              sections={[
+                {
+                  id: 'investment-section',
+                  component: InvestmentSection,
+                  props: {
+                    businessAppContext: businessAppContext,
+                    investmentData: opportunityData,
+                    isLoading: loading,
+                    error: error
+                  }
+                }
+              ]}
+              data-testid="opportunity-investment-section-wrapper"
+            />
+
+            {/* Stage Conditions - 1/2 of left side, row span 2 */}
+            <SectionWrapper
+              className="gba:col-span-1 gba:sm:col-span-3 gba:md:col-span-4 gba:lg:col-span-4 gba:row-span-2"
+              sections={[
+                {
+                  id: 'condition-section',
+                  component: ConditionSection,
+                  props: {
+                    ...props,
+                    opportunity: opportunityData,
+                    stageConditionStatuses: stageConditionStatuses || [],
+                    stageConditionActionProps: {
+                      ...stageConditionActionProps,
+                      emptyStateBehavior: 'enable'
+                    }
+                  }
+                }
+              ]}
+              data-testid="opportunity-condition-section-wrapper"
+            />
+
+            {/* Tasks/Approvals Tabbed - 1/2 of left side, row span 2 */}
+            <SectionWrapper
+              className="gba:col-span-1 gba:sm:col-span-3 gba:md:col-span-4 gba:lg:col-span-4 gba:row-span-2"
+              sections={[
+                {
+                  id: 'tasks-section',
+                  component: TaskSection,
+                  props: {
+                    ...props,
+                    opportunityId: opportunityId,
+                    buildReferenceUrl,
+                    tasks: tasks.map(task => ({
                       id: task.id,
                       title: task.name,
+                      description: task.description,
+                      createdAt: task.createdAt,
                       due: task.dueDate,
                       assignee: task.assignedEmployee?.displayName || task.assignedEmployee?.fullName,
                       statusCode: task.taskStatus?.value?.toUpperCase() as any,
-                      assigneeEmployee: task.assignedEmployee
-                    }))}
-                    taskActionProps={taskActionProps}
-                    taskEntityActionProps={taskEntityActionProps}
-                    data-testid="opportunity-task-section"
-                    {...props}
-                  />
-                  <ApprovalSection
-                    opportunityId={opportunityId}
-                    approvals={approvals.map(approval => ({
+                      taskStatus: task.taskStatus,
+                      taskPriority: task.taskPriority,
+                      assigneeEmployee: task.assignedEmployee,
+                      taskTiming: task.taskTiming,
+                      startDate: task.startDate,
+                      creatorEmployee: task.creatorEmployee,
+                      reference: task.lead ? {
+                        type: 'lead' as const,
+                        id: task.lead.id,
+                        name: `${task.lead.firstName || ''} ${task.lead.lastName || ''}`.trim() || task.lead.code || 'Lead'
+                      } : task.account ? {
+                        type: 'account' as const,
+                        id: task.account.id,
+                        name: task.account.name || task.account.code || 'Account'
+                      } : task.contact ? {
+                        type: 'contact' as const,
+                        id: task.contact.id,
+                        name: `${task.contact.firstName || ''} ${task.contact.lastName || ''}`.trim() || task.contact.code || 'Contact'
+                      } : task.opportunity ? {
+                        type: 'opportunity' as const,
+                        id: task.opportunity.id,
+                        name: task.opportunity.name || task.opportunity.code || 'Opportunity'
+                      } : task.investment ? {
+                        type: 'investment' as const,
+                        id: task.investment.id,
+                        name: task.investment.name || task.investment.code || 'Investment'
+                      } : undefined
+                    })),
+                    taskActionProps: {
+                      ...taskActionProps,
+                      emptyStateBehavior: 'enable'
+                    },
+                    taskEntityActionProps: {
+                      contextsArray: [FlowContextName.investmentTaskEntity],
+                      externalContextData: { opportunityId },
+                      prefixDataTestId: "opportunity-task-entity",
+                      emptyStateBehavior: 'enable'
+                    }
+                  }
+                },
+                {
+                  id: 'approval-tasks-section',
+                  component: TaskSection,
+                  props: {
+                    ...props,
+                    sectionTitle: 'Approval Tasks',
+                    buildReferenceUrl,
+                    tasks: approvals.map(approval => ({
                       id: approval.id,
                       title: approval.name,
-                      status: approval.taskStatus?.value,
-                      date: approval.createdAt,
-                      actor: approval.creatorEmployee?.displayName || approval.creatorEmployee?.fullName,
-                      actorEmployee: approval.creatorEmployee
-                    }))}
-                    approvalActionProps={approvalActionProps}
-                    approvalEntityActionProps={approvalEntityActionProps}
-                    data-testid="opportunity-approval-section"
-                    {...props}
-                  />
-                </div>
-              </div>
+                      description: approval.description,
+                      createdAt: approval.createdAt,
+                      due: approval.dueDate,
+                      assignee: approval.assignedEmployee?.displayName || approval.assignedEmployee?.fullName,
+                      statusCode: approval.taskStatus?.value?.toUpperCase() as any,
+                      taskStatus: approval.taskStatus,
+                      taskPriority: approval.taskPriority,
+                      assigneeEmployee: approval.assignedEmployee,
+                      taskTiming: approval.taskTiming,
+                      startDate: approval.startDate,
+                      creatorEmployee: approval.creatorEmployee,
+                      reference: approval.lead ? {
+                        type: 'lead' as const,
+                        id: approval.lead.id,
+                        name: `${approval.lead.firstName || ''} ${approval.lead.lastName || ''}`.trim() || approval.lead.code || 'Lead'
+                      } : approval.account ? {
+                        type: 'account' as const,
+                        id: approval.account.id,
+                        name: approval.account.name || approval.account.code || 'Account'
+                      } : approval.contact ? {
+                        type: 'contact' as const,
+                        id: approval.contact.id,
+                        name: `${approval.contact.firstName || ''} ${approval.contact.lastName || ''}`.trim() || approval.contact.code || 'Contact'
+                      } : approval.opportunity ? {
+                        type: 'opportunity' as const,
+                        id: approval.opportunity.id,
+                        name: approval.opportunity.name || approval.opportunity.code || 'Opportunity'
+                      } : approval.investment ? {
+                        type: 'investment' as const,
+                        id: approval.investment.id,
+                        name: approval.investment.name || approval.investment.code || 'Investment'
+                      } : undefined
+                    })),
+                    taskActionProps: {
+                      ...approvalActionProps,
+                      emptyStateBehavior: 'enable'
+                    },
+                    taskEntityActionProps: {
+                      contextsArray: [FlowContextName.investmentTaskEntity],
+                      externalContextData: { opportunityId },
+                      prefixDataTestId: "opportunity-approval-entity",
+                      emptyStateBehavior: 'enable'
+                    }
+                  }
+                }
+              ]}
+              data-testid="opportunity-tasks-approvals-section-wrapper"
+            />
 
-              {/* Notes full width */}
-              <div>
-                <NoteSection
-                  opportunityId={opportunityId}
-                  notes={notes}
-                  noteActionProps={noteActionProps}
-                  noteEntityActionProps={noteEntityActionProps}
-                  data-testid="opportunity-note-section"
-                  {...props}
-                />
-              </div>
-            </div>
+            {/* Activities - Right aligned, row span 4, starts same row as conditions/tasks */}
+            <SectionWrapper
+              className="gba:col-span-1 gba:sm:col-span-3 gba:md:col-span-4 gba:lg:col-span-4 gba:row-span-4"
+              sections={[
+                {
+                  id: 'activities-section',
+                  component: ActivitySection,
+                  props: {
+                    ...props,
+                    activities: activities,
+                    activitiesLoading: activitiesLoading,
+                    activitiesError: activitiesError,
+                    onReloadActivities: loadActivities,
+                    alignment: 'right',
+                    activitySectionActionProps: {
+                      ...activityActionProps,
+                      emptyStateBehavior: 'enable'
+                    },
+                    activityEntityActionProps: {
+                      ...activityEntityActionProps,
+                      emptyStateBehavior: 'enable'
+                    }
+                  }
+                }
+              ]}
+              data-testid="opportunity-activities-section-wrapper"
+            />
 
-            {/* Right side: Activities - spans last 3/11 on lg, 4/11 on md */}
-            <div className="gba:col-span-1 gba:lg:col-start-10 gba:lg:col-end-13 gba:w-full gba:h-full gba:h-full">
-              <ActivitySection
-                opportunityId={opportunityId}
-                activities={activities}
-                activitiesLoading={activitiesLoading}
-                activitiesError={activitiesError}
-                onReloadActivities={loadActivities}
-                {...activityActionProps}
-                activityEntityActionProps={activityEntityActionProps}
-                showTranslation={true}
-                className="gba:h-full gba:h-full"
-                data-testid="opportunity-activity-section"
-                {...props}
-              />
-            </div>
+            {/* Notes - Full width of left side (2/2) */}
+            <SectionWrapper
+              className="gba:col-span-1 gba:sm:col-span-3 gba:md:col-span-8 gba:lg:col-span-8 gba:row-span-2"
+              sections={[
+                {
+                  id: 'notes-section',
+                  component: NoteSection,
+                  props: {
+                    ...props,
+                    notes: notes,
+                    noteActionProps: {
+                      ...noteActionProps,
+                      emptyStateBehavior: 'enable'
+                    },
+                    noteEntityActionProps: {
+                      ...noteEntityActionProps,
+                      emptyStateBehavior: 'enable'
+                    }
+                  }
+                }
+              ]}
+              data-testid="opportunity-notes-section-wrapper"
+            />
           </>
         )
       },
       {
         value: 'documents',
-        label: 'Documents',
-        icon: <FileOutlined className="gba:mr-2" />,
+        label: getTranslationFromI18nKeyAndLabel('crm.common.documents', 'Documents'),
+        icon: <FileText size={16} style={{ marginRight: 'var(--nw-spacing-xs)' }} />,
         content: (
           <div className="gba:col-span-12">
             <DocumentSection
               entityId={opportunityId}
-              entityType="opportunity"
               documents={documents}
               isLoading={documentsLoading}
               error={documentsError}
               onRefresh={loadDocuments}
+              apiConfig={{
+                baseEndpoint: '/investment-relations',
+                entityFieldName: 'opportunity',
+                documentFieldName: 'investmentDocument'
+              }}
+              enableGraphQLSearch={true}
+              graphQLSearchConfig={{
+                entityType: 'opportunity'
+              }}
+              customActions={[
+                {
+                  key: 'delete',
+                  label: 'Delete',
+                  icon: <Trash2 size={16} />,
+                  apiEndpoint: '/investment-relations/deleteInvestmentDocument',
+                  confirmMessage: 'Are you sure you want to delete this document? This action cannot be undone.'
+                },
+                {
+                  key: 'update',
+                  label: 'Update',
+                  icon: <Edit size={16} />,
+                  onClick: (documentId: string, document: any, entityId: string) => {
+                    // Open the document update popup
+                    startProcess({
+                      domain: 'investment-relations',
+                      processName: 'updateInvestmentDocument',
+                      payload: {
+                        documentId: documentId,
+                        opportunityId: entityId,
+                        investmentDocument: {
+                          id: documentId,
+                          version: document.version,
+                          name: document.name,
+                          documentGroupRef: document.documentGroup?.id,
+                          documentTypeRef: document.documentType?.id,
+                          expirationDate: document.expirationDate,
+                          description: document.description,
+                          folder: document.folder || false,
+                        },
+                      },
+                      builderType: 'NATIVE_SCREEN',
+                    });
+                  }
+                }
+              ]}
               createFolderActionProps={documentCreateFolderActionProps}
               uploadActionProps={documentUploadActionProps}
+              deleteActionProps={{
+                contextsArray: [FlowContextName.investmentDocumentDelete],
+                externalContextData: { 
+                  opportunityId,
+                  entityType: 'opportunity'
+                },
+                prefixDataTestId: 'opportunity-document-delete'
+              }}
               data-testid="opportunity-document-section"
               {...props}
             />
@@ -633,14 +949,20 @@ const OpportunityRecord: React.FC<InvestmentOpportunityRecordProps> = ({
   ...props
 }) => {
   const opportunityId = useMemo(() => {
-    return (
-      propOpportunityId ||
-      new URLSearchParams(window.location.search).get("opportunityId")
-    );
+    if (propOpportunityId) return propOpportunityId;
+    if (typeof window === 'undefined') return undefined;
+    return new URLSearchParams(window.location.search).get('opportunityId') || undefined;
   }, [propOpportunityId]);
-  const handleBack = () => {
+  
+  const fromEntity = useMemo(() => {
+    if (typeof window === 'undefined') return undefined;
+    return new URLSearchParams(window.location.search).get('fromEntity') || undefined;
+  }, []);
+  
+  const handleBack = async () => {
     // Always navigate to investment relations
-    navigateTo('/platform/irm/investment-relations?view=opportunities');
+    const { buildPlatformUrl } = await import('@/common/utils/navigationUtils');
+    navigateTo(buildPlatformUrl('/platform/irm/investment-relations', { view: 'opportunities' }));
   };
 
   const getBackButtonText = () => {
@@ -652,7 +974,7 @@ const OpportunityRecord: React.FC<InvestmentOpportunityRecordProps> = ({
     return (
       <div className="gba:flex gba:items-center gba:justify-center gba:min-h-screen">
         <div className="gba:text-center">
-          <p className="gba:text-red-500 gba:text-lg">Opportunity ID is required</p>
+          <p className="gba:text-lg" style={{ color: "var(--nw-color-danger-500)" }}>Opportunity ID is required</p>
           <Button
             onClick={handleBack}
             className="gba:mt-4"
@@ -670,7 +992,7 @@ const OpportunityRecord: React.FC<InvestmentOpportunityRecordProps> = ({
       opportunityId={opportunityId}
       onBack={handleBack}
       getBackButtonText={getBackButtonText}
-      fromEntity={new URLSearchParams(window.location.search).get('fromEntity')}
+      fromEntity={fromEntity}
       {...props}
     />
   );

@@ -7,7 +7,7 @@ import React, {
   useRef,
   useMemo,
 } from "react";
-import { AccountFormValues, SelectOption, AccountContextState } from "../types";
+import { AccountFormValues, SelectOption, AccountContextState, Address } from "../types";
 import { BusinessAppContextProps } from "@/common/BusinessAppContext";
 import { useEmployeeById } from "@/business-apps/crm/common/forms/lead-form/hooks/useEmployeeById";
 import { useEmployeePositions } from "@/business-apps/crm/common/forms/lead-form/hooks/useEmployeePositions";
@@ -25,6 +25,8 @@ import {
   useAccountData,
 } from "../hooks/useAccountData";
 import { useEmployeeByIdGraphQL } from "../hooks/useEmployeeByIdGraphQL";
+import { useCountriesRegions } from "../../lead-form/hooks/useCountriesRegions";
+import { useContactSelection } from "../hooks/useContactSelection";
 
 interface AccountFormContextValue extends AccountContextState {
   formValues: AccountFormValues;
@@ -32,6 +34,8 @@ interface AccountFormContextValue extends AccountContextState {
   onSubmit: (values: AccountFormValues) => Promise<void>;
   onCancel: () => Promise<void>;
   hideActions: boolean; // Hide submit/cancel buttons when embedded
+  isLoading: boolean;
+  error: string | null;
 
   // Business app context for hooks
   businessAppContext: BusinessAppContextProps;
@@ -121,7 +125,32 @@ interface AccountFormContextValue extends AccountContextState {
   searchSalesCampaigns: (searchTerm: string) => void;
   loadMoreSalesCampaigns: () => void;
 
-  // ✅ REMOVED: Address handling - not needed for InvestmentAccount (uses only geographicPresence)
+  // Countries and Regions (for address section)
+  countriesRegions: SelectOption[];
+  countriesRegionsLoading: boolean;
+  countriesRegionsError: string | null;
+  countriesRegionsHasMore: boolean;
+  searchCountriesRegions: (searchTerm: string) => void;
+  loadMoreCountriesRegions: () => void;
+  regions: SelectOption[];
+  regionsLoading: boolean;
+  regionsError: string | null;
+  searchRegions: (searchTerm: string) => void;
+  selectedCountryCode: string | null;
+  setSelectedCountry: (countryId: string) => void;
+
+  // Address management functions
+  addAddress: () => void;
+  removeAddress: (addressId: string) => void;
+  updateAddress: (addressId: string, updates: Partial<Address>) => void;
+
+  // Contact selection
+  contacts: SelectOption[];
+  contactsLoading: boolean;
+  contactsError: string | null;
+  contactsHasMore: boolean;
+  searchContacts: (search: string) => void;
+  loadMoreContacts: () => void;
 
   // Legacy compatibility (using employeeSizes data)
   numberOfEmployeesOptions: SelectOption[];
@@ -170,7 +199,19 @@ export const AccountFormProvider: React.FC<AccountFormProviderProps> = ({
     // Geographic Presence (simplified for InvestmentAccount)
     geographicPresence: "",
 
-    // ✅ REMOVED: Complex address handling - InvestmentAccount only has geographicPresence field
+    // Address Information (updated to match API model)
+    addresses: [
+      {
+        id: "default-address",
+        addressType: "PRIMARY_ADDRESS", // Default to PRIMARY_ADDRESS
+        addressLines: [""],
+        postalCode: "",
+        locality: "",
+        regionRef: "",
+        countryRef: "",
+      },
+    ],
+    
     // Legacy fields kept for form compatibility but made optional
     country: "",
     region: "",
@@ -180,7 +221,6 @@ export const AccountFormProvider: React.FC<AccountFormProviderProps> = ({
     addressLine4: "",
     postalCode: "",
     city: "",
-    addresses: [], // Dynamic addresses array - not used
 
     // Financial Information
     annualRevenue: "",
@@ -191,6 +231,9 @@ export const AccountFormProvider: React.FC<AccountFormProviderProps> = ({
     foundationDate: "",
     tickerSymbol: "",
     // ✅ REMOVED: sicCode: "", // Not available in InvestmentAccount schema
+
+    // Contact Information
+    contactIds: [], // ✅ NEW: Array of contact IDs for contact selection
 
     // System fields
     id: undefined,
@@ -279,6 +322,32 @@ export const AccountFormProvider: React.FC<AccountFormProviderProps> = ({
   const loadMoreSalesCampaignsWrapper = useCallback((): void => {
     loadMoreSalesCampaigns();
   }, [loadMoreSalesCampaigns]);
+
+  // Countries and Regions hook for address section
+  const {
+    countries: countriesRegions,
+    countriesLoading: countriesRegionsLoading,
+    countriesError: countriesRegionsError,
+    countriesHasMore: countriesRegionsHasMore,
+    searchCountries: searchCountriesRegions,
+    loadMoreCountries: loadMoreCountriesRegions,
+    regions,
+    regionsLoading,
+    regionsError,
+    searchRegions,
+    selectedCountryCode,
+    setSelectedCountry,
+  } = useCountriesRegions(businessAppContext);
+
+  // Contact selection hook
+  const {
+    contacts,
+    isLoading: contactsLoading,
+    hasMore: contactsHasMore,
+    error: contactsError,
+    searchContacts,
+    loadMoreContacts,
+  } = useContactSelection(businessAppContext);
 
   // Countries hook
   const {
@@ -503,6 +572,42 @@ export const AccountFormProvider: React.FC<AccountFormProviderProps> = ({
     setFormValuesState((prev) => ({ ...prev, ...updates }));
   }, []);
 
+  // Address management functions
+  const addAddress = useCallback(() => {
+    const newAddress: Address = {
+      id: `address-${Date.now()}`,
+      addressType: "PRIMARY_ADDRESS", // Default to PRIMARY_ADDRESS
+      addressLines: [""],
+      postalCode: "",
+      locality: "",
+      regionRef: "",
+      countryRef: "",
+    };
+    setFormValuesState((prev) => ({
+      ...prev,
+      addresses: [...prev.addresses, newAddress],
+    }));
+  }, []);
+
+  const removeAddress = useCallback((addressId: string) => {
+    setFormValuesState((prev) => ({
+      ...prev,
+      addresses: prev.addresses.filter((addr) => addr.id !== addressId),
+    }));
+  }, []);
+
+  const updateAddress = useCallback(
+    (addressId: string, updates: Partial<Address>) => {
+      setFormValuesState((prev) => ({
+        ...prev,
+        addresses: prev.addresses.map((addr) =>
+          addr.id === addressId ? { ...addr, ...updates } : addr
+        ),
+      }));
+    },
+    []
+  );
+
   useEffect(() => {
     // Only populate if we have investment account data and the form doesn't already have this account's data
     if (
@@ -575,6 +680,7 @@ export const AccountFormProvider: React.FC<AccountFormProviderProps> = ({
   ]);
 
   // Context value
+  
   const value: AccountFormContextValue = {
     // Form state
     formValues,
@@ -672,7 +778,32 @@ export const AccountFormProvider: React.FC<AccountFormProviderProps> = ({
     searchSalesCampaigns: searchSalesCampaignsWrapper,
     loadMoreSalesCampaigns: loadMoreSalesCampaignsWrapper,
 
-    // ✅ REMOVED: Address management functions - not needed for InvestmentAccount
+    // Countries and Regions (for address section)
+    countriesRegions,
+    countriesRegionsLoading,
+    countriesRegionsError,
+    countriesRegionsHasMore,
+    searchCountriesRegions,
+    loadMoreCountriesRegions,
+    regions,
+    regionsLoading,
+    regionsError,
+    searchRegions,
+    selectedCountryCode,
+    setSelectedCountry,
+
+    // Address management functions
+    addAddress,
+    removeAddress,
+    updateAddress,
+
+    // Contact selection
+    contacts,
+    contactsLoading,
+    contactsError,
+    contactsHasMore,
+    searchContacts,
+    loadMoreContacts,
 
     // Legacy compatibility (using employeeSizes data)
     numberOfEmployeesOptions: employeeSizesHook.allOptions,

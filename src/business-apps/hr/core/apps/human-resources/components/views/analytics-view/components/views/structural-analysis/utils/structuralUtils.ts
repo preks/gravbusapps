@@ -44,10 +44,10 @@ export const processOrganizationalData = (data: StructuralAnalysisData): Organiz
   const allUnits = new Set<string>();
   
   organizationalUnitRelationships.forEach(rel => {
-    if (rel.parent) {
+    if (rel.parent?.id) {
       allUnits.add(rel.parent.id);
     }
-    if (rel.child) {
+    if (rel.child?.id) {
       allUnits.add(rel.child.id);
     }
   });
@@ -55,10 +55,12 @@ export const processOrganizationalData = (data: StructuralAnalysisData): Organiz
   // Initialize all units
   allUnits.forEach(unitId => {
     const relationship = organizationalUnitRelationships.find(rel => 
-      rel.parent?.id === unitId || rel.child.id === unitId
+      rel.parent?.id === unitId || rel.child?.id === unitId
     );
     
-    const unit = relationship?.parent?.id === unitId ? relationship.parent : relationship?.child;
+    if (!relationship) return;
+    
+    const unit = relationship.parent?.id === unitId ? relationship.parent : relationship.child;
     if (!unit) return;
     
     const employees: Employee[] = (unit.organizationalUnitEmployee || [])
@@ -89,7 +91,7 @@ export const processOrganizationalData = (data: StructuralAnalysisData): Organiz
   
   // Set parent relationships
   organizationalUnitRelationships.forEach(rel => {
-    if (rel.parent && rel.child) {
+    if (rel.parent?.id && rel.child?.id) {
       const childNode = unitMap.get(rel.child.id);
       if (childNode) {
         childNode.parentId = rel.parent.id;
@@ -402,6 +404,7 @@ export const generateSunburstData = (nodes: OrganizationalNode[]): SunburstNode 
       const totalSubtreeEmployees = getTotalEmployeesFromNode(node, nodes);
       
       return {
+        id: node.id, // Add unique ID for proper key generation
         name: node.name,
         value: totalSubtreeEmployees, // Use subtree total instead of just direct employees
         level: node.level,

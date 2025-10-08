@@ -175,12 +175,20 @@ export const createInvestmentReportColumns = (
           }
           
           const currencyCode = record.investment?.currency?.code?.split(':').pop() || 'EUR';
-          const formattedValue = formatFieldValue(value, field.type, currencyCode);
+          
+          // Special handling: Interest rate fields should always be formatted as percentages
+          // even if catalog incorrectly defines them as AMOUNT
+          let effectiveFieldType = field.type;
+          if (field.property.toLowerCase().includes('interestrate')) {
+            effectiveFieldType = 'PERCENTAGE';
+          }
+          
+          const formattedValue = formatFieldValue(value, effectiveFieldType, currencyCode);
           
           
           return React.createElement(
             'span', 
-            { className: getReportColumnClassName(field.type) },
+            { className: getReportColumnClassName(effectiveFieldType) },
             formattedValue
           );
         }

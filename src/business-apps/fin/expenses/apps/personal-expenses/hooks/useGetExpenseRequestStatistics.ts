@@ -20,7 +20,7 @@ export interface ExpenseRequestStatisticsDataView {
   fetchStatistics: () => Promise<void>;
 }
 
-export const useGetExpenseRequestStatistics = (context?: BusinessAppContextProps): ExpenseRequestStatisticsDataView => {
+export const useGetExpenseRequestStatistics = (context?: BusinessAppContextProps, currencyRef: string = 'Currency:v1:EUR'): ExpenseRequestStatisticsDataView => {
   const accessToken = context?.accessToken;
   const employeeId = context?.userInfo?.employeeDetails?.employeeId;
   const [statistics, setStatistics] = useState<ExpenseRequestStatisticsData>({ 
@@ -64,7 +64,8 @@ export const useGetExpenseRequestStatistics = (context?: BusinessAppContextProps
             variables: { 
               employeeId, 
               startDate, 
-              endDate
+              endDate,
+              currencyRef
             },
           }),
         });
@@ -106,7 +107,7 @@ export const useGetExpenseRequestStatistics = (context?: BusinessAppContextProps
     } finally {
       setIsLoading(false);
     }
-  }, [employeeId, accessToken]);
+  }, [employeeId, accessToken, currencyRef]);
 
   return { statistics, isLoading, error: error?.message ?? null, fetchStatistics };
 }; 

@@ -29,6 +29,7 @@ export interface PlannedExitInvestment {
     displayName: string;
     firstName: string;
     lastName: string;
+    pictureThumbnail?: string;
   };
 }
 
@@ -101,6 +102,7 @@ const PLANNED_EXITS_QUERY = `
         displayName
         firstName
         lastName
+        pictureThumbnail
       }
     }
     InvestmentAggregate(where: $where) {

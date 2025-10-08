@@ -1,7 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { DatePicker } from 'antd';
 import dayjs from 'dayjs';
+import weekday from 'dayjs/plugin/weekday';
+import localeData from 'dayjs/plugin/localeData';
 import { getTranslationFromI18nKeyAndLabel } from '../../../../../../../../../common/utils/windowUtils';
+
+// Configure dayjs plugins
+dayjs.extend(weekday);
+dayjs.extend(localeData);
 
 const { RangePicker } = DatePicker;
 
@@ -46,8 +52,8 @@ export const DateRangeFilter: React.FC<DateRangeFilterProps> = ({
         onChange={handleDateRangeChange}
         format="YYYY-MM-DD"
         placeholder={[
-          getTranslationFromI18nKeyAndLabel('lowcoder:absence_hub.absence_start_date', 'Absence Start Date'),
-          getTranslationFromI18nKeyAndLabel('lowcoder:absence_hub.absence_end_date', 'Absence End Date')
+          getTranslationFromI18nKeyAndLabel('lowcoder:expense_plan_list.expense_plan_table.start_date', 'Start Date'),
+          getTranslationFromI18nKeyAndLabel('lowcoder:expense_plan_list.expense_plan_table.end_date', 'End Date')
         ]}
         data-testid="date-range-picker"
       />

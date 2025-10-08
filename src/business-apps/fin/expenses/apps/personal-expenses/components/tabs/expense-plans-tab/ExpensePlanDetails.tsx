@@ -1,10 +1,5 @@
 import React from 'react';
 import { 
-  Sheet,
-  SheetContent,
-  SheetHeader,
-  SheetTitle,
-  Badge,
   Separator,
   Button,
   Card,
@@ -12,31 +7,42 @@ import {
   CardHeader,
   CardTitle
 } from '@newwork/nw-design-system';
+import Pill from '@/components/pill';
 import { getExpensePlanStatusDisplay, formatCurrencyDisplay } from '../../../utils';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 import { PiCalendarDuotone, PiClock, PiPath, PiArrowRight } from 'react-icons/pi';
 import { getTranslationFromI18nKeyAndLabel, formatDate } from '@/common/utils/windowUtils';
 import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils';
+import { AppActionButton } from '@/components/app-action-button/AppActionButton';
+import { generateExpensePlanActions } from '../../../utils/expensePlanActions';
 
 export interface ExpensePlanDetailsProps extends BusinessAppContextProps {
   selectedItem: any;
   onClose: () => void;
+  planTypeLabel?: string;
 }
 
 const ExpensePlanDetails: React.FC<ExpensePlanDetailsProps> = ({
   selectedItem,
-  onClose
+  onClose,
+  planTypeLabel,
+  ...contextProps
 }) => {
   if (!selectedItem) return null;
   
-  // Get trip type
-  const getTripType = () => {
-    if (selectedItem.requestType?.value) {
-      return selectedItem.requestType.value;
-    }
-    const additionalProps = selectedItem.additionalProperties as Record<string, unknown> | null;
-    const tripType = additionalProps?.tripType ?? additionalProps?.travelType;
-    return tripType ?? 'Business Travel';
+  const formatTypeLabel = (value?: string) => {
+    if (!value) return 'N/A';
+    const trimmed = String(value).trim();
+    if (!trimmed) return 'N/A';
+    return trimmed.charAt(0).toUpperCase() + trimmed.slice(1).toLowerCase();
+  };
+
+  const getPlanType = () => {
+    if (selectedItem.requestType?.value) return selectedItem.requestType.value;
+    if (selectedItem.type?.value) return selectedItem.type.value;
+    if (selectedItem.requestType) return String(selectedItem.requestType);
+    if (selectedItem.type) return String(selectedItem.type);
+    return 'N/A';
   };
 
   return (
@@ -51,18 +57,46 @@ const ExpensePlanDetails: React.FC<ExpensePlanDetailsProps> = ({
             {selectedItem.code}
           </p>
         </div>
-        <Badge 
-          variant={
-            getExpensePlanStatusDisplay(selectedItem.status).type === 'completed' ? 'success' : 
-            getExpensePlanStatusDisplay(selectedItem.status).type === 'error' ? 'destructive' : 
-            getExpensePlanStatusDisplay(selectedItem.status).type === 'task' ? 'warning' : 
-            getExpensePlanStatusDisplay(selectedItem.status).type === 'waiting' ? 'secondary' : 'default'
-          }
-          className="gba:text-sm"
-          data-testid="expense-plan-status-badge"
-        >
-          {getExpensePlanStatusDisplay(selectedItem.status).label}
-        </Badge>
+        <div className="gba:flex gba:items-center gba:gap-3">
+          {(() => {
+            const statusConfig = getExpensePlanStatusDisplay(selectedItem.status);
+            return <Pill type={statusConfig.type} label={statusConfig.label} color={statusConfig.color} data-testid="expense-plan-status-badge" />;
+          })()}
+          {(() => {
+             const availableActions = generateExpensePlanActions(
+               selectedItem,
+               {
+                 employeeId: contextProps.userInfo?.employeeDetails?.employeeId || '',
+                 accessToken: contextProps.accessToken || '',
+                 onClose: onClose
+               },
+               {
+                 includeDetails: false
+               }
+             );
+            
+            // Only show action button if there are available actions
+            if (availableActions.length > 0) {
+              return (
+                <div 
+                  className="gba:flex gba:justify-start gba:gap-2"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <AppActionButton
+                    data-testid="expense-plan-details-action-button"
+                    size="icon"
+                    staticFlowData={availableActions}
+                    prefixDataTestId="expense-plan-details-action"
+                    accessToken={contextProps.accessToken}
+                    emptyStateBehavior="disable"
+                    deferMainContextRequestsUntilClick={true}
+                  />
+                </div>
+              );
+            }
+            return null;
+          })()}
+        </div>
       </div>
       
       {/* Date Information */}
@@ -127,7 +161,7 @@ const ExpensePlanDetails: React.FC<ExpensePlanDetailsProps> = ({
                 <span className="gba:text-sm gba:font-medium gba:text-gray-700">
                   {getTranslationFromI18nKeyAndLabel('lowcoder:expense_request_overview.side_bar.requester', 'Requester')}
                 </span>
-                <span className="gba:text-sm gba:text-gray-900">{selectedItem.employee.fullName}</span>
+                <span className="gba:text-sm gba:text-gray-900">{selectedItem.employee.fullName ?? selectedItem.employee.firstName + ' ' + selectedItem.employee.lastName}</span>
               </div>
             )}
             
@@ -160,9 +194,9 @@ const ExpensePlanDetails: React.FC<ExpensePlanDetailsProps> = ({
             
             <div className="gba:flex gba:justify-between gba:items-center">
               <span className="gba:text-sm gba:font-medium gba:text-gray-700">
-                {getTranslationFromI18nKeyAndLabel('lowcoder:team_expenses_page.plan_details.trip_type', 'Trip Type')}
+                {getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.plan_type', 'Plan Type')}
               </span>
-              <span className="gba:text-sm gba:text-gray-900">{getTripType()}</span>
+              <span className="gba:text-sm gba:text-gray-900">{formatTypeLabel(planTypeLabel ?? getPlanType())}</span>
             </div>
             
             <div className="gba:flex gba:justify-between gba:items-center">

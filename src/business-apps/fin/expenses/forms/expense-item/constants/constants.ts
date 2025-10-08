@@ -2,7 +2,8 @@
  * Constants for the expense item form
  */
 export const REQUEST_STATUS = {
-  CREATED: "CREATED"
+  CREATED: "CREATED",
+  ASSIGNED: "ASSIGNED"
 } as const;
 
 export const FORM_STEPS = {

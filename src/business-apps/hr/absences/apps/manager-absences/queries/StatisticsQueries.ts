@@ -15,28 +15,32 @@ export const GET_PLANNED_VS_UNPLANNED_2025 = `
         count
       }
     }
-    # Test vacation group specifically (current year only)
-    vacationAbsences: EmployeeAbsenceAggregate(
+    # Planned absences: Vacation group with Vacation value (current year only)
+    plannedAbsences: EmployeeAbsenceAggregate(
       where: {
         isDeleted: {_eq: false},
         status: {_eq: "APPROVED"},
         startDate: {_gte: $currentYearStart, _lte: $currentYearEnd},
         employee: {employeePosition: {supervisor: {id: {_eq: $supervisorId}}}},
-        type: {parentEntryId: {_eq: "AbsenceGroup:v1:RECR"}}
+        type: {
+          parentEntryId: {_eq: "AbsenceGroup:v1:RECR"}
+        }
       }
     ) {
       aggregate {
         count
       }
     }
-    # Test sick leave group specifically (current year only)
-    sickLeaveAbsences: EmployeeAbsenceAggregate(
+    # Unplanned absences: Health group with Sick Leave value (current year only)
+    unplannedAbsences: EmployeeAbsenceAggregate(
       where: {
         isDeleted: {_eq: false},
         status: {_eq: "APPROVED"},
         startDate: {_gte: $currentYearStart, _lte: $currentYearEnd},
         employee: {employeePosition: {supervisor: {id: {_eq: $supervisorId}}}},
-        type: {parentEntryId: {_eq: "AbsenceGroup:v1:HEALTH"}}
+        type: {
+          parentEntryId: {_eq: "AbsenceGroup:v1:HEALTH"}
+        }
       }
     ) {
       aggregate {
@@ -53,8 +57,7 @@ export const GET_AVERAGE_DAYS_PER_REQUEST = `
         isDeleted: {_eq: false},
         status: {_eq: "APPROVED"},
         startDate: {_gte: $currentYearStart, _lte: $currentYearEnd},
-        employee: {employeePosition: {supervisor: {id: {_eq: $supervisorId}}}},
-        type: {parentEntryId: {_neq: "AbsenceGroup:v1:WORK"}}
+        employee: {employeePosition: {supervisor: {id: {_eq: $supervisorId}}}}
       }
     ) {
       aggregate {

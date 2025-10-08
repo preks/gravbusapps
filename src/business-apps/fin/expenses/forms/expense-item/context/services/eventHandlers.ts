@@ -4,7 +4,7 @@ import { fetchExpenseTypes, fetchCustomFields } from "./dataFetchers";
 import { initiateFlow, getOpenedTaskFlow, completeTaskFlow } from "./flowHandlers";
 import { dispatchProcessContinueEvent } from "@/common/utils/processEventUtils";
 import { EMPLOYEE_FILES_LOCATION, EVENTS, FILES_ENDPOINT } from "@/business-apps/fin/expenses/utils/constants";
-import { DEFAULT_POSITION, DEFAULT_EXPENSE_STATUS, DEFAULT_EXPENSE_SOURCE, DEFAULT_CURRENCY_ID, DEFAULT_EXPENSE_CLASS_ID, FORM_STEPS } from "../../constants/constants";
+import { DEFAULT_POSITION, DEFAULT_EXPENSE_STATUS, DEFAULT_EXPENSE_SOURCE, DEFAULT_CURRENCY_ID, DEFAULT_EXPENSE_CLASS_ID, FORM_STEPS, REQUEST_STATUS } from "../../constants/constants";
 import { showToast } from "@/business-apps/fin/expenses/utils/notificationUtils";
 import { FLOW_DOMAIN, FLOW_PROCESS_NAME } from "../constants";
 
@@ -285,6 +285,9 @@ export const handleSubmit = async (
     await form.validateFields();
 
     const values = form.getFieldsValue();
+    const rawExpenseRequestId: string | undefined = form.getFieldValue('expenseRequestId');
+    const coerceRequestId = (id?: string) => (id && id !== '0' ? id : undefined);
+    const normalizedExpenseRequestId = coerceRequestId(rawExpenseRequestId);
 
     let uploadedFiles: Array<{ fileType: string; fileUrl: string; fileName: string }> = [];
     if (fileList && fileList.length > 0 && accessToken && employeeId) {
@@ -384,9 +387,13 @@ export const handleSubmit = async (
         costCenter: positions[0]?.costCenter || "",
         reimbursable: positions[0]?.isReimbursable || false,
         expenseClassRef: DEFAULT_EXPENSE_CLASS_ID,
-        status: DEFAULT_EXPENSE_STATUS,
+        status: itemValues?.id ? REQUEST_STATUS.ASSIGNED : DEFAULT_EXPENSE_STATUS,
         multiplePositions: multiPosition,
-        expenseRequest: values.expenseRequest || additionalData?.expenseRequestId || "",
+        expenseRequest:
+          normalizedExpenseRequestId ??
+          coerceRequestId(values?.expenseRequestId) ??
+          additionalData?.expenseRequestId ??
+          "",
         employee: generalDataResponse?.data?.Employee?.[0]?.id || employeeId || "",
         expenseRule: employeeRuleId as string,
       },

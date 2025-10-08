@@ -1,5 +1,5 @@
-import React, { useState, useEffect, useMemo } from "react";
-import { useTranslation } from "react-i18next";
+import React, { useState, useEffect, useMemo } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
   Button,
   Input,
@@ -9,15 +9,15 @@ import {
   DataTable,
   CardContent,
   Badge,
-} from "@newwork/nw-design-system";
-import { BusinessAppContextProps } from "@/common/BusinessAppContext";
-import { useCatalogManagerClient } from "@/common/network/catalogs/useCatalogManagerClient";
-import { useUserLocale } from "@/common/locale/useUserLocale";
-import CardTabHeaderComponent from "../../../generic-components/card";
-import { formatDataTestId } from "@/common/utils/formatDataTestId";
-import { DeleteButton } from "../../../generic-components/delete-button/DeleteButton";
-import EmploymentTypeForm from "@/business-apps/mdm/forms/employment-type-form/EmploymentTypeForm";
-import SheetWrapperComponent from "../../../generic-components/sheet-wrapper/SheetWrapperComponent";
+} from '@newwork/nw-design-system';
+import { BusinessAppContextProps } from '@/common/BusinessAppContext';
+import { useCatalogManagerClient } from '@/common/network/catalogs/useCatalogManagerClient';
+import { useUserLocale } from '@/common/locale/useUserLocale';
+import CardTabHeaderComponent from '../../../generic-components/card';
+import { formatDataTestId } from '@/common/utils/formatDataTestId';
+import { DeleteButton } from '../../../generic-components/delete-button/DeleteButton';
+import EmploymentTypeForm from '@/business-apps/mdm/forms/employment-type-form/EmploymentTypeForm';
+import SheetWrapperComponent from '../../../generic-components/sheet-wrapper/SheetWrapperComponent';
 import {
   ArrowsDownUpIcon,
   EyeIcon,
@@ -26,14 +26,14 @@ import {
   PencilSimpleLineIcon,
   PlusIcon,
   TagIcon,
-} from "@phosphor-icons/react";
-import { ColumnDef } from "@tanstack/react-table";
-import { useGetEmploymentTypesData } from "../../queries/EmploymentTypesQueries";
-import { toast } from "sonner";
+} from '@phosphor-icons/react';
+import { ColumnDef, SortingState } from '@tanstack/react-table';
+import { useGetEmploymentTypesData } from '../../queries/EmploymentTypesQueries';
+import { toast } from 'sonner';
 import {
   EMPLOYMENT_TYPE_CATALOG,
   EMPLOYMENT_TYPE_VERSION,
-} from "@/business-apps/hr/core/forms/job-position/hooks/useEmploymentTypes";
+} from '@/business-apps/hr/core/forms/job-position/hooks/useEmploymentTypes';
 
 export interface EmploymentType {
   id: string;
@@ -53,14 +53,14 @@ export interface EmploymentTypesTabProps extends BusinessAppContextProps {
   prefixDataTestId?: string;
 }
 
-const DATA_TEST_ID_PREFIX = "EmploymentTypesTab";
+const DATA_TEST_ID_PREFIX = 'EmploymentTypesTab';
 
 const EmploymentTypesTab: React.FC<EmploymentTypesTabProps> = ({
   accessToken,
   prefixDataTestId,
 }) => {
   const { t } = useTranslation();
-  const userLocale = useUserLocale() ?? "en-US";
+  const userLocale = useUserLocale() ?? 'en-US';
   const catalogClient = useCatalogManagerClient(accessToken);
   const dataTestId = formatDataTestId(prefixDataTestId, DATA_TEST_ID_PREFIX);
 
@@ -68,9 +68,12 @@ const EmploymentTypesTab: React.FC<EmploymentTypesTabProps> = ({
 
   const [employmentTypes, setEmploymentTypes] = useState<EmploymentType[]>([]);
   const [loading, setLoading] = useState(false);
-  const [searchTerm, setSearchTerm] = useState("");
+  const [searchTerm, setSearchTerm] = useState('');
   const [selectedType, setSelectedType] = useState<EmploymentType | null>(null);
   const [isDrawerVisible, setIsDrawerVisible] = useState(false);
+  const [sorting, setSorting] = useState<SortingState>([]);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const [selectedRows, setSelectedRows] = useState<any[]>([]);
 
   const loadEmploymentTypes = async () => {
     try {
@@ -81,7 +84,7 @@ const EmploymentTypesTab: React.FC<EmploymentTypesTabProps> = ({
 
       setEmploymentTypes(sortedTypes);
     } catch {
-      toast.error("Failed to load employment types");
+      toast.error('Failed to load employment types');
     } finally {
       setLoading(false);
     }
@@ -120,20 +123,20 @@ const EmploymentTypesTab: React.FC<EmploymentTypesTabProps> = ({
     const items = [
       {
         icon: <InfoIcon />,
-        title: "Basic Information",
+        title: 'Basic Information',
         items: [
           {
-            label: "Name",
+            label: 'Name',
             value: selectedType.value,
           },
           {
-            label: "Code",
-            value: selectedType.code || "-",
+            label: 'Code',
+            value: selectedType.code || '-',
           },
 
           {
-            label: "Description",
-            value: selectedType.additionalValue1 ?? "-",
+            label: 'Description',
+            value: selectedType.additionalValue1 ?? '-',
           },
         ],
       },
@@ -148,7 +151,6 @@ const EmploymentTypesTab: React.FC<EmploymentTypesTabProps> = ({
       EMPLOYMENT_TYPE_VERSION,
       record.id,
     );
-
     setEmploymentTypes((prev) => prev.filter((employmentType) => employmentType.id !== record.id));
   };
 
@@ -174,13 +176,13 @@ const EmploymentTypesTab: React.FC<EmploymentTypesTabProps> = ({
   );
 
   const renderEmploymentTypesTable = () => {
-    const columns: ColumnDef<EmploymentType>[] = [
+    const columns: ColumnDef<EmploymentType & { description: string }>[] = [
       {
-        accessorKey: "code",
+        accessorKey: 'code',
         header: ({ column }) => (
           <Button
             variant="ghost"
-            onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+            onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}
             className="gba:h-auto gba:p-0 gba:font-semibold gba:hover:bg-transparent gba:justify-start"
           >
             Code
@@ -192,17 +194,17 @@ const EmploymentTypesTab: React.FC<EmploymentTypesTabProps> = ({
           const code = getValue();
           return (
             <div className="gba:flex gba:items-center">
-              <Badge variant="info">{(code as string) ?? "N/A"}</Badge>
+              <Badge variant="info">{(code as string) ?? 'N/A'}</Badge>
             </div>
           );
         },
       },
       {
-        accessorKey: "value",
+        accessorKey: 'value',
         header: ({ column }) => (
           <Button
             variant="ghost"
-            onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+            onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}
             className="gba:h-auto gba:p-0 gba:font-semibold gba:hover:bg-transparent gba:justify-start"
           >
             Name
@@ -220,11 +222,11 @@ const EmploymentTypesTab: React.FC<EmploymentTypesTabProps> = ({
         },
       },
       {
-        accessorKey: "description",
+        accessorKey: 'description',
         header: ({ column }) => (
           <Button
             variant="ghost"
-            onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+            onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}
             className="gba:h-auto gba:font-semibold gba:hover:bg-transparent gba:justify-start"
           >
             Description
@@ -237,15 +239,15 @@ const EmploymentTypesTab: React.FC<EmploymentTypesTabProps> = ({
           return (
             <div className="gba:flex gba:items-center">
               <div className="gba:max-w-[300px] gba:truncate" title={description as string}>
-                {(description as string) ?? "-"}
+                {(description as string) ?? '-'}
               </div>
             </div>
           );
         },
       },
       {
-        id: "actions",
-        header: () => <div className="gba:flex gba:w-[20px]">Actions</div>,
+        id: 'actions',
+        header: () => <div className="gba:flex gba:w-[115px]">Actions</div>,
         enableSorting: false,
         enableHiding: true,
         cell: ({ row }) => (
@@ -289,15 +291,15 @@ const EmploymentTypesTab: React.FC<EmploymentTypesTabProps> = ({
 
     return (
       <DataTable
-        defaultDataSetId="employment-types"
-        dataSets={[
-          {
-            id: "employment-types",
-            label: "Employment Types",
-            data: dataTable,
-            columns: columns,
-          },
-        ]}
+        data={dataTable}
+        columns={columns as ColumnDef<(typeof dataTable)[number]>[]}
+        sorting={sorting}
+        onSortingChange={setSorting}
+        selectedRows={selectedRows}
+        onSelectionChange={setSelectedRows}
+        enableSorting
+        enableSelection
+        enablePagination
       />
     );
   };
@@ -324,7 +326,7 @@ const EmploymentTypesTab: React.FC<EmploymentTypesTabProps> = ({
               usedCodes={usedCodes}
             />
           }
-          cardTitle={`${t("hr.employment_types", "Employment Types")} (${employmentTypes.length})`}
+          cardTitle={`${t('hr.employment_types', 'Employment Types')} (${employmentTypes.length})`}
           cardDescription="Manage employment types to classify different types of employment relationships."
         />
       )}
@@ -385,7 +387,7 @@ const EmploymentTypesTab: React.FC<EmploymentTypesTabProps> = ({
                 refetch={loadEmploymentTypes}
                 accessToken={accessToken}
                 prefixDataTestId={prefixDataTestId}
-                employmentType={selectedType}
+                employmentType={selectedType as EmploymentType & { description: string }}
                 isDrawerActive={true}
                 usedCodes={usedCodes}
                 key={selectedType?.id}

@@ -20,17 +20,17 @@ export const DivestmentView: React.FC<DivestmentViewProps> = (
   const tabOptions = [
     {
       key: "planned-exits",
-      icon: <TrendingDown className="gba:w-4 gba:h-4" />,
+      icon: <TrendingDown />,
       label: getTranslationFromI18nKeyAndLabel("planned_exits", "Planned Exits"),
     },
     {
       key: "exit-opportunities",
-      icon: <Target className="gba:w-4 gba:h-4" />,
+      icon: <Target />,
       label: getTranslationFromI18nKeyAndLabel("exit_opportunities", "Exit Opportunities"),
     },
     {
       key: "sales",
-      icon: <DollarSign className="gba:w-4 gba:h-4" />,
+      icon: <DollarSign />,
       label: getTranslationFromI18nKeyAndLabel("sales", "Sales"),
     },
   ];
@@ -160,10 +160,9 @@ export const DivestmentView: React.FC<DivestmentViewProps> = (
             <TabsTrigger
               key={option.key}
               value={option.key}
-              className="gba:flex gba:items-center gba:gap-2"
+              startIcon={option.icon}
               data-testid={`divestment-tab-${option.key}`}
             >
-              {option.icon}
               {option.label}
             </TabsTrigger>
           ))}

@@ -314,7 +314,7 @@ const AdvancePaymentsTable: React.FC<AdvancePaymentsTableProps> = (props) => {
                         ]}
                         prefixDataTestId="advance-payments-update"
                         accessToken={props.accessToken}
-                        emptyStateBehavior="disable"
+                        emptyStateBehavior="enable"
                       />
                     </div>
                   </TableCell>
@@ -557,7 +557,7 @@ const AdvancePaymentsTable: React.FC<AdvancePaymentsTableProps> = (props) => {
       />
 
       {/* Advance Payment Details Sheet */}
-      <Sheet open={!!selectedPayment} onOpenChange={(open) => !open && setSelectedPayment(null)}>
+      <Sheet open={!!selectedPayment} onOpenChange={(open) => !open && setSelectedPayment(null)} title={selectedPayment?.expensePlan?.title || getTranslationFromI18nKeyAndLabel('lowcoder:advance_payment_details.title', 'Advance Payment Details')}>
         <SheetContent className="gba:w-[500px] gba:sm:gba:w-[500px] gba:max-w-none">
           <SheetHeader>
             <SheetTitle className="gba:text-xl gba:font-semibold gba:text-gray-900">

@@ -3,6 +3,40 @@ import { CATALOG_ENTRY, AUDIT_FIELDS } from '@/common/network/graphql/commonFrag
 import { EMPLOYEE_REF } from '@/common/data/employee/queries/fragments/employeeFragments';
 import { INVESTMENT_REF } from './investmentFragments';
 
+export const INVESTMENT_ADDRESS = `
+    id
+    addressType
+    addressLine
+    postalCode
+    locality
+    region {
+        ${CATALOG_ENTRY}
+    }
+    country {
+        ${CATALOG_ENTRY}
+    }
+`;
+
+export const INVESTMENT_COMMUNICATION_CHANNEL = `
+    id
+    source
+    value
+    valueExtension
+    communicationChannel {
+        ${CATALOG_ENTRY}
+    }
+    communicationChannelRef
+    accountId
+    contactId
+    leadId
+    opportunityId
+    additionalProperties
+    businessKey
+    processInstanceId
+    synchronizedAt
+    ${AUDIT_FIELDS}
+`;
+
 export const INVESTMENT_LEAD = `
         id
         code
@@ -87,6 +121,11 @@ export const INVESTMENT_LEAD = `
           ${CATALOG_ENTRY}
         }
         
+        # Communication channels
+        communicationChannels {
+          ${INVESTMENT_COMMUNICATION_CHANNEL}
+        }
+        
         # Employee relationship
         ownerEmployee {
           ${EMPLOYEE_REF}
@@ -115,6 +154,9 @@ export const INVESTMENT_CONTACT_REF = `
     jobPosition
     picture
     pictureThumbnail
+    communicationChannels {
+        ${INVESTMENT_COMMUNICATION_CHANNEL}
+    }
     academicTitle {
         ${CATALOG_ENTRY}
     }
@@ -141,6 +183,11 @@ export const INVESTMENT_CONTACT = `
     pictureThumbnail
     
     ${AUDIT_FIELDS}
+    
+    # Communication channels
+    communicationChannels {
+        ${INVESTMENT_COMMUNICATION_CHANNEL}
+    }
     
     # Catalog relationships
     academicTitle {
@@ -170,6 +217,12 @@ export const INVESTMENT_ACCOUNT_REF = `
     geographicPresence
     picture
     pictureThumbnail
+    addresses {
+        ${INVESTMENT_ADDRESS}
+    }
+    communicationChannels {
+        ${INVESTMENT_COMMUNICATION_CHANNEL}
+    }
     legalForm {
         ${CATALOG_ENTRY}
     }
@@ -201,7 +254,22 @@ export const INVESTMENT_ACCOUNT = `
     website
     picture
     pictureThumbnail
+    notesSummary
+    businessKey
+    additionalProperties
+    processInstanceId
+    synchronizedAt
     ${AUDIT_FIELDS}
+    
+    # Address information
+    addresses {
+        ${INVESTMENT_ADDRESS}
+    }
+    
+    # Communication channels
+    communicationChannels {
+        ${INVESTMENT_COMMUNICATION_CHANNEL}
+    }
     
     # Catalog relationships
     legalForm {
@@ -216,10 +284,18 @@ export const INVESTMENT_ACCOUNT = `
     industryClass {
         ${CATALOG_ENTRY}
     }
+    timeZone {
+        ${CATALOG_ENTRY}
+    }
     
     # Employee relationship
     ownerEmployee {
         ${EMPLOYEE_REF}
+    }
+    
+    # Address relationships
+    investmentAddress(where: { isDeleted: { _eq: false } }) {
+        ${INVESTMENT_ADDRESS}
     }
 `;
 

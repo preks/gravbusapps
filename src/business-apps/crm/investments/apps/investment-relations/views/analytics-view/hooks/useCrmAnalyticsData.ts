@@ -119,8 +119,8 @@ const transformOverviewData = (
       convertedLeadsThisWeek: (leads.InvestmentLead || []).filter(
         (lead: any) =>
           new Date(lead.createdAt) > oneWeekAgo &&
-          (lead.leadStatus?.code === "CONVERTED" ||
-            lead.leadStatus?.value?.toLowerCase().includes("converted"))
+          (lead.leadStatus?.value?.toLowerCase().includes("converted") ||
+            lead.leadStatus?.value?.toLowerCase().includes("qualified"))
       ).length,
       newAccountsThisWeek: (accounts.InvestmentAccount || []).filter(
         (account: any) => new Date(account.createdAt) > oneWeekAgo
@@ -133,8 +133,7 @@ const transformOverviewData = (
           (opportunities.InvestmentOpportunity || []).some(
             (opp: any) =>
               opp.accountId === account.id &&
-              (opp.opportunityStatus?.code === "WON" ||
-                opp.opportunityStatus?.value?.toLowerCase().includes("won"))
+              opp.opportunityStatus?.code === "WON"
           )
       ).length,
       newOpportunitiesThisWeek: (
@@ -145,8 +144,7 @@ const transformOverviewData = (
       ).filter(
         (opp: any) =>
           new Date(opp.createdAt) > oneWeekAgo &&
-          (opp.opportunityStatus?.code === "WON" ||
-            opp.opportunityStatus?.value?.toLowerCase().includes("won"))
+          opp.opportunityStatus?.code === "WON"
       ).length,
       newContactsThisWeek: (contacts.InvestmentContact || []).filter(
         (contact: any) => new Date(contact.createdAt) > oneWeekAgo
@@ -161,8 +159,7 @@ const transformOverviewData = (
             (opp: any) =>
               opp.accountId ===
                 contact.investmentAccountContact?.[0]?.accountId &&
-              (opp.opportunityStatus?.code === "WON" ||
-                opp.opportunityStatus?.value?.toLowerCase().includes("won"))
+              opp.opportunityStatus?.code === "WON"
           )
       ).length,
     },
@@ -178,7 +175,7 @@ const transformOverviewData = (
 
 const transformLeadsData = (data: any): LeadsAnalytics => {
   const leads = data.InvestmentLead || [];
-  const totalLeads = data.LeadAggregate?.aggregate?.count || 0;
+  const totalLeads = data.InvestmentLeadAggregate?.aggregate?.count || 0;
 
   // Group by status
   const statusGroups = groupByField(leads, "leadStatus", "value");
@@ -311,8 +308,7 @@ const transformAccountsData = (
 
       // Calculate revenue from won opportunities only
       if (
-        opp.opportunityStatus?.code === "WON" ||
-        opp.opportunityStatus?.value?.toLowerCase().includes("won")
+        opp.opportunityStatus?.code === "WON"
       ) {
         accountData.revenue += opp.estimatedAmount || 0;
         accountData.wonOpportunities += 1;
@@ -700,8 +696,8 @@ const createLeadLifecycleTimeSeriesData = (
 
       // Track leads converted
       if (
-        lead.leadStatus?.code === "CONVERTED" ||
-        lead.leadStatus?.value?.toLowerCase().includes("converted")
+        lead.leadStatus?.value?.toLowerCase().includes("converted") ||
+        lead.leadStatus?.value?.toLowerCase().includes("qualified")
       ) {
         const convertedDate = lead.updatedAt || lead.createdAt;
         const convertedPeriodKey = getPeriodKey(convertedDate);
@@ -713,8 +709,6 @@ const createLeadLifecycleTimeSeriesData = (
 
       // Track leads lost
       if (
-        lead.leadStatus?.code === "LOST" ||
-        lead.leadStatus?.code === "DEAD" ||
         lead.leadStatus?.value?.toLowerCase().includes("lost") ||
         lead.leadStatus?.value?.toLowerCase().includes("dead") ||
         lead.leadStatus?.value?.toLowerCase().includes("closed")
@@ -816,7 +810,7 @@ const extractTopContactOwners = (items: any[]) => {
 };
 
 const extractTopPerformers = (opportunities: any): any[] => {
-  const opportunitiesList = opportunities.Opportunity || [];
+  const opportunitiesList = opportunities.InvestmentOpportunity || [];
   const performerMap = new Map();
 
   opportunitiesList.forEach((opp: any) => {
@@ -836,7 +830,7 @@ const extractTopPerformers = (opportunities: any): any[] => {
       }
 
       const performer = performerMap.get(ownerId);
-      if (opp.stage === "WON" || opp.opportunityStatus?.code === "WON") {
+      if (opp.opportunityStatus?.code === "WON") {
         performer.dealsWon += 1;
         performer.totalValue += opp.estimatedAmount || 0;
       }
@@ -849,16 +843,16 @@ const extractTopPerformers = (opportunities: any): any[] => {
 };
 
 const calculateConversionRate = (leads: any, opportunities: any): number => {
-  const totalLeads = leads.LeadAggregate?.aggregate?.count || 0;
+  const totalLeads = leads.InvestmentLeadAggregate?.aggregate?.count || 0;
   const totalOpportunities =
-    opportunities.OpportunityAggregate?.aggregate?.count || 0;
+    opportunities.InvestmentOpportunityAggregate?.aggregate?.count || 0;
   return totalLeads > 0
     ? Math.round((totalOpportunities / totalLeads) * 100)
     : 0;
 };
 
 const calculateWinRate = (opportunities: any): number => {
-  const total = opportunities.OpportunityAggregate?.aggregate?.count || 0;
+  const total = opportunities.InvestmentOpportunityAggregate?.aggregate?.count || 0;
   const won = opportunities.WonOpportunities?.aggregate?.count || 0;
   return total > 0 ? Math.round((won / total) * 100) : 0;
 };
@@ -871,14 +865,15 @@ const calculateWinRateLastMonth = (opportunities: any): number => {
 };
 
 const calculateAvgDealSize = (opportunities: any): number => {
-  const opportunitiesList =
-    opportunities.OpportunityAggregate?.aggregate?.count || 0;
-  if (opportunitiesList === 0) return 0;
+  // Calculate average deal size using only WON opportunities
+  const wonOpportunitiesCount =
+    opportunities.WonOpportunities?.aggregate?.count || 0;
+  if (wonOpportunitiesCount === 0) return 0;
 
-  const totalValue =
-    opportunities.totalEstimatedAmount?.aggregate?.sum?.estimatedAmount || 0;
-  if (totalValue === 0) return 0;
-  return Math.round(totalValue / opportunitiesList);
+  const totalWonValue =
+    opportunities.WonOpportunitiesValue?.aggregate?.sum?.estimatedAmount || 0;
+  if (totalWonValue === 0) return 0;
+  return Math.round(totalWonValue / wonOpportunitiesCount);
 };
 
 const calculateSalesCycleLength = (opportunities: any): number => {
@@ -893,17 +888,40 @@ const calculateSalesCycleLength = (opportunities: any): number => {
   const totalDays = wonOpportunities.reduce((sum: number, opp: any) => {
     const created = new Date(opp.createdAt);
     const closed = new Date(opp.closeDate);
+    
+    // Validate that closeDate is not before createdAt (data quality check)
+    if (closed < created) {
+      console.warn(`Opportunity ${opp.id} has closeDate (${opp.closeDate}) before createdAt (${opp.createdAt}). Skipping this opportunity.`);
+      return sum; // Skip this opportunity
+    }
+    
     const days = Math.ceil(
       (closed.getTime() - created.getTime()) / (1000 * 60 * 60 * 24)
     );
+    
+    // Additional safety check - ensure days is not negative
+    if (days < 0) {
+      console.warn(`Opportunity ${opp.id} calculated negative days (${days}). Skipping this opportunity.`);
+      return sum; // Skip this opportunity
+    }
+    
     return sum + days;
   }, 0);
 
-  return Math.round(totalDays / wonOpportunities.length);
+  // Count only valid opportunities (those that passed validation)
+  const validOpportunities = wonOpportunities.filter((opp: any) => {
+    const created = new Date(opp.createdAt);
+    const closed = new Date(opp.closeDate);
+    return closed >= created;
+  });
+
+  if (validOpportunities.length === 0) return 0;
+
+  return Math.round(totalDays / validOpportunities.length);
 };
 
 const calculatePipelineVelocity = (opportunities: any): number => {
-  const opportunitiesList = opportunities.Opportunity || [];
+  const opportunitiesList = opportunities.InvestmentOpportunity || [];
   if (opportunitiesList.length === 0) return 0;
 
   const totalDays = opportunitiesList.reduce((sum: number, opp: any) => {

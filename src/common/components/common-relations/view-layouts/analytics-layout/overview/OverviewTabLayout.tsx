@@ -31,6 +31,13 @@ export interface TrendData {
   totalContactsLastMonth: number;
   currentMonthWonOpportunities: number;
   previousMonthWonOpportunities: number;
+  // New trend metrics for conversion rates and performance indicators
+  currentMonthLeadConversionRate: number;
+  previousMonthLeadConversionRate: number;
+  currentMonthAvgDealSize: number;
+  previousMonthAvgDealSize: number;
+  currentMonthSalesCycleLength: number;
+  previousMonthSalesCycleLength: number;
 }
 
 export interface OverviewTabLayoutProps {

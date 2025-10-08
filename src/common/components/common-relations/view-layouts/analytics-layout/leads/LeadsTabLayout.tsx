@@ -140,13 +140,16 @@ export const LeadsTabLayout: React.FC<LeadsTabLayoutProps> = ({
        // Compare current conversion time to last month's conversion time
        ...(trendData && !trendLoading
          ? {
-             trend: {
-               value: `${Math.abs(
-                 (avgTimeToConversion || 0) - trendData.actualAvgConversionTimeLastMonth
-               ).toFixed(1)} days`,
-               positive: (avgTimeToConversion || 0) <= trendData.actualAvgConversionTimeLastMonth, // Lower time is better
-               description: `${(avgTimeToConversion || 0).toFixed(1)} days this month vs ${trendData.actualAvgConversionTimeLastMonth.toFixed(1)} days last month`,
-             },
+            trend: {
+              value: (trendData.actualAvgConversionTimeLastMonth || 0) === 0
+                ? (avgTimeToConversion || 0) > 0 ? "100%" : "0%"
+                : `${Math.abs(
+                    ((avgTimeToConversion || 0) - (trendData.actualAvgConversionTimeLastMonth || 0)) / 
+                    trendData.actualAvgConversionTimeLastMonth * 100
+                  ).toFixed(1)}%`,
+              positive: (avgTimeToConversion || 0) <= (trendData.actualAvgConversionTimeLastMonth || 0), // Lower time is better
+              description: `${(avgTimeToConversion || 0).toFixed(1)} days this month vs ${(trendData.actualAvgConversionTimeLastMonth || 0).toFixed(1)} days last month`,
+            },
            }
          : {}),
      },

@@ -87,6 +87,21 @@ export const getAbsenceGroupName = (
   return absenceGroups[type.parentEntryId] || type.groupName || 'Unknown Group';
 };
 
+// Get original group name for color lookup (before translation)
+export const getOriginalAbsenceGroupName = (
+  type: EmployeeAbsence['type'],
+  absenceGroups: Record<string, string>,
+  originalAbsenceGroups: Record<string, string>,
+): string => {
+  // First try to get from original groups map (English names)
+  if (originalAbsenceGroups[type.parentEntryId]) {
+    return originalAbsenceGroups[type.parentEntryId];
+  }
+  
+  // Fallback to the translated name if original not available
+  return absenceGroups[type.parentEntryId] || type.groupName || 'Unknown Group';
+};
+
 // Status formatting and badge variants
 export const getAbsenceStatusBadgeVariant = (status: string): string => {
   if (!status) return 'outline';
@@ -159,12 +174,16 @@ export const transformAbsencesForPieChart = (
 export const enhanceAbsence = (
   absence: EmployeeAbsence,
   absenceGroups: Record<string, string>,
+  originalAbsenceGroups?: Record<string, string>,
 ): EnhancedAbsence => {
   return {
     ...absence,
     employeeName: getEmployeeName({ employee: absence.employee }),
     typeName: getAbsenceTypeName(absence.type),
     groupName: getAbsenceGroupName(absence.type, absenceGroups),
+    originalGroupName: originalAbsenceGroups 
+      ? getOriginalAbsenceGroupName(absence.type, absenceGroups, originalAbsenceGroups)
+      : getAbsenceGroupName(absence.type, absenceGroups),
     dateRange: formatDateRange(absence.startDate, absence.endDate),
     duration: formatDuration(absence.calendarDays, absence.effectiveDays),
     statusBadgeVariant: getAbsenceStatusBadgeVariant(absence.status),
@@ -275,4 +294,41 @@ export const sortAbsencesByField = (
     if (aValue > bValue) return order === 'asc' ? 1 : -1;
     return 0;
   });
+};
+
+// Status display configuration for absence statuses
+export interface AbsenceStatusDisplayConfig {
+  label: string;
+  type: string;
+}
+
+// Maps absence statuses to user-friendly display configurations (similar to expense status)
+export const getAbsenceStatusDisplay = (status: string): AbsenceStatusDisplayConfig => {
+  switch (status?.toUpperCase()) {
+    case 'PENDING':
+      return {
+        label: getTranslationFromI18nKeyAndLabel('lowcoder:expense_statuses.pending', 'Pending'),
+        type: 'pending',
+      };
+    case 'APPROVED':
+      return {
+        label: getTranslationFromI18nKeyAndLabel('lowcoder:expense_statuses.approved', 'Approved'),
+        type: 'approved',
+      };
+    case 'REJECTED':
+      return {
+        label: getTranslationFromI18nKeyAndLabel('lowcoder:expense_statuses.rejected', 'Rejected'),
+        type: 'rejected',
+      };
+    case 'CANCELLED':
+      return {
+        label: getTranslationFromI18nKeyAndLabel('lowcoder:absences_overview_entry_screen.cancelled_status', 'Cancelled'),
+        type: 'cancelled',
+      };
+    default:
+      return {
+        label: status || 'Unknown',
+        type: 'cancelled',
+      };
+  }
 };

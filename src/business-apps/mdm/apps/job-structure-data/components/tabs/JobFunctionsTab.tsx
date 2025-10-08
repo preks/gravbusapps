@@ -1,8 +1,8 @@
-import React, { useEffect, useMemo, useState } from "react";
-import { useTranslation } from "react-i18next";
-import { BusinessAppContextProps } from "@/common/BusinessAppContext";
-import { useJobFunctions } from "../../hooks/useJobFunctions";
-import { JobFunction } from "../../types";
+import React, { useEffect, useMemo, useState } from 'react';
+import { useTranslation } from 'react-i18next';
+import { BusinessAppContextProps } from '@/common/BusinessAppContext';
+import { useJobFunctions } from '../../hooks/useJobFunctions';
+import { JobFunction } from '../../types';
 import {
   Card,
   CardContent,
@@ -14,10 +14,10 @@ import {
   DataTable,
   Badge,
   Spinner,
-} from "@newwork/nw-design-system";
-import { CardTabHeaderComponent } from "../../../generic-components/card/CardTabHeaderComponent";
-import { formatDataTestId } from "@/common/utils/formatDataTestId";
-import { ColumnDef } from "@tanstack/react-table";
+} from '@newwork/nw-design-system';
+import { CardTabHeaderComponent } from '../../../generic-components/card/CardTabHeaderComponent';
+import { formatDataTestId } from '@/common/utils/formatDataTestId';
+import { ColumnDef, SortingState } from '@tanstack/react-table';
 import {
   EyeIcon,
   UsersIcon,
@@ -30,12 +30,12 @@ import {
   UserListIcon,
   PlusIcon,
   PencilSimpleLineIcon,
-} from "@phosphor-icons/react";
-import SheetWrapperComponent from "../../../generic-components/sheet-wrapper/SheetWrapperComponent";
-import JobFunctionForm from "@/business-apps/mdm/forms/job-function-form";
-import { DeleteButton } from "../../../generic-components/delete-button/DeleteButton";
-import { useRestClient } from "@/common/network/rest/useRestClient";
-import { env } from "@/common/env/EnvUtils";
+} from '@phosphor-icons/react';
+import SheetWrapperComponent from '../../../generic-components/sheet-wrapper/SheetWrapperComponent';
+import JobFunctionForm from '@/business-apps/mdm/forms/job-function-form';
+import { DeleteButton } from '../../../generic-components/delete-button/DeleteButton';
+import { useRestClient } from '@/common/network/rest/useRestClient';
+import { env } from '@/common/env/EnvUtils';
 
 export interface JobFunctionsTabProps extends BusinessAppContextProps {
   prefixDataTestId?: string;
@@ -44,9 +44,9 @@ export interface JobFunctionsTabProps extends BusinessAppContextProps {
 const JobFunctionsTab: React.FC<JobFunctionsTabProps> = (context) => {
   const { t } = useTranslation();
   const { prefixDataTestId } = context;
-  const dataTestId = formatDataTestId(prefixDataTestId, "");
+  const dataTestId = formatDataTestId(prefixDataTestId, '');
 
-  const restClient = useRestClient(env("NEXT_PUBLIC_KOGITO_PROCESSES_ENDPOINT"));
+  const restClient = useRestClient(env('NEXT_PUBLIC_KOGITO_PROCESSES_ENDPOINT'));
 
   const {
     jobFunctions,
@@ -58,9 +58,12 @@ const JobFunctionsTab: React.FC<JobFunctionsTabProps> = (context) => {
     searchJobFunctions,
   } = useJobFunctions(context);
 
-  const [searchTerm, setSearchTerm] = useState("");
+  const [searchTerm, setSearchTerm] = useState('');
   const [selectedFunction, setSelectedFunction] = useState<JobFunction | null>(null);
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
+  const [sorting, setSorting] = useState<SortingState>([]);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const [selectedRows, setSelectedRows] = useState<any[]>([]);
 
   useEffect(() => {
     if (selectedFunction) {
@@ -87,9 +90,9 @@ const JobFunctionsTab: React.FC<JobFunctionsTabProps> = (context) => {
 
   const handleDelete = async (item: JobFunction) => {
     await restClient.post(
-      "/employee/saveJobFunction",
+      '/employee/saveJobFunction',
       {
-        changeMode: "DELETE",
+        changeMode: 'DELETE',
         jobFunction: {
           id: item.id,
           version: item.version ?? 0,
@@ -106,11 +109,11 @@ const JobFunctionsTab: React.FC<JobFunctionsTabProps> = (context) => {
   const renderJobFunctionsTable = () => {
     const columns: ColumnDef<JobFunction>[] = [
       {
-        accessorKey: "code",
+        accessorKey: 'code',
         header: ({ column }) => (
           <Button
             variant="ghost"
-            onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+            onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}
             className="gba:h-auto gba:p-0 gba:font-semibold gba:hover:bg-transparent gba:justify-start"
           >
             Code
@@ -122,17 +125,17 @@ const JobFunctionsTab: React.FC<JobFunctionsTabProps> = (context) => {
           const code = getValue();
           return (
             <div className="gba:flex gba:items-center">
-              <Badge variant="info">{(code as string) ?? "N/A"}</Badge>
+              <Badge variant="info">{(code as string) ?? 'N/A'}</Badge>
             </div>
           );
         },
       },
       {
-        accessorKey: "name",
+        accessorKey: 'name',
         header: ({ column }) => (
           <Button
             variant="ghost"
-            onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+            onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}
             className="gba:h-auto gba:p-0 gba:font-semibold gba:hover:bg-transparent gba:justify-start"
           >
             Name
@@ -150,11 +153,11 @@ const JobFunctionsTab: React.FC<JobFunctionsTabProps> = (context) => {
         },
       },
       {
-        accessorKey: "jobFamily.value",
+        accessorKey: 'jobFamily',
         header: ({ column }) => (
           <Button
             variant="ghost"
-            onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+            onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}
             className="gba:h-auto gba:p-0 gba:font-semibold gba:hover:bg-transparent gba:justify-start"
           >
             Job Family
@@ -164,15 +167,15 @@ const JobFunctionsTab: React.FC<JobFunctionsTabProps> = (context) => {
         enableSorting: true,
         cell: ({ row }) => {
           const jobFamily = row.original.jobFamily?.value;
-          return jobFamily ?? "Not assigned";
+          return jobFamily ?? 'Not assigned';
         },
       },
       {
-        accessorKey: "jobLevelGroup.value",
+        accessorKey: 'jobLevelGroup',
         header: ({ column }) => (
           <Button
             variant="ghost"
-            onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+            onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}
             className="gba:h-auto gba:p-0 gba:font-semibold gba:hover:bg-transparent gba:justify-start"
           >
             Job Level Group
@@ -182,15 +185,15 @@ const JobFunctionsTab: React.FC<JobFunctionsTabProps> = (context) => {
         enableSorting: true,
         cell: ({ row }) => {
           const jobLevelGroup = row.original.jobLevelGroup?.value;
-          return jobLevelGroup ?? "Not assigned";
+          return jobLevelGroup ?? 'Not assigned';
         },
       },
       {
-        accessorKey: "description",
+        accessorKey: 'description',
         header: ({ column }) => (
           <Button
             variant="ghost"
-            onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+            onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}
             className="gba:h-auto gba:p-0 gba:font-semibold gba:hover:bg-transparent gba:justify-start"
           >
             Description
@@ -203,15 +206,15 @@ const JobFunctionsTab: React.FC<JobFunctionsTabProps> = (context) => {
           return (
             <div className="gba:flex gba:items-center">
               <div className="gba:max-w-xs gba:truncate" title={description as string}>
-                {(description as string) ?? "-"}
+                {(description as string) ?? '-'}
               </div>
             </div>
           );
         },
       },
       {
-        id: "actions",
-        header: "Actions",
+        id: 'actions',
+        header: () => <div className="gba:flex gba:w-[115px]">Actions</div>,
         enableSorting: false,
         enableHiding: true,
         cell: ({ row }) => (
@@ -242,7 +245,7 @@ const JobFunctionsTab: React.FC<JobFunctionsTabProps> = (context) => {
             <DeleteButton
               onDelete={() => handleDelete(row.original)}
               itemName={row.original.name}
-              itemTitle={"Job Function"}
+              itemTitle={'Job Function'}
             />
           </div>
         ),
@@ -263,15 +266,15 @@ const JobFunctionsTab: React.FC<JobFunctionsTabProps> = (context) => {
 
     return (
       <DataTable
-        defaultDataSetId="job-functions"
-        dataSets={[
-          {
-            id: "job-functions",
-            label: "Job Functions",
-            data: dataTable,
-            columns: columns,
-          },
-        ]}
+        data={dataTable}
+        columns={columns as ColumnDef<(typeof dataTable)[number]>[]}
+        sorting={sorting}
+        onSortingChange={setSorting}
+        selectedRows={selectedRows}
+        onSelectionChange={setSelectedRows}
+        enableSorting
+        enableSelection
+        enablePagination
       />
     );
   };
@@ -285,10 +288,10 @@ const JobFunctionsTab: React.FC<JobFunctionsTabProps> = (context) => {
     if (selectedFunction.jobFamilyRef) {
       items.push({
         redirectLink: `/platform/mdm/job-structure-data/job-families/${selectedFunction.jobFamilyRef}`,
-        color: "green",
+        color: 'green',
         icon: UsersIcon,
-        title: selectedFunction.jobFamily?.value ?? "Job Family Details",
-        description: "View complete job family information, structure and related positions",
+        title: selectedFunction.jobFamily?.value ?? 'Job Family Details',
+        description: 'View complete job family information, structure and related positions',
       });
     }
 
@@ -296,26 +299,26 @@ const JobFunctionsTab: React.FC<JobFunctionsTabProps> = (context) => {
     if (selectedFunction.jobLevelGroupRef) {
       items.push({
         redirectLink: `/platform/mdm/job-structure-data/job-level-groups/${selectedFunction.jobLevelGroupRef}`,
-        color: "blue",
+        color: 'blue',
         icon: UserListIcon,
-        title: selectedFunction.jobLevelGroup?.value ?? "Level Group Details",
-        description: "View job level grouping, career progression paths and categorization",
+        title: selectedFunction.jobLevelGroup?.value ?? 'Level Group Details',
+        description: 'View job level grouping, career progression paths and categorization',
       });
     }
 
     items.push(
       {
         redirectLink: `/platform/mdm/job-structure-data/job-profiles?function=${selectedFunction.id}`,
-        color: "purple",
+        color: 'purple',
         icon: BookOpenIcon,
-        title: "Related Job Profiles",
+        title: 'Related Job Profiles',
         description: `View all job profiles using the ${selectedFunction.name} function`,
       },
       {
         redirectLink: `/platform/mdm/competencies-data/skills?jobFunction=${selectedFunction.id}`,
-        color: "orange",
+        color: 'orange',
         icon: WrenchIcon,
-        title: "Skills & Competencies",
+        title: 'Skills & Competencies',
         description: `Explore skills and competencies associated with ${selectedFunction.name}`,
       },
     );
@@ -329,34 +332,34 @@ const JobFunctionsTab: React.FC<JobFunctionsTabProps> = (context) => {
     return [
       {
         icon: <InfoIcon />,
-        title: "Basic Information",
+        title: 'Basic Information',
         verticalTable: true,
         items: [
           {
-            label: "Name",
+            label: 'Name',
             value: selectedFunction.name,
           },
           {
-            label: "Code",
-            value: selectedFunction.code ?? "-",
+            label: 'Code',
+            value: selectedFunction.code ?? '-',
           },
           {
-            label: "Description",
-            value: selectedFunction.description ?? "-",
+            label: 'Description',
+            value: selectedFunction.description ?? '-',
           },
         ],
       },
       {
         icon: <InfoIcon />,
-        title: "Classifications",
+        title: 'Classifications',
         items: [
           {
-            label: "Job Family",
-            value: selectedFunction.jobFamily?.value ?? "-",
+            label: 'Job Family',
+            value: selectedFunction.jobFamily?.value ?? '-',
           },
           {
-            label: "Job Level Group",
-            value: selectedFunction.jobLevelGroup?.value ?? "-",
+            label: 'Job Level Group',
+            value: selectedFunction.jobLevelGroup?.value ?? '-',
           },
         ],
       },
@@ -414,7 +417,7 @@ const JobFunctionsTab: React.FC<JobFunctionsTabProps> = (context) => {
               jobLevelGroups={jobLevelGroups}
             />
           }
-          cardTitle={`${t("hr.job_functions", "Job Functions")} (${jobFunctions.length})`}
+          cardTitle={`${t('hr.job_functions', 'Job Functions')} (${jobFunctions.length})`}
           cardDescription="Manage and explore job functions across the organization"
         />
       )}

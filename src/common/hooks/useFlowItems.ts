@@ -4,6 +4,7 @@ import { ActionOption } from '@newwork/nw-design-system';
 import { startProcess } from '../utils/start-process';
 import { navigateTo } from '../utils/navigationUtils';
 import { useFlowRegistryClient } from '../network/flows/useFlowRegistryClient';
+import { getCurrentActiveUserLocale } from '../utils/windowUtils';
 
 export interface ExternalContextData {
   [key: string]: any;
@@ -29,38 +30,38 @@ export const useFlowItems = ({ mainContextsData, externalContextData, accessToke
   // Function that can be called manually to fetch flow items
   // Optional directContextData parameter allows passing context data directly without relying on state
   const fetchFlowItems = useCallback(async (directContextData?: Record<string, string>) => {
-    const contextData = directContextData || mainContextsData;
-    if (!contextData) return;
-    
-    // Create a unique key for this context combination to prevent duplicate fetches
-    const contextKey = JSON.stringify({ contextData, externalContextData });
-    if (contextKey === lastFetchedContexts && !directContextData) {
-      return; // Skip if we've already fetched for these exact contexts
-    }
-    setIsLoading(true);
-    try {
-      const contexts = Object.entries(contextData).map(([contextName, mainContextDataId]) => ({
-        contextName: contextName as any,
-        mainContextDataId: externalContextData?.[mainContextDataId as string] as string
-      }));
+      const contextData = directContextData || mainContextsData;
+      if (!contextData) return;
 
-      if (contexts.length === 0) return;
-
-      const response = await flowRegistry.getPermissionFlowItemsV2({
-        contexts
-      });
-
-      if (response?.flowItems) {
-        const mappedFlowItems = mapFlowItemsToActionOptions(response.flowItems, externalContextData);
-        setFlowData(mappedFlowItems);
-        setLastFetchedContexts(contextKey); // Update last fetched contexts
+      // Create a unique key for this context combination to prevent duplicate fetches
+      const contextKey = JSON.stringify({ contextData, externalContextData });
+      if (contextKey === lastFetchedContexts && !directContextData) {
+        return; // Skip if we've already fetched for these exact contexts
       }
-    } catch (error) {
-      console.error('Error fetching flow items:', error);
-      setFlowData([]);
-    } finally {
-      setIsLoading(false);
-    }
+      setIsLoading(true);
+      try {
+        const contexts = Object.entries(contextData).map(([contextName, mainContextDataId]) => ({
+          contextName: contextName as any,
+        mainContextDataId: externalContextData?.[mainContextDataId as string] as string
+        }));
+
+        if (contexts.length === 0) return;
+
+        const response = await flowRegistry.getPermissionFlowItemsV2({
+        contexts
+        });
+
+        if (response?.flowItems) {
+        const mappedFlowItems = mapFlowItemsToActionOptions(response.flowItems, externalContextData);
+          setFlowData(mappedFlowItems);
+          setLastFetchedContexts(contextKey); // Update last fetched contexts
+        }
+      } catch (error) {
+        console.error('Error fetching flow items:', error);
+        setFlowData([]);
+      } finally {
+        setIsLoading(false);
+      }
   }, [mainContextsData, externalContextData, flowRegistry, lastFetchedContexts]);
 
   // Only automatically fetch flow items if not in manual mode
@@ -147,17 +148,42 @@ const mapFlowItemsToActionOptions = (
     // Create payload directly from externalContextData
     // The context.contextData from the API is just metadata about what context is expected
     const payload: Record<string, any> = { ...externalContextData };
-    
+
     // Create ActionOption with required properties
     const id = flowItem.id || '';
-    const rawFlowName = typeof flowItem.flowNameTranslation === 'string' ? 
-      flowItem.flowNameTranslation : 
-      flowItem.flowName;
+
+    let rawFlowName = flowItem.flowName;
+
+    if (flowItem.flowNameTranslation) {
+      if (typeof flowItem.flowNameTranslation === 'string') {
+        rawFlowName = flowItem.flowNameTranslation;
+      } else if (typeof flowItem.flowNameTranslation === 'object') {
+        const currentLocale = getCurrentActiveUserLocale();
+
+        if (flowItem.flowNameTranslation[currentLocale]) {
+          rawFlowName = flowItem.flowNameTranslation[currentLocale];
+        } else {
+          const languageCode = currentLocale.split('-')[0];
+          if (flowItem.flowNameTranslation[languageCode]) {
+            rawFlowName = flowItem.flowNameTranslation[languageCode];
+          } else {
+            const commonLocales = ['en', 'de', 'ro', 'en-US', 'de-DE', 'ro-RO'];
+            for (const locale of commonLocales) {
+              if (flowItem.flowNameTranslation[locale]) {
+                rawFlowName = flowItem.flowNameTranslation[locale];
+                break;
+              }
+            }
+          }
+        }
+      }
+    }
+
     const flowName = formatFlowName(rawFlowName);
-      
+
     // Handle different flow types differently
     let onClick: () => void;
-    
+
     switch (flowItem.flowType) {
       case 'NAVIGATION':
       case 'REPORT':
@@ -165,20 +191,20 @@ const mapFlowItemsToActionOptions = (
         onClick = () => {
           // Replace placeholders in targetDesktop with actual values from externalContextData
           let targetUrl = flowItem.targetDesktop;
-          
+
           // The context.contextData tells us what context names are expected
           // We use those names to find values in externalContextData
           if (flowItem.context?.contextData) {
             flowItem.context.contextData.forEach(contextDataItem => {
               const placeholder = `{${contextDataItem.contextDataName}}`;
               const contextValue = externalContextData[contextDataItem.contextDataName];
-              
+
               if (contextValue && targetUrl.includes(placeholder)) {
                 targetUrl = targetUrl.replace(placeholder, contextValue);
               }
             });
           }
-          
+
           // Navigate to the target URL using the navigation utility
           // This handles environment-specific logic (dev vs prod) and platform URL mapping
           navigateTo(targetUrl);
@@ -200,7 +226,7 @@ const mapFlowItemsToActionOptions = (
         };
         break;
     }
-      
+
     return {
       key: id,
       label: flowName,
@@ -209,7 +235,7 @@ const mapFlowItemsToActionOptions = (
       processName: flowItem.processName,
       domain: flowItem.domain,
       category: flowItem.flowType,
-      payload
+      payload,
     } as ActionOption;
   });
 };
