@@ -47,6 +47,7 @@ export const GET_EXPENSE_PLANS_BY_MANAGER = `
       id
       code
       title
+      expenseRequest { id code }
       startDate
       endDate
       status
@@ -58,6 +59,13 @@ export const GET_EXPENSE_PLANS_BY_MANAGER = `
       updatedAt
       decisionDate
       planDate
+      employeeDocument {
+        id
+        file
+        fileSize
+        name
+        mimeType
+      }
       employee {
         id
         displayName

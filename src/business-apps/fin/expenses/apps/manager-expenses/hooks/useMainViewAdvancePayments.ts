@@ -312,11 +312,11 @@ export const useMainViewAdvancePayments = ({
       // Map currency information from currencyRef fields
       filteredPayments = filteredPayments.map((payment) => ({
         ...payment,
-        currency: payment.currencyRef ? payment.currencyRef.replace("Currency:v1:", "") : "EUR",
+        currency: payment.currencyRef ? payment.currencyRef.replaceAll("Currency:v1:", "") : "EUR",
         expensePlan: {
           ...payment.expensePlan,
           currency: payment.expensePlan.currencyRef
-            ? payment.expensePlan.currencyRef.replace("Currency:v1:", "")
+            ? payment.expensePlan.currencyRef.replaceAll("Currency:v1:", "")
             : "EUR",
         },
       }));

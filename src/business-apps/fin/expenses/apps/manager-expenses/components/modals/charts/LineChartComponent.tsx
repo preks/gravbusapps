@@ -1,15 +1,26 @@
 import React from "react";
-import { Card, CardHeader, CardTitle, CardContent } from "@newwork/nw-design-system";
+import {
+  Card,
+  CardHeader,
+  CardTitle,
+  CardContent,
+  ChartContainer,
+  ChartConfig,
+  ChartTooltip,
+  ChartTooltipContent,
+  ChartLegend,
+  ChartLegendContent,
+} from "@newwork/nw-design-system";
+import { getTranslationFromI18nKeyAndLabel } from "@/common/utils/windowUtils";
 import {
   LineChart,
   Line,
   XAxis,
   YAxis,
   CartesianGrid,
-  Tooltip,
-  ResponsiveContainer,
 } from "recharts";
 import { formatCurrencyDisplay } from "../../../../personal-expenses/utils";
+import { resolveCssVar } from "./chartUtils";
 
 interface LineChartProps {
   data: {
@@ -22,6 +33,7 @@ interface LineChartProps {
   lineColor?: string;
   height?: number;
   currency?: string;
+  dataTestId?: string;
 }
 
 /**
@@ -32,10 +44,26 @@ const LineChartComponent: React.FC<LineChartProps> = ({
   title,
   xAxisDataKey = "date",
   lineDataKey = "value",
-  lineColor = "#52c41a",
+  lineColor = "var(--nw-success)",
   height = 300,
   currency = "EUR",
+  dataTestId,
 }) => {
+  const resolvedLineColor = React.useMemo(() => resolveCssVar(lineColor), [lineColor]);
+  const lineName = getTranslationFromI18nKeyAndLabel(
+    "lowcoder:charts.legend.amount",
+    "Amount",
+  );
+  
+  const chartConfig = React.useMemo(() => {
+    const config: ChartConfig = {
+      [lineDataKey]: {
+        label: lineName,
+      },
+    };
+    return config;
+  }, [lineDataKey, lineName]);
+
   if (!data || data.length === 0) {
     return (
       <Card className="gba:w-full">
@@ -46,11 +74,11 @@ const LineChartComponent: React.FC<LineChartProps> = ({
         )}
         <CardContent>
           <div className="gba:flex gba:flex-col gba:items-center gba:justify-center gba:p-8 gba:text-center gba:min-h-[200px]">
-            <div className="gba:text-gray-500 gba:text-lg gba:font-medium gba:mb-2">
-              No data available
+            <div className="gba:text-muted-foreground gba:text-lg gba:font-medium gba:mb-2">
+              {getTranslationFromI18nKeyAndLabel("lowcoder:charts.empty.title","No data available")}
             </div>
-            <div className="gba:text-gray-400 gba:text-sm">
-              There is no data to display for this chart.
+            <div className="gba:text-muted-foreground gba:text-sm">
+              {getTranslationFromI18nKeyAndLabel("lowcoder:charts.empty.description","There is no data to display for this chart.")}
             </div>
           </div>
         </CardContent>
@@ -66,37 +94,46 @@ const LineChartComponent: React.FC<LineChartProps> = ({
         </CardHeader>
       )}
       <CardContent>
-        <div
+        <ChartContainer
+          config={chartConfig}
+          className="gba:w-full"
           style={{ height: height }}
-          data-testid={`${title.toLowerCase().replace(/\s+/g, "-")}-chart`}
+          data-testid={dataTestId ?? "line-chart"}
         >
-          <ResponsiveContainer width="100%" height="100%">
-            <LineChart
-              data={data}
-              margin={{
-                top: 5,
-                right: 30,
-                left: 20,
-                bottom: 5,
-              }}
-            >
-              <CartesianGrid strokeDasharray="3 3" />
-              <XAxis dataKey={xAxisDataKey} />
-              <YAxis />
-              <Tooltip
-                formatter={(value) => [formatCurrencyDisplay(value, currency), "Amount"]}
-                labelFormatter={(label) => `${label}`}
-              />
-              <Line
-                type="monotone"
-                dataKey={lineDataKey}
-                stroke={lineColor}
-                activeDot={{ r: 8 }}
-                name="Amount"
-              />
-            </LineChart>
-          </ResponsiveContainer>
-        </div>
+          <LineChart
+            data={data}
+            margin={{
+              top: 5,
+              right: 30,
+              left: 20,
+              bottom: 5,
+            }}
+          >
+            <CartesianGrid strokeDasharray="3 3" />
+            <XAxis dataKey={xAxisDataKey} />
+            <YAxis />
+            <ChartTooltip
+              cursor={false}
+              content={
+                <ChartTooltipContent
+                  formatter={(value) => {
+                    const num = typeof value === 'number' ? value : Number(value ?? 0);
+                    const fixed = Number.isFinite(num) ? Number(num.toFixed(2)) : 0;
+                    return formatCurrencyDisplay(fixed, currency);
+                  }}
+                />
+              }
+            />
+            <ChartLegend content={<ChartLegendContent />} />
+            <Line
+              type="monotone"
+              dataKey={lineDataKey}
+              stroke={resolvedLineColor}
+              activeDot={{ r: 8 }}
+              name={lineName}
+            />
+          </LineChart>
+        </ChartContainer>
       </CardContent>
     </Card>
   );

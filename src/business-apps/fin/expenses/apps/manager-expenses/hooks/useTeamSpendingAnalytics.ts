@@ -1,5 +1,13 @@
 import { useState, useEffect, useMemo } from 'react';
-import { useGraphqlClient } from '@/common/network/graphql/useGraphQLClient';
+import {
+  normalizeStatus,
+  EXCLUDE_ITEM_STATUSES,
+  EXCLUDE_REQUEST_STATUSES,
+  EXCLUDE_PLAN_STATUSES,
+  EXCLUDE_ADV_PAYMENT_STATUSES,
+} from '../constants/expenseStatus';
+import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient';
+import { getCurrentActiveUserLocale } from '@/common/utils/windowUtils';
 import { GET_EXPENSE_ANALYTICS_DATA } from '../queries/analytics';
 import dayjs from 'dayjs';
 import weekday from 'dayjs/plugin/weekday';
@@ -28,6 +36,10 @@ interface Employee {
 
 interface ExpensePosition {
   expenseGroupRef: string;
+  expenseGroup?: {
+    value?: string;
+    translations?: Array<{ value?: string; localeCode?: string }>;
+  };
 }
 
 interface ExpenseItem {
@@ -99,6 +111,7 @@ interface TimeSeriesData {
 interface StatusBreakdown {
   status: string;
   count: number;
+  amount: number;
 }
 
 interface OrgUnitBreakdown {
@@ -138,8 +151,7 @@ export enum DateRangeOption {
   LAST_6_MONTHS = 'last6Months',
   LAST_YEAR = 'lastYear',
   YEAR_TO_DATE = 'yearToDate',
-  ALL_TIME = 'allTime',
-  CUSTOM = 'custom'
+  ALL_TIME = 'allTime'
 }
 
 export interface DateRangeValues {
@@ -168,27 +180,20 @@ export const useTeamSpendingAnalytics = (
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
   const [dateRange, setDateRange] = useState<DateRangeOption>(DateRangeOption.LAST_30_DAYS);
-  const [customDateRange, setCustomDateRange] = useState<DateRangeValues>({ startDate: null, endDate: null });
+  // Removed custom date range handling
   const [locationFilters, setLocationFilters] = useState<LocationFilter[]>([]);
   const [departmentFilters, setDepartmentFilters] = useState<DepartmentFilter[]>([]);
   const [searchTerm, setSearchTerm] = useState<string>('');
   const [departmentSearchTerm, setDepartmentSearchTerm] = useState<string>('');
   const [rawData, setRawData] = useState<AnalyticsData | null>(null);
   
-  const graphqlClient = useGraphqlClient(accessToken);
+  const graphqlClient = useGraphQLClient(accessToken);
   
   // Calculate date range based on selected option
   const dateRangeValues = useMemo(() => {
     const now = dayjs();
     let startDate: string | null = null;
     let endDate = now.format('YYYY-MM-DD');
-    
-    if (dateRange === DateRangeOption.CUSTOM && customDateRange.startDate && customDateRange.endDate) {
-      return {
-        startDate: customDateRange.startDate,
-        endDate: customDateRange.endDate
-      };
-    }
     
     switch (dateRange) {
       case DateRangeOption.LAST_30_DAYS:
@@ -214,21 +219,22 @@ export const useTeamSpendingAnalytics = (
     }
     
     return { startDate, endDate };
-  }, [dateRange, customDateRange]);
+  }, [dateRange]);
   
   // Fetch analytics data
   useEffect(() => {
     const fetchAnalyticsData = async () => {
       // Validate required parameters
       if (!accessToken) {
-        console.error('useTeamSpendingAnalytics - Missing accessToken');
+        // silent fail in production; keep user-friendly error only
+        if (import.meta?.env?.DEV) console.error('useTeamSpendingAnalytics - Missing accessToken');
         setError('Missing authentication token');
         setIsLoading(false);
         return;
       }
       
       if (!managerId || managerId === 'undefined' || managerId === 'null') {
-        console.error('useTeamSpendingAnalytics - Invalid managerId:', managerId);
+        if (import.meta?.env?.DEV) console.error('useTeamSpendingAnalytics - Invalid managerId:', managerId);
         setError('Invalid manager ID');
         setIsLoading(false);
         return;
@@ -250,7 +256,7 @@ export const useTeamSpendingAnalytics = (
         // Format the currency reference for the database query (Currency:v1:CODE format)
         const formattedCurrencyRef = standardizeCurrencyRef(currencyFilter);
         
-        console.log('useTeamSpendingAnalytics - Using currency reference:', formattedCurrencyRef);
+        // debug log removed
         
         const variables = {
           managerId: validManagerId,
@@ -259,10 +265,7 @@ export const useTeamSpendingAnalytics = (
           currencyRef: formattedCurrencyRef
         };
         
-        console.log('useTeamSpendingAnalytics - Fetching data with variables:', { 
-          ...variables, 
-          currencyRef: formattedCurrencyRef 
-        });
+        // debug log removed
         
         const response = await graphqlClient.request(GET_EXPENSE_ANALYTICS_DATA, variables);
         // Map the snake_case response to our camelCase interface
@@ -273,7 +276,7 @@ export const useTeamSpendingAnalytics = (
           advancePayments: response.advancePayments || []
         });
       } catch (err) {
-        console.error('Error fetching analytics data:', err);
+        if (import.meta?.env?.DEV) console.error('Error fetching analytics data:', err);
         setError('Failed to fetch analytics data. Please try again later.');
       } finally {
         setIsLoading(false);
@@ -291,7 +294,7 @@ export const useTeamSpendingAnalytics = (
     const uniqueLocations = new Map<string, { id: string; name: string }>();
     
     // Extract from expense items
-    rawData.expenseItems.forEach(item => {
+    for (const item of rawData.expenseItems) {
       if (item.employee?.employeePosition?.siteLocation?.id && item.employee?.employeePosition?.siteLocation?.name) {
         const location = item.employee.employeePosition.siteLocation;
         uniqueLocations.set(location.id, {
@@ -299,10 +302,10 @@ export const useTeamSpendingAnalytics = (
           name: location.name
         });
       }
-    });
+    }
     
     // Extract from expense requests
-    rawData.expenseRequests.forEach(item => {
+    for (const item of rawData.expenseRequests) {
       if (item.employee?.employeePosition?.siteLocation?.id && item.employee?.employeePosition?.siteLocation?.name) {
         const location = item.employee.employeePosition.siteLocation;
         uniqueLocations.set(location.id, {
@@ -310,10 +313,10 @@ export const useTeamSpendingAnalytics = (
           name: location.name
         });
       }
-    });
+    }
     
     // Extract from expense plans
-    rawData.expensePlans.forEach(item => {
+    for (const item of rawData.expensePlans) {
       if (item.employee?.employeePosition?.siteLocation?.id && item.employee?.employeePosition?.siteLocation?.name) {
         const location = item.employee.employeePosition.siteLocation;
         uniqueLocations.set(location.id, {
@@ -321,7 +324,7 @@ export const useTeamSpendingAnalytics = (
           name: location.name
         });
       }
-    });
+    }
     
     // Convert to array and sort by name
     const locations = Array.from(uniqueLocations.values())
@@ -343,7 +346,7 @@ export const useTeamSpendingAnalytics = (
     const uniqueDepartments = new Map<string, { id: string; name: string }>();
     
     // Extract from expense items
-    rawData.expenseItems.forEach(item => {
+    for (const item of rawData.expenseItems) {
       if (item.employee?.employeePosition?.organizationalUnit?.id && item.employee?.employeePosition?.organizationalUnit?.name) {
         const department = item.employee.employeePosition.organizationalUnit;
         uniqueDepartments.set(department.id, {
@@ -351,10 +354,10 @@ export const useTeamSpendingAnalytics = (
           name: department.name
         });
       }
-    });
+    }
     
     // Extract from expense requests
-    rawData.expenseRequests.forEach(item => {
+    for (const item of rawData.expenseRequests) {
       if (item.employee?.employeePosition?.organizationalUnit?.id && item.employee?.employeePosition?.organizationalUnit?.name) {
         const department = item.employee.employeePosition.organizationalUnit;
         uniqueDepartments.set(department.id, {
@@ -362,10 +365,10 @@ export const useTeamSpendingAnalytics = (
           name: department.name
         });
       }
-    });
+    }
     
     // Extract from expense plans
-    rawData.expensePlans.forEach(item => {
+    for (const item of rawData.expensePlans) {
       if (item.employee?.employeePosition?.organizationalUnit?.id && item.employee?.employeePosition?.organizationalUnit?.name) {
         const department = item.employee.employeePosition.organizationalUnit;
         uniqueDepartments.set(department.id, {
@@ -373,7 +376,7 @@ export const useTeamSpendingAnalytics = (
           name: department.name
         });
       }
-    });
+    }
     
     // Convert to array and sort by name
     const departments = Array.from(uniqueDepartments.values())
@@ -439,6 +442,31 @@ export const useTeamSpendingAnalytics = (
     );
   }, [departmentFilters, departmentSearchTerm]);
   
+  // Extract available currencies from raw data
+  const availableCurrencies = useMemo(() => {
+    if (!rawData) return [];
+
+    const currencySet = new Set<string>();
+
+    const addFromRef = (ref?: string) => {
+      if (!ref) return;
+      const code = ref.split(':').pop();
+      if (code) currencySet.add(code);
+    };
+
+    const collect = <T,>(list: T[] | undefined, getRef: (item: T) => string | undefined) => {
+      if (!Array.isArray(list)) return;
+      for (const item of list) addFromRef(getRef(item));
+    };
+
+    collect(rawData.expenseItems, (i) => i.currencyRef);
+    collect(rawData.expenseRequests, (r) => r.currencyRef);
+    collect(rawData.expensePlans, (p) => p.currencyRef);
+    collect(rawData.advancePayments, (p) => p.currencyRef);
+
+    return Array.from(currencySet).sort((a, b) => a.localeCompare(b));
+  }, [rawData]);
+  
   // Apply filters to raw data
   const processedData: ProcessedAnalyticsData | null = useMemo(() => {
     if (!rawData) return null;
@@ -487,27 +515,22 @@ export const useTeamSpendingAnalytics = (
           break;
         case DateRangeOption.ALL_TIME:
           return true; // No date filtering
-        case DateRangeOption.CUSTOM:
-          if (customDateRange.startDate) {
-            startDate = dayjs(customDateRange.startDate);
-          }
-          if (customDateRange.endDate) {
-            endDate = dayjs(customDateRange.endDate);
-          }
-          break;
+        // CUSTOM removed
       }
 
-      // Check if date is within range
-      if (startDate && !date.isAfter(startDate)) {
+      // Check if date is within range (inclusive)
+      if (startDate && date.isBefore(startDate)) {
         return false;
       }
 
-      if (endDate && !date.isBefore(endDate)) {
+      if (endDate && date.isAfter(endDate)) {
         return false;
       }
 
       return true;
     };
+
+    // Status exclusion lists centralized in constants
 
     // Filter expense items
     const filteredExpenseItems = rawData.expenseItems ? rawData.expenseItems.filter(item => {
@@ -534,6 +557,11 @@ export const useTeamSpendingAnalytics = (
         if (standardizedItemRef !== standardizedFilter) {
           return false;
         }
+      }
+
+      // Exclude specific statuses to match list screens
+      if (item.status && EXCLUDE_ITEM_STATUSES.has(item.status)) {
+        return false;
       }
 
       return true;
@@ -566,6 +594,11 @@ export const useTeamSpendingAnalytics = (
         }
       }
 
+      // Exclude statuses as in manager expenses request lists
+      if (item.status && EXCLUDE_REQUEST_STATUSES.has(item.status)) {
+        return false;
+      }
+
       return true;
     }) : [];
 
@@ -596,13 +629,18 @@ export const useTeamSpendingAnalytics = (
         }
       }
 
+      // Exclude statuses as in manager expenses plan lists
+      if (item.status && EXCLUDE_PLAN_STATUSES.has(item.status)) {
+        return false;
+      }
+
       return true;
     }) : [];
 
     // Filter advance payments
     const filteredAdvancePayments = rawData.advancePayments ? rawData.advancePayments.filter(item => {
-      // Check if date is within range
-      if (!isDateInRange(item.transactionDate || item.createdAt)) return false;
+      // Check if date is within range (revert to createdAt only)
+      if (!isDateInRange(item.createdAt)) return false;
 
       // Check if employee's location is selected
       const locationId = item.expensePlan?.employee?.employeePosition?.siteLocation?.id;
@@ -626,36 +664,54 @@ export const useTeamSpendingAnalytics = (
         }
       }
 
+      // Exclude statuses as in manager expenses advance payment lists
+      if (item.status && EXCLUDE_ADV_PAYMENT_STATUSES.has(item.status)) {
+        return false;
+      }
+
       return true;
     }) : [];
+
+    // Helper function to get localized category display name
+    const getCategoryDisplayName = (position: ExpensePosition): string => {
+      const catalog = position.expenseGroup;
+      const safeLocale = (globalThis.window === undefined ? 'en-US' : getCurrentActiveUserLocale());
+      const locale = String(safeLocale).toLowerCase();
+      const translated = catalog?.translations?.find((t) => t?.localeCode?.toLowerCase() === locale)?.value;
+      const display = translated || catalog?.value;
+      const codeKey = position.expenseGroupRef || 'Uncategorized';
+      return display || codeKey;
+    };
+
+    // Helper function to add amount to category map
+    const addToCategory = (categoryMap: Map<string, number>, category: string, amount: number): void => {
+      const currentAmount = categoryMap.get(category) || 0;
+      categoryMap.set(category, currentAmount + amount);
+    };
+
+    // Helper function to process a single expense item for categorization
+    const processItemCategory = (item: ExpenseItem, categoryMap: Map<string, number>): void => {
+      if (item.expensePosition && Array.isArray(item.expensePosition)) {
+        const positions = item.expensePosition;
+        if (positions.length > 0) {
+          // Divide total amount equally among positions
+          const amountPerPosition = (item.totalAmount || 0) / positions.length;
+          for (const position of positions) {
+            const category = getCategoryDisplayName(position);
+            addToCategory(categoryMap, category, amountPerPosition);
+          }
+        } else {
+          addToCategory(categoryMap, 'Uncategorized', item.totalAmount || 0);
+        }
+      } else {
+        addToCategory(categoryMap, 'Uncategorized', item.totalAmount || 0);
+      }
+    };
 
     // Process expense items by category
     const categoryMap = new Map<string, number>();
     filteredExpenseItems.forEach((item: ExpenseItem) => {
-      // Check if expensePosition exists and is an array
-      if (item.expensePosition && Array.isArray(item.expensePosition)) {
-        // Group by expense category
-        const positions = item.expensePosition;
-        if (positions.length > 0) {
-          // Group amounts by category
-          positions.forEach((position: ExpensePosition) => {
-            const category = position.expenseGroupRef || 'Uncategorized';
-            const currentAmount = categoryMap.get(category) || 0;
-            // For array positions, we need to divide the total amount proportionally
-            // Here we're simply dividing equally among positions, which may need refinement
-            const amountPerPosition = (item.totalAmount || 0) / positions.length;
-            categoryMap.set(category, currentAmount + amountPerPosition);
-          });
-        } else {
-          // If no positions, add to uncategorized
-          const currentAmount = categoryMap.get('Uncategorized') || 0;
-          categoryMap.set('Uncategorized', currentAmount + (item.totalAmount || 0));
-        }
-      } else {
-        // If no position, add to uncategorized
-        const currentAmount = categoryMap.get('Uncategorized') || 0;
-        categoryMap.set('Uncategorized', currentAmount + (item.totalAmount || 0));
-      }
+      processItemCategory(item, categoryMap);
     });
     
     const expenseItemsByCategory: ChartData[] = Array.from(categoryMap.entries())
@@ -666,17 +722,21 @@ export const useTeamSpendingAnalytics = (
       .sort((a, b) => b.value - a.value); // Sort by value descending
     
     // Process time series data
-    const processTimeSeriesData = (items: any[], amountField: string = 'totalAmount') => {
+    const processTimeSeriesData = (
+      items: any[],
+      amountField: string = 'totalAmount',
+      dateField: string = 'createdAt'
+    ) => {
       if (!Array.isArray(items)) return [];
       
       const monthMap = new Map<string, number>();
       
       items.forEach(item => {
-        if (!item || !item.createdAt) return;
-        
-        const date = dayjs(item.createdAt).format('YYYY-MM');
+        if (!item?.[dateField]) return;
+        const date = dayjs(item?.[dateField]).format('YYYY-MM');
         const currentAmount = monthMap.get(date) || 0;
-        monthMap.set(date, currentAmount + (item[amountField] || 0));
+        const addAmount = Number(item?.[amountField] ?? 0);
+        monthMap.set(date, currentAmount + (Number.isNaN(addAmount) ? 0 : addAmount));
       });
       
       // Sort by date
@@ -686,21 +746,25 @@ export const useTeamSpendingAnalytics = (
     };
     
     // Process data by status
-    const processStatusData = (items: any[]) => {
+    const processStatusData = (items: any[], amountField: string = 'totalAmount') => {
       if (!Array.isArray(items)) return [];
       
-      const statusMap = new Map<string, number>();
+      const statusMap = new Map<string, { count: number; amount: number }>();
       
       items.forEach(item => {
         if (!item) return;
-        
-        const status = item.status || 'Unknown';
-        const currentCount = statusMap.get(status) || 0;
-        statusMap.set(status, currentCount + 1);
+        // Normalize to canonical statuses used in Expenses
+        const status = normalizeStatus(item.status);
+        const prev = statusMap.get(status) || { count: 0, amount: 0 };
+        const addAmount = Number(item?.[amountField] ?? 0);
+        statusMap.set(status, {
+          count: prev.count + 1,
+          amount: prev.amount + (Number.isNaN(addAmount) ? 0 : addAmount)
+        });
       });
       
       return Array.from(statusMap.entries())
-        .map(([status, count]) => ({ status, count }))
+        .map(([status, agg]) => ({ status, count: agg.count, amount: agg.amount }))
         .sort((a, b) => b.count - a.count);
     };
     
@@ -717,10 +781,10 @@ export const useTeamSpendingAnalytics = (
         
         const orgUnit = employee.employeePosition?.organizationalUnit?.name || 'Unknown';
         const current = orgUnitMap.get(orgUnit) || { count: 0, amount: 0 };
-        
+        const addAmount = Number(item?.[amountField] ?? 0);
         orgUnitMap.set(orgUnit, {
           count: current.count + 1,
-          amount: current.amount + (item[amountField] || 0)
+          amount: current.amount + (Number.isNaN(addAmount) ? 0 : addAmount)
         });
       });
     };
@@ -738,10 +802,10 @@ export const useTeamSpendingAnalytics = (
         
         const location = employee.employeePosition?.siteLocation?.name || 'Unknown';
         const current = locationMap.get(location) || { count: 0, amount: 0 };
-        
+        const addAmount = Number(item?.[amountField] ?? 0);
         locationMap.set(location, {
           count: current.count + 1,
-          amount: current.amount + (item[amountField] || 0)
+          amount: current.amount + (Number.isNaN(addAmount) ? 0 : addAmount)
         });
       });
     };
@@ -758,10 +822,10 @@ export const useTeamSpendingAnalytics = (
     processLocationData(filteredAdvancePayments, 'amount');
     
     // Calculate totals
-    const totalExpenseAmount = filteredExpenseItems.reduce((sum, item) => sum + (item.totalAmount || 0), 0);
-    const totalRequestAmount = filteredExpenseRequests.reduce((sum, item) => sum + (item.totalAmount || 0), 0);
-    const totalPlanAmount = filteredExpensePlans.reduce((sum, item) => sum + (item.totalAmount || 0), 0);
-    const totalAdvanceAmount = filteredAdvancePayments.reduce((sum, item) => sum + (item.amount || 0), 0);
+    const totalExpenseAmount = filteredExpenseItems.reduce((sum, item) => sum + (Number(item.totalAmount ?? 0) || 0), 0);
+    const totalRequestAmount = filteredExpenseRequests.reduce((sum, item) => sum + (Number(item.totalAmount ?? 0) || 0), 0);
+    const totalPlanAmount = filteredExpensePlans.reduce((sum, item) => sum + (Number(item.totalAmount ?? 0) || 0), 0);
+    const totalAdvanceAmount = filteredAdvancePayments.reduce((sum, item) => sum + (Number(item.amount ?? 0) || 0), 0);
     
     return {
       expenseItemsByCategory,
@@ -771,8 +835,8 @@ export const useTeamSpendingAnalytics = (
       expenseRequestsByStatus: processStatusData(filteredExpenseRequests),
       expensePlansByMonth: processTimeSeriesData(filteredExpensePlans),
       expensePlansByStatus: processStatusData(filteredExpensePlans),
-      advancePaymentsByMonth: processTimeSeriesData(filteredAdvancePayments, 'amount'),
-      advancePaymentsByStatus: processStatusData(filteredAdvancePayments),
+      advancePaymentsByMonth: processTimeSeriesData(filteredAdvancePayments, 'amount', 'transactionDate'),
+      advancePaymentsByStatus: processStatusData(filteredAdvancePayments, 'amount'),
       expensesByOrgUnit: Array.from(orgUnitMap.entries()).map(([orgUnit, data]) => ({
         orgUnit,
         count: data.count,
@@ -788,7 +852,7 @@ export const useTeamSpendingAnalytics = (
       totalPlanAmount,
       totalAdvanceAmount
     };
-  }, [rawData]);
+  }, [rawData, locationFilters, departmentFilters, dateRange, currencyFilter]);
 
   return {
     isLoading,
@@ -796,8 +860,7 @@ export const useTeamSpendingAnalytics = (
     data: processedData,
     dateRange,
     setDateRange,
-    customDateRange,
-    setCustomDateRange,
+    // custom range removed
     locationFilters: filteredLocationFilters,
     toggleLocationFilter,
     searchTerm,
@@ -806,6 +869,7 @@ export const useTeamSpendingAnalytics = (
     toggleDepartmentFilter,
     departmentSearchTerm,
     setDepartmentSearchTerm: handleDepartmentSearchTermChange,
-    currencyFilter
+    currencyFilter,
+    availableCurrencies
   };
 };

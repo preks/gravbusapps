@@ -4,9 +4,9 @@ import { useGraphqlClient } from "@/common/network/graphql/useGraphQLClient";
 import { GET_EXPENSE_PLANS_BY_MANAGER } from "../queries/expensePlans";
 import { GET_EXPENSE_REQUESTS_BY_MANAGER } from "../queries/expenseRequests";
 import { GET_EXPENSE_ITEMS_BY_MANAGER } from "../queries/expenseItems";
-import { formatDate, getTranslationFromI18nKeyAndLabel } from "@/common/utils/windowUtils";
-import { GET_ADVANCE_PAYMENTS_BY_MANAGER } from "../queries/advancePayments";
-import { getExpenseRequestStatusDisplay, getExpensePlanStatusDisplay } from "../utils";
+import { getTranslationFromI18nKeyAndLabel } from "@/common/utils/windowUtils";
+import { GET_ADVANCE_PAYMENTS_REPORT_BY_MANAGER } from "../queries/advancePayments";
+import { getExpenseRequestStatusDisplay, getExpensePlanStatusDisplay, getAdvancePaymentStatusDisplay } from "../utils";
 
 // Define report types
 export enum ReportType {
@@ -32,6 +32,10 @@ export interface ReportItem {
 }
 
 // Define expense item interface
+/**
+ * Flattened row used by the Expense Item report export/table.
+ * Values are already formatted to simple scalars suited for CSV/UI.
+ */
 export interface ExpenseItemReport extends ReportItem {
   date: string;
   title: string;
@@ -40,10 +44,12 @@ export interface ExpenseItemReport extends ReportItem {
   amount: number;
   employeeName: string;
   status: string;
+  code?: string;
   currency?: string;
 }
 
 // Define expense plan interface
+/** Row model for the Expense Plan report */
 export interface ExpensePlanReport extends ReportItem {
   code: string;
   title: string;
@@ -52,12 +58,16 @@ export interface ExpensePlanReport extends ReportItem {
   status: string;
   totalAmount: number;
   employeeName: string;
+  expenseRequestCode?: string;
   currency: string;
+  createdAt?: string;
 }
 
 // Define expense request interface
+/** Row model for the Expense Request report */
 export interface ExpenseRequestReport extends ReportItem {
   code: string;
+  planCode?: string;
   title: string;
   requestDate: string;
   createdAt: string;
@@ -68,18 +78,17 @@ export interface ExpenseRequestReport extends ReportItem {
 }
 
 // Define advance payment interface
+/** Row model for the Advance Payment report */
 export interface AdvancePaymentReport extends ReportItem {
-  code: string;
-  title: string;
-  planDate: string;
-  startDate: string;
-  endDate: string;
+  code: string; // plan code
+  title: string; // plan title
+  requestDate: string; // createdAt of the payment
   status: string;
-  totalAmount: number;
-  advanceAmount: number;
+  amount: number; // advance amount
   employeeName: string;
-  currency: string;
-  advanceCurrency: string;
+  paymentMethod?: string;
+  costCenter?: string;
+  currency?: string;
 }
 
 // Define hook return interface
@@ -98,6 +107,7 @@ export interface UseExpenseReportDataReturn {
   searchTerm: string;
   setSearchTerm: (term: string) => void;
   fetchReportData: () => Promise<void>;
+  fetchAllForExport: () => Promise<ReportItem[]>;
 }
 
 /**
@@ -129,6 +139,16 @@ export const useExpenseReportData = ({
   const [selectedReportType, setSelectedReportType] = useState<ReportType | null>(
     ReportType.EXPENSE_ITEM,
   );
+
+  // Shared helper to build a human-readable employee name
+  const buildEmployeeDisplayName = (e: any): string => {
+    if (!e) return '';
+    const full = (e.fullName || '').trim();
+    if (full) return full;
+    const first = e.firstName || '';
+    const last = e.lastName || '';
+    return `${first} ${last}`.trim();
+  };
 
   // Define report types
   const reportTypes: ReportMetadata[] = [
@@ -170,9 +190,41 @@ export const useExpenseReportData = ({
     },
   ];
 
+  /**
+   * Build the Hasura where clause for ExpenseRequest queries.
+   * Duplicated in multiple places previously; centralised here to keep
+   * filtering in perfect sync between the table view and CSV export.
+   */
+  const buildExpenseRequestWhere = useCallback(
+    (managerIdInput: string, search: string) => {
+      const where: any = {
+        employee: { employeePosition: { supervisorEmployeeId: { _eq: managerIdInput } } },
+        isDeleted: { _eq: false },
+      };
+
+      if (search?.trim()) {
+        const searchPattern = `%${search.trim()}%`;
+        where._or = [
+          { code: { _ilike: searchPattern } },
+          { title: { _ilike: searchPattern } },
+          { status: { _ilike: searchPattern } },
+          { employee: { fullName: { _ilike: searchPattern } } },
+          { employee: { firstName: { _ilike: searchPattern } } },
+          { employee: { lastName: { _ilike: searchPattern } } },
+          { expensePlan: { code: { _ilike: searchPattern } } },
+          { expensePlan: { title: { _ilike: searchPattern } } },
+        ];
+      }
+      return where;
+    },
+    [],
+  );
+
   // Process expense items data
   const processExpenseItemsData = (data: any): ExpenseItemReport[] => {
     if (!data?.ExpenseItem?.length) return [];
+
+    
 
     return data.ExpenseItem.map((item: any) => {
       // Get the first expense group from positions or use 'Uncategorized'
@@ -180,7 +232,7 @@ export const useExpenseReportData = ({
         item.expensePosition &&
         item.expensePosition.length > 0 &&
         item.expensePosition[0].expenseGroupRef
-          ? item.expensePosition[0].expenseGroupRef.replace("ExpenseGroup:v1:", "")
+          ? item.expensePosition[0].expenseGroupRef.replaceAll("ExpenseGroup:v1:", "")
           : "Uncategorized";
 
       const statusDisplay = item.expenseRequest?.status
@@ -189,14 +241,18 @@ export const useExpenseReportData = ({
 
       return {
         id: item.id,
-        date: item.expenseRequest?.createdAt
-          ? formatDate(item.expenseRequest.createdAt, "date.short")
-          : "-",
+        code: item.expenseRequest?.code || "",
+        currency:
+          item.expenseRequest?.currencyRef
+            ? String(item.expenseRequest.currencyRef).split(":").pop() || "EUR"
+            : "EUR",
+        // Keep raw date; UI/export formats via ensureShortDateFormat
+        date: item.expenseRequest?.createdAt || "",
         title: item.title || "",
         description: item.description || "",
         category: expenseGroup,
         amount: item.totalAmount || 0,
-        employeeName: item.employee?.firstName + " " + item.employee?.lastName || "",
+        employeeName: buildEmployeeDisplayName(item.employee),
         status: statusDisplay.label,
       };
     });
@@ -211,16 +267,23 @@ export const useExpenseReportData = ({
         ? getExpensePlanStatusDisplay(plan.status)
         : { label: "", type: "draft" };
 
+      
+
       return {
         id: plan.id,
         code: plan.code || "",
         title: plan.title || "",
-        startDate: plan.startDate ? formatDate(plan.startDate, "date.short") : "",
-        endDate: plan.endDate ? formatDate(plan.endDate, "date.short") : "",
+        startDate: plan.startDate || "",
+        endDate: plan.endDate || "",
         status: statusDisplay.label,
         totalAmount: plan.totalAmount || 0,
-        currency: "", // Currency field not available in the query
-        employeeName: plan.employee?.firstName + " " + plan.employee?.lastName || "",
+        currency: plan.currencyRef ? String(plan.currencyRef).split(":").pop() || "EUR" : "EUR",
+        employeeName: buildEmployeeDisplayName(plan.employee),
+        expenseRequestCode:
+          Array.isArray(plan.expenseRequest) && plan.expenseRequest.length > 0
+            ? plan.expenseRequest[0].code || ""
+            : "",
+        createdAt: plan.createdAt || "",
       };
     });
   };
@@ -234,51 +297,19 @@ export const useExpenseReportData = ({
         ? getExpenseRequestStatusDisplay(request.status)
         : { label: "", type: "draft" };
 
+      
+
       return {
         id: request.id,
         code: request.code || "",
+        planCode: request.expensePlan?.code || "",
         title: request.title || "",
-        requestDate: request.requestDate ? formatDate(request.requestDate, "date.short") : "",
-        createdAt: request.createdAt ? formatDate(request.createdAt, "date.short") : "",
+        requestDate: request.requestDate || "",
+        createdAt: request.createdAt || "",
         status: statusDisplay.label,
         totalAmount: request.totalAmount || 0,
-        currency: request.currencyRef || "",
-        employeeName: request.employee?.firstName + " " + request.employee?.lastName || "",
-      };
-    });
-  };
-
-  // Process advance payments data
-  const processAdvancePaymentsData = (data: any): AdvancePaymentReport[] => {
-    if (!data?.ExpensePlan?.length) return [];
-
-    return data.ExpensePlan.map((plan: any) => {
-      // Calculate total advance payment amount
-      const advanceAmount =
-        plan.advancePayment?.reduce((sum: number, payment: any) => {
-          return sum + (payment.amount || 0);
-        }, 0) || 0;
-
-      // Extract currency information
-      const planCurrency = plan.currencyRef ? plan.currencyRef.replace("Currency:v1:", "") : "";
-      const advanceCurrency =
-        plan.advancePayment?.length > 0 && plan.advancePayment[0].currencyRef
-          ? plan.advancePayment[0].currencyRef.replace("Currency:v1:", "")
-          : planCurrency;
-
-      return {
-        id: plan.id,
-        code: plan.code || "",
-        title: plan.title || "",
-        planDate: plan.planDate ? formatDate(plan.planDate, "date.short") : "",
-        startDate: plan.startDate ? formatDate(plan.startDate, "date.short") : "",
-        endDate: plan.endDate ? formatDate(plan.endDate, "date.short") : "",
-        status: plan.status || "",
-        totalAmount: plan.totalAmount || 0,
-        advanceAmount: advanceAmount,
-        employeeName: plan.employee?.firstName + " " + plan.employee?.lastName || "",
-        currency: planCurrency,
-        advanceCurrency: advanceCurrency,
+        currency: request.currencyRef ? String(request.currencyRef).split(":").pop() || "EUR" : "EUR",
+        employeeName: buildEmployeeDisplayName(request.employee),
       };
     });
   };
@@ -345,12 +376,14 @@ export const useExpenseReportData = ({
       setIsLoading(true);
       setError(null);
 
-      // Use the real manager ID from userInfo
+      // Use shared where-clause builder
+      const where = buildExpenseRequestWhere(managerId, searchTerm);
+
       const result = await graphqlClient.request(GET_EXPENSE_REQUESTS_BY_MANAGER, {
-        managerId: managerId, // Use real manager ID from userInfo
+        where,
         limit: pageSize,
         offset: (currentPage - 1) * pageSize,
-        searchTerm: searchTerm ? `%${searchTerm}%` : "%%",
+        orderBy: [{ requestDate: "DESC" }],
       });
 
       const processedData = processExpenseRequestsData(result);
@@ -372,16 +405,16 @@ export const useExpenseReportData = ({
       setIsLoading(true);
       setError(null);
 
-      // Use the real manager ID from userInfo
-      const result = await graphqlClient.request(GET_ADVANCE_PAYMENTS_BY_MANAGER, {
-        managerId: managerId, // Use real manager ID from userInfo
+      const result = await graphqlClient.request(GET_ADVANCE_PAYMENTS_REPORT_BY_MANAGER, {
+        managerId: managerId,
         limit: pageSize,
         offset: (currentPage - 1) * pageSize,
         searchTerm: searchTerm ? `%${searchTerm}%` : "%%",
       });
 
-      const processedData = processAdvancePaymentsData(result);
-      setReportData(processedData);
+      const rows: AdvancePaymentReport[] = (result?.AdvancePayment || []).map(mapAdvancePaymentToReport);
+
+      setReportData(rows);
       setTotalCount(result?.AdvancePaymentAggregate?.aggregate?.count || 0);
     } catch (err) {
       console.error("Error fetching advance payments:", err);
@@ -390,6 +423,127 @@ export const useExpenseReportData = ({
       setIsLoading(false);
     }
   }, [graphqlClient, pageSize, currentPage, searchTerm, managerId]);
+
+  const mapAdvancePaymentToReport = useCallback((p: any): AdvancePaymentReport => {
+    const statusDisplay = p.status
+      ? getAdvancePaymentStatusDisplay(p.status)
+      : { label: "", type: "draft" };
+    const currencyCode = p?.currencyRef ? String(p.currencyRef).split(":").pop() || "EUR" : "EUR";
+    
+    return {
+      id: p.id,
+      code: p.expensePlan?.code || p.code || "",
+      title: p.expensePlan?.title || "",
+      requestDate: p.createdAt || "",
+      status: statusDisplay.label,
+      amount: p.amount || 0,
+      employeeName: buildEmployeeDisplayName(p.expensePlan?.employee) || buildEmployeeDisplayName(p.employee),
+      paymentMethod: p.paymentMethod || undefined,
+      costCenter: p.costCenter?.name || p.costCenter?.code || undefined,
+      currency: currencyCode,
+    };
+  }, []);
+
+  // Helper function to fetch data in batches with pagination
+  const fetchBatchedData = useCallback(async <T extends ReportItem>(
+    fetchFn: (offset: number, limit: number) => Promise<T[]>,
+    errorContext: string
+  ): Promise<T[]> => {
+    const batchLimit = 1000;
+    const all: T[] = [];
+    let offset = 0;
+
+    try {
+      while (true) {
+        const processed = await fetchFn(offset, batchLimit);
+        all.push(...processed);
+        if (!Array.isArray(processed) || processed.length < batchLimit) break;
+        offset += batchLimit;
+      }
+    } catch (error) {
+      console.error(`Error fetching batch for export (${errorContext}):`, error);
+      setError(`Partial export: some ${errorContext} could not be fetched`);
+    }
+
+    return all;
+  }, []);
+
+  // Fetch expense items for export
+  const fetchExpenseItemsForExport = useCallback(async (offset: number, limit: number) => {
+    const result = await graphqlClient.request(GET_EXPENSE_ITEMS_BY_MANAGER, {
+      managerId,
+      limit,
+      offset,
+      searchTerm: searchTerm ? `%${searchTerm}%` : "%%",
+    });
+    return processExpenseItemsData(result);
+  }, [graphqlClient, managerId, searchTerm]);
+
+  // Fetch expense plans for export
+  const fetchExpensePlansForExport = useCallback(async (offset: number, limit: number) => {
+    const result = await graphqlClient.request(GET_EXPENSE_PLANS_BY_MANAGER, {
+      managerId,
+      limit,
+      offset,
+      searchTerm: searchTerm ? `%${searchTerm}%` : "%%",
+    });
+    return processExpensePlansData(result);
+  }, [graphqlClient, managerId, searchTerm]);
+
+  // Fetch expense requests for export
+  const fetchExpenseRequestsForExport = useCallback(async (offset: number, limit: number) => {
+    const where = buildExpenseRequestWhere(managerId, searchTerm);
+    const result = await graphqlClient.request(GET_EXPENSE_REQUESTS_BY_MANAGER, {
+      where,
+      limit,
+      offset,
+      orderBy: [{ requestDate: "DESC" }],
+    });
+    return processExpenseRequestsData(result);
+  }, [graphqlClient, managerId, searchTerm, buildExpenseRequestWhere]);
+
+  // Fetch advance payments for export
+  const fetchAdvancePaymentsForExport = useCallback(async (offset: number, limit: number) => {
+    const result = await graphqlClient.request(GET_ADVANCE_PAYMENTS_REPORT_BY_MANAGER, {
+      managerId,
+      limit,
+      offset,
+      searchTerm: searchTerm ? `%${searchTerm}%` : "%%",
+    });
+    return (result?.AdvancePayment || []).map(mapAdvancePaymentToReport);
+  }, [graphqlClient, managerId, searchTerm, mapAdvancePaymentToReport]);
+
+  // Fetch all rows for export (bypassing pagination) for the currently selected report and filters
+  const fetchAllForExport = useCallback(async (): Promise<ReportItem[]> => {
+    if (!graphqlClient || !selectedReportType) return [];
+
+    try {
+      switch (selectedReportType) {
+        case ReportType.EXPENSE_ITEM:
+          return await fetchBatchedData(fetchExpenseItemsForExport, 'items');
+        case ReportType.EXPENSE_PLAN:
+          return await fetchBatchedData(fetchExpensePlansForExport, 'plans');
+        case ReportType.EXPENSE_REQUEST:
+          return await fetchBatchedData(fetchExpenseRequestsForExport, 'requests');
+        case ReportType.ADVANCE_PAYMENT:
+          return await fetchBatchedData(fetchAdvancePaymentsForExport, 'advance payments');
+        default:
+          return [];
+      }
+    } catch (err) {
+      console.error("Error exporting report data:", err);
+      setError("Failed to export report data");
+      return [];
+    }
+  }, [
+    graphqlClient,
+    selectedReportType,
+    fetchBatchedData,
+    fetchExpenseItemsForExport,
+    fetchExpensePlansForExport,
+    fetchExpenseRequestsForExport,
+    fetchAdvancePaymentsForExport,
+  ]);
 
   // Main function to fetch report data based on selected type
   const fetchReportData = useCallback(async () => {
@@ -409,7 +563,7 @@ export const useExpenseReportData = ({
         await fetchAdvancePayments();
         break;
       default:
-        console.warn(`Unknown report type: ${selectedReportType}`);
+        if (import.meta.env?.DEV) console.warn(`Unknown report type: ${selectedReportType}`);
     }
   }, [
     selectedReportType,
@@ -434,5 +588,6 @@ export const useExpenseReportData = ({
     searchTerm,
     setSearchTerm,
     fetchReportData,
+    fetchAllForExport,
   };
 };
