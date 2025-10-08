@@ -11,6 +11,7 @@ import { DataContainer } from '@/components/layout/dataContainer/DataContainer';
 import { useDeskTablePreferencesSimple } from '../../hooks/useDeskTablePreferencesSimple';
 import { navigateTo } from '@/common/utils/navigationUtils';
 import type { ColumnConfig } from '@/components/dataController';
+import { formatDate, formatTime } from '../../config/dateTimeConfig';
 
 // Import nw-design-system components
 import { 
@@ -907,10 +908,10 @@ export const TicketTable: React.FC<TicketTableProps> = ({
                                 {!isOverdue && slaStatus.status === 'warning' && <Clock className="gba:w-3 gba:h-3 gba:text-warning" />}
                                 <div>
                                   <div className={`gba:text-xs ${slaStatus.status === 'overdue' ? 'gba:text-destructive' : slaStatus.status === 'warning' ? 'gba:text-warning' : 'gba:text-success'}`}>
-                                    {dueDate.toLocaleDateString()}
+                                    {formatDate(dueDate)}
                                   </div>
                                   <div className="gba:text-xs gba:text-muted-foreground">
-                                    {dueDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false })}
+                                    {formatTime(dueDate)}
                                   </div>
                                 </div>
                               </div>
@@ -958,10 +959,10 @@ export const TicketTable: React.FC<TicketTableProps> = ({
                                 <Calendar className="gba:w-3 gba:h-3 gba:text-muted-foreground" />
                                 <div>
                                   <div className="gba:text-xs gba:text-foreground">
-                                    {date.toLocaleDateString()}
+                                    {formatDate(date)}
                                   </div>
                                   <div className="gba:text-xs gba:text-muted-foreground">
-                                    {date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false })}
+                                    {formatTime(date)}
                                   </div>
                                 </div>
                               </div>

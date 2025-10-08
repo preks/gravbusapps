@@ -3,9 +3,6 @@ import {
   Button, 
   Badge, 
   Textarea,
-  Avatar,
-  AvatarFallback,
-  AvatarImage,
   Spinner,
   Separator,
   Card,
@@ -17,11 +14,12 @@ import { message } from 'antd';
 import { 
   ChatCircle, 
   PaperPlaneTilt, 
-  EyeIcon
+  EyeIcon,
+  ClockIcon
 } from '@phosphor-icons/react';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 import { useEmployeeNamesBatch } from '../../../hooks/useEmployeeNamesBatch';
-import { navigateTo } from '@/common/utils/navigationUtils';
+import { EnhancedEmployeeDisplay } from '../../../components/shared';
 import { 
   ServicePortalComment, 
   ServicePortalCommentVisibility, 
@@ -38,6 +36,7 @@ export interface RequestCommentsProps extends BusinessAppContextProps {
   isLoading?: boolean;
   className?: string;
 }
+
 
 const CommentItem: React.FC<{
   comment: ServicePortalComment;
@@ -62,90 +61,55 @@ const CommentItem: React.FC<{
     return commentDate.toLocaleDateString();
   };
 
-  const getInitials = (name: string): string => {
-    if (!name || name === "Unknown User" || name === "-") return "U";
-    return name
-      .split(" ")
-      .map((n: string) => n[0])
-      .join("")
-      .toUpperCase()
-      .slice(0, 2);
-  };
-
   const displayName = employeeData?.displayName || employeeData?.fullName || 'Unknown User';
-
-  const handleEmployeeClick = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    if (comment.authorId && comment.authorId !== 'unknown' && employeeData?.id) {
-      const employeeId = employeeData.id;
-      navigateTo(`/platform/employee-record?employeeId=${employeeId}`);
-    }
-  };
 
   return (
     <div 
-      className="gba:flex gba:gap-3 gba:p-4 gba:bg-muted/30 gba:rounded-lg"
+      className="gba:group gba:relative gba:p-4 gba:bg-gradient-to-r gba:from-slate-50/80 gba:to-slate-50/40 gba:rounded-xl gba:border gba:border-slate-200/60 hover:gba:border-slate-300/80 gba:transition-all gba:duration-200 hover:gba:shadow-sm"
       data-testid={`comment-${comment.id}`}
     >
-      {/* Avatar */}
-      <div
-        className="gba:flex gba:items-center gba:gap-2 gba:cursor-pointer hover:gba:bg-transparent focus:gba:bg-transparent gba:group gba:p-1 gba:rounded gba:transition-colors hover:gba:bg-gray-100"
-        onClick={handleEmployeeClick}
-        title={comment.authorId && comment.authorId !== 'unknown' && employeeData?.id ? "Click to view employee profile" : undefined}
-      >
-        <Avatar size="sm" className="gba:outline gba:outline-2 gba:outline-offset-2 gba:outline-transparent gba:group-hover:[outline-color:var(--nw-color-primary-500)] gba:rounded-full">
-          {(employeeData?.pictureThumbnail || employeeData?.picture || employeeData?.avatar || employeeData?.profilePicture) && (
-            <AvatarImage
-              src={`data:image/png;base64,${employeeData.pictureThumbnail || employeeData.picture || employeeData.avatar || employeeData.profilePicture}`}
-              alt={displayName}
-              onError={(e) => {
-                const target = e.target as HTMLImageElement;
-                const imageData = employeeData.pictureThumbnail || employeeData.picture || employeeData.avatar || employeeData.profilePicture;
-                if (target.src.includes('png')) {
-                  target.src = `data:image/jpeg;base64,${imageData}`;
-                } else if (target.src.includes('jpeg')) {
-                  target.src = `data:image/gif;base64,${imageData}`;
-                }
-              }}
-            />
-          )}
-          <AvatarFallback>
-            {getInitials(displayName)}
-          </AvatarFallback>
-        </Avatar>
+      {/* Comment Header - All inline */}
+      <div className="gba:flex gba:items-center gba:gap-3 gba:mb-3 gba:flex-wrap">
+        {/* Enhanced Employee Display */}
+        <div className="gba:flex-shrink-0">
+          <EnhancedEmployeeDisplay
+            userId={comment.authorId || 'unknown'}
+            displayName={displayName}
+            employeeData={employeeData}
+            testId={`comment-author-${comment.id}`}
+            showTooltip={true}
+          />
+        </div>
+        
+        {/* Timestamp */}
+        <div className="gba:flex gba:items-center gba:gap-1.5 gba:text-xs gba:text-slate-500">
+          <ClockIcon className="gba:w-3.5 gba:h-3.5" />
+          <time dateTime={comment.createdAt}>
+            {formatTimeAgo(comment.createdAt)}
+          </time>
+        </div>
+        
+        {/* Public Comment Badge */}
+        <Badge 
+          variant="outline"
+          className="gba:text-xs gba:gap-1.5 gba:px-2.5 gba:py-1 gba:font-medium gba:shadow-sm gba:bg-green-50 gba:text-green-700 gba:border-green-200"
+          data-testid={`comment-visibility-${comment.id}`}
+        >
+          <EyeIcon className="gba:w-3.5 gba:h-3.5" />
+          Public
+        </Badge>
       </div>
-
-      {/* Comment Content */}
-      <div className="gba:flex-1 gba:min-w-0">
-        {/* Header */}
-        <div className="gba:flex-1">
-          <div className="gba:flex gba:items-center gba:gap-2 gba:mb-1 gba:flex-wrap">
-            <span 
-              className="gba:text-sm gba:font-medium gba:cursor-pointer hover:gba:text-blue-600 gba:transition-colors"
-              onClick={handleEmployeeClick}
-              title={comment.authorId && comment.authorId !== 'unknown' && employeeData?.id ? "Click to view employee profile" : undefined}
-              data-testid={`comment-author-${comment.id}`}
-            >
-              {displayName}
-            </span>
-            <span 
-              className="gba:text-xs"
-              style={{ color: 'var(--nw-muted-foreground)' }}
-            >
-              {formatTimeAgo(comment.createdAt)}
-            </span>
-            {/* Public Comment Badge */}
-            <Badge 
-              variant="outline"
-              className="gba:text-xs gba:gap-1"
-              data-testid={`comment-visibility-${comment.id}`}
-            >
-              <EyeIcon className="gba:w-3 gba:h-3" />
-              Public
-            </Badge>
-          </div>
-
-          <p className="gba:text-sm">{comment.body}</p>
+      
+      {/* Comment Body */}
+      <div className="gba:ml-12 gba:pl-3">
+        <div className="gba:relative gba:bg-white gba:rounded-lg gba:p-3 gba:shadow-sm gba:border gba:border-slate-200/60">
+          {/* Speech bubble arrow */}
+          <div className="gba:absolute gba:-left-2 gba:top-3 gba:w-0 gba:h-0 gba:border-t-[6px] gba:border-t-transparent gba:border-b-[6px] gba:border-b-transparent gba:border-r-[8px] gba:border-r-white"></div>
+          <div className="gba:absolute gba:-left-2.5 gba:top-3 gba:w-0 gba:h-0 gba:border-t-[6px] gba:border-t-transparent gba:border-b-[6px] gba:border-b-transparent gba:border-r-[8px] gba:border-r-slate-200/60"></div>
+          
+          <p className="gba:text-sm gba:text-slate-700 gba:leading-relaxed gba:m-0">
+            {comment.body}
+          </p>
         </div>
       </div>
     </div>
@@ -185,14 +149,17 @@ const CommentForm: React.FC<{
 
   return (
     <div className="gba:space-y-4">
-      <Textarea
-        placeholder="Enter your comment..."
-        value={newComment}
-        onChange={(e) => setNewComment(e.target.value)}
-        onKeyDown={handleKeyDown}
-        rows={3}
-        data-testid="comment-textarea"
-      />
+      <div className="gba:relative">
+        <Textarea
+          placeholder="Enter your comment..."
+          value={newComment}
+          onChange={(e) => setNewComment(e.target.value)}
+          onKeyDown={handleKeyDown}
+          rows={3}
+          className="gba:resize-none gba:border-slate-200 gba:bg-slate-50/50 focus:gba:bg-white gba:transition-colors gba:duration-200 gba:rounded-lg gba:shadow-sm focus:gba:shadow-md"
+          data-testid="comment-textarea"
+        />
+      </div>
       
       <div className="gba:flex gba:justify-end">
         <Button 
@@ -307,7 +274,7 @@ export const RequestComments: React.FC<RequestCommentsProps> = ({
               <Spinner size="lg" />
             </div>
           ) : visibleComments.length > 0 ? (
-            <div className="gba:space-y-4 gba:max-h-80 gba:overflow-y-auto">
+            <div className="gba:space-y-4 gba:max-h-96 gba:overflow-y-auto gba:pr-2 gba:scrollbar-thin gba:scrollbar-thumb-slate-300 gba:scrollbar-track-slate-100">
               {visibleComments
                 .sort((a, b) => {
                   const dateA = new Date(a.createdAt);
@@ -323,20 +290,23 @@ export const RequestComments: React.FC<RequestCommentsProps> = ({
                 ))}
             </div>
           ) : (
-            <div 
-              className="gba:text-center gba:py-8"
-              style={{ color: 'var(--nw-muted-foreground)' }}
-            >
-              <ChatCircle className="gba:w-12 gba:h-12 gba:mx-auto gba:mb-2 gba:opacity-50" />
-              <p>No comments yet</p>
+            <div className="gba:text-center gba:py-12 gba:px-6">
+              <div className="gba:bg-gradient-to-br gba:from-slate-100 gba:to-slate-50 gba:rounded-full gba:w-20 gba:h-20 gba:mx-auto gba:mb-4 gba:flex gba:items-center gba:justify-center gba:shadow-inner">
+                <ChatCircle className="gba:w-8 gba:h-8 gba:text-slate-400" />
+              </div>
+              <h4 className="gba:text-sm gba:font-medium gba:text-slate-600 gba:mb-1">No comments yet</h4>
+              <p className="gba:text-xs gba:text-slate-500">Be the first to add a comment to this request</p>
             </div>
           )}
         </div>
 
         {/* Add Comment Form */}
-        <Separator className="gba:my-6" />
+        <Separator className="gba:my-6 gba:bg-gradient-to-r gba:from-transparent gba:via-slate-200 gba:to-transparent" />
         <div className="gba:space-y-4">
-          <h4 className="gba:text-sm gba:font-semibold">Add Comment</h4>
+          <div className="gba:flex gba:items-center gba:gap-2">
+            <PaperPlaneTilt className="gba:w-4 gba:h-4 gba:text-slate-600" />
+            <h4 className="gba:text-sm gba:font-semibold gba:text-slate-700">Add Comment</h4>
+          </div>
           
           <CommentForm
             onSubmit={handlePostComment}

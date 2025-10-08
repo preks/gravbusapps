@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
+import { EnhancedEmployeeDisplay } from '../../../components/shared';
 
 // Import nw-design-system components
 import { 
@@ -10,7 +11,6 @@ import {
   Badge,
   Separator,
   Progress,
-  Avatar, AvatarFallback,
   Textarea,
   Alert,
   Spinner,
@@ -44,13 +44,13 @@ import {
 import type { SubmittedRequest } from 'packages/services-plus-core';
 import { useTicketDetail } from '../hooks/useTicketDetail';
 import { useTicketActions } from '../hooks/useTicketActions';
-import { EmployeeDisplayName } from './EmployeeDisplayName';
 import { useEmployeeNamesBatch } from '../../../hooks/useEmployeeNamesBatch';
 import { formatRequestId, getSLAStatus } from '../../../utils';
 import { createConductorWorkflowEngine } from '../../../services';
 import { DynamicFormGenerator } from '../../../components/DynamicFormGenerator';
 import { DynamicFormField, DynamicFormValues } from '../../../types/flowTemplate';
 import { Step0DataRenderer } from '../../../components/shared/Step0DataRenderer';
+import { formatDate, formatDateTime, formatTime } from '../../../config/dateTimeConfig';
 
 const { Text } = Typography;
 
@@ -80,6 +80,7 @@ const COMMENT_VISIBILITY_CONFIG = {
     color: 'gba:text-green-700 gba:bg-green-50 gba:border-green-200'
   }
 } as const;
+
 
 // Status configuration with Phosphor icons - updated for ALL original API status values
 const STATUS_CONFIG = {
@@ -167,22 +168,33 @@ export const TaskRecord: React.FC<TaskRecordProps> = ({
     }
   });
 
-  // Batch fetch employee names for all comment authors
-  const allCommentAuthorIds = useMemo(() => {
-    if (!ticket?.comments) return [];
+  // Batch fetch employee names for all comment authors and assignment users
+  const allUserIds = useMemo(() => {
+    if (!ticket) return [];
     
     const userIds: string[] = [];
+    
+    // Add comment authors
+    if (ticket.comments) {
     for (const comment of ticket.comments) {
       const authorId = comment.authorId;
       if (authorId) userIds.push(authorId);
     }
-    return userIds;
-  }, [ticket?.comments]);
+    }
+    
+    // Add assignment users
+    if (ticket.assignedToUserId) userIds.push(ticket.assignedToUserId);
+    if (ticket.claimedByUserId) userIds.push(ticket.claimedByUserId);
+    if (ticket.flowInitiatedBy) userIds.push(ticket.flowInitiatedBy);
+    
+    // Remove duplicates
+    return [...new Set(userIds)];
+  }, [ticket?.comments, ticket?.assignedToUserId, ticket?.claimedByUserId, ticket?.flowInitiatedBy]);
 
-  const { displayNames: batchedDisplayNames } = useEmployeeNamesBatch({
-    userIds: allCommentAuthorIds,
+  const { displayNames: batchedDisplayNames, employees: batchedEmployees } = useEmployeeNamesBatch({
+    userIds: allUserIds,
     accessToken,
-    enabled: allCommentAuthorIds.length > 0,
+    enabled: allUserIds.length > 0,
   });
 
   // Calculate KPI cards data
@@ -233,7 +245,7 @@ export const TaskRecord: React.FC<TaskRecordProps> = ({
           trendIcon: 'none'
         },
         subtitle: slaStatus && ticket.dueDate ? 
-          `Due ${new Date(ticket.dueDate).toLocaleDateString()}` : 
+          `Due ${formatDate(ticket.dueDate)}` : 
           'No deadline set',
       },
       {
@@ -247,7 +259,7 @@ export const TaskRecord: React.FC<TaskRecordProps> = ({
           trendIcon: ageInHours > 72 ? 'down' : ageInHours > 24 ? 'none' : 'up',
           badgeVariant: ageInHours > 72 ? 'destructive' : ageInHours > 24 ? 'warning' : 'success'
         },
-        subtitle: `Since ${createdAt.toLocaleDateString()}`,
+        subtitle: `Since ${formatDate(createdAt)}`,
       },
       {
         id: 'comments-count',
@@ -729,21 +741,21 @@ export const TaskRecord: React.FC<TaskRecordProps> = ({
                     key: 'created',
                     label: 'Created',
                     children: ticket.startedAt 
-                      ? new Date(ticket.startedAt).toLocaleString() 
+                      ? formatDateTime(ticket.startedAt) 
                       : 'Unknown',
                   },
                   {
                     key: 'updated',
                     label: 'Last Updated',
                     children: ticket.updatedAt 
-                      ? new Date(ticket.updatedAt).toLocaleString() 
+                      ? formatDateTime(ticket.updatedAt) 
                       : 'Not updated',
                   },
                   {
                     key: 'dueDate',
                     label: 'Due Date',
                     children: ticket.dueDate 
-                      ? new Date(ticket.dueDate).toLocaleString()
+                      ? formatDateTime(ticket.dueDate)
                       : 'Not set',
                   },
                   {
@@ -780,7 +792,7 @@ export const TaskRecord: React.FC<TaskRecordProps> = ({
                   />
                   {ticket.dueDate && (
                     <p className="gba:text-xs gba:text-muted-foreground">
-                      Due: {new Date(ticket.dueDate).toLocaleDateString()} at {new Date(ticket.dueDate).toLocaleTimeString()}
+                      Due: {formatDate(ticket.dueDate)} at {formatTime(ticket.dueDate)}
                     </p>
                   )}
                 </div>
@@ -938,7 +950,7 @@ export const TaskRecord: React.FC<TaskRecordProps> = ({
                 {(() => {
                   const comments = getTicketComments();
                   return comments.length > 0 ? (
-                  <div className="gba:space-y-4 gba:max-h-80 gba:overflow-y-auto">
+                  <div className="gba:space-y-4 gba:max-h-96 gba:overflow-y-auto gba:pr-2 gba:scrollbar-thin gba:scrollbar-thumb-slate-300 gba:scrollbar-track-slate-100">
                     {comments
                       .sort((a, b) => {
                         const dateA = new Date(a.createdAt || a.timestamp);
@@ -952,64 +964,85 @@ export const TaskRecord: React.FC<TaskRecordProps> = ({
                         const VisibilityIcon = visibilityConfig.icon;
                         
                         return (
-                      <div key={comment.id} className="gba:flex gba:gap-3 gba:p-4 gba:bg-muted/30 gba:rounded-lg">
-                        <Avatar className="gba:flex-shrink-0">
-                          <AvatarFallback>
-                            <UserIcon className="gba:w-4 gba:h-4" />
-                          </AvatarFallback>
-                        </Avatar>
-                        <div className="gba:flex-1">
-                          <div className="gba:flex gba:items-center gba:gap-2 gba:mb-1 gba:flex-wrap">
-                            <span className="gba:text-sm gba:font-medium">
-                              <EmployeeDisplayName
-                                userId={comment.authorId}
-                                accessToken={accessToken}
-                                showIcon={false}
-                                fallback="Unknown User"
+                      <div key={comment.id} className="gba:group gba:relative gba:p-4 gba:bg-gradient-to-r gba:from-slate-50/80 gba:to-slate-50/40 gba:rounded-xl gba:border gba:border-slate-200/60 hover:gba:border-slate-300/80 gba:transition-all gba:duration-200 hover:gba:shadow-sm">
+                        {/* Comment Header - All inline */}
+                        <div className="gba:flex gba:items-center gba:gap-3 gba:mb-3 gba:flex-wrap">
+                          {/* Enhanced Employee Display */}
+                          <div className="gba:flex-shrink-0">
+                            <EnhancedEmployeeDisplay
+                              userId={comment.authorId || 'unknown'}
+                              displayName={batchedDisplayNames.get(comment.authorId) || 'Unknown User'}
+                              employeeData={batchedEmployees.get(comment.authorId)}
                                 testId={`comment-author-${comment.id}`}
-                                prefetchedDisplayName={batchedDisplayNames.get(comment.authorId)}
-                              />
-                            </span>
-                            <span className="gba:text-xs gba:text-muted-foreground">
-                              {new Date(comment.createdAt || comment.timestamp).toLocaleString()}
-                            </span>
+                              showTooltip={true}
+                            />
+                          </div>
+                          
+                          {/* Timestamp */}
+                          <div className="gba:flex gba:items-center gba:gap-1.5 gba:text-xs gba:text-slate-500">
+                            <ClockIcon className="gba:w-3.5 gba:h-3.5" />
+                            <time dateTime={comment.createdAt || comment.timestamp}>
+                              {formatDateTime(comment.createdAt || comment.timestamp)}
+                            </time>
+                          </div>
+                          
                             {/* Comment Visibility Badge */}
                             <Badge 
                               variant={visibilityConfig.badgeVariant}
-                              className="gba:text-xs gba:gap-1"
+                            className={`gba:text-xs gba:gap-1.5 gba:px-2.5 gba:py-1 gba:font-medium gba:shadow-sm ${visibilityConfig.color}`}
                               data-testid={`comment-visibility-${comment.id}`}
                             >
-                              <VisibilityIcon className="gba:w-3 gba:h-3" />
+                            <VisibilityIcon className="gba:w-3.5 gba:h-3.5" />
                               {visibilityConfig.label}
                             </Badge>
                           </div>
-                          <p className="gba:text-sm">{comment.body || comment.comment || comment.message}</p>
+                        
+                        {/* Comment Body */}
+                        <div className="gba:ml-12 gba:pl-3">
+                          <div className="gba:relative gba:bg-white gba:rounded-lg gba:p-3 gba:shadow-sm gba:border gba:border-slate-200/60">
+                            {/* Speech bubble arrow */}
+                            <div className="gba:absolute gba:-left-2 gba:top-3 gba:w-0 gba:h-0 gba:border-t-[6px] gba:border-t-transparent gba:border-b-[6px] gba:border-b-transparent gba:border-r-[8px] gba:border-r-white"></div>
+                            <div className="gba:absolute gba:-left-2.5 gba:top-3 gba:w-0 gba:h-0 gba:border-t-[6px] gba:border-t-transparent gba:border-b-[6px] gba:border-b-transparent gba:border-r-[8px] gba:border-r-slate-200/60"></div>
+                            
+                            <p className="gba:text-sm gba:text-slate-700 gba:leading-relaxed gba:m-0">
+                              {comment.body || comment.comment || comment.message}
+                            </p>
+                          </div>
                         </div>
                       </div>
                         );
                       })}
                   </div>
                 ) : (
-                  <div className="gba:text-center gba:py-8 gba:text-muted-foreground">
-                    <ChatCircleIcon className="gba:w-12 gba:h-12 gba:mx-auto gba:mb-2 gba:opacity-50" />
-                    <p>No comments yet</p>
+                  <div className="gba:text-center gba:py-12 gba:px-6">
+                    <div className="gba:bg-gradient-to-br gba:from-slate-100 gba:to-slate-50 gba:rounded-full gba:w-20 gba:h-20 gba:mx-auto gba:mb-4 gba:flex gba:items-center gba:justify-center gba:shadow-inner">
+                      <ChatCircleIcon className="gba:w-8 gba:h-8 gba:text-slate-400" />
+                    </div>
+                    <h4 className="gba:text-sm gba:font-medium gba:text-slate-600 gba:mb-1">No comments yet</h4>
+                    <p className="gba:text-xs gba:text-slate-500">Be the first to add a comment to this ticket</p>
                   </div>
                 );
                 })()}
               </div>
 
               {/* Add Comment Form */}
-              <Separator className="gba:my-6" />
+              <Separator className="gba:my-6 gba:bg-gradient-to-r gba:from-transparent gba:via-slate-200 gba:to-transparent" />
               <div className="gba:space-y-4">
-                <h4 className="gba:text-sm gba:font-semibold">Add Comment</h4>
+                <div className="gba:flex gba:items-center gba:gap-2">
+                  <PaperPlaneRightIcon className="gba:w-4 gba:h-4 gba:text-slate-600" />
+                  <h4 className="gba:text-sm gba:font-semibold gba:text-slate-700">Add Comment</h4>
+                </div>
                 
+                <div className="gba:relative">
                 <Textarea
                   placeholder="Enter your comment..."
                   value={newComment}
                   onChange={(e) => setNewComment(e.target.value)}
                   rows={3}
+                    className="gba:resize-none gba:border-slate-200 gba:bg-slate-50/50 focus:gba:bg-white gba:transition-colors gba:duration-200 gba:rounded-lg gba:shadow-sm focus:gba:shadow-md"
                   data-testid="comment-textarea"
                 />
+                </div>
                 
                 <div className="gba:flex gba:items-center gba:gap-3 gba:justify-between">
                   {/* Comment Visibility Selector - Left Side */}
@@ -1088,52 +1121,58 @@ export const TaskRecord: React.FC<TaskRecordProps> = ({
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <Descriptions
-                column={1}
-                items={[
-                  {
-                    key: 'assignee',
-                    label: 'Assigned To',
-                    children: ticket.assignedToUserId ? (
-                      <EmployeeDisplayName
+              <div className="gba:space-y-4">
+                {/* Assigned To Row */}
+                <div className="gba:flex gba:items-center gba:gap-4">
+                  <div className="gba:w-24 gba:text-sm gba:font-medium gba:text-muted-foreground gba:flex-shrink-0">
+                    Assigned To:
+                  </div>
+                  <div className="gba:flex gba:items-center gba:gap-2 gba:flex-1">
+                    {ticket.assignedToUserId ? (
+                      <EnhancedEmployeeDisplay
                         userId={ticket.assignedToUserId}
-                        accessToken={accessToken}
-                        showIcon={true}
-                        fallback={ticket.assignedToUserName || "Assigned User"}
+                        displayName={batchedDisplayNames.get(ticket.assignedToUserId) || ticket.assignedToUserName || "Assigned User"}
+                        employeeData={batchedEmployees.get(ticket.assignedToUserId)}
                         testId="task-assignee"
+                        showTooltip={true}
                       />
                     ) : ticket.claimedByUserId ? (
-                      <div className="gba:flex gba:items-center gba:gap-2">
-                        <EmployeeDisplayName
+                      <>
+                        <EnhancedEmployeeDisplay
                           userId={ticket.claimedByUserId}
-                          accessToken={accessToken}
-                          showIcon={true}
-                          fallback={ticket.claimedByUserName || "Claimed User"}
+                          displayName={batchedDisplayNames.get(ticket.claimedByUserId) || ticket.claimedByUserName || "Claimed User"}
+                          employeeData={batchedEmployees.get(ticket.claimedByUserId)}
                           testId="task-claimed-by"
+                          showTooltip={true}
                         />
                         <Badge variant="secondary">Claimed</Badge>
-                      </div>
+                      </>
                     ) : (
                       <Badge variant="outline">Unassigned</Badge>
-                    ),
-                  },
-                  {
-                    key: 'requester',
-                    label: 'Requested By',
-                    children: ticket.flowInitiatedBy ? (
-                      <EmployeeDisplayName
+                    )}
+                  </div>
+                </div>
+
+                {/* Requested By Row */}
+                <div className="gba:flex gba:items-center gba:gap-4">
+                  <div className="gba:w-24 gba:text-sm gba:font-medium gba:text-muted-foreground gba:flex-shrink-0">
+                    Requested By:
+                  </div>
+                  <div className="gba:flex gba:items-center gba:gap-2 gba:flex-1">
+                    {ticket.flowInitiatedBy ? (
+                      <EnhancedEmployeeDisplay
                         userId={ticket.flowInitiatedBy}
-                        accessToken={accessToken}
-                        showIcon={true}
-                        fallback={ticket.requesterName || "Unknown User"}
+                        displayName={batchedDisplayNames.get(ticket.flowInitiatedBy) || ticket.requesterName || "Unknown User"}
+                        employeeData={batchedEmployees.get(ticket.flowInitiatedBy)}
                         testId="task-requester"
+                        showTooltip={true}
                       />
                     ) : (
                       <span className="gba:text-muted-foreground">Unknown</span>
-                    ),
-                  }
-                ]}
-              />
+                    )}
+                  </div>
+                </div>
+              </div>
 
               {/* Quick Actions */}
               <Separator className="gba:my-4" />
@@ -1261,7 +1300,7 @@ export const TaskRecord: React.FC<TaskRecordProps> = ({
                       {
                         key: 'created',
                         label: 'Created',
-                        children: new Date(fullRequest.createdAt).toLocaleDateString(),
+                        children: formatDate(fullRequest.createdAt),
                       }
                     ]}
                   />
@@ -1438,13 +1477,13 @@ export const TaskRecord: React.FC<TaskRecordProps> = ({
                               {step.startedAt && (
                                 <span className="gba:flex gba:items-center gba:gap-1">
                                   <ClockIcon className="gba:w-3 gba:h-3" />
-                                  Started: {new Date(step.startedAt).toLocaleDateString()}
+                                  Started: {formatDate(step.startedAt)}
                                 </span>
                               )}
                               {step.finishedAt && (
                                 <span className="gba:flex gba:items-center gba:gap-1">
                                   <CheckCircleIcon className="gba:w-3 gba:h-3" />
-                                  Finished: {new Date(step.finishedAt).toLocaleDateString()}
+                                  Finished: {formatDate(step.finishedAt)}
                                 </span>
                               )}
                             </div>
@@ -1539,30 +1578,22 @@ export const TaskRecord: React.FC<TaskRecordProps> = ({
                               <div className="gba:flex gba:items-center gba:gap-1">
                                 <ClockIcon className="gba:w-3 gba:h-3" />
                                 <span className="gba:font-medium">When:</span>
-                                <span>{new Date(historyItem.changedAt).toLocaleString()}</span>
+                                <span>{formatDateTime(historyItem.changedAt)}</span>
                               </div>
                               <div className="gba:flex gba:items-center gba:gap-1">
                                 <UserIcon className="gba:w-3 gba:h-3" />
                                 <span className="gba:font-medium">By:</span>
-                                <EmployeeDisplayName
-                                  userId={historyItem.changedBy}
-                                  accessToken={accessToken}
-                                  showIcon={false}
-                                  fallback="Unknown User"
-                                  testId={`assignment-history-user-${index}`}
-                                />
+                                <span className="gba:text-sm">
+                                  {batchedDisplayNames.get(historyItem.changedBy) || 'Unknown User'}
+                                </span>
                               </div>
                               {historyItem.changedTo && historyItem.changedTo !== historyItem.changedBy && (
                                 <div className="gba:flex gba:items-center gba:gap-1">
                                   <ArrowClockwiseIcon className="gba:w-3 gba:h-3" />
                                   <span className="gba:font-medium">To:</span>
-                                  <EmployeeDisplayName
-                                    userId={historyItem.changedTo}
-                                    accessToken={accessToken}
-                                    showIcon={false}
-                                    fallback="Unknown User"
-                                    testId={`assignment-history-to-${index}`}
-                                  />
+                                  <span className="gba:text-sm">
+                                    {batchedDisplayNames.get(historyItem.changedTo) || 'Unknown User'}
+                                  </span>
                                 </div>
                               )}
                             </div>
@@ -1576,7 +1607,7 @@ export const TaskRecord: React.FC<TaskRecordProps> = ({
                 <div className="gba:mt-6 gba:pt-4 gba:border-t gba:text-xs gba:text-muted-foreground gba:flex gba:justify-between">
                   <span>Total Actions: {(ticket as any).assignment.assignmentHistory.length}</span>
                   <span>
-                    First Action: {new Date((ticket as any).assignment.assignmentHistory[(ticket as any).assignment.assignmentHistory.length - 1]?.changedAt).toLocaleDateString()}
+                    First Action: {formatDate((ticket as any).assignment.assignmentHistory[(ticket as any).assignment.assignmentHistory.length - 1]?.changedAt)}
                   </span>
                 </div>
               </CardContent>
