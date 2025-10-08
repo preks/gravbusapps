@@ -29,9 +29,10 @@ import {
   ClockCounterClockwise,
   Target,
   Hash,
+  TextAlignLeft,
   Icon as PhosphorIcon
 } from '@phosphor-icons/react';
-import { Task } from '../types/TaskTypes';
+import { Task } from '@/common/components/common-relations/detail-sheets/task-detail-sheet';
 import { 
   getTaskStatusBadgeVariant,
   getTaskPriorityBadgeVariant,
@@ -95,6 +96,13 @@ export const TaskDetails: React.FC<TaskDetailsProps> = ({
 
   const getInitials = (firstName: string, lastName: string): string => {
     return `${firstName.charAt(0)}${lastName.charAt(0)}`.toUpperCase();
+  };
+
+  // Simple truncation to first 7 characters + "..."
+  const getTruncatedText = (text: string) => {
+    if (!text) return text;
+    if (text.length <= 7) return text;
+    return text.substring(0, 7) + '...';
   };
 
   // Calculate task progress based on status
@@ -264,28 +272,35 @@ export const TaskDetails: React.FC<TaskDetailsProps> = ({
                 <Tooltip>
                   <TooltipTrigger asChild>
                     <div 
-                      className="gba:cursor-pointer gba:hover:bg-accent gba:p-2 gba:rounded gba:transition-colors gba:w-fit"
+                      className="gba:cursor-pointer gba:hover:bg-accent gba:p-2 gba:rounded gba:transition-colors gba:max-w-[280px] gba:w-full"
                       onClick={handleReferenceClick}
                     >
-                      <div className="gba:flex gba:items-center gba:gap-2">
-                        <div>
-                          <div className="gba:text-sm gba:font-medium gba:mb-1">{task.reference.name || 'Unknown Reference'}</div>
-                          <div className="gba:flex gba:items-center gba:gap-2">
-                            <Badge variant={getReferenceTypeBadgeVariant(task.reference.type)} className="gba:text-xs">
+                      <div className="gba:flex gba:items-center gba:gap-2 gba:min-w-0 gba:w-full">
+                        <div className="gba:min-w-0 gba:flex-1">
+                          <div className="gba:text-sm gba:font-medium gba:mb-1 gba:min-w-0 gba:whitespace-nowrap" title={task.reference.name || 'Unknown Reference'}>
+                            {getTruncatedText(task.reference.name || 'Unknown Reference')}
+                          </div>
+                          <div className="gba:flex gba:items-center gba:gap-2 gba:min-w-0">
+                            <Badge variant={getReferenceTypeBadgeVariant(task.reference.type)} className="gba:text-xs gba:shrink-0">
                               {task.reference.type?.charAt(0).toUpperCase() + (task.reference.type?.slice(1) || '')}
                             </Badge>
                             {task.reference.description && (
-                              <span className="gba:text-xs gba:text-muted-foreground">
+                              <span className="gba:text-xs gba:text-muted-foreground gba:truncate gba:min-w-0 gba:flex-1" title={task.reference.description}>
                                 {task.reference.description}
                               </span>
                             )}
                           </div>
                         </div>
-                        <ArrowSquareOut size={14} className="gba:text-muted-foreground" />
+                        <ArrowSquareOut size={14} className="gba:text-muted-foreground gba:shrink-0" />
                       </div>
                     </div>
                   </TooltipTrigger>
-                  <TooltipContent>View {task.reference.type} record</TooltipContent>
+                  <TooltipContent>
+                    <div className="gba:max-w-xs">
+                      <div className="gba:font-medium">{task.reference.name || 'Unknown Reference'}</div>
+                      <div className="gba:text-xs gba:text-muted-foreground gba:mt-1">Click to view {task.reference.type} record</div>
+                    </div>
+                  </TooltipContent>
                 </Tooltip>
               ) : (
                 <span className="gba:text-sm gba:text-muted-foreground">No reference</span>
@@ -346,6 +361,19 @@ export const TaskDetails: React.FC<TaskDetailsProps> = ({
                 {formatDateTime(task.createdAt)}
               </span>
             </FieldRow>
+
+            {/* Description */}
+            {task.description && (
+              <FieldRow 
+                icon={TextAlignLeft} 
+                label="Description" 
+                testId={`${DATA_TEST_ID_PREFIX}-description-field`}
+              >
+                <p className="gba:text-sm gba:text-foreground gba:whitespace-pre-wrap">
+                  {task.description}
+                </p>
+              </FieldRow>
+            )}
 
             {/* Updated */}
             <FieldRow 

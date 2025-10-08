@@ -31,12 +31,10 @@ export const useOpportunityStatusCatalog = (
 
   const loadOpportunityStatuses = useCallback(async () => {
     if (!context.accessToken) {
-      console.log("No access token available for opportunity statuses");
       setIsLoading(false);
       return;
     }
 
-    console.log("Loading opportunity statuses from catalog...");
     setIsLoading(true);
     setError(null);
 
@@ -68,7 +66,6 @@ export const useOpportunityStatusCatalog = (
 
         setOpportunityStatusOptions(mappedOptions);
       } else {
-        console.log("No opportunity status data received");
         setOpportunityStatusOptions([]);
       }
     } catch (err) {

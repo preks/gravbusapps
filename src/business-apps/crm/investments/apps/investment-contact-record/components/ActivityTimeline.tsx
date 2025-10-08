@@ -15,6 +15,7 @@ import { ActivityDeletePopup } from '@/common/components/common-relations/popups
 import { useProcessCompletion } from '@/common/hooks/useProcessCompletion';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 import { NotesSection } from './NotesSection';
+
 import {
   useGetInvestmentActivitiesByContactId,
   useGetInvestmentTasksByContactId,

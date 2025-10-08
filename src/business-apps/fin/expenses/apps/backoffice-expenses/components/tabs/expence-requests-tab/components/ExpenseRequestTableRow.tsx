@@ -1,13 +1,13 @@
 import React from 'react';
-import { TableCell, TableRow, Checkbox } from '@newwork/nw-design-system';
+import { TableCell, TableRow, Checkbox, Badge } from '@newwork/nw-design-system';
 import { formatNumberFunction, formatDate, getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
 import { getExpenseRequestStatusDisplay } from '../../../../utils/utils';
-import Pill from '@/components/pill/Pill';
 import { ExpenseData } from '../../../../types';
 import ExpenseRequestTableActions from './ExpenseRequestTableActions';
 
 interface ExpenseRequestTableRowProps {
   record: ExpenseData;
+  accessToken: string;
   onRowClick: (record: ExpenseData) => void;
   onNavigateToExpenseRequest: (record: ExpenseData) => void;
   onDownloadAccountingNote: (record: ExpenseData) => void;
@@ -20,6 +20,7 @@ interface ExpenseRequestTableRowProps {
 
 const ExpenseRequestTableRow: React.FC<ExpenseRequestTableRowProps> = ({
   record,
+  accessToken,
   onRowClick,
   onNavigateToExpenseRequest,
   onDownloadAccountingNote,
@@ -38,7 +39,7 @@ const ExpenseRequestTableRow: React.FC<ExpenseRequestTableRowProps> = ({
         {onSelectRecord && (
           <Checkbox
             checked={isSelected}
-            onCheckedChange={(checked) => onSelectRecord(record, checked as boolean)}
+            onCheckedChange={(checked) => onSelectRecord(record, checked === true)}
             onClick={(e) => e.stopPropagation()}
             data-testid={`select-record-checkbox-${record.id}`}
           />
@@ -47,6 +48,7 @@ const ExpenseRequestTableRow: React.FC<ExpenseRequestTableRowProps> = ({
       <TableCell className="gba:w-[60px]">
         <ExpenseRequestTableActions
           record={record}
+          accessToken={accessToken}
           onNavigateToExpenseRequest={onNavigateToExpenseRequest}
           onDownloadAccountingNote={onDownloadAccountingNote}
           onTriggerCSV={onTriggerCSV}
@@ -96,10 +98,14 @@ const ExpenseRequestTableRow: React.FC<ExpenseRequestTableRowProps> = ({
       </TableCell>
       <TableCell>
         <div data-testid={`expense-request-status-${record.id}`}>
-          <Pill
-            label={getExpenseRequestStatusDisplay(record.status).label}
-            type={getExpenseRequestStatusDisplay(record.status).type}
-          />
+          {(() => {
+            const status = getExpenseRequestStatusDisplay(record.status);
+            return (
+              <Badge variant={(status as any).badgeVariant || 'outline'} data-testid="expense-request-status-badge">
+                {status.label}
+              </Badge>
+            );
+          })()}
         </div>
       </TableCell>
       <TableCell className="gba:text-right">

@@ -151,7 +151,7 @@ export const useOpportunityTrendData = (
         // Simple, clean query for debugging
         const query = `
           query GetOpportunityTrendData {
-            currentPeriodOpportunities: OpportunityAggregate(
+            currentPeriodOpportunities: InvestmentOpportunityAggregate(
               where: {
                 isDeleted: {_eq: false}
                 createdAt: {_gte: "${currentPeriodStart}", _lt: "${currentPeriodEnd}"}
@@ -163,7 +163,7 @@ export const useOpportunityTrendData = (
               } 
             }
             
-            currentPeriodLeads: LeadAggregate(
+            currentPeriodLeads: InvestmentLeadAggregate(
               where: {
                 isDeleted: {_eq: false}
                 createdAt: {_gte: "${currentPeriodStart}", _lt: "${currentPeriodEnd}"}
@@ -172,7 +172,7 @@ export const useOpportunityTrendData = (
               aggregate { count }
             }
             
-            previousPeriodOpportunities: OpportunityAggregate(
+            previousPeriodOpportunities: InvestmentOpportunityAggregate(
               where: {
                 isDeleted: {_eq: false}
                 createdAt: {_gte: "${previousPeriodStart}", _lt: "${previousPeriodEnd}"}
@@ -184,7 +184,7 @@ export const useOpportunityTrendData = (
               } 
             }
             
-            previousPeriodLeads: LeadAggregate(
+            previousPeriodLeads: InvestmentLeadAggregate(
               where: {
                 isDeleted: {_eq: false}
                 createdAt: {_gte: "${previousPeriodStart}", _lt: "${previousPeriodEnd}"}
@@ -193,7 +193,7 @@ export const useOpportunityTrendData = (
               aggregate { count }
             }
             
-            currentPeriodWonOpportunities: OpportunityAggregate(
+            currentPeriodWonOpportunities: InvestmentOpportunityAggregate(
               where: {
                 isDeleted: {_eq: false}
                 createdAt: {_gte: "${currentPeriodStart}", _lt: "${currentPeriodEnd}"}

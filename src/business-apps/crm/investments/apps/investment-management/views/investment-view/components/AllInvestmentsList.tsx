@@ -19,7 +19,7 @@ import { DataContainer } from "@/components/layout/dataContainer/DataContainer";
 import { AppAction } from "@/components/app-action/AppAction";
 import { AppActionButton } from "@/components/app-action-button/AppActionButton";
 import { FlowContextName } from "@/common/types/FlowRegistryTypes";
-import { Building2, Calendar, ChevronUp, ChevronDown, PlusSquare } from "lucide-react";
+import { Building2, Calendar, ChevronUp, ChevronDown, Plus } from "lucide-react";
 import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils';
 import { formatDate } from "@/common/data/investment";
 import { formatCurrencyParts } from '@/common/utils/numberFormatter';
@@ -27,6 +27,7 @@ import { ColumnConfig } from "@/components/dataController";
 import { useInvestmentListController } from "../hooks/useInvestmentListController";
 import { useAllInvestmentsFilters } from "../hooks/useAllInvestmentsFilters";
 import { OwnerDisplay } from "../../../../../components/shared";
+import { getTranslationFromI18nKeyAndLabel } from "@/common/utils/windowUtils";
 
 
 // Helper function to format group names for display
@@ -121,10 +122,6 @@ const AllInvestmentsList: React.FC<AllInvestmentsListProps> = (context) => {
     { id: "investment", label: "Investment", visible: true },
     { id: "group", label: "Group", visible: true },
     { id: "type", label: "Type", visible: true },
-    { id: "initialInvestment", label: "Initial Investment", visible: true },
-    { id: "totalInvestment", label: "Total Investment", visible: true },
-    { id: "marketValue", label: "Market Value", visible: true },
-    { id: "performance", label: "Performance", visible: true },
     { id: "owner", label: "Owner", visible: true },
     { id: "status", label: "Status", visible: true },
     { id: "created", label: "Created", visible: true },
@@ -377,14 +374,14 @@ const AllInvestmentsList: React.FC<AllInvestmentsListProps> = (context) => {
             emptyStateBehavior="hide"
           >
             <Button
-              variant="ghost"
               size="sm"
+              variant="default"
               data-testid="all-investments-add-button"
               type="button"
-              className="gba:gap-1"
+              style={{ gap: 'var(--nw-spacing-xs)' }}
             >
-              <PlusSquare className="gba:w-4 gba:h-4" />
-              Add
+              <Plus size={16} />
+              {getTranslationFromI18nKeyAndLabel('investment:investment.addInvestment', 'Add Investment')}
             </Button>
           </AppAction>
         ),
@@ -411,18 +408,6 @@ const AllInvestmentsList: React.FC<AllInvestmentsListProps> = (context) => {
                 )}
                 {visibleColumns.includes('type') && (
                   <TableHead>Type</TableHead>
-                )}
-                {visibleColumns.includes('initialInvestment') && (
-                  <SortableTableHead field="initialInvestmentAmount" currentSortField={sortField} currentSortOrder={sortOrder} onSort={handleSortingChange}>Initial Investment</SortableTableHead>
-                )}
-                {visibleColumns.includes('totalInvestment') && (
-                  <SortableTableHead field="totalInvestmentAmount" currentSortField={sortField} currentSortOrder={sortOrder} onSort={handleSortingChange}>Total Investment</SortableTableHead>
-                )}
-                {visibleColumns.includes('marketValue') && (
-                  <SortableTableHead field="investmentMarketValue" currentSortField={sortField} currentSortOrder={sortOrder} onSort={handleSortingChange}>Market Value</SortableTableHead>
-                )}
-                {visibleColumns.includes('performance') && (
-                  <TableHead>Performance</TableHead>
                 )}
                 {visibleColumns.includes('owner') && (
                   <SortableTableHead field="ownerEmployee.displayName" currentSortField={sortField} currentSortOrder={sortOrder} onSort={handleSortingChange}>Owner</SortableTableHead>
@@ -457,55 +442,6 @@ const AllInvestmentsList: React.FC<AllInvestmentsListProps> = (context) => {
                   {visibleColumns.includes('type') && (
                     <TableCell>
                       <Badge variant="secondary">{investment.investmentType?.value || "Unknown"}</Badge>
-                    </TableCell>
-                  )}
-                  {visibleColumns.includes('initialInvestment') && (
-                    <TableCell className="gba:text-right">
-                      {renderAmount(investment.initialInvestmentAmount, investment.currency?.code)}
-                    </TableCell>
-                  )}
-                  {visibleColumns.includes('totalInvestment') && (
-                    <TableCell className="gba:text-right">
-                      {renderAmount(investment.totalInvestmentAmount, investment.currency?.code)}
-                    </TableCell>
-                  )}
-                  {visibleColumns.includes('marketValue') && (
-                    <TableCell className="gba:text-right">
-                      {renderAmount(investment.investmentMarketValue, investment.currency?.code)}
-                    </TableCell>
-                  )}
-                  {visibleColumns.includes('performance') && (
-                    <TableCell className="gba:text-right">
-                      {(() => {
-                        const currentValue = investment.investmentMarketValue || 0;
-                        const totalValue = investment.totalInvestmentAmount || 0;
-                        const performanceAmount = currentValue - totalValue;
-                        const performancePercentage = totalValue > 0 ? (performanceAmount / totalValue) * 100 : 0;
-                        const isZero = performancePercentage === 0;
-                        const isPositive = performancePercentage > 0;
-
-                        return (
-                          <div className="gba:flex gba:flex-col gba:items-end">
-                            <div className="gba:w-full gba:flex gba:justify-end gba:items-baseline">
-                              <span className={`gba:text-sm gba:[font-variant-numeric:tabular-nums] ${
-                                isZero ? 'gba:text-gray-500' : isPositive ? 'gba:text-green-600' : 'gba:text-red-600'
-                              }`}>
-                                {formatCurrencyParts(Math.abs(performanceAmount), { currency: investment.currency?.code, minimumFractionDigits: 0, maximumFractionDigits: 2 }).number}
-                              </span>
-                              <span className={`gba:text-xs gba:inline-block gba:text-right gba:shrink-0 gba:w-[5ch] ${
-                                isZero ? 'gba:text-gray-400' : isPositive ? 'gba:text-green-500' : 'gba:text-red-500'
-                              }`}>
-                                {formatCurrencyParts(Math.abs(performanceAmount), { currency: investment.currency?.code, minimumFractionDigits: 0, maximumFractionDigits: 2 }).symbol}
-                              </span>
-                            </div>
-                            <span className={`${
-                              isZero ? 'gba:text-gray-400' : isPositive ? 'gba:text-green-500' : 'gba:text-red-500'
-                            } gba:text-sm`}>
-                              ({isZero ? '' : isPositive ? '+' : '-'}{Math.abs(performancePercentage).toFixed(2)}%)
-                            </span>
-                          </div>
-                        );
-                      })()}
                     </TableCell>
                   )}
                   {visibleColumns.includes('owner') && (

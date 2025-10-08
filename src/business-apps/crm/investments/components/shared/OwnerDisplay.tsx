@@ -81,7 +81,7 @@ export const OwnerDisplay: React.FC<OwnerDisplayProps> = ({
       >
         {ownerEmployee.pictureThumbnail && (
           <AvatarImage
-            src={`data:image/gif;base64,${ownerEmployee.pictureThumbnail}`}
+            src={`data:image/jpeg;base64,${ownerEmployee.pictureThumbnail}`}
             alt={getOwnerName(ownerEmployee)}
           />
         )}

@@ -6,7 +6,9 @@ import {
   CardTitle,
   CardDescription,
   IconAvatar,
+  Badge,
 } from "@newwork/nw-design-system";
+import { getQualityLevelBadgeVariant } from "@/common/utils/badgeUtils";
 import {
   ChartConfig,
   ChartContainer,
@@ -17,12 +19,20 @@ import {
 } from "@newwork/nw-design-system";
 import { PieChart, Pie } from "recharts";
 import { ChartPieIcon } from "@phosphor-icons/react";
+import { getTranslationFromI18nKeyAndLabel } from "@/common/utils/windowUtils";
 
 export interface LeadSourceItem {
   source: string;
   value: number;
   percentage: number;
   color?: string;
+  // Quality indicators
+  qualityLevel?: 'high' | 'medium' | 'low';
+  qualityIndicator?: string;
+  qualityText?: string;
+  conversionRate?: number;
+  recentCount?: number;
+  revenue?: number;
 }
 
 export interface LeadSourceChartProps {
@@ -73,8 +83,25 @@ export const LeadSourceChart: React.FC<LeadSourceChartProps> = ({
     });
     return config as ChartConfig;
   }, [items]);
+
+  // Calculate flexible height based on number of sources and quality indicators
+  const getFlexibleHeight = useMemo(() => {
+    const baseChartHeight = 250; // Increased minimum chart height for bigger pie chart
+    const qualityIndicatorHeight = items.length * 44; // Each quality indicator row is ~44px
+    const headerHeight = 80; // Approximate header height
+    const paddingAndSpacing = 60; // Additional padding and spacing
+    
+    // For fewer sources, make chart significantly bigger to fill card better
+    const chartHeight = items.length <= 2 
+      ? Math.max(baseChartHeight, 350 - qualityIndicatorHeight) // Much larger chart for fewer sources
+      : items.length <= 4 
+        ? Math.max(baseChartHeight, 300 - qualityIndicatorHeight) // Medium-large chart
+        : baseChartHeight; // Standard chart for many sources
+    
+    return Math.max(250, chartHeight); // Never go below 250px (increased from 180px)
+  }, [items.length]);
   return (
-    <Card className="gba:h-full">
+    <Card className="gba:h-full gba:flex gba:flex-col">
       <CardHeader className="gba:flex gba:items-center gba:gap-3">
         <IconAvatar
           icon={ChartPieIcon}
@@ -84,23 +111,37 @@ export const LeadSourceChart: React.FC<LeadSourceChartProps> = ({
           decorative={true}
         />
         <div>
-          <CardTitle>Lead Sources - Open Leads</CardTitle>
-          <CardDescription>Distribution by source</CardDescription>
+          <CardTitle>
+            {getTranslationFromI18nKeyAndLabel(
+              'leadSources.monthlyOpenLeads',
+              'Lead Sources - Monthly Open Leads'
+            )}
+          </CardTitle>
+          <CardDescription>
+            {getTranslationFromI18nKeyAndLabel(
+              'leadSources.distributionBySource',
+              'Distribution by source'
+            )}
+          </CardDescription>
         </div>
       </CardHeader>
-      <CardContent>
+      <CardContent className="gba:flex-1 gba:flex gba:flex-col">
         {items && items.length > 0 ? (
-          <div className="gba:space-y-4">
+          <div className="gba:space-y-4 gba:flex-1 gba:flex gba:flex-col gba:justify-between">
             {/* Chart with center content */}
-            <div className="gba:relative gba:w-full gba:flex gba:justify-center">
-              <ChartContainer config={chartConfig} className="gba:w-full gba:h-[300px]">
+            <div className="gba:relative gba:w-full gba:flex gba:justify-center gba:flex-1 gba:items-center">
+              <ChartContainer 
+                config={chartConfig} 
+                className="gba:w-full" 
+                style={{ height: `${getFlexibleHeight}px` }}
+              >
                 <PieChart>
                   <Pie
                     data={chartData}
                     cx="50%"
                     cy="50%"
-                    innerRadius="60%"
-                    outerRadius="80%"
+                    innerRadius="65%"
+                    outerRadius="85%"
                     dataKey={dataKey}
                     nameKey={nameKey}
                   />
@@ -122,7 +163,7 @@ export const LeadSourceChart: React.FC<LeadSourceChartProps> = ({
               >
                 <div className="gba:text-center">
                   <div className="gba:text-base gba:font-semibold gba:text-gray-700">
-                    Total Leads
+                    {getTranslationFromI18nKeyAndLabel('leadSources.totalLeads', 'Total Leads')}
                   </div>
                   <div className="gba:text-2xl gba:font-bold gba:text-gray-900">
                     {formatLargeNumber(totalLeads)}
@@ -131,11 +172,58 @@ export const LeadSourceChart: React.FC<LeadSourceChartProps> = ({
               </div>
             </div>
 
-            {/* Legend handled by ChartContainer config via tooltip/legend components if needed */}
+            {/* Source Quality Indicators */}
+            <div className="gba:mt-4 gba:space-y-3" data-testid="lead-source-quality-container">
+              <div className="gba:text-sm gba:font-medium gba:text-gray-700 gba:mb-2">
+                {getTranslationFromI18nKeyAndLabel(
+                  "dashboard.leadSources.performanceTitle",
+                  "Source Performance"
+                )}
+              </div>
+              <div className="gba:space-y-2">
+                {items.map((item) => {
+                  return (
+                    <div 
+                      key={item.source} 
+                      className="gba:flex gba:items-center gba:justify-between gba:p-2 gba:rounded-lg gba:bg-gray-50 gba:border"
+                      data-testid={`lead-source-quality-${item.source.toLowerCase().replace(/\s+/g, '-')}`}
+                    >
+                      <div className="gba:flex gba:items-center gba:gap-2">
+                        <div 
+                          className="gba:w-3 gba:h-3 gba:rounded-full gba:flex-shrink-0" 
+                          style={{ backgroundColor: item.color }}
+                        />
+                        <span className="gba:text-sm gba:font-medium gba:text-gray-900">
+                          {item.source}
+                        </span>
+                      </div>
+                      <div className="gba:flex gba:items-center gba:gap-2">
+                        <Badge 
+                          variant={getQualityLevelBadgeVariant(item.qualityLevel)}
+                          className="gba:text-xs"
+                        >
+                          {item.qualityText}
+                        </Badge>
+                        {item.conversionRate !== undefined && (
+                          <span className="gba:text-xs gba:text-gray-600">
+                            {getTranslationFromI18nKeyAndLabel(
+                              "dashboard.leadSources.conversionLabel",
+                              `${item.conversionRate}% conv.`
+                            )}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
           </div>
         ) : (
           <div className="gba:text-center gba:py-8">
-            <div className="gba:text-gray-500">No revenue data available</div>
+            <div className="gba:text-gray-500">
+              {getTranslationFromI18nKeyAndLabel("noLeadSourceDataAvailable", "No lead source data available")}
+            </div>
           </div>
         )}
       </CardContent>

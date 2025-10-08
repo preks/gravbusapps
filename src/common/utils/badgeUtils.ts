@@ -128,4 +128,47 @@ export function getSalesPipelineStageBadgeVariant(pipelineStage?: {
   objectValue?: any; 
 } | null): BadgeProps['variant'] {
   return getBadgeVariantFromCatalog(pipelineStage);
+}
+
+/**
+ * Returns the appropriate badge variant based on quality level
+ * @param qualityLevel - The quality level ('high', 'low', 'medium', etc.)
+ * @returns Badge variant based on the quality level
+ */
+export function getQualityLevelBadgeVariant(qualityLevel?: string): BadgeProps['variant'] {
+  switch (qualityLevel) {
+    case 'high':
+      return 'success';
+    case 'low':
+      return 'destructive';
+    default:
+      return 'secondary';
+  }
+}
+
+/**
+ * Utility function specifically for opportunity status badges
+ * Determines the badge variant based on catalog objectValue or status string matching
+ * @param status - The opportunity status catalog entry containing value and objectValue
+ * @returns Badge variant based on status keywords
+ */
+export function getOpportunityStatusBadgeVariant(status?: { 
+  value?: string; 
+  objectValue?: any; 
+} | null): BadgeProps['variant'] {
+  // First check if catalog has objectValue with badgeVariant
+  const catalogVariant = getBadgeVariantFromCatalog(status);
+  if (catalogVariant !== 'default') {
+    return catalogVariant;
+  }
+
+  // Fallback to value-based keyword matching
+  const statusValue = status?.value?.toLowerCase();
+  if (!statusValue) return 'default';
+  const statusLower = statusValue;
+  if (statusLower.includes('open') || statusLower.includes('active')) return 'info';
+  if (statusLower.includes('won') || statusLower.includes('closed won')) return 'success';
+  if (statusLower.includes('lost') || statusLower.includes('closed lost')) return 'destructive';
+  if (statusLower.includes('qualified')) return 'default';
+  return 'default';
 } 

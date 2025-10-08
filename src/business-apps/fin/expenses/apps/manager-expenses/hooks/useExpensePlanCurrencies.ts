@@ -12,10 +12,6 @@ interface CurrencyDetectionResponse {
     id: string;
     currencyRef: string;
   }[];
-  allPlans: {
-    id: string;
-    currencyRef: string;
-  }[];
 }
 
 const GET_CURRENCY_DISTRIBUTION = `
@@ -34,15 +30,6 @@ const GET_CURRENCY_DISTRIBUTION = `
       id
       currencyRef
     }
-    # Debug: Get all plans without manager filtering
-    allPlans: ExpensePlan(
-      where: {
-        isDeleted: {_eq: false}
-      }
-    ) {
-      id
-      currencyRef
-    }
   }
 `;
 
@@ -50,7 +37,8 @@ export const useExpensePlanCurrencies = (
   context: BusinessAppContextProps,
   managerId: string
 ) => {
-  const [mostUsedCurrency, setMostUsedCurrency] = useState<string>("EUR"); // Default fallback
+  const [mostUsedCurrency, setMostUsedCurrency] = useState<string>("");
+  const [availableCurrencies, setAvailableCurrencies] = useState<string[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
 
@@ -71,7 +59,7 @@ export const useExpensePlanCurrencies = (
         { managerId }
       );
 
-      if (result?.managerPlans && result?.allPlans) {
+      if (result?.managerPlans) {
         // Helper function to count currencies from plans
         const countCurrencies = (
           plans: { currencyRef: string }[]
@@ -80,7 +68,7 @@ export const useExpensePlanCurrencies = (
 
           plans.forEach((plan) => {
             if (plan.currencyRef) {
-              const currency = plan.currencyRef.replace("Currency:v1:", "");
+              const currency = plan.currencyRef.replaceAll("Currency:v1:", "");
               currencyMap.set(currency, (currencyMap.get(currency) || 0) + 1);
             }
           });
@@ -92,28 +80,33 @@ export const useExpensePlanCurrencies = (
         };
 
         const managerPlansCurrencyCounts = countCurrencies(result.managerPlans);
-        const allPlansCurrencyCounts = countCurrencies(result.allPlans);
 
-        // Sort by count (descending) and get the most used currency
+        // Sort by count (descending)
         if (managerPlansCurrencyCounts.length > 0) {
           managerPlansCurrencyCounts.sort((a, b) => b.count - a.count);
-          const detectedCurrency = managerPlansCurrencyCounts[0].currency;
-
-          // Extract the actual currency code (e.g., "Currency:v1:EUR" -> "EUR")
-          const currencyCode = detectedCurrency.split(":").pop() || "EUR";
-          setMostUsedCurrency(currencyCode);
+          
+          // Get all unique currencies sorted alphabetically
+          const allCurrencies = managerPlansCurrencyCounts
+            .map((c) => c.currency)
+            .sort((a, b) => a.localeCompare(b));
+          
+          setAvailableCurrencies(allCurrencies);
+          setMostUsedCurrency(managerPlansCurrencyCounts[0].currency);
         } else {
-          setMostUsedCurrency("EUR");
+          setAvailableCurrencies([]);
+          setMostUsedCurrency("");
         }
       } else {
-        setMostUsedCurrency("EUR");
+        setAvailableCurrencies([]);
+        setMostUsedCurrency("");
       }
     } catch (err) {
       console.error("Error detecting most used currency:", err);
       setError(
         err instanceof Error ? err : new Error("Failed to detect currency")
       );
-      setMostUsedCurrency("EUR"); // Fallback to EUR on error
+      setAvailableCurrencies([]);
+      setMostUsedCurrency("");
     } finally {
       setIsLoading(false);
     }
@@ -125,6 +118,7 @@ export const useExpensePlanCurrencies = (
 
   return {
     mostUsedCurrency,
+    availableCurrencies,
     isLoading,
     error,
     refetch: detectMostUsedCurrency,

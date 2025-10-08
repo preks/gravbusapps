@@ -1,4 +1,4 @@
-import { AccountFormValues } from '../../account-form/types';
+import { AccountFormValues, Address } from '../../account-form/types';
 import { ContactFormValues } from '../../contact-form/types';
 import { InvestmentOpportunityFormValues } from '../../opportunity-form/types';
 import { extractAddressFromObject } from '../../../../common/utils/addressUtils';
@@ -6,12 +6,9 @@ import { extractAddressFromObject } from '../../../../common/utils/addressUtils'
 
 export const getAccountInitialValues = (leadData: any): Partial<AccountFormValues> => {
   if (!leadData) {
-    console.log('⚠️ No lead data available for account initial values');
     return {};
   }
 
-  console.log('🔍 Mapping lead data to account initial values:', leadData);
-  console.log('🔍 Lead data has keys:', Object.keys(leadData));
 
   const initialValues = {
     // ===== COMPANY INFORMATION (from InvestmentLead company* fields) =====
@@ -45,6 +42,42 @@ export const getAccountInitialValues = (leadData: any): Partial<AccountFormValue
     state: '', // Not available in InvestmentLead
     address: leadData.locality || '', // Legacy field
     
+    // ===== ADDRESS ARRAY (new structure for account form) =====
+    addresses: (() => {
+      // Only create address if we have meaningful address data
+      const hasAddressData = leadData.addressLine || leadData.postalCode || leadData.locality || leadData.countryRef || leadData.regionRef;
+      
+      if (!hasAddressData) {
+        // Return default empty address structure without ID (backend will generate UUID)
+        return [
+          {
+            addressType: "PRIMARY_ADDRESS",
+            addressLines: [""],
+            postalCode: "",
+            locality: "",
+            regionRef: "",
+            countryRef: "",
+          }
+        ];
+      }
+      
+      // Create address with lead data (without ID for new accounts)
+      return [
+        {
+          addressType: "PRIMARY_ADDRESS",
+          addressLines: leadData.addressLine 
+            ? (typeof leadData.addressLine === 'string' 
+                ? [leadData.addressLine] 
+                : (leadData.addressLine.lines || [leadData.addressLine.toString()]))
+            : [extractAddressFromObject(leadData.addressLine) || ''],
+          postalCode: leadData.postalCode || '',
+          locality: leadData.locality || '',
+          regionRef: leadData.regionRef || leadData.region?.id || '',
+          countryRef: leadData.countryRef || leadData.country?.id || '',
+        }
+      ];
+    })(),
+    
     
     // ===== ADDITIONAL FIELDS (from InvestmentLead) =====
     foundationDate: '', // Not available in InvestmentLead, user will fill
@@ -58,54 +91,15 @@ export const getAccountInitialValues = (leadData: any): Partial<AccountFormValue
     version: undefined, // New account
   };
   
-  // Add debug information about ALL account field mappings
-  console.log('🔍 Complete account field mappings from InvestmentLead:', {
-    // Company fields
-    companyName: leadData.companyName,
-    sourceCompanyName: leadData.sourceCompanyName,
-    companyEmail: leadData.companyEmail,
-    companyPhone: leadData.companyPhone,
-    companyWebsite: leadData.companyWebsite,
-    
-    // Catalog fields
-    industryClassRef: leadData.industryClassRef,
-    industryClassValue: leadData.industryClass?.value,
-    companySizeRef: leadData.companySizeRef, 
-    companySizeValue: leadData.companySize?.value,
-    legalFormRef: leadData.legalFormRef,
-    legalFormValue: leadData.legalForm?.value,
-    accountAnnualRevenueBandRef: leadData.accountAnnualRevenueBandRef,
-    accountAnnualRevenueBandValue: leadData.accountAnnualRevenueBand?.value,
-    
-    // Geographic fields - Using direct fields
-    countryRef: leadData.countryRef || leadData.country?.id,
-    countryValue: leadData.country?.value,
-    regionRef: leadData.regionRef || leadData.region?.id,
-    regionValue: leadData.region?.value,
-    locality: leadData.locality,
-    postalCode: leadData.postalCode,
-    addressLine: extractAddressFromObject(leadData.addressLine),
-    
-    // 🎯 Owner field - Pre-filled with lead's owner
-    owner: leadData.ownerEmployeeId, // Main owner field for AccountFormValues
-    ownerEmployeeId: leadData.ownerEmployeeId,
-    ownerEmployeeName: leadData.ownerEmployee?.displayName,
-    description: leadData.description,
-    code: leadData.code
-  });
   
-  console.log('✅ Account initial values calculated:', initialValues);
   return initialValues;
 };
 
 export const getContactInitialValues = (leadData: any): Partial<ContactFormValues> => {
   if (!leadData) {
-    console.log('⚠️ No lead data available for contact initial values');
     return {};
   }
 
-  console.log('🔍 Mapping lead data to contact initial values:', leadData);
-  console.log('🔍 Lead data has keys:', Object.keys(leadData));
 
   const initialValues = {
     // ===== PERSONAL INFORMATION (from InvestmentLead) =====
@@ -128,6 +122,17 @@ export const getContactInitialValues = (leadData: any): Partial<ContactFormValue
     academicTitleRef: leadData.academicTitleRef || leadData.academicTitle?.id || '', // ✅ academicTitle{id,value} -> academicTitleRef mapping
     languageRef: '', // Not available in InvestmentLead - user will need to select
     
+    // ===== CONTACT TYPE (default for lead conversion) =====
+    type: 'UNKNOWN_CONTACT', // Default contact type for lead conversion
+    
+    // ===== SOCIAL MEDIA INFORMATION (extracted from communication channels) =====
+    linkedinUrl: leadData.communicationChannels?.find(
+      (channel: any) => channel.communicationChannelRef === "CommunicationChannel:v1:LinkedIn"
+    )?.value || '',
+    xingUrl: leadData.communicationChannels?.find(
+      (channel: any) => channel.communicationChannelRef === "CommunicationChannel:v1:Xing"
+    )?.value || '',
+    
     // ===== OWNER INFORMATION (from InvestmentLead) =====
     ownerEmployeeId: leadData.ownerEmployeeId || leadData.ownerEmployee?.id || '',
     owner: leadData.ownerEmployeeId || leadData.ownerEmployee?.id || '',
@@ -148,49 +153,14 @@ export const getContactInitialValues = (leadData: any): Partial<ContactFormValue
     createdBy: '', // New contact
   };
   
-  // Add debug information about ALL contact field mappings
-  console.log('🔍 Complete contact field mappings from InvestmentLead (USER REQUESTED FIELDS):', {
-    // ===== USER REQUESTED CORE FIELDS =====
-    '✅ firstName': leadData.firstName,
-    '✅ lastName': leadData.lastName,
-    '✅ email': leadData.email,
-    '✅ phoneNumber': leadData.phoneNumber,
-    '✅ position (-> jobPosition)': leadData.position,
-    
-    // ===== USER REQUESTED ACADEMIC TITLE FIELDS =====
-    '✅ academicTitleRef': leadData.academicTitleRef,
-    '✅ academicTitle.id': leadData.academicTitle?.id,
-    '✅ academicTitle.value': leadData.academicTitle?.value,
-    
-    // ===== ADDITIONAL PERSONAL FIELDS =====
-    sourceIndividualName: leadData.sourceIndividualName,
-    
-    // ===== PROFESSIONAL FIELDS =====
-    code: leadData.code,
-    businessKey: leadData.businessKey,
-    description: leadData.description,
-    
-    // ===== OTHER CATALOG FIELDS =====
-    salutationRef: leadData.salutationRef,
-    salutationValue: leadData.salutation?.value,
-    
-    // ===== OWNER FIELDS - Pre-filled with lead's owner =====
-    owner: leadData.ownerEmployeeId, // Main owner field for ContactFormValues
-    ownerEmployeeId: leadData.ownerEmployeeId,
-    ownerEmployeeName: leadData.ownerEmployee?.displayName
-  });
   
-  console.log('✅ Contact initial values calculated:', initialValues);
   return initialValues;
 };
 
 export const getOpportunityInitialValues = (leadData: any): Partial<InvestmentOpportunityFormValues> => {
   if (!leadData) {
-    console.log('⚠️ No lead data available for opportunity initial values');
     return {};
   }
-
-  console.log('🔍 Mapping lead data to opportunity initial values:', leadData);
 
   const initialValues = {
     // Investment Information (directly from InvestmentLead)
@@ -239,21 +209,6 @@ export const getOpportunityInitialValues = (leadData: any): Partial<InvestmentOp
     accountId: '', // Will be filled with created/selected account
   };
   
-  // Add debug information about catalog values
-  console.log('🔍 Catalog mappings for opportunity:', {
-    investmentGroupRef: leadData.investmentGroupRef,
-    investmentGroupValue: leadData.investmentGroup?.value,
-    investmentTypeRef: leadData.investmentTypeRef,
-    investmentTypeValue: leadData.investmentType?.value,
-    investmentRoleRef: leadData.investmentRoleRef,
-    investmentRoleValue: leadData.investmentRole?.value,
-    // 🎯 Owner field - Pre-filled with lead's owner
-    owner: leadData.ownerEmployeeId, // Main owner field for InvestmentOpportunityFormValues
-    ownerEmployeeId: leadData.ownerEmployeeId,
-    ownerEmployeeName: leadData.ownerEmployee?.displayName,
-    investmentName: leadData.investmentName
-  });
   
-  console.log('✅ Opportunity initial values calculated:', initialValues);
   return initialValues;
 };

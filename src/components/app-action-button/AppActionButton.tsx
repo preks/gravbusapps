@@ -8,7 +8,8 @@ import {
 import { 
   useAppActionData, 
   extractAppActionProps,
-  AppActionCommonProps 
+  AppActionCommonProps,
+  appActionPropsComparison
 } from "@/common/hooks/useAppActionData";
 import { formatDataTestId } from "@/common/utils/formatDataTestId";
 
@@ -26,9 +27,10 @@ const DATA_TEST_ID_PREFIX = "AppActionButton";
  * AppActionButton Component
  * Displays an action button with flow items from the flow registry
  */
-export const AppActionButton: React.FC<AppActionButtonProps> = (props) => {
+export const AppActionButton: React.FC<AppActionButtonProps> = React.memo((props) => {
   // Extract App Action specific props and get clean props for ActionButton
   const { appActionConfig, cleanProps } = extractAppActionProps(props);
+
 
   // Use shared logic for data fetching and state management
   const {
@@ -46,13 +48,8 @@ export const AppActionButton: React.FC<AppActionButtonProps> = (props) => {
     ...actionButtonProps
   } = cleanProps;
 
-  // Generate test IDs
-  const containerTestId = customDataTestId || formatDataTestId(
-    appActionConfig.prefixDataTestId,
-    DATA_TEST_ID_PREFIX,
-    'container'
-  );
-  const buttonTestId = formatDataTestId(
+  // Generate test ID for button
+  const buttonTestId = customDataTestId || formatDataTestId(
     appActionConfig.prefixDataTestId,
     DATA_TEST_ID_PREFIX,
     'Button'
@@ -65,24 +62,24 @@ export const AppActionButton: React.FC<AppActionButtonProps> = (props) => {
   }, [handleDeferredFetch, onDropdownOpen]);
 
   return (
-    <div data-testid={containerTestId}>
-      <ActionButton
-        {...actionButtonProps}
-        data-testid={buttonTestId}
-        noActionsText={translations.noActions}
-        loadingText={translations.loading}
-        emptyStateBehavior={appActionConfig.emptyStateBehavior}
-        actionsLoading={shouldShowLoading}
-        actions={combinedData}
-        onDropdownOpen={handleDropdownOpen}
-        onClick={(e) => {
-          e.stopPropagation();
-          e.preventDefault();
-          onClick?.(e);
-        }}
-      />
-    </div>
+    <ActionButton
+      {...actionButtonProps}
+      data-testid={buttonTestId}
+      noActionsText={translations.noActions}
+      loadingText={translations.loading}
+      emptyStateBehavior={appActionConfig.emptyStateBehavior}
+      actionsLoading={shouldShowLoading}
+      actions={combinedData}
+      onDropdownOpen={handleDropdownOpen}
+      onClick={(e) => {
+        e.stopPropagation();
+        e.preventDefault();
+        onClick?.(e);
+      }}
+    />
   );
-};
+}, appActionPropsComparison);
+
+AppActionButton.displayName = 'AppActionButton';
 
 export default AppActionButton;

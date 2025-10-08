@@ -1,11 +1,8 @@
-/**
- * Custom hook for fetching and processing dashboard data
- * ✅ USES: True server-side GraphQL aggregations for optimal performance
- */
 
 import { useEffect, useState } from 'react';
 import { useGraphQLClient } from '../../../../../../common/network/graphql/useGraphQLClient';
 import { useCatalogManagerClient } from '../../../../../../common/network/catalogs/useCatalogManagerClient';
+import { getCurrentActiveUserLocale } from '../../../../../../common/utils/windowUtils';
 import { getOptimizedDashboardQuery } from '../queries/ServerSideAggregationQueries';
 import { processCompleteServerSideAggregations } from '../utils/serverSideAggregationUtils';
 import { DashboardData, TimeFilter } from '../types';
@@ -41,7 +38,8 @@ export const useDashboardData = ({ accessToken, timeFilter = 'current-year' }: U
       totalActiveEmployees: 0,
       averageAvailable: 0,
       averageUsed: 0,
-      totalVacationLiability: 0
+      totalVacationLiability: 0,
+      totalVacationEntitlement: 0
     },
     
     isLoading: true,
@@ -55,14 +53,16 @@ export const useDashboardData = ({ accessToken, timeFilter = 'current-year' }: U
     try {
       setData(prev => ({ ...prev, isLoading: true, error: null }));
 
-      // ✅ STEP 1: Fetch absence groups catalog (required for proper type mapping)
       await catalogClient.setAccessToken(accessToken);
+      const userLocale = getCurrentActiveUserLocale() ?? 'en-US';
+      
       const absenceGroupsData = await catalogClient.getCatalogEntriesList(
         { catalogIdentifier: "AbsenceGroup", version: "v1" },
         { 
           limit: 100, 
           offset: 0, 
           returnTotalRecords: true,
+          localeCode: userLocale,
           includeChildCatalogEntries: true
         }
       );
@@ -74,29 +74,37 @@ export const useDashboardData = ({ accessToken, timeFilter = 'current-year' }: U
           absenceGroups[group.catalogEntryLocalId] = group.value;
         }
       });
-
-      // ✅ STEP 2: Find vacation group ID for entitlement filtering (FIXED LOGIC)
-      const vacationGroup = absenceGroupsData.data.find((group: any) => 
-        group.value && (
-          group.value.toLowerCase().includes('vacation') ||
-          group.value.toLowerCase().includes('annual') ||
-          group.value.toLowerCase().includes('holiday') ||
-          (group.value.toLowerCase().includes('leave') && !group.value.toLowerCase().includes('sick'))
-        )
+      
+      // Get absence types catalog to find AbsenceType:v1:A001
+      const absenceTypesData = await catalogClient.getCatalogEntriesList(
+        { catalogIdentifier: "AbsenceType", version: "v1" },
+        { 
+          limit: 100, 
+          offset: 0, 
+          returnTotalRecords: true,
+          localeCode: userLocale,
+          includeChildCatalogEntries: true
+        }
       );
-      const vacationGroupId = vacationGroup?.id;
+
+      // Use specific AbsenceType:v1:A001 for vacation entitlements
+      const vacationType = absenceTypesData.data.find((type: any) => 
+        type.id === 'AbsenceType:v1:A001'
+      );
+      const vacationGroupId = vacationType?.id;
+
       
-      // ✅ SERVER-SIDE AGGREGATIONS: True server-side processing
       const query = getOptimizedDashboardQuery(timeFilter, vacationGroupId);
-      
+
       const result = await graphQLClient.request<any>(query);
+
       
-      // Process aggregation results with minimal client-side work
       const processedData = processCompleteServerSideAggregations(
         result,
         absenceGroups,
         timeFilter
       );
+
 
       setData(processedData);
       
@@ -119,5 +127,4 @@ export const useDashboardData = ({ accessToken, timeFilter = 'current-year' }: U
   return data;
 };
 
-// Default export for easier importing
 export default useDashboardData; 

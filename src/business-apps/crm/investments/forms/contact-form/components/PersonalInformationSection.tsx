@@ -58,9 +58,6 @@ const PersonalInformationSection: React.FC = () => {
       !academicTitlesLoading &&
       academicTitlesHasMore
     ) {
-      console.log(
-        `🚀 Auto-loading more academic titles from API (${academicTitlesTotalFetched} fetched so far, loading 100 more)`
-      );
       loadMoreAcademicTitles();
     }
   }, [
@@ -74,9 +71,6 @@ const PersonalInformationSection: React.FC = () => {
   // Auto-load languages when needed
   useEffect(() => {
     if (languagesNeedsMoreData && !languagesLoading && languagesHasMore) {
-      console.log(
-        `🚀 Auto-loading more languages from API (${languagesTotalFetched} fetched so far, loading 100 more)`
-      );
       loadMoreLanguages();
     }
   }, [
@@ -94,9 +88,6 @@ const PersonalInformationSection: React.FC = () => {
       academicTitlesDisplayCount < academicTitlesTotalFetched &&
       academicTitlesTotalFetched > 5
     ) {
-      console.log(
-        `🚀 Academic Title dropdown opened - showing more from cache (${academicTitlesDisplayCount}/${academicTitlesTotalFetched})`
-      );
       showMoreAcademicTitles();
     }
   }, [
@@ -113,9 +104,6 @@ const PersonalInformationSection: React.FC = () => {
       languagesDisplayCount < languagesTotalFetched &&
       languagesTotalFetched > 5
     ) {
-      console.log(
-        `🚀 Language dropdown opened - showing more from cache (${languagesDisplayCount}/${languagesTotalFetched})`
-      );
       showMoreLanguages();
     }
   }, [
@@ -164,7 +152,7 @@ const PersonalInformationSection: React.FC = () => {
           e.currentTarget.style.background =
             "linear-gradient(to right, #bbf7d0, #6ee7b7)";
         }}
-        data-testid={formatDataTestId(prefixDataTestId, "PersonalInfoToggle")}
+        data-testid={formatDataTestId(prefixDataTestId, "personal-info-toggle")}
       >
         <div className="gba:flex gba:items-center gba:gap-2 gba:flex-1">
           <div className="gba:w-2 gba:h-2 gba:bg-green-500 gba:rounded-full"></div>
@@ -201,6 +189,7 @@ const PersonalInformationSection: React.FC = () => {
 
 
 
+
           {/* Academic Title and Language - Side by side */}
           <div className="gba:grid gba:grid-cols-1 gba:gap-6 gba:md:grid-cols-2">
             {/* Academic Title dropdown */}
@@ -216,7 +205,7 @@ const PersonalInformationSection: React.FC = () => {
                 onOpenChange={setIsAcademicTitleOpen}
                 data-testid={formatDataTestId(
                   prefixDataTestId,
-                  "AcademicTitleSelect"
+                  "academic-title-select"
                 )}
               >
                 <SelectTrigger className="gba:border-gray-300 gba:bg-white">
@@ -254,7 +243,7 @@ const PersonalInformationSection: React.FC = () => {
                 onOpenChange={setIsLanguageOpen}
                 data-testid={formatDataTestId(
                   prefixDataTestId,
-                  "LanguageSelect"
+                  "language-select"
                 )}
               >
                 <SelectTrigger className="gba:border-gray-300 gba:bg-white">
@@ -293,27 +282,10 @@ const PersonalInformationSection: React.FC = () => {
               value={formValues.birthDate}
               onChange={(e) => setFormValues({ birthDate: e.target.value })}
               className="gba:border-gray-300 gba:bg-white"
-              data-testid={formatDataTestId(prefixDataTestId, "BirthDateInput")}
+              data-testid={formatDataTestId(prefixDataTestId, "birth-date-input")}
             />
           </div>
 
-          {/* Description */}
-          <div className="gba:space-y-2">
-            <Label className="gba:text-sm gba:font-medium gba:text-gray-900">
-              Description
-            </Label>
-            <Textarea
-              name="description"
-              value={formValues.description}
-              onChange={(e) => setFormValues({ description: e.target.value })}
-              placeholder="Please enter description..."
-              className="gba:border-gray-300 gba:bg-white gba:h-24"
-              data-testid={formatDataTestId(
-                prefixDataTestId,
-                "DescriptionInput"
-              )}
-            />
-          </div>
         </CardContent>
       )}
     </Card>

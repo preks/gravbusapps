@@ -81,6 +81,7 @@ export interface DashboardData {
     type: string;
     totalDays: number;
     count: number;
+    color?: string;
   }>;
   
   // Entitlements data
@@ -90,6 +91,7 @@ export interface DashboardData {
     averageAvailable: number;
     averageUsed: number;
     totalVacationLiability: number; // ✅ Add vacation liability field
+    totalVacationEntitlement: number; // ✅ Add total vacation entitlement field
   };
   
   // Loading states
@@ -122,7 +124,9 @@ export interface EnhancedAbsence {
   // Additional computed fields
   employeeName: string;
   groupName: string;
+  originalGroupName: string;
   typeName: string;
+  color?: string;
   pictureThumbnail?: string;
   createdAt?: string;
 }

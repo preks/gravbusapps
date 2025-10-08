@@ -29,6 +29,7 @@ export const GET_EXPENSE_REQUESTS_BY_MANAGER = `
       status
       createdAt
       updatedAt
+      expensePlan { code }
       employeeDocument {
         file
         fileSize
@@ -120,6 +121,7 @@ export const GET_MAIN_VIEW_EXPENSE_REQUESTS = `
       status
       createdAt
       updatedAt
+      expensePlan { code }
       employeeDocument {
         file
         name

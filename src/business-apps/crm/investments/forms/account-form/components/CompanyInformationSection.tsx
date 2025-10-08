@@ -7,7 +7,6 @@ import {
   SelectValue,
   Input,
   Label,
-  Textarea,
   Card,
   CardContent,
   Button,
@@ -163,7 +162,7 @@ const CompanyInformationSection: React.FC = () => {
           e.currentTarget.style.background =
             "linear-gradient(to right, #ddd6fe, #c4b5fd)";
         }}
-        data-testid={formatDataTestId(prefixDataTestId, "CompanyInfoToggle")}
+        data-testid={formatDataTestId(prefixDataTestId, "company-info-toggle")}
       >
         <div className="gba:flex gba:items-center gba:gap-2 gba:flex-1">
           <div className="gba:w-2 gba:h-2 gba:bg-purple-500 gba:rounded-full"></div>
@@ -196,7 +195,7 @@ const CompanyInformationSection: React.FC = () => {
           <div className="gba:grid gba:grid-cols-1 gba:gap-6 gba:md:grid-cols-2">
             <div className="gba:space-y-2">
               <Label className="gba:text-sm gba:font-medium gba:text-gray-900">
-                Legal Form <span className="gba:text-red-500">*</span>
+                Legal Form
               </Label>
               <Select
                 value={formValues.legalForm}
@@ -204,7 +203,7 @@ const CompanyInformationSection: React.FC = () => {
                 onOpenChange={setIsLegalFormOpen}
                 data-testid={formatDataTestId(
                   prefixDataTestId,
-                  "LegalFormSelect"
+                  "legal-form-select"
                 )}
               >
                 <SelectTrigger className="gba:border-gray-300 gba:bg-white">
@@ -236,6 +235,7 @@ const CompanyInformationSection: React.FC = () => {
                         type="button"
                         onClick={handleLoadMoreLegalForms}
                         className="gba:w-full gba:px-3 gba:py-2 gba:text-sm gba:text-blue-600 gba:bg-blue-50 gba:border gba:border-blue-200 gba:rounded gba:hover:bg-blue-100 gba:transition-colors"
+                        data-testid={formatDataTestId(prefixDataTestId, "load-more-legal-forms-button")}
                       >
                         📥 Load More Legal Forms ({legalFormsDisplayCount}/
                         {legalFormsTotalFetched} shown)
@@ -256,7 +256,7 @@ const CompanyInformationSection: React.FC = () => {
                 onOpenChange={setIsIndustryOpen}
                 data-testid={formatDataTestId(
                   prefixDataTestId,
-                  "IndustrySelect"
+                  "industry-select"
                 )}
               >
                 <SelectTrigger className="gba:border-gray-300 gba:bg-white">
@@ -288,6 +288,7 @@ const CompanyInformationSection: React.FC = () => {
                         type="button"
                         onClick={handleLoadMoreIndustries}
                         className="gba:w-full gba:px-3 gba:py-2 gba:text-sm gba:text-blue-600 gba:bg-blue-50 gba:border gba:border-blue-200 gba:rounded gba:hover:bg-blue-100 gba:transition-colors"
+                        data-testid={formatDataTestId(prefixDataTestId, "load-more-industries-button")}
                       >
                         📥 Load More Industries ({industriesDisplayCount}/
                         {industriesTotalFetched} shown)
@@ -310,28 +311,10 @@ const CompanyInformationSection: React.FC = () => {
               onChange={(e) => setFormValues({ website: e.target.value })}
               placeholder="Please Enter..."
               className="gba:border-gray-300 gba:bg-white"
-              data-testid={formatDataTestId(prefixDataTestId, "WebsiteInput")}
+              data-testid={formatDataTestId(prefixDataTestId, "website-input")}
             />
           </div>
 
-          {/* Description */}
-          <div className="gba:space-y-2">
-            <Label className="gba:text-sm gba:font-medium gba:text-gray-900">
-              Description
-            </Label>
-            <Textarea
-              name="description"
-              value={formValues.description}
-              onChange={(e) => setFormValues({ description: e.target.value })}
-              placeholder="Please Enter..."
-              rows={4}
-              className="gba:border-gray-300 gba:bg-white"
-              data-testid={formatDataTestId(
-                prefixDataTestId,
-                "DescriptionTextarea"
-              )}
-            />
-          </div>
         </CardContent>
       )}
     </Card>

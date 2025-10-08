@@ -34,6 +34,7 @@ export const getReferenceTypeBadgeVariant = (type: string): BadgeVariant => {
     case 'account': return 'info';
     case 'lead': return 'warning';
     case 'contact': return 'secondary';
+    case 'investment': return 'action';
     default: return 'default';
   }
 };

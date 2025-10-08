@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 import { Card, Badge, Button, Tabs, TabsContent } from '@newwork/nw-design-system';
-import { PiArrowLeft, PiUsers, PiBuilding, PiGraph } from 'react-icons/pi';
+import { PiArrowLeft, PiBuilding, PiGraph } from 'react-icons/pi';
 import { useTeamCoverageData } from '../../hooks/useTeamCoverageData';
+import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
 
 interface TeamCoverageOptimizerPageProps extends BusinessAppContextProps {
   onNavigateBack: () => void;
@@ -12,7 +13,7 @@ export const TeamCoverageOptimizerPage: React.FC<TeamCoverageOptimizerPageProps>
   onNavigateBack,
   ...props
 }) => {
-  const { orgUnitCoverage, matrixCoverage, orgUnitImpacts, matrixTeamImpacts, isLoading, error } = useTeamCoverageData(props);
+  const { orgUnitImpacts, matrixTeamImpacts, isLoading, error } = useTeamCoverageData(props);
   const [activeTab, setActiveTab] = useState('org-units');
 
   const getRiskColor = (risk: string) => {
@@ -31,13 +32,30 @@ export const TeamCoverageOptimizerPage: React.FC<TeamCoverageOptimizerPageProps>
   const getRiskText = (risk: string) => {
     switch (risk) {
       case 'low':
-        return 'LOW RISK';
+        return getTranslationFromI18nKeyAndLabel('lowcoder:absence_management_hub_manager.statistics_tab.low_risk', 'LOW RISK');
       case 'medium':
-        return 'MEDIUM RISK';
+        return getTranslationFromI18nKeyAndLabel('lowcoder:absence_management_hub_manager.statistics_tab.medium_risk', 'MEDIUM RISK');
       case 'high':
-        return 'HIGH RISK';
+        return getTranslationFromI18nKeyAndLabel('lowcoder:absence_management_hub_manager.statistics_tab.high_risk', 'HIGH RISK');
       default:
-        return 'UNKNOWN';
+        return getTranslationFromI18nKeyAndLabel('lowcoder:absence_management_hub_manager.statistics_tab.unknown', 'UNKNOWN');
+    }
+  };
+
+  const getImpactLevelTranslation = (impactLevel: string) => {
+    switch (impactLevel) {
+      case 'low':
+        return getTranslationFromI18nKeyAndLabel('lowcoder:absence_management_hub_manager.statistics_tab.low_impact', 'LOW IMPACT');
+      case 'medium':
+        return getTranslationFromI18nKeyAndLabel('lowcoder:absence_management_hub_manager.statistics_tab.medium_impact', 'MEDIUM IMPACT');
+      case 'high':
+        return getTranslationFromI18nKeyAndLabel('lowcoder:absence_management_hub_manager.statistics_tab.high_impact', 'HIGH IMPACT');
+      case 'critical':
+        return getTranslationFromI18nKeyAndLabel('lowcoder:absence_management_hub_manager.statistics_tab.critical_impact', 'CRITICAL IMPACT');
+      case 'none':
+        return getTranslationFromI18nKeyAndLabel('lowcoder:absence_management_hub_manager.statistics_tab.no_impact', 'NO IMPACT');
+      default:
+        return getTranslationFromI18nKeyAndLabel('lowcoder:absence_management_hub_manager.statistics_tab.unknown', 'UNKNOWN');
     }
   };
 
@@ -47,22 +65,7 @@ export const TeamCoverageOptimizerPage: React.FC<TeamCoverageOptimizerPageProps>
     return 'gba:text-gray-600';
   };
 
-  const getImpactColor = (impactLevel: string) => {
-    switch (impactLevel) {
-      case 'none':
-        return 'gba:text-gray-500';
-      case 'low':
-        return 'gba:text-gray-700';
-      case 'medium':
-        return 'gba:text-gray-600';
-      case 'high':
-        return 'gba:text-gray-800';
-      case 'critical':
-        return 'gba:text-gray-900';
-      default:
-        return 'gba:text-gray-500';
-    }
-  };
+
 
   const getImpactBadgeColor = (impactLevel: string) => {
     switch (impactLevel) {
@@ -81,83 +84,7 @@ export const TeamCoverageOptimizerPage: React.FC<TeamCoverageOptimizerPageProps>
     }
   };
 
-  const renderCoverageCard = (item: any) => (
-    <Card key={item.id} className="gba:shadow-sm gba:mb-4" data-testid={`coverage-card-${item.id}`}>
-      <div className="gba:flex gba:items-start gba:justify-between gba:p-4">
-        <div className="gba:flex-1">
-          {/* Header with name and risk badge */}
-          <div className="gba:flex gba:items-center gba:gap-3 gba:mb-3">
-            <h3 className="gba:text-lg gba:font-semibold gba:text-gray-900" data-testid={`coverage-name-${item.id}`}>
-              {item.name}
-            </h3>
-            <Badge 
-              variant={getRiskColor(item.risk)}
-              data-testid={`coverage-risk-${item.id}`}
-            >
-              {getRiskText(item.risk)}
-            </Badge>
-          </div>
 
-          {/* Primary Resources */}
-          {item.primaryResources.length > 0 && (
-            <div className="gba:mb-3">
-              <h4 className="gba:text-sm gba:font-medium gba:mb-2" data-testid={`primary-resources-label-${item.id}`}>
-                Primary Resources
-              </h4>
-              <div className="gba:flex gba:flex-wrap gba:gap-2">
-                {item.primaryResources.map((resource: string, index: number) => (
-                  <Badge 
-                    key={index}
-                    variant="success"
-                    className="gba:text-xs"
-                    data-testid={`primary-resource-${item.id}-${index}`}
-                  >
-                    {resource}
-                  </Badge>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* Backup Resources */}
-          {item.backupResources.length > 0 && (
-            <div className="gba:mb-3">
-              <h4 className="gba:text-sm gba:font-medium gba:mb-2" data-testid={`backup-resources-label-${item.id}`}>
-                Backup Resources
-              </h4>
-              <div className="gba:flex gba:flex-wrap gba:gap-2">
-                {item.backupResources.map((resource: string, index: number) => (
-                  <span 
-                    key={index}
-                    className="gba:px-2 gba:py-1 gba:text-xs gba:rounded-full gba:border"
-                    data-testid={`backup-resource-${item.id}-${index}`}
-                  >
-                    {resource}
-                  </span>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* Coverage Stats */}
-          <div className="gba:text-xs gba:text-gray-500" data-testid={`coverage-stats-${item.id}`}>
-            {item.totalPeople} total people, {item.peopleOff} currently absent
-          </div>
-        </div>
-
-        {/* Coverage Percentage */}
-        <div className="gba:text-right gba:ml-4">
-          <div 
-            className={`gba:text-3xl gba:font-bold ${getCoverageColor(item.coverage)}`}
-            data-testid={`coverage-percentage-${item.id}`}
-          >
-            {item.coverage}%
-          </div>
-          <div className="gba:text-xs gba:text-gray-500 gba:mt-1">Coverage</div>
-        </div>
-      </div>
-    </Card>
-  );
 
   const renderMatrixTeamImpactCard = (matrixTeam: any) => (
     <Card key={matrixTeam.matrixTeamId} className="gba:shadow-sm gba:mb-6" data-testid={`matrix-impact-card-${matrixTeam.matrixTeamId}`}>
@@ -173,19 +100,19 @@ export const TeamCoverageOptimizerPage: React.FC<TeamCoverageOptimizerPageProps>
                 variant={matrixTeam.currentRisk === 'high' ? 'destructive' : matrixTeam.currentRisk === 'medium' ? 'secondary' : 'default'}
                 data-testid={`matrix-team-risk-${matrixTeam.matrixTeamId}`}
               >
-                {matrixTeam.currentRisk.toUpperCase()} RISK
+                {matrixTeam.currentRisk.toUpperCase()} {getTranslationFromI18nKeyAndLabel('lowcoder:absence_management_hub_manager.statistics_tab.risk', 'RISK')}
               </Badge>
               <span className={`gba:text-sm gba:font-medium ${getCoverageColor(matrixTeam.currentCoverage)}`}>
-                {matrixTeam.currentCoverage}% Coverage
+                {matrixTeam.currentCoverage}% {getTranslationFromI18nKeyAndLabel('lowcoder:absence_management_hub_manager.statistics_tab.coverage', 'Coverage')}
               </span>
             </div>
           </div>
           <div className="gba:text-right">
             <div className="gba:text-sm gba:text-gray-600">
-              {matrixTeam.teamMembers.length} Total Members
+              {matrixTeam.teamMembers.length} {getTranslationFromI18nKeyAndLabel('lowcoder:absence_management_hub_manager.statistics_tab.total_members', 'Total Members')}
             </div>
             <div className="gba:text-sm gba:text-gray-600">
-              {matrixTeam.absentMembers.length} Currently Absent
+              {matrixTeam.absentMembers.length} {getTranslationFromI18nKeyAndLabel('lowcoder:absence_management_hub_manager.statistics_tab.currently_absent', 'Currently Absent')}
             </div>
           </div>
         </div>
@@ -194,7 +121,7 @@ export const TeamCoverageOptimizerPage: React.FC<TeamCoverageOptimizerPageProps>
         {matrixTeam.capabilities && matrixTeam.capabilities.length > 0 && (
           <div className="gba:mb-6">
             <h4 className="gba:text-md gba:font-semibold gba:text-gray-800 gba:mb-3" data-testid={`matrix-capabilities-title-${matrixTeam.matrixTeamId}`}>
-              Team Capabilities
+              {getTranslationFromI18nKeyAndLabel('lowcoder:absence_management_hub_manager.statistics_tab.team_capabilities', 'Team Capabilities')}
             </h4>
             <div className="gba:grid gba:grid-cols-1 gba:md:grid-cols-2 gba:lg:grid-cols-3 gba:gap-3">
               {matrixTeam.capabilities.map((capability: any, idx: number) => (
@@ -208,17 +135,17 @@ export const TeamCoverageOptimizerPage: React.FC<TeamCoverageOptimizerPageProps>
                       className="gba:text-xs"
                       data-testid={`capability-risk-${capability.capabilityId}`}
                     >
-                      {capability.risk.toUpperCase()}
+                      {capability.risk.toUpperCase()} {getTranslationFromI18nKeyAndLabel('lowcoder:absence_management_hub_manager.statistics_tab.risk', 'RISK')}
                     </Badge>
                   </div>
                   <div className="gba:text-xs gba:text-gray-600 gba:mb-2">
                     <span className={`gba:font-medium ${getCoverageColor(capability.coverage)}`}>
-                      {capability.coverage}% Coverage
+                      {capability.coverage}% {getTranslationFromI18nKeyAndLabel('lowcoder:absence_management_hub_manager.statistics_tab.coverage', 'Coverage')}
                     </span>
                   </div>
                   <div className="gba:text-xs gba:text-gray-500">
-                    <div>Available: {capability.teamMembers.length}</div>
-                    <div>Absent: {capability.absentMembers.length}</div>
+                    <div>{getTranslationFromI18nKeyAndLabel('lowcoder:hr_absences.available', 'Available')}: {capability.teamMembers.length}</div>
+                    <div>{getTranslationFromI18nKeyAndLabel('lowcoder:absence_management_hub_manager.statistics_tab.absent', 'Absent')}: {capability.absentMembers.length}</div>
                   </div>
                 </div>
               ))}
@@ -229,7 +156,7 @@ export const TeamCoverageOptimizerPage: React.FC<TeamCoverageOptimizerPageProps>
         {/* Impact Scenarios Section */}
         <div>
           <h4 className="gba:text-md gba:font-semibold gba:text-gray-800 gba:mb-3" data-testid={`impact-scenarios-title-${matrixTeam.matrixTeamId}`}>
-            Impact Scenarios - What if someone is off?
+            {getTranslationFromI18nKeyAndLabel('lowcoder:absence_management_hub_manager.statistics_tab.impact_scenarios', 'Impact Scenarios')} - {getTranslationFromI18nKeyAndLabel('lowcoder:absence_management_hub_manager.statistics_tab.what_if_someone_is_off', 'What if someone is off?')}
           </h4>
           <div className="gba:space-y-3">
             {matrixTeam.impactScenarios
@@ -255,10 +182,10 @@ export const TeamCoverageOptimizerPage: React.FC<TeamCoverageOptimizerPageProps>
                         variant={getImpactBadgeColor(scenario.impactLevel)}
                         data-testid={`scenario-impact-level-${scenario.employeeId}`}
                       >
-                        {scenario.impactLevel.toUpperCase()} IMPACT
+                        {getImpactLevelTranslation(scenario.impactLevel)}
                       </Badge>
                       <div className={`gba:text-sm gba:font-medium gba:mt-1 ${getCoverageColor(scenario.newCoverage)}`}>
-                        {scenario.newCoverage}% Coverage
+                        {scenario.newCoverage}% {getTranslationFromI18nKeyAndLabel('lowcoder:absence_management_hub_manager.statistics_tab.coverage', 'Coverage')}
                       </div>
                     </div>
                   </div>
@@ -267,7 +194,7 @@ export const TeamCoverageOptimizerPage: React.FC<TeamCoverageOptimizerPageProps>
                   {scenario.affectedCapabilities && scenario.affectedCapabilities.length > 0 && (
                     <div className="gba:mt-3">
                       <h6 className="gba:text-sm gba:font-medium gba:text-gray-700 gba:mb-2" data-testid={`capability-impact-title-${scenario.employeeId}`}>
-                        Capability Impact:
+                        {getTranslationFromI18nKeyAndLabel('lowcoder:absence_management_hub_manager.statistics_tab.capability_impact', 'Capability Impact')}:
                       </h6>
                       <div className="gba:space-y-2">
                         {scenario.affectedCapabilities
@@ -289,7 +216,7 @@ export const TeamCoverageOptimizerPage: React.FC<TeamCoverageOptimizerPageProps>
                                   className="gba:text-xs"
                                   data-testid={`capability-new-risk-${capability.capabilityId}`}
                                 >
-                                  {capability.newRisk.toUpperCase()}
+                                  {capability.newRisk.toUpperCase()} {getTranslationFromI18nKeyAndLabel('lowcoder:absence_management_hub_manager.statistics_tab.risk', 'RISK')}
                                 </Badge>
                                 <div className={`gba:text-xs gba:font-medium gba:mt-1 ${getCoverageColor(capability.newCoverage)}`}>
                                   {capability.newCoverage}%
@@ -305,7 +232,7 @@ export const TeamCoverageOptimizerPage: React.FC<TeamCoverageOptimizerPageProps>
                   {scenario.backupOptions && scenario.backupOptions.length > 0 && (
                     <div className="gba:mt-4">
                       <h6 className="gba:text-sm gba:font-medium gba:mb-2" data-testid={`backup-options-title-${scenario.employeeId}`}>
-                        🎯 Backup Options Available:
+                        🎯 {getTranslationFromI18nKeyAndLabel('lowcoder:absence_management_hub_manager.statistics_tab.backup_options_available', 'Backup Options Available')}:
                       </h6>
                       <div className="gba:space-y-3">
                         {scenario.backupOptions
@@ -319,11 +246,11 @@ export const TeamCoverageOptimizerPage: React.FC<TeamCoverageOptimizerPageProps>
                                       {backup.matrixTeamName}
                                     </span>
                                     <Badge variant="success" className="gba:text-xs">
-                                      100% Coverage
+                                      100% {getTranslationFromI18nKeyAndLabel('lowcoder:absence_management_hub_manager.statistics_tab.coverage', 'Coverage')}
                                     </Badge>
                                   </div>
                                   <div className="gba:text-xs gba:mb-1">
-                                    Capability: <span className="gba:font-medium">{backup.capabilityName}</span>
+                                    {getTranslationFromI18nKeyAndLabel('lowcoder:absence_management_hub_manager.statistics_tab.capability', 'Capability')}: <span className="gba:font-medium">{backup.capabilityName}</span>
                                   </div>
                                   <div className="gba:text-xs">
                                     {backup.recommendation}
@@ -331,12 +258,12 @@ export const TeamCoverageOptimizerPage: React.FC<TeamCoverageOptimizerPageProps>
                                 </div>
                                 <div className="gba:text-right">
                                   <div className="gba:text-sm gba:font-medium">
-                                    {backup.availableMembers.length} Available
+                                    {backup.availableMembers.length} {getTranslationFromI18nKeyAndLabel('lowcoder:hr_absences.available', 'Available')}
                                   </div>
                                 </div>
                               </div>
                               <div className="gba:mt-2">
-                                <div className="gba:text-xs gba:mb-1">Available Team Members:</div>
+                                <div className="gba:text-xs gba:mb-1">{getTranslationFromI18nKeyAndLabel('lowcoder:absence_management_hub_manager.statistics_tab.available_team_members', 'Available Team Members')}:</div>
                                 <div className="gba:flex gba:flex-wrap gba:gap-1">
                                   {backup.availableMembers.map((member: string, memberIndex: number) => (
                                     <Badge
@@ -360,7 +287,7 @@ export const TeamCoverageOptimizerPage: React.FC<TeamCoverageOptimizerPageProps>
             {/* Show message if no impact scenarios */}
             {matrixTeam.impactScenarios.filter((scenario: any) => scenario.impactLevel !== 'none').length === 0 && (
               <div className="gba:text-center gba:text-gray-500 gba:py-4" data-testid={`no-impact-scenarios-${matrixTeam.matrixTeamId}`}>
-                All team members are currently absent - no additional impact scenarios
+                {getTranslationFromI18nKeyAndLabel('lowcoder:absence_management_hub_manager.statistics_tab.all_team_members_are_currently_absent', 'All team members are currently absent - no additional impact scenarios')}
               </div>
             )}
           </div>
@@ -386,7 +313,7 @@ export const TeamCoverageOptimizerPage: React.FC<TeamCoverageOptimizerPageProps>
                 {getRiskText(orgUnit.currentRisk)}
               </Badge>
               <span className="gba:text-sm gba:text-gray-600">
-                {orgUnit.teamMembers.length} members, {orgUnit.absentMembers.length} absent
+                {orgUnit.teamMembers.length} {getTranslationFromI18nKeyAndLabel('lowcoder:absence_management_hub_manager.statistics_tab.members', 'members')}, {orgUnit.absentMembers.length} {getTranslationFromI18nKeyAndLabel('lowcoder:absence_management_hub_manager.statistics_tab.absent_lowercase', 'absents')}
               </span>
             </div>
           </div>
@@ -397,14 +324,14 @@ export const TeamCoverageOptimizerPage: React.FC<TeamCoverageOptimizerPageProps>
             >
               {orgUnit.currentCoverage}%
             </div>
-            <div className="gba:text-xs gba:text-gray-500">Current Coverage</div>
+            <div className="gba:text-xs gba:text-gray-500">{getTranslationFromI18nKeyAndLabel('lowcoder:absence_management_hub_manager.statistics_tab.current_coverage', 'Current Coverage')}</div>
           </div>
         </div>
 
         {/* Team Members Overview */}
         <div className="gba:mb-4">
           <h4 className="gba:text-sm gba:font-medium gba:mb-2" data-testid={`org-team-members-label-${orgUnit.orgUnitId}`}>
-            Team Members
+            {getTranslationFromI18nKeyAndLabel('lowcoder:team_expenses_page.dashboard_tab.team_members', 'Team Members')}
           </h4>
           <div className="gba:flex gba:flex-wrap gba:gap-2">
             {orgUnit.teamMembers.map((member: string, index: number) => (
@@ -423,7 +350,7 @@ export const TeamCoverageOptimizerPage: React.FC<TeamCoverageOptimizerPageProps>
         {/* Impacted Matrix Teams */}
         <div>
           <h4 className="gba:text-sm gba:font-medium gba:text-gray-700 gba:mb-3" data-testid={`impacted-matrix-teams-label-${orgUnit.orgUnitId}`}>
-            Matrix Teams Impacted When Someone is Off
+            {getTranslationFromI18nKeyAndLabel('lowcoder:absence_management_hub_manager.statistics_tab.matrix_teams_off', 'Matrix Teams Impacted When Someone is Off')}
           </h4>
           <div className="gba:space-y-4">
             {orgUnit.impactedMatrixTeams
@@ -448,10 +375,10 @@ export const TeamCoverageOptimizerPage: React.FC<TeamCoverageOptimizerPageProps>
                     </div>
                     <div className="gba:text-right">
                       <div className="gba:text-sm gba:font-medium gba:text-gray-600">
-                        {matrixTeam.currentMatrixCoverage}% coverage
+                        {matrixTeam.currentMatrixCoverage}% {getTranslationFromI18nKeyAndLabel('lowcoder:absence_management_hub_manager.statistics_tab.coverage', 'coverage')}
                       </div>
                       <div className="gba:text-xs gba:text-gray-500">
-                        {matrixTeam.orgUnitMembersInMatrix.length} members from this org unit
+                        {matrixTeam.orgUnitMembersInMatrix.length} {getTranslationFromI18nKeyAndLabel('lowcoder:absence_management_hub_manager.statistics_tab.members', 'members')} {getTranslationFromI18nKeyAndLabel('lowcoder:absence_management_hub_manager.statistics_tab.from_this_org_unit', 'from this org unit')}
                       </div>
                     </div>
                   </div>
@@ -459,9 +386,9 @@ export const TeamCoverageOptimizerPage: React.FC<TeamCoverageOptimizerPageProps>
                   {/* Org Unit Members in this Matrix Team */}
                   <div className="gba:mb-3">
                     <h5 className="gba:text-xs gba:font-medium gba:mb-1">
-                      Members from {orgUnit.orgUnitName} in this matrix team:
+                      {getTranslationFromI18nKeyAndLabel('lowcoder:absence_management_hub_manager.statistics_tab.members_from', 'Members from')} {orgUnit.orgUnitName} {getTranslationFromI18nKeyAndLabel('lowcoder:absence_management_hub_manager.statistics_tab.in_this_matrix_team', 'in this matrix team')}:
                     </h5>
-                    <div className="gba:flex gba:flex-wrap gba:gap-1">
+                    <div className="gba:flex gba:flex-wrap gba:gap-1">  
                       {matrixTeam.orgUnitMembersInMatrix.map((member: string, memberIndex: number) => (
                         <Badge 
                           key={memberIndex}
@@ -478,7 +405,7 @@ export const TeamCoverageOptimizerPage: React.FC<TeamCoverageOptimizerPageProps>
                   {/* Impact Scenarios for this Matrix Team */}
                   <div>
                     <h5 className="gba:text-xs gba:font-medium gba:text-gray-600 gba:mb-2">
-                      Impact if someone from {orgUnit.orgUnitName} is absent:
+                      {getTranslationFromI18nKeyAndLabel('lowcoder:absence_management_hub_manager.statistics_tab.impact_if_someone_from', 'Impact if someone from')} {orgUnit.orgUnitName} {getTranslationFromI18nKeyAndLabel('lowcoder:absence_management_hub_manager.statistics_tab.is_absent', 'is absent')}:
                     </h5>
                     <div className="gba:space-y-2">
                       {matrixTeam.impactScenarios
@@ -506,10 +433,10 @@ export const TeamCoverageOptimizerPage: React.FC<TeamCoverageOptimizerPageProps>
                                 variant={getImpactBadgeColor(scenario.impactLevel)}
                                 data-testid={`matrix-impact-level-${orgUnit.orgUnitId}-${index}-${scenarioIndex}`}
                               >
-                                {scenario.impactLevel.toUpperCase()}
+                                {getImpactLevelTranslation(scenario.impactLevel)}
                               </Badge>
                               <span className="gba:text-xs gba:text-gray-500">
-                                → {scenario.newMatrixCoverage}% coverage
+                                → {scenario.newMatrixCoverage}% {getTranslationFromI18nKeyAndLabel('lowcoder:absence_management_hub_manager.statistics_tab.coverage', 'coverage')}
                               </span>
                             </div>
                             <p className="gba:text-xs gba:text-gray-600 gba:mt-1">
@@ -525,7 +452,7 @@ export const TeamCoverageOptimizerPage: React.FC<TeamCoverageOptimizerPageProps>
             {/* Show message if no impacted matrix teams */}
             {orgUnit.impactedMatrixTeams.filter((matrixTeam: any) => matrixTeam.orgUnitMembersInMatrix.length > 0).length === 0 && (
               <div className="gba:text-center gba:text-gray-500 gba:py-4" data-testid={`no-impacted-matrix-teams-${orgUnit.orgUnitId}`}>
-                No team members from this org unit are part of matrix teams
+                {getTranslationFromI18nKeyAndLabel('lowcoder:absence_management_hub_manager.statistics_tab.no_team_members_from_this_org_unit', 'No team members from this org unit are part of matrix teams')}
               </div>
             )}
           </div>
@@ -537,7 +464,7 @@ export const TeamCoverageOptimizerPage: React.FC<TeamCoverageOptimizerPageProps>
   if (isLoading) {
     return (
       <div className="gba:p-6 gba:text-center" data-testid="team-coverage-loading">
-        Loading team coverage analysis...
+        {getTranslationFromI18nKeyAndLabel('lowcoder:absence_management_hub_manager.statistics_tab.loading_team_coverage_analysis', 'Loading team coverage analysis...')}
       </div>
     );
   }
@@ -545,7 +472,7 @@ export const TeamCoverageOptimizerPage: React.FC<TeamCoverageOptimizerPageProps>
   if (error) {
     return (
       <div className="gba:p-6 gba:text-center" data-testid="team-coverage-error">
-        Error: {error}
+        {getTranslationFromI18nKeyAndLabel('lowcoder:absence_management_hub_manager.statistics_tab.error', 'Error:')} {error}
       </div>
     );
   }
@@ -563,16 +490,16 @@ export const TeamCoverageOptimizerPage: React.FC<TeamCoverageOptimizerPageProps>
             data-testid="team-coverage-back-button"
           >
             <PiArrowLeft className="gba:text-lg" />
-            Back to Statistics
+            {getTranslationFromI18nKeyAndLabel('lowcoder:absence_management_hub_manager.statistics_tab.back_to_statistics', 'Back to Statistics')}
           </Button>
           
           {/* Title and Subtitle */}
           <div>
             <h1 className="gba:text-2xl gba:font-bold gba:text-gray-900" data-testid="team-coverage-title">
-              Skills Coverage Matrix
+              {getTranslationFromI18nKeyAndLabel('lowcoder:absence_management_hub_manager.statistics_tab.skills_coverage_matrix', 'Skills Coverage Matrix')}
             </h1>
             <p className="gba:text-gray-600 gba:mt-1" data-testid="team-coverage-subtitle">
-              Current coverage levels and risk assessment for each skill area
+              {getTranslationFromI18nKeyAndLabel('lowcoder:absence_management_hub_manager.statistics_tab.current_coverage_levels', 'Current coverage levels and risk assessment for each skill area')}
             </p>
           </div>
         </div>
@@ -589,7 +516,7 @@ export const TeamCoverageOptimizerPage: React.FC<TeamCoverageOptimizerPageProps>
               data-testid="org-units-tab-button"
             >
               <PiBuilding className="gba:text-lg" />
-              Organizational Units
+              {getTranslationFromI18nKeyAndLabel('lowcoder:absence_management_hub_manager.statistics_tab.organizational_units', 'Organizational Units')}
             </Button>
             <Button
               variant={activeTab === 'matrix' ? 'default' : 'outline'}
@@ -598,24 +525,24 @@ export const TeamCoverageOptimizerPage: React.FC<TeamCoverageOptimizerPageProps>
               data-testid="matrix-tab-button"
             >
               <PiGraph className="gba:text-lg" />
-              Matrix Teams
+              {getTranslationFromI18nKeyAndLabel('lowcoder:absence_management_hub_manager.statistics_tab.matrix_teams', 'Matrix Teams')}
             </Button>
           </div>
 
           <TabsContent value="org-units" className="gba:space-y-4">
             <div className="gba:mb-4">
               <h2 className="gba:text-xl gba:font-semibold gba:text-gray-800" data-testid="org-units-section-title">
-                Organizational Units Coverage
+                {getTranslationFromI18nKeyAndLabel('lowcoder:absence_management_hub_manager.statistics_tab.organizational_units_coverage', 'Organizational Units Coverage')}
               </h2>
               <p className="gba:text-gray-600 gba:mt-1">
-                Coverage analysis by organizational unit structure with matrix team impact analysis
+                {getTranslationFromI18nKeyAndLabel('lowcoder:absence_management_hub_manager.statistics_tab.coverage_analysis_by_organizational_unit', 'Coverage analysis by organizational unit structure with matrix team impact analysis')}
               </p>
             </div>
             {orgUnitImpacts.length > 0 ? (
               orgUnitImpacts.map(renderOrgUnitImpactCard)
             ) : (
               <div className="gba:text-center gba:text-gray-500 gba:py-8" data-testid="no-org-units-data">
-                No organizational unit coverage data available
+                {getTranslationFromI18nKeyAndLabel('lowcoder:absence_management_hub_manager.statistics_tab.no_organizational_unit_coverage_data_available', 'No organizational unit coverage data available')}
               </div>
             )}
           </TabsContent>
@@ -623,17 +550,17 @@ export const TeamCoverageOptimizerPage: React.FC<TeamCoverageOptimizerPageProps>
           <TabsContent value="matrix" className="gba:space-y-4">
             <div className="gba:mb-4">
               <h2 className="gba:text-xl gba:font-semibold gba:text-gray-800" data-testid="matrix-section-title">
-                Matrix Teams Coverage
+                {getTranslationFromI18nKeyAndLabel('lowcoder:absence_management_hub_manager.statistics_tab.matrix_teams_coverage', 'Matrix Teams Coverage')}
               </h2>
               <p className="gba:text-gray-600 gba:mt-1">
-                Coverage analysis by matrix team memberships with impact scenarios when team members are off
+                {getTranslationFromI18nKeyAndLabel('lowcoder:absence_management_hub_manager.statistics_tab.coverage_analysis_by_matrix_team_memberships', 'Coverage analysis by matrix team memberships with impact scenarios when team members are off')}
               </p>
             </div>
             {matrixTeamImpacts.length > 0 ? (
               matrixTeamImpacts.map(renderMatrixTeamImpactCard)
             ) : (
               <div className="gba:text-center gba:text-gray-500 gba:py-8" data-testid="no-matrix-data">
-                No matrix team coverage data available
+                {getTranslationFromI18nKeyAndLabel('lowcoder:absence_management_hub_manager.statistics_tab.no_matrix_team_coverage_data_available', 'No matrix team coverage data available')}
               </div>
             )}
           </TabsContent>

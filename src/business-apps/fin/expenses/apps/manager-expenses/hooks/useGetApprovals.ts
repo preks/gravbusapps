@@ -123,7 +123,7 @@ export const useGetApprovals = (context?: BusinessAppContextProps): UseGetApprov
       // Extract GraphQL error message if available
       if (err.message && err.message.includes("GraphQL error:")) {
         try {
-          const errorJson = err.message.replace("GraphQL error:", "").trim();
+          const errorJson = err.message.replaceAll("GraphQL error:", "").trim();
           const parsedError = JSON.parse(errorJson);
           if (Array.isArray(parsedError) && parsedError.length > 0) {
             errorMessage = parsedError[0].message || errorMessage;

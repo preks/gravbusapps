@@ -96,12 +96,13 @@ export enum FlowContextName {
   /// Investment Notes
 
   investmentNoteEntity = "investmentNoteEntity",
-  createInvestmentNote = "investmentNoteCreate",
+  investmentNoteCreate = "investmentNoteCreate",
   investmentNoteDelete = "investmentNoteDelete",
   
   /// Investment Documents
   investmentDocumentEntity = "investmentDocumentEntity",
   investmentDocumentCreate = "investmentDocumentCreate",
+  createInvestmentDocument = "createInvestmentDocument",
   investmentDocumentUpdate = "investmentDocumentUpdate",
   investmentDocumentDelete = "investmentDocumentDelete",
 
@@ -110,6 +111,8 @@ export enum FlowContextName {
   investmentCreate = "investmentCreate", // TODO: Replace startProcess
   investmentEntity = "investmentEntity",
   investmentTileUpdate = "investmentTileUpdate",
+  investmentStatusUpdate = "investmentStatusUpdate",
+  investmentPlanExit = "investmentPlanExit",
 
   equityInvestmentEntity = "equityInvestmentEntity", // TODO: Check
   privateEquityInvestmentEntity = "privateEquityInvestmentEntity", // TODO: Check

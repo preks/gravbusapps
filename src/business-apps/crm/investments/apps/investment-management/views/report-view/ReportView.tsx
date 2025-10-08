@@ -20,7 +20,6 @@ export interface ReportViewProps extends BusinessAppContextProps {
 export const ReportView: React.FC<ReportViewProps> = ({
   accessToken,
   userInfo,
-  additionalData,
   initialSubTab = 'liquid-fund',
   onSubTabChange
 }) => {
@@ -83,26 +82,23 @@ export const ReportView: React.FC<ReportViewProps> = ({
           <TabsList className="gba:mt-4 gba:grid gba:w-full gba:grid-cols-3 gba:max-w-2xl">
             <TabsTrigger 
               value="liquid-fund" 
-              className="gba:flex gba:items-center gba:gap-2"
+              startIcon={<TrendingUp />}
               data-testid="liquid-fund-analytics-tab"
             >
-              <TrendingUp className="gba:h-4 gba:w-4" />
               Liquid Fund
             </TabsTrigger>
             <TabsTrigger 
               value="real-estate" 
-              className="gba:flex gba:items-center gba:gap-2"
+              startIcon={<Building2 />}
               data-testid="real-estate-analytics-tab"
             >
-              <Building2 className="gba:h-4 gba:w-4" />
               Real Estate
             </TabsTrigger>
             <TabsTrigger 
               value="equity" 
-              className="gba:flex gba:items-center gba:gap-2"
+              startIcon={<PieChart />}
               data-testid="equity-analytics-tab"
             >
-              <PieChart className="gba:h-4 gba:w-4" />
               Equity
             </TabsTrigger>
           </TabsList>

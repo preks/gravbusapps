@@ -31,6 +31,9 @@ export interface InvestmentAccountQueryVariables {
   missingPhone?: boolean;
   hasContact?: boolean;
   missingContact?: boolean;
+  // Status filters
+  isActive?: boolean;
+  isInactive?: boolean;
   limit?: number;
   offset?: number;
   orderBy?: Array<{
@@ -141,6 +144,14 @@ export const buildInvestmentAccountWhereCondition = (variables: InvestmentAccoun
   }
   if (variables.missingContact) {
     andConditions.push(`{ _not: { investmentAccountContact: { id: { _isNull: false } } } }`);
+  }
+
+  // Status filters (based on liquidationDate)
+  if (variables.isActive) {
+    andConditions.push(`{ liquidationDate: { _isNull: true } }`);
+  }
+  if (variables.isInactive) {
+    andConditions.push(`{ liquidationDate: { _isNull: false } }`);
   }
 
   if (orConditions.length) {

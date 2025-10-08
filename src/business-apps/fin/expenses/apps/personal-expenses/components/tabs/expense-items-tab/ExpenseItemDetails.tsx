@@ -1,9 +1,7 @@
 import React, { useState, useCallback, useEffect, useRef, useMemo } from 'react';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 import { 
-  Badge,
   Separator,
-  Button,
   Card,
   CardContent,
   CardHeader,
@@ -26,6 +24,9 @@ import { ExpenseItem, useGetExpenseItem } from '../../../hooks/useGetExpenseItem
 import { getExpenseItemStatusDisplay } from '../../../utils';
 import { getTranslationFromI18nKeyAndLabel, formatDate } from '@/common/utils/windowUtils';
 import { formatCurrencyDisplay } from '../../../utils';
+import { AppActionButton } from '@/components/app-action-button/AppActionButton';
+import { generateExpenseItemActions } from '../../../utils/expenseItemActions';
+import { Badge } from '@newwork/nw-design-system';
 import type { UploadFile } from 'antd/es/upload/interface';
 
 // Utility function to truncate file names
@@ -246,23 +247,7 @@ export const ExpenseItemDetails: React.FC<ExpenseItemDetailsProps> = ({
     }
   }, [detailedItem, fetchFileAttachments]);
   
-  // Get status badge variant
-  const getStatusBadgeVariant = (status: string) => {
-    switch (status.toUpperCase()) {
-      case 'CREATED':
-        return 'secondary' as const;
-      case 'PENDING':
-        return 'warning' as const;
-      case 'APPROVED':
-        return 'success' as const;
-      case 'REJECTED':
-        return 'destructive' as const;
-      case 'CLOSED':
-        return 'success' as const;
-      default:
-        return 'default' as const;
-    }
-  };
+
 
   // Render attachment preview
   const renderAttachmentPreview = useCallback(() => {
@@ -428,7 +413,7 @@ export const ExpenseItemDetails: React.FC<ExpenseItemDetailsProps> = ({
 
   return (
     <div className="gba:space-y-6">
-      {/* Header: Title, Code, Status Badge */}
+      {/* Header: Title, Code, Status Badge, Action Button */}
       <div className="gba:flex gba:justify-between gba:items-start gba:mb-4">
         <div>
           <h2 className="gba:text-lg gba:font-semibold gba:text-gray-900 gba:mb-1">
@@ -438,12 +423,51 @@ export const ExpenseItemDetails: React.FC<ExpenseItemDetailsProps> = ({
             {typeof displayItem.code === 'string' ? displayItem.code : ''}
           </p>
         </div>
-        <Badge
-          variant={getStatusBadgeVariant(displayItem.status)}
-          data-testid="expense-item-status-badge"
-        >
-          {getExpenseItemStatusDisplay(displayItem.status).label}
-        </Badge>
+        <div className="gba:flex gba:items-center gba:gap-3">
+          {(() => {
+            const statusConfig = getExpenseItemStatusDisplay(displayItem.status);
+            return (
+              <Badge variant={(statusConfig as any).badgeVariant || 'outline'} data-testid="expense-item-status-badge">
+                {statusConfig.label}
+              </Badge>
+            );
+          })()}
+          {(() => {
+             const availableActions = generateExpenseItemActions(
+               displayItem,
+               {
+                 employeeId: contextProps.userInfo?.employeeDetails?.employeeId || '',
+                 accessToken: contextProps.accessToken || '',
+                 onClose: onClose
+               },
+               {
+                 includeDetails: false,
+                 includeAssignToRequest: true
+               }
+             );
+            
+            // Only show action button if there are available actions
+            if (availableActions.length > 0) {
+              return (
+                <div 
+                  className="gba:flex gba:justify-start gba:gap-2"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <AppActionButton
+                    data-testid="expense-item-details-action-button"
+                    size="icon"
+                    staticFlowData={availableActions}
+                    prefixDataTestId="expense-item-details-action"
+                    accessToken={contextProps.accessToken}
+                    emptyStateBehavior="disable"
+                    deferMainContextRequestsUntilClick={true}
+                  />
+                </div>
+              );
+            }
+            return null;
+          })()}
+        </div>
       </div>
 
       {/* Dates Section */}

@@ -4,25 +4,25 @@ import {
   Button,
   Alert,
   AlertDescription,
-  Spinner,
 } from "@newwork/nw-design-system";
 import { formatDataTestId } from "@/common/utils/formatDataTestId";
 import { dispatchProcessContinueEvent } from "@/common/utils/processEventUtils";
 import AccountInformationSection from "./AccountInformationSection";
-import CompanyInformationSection from "./CompanyInformationSection";
-import ContactInformationSection from "./ContactInformationSection";
 import AddressInformationSection from "./AddressInformationSection";
 import FinancialInformationSection from "./FinancialInformationSection";
+import ContactSelector from "./ContactSelector";
 
 const prefixDataTestId = "AccountForm";
 
 const AccountFormComponent: React.FC = () => {
-  const { formValues, onSubmit, onCancel, isLoading, error, hideActions } =
+  const { formValues, onSubmit, onCancel, isLoading, error, hideActions, setFormValues } =
     useAccountFormContext();
+  
+  // Local loading state for submission
+  const [isSubmitting, setIsSubmitting] = React.useState(false);
 
   // Check if all mandatory fields are filled
-  const isFormValid =
-    formValues.owner && formValues.legalForm && formValues.accountName;
+  const isFormValid = Boolean(formValues.owner && formValues.accountName);
 
   // Helper function to convert values to strings safely
   const toStringOrUndefined = (
@@ -33,23 +33,20 @@ const AccountFormComponent: React.FC = () => {
 
   // Handle form submission
   const handleSubmit = async () => {
+    // Prevent duplicate submissions
+    if (isLoading || isSubmitting) {
+      return;
+    }
+
+    setIsSubmitting(true);
     try {
       // ✅ FIXED: Determine operation mode based on account ID presence
       const isUpdate = formValues.id && formValues.id.trim();
-      console.log(
-        `🔄 Investment Account Form Mode: ${isUpdate ? "UPDATE" : "INSERT"}`,
-        {
-          accountId: formValues.id,
-          accountName: formValues.accountName,
-          isUpdate: isUpdate,
-        }
-      );
 
       // ✅ UPDATED: Prepare InvestmentAccount payload following the correct API structure
       const investmentAccountPayload: any = {
         sourceApp: "IRM", // ✅ FIXED: Changed from CRM to IRM for Investment Relations Management
         name: toStringOrUndefined(formValues.accountName), // ✅ FIXED: accountName → name
-        code: toStringOrUndefined(formValues.tickerSymbol), // ✅ UPDATED: Use tickerSymbol as code
         legalFormRef: toStringOrUndefined(formValues.legalForm),
         industryClassRef: toStringOrUndefined(formValues.industry), // ✅ FIXED: industryRef → industryClassRef
         website: toStringOrUndefined(formValues.website),
@@ -57,6 +54,39 @@ const AccountFormComponent: React.FC = () => {
         phone: toStringOrUndefined(formValues.phone),
         email: toStringOrUndefined(formValues.email),
         geographicPresence: toStringOrUndefined(formValues.geographicPresence), // ✅ FIXED: Use dedicated geographicPresence field
+        
+        // Address relationships (using the new addresses array structure)
+        addresses: formValues.addresses?.filter(addr => 
+          // Only include addresses that have some content
+          addr.addressLines.some(line => line.trim()) || 
+          addr.postalCode.trim() || 
+          addr.locality.trim() ||
+          addr.regionRef.trim() ||
+          addr.countryRef.trim()
+        ).map(addr => {
+          const addressPayload: any = {
+            addressType: "PRIMARY_ADDRESS", // Always set to PRIMARY_ADDRESS
+            addressLine: addr.addressLines.filter(line => line.trim()).length > 0 
+              ? { lines: addr.addressLines.filter(line => line.trim()) }
+              : null,
+            postalCode: addr.postalCode.trim() || null,
+            locality: addr.locality.trim() || null,
+            regionRef: addr.regionRef.trim() || null,
+            countryRef: addr.countryRef.trim() || null,
+          };
+
+          // ✅ FIXED: Only include ID and version when updating an existing account
+          // This prevents the backend from treating addresses as new inserts during updates
+          if (isUpdate && addr.id && addr.id !== "default-address") {
+            addressPayload.id = addr.id;
+            // Include version for optimistic locking during address updates (only on update)
+            if (addr.version !== undefined && addr.version !== null) {
+              addressPayload.version = addr.version;
+            }
+          }
+
+          return addressPayload;
+        }) || [],
         specialty: undefined, // Not available in current form
         liquidationDate: undefined, // Not available in current form
         picture: undefined, // Not available in current form
@@ -76,12 +106,6 @@ const AccountFormComponent: React.FC = () => {
         if (formValues.version !== undefined && formValues.version !== null) {
           investmentAccountPayload.version = formValues.version;
         }
-        console.log("✅ UPDATE mode - including ID and version:", {
-          id: investmentAccountPayload.id,
-          version: investmentAccountPayload.version,
-        });
-      } else {
-        console.log("✅ INSERT mode - no ID or version included");
       }
 
       // ✅ REMOVED: InvestmentAccount doesn't have addresses array - using geographicPresence instead
@@ -93,59 +117,57 @@ const AccountFormComponent: React.FC = () => {
       // Determine change mode based on whether we have an ID
       const changeMode = isUpdate ? "UPDATE" : "INSERT";
 
+      // ✅ FIXED: Extract contact IDs from contactIds (handle both string[] and object[] formats)
+      const extractedContactIds = (formValues.contactIds || []).map(contact => 
+        typeof contact === 'object' ? contact.id : contact
+      );
+
       // ✅ FIXED: Create clean payload structure to prevent context field pollution
       const cleanPayload = {
         investmentAccount: investmentAccountPayload,
         changeMode: changeMode,
+        contactIds: extractedContactIds, // ✅ UPDATED: Array of contact IDs (extracted from objects if needed)
       };
 
-      // ✅ DEBUG: Log the final payload structure
-      console.log(
-        "🚀 Investment Account Clean Payload (no context pollution):",
-        {
-          changeMode: cleanPayload.changeMode,
-          isUpdate: isUpdate,
-          investmentAccountId: cleanPayload.investmentAccount?.id,
-          sourceApp: cleanPayload.investmentAccount?.sourceApp,
-          name: cleanPayload.investmentAccount?.name,
-          industryClassRef: cleanPayload.investmentAccount?.industryClassRef,
-          companySizeRef: cleanPayload.investmentAccount?.companySizeRef,
-          accountAnnualRevenueBandRef:
-            cleanPayload.investmentAccount?.accountAnnualRevenueBandRef,
-          ownerEmployee: cleanPayload.investmentAccount?.ownerEmployee,
-          payloadKeys: Object.keys(cleanPayload),
-          investmentAccountKeys: Object.keys(
-            cleanPayload.investmentAccount || {}
-          ),
-        }
-      );
 
       // ✅ FIXED: Create completely isolated payload to prevent context field pollution
       const isolatedPayload = JSON.parse(JSON.stringify(cleanPayload));
 
-      console.log(
-        "✅ Investment Account form dispatching pse_submit event with ISOLATED payload:",
-        isolatedPayload
-      );
-      console.log(
-        "🔍 Payload keys before dispatch:",
-        Object.keys(isolatedPayload)
-      );
 
       dispatchProcessContinueEvent("pse_submit", isolatedPayload);
 
-      // Call the onSubmit callback after dispatching the process event
-      // This ensures the process event is always dispatched even if onSubmit fails
-      try {
-        await onSubmit(formValues);
-      } catch (submitError) {
-        console.warn(
-          "onSubmit callback failed, but process event was dispatched:",
-          submitError
-        );
-      }
+      // Wait for process completion event
+      await new Promise<void>((resolve) => {
+        const TIMEOUT = 10000;
+        const timeoutId = setTimeout(() => {
+          cleanup();
+          resolve();
+        }, TIMEOUT);
+
+        const handleProcessCompletion = (event: Event) => {
+          const customEvent = event as CustomEvent<{ resolution: 'success' | 'failure' }>;
+          if (
+            customEvent.detail?.resolution === 'success' ||
+            customEvent.detail?.resolution === 'failure'
+          ) {
+            cleanup();
+            resolve();
+          }
+        };
+
+        const cleanup = () => {
+          clearTimeout(timeoutId);
+          window.removeEventListener('com.newwork.process.processCompletion', handleProcessCompletion);
+          window.removeEventListener('com.newwork.process.taskCompletion', handleProcessCompletion);
+        };
+
+        window.addEventListener('com.newwork.process.processCompletion', handleProcessCompletion);
+        window.addEventListener('com.newwork.process.taskCompletion', handleProcessCompletion);
+      });
     } catch (err) {
       console.error("Error submitting account form:", err);
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -172,11 +194,16 @@ const AccountFormComponent: React.FC = () => {
           {/* Account Information Section */}
           <AccountInformationSection />
 
-          {/* Company Information Section */}
-          <CompanyInformationSection />
+          {/* Related Contact Selection - positioned right after Account Information */}
+          <div className="gba:space-y-2">
+            <ContactSelector
+              value={formValues.contactIds}
+              onChange={(contactIds) => setFormValues({ contactIds })}
+              dataTestId={formatDataTestId(prefixDataTestId, "contact-selector")}
+              error={null}
+            />
+          </div>
 
-          {/* Contact Information Section */}
-          <ContactInformationSection />
 
           {/* Address Information Section */}
           <AddressInformationSection />
@@ -201,20 +228,19 @@ const AccountFormComponent: React.FC = () => {
               className="gba:flex-1"
               size="lg"
               onClick={handleCancel}
-              data-testid={formatDataTestId(prefixDataTestId, "CancelButton")}
+              data-testid={formatDataTestId(prefixDataTestId, "cancel-button")}
             >
               Cancel
             </Button>
             <Button
               type="button"
               variant="default"
-              disabled={!isFormValid}
+              disabled={!isFormValid || isLoading || isSubmitting}
               className="gba:flex-1"
               size="lg"
               onClick={handleSubmit}
-              data-testid={formatDataTestId(prefixDataTestId, "SubmitButton")}
+              data-testid={formatDataTestId(prefixDataTestId, "submit-button")}
             >
-              {isLoading && <Spinner size="sm" className="gba:mr-2" />}
               {formValues.id ? "Update Account" : "Create Account"}
             </Button>
           </div>

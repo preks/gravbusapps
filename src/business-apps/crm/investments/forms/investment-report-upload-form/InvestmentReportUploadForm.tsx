@@ -15,7 +15,8 @@ import {
   Alert,
   AlertDescription,
   Button,
-  Badge
+  Badge,
+  AiBadge
 } from '@newwork/nw-design-system';
 import { useForm } from 'react-hook-form';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
@@ -307,7 +308,7 @@ export const InvestmentReportUploadForm: React.FC<BusinessAppContextProps & Inve
   
   const defaultDescription = getTranslationFromI18nKeyAndLabel(
     'investment.document.upload.description',
-    'Upload your investment report documents and let AI analyze them automatically. Your documents will be securely stored and easily accessible for future reference.'
+    'Upload your investment report documents and let our AI analyze them automatically. Your documents will be securely stored and easily accessible for future reference.'
   );
 
   // Error handling for missing access token
@@ -363,7 +364,13 @@ export const InvestmentReportUploadForm: React.FC<BusinessAppContextProps & Inve
       {/* Form Title */}
       <div className="gba:mb-6">
         <h2 className="gba:text-xl gba:font-semibold gba:text-gray-900 gba:flex gba:items-center gba:gap-2">
-          <FileText className="gba:h-5 gba:w-5" />
+          <AiBadge 
+            label="AI" 
+            variant="aiGenerated" 
+            size="lg"
+            ariaLabel="AI-powered document analysis"
+            data-testid="investment-report-upload-ai-badge"
+          />
           {title || defaultTitle}
         </h2>
         <p className="gba:text-sm gba:text-gray-600 gba:mt-2">

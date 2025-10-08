@@ -18,16 +18,14 @@ import {
   Award, 
   Building2, 
   Calendar, 
-  User,
   Target
 } from "lucide-react";
 import { getTranslationFromI18nKeyAndLabel } from "@/common/utils/windowUtils";
 import { BusinessAppContextProps } from "@/common/BusinessAppContext";
 import { DataContainer } from "@/components/layout/dataContainer/DataContainer";
 import { ColumnConfig } from "@/components/dataController";
-import { AppAction } from "@/components/app-action/AppAction";
-import { AppActionButton } from "@/components/app-action-button/AppActionButton";
 import { FlowContextName } from "@/common/types/FlowRegistryTypes";
+import { AppActionButton } from "@/components/app-action-button/AppActionButton";
 import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils';
 import { OwnerDisplay } from "../../../../../../components/shared";
 import { formatDate } from "../../utils";
@@ -69,7 +67,6 @@ const formatCurrencyLarge = (amount: number | undefined, currencyCode: string = 
     minimumFractionDigits: 0
   }).format(amount);
 };
-import { useSalesData } from "./hooks/useSalesData";
 import { DateRangeFilter } from '@/business-apps/crm/customers/apps/customer-relations/views/lead-view/components/DateRangeFilter';
 import { useEmployeeSearch } from '@/common/data/employee/useEmployeeSearch';
 import { useGetInvestmentOpportunities } from '@/common/data/investment/hooks/useInvestmentOpportunities';
@@ -85,9 +82,13 @@ export interface SalesMetrics {
   totalSold: number;
   totalRevenue: number;
   averageOpportunityValue: number;
+  averageRevenue: number;
+  salesThisYear: number;
+  salesThisYearChange?: number;
   totalSoldChange?: number;
   totalRevenueChange?: number;
   averageOpportunityValueChange?: number;
+  averageRevenueChange?: number;
   averageWinRate?: number;
   winRateChange?: number;
 }
@@ -106,6 +107,7 @@ const Sales: React.FC<SalesProps> = ({ accessToken, userInfo }) => {
   const [closeBefore, setCloseBefore] = useState<string | undefined>(undefined);
   // Owner backend search
   const { employees: employeeOptions, search: searchEmployees, loading: loadingEmployees, error: employeeError } = useEmployeeSearch(accessToken);
+  const [accountSearchTerm, setAccountSearchTerm] = useState("");
 
   // State for sales data
   const [soldOpportunities, setSoldOpportunities] = useState<SoldOpportunity[]>([]);
@@ -148,6 +150,7 @@ const Sales: React.FC<SalesProps> = ({ accessToken, userInfo }) => {
         offset: (page - 1) * pageSize,
         dealType: "DIVESTMENT_DEAL", // Filter for divestment opportunities
         search: additionalFilters?.search || searchTerm,
+        accountSearch: additionalFilters?.accountSearch,
       };
 
       // Add sorting
@@ -180,7 +183,7 @@ const Sales: React.FC<SalesProps> = ({ accessToken, userInfo }) => {
             const statusValue = opp.opportunityStatus?.value?.toUpperCase();
             const statusCode = opp.opportunityStatus?.code?.toUpperCase();
             const statusAltCode = opp.opportunityStatus?.alternativeCode?.toUpperCase();
-            const directStatus = opp.status?.toUpperCase();
+            const directStatus = (opp as any).status?.toUpperCase();
             
             // Check for various "WON" representations
             const wonVariations = ["WON", "CLOSED WON", "SOLD", "SUCCESS", "COMPLETED"];
@@ -216,11 +219,22 @@ const Sales: React.FC<SalesProps> = ({ accessToken, userInfo }) => {
           const averageWinRate = wonOpportunities.length > 0 ? 
             wonOpportunities.reduce((sum, opp) => sum + (opp.probability || 0), 0) / wonOpportunities.length : 0;
           
+          // Count sales closed this year (similar to opportunity view "this year" logic)
+          const now = new Date();
+          const thisYearStart = new Date(now.getFullYear(), 0, 1);
+          const salesThisYear = wonOpportunities.filter(opp => {
+            if (!opp.closeDate) return false;
+            const closeDate = new Date(opp.closeDate);
+            return closeDate >= thisYearStart;
+          }).length;
+          
           return {
             totalSold: wonOpportunities.length,
             totalRevenue: totalValue,
             averageRevenue: averageValue,
+            averageOpportunityValue: averageValue,
             averageWinRate,
+            salesThisYear,
           };
         };
 
@@ -234,7 +248,7 @@ const Sales: React.FC<SalesProps> = ({ accessToken, userInfo }) => {
         const current = calculateMetrics(currentResult.InvestmentOpportunity);
         const historical = historicalResult?.InvestmentOpportunity ? 
           calculateMetrics(historicalResult.InvestmentOpportunity, thirtyDaysAgo) : 
-          { totalSold: 0, totalRevenue: 0, averageRevenue: 0, averageWinRate: 0 };
+          { totalSold: 0, totalRevenue: 0, averageRevenue: 0, averageOpportunityValue: 0, averageWinRate: 0, salesThisYear: 0 };
 
         // Calculate percentage changes
         const calculatePercentageChange = (current: number, previous: number): number => {
@@ -247,12 +261,29 @@ const Sales: React.FC<SalesProps> = ({ accessToken, userInfo }) => {
         const averageRevenueChange = calculatePercentageChange(current.averageRevenue, historical.averageRevenue);
         const winRateChange = calculatePercentageChange(current.averageWinRate, historical.averageWinRate);
 
+        // Calculate year-over-year change for sales this year
+        // Compare sales this year to same period last year
+        const now = new Date();
+        const lastYearStart = new Date(now.getFullYear() - 1, 0, 1);
+        const lastYearEnd = new Date(now.getFullYear() - 1, now.getMonth(), now.getDate());
+        
+        const wonOpportunitiesLastYearSamePeriod = historicalResult?.InvestmentOpportunity 
+          ? filterWonOpportunities(historicalResult.InvestmentOpportunity).filter(opp => {
+              if (!opp.closeDate) return false;
+              const closeDate = new Date(opp.closeDate);
+              return closeDate >= lastYearStart && closeDate <= lastYearEnd;
+            }).length
+          : 0;
+
+        const salesThisYearChange = calculatePercentageChange(current.salesThisYear, wonOpportunitiesLastYearSamePeriod);
+
         const metricsData: SalesMetrics = {
           ...current,
           totalSoldChange,
           totalRevenueChange,
           averageRevenueChange,
           winRateChange,
+          salesThisYearChange,
         };
         setMetrics(metricsData);
       }
@@ -298,12 +329,13 @@ const Sales: React.FC<SalesProps> = ({ accessToken, userInfo }) => {
       pageSize,
       {
         search: searchTerm,
+        accountSearch: accountSearchTerm,
         ownerEmployeeIds: ownerIds,
         closeDateFrom: closeAfter,
         closeDateTo: closeBefore,
       }
     );
-  }, [loadPage, currentPage, searchTerm, sortField, sortOrder, selectedFilters, closeAfter, closeBefore]);
+  }, [loadPage, currentPage, searchTerm, accountSearchTerm, sortField, sortOrder, selectedFilters, closeAfter, closeBefore]);
 
   // Listen for process completion events to refresh data
   useEffect(() => {
@@ -375,9 +407,9 @@ const Sales: React.FC<SalesProps> = ({ accessToken, userInfo }) => {
     { id: 'actions', label: 'Actions', visible: true, disabled: true },
     { id: 'opportunity', label: 'Opportunity', visible: true },
     { id: 'investment', label: 'Investment', visible: true },
+    { id: 'account', label: 'Account', visible: true },
     { id: 'saleAmount', label: 'Sale Amount', visible: true },
     { id: 'status', label: 'Status', visible: true },
-    { id: 'revenue', label: 'Revenue', visible: true },
     { id: 'closeDate', label: 'Close Date', visible: true },
     { id: 'owner', label: 'Owner', visible: true },
     { id: 'created', label: 'Created', visible: false },
@@ -391,9 +423,9 @@ const Sales: React.FC<SalesProps> = ({ accessToken, userInfo }) => {
   const columnToFilterMap: Record<string, string> = {
     opportunity: 'opportunityName',
     investment: 'investmentName',
+    account: 'accountName',
     saleAmount: 'amountRange',
     status: 'opportunityStatus',
-    revenue: 'revenueRange',
     closeDate: 'closeDate',
     owner: 'owner',
     created: 'creationDate',
@@ -418,9 +450,9 @@ const Sales: React.FC<SalesProps> = ({ accessToken, userInfo }) => {
         span: { xs: 24, sm: 12, md: 12, lg: 6 },
         description: getTranslationFromI18nKeyAndLabel("successfully_sold_opportunities", "Successfully sold opportunities"),
         trend: {
-          value: formatPercentageChange(metrics.totalSoldChange),
-          positive: metrics.totalSoldChange >= 0,
-          description: getTranslationFromI18nKeyAndLabel("vs_previous_period", "vs previous period")
+          value: formatPercentageChange(metrics.totalSoldChange || 0),
+          positive: (metrics.totalSoldChange || 0) >= 0,
+          description: getTranslationFromI18nKeyAndLabel("vs_last_30_days", "vs last 30 days")
         }
       },
       {
@@ -432,9 +464,9 @@ const Sales: React.FC<SalesProps> = ({ accessToken, userInfo }) => {
         span: { xs: 24, sm: 12, md: 12, lg: 6 },
         description: getTranslationFromI18nKeyAndLabel("average_amount_per_sale", "Average amount per sale"),
         trend: {
-          value: formatPercentageChange(metrics.averageRevenueChange),
-          positive: metrics.averageRevenueChange >= 0,
-          description: getTranslationFromI18nKeyAndLabel("vs_previous_period", "vs previous period")
+          value: formatPercentageChange(metrics.averageRevenueChange || 0),
+          positive: (metrics.averageRevenueChange || 0) >= 0,
+          description: getTranslationFromI18nKeyAndLabel("vs_last_30_days", "vs last 30 days")
         }
       },
       {
@@ -446,23 +478,23 @@ const Sales: React.FC<SalesProps> = ({ accessToken, userInfo }) => {
         span: { xs: 24, sm: 12, md: 12, lg: 6 },
         description: getTranslationFromI18nKeyAndLabel("total_revenue_generated", "Total revenue generated from sales"),
         trend: {
-          value: formatPercentageChange(metrics.totalRevenueChange),
-          positive: metrics.totalRevenueChange >= 0,
-          description: getTranslationFromI18nKeyAndLabel("vs_previous_period", "vs previous period")
+          value: formatPercentageChange(metrics.totalRevenueChange || 0),
+          positive: (metrics.totalRevenueChange || 0) >= 0,
+          description: getTranslationFromI18nKeyAndLabel("vs_last_30_days", "vs last 30 days")
         }
       },
       {
-        key: "average-revenue",
-        title: getTranslationFromI18nKeyAndLabel("average_revenue", "Average Revenue"),
-        value: formatCurrencyLarge(metrics.averageRevenue),
+        key: "sales-this-year",
+        title: getTranslationFromI18nKeyAndLabel("sales_this_year", "Sales This Year"),
+        value: metrics.salesThisYear,
         prefix: <Award className="gba:h-5 gba:w-5 gba:text-blue-600" />,
-        color: '#1890ff', // Blue theme for averages
+        color: '#1890ff', // Blue theme
         span: { xs: 24, sm: 12, md: 12, lg: 6 },
-        description: getTranslationFromI18nKeyAndLabel("average_revenue_per_sale", "Average revenue per sale"),
+        description: getTranslationFromI18nKeyAndLabel("closed_sales_this_year", "Closed sales this year"),
         trend: {
-          value: formatPercentageChange(metrics.averageRevenueChange),
-          positive: metrics.averageRevenueChange >= 0,
-          description: getTranslationFromI18nKeyAndLabel("vs_previous_period", "vs previous period")
+          value: formatPercentageChange(metrics.salesThisYearChange || 0),
+          positive: (metrics.salesThisYearChange || 0) >= 0,
+          description: getTranslationFromI18nKeyAndLabel("vs_same_period_last_year", "vs same period last year")
         }
       }
     ];
@@ -533,24 +565,6 @@ const Sales: React.FC<SalesProps> = ({ accessToken, userInfo }) => {
               </div>
             </div>
           ),
-          actions: (
-            <AppAction
-              contextsArray={[FlowContextName.createInvestmentOpportunity]}
-              accessToken={accessToken}
-              data-testid="sales-add-action"
-              emptyStateBehavior="hide"
-            >
-              <button
-                className="gba:flex gba:flex-row gba:justify-center gba:items-center gba:px-3 gba:py-0 gba:h-8 gba:rounded gba:gap-1"
-                data-testid="sales-add-action"
-                type="button"
-              >
-                <span className="gba:h-4 gba:font-normal gba:text-sm gba:leading-4 gba:flex gba:items-center gba:text-black gba:flex-none order-1 gba:grow-0">
-                  Add
-                </span>
-              </button>
-            </AppAction>
-          ),
         }}
         dataFilterProps={{
           filterGroups: [
@@ -579,6 +593,22 @@ const Sales: React.FC<SalesProps> = ({ accessToken, userInfo }) => {
               hideSearch: true,
             },
             {
+              id: 'accountName',
+              title: 'Account',
+              filters: [],
+              customComponent: React.createElement('input', {
+                value: accountSearchTerm,
+                onChange: (e: React.ChangeEvent<HTMLInputElement>) => {
+                  setAccountSearchTerm(e.target.value);
+                  setCurrentPage(1);
+                },
+                placeholder: 'Search account',
+                className: 'gba:w-full gba:h-8 gba:px-2 gba:text-sm gba:bg-gray-100/40 gba:rounded gba:border-none gba:outline-none',
+                'data-testid': 'sales-account-search-input',
+              }),
+              hideSearch: true,
+            },
+            {
               id: 'amountRange',
               title: 'Sale Amount',
               filters: [],
@@ -592,13 +622,6 @@ const Sales: React.FC<SalesProps> = ({ accessToken, userInfo }) => {
                 { id: 'OpportunityStatus:v1:WON', label: 'Won', selected: selectedFilters.includes('OpportunityStatus:v1:WON') },
                 { id: 'OpportunityStatus:v1:CLOSED', label: 'Closed', selected: selectedFilters.includes('OpportunityStatus:v1:CLOSED') },
               ],
-            },
-            {
-              id: 'revenueRange',
-              title: 'Revenue',
-              filters: [],
-              customComponent: React.createElement('div', null),
-              hideSearch: true,
             },
             {
               id: 'owner',
@@ -654,9 +677,9 @@ const Sales: React.FC<SalesProps> = ({ accessToken, userInfo }) => {
                 <TableRow>
                   {visibleColumns.includes('opportunity') && (<TableHead className="gba:cursor-pointer" onClick={() => handleSort('name')}>Opportunity</TableHead>)}
                   {visibleColumns.includes('investment') && (<TableHead className="gba:cursor-pointer" onClick={() => handleSort('investmentName')}>Investment</TableHead>)}
+                  {visibleColumns.includes('account') && (<TableHead className="gba:cursor-pointer" onClick={() => handleSort('accountName')}>Account</TableHead>)}
                   {visibleColumns.includes('saleAmount') && (<TableHead className="gba:cursor-pointer" onClick={() => handleSort('estimatedAmount')}>Sale Amount</TableHead>)}
                   {visibleColumns.includes('status') && (<TableHead className="gba:cursor-pointer" onClick={() => handleSort('opportunityStatus')}>Status</TableHead>)}
-                  {visibleColumns.includes('revenue') && (<TableHead className="gba:cursor-pointer" onClick={() => handleSort('revenueAmount')}>Revenue</TableHead>)}
                   {visibleColumns.includes('closeDate') && (<TableHead className="gba:cursor-pointer" onClick={() => handleSort('closeDate')}>Close Date</TableHead>)}
                   {visibleColumns.includes('owner') && (<TableHead className="gba:cursor-pointer" onClick={() => handleSort('ownerEmployee')}>Owner</TableHead>)}
                   {visibleColumns.includes('created') && (<TableHead className="gba:cursor-pointer" onClick={() => handleSort('createdAt')}>Created</TableHead>)}
@@ -666,7 +689,7 @@ const Sales: React.FC<SalesProps> = ({ accessToken, userInfo }) => {
               <TableBody>
                 {soldOpportunities.length === 0 && !loading ? (
                   <TableRow>
-                    <TableCell colSpan={8} className="gba:text-center gba:py-12">
+                    <TableCell colSpan={9} className="gba:text-center gba:py-12">
                       <div className="gba:flex gba:flex-col gba:items-center gba:gap-3">
                         <DollarSign className="gba:w-12 gba:h-12 gba:text-gray-400" />
                         <div className="gba:text-gray-600">
@@ -704,7 +727,13 @@ const Sales: React.FC<SalesProps> = ({ accessToken, userInfo }) => {
                     {visibleColumns.includes('investment') && (<TableCell>
                       <div className="gba:flex gba:items-center gba:gap-2">
                         <Target className="gba:w-4 gba:h-4 gba:text-gray-500" />
-                        <span>{opportunity.investmentName || opportunity.account?.name || "N/A"}</span>
+                        <span>{opportunity.investmentName || "N/A"}</span>
+                      </div>
+                    </TableCell>)}
+                    {visibleColumns.includes('account') && (<TableCell>
+                      <div className="gba:flex gba:items-center gba:gap-2">
+                        <Building2 className="gba:w-4 gba:h-4 gba:text-gray-500" />
+                        <span>{opportunity.account?.name || "N/A"}</span>
                       </div>
                     </TableCell>)}
                     {visibleColumns.includes('saleAmount') && (<TableCell>
@@ -716,14 +745,6 @@ const Sales: React.FC<SalesProps> = ({ accessToken, userInfo }) => {
                       <Badge variant={getSalesBadgeVariant()}>
                         Sold
                       </Badge>
-                    </TableCell>)}
-                    {visibleColumns.includes('revenue') && (<TableCell>
-                      <div className="gba:flex gba:items-center gba:gap-1">
-                        <DollarSign className="gba:w-4 gba:h-4 gba:text-green-600" />
-                        <span className="gba:font-medium gba:text-green-600">
-                          {opportunity.estimatedAmount ? formatCurrencyLarge(opportunity.estimatedAmount) : "N/A"}
-                        </span>
-                      </div>
                     </TableCell>)}
                     {visibleColumns.includes('closeDate') && (<TableCell>
                       {opportunity.closeDate ? (
@@ -758,7 +779,7 @@ const Sales: React.FC<SalesProps> = ({ accessToken, userInfo }) => {
                           accessToken={accessToken}
                           emptyStateBehavior="enable"
                           deferMainContextRequestsUntilClick
-                          onClick={(e) => e.stopPropagation()}
+                          onClick={(e: React.MouseEvent) => e.stopPropagation()}
                         />
                       </div>
                     </TableCell>)}

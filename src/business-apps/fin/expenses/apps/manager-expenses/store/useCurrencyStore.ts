@@ -20,8 +20,8 @@ interface CurrencyState {
  * Store for managing currency-related state across the manager-expenses app
  */
 export const useCurrencyStore = create<CurrencyState>((set) => ({
-  primaryCurrency: "EUR",
-  availableCurrencies: ["EUR", "USD"],
+  primaryCurrency: "",
+  availableCurrencies: [],
   mostUsedCurrency: null,
   isLoading: false,
   isUserSelected: false,
@@ -67,8 +67,8 @@ export const useCurrencyStore = create<CurrencyState>((set) => ({
   setInitialized: (isInitialized) => set({ isInitialized }),
   reset: () =>
     set({
-      primaryCurrency: "EUR",
-      availableCurrencies: ["EUR", "USD"],
+      primaryCurrency: "",
+      availableCurrencies: [],
       mostUsedCurrency: null,
       isLoading: false,
       isUserSelected: false,

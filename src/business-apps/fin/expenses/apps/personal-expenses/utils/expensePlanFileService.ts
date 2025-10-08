@@ -2,6 +2,7 @@ import { useCallback, useMemo, useRef, useEffect } from 'react';
 import { FileClient } from '@/common/network/files/FileClient';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 import { ExpensePlan } from '../hooks/useGetExpensePlans';
+import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
 
 export interface PrintPlanResult {
   success: boolean;
@@ -34,17 +35,19 @@ export const useExpensePlanFileService = (props: BusinessAppContextProps) => {
     if (!record.employeeDocument?.file) {
       return {
         success: false,
-        error: 'No employee document file ID available for printing'
+        error: getTranslationFromI18nKeyAndLabel('lowcoder:expenses.plan.error.no_file_id', 'No employee document file ID available for printing')
       };
     }
 
     try {
-      const employeeId = props.userInfo?.employeeDetails?.employeeId;
+      // Use the employee ID from the record if available (for manager viewing team member's expenses)
+      // Otherwise fall back to the logged-in user's employee ID (for personal expenses)
+      const employeeId = record.employee?.id || record.employeeDocument?.employee?.id || props.userInfo?.employeeDetails?.employeeId;
       
       if (!employeeId) {
         return {
           success: false,
-          error: 'No employee ID available for file path'
+          error: getTranslationFromI18nKeyAndLabel('lowcoder:expenses.plan.error.no_employee_id', 'No employee ID available for file path')
         };
       }
 
@@ -54,9 +57,11 @@ export const useExpensePlanFileService = (props: BusinessAppContextProps) => {
       if (!fileId) {
         return {
           success: false,
-          error: 'No file ID available for printing'
+          error: getTranslationFromI18nKeyAndLabel('lowcoder:expenses.plan.error.no_file_id_extracted', 'No file ID available for printing')
         };
       }
+
+      const filePath = `/documents/${employeeId}`;
 
       // Fetch the PDF file using FileClient with proper authorization
       const blob = await fileClient.getFile(
@@ -66,7 +71,7 @@ export const useExpensePlanFileService = (props: BusinessAppContextProps) => {
         },
         { 
           appName: 'employee-profile',
-          folderPath: `/documents/${employeeId}`
+          folderPath: filePath
         }
       );
       
@@ -78,9 +83,10 @@ export const useExpensePlanFileService = (props: BusinessAppContextProps) => {
         pdfUrl: objectUrl
       };
     } catch (error) {
+      console.error('Error fetching file for print:', error);
       return {
         success: false,
-        error: error instanceof Error ? error.message : 'Unknown error occurred'
+        error: error instanceof Error ? error.message : getTranslationFromI18nKeyAndLabel('lowcoder:expenses.plan.error.unknown', 'Unknown error occurred')
       };
     }
   }, [fileClient, props.userInfo?.employeeDetails?.employeeId, props.accessToken]);

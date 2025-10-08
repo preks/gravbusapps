@@ -3,6 +3,7 @@ import React, {
   useContext,
   useState,
   useEffect,
+  useRef,
   ReactNode,
   useMemo,
 } from "react";
@@ -202,10 +203,9 @@ export const ExpenseItemProvider: React.FC<ExpenseItemProviderProps> = ({
       const expenseRequestId = 
         additionalData?.expenseRequestId || 
         additionalData?.psi_taskPayload?.psi_initialParameters?.expenseRequest;
-      // Set expenseRequestId in form
       if (expenseRequestId) {
-        form.setFieldsValue({ expenseRequestId: expenseRequestId });
-      } else {
+        form.setFieldsValue({ expenseRequestId });
+      } else if (!isEditMode) {
         form.setFieldsValue({ expenseRequestId: "0" });
       }
       
@@ -222,6 +222,33 @@ export const ExpenseItemProvider: React.FC<ExpenseItemProviderProps> = ({
 
     }
   }, [catalogueDataResponse, accessToken, additionalData, currencies]);
+
+  // Avoid refetch loops: track attempted (requestId|currency) hydrations
+  const attemptedLabelHydrationsRef = useRef<Set<string>>(new Set());
+
+  // Ensure expense request labels are available after edits/flows
+  useEffect(() => {
+    const selectedRequestId = form.getFieldValue('expenseRequestId');
+    const currencyId = form.getFieldValue('currency');
+    const hasLabel = Array.isArray(expenseRequests) && expenseRequests.some((r: any) => r?.id === selectedRequestId);
+
+    if (!selectedRequestId || selectedRequestId === '0' || !currencyId || hasLabel) {
+      return;
+    }
+
+    const hydrateKey = `${selectedRequestId}|${currencyId}`;
+    if (attemptedLabelHydrationsRef.current.has(hydrateKey)) {
+      return;
+    }
+    attemptedLabelHydrationsRef.current.add(hydrateKey);
+
+    handleCurrencyChangeWrapper(currencyId).catch(() => {
+      showToast(
+        t("lowcoder:create_expense_type_item.process_error_expense_requests_fetch", "Error fetching expense requests"),
+        "error"
+      );
+    });
+  }, [expenseRequests]);
 
   useEffect(()=>{
     if(firstRunVariable===true)
@@ -416,7 +443,7 @@ export const ExpenseItemProvider: React.FC<ExpenseItemProviderProps> = ({
         if (expenseIdValue) {
           setCurrentStep("form");
           
-          await setByEdit(
+          const editData = await setByEdit(
             expenseIdValue,
             graphqlClient,
             form,
@@ -433,6 +460,12 @@ export const ExpenseItemProvider: React.FC<ExpenseItemProviderProps> = ({
             t,
             setInitialItemValues
           );
+          try {
+            const itemCurrencyId = editData?.ExpenseItemByPk?.currency?.id || form.getFieldValue('currency');
+            if (itemCurrencyId) {
+              await handleCurrencyChangeWrapper(itemCurrencyId);
+            }
+          } catch {}
           setIsEditMode(true);
         }
           let costCenterData;
@@ -537,9 +570,9 @@ export const ExpenseItemProvider: React.FC<ExpenseItemProviderProps> = ({
     try {
       const data = receiptData.data;
 
-      if (additionalData?.psi_taskPayload?.psi_initialParameters?.currencyData) {
+      if (additionalData?.itemCurrency) {
         const requestCurrency = currencies.find(
-          (c) => (c.id === additionalData?.psi_taskPayload.psi_initialParameters.currencyData)
+          (c) => (c.id === additionalData?.itemCurrency)
         );
         if (requestCurrency && requestCurrency.code !== data.currencyCode) {
           showToast(

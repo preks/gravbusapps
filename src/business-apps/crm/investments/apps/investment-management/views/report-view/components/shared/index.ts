@@ -10,19 +10,9 @@ export { useReportFilters } from './hooks/useReportFilters';
 export type { 
   ReportFiltersState, 
   ReportFiltersCallbacks, 
-  UseReportFiltersReturn 
+  UseReportFiltersReturn,
+  ColumnConfig
 } from './hooks/useReportFilters';
 
-// Universal Investment Reports Analytics Hook
-export { 
-  useUniversalInvestmentReportsAnalytics,
-  useRealEstateReportsDataUniversal,
-  useEquityReportsDataUniversal,
-  useLiquidFundAnalyticsIntegrationUniversal
-} from './hooks/useUniversalInvestmentReportsAnalytics';
-export type {
-  CommonAnalyticsFilters,
-  InvestmentGroupType,
-  UseUniversalInvestmentReportsAnalyticsProps,
-  UniversalInvestmentReportsReturn
-} from './hooks/useUniversalInvestmentReportsAnalytics';
+// Note: useUniversalInvestmentReportsAnalytics has been removed
+// All report views now use useGetInvestmentReports from @/common/data/investment-report/hooks directly

@@ -1,5 +1,5 @@
 import React from 'react';
-import { Card, CardHeader, CardContent, CardTitle, Alert, Spinner, Tabs, TabsList, TabsTrigger } from '@newwork/nw-design-system';
+import { Card, CardHeader, CardContent, CardTitle, Alert, Spinner } from '@newwork/nw-design-system';
 import { DashboardStats } from '../types';
 import ComparisonCard from './ComparisonCard';
 import ExpenseDistribution from './ExpenseDistribution';
@@ -40,8 +40,8 @@ export interface SpendingOverviewProps {
   stats: DashboardStats | undefined;
   isLoading: boolean;
   error: Error | null;
-  chartView: string | number;
-  setChartView: (view: string | number) => void;
+  chartView: string | number; // Period comes from top filter (Monthly | Quarterly | Yearly)
+  currencyCode?: string;
 }
 
 export const SpendingOverview: React.FC<SpendingOverviewProps> = ({
@@ -49,7 +49,7 @@ export const SpendingOverview: React.FC<SpendingOverviewProps> = ({
   isLoading,
   error,
   chartView,
-  setChartView,
+  currencyCode,
 }) => {
   if (isLoading) {
     return (
@@ -81,13 +81,6 @@ export const SpendingOverview: React.FC<SpendingOverviewProps> = ({
       <CardHeader>
         <div className="gba:flex gba:items-center gba:justify-between">
           <CardTitle>{getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.spending_overview','Spending Overview')}</CardTitle>
-          <Tabs value={String(chartView)} onValueChange={setChartView} data-testid="view-selector">
-            <TabsList>
-              <TabsTrigger value="Monthly">{getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.monthly','Monthly')}</TabsTrigger>
-              <TabsTrigger value="Quarterly">{getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.quarterly','Quarterly')}</TabsTrigger>
-              <TabsTrigger value="Yearly">{getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.yearly','Yearly')}</TabsTrigger>
-            </TabsList>
-          </Tabs>
         </div>
       </CardHeader>
       <CardContent>
@@ -96,7 +89,7 @@ export const SpendingOverview: React.FC<SpendingOverviewProps> = ({
             <ExpenseDistribution stats={stats} chartView={chartView} />
           </div>
           <div className="gba:w-1/2" data-testid="comparison-card">
-            <ComparisonCard {...comparisonProps} />
+            <ComparisonCard {...comparisonProps} currencyCode={currencyCode} />
           </div>
         </div>
       </CardContent>

@@ -1,29 +1,36 @@
 import React from 'react';
 import {
-  Sheet,
-  SheetContent,
-  SheetHeader,
-  SheetTitle,
-  Badge,
+  
   Separator,
-  Button,
   Card,
   CardContent,
   CardHeader,
   CardTitle
 } from '@newwork/nw-design-system';
+import { Badge } from '@newwork/nw-design-system';
 import { AdvancePayment } from '../../../hooks/useGetAdvancePayments';
 import { getAdvancePaymentStatusDisplay } from '../../../utils';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
-import { getTranslationFromI18nKeyAndLabel, formatNumberFunction } from '@/common/utils/windowUtils';
+import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
 import { formatCurrencyDisplay } from '../../../utils';
 
 interface AdvancePaymentDetailsProps extends BusinessAppContextProps {
   payment: AdvancePayment;
-  onClose: () => void;
+  onClose?: () => void;
 }
 
-const AdvancePaymentDetails: React.FC<AdvancePaymentDetailsProps> = ({ payment, onClose }) => {
+const AdvancePaymentDetails: React.FC<AdvancePaymentDetailsProps> = ({ payment }) => {
+  const formatPaymentMethod = (value?: string) => {
+    if (!value) return '';
+    const normalized = String(value).replace(/[_-]+/g, ' ').trim();
+    if (!normalized) return '';
+    return normalized
+      .toLowerCase()
+      .split(/\s+/)
+      .filter(Boolean)
+      .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+      .join(' ');
+  };
   return (
     <div className="gba:p-6 gba:space-y-6" data-testid="advance-payment-details-content">
       {/* Header Section */}
@@ -36,18 +43,14 @@ const AdvancePaymentDetails: React.FC<AdvancePaymentDetailsProps> = ({ payment, 
             {payment.code}
           </p>
         </div>
-        <Badge
-          variant={
-            getAdvancePaymentStatusDisplay(payment.status).type === 'completed' ? 'success' :
-            getAdvancePaymentStatusDisplay(payment.status).type === 'error' ? 'destructive' :
-            getAdvancePaymentStatusDisplay(payment.status).type === 'task' ? 'warning' :
-            getAdvancePaymentStatusDisplay(payment.status).type === 'waiting' ? 'secondary' : 'default'
-          }
-          className="gba:text-sm"
-          data-testid="advance-payment-status-badge"
-        >
-          {getAdvancePaymentStatusDisplay(payment.status).label}
-        </Badge>
+        {(() => {
+          const statusConfig = getAdvancePaymentStatusDisplay(payment.status);
+          return (
+            <Badge variant={(statusConfig as any).badgeVariant || 'outline'} data-testid="advance-payment-status-badge">
+              {statusConfig.label}
+            </Badge>
+          );
+        })()}
       </div>
 
       {/* Details Information */}
@@ -98,7 +101,9 @@ const AdvancePaymentDetails: React.FC<AdvancePaymentDetailsProps> = ({ payment, 
                 {getTranslationFromI18nKeyAndLabel('lowcoder:create_expense_request.add_request_trip_details.payment_method', 'Payment Method')}
               </span>
               <span className="gba:text-sm gba:text-gray-900">
-                {payment.paymentMethod ?? getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.not_specified', 'Not specified')}
+                {payment.paymentMethod
+                  ? formatPaymentMethod(String(payment.paymentMethod))
+                  : getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.not_specified', 'Not specified')}
               </span>
             </div>
           </div>

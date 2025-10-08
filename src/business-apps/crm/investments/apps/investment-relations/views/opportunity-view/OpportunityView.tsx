@@ -8,6 +8,7 @@ import {
   Alert,
   Button,
 } from "@newwork/nw-design-system";
+import { List, LayoutGrid } from "lucide-react";
 import { BusinessAppContextProps } from "@/common/BusinessAppContext";
 import { useGetInvestmentOpportunities } from "@/common/data/investment/hooks/useInvestmentOpportunities";
 import type { InvestmentOpportunity } from "@/common/data/investment/types";
@@ -19,8 +20,9 @@ import { ColumnConfig } from "@/components/dataController";
 import { OpportunityBoard } from "./components/opportunity-board/OpportunityBoard";
 import { AppAction } from "@/components/app-action/AppAction";
 import { FlowContextName } from "@/common/types/FlowRegistryTypes";
-import { PlusSquareIcon } from "@phosphor-icons/react";
+import { Plus } from "lucide-react";
 import { useInvestmentOpportunityFilters } from "./hooks/useInvestmentOpportunityFilters";
+import { getTranslationFromI18nKeyAndLabel } from "@/common/utils/windowUtils";
 
 export interface OpportunityViewProps extends BusinessAppContextProps {}
 
@@ -28,11 +30,12 @@ export const OpportunityView: React.FC<OpportunityViewProps> = (context) => {
   const { accessToken } = context;
 
   // State management
+  type SortOrder = "ASC" | "DESC" | undefined;
   const [searchTerm, setSearchTerm] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize] = useState(20);
-  const [sortField, setSortField] = useState("");
-  const [sortOrder, setSortOrder] = useState<"ASC" | "DESC" | "">("");
+  const [sortField, setSortField] = useState<string | undefined>("createdAt");
+  const [sortOrder, setSortOrder] = useState<SortOrder>("DESC");
   const [selectedFilters, setSelectedFilters] = useState<string[]>([]);
   // const [showDataFilter, setShowDataFilter] = useState(false);
   const [activeTab, setActiveTab] = useState("list");
@@ -179,7 +182,6 @@ export const OpportunityView: React.FC<OpportunityViewProps> = (context) => {
         result.InvestmentOpportunityAggregate?.aggregate?.count || 0
       );
     } catch (err) {
-      console.error("Error loading investment opportunities:", err);
       setError(err instanceof Error ? err.message : "Unknown error occurred");
     } finally {
       setIsLoading(false);
@@ -195,17 +197,8 @@ export const OpportunityView: React.FC<OpportunityViewProps> = (context) => {
   useEffect(() => {
     const handleProcessEvent = (event: any) => {
       try {
-        console.log(
-          "✅ Investment Opportunity process event received:",
-          event.type,
-          event
-        );
-
         // Check for successful completion from different event structures (MATCHING ACCOUNT VIEW PATTERN)
         if (event.detail?.resolution === "success") {
-          console.log(
-            "✅ Success resolution detected, refreshing opportunity data"
-          );
           loadData(); // Refresh opportunity list data
           setBoardRefreshTrigger(prev => prev + 1); // Trigger board refresh
           return;
@@ -217,9 +210,6 @@ export const OpportunityView: React.FC<OpportunityViewProps> = (context) => {
           response?.detail?.resolution === "success" ||
           response?.investmentOpportunity
         ) {
-          console.log(
-            "✅ Success in response or investmentOpportunity detected, refreshing data"
-          );
           loadData();
           setBoardRefreshTrigger(prev => prev + 1); // Trigger board refresh
           return;
@@ -230,14 +220,11 @@ export const OpportunityView: React.FC<OpportunityViewProps> = (context) => {
           event.type === "com.newwork.process.continue" &&
           event.detail?.payload
         ) {
-          console.log(
-            "✅ Continue event with payload detected, refreshing opportunity data"
-          );
           loadData();
           setBoardRefreshTrigger(prev => prev + 1); // Trigger board refresh
         }
       } catch (err) {
-        console.error("Error handling process event:", err);
+        console.error('Error handling process event:', err);
       }
     };
 
@@ -292,8 +279,8 @@ export const OpportunityView: React.FC<OpportunityViewProps> = (context) => {
       if (sortOrder === "ASC") {
         setSortOrder("DESC");
       } else if (sortOrder === "DESC") {
-        setSortField("");
-        setSortOrder("");
+        setSortField(undefined);
+        setSortOrder(undefined);
       } else {
         setSortOrder("ASC");
       }
@@ -404,8 +391,8 @@ export const OpportunityView: React.FC<OpportunityViewProps> = (context) => {
       {/* Tabs */}
       <Tabs value={activeTab} onValueChange={setActiveTab}>
         <TabsList className="gba:mb-2">
-          <TabsTrigger value="list">List View</TabsTrigger>
-          <TabsTrigger value="board">Board View</TabsTrigger>
+          <TabsTrigger value="list" startIcon={<List />}>List View</TabsTrigger>
+          <TabsTrigger value="board" startIcon={<LayoutGrid />}>Board View</TabsTrigger>
         </TabsList>
 
         <TabsContent value="list" className="gba:mt-6">
@@ -438,18 +425,15 @@ export const OpportunityView: React.FC<OpportunityViewProps> = (context) => {
                   data-testid="add-opportunity-action"
                   emptyStateBehavior="hide"
                 >
-                  <button
-                    className="gba:flex gba:flex-row gba:justify-center gba:items-center gba:px-3 gba:py-0 gba:h-8 gba:rounded gba:gap-1"
-                    data-testid="add-opportunity-action"
+                  <Button
+                    size="sm"
+                    variant="default"
+                    data-testid="add-opportunity-button"
                     type="button"
                   >
-                    <span className="gba:w-5 gba:h-5 gba:flex gba:items-center gba:justify-center gba:flex-none order-0 gba:grow-0">
-                      <PlusSquareIcon />
-                    </span>
-                    <span className="gba:h-4 gba:font-normal gba:text-sm gba:leading-4 gba:flex gba:items-center gba:text-black gba:flex-none order-1 gba:grow-0">
-                      Add
-                    </span>
-                  </button>
+                    <Plus size={16} />
+                    {getTranslationFromI18nKeyAndLabel('crm:opportunity.addOpportunity', 'Add Opportunity')}
+                  </Button>
                 </AppAction>
               ),
             }}
@@ -467,7 +451,7 @@ export const OpportunityView: React.FC<OpportunityViewProps> = (context) => {
                 onPageChange={handlePageChange}
                 onSort={handleSort}
                 sortField={sortField}
-                sortOrder={sortOrder || "ASC"}
+                sortOrder={sortOrder}
                 visibleColumns={visibleColumns}
                 {...context}
               />
