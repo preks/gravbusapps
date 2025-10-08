@@ -16,7 +16,6 @@ type DashboardTabProps = BusinessAppContextProps;
 
 export const DashboardTab: React.FC<DashboardTabProps> = (context) => {
   const [surveyFlows, setSurveyFlows] = useState<SurveyFlow[]>([]);
-  const [analyticsData, setAnalyticsData] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [stepSegmentsByFlowId, setStepSegmentsByFlowId] = useState<Record<string, StepSegment[]>>(
@@ -30,20 +29,11 @@ export const DashboardTab: React.FC<DashboardTabProps> = (context) => {
       setError(null);
 
       // Fetch survey flows and analytics data in parallel
-      const [flowsResponse, analyticsResponse] = await Promise.all([
-        SurveyDataService.getSurveyFlows(context.accessToken),
-        fetch(`http://localhost:3000/api/analytics/flows?timeframe=mtd&includeBusinessMetrics=true&includeOperationalMetrics=false&tag.solution=survey`, {
-          headers: {
-            'Authorization': `Bearer ${context.accessToken}`
-          }
-        }).then(res => res.json()).catch(err => {
-          console.warn('Failed to fetch analytics:', err);
-          return null;
-        })
+      const [flowsResponse] = await Promise.all([
+        SurveyDataService.getSurveyFlows(context.accessToken)
       ]);
 
       setSurveyFlows(flowsResponse.flows);
-      setAnalyticsData(analyticsResponse);
 
       // Fetch segmented step progress for each flow in parallel (best-effort)
       const segmentResults = await Promise.allSettled(

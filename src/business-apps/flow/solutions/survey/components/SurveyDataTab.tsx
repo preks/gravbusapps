@@ -171,7 +171,12 @@ export const SurveyDataTab: React.FC<SurveyDataTabProps> = ({ accessToken, ...co
         <div>
           <h3>Error Loading Survey Data</h3>
           <p>{error}</p>
-          <Button onClick={loadSurveys} variant="secondary" className="gba:mt-2">
+          <Button
+            onClick={loadSurveys}
+            variant="secondary"
+            className="gba:mt-2"
+            data-testid="survey-data-retry-button"
+          >
             <RefreshCw className="gba:w-4 gba:h-4 gba:mr-2" />
             Retry
           </Button>
@@ -188,7 +193,12 @@ export const SurveyDataTab: React.FC<SurveyDataTabProps> = ({ accessToken, ...co
           <h2 className="gba:text-2xl gba:font-bold gba:text-gray-900">Survey Data Management</h2>
           <p className="gba:text-gray-600">List, view, and export survey responses and data</p>
         </div>
-        <Button onClick={loadSurveys} variant="outline" size="sm">
+        <Button
+            onClick={loadSurveys}
+            variant="outline"
+            size="sm"
+            data-testid="survey-data-refresh-button"
+          >
           <RefreshCw className="gba:w-4 gba:h-4 gba:mr-2" />
           Refresh
         </Button>
@@ -210,7 +220,7 @@ export const SurveyDataTab: React.FC<SurveyDataTabProps> = ({ accessToken, ...co
                 placeholder="Search by name or description..."
                 value={searchTerm}
                 onChange={setSearchTerm}
-                debounceMs={300}
+                debounceDelay={300}
                 data-testid="survey-search-input"
                 className="gba:w-full"
               />

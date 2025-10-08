@@ -200,7 +200,7 @@ export const AuditTab: React.FC<SurveyAuditTabProps> = ({
         <div>
           <h3>Error Loading Survey Audit Data</h3>
           <p>{error}</p>
-          <Button onClick={refetch} variant="secondary" className="gba:mt-2">
+          <Button onClick={refetch} variant="secondary" className="gba:mt-2" data-testid="survey-audit-tab-retry-button">
             <RefreshCw className="gba:w-4 gba:h-4 gba:mr-2" />
             Retry
           </Button>
@@ -223,6 +223,7 @@ export const AuditTab: React.FC<SurveyAuditTabProps> = ({
             variant="outline" 
             size="sm"
             disabled={exportLoading}
+            data-testid="survey-audit-tab-export-button"
           >
             {exportLoading ? (
               <Spinner className="gba:w-4 gba:h-4 gba:mr-2" />
@@ -231,7 +232,7 @@ export const AuditTab: React.FC<SurveyAuditTabProps> = ({
             )}
             Export CSV
           </Button>
-          <Button onClick={refetch} variant="outline" size="sm">
+          <Button onClick={refetch} variant="outline" size="sm" data-testid="survey-audit-tab-refresh-button">
             <RefreshCw className="gba:w-4 gba:h-4 gba:mr-2" />
             Refresh
           </Button>
@@ -315,6 +316,7 @@ export const AuditTab: React.FC<SurveyAuditTabProps> = ({
               size="sm"
               disabled={filters.offset === 0}
               onClick={() => handlePageChange(Math.max(0, filters.offset - filters.limit))}
+              data-testid="survey-audit-tab-previous-button"
             >
               Previous
             </Button>
@@ -326,6 +328,7 @@ export const AuditTab: React.FC<SurveyAuditTabProps> = ({
               size="sm"
               disabled={filters.offset + filters.limit >= auditData.totalCount}
               onClick={() => handlePageChange(filters.offset + filters.limit)}
+              data-testid="survey-audit-tab-next-button"
             >
               Next
             </Button>

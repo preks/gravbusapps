@@ -247,7 +247,12 @@ export const EmployeeLifecycleTemplatesTab: React.FC<EmployeeLifecycleTemplatesT
             <Upload className="gba:h-4 gba:w-4 gba:mr-2" />
             Import
           </Button>
-          <Button onClick={loadTemplates} variant="outline" size="sm">
+          <Button
+            onClick={loadTemplates}
+            variant="outline"
+            size="sm"
+            data-testid="employee-lifecycle-templates-refresh-button"
+          >
             <RefreshCw className="gba:w-4 gba:h-4 gba:mr-2" />
             Refresh
           </Button>
@@ -270,7 +275,7 @@ export const EmployeeLifecycleTemplatesTab: React.FC<EmployeeLifecycleTemplatesT
                 placeholder="Search by name or description..."
                 value={searchTerm}
                 onChange={setSearchTerm}
-                debounceMs={300}
+                debounceDelay={300}
                 data-testid="template-search-input"
                 className="gba:w-full"
               />
@@ -336,7 +341,12 @@ export const EmployeeLifecycleTemplatesTab: React.FC<EmployeeLifecycleTemplatesT
                   <h4 className="gba:font-medium">Error Loading Templates</h4>
                   <p className="gba:text-sm">{error}</p>
                 </div>
-                <Button variant="outline" size="sm" onClick={loadTemplates}>
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  onClick={loadTemplates} 
+                  data-testid="templates-retry-button"
+                >
                   Retry
                 </Button>
               </div>

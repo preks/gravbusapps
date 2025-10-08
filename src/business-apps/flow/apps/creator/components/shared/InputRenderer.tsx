@@ -200,7 +200,6 @@ export const InputRenderer: React.FC<InputRendererProps> = ({
               disabled={readOnly}
               value={value || ''}
               onValueChange={(newValue) => {
-                console.log('Select value changing to:', newValue);
                 onChange?.(newValue);
               }}
             >
@@ -246,7 +245,6 @@ export const InputRenderer: React.FC<InputRendererProps> = ({
               disabled={readOnly}
               value={value || ''}
               onValueChange={(newValue) => {
-                console.log('MultiSelect value changing to:', newValue);
                 onChange?.(newValue);
               }}
             >
@@ -359,7 +357,6 @@ export const InputRenderer: React.FC<InputRendererProps> = ({
             <RadioGroup
               value={value || ''}
               onValueChange={(newValue) => {
-                console.log('Radio value changing to:', newValue);
                 onChange?.(newValue);
               }}
               disabled={readOnly}
@@ -376,6 +373,7 @@ export const InputRenderer: React.FC<InputRendererProps> = ({
                       value={optionValue} 
                       id={`${testId}-input-${index}-option-${optIndex}`}
                       disabled={readOnly}
+                      data-testid={`${testId}-input-${index}-option-${optIndex}-radio`}
                     />
                     <Label 
                       htmlFor={`${testId}-input-${index}-option-${optIndex}`}
@@ -407,7 +405,7 @@ export const InputRenderer: React.FC<InputRendererProps> = ({
               >
                 {input.options.map((option: any, optIndex: number) => (
                   <div key={optIndex} style={{ marginBottom: '8px' }}>
-                    <Checkbox value={option.value} disabled={readOnly}>
+                    <Checkbox value={option.value} disabled={readOnly} data-testid={`${testId}-input-${index}-option-${optIndex}-checkbox`}>
                       {option.label}
                     </Checkbox>
                   </div>
@@ -424,6 +422,7 @@ export const InputRenderer: React.FC<InputRendererProps> = ({
               disabled={readOnly}
               checked={value || false}
               onChange={(e) => onChange?.(e.target.checked)}
+              data-testid={`${testId}-input-${index}-checkbox`}
             >
               {input.placeholder || input.label}
             </Checkbox>

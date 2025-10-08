@@ -330,7 +330,7 @@ export const AuditTab: React.FC<AuditTabProps> = (context) => {
               placeholder="Search workflows, users..."
               value={searchTerm}
               onChange={setSearchTerm}
-              debounceMs={300}
+              debounceDelay={300}
               className="gba:w-full"
               data-testid="audit-search-input"
               icon={<Search className="gba:h-4 gba:w-4" />}
@@ -371,8 +371,8 @@ export const AuditTab: React.FC<AuditTabProps> = (context) => {
             variant="outline" 
             size="sm"
             onClick={loadAuditData}
-            disabled={isLoading}
             data-testid="audit-refresh-button"
+            disabled={isLoading}
             title="Refresh audit logs"
           >
             <RefreshCw className={`gba:h-4 gba:w-4 ${isLoading ? 'gba:animate-spin' : ''}`} />
@@ -408,7 +408,7 @@ export const AuditTab: React.FC<AuditTabProps> = (context) => {
               <h4 className="gba:font-medium">Error Loading Audit Data</h4>
               <p className="gba:text-sm">{error}</p>
             </div>
-            <Button variant="outline" size="sm" onClick={loadAuditData}>
+            <Button variant="outline" size="sm" onClick={loadAuditData} data-testid="audit-retry-button">
               Retry
             </Button>
           </div>

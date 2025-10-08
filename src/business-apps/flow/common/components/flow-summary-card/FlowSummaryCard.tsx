@@ -30,9 +30,14 @@ export const FlowSummaryCard: React.FC<FlowSummaryCardProps> = ({ flow, segments
   let totalSteps = flow.totalSteps || 0;
 
   if (segments.length > 0) {
-    totalSteps = segments.length;
-    completedSteps = segments.filter((s) => s.status === "COMPLETED").length;
-    overallProgress = segments.reduce((sum, s) => sum + Math.max(0, Math.min(100, s.percentage)), 0) / segments.length;
+    const normalized = segments.map((s) => {
+      const pct = (s as any).percentage ?? (s as any).progressPercentage ?? 0;
+      const status = String(s.status || '').toUpperCase();
+      return { percentage: Number.isFinite(pct) ? pct : 0, status };
+    });
+    totalSteps = normalized.length;
+    completedSteps = normalized.filter((s) => s.status === "COMPLETED").length;
+    overallProgress = normalized.reduce((sum, s) => sum + Math.max(0, Math.min(100, s.percentage)), 0) / normalized.length;
   }
 
   // Status badge config

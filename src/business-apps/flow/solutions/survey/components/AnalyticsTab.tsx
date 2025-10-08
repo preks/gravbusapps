@@ -71,7 +71,7 @@ export const AnalyticsTab: React.FC<AnalyticsTabProps> = ({ accessToken, ..._con
         <div>
           <h3>Error Loading Survey Data</h3>
           <p>{error.message}</p>
-          <Button onClick={() => { refetchFlows(); refetchTemplates(); refetchTasks(); }} variant="secondary" className="gba:mt-2">
+          <Button onClick={() => { refetchFlows(); refetchTemplates(); refetchTasks(); }} variant="secondary" className="gba:mt-2" data-testid="survey-analytics-tab-retry-button">
             Retry
           </Button>
         </div>

@@ -28,8 +28,6 @@ import {
   Filter,
   RefreshCw
 } from 'lucide-react';
-import { EmployeeLifecycleFlowService } from '../services/EmployeeLifecycleFlowService';
-import { showToast } from '@/business-apps/fin/expenses/utils/notificationUtils';
 
 export interface AnalyticsTabProps extends BusinessAppContextProps {}
 
@@ -341,7 +339,7 @@ export const AnalyticsTab: React.FC<AnalyticsTabProps> = (context) => {
               <h4 className="gba:font-medium">Error Loading Analytics</h4>
               <p className="gba:text-sm">{error}</p>
             </div>
-            <Button variant="outline" size="sm" onClick={loadAnalytics}>
+            <Button variant="outline" size="sm" onClick={loadAnalytics} data-testid="analytics-retry-button">
               Retry
             </Button>
           </div>

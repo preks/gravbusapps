@@ -432,11 +432,12 @@ export const SurveyTemplatesTab: React.FC<SurveyTemplatesTabProps> = ({ accessTo
             onClick={() => window.open('/platform/apps/flow/apps/creator#create', '_blank')} 
             variant="default" 
             size="sm"
+            data-testid="create-template-button"
           >
             <FileText className="gba:w-4 gba:h-4 gba:mr-2" />
             Create Template
           </Button>
-          <Button onClick={loadTemplates} variant="outline" size="sm">
+          <Button onClick={loadTemplates} variant="outline" size="sm" data-testid="survey-templates-refresh-button">
             <RefreshCw className="gba:w-4 gba:h-4 gba:mr-2" />
             Refresh
           </Button>
@@ -459,7 +460,7 @@ export const SurveyTemplatesTab: React.FC<SurveyTemplatesTabProps> = ({ accessTo
                 placeholder="Search by name or description..."
                 value={searchTerm}
                 onChange={setSearchTerm}
-                debounceMs={300}
+                debounceDelay={300}
                 data-testid="template-search-input"
                 className="gba:w-full"
               />

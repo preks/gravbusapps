@@ -1203,7 +1203,7 @@ export const FlowCreator: React.FC<FlowCreatorProps> = ({
   // Debounced search handler
   const handleSearch = useCallback((searchValue: string) => {
     loadTemplates(1, searchValue, true);
-  }, []);
+  }, [loadTemplates]);
 
   // Pagination handlers
   const handlePageChange = useCallback((page: number) => {
@@ -1215,7 +1215,7 @@ export const FlowCreator: React.FC<FlowCreatorProps> = ({
     } else {
       console.warn(`Invalid page requested: ${page} (valid range: 1-${totalPages})`);
     }
-  }, [totalPages, currentPage]);
+  }, [totalPages, currentPage, loadTemplates]);
 
   // Load templates on component mount
   useEffect(() => {

@@ -254,9 +254,6 @@ export const SurveySolution: React.FC<SurveySolutionProps> = (context) => {
 
   const onSubmit = async (data: SurveyFlowFormData) => {
     try {
-      console.log('Creating survey flow with data:', data);
-      console.log('Assignment data structure:', JSON.stringify(data.assignments, null, 2));
-
       // Generate dynamic workflow template with tags
       const flowTemplate = SurveyFlowService.generateFlowTemplate({
         ...data,
@@ -271,15 +268,11 @@ export const SurveySolution: React.FC<SurveySolutionProps> = (context) => {
         }
       });
 
-      console.log('Generated flow template with tags:', flowTemplate);
-
       // Create execution payload
       const executionPayload = SurveyFlowService.createWorkflowExecutionPayload(
         flowTemplate,
         context.userInfo?.id || 'unknown'
       );
-
-      console.log('Execution payload:', executionPayload);
 
       // Execute the workflow via template dynamic execution API
       const baseUrl = env('NEXT_PUBLIC_CUSTOM_FLOW_ENGINE_API_URL') || 'https://newwork-dev.newwork.com/flow-engine';
@@ -319,7 +312,6 @@ export const SurveySolution: React.FC<SurveySolutionProps> = (context) => {
       }
 
       const result = await response.json();
-      console.log('Survey flow created successfully:', result);
 
       // Close modal and show success
       setIsFlowModalOpen(false);
@@ -391,7 +383,7 @@ export const SurveySolution: React.FC<SurveySolutionProps> = (context) => {
         headerContent={
           <Dialog open={isFlowModalOpen} onOpenChange={setIsFlowModalOpen}>
             <DialogTrigger asChild>
-              <Button variant="default" size="sm">
+              <Button variant="default" size="sm" data-testid="create-survey-button">
                 <Plus className="gba:w-4 gba:h-4 gba:mr-2" />
                 Create Survey
               </Button>
@@ -663,6 +655,7 @@ export const SurveySolution: React.FC<SurveySolutionProps> = (context) => {
                                 variant="ghost"
                                 size="sm"
                                 onClick={() => removeFile(index)}
+                                data-testid={`survey-remove-file-${index}`}
                               >
                                 Remove
                               </Button>
@@ -722,10 +715,11 @@ export const SurveySolution: React.FC<SurveySolutionProps> = (context) => {
                       type="button"
                       variant="outline"
                       onClick={() => setIsFlowModalOpen(false)}
+                      data-testid="create-survey-cancel-button"
                     >
                       Cancel
                     </Button>
-                    <Button type="submit" variant="default">
+                    <Button type="submit" variant="default" data-testid="create-survey-submit-button">
                       Create & Launch Survey
                     </Button>
                   </div>
