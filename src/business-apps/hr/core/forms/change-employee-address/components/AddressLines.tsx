@@ -46,6 +46,7 @@ const AddressLines: React.FC<AddressLinesProps> = ({ control, addressLineCount, 
                             setAddressLinesError(null);
                           }
                         }}
+                        data-testid={`flw_changeEmployeeAddressList_addressLine${index+1}`}
                       />
                     </FormControl>
                   </div>
@@ -53,7 +54,7 @@ const AddressLines: React.FC<AddressLinesProps> = ({ control, addressLineCount, 
                     <Button type="button" variant="outline" size="icon" onClick={() => {
                       setAddressLinesError(null);
                       setAddressLineCount((c) => Math.max(1, c - 1));
-                    }}>
+                    }} data-testid={`flw_changeEmployeeAddressList_removeLine${index+1}`}>
                       <MinusIcon className="gba:w-4 gba:h-4" />
                     </Button>
                   )}
@@ -68,7 +69,7 @@ const AddressLines: React.FC<AddressLinesProps> = ({ control, addressLineCount, 
                       }
                       setAddressLinesError(null);
                       setAddressLineCount((c) => Math.min(4, c + 1));
-                    }}>
+                    }} data-testid={`flw_changeEmployeeAddressList_addLine${index+2}`}>
                       <PlusIcon className="gba:w-4 gba:h-4" />
                     </Button>
                   )}

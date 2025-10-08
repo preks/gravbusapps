@@ -21,7 +21,7 @@ const AddressSelector: React.FC<AddressSelectorProps> = ({ value, onChange, addr
         <div className="gba:flex-1">
           <Select value={value} onValueChange={(v) => onChange(v || addSentinel)}>
             <FormControl>
-              <SelectTrigger className="gba:block gba:!w-full gba:min-w-0 gba:!max-w-none">
+              <SelectTrigger className="gba:block gba:!w-full gba:min-w-0 gba:!max-w-none" data-testid="flw_changeEmployeeAddressList_selectAddress">
                 <SelectValue placeholder={placeholder} />
               </SelectTrigger>
             </FormControl>
@@ -41,6 +41,7 @@ const AddressSelector: React.FC<AddressSelectorProps> = ({ value, onChange, addr
             size="icon"
             onClick={onRequestDelete}
             title={getTranslationFromI18nKeyAndLabel('lowcoder:employee_profile.details_layout.address_container.delete_confirmation_text','Are you sure you want to DELETE this address?')}
+            data-testid="flw_changeEmployeeAddressList_deleteIcon"
           >
             <img
               src={`${env('NEXT_PUBLIC_BASE_URL')}/_next/static/media/lowcoder-icons/remixicons/delete-bin.svg`}

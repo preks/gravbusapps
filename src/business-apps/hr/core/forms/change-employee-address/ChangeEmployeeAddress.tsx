@@ -2,20 +2,18 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
 import FormHeader from '../components/FormHeader';
-import UploadComponent from '../components/UploadComponent';
 import flowIconUrl from '@/assets/icons/flowSmall.svg';
 import { ChangeEmployeeAddressProvider, useChangeEmployeeAddress } from './ChangeEmployeeAddressContext';
 import { useForm } from 'react-hook-form';
-import { Separator, Button, FormField, FormItem, FormLabel, FormControl, FormMessage, Textarea, Input } from '@newwork/nw-design-system';
+import { Separator, Button, FormField } from '@newwork/nw-design-system';
 import { useFileClient } from '@/common/network/files/useFileClient';
-import { env } from '@/common/env/EnvUtils';
 import { AppActionForm } from '@/components/app-action-form/AppActionForm';
 import { dispatchProcessContinueEvent } from '@/common/utils/processEventUtils';
-// (intentionally not importing getCatalogValue here; used in subcomponents)
-import AddressLines from './components/AddressLines';
+import AddressCommonFields from './components/AddressCommonFields';
 import AddressSelector from './components/AddressSelector';
-import CountryRegionFields from './components/CountryRegionFields';
-import { ensureFourLines, buildInsertPayload, buildUpdatePayload, validateAddressForm, shouldDisableSubmit, buildDeletePayload } from './utils';
+import { ensureFourLines, buildInsertPayload, buildUpdatePayload, validateAddressForm, shouldDisableSubmit } from './utils';
+import { populateFormFromRecord, buildDeletePayloadFromRecord, restoreSelectionFromId } from './helpers';
+import { uploadEmployeeDocumentIfAny } from './uploadHelpers';
 
 export interface ChangeEmployeeAddressFormProps extends BusinessAppContextProps {}
 
@@ -31,7 +29,7 @@ interface AddressFormValues {
   employeeDocumentId?: string;
 }
 
-const ChangeEmployeeAddressContent: React.FC<ChangeEmployeeAddressFormProps> = ({ accessToken, additionalData, userInfo }) => {
+const ChangeEmployeeAddressContent: React.FC<ChangeEmployeeAddressFormProps> = ({ accessToken, userInfo }) => {
   const [fileList, setFileList] = useState<any[]>([]);
   const [addressLineCount, setAddressLineCount] = useState<number>(1);
   const [addressLinesError, setAddressLinesError] = useState<string | null>(null);
@@ -39,7 +37,9 @@ const ChangeEmployeeAddressContent: React.FC<ChangeEmployeeAddressFormProps> = (
   const ADD_SENTINEL = '__ADD_ADDRESS__';
   const [isDeleteMode, setIsDeleteMode] = useState(false);
   const [deletePayload, setDeletePayload] = useState<any | null>(null);
-  const deletePayloadRef = useRef<any>(null);
+  const [isSwitchingSelection, setIsSwitchingSelection] = useState(false);
+  const [selectedIdBeforeDelete, setSelectedIdBeforeDelete] = useState<string | null>(null);
+  const selectionVersionRef = useRef(0);
 
   const emptyAddressLines: string[] = useMemo(() => [''], []);
 
@@ -161,13 +161,14 @@ const ChangeEmployeeAddressContent: React.FC<ChangeEmployeeAddressFormProps> = (
         setAddressLinesError(null);
         setIsDeleteMode(false);
         setDeletePayload(null);
-        deletePayloadRef.current = null;
+        setSelectedIdBeforeDelete(null);
         defaultSelectAppliedFor.current = key;
       }
     } else {
       if (currentSelected !== ADD_SENTINEL && defaultSelectAppliedFor.current !== key) {
         form.setValue('selectedAddressId', ADD_SENTINEL, { shouldDirty: false, shouldValidate: false, shouldTouch: false } as any);
         setDeletePayload(null);
+        setSelectedIdBeforeDelete(null);
         defaultSelectAppliedFor.current = key;
       }
     }
@@ -197,6 +198,15 @@ const ChangeEmployeeAddressContent: React.FC<ChangeEmployeeAddressFormProps> = (
             if (isDeleteMode) {
               setIsDeleteMode(false);
               setDeletePayload(null);
+              const addresses = (data?.address?.EmployeeAddress || []) as any[];
+              restoreSelectionFromId(form, addresses, selectedIdBeforeDelete, {
+                setIsSwitchingSelection,
+                setAddressLineCount,
+                setAddressLinesError,
+                setIsDeleteMode,
+                setSelectedAddressId: true,
+              });
+              setSelectedIdBeforeDelete(null);
               return;
             }
             form.reset(normalizedDefaults);
@@ -205,61 +215,10 @@ const ChangeEmployeeAddressContent: React.FC<ChangeEmployeeAddressFormProps> = (
           customFormLayout
           validateForm={(values) => (isDeleteMode ? null : validateAddressForm(values as any, { countries: data?.catalogs?.countries }))}
           handlePreSubmit={async (values) => {
-            let uploadedEmployeeDocumentId: string | undefined;
-            try {
-              if (fileList && fileList.length > 0 && fileList[0]?.originFileObj) {
-                const file: File = fileList[0].originFileObj as File;
-                const employeeId =
-                    userInfo?.employeeDetails?.employeeId ||
-                    data?.address?.EmployeeAddress[0]?.employeeId || ""
-
-                const uploadResp = await fileClient.uploadFile(
-                  file,
-                  { accessScope: 'tenant' },
-                  {
-                    appName: 'employee-profile',
-                    folderPath: `/documents/${employeeId}`,
-                    mimeType: (file as any)?.type || 'application/octet-stream',
-                  },
-                  'fileContent'
-                );
-
-                const processesBase = env('NEXT_PUBLIC_PROCESSES_ENDPOINT') || 'https://newwork-dev.newwork.com/processes';
-                const createDocUrl = `${processesBase}/employee/employeeDocuments`;
-                const body = {
-                  employeeDocument: {
-                    employeeId: employeeId,
-                    documentGroup: 'DocumentGroup:v1:PERSONAL',
-                    type: 'DocumentType:v1:17',
-                    description: '',
-                    name: uploadResp?.fileInfo?.fileMetadata?.originalFileName,
-                    file: uploadResp?.fileInfo?.fileId,
-                    mimeType: uploadResp?.fileInfo?.fileMetadata?.mimeType,
-                    fileSize: 0,
-                    validFrom: new Date().toISOString(),
-                  },
-                };
-
-                await fetch(createDocUrl, {
-                  method: 'POST',
-                  headers: {
-                    'Content-Type': 'application/json',
-                    Authorization: accessToken ? `Bearer ${accessToken}` : '',
-                  },
-                  body: JSON.stringify(body),
-                })
-                  .then(async (r) => {
-                    const json = await r.json();
-                    uploadedEmployeeDocumentId = json?.employeeDocument?.id;
-                  })
-                  .catch(() => {
-                    uploadedEmployeeDocumentId = undefined;
-                  });
-              }
-            } catch (e) {
-              uploadedEmployeeDocumentId = undefined;
-            }
-
+            const employeeId =
+              userInfo?.employeeDetails?.employeeId ||
+              data?.address?.EmployeeAddress[0]?.employeeId || "";
+            const uploadedEmployeeDocumentId = await uploadEmployeeDocumentIfAny(fileClient, accessToken, fileList, employeeId);
             return { ...(values as any), employeeDocumentId: uploadedEmployeeDocumentId } as AddressFormValues;
           }}
           onSubmit={async (values: AddressFormValues) => {
@@ -307,7 +266,7 @@ const ChangeEmployeeAddressContent: React.FC<ChangeEmployeeAddressFormProps> = (
           }}
           data-testid="change-employee-address"
         >
-          <div className="gba:flex-1 gba:space-y-4" data-testid="change-employee-address-groups">
+          <div className="gba:flex-1 gba:space-y-4" data-testid="flw_changeEmployeeAddressList_addressDataContainer">
             {/* Address selector (Add Address + existing addresses) */}
             {!isDeleteMode && (
               <FormField
@@ -323,29 +282,32 @@ const ChangeEmployeeAddressContent: React.FC<ChangeEmployeeAddressFormProps> = (
                       value={String(field.value)}
                       onChange={(id) => {
                         field.onChange(id);
+                        selectionVersionRef.current += 1;
                         const picked = id === ADD_SENTINEL ? undefined : addresses.find((a: any) => String(a.id) === id);
                         if (picked) {
-                          form.setValue('countryId', picked?.country?.id || null);
-                          const normalized = Array.from({ length: 4 }, (_, i) => String((picked?.addressLine || [])[i] || ''));
-                          form.setValue('addressLines', normalized);
-                          form.setValue('postalCode', picked?.postalCode || '');
-                          form.setValue('city', picked?.locality || '');
-                          form.setValue('regionId', picked?.region?.id || null);
-                          let lastNonEmpty = -1;
-                          for (let i = 0; i < 4; i++) {
-                            if ((normalized[i] || '').trim() !== '') lastNonEmpty = i;
-                          }
-                          setAddressLineCount(Math.max(1, lastNonEmpty + 1));
-                          setAddressLinesError(null);
-                          setIsDeleteMode(false);
+                          populateFormFromRecord(form, picked, {
+                            setIsSwitchingSelection,
+                            setAddressLineCount,
+                            setAddressLinesError,
+                            setIsDeleteMode,
+                            selectionVersionRef,
+                            expectedSelectedId: String(picked.id),
+                          });
                           setDeletePayload(null);
                         } else {
-                          form.reset({ ...normalizedDefaults, selectedAddressId: ADD_SENTINEL });
+                          // Switch to Add Address without resetting entire form
+                          form.setValue('selectedAddressId', ADD_SENTINEL as any, { shouldDirty: false, shouldValidate: false } as any);
+                          form.setValue('countryId', null, { shouldDirty: false, shouldValidate: false } as any);
+                          form.setValue('regionId', null, { shouldDirty: false, shouldValidate: false } as any);
+                          form.setValue('addressLines', [''], { shouldDirty: false } as any);
+                          form.setValue('postalCode', '', { shouldDirty: false } as any);
+                          form.setValue('city', '', { shouldDirty: false } as any);
                           try { (form as any).clearErrors && (form as any).clearErrors(['countryId','regionId']); } catch {}
                           setAddressLineCount(1);
                           setAddressLinesError(null);
                           setIsDeleteMode(false);
                           setDeletePayload(null);
+                          setIsSwitchingSelection(false);
                         }
                         refetchAddresses();
                       }}
@@ -355,22 +317,12 @@ const ChangeEmployeeAddressContent: React.FC<ChangeEmployeeAddressFormProps> = (
                       onRequestDelete={() => {
                         // Build delete payload first and cache it
                         const selId = String(field.value);
+                        setSelectedIdBeforeDelete(selId);
                         const selected = addresses.find((a: any) => String(a.id) === selId);
                         const employeeId = selected?.employeeId ||
                           userInfo?.employeeDetails?.employeeId ||
                           data?.address?.EmployeeAddress?.[0]?.employeeId || '';
-                        const linesSnapshot = ensureFourLines((selected?.addressLine || []) as string[]);
-                        const payload = buildDeletePayload({
-                          employeeId,
-                          employeeDocumentId: selected?.employeeDocumentId || null,
-                          lines: linesSnapshot,
-                          postalCode: selected?.postalCode || '',
-                          city: selected?.locality || '',
-                          regionId: selected?.region?.id || null,
-                          countryId: selected?.country?.id || null,
-                          comment: selected?.comment || '',
-                          selected,
-                        });
+                        const payload = buildDeletePayloadFromRecord(employeeId, selected);
                         setDeletePayload(payload);
                         setIsDeleteMode(true);
                       }}
@@ -391,113 +343,22 @@ const ChangeEmployeeAddressContent: React.FC<ChangeEmployeeAddressFormProps> = (
                 })()}
               </div>
             ) : (
-              <>
-                {/* Country */}
-                <CountryRegionFields control={form.control as any} catalogs={{ countries: data?.catalogs?.countries || [], regions: data?.catalogs?.regions || [] }} setValue={form.setValue as any} isDeleteMode={isDeleteMode} />
-
-                {/* Address Line (dynamic up to 4) */}
-                <AddressLines
-                  control={form.control as any}
-                  addressLineCount={addressLineCount}
-                  setAddressLineCount={setAddressLineCount}
-                  addressLinesError={addressLinesError}
-                  setAddressLinesError={setAddressLinesError}
-                  getValues={form.getValues}
-                />
-              </>
-            )}
-
-            {!isDeleteMode && (
-              <>
-                {/* ZIP/Postal Code */}
-                <FormField
-                  control={form.control as any}
-                  name={"postalCode" as any}
-                  rules={{
-                    validate: (v: any) => {
-                      const countryIdSel = form.getValues('countryId');
-                      const selectedCountry = (data?.catalogs?.countries || []).find((c: any) => String(c.id) === String(countryIdSel));
-                      const countryVal = selectedCountry?.id;
-                      if (!v || String(v).trim() === '') {
-                        return countryVal === 'Country:v1:US'
-                          ? getTranslationFromI18nKeyAndLabel('lowcoder:employee_profile.details_layout.address_container.zip_code_validation_message','The ZIP Code field is required. Please enter a ZIP code.')
-                          : getTranslationFromI18nKeyAndLabel('lowcoder:employee_profile.details_layout.address_container.postal_code_validation_message','The Postal Code field is required. Please enter a postal code.');
-                      }
-                      return true;
-                    }
-                  }}
-                  render={({ field }) => {
-                    const countryId = form.watch('countryId');
-                    const selectedCountry = (data?.catalogs?.countries || []).find((c: any) => String(c.id) === String(countryId));
-                    const isUS = selectedCountry?.id === 'Country:v1:US';
-                    const label = isUS
-                      ? getTranslationFromI18nKeyAndLabel('lowcoder:employee_profile.details_layout.address_container.postal_code','Postal Code')
-                      : getTranslationFromI18nKeyAndLabel('lowcoder:employee_profile.details_layout.address_container.zip_code','ZIP Code');
-                    const placeholder = `${getTranslationFromI18nKeyAndLabel('lowcoder:employee_profile.details_layout.personal_information_container.enter_placeholder','Please Enter')} ${label}`;
-                    return (
-                      <FormItem>
-                        <FormLabel>{label}<span className="gba:text-destructive"> *</span></FormLabel>
-                        <FormControl>
-                          <Input {...field} placeholder={placeholder} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    );
-                  }}
-                />
-
-                {/* City */}
-                <FormField
-                  control={form.control as any}
-                  name={"city" as any}
-                  rules={{
-                    required: getTranslationFromI18nKeyAndLabel('lowcoder:employee_profile.details_layout.address_container.city_validation_message','The City field is required. Please select a city.'),
-                  }}
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>
-                        {getTranslationFromI18nKeyAndLabel('lowcoder:employee_profile.details_layout.address_container.city','City')}<span className="gba:text-destructive"> *</span>
-                      </FormLabel>
-                      <FormControl>
-                        <Input {...field} placeholder={`${getTranslationFromI18nKeyAndLabel('lowcoder:employee_profile.details_layout.personal_information_container.enter_placeholder','Please Enter')} ${getTranslationFromI18nKeyAndLabel('lowcoder:employee_profile.details_layout.address_container.city','City')}`} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-
-            {/* Comment */}
-                <FormField
-                  control={form.control as any}
-                  name={"comment" as any}
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel data-testid="change-employee-address-comment-label">
-                        {getTranslationFromI18nKeyAndLabel('lowcoder:initiate_expense_plan.create_expense_plan.comment_text_area', 'Comment')}
-                      </FormLabel>
-                      <FormControl>
-                        <Textarea
-                          {...field}
-                          rows={4}
-                          placeholder={getTranslationFromI18nKeyAndLabel('lowcoder:employee_profile.details_layout.personal_information_container.enter_placeholder', 'Please Enter')}
-                          data-testid="change-employee-address-comment-input"
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-
-              {/* Upload (compact single-line), placed under comment */}
-              <UploadComponent
-                dataTestIdPrefix="change-employee-address"
-                multiple={false}
+              <AddressCommonFields
+                form={form}
+                catalogs={{ countries: data?.catalogs?.countries || [], regions: data?.catalogs?.regions || [] }}
+                isDeleteMode={isDeleteMode}
+                isSwitchingSelection={isSwitchingSelection}
+                addressLineCount={addressLineCount}
+                setAddressLineCount={setAddressLineCount}
+                addressLinesError={addressLinesError}
+                setAddressLinesError={setAddressLinesError}
+                getValues={form.getValues}
                 fileList={fileList}
                 setFileList={setFileList}
-                labelText={getTranslationFromI18nKeyAndLabel('lowcoder:hr_absences.create_absence.upload_document', 'Upload document')}
               />
-              </>
             )}
+
+            {!isDeleteMode && null}
           </div>
 
           <div className="gba:flex-grow" data-testid="change-employee-address-spacer" />
@@ -512,7 +373,20 @@ const ChangeEmployeeAddressContent: React.FC<ChangeEmployeeAddressFormProps> = (
                 onClick={() => {
                   if(isDeleteMode)
                   {
-                    setIsDeleteMode(false)
+                    setIsDeleteMode(false);
+                    setDeletePayload(null);
+                    const addresses = (data?.address?.EmployeeAddress || []) as any[];
+                    selectionVersionRef.current += 1;
+                    restoreSelectionFromId(form, addresses, selectedIdBeforeDelete, {
+                      setIsSwitchingSelection,
+                      setAddressLineCount,
+                      setAddressLinesError,
+                      setIsDeleteMode,
+                      setSelectedAddressId: true,
+                      selectionVersionRef,
+                      expectedSelectedId: String(selectedIdBeforeDelete || ''),
+                    });
+                    setSelectedIdBeforeDelete(null);
                   }
 
                   else {dispatchProcessContinueEvent('pse_abort', {
@@ -526,9 +400,10 @@ const ChangeEmployeeAddressContent: React.FC<ChangeEmployeeAddressFormProps> = (
                       )
                     }
                   });
-                  form.reset(normalizedDefaults);}
-                }}
-                data-testid="change-employee-address-cancel-button"
+                  form.reset(normalizedDefaults);} 
+                }
+                }
+                data-testid={isDeleteMode ? 'flw_changeEmployeeAddressList_cancelFromDelete' : 'flw_changeEmployeeAddressList_cancelButton'}
               >
                 {getTranslationFromI18nKeyAndLabel('lowcoder:create_expense_request.initiate_cancel_button', 'Cancel')}
               </Button>
@@ -539,7 +414,7 @@ const ChangeEmployeeAddressContent: React.FC<ChangeEmployeeAddressFormProps> = (
                   type="submit"
                   variant="destructive"
                   disabled={Boolean((data?.address?.EmployeeBankAccount || []).some((b: any) => String(b.employeeAddressId) === String(deletePayload?.address?.id || form.getValues('selectedAddressId'))))}
-                  data-testid="change-employee-address-delete-button"
+                  data-testid="flw_changeEmployeeAddressList_deleteButton"
                 >
                   {getTranslationFromI18nKeyAndLabel('lowcoder:expense_calculation_rule.expense_table.delete','Delete')}
                 </Button>
@@ -548,7 +423,7 @@ const ChangeEmployeeAddressContent: React.FC<ChangeEmployeeAddressFormProps> = (
                   type="submit"
                   variant="default"
                   disabled={isSubmitDisabled || isUnchangedExisting}
-                  data-testid="change-employee-address-submit-button"
+                  data-testid="flw_changeEmployeeAddressList_submitButton"
                 >
                   {getTranslationFromI18nKeyAndLabel('lowcoder:hr_absences.create_absence.submit', 'Submit')}
                 </Button>

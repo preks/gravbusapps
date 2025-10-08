@@ -8,9 +8,11 @@ interface CountryRegionFieldsProps {
   catalogs: { countries?: any[]; regions?: any[] };
   setValue: (name: string, value: any) => void;
   isDeleteMode?: boolean;
+  suppressValidation?: boolean;
+  suspendRegionRender?: boolean;
 }
 
-const CountryRegionFields: React.FC<CountryRegionFieldsProps> = ({ control, catalogs, setValue, isDeleteMode }) => {
+const CountryRegionFields: React.FC<CountryRegionFieldsProps> = ({ control, catalogs, setValue, isDeleteMode, suppressValidation, suspendRegionRender }) => {
   const countryField = useWatch({ control, name: 'countryId' });
   const regionField = useWatch({ control, name: 'regionId' });
   const { isSubmitted, submitCount, touchedFields } = useFormState({ control });
@@ -21,7 +23,7 @@ const CountryRegionFields: React.FC<CountryRegionFieldsProps> = ({ control, cata
         name={"countryId" as any}
         rules={{
           validate: (v: any) => {
-            if (isDeleteMode) return true;
+            if (isDeleteMode || suppressValidation) return true;
             const enforce = isSubmitted || submitCount > 0 || Boolean((touchedFields as any)?.countryId);
             if (!enforce) return true;
             if (v === null || v === undefined || v === '') {
@@ -40,7 +42,7 @@ const CountryRegionFields: React.FC<CountryRegionFieldsProps> = ({ control, cata
               onValueChange={(v) => { field.onChange(v || null); setValue('regionId', null); }}
             >
               <FormControl>
-                <SelectTrigger className="gba:block gba:!w-full gba:min-w-0 gba:!max-w-none">
+                <SelectTrigger className="gba:block gba:!w-full gba:min-w-0 gba:!max-w-none" data-testid="flw_changeEmployeeAddressList_country">
                   <SelectValue placeholder={`${getTranslationFromI18nKeyAndLabel('lowcoder:employee_profile.details_layout.personal_information_container.select_placeholder','Please Select')} ${getTranslationFromI18nKeyAndLabel('lowcoder:employee_profile.details_layout.address_container.country','Country')}`} />
                 </SelectTrigger>
               </FormControl>
@@ -52,12 +54,13 @@ const CountryRegionFields: React.FC<CountryRegionFieldsProps> = ({ control, cata
                 ))}
               </SelectContent>
             </Select>
-            {(isDeleteMode ? false : (fieldState.isTouched || isSubmitted || submitCount > 0)) ? <FormMessage /> : null}
+            {(!suppressValidation && !isDeleteMode && (fieldState.isTouched || isSubmitted || submitCount > 0)) ? <FormMessage /> : null}
           </FormItem>
         )}
       />
 
       {(() => {
+        if (suspendRegionRender) return null;
         const selectedCountry = (catalogs?.countries || []).find((c: any) => String(c.id) === String(countryField));
         const countryVal = selectedCountry?.id;
         if (!(countryVal === 'Country:v1:DE' || countryVal === 'Country:v1:US' || countryVal === 'Country:v1:RO')) return null;
@@ -82,7 +85,7 @@ const CountryRegionFields: React.FC<CountryRegionFieldsProps> = ({ control, cata
               name={"regionId" as any}
               rules={{
                 validate: (v: any) => {
-                  if (isDeleteMode) return true;
+                  if (isDeleteMode || suppressValidation) return true;
                   if (countryVal === 'Country:v1:DE' || countryVal === 'Country:v1:US' || countryVal === 'Country:v1:RO') {
                     if (!v) {
                       return getTranslationFromI18nKeyAndLabel('lowcoder:employee_profile.details_layout.address_container.region_validation_message','Please select a value.');
@@ -105,7 +108,7 @@ const CountryRegionFields: React.FC<CountryRegionFieldsProps> = ({ control, cata
                       onValueChange={(v) => field.onChange(v || null)}
                     >
                       <FormControl>
-                        <SelectTrigger className="gba:block gba:!w-full gba:min-w-0 gba:!max-w-none">
+                        <SelectTrigger className="gba:block gba:!w-full gba:min-w-0 gba:!max-w-none" data-testid="flw_changeEmployeeAddressList_region">
                           <SelectValue placeholder={getTranslationFromI18nKeyAndLabel('lowcoder:employee_profile.details_layout.personal_information_container.select_placeholder','Please Select')} />
                         </SelectTrigger>
                       </FormControl>
@@ -117,7 +120,7 @@ const CountryRegionFields: React.FC<CountryRegionFieldsProps> = ({ control, cata
                         ))}
                       </SelectContent>
                     </Select>
-                    {(isDeleteMode ? false : (fieldState.isTouched || isSubmitted || submitCount > 0)) ? <FormMessage /> : null}
+                    {(!suppressValidation && !isDeleteMode && (fieldState.isTouched || isSubmitted || submitCount > 0)) ? <FormMessage /> : null}
                   </FormItem>
                 );
               }}
@@ -125,7 +128,7 @@ const CountryRegionFields: React.FC<CountryRegionFieldsProps> = ({ control, cata
             <FormItem>
               <FormLabel className="gba:opacity-0">Region Display</FormLabel>
               <div className="gba:flex gba:items-center">
-                <span className="gba:block gba:w-full gba:h-10 gba:min-h-10 gba:px-3 gba:py-2 gba:rounded-md gba:bg-muted gba:text-muted-foreground gba:border gba:border-muted">
+                <span className="gba:block gba:w-full gba:h-10 gba:min-h-10 gba:px-3 gba:py-2 gba:rounded-md gba:bg-muted gba:text-muted-foreground gba:border gba:border-muted" data-testid="flw_changeEmployeeAddressList_regionName">
                   {(countryVal === 'Country:v1:RO' ? getCatalogValue(regions.find((r: any) => String(r.id) === String(regionField))) : getCatalogValue(regions.find((r: any) => String(r.id) === String(regionField)))) || ''}
                 </span>
               </div>
