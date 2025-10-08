@@ -93,8 +93,8 @@ const InvestmentReportsTab: React.FC<InvestmentReportsTabProps> = ({
 
       const response = await fetchInvestmentReports(params);
       
-      setReports(response.InvestmentReport || []);
-      setTotal(response.InvestmentReportAggregate?.aggregate?.count || 0);
+      setReports(response.reports || []);
+      setTotal(response.total || 0);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Unknown error occurred');
     } finally {

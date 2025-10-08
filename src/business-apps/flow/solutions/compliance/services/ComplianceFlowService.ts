@@ -39,12 +39,6 @@ export class ComplianceFlowService {
       message: data.message,
       form: [
         {
-          type: InputType.TEXTAREA,
-          name: 'compliance_notes',
-          label: 'Compliance Notes',
-          required: false
-        },
-        {
           type: InputType.SIGNATURE,
           name: 'digital_signature',
           label: 'Digital Signature',
@@ -77,12 +71,14 @@ export class ComplianceFlowService {
    * Calculate due configuration - either dueDate or dueInMinutes
    */
   private static calculateDueConfig(data: ComplianceFlowData): { dueDate?: string; dueInMinutes?: number } {
-    if (data.dueDate) {
-      // Use specific due date if provided
-      return { dueDate: data.dueDate };
+    if (data.dueDate && data.dueDate.trim() !== '') {
+      // Convert YYYY-MM-DD to ISO date string with end of day time
+      const formattedDueDate = new Date(data.dueDate + 'T23:59:59.999Z').toISOString();
+      return { dueDate: formattedDueDate };
     } else {
       // Fall back to priority-based minutes
-      return { dueInMinutes: this.calculateDueMinutes(data.priority || 'medium') };
+      const dueMinutes = this.calculateDueMinutes(data.priority || 'medium');
+      return { dueInMinutes: dueMinutes };
     }
   }
 

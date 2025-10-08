@@ -104,7 +104,7 @@ const ExpensePlansTab: React.FC<ExpensePlansTabProps> = (props) => {
   }, [setSearchTerm, setStatusFilter]);
 
   return (
-    <div className="gba:h-full gba:flex gba:flex-col">
+    <div className="gba:h-full gba:flex gba:flex-col" data-testid="expense-plans-tab-container">
       {/* Statistics Section */}
       <div className="gba:mb-6">
         <ExpensePlanStatisticsDisplay
@@ -120,7 +120,9 @@ const ExpensePlansTab: React.FC<ExpensePlansTabProps> = (props) => {
 
       {/* Data Container with floating details */}
       <DataContainer
+        key="expense-plans-data-container"
         contentBackground="white"
+        addLeftPaddingWhenNoFilter={true}
         dataControllerProps={{
           search: searchTerm,
           filter: statusFilter,
@@ -149,7 +151,7 @@ const ExpensePlansTab: React.FC<ExpensePlansTabProps> = (props) => {
                     "Plans",
                   )}
                 </span>
-                <span className="gba:text-gray-500">({totalCount})</span>
+                <span className="gba:text-muted-foreground">({totalCount})</span>
               </div>
             </div>
           ),

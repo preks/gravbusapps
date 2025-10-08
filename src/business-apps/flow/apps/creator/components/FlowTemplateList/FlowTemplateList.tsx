@@ -1,7 +1,7 @@
-import React, { useState, useMemo } from 'react';
+import React from 'react';
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
 import { FlowTemplate } from '@/common/network/flows/FlowTemplateClient';
-import { Button, Badge, Card, Table, TableHeader, TableBody, TableRow, TableHead, TableCell, CardHeader, CardTitle, CardDescription, CardContent, Input, Select } from '@newwork/nw-design-system';
+import { Button, Badge, Card, Table, TableHeader, TableBody, TableRow, TableHead, TableCell, CardHeader, CardTitle, CardDescription, CardContent } from '@newwork/nw-design-system';
 
 // Custom Icon component since we don't have direct icon import
 const Icon = ({ name, className = '', ...props }: any) => {
@@ -18,49 +18,13 @@ interface FlowTemplateListProps {
   templates: FlowTemplate[];
   onCreateNew: () => void;
   onEdit: (template: FlowTemplate) => void;
+  onDelete?: (template: FlowTemplate) => Promise<void>;
+  onTemplateSelect?: (template: FlowTemplate | null) => void;
+  selectedTemplate?: FlowTemplate | null;
+  accessToken?: string;
   'data-testid'?: string;
 }
 
-// Filter options
-type FilterType = 'all' | 'valid' | 'test' | 'duplicates';
-
-// Template validation and filtering utilities
-const isValidTemplate = (template: FlowTemplate): boolean => {
-  return !!(
-    template.name && 
-    template.name !== 'Untitled Template' &&
-    template.steps && 
-    template.steps.length > 0 &&
-    template.description &&
-    template.description !== 'No description'
-  );
-};
-
-const isTestTemplate = (template: FlowTemplate): boolean => {
-  const testKeywords = ['test', 'testing', 'verify', 'sample', 'example', 'demo'];
-  const name = template.name?.toLowerCase() || '';
-  const description = template.description?.toLowerCase() || '';
-  
-  return testKeywords.some(keyword => 
-    name.includes(keyword) || description.includes(keyword)
-  );
-};
-
-const findDuplicates = (templates: FlowTemplate[]): Set<string> => {
-  const seen = new Set<string>();
-  const duplicates = new Set<string>();
-  
-  templates.forEach(template => {
-    const key = `${template.name}-${template.description}`;
-    if (seen.has(key)) {
-      duplicates.add(template.id || '');
-    } else {
-      seen.add(key);
-    }
-  });
-  
-  return duplicates;
-};
 
 /**
  * Component displaying a list of flow templates with options to create new or edit existing ones
@@ -126,19 +90,23 @@ export const FlowTemplateList: React.FC<FlowTemplateListProps> = ({
                 <TableHead data-testid={`${testId}-header-steps`}>
                   {getTranslationFromI18nKeyAndLabel('flow.creator.steps', 'Steps')}
                 </TableHead>
-                <TableHead className="gba:w-[100px]" data-testid={`${testId}-header-actions`}>
-                  {getTranslationFromI18nKeyAndLabel('flow.creator.actions', 'Actions')}
-                </TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {templates.map((template, index) => (
-                <TableRow key={template.id || index} data-testid={`${testId}-row-${index}`}>
+                <TableRow 
+                  key={template.id || index} 
+                  data-testid={`${testId}-row-${index}`}
+                  className="gba:cursor-pointer hover:gba:bg-gray-50"
+                  onClick={() => onEdit(template)}
+                >
                   <TableCell className="gba:font-medium" data-testid={`${testId}-title-${index}`}>
                     {template.name || 'Untitled Template'}
                   </TableCell>
                   <TableCell data-testid={`${testId}-description-${index}`}>
-                    {template.description || 'No description'}
+                    {(template.description || 'No description').length > 150 
+                      ? `${(template.description || 'No description').substring(0, 150)}...` 
+                      : (template.description || 'No description')}
                   </TableCell>
                   <TableCell data-testid={`${testId}-execution-${index}`}>
                     <Badge variant="default">
@@ -147,19 +115,6 @@ export const FlowTemplateList: React.FC<FlowTemplateListProps> = ({
                   </TableCell>
                   <TableCell data-testid={`${testId}-steps-${index}`}>
                     <Badge variant="outline">{template.steps?.length || 0}</Badge>
-                  </TableCell>
-                  <TableCell data-testid={`${testId}-actions-${index}`}>
-                    <Button 
-                      variant="ghost" 
-                      size="sm" 
-                      onClick={() => onEdit(template)}
-                      data-testid={`${testId}-edit-${index}`}
-                    >
-                      <Icon name="pencil" className="gba:h-4 gba:w-4" />
-                      <span className="gba:sr-only">
-                        {getTranslationFromI18nKeyAndLabel('flow.creator.edit', 'Edit')}
-                      </span>
-                    </Button>
                   </TableCell>
                 </TableRow>
               ))}

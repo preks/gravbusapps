@@ -10,7 +10,6 @@ import { WidgetGroup, WidgetItem } from "@/components/widget-group";
 import { BusinessAppContextProps } from "@/common/BusinessAppContext";
 import { useGetInvestments } from "@/common/data/investment";
 import { formatCurrencyCompact } from "../../../../../utils/currencyUtils";
-import { extractCurrencyCode } from "@/business-apps/crm/common/utils/currencyUtils";
 
 interface PlannedExitsMetrics {
   totalCount: number;
@@ -67,17 +66,8 @@ const PlannedExitsMetrics: React.FC<PlannedExitsMetricsProps> = ({ context }) =>
           return true;
         });
 
-        // Extract currency code from the first investment that has currency data
-        let currencyCode = 'EUR'; // Default to EUR
-        for (const inv of filteredInvestments) {
-          if (inv.investmentCurrency?.id) {
-            currencyCode = extractCurrencyCode(inv.investmentCurrency.id);
-            break;
-          } else if (inv.currency?.id) {
-            currencyCode = extractCurrencyCode(inv.currency.id);
-            break;
-          }
-        }
+        // Use EUR as the currency code for all metrics
+        const currencyCode = 'EUR';
 
         const totalCount = filteredInvestments.length;
         const totalMarketValue = filteredInvestments.reduce(

@@ -20,7 +20,8 @@ const SunburstTooltip: React.FC<any> = ({ active, payload }) => {
       return null;
     }
 
-    const name = data.name || 'Unknown';
+    // Extract the original name by removing the ID suffix
+    const displayName = data.name ? data.name.replace(/\s*\([^)]*\)$/, '') : 'Unknown';
     const value = data.value || 0;
     const companyName = data.companyName;
 
@@ -34,7 +35,7 @@ const SunburstTooltip: React.FC<any> = ({ active, payload }) => {
           boxShadow: '0 2px 8px rgba(0,0,0,0.15)'
         }}
       >
-        <p style={{ margin: 0, fontWeight: 'bold' }}>{name}</p>
+        <p style={{ margin: 0, fontWeight: 'bold' }}>{displayName}</p>
         <p style={{ margin: 0, color: '#666' }}>
           Employees: {value}
         </p>
@@ -51,12 +52,16 @@ const SunburstTooltip: React.FC<any> = ({ active, payload }) => {
 
 // Transform hierarchical data to sunburst format with proper unique keys
 const transformToSunburstFormat = (node: SunburstNode, parentPath = 'root', index = 0): any => {
-  // Create a unique path-based identifier
-  const currentPath = `${parentPath}-${node.name.replace(/\s+/g, '_')}-${index}`;
-  const uniqueId = `${currentPath}-level${node.level}`;
+  // Create a unique name that includes the ID to prevent duplicates
+  // Recharts uses the 'name' property as the key, so we need to make names unique
+  const uniqueName = node.id 
+    ? `${node.name} (${node.id})`
+    : `${node.name} (${index}-${node.level})`;
+  
+  const uniqueId = node.id || `sunburst-${node.name.replace(/[^a-zA-Z0-9]/g, '_')}-${index}-level${node.level}`;
   
   const result = {
-    name: node.name,
+    name: uniqueName, // Use unique name for Recharts key generation
     value: node.value,
     level: node.level,
     id: uniqueId, // Add unique ID for chart identification
@@ -64,7 +69,7 @@ const transformToSunburstFormat = (node: SunburstNode, parentPath = 'root', inde
     fill: node.color || node.fill, // Preserve color information
     color: node.color, // Keep original color property
     children: node.children?.map((child, childIndex) => 
-      transformToSunburstFormat(child, currentPath, childIndex)
+      transformToSunburstFormat(child, uniqueId, childIndex)
     ) || []
   };
 

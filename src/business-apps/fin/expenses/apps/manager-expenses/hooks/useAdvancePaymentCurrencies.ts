@@ -1,16 +1,30 @@
-import { useState, useEffect, useMemo, useCallback } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useGraphQLClient } from "@/common/network/graphql/useGraphQLClient";
 import { GET_DISTINCT_ADVANCE_PAYMENT_CURRENCIES } from "../queries/distinctCurrencies";
 import { extractCurrencyCode } from "../utils/currencyUtils";
 import { useCurrencyStore } from "../store/useCurrencyStore";
 
+/**
+ * Input parameters for `useAdvancePaymentCurrencies`.
+ */
 interface UseAdvancePaymentCurrenciesProps {
   accessToken: string;
   managerId: string;
 }
 
+/**
+ * Return shape for `useAdvancePaymentCurrencies`.
+ *
+ * Notes about behavior:
+ * - `availableCurrencies` is derived strictly from advance payment records (no hardcoded defaults).
+ * - When the shared currency store is already initialized, this hook reuses that value to avoid refetching; the
+ *   store is itself filled from real data by this hook, so it remains data-driven.
+ * - `mostUsedCurrency` is computed by frequency; `null` when no data is present.
+ * - On errors, the hook returns an empty currency list and exposes the error; no fallback currency is injected.
+ */
 interface UseAdvancePaymentCurrenciesReturn {
   availableCurrencies: string[];
+  mostUsedCurrency: string | null;
   isLoading: boolean;
   error: Error | null;
   refetch: () => Promise<void>;
@@ -18,7 +32,16 @@ interface UseAdvancePaymentCurrenciesReturn {
 }
 
 /**
- * Hook to fetch distinct currencies used in advance payments
+ * Fetches and caches distinct currency codes present in advance payments for the given manager.
+ *
+ * Behavior
+ * - Derives currency codes only from persisted advance payment data (no design-time defaults or fallbacks).
+ * - Populates and reuses a shared currency store to reduce network requests across the app.
+ * - Computes the most-used currency by occurrence frequency.
+ * - On error, exposes the error and returns an empty currency list.
+ *
+ * This design keeps currency options consistent with the actual dataset visible to the user and avoids
+ * accidental mixing of unrelated or unused currencies.
  */
 export const useAdvancePaymentCurrencies = ({
   accessToken,
@@ -58,16 +81,11 @@ export const useAdvancePaymentCurrencies = ({
         .map((item: any) => extractCurrencyCode(item.currencyRef))
         .filter(Boolean) as string[];
 
-      console.log("Raw response:", response?.AdvancePayment);
-      console.log("Extracted currency codes:", currencyCodes);
-
       // Calculate most used currency based on frequency
       const currencyFrequency: { [key: string]: number } = {};
       currencyCodes.forEach((currency) => {
         currencyFrequency[currency] = (currencyFrequency[currency] || 0) + 1;
       });
-
-      console.log("Currency frequency:", currencyFrequency);
 
       // Find the most used currency
       let mostUsedCurrency = null;
@@ -79,13 +97,8 @@ export const useAdvancePaymentCurrencies = ({
         }
       });
 
-      console.log("Most used currency:", mostUsedCurrency, "with frequency:", maxFrequency);
-
-      // Add default currencies if they don't exist in the data
-      const defaultCurrencies = ["EUR", "USD"];
-
-      // Create a unique set of currency codes to handle the lack of distinct_on in GraphQL
-      const uniqueCurrencies = Array.from(new Set([...currencyCodes, ...defaultCurrencies])).sort();
+      // Create a unique set of currency codes (no hardcoded fallbacks)
+      const uniqueCurrencies = Array.from(new Set(currencyCodes)).sort((a, b) => a.localeCompare(b));
 
       // Update both local state and global store
       setLocalCurrencies(uniqueCurrencies);
@@ -93,31 +106,22 @@ export const useAdvancePaymentCurrencies = ({
 
       // Set the most used currency in the store
       if (mostUsedCurrency) {
-        console.log("Setting most used currency in store:", mostUsedCurrency);
         useCurrencyStore.getState().setMostUsedCurrency(mostUsedCurrency);
-
-        // Check what the store state is after setting
-        const storeState = useCurrencyStore.getState();
-        console.log("Store state after setting most used currency:", {
-          primaryCurrency: storeState.primaryCurrency,
-          mostUsedCurrency: storeState.mostUsedCurrency,
-          isUserSelected: storeState.isUserSelected,
-          isInitialized: storeState.isInitialized,
-        });
       }
 
       setLocalInitialized(true);
       setInitialized(true);
     } catch (err) {
-      console.error("Error fetching advance payment currencies:", err);
+      if (import.meta.env?.DEV) {
+        console.error("Error fetching advance payment currencies:", err);
+      }
       setError(
         err instanceof Error ? err : new Error("Failed to fetch advance payment currencies"),
       );
 
-      // Fallback to default currencies on error
-      const fallbackCurrencies = ["EUR", "USD"];
-      setLocalCurrencies(fallbackCurrencies);
-      setAvailableCurrencies(fallbackCurrencies);
+      // On error, set empty currencies (no hardcoded fallback)
+      setLocalCurrencies([]);
+      setAvailableCurrencies([]);
     } finally {
       setIsLoading(false);
     }
@@ -156,26 +160,10 @@ export const useAdvancePaymentCurrencies = ({
     storeCurrencies,
   ]);
 
-  // Combine local currencies with store currencies for the most complete list
-  const combinedCurrencies = useMemo(() => {
-    // Combine all available currencies from both sources
-    const allCurrencies = Array.from(
-      new Set([
-        ...localCurrencies,
-        ...storeCurrencies,
-        // Always include the most used currency if available
-        ...(mostUsedCurrency ? [mostUsedCurrency] : []),
-        // Always include these fallback currencies
-        "EUR",
-        "USD",
-      ]),
-    ).sort();
-
-    return allCurrencies;
-  }, [localCurrencies, storeCurrencies, mostUsedCurrency]);
-
+  // Return currencies derived from actual advance payment data (may reuse store when already initialized)
   return {
-    availableCurrencies: combinedCurrencies,
+    availableCurrencies: localCurrencies,
+    mostUsedCurrency,
     isLoading: isLoading && !storeInitialized, // Only show loading if both local and store are not ready
     error,
     refetch: fetchCurrencies,

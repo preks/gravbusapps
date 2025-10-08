@@ -15,6 +15,11 @@ export interface ApprovalRequest {
     firstName: string;
     lastName: string;
   };
+  // Optional fields for optimization: store entity data from task list
+  entityId?: string; // Extracted entity ID (expense plan, request, or payment ID)
+  processInstanceId?: string; // Process instance ID for approval
+  taskInstanceId?: string; // Task instance ID for approval
+  rawEntityData?: any; // Full entity object from task.inputs
 }
 
 export type ValidTaskGroup =

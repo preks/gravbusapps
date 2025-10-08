@@ -118,7 +118,7 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ moduleColor = "def
 
   // Prepare the props for each tab based on the actual data structure
   const overviewProps = data?.overview ? {
-    title: "CRM Overview",
+    title: "Investment Relations Overview",
     counts: data.overview.totalCounts,
     conversionMetrics: data.overview.conversionMetrics,
     trendData: transformedTrendData,

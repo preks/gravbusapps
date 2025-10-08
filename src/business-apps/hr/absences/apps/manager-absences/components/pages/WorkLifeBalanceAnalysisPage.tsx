@@ -3,6 +3,7 @@ import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 import { Card, Badge, Button } from '@newwork/nw-design-system';
 import { PiArrowLeft, PiUsers, PiCalendar, PiClock } from 'react-icons/pi';
 import { useEmployeeWorkLifeBalance } from '../../hooks/useEmployeeWorkLifeBalance';
+import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
 
 interface WorkLifeBalanceAnalysisPageProps extends BusinessAppContextProps {
   onNavigateBack: () => void;
@@ -40,20 +41,20 @@ export const WorkLifeBalanceAnalysisPage: React.FC<WorkLifeBalanceAnalysisPagePr
   const getStatusText = (status: string) => {
     switch (status) {
       case 'excellent':
-        return 'Excellent';
+        return getTranslationFromI18nKeyAndLabel('lowcoder:absence_management_hub_manager.statistics_tab.excellent', 'Excellent');
       case 'good':
-        return 'Good';
+        return getTranslationFromI18nKeyAndLabel('lowcoder:absence_management_hub_manager.statistics_tab.good', 'Good');
       case 'needs-attention':
-        return 'Needs Attention';
+        return getTranslationFromI18nKeyAndLabel('lowcoder:absence_management_hub_manager.statistics_tab.needs_attention', 'Needs Attention');
       default:
-        return 'Unknown';
+        return getTranslationFromI18nKeyAndLabel('lowcoder:absence_hub.unknown_type', 'Unknown');
     }
   };
 
   if (isLoading) {
     return (
       <div className="gba:p-6 gba:text-center" data-testid="work-life-balance-loading">
-        Loading work-life balance analysis...
+        {getTranslationFromI18nKeyAndLabel('lowcoder:absence_hub.loading', 'Loading...')}
       </div>
     );
   }
@@ -61,7 +62,7 @@ export const WorkLifeBalanceAnalysisPage: React.FC<WorkLifeBalanceAnalysisPagePr
   if (error) {
     return (
       <div className="gba:p-6 gba:text-center gba:text-red-600" data-testid="work-life-balance-error">
-        Error: {error}
+        {getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.error', 'Error:')} {error}
       </div>
     );
   }
@@ -79,16 +80,16 @@ export const WorkLifeBalanceAnalysisPage: React.FC<WorkLifeBalanceAnalysisPagePr
             data-testid="work-life-balance-back-button"
           >
             <PiArrowLeft className="gba:text-lg" />
-            Back to Statistics
+            {getTranslationFromI18nKeyAndLabel('lowcoder:absence_management_hub_manager.statistics_tab.back_to_statistics', 'Back to Statistics')}
           </Button>
           
           {/* Title and Subtitle */}
           <div>
             <h1 className="gba:text-2xl gba:font-bold gba:text-gray-900" data-testid="work-life-balance-title">
-              Individual Work-Life Balance Analysis
+              {getTranslationFromI18nKeyAndLabel('lowcoder:absence_management_hub_manager.statistics_tab.individual_work_life_balance_analysis', 'Individual Work-Life Balance Analysis')}
             </h1>
             <p className="gba:text-gray-600 gba:mt-1" data-testid="work-life-balance-subtitle">
-              Detailed breakdown of each team member's work patterns and wellness indicators
+              {getTranslationFromI18nKeyAndLabel('lowcoder:absence_management_hub_manager.statistics_tab.detailed_breakdown_indicators', 'Detailed breakdown of each team member\'s work patterns and wellness indicators')}
             </p>
           </div>
         </div>
@@ -130,7 +131,7 @@ export const WorkLifeBalanceAnalysisPage: React.FC<WorkLifeBalanceAnalysisPagePr
                       {employee.avgStreak}
                     </div>
                     <div className="gba:text-xs gba:text-gray-500 gba:mt-1">
-                      Avg Streak
+                      {getTranslationFromI18nKeyAndLabel('lowcoder:absence_management_hub_manager.statistics_tab.avg_streak', 'Avg Streak')}
                     </div>
                   </div>
 
@@ -140,7 +141,7 @@ export const WorkLifeBalanceAnalysisPage: React.FC<WorkLifeBalanceAnalysisPagePr
                       {employee.longestStreak}
                     </div>
                     <div className="gba:text-xs gba:text-gray-500 gba:mt-1">
-                      Longest Streak
+                      {getTranslationFromI18nKeyAndLabel('lowcoder:absence_management_hub_manager.statistics_tab.longest_streak', 'Longest Streak')}
                     </div>
                   </div>
 
@@ -150,7 +151,7 @@ export const WorkLifeBalanceAnalysisPage: React.FC<WorkLifeBalanceAnalysisPagePr
                       {employee.avgBreak}
                     </div>
                     <div className="gba:text-xs gba:text-gray-500 gba:mt-1">
-                      Avg Break
+                      {getTranslationFromI18nKeyAndLabel('lowcoder:absence_management_hub_manager.statistics_tab.avg_break', 'Avg Break')}
                     </div>
                   </div>
                 </div>

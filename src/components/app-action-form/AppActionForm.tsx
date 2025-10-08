@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useEffect } from 'react';
+import React, { useState, useCallback, useEffect, useRef } from 'react';
 import { Button, Alert, Spinner, Form, WizardForm, useWizard, type WizardStep } from '@newwork/nw-design-system';
 import { useForm, type Resolver, type UseFormReturn } from 'react-hook-form';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
@@ -30,6 +30,9 @@ export interface AppActionFormProps {
   form?: UseFormReturn<any>;
   resolver?: Resolver<any>;
   'data-testid'?: string;
+  // Optional overrides for test ids on action buttons
+  submitButtonTestId?: string;
+  cancelButtonTestId?: string;
   // Support for custom form layouts (like wizards)
   customFormLayout?: boolean;
   customActions?: React.ReactNode;
@@ -44,6 +47,8 @@ export interface AppActionFormProps {
   // Pre-submission handler (e.g., for file uploads)
   handlePreSubmit?: (formData: any) => Promise<any>;
   isSubmitDisabled?: boolean;
+  // Optional completion callback and success navigation
+  onProcessCompletion?: (detail: { resolution?: 'success' | 'failure' } | null) => void;
 }
 
 const getSuccessMessage = (processType: string): string => {
@@ -89,6 +94,8 @@ interface FormNavigationProps {
   
   // Test IDs
   dataTestId: string;
+  submitButtonDataTestId?: string;
+  cancelButtonDataTestId?: string;
 }
 
 const FormNavigation: React.FC<FormNavigationProps> = ({
@@ -109,15 +116,17 @@ const FormNavigation: React.FC<FormNavigationProps> = ({
   isSubmitDisabled = false,
   submitButtonVariant = 'default',
   dataTestId,
+  submitButtonDataTestId,
+  cancelButtonDataTestId,
 }) => {
   return (
-    <div className="gba:flex gba:justify-between gba:items-center gba:mt-auto gba:pt-4" data-testid={`${dataTestId}-form-navigation`}>
+    <div className="gba:flex gba:justify-end gba:gap-2 gba:items-center gba:mt-auto gba:pt-4" data-testid={`${dataTestId}-form-navigation`}>
       {/* Left side: Cancel and Back buttons */}
       <div className="gba:flex gba:gap-2">
         {showCancelButton && (
           <Button 
             variant="outline" 
-            data-testid={`${dataTestId}-cancel-button`} 
+            data-testid={cancelButtonDataTestId || `${dataTestId}-cancel-button`} 
             type="button"
             onClick={onCancel}
             disabled={isLoading}
@@ -155,7 +164,7 @@ const FormNavigation: React.FC<FormNavigationProps> = ({
         
         {showSubmitButton && (
           <Button 
-            data-testid={`${dataTestId}-submit-button`} 
+            data-testid={submitButtonDataTestId || `${dataTestId}-submit-button`} 
             type="submit" 
             variant={submitButtonVariant}
             disabled={isLoading || isSubmitDisabled}
@@ -187,6 +196,8 @@ export const AppActionForm: React.FC<AppActionFormProps> = ({
   form: externalForm,
   resolver,
   'data-testid': dataTestId = 'process-dialog',
+  submitButtonTestId,
+  cancelButtonTestId,
   customFormLayout = false,
   customActions,
   disableFormSubmission = false,
@@ -196,21 +207,24 @@ export const AppActionForm: React.FC<AppActionFormProps> = ({
   allowStepJumping = false,
   handlePreSubmit,
   isSubmitDisabled = false,
+  onProcessCompletion,
 }) => {
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState<ProcessMessage | null>(null);
+  const isSubmittingRef = useRef(false);
 
   useEffect(() => {
     setMessage(null);
   }, [processType]);
 
   const handleSubmit = useCallback(async (values?: any) => {
-    // Prevent duplicate submissions
-    if (loading) {
+    // Prevent duplicate submissions using ref for synchronous check
+    if (isSubmittingRef.current) {
       return;
     }
 
     try {
+      isSubmittingRef.current = true;
       setLoading(true);
       setMessage(null);
       const dataForValidation = values ?? formData;
@@ -219,7 +233,8 @@ export const AppActionForm: React.FC<AppActionFormProps> = ({
         const errors = validateForm(dataForValidation);
         if (errors && errors.length > 0) {
           setMessage({ type: 'error', message: errors.join(', ') });
-          setLoading(false); // Stop loading on validation error
+          setLoading(false);
+          isSubmittingRef.current = false;
           return;
         }
       }
@@ -247,8 +262,12 @@ export const AppActionForm: React.FC<AppActionFormProps> = ({
 
         const handleProcessCompletion = (event: Event) => {
           const customEvent = event as CustomEvent<{ resolution: 'success' | 'failure' }>;
-          
-          if (customEvent.detail?.resolution === 'success' || customEvent.detail?.resolution === 'failure') {
+          const detail = customEvent?.detail ?? null;
+          // Notify consumer
+          if (onProcessCompletion) {
+            try { onProcessCompletion(detail); } catch (_) {}
+          }
+          if (detail?.resolution === 'success' || detail?.resolution === 'failure') {
             cleanup();
             resolve();
           }
@@ -280,8 +299,9 @@ export const AppActionForm: React.FC<AppActionFormProps> = ({
       setMessage({ type: 'error', message: errorMessage });
     } finally {
       setLoading(false);
+      isSubmittingRef.current = false;
     }
-  }, [processType, submitEventType, onSubmit, validateForm, onSuccess, formData, handlePreSubmit, loading]);
+  }, [processType, submitEventType, onSubmit, validateForm, onSuccess, formData, handlePreSubmit]);
 
   const handleCancel = useCallback(() => {
     dispatchProcessContinueEvent(cancelEventType, {});
@@ -313,6 +333,9 @@ export const AppActionForm: React.FC<AppActionFormProps> = ({
       isLoading={loading || form?.formState?.isSubmitting}
       submitButtonVariant={submitButtonVariant}
       dataTestId={dataTestId}
+      isSubmitDisabled={isSubmitDisabled}
+      submitButtonDataTestId={submitButtonTestId}
+      cancelButtonDataTestId={cancelButtonTestId}
     />
   );
 
@@ -337,6 +360,8 @@ export const AppActionForm: React.FC<AppActionFormProps> = ({
         isLoading={loading || form?.formState?.isSubmitting}
         submitButtonVariant={submitButtonVariant}
         dataTestId={dataTestId}
+        submitButtonDataTestId={submitButtonTestId}
+        cancelButtonDataTestId={cancelButtonTestId}
       />
     );
   };

@@ -11,7 +11,9 @@ import { AnalyticsRowData } from '../types/AnalyticsTypes';
 export interface LiquidFundReportFilters {
   startDate?: string;
   endDate?: string;
+  currencyIds?: string[];
   investmentType?: string; // For client-side filtering by liquid fund type
+  onCurrenciesChange?: (currencies: string[]) => void; // Callback to report available currencies
 }
 
 export interface UseLiquidFundReportsReturn {
@@ -64,6 +66,9 @@ export const useLiquidFundReports = (
       if (filters.endDate) {
         variables.reportDateTo = filters.endDate;
       }
+      if (filters.currencyIds && filters.currencyIds.length > 0) {
+        variables.currencyIds = filters.currencyIds;
+      }
 
       // Fetch using common data layer
       const { reports: fetchedReports, total } = await fetchInvestmentReports(variables);
@@ -73,10 +78,10 @@ export const useLiquidFundReports = (
       
       fetchedReports.forEach((report) => {
         const investmentId = report.investment?.id;
-        if (!investmentId) return;
+        if (!investmentId || !report.date) return;
 
         const existingReport = latestReportsByInvestment.get(investmentId);
-        if (!existingReport || new Date(report.date) > new Date(existingReport.date)) {
+        if (!existingReport || !existingReport.date || new Date(report.date) > new Date(existingReport.date)) {
           latestReportsByInvestment.set(investmentId, report);
         }
       });
@@ -89,20 +94,76 @@ export const useLiquidFundReports = (
       latestReports.forEach((report) => {
         const liquidFundReports = report.liquidFundInvestmentReport || [];
 
+        // Skip if no liquid fund reports (might be a different investment group)
+        if (liquidFundReports.length === 0) {
+          console.warn('[useLiquidFundReports] Report has no liquidFundInvestmentReport:', {
+            reportId: report.id,
+            investmentId: report.investment?.id,
+            investmentName: report.investment?.name
+          });
+          return;
+        }
+
         // Create a row for each liquid fund report
         liquidFundReports.forEach((liquidFundReport) => {
+          // Extract currency code from catalog entry or ref
+          const currencyCode = report.currency?.code || 
+                              report.currencyRef?.split(':')?.pop() || 
+                              'EUR';
+
+          // Extract financial data from additionalProperties or root level
+          const additionalProps = liquidFundReport.additionalProperties || {};
+          
           const row: AnalyticsRowData = {
             id: `${report.id}-${liquidFundReport.id}`,
             investmentId: report.investment?.id || '',
             investmentName: report.investment?.name || '',
             reportDate: report.date,
+            
+            // Required fields for AnalyticsRowData
+            cashBankIdentifier: liquidFundReport.bankAccountNumber || liquidFundReport.liquidFundInvestment?.investment?.code || '',
+            proprietorName: liquidFundReport.proprietorName || additionalProps.proprietor || '',
+            originalCurrency: currencyCode,
+            portfolioId: liquidFundReport.liquidFundInvestmentId || liquidFundReport.id || '',
+            investmentType: liquidFundReport.investmentLiquidFundType?.code || 
+                           liquidFundReport.investmentLiquidFundTypeRef?.split(':')?.pop() || 
+                           'UNKNOWN',
+            
+            // Financial data from additionalProperties
+            openingBalance: additionalProps.openingBalance || 0,
+            incoming: additionalProps.incoming || 0,
+            outgoing: additionalProps.outgoing || 0,
+            realizedGainsLosses: (additionalProps.realizedGainsLossesCurrency || 0) + 
+                                (additionalProps.realizedGainsLossesSharePrice || 0),
+            unrealizedGainsLosses: (additionalProps.unrealizedGainsLossesCurrency || 0) + 
+                                   (additionalProps.unrealizedGainsLossesSharePrice || 0),
+            closingBalance: additionalProps.closingBalance || report.investmentMarketValue || 0,
+            timeWeightedPerformance: additionalProps.timeWeightedPerformance || 0,
+            reportCount: 1,
+            
+            // Optional fields
+            maturityDate: liquidFundReport.maturityDate,
+            interestRate: liquidFundReport.interestRate,
+            depositName: additionalProps.name || liquidFundReport.liquidFundInvestment?.investment?.name || '',
+            isin: liquidFundReport.liquidFundInvestment?.investment?.isin || additionalProps.isin || '',
+            stocksQuantity: additionalProps.quantity,
+            
+            // Keep full structures for dynamic column access
             liquidFundReport: liquidFundReport,
-            liquidFundInvestment: liquidFundReport.liquidFundInvestment,
+            liquidFundInvestment: liquidFundReport.liquidFundInvestment ? [liquidFundReport.liquidFundInvestment] : [],
             investment: report.investment
           };
 
           transformedData.push(row);
         });
+      });
+
+      // Debug logging
+      console.log('[useLiquidFundReports] Transformation complete:', {
+        totalReports: latestReports.length,
+        transformedRows: transformedData.length,
+        firstRow: transformedData[0],
+        requestedFilter: filters.investmentType
       });
 
       // Client-side filtering by investment type (if needed)
@@ -117,16 +178,65 @@ export const useLiquidFundReports = (
           'Bond': 'BONDS'
         };
 
-        const targetType = typeMapping[filters.investmentType];
-        if (targetType) {
-          filteredData = transformedData.filter(
-            (item) => item.liquidFundReport?.investmentLiquidFundType?.code === targetType
-          );
+        // Handle comma-separated multiple types (for "Multiple Types" tab)
+        const requestedTypes = filters.investmentType.split(',').map(t => t.trim());
+        const targetTypes = requestedTypes.map(type => typeMapping[type]).filter(Boolean);
+        
+        console.log('[useLiquidFundReports] Filtering:', {
+          requestedTypes,
+          targetTypes,
+          availableTypes: transformedData.map(item => ({
+            id: item.id,
+            investmentType: item.investmentType,
+            liquidFundType: item.liquidFundReport?.investmentLiquidFundType?.code,
+            liquidFundTypeRef: item.liquidFundReport?.investmentLiquidFundTypeRef
+          }))
+        });
+        
+        if (targetTypes.length > 0) {
+          filteredData = transformedData.filter((item) => {
+            // Check multiple possible locations for the investment type code
+            const itemTypeCode = 
+              item.investmentType || // From root level (set in transformation)
+              item.liquidFundReport?.investmentLiquidFundType?.code ||
+              item.liquidFundReport?.investmentLiquidFundTypeRef?.split(':')?.pop();
+            
+            // Check if item type matches any of the target types
+            const matches = itemTypeCode && targetTypes.includes(itemTypeCode);
+            
+            if (!matches) {
+              console.log('[useLiquidFundReports] Filtered out:', {
+                investmentName: item.investmentName,
+                itemTypeCode,
+                targetTypes,
+                liquidFundReport: item.liquidFundReport
+              });
+            }
+            
+            return matches;
+          });
         }
+        
+        console.log('[useLiquidFundReports] After filtering:', {
+          beforeCount: transformedData.length,
+          afterCount: filteredData.length
+        });
       }
 
       setReports(latestReports);
       setAnalyticsData(filteredData);
+      
+      // Extract unique currency IDs from reports and notify parent
+      if (filters.onCurrenciesChange) {
+        const currencyIds = Array.from(
+          new Set(
+            latestReports
+              .map(report => report.currencyRef)
+              .filter(Boolean)
+          )
+        );
+        filters.onCurrenciesChange(currencyIds);
+      }
       
       // Derive totalCount from actual visible data to match what user sees
       // (accounts for client-side deduping and filtering)
@@ -139,7 +249,7 @@ export const useLiquidFundReports = (
     } finally {
       setIsLoading(false);
     }
-  }, [context.accessToken, context.userInfo, filters.startDate, filters.endDate, filters.investmentType, fetchInvestmentReports]);
+  }, [context.accessToken, context.userInfo, filters.startDate, filters.endDate, filters.currencyIds, filters.investmentType, filters.onCurrenciesChange, fetchInvestmentReports]);
 
   useEffect(() => {
     loadReports();

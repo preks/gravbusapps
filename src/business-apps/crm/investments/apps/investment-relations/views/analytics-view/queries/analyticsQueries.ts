@@ -61,7 +61,7 @@ export const GET_LEADS_ANALYTICS = `
         count
       }
     }
-    convertedLeads: InvestmentLeadAggregate(where: {isDeleted: {_eq: false}, leadStatus: {code: {_eq: "CONVERTED"}}}) {
+    convertedLeads: InvestmentLeadAggregate(where: {isDeleted: {_eq: false}, leadStatus: {value: {_in: ["Converted", "Qualified"]}}}) {
       aggregate {
         count
       }
@@ -152,7 +152,7 @@ export const GET_OPPORTUNITIES_ANALYTICS = (() => {
 
   return `
   query GetOpportunitiesAnalytics {
-    totalEstimatedAmount: InvestmentOpportunityAggregate {
+    totalEstimatedAmount: InvestmentOpportunityAggregate(where: { isDeleted: { _eq: false } }) {
       aggregate {
         sum {
           estimatedAmount
@@ -162,6 +162,18 @@ export const GET_OPPORTUNITIES_ANALYTICS = (() => {
     InvestmentOpportunityAggregate(where: { isDeleted: { _eq: false } }) {
       aggregate {
         count
+      }
+    }
+    WonOpportunitiesValue: InvestmentOpportunityAggregate(
+      where: { 
+        isDeleted: { _eq: false },
+        opportunityStatus: { code: { _eq: "WON" } }
+      }
+    ) {
+      aggregate {
+        sum {
+          estimatedAmount
+        }
       }
     }
     InvestmentOpportunity(where: { isDeleted: { _eq: false } }) {
@@ -183,6 +195,7 @@ export const GET_OPPORTUNITIES_ANALYTICS = (() => {
       opportunityStatus {
         id
         code
+        alternativeCode
         value
       }
       currency {
@@ -227,6 +240,7 @@ export const GET_OPPORTUNITIES_ANALYTICS = (() => {
       opportunityStatus {
         id
         code
+        alternativeCode
         value
       }
       currency {

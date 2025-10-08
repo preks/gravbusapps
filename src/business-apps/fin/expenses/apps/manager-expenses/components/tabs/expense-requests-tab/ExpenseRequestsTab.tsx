@@ -65,7 +65,7 @@ const ExpenseRequestsTab: React.FC<ExpenseRequestsTabProps> = (props) => {
   }, [props.accessToken, fetchRequests, selectedFilters, primaryCurrency]);
 
   return (
-    <div className="gba:h-full gba:flex gba:flex-col">
+    <div className="gba:h-full gba:flex gba:flex-col" data-testid="expense-requests-tab-container">
       <div className="gba:mb-6">
         <ExpenseRequestStatistics
           requestStats={requestStats}

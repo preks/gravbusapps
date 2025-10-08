@@ -7,7 +7,7 @@ import {
   CardHeader,
   CardTitle
 } from '@newwork/nw-design-system';
-import Pill from '@/components/pill';
+import { Badge } from '@newwork/nw-design-system';
 import { getExpenseRequestStatusDisplay } from '../../../utils';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 import { PiCalendarDuotone, PiClock, PiPath, PiArrowRight } from 'react-icons/pi';
@@ -65,7 +65,11 @@ const ExpenseRequestDetails: React.FC<ExpenseRequestDetailsProps> = ({
         <div className="gba:flex gba:items-center gba:gap-3">
           {(() => {
             const statusConfig = getExpenseRequestStatusDisplay(selectedItem.status);
-            return <Pill type={statusConfig.type} label={statusConfig.label} color={statusConfig.color} data-testid="expense-request-status-badge" />;
+            return (
+              <Badge variant={(statusConfig as any).badgeVariant || 'outline'} data-testid="expense-request-status-badge">
+                {statusConfig.label}
+              </Badge>
+            );
           })()}
           {(() => {
              const availableActions = generateExpenseRequestActions(

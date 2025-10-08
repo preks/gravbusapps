@@ -77,7 +77,7 @@ const ManagerExpenses: React.FC<ManagerExpensesProps> = (props) => {
 
   // Get tab from URL query parameter or use first tab as default
   const getInitialTab = () => {
-    const urlParams = new URLSearchParams(window.location.search);
+    const urlParams = new URLSearchParams(globalThis.location?.search || "");
     const tabFromUrl = urlParams.get("tab");
     const validTabs = viewOptions.map((item) => item.key);
 
@@ -86,9 +86,9 @@ const ManagerExpenses: React.FC<ManagerExpensesProps> = (props) => {
     } else {
       // No valid tab in URL, set default tab in URL
       const defaultTab = viewOptions[0].key;
-      const url = new URL(window.location.href);
+      const url = new URL(globalThis.location?.href || "http://localhost");
       url.searchParams.set("tab", defaultTab);
-      window.history.replaceState({}, "", url.toString());
+      globalThis.history?.replaceState?.({}, "", url.toString());
       return defaultTab;
     }
   };
@@ -116,23 +116,23 @@ const ManagerExpenses: React.FC<ManagerExpensesProps> = (props) => {
 
   const handleTabChange = useCallback((tab: string) => {
     setActiveTab(tab);
-    const url = new URL(window.location.href);
+    const url = new URL(globalThis.location?.href || "http://localhost");
     url.searchParams.set("tab", tab);
-    window.history.pushState({}, "", url.toString());
+    globalThis.history?.pushState?.({}, "", url.toString());
   }, []);
 
   // Handle browser back/forward navigation
   useEffect(() => {
     const handlePopState = () => {
-      const urlParams = new URLSearchParams(window.location.search);
+      const urlParams = new URLSearchParams(globalThis.location?.search || "");
       const tabFromUrl = urlParams.get("tab");
       const validTabs = viewOptions.map((item) => item.key);
       const newTab = validTabs.includes(tabFromUrl ?? "") ? tabFromUrl! : viewOptions[0].key;
       setActiveTab(newTab);
     };
 
-    window.addEventListener("popstate", handlePopState);
-    return () => window.removeEventListener("popstate", handlePopState);
+    globalThis.addEventListener?.("popstate", handlePopState);
+    return () => globalThis.removeEventListener?.("popstate", handlePopState);
   }, []);
 
   // Create tab props for passing to tab components
@@ -144,30 +144,31 @@ const ManagerExpenses: React.FC<ManagerExpensesProps> = (props) => {
     // Currency is now managed globally via the store, no need to pass it explicitly
   };
 
-  // Render tab content based on active tab
-  const renderTabContent = () => {
-    switch (activeTab) {
-      case "dashboard":
-        return (
-          <ExpenseDashboardTab
-            {...tabProps}
-            onNavigateToApprovals={handleNavigateToApprovals}
-            onNavigateToReports={handleNavigateToReports}
-            onNavigateToAnalytics={handleNavigateToAnalytics}
-          />
-        );
-      case "expense-plans":
-        return <ExpensePlansTab {...tabProps} />;
-      case "advance-payments":
-        return <AdvancePaymentsTab {...tabProps} />;
-      case "expense-requests":
-        return <ExpenseRequestsTab {...tabProps} />;
-      case "expense-calendar":
-        return <ExpenseCalendarTab {...tabProps} />;
-      default:
-        return null;
-    }
-  };
+  // Keep tab contents mounted to prefetch and avoid layout flicker
+  const renderAllTabsKeptMounted = () => (
+    <div>
+      <div className={activeTab === "dashboard" ? "" : "gba:hidden"}>
+        <ExpenseDashboardTab
+          {...tabProps}
+          onNavigateToApprovals={handleNavigateToApprovals}
+          onNavigateToReports={handleNavigateToReports}
+          onNavigateToAnalytics={handleNavigateToAnalytics}
+        />
+      </div>
+      <div className={activeTab === "expense-plans" ? "" : "gba:hidden"}>
+        <ExpensePlansTab {...tabProps} />
+      </div>
+      <div className={activeTab === "advance-payments" ? "" : "gba:hidden"}>
+        <AdvancePaymentsTab {...tabProps} />
+      </div>
+      <div className={activeTab === "expense-requests" ? "" : "gba:hidden"}>
+        <ExpenseRequestsTab {...tabProps} />
+      </div>
+      <div className={activeTab === "expense-calendar" ? "" : "gba:hidden"}>
+        <ExpenseCalendarTab {...tabProps} />
+      </div>
+    </div>
+  );
 
   // Render based on current view
   if (currentView === "approvals") {
@@ -205,7 +206,7 @@ const ManagerExpenses: React.FC<ManagerExpensesProps> = (props) => {
         }}
         className="gba:min-h-screen"
       >
-        {renderTabContent()}
+        {renderAllTabsKeptMounted()}
       </PageLayout>
     </div>
   );

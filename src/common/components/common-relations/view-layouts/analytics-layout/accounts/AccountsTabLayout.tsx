@@ -35,10 +35,10 @@ export interface AccountsTabLayoutProps {
 
 const calculateTrend = (current: number, previous: number): { value: string; positive: boolean; description: string } => {
   if (previous === 0) {
-    return { value: current > 0 ? "100%" : "0%", positive: current >= 0, description: `${current} this period vs ${previous} last period` };
+    return { value: current > 0 ? "100%" : "0%", positive: current >= 0, description: `${current.toFixed(1)} this period vs ${previous.toFixed(1)} last period` };
   }
   const change = ((current - previous) / previous) * 100;
-  return { value: `${Math.abs(change).toFixed(1)}%`, positive: change >= 0, description: `${current} this period vs ${previous} last period` };
+  return { value: `${Math.abs(change).toFixed(1)}%`, positive: change >= 0, description: `${current.toFixed(1)} this period vs ${previous.toFixed(1)} last period` };
 };
 
 export const AccountsTabLayout: React.FC<AccountsTabLayoutProps> = ({

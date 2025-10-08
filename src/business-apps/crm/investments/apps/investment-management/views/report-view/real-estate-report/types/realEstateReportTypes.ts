@@ -1,5 +1,5 @@
-import { CatalogEntry } from '@/common/types/CatalogEntry';
-import { Employee } from '@/common/data/employee/types';
+import { CatalogEntry } from '@/common/types/CatalogTypes';
+import { EmployeeRef } from '@/common/data/employee/types/employeeBaseTypes';
 
 // Enhanced real estate investment interface with real data fields
 export interface EnhancedRealEstateInvestment {
@@ -44,7 +44,7 @@ export interface EnhancedRealEstateInvestment {
   exitDate?: string | null;
 
   // Relationships
-  ownerEmployee?: Employee & { displayName?: string } | null;
+  ownerEmployee?: EmployeeRef | null;
   investmentAccount?: {
     id: string;
     name?: string;
@@ -119,6 +119,7 @@ export interface RealEstateReportFilters {
   investmentType?: string;
   startDate?: string;
   endDate?: string;
+  currencyIds?: string[];
   search?: string;
   limit?: number;
   offset?: number;

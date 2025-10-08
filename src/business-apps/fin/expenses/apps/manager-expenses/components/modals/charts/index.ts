@@ -7,3 +7,5 @@ export {
   LineChartComponent,
   PieChartComponent
 };
+
+export { resolveCssVar } from './chartUtils';

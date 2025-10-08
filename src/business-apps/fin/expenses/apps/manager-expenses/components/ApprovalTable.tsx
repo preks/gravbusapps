@@ -39,6 +39,7 @@ interface ApprovalTableProps extends BusinessAppContextProps {
   setValidationError: (error: string | null) => void;
   dataTestIdPrefix: string;
   tabKey: string; // The current tab key to determine approval process
+  onApprovalSuccess?: () => void; // Callback after successful approval
 }
 
 const ApprovalTable: React.FC<ApprovalTableProps> = ({
@@ -58,6 +59,7 @@ const ApprovalTable: React.FC<ApprovalTableProps> = ({
   tabKey,
   userInfo,
   accessToken,
+  onApprovalSuccess,
 }) => {
   const rawTasks = tasks;
   const approvalRequests = mapFlowTasksToApprovalRequests(tasks);
@@ -69,6 +71,7 @@ const ApprovalTable: React.FC<ApprovalTableProps> = ({
     tabKey,
     userInfo,
     accessToken,
+    onApprovalSuccess,
   });
 
   const handlePageSizeChange = (newPageSize: number) => {
@@ -137,13 +140,13 @@ const ApprovalTable: React.FC<ApprovalTableProps> = ({
   if (approvalRequests.length === 0) {
     return (
       <div className="gba:flex gba:flex-col gba:items-center gba:justify-center gba:p-8 gba:text-center">
-        <div className="gba:text-gray-500 gba:text-lg gba:font-medium gba:mb-2">
+        <div className="gba:text-muted-foreground gba:text-lg gba:font-medium gba:mb-2">
           {getTranslationFromI18nKeyAndLabel(
             'lowcoder:manager_expenses_landing_page.no_pending_approvals',
             'No pending approval requests found',
           )}
         </div>
-        <div className="gba:text-gray-400 gba:mb-4">
+        <div className="gba:text-muted-foreground gba:mb-4">
           {getTranslationFromI18nKeyAndLabel(
             'lowcoder:manager_expenses_landing_page.all_approvals_processed',
             'All approval requests have been processed.',
@@ -173,11 +176,12 @@ const ApprovalTable: React.FC<ApprovalTableProps> = ({
         dataTestIdPrefix={dataTestIdPrefix}
       />
 
-      <div className="gba:overflow-x-auto">
-        <Table data-testid={`${dataTestIdPrefix}-table`}>
-          <TableHeader>
-            <TableRow>
-              <TableHead className="gba:w-[5%]">
+      <div className="gba:border gba:border-border gba:rounded-md gba:bg-white">
+        <div className="gba:overflow-x-auto gba:pr-4 gba:border-b gba:border-border">
+          <Table data-testid={`${dataTestIdPrefix}-table`} className="gba:w-full">
+            <TableHeader className="gba:sticky gba:top-0 gba:bg-white gba:z-10 gba:border-b gba:border-border">
+              <TableRow>
+                <TableHead className="gba:w-[5%] gba:bg-muted gba:font-semibold">
                 <input
                   type="checkbox"
                   checked={
@@ -200,45 +204,45 @@ const ApprovalTable: React.FC<ApprovalTableProps> = ({
                   }}
                   data-testid={`${dataTestIdPrefix}-select-all-checkbox`}
                 />
-              </TableHead>
-              <TableHead className="gba:w-[15%]">
+                </TableHead>
+                <TableHead className="gba:w-[15%] gba:bg-muted gba:font-semibold">
                 {getTranslationFromI18nKeyAndLabel(
                   'lowcoder:expense_plan_list.expense_plan_table.create_date',
                   'Date',
                 )}
-              </TableHead>
-              <TableHead className="gba:w-[20%]">
+                </TableHead>
+                <TableHead className="gba:w-[20%] gba:bg-muted gba:font-semibold">
                 {getTranslationFromI18nKeyAndLabel(
                   'lowcoder:employee_landing_page.request',
                   'Title',
                 )}
-              </TableHead>
-              <TableHead className="gba:w-[15%]">
+                </TableHead>
+                <TableHead className="gba:w-[15%] gba:bg-muted gba:font-semibold">
                 {getTranslationFromI18nKeyAndLabel(
                   'lowcoder:manager_expenses_landing_page.task_group',
                   'Task Group',
                 )}
-              </TableHead>
-              <TableHead className="gba:w-[15%]">
+                </TableHead>
+                <TableHead className="gba:w-[15%] gba:bg-muted gba:font-semibold">
                 {getTranslationFromI18nKeyAndLabel(
                   'lowcoder:expense_request_list.expense_plan_table.amount',
                   'Amount',
                 )}
-              </TableHead>
-              <TableHead className="gba:w-[15%]">
+                </TableHead>
+                <TableHead className="gba:w-[15%] gba:bg-muted gba:font-semibold">
                 {getTranslationFromI18nKeyAndLabel(
                   'lowcoder:hr_absences.create_absence.employee',
                   'Employee',
                 )}
-              </TableHead>
-              <TableHead className="gba:w-[10%]">
+                </TableHead>
+                <TableHead className="gba:w-[10%] gba:bg-muted gba:font-semibold">
                 {getTranslationFromI18nKeyAndLabel(
                   'lowcoder:expense_request_list.expense_plan_table.status',
                   'Status',
                 )}
-              </TableHead>
-            </TableRow>
-          </TableHeader>
+                </TableHead>
+              </TableRow>
+            </TableHeader>
           <TableBody>
             {approvalRequests.map((request: ApprovalRequest) => (
               <TableRow
@@ -268,13 +272,13 @@ const ApprovalTable: React.FC<ApprovalTableProps> = ({
                     : '-'}
                 </TableCell>
                 <TableCell>
-                  <div className="gba:font-medium gba:text-gray-900">{request.title}</div>
+                  <div className="gba:font-medium gba:text-foreground">{request.title}</div>
                 </TableCell>
                 <TableCell>
-                  <div className="gba:text-sm gba:text-gray-600">{request.taskGroup}</div>
+                  <div className="gba:text-sm gba:text-muted-foreground">{request.taskGroup}</div>
                 </TableCell>
                 <TableCell>
-                  <div className="gba:text-sm gba:text-gray-900">
+                  <div className="gba:text-sm gba:text-foreground">
                     {request.totalAmount > 0
                       ? new Intl.NumberFormat(getCurrentActiveUserLocale(), {
                           style: 'currency',
@@ -284,7 +288,7 @@ const ApprovalTable: React.FC<ApprovalTableProps> = ({
                   </div>
                 </TableCell>
                 <TableCell>
-                  <div className="gba:text-sm gba:text-gray-900">{request.employee.fullName}</div>
+                  <div className="gba:text-sm gba:text-foreground">{request.employee.fullName}</div>
                 </TableCell>
                 <TableCell>
                   {(() => {
@@ -300,8 +304,9 @@ const ApprovalTable: React.FC<ApprovalTableProps> = ({
                 </TableCell>
               </TableRow>
             ))}
-          </TableBody>
-        </Table>
+            </TableBody>
+          </Table>
+        </div>
       </div>
 
       <ApprovalTablePagination

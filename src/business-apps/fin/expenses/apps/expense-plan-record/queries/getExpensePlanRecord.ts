@@ -103,6 +103,19 @@ export const getExpensePlanRecordQuery = `
           }
         }
         advancePayment(orderBy:{decisionDate:ASC}){
+        advancePaymentComment{
+            id
+            commentType
+            commentDate
+            comment
+            authorEmployee {
+              id    
+              firstName
+              lastName
+              fullName
+              pictureThumbnail
+            } 
+          }
           code
           description
           decisionDate
@@ -118,6 +131,7 @@ export const getExpensePlanRecordQuery = `
           transactionConfirmedByEmployee{
             fullName
           }
+          
         }
       }
     }

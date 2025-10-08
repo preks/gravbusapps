@@ -30,6 +30,7 @@ export interface UseExpenseRequestFiltersReturn {
   availableCurrencies: string[];
   currenciesLoading: boolean;
   currenciesInitialized: boolean;
+  filtersInitialized: boolean;
   resetCurrencySelection: () => void;
 }
 
@@ -62,6 +63,7 @@ export const useExpenseRequestFilters = ({
   const [localMostUsedCurrency, setLocalMostUsedCurrency] = useState<string | null>(null);
   const [userHasManuallySelectedCurrency, setUserHasManuallySelectedCurrency] =
     useState<boolean>(false);
+  const [filtersInitialized, setFiltersInitialized] = useState(false);
 
   const contextProps: BusinessAppContextProps = {
     accessToken: accessToken || "",
@@ -70,6 +72,7 @@ export const useExpenseRequestFilters = ({
 
   const {
     mostUsedCurrency: detectedCurrency,
+    availableCurrencies: fetchedCurrencies,
     isLoading: currenciesLoading,
     error: currenciesError,
   } = useExpenseRequestCurrencies(contextProps, managerId || "");
@@ -86,33 +89,30 @@ export const useExpenseRequestFilters = ({
     }
   }, [detectedCurrency, currenciesLoading, userHasManuallySelectedCurrency, localPrimaryCurrency]);
 
-  useEffect(() => {}, [localPrimaryCurrency]);
+  // Mark filters as initialized once currency data is ready
+  useEffect(() => {
+    if (!filtersInitialized && !currenciesLoading) {
+      setFiltersInitialized(true);
+    }
+  }, [filtersInitialized, currenciesLoading]);
 
   useEffect(() => {
-    if (localPrimaryCurrency && onCurrencyChange) {
-      onCurrencyChange(localPrimaryCurrency);
+    if (!onCurrencyChange) {
+      return;
     }
+
+    onCurrencyChange(localPrimaryCurrency || "EUR");
   }, [localPrimaryCurrency, onCurrencyChange]);
 
   const availableCurrencies = useMemo(() => {
-    const currencies = new Set<string>();
-
-    if (localMostUsedCurrency) {
-      currencies.add(localMostUsedCurrency);
-    }
-
-    currencies.add("EUR");
-    currencies.add("USD");
-    currencies.add("GBP");
-    currencies.add("RON");
-
-    return Array.from(currencies);
-  }, [localMostUsedCurrency]);
+    // Use currencies fetched from expense requests data
+    return fetchedCurrencies || [];
+  }, [fetchedCurrencies]);
 
   const handleDataFilterChange = useCallback(
     (filterId: string, selected: boolean) => {
       if (filterId.startsWith("currency:")) {
-        const currency = filterId.replace("currency:", "");
+        const currency = filterId.replaceAll("currency:", "");
 
         if (selected) {
           setLocalPrimaryCurrency(currency);
@@ -153,12 +153,10 @@ export const useExpenseRequestFilters = ({
       group: "statusGroup",
     }));
 
-    const currencyItems: DataFilter[] = (
-      availableCurrencies.length > 0 ? availableCurrencies : ["EUR", "USD"]
-    ).map((currency) => ({
+    const currencyItems: DataFilter[] = availableCurrencies.map((currency) => ({
       id: `currency:${currency}`,
       label: currency,
-      selected: currency === (localPrimaryCurrency || "EUR"),
+      selected: currency === localPrimaryCurrency,
       group: "currencyGroup",
     }));
 
@@ -192,8 +190,8 @@ export const useExpenseRequestFilters = ({
 
   const resetCurrencySelection = useCallback(() => {
     setUserHasManuallySelectedCurrency(false);
-    setLocalPrimaryCurrency("EUR");
-  }, []);
+    setLocalPrimaryCurrency(localMostUsedCurrency || "EUR");
+  }, [localMostUsedCurrency]);
 
   const addFilter = useCallback(
     (filterId: string) => {
@@ -228,7 +226,8 @@ export const useExpenseRequestFilters = ({
     mostUsedCurrency: localMostUsedCurrency,
     availableCurrencies: availableCurrencies,
     currenciesLoading,
-    currenciesInitialized: !currenciesError,
+    currenciesInitialized: filtersInitialized,
+    filtersInitialized,
     handleDataFilterChange,
     setCurrencyFilter: setLocalPrimaryCurrency,
     resetCurrencySelection,

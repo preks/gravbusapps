@@ -7,6 +7,8 @@ import {
   PiCalendar,
   PiClockAfternoon,
 } from "react-icons/pi";
+import dayjs from "dayjs";
+import localizedFormat from "dayjs/plugin/localizedFormat";
 import { useCurrencyStore } from "../../../store/useCurrencyStore";
 import { useCurrencyFilter } from "../../../hooks/useCurrencyFilter";
 import { useGetExpenseDashboard } from "../../../hooks/useGetExpenseDashboard";
@@ -20,7 +22,10 @@ import {
 } from "@/common/utils/windowUtils";
 import { WidgetGroup, WidgetItem } from "@/components/widget-group";
 import { formatCurrencyDisplay } from "../../../../personal-expenses/utils";
-import { getExpenseRequestStatusDisplay } from "../../../utils";
+import { getExpenseRequestStatusDisplay, getNormalizedErrorMessage } from "../../../utils";
+
+// Enable localized date formatting
+dayjs.extend(localizedFormat);
 
 export interface ExpenseDashboardTabProps extends BusinessAppContextProps {
   onNavigateToApprovals?: () => void;
@@ -40,20 +45,7 @@ interface RecentRequestItem {
   currency?: string; // Add currency field for display purposes
 }
 
-const getErrorMessage = (err: unknown): string => {
-  if (
-    typeof err === "object" &&
-    err !== null &&
-    "message" in err &&
-    typeof (err as { message: unknown }).message === "string"
-  ) {
-    return (err as { message: string }).message;
-  }
-  if (typeof err === "string") {
-    return err;
-  }
-  return "An unknown error occurred";
-};
+const getErrorMessage = getNormalizedErrorMessage;
 
 const ExpenseDashboardTab: React.FC<ExpenseDashboardTabProps> = (props) => {
   const { moduleColor } = props;
@@ -85,7 +77,7 @@ const ExpenseDashboardTab: React.FC<ExpenseDashboardTabProps> = (props) => {
       key: "approvals",
       title: getTranslationFromI18nKeyAndLabel(
         "lowcoder:team_expenses_page.dashboard_tab.review_approvals",
-        "Review Approvals",
+        "Approvals Review",
       ),
       description: getTranslationFromI18nKeyAndLabel(
         "lowcoder:team_expenses_page.dashboard_tab.review_pending_expense_approvals",
@@ -94,7 +86,7 @@ const ExpenseDashboardTab: React.FC<ExpenseDashboardTabProps> = (props) => {
       icon: PiListChecks,
       onClick: () => props.onNavigateToApprovals?.(),
       testId: "review-approvals-action",
-      iconColor: "gba:text-blue-500",
+      iconColor: "gba:text-primary",
     },
     {
       key: "analysis",
@@ -109,7 +101,7 @@ const ExpenseDashboardTab: React.FC<ExpenseDashboardTabProps> = (props) => {
       icon: PiChartLineUp,
       onClick: () => props.onNavigateToAnalytics?.(),
       testId: "team-spending-analysis-action",
-      iconColor: "gba:text-green-500",
+      iconColor: "gba:text-success",
     },
     {
       key: "reports",
@@ -124,7 +116,7 @@ const ExpenseDashboardTab: React.FC<ExpenseDashboardTabProps> = (props) => {
       icon: PiFileText,
       onClick: () => props.onNavigateToReports?.(),
       testId: "expense-reports-action",
-      iconColor: "gba:text-purple-500",
+      iconColor: "gba:text-accent",
     },
   ];
 
@@ -138,8 +130,8 @@ const ExpenseDashboardTab: React.FC<ExpenseDashboardTabProps> = (props) => {
       ),
       value: dashboardData?.teamMembersCount ?? 0,
       prefix: <PiListChecks />,
-      color: "#1677ff",
-      span: { xs: 24, sm: 12, lg: 6 },
+      color: "var(--nw-primary)",
+      
       description: getTranslationFromI18nKeyAndLabel(
         "lowcoder:team_expenses_page.dashboard_tab.total_team_members",
         "Total team members",
@@ -153,8 +145,8 @@ const ExpenseDashboardTab: React.FC<ExpenseDashboardTabProps> = (props) => {
       ),
       value: dashboardData?.pendingApprovalsCount ?? 0,
       prefix: <PiClockAfternoon />,
-      color: "#faad14",
-      span: { xs: 24, sm: 12, lg: 6 },
+      color: "var(--nw-warning)",
+      
       description: getTranslationFromI18nKeyAndLabel(
         "lowcoder:team_expenses_page.expense_plans_tab.requires_action",
         "Requires action",
@@ -174,9 +166,9 @@ const ExpenseDashboardTab: React.FC<ExpenseDashboardTabProps> = (props) => {
           {displayCurrency}
         </span>
       ),
-      color: "#3f8600",
+      color: "var(--nw-success)",
       valueIsString: true,
-      span: { xs: 24, sm: 12, lg: 6 },
+      
       description: getTranslationFromI18nKeyAndLabel(
         "lowcoder:team_expenses_page.dashboard_tab.current_month",
         "Current month",
@@ -190,8 +182,8 @@ const ExpenseDashboardTab: React.FC<ExpenseDashboardTabProps> = (props) => {
       ),
       value: dashboardData?.expenseCategoriesCount ?? 0,
       prefix: <PiCalendar />,
-      color: "#722ed1",
-      span: { xs: 24, sm: 12, lg: 6 },
+      color: "var(--nw-accent)",
+      
       description: getTranslationFromI18nKeyAndLabel(
         "lowcoder:team_expenses_page.dashboard_tab.categories_used",
         "Categories used",
@@ -200,10 +192,10 @@ const ExpenseDashboardTab: React.FC<ExpenseDashboardTabProps> = (props) => {
   ];
 
   return (
-    <div className="gba:h-full gba:flex gba:flex-col">
+    <div className="gba:h-full gba:flex gba:flex-col" data-testid="expense-dashboard-tab-container">
       {/* Currency Filter */}
       <div
-        className="gba:flex gba:justify-start gba:mb-4 gba:px-6"
+        className="gba:flex gba:justify-start gba:mb-4"
         data-testid="expense-dashboard-currency-filter-container"
       >
         <div className="gba:flex gba:items-center gba:gap-2">
@@ -229,18 +221,15 @@ const ExpenseDashboardTab: React.FC<ExpenseDashboardTabProps> = (props) => {
           widgets={widgets}
           isLoading={isLoading}
           error={error ? getErrorMessage(error) : null}
-          onRetry={() => window.location.reload()}
+          onRetry={() => globalThis.location?.reload?.()}
           skeletonCount={4}
-          emptyText={getTranslationFromI18nKeyAndLabel(
-            "lowcoder:team_expenses_page.dashboard_tab.no_statistics_available",
-            "No dashboard statistics available.",
-          )}
+          emptyText={undefined}
           data-testid="expense-dashboard-statistics"
         />
       </div>
 
       {/* Main Content Area */}
-      <div className="gba:flex-1 gba:space-y-6 gba:px-6">
+      <div className="gba:flex-1 gba:space-y-6">
         {/* Quick Actions Section */}
         <div>
           <h3 className="gba:text-lg gba:font-semibold gba:mb-4">
@@ -249,12 +238,12 @@ const ExpenseDashboardTab: React.FC<ExpenseDashboardTabProps> = (props) => {
               "Quick Actions",
             )}
           </h3>
-          <div className="gba:grid gba:grid-cols-1 sm:gba:grid-cols-2 lg:gba:grid-cols-3 gba:gap-4">
+          <div className="gba:grid gba:grid-cols-3 gba:gap-4">
             {quickActions.map((action) => {
               return (
                 <Card
                   key={action.key}
-                  className="gba:cursor-pointer gba:transition-all gba:hover:shadow-md"
+                  className="gba:cursor-pointer gba:transition-colors"
                   onClick={action.onClick}
                   data-testid={`quick-action-${action.key}`}
                 >
@@ -323,11 +312,12 @@ const ExpenseDashboardTab: React.FC<ExpenseDashboardTabProps> = (props) => {
                               )}
                         </p>
                         <p className="gba:text-sm gba:text-muted-foreground">
-                          {new Date(request.requestDate).toLocaleDateString(userLocale, {
-                            month: "2-digit",
-                            day: "2-digit",
-                            year: "2-digit",
-                          })}
+                          {request.requestDate && request.requestDate !== "N/A"
+                            ? dayjs(request.requestDate).locale(userLocale).format("L")
+                            : getTranslationFromI18nKeyAndLabel(
+                                "lowcoder:common.not_available",
+                                "N/A",
+                              )}
                         </p>
                       </div>
                     </div>

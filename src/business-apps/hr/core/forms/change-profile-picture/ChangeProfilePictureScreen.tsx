@@ -7,6 +7,7 @@ import flowSmall from '@/assets/icons/flowSmall.svg';
 import { useGetEmployeePicture } from './queries/ChangeProfilePictureQueries';
 import { useFileClient } from '@/common/network/files/useFileClient';
 import AppActionForm from '@/components/app-action-form/AppActionForm';
+import { dispatchProcessContinueEvent } from '@/common/utils/processEventUtils';
 
 interface ChangeProfilePictureScreenProps extends BusinessAppContextProps {}
 
@@ -82,8 +83,9 @@ const ChangeProfilePictureScreen: React.FC<ChangeProfilePictureScreenProps> = ({
   const imageSrc = previewUrl || currentImageUrl || undefined;
 
   const validateForm = () => {
-    const hasImage = Boolean(selectedFile || previewUrl);
-    if (!hasImage) {
+    // Require uploading a new file; existing preview/current image is not sufficient
+    const hasNewUpload = Boolean(selectedFile);
+    if (!hasNewUpload) {
       return [getTranslationFromI18nKeyAndLabel('lowcoder:profile_picture_form.required', 'Please upload a profile picture.')];
     }
     return null;
@@ -133,9 +135,26 @@ const ChangeProfilePictureScreen: React.FC<ChangeProfilePictureScreenProps> = ({
       businessAppContext={{ accessToken, userInfo, additionalData }}
       validateForm={validateForm}
       handlePreSubmit={handlePreSubmit}
+      // Disable submit until a new file is selected
+      isSubmitDisabled={!selectedFile}
       submitButtonText={getTranslationFromI18nKeyAndLabel('common.submit', 'Submit')}
       cancelButtonText={getTranslationFromI18nKeyAndLabel('common.cancel', 'Cancel')}
+      submitButtonTestId="flw_changePicture_btnSubmit"
+      cancelButtonTestId="flw_changePicture_btnCancel"
       data-testid={formatDataTestId(prefixDataTestId, 'Container')}
+      onCancel={() => {
+        dispatchProcessContinueEvent('pse_abort', {
+          event: 'pse_abort',
+          pso_exitStrategy: 'abort',
+          pso_completeNotification: {
+            type: 'error',
+            messageKey: getTranslationFromI18nKeyAndLabel(
+              'lowcoder:absence_module.toast_notification_cancel_create_absence',
+              'The action has been canceled.'
+            )
+          }
+        });
+      }}
     >
       <div className="gba:bg-white gba:w-full gba:max-w-xl gba:max-h-[90vh] gba:overflow-hidden">
         {/* Header */}
@@ -166,7 +185,11 @@ const ChangeProfilePictureScreen: React.FC<ChangeProfilePictureScreenProps> = ({
         {/* Content */}
         <div className="gba:p-6 gba:flex gba:flex-col gba:items-center gba:gap-6 gba:overflow-y-auto gba:max-h-[calc(90vh-160px)]">
           {/* Avatar preview */}
-          <div className="gba:w-48 gba:h-48 gba:rounded-full gba:overflow-hidden gba:border gba:flex gba:items-center gba:justify-center" style={{ borderColor: 'var(--nw-color-border-default)' }} data-testid={formatDataTestId(prefixDataTestId, 'AvatarPreview')}>
+          <div
+            className="gba:w-48 gba:h-48 gba:rounded-full gba:overflow-hidden gba:border gba:flex gba:items-center gba:justify-center"
+            style={{ borderColor: 'var(--nw-color-border-default)' }}
+            data-testid="flw_changePicture_currentPicture"
+          >
             {isImageLoading ? (
               <Spinner size="lg" />
             ) : imageSrc ? (
@@ -191,8 +214,8 @@ const ChangeProfilePictureScreen: React.FC<ChangeProfilePictureScreenProps> = ({
             <Button
               variant="secondary"
               onClick={handleOpenFileDialog}
-              data-testid={formatDataTestId(prefixDataTestId, 'UploadButton')}
-            type="button"
+              data-testid="flw_changePicture_uploadFile"
+              type="button"
               className="gba:w-full"
             >
               {getTranslationFromI18nKeyAndLabel('lowcoder:profile_picture_form.upload', 'Upload Picture')}

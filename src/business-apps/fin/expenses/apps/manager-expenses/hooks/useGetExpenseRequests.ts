@@ -36,6 +36,12 @@ export interface ExpenseRequest {
     fileUrl: string;
     fileName: string;
   }[];
+  /**
+   * Linked expense plan (if any). Added to avoid 'any' assertions when rendering Plan Code.
+   */
+  expensePlan?: {
+    code?: string;
+  } | null;
   employeeDocument?: {
     file: string;
     fileSize: number;
@@ -179,7 +185,7 @@ export const useGetExpenseRequests = ({
         amount: request.totalAmount,
         currency: (() => {
           const extractedCurrency = request.currencyRef
-            ? request.currencyRef.replace("Currency:v1:", "")
+            ? request.currencyRef.replaceAll("Currency:v1:", "")
             : "EUR";
 
           return extractedCurrency;
@@ -193,6 +199,7 @@ export const useGetExpenseRequests = ({
               },
             ]
           : [],
+        employeeDocument: request.employeeDocument || null,
         employee: request.employee
           ? {
               id: request.employee.id,
@@ -203,6 +210,8 @@ export const useGetExpenseRequests = ({
               additionalProperties: request.employee.additionalProperties,
             }
           : undefined,
+        // expose linked plan code for table column
+        expensePlan: request.expensePlan ? { code: request.expensePlan.code } : undefined,
       };
     });
   };

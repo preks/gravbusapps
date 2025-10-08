@@ -61,7 +61,7 @@ export function validateClaimAssignment(target: AssignmentTarget): { valid: bool
 }
 
 /**
- * Build Elasticsearch query for claimable tasks
+ * Build query for claimable tasks
  */
 export function buildClaimableTaskQuery(userAssignments: AssignmentTarget): object {
   const mustClauses: any[] = [];

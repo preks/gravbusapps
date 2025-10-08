@@ -5,6 +5,8 @@ export type PlanCardContext = {
   setPlanDateRange: (range: [Date | null, Date | null] | null) => void;
   setStartDateRange: (range: [Date | null, Date | null] | null) => void;
   setEndDateRange: (range: [Date | null, Date | null] | null) => void;
+  // New: use effective date instead of plan/start directly
+  setEffectiveDateRange?: (range: [Date | null, Date | null] | null) => void;
   handleFilterChange: (filterId: string, selected: boolean) => void;
   setDestinationFilter: (value: string | null) => void;
   topDestination: string | null | undefined;
@@ -24,19 +26,32 @@ const currentMonthRange = (): [Date, Date] => {
 export const getPlanCardStrategies = (ctx: PlanCardContext): Record<string, CardStrategy> => ({
   'total-plans': {
     apply: () => {
-      ctx.setPlanDateRange(currentMonthRange());
+      // Prefer effective date (TRIP -> startDate, EXPENSES -> planDate)
+      if (ctx.setEffectiveDateRange) {
+        ctx.setEffectiveDateRange(currentMonthRange());
+      } else {
+        ctx.setPlanDateRange(currentMonthRange());
+      }
       ctx.handleFilterChange(ExpenseStatus.CLOSED, true);
       ctx.handleFilterChange(ExpenseStatus.PAID, true);
     },
     remove: () => {
-      ctx.setPlanDateRange(null);
+      if (ctx.setEffectiveDateRange) {
+        ctx.setEffectiveDateRange(null);
+      } else {
+        ctx.setPlanDateRange(null);
+      }
       ctx.handleFilterChange(ExpenseStatus.CLOSED, false);
       ctx.handleFilterChange(ExpenseStatus.PAID, false);
     }
   },
   'total-estimated': {
     apply: () => {
-      ctx.setPlanDateRange(currentMonthRange());
+      if (ctx.setEffectiveDateRange) {
+        ctx.setEffectiveDateRange(currentMonthRange());
+      } else {
+        ctx.setPlanDateRange(currentMonthRange());
+      }
       const statuses = [
         ExpenseStatus.PREPARED,
         ExpenseStatus.ASSIGNED,
@@ -50,7 +65,11 @@ export const getPlanCardStrategies = (ctx: PlanCardContext): Record<string, Card
       statuses.forEach(s => ctx.handleFilterChange(s, true));
     },
     remove: () => {
-      ctx.setPlanDateRange(null);
+      if (ctx.setEffectiveDateRange) {
+        ctx.setEffectiveDateRange(null);
+      } else {
+        ctx.setPlanDateRange(null);
+      }
       const statuses = [
         ExpenseStatus.PREPARED,
         ExpenseStatus.ASSIGNED,
