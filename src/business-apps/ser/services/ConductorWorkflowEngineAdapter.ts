@@ -994,17 +994,6 @@ export class ConductorWorkflowEngineAdapter implements WorkflowEngine {
    * Maps custom-flow-engine task structure to Services+ StepInstance
    */
   private convertTaskToStepInstance(taskData: any, flowDetail?: any): StepInstance {
-    console.log(`[ConductorAdapterRequester] Converting task to StepInstance:`, {
-      taskId: taskData.taskId || taskData.id,
-      title: taskData.title,
-      taskDefName: taskData.taskDefName,
-      status: taskData.status,
-      urgency_level: taskData.urgency_level, // ✅ ADD URGENCY DEBUG
-      assignment: taskData.assignment,
-      formData: taskData.formData, // ✅ ADD FORMDATA DEBUG
-      hasFlowDetail: !!flowDetail,
-      flowDetailKeys: flowDetail ? Object.keys(flowDetail) : []
-    });
     
     // Map custom-flow-engine task status to Services+ StepStatus
     const status = this.mapCustomFlowTaskStatus(taskData.status);
@@ -1040,6 +1029,9 @@ export class ConductorWorkflowEngineAdapter implements WorkflowEngine {
       message: taskData.message, // ✅ PRESERVE message from task data
       availableActions: taskData.availableActions || this.getDefaultAvailableActions(taskData),
       dueDate: taskData.dueDate,
+      // ✅ PRESERVE flowName from task data (for proper display in ticket tables)
+      flowName: taskData.flowName || taskData.workflowName || taskData.templateName || 
+                flowDetail?.flowName || flowDetail?.name || flowDetail?.workflowName || flowDetail?.templateName,
       // ✅ PRESERVE urgency_level from task data
       ...(taskData.urgency_level && { urgency_level: taskData.urgency_level }),
       // ✅ PRESERVE assignment object from task data
@@ -1048,21 +1040,6 @@ export class ConductorWorkflowEngineAdapter implements WorkflowEngine {
       ...(taskData.formData && { formData: taskData.formData })
     } as StepInstance & { urgency_level?: string; assignment?: any };
     
-    console.log(`[ConductorAdapterRequester] ✅ Converted to StepInstance:`, {
-      id: stepInstance.id,
-      name: stepInstance.name,
-      desk: stepInstance.desk,
-      status: stepInstance.status,
-      urgency_level: (stepInstance as any).urgency_level, // ✅ ADD URGENCY DEBUG
-      assignment: (stepInstance as any).assignment, // ✅ ADD ASSIGNMENT DEBUG
-      formData: (stepInstance as any).formData, // ✅ ADD FORMDATA DEBUG
-      claimedBy: stepInstance.claimedByUserId,
-      assignedTo: stepInstance.assignedToUserId,
-      requesterId: stepInstance.requesterId,
-      requesterName: stepInstance.requesterName,
-      startedAt: stepInstance.startedAt, // ✅ ADD TIMESTAMP LOGGING
-      updatedAt: stepInstance.updatedAt  // ✅ ADD TIMESTAMP LOGGING
-    });
     
     return stepInstance;
   }
@@ -1382,7 +1359,21 @@ export class ConductorWorkflowEngineAdapter implements WorkflowEngine {
 
       console.log(`[ConductorAdapter] Retrieved ${tasks.length} completed tickets (${totalCount} total, hasMore: ${hasMore})`);
       
-      const tickets = tasks.map((task: any) => this.convertTaskToStepInstance(task));
+      // Convert tasks to step instances, potentially fetching flow details if needed
+      const tickets = await Promise.all(tasks.map(async (task: any) => {
+        // Try to get flow details if we have a flowId and no flowName
+        let flowDetail = null;
+        if (task.flowId && !task.flowName && !task.workflowName && !task.templateName) {
+          try {
+            const flowResult = await this.makeRequest(`/flows/${task.flowId}`);
+            flowDetail = flowResult;
+          } catch (error) {
+            console.warn(`[ConductorAdapter] Could not fetch flow details for ${task.flowId}:`, error);
+          }
+        }
+        
+        return this.convertTaskToStepInstance(task, flowDetail);
+      }));
 
       return {
         tickets,
