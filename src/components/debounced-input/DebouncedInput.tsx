@@ -72,7 +72,7 @@ export const DebouncedInput = forwardRef<HTMLInputElement, DebouncedInputProps>(
   return (
     <div className="gba:relative">
       {icon && (
-        <div className="gba:absolute gba:left-4 gba:top-1/2 gba:transform gba:-translate-y-1/2 gba:pointer-events-none gba:z-10">
+        <div className="gba:absolute gba:left-3 gba:top-1/2 gba:transform gba:-translate-y-1/2 gba:pointer-events-none gba:z-10">
           {icon}
         </div>
       )}
@@ -80,7 +80,6 @@ export const DebouncedInput = forwardRef<HTMLInputElement, DebouncedInputProps>(
         ref={ref}
         type={type}
         className={`${icon ? 'gba:pl-10' : ''} ${className}`}
-        style={icon ? { paddingLeft: '40px' } : undefined}
         placeholder={placeholder}
         value={localValue}
         onChange={handleChange}

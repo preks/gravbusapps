@@ -16,6 +16,7 @@ import {
   PageLayout,
 } from "@newwork/nw-design-system";
 import { PiMagnifyingGlass, PiDownload, PiArrowLeft, PiFileText } from "react-icons/pi";
+import { DebouncedInput } from "@/components/data-filter/DebouncedInput";
 import { BusinessAppContextProps } from "@/common/BusinessAppContext";
 import { useExpenseReportData, ReportType } from "../../hooks/useExpenseReportData";
 import { ensureShortDateFormat } from "../../utils/dateUtils";
@@ -494,15 +495,15 @@ const ExpenseReportsPage: React.FC<ExpenseReportsPageProps> = ({
 
               {/* Search Report Types */}
               <div className="gba:relative gba:mb-4">
-                <PiMagnifyingGlass className="gba:absolute gba:left-3 gba:top-1/2 gba:transform gba:-translate-y-1/2 gba:text-muted-foreground gba:text-sm" />
-                <Input
+                <PiMagnifyingGlass className="gba:absolute gba:left-3 gba:top-1/2 gba:transform gba:-translate-y-1/2 gba:text-muted-foreground gba:w-4 gba:h-4 gba:pointer-events-none" />
+                <DebouncedInput
                   placeholder={getTranslationFromI18nKeyAndLabel(
                     "lowcoder:team_expenses_page.dashboard_tab.search_report_types",
                     "Search report types...",
                   )}
-                  onChange={(e) => setReportTypeSearchTerm(e.target.value)}
+                  onChange={(val) => setReportTypeSearchTerm(val)}
                   value={reportTypeSearchTerm}
-                  className="gba:pl-10"
+                  className="gba:pl-10 gba:h-10 gba:text-sm gba:border-input"
                   data-testid="expense-reports-type-search-input"
                 />
               </div>
@@ -543,18 +544,18 @@ const ExpenseReportsPage: React.FC<ExpenseReportsPageProps> = ({
             {/* Search Bar for Table Data */}
             <div className="gba:mb-4">
               <div className="gba:relative gba:w-64">
-                <PiMagnifyingGlass className="gba:absolute gba:left-3 gba:top-1/2 gba:transform gba:-translate-y-1/2 gba:text-muted-foreground gba:text-sm" />
-                <Input
+                <PiMagnifyingGlass className="gba:absolute gba:left-3 gba:top-1/2 gba:transform gba:-translate-y-1/2 gba:text-muted-foreground gba:w-4 gba:h-4 gba:pointer-events-none" />
+                <DebouncedInput
                   placeholder={getTranslationFromI18nKeyAndLabel(
                     "lowcoder:team_expenses_page.dashboard_tab.search_report_data",
                     "Search report data...",
                   )}
-                  onChange={(e) => {
-                    setSearchTerm(e.target.value);
+                  onChange={(val) => {
+                    setSearchTerm(val);
                     setCurrentPage(1);
                   }}
                   value={searchTerm}
-                  className="gba:pl-10"
+                  className="gba:pl-10 gba:h-10 gba:text-sm gba:border-input"
                   data-testid="expense-reports-data-search-input"
                 />
               </div>
