@@ -72,14 +72,14 @@ export const DebouncedInput = forwardRef<HTMLInputElement, DebouncedInputProps>(
   return (
     <div className="gba:relative">
       {icon && (
-        <div className="gba:absolute gba:left-4 gba:top-1/2 gba:transform gba:-translate-y-1/2 gba:pointer-events-none gba:z-10">
+        <div className="gba:absolute gba:left-3 gba:top-1/2 gba:transform gba:-translate-y-1/2 gba:pointer-events-none gba:z-10">
           {icon}
         </div>
       )}
       <Input
         ref={ref}
         type={type}
-        className={`${icon ? 'gba:ps-14' : ''} ${className}`}
+        className={`${icon ? 'gba:!ps-10' : ''} ${className}`}
         style={undefined}
         placeholder={placeholder}
         value={localValue}
