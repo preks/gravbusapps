@@ -47,6 +47,8 @@ export interface AppActionFormProps {
   // Pre-submission handler (e.g., for file uploads)
   handlePreSubmit?: (formData: any) => Promise<any>;
   isSubmitDisabled?: boolean;
+  // Optional completion callback and success navigation
+  onProcessCompletion?: (detail: { resolution?: 'success' | 'failure' } | null) => void;
 }
 
 const getSuccessMessage = (processType: string): string => {
@@ -205,6 +207,7 @@ export const AppActionForm: React.FC<AppActionFormProps> = ({
   allowStepJumping = false,
   handlePreSubmit,
   isSubmitDisabled = false,
+  onProcessCompletion,
 }) => {
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState<ProcessMessage | null>(null);
@@ -259,8 +262,12 @@ export const AppActionForm: React.FC<AppActionFormProps> = ({
 
         const handleProcessCompletion = (event: Event) => {
           const customEvent = event as CustomEvent<{ resolution: 'success' | 'failure' }>;
-          
-          if (customEvent.detail?.resolution === 'success' || customEvent.detail?.resolution === 'failure') {
+          const detail = customEvent?.detail ?? null;
+          // Notify consumer
+          if (onProcessCompletion) {
+            try { onProcessCompletion(detail); } catch (_) {}
+          }
+          if (detail?.resolution === 'success' || detail?.resolution === 'failure') {
             cleanup();
             resolve();
           }
