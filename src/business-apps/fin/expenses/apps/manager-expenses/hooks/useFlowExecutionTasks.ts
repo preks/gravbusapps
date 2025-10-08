@@ -4,7 +4,60 @@ import {
   FlowMetricsClient,
   FlowExecutionTask,
   FlowExecutionTasksParams,
+  FlowExecutionTasksResponse,
 } from '@/common/network/flow-metrics/FlowMetricsClient';
+
+type FetchVariantTasksResult = {
+  tasks: FlowExecutionTask[];
+  totalCount: number;
+};
+
+// Fetches both the base and StoreDirector variants for a given task name,
+// merges and de-duplicates by ID, sorts by most recent, and sums counts.
+const fetchTasksWithVariants = async (
+  client: FlowMetricsClient,
+  baseParams: FlowExecutionTasksParams,
+  baseTaskName: string,
+): Promise<FetchVariantTasksResult> => {
+  const [baseResponse, variantResponse] = await Promise.all([
+    client.getFlowExecutionTasks({
+      ...baseParams,
+      filterTaskName: baseTaskName,
+    }),
+    client.getFlowExecutionTasks({
+      ...baseParams,
+      filterTaskName: `${baseTaskName}StoreDirector`,
+    }),
+  ]);
+
+  const getTasks = (res: FlowExecutionTasksResponse): FlowExecutionTask[] =>
+    res.processingStates ?? res.content ?? [];
+
+  const baseTasks = getTasks(baseResponse);
+  const variantTasks = getTasks(variantResponse);
+
+  const taskMap = new Map<string, FlowExecutionTask>();
+  for (const task of baseTasks) {
+    if (!taskMap.has(task.id)) taskMap.set(task.id, task);
+  }
+  for (const task of variantTasks) {
+    if (!taskMap.has(task.id)) taskMap.set(task.id, task);
+  }
+
+  const merged = Array.from(taskMap.values());
+  merged.sort((a, b) => {
+    const dateA = new Date(a.started ?? a.lastUpdate ?? 0).getTime();
+    const dateB = new Date(b.started ?? b.lastUpdate ?? 0).getTime();
+    return dateB - dateA;
+  });
+
+  const getTotal = (res: FlowExecutionTasksResponse): number =>
+    res.totalCount ?? res.totalElements ?? 0;
+
+  const totalCount = getTotal(baseResponse) + getTotal(variantResponse);
+
+  return { tasks: merged, totalCount };
+};
 
 export interface UseFlowExecutionTasksResult {
   tasks: FlowExecutionTask[];
@@ -42,7 +95,7 @@ export const useFlowExecutionTasks = (
 
   // Pagination state - use external if provided, otherwise internal state
   const [internalCurrentPage, setInternalCurrentPage] = useState<number>(1);
-  const [internalPageSize, setInternalPageSize] = useState<number>(20);
+  const [internalPageSize, setInternalPageSize] = useState<number>(50); // Balanced page size for performance
   const [internalSearchTerm, setInternalSearchTerm] = useState<string>('');
   const [internalFilterTaskName, setInternalFilterTaskName] = useState<string | null>(null);
 
@@ -65,54 +118,72 @@ export const useFlowExecutionTasks = (
   // Initialize the FlowMetrics client
   const accessToken = context?.accessToken || '';
 
-  // Fetch tasks data
+  // Fetch tasks data - for certain process types, fetch both base and StoreDirector variants
   const fetchTasks = useCallback(async () => {
     if (!accessToken) return;
 
     setIsLoading(true);
     setError(null);
 
+    // Small helpers to keep this function simple
+    const isVariantProcess = (name: string | null | undefined) =>
+      !!name && ['approveAdvancePayment', 'approveExpenseRequest', 'approveExpensePlan'].includes(name);
+
+    const buildBaseParams = (): FlowExecutionTasksParams => ({
+      cockpitPage: 'INBOX',
+      size: pageSize,
+      page: currentPage - 1,
+      field: 'CREATION_DATE',
+      direction: 'DESC',
+      ...(searchTerm && { search: searchTerm }),
+      ...(context?.userInfo?.id && { userId: context.userInfo.id }),
+    });
+
+    const runFetch = async (client: FlowMetricsClient) => {
+      const baseParams = buildBaseParams();
+
+      if (isVariantProcess(filterTaskName) && filterTaskName) {
+        const res = await fetchTasksWithVariants(client, baseParams, filterTaskName);
+        return { tasks: res.tasks.slice(0, pageSize), total: res.totalCount } as const;
+      }
+
+      const response = await client.getFlowExecutionTasks({
+        ...baseParams,
+        ...(filterTaskName && { filterTaskName }),
+      });
+      const tasks = response.processingStates || response.content || [];
+      const total = response.totalCount || response.totalElements || 0;
+      return { tasks, total } as const;
+    };
+
     try {
-      const flowMetricsClient = new FlowMetricsClient(accessToken);
+      const client = new FlowMetricsClient(accessToken);
+      const { tasks, total } = await runFetch(client);
 
-      const params: FlowExecutionTasksParams = {
-        cockpitPage: 'INBOX',
-        size: pageSize,
-        page: currentPage - 1,
-        field: 'CREATION_DATE',
-        direction: 'DESC',
-        ...(searchTerm && { search: searchTerm }),
-        ...(context?.userInfo?.id && { userId: context.userInfo.id }),
-        ...(filterTaskName && { filterTaskName: filterTaskName }),
-      };
-
-      const response = await flowMetricsClient.getFlowExecutionTasks(params);
-
-      const tasksData = response.processingStates || response.content || [];
-      const totalCountData = response.totalCount || response.totalElements || 0;
-
-      if (!response || !Array.isArray(tasksData)) {
-        console.error('Invalid data structure received:', response);
+      if (!Array.isArray(tasks)) {
+        if (import.meta.env?.DEV) console.error('Invalid data structure received');
         throw new Error('Invalid data structure received from server');
       }
 
-      setTasks(tasksData);
-      setTotalCount(totalCountData);
+      setTasks(tasks);
+      setTotalCount(total);
     } catch (err: any) {
-      console.error('Error fetching flow execution tasks:', err);
-      let errorMessage = 'Failed to fetch flow execution tasks';
-
-      if (err.message) {
-        errorMessage = err.message;
-      }
-
+      if (import.meta.env?.DEV) console.error('Error fetching flow execution tasks:', err);
+      const errorMessage = err?.message || 'Failed to fetch flow execution tasks';
       setError(errorMessage);
       setTasks([]);
       setTotalCount(0);
     } finally {
       setIsLoading(false);
     }
-  }, [accessToken, currentPage, pageSize, searchTerm, filterTaskName, context?.userInfo?.id]);
+  }, [accessToken, searchTerm, context?.userInfo?.id, filterTaskName, currentPage, pageSize]);
+
+  // Fetch tasks when dependencies change (tab switch, page change, search, etc.)
+  useEffect(() => {
+    if (accessToken) {
+      fetchTasks();
+    }
+  }, [accessToken, fetchTasks]);
 
   // Complete a task
   const completeTask = useCallback(
@@ -138,10 +209,7 @@ export const useFlowExecutionTasks = (
     [accessToken, fetchTasks],
   );
 
-  // Fetch data on component mount and when dependencies change
-  useEffect(() => {
-    fetchTasks();
-  }, [fetchTasks]);
+  // Note: initial load is handled by the accessToken-guarded effect above
 
   return {
     tasks,

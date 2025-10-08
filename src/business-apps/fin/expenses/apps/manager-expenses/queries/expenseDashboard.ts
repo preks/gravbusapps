@@ -45,7 +45,7 @@ query GetExpenseDashboardByManager($managerId: uuid!, $startDate: timestamp, $ye
     }
   }
 
-  # Get monthly expenses total
+  # Get monthly expenses total (exclude non-contributing statuses)
   MonthlyExpensesAggregate: ExpenseRequestAggregate(
     where: {
       employee: {
@@ -53,7 +53,7 @@ query GetExpenseDashboardByManager($managerId: uuid!, $startDate: timestamp, $ye
           supervisorEmployeeId: {_eq: $managerId}
         }
       },
-      status: {_eq: "APPROVED"},
+      status: { _nin: ["CREATED", "RETURNED", "REJECTED", "DISCARDED"] },
       requestDate: {_gte: $startDate},
       isDeleted: {_eq: false},
       currencyRef: {_eq: $currencyRef}
@@ -63,6 +63,34 @@ query GetExpenseDashboardByManager($managerId: uuid!, $startDate: timestamp, $ye
       sum {
         totalAmount
       }
+    }
+  }
+
+  # Get total planned budget (Expense Plans) excluding draft/created, rejected, discarded
+  ExpensePlansTotalAggregate: ExpensePlanAggregate(
+    where: {
+      employee: { employeePosition: { supervisorEmployeeId: { _eq: $managerId } } },
+      status: { _nin: ["CREATED", "REJECTED", "DISCARDED"] },
+      isDeleted: { _eq: false },
+      currencyRef: { _eq: $currencyRef }
+    }
+  ) {
+    aggregate {
+      sum { totalAmount }
+    }
+  }
+
+  # Get total used amount (Expense Requests) excluding draft/created, returned, rejected, discarded
+  ExpenseRequestsUsedAggregate: ExpenseRequestAggregate(
+    where: {
+      employee: { employeePosition: { supervisorEmployeeId: { _eq: $managerId } } },
+      status: { _nin: ["CREATED", "RETURNED", "REJECTED", "DISCARDED"] },
+      isDeleted: { _eq: false },
+      currencyRef: { _eq: $currencyRef }
+    }
+  ) {
+    aggregate {
+      sum { totalAmount }
     }
   }
 
@@ -123,7 +151,7 @@ query GetExpenseDashboardByManager($managerId: uuid!, $startDate: timestamp, $ye
           supervisorEmployeeId: {_eq: $managerId}
         }
       },
-      status: {_eq: "APPROVED"},
+      status: {_nin: ["CREATED", "PENDING", "REJECTED", "DISCARDED"]},
       requestDate: {_gte: $yearStart},
       isDeleted: {_eq: false},
       currencyRef: {_eq: $currencyRef}

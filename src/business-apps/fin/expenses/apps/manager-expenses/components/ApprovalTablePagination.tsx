@@ -25,11 +25,11 @@ const ApprovalTablePagination: React.FC<ApprovalTablePaginationProps> = ({
 
   return (
     <div
-      className="gba:flex gba:items-center gba:justify-between gba:px-2 gba:py-4 gba:border-t gba:border-gray-200"
+      className="gba:flex gba:items-center gba:justify-between gba:px-2 gba:py-4 gba:border-t gba:border-border"
       data-testid={`${dataTestIdPrefix}-pagination`}
     >
       <div
-        className="gba:text-sm gba:text-gray-600"
+        className="gba:text-sm gba:text-muted-foreground"
         data-testid={`${dataTestIdPrefix}-pagination-info`}
       >
         {`${(currentPage - 1) * pageSize + 1}-${Math.min(currentPage * pageSize, totalCount)} ${getTranslationFromI18nKeyAndLabel(

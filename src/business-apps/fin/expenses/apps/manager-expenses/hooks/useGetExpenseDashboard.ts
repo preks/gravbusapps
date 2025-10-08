@@ -8,9 +8,7 @@ import dayjs from "dayjs";
  * Process raw expense data into monthly trends
  * @param data Raw expense request data from GraphQL
  * @returns Array of monthly expense trends with month name and total amount
- * @note Currently unused - will be used when real data queries are re-enabled
  */
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
 const processMonthlyTrends = (data: any[]): { month: string; amount: number }[] => {
   // Initialize an object to hold monthly totals
   const monthlyTotals: Record<string, number> = {};
@@ -86,6 +84,10 @@ export const useGetExpenseDashboard = (
   context?: BusinessAppContextProps,
   currencyFilter?: string,
 ): ExpenseDashboardResult => {
+  const managerId =
+    context?.userInfo?.employeeDetails?.employeeId ||
+    context?.userInfo?.id ||
+    "00000000-0000-0000-0000-000000000000";
   const [dashboardData, setDashboardData] = useState<ExpenseDashboardData | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
@@ -96,13 +98,6 @@ export const useGetExpenseDashboard = (
 
   // Function to fetch dashboard data
   const fetchDashboardData = useCallback(async () => {
-    // Use the real manager ID from userInfo with a fallback UUID for development
-    const managerId =
-      context?.userInfo?.employeeDetails?.employeeId ||
-      context?.userInfo?.id ||
-      "00000000-0000-0000-0000-000000000000";
-    const accessToken = context?.accessToken;
-
     if (!accessToken) {
       setError("Access token not found. Cannot fetch dashboard data.");
       setDashboardData(null);
@@ -121,11 +116,10 @@ export const useGetExpenseDashboard = (
       // Prepare the dates for the query
       const now = new Date();
 
-      // Start date for recent requests (30 days ago)
+      // Start date for current month (month-to-date)
       const startDate = (() => {
-        const date = new Date(now);
-        date.setDate(date.getDate() - 30);
-        date.setUTCHours(0, 0, 0, 0); // Set time to midnight UTC
+        const date = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1));
+        date.setUTCHours(0, 0, 0, 0); // Midnight UTC on first day of current month
         return date.toISOString();
       })();
 
@@ -137,7 +131,12 @@ export const useGetExpenseDashboard = (
       })();
 
       // Format the currency reference for the database query (Currency:v1:CODE format)
-      const formattedCurrencyRef = currencyFilter ? `Currency:v1:${currencyFilter}` : undefined;
+      // Normalize to avoid double prefix when the incoming filter already includes it
+      const trimmedCurrency = (currencyFilter || '').trim();
+      const normalizedCurrency = trimmedCurrency.startsWith('Currency:v1:')
+        ? trimmedCurrency
+        : `Currency:v1:${trimmedCurrency || 'EUR'}`;
+      const formattedCurrencyRef = normalizedCurrency;
 
       // Make the request using the GraphQL client
       const result = await graphQLClient.request(GET_EXPENSE_DASHBOARD_BY_MANAGER, {
@@ -182,8 +181,11 @@ export const useGetExpenseDashboard = (
         })),
         // Using hardcoded values for team budget (TeamBudget query commented out)
         teamBudget: {
-          used: data?.MonthlyExpensesAggregate?.aggregate?.sum?.totalAmount ?? 0,
-          total: 10000, // Default budget value
+          used:
+            data?.ExpenseRequestsUsedAggregate?.aggregate?.sum?.totalAmount ??
+            data?.MonthlyExpensesAggregate?.aggregate?.sum?.totalAmount ??
+            0,
+          total: data?.ExpensePlansTotalAggregate?.aggregate?.sum?.totalAmount ?? 0,
         },
         // Monthly expense trends data
         monthlyTrends,
@@ -197,7 +199,7 @@ export const useGetExpenseDashboard = (
     } finally {
       setIsLoading(false);
     }
-  }, [context?.userInfo?.employeeDetails?.employeeId, graphQLClient]);
+  }, [managerId, graphQLClient, currencyFilter]);
 
   // Initial fetch of dashboard data
   useEffect(() => {

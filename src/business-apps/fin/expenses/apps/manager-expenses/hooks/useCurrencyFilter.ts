@@ -16,7 +16,7 @@ export interface UseCurrencyFilterReturn {
  * Follows the pattern of existing filter hooks
  */
 export const useCurrencyFilter = (accessToken?: string, managerId?: string): UseCurrencyFilterReturn => {
-  const { primaryCurrency, setPrimaryCurrency } = useCurrencyStore();
+  const { primaryCurrency, setPrimaryCurrency, availableCurrencies: storeCurrencies } = useCurrencyStore();
   
   // Use the currency data hook to get dynamic currency data
   const { 
@@ -25,14 +25,15 @@ export const useCurrencyFilter = (accessToken?: string, managerId?: string): Use
     isLoading
   } = useCurrencyData(accessToken || '', managerId || '');
   
-  // Fallback to default currencies if dynamic data is not available or loading
+  // Use dynamic currencies from actual data, fallback to store currencies
   const displayCurrencies = useMemo(() => {
-    if (isLoading || !availableCurrencies || availableCurrencies.length === 0) {
-      // Fallback to common currencies
-      return ['EUR', 'USD', 'GBP', 'RON', 'CHF', 'PLN', 'CZK', 'HUF', 'SEK', 'DKK', 'NOK'];
+    // If data is loaded and we have currencies, use them
+    if (!isLoading && availableCurrencies && availableCurrencies.length > 0) {
+      return availableCurrencies;
     }
-    return availableCurrencies;
-  }, [availableCurrencies, isLoading]);
+    // While loading or if no currencies fetched yet, use store currencies (includes defaults)
+    return storeCurrencies;
+  }, [availableCurrencies, isLoading, storeCurrencies]);
   
   // Use most used currency as default if available
   useEffect(() => {

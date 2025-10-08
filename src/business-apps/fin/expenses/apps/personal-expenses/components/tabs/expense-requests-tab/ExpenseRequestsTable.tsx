@@ -20,7 +20,7 @@ import {
 } from '@newwork/nw-design-system';
 import { DataContainer } from '@/components/layout/dataContainer/DataContainer';
 import { getExpenseRequestStatusDisplay} from '../../../utils';
-import Pill, { PillType } from '@/components/pill';
+import { Badge } from '@newwork/nw-design-system';
 import ExpenseRequestDetails from './ExpenseRequestDetails';
 import { formatDate, getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
 import { AppActionButton } from '@/components/app-action-button/AppActionButton';
@@ -240,13 +240,9 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = React.memo((pr
   // Memoize pagination configuration
   // Pagination config is constructed inline in JSX via handlers
 
-  const getStatusDisplay = useCallback((status: string): { type: PillType; text: string; color?: string } => {
-    
+  const getStatusDisplay = useCallback((status: string) => {
     const statusConfig = getExpenseRequestStatusDisplay(status);
-    let displayText: string;
-    displayText = `${statusConfig.label}`;
-      
-    return { type: statusConfig.type, text: displayText, color: statusConfig.color };
+    return { label: statusConfig.label, badgeVariant: (statusConfig as any).badgeVariant };
   }, [filterLabelMap])
 
   
@@ -501,8 +497,12 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = React.memo((pr
                         </TableCell>
                         <TableCell className="gba:py-4 gba:px-6">
                           {(() => {
-                            const { type, text, color } = getStatusDisplay(record.status)
-                            return <Pill type={type} label={text} color={color} />;
+                            const { label, badgeVariant } = getStatusDisplay(record.status);
+                            return (
+                              <Badge variant={badgeVariant || 'outline'}>
+                                {label}
+                              </Badge>
+                            );
                           })()}
                         </TableCell>
                         <TableCell className="gba:py-4 gba:px-6 gba:text-right">

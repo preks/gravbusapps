@@ -1,4 +1,4 @@
-import React, { useCallback } from "react";
+import React, { useCallback, useMemo } from "react";
 import { ExpenseRequestStatisticsData } from "../../../hooks/useGetExpenseRequests";
 import { WidgetGroup, WidgetItem } from "@/components/widget-group";
 import { formatCurrencyDisplay } from "../../../../personal-expenses/utils";
@@ -57,7 +57,8 @@ const ExpenseRequestStatistics: React.FC<ExpenseRequestStatisticsProps> = ({
     [selectedFilters, addFilter, removeFilter],
   );
 
-  const widgets: WidgetItem[] = requestStats
+  const widgets: WidgetItem[] = useMemo(() => (
+    requestStats
     ? [
         {
           key: "pending-requests",
@@ -66,8 +67,8 @@ const ExpenseRequestStatistics: React.FC<ExpenseRequestStatisticsProps> = ({
             "Pending Requests",
           ),
           value: requestStats.pendingCount,
-          color: selectedFilters.includes("PENDING") ? "#1890ff" : "#faad14",
-          span: { xs: 24, sm: 12, md: 6, lg: 6 },
+          color: selectedFilters.includes("PENDING") ? "var(--nw-primary)" : "var(--nw-warning)",
+          
           description: getTranslationFromI18nKeyAndLabel(
             "lowcoder:team_expenses_page.expense_requests_tab.waiting_for_approval",
             "Waiting for approval",
@@ -82,14 +83,13 @@ const ExpenseRequestStatistics: React.FC<ExpenseRequestStatisticsProps> = ({
             "Pending Amount",
           ),
           value: formatCurrencyDisplay(requestStats.pendingAmount || 0, displayCurrency),
-          color: "#52c41a",
-          span: { xs: 24, sm: 12, md: 6, lg: 6 },
+          color: "var(--nw-success)",
+          
           description: getTranslationFromI18nKeyAndLabel(
             "lowcoder:team_expenses_page.expense_requests_tab.total_pending_funds",
-            "Total Pending Funds",
+            "Total Pending Reimbursement",
           ),
           valueIsString: true,
-          // This card shows amount, not clickable for filtering
         },
         {
           key: "total-requests-submitted",
@@ -98,12 +98,8 @@ const ExpenseRequestStatistics: React.FC<ExpenseRequestStatisticsProps> = ({
             "Total Requests Submitted",
           ),
           value: requestStats.totalRequestsSubmitted,
-          color: (() => {
-            const multiFilters = ["PENDING", "APPROVED", "VERIFIED", "BOOKED", "TRANSFERRED"];
-            const allActive = multiFilters.every((filter) => selectedFilters.includes(filter));
-            return allActive ? "#1677ff" : "#1890ff";
-          })(),
-          span: { xs: 24, sm: 12, md: 6, lg: 6 },
+          color: "var(--nw-primary)",
+          
           description: getTranslationFromI18nKeyAndLabel(
             "lowcoder:team_expenses_page.expense_requests_tab.all_submitted_requests",
             "All Submitted Requests",
@@ -112,7 +108,7 @@ const ExpenseRequestStatistics: React.FC<ExpenseRequestStatisticsProps> = ({
             const multiFilters = ["PENDING", "APPROVED", "VERIFIED", "BOOKED", "TRANSFERRED"];
             return multiFilters.every((filter) => selectedFilters.includes(filter));
           })(),
-          onClick: () => handleCardClick("", true), // Use multi-filter mode
+          onClick: () => handleCardClick("", true),
         },
         {
           key: "total-submitted-amount",
@@ -121,8 +117,8 @@ const ExpenseRequestStatistics: React.FC<ExpenseRequestStatisticsProps> = ({
             "Total Submitted Amount",
           ),
           value: formatCurrencyDisplay(requestStats.totalSubmittedAmount || 0, displayCurrency),
-          color: selectedFilters.length === 0 ? "#1677ff" : "#722ed1",
-          span: { xs: 24, sm: 12, md: 6, lg: 6 },
+          color: selectedFilters.length === 0 ? "var(--nw-primary)" : "var(--nw-accent)",
+          
           description: getTranslationFromI18nKeyAndLabel(
             "lowcoder:team_expenses_page.expense_requests_tab.all_expense_requests",
             "All Expense Requests",
@@ -131,7 +127,8 @@ const ExpenseRequestStatistics: React.FC<ExpenseRequestStatisticsProps> = ({
           active: selectedFilters.length === 0,
         },
       ]
-    : [];
+    : []
+  ), [requestStats, selectedFilters, displayCurrency, handleCardClick]);
 
   // Handle widget clicks from WidgetGroup
   const handleWidgetClick = useCallback(
@@ -148,7 +145,7 @@ const ExpenseRequestStatistics: React.FC<ExpenseRequestStatisticsProps> = ({
           break;
       }
     },
-    [handleCardClick, selectedFilters, removeFilter],
+    [handleCardClick],
   );
 
   return (
@@ -163,8 +160,9 @@ const ExpenseRequestStatistics: React.FC<ExpenseRequestStatisticsProps> = ({
         "lowcoder:personal_expenses.no_expense_request_statistics_available",
         "No expense request statistics available.",
       )}
-      cardBackground="transparent"
+      cardBackground="muted"
       className="gba:py-0"
+      data-testid="expense-request-statistics"
     />
   );
 };

@@ -5,6 +5,7 @@ import { validateClaimAssignmentForUI, createDefaultAssignmentTarget } from '../
 import { Button, Input, Badge, Alert, Card, CardHeader, CardContent, Tabs, TabsContent, TabsList, TabsTrigger } from '@newwork/nw-design-system';
 import { X, UserCircle, Users, Building2, MapPin, DollarSign, FileCheck, AlertTriangle } from 'lucide-react';
 import { useTeammates } from '@/common/hooks/useTeammates';
+import { useMockData } from '../../../../providers/MockDataProvider';
 
 interface AssignmentSelectorProps {
   value?: TaskAssignment;
@@ -209,6 +210,7 @@ interface FieldSelectorProps {
   onAdd: (field: AssignmentField, value: string) => void;
   assignmentMode: AssignmentMode;
   teammates: EntityItem[];
+  mockData?: any;
   'data-testid'?: string;
 }
 
@@ -219,6 +221,7 @@ const FieldSelector: React.FC<FieldSelectorProps> = ({
   onAdd,
   assignmentMode,
   teammates,
+  mockData,
   'data-testid': testId = 'field-selector'
 }) => {
   const [searchQuery, setSearchQuery] = useState('');
@@ -289,7 +292,10 @@ const FieldSelector: React.FC<FieldSelectorProps> = ({
         });
         return Array.from(costCenterMap.values());
       case 'capabilities':
-        // For now, return empty array as capabilities might need different data source
+        // Use mock capabilities if available, otherwise return empty array
+        if (mockData) {
+          return mockData.capabilities.map(cap => ({ id: cap.id, name: cap.name }));
+        }
         return [];
       default: 
         return [];
@@ -416,17 +422,58 @@ export const AssignmentSelector: React.FC<AssignmentSelectorProps> = ({
   // Tab state for organized assignment interface
   const [activeTab, setActiveTab] = useState<'people' | 'structure' | 'business' | 'location' | 'skills'>('people');
 
+  // Check if we're in a mock environment
+  let mockData;
+  try {
+    mockData = useMockData();
+  } catch {
+    // Not in mock environment, continue with real API
+    mockData = null;
+  }
+
   // Get current user's employee ID for fetching teammates
   const employeeId = userInfo?.employeeId || userInfo?.id || ''; // Use available user ID
   
-  // Fetch real teammates data
+  // Fetch real teammates data only if not in mock environment
   const { teammates: teammatesData, loading: teammatesLoading, error: teammatesError } = useTeammates(
-    employeeId,
-    accessToken
+    mockData ? '' : employeeId, // Skip API call if we have mock data
+    mockData ? '' : accessToken  // Skip API call if we have mock data
   );
   
-  // Convert teammates data to EntityItem format
+  // Convert teammates data to EntityItem format, using mock data if available
   const teammates: EntityItem[] = useMemo(() => {
+    if (mockData) {
+      // Use mock data - create synthetic teammates from mock entities
+      const mockTeammates: EntityItem[] = [];
+      
+      // Create teammates from users with additional organizational data
+      mockData.users.forEach((user, index) => {
+        const deptIndex = index % mockData.departments.length;
+        const companyIndex = index % mockData.companies.length;
+        const locationIndex = index % mockData.locations.length;
+        const costCenterIndex = index % mockData.costCenters.length;
+        const matrixTeamIndex = index % mockData.matrixTeams.length;
+        
+        mockTeammates.push({
+          id: user.id,
+          name: user.name,
+          organizationalUnitId: mockData.departments[deptIndex].id,
+          organizationalUnitName: mockData.departments[deptIndex].name,
+          costCenterId: mockData.costCenters[costCenterIndex].id,
+          costCenterName: mockData.costCenters[costCenterIndex].name,
+          matrixUnitId: mockData.matrixTeams[matrixTeamIndex].id,
+          matrixUnitName: mockData.matrixTeams[matrixTeamIndex].name,
+          companyId: mockData.companies[companyIndex].id,
+          companyName: mockData.companies[companyIndex].name,
+          siteLocationId: mockData.locations[locationIndex].id,
+          siteLocationName: mockData.locations[locationIndex].name,
+        });
+      });
+      
+      return mockTeammates;
+    }
+    
+    // Use real API data
     return teammatesData.map(teammate => ({
       id: teammate.id,
       name: teammate.fullName,
@@ -443,7 +490,7 @@ export const AssignmentSelector: React.FC<AssignmentSelectorProps> = ({
       siteLocationId: undefined,
       siteLocationName: undefined,
     }));
-  }, [teammatesData]);
+  }, [teammatesData, mockData]);
   // Initialize assignment 
   const assignment = value || {
     targets: null, // Set targets to null when no assignment is configured
@@ -538,8 +585,8 @@ export const AssignmentSelector: React.FC<AssignmentSelectorProps> = ({
     });
   };
 
-  // Show loading state while teammates are being fetched
-  if (teammatesLoading) {
+  // Show loading state while teammates are being fetched (only for real API calls)
+  if (!mockData && teammatesLoading) {
     return (
       <div className="gba:space-y-4" data-testid={testId}>
         <Card>
@@ -554,8 +601,8 @@ export const AssignmentSelector: React.FC<AssignmentSelectorProps> = ({
     );
   }
 
-  // Show error state if teammates failed to load
-  if (teammatesError) {
+  // Show error state if teammates failed to load (only for real API calls)
+  if (!mockData && teammatesError) {
     return (
       <div className="gba:space-y-4" data-testid={testId}>
         <Card>
@@ -593,7 +640,7 @@ export const AssignmentSelector: React.FC<AssignmentSelectorProps> = ({
           </div>
           {teammates.length > 0 && (
             <div className="gba:text-xs gba:text-gray-500">
-              Using data from {teammates.length} team members
+              Using {mockData ? 'mock' : 'real'} data from {teammates.length} team members
             </div>
           )}
         </CardHeader>
@@ -649,6 +696,7 @@ export const AssignmentSelector: React.FC<AssignmentSelectorProps> = ({
                         onAdd={handleAddValue}
                         assignmentMode={assignmentMode}
                         teammates={teammates}
+                        mockData={mockData}
                         data-testid={`${testId}-selector-${config.field}`}
                       />
                       

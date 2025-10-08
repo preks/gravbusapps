@@ -295,9 +295,11 @@ const FlowHub: React.FC<FlowHubProps> = (context) => {
         icon: Gear,
         category: 'core',
         links: [
-          { label: 'Compliance Solution', action: 'solution-compliance' }
+          { label: 'Compliance Solution', action: 'solution-compliance' },
+          { label: 'Employee Lifecycle', action: 'solution-employee-lifecycle' },
+          { label: 'Survey Solution', action: 'solution-survey' }
         ],
-        buttonLabel: 'Open Solution',
+        buttonLabel: 'Browse Solutions',
         buttonAction: 'navigate-solution-compliance'
       });
 
@@ -514,6 +516,12 @@ const FlowHub: React.FC<FlowHubProps> = (context) => {
         case 'navigate-solution-compliance':
           navigateTo('/platform/apps/flow/apps/solutions/compliance');
           break;
+        case 'navigate-solution-employee-lifecycle':
+          navigateTo('/platform/apps/flow/apps/solutions/employee-lifecycle');
+          break;
+        case 'navigate-solution-survey':
+          navigateTo('/platform/apps/flow/apps/solutions/survey');
+          break;
         case 'navigate-personal-analytics':
         case 'navigate-team-analytics':
         case 'navigate-system-analytics':
@@ -523,7 +531,7 @@ const FlowHub: React.FC<FlowHubProps> = (context) => {
           navigateTo('/platform/apps/flow/apps/creator#create');
           break;
         case 'navigate-flow-launcher':
-          navigateTo('/platform/apps/flow/apps/launcher#launch');
+          navigateTo('/platform/apps/flow/apps/launcher');
           break;
         case 'navigate-flow-success':
           navigateTo('/platform/apps/flow/apps/success');
@@ -540,7 +548,7 @@ const FlowHub: React.FC<FlowHubProps> = (context) => {
         'active-tasks': '/platform/apps/flow/apps/inbox?tab=open',
         'my-flows': '/platform/apps/flow/apps/inbox?tab=open',
         'flow-creator': '/platform/apps/flow/apps/creator#create',
-        'flow-launcher': '/platform/apps/flow/apps/launcher#launch',
+        'flow-launcher': '/platform/apps/flow/apps/launcher',
         'completed': '/platform/apps/flow/apps/success',
         'flow-success': '/platform/apps/flow/apps/success',
         'flow-guardian': '/platform/apps/flow/apps/guardian'
@@ -571,6 +579,12 @@ const FlowHub: React.FC<FlowHubProps> = (context) => {
       case 'solution-compliance':
         navigateTo('/platform/apps/flow/apps/solutions/compliance');
         return;
+      case 'solution-employee-lifecycle':
+        navigateTo('/platform/apps/flow/apps/solutions/employee-lifecycle');
+        return;
+      case 'solution-survey':
+        navigateTo('/platform/apps/flow/apps/solutions/survey');
+        return;
 
       // Flow Templates / Creator
       case 'templates-create':
@@ -580,15 +594,15 @@ const FlowHub: React.FC<FlowHubProps> = (context) => {
         navigateTo('/platform/apps/flow/apps/creator#manage');
         return;
       case 'templates-launch':
-        navigateTo('/platform/apps/flow/apps/launcher#launch');
+        navigateTo('/platform/apps/flow/apps/launcher');
         return;
 
       // Launcher
       case 'launcher-launch':
-        navigateTo('/platform/apps/flow/apps/launcher#launch');
+        navigateTo('/platform/apps/flow/apps/launcher');
         return;
       case 'launcher-simulate':
-        navigateTo('/platform/apps/flow/apps/launcher#simulate');
+        navigateTo('/platform/apps/flow/apps/launcher');
         return;
 
       // Flow Success tabs via hash-based navigation
@@ -626,7 +640,7 @@ const FlowHub: React.FC<FlowHubProps> = (context) => {
 
     switch (action.action) {
       case 'start-workflow':
-        navigateTo('/platform/apps/flow/apps/creator#create');
+        navigateTo('/platform/apps/flow/apps/launcher');
         break;
       case 'create-template':
         navigateTo('/platform/apps/flow/apps/creator#create');

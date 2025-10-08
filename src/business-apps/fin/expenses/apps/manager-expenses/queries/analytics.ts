@@ -112,6 +112,13 @@ export const GET_EXPENSE_ANALYTICS_DATA = `
       }
       expensePosition {
         expenseGroupRef
+        expenseGroup {
+          value
+          translations {
+            value
+            localeCode
+          }
+        }
       }
     }
     

@@ -1,12 +1,24 @@
 import React from "react";
-import { Card, CardHeader, CardTitle, CardContent } from "@newwork/nw-design-system";
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
+import {
+  Card,
+  CardHeader,
+  CardTitle,
+  CardContent,
+  ChartContainer,
+  ChartConfig,
+  ChartTooltip,
+  ChartTooltipContent,
+} from "@newwork/nw-design-system";
+import { getTranslationFromI18nKeyAndLabel } from "@/common/utils/windowUtils";
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Cell } from "recharts";
 import { formatCurrencyDisplay } from "../../../../personal-expenses/utils";
+import { resolveCssVar } from "./chartUtils";
 
 interface BarChartProps {
   data: {
     name: string;
     value: number;
+    [key: string]: any;
   }[];
   title: string;
   xAxisDataKey?: string;
@@ -14,6 +26,10 @@ interface BarChartProps {
   barColor?: string;
   height?: number;
   currency?: string;
+  valueType?: 'amount' | 'count';
+  countLabel?: string;
+  getColor?: (entry: any, index: number) => string | undefined;
+  dataTestId?: string;
 }
 
 /**
@@ -24,10 +40,28 @@ const BarChartComponent: React.FC<BarChartProps> = ({
   title,
   xAxisDataKey = "name",
   barDataKey = "value",
-  barColor = "#1890ff",
+  barColor = "var(--nw-primary)",
   height = 300,
   currency = "EUR",
+  valueType = 'amount',
+  countLabel = 'items',
+  getColor,
+  dataTestId,
 }) => {
+  const resolvedBarColor = React.useMemo(() => resolveCssVar(barColor), [barColor]);
+  
+  const chartConfig = React.useMemo(() => {
+    const config: ChartConfig = {
+      [barDataKey]: {
+        label:
+          valueType === 'count'
+            ? getTranslationFromI18nKeyAndLabel("lowcoder:charts.tooltip.count", "Count")
+            : getTranslationFromI18nKeyAndLabel("lowcoder:charts.tooltip.amount", "Amount"),
+      },
+    };
+    return config;
+  }, [barDataKey, valueType]);
+
   if (!data || data.length === 0) {
     return (
       <Card className="gba:w-full">
@@ -38,11 +72,11 @@ const BarChartComponent: React.FC<BarChartProps> = ({
         )}
         <CardContent>
           <div className="gba:flex gba:flex-col gba:items-center gba:justify-center gba:p-8 gba:text-center gba:min-h-[200px]">
-            <div className="gba:text-gray-500 gba:text-lg gba:font-medium gba:mb-2">
-              No data available
+            <div className="gba:text-muted-foreground gba:text-lg gba:font-medium gba:mb-2">
+              {getTranslationFromI18nKeyAndLabel("lowcoder:charts.empty.title","No data available")}
             </div>
-            <div className="gba:text-gray-400 gba:text-sm">
-              There is no data to display for this chart.
+            <div className="gba:text-muted-foreground gba:text-sm">
+              {getTranslationFromI18nKeyAndLabel("lowcoder:charts.empty.description","There is no data to display for this chart.")}
             </div>
           </div>
         </CardContent>
@@ -58,31 +92,53 @@ const BarChartComponent: React.FC<BarChartProps> = ({
         </CardHeader>
       )}
       <CardContent>
-        <div
+        <ChartContainer
+          config={chartConfig}
+          className="gba:w-full"
           style={{ height: height }}
-          data-testid={`${title.toLowerCase().replace(/\s+/g, "-")}-chart`}
+          data-testid={dataTestId ?? "bar-chart"}
         >
-          <ResponsiveContainer width="100%" height="100%">
-            <BarChart
-              data={data}
-              margin={{
-                top: 5,
-                right: 30,
-                left: 20,
-                bottom: 5,
-              }}
-            >
-              <CartesianGrid strokeDasharray="3 3" />
-              <XAxis dataKey={xAxisDataKey} />
-              <YAxis />
-              <Tooltip
-                formatter={(value) => [formatCurrencyDisplay(value, currency), "Amount"]}
-                labelFormatter={(label) => `${label}`}
-              />
-              <Bar dataKey={barDataKey} fill={barColor} />
-            </BarChart>
-          </ResponsiveContainer>
-        </div>
+          <BarChart
+            data={data}
+            margin={{
+              top: 5,
+              right: 30,
+              left: 20,
+              bottom: 5,
+            }}
+          >
+            <CartesianGrid strokeDasharray="3 3" />
+            <XAxis dataKey={xAxisDataKey} />
+            <YAxis />
+            <ChartTooltip
+              cursor={false}
+              content={
+                <ChartTooltipContent
+                  formatter={(value: any, _name: string) => {
+                    if (valueType === 'count') {
+                      const num = typeof value === 'number' ? value : Number(value ?? 0);
+                      const itemsLabel = getTranslationFromI18nKeyAndLabel(
+                        "lowcoder:charts.tooltip.items",
+                        countLabel,
+                      );
+                      return `${num} ${itemsLabel}`;
+                    }
+                    // For amount type, just return the formatted currency
+                    return formatCurrencyDisplay(value, currency);
+                  }}
+                />
+              }
+            />
+            <Bar dataKey={barDataKey} fill={resolvedBarColor}>
+              {data.map((entry, index) => {
+                const entryKey = entry[xAxisDataKey] || entry[barDataKey] || index;
+                const candidate = getColor ? (getColor(entry, index) || resolvedBarColor) : resolvedBarColor;
+                const fill = resolveCssVar(candidate);
+                return <Cell key={`cell-${entryKey}`} fill={fill} />;
+              })}
+            </Bar>
+          </BarChart>
+        </ChartContainer>
       </CardContent>
     </Card>
   );

@@ -1,6 +1,5 @@
 import React from "react";
 import {
-  Badge,
   Separator,
   Button,
   Card,
@@ -8,9 +7,10 @@ import {
   CardHeader,
   CardTitle,
 } from "@newwork/nw-design-system";
+import Pill from "@/components/pill";
 import { getExpensePlanStatusDisplay } from "../../../utils";
 import { BusinessAppContextProps } from "@/common/BusinessAppContext";
-import { PiCalendarDuotone, PiClock, PiArrowRight } from "react-icons/pi";
+import { PiCalendarDuotone, PiClock, PiPath, PiArrowRight } from "react-icons/pi";
 import {
   getTranslationFromI18nKeyAndLabel,
   getCurrentActiveUserLocale,
@@ -29,9 +29,12 @@ const ExpensePlanDetails: React.FC<ExpensePlanDetailsProps> = ({ selectedItem })
   // Get user locale for currency and date formatting
   const userLocale = getCurrentActiveUserLocale();
 
-  // Get trip type - for manager view, we'll use a default since we don't have requestType
+  // Get trip type - localized default since we may not have requestType on manager view
   const getTripType = () => {
-    return "Business Travel";
+    return getTranslationFromI18nKeyAndLabel(
+      "lowcoder:trip_type.business_travel",
+      "Business Travel",
+    );
   };
 
   // Format amount with proper currency formatting
@@ -57,30 +60,26 @@ const ExpensePlanDetails: React.FC<ExpensePlanDetailsProps> = ({ selectedItem })
             {selectedItem.code}
           </p>
         </div>
-        <Badge
-          variant={
-            getExpensePlanStatusDisplay(selectedItem.status).type === "completed"
-              ? "success"
-              : getExpensePlanStatusDisplay(selectedItem.status).type === "error"
-                ? "destructive"
-                : getExpensePlanStatusDisplay(selectedItem.status).type === "task"
-                  ? "warning"
-                  : getExpensePlanStatusDisplay(selectedItem.status).type === "waiting"
-                    ? "secondary"
-                    : "default"
-          }
-          className="gba:text-sm"
-          data-testid="expense-plan-status-badge"
-        >
-          {getExpensePlanStatusDisplay(selectedItem.status).label}
-        </Badge>
+        <div className="gba:flex gba:items-center gba:gap-3">
+          {(() => {
+            const statusConfig = getExpensePlanStatusDisplay(selectedItem.status);
+            return (
+              <Pill
+                type={statusConfig.type}
+                label={statusConfig.label}
+                color={statusConfig.color}
+                data-testid="expense-plan-status-badge"
+              />
+            );
+          })()}
+        </div>
       </div>
 
       {/* Date Information */}
       <Card>
         <CardContent className="gba:p-4 gba:space-y-3">
           {selectedItem.startDate && selectedItem.endDate && (
-            <div className="gba:flex gba:items-center gba:space-x-2">
+            <div className="gba:flex gba:items-center gba:space-x-2" data-testid="expense-plan-duration">
               <PiCalendarDuotone className="gba:text-gray-500" />
               <span className="gba:text-sm gba:text-gray-700">
                 {getTranslationFromI18nKeyAndLabel(
@@ -104,7 +103,7 @@ const ExpensePlanDetails: React.FC<ExpensePlanDetailsProps> = ({ selectedItem })
           )}
 
           {selectedItem.planDate && (
-            <div className="gba:flex gba:items-center gba:space-x-2">
+            <div className="gba:flex gba:items-center gba:space-x-2" data-testid="expense-plan-plan-date">
               <PiClock className="gba:text-gray-500" />
               <span className="gba:text-sm gba:text-gray-700">
                 {getTranslationFromI18nKeyAndLabel(
@@ -113,6 +112,24 @@ const ExpensePlanDetails: React.FC<ExpensePlanDetailsProps> = ({ selectedItem })
                 )}
                 :{" "}
                 {new Date(selectedItem.planDate).toLocaleDateString(userLocale, {
+                  year: "2-digit",
+                  month: "2-digit",
+                  day: "2-digit",
+                })}
+              </span>
+            </div>
+          )}
+          
+          {selectedItem.decisionDate && (
+            <div className="gba:flex gba:items-center gba:space-x-2" data-testid="expense-plan-decision-date">
+              <PiPath className="gba:text-gray-500" />
+              <span className="gba:text-sm gba:text-gray-700">
+                {getTranslationFromI18nKeyAndLabel(
+                  "lowcoder:personal_expenses.decision_date",
+                  "Decision Date",
+                )}
+                :{" "}
+                {new Date(selectedItem.decisionDate).toLocaleDateString(userLocale, {
                   year: "2-digit",
                   month: "2-digit",
                   day: "2-digit",
@@ -163,7 +180,7 @@ const ExpensePlanDetails: React.FC<ExpensePlanDetailsProps> = ({ selectedItem })
                   )}
                 </span>
                 <span className="gba:text-sm gba:text-gray-900">
-                  {selectedItem.employee.displayName || selectedItem.employee.fullName}
+                  {selectedItem.employee.fullName || `${selectedItem.employee.firstName ?? ''} ${selectedItem.employee.lastName ?? ''}`.trim()}
                 </span>
               </div>
             )}

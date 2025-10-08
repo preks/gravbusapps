@@ -105,10 +105,13 @@ export function getTranslationFromI18nKeyAndLabel(
   defaultValue: string,
   translationVariables?: {},
 ) {
-  if (typeof window?.lowcoder?.i18n?.t !== "function") {
+  if (globalThis.window === undefined) {
     return defaultValue;
   }
-  const translation = window?.lowcoder?.i18n?.t(key, {
+  if (typeof globalThis.window?.lowcoder?.i18n?.t !== "function") {
+    return defaultValue;
+  }
+  const translation = globalThis.window?.lowcoder?.i18n?.t(key, {
     defaultValue,
     ...(translationVariables || {}),
   });
