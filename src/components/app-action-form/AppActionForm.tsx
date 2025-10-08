@@ -207,7 +207,6 @@ export const AppActionForm: React.FC<AppActionFormProps> = ({
   }, [processType]);
 
   const handleSubmit = useCallback(async (values?: any) => {
-    console.log('[AppActionForm] Handle submit:', values);
     try {
       setLoading(true);
       setMessage(null);
@@ -245,7 +244,6 @@ export const AppActionForm: React.FC<AppActionFormProps> = ({
       dispatchProcessContinueEvent(submitEventType, result);
       if (onSuccess) {
         onSuccess(result);
-        console.log('[AppActionForm] On success:', result);
       }
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'An unexpected error occurred';
