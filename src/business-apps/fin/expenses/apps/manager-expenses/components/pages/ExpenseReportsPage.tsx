@@ -502,7 +502,7 @@ const ExpenseReportsPage: React.FC<ExpenseReportsPageProps> = ({
                   )}
                   onChange={(e) => setReportTypeSearchTerm(e.target.value)}
                   value={reportTypeSearchTerm}
-                  className="gba:pl-14 gba:h-10 gba:text-sm gba:border-input"
+                  className="gba:ps-14 gba:h-10 gba:text-sm gba:border-input"
                   data-testid="expense-reports-type-search-input"
                 />
               </div>
@@ -554,7 +554,7 @@ const ExpenseReportsPage: React.FC<ExpenseReportsPageProps> = ({
                     setCurrentPage(1);
                   }}
                   value={searchTerm}
-                  className="gba:pl-14 gba:h-10 gba:text-sm gba:border-input"
+                  className="gba:ps-14 gba:h-10 gba:text-sm gba:border-input"
                   data-testid="expense-reports-data-search-input"
                 />
               </div>
