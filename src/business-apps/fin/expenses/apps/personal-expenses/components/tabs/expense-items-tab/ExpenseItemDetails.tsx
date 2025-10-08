@@ -26,7 +26,7 @@ import { getTranslationFromI18nKeyAndLabel, formatDate } from '@/common/utils/wi
 import { formatCurrencyDisplay } from '../../../utils';
 import { AppActionButton } from '@/components/app-action-button/AppActionButton';
 import { generateExpenseItemActions } from '../../../utils/expenseItemActions';
-import Pill from '@/components/pill';
+import { Badge } from '@newwork/nw-design-system';
 import type { UploadFile } from 'antd/es/upload/interface';
 
 // Utility function to truncate file names
@@ -426,7 +426,11 @@ export const ExpenseItemDetails: React.FC<ExpenseItemDetailsProps> = ({
         <div className="gba:flex gba:items-center gba:gap-3">
           {(() => {
             const statusConfig = getExpenseItemStatusDisplay(displayItem.status);
-            return <Pill type={statusConfig.type} label={statusConfig.label} color={statusConfig.color} data-testid="expense-item-status-badge" />;
+            return (
+              <Badge variant={(statusConfig as any).badgeVariant || 'outline'} data-testid="expense-item-status-badge">
+                {statusConfig.label}
+              </Badge>
+            );
           })()}
           {(() => {
              const availableActions = generateExpenseItemActions(
