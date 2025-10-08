@@ -14,7 +14,6 @@ import {
   Alert,
   AlertDescription,
   PageLayout,
-  Input,
   Checkbox,
   RadioGroup,
   RadioGroupItem,
@@ -22,6 +21,7 @@ import {
   Separator,
 } from "@newwork/nw-design-system";
 import { PiArrowLeft, PiMagnifyingGlass } from "react-icons/pi";
+import { DebouncedInput } from "@/components/data-filter/DebouncedInput";
 import { BusinessAppContextProps } from "@/common/BusinessAppContext";
 import { useTeamSpendingAnalytics, DateRangeOption } from "../../hooks/useTeamSpendingAnalytics";
 import { LineChartComponent, PieChartComponent, BarChartComponent } from "../modals/charts";
@@ -885,14 +885,14 @@ const TeamSpendingAnalyticsPage: React.FC<TeamSpendingAnalyticsPageProps> = ({
           </Label>
           <div className="gba:relative">
             <PiMagnifyingGlass className="gba:absolute gba:left-3 gba:top-1/2 gba:transform gba:-translate-y-1/2 gba:text-muted-foreground gba:w-4 gba:h-4 gba:pointer-events-none" />
-            <Input
+            <DebouncedInput
               placeholder={getTranslationFromI18nKeyAndLabel(
                 "lowcoder:team_expenses_page.dashboard_tab.search_locations",
                 "Search locations...",
               )}
               value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="gba:pl-14 gba:h-10 gba:text-sm gba:border-input"
+              onChange={(val) => setSearchTerm(val)}
+              className="gba:pl-10 gba:h-10 gba:text-sm gba:border-input"
               data-testid="team-analytics-location-search-input"
             />
           </div>
@@ -963,14 +963,14 @@ const TeamSpendingAnalyticsPage: React.FC<TeamSpendingAnalyticsPageProps> = ({
           </Label>
           <div className="gba:relative">
             <PiMagnifyingGlass className="gba:absolute gba:left-3 gba:top-1/2 gba:transform gba:-translate-y-1/2 gba:text-muted-foreground gba:w-4 gba:h-4 gba:pointer-events-none" />
-            <Input
+            <DebouncedInput
               placeholder={getTranslationFromI18nKeyAndLabel(
                 "lowcoder:team_expenses_page.dashboard_tab.search_departments",
                 "Search departments...",
               )}
               value={departmentSearchTerm}
-              onChange={(e) => setDepartmentSearchTerm(e.target.value)}
-              className="gba:pl-14 gba:h-10 gba:text-sm gba:border-input"
+              onChange={(val) => setDepartmentSearchTerm(val)}
+              className="gba:pl-10 gba:h-10 gba:text-sm gba:border-input"
               data-testid="team-analytics-department-search-input"
             />
           </div>
