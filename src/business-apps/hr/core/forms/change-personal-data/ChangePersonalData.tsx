@@ -17,7 +17,6 @@ import { env } from '@/common/env/EnvUtils';
 import { AppActionForm } from '@/components/app-action-form/AppActionForm';
 // import { useProcessEventState } from '@/business-apps/fin/expenses/utils/useProcessEventState';
 import { dispatchProcessContinueEvent } from '@/common/utils/processEventUtils';
-import ChangeEmployeeAddress from '../change-employee-address';
  
 
 export interface ChangePersonalDataFormProps extends BusinessAppContextProps {}
@@ -186,8 +185,8 @@ const ChangePersonalDataContent: React.FC<ChangePersonalDataFormProps> = ({ acce
               if (fileList && fileList.length > 0 && fileList[0]?.originFileObj) {
                 const file: File = fileList[0].originFileObj as File;
                 const employeeId =
-                  additionalData?.value?.psi_taskPayload?.employeeId ||
-                  additionalData?.value?.psi_taskPayload?.initialParameters?.employeeId ||
+                  additionalData?.psi_taskPayload?.employeeId ||
+                  additionalData?.psi_taskPayload?.initialParameters?.employeeId ||
                   data?.employee?.EmployeeByPk?.id ||
                   data?.employee?.EmployeeByPk?.employeeId;
 
@@ -358,7 +357,6 @@ export const ChangePersonalData: React.FC<ChangePersonalDataFormProps> = (contex
     <><ChangePersonalDataProvider {...context}>
       <ChangePersonalDataContent {...context} />
     </ChangePersonalDataProvider>
-    <ChangeEmployeeAddress {...context}/>
     </>
   );
 };

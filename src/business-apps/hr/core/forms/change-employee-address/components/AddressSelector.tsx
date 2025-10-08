@@ -1,0 +1,60 @@
+import React from 'react';
+import { FormItem, FormControl, Select, SelectTrigger, SelectValue, SelectContent, SelectItem, FormMessage, Button } from '@newwork/nw-design-system';
+import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
+import { env } from '@/common/env/EnvUtils';
+
+interface AddressSelectorProps {
+  value: string;
+  onChange: (value: string) => void;
+  addresses: any[];
+  addSentinel: string;
+  onRequestDelete?: () => void;
+  canShowDelete?: boolean;
+}
+
+const AddressSelector: React.FC<AddressSelectorProps> = ({ value, onChange, addresses, addSentinel, onRequestDelete, canShowDelete }) => {
+  const placeholder = `${getTranslationFromI18nKeyAndLabel('lowcoder:employee_profile.details_layout.personal_information_container.select_placeholder','Please Select')} ${getTranslationFromI18nKeyAndLabel('lowcoder:employee_profile.details_layout.address_container.address_text','Address')}`;
+  const options = [...addresses, { type: 'Add Address', id: addSentinel }];
+  return (
+    <FormItem>
+      <div className="gba:flex gba:gap-2">
+        <div className="gba:flex-1">
+          <Select value={value} onValueChange={(v) => onChange(v || addSentinel)}>
+            <FormControl>
+              <SelectTrigger className="gba:block gba:!w-full gba:min-w-0 gba:!max-w-none">
+                <SelectValue placeholder={placeholder} />
+              </SelectTrigger>
+            </FormControl>
+            <SelectContent>
+              {options.map((o: any, idx: number) => (
+                <SelectItem key={o.id || `add-${idx}`} value={String(o.id)}>
+                  {o.type}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+        {canShowDelete ? (
+          <Button
+            type="button"
+            variant="outline"
+            size="icon"
+            onClick={onRequestDelete}
+            title={getTranslationFromI18nKeyAndLabel('lowcoder:employee_profile.details_layout.address_container.delete_confirmation_text','Are you sure you want to DELETE this address?')}
+          >
+            <img
+              src={`${env('NEXT_PUBLIC_BASE_URL')}/_next/static/media/lowcoder-icons/remixicons/delete-bin.svg`}
+              alt="delete"
+              className="gba:w-4 gba:h-4"
+            />
+          </Button>
+        ) : null}
+      </div>
+      <FormMessage />
+    </FormItem>
+  );
+};
+
+export default AddressSelector;
+
+

@@ -25,6 +25,7 @@ interface ChangeEmployeeAddressContextValue {
   isLoading: boolean;
   error: string | null;
   refetch: () => Promise<void>;
+  refetchAddresses: () => Promise<void>;
 }
 
 const ChangeEmployeeAddressContext = createContext<ChangeEmployeeAddressContextValue | undefined>(undefined);
@@ -78,6 +79,17 @@ export const ChangeEmployeeAddressProvider: React.FC<ProviderProps> = ({ childre
     }
   };
 
+  const refetchAddresses = async () => {
+    if (!accessToken || !employeeId) return;
+    try {
+      const addrVariables = { id: employeeId } as any;
+      const addressData = await graphqlClient.request<EmployeeAddressDataResponse>(GET_EMPLOYEE_ADDRESS, addrVariables);
+      setData((prev) => ({ address: addressData, catalogs: prev?.catalogs ?? null }));
+    } catch (e) {
+      // swallow errors here; primary fetch handles messaging
+    }
+  };
+
   useEffect(() => {
     fetchData();
   }, [accessToken, employeeId, activeUserLocale]);
@@ -87,6 +99,7 @@ export const ChangeEmployeeAddressProvider: React.FC<ProviderProps> = ({ childre
     isLoading,
     error,
     refetch: fetchData,
+    refetchAddresses,
   };
 
   return (

@@ -3,6 +3,7 @@ EmployeeAddress(where: {employeeId: {_eq: $id}, isDeleted: {_eq: false}}, orderB
     id
     type
     addressLine
+    employeeId
     country {
       value,
       id 
