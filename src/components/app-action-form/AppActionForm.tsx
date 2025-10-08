@@ -30,6 +30,9 @@ export interface AppActionFormProps {
   form?: UseFormReturn<any>;
   resolver?: Resolver<any>;
   'data-testid'?: string;
+  // Optional overrides for test ids on action buttons
+  submitButtonTestId?: string;
+  cancelButtonTestId?: string;
   // Support for custom form layouts (like wizards)
   customFormLayout?: boolean;
   customActions?: React.ReactNode;
@@ -89,6 +92,8 @@ interface FormNavigationProps {
   
   // Test IDs
   dataTestId: string;
+  submitButtonDataTestId?: string;
+  cancelButtonDataTestId?: string;
 }
 
 const FormNavigation: React.FC<FormNavigationProps> = ({
@@ -109,15 +114,17 @@ const FormNavigation: React.FC<FormNavigationProps> = ({
   isSubmitDisabled = false,
   submitButtonVariant = 'default',
   dataTestId,
+  submitButtonDataTestId,
+  cancelButtonDataTestId,
 }) => {
   return (
-    <div className="gba:flex gba:justify-between gba:items-center gba:mt-auto gba:pt-4" data-testid={`${dataTestId}-form-navigation`}>
+    <div className="gba:flex gba:justify-end gba:gap-2 gba:items-center gba:mt-auto gba:pt-4" data-testid={`${dataTestId}-form-navigation`}>
       {/* Left side: Cancel and Back buttons */}
       <div className="gba:flex gba:gap-2">
         {showCancelButton && (
           <Button 
             variant="outline" 
-            data-testid={`${dataTestId}-cancel-button`} 
+            data-testid={cancelButtonDataTestId || `${dataTestId}-cancel-button`} 
             type="button"
             onClick={onCancel}
             disabled={isLoading}
@@ -155,7 +162,7 @@ const FormNavigation: React.FC<FormNavigationProps> = ({
         
         {showSubmitButton && (
           <Button 
-            data-testid={`${dataTestId}-submit-button`} 
+            data-testid={submitButtonDataTestId || `${dataTestId}-submit-button`} 
             type="submit" 
             variant={submitButtonVariant}
             disabled={isLoading || isSubmitDisabled}
@@ -187,6 +194,8 @@ export const AppActionForm: React.FC<AppActionFormProps> = ({
   form: externalForm,
   resolver,
   'data-testid': dataTestId = 'process-dialog',
+  submitButtonTestId,
+  cancelButtonTestId,
   customFormLayout = false,
   customActions,
   disableFormSubmission = false,
@@ -317,6 +326,9 @@ export const AppActionForm: React.FC<AppActionFormProps> = ({
       isLoading={loading || form?.formState?.isSubmitting}
       submitButtonVariant={submitButtonVariant}
       dataTestId={dataTestId}
+      isSubmitDisabled={isSubmitDisabled}
+      submitButtonDataTestId={submitButtonTestId}
+      cancelButtonDataTestId={cancelButtonTestId}
     />
   );
 
@@ -341,6 +353,8 @@ export const AppActionForm: React.FC<AppActionFormProps> = ({
         isLoading={loading || form?.formState?.isSubmitting}
         submitButtonVariant={submitButtonVariant}
         dataTestId={dataTestId}
+        submitButtonDataTestId={submitButtonTestId}
+        cancelButtonDataTestId={cancelButtonTestId}
       />
     );
   };

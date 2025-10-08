@@ -219,6 +219,11 @@ export const GET_ABSENCES_FOR_CALENDAR = (supervisorId: string): string => {
         }
         type {
           value
+          objectValue
+          translations {
+            localeCode
+            value
+          }
         }
       }
     }

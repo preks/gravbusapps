@@ -7,21 +7,34 @@ import {
   TableHead, 
   TableHeader, 
   TableRow,
-  Card,
-  CardContent
+  Spinner
 } from '@newwork/nw-design-system';
-import { PiArrowLeft, PiCalendarBlank, PiUsers, PiArrowUp, PiArrowDown } from 'react-icons/pi';
+import { PiArrowLeft, PiCalendarBlank, PiUsers, PiArrowUp, PiArrowDown, PiCalendar, PiUser } from 'react-icons/pi';
+import dayjs from 'dayjs';
 import { Spin, Alert } from 'antd';
 import { DataContainer } from '../../../../../../../../components/layout/dataContainer';
 import { BusinessAppContextProps } from '../../../../../../../../common/BusinessAppContext';
 import { useGraphQLClient } from '../../../../../../../../common/network/graphql/useGraphQLClient';
 import { useCatalogManagerClient } from '../../../../../../../../common/network/catalogs/useCatalogManagerClient';
 import { TimeFilter, DataFilterGroup } from '../../../types';
+import { getTranslationFromI18nKeyAndLabel, getDateFormat } from '@/common/utils/windowUtils';
 
 interface EntitlementsDetailsProps extends BusinessAppContextProps {
   timeFilter?: TimeFilter;
   onNavigateBack: () => void;
 }
+
+// Helper functions
+const renderSortIcon = (field: string, sortField: string, sortOrder: 'asc' | 'desc' | '') => {
+  if (sortField !== field) return null;
+  if (sortOrder === 'asc') return <PiArrowUp className="gba:inline gba:ml-1" size={12} />;
+  if (sortOrder === 'desc') return <PiArrowDown className="gba:inline gba:ml-1" size={12} />;
+  return null;
+};
+
+const formatDateForDisplay = (dateStr: string) => {
+  return dayjs(dateStr).format(getDateFormat('date.short'));
+};
 
 interface DetailedEntitlement {
   id: string; // Add unique ID for table keys
@@ -672,104 +685,243 @@ const EntitlementsDetails: React.FC<EntitlementsDetailsProps> = ({
     );
   }
 
-  // Create sortable header component
-  const SortableHeader: React.FC<{ field: SortField; children: React.ReactNode; className?: string }> = ({ field, children, className }) => (
-    <TableHead 
-      className={`gba:cursor-pointer gba:select-none ${className || ''}`}
-      onClick={() => handleSort(field)}
-    >
-      <div className="gba:flex gba:items-center gba:gap-1">
-        {children}
-        {sortField === field && (
-          sortOrder === 'asc' ? <PiArrowUp size={12} /> : <PiArrowDown size={12} />
-        )}
-      </div>
-    </TableHead>
-  );
 
   // Table component
   const EntitlementsTable: React.FC = () => {
     const totalPages = Math.ceil(total / pageSize);
 
-    return (
-      <div>
-        <div className="gba:overflow-x-auto">
-          <Table data-testid="entitlements-table">
-            <TableHeader>
-              <TableRow>
-                <TableHead 
-                  onClick={() => handleSort('employeeName')}
-                  className="gba:cursor-pointer gba:select-none"
-                >
-                  Name {sortField === 'employeeName' && (sortOrder === 'asc' ? '↑' : '↓')}
-                </TableHead>
-                <TableHead 
-                  onClick={() => handleSort('organizationalUnit')}
-                  className="gba:cursor-pointer gba:select-none"
-                >
-                  Org Unit {sortField === 'organizationalUnit' && (sortOrder === 'asc' ? '↑' : '↓')}
-                </TableHead>
-                <TableHead 
-                  onClick={() => handleSort('absenceType')}
-                  className="gba:cursor-pointer gba:select-none"
-                >
-                  Absence Type {sortField === 'absenceType' && (sortOrder === 'asc' ? '↑' : '↓')}
-                </TableHead>
-                <TableHead 
-                  onClick={() => handleSort('entitlement')}
-                  className="gba:cursor-pointer gba:select-none"
-                >
-                  Entitlement {sortField === 'entitlement' && (sortOrder === 'asc' ? '↑' : '↓')}
-                </TableHead>
-                <TableHead 
-                  onClick={() => handleSort('validFrom')}
-                  className="gba:cursor-pointer gba:select-none"
-                >
-                  Valid From {sortField === 'validFrom' && (sortOrder === 'asc' ? '↑' : '↓')}
-                </TableHead>
-                <TableHead 
-                  onClick={() => handleSort('validTo')}
-                  className="gba:cursor-pointer gba:select-none"
-                >
-                  Valid To {sortField === 'validTo' && (sortOrder === 'asc' ? '↑' : '↓')}
-                </TableHead>
-                <TableHead 
-                  onClick={() => handleSort('used')}
-                  className="gba:cursor-pointer gba:select-none"
-                >
-                  Used {sortField === 'used' && (sortOrder === 'asc' ? '↑' : '↓')}
-                </TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {entitlements.map((entitlement) => (
-                <TableRow key={entitlement.id}>
-                  <TableCell className="gba:font-medium">{entitlement.employeeName}</TableCell>
-                  <TableCell>{entitlement.organizationalUnit}</TableCell>
-                  <TableCell>{entitlement.absenceType}</TableCell>
-                  <TableCell className="gba:text-right">{entitlement.entitlement}</TableCell>
-                  <TableCell>{entitlement.validFrom ? new Date(entitlement.validFrom).toLocaleDateString() : '-'}</TableCell>
-                  <TableCell>{entitlement.validTo ? new Date(entitlement.validTo).toLocaleDateString() : '-'}</TableCell>
-                  <TableCell className="gba:text-right">{entitlement.used}</TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+    if (loading) {
+      return (
+        <div className="gba:flex gba:items-center gba:justify-center gba:py-8" data-testid="entitlements-table-loading">
+          <Spinner />
         </div>
+      );
+    }
 
-        {/* Server-side pagination */}
-        {totalPages > 1 && (
-          <div className="gba:flex gba:items-center gba:justify-between gba:px-2 gba:py-4">
-            <div className="gba:text-sm gba:text-muted-foreground">
-              {`${((currentPage - 1) * pageSize) + 1}-${Math.min(currentPage * pageSize, total)} of ${total} entitlements`}
+    if (error) {
+      return (
+        <div className="gba:flex gba:items-center gba:justify-center gba:py-8" data-testid="entitlements-table-error">
+          <div className="gba:text-center">
+            <p className="gba:text-red-600 gba:mb-2">{error}</p>
+            <Button onClick={() => window.location.reload()}>
+              {getTranslationFromI18nKeyAndLabel('lowcoder:absence_management_hub_backoffice.absence_list.retry', 'Retry')}
+            </Button>
+          </div>
+        </div>
+      );
+    }
+
+    return (
+      <div data-testid="entitlements-table-container">
+        <div className="gba:overflow-x-auto">
+            <Table data-testid="entitlements-table">
+              <TableHeader>
+                <TableRow className="gba:border-b gba:bg-gray-50">
+                  <TableHead 
+                    className="gba:w-[20%] gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6 gba:cursor-pointer gba:select-none hover:gba:bg-gray-100"
+                    onClick={() => handleSort('employeeName')}
+                    data-testid="entitlements-employee-header"
+                  >
+                    <div className="gba:flex gba:items-center">
+                      {getTranslationFromI18nKeyAndLabel('lowcoder:absence_management_hub_backoffice.summary_statistics.name', 'Name')}
+                      {renderSortIcon('employeeName', sortField, sortOrder)}
+                    </div>
+                  </TableHead>
+                  <TableHead 
+                    className="gba:w-[15%] gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6 gba:cursor-pointer gba:select-none hover:gba:bg-gray-100"
+                    onClick={() => handleSort('organizationalUnit')}
+                    data-testid="entitlements-org-unit-header"
+                  >
+                    <div className="gba:flex gba:items-center">
+                      {getTranslationFromI18nKeyAndLabel('lowcoder:absence_management_hub_backoffice.summary_statistics.org_unit', 'Org Unit')}
+                      {renderSortIcon('organizationalUnit', sortField, sortOrder)}
+                    </div>
+                  </TableHead>
+                  <TableHead 
+                    className="gba:w-[15%] gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6 gba:cursor-pointer gba:select-none hover:gba:bg-gray-100"
+                    onClick={() => handleSort('absenceType')}
+                    data-testid="entitlements-absence-type-header"
+                  >
+                    <div className="gba:flex gba:items-center">
+                      {getTranslationFromI18nKeyAndLabel('lowcoder:absence_management_hub_backoffice.summary_statistics.absence_type', 'Absence Type')}
+                      {renderSortIcon('absenceType', sortField, sortOrder)}
+                    </div>
+                  </TableHead>
+                  <TableHead 
+                    className="gba:w-[12%] gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6 gba:cursor-pointer gba:select-none hover:gba:bg-gray-100"
+                    onClick={() => handleSort('entitlement')}
+                    data-testid="entitlements-entitlement-header"
+                  >
+                    <div className="gba:flex gba:items-center">
+                      {getTranslationFromI18nKeyAndLabel('lowcoder:absence_management_hub_backoffice.summary_statistics.entitlement', 'Entitlement')}
+                      {renderSortIcon('entitlement', sortField, sortOrder)}
+                    </div>
+                  </TableHead>
+                  <TableHead 
+                    className="gba:w-[12%] gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6 gba:cursor-pointer gba:select-none hover:gba:bg-gray-100"
+                    onClick={() => handleSort('validFrom')}
+                    data-testid="entitlements-valid-from-header"
+                  >
+                    <div className="gba:flex gba:items-center">
+                      {getTranslationFromI18nKeyAndLabel('lowcoder:absence_management_hub_backoffice.summary_statistics.valid_from', 'Valid From')}
+                      {renderSortIcon('validFrom', sortField, sortOrder)}
+                    </div>
+                  </TableHead>
+                  <TableHead 
+                    className="gba:w-[12%] gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6 gba:cursor-pointer gba:select-none hover:gba:bg-gray-100"
+                    onClick={() => handleSort('validTo')}
+                    data-testid="entitlements-valid-to-header"
+                  >
+                    <div className="gba:flex gba:items-center">
+                      {getTranslationFromI18nKeyAndLabel('lowcoder:absence_management_hub_backoffice.summary_statistics.valid_to', 'Valid To')}
+                      {renderSortIcon('validTo', sortField, sortOrder)}
+                    </div>
+                  </TableHead>
+                  <TableHead 
+                    className="gba:w-[12%] gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6 gba:cursor-pointer gba:select-none hover:gba:bg-gray-100"
+                    onClick={() => handleSort('used')}
+                    data-testid="entitlements-used-header"
+                  >
+                    <div className="gba:flex gba:items-center">
+                      {getTranslationFromI18nKeyAndLabel('lowcoder:absence_management_hub_backoffice.summary_statistics.used', 'Used')}
+                      {renderSortIcon('used', sortField, sortOrder)}
+                    </div>
+                  </TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {entitlements.map((entitlement) => (
+                  <TableRow 
+                    key={entitlement.id}
+                    className="gba:border-b gba:hover:bg-gray-50 gba:transition-colors"
+                    data-testid={`entitlements-row-${entitlement.id}`}
+                  >
+                    <TableCell className="gba:py-4 gba:px-6" data-testid={`entitlements-employee-cell-${entitlement.id}`}>
+                      <div className="gba:flex gba:items-center gba:gap-2">
+                        <PiUser size={16} className="gba:text-gray-400" />
+                        <span className="gba:font-medium gba:text-sm">
+                          {entitlement.employeeName}
+                        </span>
+                      </div>
+                    </TableCell>
+                    <TableCell className="gba:py-4 gba:px-6" data-testid={`entitlements-org-unit-cell-${entitlement.id}`}>
+                      <span className="gba:text-sm">{entitlement.organizationalUnit}</span>
+                    </TableCell>
+                    <TableCell className="gba:py-4 gba:px-6" data-testid={`entitlements-absence-type-cell-${entitlement.id}`}>
+                      <span className="gba:text-sm">{entitlement.absenceType}</span>
+                    </TableCell>
+                    <TableCell className="gba:py-4 gba:px-6" data-testid={`entitlements-entitlement-cell-${entitlement.id}`}>
+                      <span className="gba:text-sm gba:font-medium gba:text-right">{entitlement.entitlement}</span>
+                    </TableCell>
+                    <TableCell className="gba:py-4 gba:px-6" data-testid={`entitlements-valid-from-cell-${entitlement.id}`}>
+                      {entitlement.validFrom ? (
+                        <div className="gba:flex gba:items-center gba:gap-2">
+                          <PiCalendar size={16} className="gba:text-gray-400" />
+                          <span className="gba:text-sm">{formatDateForDisplay(entitlement.validFrom)}</span>
+                        </div>
+                      ) : '-'}
+                    </TableCell>
+                    <TableCell className="gba:py-4 gba:px-6" data-testid={`entitlements-valid-to-cell-${entitlement.id}`}>
+                      {entitlement.validTo ? (
+                        <div className="gba:flex gba:items-center gba:gap-2">
+                          <PiCalendar size={16} className="gba:text-gray-400" />
+                          <span className="gba:text-sm">{formatDateForDisplay(entitlement.validTo)}</span>
+                        </div>
+                      ) : '-'}
+                    </TableCell>
+                    <TableCell className="gba:py-4 gba:px-6" data-testid={`entitlements-used-cell-${entitlement.id}`}>
+                      <span className="gba:text-sm gba:font-medium gba:text-right">{entitlement.used}</span>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
+
+          {/* Pagination Footer - match AbsenceListTable design */}
+          {totalPages > 1 ? (
+            <div className="gba:flex gba:items-center gba:justify-between gba:px-2 gba:py-4" data-testid="entitlements-pagination">
+              <div className="gba:text-sm gba:text-muted-foreground" data-testid="entitlements-pagination-info">
+                {`${(currentPage - 1) * pageSize + 1}-${Math.min(currentPage * pageSize, total)} ${getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.of', 'of')} ${total} ${getTranslationFromI18nKeyAndLabel('lowcoder:absence_management_hub_backoffice.summary_statistics.pagination_entitlements', 'entitlements')}`}
+              </div>
+              <div className="gba:flex gba:items-center gba:space-x-6 gba:lg:space-x-8">
+                <div className="gba:flex gba:items-center gba:space-x-2">
+                  <p className="gba:text-sm gba:font-medium">{getTranslationFromI18nKeyAndLabel('lowcoder:absence_table.rows_per_page', 'Rows per page')}</p>
+                  <select
+                    value={pageSize}
+                    onChange={(e) => handlePaginationChange(1, Number(e.target.value))}
+                    className="gba:h-8 gba:w-[70px] gba:rounded gba:border gba:border-input gba:px-3 gba:py-1 gba:text-sm"
+                    data-testid="entitlements-page-size-select"
+                  >
+                    <option value={10}>10</option>
+                    <option value={20}>20</option>
+                    <option value={50}>50</option>
+                    <option value={100}>100</option>
+                  </select>
+                </div>
+                <div className="gba:flex gba:w-[100px] gba:items-center gba:justify-center gba:text-sm gba:font-medium" data-testid="entitlements-page-info">
+                  {getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.page', 'Page')} {currentPage} {getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.of', 'of')} {totalPages}
+                </div>
+                <div className="gba:flex gba:items-center gba:space-x-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="gba:h-8 gba:w-8 gba:p-0"
+                    onClick={() => handlePaginationChange(1)}
+                    disabled={currentPage === 1}
+                    data-testid="entitlements-first-page-button"
+                  >
+                    <span className="gba:sr-only">{getTranslationFromI18nKeyAndLabel('lowcoder:absence_management_hub_backoffice.absence_list.go_to_first_page', 'Go to first page')}</span>
+                    «
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="gba:h-8 gba:w-8 gba:p-0"
+                    onClick={() => handlePaginationChange(currentPage - 1)}
+                    disabled={currentPage === 1}
+                    data-testid="entitlements-previous-page-button"
+                  >
+                    <span className="gba:sr-only">{getTranslationFromI18nKeyAndLabel('lowcoder:absence_management_hub_backoffice.absence_list.go_to_previous_page', 'Go to previous page')}</span>
+                    ‹
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="gba:h-8 gba:w-8 gba:p-0"
+                    onClick={() => handlePaginationChange(currentPage + 1)}
+                    disabled={currentPage >= totalPages}
+                    data-testid="entitlements-next-page-button"
+                  >
+                    <span className="gba:sr-only">{getTranslationFromI18nKeyAndLabel('lowcoder:absence_management_hub_backoffice.absence_list.go_to_next_page', 'Go to next page')}</span>
+                    ›
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="gba:h-8 gba:w-8 gba:p-0"
+                    onClick={() => handlePaginationChange(totalPages)}
+                    disabled={currentPage >= totalPages}
+                    data-testid="entitlements-last-page-button"
+                  >
+                    <span className="gba:sr-only">{getTranslationFromI18nKeyAndLabel('lowcoder:absence_management_hub_backoffice.absence_list.go_to_last_page', 'Go to last page')}</span>
+                    »
+                  </Button>
+                </div>
+              </div>
             </div>
-            <div className="gba:flex gba:items-center gba:space-x-6 gba:lg:space-x-8">
+          ) : (
+            <div className="gba:flex gba:items-center gba:justify-between gba:px-2 gba:py-4" data-testid="entitlements-pagination-info-single-page">
+              <div className="gba:text-sm gba:text-muted-foreground">
+                {`${total} ${getTranslationFromI18nKeyAndLabel('lowcoder:absence_management_hub_backoffice.summary_statistics.employee_entitlements', 'entitlements')}`}
+              </div>
               <div className="gba:flex gba:items-center gba:space-x-2">
-                <p className="gba:text-sm gba:font-medium">Rows per page</p>
+                <p className="gba:text-sm gba:font-medium">{getTranslationFromI18nKeyAndLabel('lowcoder:absence_table.rows_per_page', 'Rows per page')}</p>
                 <select
                   value={pageSize}
                   onChange={(e) => handlePaginationChange(1, Number(e.target.value))}
-                  className="gba:h-8 gba:w-[70px] gba:rounded gba:border gba:border-gray-300 gba:text-sm"
+                  className="gba:h-8 gba:w-[70px] gba:rounded gba:border gba:border-input gba:px-3 gba:py-1 gba:text-sm"
+                  data-testid="entitlements-page-size-select-single"
                 >
                   <option value={10}>10</option>
                   <option value={20}>20</option>
@@ -777,68 +929,8 @@ const EntitlementsDetails: React.FC<EntitlementsDetailsProps> = ({
                   <option value={100}>100</option>
                 </select>
               </div>
-              <div className="gba:flex gba:w-[100px] gba:items-center gba:justify-center gba:text-sm gba:font-medium">
-                Page {currentPage} of {totalPages}
-              </div>
-              <div className="gba:flex gba:items-center gba:space-x-2">
-                <Button
-                  variant="outline"
-                  className="gba:h-8 gba:w-8 gba:p-0"
-                  onClick={() => handlePaginationChange(1)}
-                  disabled={currentPage === 1}
-                >
-                  ⟨⟨
-                </Button>
-                <Button
-                  variant="outline"
-                  className="gba:h-8 gba:w-8 gba:p-0"
-                  onClick={() => handlePaginationChange(currentPage - 1)}
-                  disabled={currentPage === 1}
-                >
-                  ⟨
-                </Button>
-                <Button
-                  variant="outline"
-                  className="gba:h-8 gba:w-8 gba:p-0"
-                  onClick={() => handlePaginationChange(currentPage + 1)}
-                  disabled={currentPage >= totalPages}
-                >
-                  ⟩
-                </Button>
-                <Button
-                  variant="outline"
-                  className="gba:h-8 gba:w-8 gba:p-0"
-                  onClick={() => handlePaginationChange(totalPages)}
-                  disabled={currentPage >= totalPages}
-                >
-                  ⟩⟩
-                </Button>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* Single page display */}
-        {totalPages <= 1 && (
-          <div className="gba:flex gba:items-center gba:justify-between gba:px-2 gba:py-4">
-            <div className="gba:text-sm gba:text-muted-foreground">
-              {`${total} entitlements`}
-            </div>
-            <div className="gba:flex gba:items-center gba:space-x-2">
-              <p className="gba:text-sm gba:font-medium">Rows per page</p>
-              <select
-                value={pageSize}
-                onChange={(e) => handlePaginationChange(1, Number(e.target.value))}
-                className="gba:h-8 gba:w-[70px] gba:rounded gba:border gba:border-gray-300 gba:text-sm"
-              >
-                <option value={10}>10</option>
-                <option value={20}>20</option>
-                <option value={50}>50</option>
-                <option value={100}>100</option>
-              </select>
-            </div>
-          </div>
-        )}
+        </div>
+      )}
       </div>
     );
   };
@@ -855,8 +947,11 @@ const EntitlementsDetails: React.FC<EntitlementsDetailsProps> = ({
           data-testid="back-to-dashboard-button"
         >
           <PiArrowLeft size={16} />
-          Back to Dashboard
-        </Button>
+          {getTranslationFromI18nKeyAndLabel(
+              'lowcoder:team_expenses_page.dashboard_tab.back_to_btn',
+              'Back to Dashboard',
+            )}      
+          </Button>
       </div>
 
       {/* Page Header */}
@@ -866,10 +961,16 @@ const EntitlementsDetails: React.FC<EntitlementsDetailsProps> = ({
             <PiUsers size={24} className="gba:text-purple-600" />
             <div>
               <h1 className="gba:text-2xl gba:font-bold gba:text-gray-900">
-                Vacation Entitlements Details
+                {getTranslationFromI18nKeyAndLabel(
+                  'lowcoder:absence_management_hub_backoffice.summary_statistics.title_vacation',
+                  'Vacation Entitlements Details',
+                )}
               </h1>
               <p className="gba:text-gray-600 gba:mt-1">
-                Complete breakdown of all employee vacation entitlements and usage
+                {getTranslationFromI18nKeyAndLabel(
+                  'lowcoder:absence_management_hub_backoffice.summary_statistics.description',
+                  'Complete breakdown of all employee vacation entitlements and usage',
+                )}
               </p>
             </div>
           </div>
@@ -881,38 +982,66 @@ const EntitlementsDetails: React.FC<EntitlementsDetailsProps> = ({
         <div className="gba:bg-white gba:p-6 gba:rounded-lg gba:border gba:shadow-sm">
           <h3 className="gba:text-lg gba:font-medium gba:mb-4 gba:flex gba:items-center gba:gap-2">
             <PiCalendarBlank size={20} className="gba:text-blue-600" />
-            Summary Statistics (Filtered Results)
+            {getTranslationFromI18nKeyAndLabel(
+              'lowcoder:absence_management_hub_backoffice.summary_statistics.title',
+              'Summary Statistics (Filtered Results)',
+            )}
           </h3>
           <div className="gba:grid gba:grid-cols-2 gba:md:grid-cols-5 gba:gap-4">
             <div className="gba:text-center gba:p-3 gba:bg-blue-50 gba:rounded">
               <div className="gba:text-lg gba:font-bold gba:text-blue-600">
                 {summaryStats.totalEmployees}
               </div>
-              <div className="gba:text-xs gba:text-gray-600">Total Employees</div>
+              <div className="gba:text-xs gba:text-gray-600">
+                {getTranslationFromI18nKeyAndLabel(
+                  'lowcoder:absence_management_hub_backoffice.summary_statistics.total_employees',
+                  'Total Employees',
+                )}
+              </div>
             </div>
             <div className="gba:text-center gba:p-3 gba:bg-green-50 gba:rounded">
               <div className="gba:text-lg gba:font-bold gba:text-green-600">
                 {summaryStats.totalEntitlements}
               </div>
-              <div className="gba:text-xs gba:text-gray-600">Total Entitlement Days</div>
+              <div className="gba:text-xs gba:text-gray-600">
+                {getTranslationFromI18nKeyAndLabel(
+                  'lowcoder:absence_management_hub_backoffice.summary_statistics.total_entitlement_days',
+                  'Total Entitlement Days',
+                )}
+              </div>
             </div>
             <div className="gba:text-center gba:p-3 gba:bg-orange-50 gba:rounded">
               <div className="gba:text-lg gba:font-bold gba:text-orange-600">
                 {summaryStats.totalUsed}
               </div>
-              <div className="gba:text-xs gba:text-gray-600">Days Used</div>
+              <div className="gba:text-xs gba:text-gray-600">
+                {getTranslationFromI18nKeyAndLabel(
+                  'lowcoder:absence_management_hub_backoffice.summary_statistics.days_used',
+                  'Days Used',
+                )}
+              </div>
             </div>
             <div className="gba:text-center gba:p-3 gba:bg-purple-50 gba:rounded">
               <div className="gba:text-lg gba:font-bold gba:text-purple-600">
                 {summaryStats.totalAvailable}
               </div>
-              <div className="gba:text-xs gba:text-gray-600">Days Available</div>
+              <div className="gba:text-xs gba:text-gray-600">
+                {getTranslationFromI18nKeyAndLabel(
+                  'lowcoder:absence_management_hub_backoffice.summary_statistics.days_available',
+                  'Days Available',
+                )}
+              </div>
             </div>
             <div className="gba:text-center gba:p-3 gba:bg-gray-50 gba:rounded">
               <div className="gba:text-lg gba:font-bold gba:text-gray-600">
                 {summaryStats.utilizationRate}%
               </div>
-              <div className="gba:text-xs gba:text-gray-600">Utilization Rate</div>
+              <div className="gba:text-xs gba:text-gray-600">
+                {getTranslationFromI18nKeyAndLabel(
+                  'lowcoder:absence_management_hub_backoffice.summary_statistics.utilization_rate',
+                  'Utilization Rate',
+                )}
+              </div>
             </div>
           </div>
         </div>
@@ -930,7 +1059,12 @@ const EntitlementsDetails: React.FC<EntitlementsDetailsProps> = ({
           listTitle: (
             <div className="gba:flex gba:items-center gba:gap-4">
               <div className="gba:flex gba:items-center gba:gap-2">
-                <span>Employee Entitlements</span>
+                <span>
+                  {getTranslationFromI18nKeyAndLabel(
+                    'lowcoder:absence_management_hub_backoffice.summary_statistics.employee_entitlements',
+                    'Employee Entitlements',
+                  )}
+                </span>
                 <span className="gba:text-gray-500">({total})</span>
               </div>
             </div>
