@@ -6,7 +6,7 @@ import {
   CardHeader,
   CardTitle
 } from '@newwork/nw-design-system';
-import Pill from '@/components/pill';
+import { Badge } from '@newwork/nw-design-system';
 import { getAdvancePaymentStatusDisplay } from '../../../../personal-expenses/utils';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
@@ -49,12 +49,9 @@ const AdvancePaymentDetailsBackoffice: React.FC<AdvancePaymentDetailsBackofficeP
         {(() => {
           const statusConfig = getAdvancePaymentStatusDisplay(payment.status);
           return (
-            <Pill
-              type={statusConfig.type}
-              label={statusConfig.label}
-              color={(statusConfig as any).color}
-              data-testid="advance-payment-status-badge"
-            />
+            <Badge variant={(statusConfig as any).badgeVariant || 'outline'} data-testid="advance-payment-status-badge">
+              {statusConfig.label}
+            </Badge>
           );
         })()}
       </div>

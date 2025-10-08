@@ -33,6 +33,7 @@ export enum ExpenseStatus {
 export interface StatusDisplayConfig {
   label: string;
   type: PillType;
+  badgeVariant?: 'default' | 'secondary' | 'success' | 'warning' | 'destructive' | 'outline' | 'info' | 'offline';
 }
 
 /**
@@ -51,6 +52,7 @@ export const getExpenseRequestStatusDisplay = (
           "Draft"
         ),
         type: "draft",
+        badgeVariant: 'offline',
       };
 
     case ExpenseStatus.PREPARED:
@@ -60,6 +62,7 @@ export const getExpenseRequestStatusDisplay = (
           "Prepared"
         ),
         type: "preparing",
+        badgeVariant: 'offline',
       };
 
     case ExpenseStatus.ASSIGNED:
@@ -69,6 +72,7 @@ export const getExpenseRequestStatusDisplay = (
           "Assigned"
         ),
         type: "task",
+        badgeVariant: 'info',
       };
 
     case ExpenseStatus.PENDING:
@@ -78,6 +82,7 @@ export const getExpenseRequestStatusDisplay = (
           "In Approval"
         ),
         type: "waiting",
+        badgeVariant: 'info',
       };
 
     case ExpenseStatus.APPROVED:
@@ -87,6 +92,7 @@ export const getExpenseRequestStatusDisplay = (
           "Verification Required"
         ),
         type: "task",
+        badgeVariant: 'warning',
       };
 
     case ExpenseStatus.VERIFIED:
@@ -96,6 +102,7 @@ export const getExpenseRequestStatusDisplay = (
           "Booking Required"
         ),
         type: "task",
+        badgeVariant: 'warning',
       };
 
     case ExpenseStatus.BOOKED:
@@ -105,6 +112,7 @@ export const getExpenseRequestStatusDisplay = (
           "Transfer Required"
         ),
         type: "task",
+        badgeVariant: 'warning',
       };
 
     case ExpenseStatus.CLOSED:
@@ -114,6 +122,7 @@ export const getExpenseRequestStatusDisplay = (
           "Closed"
         ),
         type: "completed",
+        badgeVariant: 'success',
       };
 
     case ExpenseStatus.PAID:
@@ -123,6 +132,7 @@ export const getExpenseRequestStatusDisplay = (
           "Paid"
         ),
         type: "completed",
+        badgeVariant: 'success',
       };
     case ExpenseStatus.REJECTED:
       return {
@@ -131,6 +141,7 @@ export const getExpenseRequestStatusDisplay = (
           "Rejected"
         ),
         type: "error",
+        badgeVariant: 'warning',
       };
 
     default:
@@ -140,6 +151,7 @@ export const getExpenseRequestStatusDisplay = (
           "Draft"
         ),
         type: "draft",
+        badgeVariant: 'offline',
       };
   }
 };
@@ -160,6 +172,7 @@ export const getAdvancePaymentStatusDisplay = (
           "In Approval"
         ),
         type: "waiting",
+        badgeVariant: 'info',
       };
     case ExpenseStatus.APPROVED:
       return {
@@ -168,6 +181,7 @@ export const getAdvancePaymentStatusDisplay = (
           "Approved"
         ),
         type: "completed",
+        badgeVariant: 'success',
       };
     case ExpenseStatus.BOOKED:
       return {
@@ -176,6 +190,7 @@ export const getAdvancePaymentStatusDisplay = (
           "Transfer Required"
         ),
         type: "task",
+        badgeVariant: 'warning',
       };
     case ExpenseStatus.PREPARED:
       return {
@@ -184,6 +199,7 @@ export const getAdvancePaymentStatusDisplay = (
           "Prepared"
         ),
         type: "preparing",
+        badgeVariant: 'offline',
       };
     case ExpenseStatus.REJECTED:
       return {
@@ -192,6 +208,7 @@ export const getAdvancePaymentStatusDisplay = (
           "Rejected"
         ),
         type: "error",
+        badgeVariant: 'destructive',
       };
     case ExpenseStatus.TRANSFERRED:
       return {
@@ -200,6 +217,7 @@ export const getAdvancePaymentStatusDisplay = (
           "Payment Required"
         ),
         type: "task",
+        badgeVariant: 'warning',
       };
     case ExpenseStatus.VERIFIED:
       return {
@@ -208,6 +226,7 @@ export const getAdvancePaymentStatusDisplay = (
           "Booking Required"
         ),
         type: "task",
+        badgeVariant: 'warning',
       };
     case ExpenseStatus.PAID:
       return {
@@ -216,6 +235,7 @@ export const getAdvancePaymentStatusDisplay = (
           "Paid"
         ),
         type: "completed",
+        badgeVariant: 'success',
       };
     default:
       return {
@@ -224,6 +244,7 @@ export const getAdvancePaymentStatusDisplay = (
           "Draft"
         ),
         type: "draft",
+        badgeVariant: 'offline',
       };
   }
 };

@@ -1,6 +1,6 @@
 import { getTranslationFromI18nKeyAndLabel, formatDate } from '@/common/utils/windowUtils';
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
-import { 
+import {
   Table, 
   TableHeader, 
   TableBody, 
@@ -16,9 +16,9 @@ import {
   Sheet,
   SheetContent,
   SheetHeader,
-  SheetTitle
+  SheetTitle,
+  Badge
 } from '@newwork/nw-design-system';
-import Pill from '@/components/pill';
 import { PiFileText, PiImage, PiArrowUp, PiArrowDown } from 'react-icons/pi';
 import { AppActionButton } from '@/components/app-action-button/AppActionButton';
 import { useGetExpenseItems, ExpenseFilter } from '../../../hooks/useGetExpenseItems';
@@ -628,8 +628,12 @@ const ExpenseItemsTable: React.FC<ExpenseItemsTableProps> = React.memo((props) =
                           </TableCell>
                           <TableCell className="gba:py-4 gba:px-6" data-testid={`${DATA_TEST_ID_PREFIX}-status-cell-${record.id}`}>
                             {(() => {
-                              const statusConfig = getExpenseItemStatusDisplay(record.status);
-                              return <Pill type={statusConfig.type} label={statusConfig.label} color={statusConfig.color} data-testid="expense-status-cell" />;
+                              const statusConf = getExpenseItemStatusDisplay(record.status);
+                              return (
+                                <Badge variant={statusConf.badgeVariant || 'outline'} data-testid="expense-status-cell">
+                                  {statusConf.label}
+                                </Badge>
+                              );
                             })()}
                           </TableCell>
                           <TableCell className="gba:py-4 gba:px-6" data-testid={`${DATA_TEST_ID_PREFIX}-attachment-cell-${record.id}`}>

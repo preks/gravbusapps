@@ -16,12 +16,12 @@ import {
   CardContent, 
   Spinner, 
   Button, 
+  Badge, 
   Sheet,
   SheetContent,
   SheetHeader,
   SheetTitle
 } from '@newwork/nw-design-system';
-import Pill from '@/components/pill';
 import { Modal } from 'antd';
 import { formatDate, getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
 import { PiArrowUp, PiArrowDown } from 'react-icons/pi';
@@ -525,7 +525,11 @@ const ExpensePlansTable: React.FC<ExpensePlansTableProps> = React.memo((props) =
                         <TableCell className="gba:py-4 gba:px-6" data-testid={`${DATA_TEST_ID_PREFIX}-status-cell-${record.id}`}>
                           {(() => {
                             const statusConfig = getExpensePlanStatusDisplay(record.status);
-                            return <Pill type={statusConfig.type} label={statusConfig.label} color={statusConfig.color} data-testid="expense-plan-status-cell" />;
+                            return (
+                              <Badge variant={(statusConfig as any).badgeVariant || 'outline'} data-testid="expense-plan-status-cell">
+                                {statusConfig.label}
+                              </Badge>
+                            );
                           })()}
                         </TableCell>
                         <TableCell className="gba:py-4 gba:px-6 gba:text-right" data-testid={`${DATA_TEST_ID_PREFIX}-reimbursable-amount-cell-${record.id}`}>
