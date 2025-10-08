@@ -1,4 +1,4 @@
-export { default } from './ComplianceSolution';
-export { default as ComplianceSolution } from './ComplianceSolution';
+export { default } from './ComplianceSolution.tsx';
+export { default as ComplianceSolution } from './ComplianceSolution.tsx';
 
 

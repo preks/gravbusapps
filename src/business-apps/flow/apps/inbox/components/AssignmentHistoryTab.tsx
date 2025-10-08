@@ -35,7 +35,7 @@ export const AssignmentHistoryTab: React.FC<AssignmentHistoryTabProps> = ({
           <div style={{ marginBottom: '16px' }}>
             <Text strong>Current Status: </Text>
             <Tag color={getAssignmentStatusColor(task.assignment.currentStatus || '')}>
-              {task.assignment.currentStatus}
+              {task.assignment.assignmentStatus}
             </Tag>
             <Text style={{ marginLeft: '8px' }}>
               (Iteration {task.assignment.assignmentIteration || 0})

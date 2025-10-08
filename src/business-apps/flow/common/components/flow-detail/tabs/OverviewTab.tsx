@@ -245,19 +245,19 @@ export const OverviewTab: React.FC<OverviewTabProps> = ({
                 <div className="gba:text-2xl gba:font-bold gba:text-green-600">
                   {flowData.stepStatus.completed}
                 </div>
-                <div className="gba:text-xs gba:text-gray-600">Completed</div>
+                <div className="gba:text-xs gba:text-gray-600">Completed Steps</div>
               </div>
               <div>
                 <div className="gba:text-2xl gba:font-bold gba:text-gray-600">
                   {flowData.stepStatus.remaining}
                 </div>
-                <div className="gba:text-xs gba:text-gray-600">Remaining</div>
+                <div className="gba:text-xs gba:text-gray-600">Remaining Steps</div>
               </div>
               <div>
                 <div className="gba:text-2xl gba:font-bold gba:text-blue-600">
                   {flowData.stepStatus.total}
                 </div>
-                <div className="gba:text-xs gba:text-gray-600">Total</div>
+                <div className="gba:text-xs gba:text-gray-600">Total Steps</div>
               </div>
             </div>
           </CardContent>

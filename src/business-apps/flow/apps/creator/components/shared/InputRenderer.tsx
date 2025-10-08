@@ -8,7 +8,10 @@ import {
   SelectItem,
   SelectTrigger,
   SelectValue,
-  Button
+  Button,
+  RadioGroup,
+  RadioGroupItem,
+  Label
 } from '@newwork/nw-design-system';
 import { InputType } from '@/common/network/flows/FlowTemplateClient';
 
@@ -197,7 +200,6 @@ export const InputRenderer: React.FC<InputRendererProps> = ({
               disabled={readOnly}
               value={value || ''}
               onValueChange={(newValue) => {
-                console.log('Select value changing to:', newValue);
                 onChange?.(newValue);
               }}
             >
@@ -243,7 +245,6 @@ export const InputRenderer: React.FC<InputRendererProps> = ({
               disabled={readOnly}
               value={value || ''}
               onValueChange={(newValue) => {
-                console.log('MultiSelect value changing to:', newValue);
                 onChange?.(newValue);
               }}
             >
@@ -346,6 +347,48 @@ export const InputRenderer: React.FC<InputRendererProps> = ({
           </div>
         );
         
+      case InputType.RADIO:
+      case 'radio': // Handle lowercase for backward compatibility
+        return (
+          <div className="gba:mb-4">
+            <label className="gba:block gba:text-sm gba:font-medium gba:mb-2" style={{ color: 'var(--color-text-primary)' }}>
+              {input.label}
+            </label>
+            <RadioGroup
+              value={value || ''}
+              onValueChange={(newValue) => {
+                onChange?.(newValue);
+              }}
+              disabled={readOnly}
+              data-testid={`${testId}-input-${index}`}
+            >
+              {input.options?.map((option: any, optIndex: number) => {
+                // Handle both string options and {label, value} objects
+                const optionValue = typeof option === 'string' ? option : option.value;
+                const optionLabel = typeof option === 'string' ? option : option.label;
+                
+                return (
+                  <div key={optIndex} className="gba:flex gba:items-center gba:space-x-2 gba:mb-2">
+                    <RadioGroupItem 
+                      value={optionValue} 
+                      id={`${testId}-input-${index}-option-${optIndex}`}
+                      disabled={readOnly}
+                      data-testid={`${testId}-input-${index}-option-${optIndex}-radio`}
+                    />
+                    <Label 
+                      htmlFor={`${testId}-input-${index}-option-${optIndex}`}
+                      className="gba:text-sm gba:cursor-pointer"
+                      style={{ color: 'var(--color-text-primary)' }}
+                    >
+                      {optionLabel}
+                    </Label>
+                  </div>
+                );
+              })}
+            </RadioGroup>
+          </div>
+        );
+        
       case InputType.CHECKBOX:
         // Handle checkbox group with options
         if (input.options && input.options.length > 0) {
@@ -362,7 +405,7 @@ export const InputRenderer: React.FC<InputRendererProps> = ({
               >
                 {input.options.map((option: any, optIndex: number) => (
                   <div key={optIndex} style={{ marginBottom: '8px' }}>
-                    <Checkbox value={option.value} disabled={readOnly}>
+                    <Checkbox value={option.value} disabled={readOnly} data-testid={`${testId}-input-${index}-option-${optIndex}-checkbox`}>
                       {option.label}
                     </Checkbox>
                   </div>
@@ -379,6 +422,7 @@ export const InputRenderer: React.FC<InputRendererProps> = ({
               disabled={readOnly}
               checked={value || false}
               onChange={(e) => onChange?.(e.target.checked)}
+              data-testid={`${testId}-input-${index}-checkbox`}
             >
               {input.placeholder || input.label}
             </Checkbox>
