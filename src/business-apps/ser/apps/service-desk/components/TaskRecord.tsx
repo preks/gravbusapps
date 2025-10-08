@@ -129,6 +129,8 @@ export const TaskRecord: React.FC<TaskRecordProps> = ({
   const [taskFormData, setTaskFormData] = useState<DynamicFormValues>({});
   const [isSubmittingTaskForm, setIsSubmittingTaskForm] = useState(false);
   const [isLoadingStepData, setIsLoadingStepData] = useState(false);
+  const [step0Data, setStep0Data] = useState<any>(null);
+  const [isLoadingStep0Data, setIsLoadingStep0Data] = useState(false);
 
   // Load task data
   const { 
@@ -277,13 +279,48 @@ export const TaskRecord: React.FC<TaskRecordProps> = ({
     }
   };
 
+  // Load step_0 data for uncompleted tickets
+  const loadStep0Data = async () => {
+    const workflowId = ticket?.flowId || ticket?.requestId;
+    if (!workflowId || !accessToken || !userInfo) return;
+    
+    // Only load for uncompleted tickets
+    const isTicketCompleted = ticket?.status === 'COMPLETED' || ticket?.status === 'DONE' || ticket?.status === 'SKIPPED' || 
+                             ticket?.status === 'REJECTED' || ticket?.status === 'CANCELLED' || ticket?.status === 'CANCELED';
+    if (isTicketCompleted) {
+      setStep0Data(null);
+      return;
+    }
+    
+    setIsLoadingStep0Data(true);
+    try {
+      const workflowEngine = createConductorWorkflowEngine({ accessToken, userInfo });
+      
+      // Get step_0 data using the getFlowStepData method
+      const stepDataResponse = await workflowEngine.getFlowStepData?.(workflowId, 'step_0');
+      
+      if (stepDataResponse?.data && stepDataResponse.data.length > 0) {
+        const stepData = stepDataResponse.data[0];
+        setStep0Data(stepData);
+      } else {
+        setStep0Data(null);
+      }
+    } catch (error) {
+      console.error('Failed to load step_0 data:', error);
+      setStep0Data(null);
+    } finally {
+      setIsLoadingStep0Data(false);
+    }
+  };
+
   // Load request details when ticket is available
   useEffect(() => {
     const workflowId = ticket?.flowId || ticket?.requestId;
     if (workflowId) {
       loadFullRequest();
+      loadStep0Data();
     }
-  }, [ticket?.flowId, ticket?.requestId]);
+  }, [ticket?.flowId, ticket?.requestId, ticket?.status]);
 
   // Load available actions for the task
   const loadAvailableActions = async () => {
@@ -853,6 +890,157 @@ export const TaskRecord: React.FC<TaskRecordProps> = ({
             </CardContent>
           </Card>
 
+          {/* Step 0 Submitted Data Card - Show for uncompleted tickets only */}
+          {(() => {
+            const isTicketCompleted = ticket?.status === 'COMPLETED' || ticket?.status === 'DONE' || ticket?.status === 'SKIPPED' || 
+                                     ticket?.status === 'REJECTED' || ticket?.status === 'CANCELLED' || ticket?.status === 'CANCELED';
+            const hasStep0Data = step0Data && step0Data.formData && Object.keys(step0Data.formData).length > 0;
+            const shouldShowStep0Data = !isTicketCompleted && hasStep0Data;
+            
+            return shouldShowStep0Data;
+          })() && (
+            <Card data-testid="step0-data-card">
+              <CardHeader>
+                <CardTitle className="gba:flex gba:items-center gba:gap-3">
+                  <InfoIcon className="gba:w-5 gba:h-5" />
+                  Initial Request Data
+                  <Badge variant="outline" className="gba:text-xs">
+                    Step 0
+                  </Badge>
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p className="gba:text-sm gba:text-muted-foreground gba:mb-4">
+                  Form data submitted when this request was initially created.
+                </p>
+                
+                {isLoadingStep0Data ? (
+                  <div className="gba:flex gba:items-center gba:justify-center gba:py-8">
+                    <Spinner />
+                  </div>
+                ) : (
+                  <div className="gba:bg-blue-50 gba:rounded-lg gba:p-4 gba:border gba:border-blue-200">
+                    <div className="gba:space-y-3">
+                      {Object.entries(step0Data?.formData || {})
+                        .filter(([key, value]) => {
+                          // Hide assignment mode and other metadata fields
+                          const hiddenFields = [
+                            'assignmentMode',
+                            'assignment_mode',
+                            'stepAssignmentMode',
+                            'step_assignment_mode',
+                            'taskAssignmentMode',
+                            'task_assignment_mode',
+                            'assignTo',
+                            'assign_to',
+                            'assignedTo',
+                            'assigned_to',
+                            'assignee',
+                            'assigneeId',
+                            'assignee_id'
+                          ];
+                          
+                          // Check if key should be hidden (case insensitive)
+                          const keyLower = key.toLowerCase();
+                          return !hiddenFields.some(hiddenField => 
+                            keyLower === hiddenField.toLowerCase() || 
+                            keyLower.includes('assignment') ||
+                            keyLower.includes('assignee') ||
+                            keyLower.includes('assign_')
+                          );
+                        })
+                        .map(([key, value]) => {
+                        // Helper function to render form data values properly
+                        const renderValue = (key: string, value: any) => {
+                          // Handle file upload results specially
+                          if (key.endsWith('_uploadResults') && Array.isArray(value)) {
+                            return (
+                              <div className="gba:space-y-2">
+                                {value.map((fileResult: any, index: number) => (
+                                  <div key={index} className="gba:bg-blue-100 gba:p-3 gba:rounded gba:border gba:border-blue-300">
+                                    <div className="gba:flex gba:items-center gba:gap-2 gba:mb-2">
+                                      <Badge variant="outline" className="gba:text-xs gba:bg-indigo-100 gba:text-indigo-700 gba:border-indigo-300">
+                                        📎 File
+                                      </Badge>
+                                      <span className="gba:font-medium gba:text-blue-800">
+                                        {fileResult.fileName || fileResult.summary || 'Uploaded File'}
+                                      </span>
+                                    </div>
+                                    <div className="gba:text-xs gba:text-blue-600 gba:space-y-1">
+                                      {fileResult.fileId && (
+                                        <div><strong>ID:</strong> {fileResult.fileId}</div>
+                                      )}
+                                      {fileResult.mimeType && (
+                                        <div><strong>Type:</strong> {fileResult.mimeType}</div>
+                                      )}
+                                      {fileResult.uploadTimestamp && (
+                                        <div><strong>Uploaded:</strong> {new Date(fileResult.uploadTimestamp).toLocaleString()}</div>
+                                      )}
+                                      {fileResult.downloadPath && (
+                                        <div className="gba:mt-2">
+                                          <Button 
+                                            size="sm" 
+                                            variant="outline"
+                                            onClick={() => window.open(`https://newwork-dev.newwork.com/files${fileResult.downloadPath}`, '_blank')}
+                                            className="gba:text-xs gba:h-6"
+                                          >
+                                            📥 Download
+                                          </Button>
+                                        </div>
+                                      )}
+                                    </div>
+                                  </div>
+                                ))}
+                              </div>
+                            );
+                          }
+                          
+                          // Handle regular arrays
+                          if (Array.isArray(value)) {
+                            return (
+                              <div className="gba:flex gba:flex-wrap gba:gap-1">
+                                {value.map((item, index) => (
+                                  <Badge key={index} variant="outline" className="gba:text-xs gba:bg-blue-100 gba:text-blue-700 gba:border-blue-300">
+                                    {typeof item === 'object' && item !== null ? 
+                                      (item.name || item.label || item.value || JSON.stringify(item)) : 
+                                      String(item)
+                                    }
+                                  </Badge>
+                                ))}
+                              </div>
+                            );
+                          }
+                          
+                          // Handle objects
+                          if (typeof value === 'object' && value !== null) {
+                            return (
+                              <pre className="gba:text-xs gba:bg-blue-100 gba:p-2 gba:rounded gba:overflow-x-auto">
+                                {JSON.stringify(value, null, 2)}
+                              </pre>
+                            );
+                          }
+                          
+                          // Handle primitive values
+                          return <span className="gba:break-words">{String(value)}</span>;
+                        };
+
+                        return (
+                          <div key={key} className="gba:flex gba:flex-col gba:gap-1">
+                            <div className="gba:text-xs gba:font-medium gba:text-blue-800 gba:uppercase gba:tracking-wide">
+                              {key.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase())}
+                            </div>
+                            <div className="gba:text-sm gba:text-blue-700">
+                              {renderValue(key, value)}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          )}
 
           {/* Ticket Form Card - Show dynamic form if ticket has form fields and is not completed */}
           {(() => {
