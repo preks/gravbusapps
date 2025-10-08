@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useRef, useState } from 'react';
 import { Button, Input, Label, Switch, Select, SelectTrigger, SelectValue, SelectContent, SelectItem, Calendar, Popover, PopoverTrigger, PopoverContent, Spinner } from '@newwork/nw-design-system';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
@@ -13,6 +13,7 @@ import { UploadOutlined } from '@ant-design/icons';
 import { useRelationshipTypes } from './hooks/useRelationshipTypes';
 import { env } from '@/common/env/EnvUtils';
 import { dispatchProcessContinueEvent } from '@/common/utils/processEventUtils';
+import { CongratulationsModal } from './CongratulationsModal';
 
 interface ChangeRelationshipScreenProps extends BusinessAppContextProps {}
 
@@ -35,6 +36,9 @@ const ChangeRelationshipScreen: React.FC<ChangeRelationshipScreenProps> = ({ add
   const employeeId = userInfo?.employeeDetails?.employeeId;
 
   const initialPayload = useMemo(() => (additionalData as any) || {}, [additionalData]);
+  const [successOpen, setSuccessOpen] = useState(false);
+  const preSubmitResolverRef = useRef<((payload: any) => void) | null>(null);
+  const pendingPayloadRef = useRef<any>(null);
 
   const isValid = useMemo(() => {
     const requiredOk = relationshipTypeId && firstName.trim() && lastName.trim();
@@ -133,6 +137,22 @@ const ChangeRelationshipScreen: React.FC<ChangeRelationshipScreenProps> = ({ add
       employeeRelationship,
     };
 
+    // Only show modal for specific relationship types (Child or Marriage)
+    const idSelected = relationshipTypeId.toLowerCase();
+    const shouldShowCongrats = idSelected.includes('child') || idSelected.includes('marriage') || idSelected.includes('mariage');
+
+    console.log(relationshipTypeOptions,'relationshipTypeOptions')
+
+    if (shouldShowCongrats) {
+      // Show Congratulations modal first and resolve payload after user confirms
+      pendingPayloadRef.current = relationshipChange;
+      setSuccessOpen(true);
+      return new Promise((resolve) => {
+        preSubmitResolverRef.current = resolve;
+      });
+    }
+
+    // Otherwise, proceed immediately
     return relationshipChange;
   };
 
@@ -148,6 +168,7 @@ const ChangeRelationshipScreen: React.FC<ChangeRelationshipScreenProps> = ({ add
       validateForm={validateForm}
       handlePreSubmit={handlePreSubmit}
       isSubmitDisabled={!isValid}
+      // Pre-submit modal controls the flow; no need for post success modal
       submitButtonText={getTranslationFromI18nKeyAndLabel('common.submit', 'Submit')}
       cancelButtonText={getTranslationFromI18nKeyAndLabel('common.cancel', 'Cancel')}
       data-testid={formatDataTestId(prefixDataTestId, 'Container')}
@@ -293,6 +314,20 @@ const ChangeRelationshipScreen: React.FC<ChangeRelationshipScreenProps> = ({ add
           </div>
         </div>
       </div>
+      {/* Success modal */}
+      <CongratulationsModal
+        open={successOpen}
+        onConfirm={() => {
+          const resolver = preSubmitResolverRef.current;
+          const payload = pendingPayloadRef.current || {};
+          preSubmitResolverRef.current = null;
+          pendingPayloadRef.current = null;
+          setSuccessOpen(false);
+          if (resolver) resolver(payload);
+        }}
+        dataTestId="flw_changeRelationship_successModal"
+        confirmButtonTestId="flw_changeRelationship_successClose"
+      />
     </AppActionForm>
   );
 };
