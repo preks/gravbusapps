@@ -397,17 +397,8 @@ export const FlowDetailView: React.FC<FlowDetailViewProps> = ({
         console.log('🔍 Steps from API:', flowDetails?.steps);
         
         // Transform API data to match FlowDetailData interface
-        // Calculate actual progress from step data if available
-        let actualProgressPercentage = progress.userTaskProgressPercentage || 0;
-        if (flowDetails?.steps && flowDetails.steps.length > 0) {
-          const totalTasks = flowDetails.steps.reduce((sum: number, step: any) => 
-            sum + (step.totalTasks || step.total_tasks || 0), 0);
-          const completedTasks = flowDetails.steps.reduce((sum: number, step: any) => 
-            sum + (step.completedTasks || step.completed_tasks || 0), 0);
-          if (totalTasks > 0) {
-            actualProgressPercentage = Math.round((completedTasks / totalTasks) * 100);
-          }
-        }
+        // Use smart progress calculation from backend (already accounts for step weights and future steps)
+        const actualProgressPercentage = progress.userTaskProgressPercentage || 0;
 
         const flowData: FlowDetailData = {
           flowId: progress.rootWorkflowId,
@@ -548,9 +539,13 @@ export const FlowDetailView: React.FC<FlowDetailViewProps> = ({
   }
 
   return (
-    <div className="gba:h-screen gba:bg-gray-50 gba:flex gba:flex-col">
+    <div className="gba:flex gba:flex-col" style={{ backgroundColor: 'transparent' }}>
       {/* Header */}
-      <div className="gba:bg-white gba:border-b gba:border-gray-200 gba:px-6 gba:py-4">
+      <div style={{ 
+        backgroundColor: 'var(--color-surface-primary)', 
+        borderBottom: 'var(--border-width-thin) solid var(--color-border-default)',
+        padding: `var(--spacing-6) ${showBackButton ? 'var(--spacing-6)' : '0'}`
+      }}>
         <div className="gba:flex gba:items-center gba:gap-4">
           {showBackButton && onBack && (
             <>
@@ -559,6 +554,7 @@ export const FlowDetailView: React.FC<FlowDetailViewProps> = ({
                 size="sm"
                 onClick={onBack}
                 className="gba:flex gba:items-center gba:gap-2"
+                style={{ paddingLeft: 0 }}
               >
                 <ArrowLeft className="gba:h-4 gba:w-4" />
                 Back to Flows
@@ -636,13 +632,21 @@ export const FlowDetailView: React.FC<FlowDetailViewProps> = ({
 
       {/* Content */}
       <div className="gba:flex-1 gba:overflow-hidden">
-        <Tabs value={activeTab} onValueChange={setActiveTab} className="gba:h-full gba:flex gba:flex-col">
-          <div className="gba:bg-white gba:border-b gba:border-gray-200 gba:px-6">
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="gba:h-full gba:flex gba:flex-col" style={{ backgroundColor: 'transparent' }}>
+          <div style={{ 
+            backgroundColor: 'var(--color-surface-primary)', 
+            borderBottom: 'var(--border-width-thin) solid var(--color-border-default)',
+            paddingTop: 'var(--spacing-2)',
+            paddingBottom: 0,
+            paddingLeft: showBackButton ? 'var(--spacing-6)' : '0',
+            paddingRight: showBackButton ? 'var(--spacing-6)' : '0',
+            marginTop: 'var(--spacing-2)'
+          }}>
             <TabsList className={`gba:grid gba:w-full gba:max-w-md ${
               hiddenTabs.length === 0 ? 'gba:grid-cols-4' :
               hiddenTabs.length === 1 ? 'gba:grid-cols-3' :
               hiddenTabs.length === 2 ? 'gba:grid-cols-2' : 'gba:grid-cols-1'
-            }`}>
+            }`} style={{ backgroundColor: 'transparent' }}>
               {!hiddenTabs.includes('overview') && (
                 <TabsTrigger value="overview">Overview</TabsTrigger>
               )}
@@ -658,7 +662,12 @@ export const FlowDetailView: React.FC<FlowDetailViewProps> = ({
             </TabsList>
           </div>
 
-          <div className="gba:flex-1 gba:overflow-auto gba:p-6">
+          <div className="gba:flex-1 gba:overflow-auto" style={{ 
+            backgroundColor: 'var(--color-surface-primary)', 
+            padding: 'var(--spacing-6)',
+            paddingLeft: showBackButton ? 'var(--spacing-6)' : '0',
+            paddingRight: showBackButton ? 'var(--spacing-6)' : '0'
+          }}>
             {!hiddenTabs.includes('overview') && (
               <TabsContent value="overview">
                 <OverviewTab 

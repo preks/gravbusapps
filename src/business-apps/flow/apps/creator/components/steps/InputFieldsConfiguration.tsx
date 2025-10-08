@@ -1,5 +1,5 @@
 import React from 'react';
-import { Button, Input } from '@newwork/nw-design-system';
+import { Button, Input, Checkbox } from '@newwork/nw-design-system';
 import { Select } from 'antd';
 import { FormInput, Trash2 } from 'lucide-react';
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
@@ -29,6 +29,7 @@ export const InputFieldsTrigger: React.FC<InputFieldsTriggerProps> = ({
   onUpdateStep
 }) => {
   const inputs = step.form || step.inputs || [];  // Handle both form and inputs
+  const requiredCount = inputs.filter((input: any) => input.required).length;
   
   return (
     <div className="gba:flex gba:items-center gba:justify-between gba:w-full gba:pr-4">
@@ -38,9 +39,16 @@ export const InputFieldsTrigger: React.FC<InputFieldsTriggerProps> = ({
       </div>
       <div className="gba:flex gba:items-center gba:gap-2">
         {inputs && inputs.length > 0 && (
-          <span className="gba:text-xs gba:bg-purple-100 gba:text-purple-800 gba:px-2 gba:py-1 gba:rounded">
-            {inputs.length} {inputs.length === 1 ? 'field' : 'fields'}
-          </span>
+          <>
+            <span className="gba:text-xs gba:bg-purple-100 gba:text-purple-800 gba:px-2 gba:py-1 gba:rounded">
+              {inputs.length} {inputs.length === 1 ? 'field' : 'fields'}
+            </span>
+            {requiredCount > 0 && (
+              <span className="gba:text-xs gba:bg-red-100 gba:text-red-800 gba:px-2 gba:py-1 gba:rounded">
+                {requiredCount} required
+              </span>
+            )}
+          </>
         )}
       </div>
     </div>
@@ -131,6 +139,7 @@ export const InputFieldsContent: React.FC<InputFieldsContentProps> = ({
                 value={input.label || ''}
                 onChange={(e) => handleUpdateInput(index, 'label', e.target.value)}
                 className="gba:flex-1"
+                placeholder="Field label"
                 data-testid={`${testId}-input-label-${index}`}
               />
               <Select 
@@ -149,6 +158,16 @@ export const InputFieldsContent: React.FC<InputFieldsContentProps> = ({
                 <Select.Option value={InputType.CHECKBOX}>Checkbox</Select.Option>
                 <Select.Option value={InputType.FILE}>File</Select.Option>
               </Select>
+              <div className="gba:flex gba:items-center gba:gap-1">
+                <Checkbox
+                  checked={input.required || false}
+                  onCheckedChange={(checked) => handleUpdateInput(index, 'required', checked)}
+                  data-testid={`${testId}-input-required-${index}`}
+                />
+                <label className="gba:text-xs gba:text-gray-600 gba:whitespace-nowrap">
+                  Required
+                </label>
+              </div>
               <Button
                 variant="ghost"
                 size="sm"
@@ -175,7 +194,7 @@ export const InputFieldsContent: React.FC<InputFieldsContentProps> = ({
                 </div>
                 
                 {(input.options || []).map((option: any, optionIndex: number) => (
-                  <div key={`option-${index}-${optionIndex}-${option.value || optionIndex}`} className="gba:flex gba:gap-2 gba:items-center gba:pl-4">
+                  <div key={`option-${index}-${optionIndex}`} className="gba:flex gba:gap-2 gba:items-center gba:pl-4">
                     <Input
                       value={option.label || ''}
                       onChange={(e) => handleUpdateOption(index, optionIndex, 'label', e.target.value)}

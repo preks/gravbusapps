@@ -58,7 +58,7 @@ export class ComplianceDataService {
       // For now, we only filter by the static solution tag
       // Additional filters can be added later if needed
 
-      const baseUrl = env('NEXT_PUBLIC_CUSTOM_FLOW_ENGINE_API_URL') || 'http://localhost:3000';
+      const baseUrl = env('NEXT_PUBLIC_CUSTOM_FLOW_ENGINE_API_URL') || 'https://newwork-dev.newwork.com/flow-engine';
       const response = await fetch(`${baseUrl}/api/flows/list?${params.toString()}`, {
         method: 'GET',
         headers: {
@@ -124,7 +124,7 @@ export class ComplianceDataService {
         onlyLatest: 'true'
       });
 
-      const baseUrl = env('NEXT_PUBLIC_CUSTOM_FLOW_ENGINE_API_URL') || 'http://localhost:3000';
+      const baseUrl = env('NEXT_PUBLIC_CUSTOM_FLOW_ENGINE_API_URL') || 'https://newwork-dev.newwork.com/flow-engine';
       const response = await fetch(`${baseUrl}/api/templates?${params.toString()}`, {
         method: 'GET',
         headers: {
@@ -239,7 +239,7 @@ export class ComplianceDataService {
    */
   static async getFlowStepSegments(accessToken: string, flowId: string): Promise<StepSegment[]> {
     try {
-      const baseUrl = env('NEXT_PUBLIC_CUSTOM_FLOW_ENGINE_API_URL') || 'http://localhost:3000';
+      const baseUrl = env('NEXT_PUBLIC_CUSTOM_FLOW_ENGINE_API_URL') || 'https://newwork-dev.newwork.com/flow-engine';
       const response = await fetch(`${baseUrl}/api/flows/${flowId}`, {
         method: 'GET',
         headers: {

@@ -42,8 +42,14 @@ export const FlowTemplateForm: React.FC<FlowTemplateFormProps> = ({
         ...flowTemplate,
         type: 'TEMPLATE' as const
       };
-      
-      const savedTemplate = await flowTemplateClient.createTemplate(templateData);
+      // Update when editing existing template, otherwise create new
+      let savedTemplate;
+      if (flowTemplate.id) {
+        savedTemplate = await flowTemplateClient.updateTemplate(flowTemplate.id, templateData);
+      } else {
+        const { id: _omit, ...createPayload } = templateData as any;
+        savedTemplate = await flowTemplateClient.createTemplate(createPayload);
+      }
       message.success('Definition saved as draft successfully!');
       
       if (onSaved) {
@@ -62,8 +68,14 @@ export const FlowTemplateForm: React.FC<FlowTemplateFormProps> = ({
         ...flowTemplate,
         type: 'TEMPLATE' as const
       };
-      
-      const publishedTemplate = await flowTemplateClient.createTemplate(templateData);
+      // Update when editing existing template, otherwise create new
+      let publishedTemplate;
+      if (flowTemplate.id) {
+        publishedTemplate = await flowTemplateClient.updateTemplate(flowTemplate.id, templateData);
+      } else {
+        const { id: _omit, ...createPayload } = templateData as any;
+        publishedTemplate = await flowTemplateClient.createTemplate(createPayload);
+      }
       message.success('Definition published successfully!');
       
       if (onSaved) {
