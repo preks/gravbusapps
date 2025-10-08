@@ -3,7 +3,7 @@ import { FormField, FormItem, FormLabel, FormControl, FormMessage, Select, Selec
 import type { Control } from 'react-hook-form';
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
 import { Percent } from '@phosphor-icons/react';
-import type { PersonalDataFormValues, CatalogEntry } from '../../types';
+import type { PersonalDataFormValues, CatalogEntry } from '../types';
 
 export interface NationalityLanguageStatusGroupProps {
   control: Control<PersonalDataFormValues>;
@@ -30,7 +30,7 @@ const NationalityLanguageStatusGroup: React.FC<NationalityLanguageStatusGroupPro
               onValueChange={(v) => field.onChange(v || null)}
             >
               <FormControl>
-                <SelectTrigger className="gba:block gba:!w-full gba:min-w-0 gba:!max-w-none" data-testid="change-personal-data-nationality-select">
+                <SelectTrigger className="gba:block gba:!w-full gba:min-w-0 gba:!max-w-none" data-testid="flw_changePersonalData_currentNationality">
                   <SelectValue placeholder={placeholderSelect} />
                 </SelectTrigger>
               </FormControl>
@@ -61,16 +61,23 @@ const NationalityLanguageStatusGroup: React.FC<NationalityLanguageStatusGroupPro
               onValueChange={(v) => field.onChange(v || null)}
             >
               <FormControl>
-                <SelectTrigger className="gba:block gba:!w-full gba:min-w-0 gba:!max-w-none" data-testid="change-personal-data-language-select">
+                <SelectTrigger className="gba:block gba:!w-full gba:min-w-0 gba:!max-w-none" data-testid="flw_changePersonalData_currentLanguage">
                   <SelectValue placeholder={placeholderSelect} />
                 </SelectTrigger>
               </FormControl>
               <SelectContent>
-                {(catalogs.language || []).map((entry) => (
-                  <SelectItem key={entry.id} value={String(entry.id)} data-testid={`change-personal-data-language-option-${entry.id}`}>
-                    {entry?.translations?.[0]?.value || entry?.value}
-                  </SelectItem>
-                ))}
+                {(() => {
+                  const sorted = [...(catalogs.language || [])].sort((a: any, b: any) => {
+                    const av = String(a?.translations?.[0]?.value || a?.value || '').toLowerCase();
+                    const bv = String(b?.translations?.[0]?.value || b?.value || '').toLowerCase();
+                    return av.localeCompare(bv);
+                  });
+                  return sorted.map((entry) => (
+                    <SelectItem key={entry.id} value={String(entry.id)} data-testid={`change-personal-data-language-option-${entry.id}`}>
+                      {entry?.translations?.[0]?.value || entry?.value}
+                    </SelectItem>
+                  ));
+                })()}
               </SelectContent>
             </Select>
             <FormMessage />
@@ -92,7 +99,7 @@ const NationalityLanguageStatusGroup: React.FC<NationalityLanguageStatusGroupPro
               onValueChange={(v) => field.onChange(v || null)}
             >
               <FormControl>
-                <SelectTrigger className="gba:block gba:!w-full gba:min-w-0 gba:!max-w-none" data-testid="change-personal-data-marital-status-select">
+                <SelectTrigger className="gba:block gba:!w-full gba:min-w-0 gba:!max-w-none" data-testid="flw_changePersonalData_currentMaritalStatus">
                   <SelectValue placeholder={placeholderSelect} />
                 </SelectTrigger>
               </FormControl>
@@ -135,7 +142,7 @@ const NationalityLanguageStatusGroup: React.FC<NationalityLanguageStatusGroupPro
                 {...field}
                 placeholder={placeholderEnter}
                 inputMode="decimal"
-                data-testid="change-personal-data-disability-input"
+                data-testid="flw_changePersonalData_disabilityInput"
                 endAddOn={<Percent className="gba:w-4 gba:h-4" />}
               />
             </FormControl>
