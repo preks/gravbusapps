@@ -5,6 +5,7 @@ import {
   Textarea,
   Avatar,
   AvatarFallback,
+  AvatarImage,
   Spinner,
   Separator,
   Card,
@@ -16,11 +17,11 @@ import { message } from 'antd';
 import { 
   ChatCircle, 
   PaperPlaneTilt, 
-  EyeIcon, 
-  User as UserIcon
+  EyeIcon
 } from '@phosphor-icons/react';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
-import { UserDisplayName } from '../../../components/UserDisplayName';
+import { useEmployeeNamesBatch } from '../../../hooks/useEmployeeNamesBatch';
+import { navigateTo } from '@/common/utils/navigationUtils';
 import { 
   ServicePortalComment, 
   ServicePortalCommentVisibility, 
@@ -40,8 +41,8 @@ export interface RequestCommentsProps extends BusinessAppContextProps {
 
 const CommentItem: React.FC<{
   comment: ServicePortalComment;
-  contextProps: BusinessAppContextProps;
-}> = ({ comment, contextProps }) => {
+  employeeData?: any;
+}> = ({ comment, employeeData }) => {
 
   const formatTimeAgo = (dateString: string): string => {
     const now = new Date();
@@ -61,34 +62,71 @@ const CommentItem: React.FC<{
     return commentDate.toLocaleDateString();
   };
 
+  const getInitials = (name: string): string => {
+    if (!name || name === "Unknown User" || name === "-") return "U";
+    return name
+      .split(" ")
+      .map((n: string) => n[0])
+      .join("")
+      .toUpperCase()
+      .slice(0, 2);
+  };
+
+  const displayName = employeeData?.displayName || employeeData?.fullName || 'Unknown User';
+
+  const handleEmployeeClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (comment.authorId && comment.authorId !== 'unknown' && employeeData?.id) {
+      const employeeId = employeeData.id;
+      navigateTo(`/platform/employee-record?employeeId=${employeeId}`);
+    }
+  };
+
   return (
     <div 
       className="gba:flex gba:gap-3 gba:p-4 gba:bg-muted/30 gba:rounded-lg"
       data-testid={`comment-${comment.id}`}
     >
       {/* Avatar */}
-      <Avatar className="gba:flex-shrink-0">
-        <AvatarFallback>
-          <UserIcon className="gba:w-4 gba:h-4" />
-        </AvatarFallback>
-      </Avatar>
+      <div
+        className="gba:flex gba:items-center gba:gap-2 gba:cursor-pointer hover:gba:bg-transparent focus:gba:bg-transparent gba:group gba:p-1 gba:rounded gba:transition-colors hover:gba:bg-gray-100"
+        onClick={handleEmployeeClick}
+        title={comment.authorId && comment.authorId !== 'unknown' && employeeData?.id ? "Click to view employee profile" : undefined}
+      >
+        <Avatar size="sm" className="gba:outline gba:outline-2 gba:outline-offset-2 gba:outline-transparent gba:group-hover:[outline-color:var(--nw-color-primary-500)] gba:rounded-full">
+          {(employeeData?.pictureThumbnail || employeeData?.picture || employeeData?.avatar || employeeData?.profilePicture) && (
+            <AvatarImage
+              src={`data:image/png;base64,${employeeData.pictureThumbnail || employeeData.picture || employeeData.avatar || employeeData.profilePicture}`}
+              alt={displayName}
+              onError={(e) => {
+                const target = e.target as HTMLImageElement;
+                const imageData = employeeData.pictureThumbnail || employeeData.picture || employeeData.avatar || employeeData.profilePicture;
+                if (target.src.includes('png')) {
+                  target.src = `data:image/jpeg;base64,${imageData}`;
+                } else if (target.src.includes('jpeg')) {
+                  target.src = `data:image/gif;base64,${imageData}`;
+                }
+              }}
+            />
+          )}
+          <AvatarFallback>
+            {getInitials(displayName)}
+          </AvatarFallback>
+        </Avatar>
+      </div>
 
       {/* Comment Content */}
       <div className="gba:flex-1 gba:min-w-0">
         {/* Header */}
         <div className="gba:flex-1">
           <div className="gba:flex gba:items-center gba:gap-2 gba:mb-1 gba:flex-wrap">
-            <span className="gba:text-sm gba:font-medium">
-              <UserDisplayName
-                userId={comment.authorId}
-                accessToken={contextProps.accessToken}
-                userInfo={contextProps.userInfo}
-                showIcon={false}
-                color="default"
-                size="small"
-                fallback="Unknown User"
-                testId={`comment-author-${comment.id}`}
-              />
+            <span 
+              className="gba:text-sm gba:font-medium gba:cursor-pointer hover:gba:text-blue-600 gba:transition-colors"
+              onClick={handleEmployeeClick}
+              title={comment.authorId && comment.authorId !== 'unknown' && employeeData?.id ? "Click to view employee profile" : undefined}
+              data-testid={`comment-author-${comment.id}`}
+            >
+              {displayName}
             </span>
             <span 
               className="gba:text-xs"
@@ -190,6 +228,17 @@ export const RequestComments: React.FC<RequestCommentsProps> = ({
     );
   }, [comments]);
 
+  // Get unique user IDs from comments for batch fetching
+  const userIds = useMemo(() => {
+    return [...new Set(comments.map(comment => comment.authorId).filter(Boolean))];
+  }, [comments]);
+
+  // Batch fetch employee data
+  const { employees } = useEmployeeNamesBatch({
+    userIds,
+    accessToken: contextProps.accessToken
+  });
+
   // Filter comments based on user's visibility permissions
   const visibleComments = useMemo(() => {
     return sortedComments.filter(comment => {
@@ -269,7 +318,7 @@ export const RequestComments: React.FC<RequestCommentsProps> = ({
                   <CommentItem
                     key={comment.id}
                     comment={comment}
-                    contextProps={contextProps}
+                    employeeData={employees.get(comment.authorId)}
                   />
                 ))}
             </div>

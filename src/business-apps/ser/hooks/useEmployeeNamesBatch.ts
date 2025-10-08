@@ -146,6 +146,7 @@ async function fetchEmployeesIndividually(
         fullName
         displayName
         preferredName
+        pictureThumbnail
       }
     }
   `;

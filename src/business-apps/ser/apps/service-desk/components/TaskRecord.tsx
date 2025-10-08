@@ -50,6 +50,7 @@ import { formatRequestId, getSLAStatus } from '../../../utils';
 import { createConductorWorkflowEngine } from '../../../services';
 import { DynamicFormGenerator } from '../../../components/DynamicFormGenerator';
 import { DynamicFormField, DynamicFormValues } from '../../../types/flowTemplate';
+import { Step0DataRenderer } from '../../../components/shared/Step0DataRenderer';
 
 const { Text } = Typography;
 
@@ -795,96 +796,30 @@ export const TaskRecord: React.FC<TaskRecordProps> = ({
                       Completed
                     </Badge>
                   </div>
-                  <div className="gba:bg-green-50 gba:rounded-lg gba:p-4 gba:border gba:border-green-200">
-                    <div className="gba:space-y-3">
-                      {Object.entries(ticket.formData || {}).map(([key, value]) => {
-                        // Helper function to render form data values properly
-                        const renderValue = (key: string, value: any) => {
-                          // Handle file upload results specially
-                          if (key.endsWith('_uploadResults') && Array.isArray(value)) {
-                            return (
-                              <div className="gba:space-y-2">
-                                {value.map((fileResult: any, index: number) => (
-                                  <div key={index} className="gba:bg-green-100 gba:p-3 gba:rounded gba:border gba:border-green-300">
-                                    <div className="gba:flex gba:items-center gba:gap-2 gba:mb-2">
-                                      <Badge variant="outline" className="gba:text-xs gba:bg-blue-100 gba:text-blue-700 gba:border-blue-300">
-                                        📎 File
-                                      </Badge>
-                                      <span className="gba:font-medium gba:text-green-800">
-                                        {fileResult.fileName || fileResult.summary || 'Uploaded File'}
-                                      </span>
-                                    </div>
-                                    <div className="gba:text-xs gba:text-green-600 gba:space-y-1">
-                                      {fileResult.fileId && (
-                                        <div><strong>ID:</strong> {fileResult.fileId}</div>
-                                      )}
-                                      {fileResult.mimeType && (
-                                        <div><strong>Type:</strong> {fileResult.mimeType}</div>
-                                      )}
-                                      {fileResult.uploadTimestamp && (
-                                        <div><strong>Uploaded:</strong> {new Date(fileResult.uploadTimestamp).toLocaleString()}</div>
-                                      )}
-                                      {fileResult.downloadPath && (
-                                        <div className="gba:mt-2">
-                                          <Button 
-                                            size="sm" 
-                                            variant="outline"
-                                            onClick={() => window.open(`https://newwork-dev.newwork.com/files${fileResult.downloadPath}`, '_blank')}
-                                            className="gba:text-xs gba:h-6"
-                                          >
-                                            📥 Download
-                                          </Button>
-                                        </div>
-                                      )}
-                                    </div>
-                                  </div>
-                                ))}
-                              </div>
-                            );
-                          }
-                          
-                          // Handle regular arrays
-                          if (Array.isArray(value)) {
-                            return (
-                              <div className="gba:flex gba:flex-wrap gba:gap-1">
-                                {value.map((item, index) => (
-                                  <Badge key={index} variant="outline" className="gba:text-xs gba:bg-green-100 gba:text-green-700 gba:border-green-300">
-                                    {typeof item === 'object' && item !== null ? 
-                                      (item.name || item.label || item.value || JSON.stringify(item)) : 
-                                      String(item)
-                                    }
-                                  </Badge>
-                                ))}
-                              </div>
-                            );
-                          }
-                          
-                          // Handle objects
-                          if (typeof value === 'object' && value !== null) {
-                            return (
-                              <pre className="gba:text-xs gba:bg-green-100 gba:p-2 gba:rounded gba:overflow-x-auto">
-                                {JSON.stringify(value, null, 2)}
-                              </pre>
-                            );
-                          }
-                          
-                          // Handle primitive values
-                          return <span className="gba:break-words">{String(value)}</span>;
-                        };
-
-                        return (
-                          <div key={key} className="gba:flex gba:flex-col gba:gap-1">
-                            <div className="gba:text-xs gba:font-medium gba:text-green-800 gba:uppercase gba:tracking-wide">
-                              {key.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase())}
-                            </div>
-                            <div className="gba:text-sm gba:text-green-700">
-                              {renderValue(key, value)}
-                            </div>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  </div>
+                  <Step0DataRenderer 
+                    stepData={{ formData: ticket.formData }}
+                    theme={{
+                      containerBg: 'gba:bg-green-50',
+                      containerBorder: 'gba:border-green-200',
+                      labelColor: 'gba:text-green-800',
+                      valueColor: 'gba:text-green-700',
+                      fileBadge: {
+                        bg: 'gba:bg-blue-100',
+                        text: 'gba:text-blue-700',
+                        border: 'gba:border-blue-300'
+                      },
+                      arrayBadge: {
+                        bg: 'gba:bg-green-100',
+                        text: 'gba:text-green-700',
+                        border: 'gba:border-green-300'
+                      },
+                      fileContainer: {
+                        bg: 'gba:bg-green-100',
+                        border: 'gba:border-green-300'
+                      }
+                    }}
+                    testIdPrefix="task-record-completed"
+                  />
                 </div>
               )}
             </CardContent>
@@ -919,124 +854,10 @@ export const TaskRecord: React.FC<TaskRecordProps> = ({
                     <Spinner />
                   </div>
                 ) : (
-                  <div className="gba:bg-blue-50 gba:rounded-lg gba:p-4 gba:border gba:border-blue-200">
-                    <div className="gba:space-y-3">
-                      {Object.entries(step0Data?.formData || {})
-                        .filter(([key, value]) => {
-                          // Hide assignment mode and other metadata fields
-                          const hiddenFields = [
-                            'assignmentMode',
-                            'assignment_mode',
-                            'stepAssignmentMode',
-                            'step_assignment_mode',
-                            'taskAssignmentMode',
-                            'task_assignment_mode',
-                            'assignTo',
-                            'assign_to',
-                            'assignedTo',
-                            'assigned_to',
-                            'assignee',
-                            'assigneeId',
-                            'assignee_id'
-                          ];
-                          
-                          // Check if key should be hidden (case insensitive)
-                          const keyLower = key.toLowerCase();
-                          return !hiddenFields.some(hiddenField => 
-                            keyLower === hiddenField.toLowerCase() || 
-                            keyLower.includes('assignment') ||
-                            keyLower.includes('assignee') ||
-                            keyLower.includes('assign_')
-                          );
-                        })
-                        .map(([key, value]) => {
-                        // Helper function to render form data values properly
-                        const renderValue = (key: string, value: any) => {
-                          // Handle file upload results specially
-                          if (key.endsWith('_uploadResults') && Array.isArray(value)) {
-                            return (
-                              <div className="gba:space-y-2">
-                                {value.map((fileResult: any, index: number) => (
-                                  <div key={index} className="gba:bg-blue-100 gba:p-3 gba:rounded gba:border gba:border-blue-300">
-                                    <div className="gba:flex gba:items-center gba:gap-2 gba:mb-2">
-                                      <Badge variant="outline" className="gba:text-xs gba:bg-indigo-100 gba:text-indigo-700 gba:border-indigo-300">
-                                        📎 File
-                                      </Badge>
-                                      <span className="gba:font-medium gba:text-blue-800">
-                                        {fileResult.fileName || fileResult.summary || 'Uploaded File'}
-                                      </span>
-                                    </div>
-                                    <div className="gba:text-xs gba:text-blue-600 gba:space-y-1">
-                                      {fileResult.fileId && (
-                                        <div><strong>ID:</strong> {fileResult.fileId}</div>
-                                      )}
-                                      {fileResult.mimeType && (
-                                        <div><strong>Type:</strong> {fileResult.mimeType}</div>
-                                      )}
-                                      {fileResult.uploadTimestamp && (
-                                        <div><strong>Uploaded:</strong> {new Date(fileResult.uploadTimestamp).toLocaleString()}</div>
-                                      )}
-                                      {fileResult.downloadPath && (
-                                        <div className="gba:mt-2">
-                                          <Button 
-                                            size="sm" 
-                                            variant="outline"
-                                            onClick={() => window.open(`https://newwork-dev.newwork.com/files${fileResult.downloadPath}`, '_blank')}
-                                            className="gba:text-xs gba:h-6"
-                                          >
-                                            📥 Download
-                                          </Button>
-                                        </div>
-                                      )}
-                                    </div>
-                                  </div>
-                                ))}
-                              </div>
-                            );
-                          }
-                          
-                          // Handle regular arrays
-                          if (Array.isArray(value)) {
-                            return (
-                              <div className="gba:flex gba:flex-wrap gba:gap-1">
-                                {value.map((item, index) => (
-                                  <Badge key={index} variant="outline" className="gba:text-xs gba:bg-blue-100 gba:text-blue-700 gba:border-blue-300">
-                                    {typeof item === 'object' && item !== null ? 
-                                      (item.name || item.label || item.value || JSON.stringify(item)) : 
-                                      String(item)
-                                    }
-                                  </Badge>
-                                ))}
-                              </div>
-                            );
-                          }
-                          
-                          // Handle objects
-                          if (typeof value === 'object' && value !== null) {
-                            return (
-                              <pre className="gba:text-xs gba:bg-blue-100 gba:p-2 gba:rounded gba:overflow-x-auto">
-                                {JSON.stringify(value, null, 2)}
-                              </pre>
-                            );
-                          }
-                          
-                          // Handle primitive values
-                          return <span className="gba:break-words">{String(value)}</span>;
-                        };
-
-                        return (
-                          <div key={key} className="gba:flex gba:flex-col gba:gap-1">
-                            <div className="gba:text-xs gba:font-medium gba:text-blue-800 gba:uppercase gba:tracking-wide">
-                              {key.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase())}
-                            </div>
-                            <div className="gba:text-sm gba:text-blue-700">
-                              {renderValue(key, value)}
-                            </div>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  </div>
+                  <Step0DataRenderer 
+                    stepData={step0Data}
+                    testIdPrefix="task-record-step0"
+                  />
                 )}
               </CardContent>
             </Card>

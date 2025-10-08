@@ -7,17 +7,24 @@ import {
   Alert,
   Spinner,
   SectionKpiCards,
+  Avatar,
+  AvatarImage,
+  AvatarFallback,
   type KpiCardData
 } from '@newwork/nw-design-system';
 import { SubmittedRequest, WorkflowEngine, StepStatus } from '../../../types';
 import { formatRequestId } from '../../../utils';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
-import { ClockCounterClockwise, CheckCircle, XCircle, FileText, User, Calendar, CurrencyDollar, Building, Phone, Globe, X, ArrowLeft } from '@phosphor-icons/react';
+import { ClockCounterClockwiseIcon, CheckCircleIcon, XCircleIcon, FileTextIcon, XIcon, ArrowLeftIcon, ArrowClockwiseIcon, WifiHighIcon } from '@phosphor-icons/react';
 import { UserDisplayName } from '../../../components/UserDisplayName';
 import { RequestComments } from './RequestComments';
 import { useFlowComments } from '../hooks/useFlowComments';
 import { MyRequestsTable, FilterGroup, RequestAction } from '../../../components/shared/MyRequestsTable';
 import { ColumnConfig } from '@/components/dataController';
+import { formatDate, formatDateTime, getUserDateFormat, getUserLocale } from '../../../config/dateTimeConfig';
+import { Step0DataRenderer } from '../../../components/shared/Step0DataRenderer';
+import { navigateTo } from '@/common/utils/navigationUtils';
+import { useEmployeeNamesBatch } from '../../../hooks/useEmployeeNamesBatch';
 
 
 export interface MyRequestsProps extends BusinessAppContextProps {
@@ -30,11 +37,96 @@ interface RequestTimelineProps {
   contextProps: BusinessAppContextProps & { workflowEngine: WorkflowEngine };
 }
 
+// Enhanced Employee Display Component with Avatar (similar to TicketTable.tsx)
+const EnhancedEmployeeDisplay: React.FC<{
+  userId: string;
+  displayName: string;
+  employeeData?: any; // Full employee data from batch fetch (for future profile picture support)
+  testId?: string;
+  showTooltip?: boolean;
+}> = ({ userId, displayName, employeeData, testId, showTooltip = true }) => {
+  // Helper function to get employee initials
+  const getInitials = (name: string) => {
+    if (!name || name === "-") return "U";
+    return name
+      .split(" ")
+      .map((n: string) => n[0])
+      .join("")
+      .toUpperCase()
+      .slice(0, 2); // Max 2 characters
+  };
+
+  // Handle click to navigate to employee record
+  const handleEmployeeClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (userId && userId !== 'unknown' && employeeData?.id) {
+      const employeeId = employeeData.id;
+      navigateTo(`/platform/employee-record?employeeId=${employeeId}`);
+    }
+  };
+
+  const avatarDisplay = (
+    <div
+      className="gba:flex gba:items-center gba:gap-2 gba:cursor-pointer hover:gba:bg-transparent focus:gba:bg-transparent gba:group gba:p-1 gba:rounded gba:transition-colors hover:gba:bg-gray-100"
+      data-testid={testId}
+      onClick={handleEmployeeClick}
+      title={showTooltip && userId && userId !== 'unknown' ? "Click to view employee profile" : undefined}
+    >
+      <Avatar size="sm" className="gba:outline gba:outline-2 gba:outline-offset-2 gba:outline-transparent gba:group-hover:[outline-color:var(--nw-color-primary-500)] gba:rounded-full">
+        {/* Profile picture support - check multiple possible property names */}
+        {(employeeData?.pictureThumbnail || employeeData?.picture || employeeData?.avatar || employeeData?.profilePicture) && (
+          <AvatarImage
+            src={`data:image/png;base64,${employeeData.pictureThumbnail || employeeData.picture || employeeData.avatar || employeeData.profilePicture}`}
+            alt={displayName}
+            onError={(e) => {
+              // Try different image formats if PNG fails
+              const target = e.target as HTMLImageElement;
+              const imageData = employeeData.pictureThumbnail || employeeData.picture || employeeData.avatar || employeeData.profilePicture;
+              if (target.src.includes('png')) {
+                target.src = `data:image/jpeg;base64,${imageData}`;
+              } else if (target.src.includes('jpeg')) {
+                target.src = `data:image/gif;base64,${imageData}`;
+              }
+            }}
+          />
+        )}
+        <AvatarFallback>
+          {getInitials(displayName)}
+        </AvatarFallback>
+      </Avatar>
+      <span className="gba:text-sm gba:group-hover:gba:text-blue-600 gba:transition-colors">
+        {displayName}
+      </span>
+    </div>
+  );
+
+
+  return avatarDisplay;
+};
+
 
 const RequestTimeline: React.FC<RequestTimelineProps> = ({ request: initialRequest, contextProps }) => {
   const [request, setRequest] = useState<SubmittedRequest>(initialRequest);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [lastRefreshed, setLastRefreshed] = useState<Date>(new Date());
+  const [stepData, setStepData] = useState<any>(null);
+  const [isLoadingStepData, setIsLoadingStepData] = useState(false);
+  
+  // Batch fetch employee data for the requester
+  const requesterUserIds = useMemo(() => {
+    const userIds: string[] = [];
+    if (request.requesterId && request.requesterId !== 'unknown') {
+      userIds.push(request.requesterId);
+    }
+    return userIds;
+  }, [request.requesterId]);
+
+  const { displayNames: batchedDisplayNames, employees: batchedEmployees } = useEmployeeNamesBatch({
+    userIds: requesterUserIds,
+    accessToken: contextProps.accessToken,
+    enabled: requesterUserIds.length > 0,
+  });
+
   
   // Initialize flow comments hook using the request ID as flow ID
   const {
@@ -60,13 +152,49 @@ const RequestTimeline: React.FC<RequestTimelineProps> = ({ request: initialReque
     await postFlowComment(commentRequest.comment, commentRequest.visibility);
   };
 
+  // Function to fetch step data from the API
+  const fetchStepData = async () => {
+    try {
+      setIsLoadingStepData(true);
+      console.log(`[RequestTimeline] 🔄 Fetching step data for request: ${request.id}`);
+      
+      // Check if the workflow engine supports getFlowStepData
+      if (!contextProps.workflowEngine.getFlowStepData) {
+        console.log(`[RequestTimeline] ⚠️ Workflow engine does not support getFlowStepData, skipping step data fetch`);
+        return;
+      }
+      
+      // Use the workflow engine to get step_0 data
+      const stepResponse = await contextProps.workflowEngine.getFlowStepData(request.id, 'step_0');
+      
+      console.log(`[RequestTimeline] ✅ Step data fetched:`, {
+        requestId: request.id,
+        dataCount: stepResponse.data?.length || 0,
+        stepData: stepResponse
+      });
+      
+      setStepData(stepResponse);
+      
+    } catch (error) {
+      console.error(`[RequestTimeline] ❌ Failed to fetch step data:`, error);
+      // Don't set stepData to null on error, keep existing data
+    } finally {
+      setIsLoadingStepData(false);
+    }
+  };
+
   // Auto-refresh mechanism for live data
   const refreshRequestData = async () => {
     try {
       setIsRefreshing(true);
       console.log(`[RequestTimeline] 🔄 Refreshing live data for request: ${request.id}`);
       
-      const updatedRequest = await contextProps.workflowEngine.getRequest(request.id);
+      // Refresh both request data and step data
+      const [updatedRequest] = await Promise.all([
+        contextProps.workflowEngine.getRequest(request.id),
+        fetchStepData() // This will update stepData state
+      ]);
+      
       setRequest(updatedRequest);
       setLastRefreshed(new Date());
       
@@ -108,17 +236,24 @@ const RequestTimeline: React.FC<RequestTimelineProps> = ({ request: initialReque
   useEffect(() => {
     setRequest(initialRequest);
     setLastRefreshed(new Date());
+    // Fetch step data for the new request
+    fetchStepData();
   }, [initialRequest.id]);
+
+  // Initial step data fetch when component mounts
+  useEffect(() => {
+    fetchStepData();
+  }, []);
 
   const getStepIcon = (status: StepStatus) => {
     switch (status) {
       case 'DONE':
-      case 'COMPLETED': return <CheckCircle className="gba:text-green-600" size={20} />;
+      case 'COMPLETED': return <CheckCircleIcon className="gba:text-green-600" size={20} />;
       case 'IN_PROGRESS':
-      case 'RUNNING': return <ClockCounterClockwise className="gba:text-blue-600 gba:animate-spin" size={20} />;
+      case 'RUNNING': return <ClockCounterClockwiseIcon className="gba:text-blue-600 gba:animate-spin gba:[animation-direction:reverse]" size={20} />;
       case 'REJECTED':
       case 'FAILED':
-      case 'ERROR': return <XCircle className="gba:text-red-600" size={20} />;
+      case 'ERROR': return <XCircleIcon className="gba:text-red-600" size={20} />;
       case 'READY':
       case 'QUEUED': return <div className="gba:w-5 gba:h-5 gba:bg-yellow-400 gba:rounded-full gba:flex gba:items-center gba:justify-center">
         <div className="gba:w-2 gba:h-2 gba:bg-white gba:rounded-full"></div>
@@ -160,49 +295,8 @@ const RequestTimeline: React.FC<RequestTimelineProps> = ({ request: initialReque
     }
   };
 
-  const getFieldIcon = (fieldName: string) => {
-    const name = fieldName.toLowerCase();
-    if (name.includes('name') || name.includes('employee') || name.includes('user')) return User;
-    if (name.includes('date') || name.includes('time') || name.includes('due')) return Calendar;
-    if (name.includes('amount') || name.includes('budget') || name.includes('cost') || name.includes('salary')) return CurrencyDollar;
-    if (name.includes('company') || name.includes('department') || name.includes('office')) return Building;
-    if (name.includes('phone') || name.includes('mobile') || name.includes('contact')) return Phone;
-    if (name.includes('url') || name.includes('website') || name.includes('link')) return Globe;
-    if (name.includes('description') || name.includes('reason') || name.includes('comment') || name.includes('note')) return FileText;
-    return FileText;
-  };
 
-  // Simplified field value formatter
-  const formatFieldValue = (key: string, value: any): string => {
-    if (value === null || value === undefined) return 'Not provided';
-    if (typeof value === 'boolean') return value ? 'Yes' : 'No';
-    if (typeof value === 'object') return JSON.stringify(value, null, 2);
-    
-    const keyLower = key.toLowerCase();
-    const valueStr = value.toString();
-    
-    // Date formatting
-    if (keyLower.includes('date') && typeof value === 'string') {
-      try {
-        return new Date(value).toLocaleDateString();
-      } catch {
-        return valueStr;
-      }
-    }
-    
-    return valueStr;
-  };
 
-  const formatFieldLabel = (key: string): string => {
-    return key
-      .replace(/([A-Z])/g, ' $1')
-      .replace(/^./, str => str.toUpperCase())
-      .trim();
-  };
-
-  const resolveTimelineMessage = (message: string): string => {
-    return message;
-  };
 
   return (
     <div className="gba:space-y-6">
@@ -219,7 +313,7 @@ const RequestTimeline: React.FC<RequestTimelineProps> = ({ request: initialReque
                   {formatRequestId(request.id)}
                 </code>
               </span>
-              <span>Created: {new Date(request.createdAt).toLocaleDateString()}</span>
+              <span>Created: {formatDate(request.createdAt, getUserDateFormat(contextProps.userInfo), getUserLocale(contextProps.userInfo))}</span>
             </div>
           </div>
           <div className="gba:flex gba:flex-col gba:items-end gba:gap-2">
@@ -260,12 +354,6 @@ const RequestTimeline: React.FC<RequestTimelineProps> = ({ request: initialReque
                   return `${completedSteps} of ${totalSteps} steps completed`;
                 })()}
               </span>
-              <div 
-                className="gba:text-xs gba:mt-1"
-                style={{ color: 'var(--nw-muted-foreground)' }}
-              >
-                📡 Live data • Auto-refresh: 30s
-              </div>
             </div>
           </div>
         </div>
@@ -322,35 +410,66 @@ const RequestTimeline: React.FC<RequestTimelineProps> = ({ request: initialReque
 
       {/* Submitted Form Data */}
       {(() => {
-        // Use request.formData which contains the actual submitted form data
-        const submittedData = request.formData || {};
+        // Use step data from API if available, fallback to request.formData
+        let submittedData: Record<string, any> = {};
+        
+        if (stepData && stepData.data && stepData.data.length > 0) {
+          // Use the formData from the first step data entry
+          submittedData = stepData.data[0].formData || {};
+          console.log(`[RequestTimeline] 📋 Using step data from API for request ${request.id}:`, {
+            stepDataAvailable: true,
+            formDataKeys: Object.keys(submittedData),
+            stepDataEntry: stepData.data[0]
+          });
+        } else {
+          // Fallback to request.formData
+          submittedData = request.formData || {};
+          console.log(`[RequestTimeline] 📋 Using fallback request.formData for request ${request.id}:`, {
+            stepDataAvailable: false,
+            fallbackDataKeys: Object.keys(submittedData)
+          });
+        }
         
         console.log(`[RequestTimeline] 📋 Using submitted form data for request ${request.id}:`, {
-          requestFormDataKeys: request.formData ? Object.keys(request.formData) : [],
-          requestFormData: request.formData,
-          finalSubmittedData: submittedData,
-          finalDataKeys: Object.keys(submittedData),
-          dataSource: 'request.formData',
-          allSteps: request.steps.map(s => ({ 
-            name: s.name, 
-            status: s.status,
-            hasAssignment: !!(s.assignedToUserId || s.claimedByUserId),
-            hasDueDate: !!s.dueDate
-          }))
+          originalDataKeys: Object.keys(submittedData),
+          dataSource: stepData ? 'step_0_api' : 'request.formData'
         });
         
-        if (Object.keys(submittedData).length === 0) {
+        // Show loading state while fetching step data
+        if (isLoadingStepData && !stepData) {
           return (
             <Card className="gba:p-6">
               <h5 className="gba:text-lg gba:font-semibold gba:mb-4 gba:flex gba:items-center gba:gap-2">
-                <FileText size={20} />
+                <FileTextIcon size={20} />
                 Submitted Information
               </h5>
               <div className="gba:text-center gba:py-8 gba:text-gray-500">
-                <FileText className="gba:mx-auto gba:mb-2" size={24} />
-                <p>No submitted form data available</p>
-                <p className="gba:text-xs gba:mt-2">
-                  Check console for debugging info.
+                <div className="gba:w-6 gba:h-6 gba:border-2 gba:border-blue-500 gba:border-t-transparent gba:rounded-full gba:animate-spin gba:mx-auto gba:mb-2"></div>
+                <p>Loading submitted data...</p>
+                <p className="gba:text-xs gba:mt-2 gba:text-muted-foreground">
+                  Fetching form data from step_0
+                </p>
+              </div>
+            </Card>
+          );
+        }
+
+        // Check if we have any data to display
+        const hasData = (stepData?.data?.[0]?.formData && Object.keys(stepData.data[0].formData).length > 0) || 
+                        (submittedData && Object.keys(submittedData).length > 0);
+        
+        if (!hasData) {
+          return (
+            <Card className="gba:p-6">
+              <h5 className="gba:text-lg gba:font-semibold gba:mb-4 gba:flex gba:items-center gba:gap-2">
+                <FileTextIcon size={20} />
+                Submitted Information
+              </h5>
+              <div className="gba:text-center gba:py-8 gba:text-gray-500">
+                <FileTextIcon className="gba:mx-auto gba:mb-2" size={24} />
+                <p>No form data submitted with this request</p>
+                <p className="gba:text-xs gba:mt-2 gba:text-muted-foreground">
+                  {stepData ? 'Step data was fetched but contains no form fields' : 'This request may have been created without additional form fields'}
                 </p>
               </div>
             </Card>
@@ -358,82 +477,59 @@ const RequestTimeline: React.FC<RequestTimelineProps> = ({ request: initialReque
         }
         
         return (
-          <Card className="gba:p-6">
+          <Card className="gba:p-6" data-testid="step0-data-card">
             <div className="gba:flex gba:items-center gba:justify-between gba:mb-6">
               <h5 className="gba:text-lg gba:font-semibold gba:flex gba:items-center gba:gap-2">
-                <FileText size={20} />
+                <FileTextIcon size={20} />
                 Submitted Information
               </h5>
               <div className="gba:flex gba:items-center gba:gap-2 gba:flex-wrap">
                 <Badge variant="outline" className="gba:text-xs">
-                  {Object.keys(submittedData).filter(key => 
-                    !key.includes('stepAssignment') && 
-                    !key.includes('_assignmentMode') && 
-                    !key.includes('_allowReassignment') &&
-                    submittedData[key] !== null && 
-                    submittedData[key] !== undefined && 
-                    submittedData[key] !== ''
-                  ).length} fields
+                  {(() => {
+                    const dataToUse = stepData?.data?.[0]?.formData || submittedData;
+                    const filteredCount = Object.entries(dataToUse || {}).filter(([key, value]) => {
+                      // Same filtering logic as in Step0DataRenderer
+                      if (key.includes('stepAssignment') || 
+                          key.includes('_assignmentMode') || 
+                          key.includes('_allowReassignment') ||
+                          key.startsWith('__') ||
+                          key.includes('internal_') ||
+                          key.includes('assignment') ||
+                          key.includes('assignee') ||
+                          key.includes('assign_')) {
+                        return false;
+                      }
+                      if (value === null || value === undefined || value === '') {
+                        return false;
+                      }
+                      if (Array.isArray(value) && value.length === 0) {
+                        return false;
+                      }
+                      if (typeof value === 'object' && Object.keys(value).length === 0) {
+                        return false;
+                      }
+                      return true;
+                    }).length;
+                    return filteredCount;
+                  })()} fields
                 </Badge>
-                <Badge variant="outline" className="gba:text-xs gba:bg-green-100 gba:text-green-700">
-                  ✅ Form Data
-                </Badge>
+                {stepData && stepData.data && stepData.data[0] && (
+                  <Badge variant="outline" className="gba:text-xs gba:bg-purple-100 gba:text-purple-700">
+                    {stepData.data[0].stepTitle}
+                  </Badge>
+                )}
               </div>
             </div>
             
-            <div className="gba:grid gba:grid-cols-1 gba:md:grid-cols-2 gba:gap-4">
-              {Object.entries(submittedData).map(([key, value]) => {
-                // Skip internal step assignment fields and empty values
-                if (key.includes('stepAssignment') || 
-                    key.includes('_assignmentMode') || 
-                    key.includes('_allowReassignment') ||
-                    value === null ||
-                    value === undefined ||
-                    value === '') {
-                  return null;
-                }
-                
-                const IconComponent = getFieldIcon(key);
-                const formattedValue = formatFieldValue(key, value);
-                const isLongText = formattedValue.length > 50;
-                
-                return (
-                  <div 
-                    key={key} 
-                    className={`gba:p-4 gba:border gba:border-gray-200 gba:rounded-lg gba:bg-gray-50/50 gba:transition-all gba:duration-200 hover:gba:bg-gray-100/50 hover:gba:border-gray-300 ${
-                      isLongText ? 'gba:md:col-span-2' : ''
-                    }`}
-                  >
-                    <div className="gba:flex gba:items-start gba:gap-3">
-                      <div className="gba:p-2 gba:bg-blue-100 gba:rounded-lg gba:flex-shrink-0">
-                        <IconComponent size={16} className="gba:text-blue-600" />
-                      </div>
-                      
-                      <div className="gba:flex-1 gba:min-w-0">
-                        <h6 className="gba:text-sm gba:font-semibold gba:text-gray-700 gba:mb-1">
-                          {formatFieldLabel(key)}
-                        </h6>
-                        
-                        {isLongText ? (
-                          <div className="gba:text-sm gba:text-gray-600 gba:bg-white gba:p-3 gba:rounded gba:border gba:whitespace-pre-wrap gba:font-mono gba:text-xs">
-                            {formattedValue}
-                          </div>
-                        ) : (
-                          <p className="gba:text-sm gba:text-gray-600 gba:truncate" title={formattedValue}>
-                            {formattedValue}
-                          </p>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                );
-              }).filter(Boolean)}
-            </div>
+            <Step0DataRenderer 
+              stepData={stepData?.data?.[0] || { formData: submittedData }}
+              testIdPrefix="my-requests-step0"
+            />
 
             {/* Enhanced Submission Metadata */}
             <div className="gba:mt-6 gba:pt-4 gba:border-t gba:border-gray-200">
               <div 
-                className="gba:grid gba:grid-cols-1 gba:md:grid-cols-2 gba:lg:grid-cols-4 gba:gap-4 gba:text-xs"
+                className="gba:grid gba:grid-cols-1 gba:md:grid-cols-2 gba:gap-4 gba:text-xs"
                 style={{ color: 'var(--nw-muted-foreground)' }}
               >
                 <div className="gba:flex gba:flex-col">
@@ -443,16 +539,37 @@ const RequestTimeline: React.FC<RequestTimelineProps> = ({ request: initialReque
                   >
                     Submitted By
                   </span>
-                  <UserDisplayName
-                    userId={request.requesterId}
-                    accessToken={contextProps.accessToken}
-                    userInfo={contextProps.userInfo}
-                    showIcon={true}
-                    color="default"
-                    size="small"
-                    fallback="Unknown User"
-                    testId={`submitted-by-${request.id}`}
-                  />
+                  {(() => {
+                    const requesterUserId = request.requesterId;
+                    const requesterName = requesterUserId ? batchedDisplayNames.get(requesterUserId) : null;
+                    const employeeData = requesterUserId ? batchedEmployees.get(requesterUserId) : null;
+                    
+                    // Show loading state if we're still fetching employee data
+                    if (requesterUserId && requesterUserId !== 'unknown' && !requesterName && requesterUserIds.length > 0) {
+                      return (
+                        <div className="gba:flex gba:items-center gba:gap-2">
+                          <div className="gba:w-6 gba:h-6 gba:bg-gray-200 gba:rounded-full gba:animate-pulse"></div>
+                          <span className="gba:text-gray-400">Loading...</span>
+                        </div>
+                      );
+                    }
+                    
+                    const displayName = requesterName || "Unknown User";
+                    
+                    if (!requesterUserId || requesterUserId === 'unknown') {
+                      return <span className="gba:text-gray-400">{displayName}</span>;
+                    }
+                    
+                    return (
+                      <EnhancedEmployeeDisplay
+                        userId={requesterUserId}
+                        displayName={displayName}
+                        employeeData={employeeData}
+                        testId={`submitted-by-${request.id}`}
+                        showTooltip={true}
+                      />
+                    );
+                  })()}
                 </div>
                 <div className="gba:flex gba:flex-col">
                   <span 
@@ -468,40 +585,8 @@ const RequestTimeline: React.FC<RequestTimelineProps> = ({ request: initialReque
                     >
                       {request.templateId}
                     </div>
-                    <div style={{ color: 'var(--nw-muted-foreground)' }}>
-                      v{request.templateVersion}
-                    </div>
+                    
                   </div>
-                </div>
-                <div className="gba:flex gba:flex-col">
-                  <span 
-                    className="gba:font-medium"
-                    style={{ color: 'var(--nw-foreground)' }}
-                  >
-                    Category
-                  </span>
-                  <Badge 
-                    variant="outline" 
-                    className="gba:text-xs gba:w-fit"
-                    style={{
-                      backgroundColor: 'var(--nw-muted)',
-                      color: 'var(--nw-muted-foreground)',
-                      borderColor: 'var(--nw-border)'
-                    }}
-                  >
-                    {request.categoryIdSnapshot?.replace(/[-_]/g, ' ').replace(/\b\w/g, l => l.toUpperCase()) || 'General'}
-                  </Badge>
-                </div>
-                <div className="gba:flex gba:flex-col">
-                  <span 
-                    className="gba:font-medium"
-                    style={{ color: 'var(--nw-foreground)' }}
-                  >
-                    Request Type
-                  </span>
-                  <span style={{ color: 'var(--nw-foreground)' }}>
-                    Service Request
-                  </span>
                 </div>
               </div>
               
@@ -549,7 +634,7 @@ const RequestTimeline: React.FC<RequestTimelineProps> = ({ request: initialReque
       <Card className="gba:p-6">
         <div className="gba:flex gba:justify-between gba:items-center gba:mb-6">
           <h5 className="gba:text-lg gba:font-semibold gba:flex gba:items-center gba:gap-2">
-            <ClockCounterClockwise size={20} />
+            <ClockCounterClockwiseIcon size={20} />
             Workflow Progress
           </h5>
           <div className="gba:flex gba:items-center gba:gap-2">
@@ -587,11 +672,6 @@ const RequestTimeline: React.FC<RequestTimelineProps> = ({ request: initialReque
                         {step.name}
                       </h6>
                       <div className="gba:flex gba:items-center gba:gap-4 gba:text-sm gba:text-muted-foreground">
-                        <span className="gba:flex gba:items-center gba:gap-1">
-                          <Badge variant="outline" className="gba:text-xs">
-                            {step.desk}
-                          </Badge>
-                        </span>
                         {step.assignedToUserId && (
                           <span className="gba:flex gba:items-center gba:gap-1">
                             Assigned to: 
@@ -630,20 +710,20 @@ const RequestTimeline: React.FC<RequestTimelineProps> = ({ request: initialReque
                     {step.startedAt && (
                       <div className="gba:flex gba:flex-col">
                         <span className="gba:font-medium gba:text-gray-700">Started</span>
-                        <span>{new Date(step.startedAt).toLocaleString()}</span>
+                        <span>{formatDateTime(step.startedAt)}</span>
                       </div>
                     )}
                     {step.finishedAt && (
                       <div className="gba:flex gba:flex-col">
                         <span className="gba:font-medium gba:text-gray-700">Completed</span>
-                        <span>{new Date(step.finishedAt).toLocaleString()}</span>
+                        <span>{formatDateTime(step.finishedAt)}</span>
                       </div>
                     )}
                     {step.dueDate && (
                       <div className="gba:flex gba:flex-col">
                         <span className="gba:font-medium gba:text-gray-700">Due Date</span>
                         <span className={new Date(step.dueDate) < new Date() ? 'gba:text-red-600 gba:font-semibold' : 'gba:text-gray-700'}>
-                          {new Date(step.dueDate).toLocaleString()}
+                          {formatDateTime(step.dueDate)}
                           {new Date(step.dueDate) < new Date() && (
                             <span className="gba:ml-1 gba:text-red-500 gba:font-bold">⚠️ OVERDUE</span>
                           )}
@@ -681,7 +761,7 @@ const RequestTimeline: React.FC<RequestTimelineProps> = ({ request: initialReque
                             </div>
                             <div className="gba:text-muted-foreground gba:mb-1">{comment.body}</div>
                             <div className="gba:text-xs gba:text-muted-foreground">
-                              {new Date(comment.createdAt).toLocaleString()}
+                              {formatDateTime(comment.createdAt)}
                             </div>
                           </div>
                         ))}
@@ -695,56 +775,6 @@ const RequestTimeline: React.FC<RequestTimelineProps> = ({ request: initialReque
         </div>
       </Card>
 
-      {/* Enhanced Activity Timeline with Live Updates */}
-      {request.timeline.length > 0 && (
-        <Card className="gba:p-6">
-          <div className="gba:flex gba:justify-between gba:items-center gba:mb-4">
-            <h5 className="gba:text-lg gba:font-semibold gba:flex gba:items-center gba:gap-2">
-              <FileText size={20} />
-              Recent Activity
-              <Badge variant="outline" className="gba:text-xs gba:ml-2">
-                {request.timeline.length} events
-              </Badge>
-            </h5>
-            <div className="gba:text-xs gba:text-gray-500 gba:flex gba:items-center gba:gap-1">
-              <span className={`gba:w-2 gba:h-2 gba:rounded-full ${isRefreshing ? 'gba:bg-blue-500 gba:animate-pulse' : 'gba:bg-green-500'}`}></span>
-              Real-time
-            </div>
-          </div>
-          <div className="gba:space-y-3 gba:max-h-80 gba:overflow-y-auto">
-            {request.timeline.slice(-10).reverse().map((event, index) => (
-              <div 
-                key={index}
-                className="gba:flex gba:justify-between gba:items-start gba:p-4 gba:bg-muted/30 gba:rounded-md gba:text-sm gba:border-l-4 gba:border-blue-400 gba:transition-all gba:duration-200 hover:gba:bg-muted/50"
-              >
-                <div className="gba:flex-1">
-                  <span className="gba:text-foreground gba:font-medium">{resolveTimelineMessage(event.message)}</span>
-                  <div className="gba:text-xs gba:text-muted-foreground gba:mt-1 gba:flex gba:items-center gba:gap-2">
-                    <Calendar size={12} />
-                    {new Date(event.at).toLocaleString()}
-                  </div>
-                </div>
-                <div className="gba:text-xs gba:text-muted-foreground gba:font-mono gba:ml-4">
-                  {(() => {
-                    const eventTime = new Date(event.at);
-                    const now = new Date();
-                    const diffMinutes = Math.floor((now.getTime() - eventTime.getTime()) / (1000 * 60));
-                    
-                    if (diffMinutes < 1) return 'Just now';
-                    if (diffMinutes < 60) return `${diffMinutes}m ago`;
-                    
-                    const diffHours = Math.floor(diffMinutes / 60);
-                    if (diffHours < 24) return `${diffHours}h ago`;
-                    
-                    const diffDays = Math.floor(diffHours / 24);
-                    return `${diffDays}d ago`;
-                  })()}
-                </div>
-              </div>
-            ))}
-          </div>
-        </Card>
-      )}
 
       {/* Request Comments Section */}
       <RequestComments
@@ -903,7 +933,7 @@ export const MyRequests: React.FC<MyRequestsProps> = ({
         id: 'total-requests',
         title: 'Total Requests',
         value: totalRequests,
-        icon: <FileText className="gba:w-4 gba:h-4" />,
+        icon: <FileTextIcon className="gba:w-4 gba:h-4" />,
         footer: 'All submitted requests',
         trend: totalRequests > 0 ? {
           value: `${requestsTrend > 0 ? '+' : ''}${requestsTrend.toFixed(1)}%`,
@@ -915,7 +945,7 @@ export const MyRequests: React.FC<MyRequestsProps> = ({
         id: 'active-requests',
         title: 'Active Requests',
         value: activeRequests,
-        icon: <ClockCounterClockwise className="gba:w-4 gba:h-4" />,
+        icon: <ClockCounterClockwiseIcon className="gba:w-4 gba:h-4" />,
         footer: 'Currently being processed',
         trend: activeRequests > 0 ? {
           value: `${activeRequests}/${totalRequests}`,
@@ -931,7 +961,7 @@ export const MyRequests: React.FC<MyRequestsProps> = ({
         title: 'Average Progress',
         value: avgProgress,
         suffix: '%',
-        icon: <CheckCircle className="gba:w-4 gba:h-4" />,
+        icon: <CheckCircleIcon className="gba:w-4 gba:h-4" />,
         footer: 'Completion of active requests',
         progress: activeRequests > 0 ? {
           value: avgProgress,
@@ -954,7 +984,7 @@ export const MyRequests: React.FC<MyRequestsProps> = ({
         title: 'Completion Rate',
         value: totalRequests > 0 ? Math.round((completedRequests / totalRequests) * 100) : 0,
         suffix: '%',
-        icon: <CheckCircle className="gba:w-4 gba:h-4" />,
+        icon: <CheckCircleIcon className="gba:w-4 gba:h-4" />,
         footer: `${completedRequests} of ${totalRequests} completed`,
         trend: completedRequests > 0 ? {
           value: `${completedRequests}`,
@@ -1069,7 +1099,7 @@ export const MyRequests: React.FC<MyRequestsProps> = ({
     {
       type: 'view',
       label: 'View Details',
-      icon: <FileText className="gba:w-4 gba:h-4" />,
+      icon: <FileTextIcon className="gba:w-4 gba:h-4" />,
       onClick: (request: SubmittedRequest) => handleViewRequest(request),
       show: () => true,
       disabled: () => false
@@ -1080,7 +1110,7 @@ export const MyRequests: React.FC<MyRequestsProps> = ({
     return (
       <PageLayout
         headerPhosphorIcon={{
-          icon: ClockCounterClockwise,
+          icon: ClockCounterClockwiseIcon,
           variant: "strategy",
           size: "lg",
           label: "My Requests"
@@ -1105,14 +1135,14 @@ export const MyRequests: React.FC<MyRequestsProps> = ({
             className="gba:flex gba:items-center gba:text-blue-500 gba:hover:text-blue-600"
             data-testid="back-button"
           >
-            <ArrowLeft className="gba:mr-2" />
+            <ArrowLeftIcon className="gba:mr-2" />
             <span>Back to Catalog</span>
           </button>
         </div>
         
         <PageLayout
           headerPhosphorIcon={{
-            icon: XCircle,
+            icon: XCircleIcon,
             variant: "strategy",
             size: "lg",
             label: "Error"
@@ -1147,14 +1177,14 @@ export const MyRequests: React.FC<MyRequestsProps> = ({
           className="gba:flex gba:items-center gba:text-blue-500 gba:hover:text-blue-600"
           data-testid="back-button"
         >
-          <ArrowLeft className="gba:mr-2" />
+          <ArrowLeftIcon className="gba:mr-2" />
           <span>Back to Catalog</span>
         </button>
       </div>
       
       <PageLayout
         headerPhosphorIcon={{
-          icon: ClockCounterClockwise,
+          icon: ClockCounterClockwiseIcon,
           variant: "strategy",
           size: "lg",
           label: "My Requests"
@@ -1194,7 +1224,7 @@ export const MyRequests: React.FC<MyRequestsProps> = ({
             </div>
           ) : (
             <div className="gba:text-center gba:py-12">
-              <ClockCounterClockwise className="gba:mx-auto gba:h-16 gba:w-16 gba:text-muted-foreground gba:mb-4" />
+              <ClockCounterClockwiseIcon className="gba:mx-auto gba:h-16 gba:w-16 gba:text-muted-foreground gba:mb-4" />
               <h3 className="gba:text-lg gba:font-semibold gba:mb-2">No Requests Yet</h3>
               <p className="gba:text-muted-foreground gba:mb-6">
                 You haven't submitted any service requests yet. Get started by browsing our service catalog.
@@ -1264,41 +1294,44 @@ export const MyRequests: React.FC<MyRequestsProps> = ({
                 Request Details
               </h3>
               {selectedRequest && (
-                <div>
-                  <p style={{ fontSize: '14px', color: '#6b7280', marginTop: '4px', margin: 0 }}>
-                    {formatRequestId(selectedRequest.id)} • {selectedRequest.titleSnapshot}
-                  </p>
-                  <div className="gba:flex gba:items-center gba:gap-2 gba:mt-1">
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        // Manual refresh trigger - will be handled by the timeline component
-                        const refreshEvent = new CustomEvent('refreshRequestTimeline');
-                        window.dispatchEvent(refreshEvent);
-                      }}
-                    >
-                      🔄 Refresh Data
-                    </Button>
-                  </div>
+                <div className="gba:flex gba:items-center gba:gap-1 gba:mt-1" style={{ fontSize: '12px', color: '#6b7280' }}>
+                  <WifiHighIcon size={12} />
+                  <span>Live data • Auto-refresh: 30s</span>
                 </div>
               )}
             </div>
-            <Button 
-              variant="ghost" 
-              size="sm" 
-              onClick={handleCloseDrawer}
-              style={{
-                padding: '8px',
-                backgroundColor: 'transparent',
-                border: 'none',
-                borderRadius: '6px',
-                cursor: 'pointer'
-              }}
-            >
-              <X size={20} />
-            </Button>
+            <div className="gba:flex gba:items-center gba:gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  // Manual refresh trigger - will be handled by the timeline component
+                  const refreshEvent = new CustomEvent('refreshRequestTimeline');
+                  window.dispatchEvent(refreshEvent);
+                }}
+                className="gba:flex gba:items-center gba:gap-2"
+                data-testid="refresh-request-data-button"
+              >
+                <ArrowClockwiseIcon size={16} />
+                Refresh Data
+              </Button>
+              <Button 
+                variant="ghost" 
+                size="sm" 
+                onClick={handleCloseDrawer}
+                style={{
+                  padding: '8px',
+                  backgroundColor: 'transparent',
+                  border: 'none',
+                  borderRadius: '6px',
+                  cursor: 'pointer'
+                }}
+                data-testid="close-drawer-button"
+              >
+                <XIcon size={20} />
+              </Button>
+            </div>
           </div>
 
           {/* Drawer Content */}

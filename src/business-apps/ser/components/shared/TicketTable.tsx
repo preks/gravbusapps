@@ -185,6 +185,7 @@ const EnhancedEmployeeDisplay: React.FC<{
     }
   };
 
+
   const avatarDisplay = (
     <div
       className="gba:flex gba:items-center gba:gap-2 gba:cursor-pointer hover:gba:bg-transparent focus:gba:bg-transparent gba:group gba:p-1 gba:rounded gba:transition-colors hover:gba:bg-gray-100"
@@ -195,8 +196,17 @@ const EnhancedEmployeeDisplay: React.FC<{
         {/* Future: Profile picture support when available in employee data */}
         {employeeData?.pictureThumbnail && (
           <AvatarImage
-            src={`data:image/gif;base64,${employeeData.pictureThumbnail}`}
+            src={`data:image/png;base64,${employeeData.pictureThumbnail}`}
             alt={displayName}
+            onError={(e) => {
+              // Try different image formats if PNG fails
+              const target = e.target as HTMLImageElement;
+              if (target.src.includes('png')) {
+                target.src = `data:image/jpeg;base64,${employeeData.pictureThumbnail}`;
+              } else if (target.src.includes('jpeg')) {
+                target.src = `data:image/gif;base64,${employeeData.pictureThumbnail}`;
+              }
+            }}
           />
         )}
         <AvatarFallback>

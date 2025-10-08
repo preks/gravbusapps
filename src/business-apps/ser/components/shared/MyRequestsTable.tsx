@@ -10,6 +10,7 @@ import { DataContainer } from '@/components/layout/dataContainer/DataContainer';
 import { useMyRequestsTablePreferences } from '../../hooks/useMyRequestsTablePreferences';
 import type { ColumnConfig } from '@/components/dataController';
 import { useFlowComments } from '../../apps/service-portal/hooks/useFlowComments';
+import { formatDate } from '../../config/dateTimeConfig';
 
 // Import nw-design-system components
 import { 
@@ -899,7 +900,7 @@ export const MyRequestsTable: React.FC<MyRequestsTableProps> = ({
                             <div className="gba:flex gba:items-center gba:gap-2">
                               <Calendar className="gba:w-3.5 gba:h-3.5 gba:text-muted-foreground" />
                               <div className="gba:text-sm gba:font-medium">
-                                {new Date(request.createdAt).toLocaleDateString()}
+                                {formatDate(request.createdAt)}
                               </div>
                             </div>
                             <div className="gba:text-xs gba:font-medium gba:flex gba:items-center gba:gap-1 gba:text-muted-foreground">

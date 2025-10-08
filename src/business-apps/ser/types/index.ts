@@ -179,6 +179,23 @@ export interface WorkflowEngine {
   
   // ✅ NEW: Two-step template execution (execute template + complete first task with form data)
   executeTemplate?(templateId: string, formData: any): Promise<string>;
+  
+  // ✅ NEW: Get step data for a specific flow step
+  getFlowStepData?(flowId: string, stepReference: string): Promise<{
+    data: Array<{
+      flowId: string;
+      taskId: string;
+      userId: string;
+      userName: string;
+      timestamp: string;
+      stepTitle: string;
+      formData: any;
+    }>;
+    totalCount: number;
+    hasMore: boolean;
+    stepReference: string;
+    flowId: string;
+  }>;
 }
 
 // Analytics event types

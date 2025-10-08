@@ -20,3 +20,6 @@ export * from './data';
 
 // Utils
 export * from './utils';
+
+// Configuration
+export * from './config';

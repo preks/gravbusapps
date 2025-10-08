@@ -840,7 +840,7 @@ export class ConductorWorkflowEngineAdapter implements WorkflowEngine {
     return {
       id: flowData.flowId || flowData.id,
       templateId: flowData.templateId || 'unknown',
-      templateVersion: flowData.version || 1,
+      templateVersion: flowData.version || 'x',
       requesterId: flowData.initiatedBy || flowData.requesterId || this.currentUserId,
       createdAt: flowData.startTime || flowData.createdAt,
       status: this.mapFlowStatusToRequestStatus(flowData.status),
