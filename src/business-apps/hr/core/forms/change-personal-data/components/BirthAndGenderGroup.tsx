@@ -99,11 +99,19 @@ const BirthAndGenderGroup: React.FC<BirthAndGenderGroupProps> = ({ control, cata
                 </SelectTrigger>
               </FormControl>
               <SelectContent>
-                {(catalogs.gender || []).map((entry: any) => (
-                  <SelectItem key={entry.id} value={String(entry.id)} data-testid={`change-personal-data-gender-option-${entry.id}`}>
-                    {entry?.translations?.[0]?.value || entry?.value}
-                  </SelectItem>
-                ))}
+                {(() => {
+                  const order = ['female', 'male', 'divers', 'not defined'];
+                  const byValue = new Map<string, any>((catalogs.gender || []).map((e: any) => [String(e?.value || e?.translations?.[0]?.value).toLowerCase(), e]));
+                  const ordered = order
+                    .map((v) => byValue.get(v))
+                    .filter(Boolean)
+                    .concat((catalogs.gender || []).filter((e: any) => !order.includes(String(e?.value || e?.translations?.[0]?.value ).toLowerCase())));
+                  return ordered.map((entry: any) => (
+                    <SelectItem key={entry.id} value={String(entry.id)} data-testid={`change-personal-data-gender-option-${entry.id}`}>
+                      {entry?.translations?.[0]?.value || entry?.value}
+                    </SelectItem>
+                  ));
+                })()}
               </SelectContent>
             </Select>
             <FormMessage />

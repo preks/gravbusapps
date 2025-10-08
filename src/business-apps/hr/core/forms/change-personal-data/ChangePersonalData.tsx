@@ -161,13 +161,8 @@ const ChangePersonalDataContent: React.FC<ChangePersonalDataFormProps> = ({ acce
     <div className="gba:mx-auto gba:font-primary gba:flex gba:flex-col gba:w-[100%] gba:max-w-[800px]" data-testid="flw_changePersonalData_screenContentLayout">
       <FormHeader title={title} flowIconUrl={flowIconUrl} />
 
-      <div className="gba:flex gba:flex-col gba:gap-4 gba:[&>div[data-testid='change-personal-data']]:!px-0" data-testid="change-personal-data-form-content">
-        <UploadComponent
-          dataTestIdPrefix="flw_changePersonalData_uploadFile"
-          multiple={false}
-          fileList={fileList}
-          setFileList={setFileList}
-        />
+      <div className="gba:flex gba:flex-col gba:gap-4 gba:[&>div[data-testid='change-personal-data']]:!pt-0 gba:[&>div[data-testid='change-personal-data']]:!px-0" data-testid="change-personal-data-form-content">
+        {/* moved upload below comment - removed from here */}
 
         <AppActionForm
           processType="update"
@@ -305,13 +300,22 @@ const ChangePersonalDataContent: React.FC<ChangePersonalDataFormProps> = ({ acce
 
             {/* Qualification fields (school + academic titles) */}
             <QualificationFields control={form.control} catalogs={{ schoolQualification: catalogs.schoolQualification, academicTitle: catalogs.academicTitle }} />
+
+            {/* Upload (compact single-line), placed under comment */}
+            <UploadComponent
+              dataTestIdPrefix="flw_changePersonalData_uploadFile"
+              multiple={false}
+              fileList={fileList}
+              setFileList={setFileList}
+              labelText={getTranslationFromI18nKeyAndLabel('lowcoder:hr_absences.create_absence.upload_document', 'Upload document')}
+            />
           </div>
 
           <div className="gba:flex-grow" data-testid="change-personal-data-spacer" />
 
           <Separator className="gba:mt-4 gba:mb-4" data-testid="change-personal-data-divider" />
 
-          <div className="gba:flex gba:justify-between gba:items-center gba:mt-auto gba:pt-4" data-testid="change-personal-data-actions-wrapper">
+          <div className="gba:flex gba:justify-end gba:items-center gba:gap-2 gba:mt-auto gba:pt-4" data-testid="change-personal-data-actions-wrapper">
             <div className="gba:flex gba:gap-2" data-testid="change-personal-data-actions-left">
               <Button
                 type="button"

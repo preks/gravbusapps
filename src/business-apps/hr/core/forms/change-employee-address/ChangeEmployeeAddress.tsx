@@ -53,6 +53,7 @@ const ChangeEmployeeAddressContent: React.FC<ChangeEmployeeAddressFormProps> = (
       comment: '',
     },
     mode: 'onChange',
+    shouldUnregister: true,
   });
 
   const title = useMemo(() =>
@@ -130,15 +131,33 @@ const ChangeEmployeeAddressContent: React.FC<ChangeEmployeeAddressFormProps> = (
     }
   }, [watchedValues, data?.address?.EmployeeAddress]);
 
-  // Default selection: set ONLY the selected type after data fetch, once per dataset
+  // Default selection: set selected and populate fields only after catalogs are loaded
   const defaultSelectAppliedFor = useRef<string | null>(null);
   useEffect(() => {
     const addresses = (data?.address?.EmployeeAddress || []) as any[];
+    const countries = (data?.catalogs?.countries || []) as any[];
+    if (!countries.length) return; // wait until catalogs fetched
     const currentSelected = form.getValues('selectedAddressId');
-    const key = addresses.length > 0 ? addresses.map((a: any) => String(a.id)).join('|') : 'EMPTY';
+    const key = (addresses.length > 0 ? addresses.map((a: any) => String(a.id)).join('|') : 'EMPTY') + `|countries:${countries.length}`;
     if (addresses.length > 0) {
       if ((currentSelected === undefined || currentSelected === null || currentSelected === '' || currentSelected === ADD_SENTINEL) && defaultSelectAppliedFor.current !== key) {
-        form.setValue('selectedAddressId', String(addresses[0].id), { shouldDirty: false, shouldValidate: false, shouldTouch: false } as any);
+        const first = addresses[0];
+        form.setValue('selectedAddressId', String(first.id), { shouldDirty: false, shouldValidate: false, shouldTouch: false } as any);
+        form.setValue('countryId', first?.country?.id || null, { shouldDirty: false, shouldValidate: true } as any);
+        const normalized = Array.from({ length: 4 }, (_, i) => String((first?.addressLine || [])[i] || ''));
+        form.setValue('addressLines', normalized, { shouldDirty: false } as any);
+        form.setValue('postalCode', first?.postalCode || '', { shouldDirty: false } as any);
+        form.setValue('city', first?.locality || '', { shouldDirty: false } as any);
+        form.setValue('regionId', first?.region?.id || null, { shouldDirty: false, shouldValidate: true } as any);
+        try { (form as any).trigger && (form as any).trigger('countryId'); } catch {}
+        try { (form as any).trigger && (form as any).trigger('regionId'); } catch {}
+        let lastNonEmpty = -1;
+        for (let i = 0; i < 4; i++) {
+          if ((normalized[i] || '').trim() !== '') lastNonEmpty = i;
+        }
+        setAddressLineCount(Math.max(1, lastNonEmpty + 1));
+        setAddressLinesError(null);
+        setIsDeleteMode(false);
         defaultSelectAppliedFor.current = key;
       }
     } else {
@@ -148,9 +167,9 @@ const ChangeEmployeeAddressContent: React.FC<ChangeEmployeeAddressFormProps> = (
       }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [data?.address?.EmployeeAddress]);
+  }, [data?.address?.EmployeeAddress, data?.catalogs?.countries]);
 
- 
+
 
   const initialRef = useRef<AddressFormValues>(normalizedDefaults);
   useEffect(() => {
@@ -161,15 +180,8 @@ const ChangeEmployeeAddressContent: React.FC<ChangeEmployeeAddressFormProps> = (
     <div className="gba:mx-auto gba:font-primary gba:flex gba:flex-col gba:w-[100%] gba:max-w-[800px]" data-testid="change-employee-address-form-container">
       <FormHeader title={title} flowIconUrl={flowIconUrl} />
 
-      <div className="gba:flex gba:flex-col gba:gap-4 gba:[&>div[data-testid='change-employee-address']]:!px-0" data-testid="change-employee-address-form-content">
-        {!isDeleteMode && (
-          <UploadComponent
-            dataTestIdPrefix="change-employee-address"
-            multiple={false}
-            fileList={fileList}
-            setFileList={setFileList}
-          />
-        )}
+      <div className="gba:flex gba:flex-col gba:gap-4 gba:[&>div[data-testid='change-employee-address']]:!pt-0 gba:[&>div[data-testid='change-employee-address']]:!px-0" data-testid="change-employee-address-form-content">
+        {/* moved upload below comment - removed from here */}
 
         <AppActionForm
           processType="update"
@@ -435,7 +447,7 @@ const ChangeEmployeeAddressContent: React.FC<ChangeEmployeeAddressFormProps> = (
                   )}
                 />
 
-                {/* Comment */}
+            {/* Comment */}
                 <FormField
                   control={form.control as any}
                   name={"comment" as any}
@@ -456,6 +468,15 @@ const ChangeEmployeeAddressContent: React.FC<ChangeEmployeeAddressFormProps> = (
                     </FormItem>
                   )}
                 />
+
+              {/* Upload (compact single-line), placed under comment */}
+              <UploadComponent
+                dataTestIdPrefix="change-employee-address"
+                multiple={false}
+                fileList={fileList}
+                setFileList={setFileList}
+                labelText={getTranslationFromI18nKeyAndLabel('lowcoder:hr_absences.create_absence.upload_document', 'Upload document')}
+              />
               </>
             )}
           </div>
@@ -464,7 +485,7 @@ const ChangeEmployeeAddressContent: React.FC<ChangeEmployeeAddressFormProps> = (
 
           <Separator className="gba:mt-4 gba:mb-4" data-testid="change-employee-address-divider" />
 
-          <div className="gba:flex gba:justify-between gba:items-center gba:mt-auto gba:pt-4" data-testid="change-employee-address-actions-wrapper">
+          <div className="gba:flex gba:justify-end gba:items-center gba:gap-2 gba:mt-auto gba:pt-4" data-testid="change-employee-address-actions-wrapper">
             <div className="gba:flex gba:gap-2" data-testid="change-employee-address-actions-left">
               <Button
                 type="button"

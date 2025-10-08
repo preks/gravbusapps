@@ -66,11 +66,18 @@ const NationalityLanguageStatusGroup: React.FC<NationalityLanguageStatusGroupPro
                 </SelectTrigger>
               </FormControl>
               <SelectContent>
-                {(catalogs.language || []).map((entry) => (
-                  <SelectItem key={entry.id} value={String(entry.id)} data-testid={`change-personal-data-language-option-${entry.id}`}>
-                    {entry?.translations?.[0]?.value || entry?.value}
-                  </SelectItem>
-                ))}
+                {(() => {
+                  const sorted = [...(catalogs.language || [])].sort((a: any, b: any) => {
+                    const av = String(a?.translations?.[0]?.value || a?.value || '').toLowerCase();
+                    const bv = String(b?.translations?.[0]?.value || b?.value || '').toLowerCase();
+                    return av.localeCompare(bv);
+                  });
+                  return sorted.map((entry) => (
+                    <SelectItem key={entry.id} value={String(entry.id)} data-testid={`change-personal-data-language-option-${entry.id}`}>
+                      {entry?.translations?.[0]?.value || entry?.value}
+                    </SelectItem>
+                  ));
+                })()}
               </SelectContent>
             </Select>
             <FormMessage />

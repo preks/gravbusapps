@@ -1,6 +1,7 @@
 import React from 'react';
 import { FormField, FormItem, FormLabel, FormControl, FormMessage, Input, Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@newwork/nw-design-system';
 import type { Control } from 'react-hook-form';
+import { useWatch } from 'react-hook-form';
 import { getTranslationFromI18nKeyAndLabel, getCatalogValue } from '@/common/utils/windowUtils';
 import type { PersonalDataFormValues, CatalogEntry } from '../types';
 
@@ -98,6 +99,23 @@ const NamesGroup: React.FC<NamesGroupProps> = ({ control, catalogs }) => {
         )}
       />
 
+      {/* Preferred Name */}
+      <FormField
+        control={control}
+        name={"preferredName" as any}
+        render={({ field }) => (
+          <FormItem>
+            <FormLabel data-testid="change-personal-data-preferred-name-label">
+              {getTranslationFromI18nKeyAndLabel('lowcoder:employee_profile.summary_layout.public_profile_container.display_name', 'Preferred Name')}
+            </FormLabel>
+            <FormControl>
+            <Input {...field} placeholder={placeholderEnter} data-testid="flw_changePersonalData_currentPreferredName" />
+            </FormControl>
+            <FormMessage />
+          </FormItem>
+        )}
+      />
+
       {/* Last Name */}
       <FormField
         control={control}
@@ -128,39 +146,31 @@ const NamesGroup: React.FC<NamesGroupProps> = ({ control, catalogs }) => {
         )}
       />
 
-      {/* Display Name */}
-      <FormField
-        control={control}
-        name={"displayName" as any}
-        render={({ field }) => (
+      {/* Display Name (computed, read-only) */}
+      {(() => {
+        const watch = (name: keyof any) => useWatch({ control: control as any, name: name as any });
+        const title = watch('title' as any) as string;
+        const preferred = watch('preferredName' as any) as string;
+        const first = watch('firstName' as any) as string;
+        const last = watch('lastName' as any) as string;
+        const parts = (preferred && String(preferred).trim().length > 0)
+          ? [String(title || '').trim(), String(preferred || '').trim(), String(last || '').trim()]
+          : [String(title || '').trim(), String(first || '').trim(), String(last || '').trim()];
+        const computedDisplay = parts.filter(Boolean).join(' ').trim();
+        return (
           <FormItem>
             <FormLabel data-testid="change-personal-data-display-name-label">
               {getTranslationFromI18nKeyAndLabel('lowcoder:employee_profile.details_layout.personal_information_container.preferred_name', 'Display Name')}
             </FormLabel>
-            <FormControl>
-              <Input className="gba:w-full" {...field} placeholder={placeholderEnter} data-testid="flw_changePersonalData_currentDisplayName" />
-            </FormControl>
+            <div className="gba:flex gba:items-center">
+              <span className="gba:block gba:w-full gba:h-10 gba:min-h-10 gba:px-3 gba:py-2 gba:rounded-md gba:bg-muted gba:text-muted-foreground gba:border gba:border-muted" data-testid="flw_changePersonalData_currentDisplayName">
+                {computedDisplay}
+              </span>
+            </div>
             <FormMessage />
           </FormItem>
-        )}
-      />
-
-      {/* Preferred Name */}
-      <FormField
-        control={control}
-        name={"preferredName" as any}
-        render={({ field }) => (
-          <FormItem>
-            <FormLabel data-testid="change-personal-data-preferred-name-label">
-              {getTranslationFromI18nKeyAndLabel('lowcoder:employee_profile.summary_layout.public_profile_container.display_name', 'Preferred Name')}
-            </FormLabel>
-            <FormControl>
-            <Input {...field} placeholder={placeholderEnter} data-testid="flw_changePersonalData_currentPreferredName" />
-            </FormControl>
-            <FormMessage />
-          </FormItem>
-        )}
-      />
+        );
+      })()}
     </div>
   );
 };

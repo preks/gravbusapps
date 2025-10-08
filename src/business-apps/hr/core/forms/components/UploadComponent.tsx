@@ -8,11 +8,12 @@ interface UploadComponentProps {
   setFileList: (files: any[]) => void;
   multiple?: boolean;
   dataTestIdPrefix?: string;
+  labelText?: string;
 }
 
 const acceptedFileTypes = 'application/pdf,image/jpeg,image/png,.pdf,.jpg,.jpeg,.png,.PDF,.JPG,.JPEG,.PNG';
 
-const UploadComponent: React.FC<UploadComponentProps> = ({ fileList, setFileList, multiple = true, dataTestIdPrefix = 'upload' }) => {
+const UploadComponent: React.FC<UploadComponentProps> = ({ fileList, setFileList, multiple = true, dataTestIdPrefix = 'upload', labelText }) => {
   const createUploadItem = (file: File) => ({
     uid: Date.now().toString() + Math.random().toString(36).substring(2, 9),
     name: file.name,
@@ -40,11 +41,9 @@ const UploadComponent: React.FC<UploadComponentProps> = ({ fileList, setFileList
     setFileList(newFileList);
   };
 
-  const containerClass = fileList.length > 0
-    ? 'gba:border gba:border-muted gba:rounded-md gba:p-5 gba:relative gba:bg-card'
-    : 'gba:border gba:border-muted gba:rounded-md gba:p-0 gba:flex gba:items-center gba:justify-center gba:bg-card gba:h-[204px]';
+  const containerClass = `gba:border gba:rounded-md gba:bg-card gba:w-full ${fileList.length > 0 ? 'gba:p-5' : 'gba:p-1'}`;
 
-  const attachText = getTranslationFromI18nKeyAndLabel('lowcoder:hr_absences.create_absence.upload_document', 'Attach Document');
+  const attachText = getTranslationFromI18nKeyAndLabel('lowcoder:hr_absences.create_absence.upload_document', labelText || 'Upload document');
   const focusAlt = getTranslationFromI18nKeyAndLabel('lowcoder:create_expense_type_item.focus_alt_text', 'Focus');
 
   return (
@@ -61,15 +60,15 @@ const UploadComponent: React.FC<UploadComponentProps> = ({ fileList, setFileList
             data-testid={`${dataTestIdPrefix}-upload-input-empty`}
           />
           <div
-            className="gba:flex gba:items-center gba:flex-col-reverse gba:justify-center gba:cursor-pointer gba:p-5 gba:w-full gba:h-full gba:gap-4"
+            className="gba:flex gba:items-center gba:justify-center gba:cursor-pointer gba:px-3 gba:h-10"
             data-testid={`${dataTestIdPrefix}-attach-area`}
             onClick={() => fileInputRef.current?.click()}
             role="button"
             tabIndex={0}
             onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') fileInputRef.current?.click(); }}
           >
-            <span className="gba:font-medium gba:text-black" data-testid={`${dataTestIdPrefix}-attach-text`}>{attachText}</span>
-            <img src={ICONS.FOCUS} alt={focusAlt} width="36" height="36" data-testid={`${dataTestIdPrefix}-attach-icon`} />
+            <img src={ICONS.FOCUS} alt={focusAlt} width="18" height="18" className="gba:mr-2" data-testid={`${dataTestIdPrefix}-attach-icon`} />
+            <span className="gba:font-medium" data-testid={`${dataTestIdPrefix}-attach-text`}>{attachText}</span>
           </div>
         </>
       ) : (
