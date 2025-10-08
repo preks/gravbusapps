@@ -28,7 +28,8 @@ import {
   Sheet,
   SheetContent,
   SheetHeader,
-  SheetTitle
+  SheetTitle,
+  Badge
 } from '@newwork/nw-design-system';
 import { DataContainer } from '@/components/layout/dataContainer/DataContainer';
 import { DataFilterGroup } from '@/components/data-filter/DataFilter';
@@ -39,7 +40,6 @@ import { getAdvancePaymentStatusDisplay } from '../../../utils/utils';
 import AdvancePaymentDetailsBackoffice from './AdvancePaymentDetailsBackoffice';
 import { formatNumberFunction, getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
 import { buildPlatformUrl, navigateTo } from '@/common/utils/navigationUtils';
-import Pill from '@/components/pill/Pill';
 
 
 
@@ -366,10 +366,14 @@ const AdvancePaymentsTable: React.FC<AdvancePaymentsTableProps> = (props) => {
                   </TableCell>
                   <TableCell>
                     <div data-testid="advance-payment-status-cell">
-                      <Pill 
-                        label={getAdvancePaymentStatusDisplay(record.status || 'N/A').label} 
-                        type={getAdvancePaymentStatusDisplay(record.status || 'N/A').type} 
-                      />
+                      {(() => {
+                        const status = getAdvancePaymentStatusDisplay(record.status || 'N/A');
+                        return (
+                          <Badge variant={(status as any).badgeVariant || 'outline'}>
+                            {status.label}
+                          </Badge>
+                        );
+                      })()}
                     </div>
                   </TableCell>
                   <TableCell className="gba:text-right">
