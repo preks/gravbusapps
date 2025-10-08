@@ -1,3 +1,5 @@
+import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
+
 export const ensureFourLines = (lines: string[] = []): string[] => {
   return Array.from({ length: 4 }, (_, i) => String(lines?.[i] || ''));
 };
@@ -7,7 +9,7 @@ export const computeNewAddressType = (addresses: any[]): 'PRIMARY' | 'SECONDARY'
   return hasPrimary ? 'SECONDARY' : 'PRIMARY';
 };
 
-import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
+
 
 export interface AddressFormValuesLike {
   selectedAddressId?: string | null;

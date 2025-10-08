@@ -16,6 +16,15 @@ const CountryRegionFields: React.FC<CountryRegionFieldsProps> = ({ control, cata
   const countryField = useWatch({ control, name: 'countryId' });
   const regionField = useWatch({ control, name: 'regionId' });
   const { isSubmitted, submitCount, touchedFields } = useFormState({ control });
+  // Compute derived display values and keep effect at top-level (no nested hooks)
+  const selectedCountry = (catalogs?.countries || []).find((c: any) => String(c.id) === String(countryField));
+  const countryVal = selectedCountry?.id as string | undefined;
+  const regionsForCountry = (catalogs?.regions || []).filter((r: any) => r?.additionalValue2 === countryVal);
+  const selectedRegion = regionsForCountry.find((r: any) => String(r.id) === String(regionField));
+  const regionDisplay = countryVal === 'Country:v1:RO' ? selectedRegion?.additionalValue1 : selectedRegion?.alternativeCode;
+  React.useEffect(() => {
+    setValue('regionLabel', regionDisplay || '');
+  }, [regionDisplay, setValue]);
   return (
     <>
       <FormField
@@ -48,7 +57,7 @@ const CountryRegionFields: React.FC<CountryRegionFieldsProps> = ({ control, cata
               </FormControl>
               <SelectContent>
                 {(catalogs?.countries || []).map((entry: any) => (
-                  <SelectItem key={entry.id} value={String(entry.id)}>
+                  <SelectItem key={entry.id} value={String(entry.id)} data-testid={`flw_changeEmployeeAddressList_countryOption-${entry.id}`}>
                     {getCatalogValue(entry)}
                   </SelectItem>
                 ))}
@@ -61,8 +70,6 @@ const CountryRegionFields: React.FC<CountryRegionFieldsProps> = ({ control, cata
 
       {(() => {
         if (suspendRegionRender) return null;
-        const selectedCountry = (catalogs?.countries || []).find((c: any) => String(c.id) === String(countryField));
-        const countryVal = selectedCountry?.id;
         if (!(countryVal === 'Country:v1:DE' || countryVal === 'Country:v1:US' || countryVal === 'Country:v1:RO')) return null;
         const getLabelName = (countryIdVal: string | null | undefined) => {
           switch (countryIdVal) {
@@ -77,7 +84,7 @@ const CountryRegionFields: React.FC<CountryRegionFieldsProps> = ({ control, cata
           }
         };
         const label = getLabelName(countryVal);
-        const regions = (catalogs?.regions || []).filter((r: any) => r?.additionalValue2 === countryVal);
+        const regions = regionsForCountry;
         return (
           <div className="gba:grid gba:grid-cols-2 gba:gap-4">
             <FormField
@@ -95,11 +102,6 @@ const CountryRegionFields: React.FC<CountryRegionFieldsProps> = ({ control, cata
                 }
               }}
               render={({ field, fieldState }) => {
-                const selected = regions.find((r: any) => String(r.id) === String(field.value));
-                const regionDisplay = countryVal === 'Country:v1:RO' ? selected?.additionalValue1 : selected?.alternativeCode;
-                useEffect(() => {
-                  setValue('regionLabel', regionDisplay || '');
-                }, [regionDisplay]);
                 return (
                   <FormItem>
                     <FormLabel>{label}<span className="gba:text-destructive"> *</span></FormLabel>
@@ -114,7 +116,7 @@ const CountryRegionFields: React.FC<CountryRegionFieldsProps> = ({ control, cata
                       </FormControl>
                       <SelectContent>
                         {regions.map((entry: any) => (
-                          <SelectItem key={entry.id} value={String(entry.id)}>
+                          <SelectItem key={entry.id} value={String(entry.id)} data-testid={`flw_changeEmployeeAddressList_regionOption-${entry.id}`}>
                             {countryVal === 'Country:v1:RO' ? entry?.additionalValue1 : entry?.alternativeCode}
                           </SelectItem>
                         ))}
@@ -129,7 +131,7 @@ const CountryRegionFields: React.FC<CountryRegionFieldsProps> = ({ control, cata
               <FormLabel className="gba:opacity-0">Region Display</FormLabel>
               <div className="gba:flex gba:items-center">
                 <span className="gba:block gba:w-full gba:h-10 gba:min-h-10 gba:px-3 gba:py-2 gba:rounded-md gba:bg-muted gba:text-muted-foreground gba:border gba:border-muted" data-testid="flw_changeEmployeeAddressList_regionName">
-                  {(countryVal === 'Country:v1:RO' ? getCatalogValue(regions.find((r: any) => String(r.id) === String(regionField))) : getCatalogValue(regions.find((r: any) => String(r.id) === String(regionField)))) || ''}
+                  {(countryVal === 'Country:v1:RO' ? getCatalogValue(regionsForCountry.find((r: any) => String(r.id) === String(regionField))) : getCatalogValue(regionsForCountry.find((r: any) => String(r.id) === String(regionField)))) || ''}
                 </span>
               </div>
             </FormItem>

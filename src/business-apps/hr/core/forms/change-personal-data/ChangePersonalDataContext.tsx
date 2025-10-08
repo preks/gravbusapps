@@ -26,8 +26,8 @@ export const ChangePersonalDataProvider: React.FC<ProviderProps> = ({ children, 
 
   const employeeId: string | undefined = useMemo(() => {
     return (
-      additionalData?.value?.psi_taskPayload?.employeeId ||
-      additionalData?.value?.psi_taskPayload?.initialParameters?.employeeId ||
+      additionalData?.psi_taskPayload?.employeeId ||
+      additionalData?.psi_taskPayload?.initialParameters?.employeeId ||
       userInfo?.employeeDetails?.employeeId
     );
   }, [additionalData, userInfo]);
@@ -37,7 +37,7 @@ export const ChangePersonalDataProvider: React.FC<ProviderProps> = ({ children, 
   const fetchData = async () => {
     if (!accessToken || !employeeId) {
       setIsLoading(false);
-      setError(!employeeId ? 'Missing employeeId' : null);
+      setError(!employeeId ? 'Missing employeeId' : 'Missing accessToken');
       return;
     }
     setIsLoading(true);

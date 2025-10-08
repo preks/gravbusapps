@@ -27,7 +27,10 @@ const AddressSelector: React.FC<AddressSelectorProps> = ({ value, onChange, addr
             </FormControl>
             <SelectContent>
               {options.map((o: any, idx: number) => (
-                <SelectItem key={o.id || `add-${idx}`} value={String(o.id)}>
+                <SelectItem 
+                key={o.id || `add-${idx}`} 
+                value={String(o.id)}
+                data-testid={`change-employee-address-address-option-${o.id ?? `add-${idx}`}`}>
                   {o.type}
                 </SelectItem>
               ))}

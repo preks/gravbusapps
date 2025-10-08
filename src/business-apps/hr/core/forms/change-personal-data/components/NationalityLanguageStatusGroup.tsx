@@ -61,7 +61,7 @@ const NationalityLanguageStatusGroup: React.FC<NationalityLanguageStatusGroupPro
               onValueChange={(v) => field.onChange(v || null)}
             >
               <FormControl>
-                <SelectTrigger className="gba:block gba:!w-full gba:min-w-0 gba:!max-w-none" data-testid="flw_changePersonalData_currentMaritalStatus">
+                <SelectTrigger className="gba:block gba:!w-full gba:min-w-0 gba:!max-w-none" data-testid="flw_changePersonalData_currentLanguage">
                   <SelectValue placeholder={placeholderSelect} />
                 </SelectTrigger>
               </FormControl>

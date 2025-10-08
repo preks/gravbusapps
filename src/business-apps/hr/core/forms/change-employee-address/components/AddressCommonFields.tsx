@@ -62,8 +62,8 @@ const AddressCommonFields: React.FC<AddressCommonFieldsProps> = ({
             const countryVal = selectedCountry?.id;
             if (!v || String(v).trim() === '') {
               return countryVal === 'Country:v1:US'
-                ? getTranslationFromI18nKeyAndLabel('lowcoder:employee_profile.details_layout.address_container.zip_code_validation_message','The ZIP Code field is required. Please enter a ZIP code.')
-                : getTranslationFromI18nKeyAndLabel('lowcoder:employee_profile.details_layout.address_container.postal_code_validation_message','The Postal Code field is required. Please enter a postal code.');
+                ? getTranslationFromI18nKeyAndLabel('lowcoder:employee_profile.details_layout.address_container.postal_code_validation_message','The Postal Code field is required. Please enter a postal code.')
+                : getTranslationFromI18nKeyAndLabel('lowcoder:employee_profile.details_layout.address_container.zip_code_validation_message','The ZIP Code field is required. Please enter a ZIP code.');
             }
             return true;
           }
@@ -73,8 +73,8 @@ const AddressCommonFields: React.FC<AddressCommonFieldsProps> = ({
           const selectedCountry = (catalogs?.countries || []).find((c: any) => String(c.id) === String(countryId));
           const isUS = selectedCountry?.id === 'Country:v1:US';
           const label = isUS
-            ? getTranslationFromI18nKeyAndLabel('lowcoder:employee_profile.details_layout.address_container.postal_code','Postal Code')
-            : getTranslationFromI18nKeyAndLabel('lowcoder:employee_profile.details_layout.address_container.zip_code','ZIP Code');
+            ? getTranslationFromI18nKeyAndLabel('lowcoder:employee_profile.details_layout.address_container.zip_code','ZIP Code')
+            : getTranslationFromI18nKeyAndLabel('lowcoder:employee_profile.details_layout.address_container.postal_code','Postal Code');
           const placeholder = `${getTranslationFromI18nKeyAndLabel('lowcoder:employee_profile.details_layout.personal_information_container.enter_placeholder','Please Enter')} ${label}`;
           return (
             <FormItem>

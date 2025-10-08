@@ -14,6 +14,16 @@ const NamesGroup: React.FC<NamesGroupProps> = ({ control, catalogs }) => {
   const placeholderSelect = getTranslationFromI18nKeyAndLabel('lowcoder:employee_profile.details_layout.personal_information_container.select_placeholder', 'Please Select');
   const placeholderEnter = getTranslationFromI18nKeyAndLabel('lowcoder:employee_profile.details_layout.personal_information_container.enter_placeholder', 'Please Enter');
 
+  // Watch fields for computed Display Name (top-level hooks)
+  const titleWatch = useWatch({ control, name: 'title' });
+  const preferredNameWatch = useWatch({ control, name: 'preferredName' });
+  const firstNameWatch = useWatch({ control, name: 'firstName' });
+  const lastNameWatch = useWatch({ control, name: 'lastName' });
+  const partsDisplay = (preferredNameWatch && String(preferredNameWatch).trim().length > 0)
+    ? [String(titleWatch || '').trim(), String(preferredNameWatch || '').trim(), String(lastNameWatch || '').trim()]
+    : [String(titleWatch || '').trim(), String(firstNameWatch || '').trim(), String(lastNameWatch || '').trim()];
+  const computedDisplayName = partsDisplay.filter(Boolean).join(' ').trim();
+
   const validateNameFunction = (name: string): boolean => {
     const nameRegex = /^(?:[a-zA-ZÀ-ÿ\u00f1\u00d1]{2,}(?:-[a-zA-ZÀ-ÿ\u00f1\u00d1]{2,})?)(?: [a-zA-ZÀ-ÿ\u00f1\u00d1]{2,}(?:-[a-zA-ZÀ-ÿ\u00f1\u00d1]{2,})?)*(?: \([a-zA-ZÀ-ÿ\u00f1\u00d1]+\))?$/;
     return nameRegex.test((name || '').trim());
@@ -147,30 +157,17 @@ const NamesGroup: React.FC<NamesGroupProps> = ({ control, catalogs }) => {
       />
 
       {/* Display Name (computed, read-only) */}
-      {(() => {
-        const watch = (name: keyof any) => useWatch({ control: control as any, name: name as any });
-        const title = watch('title' as any) as string;
-        const preferred = watch('preferredName' as any) as string;
-        const first = watch('firstName' as any) as string;
-        const last = watch('lastName' as any) as string;
-        const parts = (preferred && String(preferred).trim().length > 0)
-          ? [String(title || '').trim(), String(preferred || '').trim(), String(last || '').trim()]
-          : [String(title || '').trim(), String(first || '').trim(), String(last || '').trim()];
-        const computedDisplay = parts.filter(Boolean).join(' ').trim();
-        return (
-          <FormItem>
-            <FormLabel data-testid="change-personal-data-display-name-label">
-              {getTranslationFromI18nKeyAndLabel('lowcoder:employee_profile.details_layout.personal_information_container.preferred_name', 'Display Name')}
-            </FormLabel>
-            <div className="gba:flex gba:items-center">
-              <span className="gba:block gba:w-full gba:h-10 gba:min-h-10 gba:px-3 gba:py-2 gba:rounded-md gba:bg-muted gba:text-muted-foreground gba:border gba:border-muted" data-testid="flw_changePersonalData_currentDisplayName">
-                {computedDisplay}
-              </span>
-            </div>
-            <FormMessage />
-          </FormItem>
-        );
-      })()}
+      <FormItem>
+        <FormLabel data-testid="change-personal-data-display-name-label">
+          {getTranslationFromI18nKeyAndLabel('lowcoder:employee_profile.details_layout.personal_information_container.preferred_name', 'Display Name')}
+        </FormLabel>
+        <div className="gba:flex gba:items-center">
+          <span className="gba:block gba:w-full gba:h-10 gba:min-h-10 gba:px-3 gba:py-2 gba:rounded-md gba:bg-muted gba:text-muted-foreground gba:border gba:border-muted" data-testid="flw_changePersonalData_currentDisplayName">
+            {computedDisplayName}
+          </span>
+        </div>
+        <FormMessage />
+      </FormItem>
     </div>
   );
 };
