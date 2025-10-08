@@ -51,11 +51,9 @@ export const TopAbsenteesList: React.FC<TopAbsenteesListProps> = ({
   maxAbsenceDays,
   onNavigateToAbsenceListPage,
 }) => {
-  // Limit to 4 employees to fit within 510px card height
   const maxEmployeesToShow = 4;
   const displayedEmployees = topAbsentees.slice(0, maxEmployeesToShow);
 
-  // Generate avatar placeholder based on name initials
   const getAvatarInitials = (name: string) => {
     return name
       .split(' ')
@@ -65,7 +63,6 @@ export const TopAbsenteesList: React.FC<TopAbsenteesListProps> = ({
       .slice(0, 2);
   };
 
-  // Generate consistent background colors for avatars
   const getAvatarBgColor = (name: string) => {
     const colors = [
       '#6366f1', '#8b5cf6', '#ec4899', '#ef4444', '#f97316',
@@ -75,7 +72,6 @@ export const TopAbsenteesList: React.FC<TopAbsenteesListProps> = ({
     return colors[hash % colors.length];
   };
 
-  // Generate email from name (placeholder logic)
   const generateEmail = (name: string) => {
     const nameParts = name.toLowerCase().split(' ');
     if (nameParts.length >= 2) {
@@ -86,13 +82,13 @@ export const TopAbsenteesList: React.FC<TopAbsenteesListProps> = ({
 
   const handleCardClick = () => {
     if (onNavigateToAbsenceListPage) {
-      // Get unique employee IDs from the displayed employees
-      const employeeIds = displayedEmployees
+      const employeeIds = topAbsentees
         .flatMap(emp => emp.absences.map(absence => absence.employee.id))
-        .filter((id, index, array) => array.indexOf(id) === index); // Remove duplicates
+        .filter((id, index, array) => array.indexOf(id) === index);
       
       onNavigateToAbsenceListPage({
         type: 'top-absentees',
+        status: ['APPROVED'],
         employees: employeeIds
       });
     }
