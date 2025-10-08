@@ -26,17 +26,13 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({
   pipelineProps 
 }) => {
   const tabs = useMemo(() => {
-    const items: Array<{ key: DashboardTabKey; label: React.ReactNode; content: React.ReactNode; dataTestId?: string }> = [];
+    const items: Array<{ key: DashboardTabKey; label: string; icon: React.ReactNode; content: React.ReactNode; dataTestId?: string }> = [];
     
     if (overviewProps) {
       items.push({
         key: 'overview',
-        label: (
-          <>
-            <Home className="gba:mr-2 gba:h-4 gba:w-4" />
-            Overview
-          </>
-        ),
+        label: 'Overview',
+        icon: <Home />,
         content: <OverviewTabLayout {...overviewProps} moduleColor={moduleColor} />,
         dataTestId: 'overview-dashboard-tab'
       });
@@ -45,12 +41,8 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({
     if (pipelineProps) {
       items.push({
         key: 'pipeline-details',
-        label: (
-          <>
-            <PieChartIcon className="gba:mr-2 gba:h-4 gba:w-4" />
-            Pipeline Details
-          </>
-        ),
+        label: 'Pipeline Details',
+        icon: <PieChartIcon />,
         content: <PipelineTabLayout {...pipelineProps} moduleColor={moduleColor} />,
         dataTestId: 'pipeline-details-dashboard-tab'
       });
@@ -71,7 +63,7 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({
       <Tabs value={activeTab} onValueChange={handleTabChange} className="gba:h-full">
         <TabsList className="gba:mb-6">
           {tabs.map((t) => (
-            <TabsTrigger key={t.key} value={t.key} data-testid={t.dataTestId || `${t.key}-tab`}>
+            <TabsTrigger key={t.key} value={t.key} startIcon={t.icon} data-testid={t.dataTestId || `${t.key}-tab`}>
               {t.label}
             </TabsTrigger>
           ))}

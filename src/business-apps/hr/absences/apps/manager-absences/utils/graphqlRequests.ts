@@ -23,6 +23,10 @@ export const executeStatisticsRequests = async (
   currentYearEnd: string,
   previousYearStart: string,
 ) => {
+  const today = new Date();
+  const todayStart = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')} 00:00:00+00`;
+  const todayEnd = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')} 23:59:59+00`;
+  
   const queries = [
     {
       query: GET_APPROVED_ABSENCES_2025(currentYearStart, currentYearEnd),
@@ -32,10 +36,13 @@ export const executeStatisticsRequests = async (
       query: GET_PENDING_REQUESTS(currentYearStart, currentYearEnd),
       variables: { supervisorId, currentYearStart, currentYearEnd },
     },
-    { query: GET_TEAM_MEMBERS_AWAY(), variables: { supervisorId } },
+    { 
+      query: GET_TEAM_MEMBERS_AWAY(todayStart, todayEnd), 
+      variables: { supervisorId, todayStart, todayEnd } 
+    },
     {
-      query: GET_UPCOMING_ABSENCES(currentYearStart, currentYearEnd),
-      variables: { supervisorId, currentYearStart, currentYearEnd },
+      query: GET_UPCOMING_ABSENCES(todayStart),
+      variables: { supervisorId, todayStart },
     },
     {
       query: GET_VACATION_ABSENCES(currentYearStart, currentYearEnd),

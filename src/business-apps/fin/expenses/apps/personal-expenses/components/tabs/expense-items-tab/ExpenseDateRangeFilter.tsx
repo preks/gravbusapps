@@ -52,7 +52,7 @@ export const ExpenseDateRangeFilter: React.FC<ExpenseDateRangeFilterProps> = ({
       format="MMM DD, YYYY"
       allowClear
       allowEmpty={[true, true]}
-      style={{ width: '100%' }}
+      className="gba:w-full"
       data-testid="expense-item-date-range-filter"
     />
   );

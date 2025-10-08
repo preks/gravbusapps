@@ -4,7 +4,6 @@ import {
   Button,
   Alert,
   AlertDescription,
-  Spinner,
 } from "@newwork/nw-design-system";
 import { formatDataTestId } from "@/common/utils/formatDataTestId";
 import { dispatchProcessContinueEvent } from "@/common/utils/processEventUtils";
@@ -16,12 +15,14 @@ import ContactSelector from "./ContactSelector";
 const prefixDataTestId = "AccountForm";
 
 const AccountFormComponent: React.FC = () => {
-  const { formValues, setFormValues, onSubmit, onCancel, isLoading, error, hideActions } =
+  const { formValues, onSubmit, onCancel, isLoading, error, hideActions, setFormValues } =
     useAccountFormContext();
+  
+  // Local loading state for submission
+  const [isSubmitting, setIsSubmitting] = React.useState(false);
 
   // Check if all mandatory fields are filled
-  const isFormValid =
-    formValues.owner && formValues.accountName;
+  const isFormValid = Boolean(formValues.owner && formValues.accountName);
 
   // Helper function to convert values to strings safely
   const toStringOrUndefined = (
@@ -32,6 +33,12 @@ const AccountFormComponent: React.FC = () => {
 
   // Handle form submission
   const handleSubmit = async () => {
+    // Prevent duplicate submissions
+    if (isLoading || isSubmitting) {
+      return;
+    }
+
+    setIsSubmitting(true);
     try {
       // ✅ FIXED: Determine operation mode based on account ID presence
       const isUpdate = formValues.id && formValues.id.trim();
@@ -129,18 +136,38 @@ const AccountFormComponent: React.FC = () => {
 
       dispatchProcessContinueEvent("pse_submit", isolatedPayload);
 
-      // Call the onSubmit callback after dispatching the process event
-      // This ensures the process event is always dispatched even if onSubmit fails
-      try {
-        await onSubmit(formValues);
-      } catch (submitError) {
-        console.warn(
-          "onSubmit callback failed, but process event was dispatched:",
-          submitError
-        );
-      }
+      // Wait for process completion event
+      await new Promise<void>((resolve) => {
+        const TIMEOUT = 10000;
+        const timeoutId = setTimeout(() => {
+          cleanup();
+          resolve();
+        }, TIMEOUT);
+
+        const handleProcessCompletion = (event: Event) => {
+          const customEvent = event as CustomEvent<{ resolution: 'success' | 'failure' }>;
+          if (
+            customEvent.detail?.resolution === 'success' ||
+            customEvent.detail?.resolution === 'failure'
+          ) {
+            cleanup();
+            resolve();
+          }
+        };
+
+        const cleanup = () => {
+          clearTimeout(timeoutId);
+          window.removeEventListener('com.newwork.process.processCompletion', handleProcessCompletion);
+          window.removeEventListener('com.newwork.process.taskCompletion', handleProcessCompletion);
+        };
+
+        window.addEventListener('com.newwork.process.processCompletion', handleProcessCompletion);
+        window.addEventListener('com.newwork.process.taskCompletion', handleProcessCompletion);
+      });
     } catch (err) {
       console.error("Error submitting account form:", err);
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -208,13 +235,12 @@ const AccountFormComponent: React.FC = () => {
             <Button
               type="button"
               variant="default"
-              disabled={!isFormValid}
+              disabled={!isFormValid || isLoading || isSubmitting}
               className="gba:flex-1"
               size="lg"
               onClick={handleSubmit}
               data-testid={formatDataTestId(prefixDataTestId, "submit-button")}
             >
-              {isLoading && <Spinner size="sm" className="gba:mr-2" />}
               {formValues.id ? "Update Account" : "Create Account"}
             </Button>
           </div>

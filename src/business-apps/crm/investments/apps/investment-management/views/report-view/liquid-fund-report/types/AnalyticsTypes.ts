@@ -10,7 +10,9 @@ export interface AnalyticsQueryVariables {
 export interface AnalyticsFilters {
   startDate?: string;
   endDate?: string;
+  currencyIds?: string[];
   investmentType?: string; // Filter for "Bank Deposits"
+  onCurrenciesChange?: (currencies: string[]) => void; // Callback to report available currencies
 }
 
 // Raw data from GraphQL for liquid fund portfolio with reports
@@ -146,14 +148,4 @@ export interface AnalyticsTransformOptions {
   aggregateBy?: 'portfolio' | 'proprietor' | 'bank';
 }
 
-export default {
-  AnalyticsQueryVariables,
-  AnalyticsFilters,
-  LiquidFundPortfolioAnalyticsResponse,
-  LiquidFundPortfolioReportAnalyticsResponse,
-  AnalyticsRowData,
-  AnalyticsTotals,
-  AnalyticsResponse,
-  AnalyticsState,
-  AnalyticsTransformOptions
-};
+// All types are exported individually above
