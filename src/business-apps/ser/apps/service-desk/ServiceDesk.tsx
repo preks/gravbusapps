@@ -237,6 +237,9 @@ const ServiceDesk: React.FC<ServiceDeskProps> = ({
   
   // Check if current user can see diagnostic tab
   const canSeeDiagnostic = diagnosticAllowedUserIds.includes(currentUserId || '');
+  
+  // Check if current user can see templates tab (same users as diagnostic)
+  const canSeeTemplates = diagnosticAllowedUserIds.includes(currentUserId || '');
 
   // Debug info for development
   console.log('ServiceDesk Debug:', {
@@ -245,7 +248,8 @@ const ServiceDesk: React.FC<ServiceDeskProps> = ({
     accessToken: !!accessToken,
     userInfo: !!userInfo,
     userId: currentUserId,
-    canSeeDiagnostic
+    canSeeDiagnostic,
+    canSeeTemplates
   });
 
   // Enable cache debug console in development
@@ -371,14 +375,15 @@ const ServiceDesk: React.FC<ServiceDeskProps> = ({
               ),
               icon: <TicketIcon size={16} />
             },
-            { 
+            // Only show templates tab for allowed users
+            ...(canSeeTemplates ? [{ 
               value: 'templates', 
               label: getTranslationFromI18nKeyAndLabel(
                 'services.desk.submenu.templates',
                 'Templates'
               ),
               icon: <FileTextIcon size={16} />
-            },
+            }] : []),
             { 
               value: 'analytics', 
               label: getTranslationFromI18nKeyAndLabel(
