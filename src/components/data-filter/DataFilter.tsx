@@ -249,7 +249,7 @@ export const DataFilter: React.FC<Readonly<DataFilterProps>> = ({
               } else {
                 filterContent = (
                   <div className="gba:p-2 gba:text-gray-400 gba:text-sm" data-testid={`data-filter-group-empty-${group.id}`}>
-                    No filters found
+                    {getTranslationFromI18nKeyAndLabel('lowcoder:absence_management_hub_backoffice.absence_details.no_filters_found', 'No filters found')}
                   </div>
                 );
               }

@@ -45,6 +45,8 @@ const ExpenseRequestsTab: React.FC<ExpenseRequestsTabProps> = (props) => {
     setStartDateRange,
     setEndDateRange,
     setRequestDateRange,
+    // @ts-ignore - new field exists in hook state
+    setEffectiveDateRange,
     filterLabelMap,
     addFilter,
     removeFilter
@@ -68,6 +70,7 @@ const ExpenseRequestsTab: React.FC<ExpenseRequestsTabProps> = (props) => {
       setRequestDateRange,
       setStartDateRange,
       setEndDateRange,
+      setEffectiveDateRange,
       handleFilterChange
     });
 

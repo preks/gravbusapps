@@ -11,6 +11,7 @@ import { AbsenceDetails, EntitlementsDetails } from './components/pages';
 import { useDashboardData } from './hooks/useDashboardData';
 import { AbsenceDetailsFilter } from './types';
 import { MODULE_COLORS } from '@/common/constants/ui';
+import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
 const moduleColor = MODULE_COLORS.HR;
 export interface BackofficeAbsencesProps extends BusinessAppContextProps {}
 
@@ -93,27 +94,27 @@ const BackofficeAbsences: React.FC<BackofficeAbsencesProps> = ({ accessToken, us
   const viewOptions = [
     {
       key: 'dashboard',
-      label: 'Dashboard',
+      label: getTranslationFromI18nKeyAndLabel('lowcoder:absence_management_hub_backoffice.dashboard_btn', 'Dashboard'),
       icon: <GaugeIcon className="w-5 h-5" />,
     },
     {
       key: 'absence-list',
-      label: 'Absence List',
+      label: getTranslationFromI18nKeyAndLabel('lowcoder:absence_management_hub_manager.absence_list', 'Absence List'),
       icon: <ListBulletsIcon className="w-5 h-5" />,
     },
     {
       key: 'calendar',
-      label: 'Calendar View',
+      label: getTranslationFromI18nKeyAndLabel('lowcoder:absence_management_hub_backoffice.team_calendar_btn', 'Team Calendar'),
       icon: <CalendarBlankIcon className="w-5 h-5" />,
     },
     {
       key: 'statistics',
-      label: 'Statistics',
+      label: getTranslationFromI18nKeyAndLabel('lowcoder:absence_management_hub_manager.statistics', 'Statistics'),
       icon: <ChartBarIcon className="w-5 h-5" />,
     },
     {
       key: 'reports',
-      label: 'Reports',
+      label: getTranslationFromI18nKeyAndLabel('lowcoder:absence_management_hub_manager.reports', 'Reports'),
       icon: <ChartBarIcon className="w-5 h-5" />,
     },
   ];
@@ -175,7 +176,7 @@ const BackofficeAbsences: React.FC<BackofficeAbsencesProps> = ({ accessToken, us
   if (currentView === 'absence-details') {
     // Convert special "NO_DEPARTMENT_SPECIAL" identifier back to display name
     const displayDepartment = absenceDetailsFilter.department === 'NO_DEPARTMENT_SPECIAL' 
-      ? 'No Department' 
+      ? getTranslationFromI18nKeyAndLabel('lowcoder:absence_management_hub_backoffice.no_department', 'No Department') 
       : absenceDetailsFilter.department;
 
   return (
@@ -215,8 +216,8 @@ const BackofficeAbsences: React.FC<BackofficeAbsencesProps> = ({ accessToken, us
     <div data-testid="backoffice-absences-container">
       <PageLayout
         headerIcon={CalendarBlankIcon}
-        headerTitle="Absence Management Hub (Backoffice)"
-        headerDescription="Manage and monitor all absence requests across the organization"
+        headerTitle={getTranslationFromI18nKeyAndLabel('lowcoder:absence_management_hub_backoffice.absence_management_hub_backoffice_title', 'Absence Management Hub (Backoffice)')}
+        headerDescription={getTranslationFromI18nKeyAndLabel('lowcoder:absence_management_hub_backoffice.absence_management_hub_backoffice_description', 'Manage and monitor all absence requests across the organization')}
         headerSubViews={{
           value: activeTab,
           onValueChange: handleTabChange,

@@ -5,6 +5,7 @@ import { useAbsenceCatalogs } from './useAbsenceCatalogs';
 import { DateRangeFilter } from '../components/DateRangeFilter';
 import { CreationDateFilter } from '../components/CreationDateFilter';
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient';
+import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
 
 // DataFilter interfaces to match DataContainer expectations
 export interface DataFilter {
@@ -48,6 +49,36 @@ const ABSENCE_STATUSES = [
   { id: 'REJECTED', name: 'Rejected' },
   { id: 'CANCELLED', name: 'Cancelled' },
 ];
+
+// Translation function for status values
+const getTranslatedStatus = (status: string) => {
+  switch (status?.toUpperCase()) {
+    case 'PENDING':
+      return getTranslationFromI18nKeyAndLabel('lowcoder:expense_statuses.pending', 'Pending');
+    case 'APPROVED':
+      return getTranslationFromI18nKeyAndLabel('lowcoder:expense_statuses.approved', 'Approved');
+    case 'REJECTED':
+      return getTranslationFromI18nKeyAndLabel('lowcoder:expense_statuses.rejected', 'Rejected');
+    case 'CANCELLED':
+      return getTranslationFromI18nKeyAndLabel('lowcoder:absences_overview_entry_screen.cancelled_status', 'Cancelled');
+    default:
+      return status;
+  }
+};
+
+// Format date using user locale
+const formatDateForDisplay = (dateString: string) => {
+  try {
+    const date = new Date(dateString);
+    return date.toLocaleDateString('ro-RO', {
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric'
+    });
+  } catch {
+    return dateString;
+  }
+};
 
 // Team employee interface
 interface TeamEmployee {
@@ -130,7 +161,16 @@ export const useAbsenceFilters = (context: BusinessAppContextProps): UseAbsenceF
   }, []);
 
   const removeFilter = useCallback((filterId: string) => {
-    setSelectedFilters((prev) => prev.filter((id) => id !== filterId));
+    if (filterId === 'absenceDateRange') {
+      setStartDate(undefined);
+      setEndDate(undefined);
+    } else if (filterId === 'creationDateRange') {
+      setCreationStartDate(undefined);
+      setCreationEndDate(undefined);
+    } else {
+      // Remove from selectedFilters array
+      setSelectedFilters((prev) => prev.filter((id) => id !== filterId));
+    }
   }, []);
 
   const resetFilters = useCallback(() => {
@@ -180,7 +220,7 @@ export const useAbsenceFilters = (context: BusinessAppContextProps): UseAbsenceF
       return {
         filters: filteredStatuses.map((status) => ({
           id: status.id,
-          label: status.name,
+          label: getTranslatedStatus(status.name),
           selected: selectedFilters.includes(status.id),
         })),
         loading: false,
@@ -261,7 +301,7 @@ export const useAbsenceFilters = (context: BusinessAppContextProps): UseAbsenceF
   // Convert catalog options to filter options for static display (following leads pattern exactly)
   const statusFilterOptions: DataFilter[] = ABSENCE_STATUSES.map((status) => ({
     id: status.id,
-    label: status.name,
+    label: getTranslatedStatus(status.name),
     selected: selectedFilters.includes(status.id),
   }));
 
@@ -287,7 +327,7 @@ export const useAbsenceFilters = (context: BusinessAppContextProps): UseAbsenceF
   const filterGroups: DataFilterGroup[] = [
     {
       id: 'absenceDateRange',
-      title: 'Start - End Date',
+      title: `${getTranslationFromI18nKeyAndLabel('lowcoder:absence_table.start_date', 'Start')} - ${getTranslationFromI18nKeyAndLabel('lowcoder:hr_absences.create_absence.end_date', 'End Date')}`,
       customComponent: React.createElement(DateRangeFilter, {
         key: `absenceDateRange-${startDate}-${endDate}`, // Force re-render when dates change
         initialStartDate: startDate,
@@ -298,7 +338,7 @@ export const useAbsenceFilters = (context: BusinessAppContextProps): UseAbsenceF
     } as any, // Temporary type assertion to bypass interface issue
     {
       id: 'creationDateRange',
-      title: 'Creation Date',
+      title: getTranslationFromI18nKeyAndLabel('lowcoder:manager_expense_request_list.expense_table.creation_date', 'Creation Date'),
       customComponent: React.createElement(CreationDateFilter, {
         key: `creationDateRange-${creationStartDate}-${creationEndDate}`, // Force re-render when dates change
         initialStartDate: creationStartDate,
@@ -309,25 +349,25 @@ export const useAbsenceFilters = (context: BusinessAppContextProps): UseAbsenceF
     } as any, // Temporary type assertion to bypass interface issue
     {
       id: 'employee',
-      title: 'Employee',
+      title: getTranslationFromI18nKeyAndLabel('lowcoder:absence_table.employee', 'Employee'),
       filters: employeeFilterOptions,
       backendSearch: getEmployeeFilters,
     },
     {
       id: 'status',
-      title: 'Status',
+      title: getTranslationFromI18nKeyAndLabel('lowcoder:expense_request_list.expense_plan_table.status', 'Status'),
       filters: statusFilterOptions,
       backendSearch: getStatusFilters,
     },
     {
       id: 'type',
-      title: 'Type',
+      title: getTranslationFromI18nKeyAndLabel('lowcoder:manager_expense_request_list.expense_table.type', 'Type'),
       filters: typeFilterOptions,
       backendSearch: getTypeFilters,
     },
     {
       id: 'group',
-      title: 'Group',
+      title: getTranslationFromI18nKeyAndLabel('lowcoder:absence_table.group', 'Group'),
       filters: groupFilterOptions,
       backendSearch: getGroupFilters,
     },
@@ -335,10 +375,10 @@ export const useAbsenceFilters = (context: BusinessAppContextProps): UseAbsenceF
 
   // Create filter label map (following leads pattern exactly)
   const filterLabelMap = {
-    ...Object.fromEntries(ABSENCE_STATUSES.map((status) => [status.id, status.name])),
+    ...Object.fromEntries(ABSENCE_STATUSES.map((status) => [status.id, getTranslatedStatus(status.name)])),
     // Add prefixed status IDs for pre-filter compatibility
     ...Object.fromEntries(
-      ABSENCE_STATUSES.map((status) => [`status-${status.id.toLowerCase()}`, status.name]),
+      ABSENCE_STATUSES.map((status) => [`status-${status.id.toLowerCase()}`, getTranslatedStatus(status.name)]),
     ),
     ...Object.fromEntries(absenceTypes.map((type) => [type.id, type.name])),
     ...Object.fromEntries(absenceGroups.map((group) => [group.id, group.name])),
@@ -354,18 +394,18 @@ export const useAbsenceFilters = (context: BusinessAppContextProps): UseAbsenceF
     ),
     // Add date range labels
     ...(startDate && endDate
-      ? { absenceDateRange: `Start - End Date: ${startDate} to ${endDate}` }
+      ? { absenceDateRange: `${getTranslationFromI18nKeyAndLabel('lowcoder:absence_table.start_date', 'Start Date')} - ${getTranslationFromI18nKeyAndLabel('lowcoder:absence_table.end_date', 'End Date')}: ${formatDateForDisplay(startDate)} ${getTranslationFromI18nKeyAndLabel('lowcoder:absence_overview_screen.absence_overview_table.to', 'to')} ${formatDateForDisplay(endDate)}` }
       : {}),
-    ...(startDate && !endDate ? { absenceDateRange: `Start - End Date: From ${startDate}` } : {}),
-    ...(!startDate && endDate ? { absenceDateRange: `Start - End Date: Until ${endDate}` } : {}),
+    ...(startDate && !endDate ? { absenceDateRange: `${getTranslationFromI18nKeyAndLabel('lowcoder:absence_table.start_date', 'Start Date')} - ${getTranslationFromI18nKeyAndLabel('lowcoder:absence_table.end_date', 'End Date')}: ${getTranslationFromI18nKeyAndLabel('lowcoder:absence_overview_screen.absence_overview_table.from', 'from')} ${formatDateForDisplay(startDate)}` } : {}),
+    ...(!startDate && endDate ? { absenceDateRange: `${getTranslationFromI18nKeyAndLabel('lowcoder:absence_table.start_date', 'Start Date')} - ${getTranslationFromI18nKeyAndLabel('lowcoder:absence_table.end_date', 'End Date')}: Until ${formatDateForDisplay(endDate)}` } : {}),
     ...(creationStartDate && creationEndDate
-      ? { creationDateRange: `Creation Date: ${creationStartDate} to ${creationEndDate}` }
+      ? { creationDateRange: `${getTranslationFromI18nKeyAndLabel('lowcoder:manager_expense_request_list.expense_table.creation_date', 'Creation Date')}: ${formatDateForDisplay(creationStartDate)} ${getTranslationFromI18nKeyAndLabel('lowcoder:absence_overview_screen.absence_overview_table.to', 'to')} ${formatDateForDisplay(creationEndDate)}` }
       : {}),
     ...(creationStartDate && !creationEndDate
-      ? { creationDateRange: `Creation Date: From ${creationStartDate}` }
+      ? { creationDateRange: `${getTranslationFromI18nKeyAndLabel('lowcoder:manager_expense_request_list.expense_table.creation_date', 'Creation Date')}: ${getTranslationFromI18nKeyAndLabel('lowcoder:absence_overview_screen.absence_overview_table.from', 'from')} ${formatDateForDisplay(creationStartDate)}` }
       : {}),
     ...(!creationStartDate && creationEndDate
-      ? { creationDateRange: `Creation Date: Until ${creationEndDate}` }
+      ? { creationDateRange: `${getTranslationFromI18nKeyAndLabel('lowcoder:manager_expense_request_list.expense_table.creation_date', 'Creation Date')}: Until ${formatDateForDisplay(creationEndDate)}` }
       : {}),
   };
 

@@ -46,7 +46,7 @@ export const EndDateRangeFilter: React.FC<EndDateRangeFilterProps> = ({
       format="MMM DD, YYYY"
       allowClear
       allowEmpty={[true, true]}
-      style={{ width: '100%' }}
+      className="gba:w-full"
       data-testid="expense-plan-end-date-range-filter"
     />
   );

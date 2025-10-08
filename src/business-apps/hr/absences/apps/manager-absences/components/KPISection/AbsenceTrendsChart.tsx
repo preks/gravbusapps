@@ -45,7 +45,7 @@ export const AbsenceTrendsChart: React.FC<AbsenceTrendsChartProps> = ({
             <div className="gba:text-2xl gba:font-bold gba:pt-2">{totalAbsenceDays}</div>
             <div className="gba:text-xs gba:text-muted-foreground">
               {getTranslationFromI18nKeyAndLabel(
-                'lowcoder:absence_management_hub_backoffice.total_absence_days_manager',
+                'lowcoder:absence_management_hub_manager.total_absence_days_manager',
                 'Total Absence Days',
               )}
             </div>
