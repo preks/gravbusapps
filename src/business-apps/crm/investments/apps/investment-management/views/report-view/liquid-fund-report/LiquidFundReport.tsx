@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useCallback } from 'react';
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
 import {
   Tabs,
@@ -7,6 +7,7 @@ import {
   TabsTrigger,
   Spinner
 } from '@newwork/nw-design-system';
+import { Landmark, Clock, Layers } from 'lucide-react';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 import { AnalyticsFilters } from './types';
 import dayjs from 'dayjs';
@@ -91,24 +92,42 @@ export const LiquidFundReport: React.FC<LiquidFundReportProps> = ({
   // Shared filter state and logic
   const reportFilters = useReportFilters(initialColumns);
 
+  // Track available currencies from table data
+  const [availableCurrencies, setAvailableCurrencies] = useState<Set<string>>(new Set());
+
+  // Callback for tables to report their available currencies
+  const handleCurrenciesUpdate = useCallback((currencies: string[]) => {
+    setAvailableCurrencies(prev => {
+      const updated = new Set(prev);
+      currencies.forEach(id => updated.add(id));
+      return updated;
+    });
+  }, []);
+
   // Create filters for specific investment types (Overview removed)
   const bankDepositFilters = useMemo((): AnalyticsFilters => ({
     startDate: reportFilters.computedFilters.startDate,
     endDate: reportFilters.computedFilters.endDate,
-    investmentType: 'Bank Deposit'
-  }), [reportFilters.computedFilters.startDate, reportFilters.computedFilters.endDate]);
+    currencyIds: reportFilters.computedFilters.currencyIds,
+    investmentType: 'Bank Deposit',
+    onCurrenciesChange: handleCurrenciesUpdate
+  }), [reportFilters.computedFilters.startDate, reportFilters.computedFilters.endDate, reportFilters.computedFilters.currencyIds, handleCurrenciesUpdate]);
 
   const fixedTermDepositFilters = useMemo((): AnalyticsFilters => ({
     startDate: reportFilters.computedFilters.startDate,
     endDate: reportFilters.computedFilters.endDate,
-    investmentType: 'Fixed-Term Deposit'
-  }), [reportFilters.computedFilters.startDate, reportFilters.computedFilters.endDate]);
+    currencyIds: reportFilters.computedFilters.currencyIds,
+    investmentType: 'Fixed-Term Deposit',
+    onCurrenciesChange: handleCurrenciesUpdate
+  }), [reportFilters.computedFilters.startDate, reportFilters.computedFilters.endDate, reportFilters.computedFilters.currencyIds, handleCurrenciesUpdate]);
 
   const multipleTypesFilters = useMemo((): AnalyticsFilters => ({
     startDate: reportFilters.computedFilters.startDate,
     endDate: reportFilters.computedFilters.endDate,
-    investmentType: 'Money Market Funds,Pension Fund,Equity,Bond' // Multiple types separated by comma
-  }), [reportFilters.computedFilters.startDate, reportFilters.computedFilters.endDate]);
+    currencyIds: reportFilters.computedFilters.currencyIds,
+    investmentType: 'Money Market Funds,Pension Fund,Equity,Bond', // Multiple types separated by comma
+    onCurrenciesChange: handleCurrenciesUpdate
+  }), [reportFilters.computedFilters.startDate, reportFilters.computedFilters.endDate, reportFilters.computedFilters.currencyIds, handleCurrenciesUpdate]);
 
 
 
@@ -128,6 +147,8 @@ export const LiquidFundReport: React.FC<LiquidFundReportProps> = ({
       {/* Filters Section */}
       <ReportFilterPanel
         filters={reportFilters}
+        accessToken={accessToken}
+        availableCurrencyIds={Array.from(availableCurrencies)}
         variant="simple"
         title={getTranslationFromI18nKeyAndLabel('filters.title', 'Filters')}
         data-testid={`${dataTestId}-filters`}
@@ -136,13 +157,13 @@ export const LiquidFundReport: React.FC<LiquidFundReportProps> = ({
       {/* Analytics Tables with Sub-tabs - Overview removed */}
       <Tabs value={activeSubTab} onValueChange={setActiveSubTab} className="gba:w-full">
         <TabsList className="gba:grid gba:w-full gba:grid-cols-3">
-          <TabsTrigger value="tab1" data-testid={`${dataTestId}-tab1`}>
+          <TabsTrigger value="tab1" startIcon={<Landmark />} data-testid={`${dataTestId}-tab1`}>
             Bank Deposits
           </TabsTrigger>
-          <TabsTrigger value="tab2" data-testid={`${dataTestId}-tab2`}>
+          <TabsTrigger value="tab2" startIcon={<Clock />} data-testid={`${dataTestId}-tab2`}>
             Fixed-Term Deposits
           </TabsTrigger>
-          <TabsTrigger value="tab3" data-testid={`${dataTestId}-tab3`}>
+          <TabsTrigger value="tab3" startIcon={<Layers />} data-testid={`${dataTestId}-tab3`}>
             Multiple Types
           </TabsTrigger>
         </TabsList>

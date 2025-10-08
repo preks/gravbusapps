@@ -14,6 +14,7 @@ export interface ReportFiltersState {
   isTransposed: boolean;
   columnConfig: ColumnConfig[];
   visibleColumns: string[];
+  selectedCurrencies: string[];
 }
 
 export interface ReportFiltersCallbacks {
@@ -22,6 +23,7 @@ export interface ReportFiltersCallbacks {
   handleClearFilters: () => void;
   handleTransposeToggle: () => void;
   handleColumnVisibilityChange: (columnId: string, visible: boolean) => void;
+  handleCurrencyChange: (currencies: string[]) => void;
 }
 
 export interface UseReportFiltersReturn extends ReportFiltersState, ReportFiltersCallbacks {
@@ -29,6 +31,7 @@ export interface UseReportFiltersReturn extends ReportFiltersState, ReportFilter
   computedFilters: {
     startDate?: string;
     endDate?: string;
+    currencyIds?: string[];
   };
   // Filter initialization state
   filtersInitialized: boolean;
@@ -43,6 +46,7 @@ export const useReportFilters = (initialColumns?: ColumnConfig[]): UseReportFilt
   const [endDate, setEndDate] = useState<dayjs.Dayjs | null>(null);
   const [isTransposed, setIsTransposed] = useState(false);
   const [filtersInitialized, setFiltersInitialized] = useState(false);
+  const [selectedCurrencies, setSelectedCurrencies] = useState<string[]>([]);
   
   // Column visibility management
   const [columnConfig, setColumnConfig] = useState<ColumnConfig[]>(initialColumns || []);
@@ -57,7 +61,6 @@ export const useReportFilters = (initialColumns?: ColumnConfig[]): UseReportFilt
         }
 
         // Check how many columns from prevConfig exist in initialColumns
-        const prevIds = new Set(prevConfig.map(col => col.id));
         const newIds = new Set(initialColumns.map(col => col.id));
         const commonIds = prevConfig.filter(col => newIds.has(col.id));
         const overlapPercentage = prevConfig.length > 0 ? (commonIds.length / prevConfig.length) : 0;
@@ -108,18 +111,24 @@ export const useReportFilters = (initialColumns?: ColumnConfig[]): UseReportFilt
     );
   }, []);
 
+  const handleCurrencyChange = useCallback((currencies: string[]) => {
+    setSelectedCurrencies(currencies);
+  }, []);
+
   const handleClearFilters = useCallback(() => {
     setStartDate(null);
     setEndDate(null);
+    setSelectedCurrencies([]);
   }, []);
 
   // Compute final filter values for API calls
   const computedFilters = useMemo(() => {
     return {
       startDate: startDate?.format('YYYY-MM-DD'),
-      endDate: endDate?.format('YYYY-MM-DD')
+      endDate: endDate?.format('YYYY-MM-DD'),
+      currencyIds: selectedCurrencies.length > 0 ? selectedCurrencies : undefined
     };
-  }, [startDate, endDate]);
+  }, [startDate, endDate, selectedCurrencies]);
 
   // Initialize filters after initial state setup
   useEffect(() => {
@@ -133,11 +142,13 @@ export const useReportFilters = (initialColumns?: ColumnConfig[]): UseReportFilt
     isTransposed,
     columnConfig,
     visibleColumns,
+    selectedCurrencies,
     // Callbacks
     handleStartDateChange,
     handleEndDateChange,
     handleTransposeToggle,
     handleColumnVisibilityChange,
+    handleCurrencyChange,
     handleClearFilters,
     // Computed values
     computedFilters,

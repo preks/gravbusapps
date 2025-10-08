@@ -34,6 +34,8 @@ interface AccountFormContextValue extends AccountContextState {
   onSubmit: (values: AccountFormValues) => Promise<void>;
   onCancel: () => Promise<void>;
   hideActions: boolean; // Hide submit/cancel buttons when embedded
+  isLoading: boolean;
+  error: string | null;
 
   // Business app context for hooks
   businessAppContext: BusinessAppContextProps;

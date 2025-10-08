@@ -793,18 +793,16 @@ const ExitOpportunities: React.FC<ExitOpportunitiesProps> = ({
         <TabsList className="gba:grid gba:w-full gba:max-w-md gba:grid-cols-2">
           <TabsTrigger 
             value="list" 
-            className="gba:flex gba:items-center gba:gap-2"
+            startIcon={<List />}
             data-testid="exit-opportunities-list-tab"
           >
-            <List className="gba:h-4 gba:w-4" />
             {getTranslationFromI18nKeyAndLabel("list_view", "List View")}
           </TabsTrigger>
           <TabsTrigger 
             value="board" 
-            className="gba:flex gba:items-center gba:gap-2"
+            startIcon={<Grid3X3 />}
             data-testid="exit-opportunities-board-tab"
           >
-            <Grid3X3 className="gba:h-4 gba:w-4" />
             {getTranslationFromI18nKeyAndLabel("board_view", "Board View")}
           </TabsTrigger>
         </TabsList>

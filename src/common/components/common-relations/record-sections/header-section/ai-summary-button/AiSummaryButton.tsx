@@ -79,7 +79,7 @@ export const AiSummaryButton: React.FC<AiSummaryButtonProps> = ({
 
     if (aiSummaryState?.type === "success" && aiSummaryState.content) {
       return (
-        <div className="gba:w-[600px] gba:p-5">
+        <div className="gba:w-[600px] gba:p-5" style={{paddingRight: '35px' }}>
           {/* Executive Summary */}
           <Card className="gba:mb-4 gba:!gap-1">
             <CardHeader>

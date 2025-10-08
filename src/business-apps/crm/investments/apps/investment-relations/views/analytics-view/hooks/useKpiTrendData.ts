@@ -123,28 +123,28 @@ export const useKpiTrendData = (accessToken: string) => {
         const query = `
           query GetKpiTrendData {
             # Current month data
-            currentMonthLeads: LeadAggregate(
+            currentMonthLeads: InvestmentLeadAggregate(
               where: {
                 isDeleted: {_eq: false}
                 createdAt: {_gte: "${currentMonthStart}", _lt: "${nextMonthStart}"}
               }
             ) { aggregate { count } }
             
-            currentMonthAccounts: AccountAggregate(
+            currentMonthAccounts: InvestmentAccountAggregate(
               where: {
                 isDeleted: {_eq: false}
                 createdAt: {_gte: "${currentMonthStart}", _lt: "${nextMonthStart}"}
               }
             ) { aggregate { count } }
             
-            currentMonthOpportunities: OpportunityAggregate(
+            currentMonthOpportunities: InvestmentOpportunityAggregate(
               where: {
                 isDeleted: {_eq: false}
                 createdAt: {_gte: "${currentMonthStart}", _lt: "${nextMonthStart}"}
               }
             ) { aggregate { count sum { estimatedAmount } } }
             
-            currentMonthContacts: ContactAggregate(
+            currentMonthContacts: InvestmentContactAggregate(
               where: {
                 isDeleted: {_eq: false}
                 createdAt: {_gte: "${currentMonthStart}", _lt: "${nextMonthStart}"}
@@ -152,51 +152,51 @@ export const useKpiTrendData = (accessToken: string) => {
             ) { aggregate { count } }
             
             # Total entity counts (all existing)
-            totalLeadsNow: LeadAggregate(
+            totalLeadsNow: InvestmentLeadAggregate(
               where: { isDeleted: {_eq: false} }
             ) { aggregate { count } }
             
-            totalLeadsLastMonth: LeadAggregate(
+            totalLeadsLastMonth: InvestmentLeadAggregate(
               where: {
                 isDeleted: {_eq: false}
                 createdAt: {_lt: "${currentMonthStart}"}
               }
             ) { aggregate { count } }
             
-            totalAccountsNow: AccountAggregate(
+            totalAccountsNow: InvestmentAccountAggregate(
               where: { isDeleted: {_eq: false} }
             ) { aggregate { count } }
             
-            totalAccountsLastMonth: AccountAggregate(
+            totalAccountsLastMonth: InvestmentAccountAggregate(
               where: {
                 isDeleted: {_eq: false}
                 createdAt: {_lt: "${currentMonthStart}"}
               }
             ) { aggregate { count } }
             
-            totalOpportunitiesNow: OpportunityAggregate(
+            totalOpportunitiesNow: InvestmentOpportunityAggregate(
               where: { isDeleted: {_eq: false} }
             ) { aggregate { count } }
             
-            totalOpportunitiesLastMonth: OpportunityAggregate(
+            totalOpportunitiesLastMonth: InvestmentOpportunityAggregate(
               where: {
                 isDeleted: {_eq: false}
                 createdAt: {_lt: "${currentMonthStart}"}
               }
             ) { aggregate { count } }
             
-            totalContactsNow: ContactAggregate(
+            totalContactsNow: InvestmentContactAggregate(
               where: { isDeleted: {_eq: false} }
             ) { aggregate { count } }
             
-            totalContactsLastMonth: ContactAggregate(
+            totalContactsLastMonth: InvestmentContactAggregate(
               where: {
                 isDeleted: {_eq: false}
                 createdAt: {_lt: "${currentMonthStart}"}
               }
             ) { aggregate { count } }
             
-            currentMonthConvertedLeads: LeadAggregate(
+            currentMonthConvertedLeads: InvestmentLeadAggregate(
               where: {
                 isDeleted: {_eq: false}
                 createdAt: {_gte: "${currentMonthStart}", _lt: "${nextMonthStart}"}
@@ -204,7 +204,7 @@ export const useKpiTrendData = (accessToken: string) => {
               }
             ) { aggregate { count } }
             
-            currentMonthWonOpportunities: OpportunityAggregate(
+            currentMonthWonOpportunities: InvestmentOpportunityAggregate(
               where: {
                 isDeleted: {_eq: false}
                 createdAt: {_gte: "${currentMonthStart}", _lt: "${nextMonthStart}"}
@@ -213,35 +213,35 @@ export const useKpiTrendData = (accessToken: string) => {
             ) { aggregate { count sum { estimatedAmount } } }
             
             # Previous month data
-            previousMonthLeads: LeadAggregate(
+            previousMonthLeads: InvestmentLeadAggregate(
               where: {
                 isDeleted: {_eq: false}
                 createdAt: {_gte: "${previousMonthStart}", _lt: "${currentMonthStart}"}
               }
             ) { aggregate { count } }
             
-            previousMonthAccounts: AccountAggregate(
+            previousMonthAccounts: InvestmentAccountAggregate(
               where: {
                 isDeleted: {_eq: false}
                 createdAt: {_gte: "${previousMonthStart}", _lt: "${currentMonthStart}"}
               }
             ) { aggregate { count } }
             
-            previousMonthOpportunities: OpportunityAggregate(
+            previousMonthOpportunities: InvestmentOpportunityAggregate(
               where: {
                 isDeleted: {_eq: false}
                 createdAt: {_gte: "${previousMonthStart}", _lt: "${currentMonthStart}"}
               }
             ) { aggregate { count sum { estimatedAmount } } }
             
-            previousMonthContacts: ContactAggregate(
+            previousMonthContacts: InvestmentContactAggregate(
               where: {
                 isDeleted: {_eq: false}
                 createdAt: {_gte: "${previousMonthStart}", _lt: "${currentMonthStart}"}
               }
             ) { aggregate { count } }
             
-            previousMonthConvertedLeads: LeadAggregate(
+            previousMonthConvertedLeads: InvestmentLeadAggregate(
               where: {
                 isDeleted: {_eq: false}
                 createdAt: {_gte: "${previousMonthStart}", _lt: "${currentMonthStart}"}
@@ -249,7 +249,7 @@ export const useKpiTrendData = (accessToken: string) => {
               }
             ) { aggregate { count } }
             
-            previousMonthWonOpportunities: OpportunityAggregate(
+            previousMonthWonOpportunities: InvestmentOpportunityAggregate(
               where: {
                 isDeleted: {_eq: false}
                 createdAt: {_gte: "${previousMonthStart}", _lt: "${currentMonthStart}"}
@@ -258,7 +258,7 @@ export const useKpiTrendData = (accessToken: string) => {
             ) { aggregate { count sum { estimatedAmount } } }
             
             # Individual opportunity records for sales cycle calculation
-            currentMonthWonOpportunitiesWithCloseDate: Opportunity(
+            currentMonthWonOpportunitiesWithCloseDate: InvestmentOpportunity(
               where: {
                 isDeleted: {_eq: false}
                 createdAt: {_gte: "${currentMonthStart}", _lt: "${nextMonthStart}"}
@@ -272,7 +272,7 @@ export const useKpiTrendData = (accessToken: string) => {
               opportunityStatus { code }
             }
             
-            previousMonthWonOpportunitiesWithCloseDate: Opportunity(
+            previousMonthWonOpportunitiesWithCloseDate: InvestmentOpportunity(
               where: {
                 isDeleted: {_eq: false}
                 createdAt: {_gte: "${previousMonthStart}", _lt: "${currentMonthStart}"}

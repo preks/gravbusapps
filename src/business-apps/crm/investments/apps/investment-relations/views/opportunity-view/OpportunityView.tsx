@@ -8,6 +8,7 @@ import {
   Alert,
   Button,
 } from "@newwork/nw-design-system";
+import { List, LayoutGrid } from "lucide-react";
 import { BusinessAppContextProps } from "@/common/BusinessAppContext";
 import { useGetInvestmentOpportunities } from "@/common/data/investment/hooks/useInvestmentOpportunities";
 import type { InvestmentOpportunity } from "@/common/data/investment/types";
@@ -390,8 +391,8 @@ export const OpportunityView: React.FC<OpportunityViewProps> = (context) => {
       {/* Tabs */}
       <Tabs value={activeTab} onValueChange={setActiveTab}>
         <TabsList className="gba:mb-2">
-          <TabsTrigger value="list">List View</TabsTrigger>
-          <TabsTrigger value="board">Board View</TabsTrigger>
+          <TabsTrigger value="list" startIcon={<List />}>List View</TabsTrigger>
+          <TabsTrigger value="board" startIcon={<LayoutGrid />}>Board View</TabsTrigger>
         </TabsList>
 
         <TabsContent value="list" className="gba:mt-6">

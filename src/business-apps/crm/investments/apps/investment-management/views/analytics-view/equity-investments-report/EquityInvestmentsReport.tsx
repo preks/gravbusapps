@@ -299,16 +299,13 @@ const EquityInvestmentsReport: React.FC<EquityInvestmentsReportProps> = (props) 
           data-testid={formatDataTestId(prefixDataTestId, 'ChartTabs')}
         >
           <TabsList className="gba:grid gba:w-full gba:grid-cols-3">
-            <TabsTrigger value="distribution" className="gba:flex gba:items-center gba:gap-2">
-              <PieChart className="gba:h-4 gba:w-4" />
+            <TabsTrigger value="distribution" startIcon={<PieChart />}>
               {getTranslationFromI18nKeyAndLabel('tab.distribution', 'Distribution Analysis')}
             </TabsTrigger>
-            <TabsTrigger value="timeline" className="gba:flex gba:items-center gba:gap-2">
-              <TrendingUp className="gba:h-4 gba:w-4" />
+            <TabsTrigger value="timeline" startIcon={<TrendingUp />}>
               {getTranslationFromI18nKeyAndLabel('tab.timeline', 'Timeline Analysis')}
             </TabsTrigger>
-            <TabsTrigger value="analytics" className="gba:flex gba:items-center gba:gap-2">
-              <BarChart className="gba:h-4 gba:w-4" />
+            <TabsTrigger value="analytics" startIcon={<BarChart />}>
               {getTranslationFromI18nKeyAndLabel('tab.analytics', 'Performance Analysis')}
             </TabsTrigger>
           </TabsList>

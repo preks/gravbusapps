@@ -354,15 +354,11 @@ export const ConvertInvestmentLeadForm = ({
         processType="create"
         formType="wizard"
         onSubmit={(data) => {
-          console.log('🎯 AppActionForm wizard onSubmit triggered with data:', data);
-          
           // Double-check validation before allowing submission
           if (!isFormReadyForConversion()) {
-            console.log('🚫 Submit blocked by validation check');
             return Promise.reject('Form validation failed');
           }
           
-          console.log('🚀 AppActionForm calling handleSubmit...');
           return handleSubmit(data);
         }}
         onSuccess={onSuccess}

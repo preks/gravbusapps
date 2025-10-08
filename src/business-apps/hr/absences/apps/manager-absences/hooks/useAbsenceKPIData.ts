@@ -13,6 +13,7 @@ const GET_EMPLOYEE_ABSENCES_FOR_KPI = `
       limit: 500
       where: {
         isDeleted: {_eq: false}
+        status: {_eq: "APPROVED"}
         employee: {employeePosition: {supervisor: {id: {_eq: $supervisorId}}}}
       }
       orderBy: {startDate: DESC}
@@ -132,7 +133,7 @@ export const useAbsenceKPIData = (context: BusinessAppContextProps, _filters?: A
 
   const graphQLClient = useGraphQLClient(accessToken);
 
-  const getMonthName = (date: string): string => {
+  export const getMonthName = (date: string): string => {
     const monthIndex = new Date(date).getMonth();
     const monthKeys = [
       'lowcoder:absence_report.employee_table.january',
@@ -295,8 +296,8 @@ export const useAbsenceKPIData = (context: BusinessAppContextProps, _filters?: A
       };
     } = {};
     enrichedAbsences.forEach((absence) => {
-      const groupName = absence.type.groupName || '';
-      if (groupName.toLowerCase().includes('work leave')) {
+      const originalGroupName = absence.type.parentEntry.value || '';
+      if (originalGroupName.toLowerCase().includes('work leave')) {
         return;
       }
 

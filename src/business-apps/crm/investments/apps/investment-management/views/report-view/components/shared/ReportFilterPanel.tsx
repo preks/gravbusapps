@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   Card,
   CardContent,
@@ -11,17 +11,30 @@ import {
   DropdownMenuTrigger,
   DropdownMenuCheckboxItem
 } from '@newwork/nw-design-system';
-import { DatePicker } from 'antd';
+import { DatePicker, Select } from 'antd';
 import { FilterIcon, ArrowLeftRight } from 'lucide-react';
 import { PiColumns, PiEye, PiEyeClosed } from 'react-icons/pi';
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
 import { UseReportFiltersReturn } from './hooks/useReportFilters';
+import { useCatalogManagerClient } from '@/common/network/catalogs/useCatalogManagerClient';
 
 export interface ReportFilterPanelProps {
   /**
    * Controls for the filters (passed from useReportFilters hook)
    */
   filters: UseReportFiltersReturn;
+  
+  /**
+   * Access token for API calls
+   */
+  accessToken: string;
+  
+  /**
+   * Available currency IDs from current filtered data
+   * Only these currencies will be shown in the dropdown
+   * If not provided, will query all currencies from reports
+   */
+  availableCurrencyIds?: string[];
   
   /**
    * Component appearance style
@@ -57,6 +70,8 @@ export interface ReportFilterPanelProps {
  */
 export const ReportFilterPanel: React.FC<ReportFilterPanelProps> = ({
   filters,
+  accessToken,
+  availableCurrencyIds,
   variant = 'card',
   title,
   description,
@@ -68,19 +83,74 @@ export const ReportFilterPanel: React.FC<ReportFilterPanelProps> = ({
     endDate,
     isTransposed,
     columnConfig,
+    selectedCurrencies,
     handleStartDateChange,
     handleEndDateChange,
     handleTransposeToggle,
     handleColumnVisibilityChange,
+    handleCurrencyChange,
     handleClearFilters
   } = filters;
+
+  // Currency catalog integration
+  const catalogClient = useCatalogManagerClient(accessToken);
+  const [currencyOptions, setCurrencyOptions] = useState<Array<{ value: string; label: string }>>([]);
+  const [currenciesLoading, setCurrenciesLoading] = useState(false);
+
+  // Fetch currency catalog data based on available currency IDs from filtered data
+  const fetchCurrencies = useCallback(async () => {
+    if (!accessToken || !availableCurrencyIds || availableCurrencyIds.length === 0) {
+      setCurrencyOptions([]);
+      return;
+    }
+
+    setCurrenciesLoading(true);
+    try {
+      // Fetch currency catalog entries
+      const response = await catalogClient.getCatalogEntriesList(
+        {
+          catalogIdentifier: 'Currency',
+          version: 'v1'
+        },
+        {
+          limit: 100,
+          offset: 0,
+          returnTotalRecords: true,
+          includeChildCatalogEntries: true
+        }
+      );
+
+      if (response?.data && Array.isArray(response.data)) {
+        // Filter catalog to only show currencies that exist in current filtered data
+        const availableSet = new Set(availableCurrencyIds);
+        const options = response.data
+          .filter(entry => availableSet.has(entry.id))
+          .map(entry => ({
+            value: entry.id,
+            label: `${entry.value} (${entry.code})`
+          }));
+
+        setCurrencyOptions(options);
+      } else {
+        setCurrencyOptions([]);
+      }
+    } catch (error) {
+      console.error('Error fetching currencies:', error);
+      setCurrencyOptions([]);
+    } finally {
+      setCurrenciesLoading(false);
+    }
+  }, [accessToken, availableCurrencyIds, catalogClient]);
+
+  useEffect(() => {
+    fetchCurrencies();
+  }, [fetchCurrencies]);
 
   const visibleCount = columnConfig.filter(col => col.visible).length;
   const totalCount = columnConfig.length;
 
-  // Default titles and descriptions if not provided
+  // Default title if not provided
   const defaultTitle = getTranslationFromI18nKeyAndLabel('filters.title', 'Filters');
-  const defaultDescription = getTranslationFromI18nKeyAndLabel('filters.description', 'Configure date range for the analytics view');
 
   const filterContent = (
     <div className="gba:flex gba:flex-wrap gba:items-center gba:gap-4 gba:mb-4">
@@ -112,6 +182,23 @@ export const ReportFilterPanel: React.FC<ReportFilterPanelProps> = ({
             allowClear
             className="gba:w-[140px]"
             data-testid={`${dataTestId}-end-date-picker`}
+          />
+        </div>
+
+        <div className="gba:flex gba:items-center gba:gap-2">
+          <label className="gba:text-sm gba:font-medium">
+            {getTranslationFromI18nKeyAndLabel('filters.currency', 'Currency:')}
+          </label>
+          <Select
+            mode="multiple"
+            value={selectedCurrencies}
+            onChange={handleCurrencyChange}
+            options={currencyOptions}
+            placeholder={getTranslationFromI18nKeyAndLabel('filters.selectCurrencies', 'Select currencies')}
+            loading={currenciesLoading}
+            style={{ width: 200 }}
+            allowClear
+            data-testid={`${dataTestId}-currency-select`}
           />
         </div>
       </div>
