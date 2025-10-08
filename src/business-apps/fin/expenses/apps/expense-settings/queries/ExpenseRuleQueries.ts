@@ -70,7 +70,7 @@ export const GET_EXPENSE_RULE_ASSIGNMENTS = (variables: ExpenseRuleAssignmentQue
         ${whereCondition}
         offset: ${offset}
         limit: ${limit}
-        orderBy: {assignmentOrder: ASC}
+        orderBy: {createdAt: DESC_NULLS_LAST}
       ) {
         id
         assignmentOrder
@@ -79,6 +79,7 @@ export const GET_EXPENSE_RULE_ASSIGNMENTS = (variables: ExpenseRuleAssignmentQue
         activeFrom
         activeTo
         version
+        createdAt
         expenseRuleId
         employeeId
         companyId
@@ -194,7 +195,7 @@ export const GET_EXPENSE_RULES = (variables: ExpenseRuleQueryVariables): string 
         ${whereCondition}
         offset: ${offset}
         limit: ${limit}
-        orderBy: {code: ASC}
+        orderBy: {createdAt: DESC_NULLS_LAST}
       ) {
         id
         code
@@ -209,6 +210,7 @@ export const GET_EXPENSE_RULES = (variables: ExpenseRuleQueryVariables): string 
         taxesCode
         nonpayableCode
         version
+        createdAt
         calculationType {
           id
           code
@@ -228,8 +230,12 @@ export const GET_EXPENSE_RULES = (variables: ExpenseRuleQueryVariables): string 
           id
           code
           amount
-          abroad
-          calculation
+          calculation {
+            id
+            code
+            value
+            description
+          }
           codeOrder
           activeFrom
           activeTo
@@ -782,8 +788,12 @@ export const GET_EXPENSE_RULE_ALLOWANCE_CODE_BY_ID = (allowanceCodeId: string): 
         code
         name
         amount
-        abroad
-        calculation
+        calculation {
+          id
+          code
+          value
+          description
+        }
         calculationRef
         codeOrder
         activeFrom
@@ -950,6 +960,7 @@ export const GET_EXPENSE_RULE_BY_ID = (ruleId: string): string => {
         taxesCode
         nonpayableCode
         version
+        createdAt
         calculationType {
           id
           code
@@ -989,8 +1000,12 @@ export const GET_EXPENSE_RULE_BY_ID = (ruleId: string): string => {
           id
           code
           amount
-          abroad
-          calculation
+          calculation {
+            id
+            code
+            value
+            description
+          }
           codeOrder
           activeFrom
           activeTo

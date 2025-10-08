@@ -13,6 +13,7 @@ export interface ExpenseRule {
   nonpayableCode?: string;
   version?: number;
   isDeleted: boolean;
+  createdAt?: string;
   
   // Relations
   calculationType?: CatalogEntry;
@@ -35,6 +36,7 @@ export interface ExpenseRuleAssignment {
   activeTo: string;
   version?: number;
   isDeleted: boolean;
+  createdAt?: string;
   
   // Assignment target IDs
   expenseRuleId: string;

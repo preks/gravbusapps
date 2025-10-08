@@ -319,7 +319,13 @@ const CalculationRuleAssignmentList: React.FC<CalculationRuleAssignmentListProps
 
   // Initialize sorted assignments on assignments change
   useEffect(() => {
-    const sorted = [...assignments].sort((a, b) => a.assignmentOrder - b.assignmentOrder);
+    const sorted = [...assignments].sort((a, b) => {
+      // Sort by createdAt DESC with nulls last
+      if (!a.createdAt && !b.createdAt) return 0;
+      if (!a.createdAt) return 1; // null values last
+      if (!b.createdAt) return -1; // null values last
+      return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(); // DESC order
+    });
     setSortedAssignments(sorted);
     setDisplayedAssignments(sorted.slice(0, ITEMS_PER_PAGE));
     setHasMore(sorted.length > ITEMS_PER_PAGE);
@@ -513,7 +519,13 @@ const CalculationRuleAssignmentList: React.FC<CalculationRuleAssignmentListProps
 
   const handleCancelChanges = () => {
     // Revert to original assignments
-    const sorted = [...assignments].sort((a, b) => a.assignmentOrder - b.assignmentOrder);
+    const sorted = [...assignments].sort((a, b) => {
+      // Sort by createdAt DESC with nulls last
+      if (!a.createdAt && !b.createdAt) return 0;
+      if (!a.createdAt) return 1; // null values last
+      if (!b.createdAt) return -1; // null values last
+      return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(); // DESC order
+    });
     setDisplayedAssignments(sorted.slice(0, ITEMS_PER_PAGE));
     
     // Clear pending changes

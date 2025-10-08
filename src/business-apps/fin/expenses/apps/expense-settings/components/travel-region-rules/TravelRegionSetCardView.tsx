@@ -13,7 +13,7 @@ import { PiPlus, PiMapPin, PiTable } from 'react-icons/pi';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 import { useCatalogManagerClient } from '@/common/network/catalogs/useCatalogManagerClient';
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
-import { TravelRegionSetForm, TravelRegionSetFormData } from '../../forms/travel-region-set-form';
+import TravelRegionSetModal, { TravelRegionSetFormData } from './TravelRegionSetModal';
 
 // Custom toast function
 const toast = (message: string, type: 'success' | 'error' = 'success') => {
@@ -228,11 +228,11 @@ const TravelRegionSetCardView: React.FC<TravelRegionSetCardViewProps> = ({
         </div>
       )}
 
-      {/* Travel Region Set Creation Form */}
-      <TravelRegionSetForm
+      {/* Travel Region Set Creation Modal */}
+      <TravelRegionSetModal
         accessToken={accessToken}
-        open={isCreateFormVisible}
-        onClose={handleCreateFormClose}
+        isVisible={isCreateFormVisible}
+        onCancel={handleCreateFormClose}
         onSave={handleCreateFormSave}
         prefixDataTestId={`${prefixDataTestId}-create-travel-region-set`}
       />

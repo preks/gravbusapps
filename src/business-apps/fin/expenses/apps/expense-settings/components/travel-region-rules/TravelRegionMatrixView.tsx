@@ -265,13 +265,18 @@ const TravelRegionMatrixView: React.FC<TravelRegionMatrixViewProps> = ({
       );
       
       // Filter by parent ID on the client side since catalog API doesn't support it directly
-      return response.data
+      const filteredData = response.data
         .filter((item: any) => item.parentEntryId === travelRegionSetId)
         .map((item: any) => ({
           id: item.id,
           code: item.code,
           value: item.value
         }));
+      
+      // Remove duplicates based on ID
+      return filteredData.filter((region, index, self) => 
+        index === self.findIndex(r => r.id === region.id)
+      );
     } catch (err) {
       console.error('Error loading travel regions:', err);
       return [];
@@ -439,7 +444,12 @@ const TravelRegionMatrixView: React.FC<TravelRegionMatrixViewProps> = ({
       setEditableCells(validatedCells);
       
       // Store regions temporarily to convert after convertToEditableRegions is available
-      setEditableTravelRegions(regions.map(region => ({
+      // Remove duplicates based on region ID
+      const uniqueRegions = regions.filter((region, index, self) => 
+        index === self.findIndex(r => r.id === region.id)
+      );
+      
+      setEditableTravelRegions(uniqueRegions.map(region => ({
         ...region,
         isEditing: false,
         editingCode: region.code,
@@ -487,6 +497,17 @@ const TravelRegionMatrixView: React.FC<TravelRegionMatrixViewProps> = ({
       });
       
       validityPeriods.push(...periodMap.values());
+      
+      // If no validity periods exist, create a default one
+      if (validityPeriods.length === 0) {
+        validityPeriods.push({
+          id: `default-${region.id}`,
+          activeFrom: dayjs().format('YYYY-MM-DD'),
+          activeTo: undefined,
+          currencyCode: 'EUR',
+          hasConflict: false
+        });
+      }
       
       return {
         ...region,
@@ -647,21 +668,71 @@ const TravelRegionMatrixView: React.FC<TravelRegionMatrixViewProps> = ({
     }
 
     try {
-      // TODO: Implement region creation via proper API
-      // For now, we'll simulate the creation
-      console.log('Creating region:', {
-        code: regionName.trim().toUpperCase().replace(/\s+/g, '_'),
+      // First, check if a region with this code already exists
+      const proposedCode = regionName.trim().toUpperCase().replace(/\s+/g, '_');
+      
+      // Get all existing travel regions to check for duplicates
+      const allRegionsResponse = await catalogClient.getCatalogEntriesList(
+        { catalogIdentifier: 'TravelRegion', version: 'v1' },
+        { 
+          limit: 1000, 
+          offset: 0, 
+          returnTotalRecords: false
+        }
+      );
+      
+      const existingCodes = allRegionsResponse.data.map((item: any) => item.code);
+      
+      if (existingCodes.includes(proposedCode)) {
+        // Generate a unique code by appending a number
+        let uniqueCode = proposedCode;
+        let counter = 1;
+        while (existingCodes.includes(uniqueCode)) {
+          uniqueCode = `${proposedCode}_${counter}`;
+          counter++;
+        }
+        
+        const confirmMessage = `A travel region with code "${proposedCode}" already exists. Would you like to create it with code "${uniqueCode}" instead?`;
+        if (!confirm(confirmMessage)) {
+          toast('Region creation cancelled', 'error');
+          return;
+        }
+      }
+
+      // Create travel region via catalog API
+      const regionData = {
+        code: existingCodes.includes(proposedCode) ? 
+          `${proposedCode}_${existingCodes.filter(code => code.startsWith(proposedCode)).length}` : 
+          proposedCode,
         value: regionName.trim(),
         description: `Travel region: ${regionName.trim()}`,
-        parentEntryId: travelRegionSetId
-      });
+        parentEntryId: travelRegionSetId,
+        translations: [
+          {
+            localeCode: 'en',
+            value: regionName.trim()
+          }
+        ]
+      };
+
+      console.log('🚀 Creating travel region:', regionData);
+      await catalogClient.createCatalogEntry('TravelRegion', 'v1', regionData);
       
       setNewRegionName('');
-      // loadData(); // Uncomment when API is available
-      toast('Travel region creation requested (implement API)', 'success');
+      toast('Travel region created successfully', 'success');
+      
+      // Reload data to show the new region
+      await loadData();
     } catch (err) {
-      console.error('Error creating region:', err);
-      toast('Failed to create region', 'error');
+      console.error('❌ Error creating region:', err);
+      const errorMessage = err instanceof Error ? err.message : 'Failed to create region';
+      
+      // Check if it's a duplicate code error
+      if (errorMessage.includes('Duplicate catalog entry codes')) {
+        toast('A region with this code already exists. Please try a different name.', 'error');
+      } else {
+        toast(errorMessage, 'error');
+      }
     }
   };
 
