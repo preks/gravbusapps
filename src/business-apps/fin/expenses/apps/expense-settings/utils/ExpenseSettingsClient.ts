@@ -2,8 +2,7 @@ import { RestClient } from '@/common/network/rest/RestClient';
 import { env } from '@/common/env/EnvUtils';
 import { setAccessTokenToAuthorizationHeader } from '@/common/network/HeaderUtils';
 import { 
-  SaveExpenseRuleAssignmentInput,
-  AllowanceRegionRuleFormData
+  SaveExpenseRuleAssignmentInput
 } from '../types/ExpenseRuleTypes';
 import { MileageRuleFormData, MileageRuleDetailFormData } from '../forms/mileage-rule-form';
 
@@ -180,9 +179,15 @@ export class ExpenseSettingsClient extends RestClient {
 
   // Allowance Region Rule Operations (Travel Rules)
   async saveAllowanceRegionRule(data: any): Promise<any> {
+    console.log('🔍 ExpenseSettingsClient.saveAllowanceRegionRule called with:', data);
+    console.log('🔍 Base URL:', this.baseUrl);
+    console.log('🔍 Headers:', this.headers);
+    console.log('🔍 Authorization header:', this.headers['Authorization']);
+    
     // Check if this is a direct API payload (for assignment) or form data
     if (data.allowanceRegionRule && data.changeMode) {
       // Direct API payload - pass through as is
+      console.log('🔍 Using direct API payload, posting to:', `/${BASE_PATH}/saveAllowanceRegionRule`);
       return this.post(`/${BASE_PATH}/saveAllowanceRegionRule`, data);
     }
     
@@ -194,12 +199,17 @@ export class ExpenseSettingsClient extends RestClient {
         code: data.code,
         name: data.name,
         description: data.description,
-        regionType: data.regionType,
-        countryCode: data.countryCode,
-        cityName: data.cityName,
         activeFrom: data.activeFrom,
         activeTo: data.activeTo,
-        details: data.details,
+        // Handle both old and new field structures
+        ...(data.regionType && { regionType: data.regionType }),
+        ...(data.countryCode && { countryCode: data.countryCode }),
+        ...(data.cityName && { cityName: data.cityName }),
+        ...(data.details && { details: data.details }),
+        ...(data.travelRegionSetRef && { travelRegionSetRef: data.travelRegionSetRef }),
+        ...(data.ruleOrder !== undefined && { ruleOrder: data.ruleOrder }),
+        ...(data.additionalProperties && { additionalProperties: data.additionalProperties }),
+        ...(data.businessKey && { businessKey: data.businessKey }),
         ...(data.version !== undefined && { version: data.version })
       },
       changeMode: hasId ? 'UPDATE' : 'INSERT'

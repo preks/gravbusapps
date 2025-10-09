@@ -11,7 +11,7 @@ import {
 } from '@newwork/nw-design-system';
 import { PiPlus, PiMapPin, PiTable } from 'react-icons/pi';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
-import { useCatalogManagerClient } from '@/common/network/catalogs/useCatalogManagerClient';
+import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient';
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
 import TravelRegionSetModal, { TravelRegionSetFormData } from './TravelRegionSetModal';
 
@@ -46,29 +46,56 @@ const TravelRegionSetCardView: React.FC<TravelRegionSetCardViewProps> = ({
   const [error, setError] = useState<string | null>(null);
   const [isCreateFormVisible, setIsCreateFormVisible] = useState(false);
 
-  const catalogClient = useCatalogManagerClient(accessToken);
+  const graphqlClient = useGraphQLClient(accessToken);
 
   const loadTravelRegionSets = useCallback(async () => {
     setIsLoading(true);
     setError(null);
     
     try {
-      const response = await catalogClient.getCatalogEntriesList(
-        { catalogIdentifier: 'TravelRegionSet', version: 'v1' },
-        { 
-          limit: 100, 
-          offset: 0, 
-          returnTotalRecords: true,
-          includeChildCatalogEntries: true // Include child catalog entries
+      // Use GraphQL to fetch TravelRegionSet entries with childEntriesAggregate for count
+      const query = `
+        query GetTravelRegionSets {
+          CatalogEntry(
+            where: { 
+              catalog: { 
+                identifier: { _eq: "TravelRegionSet" }, 
+                version: { _eq: "v1" } 
+              },
+              isDeleted: { _eq: false }
+            }
+            orderBy: { code: ASC }
+          ) {
+            id
+            code
+            value
+            description
+            childEntriesAggregate(
+              where: { 
+                isDeleted: { _eq: false },
+                catalog: { 
+                  identifier: { _eq: "TravelRegion" }, 
+                  version: { _eq: "v1" } 
+                }
+              }
+            ) {
+              aggregate {
+                count
+              }
+            }
+          }
         }
-      );
+      `;
       
-      const sets: TravelRegionSet[] = response.data.map((item: any) => ({
+      const result = await graphqlClient.request<{ CatalogEntry: any[] }>(query);
+      
+      const sets: TravelRegionSet[] = result.CatalogEntry.map((item: any) => ({
         id: item.id,
         code: item.code,
         value: item.value,
         description: item.description,
-        childCount: item.childCount || 0
+        // Get childCount from GraphQL aggregate
+        childCount: item.childEntriesAggregate?.aggregate?.count || 0
       }));
       
       setTravelRegionSets(sets);
@@ -78,7 +105,7 @@ const TravelRegionSetCardView: React.FC<TravelRegionSetCardViewProps> = ({
     } finally {
       setIsLoading(false);
     }
-  }, [catalogClient]);
+  }, [graphqlClient]);
 
   useEffect(() => {
     if (accessToken) {

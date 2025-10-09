@@ -115,7 +115,7 @@ const TravelRegionForm: React.FC<TravelRegionFormProps> = ({
 
   return (
     <Dialog open={open} onOpenChange={handleClose}>
-      <DialogContent data-testid={`${prefixDataTestId}-travel-region-form`} className="gba:max-w-md">
+      <DialogContent data-testid={`${prefixDataTestId}-travel-region-form`} className="gba:max-w-2xl gba:max-h-[85vh]">
         <DialogHeader>
           <DialogTitle>
             {getTranslationFromI18nKeyAndLabel('expense-settings:create_travel_region', 'Create Travel Region')}
@@ -127,90 +127,99 @@ const TravelRegionForm: React.FC<TravelRegionFormProps> = ({
           )}
         </DialogHeader>
 
-        {error && (
-          <Alert className="gba:mb-4">
-            <AlertDescription>{error}</AlertDescription>
-          </Alert>
-        )}
+        <div className="gba:overflow-y-auto gba:max-h-[calc(85vh-120px)]">
+          {error && (
+            <Alert className="gba:mb-4">
+              <AlertDescription>{error}</AlertDescription>
+            </Alert>
+          )}
 
-        <form onSubmit={handleSubmit} className="gba:space-y-4">
-          <div className="gba:space-y-2">
-            <label 
-              className="gba:text-sm gba:font-medium gba:text-gray-700"
-              htmlFor={`${prefixDataTestId}-code-input`}
-            >
-              {getTranslationFromI18nKeyAndLabel('expense-settings:code', 'Code')}
-              <span className="gba:text-red-500 gba:ml-1">*</span>
-            </label>
-            <Input
-              id={`${prefixDataTestId}-code-input`}
-              value={formData.code}
-              onChange={(e) => handleInputChange('code', e.target.value)}
-              placeholder="Enter unique code (e.g., EU_WEST)"
-              data-testid={`${prefixDataTestId}-code-input`}
-              disabled={isSubmitting}
-              required
-            />
-          </div>
+          <form onSubmit={handleSubmit} className="gba:space-y-3 gba:px-1">
+            <div className="gba:space-y-2">
+              <label 
+                className="gba:text-sm gba:font-medium gba:text-gray-700"
+                htmlFor={`${prefixDataTestId}-code-input`}
+              >
+                {getTranslationFromI18nKeyAndLabel('expense-settings:code', 'Code')}
+                <span className="gba:text-red-500 gba:ml-1">*</span>
+              </label>
+              <Input
+                id={`${prefixDataTestId}-code-input`}
+                value={formData.code}
+                onChange={(e) => handleInputChange('code', e.target.value)}
+                placeholder="Enter unique code (e.g., EU_WEST)"
+                data-testid={`${prefixDataTestId}-code-input`}
+                disabled={isSubmitting}
+                className="gba:h-9 gba:text-sm"
+                required
+              />
+            </div>
 
-          <div className="gba:space-y-2">
-            <label 
-              className="gba:text-sm gba:font-medium gba:text-gray-700"
-              htmlFor={`${prefixDataTestId}-value-input`}
-            >
-              {getTranslationFromI18nKeyAndLabel('expense-settings:name', 'Name')}
-              <span className="gba:text-red-500 gba:ml-1">*</span>
-            </label>
-            <Input
-              id={`${prefixDataTestId}-value-input`}
-              value={formData.value}
-              onChange={(e) => handleInputChange('value', e.target.value)}
-              placeholder="Enter display name (e.g., Western Europe)"
-              data-testid={`${prefixDataTestId}-value-input`}
-              disabled={isSubmitting}
-              required
-            />
-          </div>
+            <div className="gba:space-y-2">
+              <label 
+                className="gba:text-sm gba:font-medium gba:text-gray-700"
+                htmlFor={`${prefixDataTestId}-value-input`}
+              >
+                {getTranslationFromI18nKeyAndLabel('expense-settings:name', 'Name')}
+                <span className="gba:text-red-500 gba:ml-1">*</span>
+              </label>
+              <Input
+                id={`${prefixDataTestId}-value-input`}
+                value={formData.value}
+                onChange={(e) => handleInputChange('value', e.target.value)}
+                placeholder="Enter display name (e.g., Western Europe)"
+                data-testid={`${prefixDataTestId}-value-input`}
+                disabled={isSubmitting}
+                className="gba:h-9 gba:text-sm"
+                required
+              />
+            </div>
 
-          <div className="gba:space-y-2">
-            <label 
-              className="gba:text-sm gba:font-medium gba:text-gray-700"
-              htmlFor={`${prefixDataTestId}-description-input`}
-            >
-              {getTranslationFromI18nKeyAndLabel('expense-settings:description', 'Description')}
-            </label>
-            <Input
-              id={`${prefixDataTestId}-description-input`}
-              value={formData.description}
-              onChange={(e) => handleInputChange('description', e.target.value)}
-              placeholder="Enter optional description"
-              data-testid={`${prefixDataTestId}-description-input`}
-              disabled={isSubmitting}
-            />
-          </div>
+            <div className="gba:space-y-2">
+              <label 
+                className="gba:text-sm gba:font-medium gba:text-gray-700"
+                htmlFor={`${prefixDataTestId}-description-input`}
+              >
+                {getTranslationFromI18nKeyAndLabel('expense-settings:description', 'Description')}
+              </label>
+              <Input
+                id={`${prefixDataTestId}-description-input`}
+                value={formData.description}
+                onChange={(e) => handleInputChange('description', e.target.value)}
+                placeholder="Enter optional description"
+                data-testid={`${prefixDataTestId}-description-input`}
+                disabled={isSubmitting}
+                className="gba:h-9 gba:text-sm"
+              />
+            </div>
 
-          <div className="gba:flex gba:justify-end gba:gap-3 gba:pt-4">
-            <Button 
-              type="button" 
-              variant="outline" 
-              onClick={handleClose}
-              disabled={isSubmitting}
-              data-testid={`${prefixDataTestId}-cancel-button`}
-            >
-              {getTranslationFromI18nKeyAndLabel('expense-settings:cancel', 'Cancel')}
-            </Button>
-            <Button 
-              type="submit" 
-              disabled={isSubmitting || !formData.code.trim() || !formData.value.trim()}
-              data-testid={`${prefixDataTestId}-save-button`}
-            >
-              {isSubmitting 
-                ? getTranslationFromI18nKeyAndLabel('expense-settings:creating', 'Creating...') 
-                : getTranslationFromI18nKeyAndLabel('expense-settings:create', 'Create')
-              }
-            </Button>
-          </div>
-        </form>
+            <div className="gba:flex gba:justify-end gba:gap-2 gba:pt-4">
+              <Button 
+                type="button" 
+                variant="outline" 
+                onClick={handleClose}
+                disabled={isSubmitting}
+                size="sm"
+                className="gba:h-9 gba:text-sm"
+                data-testid={`${prefixDataTestId}-cancel-button`}
+              >
+                {getTranslationFromI18nKeyAndLabel('expense-settings:cancel', 'Cancel')}
+              </Button>
+              <Button 
+                type="submit" 
+                disabled={isSubmitting || !formData.code.trim() || !formData.value.trim()}
+                size="sm"
+                className="gba:h-9 gba:text-sm"
+                data-testid={`${prefixDataTestId}-save-button`}
+              >
+                {isSubmitting 
+                  ? getTranslationFromI18nKeyAndLabel('expense-settings:creating', 'Creating...') 
+                  : getTranslationFromI18nKeyAndLabel('expense-settings:create', 'Create')
+                }
+              </Button>
+            </div>
+          </form>
+        </div>
       </DialogContent>
     </Dialog>
   );

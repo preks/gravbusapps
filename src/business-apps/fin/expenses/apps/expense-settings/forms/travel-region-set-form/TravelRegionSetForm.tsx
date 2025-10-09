@@ -112,92 +112,101 @@ const TravelRegionSetForm: React.FC<TravelRegionSetFormProps> = ({
 
   return (
     <Dialog open={open} onOpenChange={handleClose}>
-      <DialogContent data-testid={`${prefixDataTestId}-travel-region-set-form`} className="gba:max-w-md">
+      <DialogContent data-testid={`${prefixDataTestId}-travel-region-set-form`} className="gba:max-w-2xl gba:max-h-[85vh]">
         <DialogHeader>
           <DialogTitle>
             {getTranslationFromI18nKeyAndLabel('expense-settings:create_travel_region_set', 'Create Travel Region Set')}
           </DialogTitle>
         </DialogHeader>
 
-        {error && (
-          <Alert className="gba:mb-4">
-            <AlertDescription>{error}</AlertDescription>
-          </Alert>
-        )}
+        <div className="gba:overflow-y-auto gba:max-h-[calc(85vh-120px)]">
+          {error && (
+            <Alert className="gba:mb-4">
+              <AlertDescription>{error}</AlertDescription>
+            </Alert>
+          )}
 
-        <form onSubmit={handleSubmit} className="gba:space-y-4">
-          <FormItem>
-            <FormLabel className="gba:required">
-              {getTranslationFromI18nKeyAndLabel('expense-settings:code', 'Code')}
-            </FormLabel>
-            <FormControl>
-              <Input
-                value={formData.code}
-                onChange={(e) => handleInputChange('code', e.target.value)}
-                placeholder="Enter unique code (e.g., EU_REGIONS)"
-                data-testid={`${prefixDataTestId}-code-input`}
+          <form onSubmit={handleSubmit} className="gba:space-y-3 gba:px-1">
+            <FormItem>
+              <FormLabel className="gba:required gba:text-sm gba:font-medium">
+                {getTranslationFromI18nKeyAndLabel('expense-settings:code', 'Code')}
+              </FormLabel>
+              <FormControl>
+                <Input
+                  value={formData.code}
+                  onChange={(e) => handleInputChange('code', e.target.value)}
+                  placeholder="Enter unique code (e.g., EU_REGIONS)"
+                  data-testid={`${prefixDataTestId}-code-input`}
+                  disabled={isSubmitting}
+                  className="gba:h-9 gba:text-sm"
+                  required
+                />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+
+            <FormItem>
+              <FormLabel className="gba:required gba:text-sm gba:font-medium">
+                {getTranslationFromI18nKeyAndLabel('expense-settings:name', 'Name')}
+              </FormLabel>
+              <FormControl>
+                <Input
+                  value={formData.value}
+                  onChange={(e) => handleInputChange('value', e.target.value)}
+                  placeholder="Enter display name (e.g., European Regions)"
+                  data-testid={`${prefixDataTestId}-value-input`}
+                  disabled={isSubmitting}
+                  className="gba:h-9 gba:text-sm"
+                  required
+                />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+
+            <FormItem>
+              <FormLabel className="gba:text-sm gba:font-medium">
+                {getTranslationFromI18nKeyAndLabel('expense-settings:description', 'Description')}
+              </FormLabel>
+              <FormControl>
+                <Input
+                  value={formData.description}
+                  onChange={(e) => handleInputChange('description', e.target.value)}
+                  placeholder="Enter optional description"
+                  data-testid={`${prefixDataTestId}-description-input`}
+                  disabled={isSubmitting}
+                  className="gba:h-9 gba:text-sm"
+                />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+
+            <div className="gba:flex gba:justify-end gba:gap-2 gba:pt-4">
+              <Button 
+                type="button" 
+                variant="outline" 
+                onClick={handleClose}
                 disabled={isSubmitting}
-                required
-              />
-            </FormControl>
-            <FormMessage />
-          </FormItem>
-
-          <FormItem>
-            <FormLabel className="gba:required">
-              {getTranslationFromI18nKeyAndLabel('expense-settings:name', 'Name')}
-            </FormLabel>
-            <FormControl>
-              <Input
-                value={formData.value}
-                onChange={(e) => handleInputChange('value', e.target.value)}
-                placeholder="Enter display name (e.g., European Regions)"
-                data-testid={`${prefixDataTestId}-value-input`}
-                disabled={isSubmitting}
-                required
-              />
-            </FormControl>
-            <FormMessage />
-          </FormItem>
-
-          <FormItem>
-            <FormLabel>
-              {getTranslationFromI18nKeyAndLabel('expense-settings:description', 'Description')}
-            </FormLabel>
-            <FormControl>
-              <Input
-                value={formData.description}
-                onChange={(e) => handleInputChange('description', e.target.value)}
-                placeholder="Enter optional description"
-                data-testid={`${prefixDataTestId}-description-input`}
-                disabled={isSubmitting}
-              />
-            </FormControl>
-            <FormMessage />
-          </FormItem>
-
-          <div className="gba:flex gba:justify-end gba:gap-3 gba:pt-4">
-            <Button 
-              type="button" 
-              variant="outline" 
-              onClick={handleClose}
-              disabled={isSubmitting}
-              data-testid={`${prefixDataTestId}-cancel-button`}
-            >
-              {getTranslationFromI18nKeyAndLabel('expense-settings:cancel', 'Cancel')}
-            </Button>
-            <Button 
-              type="submit" 
-              disabled={isSubmitting || !formData.code.trim() || !formData.value.trim()}
-              data-testid={`${prefixDataTestId}-save-button`}
-            >
-              {isSubmitting 
-                ? getTranslationFromI18nKeyAndLabel('expense-settings:creating', 'Creating...') 
-                : getTranslationFromI18nKeyAndLabel('expense-settings:create', 'Create')
-              }
-            </Button>
-          </div>
-        </form>
+                size="sm"
+                className="gba:h-9 gba:text-sm"
+                data-testid={`${prefixDataTestId}-cancel-button`}
+              >
+                {getTranslationFromI18nKeyAndLabel('expense-settings:cancel', 'Cancel')}
+              </Button>
+              <Button 
+                type="submit" 
+                disabled={isSubmitting || !formData.code.trim() || !formData.value.trim()}
+                size="sm"
+                className="gba:h-9 gba:text-sm"
+                data-testid={`${prefixDataTestId}-save-button`}
+              >
+                {isSubmitting 
+                  ? getTranslationFromI18nKeyAndLabel('expense-settings:creating', 'Creating...') 
+                  : getTranslationFromI18nKeyAndLabel('expense-settings:create', 'Create')
+                }
+              </Button>
+            </div>
+          </form>
+        </div>
       </DialogContent>
     </Dialog>
   );

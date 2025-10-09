@@ -1,16 +1,13 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 import { useCatalogManagerClient } from '@/common/network/catalogs/useCatalogManagerClient';
+import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient';
 import { 
   Button, 
   Card,
   CardContent,
   CardHeader,
   CardTitle,
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
   Input,
   Select,
   SelectContent,
@@ -18,18 +15,12 @@ import {
   SelectTrigger,
   SelectValue,
   Label,
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
   Alert,
   AlertDescription,
   Spinner,
   Checkbox
 } from '@newwork/nw-design-system';
-import { PiFloppyDisk, PiX, PiWarning, PiPlus, PiTrash, PiCheck } from 'react-icons/pi';
+import { PiFloppyDisk, PiWarning, PiPlus, PiTrash } from 'react-icons/pi';
 import dayjs from 'dayjs';
 import weekday from 'dayjs/plugin/weekday';
 import localeData from 'dayjs/plugin/localeData';
@@ -80,6 +71,7 @@ interface TravelRegionRuleFormProps extends BusinessAppContextProps {
   onSave: (data: TravelRegionRuleFormData) => Promise<void>;
   onCancel: () => void;
   loading?: boolean;
+  travelRegionSetId?: string; // For filtering travel regions
 }
 
 interface CatalogOption {
@@ -108,6 +100,7 @@ const TravelRegionRuleForm: React.FC<TravelRegionRuleFormProps> = ({
   onSave,
   onCancel,
   loading = false,
+  travelRegionSetId,
   accessToken,
   ...context
 }) => {
@@ -135,22 +128,20 @@ const TravelRegionRuleForm: React.FC<TravelRegionRuleFormProps> = ({
   const [catalogsLoading, setCatalogsLoading] = useState(true);
 
   const catalogClient = useCatalogManagerClient(accessToken);
+  const graphqlClient = useGraphQLClient(accessToken);
 
   // Load catalog data
   const loadCatalogData = useCallback(async () => {
     setCatalogsLoading(true);
     try {
-      const [countriesRes, currenciesRes, travelRegionsRes] = await Promise.all([
+      // Load countries and currencies
+      const [countriesRes, currenciesRes] = await Promise.all([
         catalogClient.getCatalogEntriesList(
           { catalogIdentifier: 'Country', version: 'v1' },
           { limit: 500, offset: 0, returnTotalRecords: true, includeChildCatalogEntries: true }
         ),
         catalogClient.getCatalogEntriesList(
           { catalogIdentifier: 'Currency', version: 'v1' },
-          { limit: 100, offset: 0, returnTotalRecords: true }
-        ),
-        catalogClient.getCatalogEntriesList(
-          { catalogIdentifier: 'TravelRegion', version: 'v1' },
           { limit: 100, offset: 0, returnTotalRecords: true }
         )
       ]);
@@ -167,19 +158,50 @@ const TravelRegionRuleForm: React.FC<TravelRegionRuleFormProps> = ({
         code: item.code
       })));
 
-      // Set travel regions from catalog
-      if (travelRegionsRes.data && travelRegionsRes.data.length > 0) {
-        setTravelRegions(travelRegionsRes.data.map((item: any) => ({
+      // Load travel regions using GraphQL with proper filtering
+      if (travelRegionSetId) {
+        // Filter by parentEntryId to get only regions for this travel region set
+        const query = `
+          query GetTravelRegionsByParent($parentEntryId: String!) {
+            CatalogEntry(
+              where: {
+                catalog: {
+                  identifier: { _eq: "TravelRegion" }
+                  version: { _eq: "v1" }
+                }
+                parentEntryId: { _eq: $parentEntryId }
+                isDeleted: { _eq: false }
+              }
+              orderBy: { code: ASC }
+            ) {
+              id
+              code
+              value
+            }
+          }
+        `;
+        
+        const result = await graphqlClient.request<{ CatalogEntry: any[] }>(
+          query,
+          { parentEntryId: travelRegionSetId }
+        );
+        
+        setTravelRegions(result.CatalogEntry.map((item: any) => ({
           id: item.id,
           value: item.value,
           code: item.code
         })));
       } else {
-        // Use hardcoded travel regions as fallback
-        setTravelRegions(TRAVEL_REGIONS.map(region => ({
-          id: region.id,
-          value: region.name,
-          code: region.id
+        // If no travel region set ID, load all travel regions (fallback)
+        const travelRegionsRes = await catalogClient.getCatalogEntriesList(
+          { catalogIdentifier: 'TravelRegion', version: 'v1' },
+          { limit: 1000, offset: 0, returnTotalRecords: true }
+        );
+        
+        setTravelRegions(travelRegionsRes.data.map((item: any) => ({
+          id: item.id,
+          value: item.value,
+          code: item.code
         })));
       }
     } catch (err) {
@@ -194,7 +216,7 @@ const TravelRegionRuleForm: React.FC<TravelRegionRuleFormProps> = ({
     } finally {
       setCatalogsLoading(false);
     }
-  }, [catalogClient]);
+  }, [catalogClient, graphqlClient, travelRegionSetId]);
 
   useEffect(() => {
     if (accessToken) {
@@ -283,13 +305,12 @@ const TravelRegionRuleForm: React.FC<TravelRegionRuleFormProps> = ({
   const groupedDetails = useCallback((): SmartColumnGroup[] => {
     const groups: { [key: string]: SmartColumnGroup } = {};
     
-    formData.details.forEach((detail, index) => {
-      const groupKey = `${detail.countryRef}-${detail.travelRegion}-${detail.currencyRef}-${detail.home}-${detail.activeFrom}-${detail.activeTo || 'ongoing'}`;
-      
-      if (!groups[groupKey]) {
-        const country = countries.find(c => c.id === detail.countryRef);
-        const currency = currencies.find(c => c.id === detail.currencyRef);
-        const region = travelRegions.find(r => r.id === detail.travelRegion);
+      formData.details.forEach((detail, index) => {
+        const groupKey = `${detail.countryRef}-${detail.travelRegion}-${detail.currencyRef}-${detail.home}-${detail.activeFrom}-${detail.activeTo || 'ongoing'}`;
+        
+        if (!groups[groupKey]) {
+          const country = countries.find(c => c.id === detail.countryRef);
+          const currency = currencies.find(c => c.id === detail.currencyRef);
         
         groups[groupKey] = {
           key: groupKey,
@@ -529,15 +550,11 @@ const TravelRegionRuleForm: React.FC<TravelRegionRuleFormProps> = ({
   }
 
   const groups = groupedDetails();
-  const maxAmounts = Math.max(...groups.map(g => g.amounts.length), 1);
 
   return (
-    <div className="gba:p-6 gba:space-y-6">
-      <div className="gba:flex gba:items-center gba:gap-3">
-        <h3 className="gba:text-2xl gba:font-semibold">
-          {isEditing ? 'Edit Allowance Region Rule' : 'Create Allowance Region Rule'}
-        </h3>
-        {isEditing && (
+    <div className="gba:space-y-6">
+      {isEditing && (
+        <div className="gba:flex gba:items-center gba:justify-end">
           <span className={`gba:text-xs gba:px-2 gba:py-1 gba:rounded ${
             dataSource === 'fresh' ? 'gba:bg-green-100 gba:text-green-800 gba:border gba:border-green-300' : 
             dataSource === 'stale' ? 'gba:bg-yellow-100 gba:text-yellow-800 gba:border gba:border-yellow-300' : 
@@ -547,8 +564,8 @@ const TravelRegionRuleForm: React.FC<TravelRegionRuleFormProps> = ({
              dataSource === 'stale' ? '⚠️ Stale Data' : 
              '📝 New Item'}
           </span>
-        )}
-      </div>
+        </div>
+      )}
 
       {error && showValidation && (
         <Alert variant="destructive">
@@ -565,7 +582,9 @@ const TravelRegionRuleForm: React.FC<TravelRegionRuleFormProps> = ({
         <CardContent>
           <div className="gba:grid gba:grid-cols-1 md:gba:grid-cols-2 gba:gap-4">
             <div className="gba:space-y-2">
-              <Label htmlFor="rule-code">Rule Code *</Label>
+              <Label htmlFor="rule-code">
+                Rule Code <span className="gba:text-red-500 gba:ml-1">*</span>
+              </Label>
               <Input
                 id="rule-code"
                 value={formData.code}
@@ -574,7 +593,9 @@ const TravelRegionRuleForm: React.FC<TravelRegionRuleFormProps> = ({
               />
             </div>
             <div className="gba:space-y-2">
-              <Label htmlFor="rule-name">Rule Name *</Label>
+              <Label htmlFor="rule-name">
+                Rule Name <span className="gba:text-red-500 gba:ml-1">*</span>
+              </Label>
               <Input
                 id="rule-name"
                 value={formData.name}
@@ -615,7 +636,7 @@ const TravelRegionRuleForm: React.FC<TravelRegionRuleFormProps> = ({
         <CardHeader>
           <div className="gba:flex gba:items-center gba:justify-between">
             <CardTitle>Allowance Region Details</CardTitle>
-            <Button onClick={addColumnGroup} className="gba:flex gba:items-center gba:gap-2">
+            <Button onClick={addColumnGroup} size="sm" className="gba:flex gba:items-center gba:gap-2">
               <PiPlus className="gba:h-4 gba:w-4" />
               Add Group
             </Button>
@@ -624,188 +645,181 @@ const TravelRegionRuleForm: React.FC<TravelRegionRuleFormProps> = ({
         <CardContent>
           {groups.length > 0 ? (
             <div className="gba:space-y-4">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead className="gba:w-40">Country</TableHead>
-                    <TableHead className="gba:w-40">Travel Region</TableHead>
-                    <TableHead className="gba:w-32">Currency</TableHead>
-                    <TableHead className="gba:w-20">Home</TableHead>
-                    <TableHead className="gba:w-36">Valid From</TableHead>
-                    <TableHead className="gba:w-36">Valid To</TableHead>
-                    <TableHead className="gba:w-32">Actions</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {groups.map((group, groupIndex) => (
-                    <React.Fragment key={group.key}>
-                      {/* Group Label Row */}
-                      <TableRow>
-                        <TableCell colSpan={7} className="gba:bg-blue-50 gba:py-2 gba:px-4 gba:border-b-0">
-                          <Label className="gba:font-semibold gba:text-base gba:text-blue-800">
-                            Group {groupIndex + 1}
-                          </Label>
-                        </TableCell>
-                      </TableRow>
+              {groups.map((group, groupIndex) => (
+                <div key={group.key} className="gba:border gba:border-gray-200 gba:rounded-lg gba:p-3 gba:space-y-3 gba:bg-white">
+                  {/* Group Header */}
+                  <div className="gba:flex gba:items-center gba:justify-end gba:pb-2 gba:border-b gba:border-gray-300">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => removeGroup(group.key)}
+                      className="gba:text-red-600 hover:gba:text-red-700 gba:h-7 gba:text-xs"
+                      title="Remove Group"
+                    >
+                      <PiTrash className="gba:h-3.5 gba:w-3.5 gba:mr-1" />
+                      Remove
+                    </Button>
+                  </div>
 
-                      {/* Main Group Row */}
-                      <TableRow>
-                        <TableCell>
-                          <Select value={group.countryRef} onValueChange={(value) => updateGroupDetail(group.key, 'countryRef', value)}>
-                            <SelectTrigger>
-                              <SelectValue placeholder="Select country" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              {countries.map(country => (
-                                <SelectItem key={country.id} value={country.id}>
-                                  {country.value}
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                        </TableCell>
-                        <TableCell>
-                          <Select value={group.travelRegion} onValueChange={(value) => updateGroupDetail(group.key, 'travelRegion', value)}>
-                            <SelectTrigger>
-                              <SelectValue placeholder="Select region" />
-                            </SelectTrigger>
-                                                      <SelectContent>
-                            {travelRegions.map(region => (
-                              <SelectItem key={region.id} value={region.id}>
-                                {region.value}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                          </Select>
-                        </TableCell>
-                        <TableCell>
-                          <Select value={group.currencyRef} onValueChange={(value) => updateGroupDetail(group.key, 'currencyRef', value)}>
-                            <SelectTrigger>
-                              <SelectValue placeholder="Select currency" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              {currencies.map(currency => (
-                                <SelectItem key={currency.id} value={currency.id}>
-                                  {currency.code} - {currency.value}
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                        </TableCell>
-                        <TableCell>
-                          <Checkbox
-                            checked={group.homeFlag}
-                            onCheckedChange={(checked) => updateGroupDetail(group.key, 'home', checked)}
-                          />
-                        </TableCell>
-                        <TableCell>
-                          <Input
-                            type="date"
-                            value={group.validFrom}
-                            onChange={(e) => updateGroupDetail(group.key, 'activeFrom', e.target.value)}
-                            data-testid={`travel-region-rule-group-valid-from-${groupIndex}`}
-                            min="1900-01-01"
-                            max="2099-12-31"
-                          />
-                        </TableCell>
-                        <TableCell>
-                          <Input
-                            type="date"
-                            value={group.validTo || ''}
-                            onChange={(e) => updateGroupDetail(group.key, 'activeTo', e.target.value || undefined)}
-                            data-testid={`travel-region-rule-group-valid-to-${groupIndex}`}
-                            min="1900-01-01"
-                            max="2099-12-31"
-                          />
-                        </TableCell>
-                        <TableCell>
-                          <div className="gba:flex gba:gap-1">
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => addAmountColumn(group.key)}
-                              title="Add Amount"
-                            >
-                              <PiPlus className="gba:h-4 gba:w-4" />
-                            </Button>
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => removeGroup(group.key)}
-                              title="Remove Group"
-                              className="gba:text-red-600 hover:gba:text-red-700"
-                            >
-                              <PiTrash className="gba:h-4 gba:w-4" />
-                            </Button>
-                          </div>
-                        </TableCell>
-                      </TableRow>
+                  {/* Group Fields - One per line */}
+                  <div className="gba:space-y-2.5">
+                    {/* Country */}
+                    <div className="gba:space-y-1">
+                      <Label className="gba:text-xs gba:font-medium">
+                        Country <span className="gba:text-red-500 gba:ml-1">*</span>
+                      </Label>
+                      <Select value={group.countryRef} onValueChange={(value) => updateGroupDetail(group.key, 'countryRef', value)}>
+                        <SelectTrigger className="gba:w-full gba:h-8 gba:text-sm">
+                          <SelectValue placeholder="Select country" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {countries.map(country => (
+                            <SelectItem key={country.id} value={country.id}>
+                              {country.value}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
 
-                      {/* Amounts Row - spans all columns */}
-                      <TableRow>
-                        <TableCell colSpan={7} className="gba:bg-gray-50 gba:p-4">
-                          <div className="gba:flex gba:flex-wrap gba:gap-3 gba:items-end">
-                            {group.amounts.map((amount, amountIndex) => (
-                              <div key={`${group.key}-amount-${amountIndex}`} className="gba:flex gba:items-center gba:gap-2">
-                                <div className="gba:space-y-1">
-                                  <Label className="gba:text-xs gba:text-gray-600">
-                                    Amount {amountIndex + 1}
-                                  </Label>
-                                  <Input
-                                    type="number"
-                                    step="0.01"
-                                    value={amount || ''}
-                                    onChange={(e) => updateAmount(group.key, amountIndex, e.target.value)}
-                                    placeholder="0.00"
-                                    className="gba:text-sm gba:w-24"
-                                    data-testid={`travel-region-rule-amount-${group.key}-${amountIndex}`}
-                                  />
-                                </div>
-                                {group.amounts.length > 1 && (
-                                  <Button
-                                    variant="ghost"
-                                    size="sm"
-                                    onClick={() => removeAmount(group.key, amountIndex)}
-                                    className="gba:text-red-600 hover:gba:text-red-700 gba:p-1 gba:h-6 gba:w-6 gba:mt-4"
-                                    title="Remove this amount"
-                                  >
-                                    <PiTrash className="gba:h-3 gba:w-3" />
-                                  </Button>
-                                )}
-                              </div>
-                            ))}
-                            
-                            {/* Add Amount button positioned inline with amounts */}
-                            <div className="gba:flex gba:items-center gba:gap-2">
-                              <div className="gba:space-y-1">
-                                <Label className="gba:text-xs gba:text-transparent">
-                                  Add
-                                </Label>
+                    {/* Travel Region */}
+                    <div className="gba:space-y-1">
+                      <Label className="gba:text-xs gba:font-medium">
+                        Travel Region <span className="gba:text-red-500 gba:ml-1">*</span>
+                      </Label>
+                      <Select value={group.travelRegion} onValueChange={(value) => updateGroupDetail(group.key, 'travelRegion', value)}>
+                        <SelectTrigger className="gba:w-full gba:h-8 gba:text-sm">
+                          <SelectValue placeholder="Select region" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {travelRegions.map(region => (
+                            <SelectItem key={region.id} value={region.id}>
+                              {region.value}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    {/* Currency */}
+                    <div className="gba:space-y-1">
+                      <Label className="gba:text-xs gba:font-medium">
+                        Currency <span className="gba:text-red-500 gba:ml-1">*</span>
+                      </Label>
+                      <Select value={group.currencyRef} onValueChange={(value) => updateGroupDetail(group.key, 'currencyRef', value)}>
+                        <SelectTrigger className="gba:w-full gba:h-8 gba:text-sm">
+                          <SelectValue placeholder="Select currency" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {currencies.map(currency => (
+                            <SelectItem key={currency.id} value={currency.id}>
+                              {currency.code} - {currency.value}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    {/* Home Flag */}
+                    <div className="gba:flex gba:items-center gba:gap-2 gba:py-1">
+                      <Checkbox
+                        id={`home-${group.key}`}
+                        checked={group.homeFlag}
+                        onCheckedChange={(checked) => updateGroupDetail(group.key, 'home', checked)}
+                        className="gba:h-4 gba:w-4"
+                      />
+                      <Label htmlFor={`home-${group.key}`} className="gba:text-xs gba:font-medium gba:cursor-pointer">
+                        Home Region
+                      </Label>
+                    </div>
+
+                    {/* Validity Period */}
+                    <div className="gba:grid gba:grid-cols-2 gba:gap-2">
+                      <div className="gba:space-y-1">
+                        <Label className="gba:text-xs gba:font-medium">
+                          Valid From <span className="gba:text-red-500 gba:ml-1">*</span>
+                        </Label>
+                        <Input
+                          type="date"
+                          value={group.validFrom}
+                          onChange={(e) => updateGroupDetail(group.key, 'activeFrom', e.target.value)}
+                          data-testid={`travel-region-rule-group-valid-from-${groupIndex}`}
+                          className="gba:h-8 gba:text-sm"
+                          min="1900-01-01"
+                          max="2099-12-31"
+                        />
+                      </div>
+                      <div className="gba:space-y-1">
+                        <Label className="gba:text-xs gba:font-medium">Valid To</Label>
+                        <Input
+                          type="date"
+                          value={group.validTo || ''}
+                          onChange={(e) => updateGroupDetail(group.key, 'activeTo', e.target.value || undefined)}
+                          data-testid={`travel-region-rule-group-valid-to-${groupIndex}`}
+                          placeholder="Leave empty for unlimited"
+                          className="gba:h-8 gba:text-sm"
+                          min="1900-01-01"
+                          max="2099-12-31"
+                        />
+                      </div>
+                    </div>
+
+                    {/* Amounts Section */}
+                    <div className="gba:space-y-1.5">
+                      <div className="gba:flex gba:items-center gba:justify-between">
+                        <Label className="gba:text-xs gba:font-medium">
+                          Allowance Amounts <span className="gba:text-red-500 gba:ml-1">*</span>
+                        </Label>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => addAmountColumn(group.key)}
+                          className="gba:flex gba:items-center gba:gap-1 gba:h-7 gba:text-xs"
+                        >
+                          <PiPlus className="gba:h-3 gba:w-3" />
+                          Add Amount
+                        </Button>
+                      </div>
+                      
+                      {group.amounts.length > 0 ? (
+                        <div className="gba:space-y-1.5">
+                          {group.amounts.map((amount, amountIndex) => (
+                            <div key={`${group.key}-amount-${amountIndex}`} className="gba:flex gba:items-center gba:gap-2">
+                              <Label className="gba:text-xs gba:text-gray-600 gba:w-16">
+                                Amount {amountIndex + 1}
+                              </Label>
+                              <Input
+                                type="number"
+                                step="0.01"
+                                value={amount || ''}
+                                onChange={(e) => updateAmount(group.key, amountIndex, e.target.value)}
+                                placeholder="0.00"
+                                className="gba:w-48 gba:h-8 gba:text-sm"
+                                data-testid={`travel-region-rule-amount-${group.key}-${amountIndex}`}
+                              />
+                              {group.amounts.length > 1 && (
                                 <Button
-                                  variant="outline"
+                                  variant="ghost"
                                   size="sm"
-                                  onClick={() => addAmountColumn(group.key)}
-                                  className="gba:flex gba:items-center gba:gap-2 gba:h-10"
-                                  title="Add new amount"
+                                  onClick={() => removeAmount(group.key, amountIndex)}
+                                  className="gba:text-red-600 hover:gba:text-red-700 gba:h-7 gba:w-7 gba:p-0"
+                                  title="Remove this amount"
                                 >
-                                  <PiPlus className="gba:h-4 gba:w-4" />
-                                  Add Amount
+                                  <PiTrash className="gba:h-3.5 gba:w-3.5" />
                                 </Button>
-                              </div>
+                              )}
                             </div>
-                            
-                            {group.amounts.length === 0 && (
-                              <div className="gba:text-center gba:py-3 gba:text-gray-500 gba:text-sm gba:italic gba:w-full">
-                                No amounts added yet. Click "Add Amount" to start.
-                              </div>
-                            )}
-                          </div>
-                        </TableCell>
-                      </TableRow>
-                    </React.Fragment>
-                  ))}
-                </TableBody>
-              </Table>
+                          ))}
+                        </div>
+                      ) : (
+                        <div className="gba:text-center gba:py-3 gba:text-gray-500 gba:text-xs gba:italic">
+                          No amounts added yet. Click "Add Amount" above.
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              ))}
             </div>
           ) : (
             <div className="gba:text-center gba:py-8 gba:text-gray-500">

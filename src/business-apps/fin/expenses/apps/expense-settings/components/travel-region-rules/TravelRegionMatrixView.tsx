@@ -14,7 +14,11 @@ import {
   TableCell,
   TableHead,
   TableHeader,
-  TableRow
+  TableRow,
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle
 } from '@newwork/nw-design-system';
 import { 
   PiArrowLeft, 
@@ -26,9 +30,10 @@ import {
 } from 'react-icons/pi';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient';
-// Removed form imports - using inline editing instead
 import { useCatalogManagerClient } from '@/common/network/catalogs/useCatalogManagerClient';
 import { ExpenseSettingsClient } from '../../utils/ExpenseSettingsClient';
+import TravelRegionRuleForm from '../../forms/travel-region-rule-form/TravelRegionRuleForm';
+import TravelRegionForm from '../../forms/travel-region-form/TravelRegionForm';
 import dayjs from 'dayjs';
 import {
   DndContext,
@@ -204,8 +209,9 @@ const TravelRegionMatrixView: React.FC<TravelRegionMatrixViewProps> = ({
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [editingCell, setEditingCell] = useState<{ ruleId: string; regionId: string; field?: string } | null>(null);
-  const [newRegionName, setNewRegionName] = useState('');
-  const [newRuleName, setNewRuleName] = useState('');
+  const [isRuleModalOpen, setIsRuleModalOpen] = useState(false);
+  const [isRuleModalLoading, setIsRuleModalLoading] = useState(false);
+  const [isRegionModalOpen, setIsRegionModalOpen] = useState(false);
 
   const graphqlClient = useGraphQLClient(accessToken);
   const catalogClient = useCatalogManagerClient(accessToken);
@@ -214,6 +220,7 @@ const TravelRegionMatrixView: React.FC<TravelRegionMatrixViewProps> = ({
   // Initialize client
   useEffect(() => {
     if (accessToken) {
+      console.log('🔍 Setting access token on ExpenseSettingsClient');
       expenseSettingsClient.setAccessToken(accessToken);
     }
   }, [accessToken]);
@@ -253,35 +260,42 @@ const TravelRegionMatrixView: React.FC<TravelRegionMatrixViewProps> = ({
   // Load travel regions
   const loadTravelRegions = useCallback(async () => {
     try {
-      // Use the catalog client to get travel regions by parent
-      const response = await catalogClient.getCatalogEntriesList(
-        { catalogIdentifier: 'TravelRegion', version: 'v1' },
-        { 
-          limit: 100, 
-          offset: 0, 
-          returnTotalRecords: true,
-          includeChildCatalogEntries: true
+      // Use GraphQL to filter by parentEntryId directly on the server
+      const query = `
+        query GetTravelRegionsByParent($parentEntryId: String!) {
+          CatalogEntry(
+            where: {
+              catalog: {
+                identifier: { _eq: "TravelRegion" }
+                version: { _eq: "v1" }
+              }
+              parentEntryId: { _eq: $parentEntryId }
+              isDeleted: { _eq: false }
+            }
+            orderBy: { code: ASC }
+          ) {
+            id
+            code
+            value
+          }
         }
+      `;
+      
+      const result = await graphqlClient.request<{ CatalogEntry: any[] }>(
+        query,
+        { parentEntryId: travelRegionSetId }
       );
       
-      // Filter by parent ID on the client side since catalog API doesn't support it directly
-      const filteredData = response.data
-        .filter((item: any) => item.parentEntryId === travelRegionSetId)
-        .map((item: any) => ({
-          id: item.id,
-          code: item.code,
-          value: item.value
-        }));
-      
-      // Remove duplicates based on ID
-      return filteredData.filter((region, index, self) => 
-        index === self.findIndex(r => r.id === region.id)
-      );
+      return result.CatalogEntry.map((item: any) => ({
+        id: item.id,
+        code: item.code,
+        value: item.value
+      }));
     } catch (err) {
       console.error('Error loading travel regions:', err);
       return [];
     }
-  }, [catalogClient, travelRegionSetId]);
+  }, [graphqlClient, travelRegionSetId]);
 
   // Load allowance region rules
   const loadAllowanceRegionRules = useCallback(async () => {
@@ -659,72 +673,37 @@ const TravelRegionMatrixView: React.FC<TravelRegionMatrixViewProps> = ({
     }
   }, [convertToEditableCells, editableTravelRegions, validateCurrencies]);
 
-  // Add new region directly
-  const handleAddRegion = async () => {
-    const regionName = newRegionName || prompt('Enter region name:');
-    if (!regionName?.trim()) {
-      toast('Please enter a region name', 'error');
-      return;
-    }
+  // Open region creation modal
+  const handleAddRegion = () => {
+    setIsRegionModalOpen(true);
+  };
 
+  // Handle region modal save
+  const handleRegionModalSave = async (formData: any) => {
     try {
-      // First, check if a region with this code already exists
-      const proposedCode = regionName.trim().toUpperCase().replace(/\s+/g, '_');
-      
-      // Get all existing travel regions to check for duplicates
-      const allRegionsResponse = await catalogClient.getCatalogEntriesList(
-        { catalogIdentifier: 'TravelRegion', version: 'v1' },
-        { 
-          limit: 1000, 
-          offset: 0, 
-          returnTotalRecords: false
-        }
-      );
-      
-      const existingCodes = allRegionsResponse.data.map((item: any) => item.code);
-      
-      if (existingCodes.includes(proposedCode)) {
-        // Generate a unique code by appending a number
-        let uniqueCode = proposedCode;
-        let counter = 1;
-        while (existingCodes.includes(uniqueCode)) {
-          uniqueCode = `${proposedCode}_${counter}`;
-          counter++;
-        }
-        
-        const confirmMessage = `A travel region with code "${proposedCode}" already exists. Would you like to create it with code "${uniqueCode}" instead?`;
-        if (!confirm(confirmMessage)) {
-          toast('Region creation cancelled', 'error');
-          return;
-        }
-      }
-
       // Create travel region via catalog API
       const regionData = {
-        code: existingCodes.includes(proposedCode) ? 
-          `${proposedCode}_${existingCodes.filter(code => code.startsWith(proposedCode)).length}` : 
-          proposedCode,
-        value: regionName.trim(),
-        description: `Travel region: ${regionName.trim()}`,
+        code: formData.code.trim(),
+        value: formData.value.trim(),
+        description: formData.description?.trim() || `Travel region: ${formData.value.trim()}`,
         parentEntryId: travelRegionSetId,
         translations: [
           {
             localeCode: 'en',
-            value: regionName.trim()
+            value: formData.value.trim()
           }
         ]
       };
 
-      console.log('🚀 Creating travel region:', regionData);
+      console.log('🚀 Creating travel region from modal:', regionData);
       await catalogClient.createCatalogEntry('TravelRegion', 'v1', regionData);
-      
-      setNewRegionName('');
-      toast('Travel region created successfully', 'success');
       
       // Reload data to show the new region
       await loadData();
+      setIsRegionModalOpen(false);
+      toast('Travel region created successfully', 'success');
     } catch (err) {
-      console.error('❌ Error creating region:', err);
+      console.error('❌ Error creating region from modal:', err);
       const errorMessage = err instanceof Error ? err.message : 'Failed to create region';
       
       // Check if it's a duplicate code error
@@ -736,35 +715,62 @@ const TravelRegionMatrixView: React.FC<TravelRegionMatrixViewProps> = ({
     }
   };
 
-  // Add new rule column directly
-  const handleAddRule = async () => {
-    const ruleName = newRuleName || prompt('Enter rule name:');
-    if (!ruleName?.trim()) {
-      toast('Please enter a rule name', 'error');
-      return;
-    }
+  // Handle region modal cancel
+  const handleRegionModalCancel = () => {
+    setIsRegionModalOpen(false);
+  };
 
+  // Open rule creation modal
+  const handleAddRule = () => {
+    setIsRuleModalOpen(true);
+  };
+
+  // Handle rule modal save
+  const handleRuleModalSave = async (formData: any) => {
+    setIsRuleModalLoading(true);
     try {
+      // Create the allowance region rule using the form data
       const ruleData = {
-        code: ruleName.trim().toUpperCase().replace(/\s+/g, '_'),
-        name: ruleName.trim(),
-        description: `Allowance rule: ${ruleName.trim()}`,
-        activeFrom: dayjs().format('YYYY-MM-DD'),
-        activeTo: null,
+        code: formData.code.trim(),
+        name: formData.name.trim(),
+        description: `Allowance rule: ${formData.name.trim()}`,
+        activeFrom: formData.activeFrom || dayjs().format('YYYY-MM-DD'),
+        activeTo: formData.activeTo || null,
         travelRegionSetRef: travelRegionSetId,
         ruleOrder: allowanceRegionRules.length + 1,
         additionalProperties: {},
-        businessKey: ruleName.trim().toUpperCase().replace(/\s+/g, '_')
+        businessKey: formData.code.trim()
       };
 
+      console.log('🚀 Creating Allowance Region Rule from modal:', ruleData);
+      console.log('🔍 Access Token available:', !!accessToken);
+      console.log('🔍 Access Token preview:', accessToken ? `${accessToken.substring(0, 20)}...` : 'No token');
+      
+      // Ensure access token is set before making the API call
+      if (accessToken) {
+        expenseSettingsClient.setAccessToken(accessToken);
+        console.log('🔍 Access token set on client before API call');
+      }
+      
+      // Send the rule data directly (like AllowanceRegionRuleForm does)
+      // The ExpenseSettingsClient will transform it to the proper API payload
       await expenseSettingsClient.saveAllowanceRegionRule(ruleData);
-      setNewRuleName('');
-      loadData();
-      toast('Allowance rule added successfully', 'success');
+      
+      // Reload data to show the new rule
+      await loadData();
+      setIsRuleModalOpen(false);
+      toast('Allowance rule created successfully', 'success');
     } catch (err) {
-      console.error('Error creating rule:', err);
+      console.error('Error creating rule from modal:', err);
       toast('Failed to create rule', 'error');
+    } finally {
+      setIsRuleModalLoading(false);
     }
+  };
+
+  // Handle rule modal cancel
+  const handleRuleModalCancel = () => {
+    setIsRuleModalOpen(false);
   };
 
   // Handle inline cell editing
@@ -980,15 +986,10 @@ const TravelRegionMatrixView: React.FC<TravelRegionMatrixViewProps> = ({
                       <Button
                         size="sm"
                         variant="ghost"
-                        onClick={() => {
-                          const name = prompt('Enter rule name:');
-                          if (name?.trim()) {
-                            setNewRuleName(name.trim());
-                            handleAddRule();
-                          }
-                        }}
+                        onClick={handleAddRule}
                         className="gba:h-8 gba:w-8 gba:p-0"
-                        title="Add Column"
+                        title="Add New Rule"
+                        data-testid={`${prefixDataTestId}-add-rule-button`}
                       >
                         <PiPlus className="gba:w-4 gba:h-4" />
                       </Button>
@@ -1002,15 +1003,10 @@ const TravelRegionMatrixView: React.FC<TravelRegionMatrixViewProps> = ({
                       <Button
                         size="sm"
                         variant="ghost"
-                        onClick={() => {
-                          const name = prompt('Enter region name:');
-                          if (name?.trim()) {
-                            setNewRegionName(name.trim());
-                            handleAddRegion();
-                          }
-                        }}
+                        onClick={handleAddRegion}
                         className="gba:h-8 gba:w-8 gba:p-0"
-                        title="Add Region"
+                        title="Add New Travel Region"
+                        data-testid={`${prefixDataTestId}-add-region-button`}
                       >
                         <PiPlus className="gba:w-4 gba:h-4" />
                       </Button>
@@ -1296,33 +1292,11 @@ const TravelRegionMatrixView: React.FC<TravelRegionMatrixViewProps> = ({
             Create travel regions and allowance rules to build your matrix.
           </p>
           <div className="gba:flex gba:justify-center gba:gap-3">
-            <Input
-              value={newRegionName}
-              onChange={(e) => setNewRegionName(e.target.value)}
-              placeholder="Enter region name..."
-              className="gba:w-48"
-              onKeyDown={(e) => {
-                if (e.key === 'Enter' && newRegionName.trim()) {
-                  handleAddRegion();
-                }
-              }}
-            />
-            <Button variant="default" onClick={handleAddRegion} disabled={!newRegionName.trim()}>
+            <Button variant="default" onClick={handleAddRegion}>
               <PiPlus className="gba:w-4 gba:h-4 gba:mr-2" />
               Add Travel Region
             </Button>
-            <Input
-              value={newRuleName}
-              onChange={(e) => setNewRuleName(e.target.value)}
-              placeholder="Enter rule name..."
-              className="gba:w-48"
-              onKeyDown={(e) => {
-                if (e.key === 'Enter' && newRuleName.trim()) {
-                  handleAddRule();
-                }
-              }}
-            />
-            <Button variant="outline" onClick={handleAddRule} disabled={!newRuleName.trim()}>
+            <Button variant="outline" onClick={handleAddRule}>
               <PiPlus className="gba:w-4 gba:h-4 gba:mr-2" />
               Add Rule
             </Button>
@@ -1330,7 +1304,34 @@ const TravelRegionMatrixView: React.FC<TravelRegionMatrixViewProps> = ({
         </div>
       )}
 
-      {/* All forms removed - using inline editing */}
+      {/* Rule Creation Modal */}
+      <Dialog open={isRuleModalOpen} onOpenChange={setIsRuleModalOpen}>
+        <DialogContent className="gba:max-w-4xl gba:max-h-[90vh] gba:overflow-hidden gba:p-0">
+          <DialogHeader className="gba:px-6 gba:pt-6 gba:pb-4">
+            <DialogTitle>Create Allowance Region Rule</DialogTitle>
+          </DialogHeader>
+          <div className="gba:px-6 gba:pb-6 gba:overflow-y-auto gba:max-h-[calc(90vh-80px)]">
+            <TravelRegionRuleForm
+              accessToken={accessToken}
+              travelRegionSetId={travelRegionSetId}
+              onSave={handleRuleModalSave}
+              onCancel={handleRuleModalCancel}
+              loading={isRuleModalLoading}
+            />
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Travel Region Creation Modal */}
+      <TravelRegionForm
+        accessToken={accessToken}
+        open={isRegionModalOpen}
+        onClose={handleRegionModalCancel}
+        onSave={handleRegionModalSave}
+        travelRegionSetId={travelRegionSetId}
+        travelRegionSetName={travelRegionSetName}
+        prefixDataTestId={prefixDataTestId}
+      />
     </div>
   );
 };
