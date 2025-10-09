@@ -83,20 +83,15 @@ export const validateAndSanitizeLocation = (location: LocationData, limits: Date
     };
   }
   
-  // Check if date is within limits
-  // If time is not selected, compare only by calendar day to avoid timezone side-effects
-  let isDateValid: boolean;
-  if (!departureTime) {
-    const toYMD = (d?: Date) => (d ? (d.getFullYear() * 10000) + ((d.getMonth() + 1) * 100) + d.getDate() : null);
-    const dep = toYMD(departureDate);
-    const min = toYMD(minDate);
-    const max = toYMD(maxDate);
-    const minOk = (min === null) || (dep !== null && dep >= min);
-    const maxOk = (max === null) || (dep !== null && dep <= max);
-    isDateValid = minOk && maxOk;
-  } else {
-    isDateValid = (!minDate || departureDate >= minDate) && (!maxDate || departureDate <= maxDate);
-  }
+  // Check if date is within limits (compare by calendar day only, regardless of time)
+  // This avoids clearing the date when a time is selected but the day is valid
+  const toYMD = (d?: Date) => (d ? (d.getFullYear() * 10000) + ((d.getMonth() + 1) * 100) + d.getDate() : null);
+  const dep = toYMD(departureDate);
+  const min = toYMD(minDate);
+  const max = toYMD(maxDate);
+  const minOk = (min === null) || (dep !== null && dep >= min);
+  const maxOk = (max === null) || (dep !== null && dep <= max);
+  const isDateValid: boolean = minOk && maxOk;
   
   // If date is invalid, clear both date and time
   if (!isDateValid) {
@@ -112,10 +107,20 @@ export const validateAndSanitizeLocation = (location: LocationData, limits: Date
     // Only apply time constraints if the date matches the boundary date
     const shouldCheckMinTime = minDate && minTime && checkIfSameDay(departureDate, minDate);
     const shouldCheckMaxTime = maxDate && maxTime && checkIfSameDay(departureDate, maxDate);
-    
-    // Check if time is within limits
-    const isTimeValid = (!shouldCheckMinTime || departureTime >= minTime) && 
-                       (!shouldCheckMaxTime || departureTime <= maxTime);
+    // Normalize comparisons to time-of-day only (ignore embedded date on time objects)
+    const toMinutesSinceMidnight = (t: Date): number => {
+      const d = new Date(t);
+      return d.getHours() * 60 + d.getMinutes() + d.getSeconds() / 60;
+    };
+
+    const depMinutes = toMinutesSinceMidnight(departureTime as Date);
+    const minMinutes = minTime ? toMinutesSinceMidnight(minTime as Date) : undefined;
+    const maxMinutes = maxTime ? toMinutesSinceMidnight(maxTime as Date) : undefined;
+
+    // Check if time is within limits for the same-day boundary
+    const minOk = !shouldCheckMinTime || (minMinutes !== undefined && depMinutes >= minMinutes);
+    const maxOk = !shouldCheckMaxTime || (maxMinutes !== undefined && depMinutes <= maxMinutes);
+    const isTimeValid = minOk && maxOk;
     
     // If time is invalid, clear only the time
     if (!isTimeValid) {
