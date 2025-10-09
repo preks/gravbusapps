@@ -40,17 +40,20 @@ import {
   SheetClose,
   Spinner,
   Progress,
-  CardHeader
-} from '@newwork/nw-design-system'
-import { ColumnDef } from '@tanstack/react-table'
-import { formatDataTestId } from '@/common/utils/formatDataTestId'
-import CardTabHeaderComponent from '../../../generic-components/card'
-import { VerticalTable, VerticalTableProps } from '../../../generic-components/table/VerticalTable'
-import { NavigationLinkCards, NavigationLinkCardsProps } from '../../../generic-components/card/NavigationLinkCards'
-import { DeleteButton } from '../../../generic-components/delete-button/DeleteButton'
-import ProjectForm from '@/business-apps/mdm/forms/project-form'
-import { useRestClient } from '@/common/network/rest/useRestClient'
-import { env } from '@/common/env/EnvUtils'
+  CardHeader,
+} from '@newwork/nw-design-system';
+import { ColumnDef, SortingState } from '@tanstack/react-table';
+import { formatDataTestId } from '@/common/utils/formatDataTestId';
+import CardTabHeaderComponent from '../../../generic-components/card';
+import { VerticalTable, VerticalTableProps } from '../../../generic-components/table/VerticalTable';
+import {
+  NavigationLinkCards,
+  NavigationLinkCardsProps,
+} from '../../../generic-components/card/NavigationLinkCards';
+import { DeleteButton } from '../../../generic-components/delete-button/DeleteButton';
+import ProjectForm from '@/business-apps/mdm/forms/project-form';
+import { useRestClient } from '@/common/network/rest/useRestClient';
+import { env } from '@/common/env/EnvUtils';
 
 export interface ProjectsTabProps extends BusinessAppContextProps {
   prefixDataTestId?: string
@@ -72,6 +75,8 @@ const ProjectsTab: React.FC<ProjectsTabProps> = ({ prefixDataTestId, ...context 
 
   const [selectedProject, setSelectedProject] = useState<Project | null>(null)
   const [drawerVisible, setDrawerVisible] = useState(false)
+  const [sorting, setSorting] = useState<SortingState>([]);
+
   const showNavigationItems = false
 
   // Debounce search input
@@ -299,15 +304,12 @@ const ProjectsTab: React.FC<ProjectsTabProps> = ({ prefixDataTestId, ...context 
 
     return (
       <DataTable
-        defaultDataSetId="projects"
-        dataSets={[
-          {
-            id: 'projects',
-            label: 'Projects',
-            data: dataTable,
-            columns: columns
-          }
-        ]}
+        data={dataTable}
+        columns={columns as ColumnDef<(typeof dataTable)[number]>[]}
+        enableSorting
+        enablePagination
+        sorting={sorting}
+        onSortingChange={setSorting}
       />
     )
   }
@@ -487,12 +489,12 @@ const ProjectsTab: React.FC<ProjectsTabProps> = ({ prefixDataTestId, ...context 
       )}
       <CardContent>
         {/* Filters */}
-        <div className="gba:relative gba:max-w-sm">
+        <div className="gba:mb-6 gba:relative gba:max-w-sm">
           <Input
             placeholder="Search projects..."
             value={searchInput}
             onChange={handleSearchChange}
-            className="gba:ml-6"
+            className="gba:pl-10 gba:!w-80"
             data-testid={`${prefixDataTestId || ''}-ProjectsTab-SearchInput`}
           />
         </div>
@@ -501,6 +503,7 @@ const ProjectsTab: React.FC<ProjectsTabProps> = ({ prefixDataTestId, ...context 
 
         {selectedProject && (
           <Sheet
+            title="Project Details"
             open={drawerVisible}
             onOpenChange={openStatus => {
               if (!openStatus) {

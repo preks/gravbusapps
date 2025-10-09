@@ -41,17 +41,17 @@ import {
   AlertTitle,
   AlertDescription,
   Input,
-  Spinner
-} from '@newwork/nw-design-system'
-import CardTabHeaderComponent from '../../../generic-components/card'
-import { ColumnDef } from '@tanstack/react-table'
-import { formatDataTestId } from '@/common/utils/formatDataTestId'
-import SheetWrapperComponent from '../../../generic-components/sheet-wrapper/SheetWrapperComponent'
-import { InfoIcon } from 'lucide-react'
-import { DeleteButton } from '../../../generic-components/delete-button/DeleteButton'
-import TeamForm from '@/business-apps/mdm/forms/team-form'
-import { useRestClient } from '@/common/network/rest/useRestClient'
-import { env } from '@/common/env/EnvUtils'
+  Spinner,
+} from '@newwork/nw-design-system';
+import CardTabHeaderComponent from '../../../generic-components/card';
+import { ColumnDef, SortingState } from '@tanstack/react-table';
+import { formatDataTestId } from '@/common/utils/formatDataTestId';
+import SheetWrapperComponent from '../../../generic-components/sheet-wrapper/SheetWrapperComponent';
+import { InfoIcon } from 'lucide-react';
+import { DeleteButton } from '../../../generic-components/delete-button/DeleteButton';
+import TeamForm from '@/business-apps/mdm/forms/team-form';
+import { useRestClient } from '@/common/network/rest/useRestClient';
+import { env } from '@/common/env/EnvUtils';
 
 export interface TeamsTabProps extends BusinessAppContextProps {
   prefixDataTestId?: string
@@ -68,11 +68,12 @@ const TeamsTab: React.FC<TeamsTabProps> = context => {
 
   const { teams, structureId, isLoading, error, refetch, searchTeams, getSortedTeams, totalTeams } = useTeams(context)
 
-  const [searchQuery, setSearchQuery] = useState('')
-  const [sortBy, setSortBy] = useState<'name' | 'rank' | 'created' | 'leader'>('rank')
-  const [viewMode, setViewMode] = useState<'table' | 'cards'>('cards')
-  const [selectedTeam, setSelectedTeam] = useState<Team | null>(null)
-  const [drawerVisible, setDrawerVisible] = useState(false)
+  const [searchQuery, setSearchQuery] = useState('');
+  const [sortBy, setSortBy] = useState<'name' | 'rank' | 'created' | 'leader'>('rank');
+  const [viewMode, setViewMode] = useState<'table' | 'cards'>('cards');
+  const [selectedTeam, setSelectedTeam] = useState<Team | null>(null);
+  const [drawerVisible, setDrawerVisible] = useState(false);
+  const [sorting, setSorting] = useState<SortingState>([]);
 
   useEffect(() => {
     if (selectedTeam) {
@@ -214,7 +215,9 @@ const TeamsTab: React.FC<TeamsTabProps> = context => {
           return leaderName ? (
             <div className="gba:flex gba:flex-col gba:gap-2">
               <p className="gba:font-semibold">{(leaderName as string) ?? '-'}</p>
-              <p className="gba:text-sm gba:text-gray-500">{(leaderJobPosition as string) ?? '-'}</p>
+              <p className="gba:text-sm gba:text-gray-500">
+                {(leaderJobPosition as string) ?? '-'}
+              </p>
             </div>
           ) : (
             '-'
@@ -312,15 +315,12 @@ const TeamsTab: React.FC<TeamsTabProps> = context => {
 
     return (
       <DataTable
-        defaultDataSetId="job-profiles"
-        dataSets={[
-          {
-            id: 'job-profiles',
-            label: 'Job Profiles',
-            data: dataTable,
-            columns: columns
-          }
-        ]}
+        data={dataTable}
+        columns={columns as ColumnDef<(typeof dataTable)[number]>[]}
+        enableSorting
+        enablePagination
+        sorting={sorting}
+        onSortingChange={setSorting}
       />
     )
   }
