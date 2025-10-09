@@ -1,7 +1,13 @@
 // Investment Report Queries - Core investment report entities and their specializations
 // Built using actual schema discovered via newwork-mcp
 // This mirrors investmentQueries.ts but targets InvestmentReport tables instead of Investment tables
-import { CATALOG_ENTRY, AUDIT_FIELDS } from '@/common/network/graphql/commonFragments';
+import { CATALOG_ENTRY } from '@/common/network/graphql/commonFragments';
+import {
+  INVESTMENT_REPORT,
+  EQUITY_INVESTMENT_REPORT,
+  LIQUID_FUND_INVESTMENT_REPORT,
+  REAL_ESTATE_INVESTMENT_REPORT
+} from './fragments/investmentReportFragments';
 
 /**
  * Escapes GraphQL string values to prevent injection attacks
@@ -22,6 +28,7 @@ const escapeGraphQLString = (input: string): string => {
 
 // Whitelist of allowed fields for orderBy to prevent injection attacks
 const ORDERABLE_FIELDS = new Set([
+  // Root scalar fields
   'date',
   'investmentMarketValue',
   'loanAmount',
@@ -33,23 +40,85 @@ const ORDERABLE_FIELDS = new Set([
   'forecastedRevenueAmount',
   'forecastedProfitAmount',
   'debtFinancingAmount',
-  'requiredCapitalAmount'
+  'requiredCapitalAmount',
+  // Nested fields (for validation)
+  'investment.name',
+  'investment.code',
+  'investment.acquisitionDate',
+  'investment.investmentType.value',
+  'investment.investmentGroup.value',
+  'investmentPhase.value',
+  'currency.value'
 ]);
 
 /**
+ * Builds a single orderBy entry with support for nested fields
+ * @param field - Field name (can be nested like 'investment.name')
+ * @param direction - Sort direction with null handling
+ * @returns GraphQL orderBy string or null if field is not allowed
+ */
+function buildOrderByEntry(
+  field: string,
+  direction: 'ASC' | 'DESC' | 'ASC_NULLS_LAST' | 'DESC_NULLS_LAST'
+): string | null {
+  // Normalize direction
+  const normalizedDirection = direction === 'ASC' || direction === 'ASC_NULLS_LAST' 
+    ? (direction === 'ASC_NULLS_LAST' ? 'ASC_NULLS_LAST' : 'ASC')
+    : (direction === 'DESC_NULLS_LAST' ? 'DESC_NULLS_LAST' : 'DESC');
+
+  // Handle nested investment fields
+  if (field === 'investment.name') {
+    return `{ investment: { name: ${normalizedDirection} } }`;
+  }
+  if (field === 'investment.code') {
+    return `{ investment: { code: ${normalizedDirection} } }`;
+  }
+  if (field === 'investment.acquisitionDate') {
+    return `{ investment: { acquisitionDate: ${normalizedDirection} } }`;
+  }
+  if (field === 'investment.investmentType.value') {
+    return `{ investment: { investmentType: { value: ${normalizedDirection} } } }`;
+  }
+  if (field === 'investment.investmentGroup.value') {
+    return `{ investment: { investmentGroup: { value: ${normalizedDirection} } } }`;
+  }
+  
+  // Handle catalog value fields
+  if (field === 'investmentPhase.value') {
+    return `{ investmentPhase: { value: ${normalizedDirection} } }`;
+  }
+  if (field === 'currency.value') {
+    return `{ currency: { value: ${normalizedDirection} } }`;
+  }
+
+  // Handle root fields
+  if (ORDERABLE_FIELDS.has(field)) {
+    return `{ ${field}: ${normalizedDirection} }`;
+  }
+
+  // Unsupported field
+  return null;
+}
+
+/**
  * Sanitizes orderBy array to prevent GraphQL injection attacks
+ * Supports nested fields and NULLS_LAST directives
  * @param arr - Array of order by objects with field and direction
  * @returns Sanitized array of GraphQL orderBy strings
  */
 function sanitizeOrderBy(
-  arr: Array<{ field: string; direction: 'ASC' | 'DESC' }>
+  arr: Array<{ field: string; direction: 'ASC' | 'DESC' | 'ASC_NULLS_LAST' | 'DESC_NULLS_LAST' }>
 ): string[] {
-  return arr
-    .filter(o => ORDERABLE_FIELDS.has(o.field))
-    .map(o => {
-      const direction = o.direction === 'ASC' ? 'ASC' : 'DESC'; // Normalize direction
-      return `{ ${o.field}: ${direction} }`;
-    });
+  const orderByEntries: string[] = [];
+  
+  for (const orderItem of arr) {
+    const entry = buildOrderByEntry(orderItem.field, orderItem.direction);
+    if (entry) {
+      orderByEntries.push(entry);
+    }
+  }
+  
+  return orderByEntries;
 }
 
 export interface InvestmentReportQueryVariables {
@@ -61,6 +130,9 @@ export interface InvestmentReportQueryVariables {
   // Investment relationship filters
   investmentTypeIds?: string[];
   investmentGroupIds?: string[];
+  
+  // Catalog filters
+  currencyIds?: string[];
   
   // Date ranges for reports
   reportDateFrom?: string;
@@ -87,67 +159,12 @@ export interface InvestmentReportQueryVariables {
   limit?: number;
   offset?: number;
   
-  // Sorting
-  orderBy?: Array<{ field: string; direction: 'ASC' | 'DESC' }>;
+  // Sorting (supports nested fields and null handling)
+  orderBy?: Array<{ 
+    field: string; 
+    direction: 'ASC' | 'DESC' | 'ASC_NULLS_LAST' | 'DESC_NULLS_LAST' 
+  }>;
 }
-
-// Investment Report Fragment - contains all the fields from InvestmentReport table
-export const INVESTMENT_REPORT = `
-  id
-  date
-  investmentMarketValue
-  forecastedRevenueAmount
-  forecastedProfitAmount
-  debtFinancingAmount
-  requiredCapitalAmount
-  stakePercentage
-  fundManagerName
-  identification
-  
-  # LOAN FIELDS - Same as main investment table
-  loanRecipientName
-  loanAmount
-  loanOpenCommitmentAmount
-  loanInterestRate
-  loanStartDate
-  loanEndDate
-  loanInterestClaim
-  totalCommitmentAmount
-  totalDistributionAmount
-  
-  ${AUDIT_FIELDS}
-  
-  # Catalog relationships
-  investmentPhase { ${CATALOG_ENTRY} }
-  currency { ${CATALOG_ENTRY} }
-  
-  # Investment relationship - basic info only
-  investment {
-    id
-    code
-    name
-    isin
-    initialInvestmentAmount
-    totalInvestmentAmount
-    investmentMarketValue
-    acquisitionDate
-    
-    # Basic investment info
-    investmentType { ${CATALOG_ENTRY} }
-    investmentGroup { ${CATALOG_ENTRY} }
-    currency {
-      id
-      code
-      value
-    }
-    
-    # Investment account for proprietor information
-    investmentAccount {
-      id
-      name
-    }
-  }
-`;
 
 // Build where conditions for InvestmentReport queries
 export const buildInvestmentReportWhereCondition = (variables: InvestmentReportQueryVariables = {}) => {
@@ -160,11 +177,6 @@ export const buildInvestmentReportWhereCondition = (variables: InvestmentReportQ
     if (variables.ids?.length) {
       const safeIds = variables.ids.map(id => `"${escapeGraphQLString(id)}"`).join(', ');
       conditions.push(`id: { _in: [${safeIds}] }`);
-    }
-
-    if (variables.investmentIds?.length) {
-      const safeInvestmentIds = variables.investmentIds.map(id => `"${escapeGraphQLString(id)}"`).join(', ');
-      conditions.push(`investment: { id: { _in: [${safeInvestmentIds}] } }`);
     }
 
     // Search across relevant text fields - add to OR conditions
@@ -230,14 +242,37 @@ export const buildInvestmentReportWhereCondition = (variables: InvestmentReportQ
       conditions.push(`loanRecipientName: { _ilike: "%${v}%" }`);
     }
 
+    // Catalog filters
+    if (variables.currencyIds?.length) {
+      const safeCurrencyIds = variables.currencyIds.map(id => `"${escapeGraphQLString(id)}"`).join(', ');
+      conditions.push(`currency: { id: { _in: [${safeCurrencyIds}] } }`);
+    }
+
     // Investment-level filters (through relationship)
+    // Consolidate ALL investment-related filters into single investment clause to avoid duplicate keys
+    const investmentFilters: string[] = [];
+    
+    // Add investment ID filter if provided
+    if (variables.investmentIds?.length) {
+      const safeInvestmentIds = variables.investmentIds.map(id => `"${escapeGraphQLString(id)}"`).join(', ');
+      investmentFilters.push(`id: { _in: [${safeInvestmentIds}] }`);
+    }
+    
+    // Add investment type filter if provided
     if (variables.investmentTypeIds?.length) {
       const safeInvestmentTypeIds = variables.investmentTypeIds.map(id => `"${escapeGraphQLString(id)}"`).join(', ');
-      conditions.push(`investment: { investmentType: { id: { _in: [${safeInvestmentTypeIds}] } } }`);
+      investmentFilters.push(`investmentType: { id: { _in: [${safeInvestmentTypeIds}] } }`);
     }
+    
+    // Add investment group filter if provided
     if (variables.investmentGroupIds?.length) {
       const safeInvestmentGroupIds = variables.investmentGroupIds.map(id => `"${escapeGraphQLString(id)}"`).join(', ');
-      conditions.push(`investment: { investmentGroup: { id: { _in: [${safeInvestmentGroupIds}] } } }`);
+      investmentFilters.push(`investmentGroup: { id: { _in: [${safeInvestmentGroupIds}] } }`);
+    }
+    
+    // Only push the investment clause if there are filters to apply
+    if (investmentFilters.length > 0) {
+      conditions.push(`investment: { ${investmentFilters.join(', ')} }`);
     }
 
     // Type-specific investment filters - use AND conditions for precise filtering
@@ -284,7 +319,7 @@ export const GET_INVESTMENT_REPORTS = (variables: InvestmentReportQueryVariables
   const sanitizedOrderBy = variables.orderBy?.length ? sanitizeOrderBy(variables.orderBy) : [];
   const orderByClause = sanitizedOrderBy.length > 0
     ? `orderBy: [${sanitizedOrderBy.join(', ')}]`
-    : 'orderBy: [{ date: DESC }]';
+    : 'orderBy: [{ date: DESC_NULLS_LAST }]'; // Default sort with null handling
 
 
   const query = `
@@ -299,74 +334,15 @@ export const GET_INVESTMENT_REPORTS = (variables: InvestmentReportQueryVariables
         
         # Type-specific report relationships
         equityInvestmentReport {
-          id
-          date
-          scope
-          marketValue
-          ebitdaAmount
-          equityInvestmentId
-          ${AUDIT_FIELDS}
-          
-          equityInvestment {
-            id
-            foundationDate
-            investment {
-              id
-              code
-              name
-              acquisitionDate
-              forecastedProfitAmount
-              forecastedRevenueAmount
-              fundManagerName
-              investmentType { ${CATALOG_ENTRY} }
-              investmentGroup { ${CATALOG_ENTRY} }
-            }
-          }
+          ${EQUITY_INVESTMENT_REPORT}
         }
         
         liquidFundInvestmentReport {
-          id
-          date
-          interestRate
-          bankAccountNumber
-          bankName
-          maturityDate
-          proprietorName
-          scope
-          additionalProperties
-          earlyTerminationAllowed
-          interestPaymentFrequency { ${CATALOG_ENTRY} }
-          investmentLiquidFundType { ${CATALOG_ENTRY} }
-          ${AUDIT_FIELDS}
-          
-          liquidFundInvestment {
-            id
-            additionalProperties
-            investment {
-              id
-              name
-              code
-              isin
-              additionalProperties
-              investmentAccount {
-                id
-                name
-              }
-            }
-            investmentLiquidFundType { ${CATALOG_ENTRY} }
-          }
+          ${LIQUID_FUND_INVESTMENT_REPORT}
         }
         
         realEstateInvestmentReport {
-          id
-          date
-          occupancyPercent
-          numberOfUnits
-          annualNetColdRent
-          actualAnnualExpenses
-          funding
-          liquidityForecast
-          ${AUDIT_FIELDS}
+          ${REAL_ESTATE_INVESTMENT_REPORT}
         }
       }
       
@@ -379,7 +355,6 @@ export const GET_INVESTMENT_REPORTS = (variables: InvestmentReportQueryVariables
       }
     }
   `;
-  
   
   return query;
 };
@@ -398,58 +373,15 @@ export const GET_INVESTMENT_REPORT_BY_ID = (id: string): string => {
         
         # Type-specific report relationships
         equityInvestmentReport {
-          id
-          date
-          scope
-          marketValue
-          ebitdaAmount
-          equityInvestmentId
-          ${AUDIT_FIELDS}
+          ${EQUITY_INVESTMENT_REPORT}
         }
         
         liquidFundInvestmentReport {
-          id
-          date
-          interestRate
-          bankAccountNumber
-          bankName
-          maturityDate
-          proprietorName
-          scope
-          additionalProperties
-          earlyTerminationAllowed
-          interestPaymentFrequency { ${CATALOG_ENTRY} }
-          investmentLiquidFundType { ${CATALOG_ENTRY} }
-          ${AUDIT_FIELDS}
-          
-          liquidFundInvestment {
-            id
-            additionalProperties
-            investment {
-              id
-              name
-              code
-              isin
-              additionalProperties
-              investmentAccount {
-                id
-                name
-              }
-            }
-            investmentLiquidFundType { ${CATALOG_ENTRY} }
-          }
+          ${LIQUID_FUND_INVESTMENT_REPORT}
         }
         
         realEstateInvestmentReport {
-          id
-          date
-          occupancyPercent
-          numberOfUnits
-          annualNetColdRent
-          actualAnnualExpenses
-          funding
-          liquidityForecast
-          ${AUDIT_FIELDS}
+          ${REAL_ESTATE_INVESTMENT_REPORT}
         }
       }
     }

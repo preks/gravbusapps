@@ -90,7 +90,7 @@ const KeyInsightsSection: React.FC<KeyInsightsSectionProps> = ({
             <span className="gba:text-red-600" data-testid="planned-absences-error">{errorMessage}</span>
           ) : overrides?.vacationCount !== undefined && overrides?.sickCount !== undefined ? (
             <span data-testid="planned-absences-breakdown">
-              {overrides.vacationCount} requests vacation vs {overrides.sickCount} requests sick
+              {overrides.vacationCount} {getTranslationFromI18nKeyAndLabel("lowcoder:absence_hub.requests", "requests")} {getTranslationFromI18nKeyAndLabel("lowcoder:absence_hub.vacation", "vacation")} vs {overrides.sickCount} {getTranslationFromI18nKeyAndLabel("lowcoder:absence_hub.requests", "requests")} {getTranslationFromI18nKeyAndLabel("lowcoder:absence_hub.sick", "sick")}
             </span>
           ) : (
             getTranslationFromI18nKeyAndLabel(
@@ -127,7 +127,7 @@ const KeyInsightsSection: React.FC<KeyInsightsSectionProps> = ({
         >
           {getTranslationFromI18nKeyAndLabel(
             "lowcoder:absence_hub.avg_days_scope",
-            "Based on APPROVED requests"
+            "Based on Approved requests"
           )}
         </div>
       </Card>

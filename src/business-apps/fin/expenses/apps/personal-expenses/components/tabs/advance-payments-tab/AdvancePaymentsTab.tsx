@@ -3,6 +3,8 @@ import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 import AdvancePaymentStatistics from './AdvancePaymentStatistics';
 import AdvancePaymentsTable from './AdvancePaymentsTable';
 import { useAdvancePaymentFilters } from '../../../hooks/useAdvancePaymentFilters';
+// import { useExpenseCurrencies } from '../../../hooks/useExpenseCurrencies';
+import { getSelectedCurrencyRef } from '../../../utils/currencyUtils';
 
 export interface AdvancePaymentsTabProps extends BusinessAppContextProps {
   onContentHeaderChange?: (header: ReactNode) => void;
@@ -23,27 +25,37 @@ const AdvancePaymentsTab: React.FC<AdvancePaymentsTabProps> = (props) => {
     searchTerm,
     setSearchTerm,
     statusFilter,
-    setStatusFilter,
+    // setStatusFilter,
     amountRange,
-    setAmountRange,
+    // setAmountRange,
     advanceRange,
-    setAdvanceRange,
+    // setAdvanceRange,
     filterGroups,
     handleDataFilterChange,
     filterLabelMap,
     selectedFilters,
     setFilters,
     removeFilter,
-    clearFilters,
+    filtersVersion,
   } = useAdvancePaymentFilters();
 
   // Create memoized content header with statistics component
   const contentHeader = useMemo(() => {
+    const selectedCurrencyRef = getSelectedCurrencyRef(selectedFilters || [], 'Currency:v1:EUR');
+    const refreshKey = JSON.stringify({
+      searchTerm,
+      statusFilter,
+      amountRange,
+      advanceRange,
+      selectedCurrencyRef
+    });
     return <AdvancePaymentStatistics 
       accessToken={contextProps.accessToken}
       userInfo={contextProps.userInfo}
+      selectedCurrencyRef={selectedCurrencyRef}
+      refreshKey={refreshKey}
     />;
-  }, [contextProps.accessToken, contextProps.userInfo]);
+  }, [contextProps.accessToken, contextProps.userInfo, selectedFilters, searchTerm, statusFilter, amountRange, advanceRange, filtersVersion]);
   
   // Update the content header when it changes
   useEffect(() => {
@@ -57,22 +69,17 @@ const AdvancePaymentsTab: React.FC<AdvancePaymentsTabProps> = (props) => {
     setSearchTerm(term);
   }, [setSearchTerm]);
 
-  // Handle filter changes
+  // Handle filter changes (enforce single selection for currency)
   const handleFilterChange = useCallback((filterId: string, selected: boolean) => {
-    handleDataFilterChange(filterId, selected);
-  }, [handleDataFilterChange]);
-
-  // Handle clearing all filters with proper coordination
-  const handleClearAllFilters = useCallback((filters: string[]) => {
-    // If clearing all filters (empty array), use the proper clearFilters function
-    if (filters.length === 0) {
-      clearFilters(); // This properly clears all filters including ranges
-    } else {
-      // Otherwise, set specific filters
-      setFilters(filters);
+    if (filterId.startsWith('currency:')) {
+      const nonCurrency = (selectedFilters || []).filter(f => !f.startsWith('currency:'));
+      setFilters(selected ? [...nonCurrency, filterId] : nonCurrency);
+      return;
     }
-  }, [clearFilters, setFilters]);
+    handleDataFilterChange(filterId, selected);
+  }, [handleDataFilterChange, selectedFilters, setFilters]);
 
+  // Note: clearing handled via handleClearAllFiltersNoParams and setFilters([])
   // Wrapper for clear all filters without parameters (for table clearFilters prop)
   const handleClearAllFiltersNoParams = useCallback(() => {
     // Use the enhanced setFilters which handles clearing all filters properly

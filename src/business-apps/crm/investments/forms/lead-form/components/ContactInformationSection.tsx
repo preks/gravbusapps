@@ -31,11 +31,6 @@ const ContactInformationSection: React.FC = () => {
     setFormValues,
 
     // ✅ UPDATED: Use searchable catalog properties from context
-    salutations,
-    salutationsLoading,
-    salutationsHasMore,
-    loadMoreSalutations,
-
     academicTitles,
     academicTitlesLoading,
     academicTitlesHasMore,
@@ -90,7 +85,7 @@ const ContactInformationSection: React.FC = () => {
           e.currentTarget.style.background =
             "linear-gradient(to right, #bbf7d0, #6ee7b7)";
         }}
-        data-testid={formatDataTestId(prefixDataTestId, "ContactInfoToggle")}
+        data-testid={formatDataTestId(prefixDataTestId, "contact-info-toggle-button")}
       >
         <div className="gba:flex gba:items-center gba:gap-2 gba:flex-1">
           <div className="gba:w-2 gba:h-2 gba:bg-green-500 gba:rounded-full"></div>
@@ -119,52 +114,6 @@ const ContactInformationSection: React.FC = () => {
             marginTop: "0",
           }}
         >
-          {/* Salutation - ✅ FIXED: Using standard Select like Legal Form */}
-          <div className="gba:space-y-2">
-            <Label className="gba:text-sm gba:font-medium gba:text-gray-900">
-              Salutation
-            </Label>
-            <Select
-              value={formValues.salutation}
-              onValueChange={(value) => setFormValues({ salutation: value })}
-              data-testid={formatDataTestId(
-                prefixDataTestId,
-                "SalutationSelect"
-              )}
-            >
-              <SelectTrigger className="gba:border-gray-300 gba:bg-white">
-                <SelectValue placeholder="Please Select..." />
-              </SelectTrigger>
-              <SelectContent className="gba:max-h-[200px] gba:overflow-y-auto">
-                {salutations.map((option, index) => (
-                  <SelectItem
-                    key={`${option.id}-${index}`}
-                    value={option.value}
-                  >
-                    {option.label}
-                  </SelectItem>
-                ))}
-
-                {/* Load More button if needed */}
-                {salutationsLoading && (
-                  <div className="gba:p-2 gba:text-center gba:text-gray-500">
-                    Loading more salutations...
-                  </div>
-                )}
-                {salutationsHasMore && !salutationsLoading && (
-                  <div className="gba:p-1">
-                    <button
-                      type="button"
-                      onClick={loadMoreSalutations}
-                      className="gba:w-full gba:px-3 gba:py-2 gba:text-sm gba:text-blue-600 gba:bg-blue-50 gba:border gba:border-blue-200 gba:rounded gba:hover:bg-blue-100 gba:transition-colors"
-                    >
-                      📥 Load More Salutations
-                    </button>
-                  </div>
-                )}
-              </SelectContent>
-            </Select>
-          </div>
 
           {/* Academic Title - ✅ FIXED: Using standard Select like Legal Form */}
           <div className="gba:space-y-2">
@@ -204,6 +153,7 @@ const ContactInformationSection: React.FC = () => {
                       type="button"
                       onClick={loadMoreAcademicTitles}
                       className="gba:w-full gba:px-3 gba:py-2 gba:text-sm gba:text-blue-600 gba:bg-blue-50 gba:border gba:border-blue-200 gba:rounded gba:hover:bg-blue-100 gba:transition-colors"
+                      data-testid={formatDataTestId(prefixDataTestId, "load-more-academic-titles-button")}
                     >
                       📥 Load More Academic Titles
                     </button>
@@ -256,7 +206,7 @@ const ContactInformationSection: React.FC = () => {
                   borderColor: phoneError ? "#ef4444" : "#d1d5db",
                   paddingLeft: "32px",
                 }}
-                data-testid={formatDataTestId(prefixDataTestId, "PhoneInput")}
+                data-testid={formatDataTestId(prefixDataTestId, "phone-input")}
               />
             </div>
             {phoneError && (
@@ -285,12 +235,43 @@ const ContactInformationSection: React.FC = () => {
                   borderColor: emailError ? "#ef4444" : "#d1d5db",
                   paddingLeft: "32px",
                 }}
-                data-testid={formatDataTestId(prefixDataTestId, "EmailInput")}
+                data-testid={formatDataTestId(prefixDataTestId, "email-input")}
               />
             </div>
             {emailError && (
               <p className="gba:text-sm gba:text-red-600">{emailError}</p>
             )}
+          </div>
+
+          {/* LinkedIn and Xing - Side by side */}
+          <div className="gba:grid gba:grid-cols-1 gba:gap-6 gba:md:grid-cols-2">
+            <div className="gba:space-y-2">
+              <Label className="gba:text-sm gba:font-medium gba:text-gray-900">
+                LinkedIn
+              </Label>
+              <Input
+                name="linkedinUrl"
+                value={formValues.linkedinUrl}
+                onChange={(e) => setFormValues({ linkedinUrl: e.target.value })}
+                placeholder="Please Enter"
+                className="gba:border-gray-300 gba:bg-white"
+                data-testid={formatDataTestId(prefixDataTestId, "linkedin-input")}
+              />
+            </div>
+
+            <div className="gba:space-y-2">
+              <Label className="gba:text-sm gba:font-medium gba:text-gray-900">
+                Xing
+              </Label>
+              <Input
+                name="xingUrl"
+                value={formValues.xingUrl}
+                onChange={(e) => setFormValues({ xingUrl: e.target.value })}
+                placeholder="Please Enter"
+                className="gba:border-gray-300 gba:bg-white"
+                data-testid={formatDataTestId(prefixDataTestId, "xing-input")}
+              />
+            </div>
           </div>
         </CardContent>
       )}

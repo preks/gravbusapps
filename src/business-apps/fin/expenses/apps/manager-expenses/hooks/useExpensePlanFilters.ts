@@ -64,6 +64,7 @@ export const useExpensePlanFilters = ({
   const [localMostUsedCurrency, setLocalMostUsedCurrency] = useState<string | null>(null);
   const [userHasManuallySelectedCurrency, setUserHasManuallySelectedCurrency] =
     useState<boolean>(false);
+  const [filtersInitialized, setFiltersInitialized] = useState(false);
 
   // Create context object for the currency hook
   const contextProps: BusinessAppContextProps = {
@@ -74,6 +75,7 @@ export const useExpensePlanFilters = ({
   // Fetch dynamic currency data if accessToken and managerId are provided
   const {
     mostUsedCurrency: detectedCurrency,
+    availableCurrencies: fetchedCurrencies,
     isLoading: currenciesLoading,
     error: currenciesError,
   } = useExpensePlanCurrencies(contextProps, managerId || "");
@@ -92,24 +94,24 @@ export const useExpensePlanFilters = ({
     }
   }, [detectedCurrency, currenciesLoading, localPrimaryCurrency, userHasManuallySelectedCurrency]);
 
-  // Available currencies - include detected currency and common ones
-  const availableCurrencies = useMemo(() => {
-    const currencies = new Set<string>();
-    if (detectedCurrency) {
-      currencies.add(detectedCurrency);
+  // Mark filters as initialized once currency data is ready
+  useEffect(() => {
+    if (!filtersInitialized && !currenciesLoading) {
+      setFiltersInitialized(true);
     }
-    // Always include common currencies
-    currencies.add("EUR");
-    currencies.add("USD");
-    currencies.add("RON");
+  }, [filtersInitialized, currenciesLoading]);
 
-    return Array.from(currencies).sort();
-  }, [detectedCurrency]);
+  // Available currencies from fetched data
+  const availableCurrencies = useMemo(() => {
+    return fetchedCurrencies && fetchedCurrencies.length > 0
+      ? fetchedCurrencies
+      : [];
+  }, [fetchedCurrencies]);
 
   const handleDataFilterChange = useCallback((filterId: string, isSelected: boolean) => {
     // Check if this is a currency filter (starts with 'currency:')
     if (filterId.startsWith("currency:")) {
-      const currencyCode = filterId.replace("currency:", "");
+      const currencyCode = filterId.replaceAll("currency:", "");
       if (isSelected) {
         setLocalPrimaryCurrency(currencyCode); // Use local state instead of global store
         setUserHasManuallySelectedCurrency(true); // Mark that user has made a manual selection
@@ -155,9 +157,7 @@ export const useExpensePlanFilters = ({
     }));
 
     // Currency filters - use local currency state
-    const currencyItems: DataFilter[] = (
-      availableCurrencies.length > 0 ? availableCurrencies : ["EUR", "USD"]
-    ).map((currency) => ({
+    const currencyItems: DataFilter[] = availableCurrencies.map((currency) => ({
       id: `currency:${currency}`,
       label: currency,
       selected: currency === localPrimaryCurrency, // Use local state

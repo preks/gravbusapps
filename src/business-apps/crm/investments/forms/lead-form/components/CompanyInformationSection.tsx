@@ -16,6 +16,8 @@ import {
   PiEnvelopeSimple,
   PiCaretDown,
   PiCaretUp,
+  PiPlus,
+  PiMinus,
 } from "react-icons/pi";
 import { formatDataTestId } from "@/common/utils/formatDataTestId";
 import { useLeadFormContext } from "../context/LeadFormContext";
@@ -24,6 +26,8 @@ import {
   validatePhone,
   toStringOrUndefined,
 } from "../utils/validationUtils";
+import SearchableSelect from "./SearchableSelect";
+import { useCountriesRegions } from "../hooks/useCountriesRegions";
 
 const prefixDataTestId = "LeadForm";
 
@@ -40,6 +44,7 @@ const CompanyInformationSection: React.FC = () => {
   const {
     formValues,
     setFormValues,
+    businessAppContext,
 
     // Legal Forms
     legalForms,
@@ -77,11 +82,48 @@ const CompanyInformationSection: React.FC = () => {
     revenueSizesTotalFetched,
     loadMoreRevenueSizes,
 
-    timeZones,
-    timeZonesLoading,
-    timeZonesHasMore,
-    loadMoreTimeZones,
+    // Address line management
+    addressLineCount,
+    addAddressLine,
+    removeAddressLine,
+    removeAddressLineAtIndex,
+
   } = useLeadFormContext();
+
+  // Use the countries and regions hook with business app context
+  const {
+    countries,
+    countriesLoading,
+    countriesError,
+    countriesHasMore,
+    searchCountries,
+    loadMoreCountries,
+    regions,
+    regionsLoading,
+    regionsError,
+    searchRegions,
+    selectedCountryCode,
+    setSelectedCountry,
+  } = useCountriesRegions(businessAppContext);
+
+  // Handle country selection change
+  const handleCountryChange = (countryId: string) => {
+    setFormValues({ country: countryId });
+    setSelectedCountry(countryId);
+    setFormValues({ region: "" }); // Clear region when country changes
+  };
+
+  // Handle region selection change
+  const handleRegionChange = (regionId: string) => {
+    setFormValues({ region: regionId });
+  };
+
+  // Sync selected country when form values change
+  useEffect(() => {
+    if (formValues.country && formValues.country !== selectedCountryCode) {
+      setSelectedCountry(formValues.country);
+    }
+  }, [formValues.country, selectedCountryCode, setSelectedCountry]);
 
   // Simple effect to load more legal forms when needed
   useEffect(() => {
@@ -247,7 +289,7 @@ const CompanyInformationSection: React.FC = () => {
           e.currentTarget.style.background =
             "linear-gradient(to right, #ddd6fe, #c4b5fd)";
         }}
-        data-testid={formatDataTestId(prefixDataTestId, "CompanyInfoToggle")}
+        data-testid={formatDataTestId(prefixDataTestId, "company-info-toggle")}
       >
         <div className="gba:flex gba:items-center gba:gap-2 gba:flex-1">
           <div className="gba:w-2 gba:h-2 gba:bg-purple-500 gba:rounded-full"></div>
@@ -321,6 +363,7 @@ const CompanyInformationSection: React.FC = () => {
                         type="button"
                         onClick={handleLoadMoreLegalForms}
                         className="gba:w-full gba:px-3 gba:py-2 gba:text-sm gba:text-blue-600 gba:bg-blue-50 gba:border gba:border-blue-200 gba:rounded gba:hover:bg-blue-100 gba:transition-colors"
+                        data-testid={formatDataTestId(prefixDataTestId, "load-more-legal-forms-button")}
                       >
                         📥 Load More Legal Forms ({legalFormsDisplayCount}/
                         {legalFormsTotalFetched} shown)
@@ -374,6 +417,7 @@ const CompanyInformationSection: React.FC = () => {
                         type="button"
                         onClick={handleLoadMoreIndustries}
                         className="gba:w-full gba:px-3 gba:py-2 gba:text-sm gba:text-blue-600 gba:bg-blue-50 gba:border gba:border-blue-200 gba:rounded gba:hover:bg-blue-100 gba:transition-colors"
+                        data-testid={formatDataTestId(prefixDataTestId, "load-more-industries-button")}
                       >
                         📥 Load More Industries ({industriesDisplayCount}/
                         {industriesTotalFetched} shown)
@@ -382,6 +426,158 @@ const CompanyInformationSection: React.FC = () => {
                   )}
                 </SelectContent>
               </Select>
+            </div>
+          </div>
+
+          {/* Address Information */}
+          <div className="gba:space-y-6" data-testid={formatDataTestId(prefixDataTestId, "address-information-section")}>
+            {/* Country and Region - Side by side */}
+            <div className="gba:grid gba:grid-cols-1 gba:gap-6 gba:md:grid-cols-2">
+              <div className="gba:space-y-2">
+                <SearchableSelect
+                  label="Country"
+                  name="country"
+                  value={formValues.country}
+                  placeholder="Please Select..."
+                  options={countries}
+                  loading={countriesLoading}
+                  hasMore={countriesHasMore}
+                  onSearch={searchCountries}
+                  onLoadMore={loadMoreCountries}
+                  onChange={handleCountryChange}
+                  error={countriesError}
+                  data-testid={formatDataTestId(
+                    prefixDataTestId,
+                    "CountrySelect"
+                  )}
+                />
+              </div>
+
+              <div className="gba:space-y-2">
+                <SearchableSelect
+                  label="Region/State"
+                  name="region"
+                  value={formValues.region}
+                  placeholder={
+                    selectedCountryCode
+                      ? "Please Select..."
+                      : "Select country first..."
+                  }
+                  options={regions}
+                  loading={regionsLoading}
+                  hasMore={false} // We load all regions at once
+                  onSearch={searchRegions}
+                  onLoadMore={() => {}} // No pagination needed
+                  onChange={handleRegionChange}
+                  error={regionsError}
+                  disabled={!selectedCountryCode || regions.length === 0}
+                  data-testid={formatDataTestId(prefixDataTestId, "region-select")}
+                />
+                {selectedCountryCode && regions.length === 0 && (
+                  <p
+                    className="gba:text-xs gba:text-gray-500 gba:mt-1"
+                    data-testid={formatDataTestId(prefixDataTestId, "region-empty-state")}
+                  >
+                    No regions available for selected country
+                  </p>
+                )}
+              </div>
+            </div>
+
+            {/* Address Lines */}
+            <div className="gba:space-y-4" data-testid={formatDataTestId(prefixDataTestId, "address-lines-section")}>
+              <div className="gba:flex gba:items-center gba:justify-between">
+                <Label className="gba:text-sm gba:font-medium gba:text-gray-900">
+                  Address Lines
+                </Label>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={addAddressLine}
+                  className="gba:flex gba:items-center gba:gap-2"
+                  data-testid={formatDataTestId(
+                    prefixDataTestId,
+                    "add-address-line-button"
+                  )}
+                >
+                  <PiPlus className="gba:w-4 gba:h-4" />
+                  Add Line
+                </Button>
+              </div>
+
+              {Array.from({ length: addressLineCount }, (_, index) => {
+                const lineNumber = index + 1;
+                const fieldName = `addressLine${lineNumber}` as keyof typeof formValues;
+                const value = formValues[fieldName] as string;
+
+                return (
+                  <div key={lineNumber} className="gba:flex gba:items-center gba:gap-2" data-testid={formatDataTestId(prefixDataTestId, `address-line-${lineNumber}-container`)}>
+                    <Input
+                      value={value || ""}
+                      onChange={(e) => setFormValues({ [fieldName]: e.target.value })}
+                      placeholder={`Address line ${lineNumber}...`}
+                      className="gba:border-gray-300 gba:bg-white gba:flex-1"
+                      data-testid={formatDataTestId(
+                        prefixDataTestId,
+                        `address-line-${lineNumber}-input`
+                      )}
+                    />
+                    {addressLineCount > 1 && (
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => removeAddressLineAtIndex(lineNumber)}
+                        className="gba:flex gba:items-center gba:gap-1 gba:text-red-600 gba:border-red-300 hover:gba:bg-red-50"
+                        data-testid={formatDataTestId(
+                          prefixDataTestId,
+                          `remove-address-line-${lineNumber}-button`
+                        )}
+                      >
+                        <PiMinus className="gba:w-4 gba:h-4" />
+                      </Button>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* Postal Code and City - Side by side */}
+            <div className="gba:grid gba:grid-cols-1 gba:gap-6 gba:md:grid-cols-2">
+              <div className="gba:space-y-2">
+                <Label className="gba:text-sm gba:font-medium gba:text-gray-900">
+                  Postal Code
+                </Label>
+                <Input
+                  name="postalCode"
+                  value={formValues.postalCode || ""}
+                  onChange={(e) => setFormValues({ postalCode: e.target.value })}
+                  placeholder="Enter postal code..."
+                  className="gba:border-gray-300 gba:bg-white"
+                  data-testid={formatDataTestId(
+                    prefixDataTestId,
+                    "PostalCodeInput"
+                  )}
+                />
+              </div>
+
+              <div className="gba:space-y-2">
+                <Label className="gba:text-sm gba:font-medium gba:text-gray-900">
+                  City
+                </Label>
+                <Input
+                  name="locality"
+                  value={formValues.locality || ""}
+                  onChange={(e) => setFormValues({ locality: e.target.value })}
+                  placeholder="Enter city..."
+                  className="gba:border-gray-300 gba:bg-white"
+                  data-testid={formatDataTestId(
+                    prefixDataTestId,
+                    "LocalityInput"
+                  )}
+                />
+              </div>
             </div>
           </div>
 
@@ -555,54 +751,6 @@ const CompanyInformationSection: React.FC = () => {
                   )}
                 </div>
 
-                {/* Time Zone - ✅ FIXED: Using standard Select like Legal Form */}
-                <div className="gba:space-y-2">
-                  <Label className="gba:text-sm gba:font-medium gba:text-gray-900">
-                    Time Zone
-                  </Label>
-                  <Select
-                    value={formValues.timeZone}
-                    onValueChange={(value) =>
-                      setFormValues({ timeZone: value })
-                    }
-                    data-testid={formatDataTestId(
-                      prefixDataTestId,
-                      "TimeZoneSelect"
-                    )}
-                  >
-                    <SelectTrigger className="gba:border-gray-300 gba:bg-white">
-                      <SelectValue placeholder="Please Select..." />
-                    </SelectTrigger>
-                    <SelectContent className="gba:max-h-[200px] gba:overflow-y-auto">
-                      {timeZones.map((option, index) => (
-                        <SelectItem
-                          key={`${option.id}-${index}`}
-                          value={option.value}
-                        >
-                          {option.label}
-                        </SelectItem>
-                      ))}
-
-                      {/* Load More button if needed */}
-                      {timeZonesLoading && (
-                        <div className="gba:p-2 gba:text-center gba:text-gray-500">
-                          Loading more time zones...
-                        </div>
-                      )}
-                      {timeZonesHasMore && !timeZonesLoading && (
-                        <div className="gba:p-1">
-                          <button
-                            type="button"
-                            onClick={loadMoreTimeZones}
-                            className="gba:w-full gba:px-3 gba:py-2 gba:text-sm gba:text-blue-600 gba:bg-blue-50 gba:border gba:border-blue-200 gba:rounded gba:hover:bg-blue-100 gba:transition-colors"
-                          >
-                            📥 Load More Time Zones
-                          </button>
-                        </div>
-                      )}
-                    </SelectContent>
-                  </Select>
-                </div>
 
                 {/* Number of Employees - ✅ FIXED: Using standard Select like Legal Form */}
                 <div className="gba:space-y-2">
@@ -646,6 +794,7 @@ const CompanyInformationSection: React.FC = () => {
                             type="button"
                             onClick={loadMoreEmployeeSizes}
                             className="gba:w-full gba:px-3 gba:py-2 gba:text-sm gba:text-blue-600 gba:bg-blue-50 gba:border gba:border-blue-200 gba:rounded gba:hover:bg-blue-100 gba:transition-colors"
+                            data-testid={formatDataTestId(prefixDataTestId, "load-more-employee-sizes-button")}
                           >
                             📥 Load More Company Sizes
                           </button>
@@ -695,6 +844,7 @@ const CompanyInformationSection: React.FC = () => {
                             type="button"
                             onClick={loadMoreRevenueSizes}
                             className="gba:w-full gba:px-3 gba:py-2 gba:text-sm gba:text-blue-600 gba:bg-blue-50 gba:border gba:border-blue-200 gba:rounded gba:hover:bg-blue-100 gba:transition-colors"
+                            data-testid={formatDataTestId(prefixDataTestId, "load-more-revenue-sizes-button")}
                           >
                             Load More Revenue Bands
                           </button>

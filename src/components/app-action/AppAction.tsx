@@ -5,6 +5,7 @@ import {
   useAppActionData,
   extractAppActionProps,
   type AppActionCommonProps,
+  appActionPropsComparison,
 } from "@/common/hooks/useAppActionData";
 import { formatDataTestId } from "@/common/utils/formatDataTestId";
 
@@ -28,7 +29,7 @@ const DATA_TEST_ID_PREFIX = "AppAction";
  * Wrap any element to execute the first available app action on click.
  * If multiple actions are available, the first one returned will be executed.
  */
-export const AppAction: React.FC<AppActionProps> = (props) => {
+export const AppAction: React.FC<AppActionProps> = React.memo((props) => {
   const { appActionConfig, cleanProps } = extractAppActionProps(props);
   // Force no deferring for AppAction
   const forcedConfig = {
@@ -100,7 +101,9 @@ export const AppAction: React.FC<AppActionProps> = (props) => {
       {clonedChild}
     </div>
   );
-};
+}, appActionPropsComparison);
+
+AppAction.displayName = 'AppAction';
 
 export default AppAction;
 

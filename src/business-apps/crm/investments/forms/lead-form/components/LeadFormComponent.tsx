@@ -13,8 +13,6 @@ import OwnerSelector from "./OwnerSelector";
 import LeadInformationSection from "./LeadInformationSection";
 import ContactInformationSection from "./ContactInformationSection";
 import CompanyInformationSection from "./CompanyInformationSection";
-import AddressInformationSection from "./AddressInformationSection";
-import DescriptionSection from "./DescriptionSection";
 
 const prefixDataTestId = "LeadForm";
 
@@ -34,6 +32,9 @@ const LeadFormComponent: React.FC = () => {
     searchEmployeePositions,
   } = useLeadFormContext();
 
+  // Local loading state for submission
+  const [isSubmitting, setIsSubmitting] = React.useState(false);
+
   // Check if all mandatory fields are filled
   const isFormValid =
     toStringOrUndefined(formValues.firstName) &&
@@ -43,28 +44,30 @@ const LeadFormComponent: React.FC = () => {
 
   // Handle form submission
   const handleSubmit = async () => {
+    // Prevent duplicate submissions
+    if (isLoading || isSubmitting) {
+      return;
+    }
+
+    setIsSubmitting(true);
     try {
-      await onSubmit(formValues);
       // Prepare comprehensive InvestmentLead payload following the API structure
       const leadPayload: any = {
         sourceApp: "IRM", // ✅ FIXED: Changed from CRM to IRM for Investment Relations Management
 
         // ✅ UPDATED: Contact Information with new fields
-        salutationRef: toStringOrUndefined(formValues.salutation),
         academicTitleRef: toStringOrUndefined(formValues.academicTitle),
         firstName: toStringOrUndefined(formValues.firstName),
         lastName: toStringOrUndefined(formValues.lastName),
         phoneNumber: toStringOrUndefined(formValues.phone),
         email: toStringOrUndefined(formValues.email),
         position: toStringOrUndefined(formValues.jobPosition),
-        description: toStringOrUndefined(formValues.notes),
         sensitive: formValues.sensitive,
 
         // ✅ UPDATED: Lead Information with new fields
         leadRatingRef: toStringOrUndefined(formValues.rating),
         leadStatusRef: toStringOrUndefined(formValues.leadStatus),
         leadSourceRef: toStringOrUndefined(formValues.leadSource),
-        leadSourceType: toStringOrUndefined(formValues.leadSourceType),
 
         // ✅ UPDATED: Company Information with fixed field names
         companyName: toStringOrUndefined(formValues.company),
@@ -77,7 +80,6 @@ const LeadFormComponent: React.FC = () => {
         accountAnnualRevenueBandRef: toStringOrUndefined(
           formValues.annualRevenue
         ), // ✅ FIXED: annualRevenueRef → accountAnnualRevenueBandRef
-        timeZoneRef: toStringOrUndefined(formValues.timeZone), // ✅ ADDED: Time zone support
 
         // ✅ FIXED: Owner Information with correct API field name
         ownerEmployee: toStringOrUndefined(formValues.owner), // ✅ FIXED: API expects 'ownerEmployee' not 'ownerEmployeeId'
@@ -155,7 +157,36 @@ const LeadFormComponent: React.FC = () => {
       };
 
       leadPayload.tags = [];
-      leadPayload.communicationChannels = [];
+
+      // ✅ NEW: Add communication channels for LinkedIn and Xing
+      const communicationChannels = [];
+      
+      // Add LinkedIn communication channel if provided
+      if (formValues.linkedinUrl && formValues.linkedinUrl.trim()) {
+        communicationChannels.push({
+          communicationChannelRef: "CommunicationChannel:v1:LinkedIn",
+          value: formValues.linkedinUrl.trim(),
+          valueExtension: null,
+          source: "FORM_INPUT",
+          activeFrom: new Date().toISOString(),
+          activeTo: null,
+        });
+      }
+      
+      // Add Xing communication channel if provided
+      if (formValues.xingUrl && formValues.xingUrl.trim()) {
+        communicationChannels.push({
+          communicationChannelRef: "CommunicationChannel:v1:Xing", 
+          value: formValues.xingUrl.trim(),
+          valueExtension: null,
+          source: "FORM_INPUT",
+          activeFrom: new Date().toISOString(),
+          activeTo: null,
+        });
+      }
+
+      // Add communication channels to payload if any exist
+      leadPayload.communicationChannels = communicationChannels;
 
       // ✅ ADDED: Ensure numerical fields are properly set (API validation)
       leadPayload.stakePercentage = leadPayload.stakePercentage || 0;
@@ -187,8 +218,39 @@ const LeadFormComponent: React.FC = () => {
 
       // Dispatch process continue event on successful submission
       dispatchProcessContinueEvent("pse_submit", payload);
+
+      // Wait for process completion event
+      await new Promise<void>((resolve) => {
+        const TIMEOUT = 10000;
+        const timeoutId = setTimeout(() => {
+          cleanup();
+          resolve();
+        }, TIMEOUT);
+
+        const handleProcessCompletion = (event: Event) => {
+          const customEvent = event as CustomEvent<{ resolution: 'success' | 'failure' }>;
+          if (
+            customEvent.detail?.resolution === 'success' ||
+            customEvent.detail?.resolution === 'failure'
+          ) {
+            cleanup();
+            resolve();
+          }
+        };
+
+        const cleanup = () => {
+          clearTimeout(timeoutId);
+          window.removeEventListener('com.newwork.process.processCompletion', handleProcessCompletion);
+          window.removeEventListener('com.newwork.process.taskCompletion', handleProcessCompletion);
+        };
+
+        window.addEventListener('com.newwork.process.processCompletion', handleProcessCompletion);
+        window.addEventListener('com.newwork.process.taskCompletion', handleProcessCompletion);
+      });
     } catch (err) {
       console.error("Error submitting lead form:", err);
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -226,7 +288,7 @@ const LeadFormComponent: React.FC = () => {
               onLoadMore={loadMoreEmployeePositions}
               onSearch={searchEmployeePositions}
               error={employeePositionsError}
-              dataTestId={formatDataTestId(prefixDataTestId, "OwnerSelector")}
+              dataTestId={formatDataTestId(prefixDataTestId, "owner-selector-select")}
             />
           </div>
 
@@ -239,12 +301,6 @@ const LeadFormComponent: React.FC = () => {
           {/* Company Information Section */}
           <CompanyInformationSection />
 
-
-          {/* Address Information Section */}
-          <AddressInformationSection />
-
-          {/* Description Section */}
-          <DescriptionSection />
 
           {/* Error Display */}
           {error && (
@@ -261,23 +317,19 @@ const LeadFormComponent: React.FC = () => {
             className="gba:flex-1"
             size="lg"
             onClick={handleCancel}
-            data-testid={formatDataTestId(prefixDataTestId, "CancelButton")}
+            data-testid={formatDataTestId(prefixDataTestId, "cancel-button")}
           >
             Cancel
           </Button>
           <Button
             variant="default"
-            disabled={!isFormValid}
+            disabled={!isFormValid || isLoading || isSubmitting}
             className="gba:flex-1"
             size="lg"
             onClick={handleSubmit}
-            data-testid={formatDataTestId(prefixDataTestId, "SubmitButton")}
+            data-testid={formatDataTestId(prefixDataTestId, "submit-button")}
           >
-            {isLoading
-              ? "Processing..."
-              : formValues.id
-              ? "Update Lead"
-              : "Create Lead"}
+            {formValues.id ? "Update Lead" : "Create Lead"}
           </Button>
         </div>
       </div>

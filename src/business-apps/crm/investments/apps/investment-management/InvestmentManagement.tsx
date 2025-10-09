@@ -6,6 +6,7 @@ import {
   BarChart3,
   LayoutDashboard,
 } from "lucide-react";
+import { ChartLineUpIcon } from "@phosphor-icons/react";
 import { BusinessAppContextProps } from "@/common/BusinessAppContext";
 import { getTranslationFromI18nKeyAndLabel } from "@/common/utils/windowUtils";
 import DivestmentView from "./views/divestment-view/DivestmentView";
@@ -220,12 +221,7 @@ export const InvestmentManagement: React.FC<InvestmentManagementProps> = (
   return (
     <div data-testid="investment-management-app">
       <PageLayout
-        headerPhosphorIcon={{
-          icon: BarChart3,
-          variant: "premium",
-          size: "lg",
-          label: getTranslationFromI18nKeyAndLabel("investment_management", "Investment Management"),
-        }}
+        headerIcon={ChartLineUpIcon}
         headerTitle={getTranslationFromI18nKeyAndLabel("investment_management", "Investment Management")}
         headerDescription={getTranslationFromI18nKeyAndLabel("investment_management_description", "Comprehensive investment portfolio management and analysis tools")}
         headerContent={

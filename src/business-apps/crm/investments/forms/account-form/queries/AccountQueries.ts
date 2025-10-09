@@ -53,21 +53,42 @@ export interface InvestmentAccountDataResponse {
       code: string;
       objectValue?: any;
     };
-    timeZone?: {
+    // Address relationships
+    investmentAddress?: Array<{
       id: string;
-      value: string;
-      code: string;
-      objectValue?: any;
-    };
+      version: number;
+      addressType?: string;
+      addressLine?: any; // Jsonb
+      postalCode?: string;
+      locality?: string;
+      regionRef?: string;
+      countryRef?: string;
+      region?: {
+        id: string;
+        value: string;
+        code: string;
+      };
+      country?: {
+        id: string;
+        value: string;
+        code: string;
+      };
+    }>;
+    // Contact relationships
+    investmentAccountContact?: Array<{
+      id: string;
+      contact: {
+        id: string;
+        firstName?: string;
+        lastName?: string;
+        fullName?: string;
+        email?: string;
+      };
+    }>;
     // Audit fields
     createdAt: string;
     createdBy: string;
-    updatedAt: string;
-    updatedBy: string;
     // System fields
-    acl?: any;
-    activeFrom?: string;
-    activeTo?: string;
     additionalProperties?: any;
   }>;
 }
@@ -125,23 +146,46 @@ export const GET_INVESTMENT_ACCOUNT_BY_ID = `
         code
         objectValue
       }
-      timeZone {
+      
+      # Address relationships
+      investmentAddress(where: { isDeleted: { _eq: false } }) {
         id
-        value
-        code
-        objectValue
+        version
+        addressType
+        addressLine
+        postalCode
+        locality
+        regionRef
+        countryRef
+        region {
+          id
+          value
+          code
+        }
+        country {
+          id
+          value
+          code
+        }
+      }
+      
+      # Contact relationships
+      investmentAccountContact(where: { isDeleted: { _eq: false } }) {
+        id
+        contact {
+          id
+          firstName
+          lastName
+          fullName
+          email
+        }
       }
       
       # Audit fields
       createdAt
       createdBy
-      updatedAt
-      updatedBy
       
       # System fields
-      acl
-      activeFrom
-      activeTo
       additionalProperties
     }
   }

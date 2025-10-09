@@ -1,6 +1,5 @@
 import React from "react";
 import {
-  Badge,
   Separator,
   Button,
   Card,
@@ -8,6 +7,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@newwork/nw-design-system";
+import Pill from "@/components/pill";
 import { PiArrowRight, PiCalendarDuotone, PiClock } from "react-icons/pi";
 import { BusinessAppContextProps } from "@/common/BusinessAppContext";
 import {
@@ -46,23 +46,19 @@ const AdvancePaymentDetails: React.FC<AdvancePaymentDetailsProps> = ({ payment }
             {payment.expensePlan?.code || payment.id}
           </p>
         </div>
-        <Badge
-          variant={
-            getAdvancePaymentStatusDisplay(payment.status).type === "completed"
-              ? "success"
-              : getAdvancePaymentStatusDisplay(payment.status).type === "error"
-                ? "destructive"
-                : getAdvancePaymentStatusDisplay(payment.status).type === "task"
-                  ? "warning"
-                  : getAdvancePaymentStatusDisplay(payment.status).type === "waiting"
-                    ? "secondary"
-                    : "default"
-          }
-          className="gba:text-sm"
-          data-testid="advance-payment-status-badge"
-        >
-          {getAdvancePaymentStatusDisplay(payment.status).label}
-        </Badge>
+        <div className="gba:flex gba:items-center gba:gap-3">
+          {(() => {
+            const statusConfig = getAdvancePaymentStatusDisplay(payment.status);
+            return (
+              <Pill
+                type={statusConfig.type}
+                label={statusConfig.label}
+                color={statusConfig.color}
+                data-testid="advance-payment-status-badge"
+              />
+            );
+          })()}
+        </div>
       </div>
 
       {/* Date Information */}
@@ -71,7 +67,7 @@ const AdvancePaymentDetails: React.FC<AdvancePaymentDetailsProps> = ({ payment }
           {payment.expensePlan?.startDate && payment.expensePlan?.endDate && (
             <div className="gba:flex gba:items-center gba:space-x-2">
               <PiCalendarDuotone className="gba:text-gray-500" />
-              <span className="gba:text-sm gba:text-gray-700">
+              <span className="gba:text-sm gba:text-gray-900">
                 {getTranslationFromI18nKeyAndLabel(
                   "lowcoder:team_expenses_page.plan_details.duration",
                   "Duration",
@@ -85,7 +81,7 @@ const AdvancePaymentDetails: React.FC<AdvancePaymentDetailsProps> = ({ payment }
           {payment.createdAt && (
             <div className="gba:flex gba:items-center gba:space-x-2">
               <PiClock className="gba:text-gray-500" />
-              <span className="gba:text-sm gba:text-gray-700">
+              <span className="gba:text-sm gba:text-gray-900">
                 {getTranslationFromI18nKeyAndLabel(
                   "lowcoder:advance_payment_details.creation_date",
                   "Creation Date",
@@ -98,7 +94,7 @@ const AdvancePaymentDetails: React.FC<AdvancePaymentDetailsProps> = ({ payment }
           {payment.dueDate && (
             <div className="gba:flex gba:items-center gba:space-x-2">
               <PiClock className="gba:text-gray-500" />
-              <span className="gba:text-sm gba:text-gray-700">
+              <span className="gba:text-sm gba:text-gray-900">
                 {getTranslationFromI18nKeyAndLabel(
                   "lowcoder:advance_payment_details.due_date",
                   "Due Date",
@@ -150,8 +146,7 @@ const AdvancePaymentDetails: React.FC<AdvancePaymentDetailsProps> = ({ payment }
                   )}
                 </span>
                 <span className="gba:text-sm gba:text-gray-900">
-                  {payment.expensePlan.employee.displayName ||
-                    payment.expensePlan.employee.fullName}
+                  {payment.expensePlan.employee.fullName || `${payment.expensePlan.employee.firstName ?? ''} ${payment.expensePlan.employee.lastName ?? ''}`.trim()}
                 </span>
               </div>
             )}

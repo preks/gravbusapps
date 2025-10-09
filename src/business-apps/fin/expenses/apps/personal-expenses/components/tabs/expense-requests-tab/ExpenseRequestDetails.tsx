@@ -1,10 +1,5 @@
 import React from 'react';
 import { 
-  Sheet,
-  SheetContent,
-  SheetHeader,
-  SheetTitle,
-  Badge,
   Separator,
   Button,
   Card,
@@ -12,32 +7,47 @@ import {
   CardHeader,
   CardTitle
 } from '@newwork/nw-design-system';
-import { getExpensePlanStatusDisplay } from '../../../utils';
+import { Badge } from '@newwork/nw-design-system';
+import { getExpenseRequestStatusDisplay } from '../../../utils';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 import { PiCalendarDuotone, PiClock, PiPath, PiArrowRight } from 'react-icons/pi';
 import { getTranslationFromI18nKeyAndLabel, formatDate } from '@/common/utils/windowUtils';
 import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils';
 import { formatCurrencyDisplay } from '../../../utils';
+import { AppActionButton } from '@/components/app-action-button/AppActionButton';
+import { generateExpenseRequestActions } from '../../../utils/expenseRequestActions';
 
 export interface ExpenseRequestDetailsProps extends BusinessAppContextProps {
   selectedItem: any;
   onClose: () => void;
+  requestTypeLabel?: string;
 }
 
 const ExpenseRequestDetails: React.FC<ExpenseRequestDetailsProps> = ({
   selectedItem,
-  onClose
+  onClose,
+  requestTypeLabel,
+  ...contextProps
 }) => {
   if (!selectedItem) return null;
   
-  // Get trip type
-  const getTripType = () => {
-    if (selectedItem.requestType?.value) {
-      return selectedItem.requestType.value;
-    }
-    const additionalProps = selectedItem.additionalProperties as Record<string, unknown> | null;
-    const tripType = additionalProps?.tripType ?? additionalProps?.travelType;
-    return tripType ?? 'Business Travel';
+  const formatTypeLabel = (value?: string) => {
+    if (value === null || value === undefined) return 'N/A';
+    const trimmed = String(value).trim();
+    if (!trimmed) return 'N/A';
+    if (trimmed.toUpperCase() === 'N/A') return 'N/A';
+    return trimmed
+      .replace(/[_-]/g, ' ')
+      .toLowerCase()
+      .split(' ')
+      .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+      .join(' ');
+  };
+
+  const getRequestType = () => {
+    if (selectedItem.requestType?.value) return selectedItem.requestType.value;
+    if (selectedItem.requestType) return String(selectedItem.requestType);
+    return 'N/A';
   };
 
   return (
@@ -52,18 +62,50 @@ const ExpenseRequestDetails: React.FC<ExpenseRequestDetailsProps> = ({
             {selectedItem.code}
           </p>
         </div>
-        <Badge 
-          variant={
-            getExpensePlanStatusDisplay(selectedItem.status).type === 'completed' ? 'success' : 
-            getExpensePlanStatusDisplay(selectedItem.status).type === 'error' ? 'destructive' : 
-            getExpensePlanStatusDisplay(selectedItem.status).type === 'task' ? 'warning' : 
-            getExpensePlanStatusDisplay(selectedItem.status).type === 'waiting' ? 'secondary' : 'default'
-          }
-          className="gba:text-sm"
-          data-testid="expense-request-status-badge"
-        >
-          {getExpensePlanStatusDisplay(selectedItem.status).label}
-        </Badge>
+        <div className="gba:flex gba:items-center gba:gap-3">
+          {(() => {
+            const statusConfig = getExpenseRequestStatusDisplay(selectedItem.status);
+            return (
+              <Badge variant={(statusConfig as any).badgeVariant || 'outline'} data-testid="expense-request-status-badge">
+                {statusConfig.label}
+              </Badge>
+            );
+          })()}
+          {(() => {
+             const availableActions = generateExpenseRequestActions(
+               selectedItem,
+               {
+                 employeeId: contextProps.userInfo?.employeeDetails?.employeeId || '',
+                 accessToken: contextProps.accessToken || '',
+                 onClose: onClose
+               },
+               {
+                 includeDetails: false
+               }
+             );
+            
+            // Only show action button if there are available actions
+            if (availableActions.length > 0) {
+              return (
+                <div 
+                  className="gba:flex gba:justify-start gba:gap-2"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <AppActionButton
+                    data-testid="expense-request-details-action-button"
+                    size="icon"
+                    staticFlowData={availableActions}
+                    prefixDataTestId="expense-request-details-action"
+                    accessToken={contextProps.accessToken}
+                    emptyStateBehavior="disable"
+                    deferMainContextRequestsUntilClick={true}
+                  />
+                </div>
+              );
+            }
+            return null;
+          })()}
+        </div>
       </div>
       
       {/* Date Information */}
@@ -161,9 +203,9 @@ const ExpenseRequestDetails: React.FC<ExpenseRequestDetailsProps> = ({
             
             <div className="gba:flex gba:justify-between gba:items-center">
               <span className="gba:text-sm gba:font-medium gba:text-gray-700">
-                {getTranslationFromI18nKeyAndLabel('lowcoder:team_expenses_page.plan_details.trip_type', 'Trip Type')}
+                {getTranslationFromI18nKeyAndLabel('lowcoder:expense_calculation_rule_modal.affected_expense_modal.request_type', 'Request Type')}
               </span>
-              <span className="gba:text-sm gba:text-gray-900">{getTripType()}</span>
+              <span className="gba:text-sm gba:text-gray-900">{formatTypeLabel(requestTypeLabel ?? getRequestType())}</span>
             </div>
             
             <div className="gba:flex gba:justify-between gba:items-center">

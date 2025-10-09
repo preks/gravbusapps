@@ -16,7 +16,32 @@ export const mapInvestmentAccountToFormValues = (
 
   const account = accountData.InvestmentAccount[0];
 
-  // ✅ REMOVED: InvestmentAccount doesn't have addresses array - uses simple geographicPresence field
+  // ✅ FIXED: Extract addresses from investmentAddress relationship
+  // Map addresses first, then check if we got any results
+  const addressData = account.investmentAddress?.map(addr => ({
+    id: addr.id,
+    version: addr.version,
+    addressType: addr.addressType || "PRIMARY_ADDRESS",
+    addressLines: addr.addressLine?.lines || [""],
+    postalCode: addr.postalCode || "",
+    locality: addr.locality || "",
+    regionRef: addr.regionRef || "",
+    countryRef: addr.countryRef || "",
+  }));
+
+  // ✅ FIXED: Check for empty array (not just undefined/null) and provide default address
+  // This ensures accounts without addresses still show the address section
+  const addresses = (addressData && addressData.length > 0) ? addressData : [
+    {
+      id: "default-address",
+      addressType: "PRIMARY_ADDRESS",
+      addressLines: [""],
+      postalCode: "",
+      locality: "",
+      regionRef: "",
+      countryRef: "",
+    },
+  ];
 
   const formValues: Partial<AccountFormValues> = {
     // System fields
@@ -45,7 +70,9 @@ export const mapInvestmentAccountToFormValues = (
     // Geographic Presence (simplified for InvestmentAccount)
     geographicPresence: account.geographicPresence || "",
 
-    // ✅ REMOVED: Complex address handling - InvestmentAccount only has geographicPresence field
+    // ✅ UPDATED: Address Information - Extract from investmentAddress relationship
+    addresses: addresses,
+    
     // Legacy fields kept for form compatibility but not populated from database
     country: "",
     region: "",
@@ -55,7 +82,6 @@ export const mapInvestmentAccountToFormValues = (
     addressLine4: "",
     postalCode: "",
     city: "",
-    addresses: [], // Dynamic addresses array - not used
 
     // Financial Information (✅ UPDATED to match InvestmentAccount schema)
     annualRevenue: account.accountAnnualRevenueBand?.id || "", // ✅ FIXED: annualRevenue -> accountAnnualRevenueBand
@@ -63,10 +89,15 @@ export const mapInvestmentAccountToFormValues = (
     // ✅ REMOVED: currency: "", // Not available in InvestmentAccount schema
 
     // Additional Information (✅ UPDATED for InvestmentAccount)
-    timeZone: account.timeZone?.id || "", // ✅ RESTORED: Available in InvestmentAccount schema
-    foundationDate: account.foundationDate || "",
+    foundationDate: account.foundationDate ? new Date(account.foundationDate).toISOString().split('T')[0] : "",
     tickerSymbol: account.code || "", // ✅ UPDATED: Use code as ticker symbol
     // ✅ REMOVED: sicCode mapping - sicCode field removed from form
+
+    // Contact Information
+    contactIds: account.investmentAccountContact?.map(rel => ({
+      id: rel.contact.id,
+      name: rel.contact.fullName || `${rel.contact.firstName || ''} ${rel.contact.lastName || ''}`.trim(),
+    })) || [], // ✅ UPDATED: Store full contact objects with id and name for proper display
 
     // Legacy fields
     address: "",
@@ -87,6 +118,14 @@ export const useInvestmentAccountData = (
   const { fetchInvestmentAccountData } =
     useGetInvestmentAccountData(businessAppContext);
 
+  // Function to map investment account data to form values (consistent with lead/contact pattern)
+  const mapAccountToFormValues = useCallback(
+    (accountData: InvestmentAccountDataResponse): Partial<AccountFormValues> => {
+      return mapInvestmentAccountToFormValues(accountData);
+    },
+    []
+  );
+
   // Extract accountId from businessAppContext
   const accountId =
     businessAppContext.additionalData?.accountId ||
@@ -95,17 +134,7 @@ export const useInvestmentAccountData = (
 
   useEffect(() => {
     const loadAccountData = async () => {
-      console.log("🔍 Investment Account Data Hook - Starting load:", {
-        accountId,
-        hasAccessToken: !!businessAppContext.accessToken,
-        additionalData: businessAppContext.additionalData,
-      });
-
       if (!accountId || !businessAppContext.accessToken) {
-        console.log("❌ Investment Account Data Hook - Missing requirements:", {
-          hasAccountId: !!accountId,
-          hasAccessToken: !!businessAppContext.accessToken,
-        });
         return;
       }
 
@@ -113,21 +142,7 @@ export const useInvestmentAccountData = (
         setLoading(true);
         setError(null);
 
-        console.log(
-          "🚀 Investment Account Data Hook - Fetching data for accountId:",
-          accountId
-        );
         const result = await fetchInvestmentAccountData({ accountId });
-        console.log(
-          "✅ Investment Account Data Hook - Data loaded successfully:",
-          {
-            hasResult: !!result,
-            investmentAccountCount: result?.InvestmentAccount?.length || 0,
-            firstAccountId: result?.InvestmentAccount?.[0]?.id,
-            firstAccountName: result?.InvestmentAccount?.[0]?.name,
-          }
-        );
-
         setAccountData(result);
       } catch (err) {
         const errorMessage =
@@ -143,17 +158,6 @@ export const useInvestmentAccountData = (
 
     if (accountId) {
       loadAccountData();
-    } else {
-      console.log(
-        "🔍 Investment Account Data Hook: No accountId found in additionalData:",
-        {
-          additionalData: businessAppContext.additionalData,
-          accountIdPath1: businessAppContext.additionalData?.accountId,
-          accountIdPath2:
-            businessAppContext.additionalData?.psi_taskPayload
-              ?.psi_initialParameters?.accountId,
-        }
-      );
     }
   }, [accountId, businessAppContext.accessToken]); // Removed fetchAccountData to prevent infinite loops
 
@@ -183,6 +187,7 @@ export const useInvestmentAccountData = (
     loading,
     error,
     refetch,
+    mapAccountToFormValues,
   };
 };
 

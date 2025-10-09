@@ -14,6 +14,7 @@ export interface UseInvestmentAccountFiltersReturn {
   handleFilterChange: (filterId: string, selected: boolean) => void;
   createdAfter?: string;
   createdBefore?: string;
+  filtersInitialized: boolean;
 }
 
 export const useInvestmentAccountFilters = (
@@ -23,6 +24,9 @@ export const useInvestmentAccountFilters = (
 ): UseInvestmentAccountFiltersReturn => {
   const graphqlClient = useGraphQLClient(context.accessToken);
   const catalogClient = useCatalogManagerClient(context.accessToken);
+
+  // Filters initialization state
+  const [filtersInitialized, setFiltersInitialized] = useState(false);
 
   // Date range filter state (createdAt)
   const [createdAfter, setCreatedAfter] = useState<string | undefined>(undefined);
@@ -274,6 +278,14 @@ export const useInvestmentAccountFilters = (
         hideSearch: true,
       } as any,
       {
+        id: "status",
+        title: "Status",
+        filters: toFilters([
+          { id: "status:active", label: "Active" },
+          { id: "status:inactive", label: "Inactive" },
+        ])
+      },
+      {
         id: "contactInfo",
         title: "Contact Info",
         filters: toFilters([
@@ -306,6 +318,8 @@ export const useInvestmentAccountFilters = (
       ...Object.fromEntries(revenueBands.map(c => [`annualRevenueBand:${c.id}`, c.value || c.code || c.id])),
       ...Object.fromEntries(companies.map(n => [`company:${n}`, n])),
       ...Object.fromEntries(locations.map(l => [`location:${l}`, l])),
+      "status:active": "Active",
+      "status:inactive": "Inactive",
       "has:website": "Has website",
       "missing:website": "Missing website",
       "has:email": "Has email",
@@ -338,12 +352,23 @@ export const useInvestmentAccountFilters = (
     void loadLocations("");
   }, [loadOwners, loadIndustries, loadLegalForms, loadCompanySizes, loadRevenueBands, loadCompanies, loadLocations]);
 
+  // Track when all initial filter loading is complete
+  useEffect(() => {
+    const anyLoading = loadingOwners || loadingIndustries || loadingLegalForms || 
+                       loadingCompanySizes || loadingRevenueBands || loadingCompanies || 
+                       loadingLocations;
+    
+    setFiltersInitialized(!anyLoading);
+  }, [loadingOwners, loadingIndustries, loadingLegalForms, loadingCompanySizes, 
+      loadingRevenueBands, loadingCompanies, loadingLocations]);
+
   return {
     filterGroups,
     filterLabelMap,
     handleFilterChange,
     createdAfter,
     createdBefore,
+    filtersInitialized,
   };
 };
 

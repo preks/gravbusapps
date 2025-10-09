@@ -56,7 +56,7 @@ const AdditionalInformationSection: React.FC = () => {
           e.currentTarget.style.background =
             "linear-gradient(to right, #ddd6fe, #c4b5fd)";
         }}
-        data-testid={formatDataTestId(prefixDataTestId, "AdditionalInfoToggle")}
+        data-testid={formatDataTestId(prefixDataTestId, "additional-info-toggle")}
       >
         <div className="gba:flex gba:items-center gba:gap-2 gba:flex-1">
           <div className="gba:w-2 gba:h-2 gba:bg-purple-500 gba:rounded-full"></div>

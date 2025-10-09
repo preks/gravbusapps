@@ -3,6 +3,9 @@ import { toast } from "sonner";
 import { FlowContextName } from "../types/FlowRegistryTypes";
 import { useFlowRegistryClient } from "../network/flows/useFlowRegistryClient";
 
+// Request cache to prevent duplicate API calls
+const requestCache = new Map<string, Promise<any>>();
+
 /**
  * Hook to fetch main context data from the flow registry
  * @param contexts - List of context names to fetch data for
@@ -21,28 +24,48 @@ export const useMainContextsData = (
   // Define getAllMainContextsData first
   const getAllMainContextsData = useCallback(
     async (contextsToFetch: FlowContextName[]) => {
-      try {
-        const mainContexts = await flowRegistry.getMainContextData({
-          contextNames: contextsToFetch,
-        });
-
-        if (mainContexts?.contextData) {
-          // Transform the response into a map of contextName -> mainContextDataName
-          const contextMap: Record<string, string> = {};
-          mainContexts.contextData.forEach(
-            (item: { contextName: string; mainContextDataName: string }) => {
-              contextMap[item.contextName] = item.mainContextDataName;
-            },
-          );
-          return contextMap;
-        }
-      } catch (error) {
-        toast.error("Error loading data");
-        console.error("Error fetching main contexts data:", error);
+      // Create cache key for request deduplication
+      const cacheKey = JSON.stringify({ contexts: contextsToFetch, accessToken });
+      
+      // Check if request is already in progress
+      if (requestCache.has(cacheKey)) {
+        return requestCache.get(cacheKey);
       }
-      return {};
+      
+      // Create new request and cache it
+      const requestPromise = (async () => {
+        try {
+          const mainContexts = await flowRegistry.getMainContextData({
+            contextNames: contextsToFetch,
+          });
+
+          if (mainContexts?.contextData) {
+            
+            // Transform the response into a map of contextName -> mainContextDataName
+            const contextMap: Record<string, string> = {};
+            mainContexts.contextData.forEach(
+              (item: { contextName: string; mainContextDataName: string }) => {
+                contextMap[item.contextName] = item.mainContextDataName;
+              },
+            );
+            return contextMap;
+          }
+        } catch (error) {
+          toast.error("Error loading data");
+          console.error("Error fetching main contexts data:", error);
+        }
+        return {};
+      })();
+      
+      // Cache the promise and clean up when done
+      requestCache.set(cacheKey, requestPromise);
+      requestPromise.finally(() => {
+        requestCache.delete(cacheKey);
+      });
+      
+      return requestPromise;
     },
-    [flowRegistry],
+    [flowRegistry, accessToken],
   );
 
   // Function to fetch context data that can be called manually

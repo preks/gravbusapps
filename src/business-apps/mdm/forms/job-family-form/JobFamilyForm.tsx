@@ -1,4 +1,4 @@
-import React from "react";
+import React, { SetStateAction, Dispatch, useMemo } from "react";
 import { BusinessAppContextProps } from "@/common/BusinessAppContext";
 import FormWrapperModal from "@/business-apps/mdm/apps/generic-components/form-wrapper/FormWrapperModal";
 import {
@@ -15,6 +15,7 @@ import {
   JOB_FAMILY_CATALOG,
   JOB_FAMILY_VERSION,
 } from "@/business-apps/hr/core/apps/human-resources/components/views/job-position-view/hooks/useJobFamilyFilters";
+import { useCodeError } from "@/business-apps/mdm/hooks/useCodeError";
 export interface JobFamily {
   id: string;
   name: string;
@@ -22,6 +23,7 @@ export interface JobFamily {
   description?: string;
   parentId?: string;
   children?: JobFamily[];
+  usedCodes: string[];
 }
 
 export interface JobFamilyFormProps extends BusinessAppContextProps {
@@ -35,7 +37,8 @@ export interface JobFamilyFormProps extends BusinessAppContextProps {
   refetch: () => void;
   isDrawerActive?: boolean;
   open?: boolean;
-  setOpen?: (open: boolean) => void;
+  setOpen?: Dispatch<SetStateAction<boolean>>;
+  usedCodes?: string[];
 }
 
 const JobFamilyForm: React.FC<JobFamilyFormProps> = ({
@@ -51,44 +54,56 @@ const JobFamilyForm: React.FC<JobFamilyFormProps> = ({
   isDrawerActive = false,
   open,
   setOpen,
+  usedCodes = [],
 }) => {
   const catalogClient = useCatalogManagerClient(accessToken);
+  const { codeError, setCodeError, validateCode } = useCodeError(usedCodes);
 
-  const handleSubmit = async (values: any) => {
+  const handleSubmit = async (values: JobFamily) => {
     try {
+      // Validate code before submitting
+      if (!validateCode(values.code)) {
+        return;
+      }
+
       const payload = {
         ...(jobFamily ? { id: jobFamily.id } : {}),
-        code: values.code,
-        value: values.name,
-        additionalValue1: values.description,
+        code: values?.code ?? "",
+        value: values?.name ?? "",
+        additionalValue1: values?.description,
         translations: [],
       };
 
       if (jobFamily) {
-        await catalogClient.updateCatalogEntry(jobFamily.id ?? "", payload);
-      } else {
-        await catalogClient.createCatalogEntry(
+        await catalogClient.updateCatalogEntry(
           JOB_FAMILY_CATALOG,
           JOB_FAMILY_VERSION,
-          payload
+          jobFamily.id ?? "",
+          payload,
         );
+      } else {
+        await catalogClient.createCatalogEntry(JOB_FAMILY_CATALOG, JOB_FAMILY_VERSION, payload);
       }
 
       refetch();
+      setOpen?.(false);
     } catch (error) {
       console.error("Error saving Job Family:", error);
-    } finally {
-      setOpen?.(false);
+      throw error;
     }
   };
 
-  const defaultValues = jobFamily
-    ? {
-        name: jobFamily.name || "",
-        code: jobFamily.code || "",
-        description: jobFamily.description || "",
-      }
-    : {};
+  const defaultValues = useMemo(
+    () =>
+      jobFamily
+        ? {
+            name: jobFamily.name || "",
+            code: jobFamily.code || "",
+            description: jobFamily.description || "",
+          }
+        : {},
+    [jobFamily],
+  );
 
   return (
     <FormWrapperModal
@@ -108,6 +123,8 @@ const JobFamilyForm: React.FC<JobFamilyFormProps> = ({
       isDrawerActive={isDrawerActive}
       open={open}
       setOpen={setOpen}
+      isValid={!codeError}
+      setCodeError={setCodeError}
     >
       <FormField
         name="name"
@@ -126,22 +143,28 @@ const JobFamilyForm: React.FC<JobFamilyFormProps> = ({
         )}
       />
 
-      <FormField
-        name="code"
-        render={({ field }) => (
-          <FormItem>
-            <FormLabel>Code</FormLabel>
-            <FormControl>
-              <Input
-                placeholder="e.g., ENG, SALES, MKT"
-                {...field}
-                data-testid={`${prefixDataTestId}-code-input`}
-              />
-            </FormControl>
-            <FormMessage />
-          </FormItem>
-        )}
-      />
+      {!jobFamily && (
+        <FormField
+          name="code"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Code</FormLabel>
+              <FormControl>
+                <Input
+                  placeholder="e.g., ENG, SALES, MKT"
+                  {...field}
+                  onChange={(e) => {
+                    field.onChange(e);
+                    validateCode(e.target.value);
+                  }}
+                  data-testid={`${prefixDataTestId}-code-input`}
+                />
+              </FormControl>
+              <FormMessage>{codeError}</FormMessage>
+            </FormItem>
+          )}
+        />
+      )}
 
       <FormField
         name="description"
@@ -164,7 +187,7 @@ const JobFamilyForm: React.FC<JobFamilyFormProps> = ({
       {selectedParentId && (
         <FormField
           name="parentFamily"
-          render={({ field }) => (
+          render={() => (
             <FormItem>
               <FormLabel>Parent Family</FormLabel>
               <FormControl>

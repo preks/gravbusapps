@@ -144,52 +144,35 @@ const YearComparisonSection: React.FC<YearComparisonSectionProps> = ({ absences 
         {getTrendIcon()}
         <div className="gba:text-sm gba:text-muted-foreground">{improvementMsg}</div>
       </div>
-      {/* Leave Type Distribution */}
-      <div className="gba:space-y-4">
-        <h4 className="gba:font-medium gba:text-foreground" data-testid="year-comparison-section-leave-type-title">
-          {getTranslationFromI18nKeyAndLabel('lowcoder:absence_hub.leave_type_distribution', 'Leave Type Distribution by Year')}
-        </h4>
-        <div className="gba:space-y-4" data-testid="year-comparison-section-leave-type-rows">
-          {leaveTypeData.map((row: { year: number; total: number; types: { label: string; value: number; color: string }[] }) => (
-            <div className="gba:space-y-2" key={row.year}>
-              <div className="gba:flex gba:items-center gba:justify-between">
-                <span className="gba:text-sm gba:font-medium gba:text-foreground" data-testid="year-comparison-section-leave-type-year">
-                  {row.year}
+      <div className="gba:leaveTypeTitle" data-testid="year-comparison-section-leave-type-title">{getTranslationFromI18nKeyAndLabel('lowcoder:absence_hub.leave_type_title', `Leave Type Distribution by Year`)}</div>
+      <div className="gba:leaveTypeRows" data-testid="year-comparison-section-leave-type-rows">
+        {leaveTypeData.map((row: { year: number; total: number; types: { label: string; value: number; color: string }[] }) => (
+          <div className="gba:leaveTypeRow" key={row.year}>
+            <div className="gba:leaveTypeYear" data-testid="year-comparison-section-leave-type-year">{row.year}<span style={{
+                
+              }}>{row.total} {getTranslationFromI18nKeyAndLabel('lowcoder:absence_management_hub_backoffice.days','days')} total</span></div>
+            <div className="gba:leaveTypeBarBg" data-testid="year-comparison-section-leave-type-bar-bg">
+              {row.types.map((type: { label: string; value: number; color: string }, idx: number) => (
+                <div
+                  key={type.label}
+                  className="gba:leaveTypeBarFg"
+                  style={{
+                    width: `${row.total > 0 ? (type.value / row.total) * 100 : 0}%`,
+                    background: type.color,
+                    borderTopLeftRadius: idx === 0 ? 14 : 0,
+                    borderBottomLeftRadius: idx === 0 ? 14 : 0,
+                    borderTopRightRadius: idx === row.types.length - 1 ? 14 : 0,
+                    borderBottomRightRadius: idx === row.types.length - 1 ? 14 : 0,
+                  }}
+                />
+              ))}
+            </div>
+            <div className="gba:leaveTypeLegendTypes" data-testid="year-comparison-section-leave-type-legend-types">
+              {row.types.map((type: { label: string; value: number; color: string }) => (
+                <span key={type.label} className="gba:text-[#6b7683] gba:font-medium gba:text-[12px] gba:text-center gba:whitespace-nowrap" data-testid="year-comparison-section-leave-type-legend-type">
+                  {type.label}: {type.value}d
                 </span>
-                <Badge variant="outline" className="gba:text-xs">
-                  {row.total} {getTranslationFromI18nKeyAndLabel(row.total === 1 ? 'lowcoder:absence_hub.day' : 'lowcoder:absence_hub.days', row.total === 1 ? 'day' : 'days')} total
-                </Badge>
-              </div>
-              {row.total > 0 && (
-                <div className="gba:h-3 gba:bg-muted gba:rounded-full gba:overflow-hidden gba:flex" data-testid="year-comparison-section-leave-type-bar-bg">
-                  {row.types.map((type: { label: string; value: number; color: string }, idx: number) => (
-                    <div
-                      key={type.label}
-                      className="gba:h-full gba:transition-all gba:duration-300"
-                      style={{
-                        width: `${(type.value / row.total) * 100}%`,
-                        backgroundColor: type.color.startsWith('#') ? type.color : `#${type.color}`,
-                      }}
-                      title={`${type.label}: ${type.value} days`}
-                    />
-                  ))}
-                </div>
-              )}
-              {row.types.length > 0 && (
-                <div className="gba:flex gba:flex-wrap gba:gap-2 gba:mt-2" data-testid="year-comparison-section-leave-type-legend-types">
-                  {row.types.map((type: { label: string; value: number; color: string }) => (
-                    <div key={type.label} className="gba:flex gba:items-center gba:gap-1" data-testid="year-comparison-section-leave-type-legend-type">
-                      <div 
-                        className="gba:w-3 gba:h-3 gba:rounded-full" 
-                        style={{ backgroundColor: type.color.startsWith('#') ? type.color : `#${type.color}` }}
-                      />
-                      <span className="gba:text-xs gba:text-muted-foreground">
-                        {type.label}: {type.value}d
-                      </span>
-                    </div>
-                  ))}
-                </div>
-              )}
+              ))}
             </div>
           ))}
         </div>

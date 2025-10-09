@@ -27,7 +27,6 @@ import {
   COUNTRY_CATALOG,
   EMPLOYEE_SIZE_CATALOG,
   REVENUE_SIZE_CATALOG,
-  TIMEZONE_CATALOG,
   INVESTMENT_TYPE_CATALOG,
   INVESTMENT_GROUP_CATALOG,
   INVESTMENT_ROLE_CATALOG,
@@ -36,7 +35,6 @@ import {
 } from "../hooks/useLeadCatalogs";
 
 // ✅ ADDED: New catalog constants for searchable dropdowns
-export const SALUTATION_CATALOG = "Salutation";
 export const ACADEMIC_TITLE_CATALOG = "AcademicTitle";
 
 import { useSalesCampaignsGraphQL } from "../../../hooks/useSalesCampaignsGraphQL";
@@ -139,6 +137,7 @@ interface LeadFormContextValue extends LeadContextState {
   addressLineCount: number;
   addAddressLine: () => void;
   removeAddressLine: () => void;
+  removeAddressLineAtIndex: (lineIndex: number) => void;
 
   // Address management (new dynamic structure)
   addAddress: () => void;
@@ -238,13 +237,11 @@ export const LeadFormProvider: React.FC<LeadFormProviderProps> = ({
   const [formValues, setFormValuesState] = useState<LeadFormValues>({
     // Lead Information
     owner: "",
-    leadStatus: "",
+    leadStatus: "InvestmentLeadStatus:v1:OPEN", // Default to OPEN status
     leadSource: "",
-    leadSourceType: "", // ✅ ADDED: Additional lead source type
     rating: "",
 
     // Contact Information
-    salutation: "",
     academicTitle: "", // ✅ ADDED: Academic title (PhD, MBA, etc.)
     firstName: "",
     lastName: "",
@@ -253,6 +250,10 @@ export const LeadFormProvider: React.FC<LeadFormProviderProps> = ({
     email: "",
     sensitive: false, // ✅ ADDED: Sensitive data flag
 
+    // Social Media Information
+    linkedinUrl: "",
+    xingUrl: "",
+
     // Company Information
     legalForm: "",
     industry: "",
@@ -260,7 +261,6 @@ export const LeadFormProvider: React.FC<LeadFormProviderProps> = ({
     website: "",
     companyEmail: "",
     companyPhone: "",
-    timeZone: "",
     numberOfEmployees: "",
     annualRevenue: "",
 
@@ -566,13 +566,6 @@ export const LeadFormProvider: React.FC<LeadFormProviderProps> = ({
   );
 
   // ✅ ADDED: New searchable catalog configs
-  const salutationsConfig = useMemo(
-    () => ({
-      accessToken: businessAppContext.accessToken,
-      catalogIdentifier: SALUTATION_CATALOG,
-    }),
-    [businessAppContext.accessToken]
-  );
 
   const academicTitlesConfig = useMemo(
     () => ({
@@ -582,13 +575,6 @@ export const LeadFormProvider: React.FC<LeadFormProviderProps> = ({
     [businessAppContext.accessToken]
   );
 
-  const timeZonesConfig = useMemo(
-    () => ({
-      accessToken: businessAppContext.accessToken,
-      catalogIdentifier: TIMEZONE_CATALOG,
-    }),
-    [businessAppContext.accessToken]
-  );
 
   const investmentTypesConfig = useMemo(
     () => ({
@@ -626,7 +612,7 @@ export const LeadFormProvider: React.FC<LeadFormProviderProps> = ({
     () => ({
       accessToken: businessAppContext.accessToken,
       catalogIdentifier: MEASUREMENT_UNIT_CATALOG,
-      whereConditions: { additionalValue1: "AREA" },
+      whereConditions: { type: "AREA" },
     }),
     [businessAppContext.accessToken]
   );
@@ -641,9 +627,7 @@ export const LeadFormProvider: React.FC<LeadFormProviderProps> = ({
   const revenueSizesHook = useSearchableCatalog(revenueSizesConfig);
 
   // ✅ ADDED: New searchable catalog hooks
-  const salutationsHook = useSearchableCatalog(salutationsConfig);
   const academicTitlesHook = useSearchableCatalog(academicTitlesConfig);
-  const timeZonesHook = useSearchableCatalog(timeZonesConfig);
   const investmentTypesHook = useSearchableCatalog(investmentTypesConfig);
   const investmentGroupsHook = useSearchableCatalog(investmentGroupsConfig);
   const investmentRolesHook = useSearchableCatalog(investmentRolesConfig);
@@ -677,9 +661,7 @@ export const LeadFormProvider: React.FC<LeadFormProviderProps> = ({
       employeeSizesHook.initialize();
       revenueSizesHook.initialize();
       // ✅ ADDED: Initialize new searchable catalogs
-      salutationsHook.initialize();
       academicTitlesHook.initialize();
-      timeZonesHook.initialize();
       investmentTypesHook.initialize();
       investmentGroupsHook.initialize();
       investmentRolesHook.initialize();
@@ -795,9 +777,73 @@ export const LeadFormProvider: React.FC<LeadFormProviderProps> = ({
     }
   }, [addressLineCount]);
 
+  // Remove specific address line by index (1-based)
+  const removeAddressLineAtIndex = useCallback((lineIndex: number) => {
+    if (addressLineCount > 1 && lineIndex >= 1 && lineIndex <= addressLineCount) {
+      const newCount = addressLineCount - 1;
+      setAddressLineCount(newCount);
+
+      // Shift all subsequent lines up
+      const updates: Partial<LeadFormValues> = {};
+      for (let i = lineIndex; i < addressLineCount; i++) {
+        const currentField = `addressLine${i}` as keyof LeadFormValues;
+        const nextField = `addressLine${i + 1}` as keyof LeadFormValues;
+        updates[currentField] = formValues[nextField] as string || "";
+      }
+      // Clear the last line
+      const lastField = `addressLine${addressLineCount}` as keyof LeadFormValues;
+      updates[lastField] = "";
+
+      setFormValuesState((prev) => ({ ...prev, ...updates }));
+    }
+  }, [addressLineCount, formValues]);
+
   const setFormValues = useCallback((updates: Partial<LeadFormValues>) => {
     setFormValuesState((prev) => ({ ...prev, ...updates }));
   }, []);
+
+  // Wrap onSubmit to handle loading state and wait for process completion
+  const handleSubmitWithLoading = useCallback(async (values: LeadFormValues) => {
+    setIsLoading(true);
+    setError(null);
+    
+    try {
+      // Call the original onSubmit
+      await onSubmit(values);
+      
+      // Wait for process completion event
+      await new Promise<void>((resolve) => {
+        const TIMEOUT = 10000;
+        const timeoutId = setTimeout(() => {
+          cleanup();
+          resolve();
+        }, TIMEOUT);
+
+        const handleProcessCompletion = (event: Event) => {
+          const customEvent = event as CustomEvent<{ resolution: 'success' | 'failure' }>;
+          
+          if (customEvent.detail?.resolution === 'success' || customEvent.detail?.resolution === 'failure') {
+            cleanup();
+            resolve();
+          }
+        };
+
+        const cleanup = () => {
+          clearTimeout(timeoutId);
+          window.removeEventListener('com.newwork.process.processCompletion', handleProcessCompletion);
+          window.removeEventListener('com.newwork.process.taskCompletion', handleProcessCompletion);
+        };
+
+        window.addEventListener('com.newwork.process.processCompletion', handleProcessCompletion);
+        window.addEventListener('com.newwork.process.taskCompletion', handleProcessCompletion);
+      });
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'An error occurred');
+      console.error('❌ Submission error:', err);
+    } finally {
+      setIsLoading(false);
+    }
+  }, [onSubmit]);
 
   // Clear investment type when investment group changes (but NOT during initial data load)
   useEffect(() => {
@@ -946,7 +992,7 @@ export const LeadFormProvider: React.FC<LeadFormProviderProps> = ({
     // Form state
     formValues,
     setFormValues,
-    onSubmit,
+    onSubmit: handleSubmitWithLoading,
     onCancel,
     accessToken: businessAppContext.accessToken,
 
@@ -1062,6 +1108,7 @@ export const LeadFormProvider: React.FC<LeadFormProviderProps> = ({
     addressLineCount,
     addAddressLine,
     removeAddressLine,
+    removeAddressLineAtIndex,
 
     // Address management (new dynamic structure)
     addAddress,
@@ -1094,17 +1141,6 @@ export const LeadFormProvider: React.FC<LeadFormProviderProps> = ({
     // ✅ ADDED: New searchable catalog properties
     regions: [], // Empty array placeholder - should be loaded from catalog
 
-    // Salutations
-    salutations: salutationsHook.allOptions,
-    salutationsLoading: salutationsHook.loading,
-    salutationsError: salutationsHook.error,
-    salutationsHasMore: salutationsHook.hasMore,
-    salutationsNeedsMoreData: salutationsHook.needsMoreData,
-    salutationsDisplayCount: salutationsHook.displayCount,
-    salutationsTotalFetched: salutationsHook.totalFetched,
-    searchSalutations: salutationsHook.search,
-    loadMoreSalutations: salutationsHook.loadMore,
-    showMoreSalutations: salutationsHook.showMore,
 
     // Academic Titles
     academicTitles: academicTitlesHook.allOptions,
@@ -1118,17 +1154,6 @@ export const LeadFormProvider: React.FC<LeadFormProviderProps> = ({
     loadMoreAcademicTitles: academicTitlesHook.loadMore,
     showMoreAcademicTitles: academicTitlesHook.showMore,
 
-    // Time Zones
-    timeZones: timeZonesHook.allOptions,
-    timeZonesLoading: timeZonesHook.loading,
-    timeZonesError: timeZonesHook.error,
-    timeZonesHasMore: timeZonesHook.hasMore,
-    timeZonesNeedsMoreData: timeZonesHook.needsMoreData,
-    timeZonesDisplayCount: timeZonesHook.displayCount,
-    timeZonesTotalFetched: timeZonesHook.totalFetched,
-    searchTimeZones: timeZonesHook.search,
-    loadMoreTimeZones: timeZonesHook.loadMore,
-    showMoreTimeZones: timeZonesHook.showMore,
 
     // Investment Types
     investmentTypesSearchable: investmentTypesHook.allOptions,

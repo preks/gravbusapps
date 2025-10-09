@@ -34,6 +34,7 @@ import { AnalyticsTab } from './components/AnalyticsTab';
 import { AuditTab } from './components/AuditTab';
 import { ComplianceFlowService } from './services/ComplianceFlowService';
 import { env } from '@/common/env/EnvUtils';
+import { showToast } from '@/business-apps/fin/expenses/utils/notificationUtils';
 
 export interface ComplianceSolutionProps extends BusinessAppContextProps {}
 
@@ -165,7 +166,7 @@ export const ComplianceSolution: React.FC<ComplianceSolutionProps> = (context) =
       console.log('Execution payload:', executionPayload);
 
       // Execute the workflow via template dynamic execution API
-      const baseUrl = env('NEXT_PUBLIC_CUSTOM_FLOW_ENGINE_API_URL') || 'http://localhost:3000';
+      const baseUrl = env('NEXT_PUBLIC_CUSTOM_FLOW_ENGINE_API_URL') || 'https://newwork-dev.newwork.com/flow-engine';
       const response = await fetch(`${baseUrl}/api/templates/execute-dynamic`, {
         method: 'POST',
         headers: {
@@ -211,11 +212,19 @@ export const ComplianceSolution: React.FC<ComplianceSolutionProps> = (context) =
 
       // Notify dashboard to refresh and show success
       try { window.dispatchEvent(new CustomEvent('compliance-flow-created')); } catch {}
-      alert(`Compliance flow "${data.title}" created successfully! Workflow ID: ${result.data.workflowId}`);
+      showToast(
+        `Compliance flow "${data.title}" created successfully! Workflow ID: ${result.data.workflowId}`,
+        'success',
+        'Flow Created'
+      );
 
     } catch (error) {
       console.error('Error creating compliance flow:', error);
-      alert(`Error creating compliance flow: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      showToast(
+        `Error creating compliance flow: ${error instanceof Error ? error.message : 'Unknown error'}`,
+        'error',
+        'Flow Creation Failed'
+      );
     }
   };
 

@@ -1,6 +1,6 @@
 import React, { useState, useCallback, useEffect, useMemo } from "react";
 import { Button, Alert } from "@newwork/nw-design-system";
-// import { Plus } from "lucide-react";
+import { Plus } from "lucide-react";
 import { BusinessAppContextProps } from "@/common/BusinessAppContext";
 import { useGetInvestmentLeads } from "@/common/data/investment/hooks/useInvestmentLeads";
 import type { InvestmentLead } from "@/common/data/investment/types";
@@ -11,8 +11,8 @@ import { LeadList } from "./components/LeadList";
 import { ColumnConfig } from "@/components/dataController";
 import { AppAction } from "@/components/app-action/AppAction";
 import { FlowContextName } from "@/common/types/FlowRegistryTypes";
-import { PlusSquareIcon } from "@phosphor-icons/react";
 import { useInvestmentLeadFilters } from "./hooks/useInvestmentLeadFilters";
+import { getTranslationFromI18nKeyAndLabel } from "@/common/utils/windowUtils";
 
 export interface LeadViewProps extends BusinessAppContextProps {}
 
@@ -44,8 +44,9 @@ export const LeadView: React.FC<LeadViewProps> = (context) => {
   const [searchTerm, setSearchTerm] = useState(initial.search);
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize] = useState(20);
-  const [sortField, setSortField] = useState("");
-  const [sortOrder, setSortOrder] = useState<"ASC" | "DESC" | "">("");
+  type SortOrder = "ASC" | "DESC" | undefined;
+  const [sortField, setSortField] = useState<string | undefined>("createdAt");
+  const [sortOrder, setSortOrder] = useState<SortOrder>("DESC");
   const [selectedFilters, setSelectedFilters] = useState<string[]>(initial.filters);
   // const [showDataFilter, setShowDataFilter] = useState(false);
 
@@ -189,7 +190,6 @@ export const LeadView: React.FC<LeadViewProps> = (context) => {
       setLeads(result.InvestmentLead || []);
       setTotalCount(result.InvestmentLeadAggregate?.aggregate?.count || 0);
     } catch (err) {
-      console.error("Error loading investment leads:", err);
       setError(err instanceof Error ? err.message : "Unknown error occurred");
     } finally {
       setIsLoading(false);
@@ -205,15 +205,8 @@ export const LeadView: React.FC<LeadViewProps> = (context) => {
   useEffect(() => {
     const handleProcessEvent = (event: any) => {
       try {
-        console.log(
-          "✅ Investment Lead process event received:",
-          event.type,
-          event
-        );
-
         // Check for successful completion from different event structures
         if (event.detail?.resolution === "success") {
-          console.log("✅ Success resolution detected, refreshing data");
           loadData(); // Refresh lead list data
           if (refreshStats) {
             refreshStats(); // Also refresh statistics if available
@@ -227,9 +220,6 @@ export const LeadView: React.FC<LeadViewProps> = (context) => {
           response?.detail?.resolution === "success" ||
           response?.investmentLead
         ) {
-          console.log(
-            "✅ Success in response or investmentLead detected, refreshing data"
-          );
           loadData();
           if (refreshStats) {
             refreshStats();
@@ -242,16 +232,19 @@ export const LeadView: React.FC<LeadViewProps> = (context) => {
           event.type === "com.newwork.process.continue" &&
           event.detail?.payload
         ) {
-          console.log(
-            "✅ Continue event with payload detected, refreshing data"
-          );
           loadData();
           if (refreshStats) {
             refreshStats();
           }
         }
       } catch (err) {
-        console.error("Error handling process event:", err);
+        // Log process event handling errors with context
+        console.error('LeadView: Error handling process event:', {
+          eventType: event?.type || 'unknown',
+          eventDetail: event?.detail,
+          error: err instanceof Error ? err.message : err,
+          stack: err instanceof Error ? err.stack : undefined
+        });
       }
     };
 
@@ -307,8 +300,8 @@ export const LeadView: React.FC<LeadViewProps> = (context) => {
       if (sortOrder === "ASC") {
         setSortOrder("DESC");
       } else if (sortOrder === "DESC") {
-        setSortField("");
-        setSortOrder("");
+        setSortField(undefined);
+        setSortOrder(undefined);
       } else {
         setSortOrder("ASC");
       }
@@ -410,18 +403,16 @@ export const LeadView: React.FC<LeadViewProps> = (context) => {
               data-testid="add-lead-action-wrapper"
               emptyStateBehavior="hide"
             >
-              <button
-                className="gba:flex gba:flex-row gba:justify-center gba:items-center gba:px-3 gba:py-0 gba:h-8 gba:rounded gba:gap-1"
+              <Button
+                size="sm"
+                variant="default"
                 data-testid="add-lead-button"
                 type="button"
+                style={{ gap: 'var(--nw-spacing-xs)' }}
               >
-                <span className="gba:w-5 gba:h-5 gba:flex gba:items-center gba:justify-center gba:flex-none order-0 gba:grow-0">
-                  <PlusSquareIcon />
-                </span>
-                <span className="gba:h-4 gba:font-normal gba:text-sm gba:leading-4 gba:flex gba:items-center gba:text-black gba:flex-none order-1 gba:grow-0">
-                  Add
-                </span>
-              </button>
+                <Plus style={{ width: 'var(--nw-icon-size-sm)', height: 'var(--nw-icon-size-sm)' }} />
+                {getTranslationFromI18nKeyAndLabel('crm:lead.addLead', 'Add Lead')}
+              </Button>
             </AppAction>
           ),
         }}
@@ -440,8 +431,8 @@ export const LeadView: React.FC<LeadViewProps> = (context) => {
             pageSize={pageSize}
             onPageChange={handlePageChange}
             onSort={handleSort}
-            sortField={sortField}
-            sortOrder={sortOrder as "ASC" | "DESC"}
+            sortField={sortField || "createdAt"}
+            sortOrder={sortOrder || "ASC"}
             onClearFilters={() => setSelectedFilters([])}
             visibleColumns={visibleColumns}
             {...context}

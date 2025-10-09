@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient';
-import { getCurrentActiveStructureId } from '@/common/utils/windowUtils';
+import { getCurrentActiveStructureId, getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
 import { GET_TEAM_COVERAGE_DATA } from '../queries/StatisticsQueries';
 
 interface CoverageData {
@@ -276,7 +276,7 @@ export const useTeamCoverageData = (context: BusinessAppContextProps): UseTeamCo
               impactLevel: 'none' as const,
               newCoverage: currentCoverage,
               newRisk: currentRisk,
-              description: 'Already absent - no additional impact',
+              description: getTranslationFromI18nKeyAndLabel('lowcoder:absence_management_hub_manager.statistics_tab.already_absent_no_additional_impact', 'Already absent - no additional impact'),
               affectedCapabilities: [],
               backupOptions: []
             };
@@ -295,11 +295,11 @@ export const useTeamCoverageData = (context: BusinessAppContextProps): UseTeamCo
             
             if (!currentCapability) {
               return {
-                capabilityId: capabilityId ?? 'unknown',
-                capabilityName: capabilityName ?? 'Unknown',
+                capabilityId: capabilityId ?? getTranslationFromI18nKeyAndLabel('lowcoder:absence_management_hub_manager.statistics_tab.unknown', 'Unknown'),
+                capabilityName: capabilityName ?? getTranslationFromI18nKeyAndLabel('lowcoder:absence_management_hub_manager.statistics_tab.unknown', 'Unknown'),
                 newCoverage: 0,
                 newRisk: 'high' as const,
-                impactDescription: 'No current coverage for this capability'
+                impactDescription: getTranslationFromI18nKeyAndLabel('lowcoder:absence_management_hub_manager.statistics_tab.no_current_coverage_for_this_capability', 'No current coverage for this capability')
               };
             }
             
@@ -313,13 +313,13 @@ export const useTeamCoverageData = (context: BusinessAppContextProps): UseTeamCo
             
             let impactDescription = '';
             if (newCapabilityCoverage === 0) {
-              impactDescription = 'Critical: No remaining coverage for this capability';
+              impactDescription = getTranslationFromI18nKeyAndLabel('lowcoder:absence_management_hub_manager.statistics_tab.critical_no_remaining_coverage_for_this_capability', 'Critical: No remaining coverage for this capability');
             } else if (newCapabilityCoverage < 50) {
-              impactDescription = 'High: Significant reduction in capability coverage';
+              impactDescription = getTranslationFromI18nKeyAndLabel('lowcoder:absence_management_hub_manager.statistics_tab.high_significant_reduction_in_capability_coverage', 'High: Significant reduction in capability coverage');
             } else if (newCapabilityCoverage < 80) {
-              impactDescription = 'Medium: Reduced capability coverage';
+              impactDescription = getTranslationFromI18nKeyAndLabel('lowcoder:absence_management_hub_manager.statistics_tab.medium_reduced_capability_coverage', 'Medium: Reduced capability coverage');
             } else {
-              impactDescription = 'Low: Minimal impact on capability coverage';
+              impactDescription = getTranslationFromI18nKeyAndLabel('lowcoder:absence_management_hub_manager.statistics_tab.low_minimal_impact_on_capability_coverage', 'Low: Minimal impact on capability coverage');
             }
             
             return {
@@ -349,13 +349,13 @@ export const useTeamCoverageData = (context: BusinessAppContextProps): UseTeamCo
           // Generate description based on impact
           let description = '';
           if (impactLevel === 'low') {
-            description = 'Minimal impact - team can continue operations';
+            description = getTranslationFromI18nKeyAndLabel('lowcoder:absence_management_hub_manager.statistics_tab.minimal_impact_team_can_continue_operations', 'Minimal impact - team can continue operations');
           } else if (impactLevel === 'medium') {
-            description = 'Moderate impact - some tasks may be delayed';
+            description = getTranslationFromI18nKeyAndLabel('lowcoder:absence_management_hub_manager.statistics_tab.moderate_impact_some_tasks_may_be_delayed', 'Moderate impact - some tasks may be delayed');
           } else if (impactLevel === 'high') {
-            description = 'High impact - significant operational disruption';
+            description = getTranslationFromI18nKeyAndLabel('lowcoder:absence_management_hub_manager.statistics_tab.high_impact_significant_operational_disruption', 'High impact - significant operational disruption');
           } else {
-            description = 'Critical impact - immediate backup required';
+            description = getTranslationFromI18nKeyAndLabel('lowcoder:absence_management_hub_manager.statistics_tab.critical_impact_immediate_backup_required', 'Critical impact - immediate backup required');
           }
           
           // Find backup options for high-impact scenarios
@@ -414,9 +414,9 @@ export const useTeamCoverageData = (context: BusinessAppContextProps): UseTeamCo
                       if (backupCoverage === 100 && backupRisk === 'low') {
                         let recommendation = '';
                         if (otherCapability.teamMembers.length >= 3) {
-                          recommendation = 'Excellent backup option - multiple available resources';
+                          recommendation = getTranslationFromI18nKeyAndLabel('lowcoder:absence_management_hub_manager.statistics_tab.excellent_backup_option_multiple_available_resources', 'Excellent backup option - multiple available resources');
                         } else {
-                          recommendation = 'Good backup option - sufficient coverage available';
+                          recommendation = getTranslationFromI18nKeyAndLabel('lowcoder:absence_management_hub_manager.statistics_tab.good_backup_option_sufficient_coverage_available', 'Good backup option - sufficient coverage available');
                         }
                         
                         backupOptions.push({
@@ -484,7 +484,7 @@ export const useTeamCoverageData = (context: BusinessAppContextProps): UseTeamCo
                 impactLevel: 'none' as const,
                 newMatrixCoverage: currentMatrixCoverage,
                 newMatrixRisk: currentMatrixRisk,
-                description: 'Already absent - no additional impact'
+                description: getTranslationFromI18nKeyAndLabel('lowcoder:absence_management_hub_manager.statistics_tab.already_absent_no_additional_impact', 'Already absent - no additional impact')
               };
             }
 
@@ -505,13 +505,13 @@ export const useTeamCoverageData = (context: BusinessAppContextProps): UseTeamCo
 
             let description = '';
             if (impactLevel === 'low') {
-              description = 'Minimal impact - team can continue operations';
+              description = getTranslationFromI18nKeyAndLabel('lowcoder:absence_management_hub_manager.statistics_tab.minimal_impact_team_can_continue_operations', 'Minimal impact - team can continue operations');
             } else if (impactLevel === 'medium') {
-              description = 'Moderate impact - some tasks may be delayed';
+              description = getTranslationFromI18nKeyAndLabel('lowcoder:absence_management_hub_manager.statistics_tab.moderate_impact_some_tasks_may_be_delayed', 'Moderate impact - some tasks may be delayed');
             } else if (impactLevel === 'high') {
-              description = 'High impact - significant operational disruption';
+              description = getTranslationFromI18nKeyAndLabel('lowcoder:absence_management_hub_manager.statistics_tab.high_impact_significant_operational_disruption', 'High impact - significant operational disruption');
             } else {
-              description = 'Critical impact - immediate backup required';
+              description = getTranslationFromI18nKeyAndLabel('lowcoder:absence_management_hub_manager.statistics_tab.critical_impact_immediate_backup_required', 'Critical impact - immediate backup required');
             }
 
             return {

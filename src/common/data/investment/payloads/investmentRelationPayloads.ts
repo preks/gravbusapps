@@ -38,6 +38,47 @@ export const buildActivityPayload = (
         refs.account = accountId;
       }
     }
+
+    // If related entity was not set via ActivitySegment, try to infer from additional/external context
+    if (
+      !refs.account &&
+      (additional.accountId || additional.account?.id || external.accountId || external.account?.id)
+    ) {
+      refs.account =
+        additional.accountId ||
+        additional.account?.id ||
+        external.accountId ||
+        external.account?.id;
+    }
+    if (
+      !refs.contact &&
+      (additional.contactId || additional.contact?.id || external.contactId || external.contact?.id)
+    ) {
+      refs.contact =
+        additional.contactId ||
+        additional.contact?.id ||
+        external.contactId ||
+        external.contact?.id;
+    }
+    if (
+      !refs.opportunity &&
+      (additional.opportunityId ||
+        additional.opportunity?.id ||
+        external.opportunityId ||
+        external.opportunity?.id)
+    ) {
+      refs.opportunity =
+        additional.opportunityId ||
+        additional.opportunity?.id ||
+        external.opportunityId ||
+        external.opportunity?.id;
+    }
+    if (
+      !refs.lead &&
+      (additional.leadId || additional.lead?.id || external.leadId || external.lead?.id)
+    ) {
+      refs.lead = additional.leadId || additional.lead?.id || external.leadId || external.lead?.id;
+    }
     return refs;
   };
 
@@ -65,25 +106,23 @@ export const buildActivityPayload = (
     return undefined;
   };
 
-  const payloadBody = {
+  const payloadBody: any = {
     title: activity.title,
     description: activity.description,
     occurredAt: toISOFormat(activity.occurredAt),
     activityTypeRef: activity.activityTypeRef || undefined,
     ownerEmployee: getOwnerEmployee(),
     ...getEntityRef(),
-    ...(options.isUpdate &&
-      activity.id && {
-        id: activity.id,
-        version: activity.version,
-      }),
   };
 
-  const finalPayload = {
+  if (options.isUpdate && activity.id) {
+    payloadBody.id = activity.id;
+    payloadBody.version = activity.version;
+  }
+
+  return {
     investmentActivity: payloadBody,
   };
-
-  return finalPayload;
 };
 
 // ==============================
@@ -110,6 +149,7 @@ export interface InvestmentTaskFormData {
   creatorEmployeeId?: string;
   creatorUserId?: string;
   // related entity (only one)
+  investment?: { id: string };
   account?: { id: string };
   contact?: { id: string };
   opportunity?: { id: string };
@@ -123,28 +163,33 @@ export const buildInvestmentTaskPayload = (
 ) => {
   const getEntityRef = () => {
     const refs: Record<string, any> = {};
+    // Check task object first for all entity types
+    if (task.investment) refs.investment = task.investment.id;
     if (task.account) refs.account = task.account.id;
     if (task.contact) refs.contact = task.contact.id;
     if (task.opportunity) refs.opportunity = task.opportunity.id;
     if (task.lead) refs.lead = task.lead.id;
-    // Always include parent investment when provided via additionalData
-    const additional: any = (businessAppContext as any)?.additionalData || {};
-    const external: any = additional.externalContextData || {};
-    const investmentId =
-      // Primary: AppAction externalContextData (most common)
-      external.investmentId ||
-      external.investment?.id ||
-      external.investment ||
-      external.investmentTask?.investment ||
-      external.investmentTask?.investmentId ||
-      // Fallback: direct additionalData
-      additional.investmentId ||
-      additional.investment?.id ||
-      additional.investment ||
-      additional.investmentTask?.investment ||
-      additional.investmentTask?.investmentId;
-    if (investmentId) refs.investment = investmentId;
-    // Task payload debug - Investment search (sensitive data removed)
+    
+    // Fallback: Always include parent investment when provided via additionalData/externalContextData
+    // This handles cases where the form doesn't have the investment object but context does
+    if (!refs.investment) {
+      const additional: any = (businessAppContext as any)?.additionalData || {};
+      const external: any = additional.externalContextData || {};
+      const investmentId =
+        // Primary: AppAction externalContextData (most common)
+        external.investmentId ||
+        external.investment?.id ||
+        external.investment ||
+        external.investmentTask?.investment ||
+        external.investmentTask?.investmentId ||
+        // Fallback: direct additionalData
+        additional.investmentId ||
+        additional.investment?.id ||
+        additional.investment ||
+        additional.investmentTask?.investment ||
+        additional.investmentTask?.investmentId;
+      if (investmentId) refs.investment = investmentId;
+    }
     return refs;
   };
 
@@ -177,8 +222,12 @@ export const buildInvestmentTaskPayload = (
       payloadBody.creatorUserId = task.creatorUserId;
     }
   } else {
-    payloadBody.creatorEmployee = businessAppContext.userInfo?.employeeDetails?.employeeId;
-    payloadBody.creatorUserId = businessAppContext.userInfo?.id;
+    const creatorEmployeeId = businessAppContext.userInfo?.employeeDetails?.employeeId;
+    const creatorUserId = businessAppContext.userInfo?.id;
+    
+    // Use employeeDetails.employeeId if available, otherwise try direct employeeId field
+    payloadBody.creatorEmployee = creatorEmployeeId || (businessAppContext.userInfo as any)?.employeeId;
+    payloadBody.creatorUserId = creatorUserId;
   }
 
   if (options.isUpdate && task.id) {
@@ -300,18 +349,10 @@ export const buildInvestmentNotePayload = (
     ...getEntityRef(),
   };
 
-  if (options.isUpdate) {
-    // For updates, we need the noteId from additionalData
-    const noteId = (businessAppContext as any)?.additionalData?.noteId;
-    if (noteId) {
-      payloadBody.id = noteId;
-
-      // Include version if available (same pattern as activity)
-      const version = (businessAppContext as any)?.additionalData?.noteVersion || note.version;
-      if (version !== undefined) {
-        payloadBody.version = version;
-      }
-    }
+  // Add id and version for update mode
+  if (options.isUpdate && (note as any).id) {
+    payloadBody.id = (note as any).id;
+    payloadBody.version = note.version;
   }
 
   return {

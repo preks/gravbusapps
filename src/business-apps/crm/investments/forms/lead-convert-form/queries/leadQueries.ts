@@ -56,11 +56,6 @@ export const GET_INVESTMENT_LEAD_PREFILL_DATA = `
         value
       }
       accountAnnualRevenueBandRef
-      timeZone {
-        id
-        value
-      }
-      timeZoneRef
       
       # Catalog relationships for contact pre-filling
       academicTitle {
@@ -73,6 +68,22 @@ export const GET_INVESTMENT_LEAD_PREFILL_DATA = `
         value
       }
       salutationRef
+      
+      # Communication Channels (for LinkedIn, Xing, etc.)
+      communicationChannels {
+        id
+        communicationChannelRef
+        value
+        valueExtension
+        source
+        activeFrom
+        activeTo
+        communicationChannel {
+          id
+          value
+          code
+        }
+      }
       
       # Owner information
       ownerEmployee {

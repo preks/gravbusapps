@@ -42,15 +42,22 @@ export const useInvestmentLeadData = ({
         id: lead.id,
         version: lead.version,
 
-        // Contact Information - ✅ ADDED: salutation and academic title
-        salutation: lead.salutationRef || lead.salutation?.id || "",
+        // Contact Information - ✅ ADDED: academic title
         firstName: lead.firstName || "",
         lastName: lead.lastName || "",
         email: lead.email || "",
         phone: lead.phoneNumber || "",
         jobPosition: lead.position || "",
 
-        // Company Information - ✅ ADDED: timeZone
+        // Social Media Information - Extract from communication channels
+        linkedinUrl: lead.communicationChannels?.find(
+          channel => channel.communicationChannelRef === "CommunicationChannel:v1:LinkedIn"
+        )?.value || "",
+        xingUrl: lead.communicationChannels?.find(
+          channel => channel.communicationChannelRef === "CommunicationChannel:v1:Xing"
+        )?.value || "",
+
+        // Company Information
         company: lead.companyName || "",
         companyEmail: lead.companyEmail || "",
         companyPhone: lead.companyPhone || "",
@@ -62,7 +69,6 @@ export const useInvestmentLeadData = ({
           lead.accountAnnualRevenueBand?.id ||
           "",
         numberOfEmployees: lead.companySizeRef || lead.companySize?.id || "",
-        timeZone: lead.timeZoneRef || lead.timeZone?.id || "", // ✅ ADDED
 
         // Lead Information - ✅ FIXED: Use ownerEmployeeId OR ownerEmployee.id
         owner: lead.ownerEmployeeId || lead.ownerEmployee?.id || "",

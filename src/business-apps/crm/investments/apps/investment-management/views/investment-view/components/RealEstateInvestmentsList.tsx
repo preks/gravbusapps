@@ -11,7 +11,6 @@ import {
   Alert,
   Button
 } from "@newwork/nw-design-system";
-import { PlusOutlined } from "@ant-design/icons";
 import { BusinessAppContextProps } from "@/common/BusinessAppContext";
 import { useGetInvestments } from "@/common/data/investment/hooks/useInvestments";
 import type { Investment } from "@/common/data/investment/types";
@@ -20,14 +19,15 @@ import { DataContainer } from "@/components/layout/dataContainer/DataContainer";
 import { AppAction } from "@/components/app-action/AppAction";
 import { AppActionButton } from "@/components/app-action-button/AppActionButton";
 import { FlowContextName } from "@/common/types/FlowRegistryTypes";
-import { Building2, Calendar, Target, ChevronUp, ChevronDown } from "lucide-react";
+import { Building2, Calendar, Target, ChevronUp, ChevronDown, Plus } from "lucide-react";
 import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils';
 import { formatDate } from "@/common/data/investment";
 import { formatCurrencyParts } from '@/common/utils/numberFormatter';
 import { ColumnConfig } from "@/components/dataController";
 import { useInvestmentListController } from "../hooks/useInvestmentListController";
 import { useRealEstateInvestmentsFilters } from "../hooks/useRealEstateInvestmentsFilters";
-import { OwnerDisplay } from "../utils/ownerDisplayUtils";
+import { OwnerDisplay } from "../../../../../components/shared";
+import { getTranslationFromI18nKeyAndLabel } from "@/common/utils/windowUtils";
 
 
 export interface RealEstateInvestmentsListProps extends BusinessAppContextProps {}
@@ -91,22 +91,14 @@ const RealEstateInvestmentsList: React.FC<RealEstateInvestmentsListProps> = (con
 
   // Define available columns based on what I see in the image
   const [columnConfig, setColumnConfig] = useState<ColumnConfig[]>(() => [
-    { id: "investment", label: "Investment", visible: true },
-    { id: "type", label: "Type", visible: true },
-    { id: "initialInvestment", label: "Initial Investment", visible: true },
-    { id: "totalInvestment", label: "Total Investment", visible: true },
-    { id: "marketValue", label: "Market Value", visible: true },
-    { id: "performance", label: "Performance", visible: true },
-    { id: "acquisitionDate", label: "Acquisition Date", visible: true },
-    { id: "investmentRole", label: "Investment Role", visible: true },
-    { id: "owner", label: "Owner", visible: true },
+    { id: "investment", label: getTranslationFromI18nKeyAndLabel('investment:list.columns.investment','Investment'), visible: true },
+    { id: "type", label: getTranslationFromI18nKeyAndLabel('investment:list.columns.type','Type'), visible: true },
+    { id: "totalInvestment", label: getTranslationFromI18nKeyAndLabel('investment:list.columns.totalInvestment','Total Investment'), visible: true },
+    { id: "acquisitionDate", label: getTranslationFromI18nKeyAndLabel('investment:list.columns.acquisitionDate','Acquisition Date'), visible: true },
+    { id: "owner", label: getTranslationFromI18nKeyAndLabel('investment:list.columns.owner','Owner'), visible: true },
     // Optional columns
-    { id: "status", label: "Status", visible: false },
-    { id: "created", label: "Created", visible: false },
-    { id: "exitDate", label: "Exit Date", visible: false },
-    { id: "locality", label: "Location", visible: false },
-    { id: "buildingYear", label: "Building Year", visible: false },
-    { id: "occupancyPercent", label: "Occupancy %", visible: false },
+    { id: "status", label: getTranslationFromI18nKeyAndLabel('investment:list.columns.status','Status'), visible: false },
+    { id: "created", label: getTranslationFromI18nKeyAndLabel('investment:list.columns.created','Created'), visible: false },
     // Actions column must be LAST
     { id: "actions", label: "Actions", visible: true, disabled: true },
   ]);
@@ -128,30 +120,20 @@ const RealEstateInvestmentsList: React.FC<RealEstateInvestmentsListProps> = (con
 
   // Filter groups based on visible columns - ONLY show filters for visible columns
   const visibleFilterGroups = useMemo(() => {
-    // Map each visible column to its filter group for real estate - ALL 8 COLUMNS
+    // Map each visible column to its filter group for real estate
     const columnToFilterMap: Record<string, string> = {
       // 1. Investment - searchable by name (handled by main search)
       created: 'creationDate',
       // 2. Type column → Investment Type filter
       type: "investmentType",
-      // 3. Initial Investment → Amount range filter
-      initialInvestment: "initialInvestmentRange", 
-      // 4. Market Value → Amount range filter
-      marketValue: "marketValueRange",
-      // 5. Performance → Performance range filter
-      performance: "performanceRange",
-      // 6. Acquisition Date → Date range filter
+      // 3. Total Investment → Amount range filter
+      totalInvestment: "totalInvestmentRange",
+      // 4. Acquisition Date → Date range filter
       acquisitionDate: "acquisitionDate",
-      // 7. Investment Role → Investment Role filter
-      investmentRole: "investmentRole",
-      // 8. Owner → Owner filter
+      // 5. Owner → Owner filter
       owner: "owner",
       // Additional columns
       status: "investmentStatus",
-      locality: "location",
-      buildingYear: 'buildingYearRange',
-      occupancyPercent: 'occupancyRange',
-      exitDate: 'exitDate',
     };
 
     // Only show filters for currently visible columns
@@ -333,7 +315,7 @@ const RealEstateInvestmentsList: React.FC<RealEstateInvestmentsListProps> = (con
         listTitle: (
           <div className="gba:flex gba:items-center gba:gap-4">
             <div className="gba:flex gba:items-center gba:gap-2">
-              <span>Real Estate Investments</span>
+              <span>{getTranslationFromI18nKeyAndLabel('investment:realEstate.title','Real Estate Investments')}</span>
               <span className="gba:text-gray-500">({totalCount})</span>
             </div>
           </div>
@@ -342,8 +324,7 @@ const RealEstateInvestmentsList: React.FC<RealEstateInvestmentsListProps> = (con
           <AppAction
             contextsArray={[FlowContextName.createInvestment]}
             externalContextData={{ 
-              investmentGroup: 'REAL_ESTATE',
-              investmentGroupRef: 'InvestmentGroup:v1:REAL_ESTATE',
+              investmentGroup: 'InvestmentGroup:v1:REAL_ESTATE',
               fromView: 'investments',
               fromSubView: 'real-estate'
             }}
@@ -352,13 +333,14 @@ const RealEstateInvestmentsList: React.FC<RealEstateInvestmentsListProps> = (con
             emptyStateBehavior="hide"
           >
             <Button
-              variant="default"
               size="sm"
-              className="gba:flex gba:items-center gba:gap-2"
+              variant="default"
               data-testid="real-estate-investments-add-button"
+              type="button"
+              style={{ gap: 'var(--nw-spacing-xs)' }}
             >
-              <PlusOutlined />
-              Add Real Estate
+              <Plus size={16} />
+              {getTranslationFromI18nKeyAndLabel('investment:realEstate.addRealEstate', 'Add Real Estate')}
             </Button>
           </AppAction>
         ),
@@ -379,77 +361,37 @@ const RealEstateInvestmentsList: React.FC<RealEstateInvestmentsListProps> = (con
               <TableRow>
                 {visibleColumns.includes('investment') && (
                   <SortableTableHead field="name" currentSortField={sortField} currentSortOrder={sortOrder} onSort={handleSortingChange}>
-                    Investment
+                    {getTranslationFromI18nKeyAndLabel('investment:list.columns.investment','Investment')}
                   </SortableTableHead>
                 )}
                 {visibleColumns.includes('type') && (
                   <SortableTableHead field="investmentType.value" currentSortField={sortField} currentSortOrder={sortOrder} onSort={handleSortingChange}>
-                    Type
-                  </SortableTableHead>
-                )}
-                {visibleColumns.includes('initialInvestment') && (
-                  <SortableTableHead field="initialInvestmentAmount" currentSortField={sortField} currentSortOrder={sortOrder} onSort={handleSortingChange}>
-                    Initial Investment
+                    {getTranslationFromI18nKeyAndLabel('investment:list.columns.type','Type')}
                   </SortableTableHead>
                 )}
                 {visibleColumns.includes('totalInvestment') && (
                   <SortableTableHead field="totalInvestmentAmount" currentSortField={sortField} currentSortOrder={sortOrder} onSort={handleSortingChange}>
-                    Total Investment
-                  </SortableTableHead>
-                )}
-                {visibleColumns.includes('marketValue') && (
-                  <SortableTableHead field="investmentMarketValue" currentSortField={sortField} currentSortOrder={sortOrder} onSort={handleSortingChange}>
-                    Market Value
-                  </SortableTableHead>
-                )}
-                {visibleColumns.includes('performance') && (
-                  <SortableTableHead field="performancePercentage" currentSortField={sortField} currentSortOrder={sortOrder} onSort={handleSortingChange}>
-                    Performance
+                    {getTranslationFromI18nKeyAndLabel('investment:list.columns.totalInvestment','Total Investment')}
                   </SortableTableHead>
                 )}
                 {visibleColumns.includes('acquisitionDate') && (
                   <SortableTableHead field="acquisitionDate" currentSortField={sortField} currentSortOrder={sortOrder} onSort={handleSortingChange}>
-                    Acquisition Date
-                  </SortableTableHead>
-                )}
-                {visibleColumns.includes('investmentRole') && (
-                  <SortableTableHead field="investmentRole" currentSortField={sortField} currentSortOrder={sortOrder} onSort={handleSortingChange}>
-                    Investment Role
+                    {getTranslationFromI18nKeyAndLabel('investment:list.columns.acquisitionDate','Acquisition Date')}
                   </SortableTableHead>
                 )}
                 {visibleColumns.includes('owner') && (
                   <SortableTableHead field="ownerEmployee.displayName" currentSortField={sortField} currentSortOrder={sortOrder} onSort={handleSortingChange}>
-                    Owner
+                    {getTranslationFromI18nKeyAndLabel('investment:list.columns.owner','Owner')}
                   </SortableTableHead>
                 )}
                 {visibleColumns.includes('status') && (
                   <SortableTableHead field="investmentStatus.value" currentSortField={sortField} currentSortOrder={sortOrder} onSort={handleSortingChange}>
-                    Status
+                    {getTranslationFromI18nKeyAndLabel('investment:list.columns.status','Status')}
                   </SortableTableHead>
                 )}
                 {visibleColumns.includes('created') && (
                   <SortableTableHead field="createdAt" currentSortField={sortField} currentSortOrder={sortOrder} onSort={handleSortingChange}>
-                    Created
-                  </SortableTableHead>
-                )}
-                {visibleColumns.includes('exitDate') && (
-                  <SortableTableHead field="exitDate" currentSortField={sortField} currentSortOrder={sortOrder} onSort={handleSortingChange}>
-                    Exit Date
-                  </SortableTableHead>
-                )}
-                {visibleColumns.includes('locality') && (
-                  <SortableTableHead field="locality" currentSortField={sortField} currentSortOrder={sortOrder} onSort={handleSortingChange}>
-                    Location
-                  </SortableTableHead>
-                )}
-                {visibleColumns.includes('buildingYear') && (
-                  <SortableTableHead field="buildingYear" currentSortField={sortField} currentSortOrder={sortOrder} onSort={handleSortingChange}>
-                    Building Year
-                  </SortableTableHead>
-                )}
-                {visibleColumns.includes('occupancyPercent') && (
-                  <SortableTableHead field="occupancyPercent" currentSortField={sortField} currentSortOrder={sortOrder} onSort={handleSortingChange}>
-                    Occupancy %
+                    {getTranslationFromI18nKeyAndLabel('investment:list.columns.created','Created')}
                   </SortableTableHead>
                 )}
                 {visibleColumns.includes('actions') && <TableHead className="gba:w-[60px]">Actions</TableHead>}
@@ -471,42 +413,8 @@ const RealEstateInvestmentsList: React.FC<RealEstateInvestmentsListProps> = (con
                       <Badge variant="secondary">{investment.investmentType?.value || "Unknown"}</Badge>
                     </TableCell>
                   )}
-                  {visibleColumns.includes('initialInvestment') && (
-                    <TableCell className="gba:text-right">{renderAmount(investment.initialInvestmentAmount, investment.currency?.code)}</TableCell>
-                  )}
                   {visibleColumns.includes('totalInvestment') && (
                     <TableCell className="gba:text-right">{renderAmount(investment.totalInvestmentAmount, investment.currency?.code)}</TableCell>
-                  )}
-                  {visibleColumns.includes('marketValue') && (
-                    <TableCell className="gba:text-right">{renderAmount(investment.investmentMarketValue, investment.currency?.code)}</TableCell>
-                  )}
-                  {visibleColumns.includes('performance') && (
-                    <TableCell className="gba:text-right">
-                      {(() => {
-                        const currentValue = investment.investmentMarketValue || 0;
-                        const totalValue = investment.totalInvestmentAmount || 0;
-                        const performanceAmount = currentValue - totalValue;
-                        const performancePercentage = totalValue > 0 ? (performanceAmount / totalValue) * 100 : 0;
-                        const isZero = performancePercentage === 0;
-                        const isPositive = performancePercentage > 0;
-
-                        return (
-                          <div className="gba:flex gba:flex-col gba:items-end">
-                            <div className="gba:w-full gba:flex gba:justify-end gba:items-baseline">
-                              {(() => { const { number, symbol } = formatCurrencyParts(Math.abs(performanceAmount), { currency: investment.currency?.code, minimumFractionDigits: 0, maximumFractionDigits: 2 }); return (
-                                <>
-                                  <span className={`gba:text-sm gba:[font-variant-numeric:tabular-nums] ${isZero ? 'gba:text-gray-500' : isPositive ? 'gba:text-green-600' : 'gba:text-red-600'}`}>{number}</span>
-                                  <span className={`gba:text-xs gba:inline-block gba:text-right gba:shrink-0 gba:w-[5ch] ${isZero ? 'gba:text-gray-400' : isPositive ? 'gba:text-green-500' : 'gba:text-red-500'}`}>{symbol}</span>
-                                </>
-                              ); })()}
-                            </div>
-                            <span className={`${isZero ? 'gba:text-gray-400' : isPositive ? 'gba:text-green-500' : 'gba:text-red-500'} gba:text-sm`}>
-                              ({isZero ? '' : isPositive ? '+' : '-'}{Math.abs(performancePercentage).toFixed(2)}%)
-                            </span>
-                          </div>
-                        );
-                      })()}
-                    </TableCell>
                   )}
                   {visibleColumns.includes('acquisitionDate') && (
                     <TableCell>
@@ -516,16 +424,6 @@ const RealEstateInvestmentsList: React.FC<RealEstateInvestmentsListProps> = (con
                           {investment.acquisitionDate 
                             ? formatDate(investment.acquisitionDate)
                             : "N/A"}
-                        </span>
-                      </div>
-                    </TableCell>
-                  )}
-                  {visibleColumns.includes('investmentRole') && (
-                    <TableCell>
-                      <div className="gba:flex gba:items-center gba:gap-2">
-                        <Target className="gba:w-4 gba:h-4 gba:text-purple-600" />
-                        <span>
-                          N/A
                         </span>
                       </div>
                     </TableCell>
@@ -554,41 +452,18 @@ const RealEstateInvestmentsList: React.FC<RealEstateInvestmentsListProps> = (con
                       </div>
                     </TableCell>
                   )}
-                  {visibleColumns.includes('exitDate') && (
-                    <TableCell>
-                      <div className="gba:flex gba:items-center gba:gap-2">
-                        <Calendar className="gba:w-4 gba:h-4 gba:text-gray-500" />
-                        <span>{investment.exitDate ? formatDate(investment.exitDate) : "N/A"}</span>
-                      </div>
-                    </TableCell>
-                  )}
-                  {visibleColumns.includes('locality') && (
-                    <TableCell>
-                      <span>N/A</span>
-                    </TableCell>
-                  )}
-                  {visibleColumns.includes('buildingYear') && (
-                    <TableCell>
-                      <span>N/A</span>
-                    </TableCell>
-                  )}
-                  {visibleColumns.includes('occupancyPercent') && (
-                    <TableCell>
-                      <span>N/A</span>
-                    </TableCell>
-                  )}
                   {visibleColumns.includes('actions') && (
                     <TableCell onClick={(e) => e.stopPropagation()}>
                       <div className="gba:flex gba:justify-start gba:gap-2">
                         <AppActionButton
                           data-testid={`real-estate-investment-update-button-${investment.id}`}
                           size="icon"
-                          contextsArray={[FlowContextName.realEstateInvestmentEntity]}
+                          contextsArray={[FlowContextName.investmentEntity]}
                           externalContextData={{ investmentId: investment.id }}
                           prefixDataTestId={`real-estate-investment-update`}
                           accessToken={accessToken}
                           emptyStateBehavior="enable"
-                          deferMainContextRequestsUntilClick
+                          deferMainContextRequestsUntilClick={true}
                           onClick={(e) => e.stopPropagation()}
                         />
                       </div>
@@ -611,11 +486,11 @@ const RealEstateInvestmentsList: React.FC<RealEstateInvestmentsListProps> = (con
               {`${(currentPage - 1) * pageSize + 1}-${Math.min(
                 currentPage * pageSize,
                 totalCount
-              )} of ${totalCount} investments`}
+              )} of ${totalCount} ${getTranslationFromI18nKeyAndLabel('investment:realEstate.pagination.investments', 'investments')}`}
             </div>
             <div className="gba:flex gba:items-center gba:space-x-6 gba:lg:space-x-8">
               <div className="gba:flex gba:items-center gba:space-x-2">
-                <p className="gba:text-sm gba:font-medium">Rows per page</p>
+                <p className="gba:text-sm gba:font-medium">{getTranslationFromI18nKeyAndLabel('investment:realEstate.pagination.rowsPerPage', 'Rows per page')}</p>
                 <select
                   value={pageSize}
                   onChange={(e) => handlePaginationChange(1, Number(e.target.value))}
@@ -632,7 +507,7 @@ const RealEstateInvestmentsList: React.FC<RealEstateInvestmentsListProps> = (con
                 className="gba:flex gba:w-[100px] gba:items-center gba:justify-center gba:text-sm gba:font-medium"
                 data-testid="real-estate-investments-page-info"
               >
-                Page {currentPage} of {Math.ceil(totalCount / pageSize)}
+                {getTranslationFromI18nKeyAndLabel('investment:realEstate.pagination.page', 'Page')} {currentPage} of {Math.ceil(totalCount / pageSize)}
               </div>
               <div className="gba:flex gba:items-center gba:space-x-2">
                 <Button
@@ -642,7 +517,7 @@ const RealEstateInvestmentsList: React.FC<RealEstateInvestmentsListProps> = (con
                   disabled={currentPage <= 1}
                   data-testid="real-estate-investments-prev-page"
                 >
-                  Previous
+                  {getTranslationFromI18nKeyAndLabel('investment:realEstate.pagination.previous', 'Previous')}
                 </Button>
                 <Button
                   variant="outline"
@@ -651,7 +526,7 @@ const RealEstateInvestmentsList: React.FC<RealEstateInvestmentsListProps> = (con
                   disabled={currentPage >= Math.ceil(totalCount / pageSize)}
                   data-testid="real-estate-investments-next-page"
                 >
-                  Next
+                  {getTranslationFromI18nKeyAndLabel('investment:realEstate.pagination.next', 'Next')}
                 </Button>
               </div>
             </div>

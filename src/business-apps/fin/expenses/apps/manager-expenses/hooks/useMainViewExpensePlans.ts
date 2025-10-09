@@ -21,6 +21,10 @@ export interface ExpensePlan {
   currency: string;
   createdAt: string;
   updatedAt: string;
+  expenseRequest?: Array<{
+    id: string;
+    code?: string;
+  }>;
   employeeDocument?: {
     file: string;
     fileSize: number;
@@ -312,7 +316,7 @@ export const useMainViewExpensePlans = ({
         // Map currency information from currencyRef field (for display purposes)
         plans = plans.map((plan) => ({
           ...plan,
-          currency: plan.currencyRef ? plan.currencyRef.replace("Currency:v1:", "") : "EUR",
+          currency: plan.currencyRef ? plan.currencyRef.replaceAll("Currency:v1:", "") : "EUR",
         }));
 
         // Filter by employee if specified (this is still client-side as it's a specific filter)

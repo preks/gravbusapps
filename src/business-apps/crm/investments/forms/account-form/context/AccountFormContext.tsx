@@ -7,7 +7,7 @@ import React, {
   useRef,
   useMemo,
 } from "react";
-import { AccountFormValues, SelectOption, AccountContextState } from "../types";
+import { AccountFormValues, SelectOption, AccountContextState, Address } from "../types";
 import { BusinessAppContextProps } from "@/common/BusinessAppContext";
 import { useEmployeeById } from "@/business-apps/crm/common/forms/lead-form/hooks/useEmployeeById";
 import { useEmployeePositions } from "@/business-apps/crm/common/forms/lead-form/hooks/useEmployeePositions";
@@ -17,16 +17,16 @@ import {
   INDUSTRY_CATALOG,
   EMPLOYEE_SIZE_CATALOG,
   REVENUE_SIZE_CATALOG,
-  TIMEZONE_CATALOG,
 } from "../hooks/useLeadCatalogs";
 import { useCurrenciesGraphQL } from "../hooks/useCurrenciesGraphQL";
 import { useCountriesGraphQL } from "../hooks/useCountriesGraphQL";
 import { useSalesCampaignsGraphQL } from "../../../hooks/useSalesCampaignsGraphQL";
 import {
   useAccountData,
-  mapAccountToFormValues,
 } from "../hooks/useAccountData";
 import { useEmployeeByIdGraphQL } from "../hooks/useEmployeeByIdGraphQL";
+import { useCountriesRegions } from "../../lead-form/hooks/useCountriesRegions";
+import { useContactSelection } from "../hooks/useContactSelection";
 
 interface AccountFormContextValue extends AccountContextState {
   formValues: AccountFormValues;
@@ -34,6 +34,8 @@ interface AccountFormContextValue extends AccountContextState {
   onSubmit: (values: AccountFormValues) => Promise<void>;
   onCancel: () => Promise<void>;
   hideActions: boolean; // Hide submit/cancel buttons when embedded
+  isLoading: boolean;
+  error: string | null;
 
   // Business app context for hooks
   businessAppContext: BusinessAppContextProps;
@@ -106,17 +108,6 @@ interface AccountFormContextValue extends AccountContextState {
   loadMoreCurrencies: () => void;
   showMoreCurrencies: () => void;
 
-  // TimeZones with search and pagination
-  timeZones: SelectOption[];
-  timeZonesLoading: boolean;
-  timeZonesError: string | null;
-  timeZonesHasMore: boolean;
-  timeZonesNeedsMoreData: boolean;
-  timeZonesDisplayCount: number;
-  timeZonesTotalFetched: number;
-  searchTimeZones: (search: string) => void;
-  loadMoreTimeZones: () => void;
-  showMoreTimeZones: () => void;
 
   // Countries with search and pagination
   countries: SelectOption[];
@@ -134,7 +125,32 @@ interface AccountFormContextValue extends AccountContextState {
   searchSalesCampaigns: (searchTerm: string) => void;
   loadMoreSalesCampaigns: () => void;
 
-  // ✅ REMOVED: Address handling - not needed for InvestmentAccount (uses only geographicPresence)
+  // Countries and Regions (for address section)
+  countriesRegions: SelectOption[];
+  countriesRegionsLoading: boolean;
+  countriesRegionsError: string | null;
+  countriesRegionsHasMore: boolean;
+  searchCountriesRegions: (searchTerm: string) => void;
+  loadMoreCountriesRegions: () => void;
+  regions: SelectOption[];
+  regionsLoading: boolean;
+  regionsError: string | null;
+  searchRegions: (searchTerm: string) => void;
+  selectedCountryCode: string | null;
+  setSelectedCountry: (countryId: string) => void;
+
+  // Address management functions
+  addAddress: () => void;
+  removeAddress: (addressId: string) => void;
+  updateAddress: (addressId: string, updates: Partial<Address>) => void;
+
+  // Contact selection
+  contacts: SelectOption[];
+  contactsLoading: boolean;
+  contactsError: string | null;
+  contactsHasMore: boolean;
+  searchContacts: (search: string) => void;
+  loadMoreContacts: () => void;
 
   // Legacy compatibility (using employeeSizes data)
   numberOfEmployeesOptions: SelectOption[];
@@ -183,7 +199,19 @@ export const AccountFormProvider: React.FC<AccountFormProviderProps> = ({
     // Geographic Presence (simplified for InvestmentAccount)
     geographicPresence: "",
 
-    // ✅ REMOVED: Complex address handling - InvestmentAccount only has geographicPresence field
+    // Address Information (updated to match API model)
+    addresses: [
+      {
+        id: "default-address",
+        addressType: "PRIMARY_ADDRESS", // Default to PRIMARY_ADDRESS
+        addressLines: [""],
+        postalCode: "",
+        locality: "",
+        regionRef: "",
+        countryRef: "",
+      },
+    ],
+    
     // Legacy fields kept for form compatibility but made optional
     country: "",
     region: "",
@@ -193,7 +221,6 @@ export const AccountFormProvider: React.FC<AccountFormProviderProps> = ({
     addressLine4: "",
     postalCode: "",
     city: "",
-    addresses: [], // Dynamic addresses array - not used
 
     // Financial Information
     annualRevenue: "",
@@ -201,10 +228,12 @@ export const AccountFormProvider: React.FC<AccountFormProviderProps> = ({
     // ✅ REMOVED: currency: "", // Not available in InvestmentAccount schema
 
     // Additional Information
-    timeZone: "", // ✅ RESTORED: Available in InvestmentAccount schema as timeZoneRef
     foundationDate: "",
     tickerSymbol: "",
     // ✅ REMOVED: sicCode: "", // Not available in InvestmentAccount schema
+
+    // Contact Information
+    contactIds: [], // ✅ NEW: Array of contact IDs for contact selection
 
     // System fields
     id: undefined,
@@ -217,18 +246,10 @@ export const AccountFormProvider: React.FC<AccountFormProviderProps> = ({
     ...initialValues,
   });
 
-  // 🎯 DEBUG: Log initial values and form state for owner field debugging
-  console.log('🎯 AccountFormContext - Initialization:', {
-    initialValues: initialValues,
-    initialValuesOwner: initialValues?.owner,
-    formValuesOwner: formValues.owner,
-    isLeadConversion: businessAppContext.additionalData?.isLeadConversion,
-    leadOwnerId: businessAppContext.additionalData?.leadOwnerId,
-    note: 'Check if initialValues.owner is being properly set in form state'
-  });
 
-  // Global state (minimal for simplified InvestmentAccount form)
-  // ✅ REMOVED: isLoading, setError, addressLineCount - not needed for simplified form
+  // Global state
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   // Auto-selection tracking
   const autoSelectionDone = useRef(false);
@@ -241,6 +262,7 @@ export const AccountFormProvider: React.FC<AccountFormProviderProps> = ({
     accountData,
     loading: accountDataLoading,
     error: accountDataError,
+    mapAccountToFormValues,
   } = useAccountData(businessAppContext);
 
   // Current user employee hook for auto-selection
@@ -300,6 +322,32 @@ export const AccountFormProvider: React.FC<AccountFormProviderProps> = ({
   const loadMoreSalesCampaignsWrapper = useCallback((): void => {
     loadMoreSalesCampaigns();
   }, [loadMoreSalesCampaigns]);
+
+  // Countries and Regions hook for address section
+  const {
+    countries: countriesRegions,
+    countriesLoading: countriesRegionsLoading,
+    countriesError: countriesRegionsError,
+    countriesHasMore: countriesRegionsHasMore,
+    searchCountries: searchCountriesRegions,
+    loadMoreCountries: loadMoreCountriesRegions,
+    regions,
+    regionsLoading,
+    regionsError,
+    searchRegions,
+    selectedCountryCode,
+    setSelectedCountry,
+  } = useCountriesRegions(businessAppContext);
+
+  // Contact selection hook
+  const {
+    contacts,
+    isLoading: contactsLoading,
+    hasMore: contactsHasMore,
+    error: contactsError,
+    searchContacts,
+    loadMoreContacts,
+  } = useContactSelection(businessAppContext);
 
   // Countries hook
   const {
@@ -369,16 +417,6 @@ export const AccountFormProvider: React.FC<AccountFormProviderProps> = ({
 
   const revenueSizesHook = useSearchableCatalog(revenueSizesConfig);
 
-  // TimeZones catalog hook - using searchable catalog like opportunity form
-  const timeZonesConfig = useMemo(
-    () => ({
-      accessToken: businessAppContext.accessToken,
-      catalogIdentifier: TIMEZONE_CATALOG,
-    }),
-    [businessAppContext.accessToken]
-  );
-
-  const timeZonesHook = useSearchableCatalog(timeZonesConfig);
 
   // Initialize all catalog hooks on mount
   useEffect(() => {
@@ -386,33 +424,13 @@ export const AccountFormProvider: React.FC<AccountFormProviderProps> = ({
     industriesHook.initialize();
     employeeSizesHook.initialize();
     revenueSizesHook.initialize();
-    timeZonesHook.initialize();
   }, [
     legalFormsHook.initialize,
     industriesHook.initialize,
     employeeSizesHook.initialize,
     revenueSizesHook.initialize,
-    timeZonesHook.initialize,
   ]);
 
-  // Custom transformation for timeZones to preserve the code field
-  const transformedTimeZones = useMemo(() => {
-    return timeZonesHook.options.map((option: SelectOption) => {
-      // Extract code from catalog ID: "TimeZone:v1:UTC-07:00" → "UTC-07:00"
-      const catalogId = option.id as string;
-      const code = catalogId.includes(":")
-        ? catalogId.split(":")[2]
-        : option.label;
-
-      return {
-        ...option,
-        code: code,
-        value: catalogId, // ✅ Store full ID: "TimeZone:v1:UTC-07:00" for database
-        label: code, // ✅ Display code: "UTC-07:00" to users
-        name: code,
-      };
-    });
-  }, [timeZonesHook.options]);
 
   // Convert employee position data to SelectOption format
   const employeePositions: SelectOption[] = useMemo(() => {
@@ -533,14 +551,6 @@ export const AccountFormProvider: React.FC<AccountFormProviderProps> = ({
 
         // Add lead owner at the beginning for easy access
         finalEmployees.unshift(leadOwnerOption);
-        
-        console.log('🎯 Added lead owner to account form employee options:', {
-          leadOwnerId,
-          leadOwnerDisplayName,
-          leadOwnerJobTitle,
-          isLeadConversion,
-          totalEmployees: finalEmployees.length
-        });
       }
     }
 
@@ -556,47 +566,56 @@ export const AccountFormProvider: React.FC<AccountFormProviderProps> = ({
     return industriesHook.allOptions;
   }, [industriesHook.allOptions]);
 
-  const timeZones: SelectOption[] = useMemo(() => {
-    return transformedTimeZones;
-  }, [transformedTimeZones]);
 
   // Form value setter
   const setFormValues = useCallback((updates: Partial<AccountFormValues>) => {
     setFormValuesState((prev) => ({ ...prev, ...updates }));
   }, []);
 
-  useEffect(() => {
-    // ✅ DEBUG: Log the account data loading process
-    console.log("🔍 Investment Account Form Context - Data Check:", {
-      hasAccountData: !!accountData,
-      investmentAccountExists: !!accountData?.InvestmentAccount?.[0],
-      investmentAccountId: accountData?.InvestmentAccount?.[0]?.id,
-      currentFormId: formValues.id,
-      additionalDataAccountId: businessAppContext.additionalData?.accountId,
-      taskPayloadAccountId:
-        businessAppContext.additionalData?.psi_taskPayload
-          ?.psi_initialParameters?.accountId,
-    });
+  // Address management functions
+  const addAddress = useCallback(() => {
+    const newAddress: Address = {
+      id: `address-${Date.now()}`,
+      addressType: "PRIMARY_ADDRESS", // Default to PRIMARY_ADDRESS
+      addressLines: [""],
+      postalCode: "",
+      locality: "",
+      regionRef: "",
+      countryRef: "",
+    };
+    setFormValuesState((prev) => ({
+      ...prev,
+      addresses: [...prev.addresses, newAddress],
+    }));
+  }, []);
 
+  const removeAddress = useCallback((addressId: string) => {
+    setFormValuesState((prev) => ({
+      ...prev,
+      addresses: prev.addresses.filter((addr) => addr.id !== addressId),
+    }));
+  }, []);
+
+  const updateAddress = useCallback(
+    (addressId: string, updates: Partial<Address>) => {
+      setFormValuesState((prev) => ({
+        ...prev,
+        addresses: prev.addresses.map((addr) =>
+          addr.id === addressId ? { ...addr, ...updates } : addr
+        ),
+      }));
+    },
+    []
+  );
+
+  useEffect(() => {
     // Only populate if we have investment account data and the form doesn't already have this account's data
     if (
       accountData &&
       accountData.InvestmentAccount?.[0]?.id &&
       (!formValues.id || formValues.id !== accountData.InvestmentAccount[0].id)
     ) {
-      console.log(
-        "✅ Investment Account Form Context - Loading existing account data:",
-        {
-          accountId: accountData.InvestmentAccount[0].id,
-          accountName: accountData.InvestmentAccount[0].name,
-        }
-      );
-
       const mappedValues = mapAccountToFormValues(accountData);
-      console.log(
-        "🔄 Investment Account Form Context - Mapped form values:",
-        mappedValues
-      );
 
       setFormValuesState((prev) => ({
         ...prev,
@@ -605,17 +624,23 @@ export const AccountFormProvider: React.FC<AccountFormProviderProps> = ({
 
       // Don't auto-select current user if we're editing an existing account
       autoSelectionDone.current = true;
-    } else {
-      console.log(
-        "❌ Investment Account Form Context - Account data not loaded or already loaded"
-      );
     }
   }, [
     accountData,
+    mapAccountToFormValues,
     businessAppContext.additionalData?.accountId,
     businessAppContext.additionalData?.psi_taskPayload?.psi_initialParameters
       ?.accountId,
   ]);
+
+  // Update global loading and error state to include account data loading
+  useEffect(() => {
+    setIsLoading(accountDataLoading);
+  }, [accountDataLoading]);
+
+  useEffect(() => {
+    setError(accountDataError);
+  }, [accountDataError]);
 
   // Auto-select current user once their employee data has loaded (only for new accounts, not editing)
   useEffect(() => {
@@ -639,25 +664,11 @@ export const AccountFormProvider: React.FC<AccountFormProviderProps> = ({
       !accountData && // Don't auto-select when we have account data
       !businessAppContext.additionalData?.isLeadConversion // Don't auto-select during lead conversion
     ) {
-      console.log(
-        "✅ Auto-selecting current user as owner:",
-        currentUserEmployee.employeeId
-      );
       setFormValuesState((prev) => ({
         ...prev,
         owner: currentUserEmployee.employeeId,
       }));
       autoSelectionDone.current = true;
-    } else {
-      console.log("⏩ Account auto-selection skipped - reasons:", {
-        hasCurrentUserEmployee: !!currentUserEmployee,
-        hasOwner: !!formValues.owner,
-        autoSelectionAlreadyDone: autoSelectionDone.current,
-        hasCurrentAccountId: !!currentAccountId,
-        hasAccountData: !!accountData,
-        isLeadConversion: !!businessAppContext.additionalData?.isLeadConversion,
-        leadOwnerId: businessAppContext.additionalData?.leadOwnerId
-      });
     }
   }, [
     currentUserEmployee,
@@ -669,6 +680,7 @@ export const AccountFormProvider: React.FC<AccountFormProviderProps> = ({
   ]);
 
   // Context value
+  
   const value: AccountFormContextValue = {
     // Form state
     formValues,
@@ -676,8 +688,8 @@ export const AccountFormProvider: React.FC<AccountFormProviderProps> = ({
     onSubmit,
     onCancel,
     hideActions,
-    isLoading: false, // Simplified form doesn't track global loading state
-    error: null, // Simplified form doesn't track global error state
+    isLoading,
+    error,
 
     // Business app context
     businessAppContext,
@@ -749,16 +761,6 @@ export const AccountFormProvider: React.FC<AccountFormProviderProps> = ({
     searchCurrencies: searchCurrencies,
     loadMoreCurrencies: loadMoreCurrencies,
     showMoreCurrencies: () => {}, // No show more for simple list
-    timeZones,
-    timeZonesLoading: timeZonesHook.loading,
-    timeZonesError: timeZonesHook.error,
-    timeZonesHasMore: timeZonesHook.hasMore,
-    timeZonesNeedsMoreData: timeZonesHook.needsMoreData,
-    timeZonesDisplayCount: timeZonesHook.displayCount,
-    timeZonesTotalFetched: timeZonesHook.totalFetched,
-    searchTimeZones: timeZonesHook.search,
-    loadMoreTimeZones: timeZonesHook.loadMore,
-    showMoreTimeZones: timeZonesHook.showMore,
 
     // Countries with search and pagination
     countries,
@@ -776,7 +778,32 @@ export const AccountFormProvider: React.FC<AccountFormProviderProps> = ({
     searchSalesCampaigns: searchSalesCampaignsWrapper,
     loadMoreSalesCampaigns: loadMoreSalesCampaignsWrapper,
 
-    // ✅ REMOVED: Address management functions - not needed for InvestmentAccount
+    // Countries and Regions (for address section)
+    countriesRegions,
+    countriesRegionsLoading,
+    countriesRegionsError,
+    countriesRegionsHasMore,
+    searchCountriesRegions,
+    loadMoreCountriesRegions,
+    regions,
+    regionsLoading,
+    regionsError,
+    searchRegions,
+    selectedCountryCode,
+    setSelectedCountry,
+
+    // Address management functions
+    addAddress,
+    removeAddress,
+    updateAddress,
+
+    // Contact selection
+    contacts,
+    contactsLoading,
+    contactsError,
+    contactsHasMore,
+    searchContacts,
+    loadMoreContacts,
 
     // Legacy compatibility (using employeeSizes data)
     numberOfEmployeesOptions: employeeSizesHook.allOptions,

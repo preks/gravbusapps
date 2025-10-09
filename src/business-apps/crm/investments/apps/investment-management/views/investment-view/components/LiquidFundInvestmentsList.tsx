@@ -11,7 +11,6 @@ import {
   Alert,
   Button
 } from "@newwork/nw-design-system";
-import { PlusOutlined } from "@ant-design/icons";
 import { BusinessAppContextProps } from "@/common/BusinessAppContext";
 import { useGetInvestments } from "@/common/data/investment/hooks/useInvestments";
 import { formatDate } from "@/common/data/investment";
@@ -22,12 +21,13 @@ import { DataContainer } from "@/components/layout/dataContainer/DataContainer";
 import { AppAction } from "@/components/app-action/AppAction";
 import { AppActionButton } from "@/components/app-action-button/AppActionButton";
 import { FlowContextName } from "@/common/types/FlowRegistryTypes";
-import { Building2, Calendar, ChevronUp, ChevronDown } from "lucide-react";
+import { Building2, Calendar, ChevronUp, ChevronDown, Plus } from "lucide-react";
 import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils';
 import { ColumnConfig } from "@/components/dataController";
 import { useInvestmentListController } from "../hooks/useInvestmentListController";
 import { useLiquidFundInvestmentsFilters } from "../hooks/useLiquidFundInvestmentsFilters";
-import { OwnerDisplay } from "../utils/ownerDisplayUtils";
+import { OwnerDisplay } from "../../../../../components/shared";
+import { getTranslationFromI18nKeyAndLabel } from "@/common/utils/windowUtils";
 
 
 export interface LiquidFundInvestmentsListProps extends BusinessAppContextProps {}
@@ -106,18 +106,9 @@ const LiquidFundInvestmentsList: React.FC<LiquidFundInvestmentsListProps> = (con
     { id: "investment", label: "Investment", visible: true },
     { id: "investmentType", label: "Investment Type", visible: true },
     { id: "fundType", label: "Fund Type", visible: true },
-    { id: "bankName", label: "Bank", visible: true },
-    { id: "interestRate", label: "Interest Rate", visible: true },
-    { id: "initialInvestment", label: "Initial Investment", visible: true },
-    { id: "totalInvestment", label: "Total Investment", visible: true },
-    { id: "marketValue", label: "Market Value", visible: true },
-    { id: "performance", label: "Performance", visible: true },
     { id: "owner", label: "Owner", visible: true },
     { id: "status", label: "Status", visible: true },
     { id: "created", label: "Created", visible: true },
-    // Optional columns
-    { id: "accountNumber", label: "Account Number", visible: false },
-    { id: "earlyTermination", label: "Early Termination", visible: false },
     // Actions column must be LAST
     { id: "actions", label: "Actions", visible: true, disabled: true },
   ]);
@@ -145,8 +136,6 @@ const LiquidFundInvestmentsList: React.FC<LiquidFundInvestmentsListProps> = (con
       status: "investmentStatus",       // Status column → Investment Status filter
       owner: "owner",                   // Owner column → Owner filter
       created: "creationDate",          // Created column → Creation Date filter
-      accountNumber: "accountNumber",
-      earlyTermination: "earlyTermination",
     };
 
     // Only show filters for currently visible columns
@@ -386,7 +375,7 @@ const LiquidFundInvestmentsList: React.FC<LiquidFundInvestmentsListProps> = (con
         listTitle: (
           <div className="gba:flex gba:items-center gba:gap-4">
             <div className="gba:flex gba:items-center gba:gap-2">
-              <span>Liquid Fund Investments</span>
+              <span>{getTranslationFromI18nKeyAndLabel('investment:liquidFund.listTitle', 'Liquid Fund Investments')}</span>
               <span className="gba:text-gray-500">({totalCount})</span>
             </div>
           </div>
@@ -395,8 +384,7 @@ const LiquidFundInvestmentsList: React.FC<LiquidFundInvestmentsListProps> = (con
           <AppAction
             contextsArray={[FlowContextName.createInvestment]}
             externalContextData={{ 
-              investmentGroup: 'LIQUID_FUND',
-              investmentGroupRef: 'InvestmentGroup:v1:LIQUID_FUND',
+              investmentGroup: 'InvestmentGroup:v1:LIQUID_FUND',
               fromView: 'investments',
               fromSubView: 'liquid-funds'
             }}
@@ -405,13 +393,14 @@ const LiquidFundInvestmentsList: React.FC<LiquidFundInvestmentsListProps> = (con
             emptyStateBehavior="hide"
           >
             <Button
-              variant="default"
               size="sm"
-              className="gba:flex gba:items-center gba:gap-2"
+              variant="default"
               data-testid="liquid-fund-investments-add-button"
+              type="button"
+              style={{ gap: 'var(--nw-spacing-xs)' }}
             >
-              <PlusOutlined />
-              Add Liquid Fund
+              <Plus size={16} />
+              {getTranslationFromI18nKeyAndLabel('investment:liquidFund.addLiquidFund', 'Add Liquid Fund')}
             </Button>
           </AppAction>
         ),
@@ -431,43 +420,23 @@ const LiquidFundInvestmentsList: React.FC<LiquidFundInvestmentsListProps> = (con
             <TableHeader>
               <TableRow>
                 {visibleColumns.includes('investment') && (
-                  <SortableTableHead field="name" currentSortField={sortField} currentSortOrder={sortOrder} onSort={handleSortingChange}>Investment</SortableTableHead>
+                  <SortableTableHead field="name" currentSortField={sortField} currentSortOrder={sortOrder} onSort={handleSortingChange}>{getTranslationFromI18nKeyAndLabel('investment:liquidFund.columns.investment', 'Investment')}</SortableTableHead>
                 )}
                 {visibleColumns.includes('investmentType') && (
-                  <SortableTableHead field="investmentType.value" currentSortField={sortField} currentSortOrder={sortOrder} onSort={handleSortingChange}>Investment Type</SortableTableHead>
+                  <SortableTableHead field="investmentType.value" currentSortField={sortField} currentSortOrder={sortOrder} onSort={handleSortingChange}>{getTranslationFromI18nKeyAndLabel('investment:liquidFund.columns.investmentType', 'Investment Type')}</SortableTableHead>
                 )}
                 {visibleColumns.includes('fundType') && (
-                  <TableHead>Fund Type</TableHead>
-                )}
-                {visibleColumns.includes('bankName') && (
-                  <SortableTableHead field="fundManagerName" currentSortField={sortField} currentSortOrder={sortOrder} onSort={handleSortingChange}>Bank</SortableTableHead>
-                )}
-                {visibleColumns.includes('interestRate') && (
-                  <SortableTableHead field="loanInterestRate" currentSortField={sortField} currentSortOrder={sortOrder} onSort={handleSortingChange}>Interest Rate</SortableTableHead>
-                )}
-                {visibleColumns.includes('initialInvestment') && (
-                  <SortableTableHead field="initialInvestmentAmount" currentSortField={sortField} currentSortOrder={sortOrder} onSort={handleSortingChange}>Initial Investment</SortableTableHead>
-                )}
-                {visibleColumns.includes('totalInvestment') && (
-                  <SortableTableHead field="totalInvestmentAmount" currentSortField={sortField} currentSortOrder={sortOrder} onSort={handleSortingChange}>Total Investment</SortableTableHead>
-                )}
-                {visibleColumns.includes('marketValue') && (
-                  <SortableTableHead field="investmentMarketValue" currentSortField={sortField} currentSortOrder={sortOrder} onSort={handleSortingChange}>Market Value</SortableTableHead>
-                )}
-                {visibleColumns.includes('performance') && (
-                  <SortableTableHead field="investmentMarketValue" currentSortField={sortField} currentSortOrder={sortOrder} onSort={handleSortingChange}>Performance</SortableTableHead>
+                  <TableHead>{getTranslationFromI18nKeyAndLabel('investment:liquidFund.columns.fundType', 'Fund Type')}</TableHead>
                 )}
                 {visibleColumns.includes('owner') && (
-                  <SortableTableHead field="ownerEmployee.displayName" currentSortField={sortField} currentSortOrder={sortOrder} onSort={handleSortingChange}>Owner</SortableTableHead>
+                  <SortableTableHead field="ownerEmployee.displayName" currentSortField={sortField} currentSortOrder={sortOrder} onSort={handleSortingChange}>{getTranslationFromI18nKeyAndLabel('investment:liquidFund.columns.owner', 'Owner')}</SortableTableHead>
                 )}
                 {visibleColumns.includes('status') && (
-                  <SortableTableHead field="investmentStatus.value" currentSortField={sortField} currentSortOrder={sortOrder} onSort={handleSortingChange}>Status</SortableTableHead>
+                  <SortableTableHead field="investmentStatus.value" currentSortField={sortField} currentSortOrder={sortOrder} onSort={handleSortingChange}>{getTranslationFromI18nKeyAndLabel('investment:liquidFund.columns.status', 'Status')}</SortableTableHead>
                 )}
                 {visibleColumns.includes('created') && (
-                  <SortableTableHead field="createdAt" currentSortField={sortField} currentSortOrder={sortOrder} onSort={handleSortingChange}>Created</SortableTableHead>
+                  <SortableTableHead field="createdAt" currentSortField={sortField} currentSortOrder={sortOrder} onSort={handleSortingChange}>{getTranslationFromI18nKeyAndLabel('investment:liquidFund.columns.created', 'Created')}</SortableTableHead>
                 )}
-                {visibleColumns.includes('accountNumber') && <TableHead>Account Number</TableHead>}
-                {visibleColumns.includes('earlyTermination') && <TableHead>Early Termination</TableHead>}
                 {visibleColumns.includes('actions') && <TableHead className="gba:w-[60px]">Actions</TableHead>}
               </TableRow>
             </TableHeader>
@@ -490,66 +459,11 @@ const LiquidFundInvestmentsList: React.FC<LiquidFundInvestmentsListProps> = (con
                   {visibleColumns.includes('fundType') && (
                     <TableCell>
                       {inv.liquidFundInvestment?.[0]?.investmentLiquidFundType?.value ? (
-                        <Badge variant="default" className="gba:bg-blue-100 gba:text-blue-800">
+                        <Badge variant="default">
                           {inv.liquidFundInvestment[0].investmentLiquidFundType.value}
-                        </Badge>
-                      ) : (
+                        </Badge>                      ) : (
                         <span className="gba:text-gray-400">-</span>
                       )}
-                    </TableCell>
-                  )}
-                  {visibleColumns.includes('bankName') && (
-                    <TableCell>
-                      <span className="gba:font-medium gba:text-gray-900">{inv.liquidFundInvestment?.[0]?.bankName || inv.fundManagerName || 'Unknown Bank'}</span>
-                    </TableCell>
-                  )}
-                  {visibleColumns.includes('interestRate') && (
-                    <TableCell>
-                      <span className="gba:text-sm">{(inv.liquidFundInvestment?.[0]?.interestRate ?? inv.loanInterestRate) ? `${inv.liquidFundInvestment?.[0]?.interestRate ?? inv.loanInterestRate}%` : '-'}</span>
-                    </TableCell>
-                  )}
-                  {visibleColumns.includes('initialInvestment') && (
-                    <TableCell className="gba:text-right">
-                      {renderAmount(inv.initialInvestmentAmount, inv.currency?.code)}
-                    </TableCell>
-                  )}
-                  {visibleColumns.includes('totalInvestment') && (
-                    <TableCell className="gba:text-right">
-                      {renderAmount(inv.totalInvestmentAmount, inv.currency?.code)}
-                    </TableCell>
-                  )}
-                  {visibleColumns.includes('marketValue') && (
-                    <TableCell className="gba:text-right">
-                      {renderAmount(inv.investmentMarketValue, inv.currency?.code)}
-                    </TableCell>
-                  )}
-                  {visibleColumns.includes('performance') && (
-                    <TableCell className="gba:text-right">
-                      {(() => {
-                        const total = inv.totalInvestmentAmount || 0;
-                        const market = inv.investmentMarketValue || 0;
-                        const perfAmount = market - total;
-                        const perfPct = total > 0 ? (perfAmount / total) * 100 : 0;
-                        const isZero = (perfPct ?? 0) === 0;
-                        const isPositive = (perfPct ?? 0) > 0;
-                        return (
-                          <div className="gba:flex gba:flex-col gba:items-end">
-                            <div className="gba:w-full gba:flex gba:justify-end gba:items-baseline">
-                              {(() => { const { number, symbol } = formatCurrencyParts(Math.abs(perfAmount), { currency: inv.currency?.code, minimumFractionDigits: 0, maximumFractionDigits: 2 }); return (
-                                <>
-                                  <span className={`gba:text-sm gba:[font-variant-numeric:tabular-nums] ${isZero ? 'gba:text-gray-500' : isPositive ? 'gba:text-green-600' : 'gba:text-red-600'}`}>{number}</span>
-                                  <span className={`gba:text-xs gba:inline-block gba:text-right gba:shrink-0 gba:w-[5ch] ${isZero ? 'gba:text-gray-400' : isPositive ? 'gba:text-green-500' : 'gba:text-red-500'}`}>{symbol}</span>
-                                </>
-                              ); })()}
-                            </div>
-                            <span className={`${
-                              isZero ? 'gba:text-gray-400' : isPositive ? 'gba:text-green-500' : 'gba:text-red-500'
-                            } gba:text-sm`}>
-                              ({isZero ? '' : isPositive ? '+' : '-'}{Math.abs(perfPct).toFixed(2)}%)
-                            </span>
-                          </div>
-                        );
-                      })()}
                     </TableCell>
                   )}
                   {visibleColumns.includes('owner') && (
@@ -574,30 +488,18 @@ const LiquidFundInvestmentsList: React.FC<LiquidFundInvestmentsListProps> = (con
                       </div>
                     </TableCell>
                   )}
-                  {visibleColumns.includes('accountNumber') && (
-                    <TableCell>
-                      <span className="gba:text-sm gba:font-mono">{inv.liquidFundInvestment?.[0]?.bankAccountNumber || '-'}</span>
-                    </TableCell>
-                  )}
-                  {visibleColumns.includes('earlyTermination') && (
-                    <TableCell>
-                      <Badge variant={inv.liquidFundInvestment?.[0]?.earlyTerminationAllowed ? 'default' : 'secondary'}>
-                        {inv.liquidFundInvestment?.[0]?.earlyTerminationAllowed ? 'Allowed' : 'Not Allowed'}
-                      </Badge>
-                    </TableCell>
-                  )}
                   {visibleColumns.includes('actions') && (
                     <TableCell onClick={(e) => e.stopPropagation()}>
                       <div className="gba:flex gba:justify-start gba:gap-2">
                         <AppActionButton
                           data-testid={`liquid-fund-investment-update-button-${inv.id}`}
                           size="icon"
-                          contextsArray={[FlowContextName.liquidFundInvestmentEntity]}
+                          contextsArray={[FlowContextName.investmentEntity]}
                           externalContextData={{ investmentId: inv.id }}
                           prefixDataTestId={`liquid-fund-investment-update`}
                           accessToken={accessToken}
                           emptyStateBehavior="enable"
-                          deferMainContextRequestsUntilClick
+                          deferMainContextRequestsUntilClick={true}
                           onClick={(e) => e.stopPropagation()}
                         />
                       </div>
@@ -620,11 +522,11 @@ const LiquidFundInvestmentsList: React.FC<LiquidFundInvestmentsListProps> = (con
               {`${(currentPage - 1) * pageSize + 1}-${Math.min(
                 currentPage * pageSize,
                 totalCount
-              )} of ${totalCount} investments`}
+              )} of ${totalCount} ${getTranslationFromI18nKeyAndLabel('investment:liquidFund.pagination.investments', 'investments')}`}
             </div>
             <div className="gba:flex gba:items-center gba:space-x-6 gba:lg:space-x-8">
               <div className="gba:flex gba:items-center gba:space-x-2">
-                <p className="gba:text-sm gba:font-medium">Rows per page</p>
+                <p className="gba:text-sm gba:font-medium">{getTranslationFromI18nKeyAndLabel('investment:liquidFund.pagination.rowsPerPage', 'Rows per page')}</p>
                 <select
                   value={pageSize}
                   onChange={(e) => handlePaginationChange(1, Number(e.target.value))}
@@ -641,7 +543,7 @@ const LiquidFundInvestmentsList: React.FC<LiquidFundInvestmentsListProps> = (con
                 className="gba:flex gba:w-[100px] gba:items-center gba:justify-center gba:text-sm gba:font-medium"
                 data-testid="liquid-fund-investments-page-info"
               >
-                Page {currentPage} of {Math.ceil(totalCount / pageSize)}
+                {getTranslationFromI18nKeyAndLabel('investment:liquidFund.pagination.page', 'Page')} {currentPage} of {Math.ceil(totalCount / pageSize)}
               </div>
               <div className="gba:flex gba:items-center gba:space-x-2">
                 <Button
@@ -651,7 +553,7 @@ const LiquidFundInvestmentsList: React.FC<LiquidFundInvestmentsListProps> = (con
                   disabled={currentPage <= 1}
                   data-testid="liquid-fund-investments-prev-page"
                 >
-                  Previous
+                  {getTranslationFromI18nKeyAndLabel('investment:liquidFund.pagination.previous', 'Previous')}
                 </Button>
                 <Button
                   variant="outline"
@@ -660,7 +562,7 @@ const LiquidFundInvestmentsList: React.FC<LiquidFundInvestmentsListProps> = (con
                   disabled={currentPage >= Math.ceil(totalCount / pageSize)}
                   data-testid="liquid-fund-investments-next-page"
                 >
-                  Next
+                  {getTranslationFromI18nKeyAndLabel('investment:liquidFund.pagination.next', 'Next')}
                 </Button>
               </div>
             </div>

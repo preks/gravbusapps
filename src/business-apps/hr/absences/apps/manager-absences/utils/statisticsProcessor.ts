@@ -52,10 +52,8 @@ export const processStatisticsData = (
   const vacationCount = vacationAbsencesResult.EmployeeAbsenceAggregate?.aggregate?.count || 0;
   const sickLeaveCount = sickLeaveAbsencesResult.EmployeeAbsenceAggregate?.aggregate?.count || 0;
 
-  const allApprovedCount = plannedVsUnplannedResult.allApprovedAbsences?.aggregate?.count || 0;
-  const vacationCountFromStats = plannedVsUnplannedResult.vacationAbsences?.aggregate?.count || 0;
-  const plannedAbsences = vacationCountFromStats;
-  const unplannedAbsences = allApprovedCount - plannedAbsences;
+  const plannedAbsences = plannedVsUnplannedResult.plannedAbsences?.aggregate?.count || 0;
+  const unplannedAbsences = plannedVsUnplannedResult.unplannedAbsences?.aggregate?.count || 0;
 
   const approvedAbsencesCountForAvg =
     averageDaysResult.approvedAbsencesWithDays?.aggregate?.count || 0;

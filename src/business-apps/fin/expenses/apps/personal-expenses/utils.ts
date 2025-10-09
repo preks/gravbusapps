@@ -1,4 +1,4 @@
-import React from "react";
+// React import removed - not used in this file
 import { PillType } from "@/components/pill/Pill";
 import {
   getTranslationFromI18nKeyAndLabel,
@@ -31,38 +31,39 @@ export enum ExpenseStatus {
 export interface StatusDisplayConfig {
   label: string;
   type: PillType;
-  color?: string; // Optional color for custom styling
+  color?: string; // Optional color for custom styling (token-based)
+  badgeVariant?: StatusBadgeVariant; // Optional design-system Badge variant for unified rendering
 }
 
 /**
- * Color configurations based on status screen mapping
+ * Centralized mapping from status to Badge variant
  */
-const STATUS_COLORS = {
-  // Draft/Prepared statuses - Blue
-  DRAFT: "rgba(55, 99, 153, 0.55)",
-  PREPARED: "rgba(55, 99, 153, 0.55)",
+const STATUS_COLORS: Record<string, StatusBadgeVariant> = {
+  // Muted/Offline (Gray)
+  DRAFT: 'offline',
+  CREATED: 'offline',
+  PREPARED: 'offline',
+  CANCELLED: 'offline',
+  DISCARDED: 'offline',
 
-  // In Transit/Assigned statuses - Light Blue
-  IN_TRANSIT: "rgba(0, 148, 209, 0.55)",
-  ASSIGNED: "rgba(0, 148, 209, 0.55)",
+  // Info (Blue)
+  IN_TRANSIT: 'info',
+  ASSIGNED: 'info',
+  IN_REVISION: 'info',
+  PENDING: 'info',
+  VERIFIED: 'info',
+  BOOKED: 'info',
+  TRANSFERRED: 'info',
 
-  // Closed/Paid/Approved statuses - Green
-  CLOSED: "rgba(13, 188, 123, 0.55)",
-  PAID: "rgba(13, 188, 123, 0.55)",
-  APPROVED: "rgba(13, 188, 123, 0.55)",
+  // Success (Green)
+  CLOSED: 'success',
+  PAID: 'success',
+  APPROVED: 'success',
 
-  // Action Required/Task statuses - Orange
-  ACTION_REQUIRED: "rgba(255, 158, 2, 0.55)",
-  TASK: "rgba(255, 158, 2, 0.55)",
-
-  // Rejected status - Red
-  REJECTED: "rgba(222, 29, 73, 0.55)",
-
-  // In Revision status - Dark Blue
-  IN_REVISION: "rgba(0, 148, 209, 1)",
-
-  // Cancelled status - Gray
-  CANCELLED: "rgba(141, 145, 153, 0.55)",
+  // Warning (Amber)
+  ACTION_REQUIRED: 'warning',
+  TASK: 'warning',
+  REJECTED: 'warning',
 };
 
 /**
@@ -77,22 +78,22 @@ export const getExpenseItemStatusDisplay = (status: string): StatusDisplayConfig
       return {
         label: getTranslationFromI18nKeyAndLabel("lowcoder:expense_statuses.draft", "Draft"),
         type: "draft",
-        color: STATUS_COLORS.DRAFT,
+        badgeVariant: STATUS_COLORS.DRAFT,
       };
     case ExpenseStatus.ASSIGNED:
       return {
         label: getTranslationFromI18nKeyAndLabel("lowcoder:expense_statuses.assigned", "Assigned"),
         type: "waiting",
-        color: STATUS_COLORS.ASSIGNED,
+        badgeVariant: STATUS_COLORS.ASSIGNED,
       };
     case ExpenseStatus.PENDING:
       return {
         label: getTranslationFromI18nKeyAndLabel(
           "lowcoder:expense_statuses.in_approval",
           "In Approval",
-        ),
+        ),      
         type: "waiting",
-        color: STATUS_COLORS.IN_TRANSIT,
+        badgeVariant: STATUS_COLORS.PENDING,
       };
     case ExpenseStatus.APPROVED:
     case ExpenseStatus.VERIFIED:
@@ -104,13 +105,13 @@ export const getExpenseItemStatusDisplay = (status: string): StatusDisplayConfig
           "In Transit",
         ),
         type: "waiting",
-        color: STATUS_COLORS.IN_TRANSIT,
+        badgeVariant: STATUS_COLORS.IN_TRANSIT,      
       };
     case ExpenseStatus.PAID:
       return {
         label: getTranslationFromI18nKeyAndLabel("lowcoder:expense_statuses.paid", "Paid"),
         type: "completed",
-        color: STATUS_COLORS.PAID,
+        badgeVariant: STATUS_COLORS.PAID,
       };
     case ExpenseStatus.REJECTED:
       return {
@@ -119,22 +120,30 @@ export const getExpenseItemStatusDisplay = (status: string): StatusDisplayConfig
           "Revision Required",
         ),
         type: "task",
-        color: STATUS_COLORS.TASK,
+        badgeVariant: STATUS_COLORS.REJECTED,
       };
     case ExpenseStatus.CLOSED:
       return {
         label: getTranslationFromI18nKeyAndLabel("lowcoder:expense_statuses.closed", "Closed"),
         type: "completed",
-        color: STATUS_COLORS.CLOSED,
+        badgeVariant: STATUS_COLORS.CLOSED,
       };
     default:
       return {
         label: status.charAt(0) + status.slice(1).toLowerCase(),
         type: "error",
-        color: STATUS_COLORS.REJECTED,
+        badgeVariant: STATUS_COLORS.REJECTED, 
       };
   }
 };
+
+/**
+ * Maps expense item statuses to nw-design-system Badge variants
+ * Prefer using Badge variants over custom Pill colors for design-token compliance
+ */
+export type StatusBadgeVariant = 'default' | 'secondary' | 'success' | 'warning' | 'destructive' | 'outline' | 'info' | 'offline';
+
+// Removed legacy getExpenseItemStatusBadgeVariant in favor of badgeVariant from getExpenseItemStatusDisplay
 
 /**
  * Maps technical expense plan statuses to user-friendly display configurations
@@ -148,13 +157,13 @@ export const getExpensePlanStatusDisplay = (status: string): StatusDisplayConfig
       return {
         label: getTranslationFromI18nKeyAndLabel("lowcoder:expense_statuses.draft", "Draft"),
         type: "draft",
-        color: STATUS_COLORS.DRAFT,
+        badgeVariant: STATUS_COLORS.DRAFT,
       };
     case ExpenseStatus.ASSIGNED:
       return {
         label: getTranslationFromI18nKeyAndLabel("lowcoder:expense_statuses.assigned", "Assigned"),
         type: "waiting",
-        color: STATUS_COLORS.ASSIGNED,
+        badgeVariant: STATUS_COLORS.ASSIGNED,
       };
     case ExpenseStatus.PENDING:
       return {
@@ -163,13 +172,13 @@ export const getExpensePlanStatusDisplay = (status: string): StatusDisplayConfig
           "In Approval",
         ),
         type: "waiting",
-        color: STATUS_COLORS.IN_TRANSIT,
+        badgeVariant: STATUS_COLORS.IN_TRANSIT,
       };
     case ExpenseStatus.APPROVED:
       return {
         label: getTranslationFromI18nKeyAndLabel("lowcoder:expense_statuses.approved", "Approved"),
         type: "completed",
-        color: STATUS_COLORS.APPROVED,
+        badgeVariant: STATUS_COLORS.APPROVED,
       };
     case ExpenseStatus.REJECTED:
       return {
@@ -178,19 +187,19 @@ export const getExpensePlanStatusDisplay = (status: string): StatusDisplayConfig
           "Revision Required",
         ),
         type: "task",
-        color: STATUS_COLORS.TASK,
+        badgeVariant: STATUS_COLORS.TASK,
       };
     case ExpenseStatus.CLOSED:
       return {
         label: getTranslationFromI18nKeyAndLabel("lowcoder:expense_statuses.closed", "Closed"),
         type: "completed",
-        color: STATUS_COLORS.CLOSED,
+        badgeVariant: STATUS_COLORS.CLOSED,
       };
     default:
       return {
         label: status,
         type: "draft",
-        color: STATUS_COLORS.DRAFT,
+        badgeVariant: STATUS_COLORS.DRAFT,
       };
   }
 };
@@ -207,7 +216,7 @@ export const getExpenseRequestStatusDisplay = (status: string): StatusDisplayCon
       return {
         label: getTranslationFromI18nKeyAndLabel("lowcoder:expense_statuses.draft", "Draft"),
         type: "draft",
-        color: STATUS_COLORS.DRAFT,
+        badgeVariant: STATUS_COLORS.DRAFT,
       };
     case ExpenseStatus.PENDING:
       return {
@@ -216,7 +225,7 @@ export const getExpenseRequestStatusDisplay = (status: string): StatusDisplayCon
           "In Approval",
         ),
         type: "waiting",
-        color: STATUS_COLORS.IN_TRANSIT,
+        badgeVariant: STATUS_COLORS.IN_TRANSIT,
       };
     case ExpenseStatus.APPROVED:
     case ExpenseStatus.VERIFIED:
@@ -228,7 +237,7 @@ export const getExpenseRequestStatusDisplay = (status: string): StatusDisplayCon
           "In Transit",
         ),
         type: "waiting",
-        color: STATUS_COLORS.IN_TRANSIT,
+        badgeVariant: STATUS_COLORS.IN_TRANSIT,
       };
     case ExpenseStatus.PREPARED:
       return {
@@ -240,13 +249,13 @@ export const getExpenseRequestStatusDisplay = (status: string): StatusDisplayCon
       return {
         label: getTranslationFromI18nKeyAndLabel("lowcoder:expense_statuses.assigned", "Assigned"),
         type: "waiting",
-        color: STATUS_COLORS.ASSIGNED,
+        badgeVariant: STATUS_COLORS.ASSIGNED,
       };
     case ExpenseStatus.PAID:
       return {
         label: getTranslationFromI18nKeyAndLabel("lowcoder:expense_statuses.paid", "Paid"),
         type: "completed",
-        color: STATUS_COLORS.PAID,
+        badgeVariant: STATUS_COLORS.PAID,
       };
     case ExpenseStatus.REJECTED:
       return {
@@ -255,19 +264,19 @@ export const getExpenseRequestStatusDisplay = (status: string): StatusDisplayCon
           "Revision Required",
         ),
         type: "task",
-        color: STATUS_COLORS.TASK,
+        badgeVariant: STATUS_COLORS.TASK,
       };
     case ExpenseStatus.CLOSED:
       return {
         label: getTranslationFromI18nKeyAndLabel("lowcoder:expense_statuses.closed", "Closed"),
         type: "completed",
-        color: STATUS_COLORS.CLOSED,
+        badgeVariant: STATUS_COLORS.CLOSED,
       };
     default:
       return {
         label: status,
         type: "draft",
-        color: STATUS_COLORS.DRAFT,
+        badgeVariant: STATUS_COLORS.DRAFT,
       };
   }
 };
@@ -284,19 +293,19 @@ export const getAdvancePaymentStatusDisplay = (status: string): StatusDisplayCon
       return {
         label: getTranslationFromI18nKeyAndLabel("lowcoder:expense_statuses.draft", "Draft"),
         type: "draft",
-        color: STATUS_COLORS.DRAFT,
+        badgeVariant: STATUS_COLORS.DRAFT,
       };
     case ExpenseStatus.PREPARED:
       return {
         label: getTranslationFromI18nKeyAndLabel("lowcoder:expense_statuses.prepared", "Prepared"),
         type: "draft",
-        color: STATUS_COLORS.PREPARED,
+        badgeVariant: STATUS_COLORS.PREPARED,
       };
     case ExpenseStatus.ASSIGNED:
       return {
         label: getTranslationFromI18nKeyAndLabel("lowcoder:expense_statuses.assigned", "Assigned"),
         type: "waiting",
-        color: STATUS_COLORS.ASSIGNED,
+        badgeVariant: STATUS_COLORS.ASSIGNED,
       };
     case ExpenseStatus.PENDING:
       return {
@@ -305,7 +314,7 @@ export const getAdvancePaymentStatusDisplay = (status: string): StatusDisplayCon
           "In Approval",
         ),
         type: "waiting",
-        color: STATUS_COLORS.IN_TRANSIT,
+        badgeVariant: STATUS_COLORS.IN_TRANSIT,
       };
     case ExpenseStatus.APPROVED:
     case ExpenseStatus.VERIFIED:
@@ -317,13 +326,13 @@ export const getAdvancePaymentStatusDisplay = (status: string): StatusDisplayCon
           "In Transit",
         ),
         type: "waiting",
-        color: STATUS_COLORS.IN_TRANSIT,
+        badgeVariant: STATUS_COLORS.IN_TRANSIT,
       };
     case ExpenseStatus.PAID:
       return {
         label: getTranslationFromI18nKeyAndLabel("lowcoder:expense_statuses.paid", "Paid"),
         type: "completed",
-        color: STATUS_COLORS.PAID,
+        badgeVariant: STATUS_COLORS.PAID,
       };
     case ExpenseStatus.REJECTED:
       return {
@@ -332,19 +341,19 @@ export const getAdvancePaymentStatusDisplay = (status: string): StatusDisplayCon
           "Revision Required",
         ),
         type: "task",
-        color: STATUS_COLORS.TASK,
+        badgeVariant: STATUS_COLORS.TASK,
       };
     case ExpenseStatus.CLOSED:
       return {
         label: getTranslationFromI18nKeyAndLabel("lowcoder:expense_statuses.closed", "Closed"),
         type: "completed",
-        color: STATUS_COLORS.CLOSED,
+        badgeVariant: STATUS_COLORS.CLOSED,
       };
     default:
       return {
         label: status,
         type: "draft",
-        color: STATUS_COLORS.DRAFT,
+        badgeVariant: STATUS_COLORS.DRAFT,
       };
   }
 };

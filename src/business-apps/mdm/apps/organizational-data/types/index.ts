@@ -14,7 +14,7 @@ export interface CompanyData {
 
 export interface OrganizationalNode {
   id: string;
-  type: 'company' | 'organizationalUnit';
+  type: "company" | "organizationalUnit";
   parentNode?: string;
   data: {
     numberOfAssignedJobPositions: number;
@@ -32,8 +32,8 @@ export interface OrganizationalEdge {
   id: string;
   source: string;
   target: string;
-  relationshipType: 'hierarchical';
-  edgeType: 'company' | 'organizationalUnit';
+  relationshipType: "hierarchical";
+  edgeType: "company" | "organizationalUnit";
   percentage: number;
 }
 
@@ -42,7 +42,7 @@ export interface OrganizationalStructure {
   name: string;
   description?: string;
   isActive: boolean;
-  structureType: 'organizational';
+  structureType: "organizational";
   version: number;
 }
 
@@ -61,7 +61,10 @@ export interface Company {
   code: string;
   description?: string;
   parentNodeId?: string;
+  parentEdgeSource?: string;
   parentCompanyName?: string;
+  percentage: number | undefined;
+  edgeId?: string; // The edge ID for updating companyEdges
   // Statistics from API
   numberOfAssignedJobPositions: number;
   numberOfAssignedEmployees: number;
@@ -69,7 +72,7 @@ export interface Company {
   numberOfChildUnits: number;
   numberOfOpenJobPositions: number;
   // Computed fields
-  status: 'Active' | 'Inactive';
+  status: "Active" | "Inactive";
   level: number; // Hierarchy level (0 = root, 1 = child, etc.)
   children: Company[];
   hasChildren: boolean;
@@ -90,17 +93,17 @@ export interface ProjectData {
   description?: string;
   validTo?: string; // ISO timestamp
   structureId: string;
-  projectType: 'INTERNAL' | 'EXTERNAL';
+  projectType: "INTERNAL" | "EXTERNAL";
   customerId?: string; // Only for EXTERNAL projects
 }
 
 export interface PaginatedProjectRecords {
-  data: ProjectData[]
+  data: ProjectData[];
   paging: {
-    offset: number
-    totalRecords: number
-    hasMore: boolean
-  }
+    offset: number;
+    totalRecords: number;
+    hasMore: boolean;
+  };
 }
 
 // Enhanced Project interface for UI display
@@ -110,10 +113,10 @@ export interface Project {
   description?: string;
   validTo?: string;
   structureId: string;
-  projectType: 'INTERNAL' | 'EXTERNAL';
+  projectType: "INTERNAL" | "EXTERNAL";
   customerId?: string;
   // Computed fields
-  status: 'Active' | 'Expired' | 'Expiring Soon';
+  status: "Active" | "Expired" | "Expiring Soon";
   isActive: boolean;
   daysUntilExpiry?: number;
   formattedValidTo?: string;
@@ -124,19 +127,13 @@ export interface Capability {
   id: string;
   name: string;
   code: string;
-  category: 'Technical' | 'Leadership' | 'Analytical' | 'Creative';
+  category: "Technical" | "Leadership" | "Analytical" | "Creative";
   level: number;
   competencyArea: string;
   certificationRequired: boolean;
   description?: string;
   isActive: boolean;
 }
-
-
-
-
-
-
 
 // Site Location types based on orgchart API
 export interface Employee {
@@ -188,6 +185,8 @@ export interface SiteLocationData {
   name: string;
   addressLine?: {
     streetAddress: string;
+    addressLine2: string;
+    addressLine3: string;
   };
   postalCode?: string;
   locality?: string;
@@ -199,12 +198,12 @@ export interface SiteLocationData {
 }
 
 export interface PaginatedSiteLocations {
-  data: SiteLocationData[]
+  data: SiteLocationData[];
   paging: {
-    offset: number
-    totalRecords: number
-    hasMore: boolean
-  }
+    offset: number;
+    totalRecords: number;
+    hasMore: boolean;
+  };
 }
 
 // Enhanced Site Location interface for UI display
@@ -225,7 +224,35 @@ export interface SiteLocation {
   costCenters: SiteLocationCostCenter[];
   // UI display fields
   fullAddress: string;
-  status: 'Active' | 'Inactive';
+  status: "Active" | "Inactive";
+  addressLine?: {
+    streetAddress: string;
+    addressLine2: string;
+    addressLine3: string;
+  };
+}
+
+export interface SiteLocationCountry {
+  id: string;
+  code: string;
+  alternativeCode: string;
+  value: string;
+  additionalValue1: string;
+  additionalValue2: string;
+  additionalValue3: string;
+}
+
+export interface SiteLocationRegion {
+  id: string;
+  parentEntryId: string;
+  code: string;
+  alternativeCode: string;
+  value: string;
+  additionalValue1: string;
+  additionalValue2: string;
+  objectValue: {
+    TimeZone: string;
+  };
 }
 
 // Cost Center types based on orgchart API
@@ -233,6 +260,22 @@ export interface CostCenterEmployee {
   employeeId: string;
   employeeFirstName: string;
   employeeLastName: string;
+}
+
+export interface CostCenterEmployeeTable {
+  id: string;
+  firstName: string;
+  lastName: string;
+  name: string;
+  jobPosition?: { jobPositionName?: string };
+  organizationalUnit?: { organizationalUnitName?: string };
+}
+
+export interface CostCenterOrganizationalUnitTable {
+  id: string;
+  name: string;
+  type?: string;
+  description?: string;
 }
 
 export interface CostCenterOrganizationalUnit {
@@ -269,8 +312,15 @@ export interface CostCenter {
   organizationalUnits: CostCenterOrganizationalUnit[];
   additionalProperties: Record<string, any>;
   // UI display fields
-  status: 'Active' | 'Inactive';
+  status: "Active" | "Inactive";
   hasLocation: boolean;
+}
+
+export interface CostCenterNode {
+  id: string;
+  type: string;
+  parentNodeId?: string;
+  costCenterData: CostCenterData;
 }
 
 // Organizational Unit (Department) types based on orgchart structures API
@@ -303,7 +353,7 @@ export interface OrganizationalUnitData {
   description: string;
   organizationUnitId: string;
   code?: string;
-  type: 'TEAM' | 'DEPARTMENT';
+  type: "TEAM" | "DEPARTMENT";
   company?: OrganizationalUnitCompany;
   costCenter?: OrganizationalUnitCostCenter;
 }
@@ -321,7 +371,7 @@ export interface OrganizationalUnitNodeData {
 
 export interface OrganizationalUnitNode {
   id: string;
-  type: 'organization_unit';
+  type: "organization_unit";
   parentNode?: string;
   data: OrganizationalUnitNodeData;
 }
@@ -330,8 +380,8 @@ export interface OrganizationalUnitEdge {
   id: string;
   source: string;
   target: string;
-  relationshipType: 'hierarchical';
-  edgeType: 'organization_unit';
+  relationshipType: "hierarchical";
+  edgeType: "organization_unit";
   percentage?: number;
 }
 
@@ -349,7 +399,7 @@ export interface Department {
   name: string;
   description: string;
   code?: string;
-  type: 'TEAM' | 'DEPARTMENT';
+  type: "TEAM" | "DEPARTMENT";
   organizationUnitId: string;
   parentNodeId?: string;
   parentDepartmentName?: string;
@@ -371,7 +421,7 @@ export interface Department {
   numberOfOpenJobPositions: number;
   rank: number;
   // Computed fields
-  status: 'Active' | 'Inactive';
+  status: "Active" | "Inactive";
   level: number; // Hierarchy level (0 = root, 1 = child, etc.)
   children: Department[];
   hasChildren: boolean;
@@ -436,9 +486,9 @@ export interface Team {
   leaderPercentage?: number;
   // Computed fields
   hasLeader: boolean;
-  status: 'Active' | 'Inactive';
+  status: "Active" | "Inactive";
   createdDate: Date;
   age: string; // Human readable age like "2 months ago"
 }
 
-export {}; 
+export {};

@@ -12,12 +12,49 @@ export const employeeFeedbackQuery = `
       feedbackDate
       senderEmployeeId
       employeeId
+      rating
+      feedbackPublic
+      typeRef
+      type {
+        id
+        code
+        value
+      }
       senderEmployee {
         firstName
         lastName
         employeePosition {
           employee {
             pictureThumbnail
+          }
+        }
+      }
+    }
+  }
+`;
+
+// Fetch feedback requests for an employee with reviewers
+export const employeeFeedbackRequestsQuery = `
+  query GetEmployeeFeedbackRequests($employeeId: uuid!) {
+    EmployeeFeedbackRequest(
+      where: { employeeId: { _eq: $employeeId } }
+      orderBy: { requestedOn: DESC }
+    ) {
+      id
+      employeeId
+      message
+      requestedOn
+      dueDate
+      recordState
+      employeeFeedbackRequestReviewer(orderBy: { createdAt: DESC }) {
+        id
+        reviewerEmployeeId
+        reviewerEmployee {
+          id
+          firstName
+          lastName
+          employeePosition {
+            employee { pictureThumbnail }
           }
         }
       }

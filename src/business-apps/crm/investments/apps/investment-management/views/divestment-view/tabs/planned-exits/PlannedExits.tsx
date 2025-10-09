@@ -22,7 +22,7 @@ import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils';
 import { formatCurrency, formatDate } from "../../utils";
 import PlannedExitsMetrics from "./components/PlannedExitsMetrics";
 import { usePlannedExitsData } from "./hooks/usePlannedExitsData";
-import { OwnerDisplay } from "../../../investment-view/utils/ownerDisplayUtils";
+import { OwnerDisplay } from "../../../../../../components/shared";
 import { DateRangeFilter } from '@/business-apps/crm/customers/apps/customer-relations/views/lead-view/components/DateRangeFilter';
 import ExpenseAmountRangeFilter from '@/business-apps/fin/expenses/apps/personal-expenses/components/tabs/expense-items-tab/ExpenseAmountRangeFilter';
 import { useEmployeeSearch } from '@/common/data/employee/useEmployeeSearch';
@@ -38,7 +38,6 @@ const PlannedExits: React.FC<PlannedExitsProps> = ({ accessToken, userInfo }) =>
   const [selectedFilters, setSelectedFilters] = useState<string[]>([]);
   // Custom filter state for column-specific filters
   const [investmentName, setInvestmentName] = useState("");
-  const [initialRange, setInitialRange] = useState<{ min?: number; max?: number } | null>(null);
   const [totalRange, setTotalRange] = useState<{ min?: number; max?: number } | null>(null);
   const [marketRange, setMarketRange] = useState<{ min?: number; max?: number } | null>(null);
   const [performanceRange, setPerformanceRange] = useState<{ min?: number; max?: number } | null>(null); // not applied server-side
@@ -75,8 +74,6 @@ const PlannedExits: React.FC<PlannedExitsProps> = ({ accessToken, userInfo }) =>
       createdAfter,
       createdBefore,
       investmentNameContains: investmentName.trim() || undefined,
-      initialInvestmentMinAmount: initialRange?.min,
-      initialInvestmentMaxAmount: initialRange?.max,
       totalInvestmentMinAmount: totalRange?.min,
       totalInvestmentMaxAmount: totalRange?.max,
       investmentMarketValueMinAmount: marketRange?.min,
@@ -146,7 +143,6 @@ const PlannedExits: React.FC<PlannedExitsProps> = ({ accessToken, userInfo }) =>
     { id: 'investment', label: 'Investment', visible: true },
     { id: 'group', label: 'Group', visible: true },
     { id: 'type', label: 'Type', visible: true },
-    { id: 'initialInvestment', label: 'Initial Investment', visible: true },
     { id: 'totalInvestment', label: 'Total Investment', visible: true },
     { id: 'marketValue', label: 'Market Value', visible: true },
     { id: 'performance', label: 'Performance', visible: true },
@@ -225,7 +221,6 @@ const PlannedExits: React.FC<PlannedExitsProps> = ({ accessToken, userInfo }) =>
     investment: 'investmentName',
     group: 'investmentGroup',
     type: 'investmentType',
-    initialInvestment: 'initialInvestmentRange',
     totalInvestment: 'totalInvestmentRange',
     marketValue: 'marketValueRange',
     performance: 'performanceRange',
@@ -268,18 +263,6 @@ const PlannedExits: React.FC<PlannedExitsProps> = ({ accessToken, userInfo }) =>
       ],
     },
     // Ranges matching numeric columns
-    {
-      id: 'initialInvestmentRange',
-      title: 'Initial Investment',
-      filters: [],
-      customComponent: React.createElement(ExpenseAmountRangeFilter, {
-        amountRange: initialRange,
-        onAmountRangeChange: setInitialRange,
-        label: 'Initial Investment',
-        dataTestIdPrefix: 'planned-exits-initial-range'
-      }),
-      hideSearch: true,
-    },
     {
       id: 'totalInvestmentRange',
       title: 'Total Investment',
@@ -421,7 +404,6 @@ const PlannedExits: React.FC<PlannedExitsProps> = ({ accessToken, userInfo }) =>
                   {visibleColumns.includes('investment') && (<SortableHead label="Investment" field="name" />)}
                   {visibleColumns.includes('group') && (<SortableHead label="Group" field="investmentGroup.value" />)}
                   {visibleColumns.includes('type') && (<SortableHead label="Type" field="investmentType.value" />)}
-                  {visibleColumns.includes('initialInvestment') && (<SortableHead label="Initial Investment" field="initialInvestmentAmount" />)}
                   {visibleColumns.includes('totalInvestment') && (<SortableHead label="Total Investment" field="totalInvestmentAmount" />)}
                   {visibleColumns.includes('marketValue') && (<SortableHead label="Market Value" field="investmentMarketValue" />)}
                   {visibleColumns.includes('performance') && (<TableHead>Performance</TableHead>)}
@@ -445,9 +427,6 @@ const PlannedExits: React.FC<PlannedExitsProps> = ({ accessToken, userInfo }) =>
                     </TableCell>)}
                     {visibleColumns.includes('type') && (<TableCell>
                       <Badge variant="secondary">{investment.investmentType?.value || "Unknown"}</Badge>
-                    </TableCell>)}
-                    {visibleColumns.includes('initialInvestment') && (<TableCell>
-                      <span>{formatCurrency(investment.initialInvestmentAmount || 0)}</span>
                     </TableCell>)}
                     {visibleColumns.includes('totalInvestment') && (<TableCell>
                       <span>{formatCurrency(investment.totalInvestmentAmount || 0)}</span>

@@ -17,29 +17,29 @@ import {
   TableCell,
   Alert, 
   Spinner,
-  Button,
   Pagination,
   PaginationContent,
   PaginationItem,
   PaginationLink,
   PaginationNext,
   PaginationPrevious,
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
   Card,
-  CardContent
+  CardContent,
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+  Badge
 } from '@newwork/nw-design-system';
 import { DataContainer } from '@/components/layout/dataContainer/DataContainer';
 import { DataFilterGroup } from '@/components/data-filter/DataFilter';
-import { MoreHorizontal, FileText } from 'lucide-react';
+import { AppActionButton } from '@/components/app-action-button/AppActionButton';
+import { FileText } from 'lucide-react';
 
 import { getAdvancePaymentStatusDisplay } from '../../../utils/utils';
-import AdvancePaymentDetails from './AdvancePaymentDetails';
+import AdvancePaymentDetailsBackoffice from './AdvancePaymentDetailsBackoffice';
 import { formatNumberFunction, getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
 import { buildPlatformUrl, navigateTo } from '@/common/utils/navigationUtils';
-import Pill from '@/components/pill/Pill';
 
 
 
@@ -277,48 +277,66 @@ const AdvancePaymentsTable: React.FC<AdvancePaymentsTableProps> = (props) => {
                   className="gba:cursor-pointer gba:hover:bg-gray-50"
                 >
                   <TableCell className="gba:w-[60px]">
-                    <div className="gba:flex gba:justify-center gba:items-center">
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button
-                            variant="ghost"
-                            className="gba:h-8 gba:w-8 p-0"
-                            data-testid={`actions-${record.id}`}
-                          >
-                            <span className="gba:sr-only">Open menu</span>
-                            <MoreHorizontal className="h-4 w-4" />
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                          <DropdownMenuItem
-                            onClick={() => {
+                    <div 
+                      className="gba:flex gba:justify-center gba:items-center"
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      <AppActionButton
+                        data-testid={`advance-payments-update-button-${record.id}`}
+                        size="icon"
+                        staticFlowData={[
+                          {
+                            category: getTranslationFromI18nKeyAndLabel(
+                              "lowcoder:employee_list.flows_button.navigations",
+                              "Navigations",
+                            ),
+                            key: "view-advance-payment-details",
+                            label: getTranslationFromI18nKeyAndLabel(
+                              "lowcoder:advance_payment_table.view_advance_payment_details",
+                              "View Advance Payment Details",
+                            ),
+                            onClick: (e?: React.MouseEvent) => {
+                              e?.stopPropagation();
                               setSelectedItem(record);
                               setSelectedActionType('advance-payment');
-                            }}
-                            data-testid={`view-advance-payment-${record.id}`}
-                          >
-                            {getTranslationFromI18nKeyAndLabel('lowcoder:advance_payment_table.view_advance_payment_details', 'View Advance Payment Details')}
-                          </DropdownMenuItem>
-                          <DropdownMenuItem
-                            onClick={() => {
+                            },
+                          },
+                          {
+                            category: getTranslationFromI18nKeyAndLabel(
+                              "lowcoder:employee_list.flows_button.navigations",
+                              "Navigations",
+                            ),
+                            key: "view-plan-details",
+                            label: getTranslationFromI18nKeyAndLabel(
+                              "lowcoder:expense_plan_list.expense_plan_flows.view_plan_details",
+                              "View Plan Details",
+                            ),
+                            onClick: (e?: React.MouseEvent) => {
+                              e?.stopPropagation();
                               handleNavigateToPlanDetails(record);
-                            }}
-                            data-testid={`view-plan-${record.id}`}
-                          >
-                            {getTranslationFromI18nKeyAndLabel('lowcoder:expense_plan_list.expense_plan_flows.view_plan_details', 'View Plan Details')}
-                          </DropdownMenuItem>
-                          {hasExpenseRequest && (
-                            <DropdownMenuItem
-                              onClick={() => {
-                                handleNavigateToRequestDetails(record);
-                              }}
-                              data-testid={`view-request-${record.id}`}
-                            >
-                               {getTranslationFromI18nKeyAndLabel('lowcoder:expense_request_list.modal_list_or_flow_button.view_request_details',   'View Request Details')}
-                            </DropdownMenuItem>
-                          )}
-                        </DropdownMenuContent>
-                      </DropdownMenu>
+                            },
+                          },
+                          ...(hasExpenseRequest ? [{
+                            category: getTranslationFromI18nKeyAndLabel(
+                              "lowcoder:employee_list.flows_button.navigations",
+                              "Navigations",
+                            ),
+                            key: "view-request-details",
+                            label: getTranslationFromI18nKeyAndLabel(
+                              "lowcoder:expense_request_list.modal_list_or_flow_button.view_request_details",
+                              "View Request Details",
+                            ),
+                            onClick: (e?: React.MouseEvent) => {
+                              e?.stopPropagation();
+                              handleNavigateToRequestDetails(record);
+                            },
+                          }] : []),
+                        ]}
+                        prefixDataTestId="advance-payments-update"
+                        accessToken={props.accessToken}
+                        emptyStateBehavior="enable"
+                        deferMainContextRequestsUntilClick
+                      />
                     </div>
                   </TableCell>
                   <TableCell>
@@ -348,10 +366,14 @@ const AdvancePaymentsTable: React.FC<AdvancePaymentsTableProps> = (props) => {
                   </TableCell>
                   <TableCell>
                     <div data-testid="advance-payment-status-cell">
-                      <Pill 
-                        label={getAdvancePaymentStatusDisplay(record.status || 'N/A').label} 
-                        type={getAdvancePaymentStatusDisplay(record.status || 'N/A').type} 
-                      />
+                      {(() => {
+                        const status = getAdvancePaymentStatusDisplay(record.status || 'N/A');
+                        return (
+                          <Badge variant={(status as any).badgeVariant || 'outline'}>
+                            {status.label}
+                          </Badge>
+                        );
+                      })()}
                     </div>
                   </TableCell>
                   <TableCell className="gba:text-right">
@@ -440,15 +462,14 @@ const AdvancePaymentsTable: React.FC<AdvancePaymentsTableProps> = (props) => {
     if (!selectedItem) return null;
 
     return (
-      <AdvancePaymentDetails
-        selectedItem={selectedItem}
+      <AdvancePaymentDetailsBackoffice
+        payment={selectedItem}
         onClose={handleCloseDetails}
         accessToken={props.accessToken}
         userInfo={props.userInfo}
-        type={selectedActionType}
       />
     );
-  }, [selectedItem, handleCloseDetails, props.accessToken, props.userInfo, selectedActionType]);
+  }, [selectedItem, handleCloseDetails, props.accessToken, props.userInfo]);
 
   // Filter groups for DataContainer
   const filterGroups: DataFilterGroup[] = [
@@ -650,18 +671,26 @@ const AdvancePaymentsTable: React.FC<AdvancePaymentsTableProps> = (props) => {
           onFilterChange: handleFilterChange as (filterId: string, selected: boolean) => void,
         }}
         dataBody={renderDataBody()}
-        dataDetails={selectedItem ? {
-          title: selectedActionType === 'advance-payment' 
-            ? (selectedItem.title || selectedItem.description || getTranslationFromI18nKeyAndLabel('lowcoder:advance_payment_table.advance_payment_details', 'Advance Payment Details'))
-            : selectedActionType === 'plan'
-            ? (selectedItem.expensePlan?.title || getTranslationFromI18nKeyAndLabel('lowcoder:advance_payment_table.plan_details', 'Plan Details'))
-            : (selectedItem.expensePlan?.expenseRequest?.title || getTranslationFromI18nKeyAndLabel('lowcoder:confirm_transfer_advance_payment.request_details', 'Request Details')),
-          icon: <FileText className="gba:w-4 gba:h-4" />,
-          content: renderAdvancePaymentDetails,
-          onClose: handleCloseDetails
-        } : undefined}
-        floatingDetails={true}
       />
+      <Sheet open={!!selectedItem} onOpenChange={(open) => !open && handleCloseDetails()} title={selectedItem?.title || selectedItem?.description || getTranslationFromI18nKeyAndLabel('lowcoder:advance_payment_table.advance_payment_details', 'Advance Payment Details')}>
+        <SheetContent className="gba:w-[600px] gba:sm:gba:w-[600px] gba:max-w-none">
+          <SheetHeader>
+            <SheetTitle className="gba:text-xl gba:font-semibold gba:text-gray-900">
+              {selectedItem?.title || selectedItem?.description || getTranslationFromI18nKeyAndLabel('lowcoder:advance_payment_table.advance_payment_details', 'Advance Payment Details')}
+            </SheetTitle>
+          </SheetHeader>
+          <div className="gba:mt-6 gba:overflow-y-auto gba:max-h-[calc(100vh-120px)]">
+            {selectedItem && (
+              <AdvancePaymentDetailsBackoffice
+                payment={selectedItem}
+                onClose={handleCloseDetails}
+                accessToken={props.accessToken}
+                userInfo={props.userInfo}
+              />
+            )}
+          </div>
+        </SheetContent>
+      </Sheet>
     </>
   );
 };

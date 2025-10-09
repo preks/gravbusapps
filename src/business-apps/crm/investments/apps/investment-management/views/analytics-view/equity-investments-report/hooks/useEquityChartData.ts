@@ -4,13 +4,18 @@ import { EquityInvestmentSummary } from '../../shared/types';
 
 export const useEquityChartData = (equityInvestments: EquityInvestmentSummary[]) => {
   return useMemo(() => {
-    // Investment role distribution data (using GraphQL investmentRole array)
+    // Investment role distribution data (using GraphQL investmentRole field)
     const roleData = equityInvestments.reduce((acc, equity) => {
-      // Since investmentRole is an array, we need to get the first role or default
-      const roles = equity.investment.investmentRole || [];
-      const role = roles.length > 0 && roles[0]?.investmentRole?.value 
-        ? roles[0].investmentRole.value 
-        : 'Unknown';
+      // Try both array and direct field approaches
+      let role = 'Unknown';
+      
+      if (Array.isArray(equity.investment.investmentRole) && equity.investment.investmentRole.length > 0) {
+        // Array approach - get the first role
+        role = equity.investment.investmentRole[0]?.investmentRole?.value || 'Unknown';
+      } else if (equity.investment.investmentRole && typeof equity.investment.investmentRole === 'object') {
+        // Direct field approach
+        role = equity.investment.investmentRole.value || 'Unknown';
+      }
       
       const existing = acc.find(item => item.type === role);
       if (existing) {
@@ -62,35 +67,6 @@ export const useEquityChartData = (equityInvestments: EquityInvestmentSummary[])
       return acc;
     }, [] as any[]);
 
-    // Investment phase distribution data
-    const phaseData = equityInvestments.reduce((acc, equity) => {
-      const phase = equity.investment.investmentPhase?.value || 'Unknown';
-      const existing = acc.find(item => item.type === phase);
-      if (existing) {
-        existing.value += 1;
-      } else {
-        acc.push({
-          type: phase,
-          value: 1
-        });
-      }
-      return acc;
-    }, [] as any[]);
-
-    // Risk level distribution data
-    const riskLevelData = equityInvestments.reduce((acc, equity) => {
-      const risk = equity.investment.investmentRiskLevel?.value || 'Unknown';
-      const existing = acc.find(item => item.type === risk);
-      if (existing) {
-        existing.value += 1;
-      } else {
-        acc.push({
-          type: risk,
-          value: 1
-        });
-      }
-      return acc;
-    }, [] as any[]);
 
     // Currency distribution data
     const currencyData = equityInvestments.reduce((acc, equity) => {
@@ -244,14 +220,21 @@ export const useEquityChartData = (equityInvestments: EquityInvestmentSummary[])
         const valuation = equity.investment.investmentMarketValue || 0;
         const ebitda = equity.equityInvestment?.ebitdaAmount || 0;
         if (valuation > 0) {
-          const rangeIndex = Math.min(
-            Math.floor((valuation - minValuation) / rangeSize),
-            4 // Ensure we don't exceed index 4
-          );
+          // Handle edge case where all valuations are the same (rangeSize = 0)
+          let rangeIndex = 0;
+          if (rangeSize > 0) {
+            rangeIndex = Math.min(
+              Math.floor((valuation - minValuation) / rangeSize),
+              4 // Ensure we don't exceed index 4
+            );
+          }
           
-          ranges[rangeIndex].count += 1;
-          ranges[rangeIndex].totalValuation += valuation;
-          ranges[rangeIndex].totalEbitda += ebitda;
+          // Ensure rangeIndex is valid
+          if (rangeIndex >= 0 && rangeIndex < ranges.length) {
+            ranges[rangeIndex].count += 1;
+            ranges[rangeIndex].totalValuation += valuation;
+            ranges[rangeIndex].totalEbitda += ebitda;
+          }
         }
       });
       
@@ -367,14 +350,21 @@ export const useEquityChartData = (equityInvestments: EquityInvestmentSummary[])
       equityInvestments.forEach(equity => {
         const valuation = equity.investment.investmentMarketValue || 0;
         if (valuation > 0) {
-          const rangeIndex = Math.min(
-            Math.floor((valuation - minValuation) / rangeSize),
-            4 // Ensure we don't exceed index 4
-          );
+          // Handle edge case where all valuations are the same (rangeSize = 0)
+          let rangeIndex = 0;
+          if (rangeSize > 0) {
+            rangeIndex = Math.min(
+              Math.floor((valuation - minValuation) / rangeSize),
+              4 // Ensure we don't exceed index 4
+            );
+          }
           
-          ranges[rangeIndex].count += 1;
-          ranges[rangeIndex].totalValuation += valuation;
-          ranges[rangeIndex].totalEbitda += equity.equityInvestment?.ebitdaAmount || 0;
+          // Ensure rangeIndex is valid
+          if (rangeIndex >= 0 && rangeIndex < ranges.length) {
+            ranges[rangeIndex].count += 1;
+            ranges[rangeIndex].totalValuation += valuation;
+            ranges[rangeIndex].totalEbitda += equity.equityInvestment?.ebitdaAmount || 0;
+          }
         }
       });
       
@@ -386,8 +376,6 @@ export const useEquityChartData = (equityInvestments: EquityInvestmentSummary[])
       valuationEbitdaData,
       ebitdaMarginData,
       statusData,
-      phaseData,
-      riskLevelData,
       currencyData,
       roiData,
       stakeTypeData,

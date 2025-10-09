@@ -24,6 +24,8 @@ interface DebouncedInputProps {
   disabled?: boolean;
   /** Input type (default: text) */
   type?: string;
+  /** Optional icon to display on the left side of the input */
+  icon?: React.ReactNode;
 }
 
 /**
@@ -42,6 +44,7 @@ export const DebouncedInput = forwardRef<HTMLInputElement, DebouncedInputProps>(
     'data-testid': dataTestId = 'debounced-input',
     disabled = false,
     type = 'text',
+    icon,
   }, ref) => {
   // Local state for immediate UI feedback
   const [localValue, setLocalValue] = useState(value);
@@ -67,17 +70,24 @@ export const DebouncedInput = forwardRef<HTMLInputElement, DebouncedInputProps>(
   };
   
   return (
-    <Input
-      ref={ref}
-      type={type}
-      className={className}
-      placeholder={placeholder}
-      value={localValue}
-      onChange={handleChange}
-      aria-label={ariaLabel}
-      data-testid={dataTestId}
-      disabled={disabled}
-    />
+    <div className="gba:relative">
+      {icon && (
+        <div className="gba:absolute gba:left-3 gba:top-1/2 gba:transform gba:-translate-y-1/2 gba:pointer-events-none gba:z-10">
+          {icon}
+        </div>
+      )}
+      <Input
+        ref={ref}
+        type={type}
+        className={`${icon ? 'gba:pl-10' : ''} ${className}`}
+        placeholder={placeholder}
+        value={localValue}
+        onChange={handleChange}
+        aria-label={ariaLabel}
+        data-testid={dataTestId}
+        disabled={disabled}
+      />
+    </div>
   );
 });
 
