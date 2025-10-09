@@ -3,7 +3,6 @@ import { BusinessAppContextProps } from "@/common/BusinessAppContext";
 import {
   LauncherLayout,
   type LauncherSectionConfig,
-  type NavigationCardData,
   type QuickActionData,
   type KpiData,
   Spinner,
@@ -570,8 +569,8 @@ const ExpensesLauncher: React.FC<ExpensesLauncherProps> = (context) => {
       });
     }
 
-    // Convert areas to NavigationCardData format
-    const cards: NavigationCardData[] = areas.map((area) => {
+    // Convert areas to cards format
+    const cards = areas.map((area) => {
       // Get area stats
       const getAreaStats = (areaId: string, kpiType?: string) => {
         if ((showManagerView || showFinanceView) && kpiType) {
@@ -724,9 +723,27 @@ const ExpensesLauncher: React.FC<ExpensesLauncherProps> = (context) => {
           navigateTo(financeManagementUrl);
           break;
         case "navigate-personal-analytics":
+          const personalAnalyticsUrl = buildPlatformUrl("/platform/fin/expenses/personal-expenses", {
+            tab: "analytics",
+          });
+          navigateTo(personalAnalyticsUrl);
+          break;
         case "navigate-team-analytics":
+          const teamAnalyticsUrl = buildPlatformUrl("/platform/fin/expenses/manager-expenses", {
+            view: "analytics",
+          });
+          navigateTo(teamAnalyticsUrl);
+          break;
         case "navigate-advanced-analytics":
+          const advancedAnalyticsUrl = buildPlatformUrl("/platform/fin/expenses/backoffice-expenses", {
+            view: "analytics",
+          });
+          navigateTo(advancedAnalyticsUrl);
+          break;
         case "navigate-finance-settings":
+          // TODO: Implement finance settings navigation
+          console.log("Finance settings navigation not yet implemented");
+          break;
         case "navigate-calendar-view":
           const calendarUrl = buildPlatformUrl("/platform/fin/expenses/personal-expenses", {
             tab: "calendar",
