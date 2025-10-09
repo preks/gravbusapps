@@ -296,37 +296,36 @@ const PerformanceTab: React.FC<PerformanceTabProps> = ({
                     </div>
 
                     {/* Edit button at the bottom right */}
-                    {(isSelfView || userInfo?.employeeDetails?.employeeId === supevisor) &&
-                      goal.progressPercent < 100 && (
-                        <div className="gba:flex gba:justify-end gba:mt-4">
-                          <AppActionMenu
-                            data-testid={`employee-goal-edit-button-${goal.id}`}
-                            contextsArray={[FlowContextName.employeePerformanceGoal]}
-                            externalContextData={{
-                              employeeId: employee?.id,
-                              goalId: goal.id,
-                              title: goal.title,
-                              startDate: goal.startDate,
-                              dueDate: goal.dueDate,
-                              completionDate: goal.completionDate,
-                              progressPercent: goal.progressPercent,
-                              status: goal.status,
-                              version: goal.version,
-                            }}
-                            prefixDataTestId={`employee-goal-edit-${goal.id}`}
-                            accessToken={accessToken}
-                            className="gba:text-sm gba:py-1 gba:px-3"
-                            autoExecuteSingleAction={true}
-                            deferMainContextRequestsUntilClick={true}
-                          >
-                            <Button variant="outline">
-                              <div className="gba:flex gba:items-center gba:gap-2 gba:cursor-pointer">
-                                <PiPencilSimple className="gba:cursor-pointer" />
-                              </div>
-                            </Button>
-                          </AppActionMenu>
-                        </div>
-                      )}
+                    {(isSelfView || userInfo?.employeeDetails?.employeeId === supevisor) && (
+                      <div className="gba:flex gba:justify-end gba:mt-4">
+                        <AppActionMenu
+                          data-testid={`employee-goal-edit-button-${goal.id}`}
+                          contextsArray={[FlowContextName.employeePerformanceGoal]}
+                          externalContextData={{
+                            employeeId: employee?.id,
+                            goalId: goal.id,
+                            title: goal.title,
+                            startDate: goal.startDate,
+                            dueDate: goal.dueDate,
+                            completionDate: goal.completionDate,
+                            progressPercent: goal.progressPercent,
+                            status: goal.status,
+                            version: goal.version,
+                          }}
+                          prefixDataTestId={`employee-goal-edit-${goal.id}`}
+                          accessToken={accessToken}
+                          className="gba:text-sm gba:py-1 gba:px-3"
+                          autoExecuteSingleAction={true}
+                          deferMainContextRequestsUntilClick={true}
+                        >
+                          <Button variant="outline">
+                            <div className="gba:flex gba:items-center gba:gap-2 gba:cursor-pointer">
+                              <PiPencilSimple className="gba:cursor-pointer" />
+                            </div>
+                          </Button>
+                        </AppActionMenu>
+                      </div>
+                    )}
                   </Card>
                 )
               })}

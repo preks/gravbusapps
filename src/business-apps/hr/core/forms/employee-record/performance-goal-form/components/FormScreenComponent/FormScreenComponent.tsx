@@ -1,8 +1,8 @@
 'use client'
 
-import React, { useState, useEffect } from 'react'
-import { UseFormReturn } from 'react-hook-form'
-import { useTranslation } from 'react-i18next'
+import React, { useEffect, useState } from 'react';
+import { UseFormReturn } from 'react-hook-form';
+import { useTranslation } from 'react-i18next';
 import {
   Input,
   Select,
@@ -15,12 +15,9 @@ import {
   FormItem,
   FormLabel,
   FormMessage,
-  Calendar,
-  Popover,
-  PopoverContent,
-  PopoverTrigger
-} from '@newwork/nw-design-system'
-import { formatDate } from '@/common/utils/windowUtils'
+} from '@newwork/nw-design-system';
+import { formatDate } from '@/common/utils/windowUtils';
+import { PercentIcon } from '@phosphor-icons/react';
 
 interface FormScreenComponentProps {
   statusOptions: { value: string; label: string }[]
@@ -44,22 +41,28 @@ export const FormScreenComponent: React.FC<FormScreenComponentProps> = ({
   dataTestId = 'performance-goal-form-modal',
   form
 }) => {
-  const { t } = useTranslation()
-  const [startDateOpen, setStartDateOpen] = useState(false)
-  const [dueDateOpen, setDueDateOpen] = useState(false)
+  const { t } = useTranslation();
+
+  // Store initial progress value to determine disabled state
+  const [initialProgress] = useState(() => form.getValues('progressPercent'));
 
   // Watch progress percent to auto-set completion date when reaching 100%
   const progressPercent = form.watch('progressPercent')
   const completionDate = form.watch('completionDate')
 
+  const isStartDateDisabled = initialProgress > 0;
+  const isFieldsDisabled = initialProgress === 100;
+
   useEffect(() => {
     if (progressPercent === 100 && !completionDate) {
-      form.setValue('completionDate', new Date())
+      // Only set completion date if it's not already set (first time reaching 100%)
+      form.setValue('completionDate', new Date());
     } else if (progressPercent < 100 && completionDate) {
       // Clear completion date if progress is less than 100%
       form.setValue('completionDate', undefined)
     }
-  }, [progressPercent, completionDate, form])
+    // If progressPercent === 100 and completionDate already exists, don't change it
+  }, [progressPercent, completionDate, form]);
 
   return (
     <div className="gba:space-y-6" data-testid={dataTestId}>
@@ -73,6 +76,7 @@ export const FormScreenComponent: React.FC<FormScreenComponentProps> = ({
             <FormLabel>{t('performance_goal.title_label', 'Title')} *</FormLabel>
             <FormControl>
               <Input
+                disabled={isFieldsDisabled}
                 placeholder={t('performance_goal.title_placeholder', 'Enter goal title')}
                 maxLength={100}
                 data-testid={`${prefixDataTestId}-title-input`}
@@ -91,54 +95,38 @@ export const FormScreenComponent: React.FC<FormScreenComponentProps> = ({
         rules={{
           required: t('performance_goal.start_date_required', 'Please select a start date')
         }}
-        render={({ field }) => {
-          const isStartDateDisabled = progressPercent > 0
-
-          return (
-            <FormItem data-testid={`${prefixDataTestId}-start-date-field`}>
-              <FormLabel>{t('performance_goal.start_date_label', 'Start Date')} *</FormLabel>
-              <FormControl>
-                {isStartDateDisabled ? (
-                  <button
-                    type="button"
-                    disabled
-                    className="gba:flex gba:h-10 gba:w-full gba:items-center gba:justify-between gba:rounded-md gba:border gba:border-input gba:bg-muted gba:px-3 gba:py-2 gba:text-sm gba:ring-offset-background placeholder:gba:text-muted-foreground focus:gba:outline-none focus:gba:ring-2 focus:gba:ring-ring focus:gba:ring-offset-2 disabled:gba:cursor-not-allowed disabled:gba:opacity-50"
-                    data-testid={`${prefixDataTestId}-start-date-trigger`}
-                  >
-                    {field.value
-                      ? formatDate(field.value, 'date.long')
-                      : t('performance_goal.start_date_placeholder', 'Select start date')}
-                  </button>
-                ) : (
-                  <Popover open={startDateOpen} onOpenChange={setStartDateOpen}>
-                    <PopoverTrigger asChild>
-                      <button
-                        type="button"
-                        className="gba:flex gba:h-10 gba:w-full gba:items-center gba:justify-between gba:rounded-md gba:border gba:border-input gba:bg-background gba:px-3 gba:py-2 gba:text-sm gba:ring-offset-background placeholder:gba:text-muted-foreground focus:gba:outline-none focus:gba:ring-2 focus:gba:ring-ring focus:gba:ring-offset-2 disabled:gba:cursor-not-allowed disabled:gba:opacity-50"
-                        data-testid={`${prefixDataTestId}-start-date-trigger`}
-                      >
-                        {field.value
-                          ? formatDate(field.value, 'date.long')
-                          : t('performance_goal.start_date_placeholder', 'Select start date')}
-                      </button>
-                    </PopoverTrigger>
-                    <PopoverContent className="gba:w-auto gba:p-0" align="start">
-                      <Calendar
-                        mode="single"
-                        selected={field.value || undefined}
-                        onSelect={date => {
-                          field.onChange(date)
-                          setStartDateOpen(false)
-                        }}
-                      />
-                    </PopoverContent>
-                  </Popover>
+        render={({ field }) => (
+          <FormItem>
+            <FormLabel data-testid="change-personal-data-birth-place-label">
+              {t('performance_goal.start_date_placeholder', 'Start date')} *
+            </FormLabel>
+            <FormControl>
+              <Input
+                className="gba:w-full"
+                {...field}
+                type="date"
+                disabled={isStartDateDisabled}
+                placeholder={t(
+                  'lowcoder:employee_profile.details_layout.personal_information_container.select_placeholder',
+                  'Please Select',
                 )}
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )
-        }}
+                data-testid="flw_changePersonalData_startDate"
+                value={
+                  field.value
+                    ? `${field.value.getFullYear()}-${String(field.value.getMonth() + 1).padStart(2, '0')}-${String(field.value.getDate()).padStart(2, '0')}`
+                    : ''
+                }
+                onChange={(e) => {
+                  const dateValue = e.target.value
+                    ? new Date(e.target.value + 'T12:00:00')
+                    : undefined;
+                  field.onChange(dateValue);
+                }}
+              />
+            </FormControl>
+            <FormMessage />
+          </FormItem>
+        )}
       />
 
       {/* Due Date Field */}
@@ -146,51 +134,36 @@ export const FormScreenComponent: React.FC<FormScreenComponentProps> = ({
         control={form.control}
         name="dueDate"
         rules={{
-          required: t('performance_goal.due_date_required', 'Please select a due date'),
-          validate: value => {
-            const startDate = form.getValues('startDate')
-            if (!value || !startDate) return true
-
-            const dueDate = value instanceof Date ? value : new Date(value)
-            const start = startDate instanceof Date ? startDate : new Date(startDate)
-
-            // Compare only the date part (year, month, day) ignoring time
-            const dueDateOnly = new Date(dueDate.getFullYear(), dueDate.getMonth(), dueDate.getDate())
-            const startDateOnly = new Date(start.getFullYear(), start.getMonth(), start.getDate())
-
-            if (dueDateOnly >= startDateOnly) {
-              return true
-            }
-            return t('performance_goal.due_date_after_start', 'Due date must be on or after start date')
-          }
+          required: t('performance_goal.Due_date_required', 'Please select a due date'),
         }}
         render={({ field }) => (
-          <FormItem data-testid={`${prefixDataTestId}-due-date-field`}>
-            <FormLabel>{t('performance_goal.due_date_label', 'Due Date')} *</FormLabel>
+          <FormItem>
+            <FormLabel data-testid="change-personal-data-birth-place-label">
+              {t('performance_goal.Due_date_placeholder', 'Due date')} *
+            </FormLabel>
             <FormControl>
-              <Popover open={dueDateOpen} onOpenChange={setDueDateOpen}>
-                <PopoverTrigger asChild>
-                  <button
-                    type="button"
-                    className="gba:flex gba:h-10 gba:w-full gba:items-center gba:justify-between gba:rounded-md gba:border gba:border-input gba:bg-background gba:px-3 gba:py-2 gba:text-sm gba:ring-offset-background placeholder:gba:text-muted-foreground focus:gba:outline-none focus:gba:ring-2 focus:gba:ring-ring focus:gba:ring-offset-2 disabled:gba:cursor-not-allowed disabled:gba:opacity-50"
-                    data-testid={`${prefixDataTestId}-due-date-trigger`}
-                  >
-                    {field.value
-                      ? formatDate(field.value, 'date.long')
-                      : t('performance_goal.due_date_placeholder', 'Select due date')}
-                  </button>
-                </PopoverTrigger>
-                <PopoverContent className="gba:w-auto gba:p-0" align="start">
-                  <Calendar
-                    mode="single"
-                    selected={undefined}
-                    onSelect={date => {
-                      field.onChange(date)
-                      setDueDateOpen(false)
-                    }}
-                  />
-                </PopoverContent>
-              </Popover>
+              <Input
+                className="gba:w-full"
+                {...field}
+                type="date"
+                disabled={isFieldsDisabled}
+                placeholder={t(
+                  'lowcoder:employee_profile.details_layout.personal_information_container.select_placeholder',
+                  'Please Select',
+                )}
+                data-testid="flw_changePersonalData_dueDate"
+                value={
+                  field.value
+                    ? `${field.value.getFullYear()}-${String(field.value.getMonth() + 1).padStart(2, '0')}-${String(field.value.getDate()).padStart(2, '0')}`
+                    : ''
+                }
+                onChange={(e) => {
+                  const dateValue = e.target.value
+                    ? new Date(e.target.value + 'T12:00:00')
+                    : undefined;
+                  field.onChange(dateValue);
+                }}
+              />
             </FormControl>
             <FormMessage />
           </FormItem>
@@ -229,31 +202,53 @@ export const FormScreenComponent: React.FC<FormScreenComponentProps> = ({
         control={form.control}
         name="progressPercent"
         rules={{
-          required: t('performance_goal.progress_required', 'Please enter progress percentage'),
-          min: { value: 0, message: 'Progress must be at least 0%' },
-          max: { value: 100, message: 'Progress must be at most 100%' }
+          validate: (v: any) => {
+            // Check if field is empty
+            if (v === undefined || v === null || v === '') {
+              return t('performance_goal.progress_required', 'Please enter progress percentage');
+            }
+
+            // Check if it's a valid number
+            const num = Number(v);
+            if (Number.isNaN(num)) {
+              return t('performance_goal.invalid_number', 'Please enter a valid number (0-100)');
+            }
+
+            // Check range
+            if (num < 0 || num > 100) {
+              return t('performance_goal.range_error', 'Please enter a number between 0 and 100');
+            }
+
+            return true;
+          },
         }}
         render={({ field }) => (
           <FormItem data-testid={`${prefixDataTestId}-progress-field`}>
-            <FormLabel>{t('performance_goal.progress_label', 'Progress')} *</FormLabel>
+            <FormLabel data-testid={`${prefixDataTestId}-progress-label`}>
+              {t('performance_goal.progress_label', 'Progress')} *
+            </FormLabel>
             <FormControl>
-              <div className="gba:relative">
-                <Input
-                  type="number"
-                  min={0}
-                  max={100}
-                  placeholder={t('performance_goal.progress_placeholder', 'Enter progress percentage')}
-                  data-testid={`${prefixDataTestId}-progress-input`}
-                  className="gba:pr-8"
-                  {...field}
-                  onChange={e => {
-                    let value = parseInt(e.target.value || '0', 10)
-                    if (isNaN(value)) value = 0
-                    value = Math.min(100, Math.max(0, value))
-                    field.onChange(value)
-                  }}
-                />
-              </div>
+              <Input
+                className="gba:w-full"
+                {...field}
+                disabled={isFieldsDisabled}
+                placeholder={t(
+                  'performance_goal.progress_placeholder',
+                  'Enter progress percentage',
+                )}
+                // type="number"
+                inputMode="decimal"
+                data-testid={`${prefixDataTestId}-progress-input`}
+                endAddOn={<PercentIcon className="gba:w-4 gba:h-4" />}
+                onChange={(e) => {
+                  if (e.target.value === '') {
+                    field.onChange(0);
+                  } else {
+                    const value = parseInt(e.target.value, 10);
+                    field.onChange(isNaN(value) ? undefined : value);
+                  }
+                }}
+              />
             </FormControl>
             <FormMessage />
           </FormItem>
