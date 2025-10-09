@@ -59,7 +59,7 @@ const JobFamilyForm: React.FC<JobFamilyFormProps> = ({
   const catalogClient = useCatalogManagerClient(accessToken);
   const { codeError, setCodeError, validateCode } = useCodeError(usedCodes);
 
-  const handleSubmit = async (values: Record<string, string | undefined> | undefined) => {
+  const handleSubmit = async (values: JobFamily) => {
     try {
       // Validate code before submitting
       if (!validateCode(values.code)) {

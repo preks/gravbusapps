@@ -556,7 +556,7 @@ const JobProfilesTab: React.FC<JobProfilesTabProps> = (context) => {
   ) {
     return (
       <div
-        data-testid={`${dataTestId}`}
+        data-testid={`${dataTestId}-Spinner`}
         className="gba:flex gba:justify-center gba:items-center gba:h-64"
       >
         <Spinner />

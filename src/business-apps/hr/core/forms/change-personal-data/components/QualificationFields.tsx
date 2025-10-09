@@ -33,7 +33,7 @@ const QualificationFields: React.FC<QualificationFieldsProps> = ({ control, cata
               onValueChange={(v) => field.onChange(v || null)}
             >
               <FormControl>
-                <SelectTrigger className="gba:block gba:!w-full gba:min-w-0 gba:!max-w-none" data-testid="change-personal-data-school-qualification-select">
+                <SelectTrigger className="gba:block gba:!w-full gba:min-w-0 gba:!max-w-none" data-testid="flw_changePersonalData_schoolInput">
                   <SelectValue placeholder={placeholderSelect} />
                 </SelectTrigger>
               </FormControl>
@@ -68,7 +68,7 @@ const QualificationFields: React.FC<QualificationFieldsProps> = ({ control, cata
           const selectedEntries = useMemo(() => (catalogs.academicTitle || []).filter((e) => selected.includes(String(e.id))), [catalogs.academicTitle, selected]);
           return (
             <FormItem className="gba:[&_button[role='combobox']]:gba:!h-auto gba:[&_button[role='combobox']]:gba:!min-h-[64px] gba:[&_button[role='combobox']]:gba:!items-start gba:[&_button[role='combobox']>span]:gba:flex gba:[&_button[role='combobox']>span]:gba:flex-wrap gba:[&_button[role='combobox']>span]:gba:w-full gba:[&_button[role='combobox']>span]:gba:gap-2 gba:[&_button[role='combobox']>span]:gba:whitespace-normal gba:[&_button[role='combobox']>span]:gba:overflow-visible">
-              <FormLabel data-testid="change-personal-data-academic-titles-label">
+              <FormLabel data-testid="flw_changePersonalData_currentAcademicTitles">
                 {getTranslationFromI18nKeyAndLabel('lowcoder:employee_profile.details_layout.personal_information_container.academic_titles', 'Academic Titles')}
               </FormLabel>
               <Select value={''} onValueChange={(v) => addValue(v)} open={open} onOpenChange={setOpen}>
@@ -136,7 +136,7 @@ const QualificationFields: React.FC<QualificationFieldsProps> = ({ control, cata
               {getTranslationFromI18nKeyAndLabel('lowcoder:initiate_expense_plan.create_expense_plan.comment_text_area', 'Comment')}
             </FormLabel>
             <FormControl>
-              <Textarea {...field} placeholder={placeholderEnter} rows={4} data-testid="change-personal-data-comment-input" />
+              <Textarea {...field} placeholder={placeholderEnter} rows={4} data-testid="flw_changePersonalData_addNote" />
             </FormControl>
             <FormMessage />
           </FormItem>

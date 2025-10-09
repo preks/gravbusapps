@@ -1,6 +1,5 @@
 import React from "react";
 import {
-  Badge,
   Separator,
   Button,
   Card,
@@ -8,6 +7,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@newwork/nw-design-system";
+import Pill from "@/components/pill";
 import { PiArrowRight, PiCheckCircle, PiXCircle, PiCalendarDuotone, PiClock } from "react-icons/pi";
 import { BusinessAppContextProps } from "@/common/BusinessAppContext";
 import {
@@ -39,6 +39,7 @@ const ExpenseRequestDetails: React.FC<ExpenseRequestDetailsProps> = ({
 
   const canApprove = request.status === "IN_APPROVAL" || request.status === "VERIFICATION_REQUIRED";
   const canReject = request.status === "IN_APPROVAL" || request.status === "VERIFICATION_REQUIRED";
+  const statusConfig = getExpenseRequestStatusDisplay(request.status);
 
   const handleApprove = () => {
     if (onApprove) {
@@ -67,23 +68,14 @@ const ExpenseRequestDetails: React.FC<ExpenseRequestDetailsProps> = ({
             {request.code}
           </p>
         </div>
-        <Badge
-          variant={
-            getExpenseRequestStatusDisplay(request.status).type === "completed"
-              ? "success"
-              : getExpenseRequestStatusDisplay(request.status).type === "error"
-              ? "destructive"
-              : getExpenseRequestStatusDisplay(request.status).type === "task"
-              ? "warning"
-              : getExpenseRequestStatusDisplay(request.status).type === "waiting"
-              ? "secondary"
-              : "default"
-          }
-          className="gba:text-sm"
-          data-testid="expense-request-status-badge"
-        >
-          {getExpenseRequestStatusDisplay(request.status).label}
-        </Badge>
+        <div className="gba:flex gba:items-center gba:gap-3">
+          <Pill
+            type={statusConfig.type}
+            label={statusConfig.label}
+            color={statusConfig.color}
+            data-testid="expense-request-status-badge"
+          />
+        </div>
       </div>
 
       {/* Date Information */}
@@ -92,7 +84,7 @@ const ExpenseRequestDetails: React.FC<ExpenseRequestDetailsProps> = ({
           {request.startDate && request.endDate && (
             <div className="gba:flex gba:items-center gba:space-x-2">
               <PiCalendarDuotone className="gba:text-gray-500" />
-              <span className="gba:text-sm gba:text-gray-700">
+              <span className="gba:text-sm gba:text-gray-900">
                 {getTranslationFromI18nKeyAndLabel(
                   "lowcoder:team_expenses_page.plan_details.duration",
                   "Duration",
@@ -106,7 +98,7 @@ const ExpenseRequestDetails: React.FC<ExpenseRequestDetailsProps> = ({
           {request.requestDate && (
             <div className="gba:flex gba:items-center gba:space-x-2">
               <PiClock className="gba:text-gray-500" />
-              <span className="gba:text-sm gba:text-gray-700">
+              <span className="gba:text-sm gba:text-gray-900">
                 {getTranslationFromI18nKeyAndLabel(
                   "lowcoder:expense_request_details.request_date",
                   "Request Date",

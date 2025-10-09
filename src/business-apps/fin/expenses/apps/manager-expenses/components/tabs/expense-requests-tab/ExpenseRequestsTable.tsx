@@ -1,4 +1,6 @@
 import React, { useState, useCallback, useMemo } from "react";
+import dayjs from "dayjs";
+import localizedFormat from "dayjs/plugin/localizedFormat";
 import {
   Table,
   TableHeader,
@@ -16,13 +18,20 @@ import {
   SheetContent,
   SheetHeader,
   SheetTitle,
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
 } from "@newwork/nw-design-system";
 import { PiArrowUp, PiArrowDown } from "react-icons/pi";
+
+// Enable localized date formatting
+dayjs.extend(localizedFormat);
 import { DataContainer } from "@/components/layout/dataContainer/DataContainer";
-import Pill from "@/components/pill/Pill";
 import { BusinessAppContextProps } from "@/common/BusinessAppContext";
 import { ExpenseRequest, SortField } from "../../../hooks/useGetExpenseRequests";
 import { getExpenseRequestStatusDisplay } from "../../../utils";
+import { pillTypeClassMap } from "../../../components/StatusLegend";
 import ExpenseRequestDetails from "./ExpenseRequestDetails";
 import {
   getTranslationFromI18nKeyAndLabel,
@@ -30,9 +39,10 @@ import {
 } from "@/common/utils/windowUtils";
 import { AppActionButton } from "@/components/app-action-button/AppActionButton";
 import { formatCurrencyDisplay } from "../../../../personal-expenses/utils";
-import { Modal } from "antd";
 import { useExpensePlanFileService } from "../../../../personal-expenses/utils/expensePlanFileService";
 import { navigateTo, buildPlatformUrl } from "@/common/utils/navigationUtils";
+
+// Use shared pill classes from StatusLegend to avoid duplication
 
 interface ExpenseRequestsTableProps extends BusinessAppContextProps {
   expenseRequests: ExpenseRequest[];
@@ -172,7 +182,7 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = (props) => {
         const mappedPlan = {
           id: request.id,
           code: request.code || "",
-          title: request.title || "Untitled Request",
+          title: request.title || getTranslationFromI18nKeyAndLabel("lowcoder:common.untitled_request","Untitled Request"),
           description: request.description || "",
           status: request.status,
           startDate: request.startDate || "",
@@ -271,6 +281,84 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = (props) => {
     setSelectedRequest(null);
   }, []);
 
+  // Helpers to reduce render complexity
+  const formatShortDateSafe = useCallback((dateValue?: string | null) => {
+    if (!dateValue) return getTranslationFromI18nKeyAndLabel("lowcoder:common.not_available","N/A");
+    try {
+      const userLocale = getCurrentActiveUserLocale();
+      return dayjs(dateValue).locale(userLocale).format("L");
+    } catch {
+      return getTranslationFromI18nKeyAndLabel("lowcoder:common.not_available","N/A");
+    }
+  }, []);
+
+  const renderError = useCallback(() => (
+    <Alert variant="destructive">
+      <div className="gba:font-medium">
+        {getTranslationFromI18nKeyAndLabel(
+          "lowcoder:team_expenses_page.dashboard_tab.error_loading_data",
+          "Error loading data",
+        )}
+      </div>
+      <div className="gba:text-sm gba:py-3 gba:px-4">{error}</div>
+    </Alert>
+  ), [error]);
+
+  const renderEmpty = useCallback(() => (
+    <div className="gba:flex gba:justify-center gba:items-center gba:py-12 gba:text-muted-foreground">
+      {getTranslationFromI18nKeyAndLabel(
+        "lowcoder:personal_expenses.no_expense_data_available",
+        "No expense data available.",
+      )}
+    </div>
+  ), []);
+
+  const buildStaticFlowData = useCallback((record: ExpenseRequest) => {
+    const hasValidStatus =
+      record.status === "APPROVED" ||
+      record.status === "VERIFIED" ||
+      record.status === "BOOKED" ||
+      record.status === "TRANSFERRED" ||
+      record.status === "PAID";
+
+    const hasDocument = !!record.employeeDocument?.file?.trim();
+
+    const items: any[] = [];
+    if (hasValidStatus && hasDocument) {
+      items.push({
+        category: getTranslationFromI18nKeyAndLabel(
+          "lowcoder:employee_list.flows_button.actions",
+          "Actions",
+        ),
+        key: "print",
+        label: getTranslationFromI18nKeyAndLabel(
+          "lowcoder:expense_plan_list.expense_plan_flows.print",
+          "Print",
+        ),
+        onClick: () => {
+          handlePrintRequest(record);
+        },
+      });
+    }
+
+    items.push({
+      category: getTranslationFromI18nKeyAndLabel(
+        "lowcoder:employee_list.flows_button.navigations",
+        "Navigations",
+      ),
+      key: "view-request-details",
+      label: getTranslationFromI18nKeyAndLabel(
+        "lowcoder:expense_request_list.expense_request_flows.view_request_details",
+        "View Request Details",
+      ),
+      onClick: () => {
+        handleViewRequestDetails(record);
+      },
+    });
+
+    return items;
+  }, [handlePrintRequest, handleViewRequestDetails]);
+
   const renderDataBody = useCallback(() => {
     if (isLoading && requests.length === 0) {
       return (
@@ -281,62 +369,51 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = (props) => {
     }
 
     if (error) {
-      return (
-        <Alert variant="destructive">
-          <div className="gba:font-medium">
-            {getTranslationFromI18nKeyAndLabel(
-              "lowcoder:team_expenses_page.dashboard_tab.error_loading_data",
-              "Error loading data",
-            )}
-          </div>
-          <div className="gba:text-sm">{error}</div>
-        </Alert>
-      );
+      return renderError();
     }
 
     if (requests.length === 0) {
-      return (
-        <div className="gba:flex gba:justify-center gba:items-center gba:py-12 gba:text-gray-500">
-          {getTranslationFromI18nKeyAndLabel(
-            "lowcoder:personal_expenses.no_expense_data_available",
-            "No expense data available.",
-          )}
-        </div>
-      );
+      return renderEmpty();
     }
 
     return (
       <div>
-        <div className="gba:overflow-x-auto gba:border gba:border-gray-200 gba:rounded-md gba:shadow-sm gba:relative">
+        <div className="gba:overflow-x-auto gba:pr-4 gba:border gba:border-border gba:rounded-md gba:relative">
           {isLoading && requests.length > 0 && (
             <div
-              className="gba:absolute gba:inset-0 gba:bg-white/50 gba:flex gba:items-center gba:justify-center gba:z-10"
+              className="gba:absolute gba:inset-0 gba:bg-background/50 gba:flex gba:items-center gba:justify-center gba:z-10"
               data-testid="expense-requests-loading-overlay"
             >
               <Spinner className="gba:h-8 gba:w-8" />
             </div>
           )}
-          <Table data-testid="expense-requests-table">
-            <TableHeader>
+          <Table data-testid="expense-requests-table" className="gba:w-full">
+            <TableHeader className="gba:sticky gba:top-0 gba:bg-muted gba:z-10 gba:border-b gba:border-border">
               <TableRow>
-                <TableHead className="gba:w-[60px]"></TableHead>
+                <TableHead className="gba:w-[60px] gba:min-w-[60px] gba:max-w-[60px] gba:box-border"></TableHead>
                 <TableHead
-                  className="gba:cursor-pointer gba:select-none"
+                  className="gba:w-[13%] gba:cursor-pointer gba:select-none"
                   onClick={() => handleSort("title")}
                   data-testid="expense-requests-title-header"
                 >
                   <div className="gba:flex gba:items-center">
                     <span>
                       {getTranslationFromI18nKeyAndLabel(
-                        "lowcoder:employee_list.flows_button.expense_requests",
-                        "Expense Requests",
+                        "lowcoder:expense_request_list.expense_plan_table.title",
+                        "Title",
                       )}
                     </span>
                     {renderSortIndicator("title")}
                   </div>
                 </TableHead>
+                <TableHead className="gba:w-[10%]">
+                  {getTranslationFromI18nKeyAndLabel(
+                    "lowcoder:expense_calculation_rule.expense_table.code",
+                    "Plan Code",
+                  )}
+                </TableHead>
                 <TableHead
-                  className="gba:cursor-pointer gba:select-none"
+                  className="gba:w-[8%] gba:cursor-pointer gba:select-none"
                   onClick={() => handleSort("startDate")}
                   data-testid="expense-requests-start-date-header"
                 >
@@ -351,7 +428,7 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = (props) => {
                   </div>
                 </TableHead>
                 <TableHead
-                  className="gba:cursor-pointer gba:select-none"
+                  className="gba:w-[8%] gba:cursor-pointer gba:select-none"
                   onClick={() => handleSort("endDate")}
                   data-testid="expense-requests-end-date-header"
                 >
@@ -366,7 +443,7 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = (props) => {
                   </div>
                 </TableHead>
                 <TableHead
-                  className="gba:cursor-pointer gba:select-none"
+                  className="gba:w-[20%] gba:cursor-pointer gba:select-none"
                   onClick={() => handleSort("employee.fullName")}
                   data-testid="expense-requests-employee-header"
                 >
@@ -381,7 +458,7 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = (props) => {
                   </div>
                 </TableHead>
                 <TableHead
-                  className="gba:cursor-pointer gba:select-none"
+                  className="gba:w-[8%] gba:cursor-pointer gba:select-none"
                   onClick={() => handleSort("requestDate")}
                   data-testid="expense-requests-request-date-header"
                 >
@@ -396,11 +473,11 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = (props) => {
                   </div>
                 </TableHead>
                 <TableHead
-                  className="gba:text-right gba:cursor-pointer gba:select-none"
+                  className="gba:w-[12%] gba:cursor-pointer gba:select-none"
                   onClick={() => handleSort("amount")}
                   data-testid="expense-requests-amount-header"
                 >
-                  <div className="gba:flex gba:items-center gba:justify-end">
+                  <div className="gba:flex gba:items-center gba:justify-start">
                     <span>
                       {getTranslationFromI18nKeyAndLabel(
                         "lowcoder:manager_expense_request_list.expense_table.amount",
@@ -411,7 +488,7 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = (props) => {
                   </div>
                 </TableHead>
                 <TableHead
-                  className="gba:cursor-pointer gba:select-none"
+                  className="gba:w-[20%] gba:cursor-pointer gba:select-none gba:pr-6"
                   onClick={() => handleSort("status")}
                   data-testid="expense-requests-status-header"
                 >
@@ -433,101 +510,52 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = (props) => {
                 return (
                   <TableRow
                     key={record.id}
-                    className="gba:cursor-pointer gba:hover:bg-gray-50"
+                    className="gba:cursor-pointer gba:hover:bg-accent"
                     onClick={() => handleSelectRequest(record)}
                     data-testid={`expense-requests-row-${record.id}`}
                   >
-                    <TableCell data-testid={`expense-requests-actions-cell-${record.id}`}>
-                      <div
-                        className="gba:flex gba:justify-center gba:gap-2"
-                        onClick={(e) => e.stopPropagation()}
-                      >
+                    <TableCell 
+                      className="gba:w-[60px] gba:min-w-[60px] gba:max-w-[60px] gba:box-border gba:py-3 gba:px-4" 
+                      data-testid={`expense-requests-actions-cell-${record.id}`}
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      <div className="gba:flex gba:justify-start gba:gap-2">
                         <AppActionButton
+                          onClick={(e) => e.stopPropagation()}
                           data-testid={`expense-requests-update-button-${record.id}`}
                           size="icon"
-                          staticFlowData={[
-                            ...(record.employeeDocument?.file
-                              ? [
-                                  {
-                                    category: getTranslationFromI18nKeyAndLabel(
-                                      "lowcoder:employee_list.flows_button.actions",
-                                      "Actions",
-                                    ),
-                                    key: "print",
-                                    label: getTranslationFromI18nKeyAndLabel(
-                                      "lowcoder:expense_plan_list.expense_plan_flows.print",
-                                      "Print",
-                                    ),
-                                    onClick: () => {
-                                      handlePrintRequest(record);
-                                    },
-                                  },
-                                ]
-                              : []),
-                            {
-                              category: getTranslationFromI18nKeyAndLabel(
-                                "lowcoder:employee_list.flows_button.navigations",
-                                "Navigations",
-                              ),
-                              key: "view-request-details",
-                              label: getTranslationFromI18nKeyAndLabel(
-                                "lowcoder:expense_request_list.expense_request_flows.view_request_details",
-                                "View Request Details",
-                              ),
-                              onClick: () => {
-                                handleViewRequestDetails(record);
-                              },
-                            },
-                          ]}
+                          staticFlowData={buildStaticFlowData(record)}
                           prefixDataTestId="expense-requests-update"
                           accessToken={props.accessToken}
                           emptyStateBehavior="enable"
                           deferMainContextRequestsUntilClick
-                          onClick={(e) => e.stopPropagation()}
                         />
                       </div>
                     </TableCell>
-                    <TableCell className="gba:text-left">
-                      <div className="gba:font-medium gba:text-sm">
-                        {record.title ?? "Untitled Request"}
+                    <TableCell className="gba:text-left gba:py-3 gba:px-4 gba:w-[13%]">
+                      <div className="gba:font-medium gba:text-sm gba:whitespace-nowrap gba:truncate">
+                        {record.title ?? getTranslationFromI18nKeyAndLabel("lowcoder:common.untitled_request","Untitled Request")}
                       </div>
-                      <div className="gba:text-xs gba:text-gray-500">{record.code ?? "N/A"}</div>
+                      <div className="gba:text-xs gba:text-muted-foreground gba:whitespace-nowrap gba:truncate">
+                        {record.code ?? getTranslationFromI18nKeyAndLabel("lowcoder:common.not_available","N/A")}
+                      </div>
                     </TableCell>
-                    <TableCell className="gba:text-sm">
-                      {record.startDate
-                        ? (() => {
-                            try {
-                              const date = new Date(record.startDate);
-                              const userLocale = getCurrentActiveUserLocale();
-                              return date.toLocaleDateString(userLocale, {
-                                month: "2-digit",
-                                day: "2-digit",
-                                year: "2-digit",
-                              });
-                            } catch (error) {
-                              return "N/A";
-                            }
-                          })()
-                        : "N/A"}
+                    <TableCell className="gba:w-[10%] gba:py-4 gba:px-3 gba:text-sm">
+                      {(record as any)?.expensePlan?.code ?? getTranslationFromI18nKeyAndLabel("lowcoder:common.not_available","N/A")}
                     </TableCell>
-                    <TableCell className="gba:text-sm">
-                      {record.endDate
-                        ? (() => {
-                            try {
-                              const date = new Date(record.endDate);
-                              const userLocale = getCurrentActiveUserLocale();
-                              return date.toLocaleDateString(userLocale, {
-                                month: "2-digit",
-                                day: "2-digit",
-                                year: "2-digit",
-                              });
-                            } catch (error) {
-                              return "N/A";
-                            }
-                          })()
-                        : "N/A"}
+                    <TableCell
+                      className="gba:text-sm gba:py-3 gba:px-4"
+                      data-testid={`expense-requests-start-date-cell-${record.id}`}
+                    >
+                      {formatShortDateSafe(record.startDate)}
                     </TableCell>
-                    <TableCell>
+                    <TableCell
+                      className="gba:text-sm gba:py-3 gba:px-4"
+                      data-testid={`expense-requests-end-date-cell-${record.id}`}
+                    >
+                      {formatShortDateSafe(record.endDate)}
+                    </TableCell>
+                    <TableCell data-testid={`expense-requests-employee-cell-${record.id}`}>
                       <div className="gba:flex gba:items-center gba:gap-2">
                         <Avatar className="gba:h-6 gba:w-6">
                           <AvatarImage
@@ -548,28 +576,17 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = (props) => {
                           <div className="gba:font-medium gba:text-sm">
                             {record.employee?.displayName || record.employee?.fullName}
                           </div>
-                          <div className="gba:text-xs gba:text-gray-500">
-                            {record.employee?.department || "N/A"}
+                          <div className="gba:text-xs gba:text-muted-foreground">
+                            {record.employee?.department || getTranslationFromI18nKeyAndLabel("lowcoder:common.not_available","N/A")}
                           </div>
                         </div>
                       </div>
                     </TableCell>
-                    <TableCell className="gba:text-sm">
-                      {record.requestDate
-                        ? (() => {
-                            try {
-                              const date = new Date(record.requestDate);
-                              const userLocale = getCurrentActiveUserLocale();
-                              return date.toLocaleDateString(userLocale, {
-                                month: "2-digit",
-                                day: "2-digit",
-                                year: "2-digit",
-                              });
-                            } catch (error) {
-                              return "N/A";
-                            }
-                          })()
-                        : "N/A"}
+                    <TableCell
+                      className="gba:text-sm gba:py-3 gba:px-4"
+                      data-testid={`expense-requests-request-date-cell-${record.id}`}
+                    >
+                      {formatShortDateSafe(record.requestDate)}
                     </TableCell>
                     <TableCell
                       className="gba:text-right gba:text-sm"
@@ -579,12 +596,15 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = (props) => {
                         ? formatCurrencyDisplay(record.amount, record.currency)
                         : formatCurrencyDisplay(0, record.currency || "EUR")}
                     </TableCell>
-                    <TableCell>
-                      <Pill
-                        type={type as any}
-                        label={label}
+                    <TableCell className="gba:pr-6 gba:w-[20%]">
+                      <span
+                        className={`gba:inline-block gba:rounded-full gba:px-3 gba:py-1 gba:text-xs gba:font-medium gba:whitespace-nowrap ${
+                          pillTypeClassMap[String(type).toLowerCase() as keyof typeof pillTypeClassMap] || pillTypeClassMap.draft
+                        }`}
                         data-testid={`status-pill-${record.status?.toLowerCase()}`}
-                      />
+                      >
+                        {label}
+                      </span>
                     </TableCell>
                   </TableRow>
                 );
@@ -595,11 +615,11 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = (props) => {
 
         {totalCount > 0 && (
           <div
-            className="gba:flex gba:items-center gba:justify-between gba:px-2 gba:py-4 gba:border-t gba:border-gray-200"
+            className="gba:flex gba:items-center gba:justify-between gba:px-2 gba:py-4 gba:border-t gba:border-border"
             data-testid="expense-requests-pagination"
           >
             <div
-              className="gba:text-sm gba:text-gray-600"
+              className="gba:text-sm gba:text-muted-foreground"
               data-testid="expense-requests-pagination-info"
             >
               {`${(currentPage - 1) * pageSize + 1}-${Math.min(
@@ -756,6 +776,8 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = (props) => {
   return (
     <>
       <DataContainer
+        key="expense-requests-data-container"
+        addLeftPaddingWhenNoFilter={true}
         dataControllerProps={{
           search: searchTerm,
           setSearch: handleSearchChange,
@@ -764,8 +786,12 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = (props) => {
             const filtersToRemove = selectedFilters.filter((f) => !newFilters.includes(f));
             const filtersToAdd = newFilters.filter((f) => !selectedFilters.includes(f));
 
-            filtersToRemove.forEach(removeFilter);
-            filtersToAdd.forEach(addFilter);
+            for (const f of filtersToRemove) {
+              removeFilter(f);
+            }
+            for (const f of filtersToAdd) {
+              addFilter(f);
+            }
 
             setCurrentPage(1);
           },
@@ -779,7 +805,7 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = (props) => {
                     "Expense Requests",
                   )}
                 </span>
-                <span className="gba:text-gray-500">({totalCount})</span>
+                <span className="gba:text-muted-foreground">({totalCount})</span>
               </div>
             </div>
           ),
@@ -794,9 +820,19 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = (props) => {
         data-testid="expense-requests-container"
       />
 
-      {/* Expense Request Details Sheet */}
-      <Sheet open={!!selectedRequest} onOpenChange={(open) => !open && setSelectedRequest(null)} title={selectedRequest?.title || getTranslationFromI18nKeyAndLabel('lowcoder:expense_request_details.title', 'Expense Request Details')}>
-        <SheetContent className="gba:w-[500px] gba:sm:gba:w-[500px] gba:max-w-none">
+      {/* Expense Request Details Sheet - title is required by DS Sheet props */}
+      <Sheet
+        open={!!selectedRequest}
+        onOpenChange={(open) => !open && setSelectedRequest(null)}
+        title={
+          selectedRequest?.title ||
+          getTranslationFromI18nKeyAndLabel(
+            "lowcoder:expense_request_details.title",
+            "Expense Request Details",
+          )
+        }
+      >
+        <SheetContent className="gba:w-[600px] gba:sm:gba:w-[600px] gba:max-w-none">
           <SheetHeader>
             <SheetTitle className="gba:text-xl gba:font-semibold gba:text-gray-900">
               {selectedRequest?.title ||
@@ -819,40 +855,53 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = (props) => {
         </SheetContent>
       </Sheet>
 
-      {/* Print Modal */}
-      <Modal
+      {/* Print Dialog */}
+      <Dialog
         open={printModalOpen}
-        title="Print Expense Request"
-        footer={null}
-        onCancel={() => {
-          setPrintModalOpen(false);
-          setPrintPdfUrl("");
+        onOpenChange={(open) => {
+          if (!open) {
+            setPrintModalOpen(false);
+            setPrintPdfUrl("");
+          }
         }}
-        width="90%"
-        style={{ top: 20 }}
-        destroyOnHidden={true}
-        data-testid="print-request-modal"
       >
-        {printLoading ? (
-          <div className="gba:flex gba:justify-center gba:items-center gba:py-8">
-            <Spinner />
-          </div>
-        ) : printPdfUrl ? (
-          <iframe
-            src={printPdfUrl}
-            style={{ width: "100%", height: "calc(90vh - 55px)", border: "none" }}
-            title="Print Preview"
-            data-testid="print-request-iframe"
-          />
-        ) : (
-          <div className="gba:flex gba:flex-col gba:items-center gba:justify-center gba:py-8 gba:text-center">
-            <div className="gba:text-gray-600 gba:mb-4">No document available for printing</div>
-            <div className="gba:text-sm gba:text-gray-500">
-              This expense request does not have an associated document to print.
-            </div>
-          </div>
-        )}
-      </Modal>
+        <DialogContent className="gba:max-w-[90vw] gba:h-[90vh]" data-testid="print-request-dialog">
+          <DialogHeader>
+            <DialogTitle>
+              {getTranslationFromI18nKeyAndLabel("lowcoder:print.preview_title","Print Preview")}
+            </DialogTitle>
+          </DialogHeader>
+          {(() => {
+            if (printLoading) {
+              return (
+                <div className="gba:flex gba:justify-center gba:items-center gba:py-8">
+                  <Spinner />
+                </div>
+              );
+            }
+            if (printPdfUrl) {
+              return (
+                <iframe
+                  src={printPdfUrl}
+                  className="gba:w-full gba:h-full gba:border-0"
+                  title={getTranslationFromI18nKeyAndLabel("lowcoder:print.preview_title","Print Preview")}
+                  data-testid="print-request-iframe"
+                />
+              );
+            }
+            return (
+              <div className="gba:flex gba:flex-col gba:items-center gba:justify-center gba:py-8 gba:text-center">
+                <div className="gba:text-muted-foreground gba:mb-4">
+                  {getTranslationFromI18nKeyAndLabel("lowcoder:print.no_document","No document available for printing")}
+                </div>
+                <div className="gba:text-sm gba:text-muted-foreground">
+                  {getTranslationFromI18nKeyAndLabel("lowcoder:print.no_document_details","This expense request does not have an associated document to print.")}
+                </div>
+              </div>
+            );
+          })()}
+        </DialogContent>
+      </Dialog>
     </>
   );
 };

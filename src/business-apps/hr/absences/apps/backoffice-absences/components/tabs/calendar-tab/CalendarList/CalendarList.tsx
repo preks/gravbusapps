@@ -3,6 +3,7 @@ import { BusinessAppContextProps } from '../../../../../../../../../common/Busin
 import { useGraphQLClient } from '../../../../../../../../../common/network/graphql/useGraphQLClient';
 import { CalendarTimeline } from '@newwork/gravity-ui-catalog';
 import { Select } from 'antd';
+import { getTranslationFromI18nKeyAndLabel, getCurrentActiveUserLocale } from '../../../../../../../../../common/utils/windowUtils';
 const { Option } = Select;
 
 interface EmployeeAbsence {
@@ -24,6 +25,10 @@ interface EmployeeAbsence {
     id: string
     value: string
     parentEntryId: string
+    translations?: {
+      localeCode: string
+      value: string
+    }[]
   }
   startDate: string
   endDate: string
@@ -116,6 +121,10 @@ const ABSENCE_QUERY_2025 = `
         id
         value
         parentEntryId
+        translations {
+          localeCode
+          value
+        }
       }
       calendarDays
       effectiveDays
@@ -162,6 +171,7 @@ interface OrganizationalUnit {
 
 const CalendarList: React.FC<BusinessAppContextProps> = ({ accessToken, userInfo }) => {
   const graphQLClient = useGraphQLClient(accessToken)
+  const userLocale = getCurrentActiveUserLocale() ?? 'en-US';
   const [employeeAbsences, setEmployeeAbsences] = useState<EmployeeAbsence[]>([])
   const [allEmployees, setAllEmployees] = useState<Employee[]>([])
   const [organizationalUnits, setOrganizationalUnits] = useState<OrganizationalUnit[]>([])
@@ -172,6 +182,28 @@ const CalendarList: React.FC<BusinessAppContextProps> = ({ accessToken, userInfo
   )
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<Error | null>(null)
+
+  // Helper function to get translated absence type name
+  const getAbsenceTypeName = (type: EmployeeAbsence['type'], locale = userLocale): string => {
+    const translation = type.translations?.find((t) => t.localeCode === locale);
+    return translation?.value || type.value || type.objectValue || 'Unknown Type';
+  };
+
+  // Helper function to get translated status name
+  const getStatusName = (status: string): string => {
+    switch (status) {
+      case 'APPROVED':
+        return getTranslationFromI18nKeyAndLabel('lowcoder:absence_calendar.approved', 'Approved');
+      case 'PENDING':
+        return getTranslationFromI18nKeyAndLabel('lowcoder:absence_calendar.pending', 'Pending');
+      case 'REJECTED':
+        return getTranslationFromI18nKeyAndLabel('lowcoder:absence_calendar.rejected', 'Rejected');
+      case 'CANCELLED':
+        return getTranslationFromI18nKeyAndLabel('lowcoder:absence_calendar.cancelled', 'Cancelled');
+      default:
+        return status;
+    }
+  };
 
       const fetchData = useCallback(async (departments: string[] = selectedOrgUnits) => {
     setIsLoading(true)
@@ -318,6 +350,10 @@ const CalendarList: React.FC<BusinessAppContextProps> = ({ accessToken, userInfo
                 id
                 value
                 parentEntryId
+                translations {
+                  localeCode
+                  value
+                }
               }
               calendarDays
               effectiveDays
@@ -443,7 +479,7 @@ const CalendarList: React.FC<BusinessAppContextProps> = ({ accessToken, userInfo
       if (!eventIdSet.has(eventId)) {
         eventIdSet.add(eventId);
         
-        const absenceType = absence.type.value;
+        const absenceType = getAbsenceTypeName(absence.type);
         
         events.push({
           id: eventId,
@@ -452,7 +488,7 @@ const CalendarList: React.FC<BusinessAppContextProps> = ({ accessToken, userInfo
           startDate: new Date(absence.startDate).toISOString(),
           endDate: new Date(absence.endDate).toISOString(),
           color: getStatusColor(absence.status), // Use STATUS color, not type color
-          status: absence.status,
+          status: getStatusName(absence.status), // Use translated status
           type: getStatusType(absence.status), // Use STATUS type for CalendarTimeline
           note: absenceType
         });
@@ -464,10 +500,22 @@ const CalendarList: React.FC<BusinessAppContextProps> = ({ accessToken, userInfo
 
   // Create status-based legend (like manager-absences)
   const legendItems = [
-    { label: 'Approved', color: '#10b981' }, // success variant - green
-    { label: 'Pending', color: '#f59e0b' },  // warning variant - amber
-    { label: 'Rejected', color: '#ef4444' }, // destructive variant - red
-    { label: 'Cancelled', color: '#6b7280' } // secondary variant - gray
+    { 
+      label: getTranslationFromI18nKeyAndLabel('lowcoder:absence_calendar.approved', 'Approved'), 
+      color: '#10b981' 
+    },
+    { 
+      label: getTranslationFromI18nKeyAndLabel('lowcoder:absence_calendar.pending', 'Pending'), 
+      color: '#f59e0b' 
+    },
+    { 
+      label: getTranslationFromI18nKeyAndLabel('lowcoder:absence_calendar.rejected', 'Rejected'), 
+      color: '#ef4444' 
+    },
+    { 
+      label: getTranslationFromI18nKeyAndLabel('lowcoder:absence_calendar.cancelled', 'Cancelled'), 
+      color: '#6b7280' 
+    }
   ];
 
   const getInitials = (name: string): string => {
@@ -490,7 +538,10 @@ const CalendarList: React.FC<BusinessAppContextProps> = ({ accessToken, userInfo
   if (error) {
     return (
       <div className="gba:p-4 gba:text-red-600 gba:bg-red-50 gba:rounded">
-        Error loading absences: {error.message}
+        {getTranslationFromI18nKeyAndLabel(
+          'lowcoder:absence_management_hub_backoffice.calendar.error_loading_absences',
+          'Error loading absences'
+        )}: {error.message}
       </div>
     );
   }
@@ -549,13 +600,21 @@ const CalendarList: React.FC<BusinessAppContextProps> = ({ accessToken, userInfo
           onClear={() => {
             setSelectedOrgUnits(['--- All Departments']);
           }}
-          placeholder="Filter by Department"
+          placeholder={getTranslationFromI18nKeyAndLabel(
+            'lowcoder:absence_management_hub_backoffice.calendar.filter_by_department',
+            'Filter by Department'
+          )}
           disabled={isLoading}
           allowClear
           style={{ width: '100%' }}
           data-testid="calendar-department-filter"
         >
-          <Option key="all" value="--- All Departments">--- All Departments</Option>
+          <Option key="all" value="--- All Departments">
+            {getTranslationFromI18nKeyAndLabel(
+              'lowcoder:absence_management_hub_backoffice.calendar.all_departments',
+              '--- All Departments'
+            )}
+          </Option>
           {organizationalUnits
             .sort((a, b) => a.name.localeCompare(b.name))
             .map(org => (
@@ -569,10 +628,24 @@ const CalendarList: React.FC<BusinessAppContextProps> = ({ accessToken, userInfo
         key={selectedOrgUnits.join(',') || 'all'}
         items={timelineItems}
         events={timelineEvents}
-        title=""
+        title={getTranslationFromI18nKeyAndLabel(
+          'lowcoder:absence_calendar.title',
+          'Team Absence Calendar'
+        )}
         legendItems={legendItems}
-        itemDetailLabel='Department'
-        initialDate={new Date('2025-07-01')}
+        itemLabel={getTranslationFromI18nKeyAndLabel(
+          'lowcoder:hr_absences.create_absence.employee',
+          'Employee'
+        )}
+        itemDetailLabel={getTranslationFromI18nKeyAndLabel(
+          'lowcoder:employee_list.search_employee_list.recent_employees_table.department',
+          'Department'
+        )}
+        searchPlaceholder={getTranslationFromI18nKeyAndLabel(
+          'lowcoder:expense_request_table.employee_search_filter',
+          'Search Employee...'
+        )}
+        initialDate={new Date()}
         initialViewRange={31}
         renderItemContent={(item) => (
           <div className="gba:flex gba:items-center gba:gap-2 gba:p-1 gba:w-full gba:hover:bg-gray-50 gba:rounded">

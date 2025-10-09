@@ -1,6 +1,6 @@
 import React, { useCallback, useMemo } from "react";
 import { WidgetGroup, WidgetItem } from "@/components/widget-group";
-import { PiCalendar, PiFileText } from "react-icons/pi";
+import { CalendarOutlined, FileTextOutlined } from "@ant-design/icons";
 import { ExpenseStatus } from "../../../utils";
 import { formatCurrencyDisplay } from "../../../../personal-expenses/utils";
 import { getTranslationFromI18nKeyAndLabel } from "@/common/utils/windowUtils";
@@ -103,10 +103,9 @@ const ExpensePlanStatisticsDisplay: React.FC<ExpensePlanStatisticsProps> = ({
           "Pending Approval",
         ),
         value: planStats.pendingCount.toString(),
-        prefix: <PiCalendar />,
-        color: activeFilter?.includes(ExpenseStatus.PENDING) ? "#1890ff" : "#faad14",
+        prefix: <CalendarOutlined />,
+        color: "var(--nw-warning)",
         valueIsString: true,
-        span: { xs: 24, sm: 6 },
         description: getTranslationFromI18nKeyAndLabel(
           "lowcoder:team_expenses_page.expense_plans_tab.requires_action",
           "Requires action",
@@ -121,10 +120,9 @@ const ExpensePlanStatisticsDisplay: React.FC<ExpensePlanStatisticsProps> = ({
           "Total Plans (Submitted)",
         ),
         value: planStats.totalCount.toString(),
-        prefix: <PiFileText />,
-        color: "#1890ff",
+        prefix: <FileTextOutlined />,
+        color: "var(--nw-primary)",
         valueIsString: true,
-        span: { xs: 24, sm: 6 },
         description: getTranslationFromI18nKeyAndLabel(
           "lowcoder:team_expenses_page.expense_plans_tab.all_submitted_plans",
           "All submitted plans",
@@ -192,9 +190,9 @@ const ExpensePlanStatisticsDisplay: React.FC<ExpensePlanStatisticsProps> = ({
             {displayCurrency}
           </span>
         ),
-        color: "#3f8600",
+        color: "var(--nw-success)",
         valueIsString: true,
-        span: { xs: 24, sm: 6 },
+        
         description: getTranslationFromI18nKeyAndLabel(
           "lowcoder:team_expenses_page.expense_plans_tab.across_all_plans",
           "Across all plans",
@@ -203,17 +201,13 @@ const ExpensePlanStatisticsDisplay: React.FC<ExpensePlanStatisticsProps> = ({
     ];
   }, [planStats, activeFilter, handleCardClick, displayCurrency]);
 
-  if (statsError) {
-    console.error("Error loading expense plan statistics:", statsError);
-  }
-
   return (
     <WidgetGroup
       widgets={widgets}
       isLoading={statsLoading}
       error={statsError ? "Failed to load statistics" : undefined}
       onRetry={fetchPlanStatistics}
-      skeletonCount={4}
+      skeletonCount={3}
       emptyText={getTranslationFromI18nKeyAndLabel(
         "lowcoder:team_expenses_page.expense_plans_tab.no_expense_plan_statistics_available",
         "No expense plan statistics available.",

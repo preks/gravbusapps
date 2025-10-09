@@ -58,6 +58,7 @@ export const GET_MAIN_VIEW_EXPENSE_PLANS = `
           }
         }
       }
+      expenseRequest { id code }
     }
   }
 `;

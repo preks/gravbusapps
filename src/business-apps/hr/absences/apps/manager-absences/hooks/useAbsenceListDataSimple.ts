@@ -3,12 +3,14 @@ import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient';
 import { useCatalogManagerClient } from '@/common/network/catalogs/useCatalogManagerClient';
 import { AbsenceFilters, EmployeeAbsence, EnhancedAbsence } from '../types';
 import { enhanceAbsence } from '../utils';
+import { getCurrentActiveUserLocale } from '@/common/utils/windowUtils';
 
 interface UseAbsenceListDataSimpleProps extends AbsenceFilters {
   sortField?: string;
   sortOrder?: 'ASC' | 'DESC';
   accessToken: string;
   orgUnitId?: string;
+  isTeamAwayFilter?: boolean;
 }
 
 interface UseAbsenceListDataSimpleReturn {
@@ -38,6 +40,7 @@ const buildWhereConditions = (filters: {
   endDate?: string;
   creationStartDate?: string;
   creationEndDate?: string;
+  isTeamAwayFilter?: boolean;
 }) => {
   const {
     search,
@@ -49,6 +52,7 @@ const buildWhereConditions = (filters: {
     endDate,
     creationStartDate,
     creationEndDate,
+    isTeamAwayFilter,
   } = filters;
 
   const conditions: any = {};
@@ -88,15 +92,28 @@ const buildWhereConditions = (filters: {
   }
 
   if (startDate && endDate) {
-    const startDateTime = `${startDate} 00:00:00+00`;
-    const endDateTime = `${endDate} 23:59:59+00`;
-    conditions.startDate = { _gte: startDateTime };
-    conditions.endDate = { _lte: endDateTime };
+    const startDateTime = startDate.includes(' ') ? startDate : `${startDate} 00:00:00+00`;
+    const endDateTime = endDate.includes(' ') ? endDate : `${endDate} 23:59:59+00`;
+    
+    if (isTeamAwayFilter) {
+      conditions._or = [
+        {
+          startDate: { _lte: endDateTime },
+          endDate: { _gte: startDateTime }
+        },
+        {
+          startDate: { _gte: startDateTime, _lte: endDateTime }
+        }
+      ];
+    } else {
+      conditions.startDate = { _gte: startDateTime };
+      conditions.endDate = { _lte: endDateTime };
+    }
   } else if (startDate) {
-    const startDateTime = `${startDate} 00:00:00+00`;
+    const startDateTime = startDate.includes(' ') ? startDate : `${startDate} 00:00:00+00`;
     conditions.startDate = { _gte: startDateTime };
   } else if (endDate) {
-    const endDateTime = `${endDate} 23:59:59+00`;
+    const endDateTime = endDate.includes(' ') ? endDate : `${endDate} 23:59:59+00`;
     conditions.endDate = { _lte: endDateTime };
   }
 
@@ -132,6 +149,7 @@ export const useAbsenceListDataSimple = ({
   sortOrder = 'DESC',
   accessToken,
   orgUnitId,
+  isTeamAwayFilter = false,
 }: UseAbsenceListDataSimpleProps): UseAbsenceListDataSimpleReturn => {
   const [absences, setAbsences] = useState<EnhancedAbsence[]>([]);
   const [total, setTotal] = useState(0);
@@ -141,6 +159,7 @@ export const useAbsenceListDataSimple = ({
   const [pageSize, setPageSize] = useState(20);
   const [hasMore, setHasMore] = useState(true);
   const [absenceGroups, setAbsenceGroups] = useState<{ [key: string]: string }>({});
+  const [originalAbsenceGroups, setOriginalAbsenceGroups] = useState<{ [key: string]: string }>({});
 
   const graphqlClient = useGraphQLClient(accessToken);
   const catalogClient = useCatalogManagerClient(accessToken);
@@ -149,23 +168,60 @@ export const useAbsenceListDataSimple = ({
 
   const loadAbsenceGroups = useCallback(async () => {
     try {
-      const catalogData = await catalogClient.getCatalogEntriesList({
-        catalogIdentifier: 'AbsenceGroup',
-        version: 'v1',
-      });
-      const typesMap: { [key: string]: string } = {};
-      catalogData.data.forEach((entry: any) => {
-        typesMap[entry.id] = entry.value;
+      const userLocale = getCurrentActiveUserLocale() ?? 'en-US';
+      
+      const [translatedData, originalData] = await Promise.all([
+        catalogClient.getCatalogEntriesList(
+          {
+            catalogIdentifier: 'AbsenceGroup',
+            version: 'v1',
+          },
+          {
+            limit: 100,
+            offset: 0,
+            returnTotalRecords: true,
+            localeCode: userLocale,
+            includeChildCatalogEntries: true,
+          }
+        ),
+        catalogClient.getCatalogEntriesList(
+          {
+            catalogIdentifier: 'AbsenceGroup',
+            version: 'v1',
+          },
+          {
+            limit: 100,
+            offset: 0,
+            returnTotalRecords: true,
+            localeCode: 'en-US',
+            includeChildCatalogEntries: true,
+          }
+        )
+      ]);
+
+      const translatedMap: { [key: string]: string } = {};
+      const originalMap: { [key: string]: string } = {};
+
+      translatedData.data.forEach((entry: any) => {
+        translatedMap[entry.id] = entry.value;
         if (entry.catalogEntryLocalId) {
-          typesMap[entry.catalogEntryLocalId] = entry.value;
+          translatedMap[entry.catalogEntryLocalId] = entry.value;
         }
       });
 
-      setAbsenceGroups(typesMap);
-      return typesMap;
+      originalData.data.forEach((entry: any) => {
+        originalMap[entry.id] = entry.value;
+        if (entry.catalogEntryLocalId) {
+          originalMap[entry.catalogEntryLocalId] = entry.value;
+        }
+      });
+
+      setAbsenceGroups(translatedMap);
+      setOriginalAbsenceGroups(originalMap);
+      return { translated: translatedMap, original: originalMap };
     } catch (err) {
       console.error('Error loading absence groups:', err);
-      return {};
+      return { translated: {}, original: {} };
     }
   }, [catalogClient]);
 
@@ -181,8 +237,11 @@ export const useAbsenceListDataSimple = ({
 
       try {
         let currentAbsenceGroups = absenceGroups;
+        let currentOriginalAbsenceGroups = originalAbsenceGroups;
         if (Object.keys(currentAbsenceGroups).length === 0) {
-          currentAbsenceGroups = await loadAbsenceGroups();
+          const groupData = await loadAbsenceGroups();
+          currentAbsenceGroups = groupData.translated;
+          currentOriginalAbsenceGroups = groupData.original;
         }
 
         const page = (targetPage - 1) * newPageSize;
@@ -196,6 +255,7 @@ export const useAbsenceListDataSimple = ({
           endDate,
           creationStartDate,
           creationEndDate,
+          isTeamAwayFilter,
         });
 
         let orderBy: any[] = [];
@@ -287,7 +347,7 @@ export const useAbsenceListDataSimple = ({
           const totalCount = result.EmployeeAbsenceAggregate?.aggregate?.count || 0;
 
           let enhancedAbsences = rawAbsences.map((absence) =>
-            enhanceAbsence(absence, currentAbsenceGroups),
+            enhanceAbsence(absence, currentAbsenceGroups, currentOriginalAbsenceGroups),
           );
 
           if (sortField === 'groupName' && sortOrder) {

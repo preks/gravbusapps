@@ -26,8 +26,8 @@ export const ChangePersonalDataProvider: React.FC<ProviderProps> = ({ children, 
 
   const employeeId: string | undefined = useMemo(() => {
     return (
-      additionalData?.value?.psi_taskPayload?.employeeId ||
-      additionalData?.value?.psi_taskPayload?.initialParameters?.employeeId ||
+      additionalData?.psi_taskPayload?.employeeId ||
+      additionalData?.psi_taskPayload?.initialParameters?.employeeId ||
       userInfo?.employeeDetails?.employeeId
     );
   }, [additionalData, userInfo]);
@@ -37,7 +37,7 @@ export const ChangePersonalDataProvider: React.FC<ProviderProps> = ({ children, 
   const fetchData = async () => {
     if (!accessToken || !employeeId) {
       setIsLoading(false);
-      setError(!employeeId ? 'Missing employeeId' : null);
+      setError(!employeeId ? 'Missing employeeId' : 'Missing accessToken');
       return;
     }
     setIsLoading(true);
@@ -53,7 +53,7 @@ export const ChangePersonalDataProvider: React.FC<ProviderProps> = ({ children, 
       try {
         const catalogVariables = { activeUserLocale };
         const catalogData = await graphqlClient.request<CatalogsDataResponse>(CATALOG_DATA_QUERY, catalogVariables);
-        setData((prev) => ({ ...(prev || {}), catalogs: catalogData }));
+        setData((prev) => ({ employee: (prev?.employee ?? null), catalogs: catalogData }));
       } catch (catalogErr: any) {
         setError(catalogErr?.message || 'Catalogs load failed');
       }

@@ -13,7 +13,6 @@ interface AbsenceStatisticsSimpleProps extends BusinessAppContextProps {
 export const AbsenceStatisticsSimple: React.FC<AbsenceStatisticsSimpleProps> = (props) => {
   const { statistics, isLoading, error, refetch } = useAbsenceStatisticsSimple(props);
 
-  // Transform the statistics into widgets format
   const widgets: WidgetItem[] = [
     {
       key: 'team-members-away',
@@ -30,13 +29,16 @@ export const AbsenceStatisticsSimple: React.FC<AbsenceStatisticsSimpleProps> = (
         'Employees away today',
       ),
       onClick: () => {
-        const today = dayjs().format('YYYY-MM-DD');
+        const today = new Date();
+        const todayStart = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')} 00:00:00+00`;
+        const todayEnd = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')} 23:59:59+00`;
+        
         props.onNavigateToAbsenceListPage?.({
           type: 'team-away',
           status: ['APPROVED'],
           dateRange: {
-            startDate: today,
-            endDate: today,
+            startDate: todayStart,
+            endDate: todayEnd,
           },
         });
       },
@@ -89,14 +91,11 @@ export const AbsenceStatisticsSimple: React.FC<AbsenceStatisticsSimpleProps> = (
         const currentYear = new Date().getFullYear();
         const monthName = statistics.sickAbsencesByMonth.month;
 
-        // Use dayjs to parse the month name and get the month number
-        const monthNumber = dayjs(`${monthName} 1, ${currentYear}`).month(); // 0-based month number
+        const monthNumber = dayjs(`${monthName} 1, ${currentYear}`).month();
 
-        // Create dates for the first and last day of the month using dayjs
         const startOfMonth = dayjs(`${currentYear}-${String(monthNumber + 1).padStart(2, '0')}-01`);
         const endOfMonth = startOfMonth.endOf('month');
 
-        // Format dates as YYYY-MM-DD
         const startDate = startOfMonth.format('YYYY-MM-DD');
         const endDate = endOfMonth.format('YYYY-MM-DD');
 
@@ -132,14 +131,13 @@ export const AbsenceStatisticsSimple: React.FC<AbsenceStatisticsSimpleProps> = (
           type: 'upcoming',
           status: ['APPROVED'],
           dateRange: {
-            startDate: today, // Start from today, no end date limit
+            startDate: today,
           },
         });
       },
     },
   ];
 
-  // Handle widget clicks by calling the individual widget's onClick handler
   const handleWidgetClick = (widgetKey: string) => {
     const widget = widgets.find((w) => w.key === widgetKey);
     if (widget?.onClick) {

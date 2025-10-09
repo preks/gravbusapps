@@ -248,6 +248,16 @@ const TaskInbox: React.FC<TaskInboxProps> = ({
   const [completedTasks, setCompletedTasks] = useState<Task[]>([]);
   const [completedLoading, setCompletedLoading] = useState(false);
   const [completedError, setCompletedError] = useState<string | null>(null);
+
+  // Handle URL parameters for initial tab selection
+  useEffect(() => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const tabParam = urlParams.get('tab');
+    
+    if (tabParam && ['open', 'completed', 'initiated', 'participated'].includes(tabParam)) {
+      setCurrentView(tabParam as 'open' | 'completed' | 'initiated' | 'participated');
+    }
+  }, []);
   
 
 
@@ -453,6 +463,10 @@ const TaskInbox: React.FC<TaskInboxProps> = ({
         switch (input.type) {
           case 'CHECKBOX':
             initialFormData[input.name] = input.options && input.options.length > 0 ? [] : false;
+            break;
+          case 'RADIO':
+          case 'radio':
+            initialFormData[input.name] = '';
             break;
           case 'MULTISELECT':
             initialFormData[input.name] = [];
@@ -748,7 +762,15 @@ const TaskInbox: React.FC<TaskInboxProps> = ({
       )}
 
           {/* Tasks and Flows Display - Unified Layout with Tabs */}
-          <NwTabs value={currentView} onValueChange={(value) => setCurrentView(value as 'open' | 'completed' | 'initiated' | 'participated')} className="gba:w-full">
+          <NwTabs value={currentView} onValueChange={(value) => {
+            const newView = value as 'open' | 'completed' | 'initiated' | 'participated';
+            setCurrentView(newView);
+            
+            // Update URL without page reload
+            const url = new URL(window.location.href);
+            url.searchParams.set('tab', newView);
+            window.history.replaceState({}, '', url.toString());
+          }} className="gba:w-full">
             <TabsList className="gba:grid gba:w-full gba:grid-cols-4 gba:bg-gray-50 gba:p-1 gba:rounded-lg">
               <TabsTrigger value="open" className="gba:flex gba:items-center gba:gap-2 gba:py-3">
                 <span>Open Tasks</span>

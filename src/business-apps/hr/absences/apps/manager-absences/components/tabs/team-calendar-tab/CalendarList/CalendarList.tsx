@@ -3,24 +3,10 @@ import { CalendarTimeline, TimelineItem, TimelineEvent } from '@newwork/gravity-
 import { Alert, Spinner } from '@newwork/nw-design-system';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 
-import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
+import { getTranslationFromI18nKeyAndLabel, getCurrentActiveUserLocale } from '@/common/utils/windowUtils';
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient';
 import { GET_ABSENCES_FOR_CALENDAR } from '../../../../queries/AbsenceQueries';
-
-const getStatusType = (status: string): string => {
-  switch (status) {
-    case 'APPROVED':
-      return 'approved';
-    case 'PENDING':
-      return 'pending';
-    case 'REJECTED':
-      return 'rejected';
-    case 'CANCELLED':
-      return 'cancelled';
-    default:
-      return 'cancelled';
-  }
-};
+import { getAbsenceTypeName, getAbsenceStatusDisplay } from '../../../../utils';
 
 interface AbsenceTimelineItem extends TimelineItem {
   name: string;
@@ -30,6 +16,7 @@ interface AbsenceTimelineItem extends TimelineItem {
 const CalendarList: React.FC<BusinessAppContextProps> = (props) => {
   const { accessToken, userInfo } = props;
   const supervisorId = userInfo?.employeeDetails?.employeeId;
+  const userLocale = getCurrentActiveUserLocale() ?? 'en-US';
 
   const [employees, setEmployees] = useState<any[]>([]);
   const [absences, setAbsences] = useState<any[]>([]);
@@ -57,7 +44,6 @@ const CalendarList: React.FC<BusinessAppContextProps> = (props) => {
       setEmployees(result.Employee || []);
       setAbsences(result.EmployeeAbsence || []);
     } catch (err) {
-      console.error('Error loading calendar data:', err);
       setError(err instanceof Error ? err.message : 'Failed to load calendar data');
     } finally {
       setLoading(false);
@@ -114,29 +100,26 @@ const CalendarList: React.FC<BusinessAppContextProps> = (props) => {
         return;
       }
 
-      const eventType = getStatusType(absence.status);
-
       const uniqueEventId = `absence-${absence.id}`;
-
-      const formattedStatus =
-        absence.status.charAt(0).toUpperCase() + absence.status.slice(1).toLowerCase();
+      const statusDisplay = getAbsenceStatusDisplay(absence.status);
+      const translatedAbsenceType = getAbsenceTypeName(absence.type, userLocale);
 
       const event: TimelineEvent = {
         id: uniqueEventId,
         itemId: absence.employee.id,
-        title: `${absence.type?.value || 'Absence'}`,
+        title: translatedAbsenceType,
         startDate: absence.startDate,
         endDate: absence.endDate,
-        status: formattedStatus,
-        type: eventType,
-        note: `${absence.type?.value || 'Absence'} - ${formattedStatus}`,
+        status: statusDisplay.label,
+        type: statusDisplay.type,
+        note: `${translatedAbsenceType} - ${statusDisplay.label}`,
       };
 
       events.push(event);
     });
 
     return events;
-  }, [absences, timelineItems]);
+  }, [absences, timelineItems, userLocale]);
 
   const renderDataBody = () => {
     if (loading)

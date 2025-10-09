@@ -1,7 +1,8 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { BusinessAppContextProps } from "@/common/BusinessAppContext";
 import { useRestClient } from "@/common/network/rest/useRestClient";
-import { env } from '@/common/env/EnvUtils';
+import { useGraphqlClient } from "@/common/network/graphql/useGraphQLClient";
+import { env } from "@/common/env/EnvUtils";
 import { Project, ProjectData } from "../types";
 
 // Interface for API response with paging
@@ -18,7 +19,33 @@ export interface PaginatedProjectRecords {
 const DEFAULT_PAGE_SIZE = 20;
 const DEFAULT_CURRENT_PAGE = 1;
 
-const ORGCHART_BASE_URL = env('NEXT_PUBLIC_REST_ENDPOINT_ORGCHART')!;
+const ORGCHART_BASE_URL = `${env("NEXT_PUBLIC_ORGCHART_API_URL")}/orgchart/api/v1`;
+
+// GraphQL query for accounts
+export const GET_ACCOUNTS_DATA = (): string => {
+  return `query getAccounts {
+    Account(where: {isDeleted: {_eq: false}}, orderBy: {name: ASC}) {
+      id
+      name
+    }
+  }`;
+};
+
+export type AccountData = {
+  Account?: {
+    id: string;
+    name: string;
+  }[];
+  error?: {
+    status: number | null;
+    message: string | null;
+  };
+};
+
+export type Account = {
+  id: string;
+  name: string;
+};
 
 // Transform API project data to UI-friendly Project interface
 const transformProject = (projectData: ProjectData): Project => {
@@ -65,84 +92,105 @@ const transformProject = (projectData: ProjectData): Project => {
 
 export const useProjects = (context: BusinessAppContextProps) => {
   const [projects, setProjects] = useState<Project[]>([]);
+  const [accounts, setAccounts] = useState<Account[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  
+  const structureId = useRef<string>(context.additionalData?.structureId || "active");
+
   // Pagination state
   const [totalCount, setTotalCount] = useState<number>(0);
   const [currentPage, setCurrentPage] = useState<number>(DEFAULT_CURRENT_PAGE);
   const [pageSize, setPageSize] = useState<number>(DEFAULT_PAGE_SIZE);
 
   const restClient = useRestClient(ORGCHART_BASE_URL);
+  const graphqlClient = useGraphqlClient(context.accessToken);
 
   // Fetch projects from orgchart API
   const fetchProjects = useCallback(
-    async (validTo?: string, limit?: number, offset?: number): Promise<{projects: Project[], totalCount: number}> => {
+    async (
+      validTo?: string,
+      offset?: number,
+    ): Promise<{ projects: Project[]; totalCount: number }> => {
       try {
-        // Get structureId from additionalData or use default
-        const structureId =
-          context.additionalData?.structureId ||
-          "99b1ba64-a4d3-4dd0-8302-b1dc0c4daaaf";
-
-        if (!structureId) {
+        if (!structureId.current) {
           throw new Error("Structure ID is required to fetch projects");
         }
 
+        const getStructureResponse = await restClient.get(`/structures/${structureId.current}`, {
+          params: {
+            nodeType: "cost_center",
+          },
+          headers: {
+            Authorization: `Bearer ${context.accessToken}`,
+          },
+        });
+        structureId.current = getStructureResponse.structure.structureId;
+
         const params: Record<string, string | number> = {
-          structureId: structureId,
+          structureId: structureId.current,
         };
         if (validTo) {
           params.valid_to = validTo;
         }
-        
-        // Add pagination params if provided
-        if (limit !== undefined) {
-          params.limit = limit;
-        }
+
         if (offset !== undefined) {
           params.offset = offset;
         }
 
-        const response = await restClient.get<PaginatedProjectRecords>(
-          "/projects",
-          {
-            params,
-            headers: {
-              Authorization: `Bearer ${context.accessToken}`,
-            },
-          }
-        );
-        
+        const response = await restClient.get<PaginatedProjectRecords>("/projects", {
+          params,
+          headers: {
+            Authorization: `Bearer ${context.accessToken}`,
+          },
+        });
+
         // Extract projects and total count from the paginated response
         const projectResponse = response;
-        
+
         // Handle the response format with data and paging properties
         if (projectResponse && projectResponse.data && projectResponse.paging) {
           const transformedProjects = projectResponse.data.map(transformProject);
           const totalCount = projectResponse.paging.totalRecords;
-          
-          return { 
+
+          return {
             projects: transformedProjects,
-            totalCount 
+            totalCount,
           };
         }
-        
+
         // Fallback for backward compatibility or unexpected response format
-        const projects = Array.isArray(projectResponse) 
-          ? projectResponse.map(transformProject) 
+        const projects = Array.isArray(projectResponse)
+          ? projectResponse.map(transformProject)
           : [];
-        
-        return { 
+
+        return {
           projects,
-          totalCount: projects.length
+          totalCount: projects.length,
         };
       } catch (error) {
         console.error("Error fetching projects:", error);
         throw new Error("Failed to fetch projects from orgchart API");
       }
     },
-    [context.accessToken, context.additionalData?.structureId, restClient, transformProject]
+    [context.accessToken, restClient],
   );
+
+  // Fetch accounts using GraphQL
+  const fetchAccounts = useCallback(async (): Promise<Account[]> => {
+    try {
+      const query = GET_ACCOUNTS_DATA();
+      const result = await graphqlClient.request<AccountData>(query);
+
+      if (result.Account) {
+        return result.Account;
+      }
+
+      return [];
+    } catch (error) {
+      console.error("Error fetching accounts:", error);
+      throw error;
+    }
+  }, [graphqlClient]);
 
   // Load initial data
   const loadData = useCallback(
@@ -153,54 +201,47 @@ export const useProjects = (context: BusinessAppContextProps) => {
       try {
         // Calculate offset based on current page and page size
         const offset = (currentPage - 1) * pageSize;
-        const limit = pageSize;
-        
-        const result = await fetchProjects(validTo, limit, offset);
-        setProjects(result.projects);
-        setTotalCount(result.totalCount);
+
+        // Fetch projects and accounts in parallel
+        const [projectsResult, accountsResult] = await Promise.all([
+          fetchProjects(validTo, offset),
+          fetchAccounts(),
+        ]);
+
+        setProjects(projectsResult.projects);
+        setTotalCount(projectsResult.totalCount);
+        setAccounts(accountsResult);
       } catch (err) {
-        const errorMessage =
-          err instanceof Error ? err.message : "Unknown error occurred";
+        const errorMessage = err instanceof Error ? err.message : "Unknown error occurred";
         setError(errorMessage);
         console.error("Error loading projects:", err);
       } finally {
         setIsLoading(false);
       }
     },
-    [fetchProjects, currentPage, pageSize]
+    [fetchProjects, fetchAccounts, currentPage, pageSize],
   );
 
   // Filter projects by various criteria
   const filterProjects = useCallback(
-    (
-      searchTerm: string = "",
-      projectType?: "INTERNAL" | "EXTERNAL" | "ALL",
-      status?: "Active" | "Expired" | "Expiring Soon" | "ALL"
-    ): Project[] => {
+    (searchTerm: string = ""): Project[] => {
+      const filteredAccounts = accounts.filter((account) =>
+        account.name?.toLowerCase().includes(searchTerm.toLowerCase()),
+      );
+
       return projects.filter((project) => {
         // Search filter
         const matchesSearch =
           !searchTerm ||
           project.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
           (project.description &&
-            project.description
-              .toLowerCase()
-              .includes(searchTerm.toLowerCase()));
+            project.description.toLowerCase().includes(searchTerm.toLowerCase())) ||
+          filteredAccounts.some((account) => account.id === project.customerId);
 
-        // Project type filter
-        const matchesType =
-          !projectType ||
-          projectType === "ALL" ||
-          project.projectType === projectType;
-
-        // Status filter
-        const matchesStatus =
-          !status || status === "ALL" || project.status === status;
-
-        return matchesSearch && matchesType && matchesStatus;
+        return matchesSearch;
       });
     },
-    [projects]
+    [projects],
   );
 
   // Get projects by type
@@ -208,7 +249,7 @@ export const useProjects = (context: BusinessAppContextProps) => {
     (type: "INTERNAL" | "EXTERNAL"): Project[] => {
       return projects.filter((project) => project.projectType === type);
     },
-    [projects]
+    [projects],
   );
 
   // Get active projects
@@ -233,11 +274,10 @@ export const useProjects = (context: BusinessAppContextProps) => {
       return projects.filter(
         (project) =>
           project.name.toLowerCase().includes(searchTerm) ||
-          (project.description &&
-            project.description.toLowerCase().includes(searchTerm))
+          (project.description && project.description.toLowerCase().includes(searchTerm)),
       );
     },
-    [projects]
+    [projects],
   );
 
   // Get project by ID
@@ -245,7 +285,7 @@ export const useProjects = (context: BusinessAppContextProps) => {
     (id: string): Project | undefined => {
       return projects.find((project) => project.id === id);
     },
-    [projects]
+    [projects],
   );
 
   const refetch = useCallback(
@@ -259,7 +299,7 @@ export const useProjects = (context: BusinessAppContextProps) => {
       }
       return loadData(validTo);
     },
-    [loadData]
+    [loadData],
   );
 
   // Load data on mount and when access token or pagination changes
@@ -272,16 +312,18 @@ export const useProjects = (context: BusinessAppContextProps) => {
   return {
     // Data
     projects,
+    accounts,
+    structureId: structureId.current,
 
     // State
     isLoading,
     error,
-    
+
     // Pagination
     totalCount,
     currentPage,
     pageSize,
-    
+
     // Change pagination
     setCurrentPage,
     setPageSize,
