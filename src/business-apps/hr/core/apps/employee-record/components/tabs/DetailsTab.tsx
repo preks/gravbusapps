@@ -170,31 +170,42 @@ const DetailsTab: React.FC<DetailsTabProps> = ({ employee, accessToken, employee
       comm => comm?.purpose === 'PRIVATE'
     );
 
-    // pick the last (most recent) entry for each channel code
-    const lastByCode = (code: string) => {
+    // Helper: pick latest by channel code and type (Primary/Secondary)
+    const lastByCodeAndType = (code: string, typeLabel: 'Primary' | 'Secondary') => {
       for (let i = privateComms.length - 1; i >= 0; i--) {
         const comm = privateComms[i];
-        if (comm?.channel?.code === code) return comm;
+        if (comm?.channel?.code === code && (comm?.type?.value === typeLabel)) {
+          return comm;
+        }
       }
       return undefined;
     };
-    const privatePhone = lastByCode('Phone');
-    const privateMobile = lastByCode('Mobile');
-    const privateEmail = lastByCode('e-mail');
+
+    const primaryPhone = lastByCodeAndType('Phone', 'Primary');
+    const secondaryPhone = lastByCodeAndType('Phone', 'Secondary');
+    const primaryMobile = lastByCodeAndType('Mobile', 'Primary');
+    const secondaryMobile = lastByCodeAndType('Mobile', 'Secondary');
+    const primaryEmail = lastByCodeAndType('e-mail', 'Primary');
+    const secondaryEmail = lastByCodeAndType('e-mail', 'Secondary');
+
+    const formatOrEmpty = (val?: string) => (val && val.trim() !== '' ? val : '');
 
     return [
       {
         label: "Private Phone",
-        value: privatePhone?.value ? formatPhoneNumber(privatePhone.value) : ''
+        value: primaryPhone?.value ? formatPhoneNumber(primaryPhone.value) : '',
+        secondary: secondaryPhone?.value ? formatPhoneNumber(secondaryPhone.value) : undefined,
       },
       {
         label: "Private Mobile",
-        value: privateMobile?.value ? formatPhoneNumber(privateMobile.value) : ''
+        value: primaryMobile?.value ? formatPhoneNumber(primaryMobile.value) : '',
+        secondary: secondaryMobile?.value ? formatPhoneNumber(secondaryMobile.value) : undefined,
       },
       {
         label: "Private Email",
-        value: privateEmail?.value || ''
-      }
+        value: formatOrEmpty(primaryEmail?.value),
+        secondary: formatOrEmpty(secondaryEmail?.value) || undefined,
+      },
     ];
   };
 
@@ -248,7 +259,7 @@ const DetailsTab: React.FC<DetailsTabProps> = ({ employee, accessToken, employee
   };
 
   // Helper function to render data items in a grid with 3 columns
-  const renderDataItems = (data: Array<{label: string; value: string; sectionKey?: string}>) => (
+  const renderDataItems = (data: Array<{label: string; value: string; secondary?: string; sectionKey?: string}>) => (
     <div className="gba:grid gba:grid-cols-1 gba:md:grid-cols-3 gba:gap-3 gba:mt-2">
       {data.map((item) => (
         <div 
@@ -258,6 +269,11 @@ const DetailsTab: React.FC<DetailsTabProps> = ({ employee, accessToken, employee
         >
           <span className="gba:text-sm gba:text-gray-500 gba:mb-0.5">{item.label}</span>
           <span className="gba:font-medium gba:text-gray-800">{item.sectionKey ? getMaskedValue(item.value, item.sectionKey) : (item.value || '-')}</span>
+          {item.secondary ? (
+            <span className="gba:font-medium gba:text-gray-800 gba:mt-1">
+              {item.sectionKey ? getMaskedValue(item.secondary, item.sectionKey) : item.secondary}
+            </span>
+          ) : null}
         </div>
       ))}
     </div>

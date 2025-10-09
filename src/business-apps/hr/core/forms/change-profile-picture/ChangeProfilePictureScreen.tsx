@@ -114,6 +114,8 @@ const ChangeProfilePictureScreen: React.FC<ChangeProfilePictureScreenProps> = ({
         picture: JSON.stringify(uploadResponse.fileInfo),
         pictureThumbnail: thumbnailBase64,
       };
+
+      // window.dispatchEvent(new Event('com.newwork.user.profilePicture.updated'));
   
       return {
         employeeId,

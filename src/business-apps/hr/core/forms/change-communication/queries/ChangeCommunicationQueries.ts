@@ -54,11 +54,20 @@ export const GET_COMMUNICATION_LOOKUPS = `
 `;
 
 export interface CatalogOption { id: string; label: string; value: string; }
+export interface EmployeeCommunicationRecord {
+  id?: string;
+  version?: number;
+  channelRef?: string;
+  purpose?: string;
+  typeRef?: string;
+  value?: string;
+}
 
 export const useCommunicationLookups = (context: BusinessAppContextProps) => {
   const graphqlClient = useGraphQLClient(context.accessToken);
   const [channels, setChannels] = useState<CatalogOption[]>([]);
   const [types, setTypes] = useState<CatalogOption[]>([]);
+  const [communications, setCommunications] = useState<EmployeeCommunicationRecord[]>([]);
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -85,6 +94,7 @@ export const useCommunicationLookups = (context: BusinessAppContextProps) => {
 
       setChannels(mapEntries(res?.commChannel));
       setTypes(mapEntries(res?.commType));
+      setCommunications(Array.isArray(res?.EmployeeByPk?.communication) ? res.EmployeeByPk.communication : []);
     } catch (e: any) {
       setError(e?.message || 'Failed to load communication lookups');
     } finally {
@@ -94,7 +104,7 @@ export const useCommunicationLookups = (context: BusinessAppContextProps) => {
 
   useEffect(() => { load(); }, [load]);
 
-  return { channels, types, loading, error, refetch: load };
+  return { channels, types, communications, loading, error, refetch: load };
 };
 
 

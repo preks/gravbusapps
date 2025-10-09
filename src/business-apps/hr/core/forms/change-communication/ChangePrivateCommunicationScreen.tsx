@@ -6,7 +6,6 @@ import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 import { formatDataTestId } from '@/common/utils/formatDataTestId';
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
 import { useCommunicationLookups } from './queries/ChangeCommunicationQueries';
-import { useEmployeeData } from '@/business-apps/hr/core/apps/employee-record/hooks/useEmployeeData';
 import { dispatchProcessContinueEvent } from '@/common/utils/processEventUtils';
 
 interface ChangePrivateCommunicationScreenProps extends BusinessAppContextProps {}
@@ -18,15 +17,22 @@ const ChangePrivateCommunicationScreen: React.FC<ChangePrivateCommunicationScree
   const [valueType, setValueType] = useState<string | undefined>(undefined);
   const [value, setValue] = useState<string>('');
   const [purpose, setPurpose] = useState<string>('PRIVATE');
-  const [baseline, setBaseline] = useState<{ channelRef?: string; typeRefId?: string; value?: string; purpose?: string } | null>(null);
-  const { channels, types, loading } = useCommunicationLookups(context);
-  const employeeId = context.userInfo?.employeeDetails?.employeeId || '';
-  const { employee } = useEmployeeData(context.accessToken, '', employeeId, !employeeId);
+  const [baseline, setBaseline] = useState<{ channelRef?: string; typeRefId?: string; value?: string; purpose?: string; version?: number; id?: string } | null>(null);
+  const { channels, types, communications, loading } = useCommunicationLookups(context);
+
+  // Identify Primary/Secondary type ids from catalog
+  const primaryTypeId = useMemo(() => {
+    const t = types.find((x) => (x.label || x.value || '').toLowerCase() === 'primary');
+    return t?.id;
+  }, [types]);
+  const secondaryTypeId = useMemo(() => {
+    const t = types.find((x) => (x.label || x.value || '').toLowerCase() === 'secondary');
+    return t?.id;
+  }, [types]);
 
   // Build memoized latest-by-channel map to avoid re-running on each render
   const latestByChannelRef = useMemo(() => {
-    const communications = (employee?.communication || []) as any[];
-    return communications.reduce((acc: Record<string, any>, c: any) => {
+    return (communications || []).reduce((acc: Record<string, any>, c: any) => {
       const key = c.channelRef;
       if (!key) return acc;
       const prev = acc[key];
@@ -39,7 +45,7 @@ const ChangePrivateCommunicationScreen: React.FC<ChangePrivateCommunicationScree
       }
       return acc;
     }, {} as Record<string, any>);
-  }, [employee?.communication]);
+  }, [communications]);
 
   const isValid = useMemo(() => !!channelType && !!valueType && !!purpose && value.trim().length > 0, [channelType, valueType, purpose, value]);
   const hasChanges = useMemo(() => {
@@ -61,7 +67,7 @@ const ChangePrivateCommunicationScreen: React.FC<ChangePrivateCommunicationScree
 
   // Prefill fields based on selected channel from employee data (only when baseline not set for channel)
   useEffect(() => {
-    if (!employee || !channelType) return;
+    if (!channelType) return;
     if (baseline && baseline.channelRef === channelType) return; // don't override user edits
 
     let existing = latestByChannelRef[channelType];
@@ -69,7 +75,8 @@ const ChangePrivateCommunicationScreen: React.FC<ChangePrivateCommunicationScree
       // Fallback: try matching by catalog label/code
       const selectedChannel = channels.find((ch) => ch.id === channelType);
       if (selectedChannel) {
-        existing = (employee.communication || []).find((c: any) => c.channel?.value === selectedChannel.label || c.channel?.code === selectedChannel.value);
+        // Communications now contain channelRef; match directly by id
+        existing = (communications || []).find((c: any) => c.channelRef === selectedChannel.id);
       }
     }
     if (!existing) {
@@ -77,19 +84,96 @@ const ChangePrivateCommunicationScreen: React.FC<ChangePrivateCommunicationScree
       setValueType(undefined);
       setValue('');
       setPurpose('PRIVATE');
-      setBaseline({ channelRef: channelType, typeRefId: undefined, value: '', purpose: 'PRIVATE' });
+      setBaseline({ channelRef: channelType, typeRefId: undefined, value: '', purpose: 'PRIVATE', version: undefined, id: undefined });
       return;
     }
-    // Map type label to option id
-    const match = existing.type?.value ? types.find((t) => t.label === existing.type.value || t.value === existing.type.value) : undefined;
-    const typeId = match ? match.id : undefined;
+    // Map typeRef from communication to option id
+    const typeId = existing.typeRef
+      ? (types.find((t) => t.id === existing.typeRef) ? existing.typeRef : undefined)
+      : undefined;
     const prefillValue = existing.value || '';
     const prefillPurpose = existing.purpose || 'PRIVATE';
     setValueType(typeId);
     setValue(prefillValue);
     setPurpose(prefillPurpose);
-    setBaseline({ channelRef: channelType, typeRefId: typeId, value: prefillValue, purpose: prefillPurpose });
-  }, [employee, channelType, channels, types, latestByChannelRef, baseline]);
+    setBaseline({ channelRef: channelType, typeRefId: typeId, value: prefillValue, purpose: prefillPurpose, version: typeof existing?.version === 'number' ? existing.version : undefined, id: existing?.id });
+  }, [channelType, channels, types, latestByChannelRef, baseline, communications]);
+
+  // Prefill when Type changes: if a record exists for channel+type, set value/purpose and baseline
+  useEffect(() => {
+    if (!channelType || !valueType) return;
+    if (baseline && baseline.channelRef === channelType && baseline.typeRefId === valueType) return; // preserve user edits
+
+    const matches = (communications || []).filter((c: any) => c.channelRef === channelType && c.typeRef === valueType);
+    if (matches.length > 0) {
+      const latest = matches.reduce((prev: any, cur: any) => {
+        const prevV = typeof prev?.version === 'number' ? prev.version : -1;
+        const curV = typeof cur?.version === 'number' ? cur.version : prevV + 1;
+        return curV >= prevV ? cur : prev;
+      }, null as any);
+
+      const prefillValue = latest?.value || '';
+      const prefillPurpose = latest?.purpose || 'PRIVATE';
+      setValue(prefillValue);
+      setPurpose(prefillPurpose);
+      setBaseline({ channelRef: channelType, typeRefId: valueType, value: prefillValue, purpose: prefillPurpose, version: typeof latest?.version === 'number' ? latest.version : undefined, id: latest?.id });
+      return;
+    }
+
+    // No existing record for this type: clear value and set default purpose, update baseline
+    setValue('');
+    setPurpose('PRIVATE');
+    setBaseline({ channelRef: channelType, typeRefId: valueType, value: '', purpose: 'PRIVATE', version: undefined, id: undefined });
+  }, [channelType, valueType, communications, baseline]);
+
+  // Prefill when Purpose changes: if a record exists for channel+type+purpose, set value
+  useEffect(() => {
+    if (!channelType || !valueType || !purpose) return;
+    if (
+      baseline &&
+      baseline.channelRef === channelType &&
+      baseline.typeRefId === valueType &&
+      baseline.purpose === purpose
+    ) {
+      return; // baseline already reflects this combination
+    }
+
+    const matches = (communications || []).filter(
+      (c: any) => c.channelRef === channelType && c.typeRef === valueType && c.purpose === purpose
+    );
+
+    if (matches.length > 0) {
+      const latest = matches.reduce((prev: any, cur: any) => {
+        const prevV = typeof prev?.version === 'number' ? prev.version : -1;
+        const curV = typeof cur?.version === 'number' ? cur.version : prevV + 1;
+        return curV >= prevV ? cur : prev;
+      }, null as any);
+
+      const prefillValue = latest?.value || '';
+      setValue(prefillValue);
+      setBaseline({ channelRef: channelType, typeRefId: valueType, value: prefillValue, purpose, version: typeof latest?.version === 'number' ? latest.version : undefined, id: latest?.id });
+      return;
+    }
+
+    // No existing record for this purpose; clear value and update baseline
+    setValue('');
+    setBaseline({ channelRef: channelType, typeRefId: valueType, value: '', purpose, version: undefined, id: undefined });
+  }, [channelType, valueType, purpose, communications, baseline]);
+
+  // If Primary is missing for channel+purpose, restrict Secondary selection (disable and reset if selected)
+  const hasPrimaryForSelection = useMemo(() => {
+    if (!channelType || !primaryTypeId) return false;
+    const match = (communications || []).find((c: any) => c.channelRef === channelType && c.typeRef === primaryTypeId && c.purpose === purpose && typeof c.value === 'string' && c.value.trim().length > 0);
+    return Boolean(match);
+  }, [communications, channelType, purpose, primaryTypeId]);
+
+  useEffect(() => {
+    if (valueType === secondaryTypeId && !hasPrimaryForSelection) {
+      setValueType(undefined);
+      setValue('');
+      setBaseline({ channelRef: channelType, typeRefId: undefined, value: '', purpose, version: undefined, id: undefined });
+    }
+  }, [hasPrimaryForSelection, valueType, secondaryTypeId, channelType, purpose]);
 
   const validateForm = () => {
     if (!isValid) {
@@ -106,6 +190,8 @@ const ChangePrivateCommunicationScreen: React.FC<ChangePrivateCommunicationScree
         purpose,
         value: value.trim(),
         employeeId: context.userInfo?.employeeDetails?.employeeId,
+        ...(typeof baseline?.version === 'number' ? { version: baseline?.version } : {}),
+        ...(baseline?.id ? { id: baseline.id } : {}),
       },
     };
   };
@@ -184,9 +270,13 @@ const ChangePrivateCommunicationScreen: React.FC<ChangePrivateCommunicationScree
                 <SelectValue placeholder={getTranslationFromI18nKeyAndLabel('lowcoder:communication_form.selectType', 'Select Type')} />
               </SelectTrigger>
               <SelectContent>
-                {types.map((t) => (
-                  <SelectItem key={t.id} value={t.id}>{t.label}</SelectItem>
-                ))}
+                {types.map((t) => {
+                  const isSecondary = t.id === secondaryTypeId || (t.label || t.value)?.toLowerCase() === 'secondary';
+                  const disabled = isSecondary && !hasPrimaryForSelection;
+                  return (
+                    <SelectItem key={t.id} value={t.id} disabled={disabled}>{t.label}</SelectItem>
+                  );
+                })}
               </SelectContent>
             </Select>
           </div>
