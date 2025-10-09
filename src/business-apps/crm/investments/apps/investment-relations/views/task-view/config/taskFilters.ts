@@ -1,4 +1,4 @@
-import type { FilterConfiguration } from '@newwork/nw-design-system';
+import type { FilterConfiguration } from '@newwork/nw-design-system'
 
 export const taskFilterConfig: FilterConfiguration = {
   id: 'task-filters',
@@ -127,4 +127,4 @@ export const taskFilterConfig: FilterConfiguration = {
       ]
     }
   ]
-};
+}

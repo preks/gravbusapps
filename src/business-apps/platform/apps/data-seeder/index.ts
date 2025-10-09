@@ -1,1 +1,1 @@
-export { default } from './DataSeeder';
+export { default } from './DataSeeder'

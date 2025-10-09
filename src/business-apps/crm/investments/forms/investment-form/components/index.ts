@@ -1,1 +1,1 @@
-export { default as InvestmentFormComponent } from "./InvestmentFormComponent";
+export { default as InvestmentFormComponent } from './InvestmentFormComponent'

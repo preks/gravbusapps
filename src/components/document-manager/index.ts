@@ -1,13 +1,13 @@
 // Main Document Manager Component
-export { DocumentManager } from './DocumentManager';
+export { DocumentManager } from './DocumentManager'
 
 // Sub-components
-export { DocumentFilters } from './components/DocumentFilters';
-export { DocumentViews } from './components/DocumentViews';
-export { DocumentTreeView } from './components/DocumentTreeView';
-export { DocumentActions } from './components/DocumentActions';
-export { DocumentDragDrop } from './components/DocumentDragDrop';
-export { useDocumentDataController } from './hooks/useDocumentDataController';
+export { DocumentFilters } from './components/DocumentFilters'
+export { DocumentViews } from './components/DocumentViews'
+export { DocumentTreeView } from './components/DocumentTreeView'
+export { DocumentActions } from './components/DocumentActions'
+export { DocumentDragDrop } from './components/DocumentDragDrop'
+export { useDocumentDataController } from './hooks/useDocumentDataController'
 
 // Types and Interfaces
 export type {
@@ -25,4 +25,4 @@ export type {
   DocumentViewProps,
   DocumentFilterProps,
   DocumentDragDropProps
-} from './types/documentTypes';
+} from './types/documentTypes'

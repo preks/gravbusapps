@@ -1,4 +1,4 @@
-import type { Stage } from './types';
+import type { Stage } from './types'
 export const FIXED_STAGES: Stage[] = [
   {
     id: 'NEW_OPPORTUNITY',
@@ -40,4 +40,4 @@ export const FIXED_STAGES: Stage[] = [
     rotting: false,
     rottingDays: 0
   }
-]; 
+]

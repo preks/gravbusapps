@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState } from 'react'
 import {
   Dialog,
   DialogContent,
@@ -20,54 +20,54 @@ import {
   SelectTrigger,
   SelectValue,
   Textarea
-} from '@newwork/nw-design-system';
-import { useForm } from 'react-hook-form';
-import { zodResolver } from '@hookform/resolvers/zod';
-import * as z from 'zod';
-import dayjs from 'dayjs';
-import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
-import type { BusinessAppContextProps } from '@/common/BusinessAppContext';
+} from '@newwork/nw-design-system'
+import { useForm } from 'react-hook-form'
+import { zodResolver } from '@hookform/resolvers/zod'
+import * as z from 'zod'
+import dayjs from 'dayjs'
+import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
+import type { BusinessAppContextProps } from '@/common/BusinessAppContext'
 
 // Form validation schema
-const campaignSchema = z.object({
-  name: z.string().min(1, 'Name is required'),
-  type: z.string().min(1, 'Type is required'),
-  startDate: z.string().min(1, 'Start date is required'),
-  endDate: z.string().min(1, 'End date is required'),
-  description: z.string().optional()
-}).refine((data) => {
-  if (data.startDate && data.endDate) {
-    return dayjs(data.startDate).isBefore(dayjs(data.endDate));
-  }
-  return true;
-}, {
-  message: 'End date must be after start date',
-  path: ['endDate']
-});
+const campaignSchema = z
+  .object({
+    name: z.string().min(1, 'Name is required'),
+    type: z.string().min(1, 'Type is required'),
+    startDate: z.string().min(1, 'Start date is required'),
+    endDate: z.string().min(1, 'End date is required'),
+    description: z.string().optional()
+  })
+  .refine(
+    data => {
+      if (data.startDate && data.endDate) {
+        return dayjs(data.startDate).isBefore(dayjs(data.endDate))
+      }
+      return true
+    },
+    {
+      message: 'End date must be after start date',
+      path: ['endDate']
+    }
+  )
 
-type CampaignFormData = z.infer<typeof campaignSchema>;
+type CampaignFormData = z.infer<typeof campaignSchema>
 
 export interface NewCampaignData {
-  name: string;
-  type: string;
-  startDate: string;
-  endDate: string;
-  description?: string;
+  name: string
+  type: string
+  startDate: string
+  endDate: string
+  description?: string
 }
 
 interface AddCampaignModalProps extends BusinessAppContextProps {
-  isOpen: boolean;
-  onClose: () => void;
-  onSubmit: (data: NewCampaignData) => Promise<void>;
-  isLoading?: boolean;
+  isOpen: boolean
+  onClose: () => void
+  onSubmit: (data: NewCampaignData) => Promise<void>
+  isLoading?: boolean
 }
 
-const AddCampaignModal: React.FC<AddCampaignModalProps> = ({
-  isOpen,
-  onClose,
-  onSubmit,
-  isLoading = false
-}) => {
+const AddCampaignModal: React.FC<AddCampaignModalProps> = ({ isOpen, onClose, onSubmit, isLoading = false }) => {
   const form = useForm<CampaignFormData>({
     resolver: zodResolver(campaignSchema),
     defaultValues: {
@@ -77,16 +77,16 @@ const AddCampaignModal: React.FC<AddCampaignModalProps> = ({
       endDate: '',
       description: ''
     }
-  });
+  })
 
   const handleSubmit = async (data: CampaignFormData) => {
     try {
-      await onSubmit(data);
-      form.reset();
+      await onSubmit(data)
+      form.reset()
     } catch (error) {
       // console.error('Error submitting campaign:', error);
     }
-  };
+  }
 
   const campaignTypes = [
     { value: 'email', label: 'Email Campaign' },
@@ -94,11 +94,11 @@ const AddCampaignModal: React.FC<AddCampaignModalProps> = ({
     { value: 'print', label: 'Print Campaign' },
     { value: 'digital', label: 'Digital Campaign' },
     { value: 'event', label: 'Event Campaign' }
-  ];
+  ]
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent 
+      <DialogContent
         style={{ maxWidth: 'var(--spacing-128)', width: '100%' }}
         className="gba:p-0"
         data-testid="add-campaign-modal"
@@ -108,7 +108,10 @@ const AddCampaignModal: React.FC<AddCampaignModalProps> = ({
             {getTranslationFromI18nKeyAndLabel('campaigns.modal.title', 'Create Campaign')}
           </DialogTitle>
           <DialogDescription className="gba:mt-1">
-            {getTranslationFromI18nKeyAndLabel('campaigns.modal.subtitle', 'Provide basic details to create a new campaign.')}
+            {getTranslationFromI18nKeyAndLabel(
+              'campaigns.modal.subtitle',
+              'Provide basic details to create a new campaign.'
+            )}
           </DialogDescription>
         </DialogHeader>
 
@@ -128,7 +131,10 @@ const AddCampaignModal: React.FC<AddCampaignModalProps> = ({
                     <FormControl>
                       <Input
                         {...field}
-                        placeholder={getTranslationFromI18nKeyAndLabel('campaigns.modal.name.placeholder', 'Enter campaign name')}
+                        placeholder={getTranslationFromI18nKeyAndLabel(
+                          'campaigns.modal.name.placeholder',
+                          'Enter campaign name'
+                        )}
                         data-testid="add-campaign-name-input"
                       />
                     </FormControl>
@@ -150,11 +156,20 @@ const AddCampaignModal: React.FC<AddCampaignModalProps> = ({
                     <FormControl>
                       <Select onValueChange={field.onChange} value={field.value}>
                         <SelectTrigger data-testid="add-campaign-type-select">
-                          <SelectValue placeholder={getTranslationFromI18nKeyAndLabel('campaigns.modal.type.placeholder', 'Select campaign type')} />
+                          <SelectValue
+                            placeholder={getTranslationFromI18nKeyAndLabel(
+                              'campaigns.modal.type.placeholder',
+                              'Select campaign type'
+                            )}
+                          />
                         </SelectTrigger>
                         <SelectContent>
-                          {campaignTypes.map((type) => (
-                            <SelectItem key={type.value} value={type.value} data-testid={`add-campaign-type-option-${type.value}`}>
+                          {campaignTypes.map(type => (
+                            <SelectItem
+                              key={type.value}
+                              value={type.value}
+                              data-testid={`add-campaign-type-option-${type.value}`}
+                            >
                               {type.label}
                             </SelectItem>
                           ))}
@@ -177,11 +192,7 @@ const AddCampaignModal: React.FC<AddCampaignModalProps> = ({
                       <span style={{ color: 'var(--color-danger-500)' }}> *</span>
                     </FormLabel>
                     <FormControl>
-                      <Input
-                        {...field}
-                        type="date"
-                        data-testid="add-campaign-start-date-input"
-                      />
+                      <Input {...field} type="date" data-testid="add-campaign-start-date-input" />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -199,11 +210,7 @@ const AddCampaignModal: React.FC<AddCampaignModalProps> = ({
                       <span style={{ color: 'var(--color-danger-500)' }}> *</span>
                     </FormLabel>
                     <FormControl>
-                      <Input
-                        {...field}
-                        type="date"
-                        data-testid="add-campaign-end-date-input"
-                      />
+                      <Input {...field} type="date" data-testid="add-campaign-end-date-input" />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -222,7 +229,10 @@ const AddCampaignModal: React.FC<AddCampaignModalProps> = ({
                     <FormControl>
                       <Textarea
                         {...field}
-                        placeholder={getTranslationFromI18nKeyAndLabel('campaigns.modal.description.placeholder', 'Enter campaign description')}
+                        placeholder={getTranslationFromI18nKeyAndLabel(
+                          'campaigns.modal.description.placeholder',
+                          'Enter campaign description'
+                        )}
                         data-testid="add-campaign-description-input"
                         style={{ minHeight: 'var(--spacing-20)' }}
                       />
@@ -243,22 +253,17 @@ const AddCampaignModal: React.FC<AddCampaignModalProps> = ({
               >
                 {getTranslationFromI18nKeyAndLabel('common.cancel', 'Cancel')}
               </Button>
-              <Button
-                type="submit"
-                disabled={isLoading}
-                data-testid="add-campaign-save-button"
-              >
-                {isLoading 
+              <Button type="submit" disabled={isLoading} data-testid="add-campaign-save-button">
+                {isLoading
                   ? getTranslationFromI18nKeyAndLabel('common.saving', 'Saving...')
-                  : getTranslationFromI18nKeyAndLabel('common.save', 'Save')
-                }
+                  : getTranslationFromI18nKeyAndLabel('common.save', 'Save')}
               </Button>
             </DialogFooter>
           </form>
         </Form>
       </DialogContent>
     </Dialog>
-  );
-};
+  )
+}
 
-export default AddCampaignModal; 
+export default AddCampaignModal

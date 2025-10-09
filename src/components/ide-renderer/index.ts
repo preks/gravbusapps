@@ -1,2 +1,2 @@
-export { IDERenderer } from './IDERenderer';
-export type { IDERendererProps } from './IDERenderer';
+export { IDERenderer } from './IDERenderer'
+export type { IDERendererProps } from './IDERenderer'

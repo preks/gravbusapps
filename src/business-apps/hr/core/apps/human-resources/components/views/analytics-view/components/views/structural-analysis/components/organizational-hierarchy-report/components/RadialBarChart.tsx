@@ -1,22 +1,66 @@
-import React, { useState, useMemo } from 'react';
-import { Card, Tooltip, Alert, Button, Space, Tag, Statistic, Row, Col, Progress, Select, Radio, Typography, Divider, Spin, Tabs, Table } from 'antd';
-import { ReloadOutlined, InfoCircleOutlined, SettingOutlined, TeamOutlined, ApartmentOutlined, GlobalOutlined, BankOutlined, EyeOutlined, SwitcherOutlined, DollarCircleOutlined, TableOutlined, BarChartOutlined } from '@ant-design/icons';
-import { RadialBarChart as RechartsRadialBarChart, RadialBar, ResponsiveContainer, Legend, PolarGrid, PolarAngleAxis, Tooltip as RechartsTooltip } from 'recharts';
-import { SunburstVisualizationProps, SunburstNode, HierarchyTableData, HierarchyLevelReportData } from '../types/hierarchyTypes';
-import { ViewMode } from '../hooks/useHierarchyData';
+import React, { useState, useMemo } from 'react'
+import {
+  Card,
+  Tooltip,
+  Alert,
+  Button,
+  Space,
+  Tag,
+  Statistic,
+  Row,
+  Col,
+  Progress,
+  Select,
+  Radio,
+  Typography,
+  Divider,
+  Spin,
+  Tabs,
+  Table
+} from 'antd'
+import {
+  ReloadOutlined,
+  InfoCircleOutlined,
+  SettingOutlined,
+  TeamOutlined,
+  ApartmentOutlined,
+  GlobalOutlined,
+  BankOutlined,
+  EyeOutlined,
+  SwitcherOutlined,
+  DollarCircleOutlined,
+  TableOutlined,
+  BarChartOutlined
+} from '@ant-design/icons'
+import {
+  RadialBarChart as RechartsRadialBarChart,
+  RadialBar,
+  ResponsiveContainer,
+  Legend,
+  PolarGrid,
+  PolarAngleAxis,
+  Tooltip as RechartsTooltip
+} from 'recharts'
+import {
+  SunburstVisualizationProps,
+  SunburstNode,
+  HierarchyTableData,
+  HierarchyLevelReportData
+} from '../types/hierarchyTypes'
+import { ViewMode } from '../hooks/useHierarchyData'
 
-const { Option } = Select;
-const { Title, Text } = Typography;
+const { Option } = Select
+const { Title, Text } = Typography
 
 // Radial bar chart data interface
 interface RadialBarData {
-  level: string;
-  [key: string]: string | number;
+  level: string
+  [key: string]: string | number
 }
 
 export interface RadialBarChartProps extends SunburstVisualizationProps {
-  viewMode: ViewMode;
-  onViewModeChange: (mode: ViewMode) => void;
+  viewMode: ViewMode
+  onViewModeChange: (mode: ViewMode) => void
 }
 
 const RadialBarChart: React.FC<RadialBarChartProps> = ({
@@ -27,114 +71,115 @@ const RadialBarChart: React.FC<RadialBarChartProps> = ({
   error,
   onRefresh,
   viewMode,
-  onViewModeChange,
+  onViewModeChange
 }) => {
-  const [selectedNode, setSelectedNode] = useState<SunburstNode | null>(null);
-  const [colorBy, setColorBy] = useState<'country' | 'level' | 'company'>('country');
-  const [hoveredData, setHoveredData] = useState<any>(null);
-  const [selectedLevel, setSelectedLevel] = useState<number | null>(null);
-  const [activeTab, setActiveTab] = useState<'chart' | 'table'>('chart');
+  const [selectedNode, setSelectedNode] = useState<SunburstNode | null>(null)
+  const [colorBy, setColorBy] = useState<'country' | 'level' | 'company'>('country')
+  const [hoveredData, setHoveredData] = useState<any>(null)
+  const [selectedLevel, setSelectedLevel] = useState<number | null>(null)
+  const [activeTab, setActiveTab] = useState<'chart' | 'table'>('chart')
 
   // Transform sunburst data into radial bar chart data
   const radialBarData = useMemo(() => {
-    if (!data || data.length === 0) return [];
+    if (!data || data.length === 0) return []
 
-    const result: RadialBarData[] = [];
+    const result: RadialBarData[] = []
 
     // Get organizational levels from the root data
-    const rootNode = data[0];
+    const rootNode = data[0]
     if (rootNode && rootNode.children) {
       rootNode.children.forEach((levelNode, levelIndex) => {
         if (levelNode.children && levelNode.children.length > 0) {
           const levelData: RadialBarData = {
-            level: `Level ${levelIndex}`,
-          };
+            level: `Level ${levelIndex}`
+          }
 
           // Add country data for this level
-          levelNode.children.forEach((countryNode) => {
-            const countryName = countryNode.countryName || countryNode.country || 'Unknown';
-            levelData[countryName] = countryNode.value;
-          });
+          levelNode.children.forEach(countryNode => {
+            const countryName = countryNode.countryName || countryNode.country || 'Unknown'
+            levelData[countryName] = countryNode.value
+          })
 
-          result.push(levelData);
+          result.push(levelData)
         }
-      });
+      })
     }
 
-    return result;
-  }, [data]);
+    return result
+  }, [data])
 
   // Get all unique countries for the radial bars
   const allCountries = useMemo(() => {
-    const countries = new Set<string>();
+    const countries = new Set<string>()
     radialBarData.forEach(level => {
       Object.keys(level).forEach(key => {
         if (key !== 'level' && key !== 'fill') {
-          countries.add(key);
+          countries.add(key)
         }
-      });
-    });
-    return Array.from(countries);
-  }, [radialBarData]);
+      })
+    })
+    return Array.from(countries)
+  }, [radialBarData])
 
   // Colors are now handled through the colorMap from the data integration hook
 
   // Extract levels and create data for RadialBarChart
-  const levels = data[0]?.children || [];
-  
+  const levels = data[0]?.children || []
+
   // Prepare data for stacked radial bar chart
   const chartData = levels.map((level, levelIndex) => {
     const levelData: any = {
       level: `Level ${levelIndex}`,
       levelIndex,
-      total: level.value,
-    };
+      total: level.value
+    }
 
     // Add segments (countries, companies, or cost centers) as separate properties for stacking
     level.children.forEach((segment, segmentIndex) => {
-      const segmentKey = viewMode === 'company' 
-        ? `company_${segmentIndex}` 
-        : viewMode === 'costcenter'
-        ? `costcenter_${segmentIndex}`
-        : `country_${segmentIndex}`;
-      levelData[segmentKey] = segment.value;
-      levelData[`${segmentKey}_name`] = segment.name;
-      levelData[`${segmentKey}_color`] = segment.color;
-    });
+      const segmentKey =
+        viewMode === 'company'
+          ? `company_${segmentIndex}`
+          : viewMode === 'costcenter'
+            ? `costcenter_${segmentIndex}`
+            : `country_${segmentIndex}`
+      levelData[segmentKey] = segment.value
+      levelData[`${segmentKey}_name`] = segment.name
+      levelData[`${segmentKey}_color`] = segment.color
+    })
 
-    return levelData;
-  });
+    return levelData
+  })
 
   // Get all unique segment keys for RadialBar components
-  const allSegmentKeys = new Set<string>();
+  const allSegmentKeys = new Set<string>()
   chartData.forEach(levelData => {
     Object.keys(levelData).forEach(key => {
       if (key.startsWith('country_') || key.startsWith('company_') || key.startsWith('costcenter_')) {
         if (!key.endsWith('_name') && !key.endsWith('_color')) {
-          allSegmentKeys.add(key);
+          allSegmentKeys.add(key)
         }
       }
-    });
-  });
+    })
+  })
 
   // Helper function to get color for a segment key from the chartData
   const getSegmentColor = (segmentKey: string): string => {
     // Find the first occurrence of this segment key in chartData and get its color
     for (const levelData of chartData) {
-      const colorKey = `${segmentKey}_color`;
+      const colorKey = `${segmentKey}_color`
       if (levelData[colorKey]) {
-        return levelData[colorKey];
+        return levelData[colorKey]
       }
     }
     // Fallback to a default color if not found
-    return '#6B7280';
-  };
+    return '#6B7280'
+  }
 
   // Get current table data based on view mode
   const currentTableData = useMemo(() => {
-    if (!tableData) return [];
-    return tableData[viewMode] || [];
-  }, [tableData, viewMode]);
+    if (!tableData) return []
+    return tableData[viewMode] || []
+  }, [tableData, viewMode])
 
   // Table columns configuration
   const tableColumns = [
@@ -151,7 +196,7 @@ const RadialBarChart: React.FC<RadialBarChartProps> = ({
             {record.organizationalUnits} units
           </Text>
         </div>
-      ),
+      )
     },
     {
       title: 'Total Employees',
@@ -160,19 +205,16 @@ const RadialBarChart: React.FC<RadialBarChartProps> = ({
       width: 150,
       render: (value: number, record: HierarchyLevelReportData) => (
         <div>
-          <Text strong style={{ fontSize: '16px' }}>{value}</Text>
+          <Text strong style={{ fontSize: '16px' }}>
+            {value}
+          </Text>
           <br />
-          <Progress 
-            percent={record.percentage} 
-            size="small" 
-            showInfo={false}
-            strokeColor="var(--nw-entity-employee)"
-          />
+          <Progress percent={record.percentage} size="small" showInfo={false} strokeColor="var(--nw-entity-employee)" />
           <Text type="secondary" style={{ fontSize: '12px' }}>
             {record.percentage}% of total
           </Text>
         </div>
-      ),
+      )
     },
     {
       title: viewMode === 'company' ? 'Companies' : viewMode === 'costcenter' ? 'Cost Centers' : 'Countries',
@@ -181,21 +223,24 @@ const RadialBarChart: React.FC<RadialBarChartProps> = ({
       render: (segments: any[]) => (
         <div style={{ maxWidth: '400px' }}>
           {segments.map((segment, index) => (
-            <div key={segment.id} style={{ 
-              display: 'flex', 
-              justifyContent: 'space-between', 
-              alignItems: 'center',
-              marginBottom: index < segments.length - 1 ? '8px' : '0'
-            }}>
+            <div
+              key={segment.id}
+              style={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                marginBottom: index < segments.length - 1 ? '8px' : '0'
+              }}
+            >
               <div style={{ display: 'flex', alignItems: 'center', flex: 1 }}>
-                <div 
-                  style={{ 
-                    width: '12px', 
-                    height: '12px', 
-                    backgroundColor: segment.color, 
+                <div
+                  style={{
+                    width: '12px',
+                    height: '12px',
+                    backgroundColor: segment.color,
                     borderRadius: '2px',
-                    marginRight: '8px' 
-                  }} 
+                    marginRight: '8px'
+                  }}
                 />
                 <Text style={{ marginRight: '8px' }}>{segment.name}</Text>
               </div>
@@ -208,14 +253,14 @@ const RadialBarChart: React.FC<RadialBarChartProps> = ({
             </div>
           ))}
         </div>
-      ),
-    },
-  ];
+      )
+    }
+  ]
 
   // Custom tooltip for RadialBar chart
   const CustomTooltip = ({ active, payload, label }: any) => {
     if (active && payload && payload.length) {
-      const data = payload[0].payload;
+      const data = payload[0].payload
       return (
         <Card size="small" style={{ minWidth: 200 }}>
           <Title level={5} style={{ margin: 0, marginBottom: 8 }}>
@@ -224,46 +269,53 @@ const RadialBarChart: React.FC<RadialBarChartProps> = ({
           <Text strong>Total Employees: {data.total}</Text>
           <Divider style={{ margin: '8px 0' }} />
           {Object.keys(data)
-            .filter(key => (key.startsWith('country_') || key.startsWith('company_') || key.startsWith('costcenter_')) && !key.endsWith('_name') && !key.endsWith('_color'))
+            .filter(
+              key =>
+                (key.startsWith('country_') || key.startsWith('company_') || key.startsWith('costcenter_')) &&
+                !key.endsWith('_name') &&
+                !key.endsWith('_color')
+            )
             .map(key => {
-              const nameKey = `${key}_name`;
-              const colorKey = `${key}_color`;
-              const value = data[key];
-              const name = data[nameKey];
-              const color = data[colorKey];
+              const nameKey = `${key}_name`
+              const colorKey = `${key}_color`
+              const value = data[key]
+              const name = data[nameKey]
+              const color = data[colorKey]
               if (value > 0) {
                 return (
                   <div key={key} style={{ marginBottom: 4, display: 'flex', alignItems: 'center' }}>
-                    <div 
-                      style={{ 
-                        width: '12px', 
-                        height: '12px', 
-                        backgroundColor: color, 
+                    <div
+                      style={{
+                        width: '12px',
+                        height: '12px',
+                        backgroundColor: color,
                         borderRadius: '2px',
-                        marginRight: '8px' 
-                      }} 
+                        marginRight: '8px'
+                      }}
                     />
-                    <Text>{name}: <strong>{value}</strong> employees</Text>
+                    <Text>
+                      {name}: <strong>{value}</strong> employees
+                    </Text>
                   </div>
-                );
+                )
               }
-              return null;
+              return null
             })}
         </Card>
-      );
+      )
     }
-    return null;
-  };
+    return null
+  }
 
   if (isLoading) {
     return (
-      <div 
+      <div
         data-testid="OrganizationalHierarchyReport-RadialBarChart-Loading"
         className="gba:flex gba:justify-center gba:items-center gba:min-h-96"
       >
         <Spin size="large" />
       </div>
-    );
+    )
   }
 
   if (error) {
@@ -275,16 +327,12 @@ const RadialBarChart: React.FC<RadialBarChartProps> = ({
         type="error"
         showIcon
         action={
-          <Button 
-            size="small" 
-            onClick={onRefresh}
-            icon={<ReloadOutlined />}
-          >
+          <Button size="small" onClick={onRefresh} icon={<ReloadOutlined />}>
             Retry
           </Button>
         }
       />
-    );
+    )
   }
 
   return (
@@ -298,12 +346,14 @@ const RadialBarChart: React.FC<RadialBarChartProps> = ({
       }}
     >
       {/* Header with View Mode Switcher */}
-      <div style={{ 
-        display: 'flex', 
-        justifyContent: 'space-between', 
-        alignItems: 'center',
-        marginBottom: '16px'
-      }}>
+      <div
+        style={{
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          marginBottom: '16px'
+        }}
+      >
         <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
           <Title level={3} style={{ margin: 0, color: '#1f2937' }}>
             <ApartmentOutlined style={{ marginRight: 8, color: '#3b82f6' }} />
@@ -313,7 +363,7 @@ const RadialBarChart: React.FC<RadialBarChartProps> = ({
             {statistics.totalEmployees} employees
           </Tag>
         </div>
-        
+
         {/* View Mode Switcher */}
         <Space>
           <Text strong>
@@ -322,27 +372,24 @@ const RadialBarChart: React.FC<RadialBarChartProps> = ({
           </Text>
           <Radio.Group
             value={viewMode}
-            onChange={(e) => onViewModeChange(e.target.value)}
+            onChange={e => onViewModeChange(e.target.value)}
             optionType="button"
             buttonStyle="solid"
             size="small"
           >
-            <Radio.Button 
-              value="location" 
+            <Radio.Button
+              value="location"
               data-testid="OrganizationalHierarchyReport-RadialBarChart-LocationModeButton"
             >
               <GlobalOutlined style={{ marginRight: 4 }} />
               Location
             </Radio.Button>
-            <Radio.Button 
-              value="company" 
-              data-testid="OrganizationalHierarchyReport-RadialBarChart-CompanyModeButton"
-            >
+            <Radio.Button value="company" data-testid="OrganizationalHierarchyReport-RadialBarChart-CompanyModeButton">
               <BankOutlined style={{ marginRight: 4 }} />
               Company
             </Radio.Button>
-            <Radio.Button 
-              value="costcenter" 
+            <Radio.Button
+              value="costcenter"
               data-testid="OrganizationalHierarchyReport-RadialBarChart-CostCenterModeButton"
             >
               <DollarCircleOutlined style={{ marginRight: 4 }} />
@@ -353,14 +400,24 @@ const RadialBarChart: React.FC<RadialBarChartProps> = ({
       </div>
 
       {/* Description */}
-      <div style={{ marginBottom: '24px', padding: '16px', backgroundColor: '#f8fafc', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
+      <div
+        style={{
+          marginBottom: '24px',
+          padding: '16px',
+          backgroundColor: '#f8fafc',
+          borderRadius: '8px',
+          border: '1px solid #e2e8f0'
+        }}
+      >
         <Text className="gba:text-gray-700">
-          Interactive radial bar chart visualization showing organizational hierarchy distribution across different levels. 
-          Each ring represents an organizational level with segments showing distribution by {
-            viewMode === 'company' ? 'company affiliations' : 
-            viewMode === 'costcenter' ? 'cost center assignments' : 
-            'geographic locations'
-          }. Use the view mode buttons above to switch between different organizational perspectives.
+          Interactive radial bar chart visualization showing organizational hierarchy distribution across different
+          levels. Each ring represents an organizational level with segments showing distribution by{' '}
+          {viewMode === 'company'
+            ? 'company affiliations'
+            : viewMode === 'costcenter'
+              ? 'cost center assignments'
+              : 'geographic locations'}
+          . Use the view mode buttons above to switch between different organizational perspectives.
         </Text>
       </div>
 
@@ -399,29 +456,30 @@ const RadialBarChart: React.FC<RadialBarChartProps> = ({
         <Col xs={24} sm={12} md={6}>
           <Card>
             <Statistic
-              title={
-                viewMode === 'company' ? 'Companies' : 
-                viewMode === 'costcenter' ? 'Cost Centers' : 
-                'Countries'
-              }
+              title={viewMode === 'company' ? 'Companies' : viewMode === 'costcenter' ? 'Cost Centers' : 'Countries'}
               value={
-                viewMode === 'company' ? statistics.companiesCount : 
-                viewMode === 'costcenter' ? statistics.costCentersCount : 
-                statistics.countriesRepresented
+                viewMode === 'company'
+                  ? statistics.companiesCount
+                  : viewMode === 'costcenter'
+                    ? statistics.costCentersCount
+                    : statistics.countriesRepresented
               }
               prefix={
-                viewMode === 'company' 
-                  ? <BankOutlined style={{ color: 'var(--nw-entity-order)' }} />
-                  : viewMode === 'costcenter'
-                  ? <DollarCircleOutlined style={{ color: 'var(--nw-entity-department)' }} />
-                  : <GlobalOutlined style={{ color: 'var(--nw-entity-location)' }} />
+                viewMode === 'company' ? (
+                  <BankOutlined style={{ color: 'var(--nw-entity-order)' }} />
+                ) : viewMode === 'costcenter' ? (
+                  <DollarCircleOutlined style={{ color: 'var(--nw-entity-department)' }} />
+                ) : (
+                  <GlobalOutlined style={{ color: 'var(--nw-entity-location)' }} />
+                )
               }
-              valueStyle={{ 
-                color: viewMode === 'company' 
-                  ? 'var(--nw-entity-order)' 
-                  : viewMode === 'costcenter'
-                  ? 'var(--nw-entity-department)'
-                  : 'var(--nw-entity-location)'
+              valueStyle={{
+                color:
+                  viewMode === 'company'
+                    ? 'var(--nw-entity-order)'
+                    : viewMode === 'costcenter'
+                      ? 'var(--nw-entity-department)'
+                      : 'var(--nw-entity-location)'
               }}
             />
           </Card>
@@ -429,15 +487,12 @@ const RadialBarChart: React.FC<RadialBarChartProps> = ({
       </Row>
 
       {/* Radial Chart Visualization */}
-      <Card 
+      <Card
         title={
           <span>
             <BarChartOutlined style={{ marginRight: 8 }} />
-            Organizational Hierarchy - {
-              viewMode === 'company' ? 'By Company' : 
-              viewMode === 'costcenter' ? 'By Cost Center' : 
-              'By Location'
-            }
+            Organizational Hierarchy -{' '}
+            {viewMode === 'company' ? 'By Company' : viewMode === 'costcenter' ? 'By Cost Center' : 'By Location'}
           </span>
         }
         style={{ marginBottom: '24px' }}
@@ -465,15 +520,8 @@ const RadialBarChart: React.FC<RadialBarChartProps> = ({
                       fill={getSegmentColor(segmentKey)}
                     />
                   ))}
-                  <Legend 
-                    iconSize={8}
-                    layout="horizontal"
-                    verticalAlign="bottom"
-                    align="center"
-                  />
-                  <RechartsTooltip 
-                    content={<CustomTooltip />}
-                  />
+                  <Legend iconSize={8} layout="horizontal" verticalAlign="bottom" align="center" />
+                  <RechartsTooltip content={<CustomTooltip />} />
                 </RechartsRadialBarChart>
               </ResponsiveContainer>
             </div>
@@ -481,7 +529,7 @@ const RadialBarChart: React.FC<RadialBarChartProps> = ({
 
           {/* Level Breakdown */}
           <Col xs={24} lg={8}>
-            <Card 
+            <Card
               title={
                 <span>
                   <SwitcherOutlined style={{ marginRight: 8 }} />
@@ -491,9 +539,9 @@ const RadialBarChart: React.FC<RadialBarChartProps> = ({
               size="small"
             >
               {levels.map((level, index) => (
-                <div 
-                  key={level.id} 
-                  style={{ 
+                <div
+                  key={level.id}
+                  style={{
                     marginBottom: '12px',
                     padding: '8px',
                     borderRadius: '6px',
@@ -503,12 +551,19 @@ const RadialBarChart: React.FC<RadialBarChartProps> = ({
                   }}
                   onClick={() => setSelectedLevel(selectedLevel === index ? null : index)}
                 >
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
+                  <div
+                    style={{
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      alignItems: 'center',
+                      marginBottom: '4px'
+                    }}
+                  >
                     <Text strong>Level {index}</Text>
                     <Tag color="blue">{level.value} employees</Tag>
                   </div>
-                  <Progress 
-                    percent={Math.round((level.value / statistics.totalEmployees) * 100)} 
+                  <Progress
+                    percent={Math.round((level.value / statistics.totalEmployees) * 100)}
                     size="small"
                     strokeColor="var(--nw-entity-strategy)"
                   />
@@ -524,18 +579,13 @@ const RadialBarChart: React.FC<RadialBarChartProps> = ({
         title={
           <span>
             <TableOutlined style={{ marginRight: 8 }} />
-            Detailed Level Report - {
-              viewMode === 'company' ? 'By Company' : 
-              viewMode === 'costcenter' ? 'By Cost Center' : 
-              'By Location'
-            }
+            Detailed Level Report -{' '}
+            {viewMode === 'company' ? 'By Company' : viewMode === 'costcenter' ? 'By Cost Center' : 'By Location'}
           </span>
         }
       >
         <div style={{ marginBottom: '16px' }}>
-          <Text type="secondary">
-            Detailed breakdown of employee distribution across organizational levels
-          </Text>
+          <Text type="secondary">Detailed breakdown of employee distribution across organizational levels</Text>
         </div>
         <Table
           dataSource={currentTableData}
@@ -547,7 +597,7 @@ const RadialBarChart: React.FC<RadialBarChartProps> = ({
         />
       </Card>
     </div>
-  );
-};
+  )
+}
 
-export default RadialBarChart; 
+export default RadialBarChart

@@ -1,5 +1,5 @@
 interface NavigationMapping {
-  [key: string]: string;
+  [key: string]: string
 }
 
 // Mapping of platform URLs to app paths for development mode
@@ -31,35 +31,33 @@ const PLATFORM_URL_TO_APP_MAPPING: NavigationMapping = {
   '/platform/mdm/pipeline-data': 'mdm/apps/pipeline-data',
   '/platform/mdm/lead-data': 'mdm/apps/lead-data',
   '/platform/mdm/operation-data': 'mdm/apps/operation-data',
-  '/platform/mdm/engagement-data': 'mdm/apps/engagement-data',
-};
+  '/platform/mdm/engagement-data': 'mdm/apps/engagement-data'
+}
 
 /**
  * Checks if a URL is a platform URL that should be mapped to app query parameters
  */
 const isPlatformUrl = (url: string): boolean => {
-  const urlPath = url.split('?')[0]; // Remove query parameters to check the base path
-  return Object.keys(PLATFORM_URL_TO_APP_MAPPING).some(platformPath => 
-    urlPath === platformPath
-  );
-};
+  const urlPath = url.split('?')[0] // Remove query parameters to check the base path
+  return Object.keys(PLATFORM_URL_TO_APP_MAPPING).some(platformPath => urlPath === platformPath)
+}
 
 /**
  * Converts a platform URL to development query parameters
  */
 const convertToDevQueryParams = (url: string): string => {
-  const [basePath, queryString] = url.split('?');
-  const appPath = PLATFORM_URL_TO_APP_MAPPING[basePath];
-  
+  const [basePath, queryString] = url.split('?')
+  const appPath = PLATFORM_URL_TO_APP_MAPPING[basePath]
+
   if (!appPath) {
-    console.warn(`No app mapping found for platform URL: ${basePath}`);
-    return url;
+    console.warn(`No app mapping found for platform URL: ${basePath}`)
+    return url
   }
-  
+
   // Platform URLs always map to app parameters
-  const existingParams = queryString ? `&${queryString}` : '';
-  return `?app=${appPath}${existingParams}`;
-};
+  const existingParams = queryString ? `&${queryString}` : ''
+  return `?app=${appPath}${existingParams}`
+}
 
 /**
  * Handles navigation based on the environment
@@ -68,38 +66,37 @@ const convertToDevQueryParams = (url: string): string => {
  */
 export const navigateTo = (url: string): void => {
   if (typeof window === 'undefined') {
-    console.warn('Navigation called in non-browser environment');
-    return;
+    console.warn('Navigation called in non-browser environment')
+    return
   }
 
-  const isProduction = process.env.NODE_ENV === 'production';
-  
+  const isProduction = process.env.NODE_ENV === 'production'
+
   if (isProduction) {
     // Production: use original URL behavior
-    window.location.href = url;
+    window.location.href = url
   } else {
     // Development: check if it's a platform URL
     if (isPlatformUrl(url)) {
       // Convert to app query parameter and stay on localhost:3000
-      const queryParams = convertToDevQueryParams(url);
-      const currentOrigin = window.location.origin;
-      window.location.href = `${currentOrigin}${queryParams}`;
+      const queryParams = convertToDevQueryParams(url)
+      const currentOrigin = window.location.origin
+      window.location.href = `${currentOrigin}${queryParams}`
     } else {
       // Non-platform URLs (like orgchart) use original behavior
-      window.location.href = url;
+      window.location.href = url
     }
   }
-};
+}
 
 /**
  * Helper function to build platform URLs with parameters
  */
 export const buildPlatformUrl = (basePath: string, params?: Record<string, string>): string => {
   if (!params || Object.keys(params).length === 0) {
-    return basePath;
+    return basePath
   }
-  
-  const queryString = new URLSearchParams(params).toString();
-  return `${basePath}?${queryString}`;
-};
 
+  const queryString = new URLSearchParams(params).toString()
+  return `${basePath}?${queryString}`
+}

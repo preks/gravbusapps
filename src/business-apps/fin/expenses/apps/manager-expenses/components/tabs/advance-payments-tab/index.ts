@@ -1,3 +1,3 @@
-import AdvancePaymentsTab from './AdvancePaymentsTab';
+import AdvancePaymentsTab from './AdvancePaymentsTab'
 
-export default AdvancePaymentsTab;
+export default AdvancePaymentsTab

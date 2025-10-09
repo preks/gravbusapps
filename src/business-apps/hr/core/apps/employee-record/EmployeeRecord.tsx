@@ -1,24 +1,33 @@
-'use client';
+'use client'
 
-import React, { useState, useEffect } from 'react';
-import { useEmployeeData } from './hooks/useEmployeeData';
-import { useEmployeePermissions } from './hooks/useEmployeePermissions';
-import ProfileHeader from './components/ProfileHeader';
-import { ScreenBody, Spinner, notification, Tabs } from '@newwork/gravity-ui-catalog';
-import { ProfileLayout } from '@/components/layout/profileLayout';
-import { PiUser, PiIdentificationCard, PiBriefcase, PiFiles, PiChartBar, PiChatCircle, PiCalendar, PiGraduationCap } from 'react-icons/pi';
+import React, { useState, useEffect } from 'react'
+import { useEmployeeData } from './hooks/useEmployeeData'
+import { useEmployeePermissions } from './hooks/useEmployeePermissions'
+import ProfileHeader from './components/ProfileHeader'
+import { ScreenBody, Spinner, notification, Tabs } from '@newwork/gravity-ui-catalog'
+import { ProfileLayout } from '@/components/layout/profileLayout'
+import {
+  PiUser,
+  PiIdentificationCard,
+  PiBriefcase,
+  PiFiles,
+  PiChartBar,
+  PiChatCircle,
+  PiCalendar,
+  PiGraduationCap
+} from 'react-icons/pi'
 
 // Tab components
-import SummaryTab from './components/tabs/SummaryTab';
-import DetailsTab from './components/tabs/DetailsTab';
-import EmploymentTab from './components/tabs/EmploymentTab';
-import DocumentsTab from './components/tabs/DocumentsTab';
-import PerformanceTab from './components/tabs/PerformanceTab';
-import FeedbackTab from './components/tabs/FeedbackTab';
-import AbsencesTab from './components/tabs/AbsencesTab';
-import SkillsTab from './components/tabs/SkillsTab';
-import { BusinessAppContextProps } from '../../../../../common/BusinessAppContext';
-import { getCurrentActiveStructureId } from '@/common/utils/windowUtils';
+import SummaryTab from './components/tabs/SummaryTab'
+import DetailsTab from './components/tabs/DetailsTab'
+import EmploymentTab from './components/tabs/EmploymentTab'
+import DocumentsTab from './components/tabs/DocumentsTab'
+import PerformanceTab from './components/tabs/PerformanceTab'
+import FeedbackTab from './components/tabs/FeedbackTab'
+import AbsencesTab from './components/tabs/AbsencesTab'
+import SkillsTab from './components/tabs/SkillsTab'
+import { BusinessAppContextProps } from '../../../../../common/BusinessAppContext'
+import { getCurrentActiveStructureId } from '@/common/utils/windowUtils'
 
 /**
  * Employee Record Module
@@ -34,43 +43,43 @@ const TAB_KEYS = {
   feedback: 'feedback',
   absences: 'absences',
   skills: 'skills'
-};
+}
 
 // Helper to read URL parameters
 const getUrlParams = () => {
-  if (typeof window === 'undefined') return { tab: null, employeeId: null };
-  const searchParams = new URLSearchParams(window.location.search);
+  if (typeof window === 'undefined') return { tab: null, employeeId: null }
+  const searchParams = new URLSearchParams(window.location.search)
   return {
     tab: searchParams.get('tab'),
     employeeId: searchParams.get('employeeId') ?? searchParams.get('id')
-  };
-};
+  }
+}
 
 // Handle loading UI
 const LoadingUI = () => (
   <div className="gba:flex gba:justify-center gba:items-center gba:h-full">
     <Spinner size="small" />
   </div>
-);
+)
 
 // Handle error UI
 const ErrorUI = () => {
   // Show error notification
   React.useEffect(() => {
     notification.error({
-      message: "Error",
-      description: "Error loading employee data.",
-      placement: "bottomRight"
-    });
-  }, []);
+      message: 'Error',
+      description: 'Error loading employee data.',
+      placement: 'bottomRight'
+    })
+  }, [])
 
   return (
     <div className="gba:flex gba:justify-center gba:items-center gba:h-full gba:text-red-600">
       <p className="gba:text-xl gba:font-medium">Error</p>
       <p>Error loading employee data.</p>
     </div>
-  );
-};
+  )
+}
 
 // Handle not found UI
 const NotFoundUI = () => (
@@ -78,7 +87,7 @@ const NotFoundUI = () => (
     <p className="gba:text-xl gba:font-medium">Not Found</p>
     <p>Employee not found.</p>
   </div>
-);
+)
 
 /**
  * Displays detailed information about an employee.
@@ -100,43 +109,44 @@ const NotFoundUI = () => (
  * Employee Record Component Wrapper
  * This wrapper ensures proper handling of URL parameters and employee ID
  */
-export const EmployeeRecord: React.FC<BusinessAppContextProps> = (props) => {
+export const EmployeeRecord: React.FC<BusinessAppContextProps> = props => {
   // Get current URL parameters on each render
-  const urlParams = getUrlParams();
-  
+  const urlParams = getUrlParams()
+
   // Determine which employee to show
-  const urlEmployeeId = urlParams.employeeId;
-  const currentUserEmployeeId = props.userInfo?.employeeDetails?.employeeId || '';
-  
+  const urlEmployeeId = urlParams.employeeId
+  const currentUserEmployeeId = props.userInfo?.employeeDetails?.employeeId || ''
+
   // If URL has employeeId parameter, show that employee, otherwise show current user
-  const employeeIdToShow = urlEmployeeId || currentUserEmployeeId;
-  
+  const employeeIdToShow = urlEmployeeId || currentUserEmployeeId
+
   // Get active tab from URL or use default
-  const initialActiveTab = urlParams.tab && Object.values(TAB_KEYS).includes(urlParams.tab) 
-    ? urlParams.tab 
-    : TAB_KEYS.summary;
+  const initialActiveTab =
+    urlParams.tab && Object.values(TAB_KEYS).includes(urlParams.tab) ? urlParams.tab : TAB_KEYS.summary
 
   // Render the actual employee record content
-  return <EmployeeRecordContent 
-    {...props}
-    urlEmployeeId={urlEmployeeId}
-    currentUserEmployeeId={currentUserEmployeeId}
-    employeeIdToShow={employeeIdToShow}
-    initialActiveTab={initialActiveTab}
-  />;
-};
+  return (
+    <EmployeeRecordContent
+      {...props}
+      urlEmployeeId={urlEmployeeId}
+      currentUserEmployeeId={currentUserEmployeeId}
+      employeeIdToShow={employeeIdToShow}
+      initialActiveTab={initialActiveTab}
+    />
+  )
+}
 
 interface EmployeeRecordContentProps extends BusinessAppContextProps {
-  urlEmployeeId: string | null;
-  currentUserEmployeeId: string;
-  employeeIdToShow: string;
-  initialActiveTab: string;
+  urlEmployeeId: string | null
+  currentUserEmployeeId: string
+  employeeIdToShow: string
+  initialActiveTab: string
 }
 
 /**
  * The actual employee record implementation
  */
-const EmployeeRecordContent: React.FC<EmployeeRecordContentProps> = ({ 
+const EmployeeRecordContent: React.FC<EmployeeRecordContentProps> = ({
   accessToken,
   currentUserEmployeeId,
   employeeIdToShow,
@@ -145,37 +155,37 @@ const EmployeeRecordContent: React.FC<EmployeeRecordContentProps> = ({
   additionalData
 }) => {
   // Track active tab for the UI
-  const [activeTab, setActiveTab] = useState(initialActiveTab);
-  const activeStructureId = getCurrentActiveStructureId();
-  
+  const [activeTab, setActiveTab] = useState(initialActiveTab)
+  const activeStructureId = getCurrentActiveStructureId()
+
   // Update URL when active tab changes
   useEffect(() => {
-    if (typeof window === 'undefined') return;
-    
-    const searchParams = new URLSearchParams(window.location.search);
-    searchParams.set('tab', activeTab);
-    
+    if (typeof window === 'undefined') return
+
+    const searchParams = new URLSearchParams(window.location.search)
+    searchParams.set('tab', activeTab)
+
     // Handle employee ID in URL
     if (employeeIdToShow && employeeIdToShow !== currentUserEmployeeId) {
       // Only add employeeId to URL if it's not the current user
-      searchParams.set('employeeId', employeeIdToShow);
+      searchParams.set('employeeId', employeeIdToShow)
     } else {
       // If viewing own profile, remove employeeId from URL for cleaner URLs
-      searchParams.delete('employeeId');
-      searchParams.delete('id');
+      searchParams.delete('employeeId')
+      searchParams.delete('id')
     }
-    
-    const newUrl = `${window.location.pathname}?${searchParams.toString()}`;
-    window.history.replaceState({}, '', newUrl);
-  }, [activeTab, employeeIdToShow, currentUserEmployeeId]);
-  
+
+    const newUrl = `${window.location.pathname}?${searchParams.toString()}`
+    window.history.replaceState({}, '', newUrl)
+  }, [activeTab, employeeIdToShow, currentUserEmployeeId])
+
   // Always fetch the employee data for the employee ID we want to show
   const { loading, error, employee, feedback, absenceEntitlements, performanceGoals, refetch } = useEmployeeData(
     accessToken,
     activeStructureId,
     employeeIdToShow // Use the determined employeeId directly
-  );
-  
+  )
+
   // Add event listener to refresh data after process completion (e.g., when using AppActionButtons)
   useEffect(() => {
     // Define the event handler
@@ -183,45 +193,40 @@ const EmployeeRecordContent: React.FC<EmployeeRecordContentProps> = ({
       const customEvent = event as CustomEvent<{ resolution: 'success' | 'failure' }>
       const resolution = customEvent.detail.resolution
       if (resolution === 'success') {
-        refetch();
+        refetch()
       }
-    };
-    
+    }
+
     // Add event listener
-    window.addEventListener('com.newwork.process.processCompletion', handleProcessCompletion);
-    
+    window.addEventListener('com.newwork.process.processCompletion', handleProcessCompletion)
+
     // Clean up the event listener when component unmounts
     return () => {
-      window.removeEventListener('com.newwork.process.processCompletion', handleProcessCompletion);
-    };
-  }, [refetch]);
+      window.removeEventListener('com.newwork.process.processCompletion', handleProcessCompletion)
+    }
+  }, [refetch])
 
   // Define tab content components
   const renderContent = () => {
     // Return appropriate UI based on data loading state
     if (loading) {
-      return <LoadingUI />;
+      return <LoadingUI />
     }
-    
+
     if (error) {
-      return <ErrorUI />;
+      return <ErrorUI />
     }
-    
+
     if (!employee) {
-      return <NotFoundUI />;
+      return <NotFoundUI />
     }
-    
+
     // We have employee data, render the main UI
     return (
       <div className="gba:employee-profile gba:w-full gba:h-full">
         <ScreenBody className="gba:h-full gba:w-full">
           <ProfileLayout
-            headerContent={
-              <ProfileHeader
-                accessToken={accessToken}
-                employee={employee}
-              />
-            }
+            headerContent={<ProfileHeader accessToken={accessToken} employee={employee} />}
             contentHeader={tabNavigation}
             contentContainer={getTabContent()}
             headerPlacement="left"
@@ -229,196 +234,193 @@ const EmployeeRecordContent: React.FC<EmployeeRecordContentProps> = ({
           />
         </ScreenBody>
       </div>
-    );
-  };
+    )
+  }
 
   // Get employee permissions
-  const { tabPermissions } = useEmployeePermissions(
-    employeeIdToShow,
-    accessToken
-  );
-  
-  const isSelfView: boolean = !!(currentUserEmployeeId && employeeIdToShow === currentUserEmployeeId);
+  const { tabPermissions } = useEmployeePermissions(employeeIdToShow, accessToken)
+
+  const isSelfView: boolean = !!(currentUserEmployeeId && employeeIdToShow === currentUserEmployeeId)
 
   // Define tab items for the Tabs component
   const getTabItems = () => {
     // Ensure employee is not null before creating tab items
-    if (!employee) return [];
-    
+    if (!employee) return []
+
     const allTabs = [
-    {
-      key: TAB_KEYS.summary,
-      label: (
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <PiUser style={{ fontSize: '20px', display: 'inline-block', verticalAlign: 'middle' }} />
-          <span style={{ display: 'inline-block', verticalAlign: 'middle' }}>Summary</span>
-        </div>
-      ),
-      children: (
-        <SummaryTab 
-          employee={employee}
-          employeeAbsenceEntitlement={absenceEntitlements ?? []}
-          accessToken={accessToken}
-          currentUserEmployeeId={currentUserEmployeeId}
-          userInfo={userInfo}
-          isSelfView={isSelfView}
-        />
-      )
-    },
-    {
-      key: TAB_KEYS.details,
-      label: (
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <PiIdentificationCard style={{ fontSize: '20px', display: 'inline-block', verticalAlign: 'middle' }} />
-          <span style={{ display: 'inline-block', verticalAlign: 'middle' }}>Details</span>
-        </div>
-      ),
-      children: (
-        <DetailsTab 
-          employee={employee}
-          accessToken={accessToken}
-          employeeId={employeeIdToShow}
-          userInfo={userInfo}
-          isSelfView={isSelfView}
-        />
-      )
-    },
-    {
-      key: TAB_KEYS.employment,
-      label: (
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-        <PiBriefcase style={{ fontSize: '20px', display: 'inline-block', verticalAlign: 'middle' }} />
-        <span style={{ display: 'inline-block', verticalAlign: 'middle' }}>Employment</span>
-      </div>
-      ),
-      children: (
-        <EmploymentTab 
-          employee={employee}
-          accessToken={accessToken}
-          employeeId={employeeIdToShow}
-          userInfo={userInfo}
-          isSelfView={isSelfView}
-        />
-      )
-    },
-    {
-      key: TAB_KEYS.documents,
-      label: (
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <PiFiles style={{ fontSize: '20px', display: 'inline-block', verticalAlign: 'middle' }} />
-          <span style={{ display: 'inline-block', verticalAlign: 'middle' }}>Documents</span>
-        </div>
-      ),
-      children: (
-        <DocumentsTab 
-          employee={employee}
-          accessToken={accessToken}
-          employeeId={employeeIdToShow}
-          userInfo={userInfo}
-          isSelfView={isSelfView}
-        />
-      )
-    },
-    {
-      key: TAB_KEYS.performance,
-      label: (
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <PiChartBar style={{ fontSize: '20px', display: 'inline-block', verticalAlign: 'middle' }} />
-          <span style={{ display: 'inline-block', verticalAlign: 'middle' }}>Performance</span>
-        </div>
-      ),
-      children: (
-        <PerformanceTab 
-          employee={employee}
-          accessToken={accessToken}
-          employeeId={employeeIdToShow}
-          userInfo={userInfo}
-          isSelfView={isSelfView}
-          employeePerformanceGoals={performanceGoals ?? []}
-        />
-      )
-    },
-    {
-      key: TAB_KEYS.feedback,
-      label: (
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <PiChatCircle style={{ fontSize: '20px', display: 'inline-block', verticalAlign: 'middle' }} />
-          <span style={{ display: 'inline-block', verticalAlign: 'middle' }}>Feedback</span>
-        </div>
-      ),
-      children: (
-        <FeedbackTab 
-          employee={employee}
-          accessToken={accessToken}
-          employeeId={employeeIdToShow}
-          userInfo={userInfo}
-          isSelfView={isSelfView}
-          employeeFeedback={feedback ?? []}
-          businessAppContext={{ accessToken, userInfo, additionalData }}
-        />
-      )
-    },
-    {
-      key: TAB_KEYS.absences,
-      label: (
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <PiCalendar style={{ fontSize: '20px', display: 'inline-block', verticalAlign: 'middle' }} />
-          <span style={{ display: 'inline-block', verticalAlign: 'middle' }}>Absences</span>
-        </div>
-      ),
-      children: (
-        <AbsencesTab 
-          employee={employee}
-          employeeAbsenceEntitlement={absenceEntitlements ?? []}
-          accessToken={accessToken}
-          employeeId={employeeIdToShow}
-          userInfo={userInfo}
-          isSelfView={isSelfView}
-        />
-      )
-    },
-    {
-      key: TAB_KEYS.skills,
-      label: (
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <PiGraduationCap style={{ fontSize: '20px', display: 'inline-block', verticalAlign: 'middle' }} />
-          <span style={{ display: 'inline-block', verticalAlign: 'middle' }}>Skills</span>
-        </div>
-      ),
-      children: (
-        <SkillsTab
-          employee={employee}
-          accessToken={accessToken}
-          employeeId={employeeIdToShow}
-          userInfo={userInfo}
-          isSelfView={isSelfView}
-        />
-      )
-    }
-  ];
+      {
+        key: TAB_KEYS.summary,
+        label: (
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <PiUser style={{ fontSize: '20px', display: 'inline-block', verticalAlign: 'middle' }} />
+            <span style={{ display: 'inline-block', verticalAlign: 'middle' }}>Summary</span>
+          </div>
+        ),
+        children: (
+          <SummaryTab
+            employee={employee}
+            employeeAbsenceEntitlement={absenceEntitlements ?? []}
+            accessToken={accessToken}
+            currentUserEmployeeId={currentUserEmployeeId}
+            userInfo={userInfo}
+            isSelfView={isSelfView}
+          />
+        )
+      },
+      {
+        key: TAB_KEYS.details,
+        label: (
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <PiIdentificationCard style={{ fontSize: '20px', display: 'inline-block', verticalAlign: 'middle' }} />
+            <span style={{ display: 'inline-block', verticalAlign: 'middle' }}>Details</span>
+          </div>
+        ),
+        children: (
+          <DetailsTab
+            employee={employee}
+            accessToken={accessToken}
+            employeeId={employeeIdToShow}
+            userInfo={userInfo}
+            isSelfView={isSelfView}
+          />
+        )
+      },
+      {
+        key: TAB_KEYS.employment,
+        label: (
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <PiBriefcase style={{ fontSize: '20px', display: 'inline-block', verticalAlign: 'middle' }} />
+            <span style={{ display: 'inline-block', verticalAlign: 'middle' }}>Employment</span>
+          </div>
+        ),
+        children: (
+          <EmploymentTab
+            employee={employee}
+            accessToken={accessToken}
+            employeeId={employeeIdToShow}
+            userInfo={userInfo}
+            isSelfView={isSelfView}
+          />
+        )
+      },
+      {
+        key: TAB_KEYS.documents,
+        label: (
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <PiFiles style={{ fontSize: '20px', display: 'inline-block', verticalAlign: 'middle' }} />
+            <span style={{ display: 'inline-block', verticalAlign: 'middle' }}>Documents</span>
+          </div>
+        ),
+        children: (
+          <DocumentsTab
+            employee={employee}
+            accessToken={accessToken}
+            employeeId={employeeIdToShow}
+            userInfo={userInfo}
+            isSelfView={isSelfView}
+          />
+        )
+      },
+      {
+        key: TAB_KEYS.performance,
+        label: (
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <PiChartBar style={{ fontSize: '20px', display: 'inline-block', verticalAlign: 'middle' }} />
+            <span style={{ display: 'inline-block', verticalAlign: 'middle' }}>Performance</span>
+          </div>
+        ),
+        children: (
+          <PerformanceTab
+            employee={employee}
+            accessToken={accessToken}
+            employeeId={employeeIdToShow}
+            userInfo={userInfo}
+            isSelfView={isSelfView}
+            employeePerformanceGoals={performanceGoals ?? []}
+          />
+        )
+      },
+      {
+        key: TAB_KEYS.feedback,
+        label: (
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <PiChatCircle style={{ fontSize: '20px', display: 'inline-block', verticalAlign: 'middle' }} />
+            <span style={{ display: 'inline-block', verticalAlign: 'middle' }}>Feedback</span>
+          </div>
+        ),
+        children: (
+          <FeedbackTab
+            employee={employee}
+            accessToken={accessToken}
+            employeeId={employeeIdToShow}
+            userInfo={userInfo}
+            isSelfView={isSelfView}
+            employeeFeedback={feedback ?? []}
+            businessAppContext={{ accessToken, userInfo, additionalData }}
+          />
+        )
+      },
+      {
+        key: TAB_KEYS.absences,
+        label: (
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <PiCalendar style={{ fontSize: '20px', display: 'inline-block', verticalAlign: 'middle' }} />
+            <span style={{ display: 'inline-block', verticalAlign: 'middle' }}>Absences</span>
+          </div>
+        ),
+        children: (
+          <AbsencesTab
+            employee={employee}
+            employeeAbsenceEntitlement={absenceEntitlements ?? []}
+            accessToken={accessToken}
+            employeeId={employeeIdToShow}
+            userInfo={userInfo}
+            isSelfView={isSelfView}
+          />
+        )
+      },
+      {
+        key: TAB_KEYS.skills,
+        label: (
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <PiGraduationCap style={{ fontSize: '20px', display: 'inline-block', verticalAlign: 'middle' }} />
+            <span style={{ display: 'inline-block', verticalAlign: 'middle' }}>Skills</span>
+          </div>
+        ),
+        children: (
+          <SkillsTab
+            employee={employee}
+            accessToken={accessToken}
+            employeeId={employeeIdToShow}
+            userInfo={userInfo}
+            isSelfView={isSelfView}
+          />
+        )
+      }
+    ]
     // ONLY when not viewing own profile
     return allTabs.filter(tab => {
-      const tabKey = tab.key as string;
-      
+      const tabKey = tab.key as string
+
       // If viewing own profile, always show all tabs
       if (isSelfView) {
-        return true;
+        return true
       }
-      
+
       // If not viewing own profile and tab is employment, documents, or absences, check permissions
       if (tabKey === TAB_KEYS.employment || tabKey === TAB_KEYS.documents || tabKey === TAB_KEYS.absences) {
         // Check if user has permission to see this tab
-        return tabPermissions?.[tabKey]?.hasAccess === true;
+        return tabPermissions?.[tabKey]?.hasAccess === true
       }
-      
+
       // Always show other tabs
-      return true;
-    });
-  };
-  
+      return true
+    })
+  }
+
   // Tab items for the Tabs component
-  const tabItems = getTabItems();
-  
+  const tabItems = getTabItems()
+
   // Create tab navigation for the content header
   const tabNavigation = (
     <Tabs
@@ -428,20 +430,16 @@ const EmployeeRecordContent: React.FC<EmployeeRecordContentProps> = ({
       className="gba:w-full"
       destroyInactiveTabPane
     />
-  );
-  
+  )
+
   // Get the tab content based on the active tab
   const getTabContent = () => {
-    const activeTabItem = tabItems.find(tab => tab.key === activeTab);
-    return activeTabItem ? (
-      <div className="gba:bg-white gba:p-4 gba:rounded-md">
-        {activeTabItem.children}
-      </div>
-    ) : null;
-  };
+    const activeTabItem = tabItems.find(tab => tab.key === activeTab)
+    return activeTabItem ? <div className="gba:bg-white gba:p-4 gba:rounded-md">{activeTabItem.children}</div> : null
+  }
 
   // Return the current UI state
-  return renderContent();
-};
+  return renderContent()
+}
 
-export default EmployeeRecord;
+export default EmployeeRecord

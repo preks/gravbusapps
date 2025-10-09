@@ -1,6 +1,6 @@
-import React, { useEffect, useState, useCallback, useMemo } from "react";
-import { toast } from "sonner";
-import { Form } from "antd";
+import React, { useEffect, useState, useCallback, useMemo } from 'react'
+import { toast } from 'sonner'
+import { Form } from 'antd'
 import {
   Card,
   CardContent,
@@ -22,48 +22,48 @@ import {
   Separator,
   Spinner,
   Toaster,
-  Combobox,
-} from "@newwork/nw-design-system";
-import SearchableSelect from "./components/SearchableSelect";
-import OwnerSelector from "./components/OwnerSelector";
-import AccountSection from "./components/AccountSection";
-import ContactSection from "./components/ContactSection";
-import OpportunitySection from "./components/OpportunitySection";
-import { BusinessAppContextProps } from "@/common/BusinessAppContext";
-import { useDebounce } from "@/common/hooks/useDebounce";
-import { useEmployeePositions } from "../lead-form/hooks/useEmployeePositions";
-import { useAccountsGraphQL } from "../opportunity-form/hooks/useAccountsGraphQL";
-import { useSearchableCatalog } from "../lead-form/hooks/useSearchableCatalog";
-import { COUNTRY_CATALOG } from "../lead-form/hooks/useLeadCatalogs";
+  Combobox
+} from '@newwork/nw-design-system'
+import SearchableSelect from './components/SearchableSelect'
+import OwnerSelector from './components/OwnerSelector'
+import AccountSection from './components/AccountSection'
+import ContactSection from './components/ContactSection'
+import OpportunitySection from './components/OpportunitySection'
+import { BusinessAppContextProps } from '@/common/BusinessAppContext'
+import { useDebounce } from '@/common/hooks/useDebounce'
+import { useEmployeePositions } from '../lead-form/hooks/useEmployeePositions'
+import { useAccountsGraphQL } from '../opportunity-form/hooks/useAccountsGraphQL'
+import { useSearchableCatalog } from '../lead-form/hooks/useSearchableCatalog'
+import { COUNTRY_CATALOG } from '../lead-form/hooks/useLeadCatalogs'
 
 // Define SelectOption interface for SearchableSelect
 interface SelectOption {
-  id: string | number;
-  value: string;
-  label: string;
-  name: string;
+  id: string | number
+  value: string
+  label: string
+  name: string
   extraInfo?: {
-    pictureThumbnail?: string;
-    jobPosition?: string;
-    organizationalUnit?: string;
-  };
+    pictureThumbnail?: string
+    jobPosition?: string
+    organizationalUnit?: string
+  }
 }
-import { dispatchProcessContinueEvent } from "@/common/utils/processEventUtils";
-import { getTranslationFromI18nKeyAndLabel } from "@/common/utils/windowUtils";
-import { useGraphqlClient } from "@/common/network/graphql/useGraphQLClient";
-import { catalogManagerClient } from "@/common/network/catalogs/CatalogManagerClient";
-import { CatalogEntry } from "@/common/types/CatalogTypes";
+import { dispatchProcessContinueEvent } from '@/common/utils/processEventUtils'
+import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
+import { useGraphqlClient } from '@/common/network/graphql/useGraphQLClient'
+import { catalogManagerClient } from '@/common/network/catalogs/CatalogManagerClient'
+import { CatalogEntry } from '@/common/types/CatalogTypes'
 
 // Note: Replaced Select with Combobox from design system
 
 // Custom debounce utility
 const debounce = (func: Function, delay: number) => {
-  let timeoutId: NodeJS.Timeout;
+  let timeoutId: NodeJS.Timeout
   return (...args: any[]) => {
-    clearTimeout(timeoutId);
-    timeoutId = setTimeout(() => func.apply(null, args), delay);
-  };
-};
+    clearTimeout(timeoutId)
+    timeoutId = setTimeout(() => func.apply(null, args), delay)
+  }
+}
 
 export interface ConvertLeadFormProps extends BusinessAppContextProps {}
 
@@ -115,37 +115,32 @@ const LEAD_QUERY = `
         }
     }
   }
-`;
+`
 
 // Note: Removed opportunity search queries since we only create new opportunities
 
 interface AddressFormData {
-  addressLine: string;
-  city: string;
-  postalCode: string;
-  countryRef: string;
-  regionRef: string;
+  addressLine: string
+  city: string
+  postalCode: string
+  countryRef: string
+  regionRef: string
 }
 
-export const ConvertLeadForm: React.FC<ConvertLeadFormProps> = (props) => {
-  const { accessToken, additionalData } = props;
-  const [form] = Form.useForm();
-  const [leadData, setLeadData] = useState<any>(null);
-  const [loading, setLoading] = useState(true);
-  const [submitting, setSubmitting] = useState(false);
-  const [accountOption, setAccountOption] = useState("match");
-  const [contactOption, setContactOption] = useState("match");
-  const [createOpportunity, setCreateOpportunity] = useState(false);
-  const [accounts, setAccounts] = useState<any[]>([]);
+export const ConvertLeadForm: React.FC<ConvertLeadFormProps> = props => {
+  const { accessToken, additionalData } = props
+  const [form] = Form.useForm()
+  const [leadData, setLeadData] = useState<any>(null)
+  const [loading, setLoading] = useState(true)
+  const [submitting, setSubmitting] = useState(false)
+  const [accountOption, setAccountOption] = useState('match')
+  const [contactOption, setContactOption] = useState('match')
+  const [createOpportunity, setCreateOpportunity] = useState(false)
+  const [accounts, setAccounts] = useState<any[]>([])
 
-  const [selectedAccount, setSelectedAccount] = useState<string | undefined>(
-    undefined
-  );
-  const [selectedAccountOwnerEmployee, setSelectedAccountOwnerEmployee] =
-    useState<string | undefined>(undefined);
-  const [selectedContact, setSelectedContact] = useState<string | undefined>(
-    undefined
-  );
+  const [selectedAccount, setSelectedAccount] = useState<string | undefined>(undefined)
+  const [selectedAccountOwnerEmployee, setSelectedAccountOwnerEmployee] = useState<string | undefined>(undefined)
+  const [selectedContact, setSelectedContact] = useState<string | undefined>(undefined)
 
   // Separate employee positions state for each section (Opportunity only - others moved to sections)
 
@@ -156,40 +151,39 @@ export const ConvertLeadForm: React.FC<ConvertLeadFormProps> = (props) => {
     error: opportunityEmployeePositionsError,
     hasMore: opportunityEmployeePositionsHasMore,
     loadMore: loadMoreOpportunityEmployeePositions,
-    searchEmployees: searchOpportunityEmployeePositions,
-  } = useEmployeePositions({ accessToken });
+    searchEmployees: searchOpportunityEmployeePositions
+  } = useEmployeePositions({ accessToken })
 
   // Transform employee positions to SelectOption format for opportunity section
   // Note: Using employeeId instead of employee position id for owner assignments
-  const opportunityEmployeePositions: SelectOption[] =
-    opportunityEmployeePositionsData.map((emp) => ({
-      id: emp.employeeId,
-      value: emp.employeeId,
-      label: `${emp?.firstName} ${emp?.lastName}`,
-      name: `${emp?.firstName} ${emp?.lastName}`,
-      extraInfo: {
-        pictureThumbnail: emp.employee.pictureThumbnail || undefined,
-        jobPosition: emp.jobPosition?.name || "No Position",
-        organizationalUnit: emp.organizationalUnit?.name || "No Unit",
-      },
-    }));
+  const opportunityEmployeePositions: SelectOption[] = opportunityEmployeePositionsData.map(emp => ({
+    id: emp.employeeId,
+    value: emp.employeeId,
+    label: `${emp?.firstName} ${emp?.lastName}`,
+    name: `${emp?.firstName} ${emp?.lastName}`,
+    extraInfo: {
+      pictureThumbnail: emp.employee.pictureThumbnail || undefined,
+      jobPosition: emp.jobPosition?.name || 'No Position',
+      organizationalUnit: emp.organizationalUnit?.name || 'No Unit'
+    }
+  }))
 
   // Handle account selection with owner employee
   const handleSelectedAccountChange = useCallback(
     (accountId: string | undefined, ownerEmployeeId: string | undefined) => {
-      setSelectedAccount(accountId);
-      setSelectedAccountOwnerEmployee(ownerEmployeeId);
+      setSelectedAccount(accountId)
+      setSelectedAccountOwnerEmployee(ownerEmployeeId)
     },
     []
-  );
+  )
 
   // Track current pipeline for stages refetching (same as opportunity form)
 
   // Country hook for searchable dropdown in opportunity sections (account/contact moved to sections)
   const countriesHook = useSearchableCatalog({
     accessToken,
-    catalogIdentifier: COUNTRY_CATALOG,
-  });
+    catalogIdentifier: COUNTRY_CATALOG
+  })
 
   // Accounts GraphQL hook for opportunity section (same as opportunity form)
   const {
@@ -198,150 +192,127 @@ export const ConvertLeadForm: React.FC<ConvertLeadFormProps> = (props) => {
     error: simpleAccountsError,
     hasMore: simpleAccountsHasMore,
     search: searchSimpleAccounts,
-    loadMore: loadMoreSimpleAccounts,
+    loadMore: loadMoreSimpleAccounts
   } = useAccountsGraphQL({
-    accessToken,
-  });
+    accessToken
+  })
 
   // Only allow countries with string labels (same as lead form)
-  const stringCountries = countriesHook.allOptions.filter(
-    (c) => typeof c.label === "string"
-  );
+  const stringCountries = countriesHook.allOptions.filter(c => typeof c.label === 'string')
 
   // Note: Employee search is now handled by useEmployeePositions hook
 
   // Catalog states
-  const [currencies, setCurrencies] = useState<CatalogEntry[]>([]);
-  const [countries, setCountries] = useState<CatalogEntry[]>([]);
-  const [regions, setRegions] = useState<CatalogEntry[]>([]);
-  const [academicTitles, setAcademicTitles] = useState<CatalogEntry[]>([]);
+  const [currencies, setCurrencies] = useState<CatalogEntry[]>([])
+  const [countries, setCountries] = useState<CatalogEntry[]>([])
+  const [regions, setRegions] = useState<CatalogEntry[]>([])
+  const [academicTitles, setAcademicTitles] = useState<CatalogEntry[]>([])
 
-  const [catalogsLoading, setCatalogsLoading] = useState(true);
+  const [catalogsLoading, setCatalogsLoading] = useState(true)
 
-  const graphQLClient = useGraphqlClient(accessToken);
+  const graphQLClient = useGraphqlClient(accessToken)
 
   // Initialize catalog manager with access token
   useEffect(() => {
     if (accessToken) {
-      catalogManagerClient.setAccessToken(accessToken);
+      catalogManagerClient.setAccessToken(accessToken)
     }
-  }, [accessToken]);
+  }, [accessToken])
 
   // Initialize catalog hooks on mount (opportunity section only - others moved to sections)
   useEffect(() => {
     if (accessToken) {
       if (countriesHook) {
-        countriesHook.initialize();
+        countriesHook.initialize()
       }
     }
-  }, [accessToken]);
+  }, [accessToken])
 
   // Add process completion listener
   useEffect(() => {
     const handler = async (event: any) => {
       try {
-        const response = event.detail?.response;
+        const response = event.detail?.response
         if (response) {
-          toast.success("Lead converted successfully");
-          setSubmitting(false);
+          toast.success('Lead converted successfully')
+          setSubmitting(false)
         }
       } catch (err: any) {
-        console.error("Error in process completion:", err);
-        toast.error(err?.message || "Failed to convert lead");
-        setSubmitting(false);
+        console.error('Error in process completion:', err)
+        toast.error(err?.message || 'Failed to convert lead')
+        setSubmitting(false)
       }
-    };
+    }
 
-    window.addEventListener(
-      "com.newwork.process.taskCompletion",
-      handler as EventListener
-    );
+    window.addEventListener('com.newwork.process.taskCompletion', handler as EventListener)
 
     return () => {
-      window.removeEventListener(
-        "com.newwork.process.taskCompletion",
-        handler as EventListener
-      );
-    };
-  }, []);
+      window.removeEventListener('com.newwork.process.taskCompletion', handler as EventListener)
+    }
+  }, [])
 
   // Load catalogs
   useEffect(() => {
     async function loadCatalogs() {
-      setCatalogsLoading(true);
+      setCatalogsLoading(true)
       try {
-        const [
-          currenciesResponse,
-          countriesResponse,
-          regionsResponse,
-          academicTitlesResponse,
-        ] = await Promise.all([
+        const [currenciesResponse, countriesResponse, regionsResponse, academicTitlesResponse] = await Promise.all([
           catalogManagerClient.getCatalogEntriesList({
-            catalogIdentifier: "Currency",
-            version: "v1",
+            catalogIdentifier: 'Currency',
+            version: 'v1'
           }),
           catalogManagerClient.getCatalogEntriesList({
-            catalogIdentifier: "Country",
-            version: "v1",
+            catalogIdentifier: 'Country',
+            version: 'v1'
           }),
           catalogManagerClient.getCatalogEntriesList(
-            { catalogIdentifier: "CountryRegion", version: "v1" },
+            { catalogIdentifier: 'CountryRegion', version: 'v1' },
             {
               limit: 20,
               offset: 0,
               returnTotalRecords: true,
-              includeChildCatalogEntries: true,
+              includeChildCatalogEntries: true
             }
           ),
           catalogManagerClient.getCatalogEntriesList({
-            catalogIdentifier: "AcademicTitle",
-            version: "v1",
-          }),
-        ]);
+            catalogIdentifier: 'AcademicTitle',
+            version: 'v1'
+          })
+        ])
 
-        setCurrencies(currenciesResponse.data || []);
-        setCountries(countriesResponse.data || []);
-        setRegions(regionsResponse.data || []);
-        setAcademicTitles(academicTitlesResponse.data || []);
+        setCurrencies(currenciesResponse.data || [])
+        setCountries(countriesResponse.data || [])
+        setRegions(regionsResponse.data || [])
+        setAcademicTitles(academicTitlesResponse.data || [])
       } catch (error) {
-        console.error("Error loading catalogs:", error);
+        console.error('Error loading catalogs:', error)
       } finally {
-        setCatalogsLoading(false);
+        setCatalogsLoading(false)
       }
     }
 
     if (accessToken) {
-      loadCatalogs();
+      loadCatalogs()
     }
-  }, [accessToken]);
+  }, [accessToken])
 
   useEffect(() => {
-    let leadId =
-      additionalData?.leadId ||
-      additionalData?.psi_taskPayload?.psi_initialParameters?.leadId;
+    let leadId = additionalData?.leadId || additionalData?.psi_taskPayload?.psi_initialParameters?.leadId
     async function fetchLead() {
-      setLoading(true);
+      setLoading(true)
       try {
         const data = await graphQLClient.request(LEAD_QUERY, {
-          leadId: leadId,
-        });
-        setLeadData(data?.Lead?.[0] || null);
+          leadId: leadId
+        })
+        setLeadData(data?.Lead?.[0] || null)
       } catch (e) {
-        setLeadData(null);
+        setLeadData(null)
       } finally {
-        setLoading(false);
+        setLoading(false)
       }
     }
-    if (
-      additionalData?.leadId ||
-      additionalData?.psi_taskPayload.psi_initialParameters.leadId
-    )
-      fetchLead();
-  }, [
-    additionalData?.leadId,
-    additionalData?.psi_taskPayload?.psi_initialParameters?.leadId,
-    graphQLClient,
-  ]);
+    if (additionalData?.leadId || additionalData?.psi_taskPayload.psi_initialParameters.leadId) fetchLead()
+  }, [additionalData?.leadId, additionalData?.psi_taskPayload?.psi_initialParameters?.leadId, graphQLClient])
 
   // Note: Employee data is now loaded via useEmployeePositions hook
   // Contacts moved to ContactSection component
@@ -372,57 +343,55 @@ export const ConvertLeadForm: React.FC<ConvertLeadFormProps> = (props) => {
         address.countryRef ||
         address.regionRef ||
         address.region)
-    );
-  };
+    )
+  }
 
   // Helper function to format address with all required fields
   const formatAddress = (address: any) => {
-    if (!address) return null;
+    if (!address) return null
     return {
       addressLine: address.addressLine || null,
       city: address.city || null,
       postalCode: address.postalCode || null,
       countryRef: address.countryRef || null,
-      regionRef: address.regionRef || null,
-    };
-  };
+      regionRef: address.regionRef || null
+    }
+  }
 
   // Enhanced address format function for accounts with multiple address lines and region
   const formatEnhancedAddress = (address: any) => {
-    if (!address) return null;
+    if (!address) return null
     return {
       addressLine: address.addressLine || null,
       addressLine2: address.addressLine2 || null,
       city: address.city || null,
       postalCode: address.postalCode || null,
       countryRef: address.countryRef || null,
-      region: address.region || null, // Use region instead of regionRef for text input
-    };
-  };
+      region: address.region || null // Use region instead of regionRef for text input
+    }
+  }
 
   const handleSubmit = (values: any) => {
-    setSubmitting(true);
+    setSubmitting(true)
     try {
       const payload: any = {
-        leadId: additionalData?.leadId,
-      };
+        leadId: additionalData?.leadId
+      }
 
       // Handle Account
-      if (accountOption === "match" && selectedAccount) {
+      if (accountOption === 'match' && selectedAccount) {
         payload.account = {
           id: selectedAccount,
-          ownerEmployee: selectedAccountOwnerEmployee || null,
-        };
-      } else if (accountOption === "new") {
+          ownerEmployee: selectedAccountOwnerEmployee || null
+        }
+      } else if (accountOption === 'new') {
         payload.account = {
           name: values.newAccountName,
           legalFormRef: values.accountLegalForm || null,
           industryRef: values.accountIndustry || null,
           description: values.accountDescription || null,
-          sourceApp: values.accountSourceApp || "CRM",
-          foundationDate: values.accountFoundationDate
-            ? new Date(values.accountFoundationDate).toISOString()
-            : null,
+          sourceApp: values.accountSourceApp || 'CRM',
+          foundationDate: values.accountFoundationDate ? new Date(values.accountFoundationDate).toISOString() : null,
           website: values.accountWebsite || null,
           // Contact Information
           email: values.accountEmail || null,
@@ -435,19 +404,19 @@ export const ConvertLeadForm: React.FC<ConvertLeadFormProps> = (props) => {
           //   timeZoneRef: values.accountTimeZone || null,
           tickerSymbol: values.accountTickerSymbol || null,
           sicCodeRef: values.accountSicCode || null,
-          ownerEmployee: values.accountOwnerEmployee || null,
+          ownerEmployee: values.accountOwnerEmployee || null
           // addresses: hasAddressData(values.accountAddresses)
           //   ? [formatEnhancedAddress(values.accountAddresses)]
           //   : [],
-        };
+        }
       }
 
       // Handle Contact
-      if (contactOption === "match" && selectedContact) {
+      if (contactOption === 'match' && selectedContact) {
         payload.contact = {
-          id: selectedContact,
-        };
-      } else if (contactOption === "new") {
+          id: selectedContact
+        }
+      } else if (contactOption === 'new') {
         payload.contact = {
           code: values.contactCode || null,
           firstName: values.newContactFirstName,
@@ -462,20 +431,16 @@ export const ConvertLeadForm: React.FC<ConvertLeadFormProps> = (props) => {
           jobTitle: values.contactJobTitle || null,
           department: values.contactDepartment || null,
           contactType: values.contactType || null,
-          sourceApp: values.contactSourceApp || "CRM",
+          sourceApp: values.contactSourceApp || 'CRM',
           workExperienceYears: values.contactWorkExperienceYears || 0,
-          birthDate: values.contactBirthDate
-            ? new Date(values.contactBirthDate).toISOString()
-            : null,
+          birthDate: values.contactBirthDate ? new Date(values.contactBirthDate).toISOString() : null,
           pictureUrl: values.contactPictureUrl || null,
           bio: values.contactBio || null,
           notesSummary: values.contactNotesSummary || null,
           account: values.contactCompanyId || null, // Company/Account ID
           ownerEmployee: values.contactOwnerEmployee || null,
-          addresses: hasAddressData(values.contactAddresses)
-            ? [formatAddress(values.contactAddresses)]
-            : [],
-        };
+          addresses: hasAddressData(values.contactAddresses) ? [formatAddress(values.contactAddresses)] : []
+        }
       }
 
       // Handle Opportunity
@@ -492,61 +457,53 @@ export const ConvertLeadForm: React.FC<ConvertLeadFormProps> = (props) => {
           estimatedAmount: values.opportunityEstimatedAmount || 0,
           winningChance: values.opportunityWinningChance || 0,
           currencyRef: values.opportunityCurrency || null,
-          sourceApp: values.opportunitySourceApp || "CRM",
+          sourceApp: values.opportunitySourceApp || 'CRM',
           salesPipelineRef: values.opportunityPipeline || null,
           salesPipelineStageRef: values.opportunitySalesPipelineStage || null,
           status: values.opportunityStatus || null,
           ownerEmployee: values.opportunityOwnerEmployee || null,
-          notesSummary: values.opportunityNoteSummary || null,
-        };
+          notesSummary: values.opportunityNoteSummary || null
+        }
       }
 
-      dispatchProcessContinueEvent("pse_submit", payload);
+      dispatchProcessContinueEvent('pse_submit', payload)
     } catch (error) {
-      console.error("Error submitting convert lead form:", error);
-      toast.error("Failed to convert lead");
-      setSubmitting(false);
+      console.error('Error submitting convert lead form:', error)
+      toast.error('Failed to convert lead')
+      setSubmitting(false)
     }
-  };
+  }
 
   const handleCancel = () => {
-    dispatchProcessContinueEvent("pse_pause", {});
-  };
+    dispatchProcessContinueEvent('pse_pause', {})
+  }
 
   const renderAddressForm = (prefix: string, label: string) => (
     <div className="gba:mb-4">
-      <h5 className="gba:text-lg gba:font-semibold gba:mb-3 gba:text-gray-900">
-        {label}
-      </h5>
+      <h5 className="gba:text-lg gba:font-semibold gba:mb-3 gba:text-gray-900">{label}</h5>
       <div className="gba:grid gba:grid-cols-1 gba:md:grid-cols-2 gba:gap-2 gba:space-y-2">
         {/* Country and Region - First row */}
         <div>
           <Form.Item
-            name={[prefix, "countryRef"]}
-            label={getTranslationFromI18nKeyAndLabel(
-              "crm:address.country",
-              "Country"
-            )}
+            name={[prefix, 'countryRef']}
+            label={getTranslationFromI18nKeyAndLabel('crm:address.country', 'Country')}
           >
             <SearchableSelect
               name={`${prefix}-countryRef`}
-              value={form.getFieldValue([prefix, "countryRef"])}
-              placeholder={getTranslationFromI18nKeyAndLabel(
-                "crm:address.selectCountry",
-                "Select Country"
-              )}
+              value={form.getFieldValue([prefix, 'countryRef'])}
+              placeholder={getTranslationFromI18nKeyAndLabel('crm:address.selectCountry', 'Select Country')}
               options={stringCountries as any}
               loading={countriesHook.loading}
               hasMore={countriesHook.hasMore}
               onSearch={countriesHook.search}
               onLoadMore={countriesHook.loadMore}
-              onChange={(value) => {
+              onChange={value => {
                 form.setFieldsValue({
                   [prefix]: {
                     ...form.getFieldValue(prefix),
-                    countryRef: value,
-                  },
-                });
+                    countryRef: value
+                  }
+                })
               }}
               error={countriesHook.error}
               data-testid={`${prefix}-country-select`}
@@ -555,17 +512,14 @@ export const ConvertLeadForm: React.FC<ConvertLeadFormProps> = (props) => {
         </div>
         <div>
           <Form.Item
-            name={[prefix, "region"]}
-            label={getTranslationFromI18nKeyAndLabel(
-              "crm:address.regionState",
-              "Region/State"
-            )}
+            name={[prefix, 'region']}
+            label={getTranslationFromI18nKeyAndLabel('crm:address.regionState', 'Region/State')}
           >
             <DesignInput
               data-testid={`${prefix}-region-input`}
               placeholder={getTranslationFromI18nKeyAndLabel(
-                "crm:address.regionPlaceholder",
-                "Enter region or state..."
+                'crm:address.regionPlaceholder',
+                'Enter region or state...'
               )}
               className="gba:h-11 gba:px-3 gba:text-sm"
             />
@@ -575,17 +529,14 @@ export const ConvertLeadForm: React.FC<ConvertLeadFormProps> = (props) => {
         {/* Address Lines - Full width */}
         <div className="gba:md:col-span-2">
           <Form.Item
-            name={[prefix, "addressLine"]}
-            label={getTranslationFromI18nKeyAndLabel(
-              "crm:address.addressLine1",
-              "Address Line 1"
-            )}
+            name={[prefix, 'addressLine']}
+            label={getTranslationFromI18nKeyAndLabel('crm:address.addressLine1', 'Address Line 1')}
           >
             <DesignInput
               data-testid={`${prefix}-address-line-1`}
               placeholder={getTranslationFromI18nKeyAndLabel(
-                "crm:address.addressLine1Placeholder",
-                "Enter street address..."
+                'crm:address.addressLine1Placeholder',
+                'Enter street address...'
               )}
               className="gba:h-11 gba:px-3 gba:text-sm"
             />
@@ -593,17 +544,14 @@ export const ConvertLeadForm: React.FC<ConvertLeadFormProps> = (props) => {
         </div>
         <div className="gba:md:col-span-2">
           <Form.Item
-            name={[prefix, "addressLine2"]}
-            label={getTranslationFromI18nKeyAndLabel(
-              "crm:address.addressLine2",
-              "Address Line 2"
-            )}
+            name={[prefix, 'addressLine2']}
+            label={getTranslationFromI18nKeyAndLabel('crm:address.addressLine2', 'Address Line 2')}
           >
             <DesignInput
               data-testid={`${prefix}-address-line-2`}
               placeholder={getTranslationFromI18nKeyAndLabel(
-                "crm:address.addressLine2Placeholder",
-                "Apartment, suite, unit, etc. (optional)"
+                'crm:address.addressLine2Placeholder',
+                'Apartment, suite, unit, etc. (optional)'
               )}
               className="gba:h-11 gba:px-3 gba:text-sm"
             />
@@ -613,96 +561,61 @@ export const ConvertLeadForm: React.FC<ConvertLeadFormProps> = (props) => {
         {/* Postal Code and City - Second row */}
         <div>
           <Form.Item
-            name={[prefix, "postalCode"]}
-            label={getTranslationFromI18nKeyAndLabel(
-              "crm:address.postalCode",
-              "Postal Code"
-            )}
+            name={[prefix, 'postalCode']}
+            label={getTranslationFromI18nKeyAndLabel('crm:address.postalCode', 'Postal Code')}
           >
             <DesignInput
               data-testid={`${prefix}-postal-code`}
               placeholder={getTranslationFromI18nKeyAndLabel(
-                "crm:address.postalCodePlaceholder",
-                "Enter postal code..."
+                'crm:address.postalCodePlaceholder',
+                'Enter postal code...'
               )}
               className="gba:h-11 gba:px-3 gba:text-sm"
             />
           </Form.Item>
         </div>
         <div>
-          <Form.Item
-            name={[prefix, "city"]}
-            label={getTranslationFromI18nKeyAndLabel(
-              "crm:address.city",
-              "City"
-            )}
-          >
+          <Form.Item name={[prefix, 'city']} label={getTranslationFromI18nKeyAndLabel('crm:address.city', 'City')}>
             <DesignInput
               data-testid={`${prefix}-city`}
-              placeholder={getTranslationFromI18nKeyAndLabel(
-                "crm:address.cityPlaceholder",
-                "Enter city..."
-              )}
+              placeholder={getTranslationFromI18nKeyAndLabel('crm:address.cityPlaceholder', 'Enter city...')}
               className="gba:h-11 gba:px-3 gba:text-sm"
             />
           </Form.Item>
         </div>
       </div>
     </div>
-  );
+  )
 
   // Separate address form for opportunity section without country and region
   const renderOpportunityAddressForm = (prefix: string, label: string) => (
     <div className="gba:mb-4">
-      <h5 className="gba:text-lg gba:font-semibold gba:mb-3 gba:text-gray-900">
-        {label}
-      </h5>
+      <h5 className="gba:text-lg gba:font-semibold gba:mb-3 gba:text-gray-900">{label}</h5>
       <div className="gba:grid gba:grid-cols-1 gba:md:grid-cols-2 gba:gap-2 gba:space-y-2">
         <div className="gba:md:col-span-2">
           <Form.Item
-            name={[prefix, "addressLine"]}
-            label={getTranslationFromI18nKeyAndLabel(
-              "crm:address.addressLine",
-              "Address Line"
-            )}
+            name={[prefix, 'addressLine']}
+            label={getTranslationFromI18nKeyAndLabel('crm:address.addressLine', 'Address Line')}
           >
-            <DesignInput
-              data-testid={`${prefix}-address-line`}
-              className="gba:h-11 gba:px-3 gba:text-sm"
-            />
+            <DesignInput data-testid={`${prefix}-address-line`} className="gba:h-11 gba:px-3 gba:text-sm" />
+          </Form.Item>
+        </div>
+        <div>
+          <Form.Item name={[prefix, 'city']} label={getTranslationFromI18nKeyAndLabel('crm:address.city', 'City')}>
+            <DesignInput data-testid={`${prefix}-city`} className="gba:h-11 gba:px-3 gba:text-sm" />
           </Form.Item>
         </div>
         <div>
           <Form.Item
-            name={[prefix, "city"]}
-            label={getTranslationFromI18nKeyAndLabel(
-              "crm:address.city",
-              "City"
-            )}
+            name={[prefix, 'postalCode']}
+            label={getTranslationFromI18nKeyAndLabel('crm:address.postalCode', 'Postal Code')}
           >
-            <DesignInput
-              data-testid={`${prefix}-city`}
-              className="gba:h-11 gba:px-3 gba:text-sm"
-            />
-          </Form.Item>
-        </div>
-        <div>
-          <Form.Item
-            name={[prefix, "postalCode"]}
-            label={getTranslationFromI18nKeyAndLabel(
-              "crm:address.postalCode",
-              "Postal Code"
-            )}
-          >
-            <DesignInput
-              data-testid={`${prefix}-postal-code`}
-              className="gba:h-11 gba:px-3 gba:text-sm"
-            />
+            <DesignInput data-testid={`${prefix}-postal-code`} className="gba:h-11 gba:px-3 gba:text-sm" />
           </Form.Item>
         </div>
       </div>
     </div>
-  );
+  )
 
   if (loading || catalogsLoading) {
     return (
@@ -710,104 +623,79 @@ export const ConvertLeadForm: React.FC<ConvertLeadFormProps> = (props) => {
         <Spinner className="gba:w-8 gba:h-8" />
         <div className="gba:mt-4">
           <p className="gba:text-sm gba:text-gray-600">
-            {getTranslationFromI18nKeyAndLabel("common:loading", "Loading...")}
+            {getTranslationFromI18nKeyAndLabel('common:loading', 'Loading...')}
           </p>
         </div>
       </div>
-    );
+    )
   }
 
   return (
-    <div
-      className="gba:p-6 gba:bg-white gba:rounded-lg gba:shadow-md"
-      data-testid="convert-lead-form-container"
-    >
+    <div className="gba:p-6 gba:bg-white gba:rounded-lg gba:shadow-md" data-testid="convert-lead-form-container">
       <Form
         form={form}
         layout="vertical"
         onFinish={handleSubmit}
         data-testid="convert-lead-form"
         initialValues={{
-          accountSourceApp: "IRM",
-          contactSourceApp: "IRM",
+          accountSourceApp: 'IRM',
+          contactSourceApp: 'IRM',
           opportunityWinningChance: 50,
-          opportunitySourceApp: "IRM",
+          opportunitySourceApp: 'IRM'
         }}
       >
         <h1
           className="gba:text-3xl gba:font-black gba:mb-6 gba:text-center gba:text-gray-900"
           style={{
-            fontSize: "2rem",
-            fontWeight: "900",
-            lineHeight: "1.2",
-            marginBottom: "1.5rem",
-            textAlign: "center",
-            color: "#111827",
+            fontSize: '2rem',
+            fontWeight: '900',
+            lineHeight: '1.2',
+            marginBottom: '1.5rem',
+            textAlign: 'center',
+            color: '#111827'
           }}
         >
-          {getTranslationFromI18nKeyAndLabel(
-            "crm:convertLead.title",
-            "Convert Lead"
-          )}
+          {getTranslationFromI18nKeyAndLabel('crm:convertLead.title', 'Convert Lead')}
         </h1>
 
         {/* Lead Information Display */}
         <Card className="gba:mb-4" data-testid="lead-info-card">
           <CardHeader>
             <CardTitle className="gba:text-lg gba:font-semibold">
-              {getTranslationFromI18nKeyAndLabel(
-                "crm:convertLead.leadInfo",
-                "Lead Information"
-              )}
+              {getTranslationFromI18nKeyAndLabel('crm:convertLead.leadInfo', 'Lead Information')}
             </CardTitle>
           </CardHeader>
           <CardContent>
             <div className="gba:grid gba:grid-cols-1 gba:md:grid-cols-2 gba:gap-2">
               <div className="gba:space-y-2">
                 <span className="gba:text-sm gba:font-medium gba:text-gray-600">
-                  {getTranslationFromI18nKeyAndLabel("crm:lead.name", "Name")}
+                  {getTranslationFromI18nKeyAndLabel('crm:lead.name', 'Name')}
                 </span>
-                <div
-                  className="gba:font-medium gba:text-base gba:text-gray-900"
-                  data-testid="lead-name"
-                >
-                  {leadData?.name ||
-                    `${leadData?.firstName} ${leadData?.lastName}`}
+                <div className="gba:font-medium gba:text-base gba:text-gray-900" data-testid="lead-name">
+                  {leadData?.name || `${leadData?.firstName} ${leadData?.lastName}`}
                 </div>
               </div>
               <div className="gba:space-y-2">
                 <span className="gba:text-sm gba:font-medium gba:text-gray-600">
-                  {getTranslationFromI18nKeyAndLabel(
-                    "crm:lead.company",
-                    "Company"
-                  )}
+                  {getTranslationFromI18nKeyAndLabel('crm:lead.company', 'Company')}
                 </span>
-                <div
-                  className="gba:font-medium gba:text-base gba:text-gray-900"
-                  data-testid="lead-company"
-                >
+                <div className="gba:font-medium gba:text-base gba:text-gray-900" data-testid="lead-company">
                   {leadData?.companyName}
                 </div>
               </div>
               <div className="gba:space-y-2">
                 <span className="gba:text-sm gba:font-medium gba:text-gray-600">
-                  {getTranslationFromI18nKeyAndLabel("crm:lead.email", "Email")}
+                  {getTranslationFromI18nKeyAndLabel('crm:lead.email', 'Email')}
                 </span>
-                <div
-                  className="gba:font-medium gba:text-base gba:text-gray-900"
-                  data-testid="lead-email"
-                >
+                <div className="gba:font-medium gba:text-base gba:text-gray-900" data-testid="lead-email">
                   {leadData?.email}
                 </div>
               </div>
               <div className="gba:space-y-2">
                 <span className="gba:text-sm gba:font-medium gba:text-gray-600">
-                  {getTranslationFromI18nKeyAndLabel("crm:lead.phone", "Phone")}
+                  {getTranslationFromI18nKeyAndLabel('crm:lead.phone', 'Phone')}
                 </span>
-                <div
-                  className="gba:font-medium gba:text-base gba:text-gray-900"
-                  data-testid="lead-phone"
-                >
+                <div className="gba:font-medium gba:text-base gba:text-gray-900" data-testid="lead-phone">
                   {leadData?.phone}
                 </div>
               </div>
@@ -855,20 +743,17 @@ export const ConvertLeadForm: React.FC<ConvertLeadFormProps> = (props) => {
               <DesignCheckbox
                 id="create-opportunity-checkbox"
                 checked={createOpportunity}
-                onCheckedChange={(checked) => {
-                  setCreateOpportunity(checked === true);
+                onCheckedChange={checked => {
+                  setCreateOpportunity(checked === true)
                 }}
                 data-testid="create-opportunity-checkbox"
               />
               <Label
                 htmlFor="create-opportunity-checkbox"
                 className="gba:text-sm gba:font-medium gba:text-gray-900 gba:cursor-pointer"
-                style={{ marginLeft: "5px" }}
+                style={{ marginLeft: '5px' }}
               >
-                {getTranslationFromI18nKeyAndLabel(
-                  "crm:convertLead.createOpportunity",
-                  "Create Opportunity"
-                )}
+                {getTranslationFromI18nKeyAndLabel('crm:convertLead.createOpportunity', 'Create Opportunity')}
               </Label>
             </div>
           </CardContent>
@@ -880,21 +765,11 @@ export const ConvertLeadForm: React.FC<ConvertLeadFormProps> = (props) => {
             accessToken={accessToken}
             form={form}
             opportunityEmployeePositions={opportunityEmployeePositions}
-            opportunityEmployeePositionsLoading={
-              opportunityEmployeePositionsLoading
-            }
-            opportunityEmployeePositionsHasMore={
-              opportunityEmployeePositionsHasMore
-            }
-            loadMoreOpportunityEmployeePositions={
-              loadMoreOpportunityEmployeePositions
-            }
-            searchOpportunityEmployeePositions={
-              searchOpportunityEmployeePositions
-            }
-            opportunityEmployeePositionsError={
-              opportunityEmployeePositionsError
-            }
+            opportunityEmployeePositionsLoading={opportunityEmployeePositionsLoading}
+            opportunityEmployeePositionsHasMore={opportunityEmployeePositionsHasMore}
+            loadMoreOpportunityEmployeePositions={loadMoreOpportunityEmployeePositions}
+            searchOpportunityEmployeePositions={searchOpportunityEmployeePositions}
+            opportunityEmployeePositionsError={opportunityEmployeePositionsError}
           />
         )}
 
@@ -908,10 +783,7 @@ export const ConvertLeadForm: React.FC<ConvertLeadFormProps> = (props) => {
             data-testid="convert-lead-cancel-button"
             disabled={submitting}
           >
-            {getTranslationFromI18nKeyAndLabel(
-              "common:button.cancel",
-              "Cancel"
-            )}
+            {getTranslationFromI18nKeyAndLabel('common:button.cancel', 'Cancel')}
           </DesignButton>
           <DesignButton
             type="submit"
@@ -920,20 +792,14 @@ export const ConvertLeadForm: React.FC<ConvertLeadFormProps> = (props) => {
             disabled={submitting}
           >
             {submitting
-              ? getTranslationFromI18nKeyAndLabel(
-                  "crm:convertLead.converting",
-                  "Converting..."
-                )
-              : getTranslationFromI18nKeyAndLabel(
-                  "crm:convertLead.convertLead",
-                  "Convert Lead"
-                )}
+              ? getTranslationFromI18nKeyAndLabel('crm:convertLead.converting', 'Converting...')
+              : getTranslationFromI18nKeyAndLabel('crm:convertLead.convertLead', 'Convert Lead')}
           </DesignButton>
         </div>
       </Form>
       <Toaster />
     </div>
-  );
-};
+  )
+}
 
-export default ConvertLeadForm;
+export default ConvertLeadForm

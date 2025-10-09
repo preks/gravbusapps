@@ -72,7 +72,7 @@ const SimpleAreaChart = ({ moduleColor }) => {
       </CardContent>
     </Card>
   );
-};`;
+};`
 
 export const stackedAreaCode = `import React, { useMemo } from "react";
 import {
@@ -157,7 +157,7 @@ const StackedAreaChart = ({ moduleColor }) => {
       </CardContent>
     </Card>
   );
-};`;
+};`
 
 export const areaLegendCode = `import React, { useMemo } from "react";
 import {
@@ -236,7 +236,7 @@ const AreaChartLegend = ({ moduleColor }) => {
       </CardContent>
     </Card>
   );
-};`;
+};`
 
 export const areaIconsCode = `import React, { useMemo } from "react";
 import {
@@ -308,7 +308,7 @@ const AreaChartIcons = ({ moduleColor }) => {
       </CardContent>
     </Card>
   );
-};`;
+};`
 
 export const areaGradientCode = `import React, { useMemo } from "react";
 import {
@@ -387,7 +387,7 @@ const AreaChartGradient = ({ moduleColor }) => {
       </CardContent>
     </Card>
   );
-};`;
+};`
 
 export const interactiveAreaCode = `import React, { useMemo, useState } from "react";
 import {
@@ -487,12 +487,12 @@ const InteractiveAreaChart = ({ moduleColor }) => {
       </CardContent>
     </Card>
   );
-};`;
+};`
 
-export const linearAreaCode = `// Linear area chart with linear interpolation between data points`;
+export const linearAreaCode = `// Linear area chart with linear interpolation between data points`
 
-export const stepAreaCode = `// Step area chart with step-wise connections between data points`;
+export const stepAreaCode = `// Step area chart with step-wise connections between data points`
 
-export const stackedExpandedAreaCode = `// 100% stacked area chart showing proportions with percentage formatting`;
+export const stackedExpandedAreaCode = `// 100% stacked area chart showing proportions with percentage formatting`
 
-export const areaAxesCode = `// Area chart with custom axis styling, tick formatting, and grid configuration`;
+export const areaAxesCode = `// Area chart with custom axis styling, tick formatting, and grid configuration`

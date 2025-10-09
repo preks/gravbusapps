@@ -1,5 +1,5 @@
-import React from 'react';
-import { UseFormReturn } from 'react-hook-form';
+import React from 'react'
+import { UseFormReturn } from 'react-hook-form'
 import {
   RadioGroup,
   RadioGroupItem,
@@ -8,24 +8,24 @@ import {
   FormControl,
   FormField,
   FormItem,
-  FormMessage,
-} from '@newwork/nw-design-system';
-import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
-import SearchableSelect from './SearchableSelect';
-import { ConvertLeadFormData, AccountOption, ContactOption } from '../types';
+  FormMessage
+} from '@newwork/nw-design-system'
+import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
+import SearchableSelect from './SearchableSelect'
+import { ConvertLeadFormData, AccountOption, ContactOption } from '../types'
 
 interface ChoicesStepProps {
-  form: UseFormReturn<ConvertLeadFormData>;
-  accounts: AccountOption[];
-  isLoadingAccounts: boolean;
-  hasMoreAccounts: boolean;
-  searchAccounts: (searchTerm: string) => void;
-  loadMoreAccounts: () => void;
-  contacts: ContactOption[];
-  isLoadingContacts: boolean;
-  hasMoreContacts: boolean;
-  searchContacts: (searchTerm: string) => void;
-  loadMoreContacts: () => void;
+  form: UseFormReturn<ConvertLeadFormData>
+  accounts: AccountOption[]
+  isLoadingAccounts: boolean
+  hasMoreAccounts: boolean
+  searchAccounts: (searchTerm: string) => void
+  loadMoreAccounts: () => void
+  contacts: ContactOption[]
+  isLoadingContacts: boolean
+  hasMoreContacts: boolean
+  searchContacts: (searchTerm: string) => void
+  loadMoreContacts: () => void
 }
 
 export const ChoicesStep: React.FC<ChoicesStepProps> = ({
@@ -39,19 +39,18 @@ export const ChoicesStep: React.FC<ChoicesStepProps> = ({
   isLoadingContacts,
   hasMoreContacts,
   searchContacts,
-  loadMoreContacts,
+  loadMoreContacts
 }) => {
   return (
     <WizardFormStep>
       <div data-testid="convert-lead-choices-step">
         <div className="gba:space-y-6">
-          
           {/* Account Section */}
           <div className="gba:p-4">
             <h3 className="gba:text-lg gba:font-semibold gba:mb-4">
-              {getTranslationFromI18nKeyAndLabel("crm:convertLead.account", "Account")}
+              {getTranslationFromI18nKeyAndLabel('crm:convertLead.account', 'Account')}
             </h3>
-            
+
             <FormField
               control={form.control}
               name="accountOption"
@@ -67,13 +66,16 @@ export const ChoicesStep: React.FC<ChoicesStepProps> = ({
                       <div className="gba:flex gba:items-center gba:space-x-2">
                         <RadioGroupItem value="create" id="create-account" />
                         <Label htmlFor="create-account">
-                          {getTranslationFromI18nKeyAndLabel("crm:convertLead.createNewAccount", "Create new account")}
+                          {getTranslationFromI18nKeyAndLabel('crm:convertLead.createNewAccount', 'Create new account')}
                         </Label>
                       </div>
                       <div className="gba:flex gba:items-center gba:space-x-2">
                         <RadioGroupItem value="match" id="match-account" />
                         <Label htmlFor="match-account">
-                          {getTranslationFromI18nKeyAndLabel("crm:convertLead.matchExistingAccount", "Match existing account")}
+                          {getTranslationFromI18nKeyAndLabel(
+                            'crm:convertLead.matchExistingAccount',
+                            'Match existing account'
+                          )}
                         </Label>
                       </div>
                     </RadioGroup>
@@ -92,7 +94,7 @@ export const ChoicesStep: React.FC<ChoicesStepProps> = ({
                   render={({ field, fieldState }) => (
                     <FormItem>
                       <SearchableSelect
-                        label={getTranslationFromI18nKeyAndLabel("crm:convertLead.selectAccount", "Select Account")}
+                        label={getTranslationFromI18nKeyAndLabel('crm:convertLead.selectAccount', 'Select Account')}
                         name="account-select"
                         value={field.value || ''}
                         placeholder="Search and select an account..."
@@ -101,17 +103,15 @@ export const ChoicesStep: React.FC<ChoicesStepProps> = ({
                         hasMore={hasMoreAccounts}
                         onSearch={searchAccounts}
                         onLoadMore={loadMoreAccounts}
-                        onChange={(value) => {
-                          const selectedAccount = accounts.find(account => account.id === value);
-                          form.setValue('selectedAccountId', value);
-                          form.setValue('selectedAccountName', selectedAccount?.name || '');
+                        onChange={value => {
+                          const selectedAccount = accounts.find(account => account.id === value)
+                          form.setValue('selectedAccountId', value)
+                          form.setValue('selectedAccountName', selectedAccount?.name || '')
                         }}
                         data-testid="account-select"
                         className="gba:w-full"
                       />
-                      {fieldState.error && (
-                        <FormMessage>{fieldState.error.message}</FormMessage>
-                      )}
+                      {fieldState.error && <FormMessage>{fieldState.error.message}</FormMessage>}
                     </FormItem>
                   )}
                 />
@@ -122,9 +122,9 @@ export const ChoicesStep: React.FC<ChoicesStepProps> = ({
           {/* Contact Section */}
           <div className="gba:p-4">
             <h3 className="gba:text-lg gba:font-semibold gba:mb-4">
-              {getTranslationFromI18nKeyAndLabel("crm:convertLead.contact", "Contact")}
+              {getTranslationFromI18nKeyAndLabel('crm:convertLead.contact', 'Contact')}
             </h3>
-            
+
             <FormField
               control={form.control}
               name="contactOption"
@@ -140,13 +140,16 @@ export const ChoicesStep: React.FC<ChoicesStepProps> = ({
                       <div className="gba:flex gba:items-center gba:space-x-2">
                         <RadioGroupItem value="create" id="create-contact" />
                         <Label htmlFor="create-contact">
-                          {getTranslationFromI18nKeyAndLabel("crm:convertLead.createNewContact", "Create new contact")}
+                          {getTranslationFromI18nKeyAndLabel('crm:convertLead.createNewContact', 'Create new contact')}
                         </Label>
                       </div>
                       <div className="gba:flex gba:items-center gba:space-x-2">
                         <RadioGroupItem value="match" id="match-contact" />
                         <Label htmlFor="match-contact">
-                          {getTranslationFromI18nKeyAndLabel("crm:convertLead.matchExistingContact", "Match existing contact")}
+                          {getTranslationFromI18nKeyAndLabel(
+                            'crm:convertLead.matchExistingContact',
+                            'Match existing contact'
+                          )}
                         </Label>
                       </div>
                     </RadioGroup>
@@ -165,7 +168,7 @@ export const ChoicesStep: React.FC<ChoicesStepProps> = ({
                   render={({ field, fieldState }) => (
                     <FormItem>
                       <SearchableSelect
-                        label={getTranslationFromI18nKeyAndLabel("crm:convertLead.selectContact", "Select Contact")}
+                        label={getTranslationFromI18nKeyAndLabel('crm:convertLead.selectContact', 'Select Contact')}
                         name="contact-select"
                         value={field.value || ''}
                         placeholder="Search and select a contact..."
@@ -174,17 +177,15 @@ export const ChoicesStep: React.FC<ChoicesStepProps> = ({
                         hasMore={hasMoreContacts}
                         onSearch={searchContacts}
                         onLoadMore={loadMoreContacts}
-                        onChange={(value) => {
-                          const selectedContact = contacts.find(contact => contact.id === value);
-                          form.setValue('selectedContactId', value);
-                          form.setValue('selectedContactName', selectedContact?.name || '');
+                        onChange={value => {
+                          const selectedContact = contacts.find(contact => contact.id === value)
+                          form.setValue('selectedContactId', value)
+                          form.setValue('selectedContactName', selectedContact?.name || '')
                         }}
                         data-testid="contact-select"
                         className="gba:w-full"
                       />
-                      {fieldState.error && (
-                        <FormMessage>{fieldState.error.message}</FormMessage>
-                      )}
+                      {fieldState.error && <FormMessage>{fieldState.error.message}</FormMessage>}
                     </FormItem>
                   )}
                 />
@@ -195,9 +196,9 @@ export const ChoicesStep: React.FC<ChoicesStepProps> = ({
           {/* Opportunity Section */}
           <div className="gba:p-4">
             <h3 className="gba:text-lg gba:font-semibold gba:mb-4">
-              {getTranslationFromI18nKeyAndLabel("crm:convertLead.opportunity", "Opportunity")}
+              {getTranslationFromI18nKeyAndLabel('crm:convertLead.opportunity', 'Opportunity')}
             </h3>
-            
+
             <FormField
               control={form.control}
               name="createOpportunity"
@@ -214,7 +215,10 @@ export const ChoicesStep: React.FC<ChoicesStepProps> = ({
                       />
                     </FormControl>
                     <Label>
-                      {getTranslationFromI18nKeyAndLabel("crm:convertLead.createNewOpportunity", "Create new opportunity")}
+                      {getTranslationFromI18nKeyAndLabel(
+                        'crm:convertLead.createNewOpportunity',
+                        'Create new opportunity'
+                      )}
                     </Label>
                   </div>
                   <FormMessage />
@@ -225,5 +229,5 @@ export const ChoicesStep: React.FC<ChoicesStepProps> = ({
         </div>
       </div>
     </WizardFormStep>
-  );
-};
+  )
+}

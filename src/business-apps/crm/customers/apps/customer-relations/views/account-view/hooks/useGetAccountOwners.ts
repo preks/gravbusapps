@@ -1,18 +1,18 @@
-import { useState, useCallback, useEffect } from "react";
-import { useGraphQLClient } from "@/common/network/graphql/useGraphQLClient";
-import { BusinessAppContextProps } from "@/common/BusinessAppContext";
+import { useState, useCallback, useEffect } from 'react'
+import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
+import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 
 export interface AccountOwner {
-  id: string;
-  displayName: string;
-  firstName?: string;
-  lastName?: string;
+  id: string
+  displayName: string
+  firstName?: string
+  lastName?: string
 }
 
 export interface UseGetAccountOwnersReturn {
-  ownerOptions: AccountOwner[];
-  isLoading: boolean;
-  error: any;
+  ownerOptions: AccountOwner[]
+  isLoading: boolean
+  error: any
 }
 
 const GET_ACCOUNT_OWNERS_QUERY = `
@@ -40,88 +40,81 @@ const GET_ACCOUNT_OWNERS_QUERY = `
       displayName
     }
   }
-`;
+`
 
 export const useGetAccountOwners = (
   context: BusinessAppContextProps,
-  search: string = ""
+  search: string = ''
 ): UseGetAccountOwnersReturn => {
-  const [ownerOptions, setOwnerOptions] = useState<AccountOwner[]>([]);
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState<any>(null);
+  const [ownerOptions, setOwnerOptions] = useState<AccountOwner[]>([])
+  const [isLoading, setIsLoading] = useState(false)
+  const [error, setError] = useState<any>(null)
 
-  const graphqlClient = useGraphQLClient(context.accessToken);
+  const graphqlClient = useGraphQLClient(context.accessToken)
 
   const fetchOwners = useCallback(
-    async (searchTerm: string = "") => {
+    async (searchTerm: string = '') => {
       if (!context.accessToken) {
-        console.warn("No access token provided to useGetAccountOwners");
-        return;
+        console.warn('No access token provided to useGetAccountOwners')
+        return
       }
 
-      setIsLoading(true);
-      setError(null);
+      setIsLoading(true)
+      setError(null)
 
       try {
-        let searchPattern: string;
-        let limit: number;
+        let searchPattern: string
+        let limit: number
 
         if (searchTerm && searchTerm.trim().length >= 2) {
           // User is searching - use search pattern and higher limit
-          searchPattern = `%${searchTerm.trim()}%`;
-          limit = 50;
+          searchPattern = `%${searchTerm.trim()}%`
+          limit = 50
         } else {
           // No search or search too short - get first 20 owners alphabetically
-          searchPattern = "%%";
-          limit = 20;
+          searchPattern = '%%'
+          limit = 20
         }
 
         const variables = {
           search: searchPattern,
           limit,
-          offset: 0,
-        };
+          offset: 0
+        }
 
-        const result = await graphqlClient.request<{ Employee: AccountOwner[] }>(
-          GET_ACCOUNT_OWNERS_QUERY,
-          variables
-        );
+        const result = await graphqlClient.request<{ Employee: AccountOwner[] }>(GET_ACCOUNT_OWNERS_QUERY, variables)
 
-        const ownerData = result.Employee || [];
+        const ownerData = result.Employee || []
 
         // Process and format owners
-        const processedOwners = ownerData.map((emp) => ({
+        const processedOwners = ownerData.map(emp => ({
           id: emp.id,
-          displayName:
-            emp.displayName ||
-            `${emp.firstName || ""} ${emp.lastName || ""}`.trim() ||
-            "Unknown",
-          firstName: emp.firstName || "",
-          lastName: emp.lastName || "",
-        }));
+          displayName: emp.displayName || `${emp.firstName || ''} ${emp.lastName || ''}`.trim() || 'Unknown',
+          firstName: emp.firstName || '',
+          lastName: emp.lastName || ''
+        }))
 
-        setOwnerOptions(processedOwners);
+        setOwnerOptions(processedOwners)
       } catch (err) {
-        const error =
-          err instanceof Error ? err : new Error("Failed to fetch account owners");
-        setError(error);
-        console.error("Error fetching account owners:", error);
+        const error = err instanceof Error ? err : new Error('Failed to fetch account owners')
+        setError(error)
+        console.error('Error fetching account owners:', error)
       } finally {
-        setIsLoading(false);
+        setIsLoading(false)
       }
     },
     [context.accessToken, graphqlClient]
-  );
+  )
 
   useEffect(() => {
     if (context.accessToken) {
-      fetchOwners(search);
+      fetchOwners(search)
     }
-  }, [context.accessToken, search, fetchOwners]);
+  }, [context.accessToken, search, fetchOwners])
 
   return {
     ownerOptions,
     isLoading,
-    error,
-  };
-}; 
+    error
+  }
+}

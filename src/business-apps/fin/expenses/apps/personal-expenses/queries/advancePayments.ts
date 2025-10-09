@@ -1,18 +1,22 @@
 // Moved dynamic query builder to utils/advancePaymentsQueryBuilder for SRP
 
 // Hook for using the dynamic query
-import { buildAdvancePaymentsQuery, validateFilters, AdvancePaymentFilters } from '../../personal-expenses/utils/advancePaymentsQueryBuilder';
+import {
+  buildAdvancePaymentsQuery,
+  validateFilters,
+  AdvancePaymentFilters
+} from '../../personal-expenses/utils/advancePaymentsQueryBuilder'
 
 export const useAdvancePaymentsQuery = (filters: AdvancePaymentFilters) => {
-  const query = buildAdvancePaymentsQuery(filters);
-  const filterState = validateFilters(filters);
-  
+  const query = buildAdvancePaymentsQuery(filters)
+  const filterState = validateFilters(filters)
+
   return {
     query,
     filterState,
     hasActiveFilters: filterState.hasStatusFilter || filterState.hasAmountRange || filterState.hasAdvanceRange
-  };
-};
+  }
+}
 
 // GraphQL query to get advance payments with status filtering
 export const GET_ADVANCE_PAYMENTS_BY_EMPLOYEE_WITH_STATUS = `
@@ -76,7 +80,7 @@ export const GET_ADVANCE_PAYMENTS_BY_EMPLOYEE_WITH_STATUS = `
       expensePlanId
     }
   }
-`;
+`
 
 // GraphQL query to get advance payments with amount range filtering
 export const GET_ADVANCE_PAYMENTS_BY_EMPLOYEE_WITH_AMOUNT_RANGE = `
@@ -152,7 +156,7 @@ export const GET_ADVANCE_PAYMENTS_BY_EMPLOYEE_WITH_AMOUNT_RANGE = `
       expensePlanId
     }
   }
-`;
+`
 
 // GraphQL query to get advance payments with advance range filtering
 export const GET_ADVANCE_PAYMENTS_BY_EMPLOYEE_WITH_ADVANCE_RANGE = `
@@ -224,7 +228,7 @@ export const GET_ADVANCE_PAYMENTS_BY_EMPLOYEE_WITH_ADVANCE_RANGE = `
       expensePlanId
     }
   }
-`;
+`
 
 // GraphQL query to get advance payments by employee (basic query without filters)
 export const GET_ADVANCE_PAYMENTS_BY_EMPLOYEE = `
@@ -306,7 +310,7 @@ export const GET_ADVANCE_PAYMENTS_BY_EMPLOYEE = `
       expensePlanId
     }
   }
-`;
+`
 
 export const GET_ADVANCE_PAYMENT_BY_ID = `
   query GetAdvancePaymentById($id: uuid!) {
@@ -328,7 +332,7 @@ export const GET_ADVANCE_PAYMENT_BY_ID = `
       expensePlanId
     }
   }
-`;
+`
 
 export const GET_ADVANCE_PAYMENT_STATISTICS = `
   query GetAdvancePaymentStatistics($employeeId: uuid!, $startDate: timestamptz!, $endDate: timestamptz!, $currencyRef: String!) {
@@ -373,7 +377,7 @@ export const GET_ADVANCE_PAYMENT_STATISTICS = `
       }
     }
   }
-`;
+`
 
 // Distinct currencies used by the employee in advance payments
 export const GET_USED_ADVANCE_PAYMENT_CURRENCIES = `
@@ -386,5 +390,4 @@ export const GET_USED_ADVANCE_PAYMENT_CURRENCIES = `
       currency { code }
     }
   }
-`;
-  
+`

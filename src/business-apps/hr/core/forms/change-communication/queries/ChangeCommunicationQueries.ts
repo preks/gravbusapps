@@ -1,7 +1,7 @@
-import { useState, useCallback, useEffect } from 'react';
-import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient';
-import { BusinessAppContextProps } from '@/common/BusinessAppContext';
-import { getCurrentActiveUserLocale } from '@/common/utils/windowUtils';
+import { useState, useCallback, useEffect } from 'react'
+import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
+import { BusinessAppContextProps } from '@/common/BusinessAppContext'
+import { getCurrentActiveUserLocale } from '@/common/utils/windowUtils'
 
 export const GET_COMMUNICATION_LOOKUPS = `
   query fetchEmployee($idEmployee: uuid!, $activeUserLocale: String!) {
@@ -51,60 +51,64 @@ export const GET_COMMUNICATION_LOOKUPS = `
       code
     }
   }
-`;
+`
 
-export interface CatalogOption { id: string; label: string; value: string; }
+export interface CatalogOption {
+  id: string
+  label: string
+  value: string
+}
 export interface EmployeeCommunicationRecord {
-  id?: string;
-  version?: number;
-  channelRef?: string;
-  purpose?: string;
-  typeRef?: string;
-  value?: string;
+  id?: string
+  version?: number
+  channelRef?: string
+  purpose?: string
+  typeRef?: string
+  value?: string
 }
 
 export const useCommunicationLookups = (context: BusinessAppContextProps) => {
-  const graphqlClient = useGraphQLClient(context.accessToken);
-  const [channels, setChannels] = useState<CatalogOption[]>([]);
-  const [types, setTypes] = useState<CatalogOption[]>([]);
-  const [communications, setCommunications] = useState<EmployeeCommunicationRecord[]>([]);
-  const [loading, setLoading] = useState<boolean>(false);
-  const [error, setError] = useState<string | null>(null);
+  const graphqlClient = useGraphQLClient(context.accessToken)
+  const [channels, setChannels] = useState<CatalogOption[]>([])
+  const [types, setTypes] = useState<CatalogOption[]>([])
+  const [communications, setCommunications] = useState<EmployeeCommunicationRecord[]>([])
+  const [loading, setLoading] = useState<boolean>(false)
+  const [error, setError] = useState<string | null>(null)
 
   const load = useCallback(async () => {
-    const employeeId = context.userInfo?.employeeDetails?.employeeId;
-    const locale = getCurrentActiveUserLocale();
-    if (!employeeId) return;
-    setLoading(true);
-    setError(null);
+    const employeeId = context.userInfo?.employeeDetails?.employeeId
+    const locale = getCurrentActiveUserLocale()
+    if (!employeeId) return
+    setLoading(true)
+    setError(null)
     try {
       const res = await graphqlClient.request<any>(GET_COMMUNICATION_LOOKUPS, {
         idEmployee: employeeId,
         activeUserLocale: locale || 'en-US'
-      });
+      })
 
       const mapEntries = (entries: any[] | undefined): CatalogOption[] => {
-        if (!entries) return [];
-        return entries.map((e) => ({
+        if (!entries) return []
+        return entries.map(e => ({
           id: e.id,
           value: e.value,
-          label: e.translations?.[0]?.value || e.value,
-        }));
-      };
+          label: e.translations?.[0]?.value || e.value
+        }))
+      }
 
-      setChannels(mapEntries(res?.commChannel));
-      setTypes(mapEntries(res?.commType));
-      setCommunications(Array.isArray(res?.EmployeeByPk?.communication) ? res.EmployeeByPk.communication : []);
+      setChannels(mapEntries(res?.commChannel))
+      setTypes(mapEntries(res?.commType))
+      setCommunications(Array.isArray(res?.EmployeeByPk?.communication) ? res.EmployeeByPk.communication : [])
     } catch (e: any) {
-      setError(e?.message || 'Failed to load communication lookups');
+      setError(e?.message || 'Failed to load communication lookups')
     } finally {
-      setLoading(false);
+      setLoading(false)
     }
-  }, [context.accessToken, context.userInfo?.employeeDetails?.employeeId, graphqlClient]);
+  }, [context.accessToken, context.userInfo?.employeeDetails?.employeeId, graphqlClient])
 
-  useEffect(() => { load(); }, [load]);
+  useEffect(() => {
+    load()
+  }, [load])
 
-  return { channels, types, communications, loading, error, refetch: load };
-};
-
-
+  return { channels, types, communications, loading, error, refetch: load }
+}

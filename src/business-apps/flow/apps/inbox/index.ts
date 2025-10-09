@@ -1,2 +1,2 @@
-export { default as TaskInbox } from './TaskInbox';
-export { default } from './TaskInbox'; 
+export { default as TaskInbox } from './TaskInbox'
+export { default } from './TaskInbox'

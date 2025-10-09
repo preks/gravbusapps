@@ -1,4 +1,4 @@
-import React from "react";
+import React from 'react'
 import {
   Card,
   CardHeader,
@@ -9,31 +9,25 @@ import {
   ChartTooltip,
   ChartTooltipContent,
   ChartLegend,
-  ChartLegendContent,
-} from "@newwork/nw-design-system";
-import { getTranslationFromI18nKeyAndLabel } from "@/common/utils/windowUtils";
-import {
-  LineChart,
-  Line,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-} from "recharts";
-import { formatCurrencyDisplay } from "../../../../personal-expenses/utils";
-import { resolveCssVar } from "./chartUtils";
+  ChartLegendContent
+} from '@newwork/nw-design-system'
+import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
+import { LineChart, Line, XAxis, YAxis, CartesianGrid } from 'recharts'
+import { formatCurrencyDisplay } from '../../../../personal-expenses/utils'
+import { resolveCssVar } from './chartUtils'
 
 interface LineChartProps {
   data: {
-    date: string;
-    value: number;
-  }[];
-  title: string;
-  xAxisDataKey?: string;
-  lineDataKey?: string;
-  lineColor?: string;
-  height?: number;
-  currency?: string;
-  dataTestId?: string;
+    date: string
+    value: number
+  }[]
+  title: string
+  xAxisDataKey?: string
+  lineDataKey?: string
+  lineColor?: string
+  height?: number
+  currency?: string
+  dataTestId?: string
 }
 
 /**
@@ -42,27 +36,24 @@ interface LineChartProps {
 const LineChartComponent: React.FC<LineChartProps> = ({
   data,
   title,
-  xAxisDataKey = "date",
-  lineDataKey = "value",
-  lineColor = "var(--nw-success)",
+  xAxisDataKey = 'date',
+  lineDataKey = 'value',
+  lineColor = 'var(--nw-success)',
   height = 300,
-  currency = "EUR",
-  dataTestId,
+  currency = 'EUR',
+  dataTestId
 }) => {
-  const resolvedLineColor = React.useMemo(() => resolveCssVar(lineColor), [lineColor]);
-  const lineName = getTranslationFromI18nKeyAndLabel(
-    "lowcoder:charts.legend.amount",
-    "Amount",
-  );
-  
+  const resolvedLineColor = React.useMemo(() => resolveCssVar(lineColor), [lineColor])
+  const lineName = getTranslationFromI18nKeyAndLabel('lowcoder:charts.legend.amount', 'Amount')
+
   const chartConfig = React.useMemo(() => {
     const config: ChartConfig = {
       [lineDataKey]: {
-        label: lineName,
-      },
-    };
-    return config;
-  }, [lineDataKey, lineName]);
+        label: lineName
+      }
+    }
+    return config
+  }, [lineDataKey, lineName])
 
   if (!data || data.length === 0) {
     return (
@@ -75,15 +66,18 @@ const LineChartComponent: React.FC<LineChartProps> = ({
         <CardContent>
           <div className="gba:flex gba:flex-col gba:items-center gba:justify-center gba:p-8 gba:text-center gba:min-h-[200px]">
             <div className="gba:text-muted-foreground gba:text-lg gba:font-medium gba:mb-2">
-              {getTranslationFromI18nKeyAndLabel("lowcoder:charts.empty.title","No data available")}
+              {getTranslationFromI18nKeyAndLabel('lowcoder:charts.empty.title', 'No data available')}
             </div>
             <div className="gba:text-muted-foreground gba:text-sm">
-              {getTranslationFromI18nKeyAndLabel("lowcoder:charts.empty.description","There is no data to display for this chart.")}
+              {getTranslationFromI18nKeyAndLabel(
+                'lowcoder:charts.empty.description',
+                'There is no data to display for this chart.'
+              )}
             </div>
           </div>
         </CardContent>
       </Card>
-    );
+    )
   }
 
   return (
@@ -98,7 +92,7 @@ const LineChartComponent: React.FC<LineChartProps> = ({
           config={chartConfig}
           className="gba:w-full"
           style={{ height: height }}
-          data-testid={dataTestId ?? "line-chart"}
+          data-testid={dataTestId ?? 'line-chart'}
         >
           <LineChart
             data={data}
@@ -106,7 +100,7 @@ const LineChartComponent: React.FC<LineChartProps> = ({
               top: 5,
               right: 30,
               left: 20,
-              bottom: 5,
+              bottom: 5
             }}
           >
             <CartesianGrid strokeDasharray="3 3" />
@@ -116,10 +110,10 @@ const LineChartComponent: React.FC<LineChartProps> = ({
               cursor={false}
               content={
                 <ChartTooltipContent
-                  formatter={(value) => {
-                    const num = typeof value === 'number' ? value : Number(value ?? 0);
-                    const fixed = Number.isFinite(num) ? Number(num.toFixed(2)) : 0;
-                    return formatCurrencyDisplay(fixed, currency);
+                  formatter={value => {
+                    const num = typeof value === 'number' ? value : Number(value ?? 0)
+                    const fixed = Number.isFinite(num) ? Number(num.toFixed(2)) : 0
+                    return formatCurrencyDisplay(fixed, currency)
                   }}
                 />
               }
@@ -136,7 +130,7 @@ const LineChartComponent: React.FC<LineChartProps> = ({
         </ChartContainer>
       </CardContent>
     </Card>
-  );
-};
+  )
+}
 
-export default LineChartComponent;
+export default LineChartComponent

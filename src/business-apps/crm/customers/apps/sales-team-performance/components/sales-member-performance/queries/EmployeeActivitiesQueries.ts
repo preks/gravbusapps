@@ -1,105 +1,105 @@
-import { useCallback } from "react";
-import { useGraphQLClient } from "@/common/network/graphql/useGraphQLClient";
-import { BusinessAppContextProps } from "@/common/BusinessAppContext";
+import { useCallback } from 'react'
+import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
+import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 
 export interface EmployeeActivitiesQueryVariables {
-  employeeId: string;
-  userId?: string; // Add userId for createdBy comparisons (user ID != employee ID)
-  offset?: number;
-  limit?: number;
-  orderBy?: Array<any>;
-  where?: any;
+  employeeId: string
+  userId?: string // Add userId for createdBy comparisons (user ID != employee ID)
+  offset?: number
+  limit?: number
+  orderBy?: Array<any>
+  where?: any
 }
 
 export interface ActivityReference {
-  contactId?: string;
-  leadId?: string;
-  accountId?: string;
-  opportunityId?: string;
+  contactId?: string
+  leadId?: string
+  accountId?: string
+  opportunityId?: string
   account?: {
-    email?: string;
-    name?: string;
-    pictureUrl?: string;
-  };
+    email?: string
+    name?: string
+    pictureUrl?: string
+  }
   contact?: {
-    firstName?: string;
-    lastName?: string;
-    phone?: string;
-    pictureUrl?: string;
-    email?: string;
-  };
+    firstName?: string
+    lastName?: string
+    phone?: string
+    pictureUrl?: string
+    email?: string
+  }
   lead?: {
-    name?: string;
-    companyEmail?: string;
-    companyPhone?: string;
+    name?: string
+    companyEmail?: string
+    companyPhone?: string
     contact?: {
-      firstName?: string;
-      lastName?: string;
-    };
-  };
+      firstName?: string
+      lastName?: string
+    }
+  }
   opportunity?: {
-    name?: string;
+    name?: string
     ownerEmployee?: {
-      fullName?: string;
-    };
-  };
+      fullName?: string
+    }
+  }
 }
 
 export interface EmployeeActivity {
-  id?: string;
-  source?: string;
-  description?: string;
-  title?: string;
-  createdAt: string;
-  occurredAt?: string;
-  ownerEmployeeId: string;
+  id?: string
+  source?: string
+  description?: string
+  title?: string
+  createdAt: string
+  occurredAt?: string
+  ownerEmployeeId: string
   ownerEmployee: {
-    fullName?: string;
-    pictureThumbnail?: string;
-  };
+    fullName?: string
+    pictureThumbnail?: string
+  }
   activityType: {
-    value: string;
-  };
-  contactId?: string;
-  leadId?: string;
-  accountId?: string;
-  opportunityId?: string;
+    value: string
+  }
+  contactId?: string
+  leadId?: string
+  accountId?: string
+  opportunityId?: string
   account?: {
-    email?: string;
-    name?: string;
-    pictureUrl?: string;
-  };
+    email?: string
+    name?: string
+    pictureUrl?: string
+  }
   contact?: {
-    firstName?: string;
-    lastName?: string;
-    phone?: string;
-    pictureUrl?: string;
-    email?: string;
-  };
+    firstName?: string
+    lastName?: string
+    phone?: string
+    pictureUrl?: string
+    email?: string
+  }
   lead?: {
-    name?: string;
-    companyEmail?: string;
-    companyPhone?: string;
+    name?: string
+    companyEmail?: string
+    companyPhone?: string
     contact?: {
-      firstName?: string;
-      lastName?: string;
-    };
-  };
+      firstName?: string
+      lastName?: string
+    }
+  }
   opportunity?: {
-    name?: string;
+    name?: string
     ownerEmployee?: {
-      fullName?: string;
-    };
-  };
+      fullName?: string
+    }
+  }
 }
 
 export interface EmployeeActivitiesResponse {
-  SalesActivity: EmployeeActivity[];
+  SalesActivity: EmployeeActivity[]
   SalesActivityAggregate: {
     aggregate: {
-      count: number;
-    };
-  };
+      count: number
+    }
+  }
 }
 
 // Query to get sales activities for a specific employee
@@ -164,68 +164,65 @@ export const GET_EMPLOYEE_ACTIVITIES_QUERY = `
       }
     }
   }
-`;
+`
 
-export const useEmployeeActivitiesQueries = (
-  context: BusinessAppContextProps
-) => {
-  const graphqlClient = useGraphQLClient(context.accessToken);
+export const useEmployeeActivitiesQueries = (context: BusinessAppContextProps) => {
+  const graphqlClient = useGraphQLClient(context.accessToken)
 
   const fetchEmployeeActivities = useCallback(
-    async (
-      variables: EmployeeActivitiesQueryVariables
-    ): Promise<EmployeeActivitiesResponse> => {
+    async (variables: EmployeeActivitiesQueryVariables): Promise<EmployeeActivitiesResponse> => {
       // Build where clause with employee filter and additional conditions
       // Include activities where:
       // 1. ownerEmployeeId matches (assigned to them) OR
       // 2. ownerEmployeeId is null AND createdBy matches (created by them but unassigned)
       // Note: createdBy is a USER ID, not an EMPLOYEE ID
-      const userId = variables.userId; // Get user ID from variables
+      const userId = variables.userId // Get user ID from variables
       const baseWhere = {
         _and: [
           {
             _or: [
               { ownerEmployeeId: { _eq: variables.employeeId } },
-              ...(userId ? [{ 
-                _and: [
-                  { ownerEmployeeId: { _eq: null } },
-                  { createdBy: { _eq: userId } }
-                ]
-              }] : [])
+              ...(userId
+                ? [
+                    {
+                      _and: [{ ownerEmployeeId: { _eq: null } }, { createdBy: { _eq: userId } }]
+                    }
+                  ]
+                : [])
             ]
           },
           { isDeleted: { _eq: false } }
         ]
-      };
+      }
 
       // Merge with any additional where conditions
       const where = variables.where
         ? {
-            _and: [baseWhere, variables.where],
+            _and: [baseWhere, variables.where]
           }
-        : baseWhere;
+        : baseWhere
 
       const requestVariables = {
         offset: variables.offset || 0,
         limit: variables.limit || 20,
-        orderBy: variables.orderBy || [{ createdAt: "DESC" }],
-        where,
-      };
+        orderBy: variables.orderBy || [{ createdAt: 'DESC' }],
+        where
+      }
 
       try {
         const result = await graphqlClient.request<EmployeeActivitiesResponse>(
           GET_EMPLOYEE_ACTIVITIES_QUERY,
           requestVariables
-        );
+        )
 
-        return result;
+        return result
       } catch (error) {
-        console.error("Error fetching employee activities data:", error);
-        throw error;
+        console.error('Error fetching employee activities data:', error)
+        throw error
       }
     },
     [graphqlClient]
-  );
+  )
 
-  return { fetchEmployeeActivities };
-};
+  return { fetchEmployeeActivities }
+}

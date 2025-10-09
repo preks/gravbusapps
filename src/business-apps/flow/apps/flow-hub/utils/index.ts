@@ -1,2 +1,1 @@
-export * from './flowAreas';
-
+export * from './flowAreas'

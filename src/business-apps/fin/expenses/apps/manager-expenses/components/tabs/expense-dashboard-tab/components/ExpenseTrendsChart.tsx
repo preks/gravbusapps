@@ -1,4 +1,4 @@
-import React, { useMemo } from "react";
+import React, { useMemo } from 'react'
 import {
   Card,
   CardContent,
@@ -9,22 +9,22 @@ import {
   ChartTooltip,
   ChartTooltipContent,
   ChartLegend,
-  ChartLegendContent,
-} from "@newwork/nw-design-system";
-import { BarChart, Bar, XAxis, YAxis } from "recharts";
-import { getTranslationFromI18nKeyAndLabel } from "@/common/utils/windowUtils";
-import { formatCurrencyDisplay } from "../../../../../personal-expenses/utils";
-import { useCurrencyStore } from "../../../../store/useCurrencyStore";
-import { ChartBarIcon } from "@phosphor-icons/react";
+  ChartLegendContent
+} from '@newwork/nw-design-system'
+import { BarChart, Bar, XAxis, YAxis } from 'recharts'
+import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
+import { formatCurrencyDisplay } from '../../../../../personal-expenses/utils'
+import { useCurrencyStore } from '../../../../store/useCurrencyStore'
+import { ChartBarIcon } from '@phosphor-icons/react'
 
 interface ExpenseTrendsChartProps {
   data: {
-    month: string;
-    amount: number;
-  }[];
-  title?: string;
-  currencyFilter?: string;
-  moduleColor?: string;
+    month: string
+    amount: number
+  }[]
+  title?: string
+  currencyFilter?: string
+  moduleColor?: string
 }
 
 /**
@@ -33,30 +33,27 @@ interface ExpenseTrendsChartProps {
 const ExpenseTrendsChart: React.FC<ExpenseTrendsChartProps> = ({
   data,
   title = getTranslationFromI18nKeyAndLabel(
-    "lowcoder:team_expenses_page.dashboard_tab.monthly_expense_trends",
-    "Monthly Expense Trends",
+    'lowcoder:team_expenses_page.dashboard_tab.monthly_expense_trends',
+    'Monthly Expense Trends'
   ),
   currencyFilter,
-  moduleColor,
+  moduleColor
 }) => {
   // Use the global currency store
-  const { primaryCurrency } = useCurrencyStore();
+  const { primaryCurrency } = useCurrencyStore()
 
   // Use the selected currency filter or fall back to primary currency
-  const displayCurrency = currencyFilter || primaryCurrency;
+  const displayCurrency = currencyFilter || primaryCurrency
 
   // Chart configuration for design system
   const chartConfig = useMemo(
     () => ({
       amount: {
-        label: getTranslationFromI18nKeyAndLabel(
-          "lowcoder:advance_payment_table.amount_label",
-          "Amount",
-        ),
-      },
+        label: getTranslationFromI18nKeyAndLabel('lowcoder:advance_payment_table.amount_label', 'Amount')
+      }
     }),
-    [],
-  );
+    []
+  )
 
   if (!data || data.length === 0) {
     return (
@@ -71,15 +68,18 @@ const ExpenseTrendsChart: React.FC<ExpenseTrendsChartProps> = ({
           <div className="gba:text-center gba:p-8" data-testid="expense-trends-chart-empty-state">
             <ChartBarIcon className="gba:mx-auto gba:h-12 gba:w-12 gba:text-muted-foreground" />
             <h3 className="gba:mt-2 gba:text-sm gba:font-medium gba:text-foreground">
-              {getTranslationFromI18nKeyAndLabel("lowcoder:charts.empty.title","No data available")}
+              {getTranslationFromI18nKeyAndLabel('lowcoder:charts.empty.title', 'No data available')}
             </h3>
             <p className="gba:mt-1 gba:text-sm gba:text-muted-foreground">
-              {getTranslationFromI18nKeyAndLabel("lowcoder:charts.empty.description","Try adjusting your filters or date range.")}
+              {getTranslationFromI18nKeyAndLabel(
+                'lowcoder:charts.empty.description',
+                'Try adjusting your filters or date range.'
+              )}
             </p>
           </div>
         </CardContent>
       </Card>
-    );
+    )
   }
 
   return (
@@ -91,15 +91,11 @@ const ExpenseTrendsChart: React.FC<ExpenseTrendsChartProps> = ({
         </CardTitle>
       </CardHeader>
       <CardContent>
-        <ChartContainer
-          config={chartConfig}
-          className="gba:h-[320px] gba:w-full"
-          data-testid="expense-trends-chart"
-        >
+        <ChartContainer config={chartConfig} className="gba:h-[320px] gba:w-full" data-testid="expense-trends-chart">
           <BarChart data={data} margin={{ top: 20, right: 30, left: 20, bottom: 20 }}>
             <XAxis dataKey="month" tick={{ fontSize: 12 }} />
             <YAxis
-              tickFormatter={(value) => formatCurrencyDisplay(value, displayCurrency)}
+              tickFormatter={value => formatCurrencyDisplay(value, displayCurrency)}
               tick={{ fontSize: 12 }}
               data-testid="expense-trends-chart-y-axis"
             />
@@ -117,7 +113,7 @@ const ExpenseTrendsChart: React.FC<ExpenseTrendsChartProps> = ({
         </ChartContainer>
       </CardContent>
     </Card>
-  );
-};
+  )
+}
 
-export default ExpenseTrendsChart;
+export default ExpenseTrendsChart

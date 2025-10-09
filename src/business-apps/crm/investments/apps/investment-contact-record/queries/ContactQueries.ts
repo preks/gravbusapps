@@ -1,46 +1,46 @@
-import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient';
-import { BusinessAppContextProps } from '@/common/BusinessAppContext';
-import { useCallback } from 'react';
+import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
+import { BusinessAppContextProps } from '@/common/BusinessAppContext'
+import { useCallback } from 'react'
 
 export interface ContactData {
-  id: string;
-  firstName: string;
-  lastName: string;
-  email: string;
-  phone: string;
-  jobTitle: string;
-  linkedinUrl?: string;
-  xingUrl?: string;
-  bio?: string;
-  contactType?: string;
-  version?: number;
+  id: string
+  firstName: string
+  lastName: string
+  email: string
+  phone: string
+  jobTitle: string
+  linkedinUrl?: string
+  xingUrl?: string
+  bio?: string
+  contactType?: string
+  version?: number
   academicTitle?: {
-    id: string;
-    value: string;
-  };
-  updatedAt?: string;
-  createdAt?: string;
-  accountId?: string;
+    id: string
+    value: string
+  }
+  updatedAt?: string
+  createdAt?: string
+  accountId?: string
   account?: {
-    name?: string;
-    id?: string;
-  };
+    name?: string
+    id?: string
+  }
   ownerEmployee?: {
-    id: string;
-    firstName: string;
-    lastName: string;
-    displayName?: string;
-    fullName?: string;
+    id: string
+    firstName: string
+    lastName: string
+    displayName?: string
+    fullName?: string
     employeePosition?: {
       company?: {
-        name?: string;
-      };
-    };
-  };
+        name?: string
+      }
+    }
+  }
 }
 
 export interface GetContactByIdResponse {
-  Contact: ContactData[];
+  Contact: ContactData[]
 }
 
 export const GET_CONTACT_BY_ID = `
@@ -86,29 +86,29 @@ export const GET_CONTACT_BY_ID = `
       }
     }
   }
-`;
+`
 
 export const useGetContactById = (context: BusinessAppContextProps) => {
-  const graphqlClient = useGraphQLClient(context.accessToken);
+  const graphqlClient = useGraphQLClient(context.accessToken)
 
-  const fetchContactById = useCallback(async (contactId: string): Promise<ContactData | null> => {
-    if (!contactId) return null;
+  const fetchContactById = useCallback(
+    async (contactId: string): Promise<ContactData | null> => {
+      if (!contactId) return null
 
-    try {
-      const result = await graphqlClient.request<GetContactByIdResponse>(
-        GET_CONTACT_BY_ID,
-        { id: contactId }
-      );
-      
-      if (result && result.Contact && result.Contact.length > 0) {
-        return result.Contact[0];
+      try {
+        const result = await graphqlClient.request<GetContactByIdResponse>(GET_CONTACT_BY_ID, { id: contactId })
+
+        if (result && result.Contact && result.Contact.length > 0) {
+          return result.Contact[0]
+        }
+        return null
+      } catch (error) {
+        console.error('Error fetching contact by ID:', error)
+        throw error
       }
-      return null;
-    } catch (error) {
-      console.error('Error fetching contact by ID:', error);
-      throw error;
-    }
-  }, [graphqlClient]);
+    },
+    [graphqlClient]
+  )
 
-  return { fetchContactById };
-}; 
+  return { fetchContactById }
+}

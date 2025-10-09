@@ -1,44 +1,36 @@
-import React, { SetStateAction, Dispatch, useMemo } from "react";
-import { BusinessAppContextProps } from "@/common/BusinessAppContext";
-import FormWrapperModal from "@/business-apps/mdm/apps/generic-components/form-wrapper/FormWrapperModal";
-import {
-  Input,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormControl,
-  FormMessage,
-  Textarea,
-} from "@newwork/nw-design-system";
-import { useCatalogManagerClient } from "@/common/network/catalogs/useCatalogManagerClient";
+import React, { SetStateAction, Dispatch, useMemo } from 'react'
+import { BusinessAppContextProps } from '@/common/BusinessAppContext'
+import FormWrapperModal from '@/business-apps/mdm/apps/generic-components/form-wrapper/FormWrapperModal'
+import { Input, FormField, FormItem, FormLabel, FormControl, FormMessage, Textarea } from '@newwork/nw-design-system'
+import { useCatalogManagerClient } from '@/common/network/catalogs/useCatalogManagerClient'
 import {
   JOB_FAMILY_CATALOG,
-  JOB_FAMILY_VERSION,
-} from "@/business-apps/hr/core/apps/human-resources/components/views/job-position-view/hooks/useJobFamilyFilters";
-import { useCodeError } from "@/business-apps/mdm/hooks/useCodeError";
+  JOB_FAMILY_VERSION
+} from '@/business-apps/hr/core/apps/human-resources/components/views/job-position-view/hooks/useJobFamilyFilters'
+import { useCodeError } from '@/business-apps/mdm/hooks/useCodeError'
 export interface JobFamily {
-  id: string;
-  name: string;
-  code: string;
-  description?: string;
-  parentId?: string;
-  children?: JobFamily[];
-  usedCodes: string[];
+  id: string
+  name: string
+  code: string
+  description?: string
+  parentId?: string
+  children?: JobFamily[]
+  usedCodes: string[]
 }
 
 export interface JobFamilyFormProps extends BusinessAppContextProps {
-  childAddButton?: React.ReactNode;
-  jobFamily?: Partial<JobFamily>;
-  onCancel?: () => void;
-  selectedParentId?: string | null;
-  selectedParentName?: string;
-  prefixDataTestId: string;
-  loading?: boolean;
-  refetch: () => void;
-  isDrawerActive?: boolean;
-  open?: boolean;
-  setOpen?: Dispatch<SetStateAction<boolean>>;
-  usedCodes?: string[];
+  childAddButton?: React.ReactNode
+  jobFamily?: Partial<JobFamily>
+  onCancel?: () => void
+  selectedParentId?: string | null
+  selectedParentName?: string
+  prefixDataTestId: string
+  loading?: boolean
+  refetch: () => void
+  isDrawerActive?: boolean
+  open?: boolean
+  setOpen?: Dispatch<SetStateAction<boolean>>
+  usedCodes?: string[]
 }
 
 const JobFamilyForm: React.FC<JobFamilyFormProps> = ({
@@ -54,65 +46,58 @@ const JobFamilyForm: React.FC<JobFamilyFormProps> = ({
   isDrawerActive = false,
   open,
   setOpen,
-  usedCodes = [],
+  usedCodes = []
 }) => {
-  const catalogClient = useCatalogManagerClient(accessToken);
-  const { codeError, setCodeError, validateCode } = useCodeError(usedCodes);
+  const catalogClient = useCatalogManagerClient(accessToken)
+  const { codeError, setCodeError, validateCode } = useCodeError(usedCodes)
 
   const handleSubmit = async (values: JobFamily) => {
     try {
       // Validate code before submitting
       if (!validateCode(values.code)) {
-        return;
+        return
       }
 
       const payload = {
         ...(jobFamily ? { id: jobFamily.id } : {}),
-        code: values?.code ?? "",
-        value: values?.name ?? "",
+        code: values?.code ?? '',
+        value: values?.name ?? '',
         additionalValue1: values?.description,
-        translations: [],
-      };
-
-      if (jobFamily) {
-        await catalogClient.updateCatalogEntry(
-          JOB_FAMILY_CATALOG,
-          JOB_FAMILY_VERSION,
-          jobFamily.id ?? "",
-          payload,
-        );
-      } else {
-        await catalogClient.createCatalogEntry(JOB_FAMILY_CATALOG, JOB_FAMILY_VERSION, payload);
+        translations: []
       }
 
-      refetch();
-      setOpen?.(false);
+      if (jobFamily) {
+        await catalogClient.updateCatalogEntry(JOB_FAMILY_CATALOG, JOB_FAMILY_VERSION, jobFamily.id ?? '', payload)
+      } else {
+        await catalogClient.createCatalogEntry(JOB_FAMILY_CATALOG, JOB_FAMILY_VERSION, payload)
+      }
+
+      refetch()
+      setOpen?.(false)
     } catch (error) {
-      console.error("Error saving Job Family:", error);
-      throw error;
+      console.error('Error saving Job Family:', error)
+      throw error
     }
-  };
+  }
 
   const defaultValues = useMemo(
     () =>
       jobFamily
         ? {
-            name: jobFamily.name || "",
-            code: jobFamily.code || "",
-            description: jobFamily.description || "",
+            name: jobFamily.name || '',
+            code: jobFamily.code || '',
+            description: jobFamily.description || ''
           }
         : {},
-    [jobFamily],
-  );
+    [jobFamily]
+  )
 
   return (
     <FormWrapperModal
       childAddButton={childAddButton}
-      title={jobFamily ? "Edit Job Family" : "Create Job Family"}
+      title={jobFamily ? 'Edit Job Family' : 'Create Job Family'}
       description={
-        jobFamily
-          ? "Update the job family information"
-          : "Create a new job family to organize related job roles"
+        jobFamily ? 'Update the job family information' : 'Create a new job family to organize related job roles'
       }
       onSubmit={handleSubmit}
       onCancel={onCancel}
@@ -153,9 +138,9 @@ const JobFamilyForm: React.FC<JobFamilyFormProps> = ({
                 <Input
                   placeholder="e.g., ENG, SALES, MKT"
                   {...field}
-                  onChange={(e) => {
-                    field.onChange(e);
-                    validateCode(e.target.value);
+                  onChange={e => {
+                    field.onChange(e)
+                    validateCode(e.target.value)
                   }}
                   data-testid={`${prefixDataTestId}-code-input`}
                 />
@@ -192,7 +177,7 @@ const JobFamilyForm: React.FC<JobFamilyFormProps> = ({
               <FormLabel>Parent Family</FormLabel>
               <FormControl>
                 <Input
-                  value={selectedParentName || "Unknown"}
+                  value={selectedParentName || 'Unknown'}
                   disabled
                   placeholder="This will be a child of the selected family"
                   data-testid={`${prefixDataTestId}-parent-family-input`}
@@ -204,7 +189,7 @@ const JobFamilyForm: React.FC<JobFamilyFormProps> = ({
         />
       )}
     </FormWrapperModal>
-  );
-};
+  )
+}
 
-export default JobFamilyForm;
+export default JobFamilyForm

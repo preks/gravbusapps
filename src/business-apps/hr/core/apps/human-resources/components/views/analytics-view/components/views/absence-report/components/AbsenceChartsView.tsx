@@ -1,46 +1,42 @@
-import React from 'react';
-import { Card, Row, Col, Typography, Tag } from 'antd';
-import { 
-  LineChart, 
-  Line, 
-  BarChart, 
-  Bar, 
-  PieChart, 
-  Pie, 
+import React from 'react'
+import { Card, Row, Col, Typography, Tag } from 'antd'
+import {
+  LineChart,
+  Line,
+  BarChart,
+  Bar,
+  PieChart,
+  Pie,
   Cell,
-  XAxis, 
-  YAxis, 
-  CartesianGrid, 
-  Tooltip, 
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
   Legend,
   ResponsiveContainer
-} from 'recharts';
-import { AbsenceChartData } from '../../../../hooks/useAbsenceDataIntegration';
+} from 'recharts'
+import { AbsenceChartData } from '../../../../hooks/useAbsenceDataIntegration'
 
-const { Title, Text } = Typography;
+const { Title, Text } = Typography
 
 interface AbsenceChartsViewProps {
-  chartData: AbsenceChartData;
-  isLoading: boolean;
-  dataTestId: string;
+  chartData: AbsenceChartData
+  isLoading: boolean
+  dataTestId: string
 }
 
-const AbsenceChartsView: React.FC<AbsenceChartsViewProps> = ({
-  chartData,
-  isLoading,
-  dataTestId
-}) => {
+const AbsenceChartsView: React.FC<AbsenceChartsViewProps> = ({ chartData, isLoading, dataTestId }) => {
   // Color schemes for charts
   const colors = {
     primary: '#1890ff',
-    success: '#52c41a', 
+    success: '#52c41a',
     warning: '#faad14',
     error: '#ff4d4f',
     purple: '#722ed1',
     cyan: '#13c2c2'
-  };
+  }
 
-  const pieColors = [colors.primary, colors.error, colors.purple, colors.success, colors.warning, colors.cyan];
+  const pieColors = [colors.primary, colors.error, colors.purple, colors.success, colors.warning, colors.cyan]
 
   // Transform monthly data for multi-line chart
   const transformedMonthlyData = chartData.monthlyUsageByGroup.map(item => ({
@@ -49,7 +45,7 @@ const AbsenceChartsView: React.FC<AbsenceChartsViewProps> = ({
     'Sick Leave': item.sickLeave || 0,
     'Special Leave': item.specialLeave || 0,
     Other: item.other || 0
-  }));
+  }))
 
   return (
     <div data-testid={`${dataTestId}-charts-view`}>
@@ -59,9 +55,7 @@ const AbsenceChartsView: React.FC<AbsenceChartsViewProps> = ({
             title={
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                 <span>Monthly Usage Trend</span>
-                <Tag color="blue">
-                  {chartData.monthlyUsageByGroup.length} months
-                </Tag>
+                <Tag color="blue">{chartData.monthlyUsageByGroup.length} months</Tag>
               </div>
             }
             loading={isLoading}
@@ -74,34 +68,10 @@ const AbsenceChartsView: React.FC<AbsenceChartsViewProps> = ({
                 <YAxis />
                 <Tooltip />
                 <Legend />
-                <Line 
-                  type="monotone" 
-                  dataKey="Vacation" 
-                  stroke={colors.primary} 
-                  strokeWidth={2}
-                  dot={{ r: 4 }}
-                />
-                <Line 
-                  type="monotone" 
-                  dataKey="Sick Leave" 
-                  stroke={colors.error} 
-                  strokeWidth={2}
-                  dot={{ r: 4 }}
-                />
-                <Line 
-                  type="monotone" 
-                  dataKey="Special Leave" 
-                  stroke={colors.purple} 
-                  strokeWidth={2}
-                  dot={{ r: 4 }}
-                />
-                <Line 
-                  type="monotone" 
-                  dataKey="Other" 
-                  stroke={colors.success} 
-                  strokeWidth={2}
-                  dot={{ r: 4 }}
-                />
+                <Line type="monotone" dataKey="Vacation" stroke={colors.primary} strokeWidth={2} dot={{ r: 4 }} />
+                <Line type="monotone" dataKey="Sick Leave" stroke={colors.error} strokeWidth={2} dot={{ r: 4 }} />
+                <Line type="monotone" dataKey="Special Leave" stroke={colors.purple} strokeWidth={2} dot={{ r: 4 }} />
+                <Line type="monotone" dataKey="Other" stroke={colors.success} strokeWidth={2} dot={{ r: 4 }} />
               </LineChart>
             </ResponsiveContainer>
           </Card>
@@ -111,9 +81,7 @@ const AbsenceChartsView: React.FC<AbsenceChartsViewProps> = ({
             title={
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                 <span>Total Absence Days</span>
-                <Tag color="green">
-                  {chartData.totalAbsenceDays.reduce((sum, item) => sum + item.days, 0)} days
-                </Tag>
+                <Tag color="green">{chartData.totalAbsenceDays.reduce((sum, item) => sum + item.days, 0)} days</Tag>
               </div>
             }
             loading={isLoading}
@@ -138,9 +106,7 @@ const AbsenceChartsView: React.FC<AbsenceChartsViewProps> = ({
             title={
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                 <span>Absence by Group</span>
-                <Tag color="purple">
-                  {chartData.absenceByGroup.length} groups
-                </Tag>
+                <Tag color="purple">{chartData.absenceByGroup.length} groups</Tag>
               </div>
             }
             loading={isLoading}
@@ -173,9 +139,7 @@ const AbsenceChartsView: React.FC<AbsenceChartsViewProps> = ({
             title={
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                 <span>Top Absence Types</span>
-                <Tag color="orange">
-                  {chartData.absenceByType.length} types
-                </Tag>
+                <Tag color="orange">{chartData.absenceByType.length} types</Tag>
               </div>
             }
             loading={isLoading}
@@ -211,9 +175,7 @@ const AbsenceChartsView: React.FC<AbsenceChartsViewProps> = ({
             title={
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                 <span>Department Breakdown</span>
-                <Tag color="red">
-                  {chartData.departmentBreakdown.length} departments
-                </Tag>
+                <Tag color="red">{chartData.departmentBreakdown.length} departments</Tag>
               </div>
             }
             loading={isLoading}
@@ -275,7 +237,7 @@ const AbsenceChartsView: React.FC<AbsenceChartsViewProps> = ({
         </Col>
       </Row>
     </div>
-  );
-};
+  )
+}
 
-export default AbsenceChartsView; 
+export default AbsenceChartsView

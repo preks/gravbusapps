@@ -1,5 +1,5 @@
-import { useMemo } from 'react';
-import { useGraphqlClient } from '../graphql/useGraphQLClient';
+import { useMemo } from 'react'
+import { useGraphqlClient } from '../graphql/useGraphQLClient'
 
 // Query for expense request types and transportation means
 export const expenseTypeAndTransportationQuery = `
@@ -37,24 +37,24 @@ export const expenseTypeAndTransportationQuery = `
       additionalValue1
     }
   }
-`;
+`
 
 export const useExpenseTypeAndTransportation = (accessToken: string, activeUserLocale: string) => {
-  const graphQLClient = useGraphqlClient(accessToken);
-  
-  const fetchCatalogEntries = useMemo(() => async () => {
-    try {
-      const data = await graphQLClient.request(
-        expenseTypeAndTransportationQuery,
-        { activeUserLocale }
-      );
-      
-      return data;
-    } catch (error) {
-      console.error('Error fetching catalog entries:', error);
-      throw error;
-    }
-  }, [graphQLClient, activeUserLocale, accessToken]);
-  
-  return fetchCatalogEntries;
-};
+  const graphQLClient = useGraphqlClient(accessToken)
+
+  const fetchCatalogEntries = useMemo(
+    () => async () => {
+      try {
+        const data = await graphQLClient.request(expenseTypeAndTransportationQuery, { activeUserLocale })
+
+        return data
+      } catch (error) {
+        console.error('Error fetching catalog entries:', error)
+        throw error
+      }
+    },
+    [graphQLClient, activeUserLocale, accessToken]
+  )
+
+  return fetchCatalogEntries
+}

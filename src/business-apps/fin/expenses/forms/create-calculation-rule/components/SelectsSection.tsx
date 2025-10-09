@@ -1,25 +1,25 @@
-import React from 'react';
-import { SelectField } from '@newwork/gravity-ui-catalog';
-import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
+import React from 'react'
+import { SelectField } from '@newwork/gravity-ui-catalog'
+import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 
 interface SelectsSectionProps {
-  isUpdate: boolean;
-  calculationTypeId: string | null;
-  countryRefId: string | null;
-  currencyId: string | null;
-  calculationTypeOptions: any[];
-  countryOptions: any[];
-  currencyOptions: any[];
-  onChangeCalculation: (value: string | null) => void;
-  onChangeCountry: (value: string | null) => void;
-  onChangeCurrency: (value: string | null) => void;
-  onBlurCalculation: () => void;
-  onBlurCountry: () => void;
-  onBlurCurrency: () => void;
-  showCalculationError: boolean;
-  showCountryError: boolean;
-  showCurrencyError: boolean;
-  errors: { calculationType?: string; countryRefId?: string; currencyId?: string };
+  isUpdate: boolean
+  calculationTypeId: string | null
+  countryRefId: string | null
+  currencyId: string | null
+  calculationTypeOptions: any[]
+  countryOptions: any[]
+  currencyOptions: any[]
+  onChangeCalculation: (value: string | null) => void
+  onChangeCountry: (value: string | null) => void
+  onChangeCurrency: (value: string | null) => void
+  onBlurCalculation: () => void
+  onBlurCountry: () => void
+  onBlurCurrency: () => void
+  showCalculationError: boolean
+  showCountryError: boolean
+  showCurrencyError: boolean
+  errors: { calculationType?: string; countryRefId?: string; currencyId?: string }
 }
 
 const SelectsSection: React.FC<SelectsSectionProps> = ({
@@ -47,9 +47,15 @@ const SelectsSection: React.FC<SelectsSectionProps> = ({
         <div className={`gba:relative`}>
           <SelectField
             allowClear
-            label={getTranslationFromI18nKeyAndLabel('lowcoder:expense_calculation_rule.expense_calculation_rule_modal.current_rule_period_label', 'Rule Calculation')}
+            label={getTranslationFromI18nKeyAndLabel(
+              'lowcoder:expense_calculation_rule.expense_calculation_rule_modal.current_rule_period_label',
+              'Rule Calculation'
+            )}
             name="ccrCalculationType"
-            placeholder={getTranslationFromI18nKeyAndLabel('lowcoder:expense_calculation_rule.expense_calculation_rule_modal.current_rule_period_placeholder', 'Select Rule Calculation')}
+            placeholder={getTranslationFromI18nKeyAndLabel(
+              'lowcoder:expense_calculation_rule.expense_calculation_rule_modal.current_rule_period_placeholder',
+              'Select Rule Calculation'
+            )}
             data-testid="ccr-calculation-select"
             data={calculationTypeOptions}
             value={calculationTypeId || undefined}
@@ -59,7 +65,11 @@ const SelectsSection: React.FC<SelectsSectionProps> = ({
             required
           />
           {showCalculationError && (
-            <div className="gba:mt-1 gba:pl-1 gba:text-[14px]" style={{ color: '#ff4d4f' }} data-testid="ccr-calculation-error">
+            <div
+              className="gba:mt-1 gba:pl-1 gba:text-[14px]"
+              style={{ color: '#ff4d4f' }}
+              data-testid="ccr-calculation-error"
+            >
               {errors.calculationType}
             </div>
           )}
@@ -70,9 +80,15 @@ const SelectsSection: React.FC<SelectsSectionProps> = ({
         <div className={`gba:relative`}>
           <SelectField
             allowClear
-            label={getTranslationFromI18nKeyAndLabel('lowcoder:expense_calculation_rule.expense_calculation_rule_modal.country_ref_select_label', 'Country')}
+            label={getTranslationFromI18nKeyAndLabel(
+              'lowcoder:expense_calculation_rule.expense_calculation_rule_modal.country_ref_select_label',
+              'Country'
+            )}
             name="ccrCountry"
-            placeholder={getTranslationFromI18nKeyAndLabel('lowcoder:expense_calculation_rule.expense_calculation_rule_modal.country_ref_select_placeholder', 'Select Country')}
+            placeholder={getTranslationFromI18nKeyAndLabel(
+              'lowcoder:expense_calculation_rule.expense_calculation_rule_modal.country_ref_select_placeholder',
+              'Select Country'
+            )}
             data-testid="ccr-country-select"
             data={countryOptions}
             value={countryRefId || undefined}
@@ -82,7 +98,11 @@ const SelectsSection: React.FC<SelectsSectionProps> = ({
             required
           />
           {showCountryError && (
-            <div className="gba:mt-1 gba:pl-1 gba:text-[14px]" style={{ color: '#ff4d4f' }} data-testid="ccr-country-error">
+            <div
+              className="gba:mt-1 gba:pl-1 gba:text-[14px]"
+              style={{ color: '#ff4d4f' }}
+              data-testid="ccr-country-error"
+            >
               {errors.countryRefId}
             </div>
           )}
@@ -93,9 +113,15 @@ const SelectsSection: React.FC<SelectsSectionProps> = ({
         <div className={`gba:relative`}>
           <SelectField
             allowClear
-            label={getTranslationFromI18nKeyAndLabel('lowcoder:expense_calculation_rule.expense_calculation_rule_modal.currency_label', 'Currency')}
+            label={getTranslationFromI18nKeyAndLabel(
+              'lowcoder:expense_calculation_rule.expense_calculation_rule_modal.currency_label',
+              'Currency'
+            )}
             name="ccrCurrency"
-            placeholder={getTranslationFromI18nKeyAndLabel('lowcoder:expense_calculation_rule.expense_calculation_rule_modal.currency_placeholder', 'Select Currency')}
+            placeholder={getTranslationFromI18nKeyAndLabel(
+              'lowcoder:expense_calculation_rule.expense_calculation_rule_modal.currency_placeholder',
+              'Select Currency'
+            )}
             data-testid="ccr-currency-select"
             data={currencyOptions}
             isDataSorted={false}
@@ -106,16 +132,18 @@ const SelectsSection: React.FC<SelectsSectionProps> = ({
             required
           />
           {showCurrencyError && (
-            <div className="gba:mt-1 gba:pl-1 gba:text-[14px]" style={{ color: '#ff4d4f' }} data-testid="ccr-currency-error">
+            <div
+              className="gba:mt-1 gba:pl-1 gba:text-[14px]"
+              style={{ color: '#ff4d4f' }}
+              data-testid="ccr-currency-error"
+            >
               {errors.currencyId}
             </div>
           )}
         </div>
       </div>
     </>
-  );
-};
+  )
+}
 
-export default SelectsSection;
-
-
+export default SelectsSection

@@ -1,3 +1,3 @@
-import { SalesActivityForm } from './SalesActivityForm';
-export { SalesActivityForm };
-export default SalesActivityForm; 
+import { SalesActivityForm } from './SalesActivityForm'
+export { SalesActivityForm }
+export default SalesActivityForm

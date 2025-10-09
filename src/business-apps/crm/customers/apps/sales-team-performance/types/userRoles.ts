@@ -1,26 +1,26 @@
-export type UserRole = 'ceo' | 'manager' | 'individual';
+export type UserRole = 'ceo' | 'manager' | 'individual'
 
 export interface UserRoleContext {
-  role: UserRole;
-  canViewAllTeams: boolean;
-  canViewTeam: boolean;
-  canViewIndividuals: boolean;
-  managedTeamId?: string;
-  managedTeamName?: string;
+  role: UserRole
+  canViewAllTeams: boolean
+  canViewTeam: boolean
+  canViewIndividuals: boolean
+  managedTeamId?: string
+  managedTeamName?: string
 }
 
 export interface TeamInfo {
-  id: string;
-  name: string;
-  managerId: string;
-  memberCount: number;
-  memberIds: string[];
+  id: string
+  name: string
+  managerId: string
+  memberCount: number
+  memberIds: string[]
 }
 
 export interface UserPermissions {
-  viewAllTeams: boolean;
-  viewOwnTeam: boolean;
-  viewIndividuals: boolean;
-  compareTeams: boolean;
-  exportData: boolean;
+  viewAllTeams: boolean
+  viewOwnTeam: boolean
+  viewIndividuals: boolean
+  compareTeams: boolean
+  exportData: boolean
 }

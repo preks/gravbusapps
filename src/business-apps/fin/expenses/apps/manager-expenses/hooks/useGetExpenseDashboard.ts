@@ -1,8 +1,8 @@
-import { useState, useEffect, useCallback } from "react";
-import { BusinessAppContextProps } from "@/common/BusinessAppContext";
-import { GET_EXPENSE_DASHBOARD_BY_MANAGER } from "../queries/expenseDashboard";
-import { useGraphqlClient } from "@/common/network/graphql/useGraphQLClient";
-import dayjs from "dayjs";
+import { useState, useEffect, useCallback } from 'react'
+import { BusinessAppContextProps } from '@/common/BusinessAppContext'
+import { GET_EXPENSE_DASHBOARD_BY_MANAGER } from '../queries/expenseDashboard'
+import { useGraphqlClient } from '@/common/network/graphql/useGraphQLClient'
+import dayjs from 'dayjs'
 
 /**
  * Process raw expense data into monthly trends
@@ -11,68 +11,68 @@ import dayjs from "dayjs";
  */
 const processMonthlyTrends = (data: any[]): { month: string; amount: number }[] => {
   // Initialize an object to hold monthly totals
-  const monthlyTotals: Record<string, number> = {};
+  const monthlyTotals: Record<string, number> = {}
 
   // Process each expense request
-  data.forEach((item) => {
+  data.forEach(item => {
     if (item.requestDate && item.totalAmount) {
       // Format the month (e.g., 'Jan', 'Feb')
-      const monthKey = dayjs(item.requestDate).format("MMM");
+      const monthKey = dayjs(item.requestDate).format('MMM')
 
       // Add to the monthly total
       if (!monthlyTotals[monthKey]) {
-        monthlyTotals[monthKey] = 0;
+        monthlyTotals[monthKey] = 0
       }
-      monthlyTotals[monthKey] += Number(item.totalAmount);
+      monthlyTotals[monthKey] += Number(item.totalAmount)
     }
-  });
+  })
 
   // Get all months of the current year
-  const currentYear = dayjs().year();
-  const months = [];
+  const currentYear = dayjs().year()
+  const months = []
   for (let i = 0; i < 12; i++) {
-    const month = dayjs().year(currentYear).month(i).format("MMM");
-    months.push(month);
+    const month = dayjs().year(currentYear).month(i).format('MMM')
+    months.push(month)
   }
 
   // Convert to array format required for the chart
-  return months.map((month) => ({
+  return months.map(month => ({
     month,
-    amount: monthlyTotals[month] || 0,
-  }));
-};
+    amount: monthlyTotals[month] || 0
+  }))
+}
 
 // Monthly trends are now fetched from the backend
 
 // Define types for the dashboard data
 export interface ExpenseDashboardData {
-  teamMembersCount: number;
-  pendingApprovalsCount: number;
-  monthlyExpensesAmount: number;
-  expenseCategoriesCount: number;
+  teamMembersCount: number
+  pendingApprovalsCount: number
+  monthlyExpensesAmount: number
+  expenseCategoriesCount: number
   recentRequests: {
-    id: string;
-    title: string;
-    totalAmount: number;
-    status: string;
-    requestDate: string;
-    employeeName: string;
-  }[];
+    id: string
+    title: string
+    totalAmount: number
+    status: string
+    requestDate: string
+    employeeName: string
+  }[]
   teamBudget: {
-    used: number;
-    total: number;
-  };
+    used: number
+    total: number
+  }
   monthlyTrends: {
-    month: string;
-    amount: number;
-  }[];
+    month: string
+    amount: number
+  }[]
 }
 
 export interface ExpenseDashboardResult {
-  dashboardData: ExpenseDashboardData | null;
-  isLoading: boolean;
-  error: string | null;
-  refreshDashboard: () => Promise<void>;
+  dashboardData: ExpenseDashboardData | null
+  isLoading: boolean
+  error: string | null
+  refreshDashboard: () => Promise<void>
 }
 
 /**
@@ -82,84 +82,82 @@ export interface ExpenseDashboardResult {
  */
 export const useGetExpenseDashboard = (
   context?: BusinessAppContextProps,
-  currencyFilter?: string,
+  currencyFilter?: string
 ): ExpenseDashboardResult => {
   const managerId =
-    context?.userInfo?.employeeDetails?.employeeId ||
-    context?.userInfo?.id ||
-    "00000000-0000-0000-0000-000000000000";
-  const [dashboardData, setDashboardData] = useState<ExpenseDashboardData | null>(null);
-  const [isLoading, setIsLoading] = useState<boolean>(true);
-  const [error, setError] = useState<string | null>(null);
+    context?.userInfo?.employeeDetails?.employeeId || context?.userInfo?.id || '00000000-0000-0000-0000-000000000000'
+  const [dashboardData, setDashboardData] = useState<ExpenseDashboardData | null>(null)
+  const [isLoading, setIsLoading] = useState<boolean>(true)
+  const [error, setError] = useState<string | null>(null)
 
   // Initialize the GraphQL client
-  const accessToken = context?.accessToken || "";
-  const graphQLClient = useGraphqlClient(accessToken);
+  const accessToken = context?.accessToken || ''
+  const graphQLClient = useGraphqlClient(accessToken)
 
   // Function to fetch dashboard data
   const fetchDashboardData = useCallback(async () => {
     if (!accessToken) {
-      setError("Access token not found. Cannot fetch dashboard data.");
-      setDashboardData(null);
-      setIsLoading(false);
-      return;
+      setError('Access token not found. Cannot fetch dashboard data.')
+      setDashboardData(null)
+      setIsLoading(false)
+      return
     }
 
-    setIsLoading(true);
-    setError(null);
+    setIsLoading(true)
+    setError(null)
 
     try {
       if (!graphQLClient) {
-        throw new Error("GraphQL client not initialized");
+        throw new Error('GraphQL client not initialized')
       }
 
       // Prepare the dates for the query
-      const now = new Date();
+      const now = new Date()
 
       // Start date for current month (month-to-date)
       const startDate = (() => {
-        const date = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1));
-        date.setUTCHours(0, 0, 0, 0); // Midnight UTC on first day of current month
-        return date.toISOString();
-      })();
+        const date = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1))
+        date.setUTCHours(0, 0, 0, 0) // Midnight UTC on first day of current month
+        return date.toISOString()
+      })()
 
       // Start date for yearly trends (beginning of current year)
       const yearStart = (() => {
-        const date = new Date(now.getFullYear(), 0, 1); // January 1st of current year
-        date.setUTCHours(0, 0, 0, 0);
-        return date.toISOString();
-      })();
+        const date = new Date(now.getFullYear(), 0, 1) // January 1st of current year
+        date.setUTCHours(0, 0, 0, 0)
+        return date.toISOString()
+      })()
 
       // Format the currency reference for the database query (Currency:v1:CODE format)
       // Normalize to avoid double prefix when the incoming filter already includes it
-      const trimmedCurrency = (currencyFilter || '').trim();
+      const trimmedCurrency = (currencyFilter || '').trim()
       const normalizedCurrency = trimmedCurrency.startsWith('Currency:v1:')
         ? trimmedCurrency
-        : `Currency:v1:${trimmedCurrency || 'EUR'}`;
-      const formattedCurrencyRef = normalizedCurrency;
+        : `Currency:v1:${trimmedCurrency || 'EUR'}`
+      const formattedCurrencyRef = normalizedCurrency
 
       // Make the request using the GraphQL client
       const result = await graphQLClient.request(GET_EXPENSE_DASHBOARD_BY_MANAGER, {
         managerId,
         startDate,
         yearStart,
-        currencyRef: formattedCurrencyRef,
-      });
+        currencyRef: formattedCurrencyRef
+      })
 
-      const data = result;
+      const data = result
 
       // Process monthly expense trends data from the API
-      const monthlyTrendsData = data?.MonthlyExpenseTrends ?? [];
-      const monthlyTrends = processMonthlyTrends(monthlyTrendsData);
+      const monthlyTrendsData = data?.MonthlyExpenseTrends ?? []
+      const monthlyTrends = processMonthlyTrends(monthlyTrendsData)
 
       // Count distinct expense categories (excluding null values)
-      const distinctCategoryRefs = new Set();
+      const distinctCategoryRefs = new Set()
       if (data?.DistinctExpenseCategories && Array.isArray(data.DistinctExpenseCategories)) {
         data.DistinctExpenseCategories.forEach((category: any) => {
           if (category.expenseGroupRef) {
-            distinctCategoryRefs.add(category.expenseGroupRef);
+            distinctCategoryRefs.add(category.expenseGroupRef)
           }
-        });
+        })
       }
       // There should be 7 distinct categories (excluding null)
 
@@ -171,13 +169,11 @@ export const useGetExpenseDashboard = (
         expenseCategoriesCount: distinctCategoryRefs.size, // Should be 7 (excluding null)
         recentRequests: (data?.RecentExpenseRequests ?? []).map((request: any) => ({
           id: request.id,
-          title: request.title ?? "Untitled Request",
+          title: request.title ?? 'Untitled Request',
           totalAmount: request.totalAmount ?? 0,
-          status: request.status ?? "PENDING",
-          requestDate: request.requestDate
-            ? new Date(request.requestDate).toISOString().split("T")[0]
-            : "N/A",
-          employeeName: request.employee?.firstName + " " + request.employee?.lastName,
+          status: request.status ?? 'PENDING',
+          requestDate: request.requestDate ? new Date(request.requestDate).toISOString().split('T')[0] : 'N/A',
+          employeeName: request.employee?.firstName + ' ' + request.employee?.lastName
         })),
         // Using hardcoded values for team budget (TeamBudget query commented out)
         teamBudget: {
@@ -185,31 +181,31 @@ export const useGetExpenseDashboard = (
             data?.ExpenseRequestsUsedAggregate?.aggregate?.sum?.totalAmount ??
             data?.MonthlyExpensesAggregate?.aggregate?.sum?.totalAmount ??
             0,
-          total: data?.ExpensePlansTotalAggregate?.aggregate?.sum?.totalAmount ?? 0,
+          total: data?.ExpensePlansTotalAggregate?.aggregate?.sum?.totalAmount ?? 0
         },
         // Monthly expense trends data
-        monthlyTrends,
-      };
+        monthlyTrends
+      }
 
-      setDashboardData(mappedDashboardData);
+      setDashboardData(mappedDashboardData)
     } catch (err) {
-      console.error("Error fetching dashboard data:", err);
-      setError(err instanceof Error ? err.message : String(err));
-      setDashboardData(null);
+      console.error('Error fetching dashboard data:', err)
+      setError(err instanceof Error ? err.message : String(err))
+      setDashboardData(null)
     } finally {
-      setIsLoading(false);
+      setIsLoading(false)
     }
-  }, [managerId, graphQLClient, currencyFilter]);
+  }, [managerId, graphQLClient, currencyFilter])
 
   // Initial fetch of dashboard data
   useEffect(() => {
-    fetchDashboardData();
-  }, [fetchDashboardData]);
+    fetchDashboardData()
+  }, [fetchDashboardData])
 
   return {
     dashboardData,
     isLoading,
     error,
-    refreshDashboard: fetchDashboardData,
-  };
-};
+    refreshDashboard: fetchDashboardData
+  }
+}

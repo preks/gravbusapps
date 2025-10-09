@@ -103,8 +103,8 @@ export const GET_CAMPAIGNS_ANALYTICS_METRICS = (): string => {
         }
       }
     }
-  `;
-};
+  `
+}
 
 export const GET_CAMPAIGNS_PERFORMANCE_COMPARISON = (): string => {
   return `
@@ -177,8 +177,8 @@ export const GET_CAMPAIGNS_PERFORMANCE_COMPARISON = (): string => {
         }
       }
     }
-  `;
-};
+  `
+}
 
 export const GET_CAMPAIGNS_TIMELINE_ANALYSIS = (): string => {
   return `
@@ -237,8 +237,8 @@ export const GET_CAMPAIGNS_TIMELINE_ANALYSIS = (): string => {
         }
       }
     }
-  `;
-};
+  `
+}
 
 export const GET_TOP_PERFORMING_CAMPAIGNS = (): string => {
   return `
@@ -316,8 +316,8 @@ export const GET_TOP_PERFORMING_CAMPAIGNS = (): string => {
         }
       }
     }
-  `;
-};
+  `
+}
 
 export const GET_TOP_PERFORMING_EMPLOYEES = (): string => {
   return `
@@ -403,5 +403,5 @@ export const GET_TOP_PERFORMING_EMPLOYEES = (): string => {
         }
       }
     }
-  `;
-};
+  `
+}

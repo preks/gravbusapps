@@ -1,2 +1,2 @@
 // Contact utility functions exports
-export * from './contactUtils';
+export * from './contactUtils'

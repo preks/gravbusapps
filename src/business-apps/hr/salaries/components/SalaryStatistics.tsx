@@ -1,21 +1,16 @@
-import React from 'react';
-import { WidgetGroup, WidgetItem } from '@/components/widget-group';
-import { 
-  DollarOutlined,
-  TeamOutlined,
-  BarChartOutlined,
-  RiseOutlined
-} from '@ant-design/icons';
-import { SalaryStatistics as SalaryStatisticsType } from '../types/salaryTypes';
-import { formatCurrency } from '../utils/salaryCalculations';
-import { getCurrentActiveUserLocale } from '@/common/utils/windowUtils';
-import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
+import React from 'react'
+import { WidgetGroup, WidgetItem } from '@/components/widget-group'
+import { DollarOutlined, TeamOutlined, BarChartOutlined, RiseOutlined } from '@ant-design/icons'
+import { SalaryStatistics as SalaryStatisticsType } from '../types/salaryTypes'
+import { formatCurrency } from '../utils/salaryCalculations'
+import { getCurrentActiveUserLocale } from '@/common/utils/windowUtils'
+import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 
 interface SalaryStatisticsProps {
-  statistics: SalaryStatisticsType;
-  isLoading?: boolean;
-  error?: Error | null;
-  onRetry?: () => void;
+  statistics: SalaryStatisticsType
+  isLoading?: boolean
+  error?: Error | null
+  onRetry?: () => void
 }
 
 /**
@@ -28,8 +23,8 @@ const SalaryStatistics: React.FC<SalaryStatisticsProps> = ({
   error = null,
   onRetry
 }) => {
-  const locale = getCurrentActiveUserLocale();
-  
+  const locale = getCurrentActiveUserLocale()
+
   // Transform statistics data into widgets format
   const widgets: WidgetItem[] = [
     {
@@ -40,7 +35,7 @@ const SalaryStatistics: React.FC<SalaryStatisticsProps> = ({
       color: '#1890ff',
       span: { xs: 24, sm: 12, lg: 6 },
       description: getTranslationFromI18nKeyAndLabel(
-        'salary.statistics.average.description', 
+        'salary.statistics.average.description',
         'Average monthly salary across all employees'
       ),
       valueIsString: true
@@ -53,7 +48,7 @@ const SalaryStatistics: React.FC<SalaryStatisticsProps> = ({
       color: '#722ed1',
       span: { xs: 24, sm: 12, lg: 6 },
       description: getTranslationFromI18nKeyAndLabel(
-        'salary.statistics.median.description', 
+        'salary.statistics.median.description',
         'Median monthly salary across all employees'
       ),
       valueIsString: true
@@ -66,7 +61,7 @@ const SalaryStatistics: React.FC<SalaryStatisticsProps> = ({
       color: '#52c41a',
       span: { xs: 24, sm: 12, lg: 6 },
       description: getTranslationFromI18nKeyAndLabel(
-        'salary.statistics.total.description', 
+        'salary.statistics.total.description',
         'Total monthly compensation including all components'
       ),
       valueIsString: true
@@ -79,12 +74,12 @@ const SalaryStatistics: React.FC<SalaryStatisticsProps> = ({
       color: '#fa8c16',
       span: { xs: 24, sm: 12, lg: 6 },
       description: getTranslationFromI18nKeyAndLabel(
-        'salary.statistics.employees.description', 
+        'salary.statistics.employees.description',
         'Total number of employees with active salary data'
       ),
       valueIsString: true
     }
-  ];
+  ]
 
   return (
     <div data-testid="salary-statistics-container">
@@ -94,14 +89,11 @@ const SalaryStatistics: React.FC<SalaryStatisticsProps> = ({
         error={error}
         onRetry={onRetry}
         skeletonCount={4}
-        emptyText={getTranslationFromI18nKeyAndLabel(
-          'salary.statistics.empty', 
-          'No salary statistics available.'
-        )}
+        emptyText={getTranslationFromI18nKeyAndLabel('salary.statistics.empty', 'No salary statistics available.')}
         data-testid="salary-statistics"
       />
     </div>
-  );
-};
+  )
+}
 
-export default SalaryStatistics;
+export default SalaryStatistics

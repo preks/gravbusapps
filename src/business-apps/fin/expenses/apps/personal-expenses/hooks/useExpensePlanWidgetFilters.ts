@@ -1,30 +1,29 @@
 // Combines selectedFilters and activeWidget into a single array of filters for ExpensePlansTab
 // This follows the same pattern as useExpenseItemsTabFilters
 
-import { useMemo } from 'react';
-import { ExpenseStatus } from '../utils';
+import { useMemo } from 'react'
+import { ExpenseStatus } from '../utils'
 
 export function useExpensePlanWidgetFilters(selectedFilters: string[], activeWidget: string | null): string[] {
   return useMemo(() => {
     // If no widget is active, return the original filters
     if (!activeWidget) {
-      return selectedFilters;
+      return selectedFilters
     }
-    
+
     // If total-plans widget is active, filter for closed status and current month
     if (activeWidget === 'total-plans') {
-      const closedFilters = [ExpenseStatus.CLOSED];
-      
+      const closedFilters = [ExpenseStatus.CLOSED]
+
       // If we already have these filters, return them
-      if (selectedFilters.length === 1 && 
-          selectedFilters.includes(ExpenseStatus.CLOSED)) {
-        return selectedFilters;
+      if (selectedFilters.length === 1 && selectedFilters.includes(ExpenseStatus.CLOSED)) {
+        return selectedFilters
       }
-      
+
       // Return only closed filters
-      return closedFilters;
+      return closedFilters
     }
-    
+
     // If total-estimated widget is active, filter for all statuses except CREATED (Draft) and PAID
     if (activeWidget === 'total-estimated') {
       const estimatedFilters = [
@@ -38,53 +37,49 @@ export function useExpensePlanWidgetFilters(selectedFilters: string[], activeWid
         ExpenseStatus.BOOKED,
         ExpenseStatus.CLOSED,
         ExpenseStatus.TRANSFERRED
-      ];
-      
+      ]
+
       // If we already have these filters, return them
-      if (selectedFilters.length === estimatedFilters.length && 
-          estimatedFilters.every(filter => selectedFilters.includes(filter))) {
-        return selectedFilters;
+      if (
+        selectedFilters.length === estimatedFilters.length &&
+        estimatedFilters.every(filter => selectedFilters.includes(filter))
+      ) {
+        return selectedFilters
       }
-      
+
       // Return estimated filters
-      return estimatedFilters;
+      return estimatedFilters
     }
-    
+
     // If pending-approval widget is active, filter for PENDING status only
     if (activeWidget === 'pending-approval') {
-      const pendingFilters = [ExpenseStatus.PENDING];
-      
+      const pendingFilters = [ExpenseStatus.PENDING]
+
       // If we already have these filters, return them
-      if (selectedFilters.length === 1 && 
-          selectedFilters.includes(ExpenseStatus.PENDING)) {
-        return selectedFilters;
+      if (selectedFilters.length === 1 && selectedFilters.includes(ExpenseStatus.PENDING)) {
+        return selectedFilters
       }
-      
+
       // Return only pending filters
-      return pendingFilters;
+      return pendingFilters
     }
-    
+
     // If top-destinations widget is active, don't apply status filters
     // (destination filtering is handled by the GraphQL query)
     if (activeWidget === 'top-destinations') {
       // Return empty array to show all statuses for the destination
-      return [];
+      return []
     }
-    
+
     // For other widgets, return original filters
-    return selectedFilters;
-  }, [selectedFilters, activeWidget]);
+    return selectedFilters
+  }, [selectedFilters, activeWidget])
 }
 
 // Helper function to determine if a widget should be active based on current filters
 export function getActiveWidgetFromFilters(selectedFilters: string[]): string | null {
+  const totalPlansFilters = [ExpenseStatus.CLOSED, ExpenseStatus.PAID, 'planDateRange']
 
-  const totalPlansFilters = [
-    ExpenseStatus.CLOSED,
-    ExpenseStatus.PAID,
-    'planDateRange'
-  ];
-  
   // Check for total-estimated widget pattern (all statuses except CREATED and PAID)
   const estimatedFilters = [
     ExpenseStatus.PREPARED,
@@ -96,41 +91,37 @@ export function getActiveWidgetFromFilters(selectedFilters: string[]): string | 
     ExpenseStatus.BOOKED,
     ExpenseStatus.TRANSFERRED,
     'planDateRange'
-  ];
+  ]
 
-  
-  const hasEstimatedPattern = estimatedFilters.every(filter => 
-    selectedFilters.includes(filter)
-  ) && !selectedFilters.includes(ExpenseStatus.CREATED) && 
-     !selectedFilters.includes(ExpenseStatus.PAID);
+  const hasEstimatedPattern =
+    estimatedFilters.every(filter => selectedFilters.includes(filter)) &&
+    !selectedFilters.includes(ExpenseStatus.CREATED) &&
+    !selectedFilters.includes(ExpenseStatus.PAID)
 
-  const hasTotalPattern = totalPlansFilters.every(filter => 
-      selectedFilters.includes(filter)
-    ) 
-  
+  const hasTotalPattern = totalPlansFilters.every(filter => selectedFilters.includes(filter))
+
   // Check for pending-approval widget pattern (only PENDING status)
-  const hasPendingOnly = selectedFilters.length === 1 && 
-    selectedFilters.includes(ExpenseStatus.PENDING);
-  
+  const hasPendingOnly = selectedFilters.length === 1 && selectedFilters.includes(ExpenseStatus.PENDING)
+
   // If only closed status is selected, activate total-plans widget
   if (hasTotalPattern) {
-    return 'total-plans';
+    return 'total-plans'
   }
-  
+
   // If estimated pattern is detected, activate total-estimated widget
   if (hasEstimatedPattern) {
-    return 'total-estimated';
+    return 'total-estimated'
   }
-  
+
   // If only pending status is selected, activate pending-approval widget
   if (hasPendingOnly) {
-    return 'pending-approval';
+    return 'pending-approval'
   }
-  
+
   // Note: top-destinations widget is activated by clicking the widget
   // and doesn't have a specific filter pattern since it filters by destination
   // rather than status
-  
+
   // If no specific pattern or mixed filters, no widget should be active
-  return null;
-} 
+  return null
+}

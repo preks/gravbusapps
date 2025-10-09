@@ -1,3 +1,3 @@
-export { default } from "./ConfirmTransferAdvPayment";
-export * from "./types";
-export * from "./queries";
+export { default } from './ConfirmTransferAdvPayment'
+export * from './types'
+export * from './queries'

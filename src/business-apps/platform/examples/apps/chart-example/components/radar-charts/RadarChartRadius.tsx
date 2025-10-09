@@ -1,4 +1,4 @@
-import React, { useMemo } from "react";
+import React, { useMemo } from 'react'
 import {
   Card,
   CardContent,
@@ -9,29 +9,33 @@ import {
   ChartContainer,
   ChartConfig,
   ChartTooltip,
-  ChartTooltipContent,
-} from "@newwork/nw-design-system";
-import { RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Radar } from "recharts";
-import { CircleWavyIcon } from "@phosphor-icons/react";
-import radarChartData from "../../data/radarChartData.json";
+  ChartTooltipContent
+} from '@newwork/nw-design-system'
+import { RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Radar } from 'recharts'
+import { CircleWavyIcon } from '@phosphor-icons/react'
+import radarChartData from '../../data/radarChartData.json'
 
 interface RadarChartRadiusProps {
-  moduleColor?: string;
+  moduleColor?: string
 }
 
 const RadarChartRadius: React.FC<RadarChartRadiusProps> = ({ moduleColor }) => {
-  const chartData = radarChartData.radius;
+  const chartData = radarChartData.radius
 
-  const chartConfig = useMemo(() => ({
-    // Data dimensions - no color needed (used for dataKey only)
-    visitors: { 
-      label: "Visitors", 
-      color: "none" 
-    },
-    // Visual categories - get automatic colors (used for legend)
-    desktop: { label: "Desktop" },
-    mobile: { label: "Mobile" },
-  }) satisfies ChartConfig, []);
+  const chartConfig = useMemo(
+    () =>
+      ({
+        // Data dimensions - no color needed (used for dataKey only)
+        visitors: {
+          label: 'Visitors',
+          color: 'none'
+        },
+        // Visual categories - get automatic colors (used for legend)
+        desktop: { label: 'Desktop' },
+        mobile: { label: 'Mobile' }
+      }) satisfies ChartConfig,
+    []
+  )
 
   return (
     <Card data-testid="radar-chart-radius">
@@ -43,22 +47,16 @@ const RadarChartRadius: React.FC<RadarChartRadiusProps> = ({ moduleColor }) => {
         </div>
       </CardHeader>
       <CardContent className="gba:pb-0">
-        <ChartContainer
-          config={chartConfig}
-          className="gba:mx-auto gba:aspect-square gba:max-h-[250px]"
-        >
+        <ChartContainer config={chartConfig} className="gba:mx-auto gba:aspect-square gba:max-h-[250px]">
           <RadarChart data={chartData}>
-            <ChartTooltip
-              cursor={false}
-              content={<ChartTooltipContent />}
-            />
+            <ChartTooltip cursor={false} content={<ChartTooltipContent />} />
             <PolarGrid />
             <PolarAngleAxis dataKey="month" />
-            <PolarRadiusAxis 
+            <PolarRadiusAxis
               angle={30}
               domain={[0, 350]}
-              tick={{ fontSize: 12, fill: "var(--foreground)" }}
-              tickFormatter={(value) => `${value}`}
+              tick={{ fontSize: 12, fill: 'var(--foreground)' }}
+              tickFormatter={value => `${value}`}
               tickCount={6}
               className="gba:fill-foreground gba:text-xs"
             />
@@ -82,7 +80,7 @@ const RadarChartRadius: React.FC<RadarChartRadiusProps> = ({ moduleColor }) => {
         </ChartContainer>
       </CardContent>
     </Card>
-  );
-};
+  )
+}
 
-export default RadarChartRadius;
+export default RadarChartRadius

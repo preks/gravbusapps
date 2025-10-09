@@ -1,5 +1,2 @@
-export { 
-  useInvestmentContactData, 
-  mapInvestmentContactToFormValues 
-} from './useContactData';
-export { useEmployeeByIdGraphQL } from './useEmployeeByIdGraphQL';
+export { useInvestmentContactData, mapInvestmentContactToFormValues } from './useContactData'
+export { useEmployeeByIdGraphQL } from './useEmployeeByIdGraphQL'

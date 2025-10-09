@@ -16,7 +16,7 @@ src/common/data/investment/
 ├── queries/
 │   ├── investmentQueries.ts            # Core Investment queries (with specializations)
 │   ├── investmentAccountQueries.ts     # InvestmentAccount queries
-│   ├── investmentContactQueries.ts     # InvestmentContact queries  
+│   ├── investmentContactQueries.ts     # InvestmentContact queries
 │   ├── investmentLeadQueries.ts        # InvestmentLead queries
 │   ├── investmentOpportunityQueries.ts # InvestmentOpportunity queries
 │   ├── investmentReportQueries.ts      # Investment Report queries
@@ -40,29 +40,32 @@ src/common/data/investment/
 ## Design Principles
 
 ### Type Architecture
+
 - **Base Types**: Match GraphQL responses exactly (no computed fields)
 - **Enhanced Types**: Extend base types with computed UI fields
 - **Common Types**: Reuse `CatalogEntry` and `Employee` from `@/common/network/graphql/commonTypes`
 
-### Query Strategy  
+### Query Strategy
+
 - **Complete Queries**: Full self-contained queries using only common fragments (`CATALOG_ENTRY`, `AUDIT_FIELDS`, `EMPLOYEE`)
 - **No Custom Fragments**: Avoid fragment definition conflicts - build complete queries first, extract fragments later if needed
 - **Schema-Based**: All queries built using actual GraphQL schema discovered via newwork-mcp
 
 ### Data Flow
+
 1. **GraphQL API** → **Base Types** (exact response match)
-2. **Base Types** → **Enhanced Types** (via mappers with computed fields)  
+2. **Base Types** → **Enhanced Types** (via mappers with computed fields)
 3. **Enhanced Types** → **UI Components** (ready-to-use data)
 
 ## Usage
 
 ```typescript
 // Import types
-import { Investment, InvestmentAccount } from '@/common/data/investment/types';
+import { Investment, InvestmentAccount } from '@/common/data/investment/types'
 
-// Import queries  
-import { GET_INVESTMENTS, GET_INVESTMENT_ACCOUNTS } from '@/common/data/investment/queries';
+// Import queries
+import { GET_INVESTMENTS, GET_INVESTMENT_ACCOUNTS } from '@/common/data/investment/queries'
 
 // Import hooks
-import { useInvestments, useInvestmentAccounts } from '@/common/data/investment/hooks';
+import { useInvestments, useInvestmentAccounts } from '@/common/data/investment/hooks'
 ```

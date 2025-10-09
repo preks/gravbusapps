@@ -1,52 +1,52 @@
-import React from "react";
+import React from 'react'
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuTrigger,
   DropdownMenuCheckboxItem,
-  Button,
-} from '@newwork/nw-design-system';
-import { PiColumns, PiEye, PiEyeClosed } from 'react-icons/pi';
+  Button
+} from '@newwork/nw-design-system'
+import { PiColumns, PiEye, PiEyeClosed } from 'react-icons/pi'
 
-import { ColumnVisibilityConfig } from './DataController';
+import { ColumnVisibilityConfig } from './DataController'
 
 export interface DataControllerActionsProps {
-  actions?: React.ReactNode | React.ReactNode[];
+  actions?: React.ReactNode | React.ReactNode[]
   addButton?: {
-    onClick: () => void;
-    label: string;
-    icon?: React.ReactNode;
-    "data-testid"?: string;
-  };
-  columnVisibility?: ColumnVisibilityConfig;
+    onClick: () => void
+    label: string
+    icon?: React.ReactNode
+    'data-testid'?: string
+  }
+  columnVisibility?: ColumnVisibilityConfig
 }
 
 function getNodeSignature(node: React.ReactNode): string {
   if (React.isValidElement(node)) {
-    const anyEl: any = node as any;
-    const dataTestId = anyEl?.props?.["data-testid"];
-    const key = anyEl?.key != null ? String(anyEl.key) : "";
-    const typeName = (anyEl?.type?.displayName || anyEl?.type?.name || "type") as string;
-    return ["el", dataTestId || "no-testid", key || "no-key", typeName].join(":");
+    const anyEl: any = node as any
+    const dataTestId = anyEl?.props?.['data-testid']
+    const key = anyEl?.key != null ? String(anyEl.key) : ''
+    const typeName = (anyEl?.type?.displayName || anyEl?.type?.name || 'type') as string
+    return ['el', dataTestId || 'no-testid', key || 'no-key', typeName].join(':')
   }
   if (Array.isArray(node)) {
-    return node.map((n) => getNodeSignature(n)).join("|");
+    return node.map(n => getNodeSignature(n)).join('|')
   }
-  return typeof node + ":" + String(node);
+  return typeof node + ':' + String(node)
 }
 
 function getActionsSignature(actions?: React.ReactNode | React.ReactNode[]): string {
-  if (!actions) return "none";
+  if (!actions) return 'none'
   if (Array.isArray(actions)) {
-    return actions.map((a) => getNodeSignature(a)).join("||");
+    return actions.map(a => getNodeSignature(a)).join('||')
   }
-  return getNodeSignature(actions);
+  return getNodeSignature(actions)
 }
 
-function getAddButtonSignature(addButton?: DataControllerActionsProps["addButton"]): string {
-  if (!addButton) return "none";
-  const id = addButton["data-testid"] || "no-testid";
-  return `${id}:${addButton.label}`;
+function getAddButtonSignature(addButton?: DataControllerActionsProps['addButton']): string {
+  if (!addButton) return 'none'
+  const id = addButton['data-testid'] || 'no-testid'
+  return `${id}:${addButton.label}`
 }
 
 /**
@@ -57,8 +57,8 @@ const ColumnVisibilityDropdown: React.FC<ColumnVisibilityConfig> = ({
   onColumnVisibilityChange,
   'data-testid': dataTestId = 'column-visibility-dropdown'
 }) => {
-  const visibleCount = columns.filter(col => col.visible).length;
-  const totalCount = columns.length;
+  const visibleCount = columns.filter(col => col.visible).length
+  const totalCount = columns.length
 
   return (
     <DropdownMenu>
@@ -76,26 +76,22 @@ const ColumnVisibilityDropdown: React.FC<ColumnVisibilityConfig> = ({
           </span>
         </Button>
       </DropdownMenuTrigger>
-      <DropdownMenuContent 
-        align="end" 
-        className="gba:w-56"
-        data-testid={`${dataTestId}-content`}
-      >
+      <DropdownMenuContent align="end" className="gba:w-56" data-testid={`${dataTestId}-content`}>
         <div className="gba:px-3 gba:py-2 gba:text-sm gba:font-medium gba:text-gray-700 gba:border-b">
           Toggle Columns
         </div>
-        {columns.map((column) => (
+        {columns.map(column => (
           <DropdownMenuCheckboxItem
             key={column.id}
             checked={column.visible}
             disabled={column.disabled}
-            onCheckedChange={(checked) => onColumnVisibilityChange(column.id, checked)}
-            onSelect={(event) => {
-              event.preventDefault();
-              event.stopPropagation();
+            onCheckedChange={checked => onColumnVisibilityChange(column.id, checked)}
+            onSelect={event => {
+              event.preventDefault()
+              event.stopPropagation()
             }}
-            onClick={(event) => {
-              event.stopPropagation();
+            onClick={event => {
+              event.stopPropagation()
             }}
             className="gba:flex gba:items-center gba:gap-2"
             data-testid={`${dataTestId}-item-${column.id}`}
@@ -106,14 +102,8 @@ const ColumnVisibilityDropdown: React.FC<ColumnVisibilityConfig> = ({
               ) : (
                 <PiEyeClosed className="gba:h-4 gba:w-4 gba:text-gray-400" />
               )}
-              <span className={column.disabled ? 'gba:text-gray-400' : ''}>
-                {column.label}
-              </span>
-              {column.disabled && (
-                <span className="gba:text-xs gba:text-gray-400 gba:ml-auto">
-                  (Required)
-                </span>
-              )}
+              <span className={column.disabled ? 'gba:text-gray-400' : ''}>{column.label}</span>
+              {column.disabled && <span className="gba:text-xs gba:text-gray-400 gba:ml-auto">(Required)</span>}
             </div>
           </DropdownMenuCheckboxItem>
         ))}
@@ -122,17 +112,24 @@ const ColumnVisibilityDropdown: React.FC<ColumnVisibilityConfig> = ({
         </div>
       </DropdownMenuContent>
     </DropdownMenu>
-  );
-};
+  )
+}
 
-const InnerDataControllerActions: React.FC<Readonly<DataControllerActionsProps>> = ({ actions, addButton, columnVisibility }) => {
+const InnerDataControllerActions: React.FC<Readonly<DataControllerActionsProps>> = ({
+  actions,
+  addButton,
+  columnVisibility
+}) => {
   return (
-    <div className="gba:flex gba:flex-row gba:items-center gba:gap-2 gba:w-full gba:justify-end" data-testid="data-controller-actions-section">
+    <div
+      className="gba:flex gba:flex-row gba:items-center gba:gap-2 gba:w-full gba:justify-end"
+      data-testid="data-controller-actions-section"
+    >
       {addButton && (
         <button
           className="gba:flex gba:flex-row gba:justify-center gba:items-center gba:px-3 gba:py-0 gba:h-8 gba:rounded gba:gap-1"
           onClick={addButton.onClick}
-          data-testid={addButton["data-testid"] || "data-controller-add-button"}
+          data-testid={addButton['data-testid'] || 'data-controller-add-button'}
           type="button"
         >
           <span className="gba:w-5 gba:h-5 gba:flex gba:items-center gba:justify-center gba:flex-none order-0 gba:grow-0">
@@ -144,7 +141,10 @@ const InnerDataControllerActions: React.FC<Readonly<DataControllerActionsProps>>
         </button>
       )}
       {columnVisibility && (
-        <div className="gba:flex gba:flex-row gba:justify-center gba:items-center gba:px-3 gba:h-8 gba:rounded gba:gap-1" data-testid="data-controller-column-visibility">
+        <div
+          className="gba:flex gba:flex-row gba:justify-center gba:items-center gba:px-3 gba:h-8 gba:rounded gba:gap-1"
+          data-testid="data-controller-column-visibility"
+        >
           <ColumnVisibilityDropdown
             columns={columnVisibility.columns}
             onColumnVisibilityChange={columnVisibility.onColumnVisibilityChange}
@@ -152,12 +152,12 @@ const InnerDataControllerActions: React.FC<Readonly<DataControllerActionsProps>>
           />
         </div>
       )}
-      {actions && (
-        Array.isArray(actions) ? (
+      {actions &&
+        (Array.isArray(actions) ? (
           actions.map((action, idx) => {
-            let key: React.Key = idx;
-            if (React.isValidElement(action) && (action.props as any)?.["data-testid"]) {
-              key = (action.props as any)["data-testid"];
+            let key: React.Key = idx
+            if (React.isValidElement(action) && (action.props as any)?.['data-testid']) {
+              key = (action.props as any)['data-testid']
             }
             return (
               <div
@@ -167,46 +167,43 @@ const InnerDataControllerActions: React.FC<Readonly<DataControllerActionsProps>>
               >
                 {action}
               </div>
-            );
+            )
           })
         ) : (
-          <div className="gba:flex gba:flex-row gba:justify-center gba:items-center gba:px-3 gba:h-8 gba:rounded gba:gap-1" data-testid="data-controller-single-action">
+          <div
+            className="gba:flex gba:flex-row gba:justify-center gba:items-center gba:px-3 gba:h-8 gba:rounded gba:gap-1"
+            data-testid="data-controller-single-action"
+          >
             {actions}
           </div>
-        )
-      )}
+        ))}
     </div>
-  );
-};
-
-function getColumnVisibilitySignature(columnVisibility?: ColumnVisibilityConfig): string {
-  if (!columnVisibility) return "none";
-  const testId = columnVisibility['data-testid'] || "no-testid";
-  const columnsSignature = columnVisibility.columns
-    .map(col => `${col.id}:${col.visible}:${col.disabled || false}`)
-    .join(",");
-  return `${testId}:${columnsSignature}`;
+  )
 }
 
-export const DataControllerActions = React.memo(
-  InnerDataControllerActions,
-  (prev, next) => {
-    const prevActionsSig = getActionsSignature(prev.actions);
-    const nextActionsSig = getActionsSignature(next.actions);
-    if (prevActionsSig !== nextActionsSig) return false;
+function getColumnVisibilitySignature(columnVisibility?: ColumnVisibilityConfig): string {
+  if (!columnVisibility) return 'none'
+  const testId = columnVisibility['data-testid'] || 'no-testid'
+  const columnsSignature = columnVisibility.columns
+    .map(col => `${col.id}:${col.visible}:${col.disabled || false}`)
+    .join(',')
+  return `${testId}:${columnsSignature}`
+}
 
-    const prevAddSig = getAddButtonSignature(prev.addButton);
-    const nextAddSig = getAddButtonSignature(next.addButton);
-    if (prevAddSig !== nextAddSig) return false;
+export const DataControllerActions = React.memo(InnerDataControllerActions, (prev, next) => {
+  const prevActionsSig = getActionsSignature(prev.actions)
+  const nextActionsSig = getActionsSignature(next.actions)
+  if (prevActionsSig !== nextActionsSig) return false
 
-    const prevColumnVisSig = getColumnVisibilitySignature(prev.columnVisibility);
-    const nextColumnVisSig = getColumnVisibilitySignature(next.columnVisibility);
-    if (prevColumnVisSig !== nextColumnVisSig) return false;
+  const prevAddSig = getAddButtonSignature(prev.addButton)
+  const nextAddSig = getAddButtonSignature(next.addButton)
+  if (prevAddSig !== nextAddSig) return false
 
-    return true;
-  }
-);
+  const prevColumnVisSig = getColumnVisibilitySignature(prev.columnVisibility)
+  const nextColumnVisSig = getColumnVisibilitySignature(next.columnVisibility)
+  if (prevColumnVisSig !== nextColumnVisSig) return false
 
-export default DataControllerActions;
+  return true
+})
 
-
+export default DataControllerActions

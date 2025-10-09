@@ -1,5 +1,9 @@
 import React from 'react'
-import { EngagementSettings, CatalogItem, CatalogUpsertData } from '@/common/components/common-relations/setting-pages/engagement/EngagementSettings'
+import {
+  EngagementSettings,
+  CatalogItem,
+  CatalogUpsertData
+} from '@/common/components/common-relations/setting-pages/engagement/EngagementSettings'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { useCatalogManagerClient } from '@/common/network/catalogs/useCatalogManagerClient'
 
@@ -41,14 +45,22 @@ function useCatalogListState(catalogClient: ReturnType<typeof useCatalogManagerC
       setError(null)
       const response = await catalogClient.getCatalogEntriesList(
         { catalogIdentifier, version: 'v1' },
-        { limit: 100, offset: 0, returnTotalRecords: true, includeChildCatalogEntries: false, ...(search && { searchCriteria: search }) }
+        {
+          limit: 100,
+          offset: 0,
+          returnTotalRecords: true,
+          includeChildCatalogEntries: false,
+          ...(search && { searchCriteria: search })
+        }
       )
       const entries = (response.data || []).map((entry: any) => ({
         id: entry.id,
         code: entry.code,
         value: entry.value,
         alternativeCode: entry.alternativeCode,
-        displayOrder: (entry.displayOrder ?? (entry.alternativeCode ? parseInt(entry.alternativeCode, 10) : undefined)) || undefined,
+        displayOrder:
+          (entry.displayOrder ?? (entry.alternativeCode ? parseInt(entry.alternativeCode, 10) : undefined)) ||
+          undefined,
         additionalValue1: entry.additionalValue1,
         additionalValue2: entry.additionalValue2,
         additionalValue3: entry.additionalValue3
@@ -73,7 +85,8 @@ function makeCrudHandlers(catalogClient: ReturnType<typeof useCatalogManagerClie
     await catalogClient.createCatalogEntry(catalogIdentifier, 'v1', {
       code: data.code,
       value: data.value,
-      alternativeCode: data.alternativeCode ?? (data as any).displayOrder != null ? String((data as any).displayOrder) : undefined,
+      alternativeCode:
+        (data.alternativeCode ?? (data as any).displayOrder != null) ? String((data as any).displayOrder) : undefined,
       displayOrder: (data as any).displayOrder,
       additionalValue1: data.additionalValue1,
       objectValue: {},
@@ -84,7 +97,8 @@ function makeCrudHandlers(catalogClient: ReturnType<typeof useCatalogManagerClie
     await catalogClient.updateCatalogEntry(id, {
       code: data.code,
       value: data.value,
-      alternativeCode: data.alternativeCode ?? (data as any).displayOrder != null ? String((data as any).displayOrder) : undefined,
+      alternativeCode:
+        (data.alternativeCode ?? (data as any).displayOrder != null) ? String((data as any).displayOrder) : undefined,
       displayOrder: (data as any).displayOrder,
       additionalValue1: data.additionalValue1,
       objectValue: {},
@@ -105,5 +119,3 @@ function makeHandlers(catalogClient: ReturnType<typeof useCatalogManagerClient>,
 }
 
 export default EngagementDataPage
-
-

@@ -8,35 +8,35 @@
  * Fallback to default if extraction fails or input is falsy
  */
 const extractCurrencyCode = (currencyInput: string, fallback: string = 'EUR'): string => {
-  if (!currencyInput) return fallback;
+  if (!currencyInput) return fallback
 
   // Handle API format like "Currency:v1:EUR"
   if (currencyInput.includes(':')) {
-    const parts = currencyInput.split(':');
-    const lastPart = parts[parts.length - 1];
+    const parts = currencyInput.split(':')
+    const lastPart = parts[parts.length - 1]
     // Validate that it looks like a 3-letter ISO code
     if (lastPart && /^[A-Z]{3}$/.test(lastPart)) {
-      return lastPart;
+      return lastPart
     }
   }
 
   // If it's already a 3-letter ISO code, use it directly
   if (/^[A-Z]{3}$/.test(currencyInput)) {
-    return currencyInput;
+    return currencyInput
   }
 
   // Fallback to default
-  return fallback;
-};
+  return fallback
+}
 
 export const formatCurrencyCompact = (amount: number, currency: string = 'EUR'): string => {
-  if (amount === undefined || amount === null || !isFinite(amount)) return '-';
+  if (amount === undefined || amount === null || !isFinite(amount)) return '-'
 
   // Extract ISO currency code from API format
-  const currencyCode = extractCurrencyCode(currency);
+  const currencyCode = extractCurrencyCode(currency)
 
-  const abs = Math.abs(amount);
-  const sign = amount < 0 ? '-' : '';
+  const abs = Math.abs(amount)
+  const sign = amount < 0 ? '-' : ''
 
   if (abs >= 1_000_000_000) {
     // Billions - format as "€1.2B"
@@ -44,9 +44,9 @@ export const formatCurrencyCompact = (amount: number, currency: string = 'EUR'):
       style: 'currency',
       currency: currencyCode,
       maximumFractionDigits: 1,
-      minimumFractionDigits: 0,
-    }).format(abs / 1_000_000_000);
-    return `${sign}${formatted}B`;
+      minimumFractionDigits: 0
+    }).format(abs / 1_000_000_000)
+    return `${sign}${formatted}B`
   }
 
   if (abs >= 1_000_000) {
@@ -55,9 +55,9 @@ export const formatCurrencyCompact = (amount: number, currency: string = 'EUR'):
       style: 'currency',
       currency: currencyCode,
       maximumFractionDigits: 1,
-      minimumFractionDigits: 0,
-    }).format(abs / 1_000_000);
-    return `${sign}${formatted}M`;
+      minimumFractionDigits: 0
+    }).format(abs / 1_000_000)
+    return `${sign}${formatted}M`
   }
 
   // Thousands and below - show as normal currency (€1,500)
@@ -65,14 +65,14 @@ export const formatCurrencyCompact = (amount: number, currency: string = 'EUR'):
     style: 'currency',
     currency: currencyCode,
     maximumFractionDigits: 0,
-    minimumFractionDigits: 0,
-  }).format(amount);
-};
+    minimumFractionDigits: 0
+  }).format(amount)
+}
 
 /**
  * Legacy formatter for backward compatibility
  * @deprecated Use formatCurrencyCompact instead
  */
 export const formatCurrency = (amount: number, currency: string = 'EUR'): string => {
-  return formatCurrencyCompact(amount, currency);
-};
+  return formatCurrencyCompact(amount, currency)
+}

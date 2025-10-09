@@ -1,38 +1,38 @@
-import { RestClient, RequestOptions } from '../rest/RestClient';
-import { env } from '../../env/EnvUtils';
-import { setAccessTokenToAuthorizationHeader } from '../HeaderUtils';
-import { FlowPathParams, FlowPayload, FlowResponse } from '../../types/FlowTypes';
+import { RestClient, RequestOptions } from '../rest/RestClient'
+import { env } from '../../env/EnvUtils'
+import { setAccessTokenToAuthorizationHeader } from '../HeaderUtils'
+import { FlowPathParams, FlowPayload, FlowResponse } from '../../types/FlowTypes'
 
 // Flow response interfaces
 export interface FlowInitiationResponse {
-  id: string;
-  processId: string;
-  processName: string;
-  businessKey?: string;
-  [key: string]: any;
+  id: string
+  processId: string
+  processName: string
+  businessKey?: string
+  [key: string]: any
 }
 
 export interface FlowTask {
-  id: string;
-  name: string;
-  processInstanceId: string;
-  processId: string;
-  rootProcessInstanceId?: string;
-  rootProcessId?: string;
-  state: string;
-  actualOwner?: string;
-  [key: string]: any;
+  id: string
+  name: string
+  processInstanceId: string
+  processId: string
+  rootProcessInstanceId?: string
+  rootProcessId?: string
+  state: string
+  actualOwner?: string
+  [key: string]: any
 }
 
 export interface FlowTasksResponse {
-  tasks: FlowTask[];
-  [key: string]: any;
+  tasks: FlowTask[]
+  [key: string]: any
 }
 
 export interface FlowTaskCompletionResponse {
-  id: string;
-  processInstanceId: string;
-  [key: string]: any;
+  id: string
+  processInstanceId: string
+  [key: string]: any
 }
 
 /**
@@ -41,7 +41,7 @@ export interface FlowTaskCompletionResponse {
  */
 export class FlowClient extends RestClient {
   constructor() {
-    super(env('NEXT_PUBLIC_KOGITO_PROCESSES_ENDPOINT') ?? '');
+    super(env('NEXT_PUBLIC_KOGITO_PROCESSES_ENDPOINT') ?? '')
   }
 
   /**
@@ -50,10 +50,10 @@ export class FlowClient extends RestClient {
    */
   setAccessToken(accessToken: string) {
     if (!this.headers) {
-      this.headers = {};
+      this.headers = {}
     }
 
-    this.headers['Authorization'] = setAccessTokenToAuthorizationHeader(accessToken);
+    this.headers['Authorization'] = setAccessTokenToAuthorizationHeader(accessToken)
   }
 
   /**
@@ -68,14 +68,10 @@ export class FlowClient extends RestClient {
     options: Omit<RequestOptions, 'body'> = {}
   ): Promise<FlowResponse> {
     try {
-      return await this.post<FlowResponse>(
-        `/${params.accessScope}/${params.context}`,
-        payload,
-        options
-      );
+      return await this.post<FlowResponse>(`/${params.accessScope}/${params.context}`, payload, options)
     } catch (error) {
-      console.error('FlowClient: Error executing flow:', error);
-      throw error;
+      console.error('FlowClient: Error executing flow:', error)
+      throw error
     }
   }
 
@@ -92,15 +88,15 @@ export class FlowClient extends RestClient {
     payload: Record<string, any>
   ): Promise<FlowInitiationResponse> {
     if (!this.headers?.['Authorization']) {
-      throw new Error('FlowClient: Access token not set. Call setAccessToken before initiating flow.');
+      throw new Error('FlowClient: Access token not set. Call setAccessToken before initiating flow.')
     }
-    
+
     try {
-      const url = `/${domain}/${processName}`;
-      return await this.post<FlowInitiationResponse>(url, payload);
+      const url = `/${domain}/${processName}`
+      return await this.post<FlowInitiationResponse>(url, payload)
     } catch (error) {
-      console.error('FlowClient: Error initiating flow:', error);
-      throw error;
+      console.error('FlowClient: Error initiating flow:', error)
+      throw error
     }
   }
 
@@ -119,15 +115,15 @@ export class FlowClient extends RestClient {
     userId: string
   ): Promise<FlowTasksResponse> {
     if (!this.headers?.['Authorization']) {
-      throw new Error('FlowClient: Access token not set. Call setAccessToken before getting task flow.');
+      throw new Error('FlowClient: Access token not set. Call setAccessToken before getting task flow.')
     }
-    
+
     try {
-      const url = `/${domain}/${processName}/${processInstanceId}/tasks?user=${userId}`;
-      return await this.get<FlowTasksResponse>(url);
+      const url = `/${domain}/${processName}/${processInstanceId}/tasks?user=${userId}`
+      return await this.get<FlowTasksResponse>(url)
     } catch (error) {
-      console.error('FlowClient: Error getting task flow:', error);
-      throw error;
+      console.error('FlowClient: Error getting task flow:', error)
+      throw error
     }
   }
 
@@ -152,15 +148,15 @@ export class FlowClient extends RestClient {
     submitData: Record<string, any>
   ): Promise<FlowTaskCompletionResponse> {
     if (!this.headers?.['Authorization']) {
-      throw new Error('FlowClient: Access token not set. Call setAccessToken before completing task flow.');
+      throw new Error('FlowClient: Access token not set. Call setAccessToken before completing task flow.')
     }
-    
+
     try {
-      const url = `/${domain}/${processName}/${processInstanceId}/${taskName}/${taskId}?phase=complete&user=${userId}`;
-      return await this.post<FlowTaskCompletionResponse>(url, submitData);
+      const url = `/${domain}/${processName}/${processInstanceId}/${taskName}/${taskId}?phase=complete&user=${userId}`
+      return await this.post<FlowTaskCompletionResponse>(url, submitData)
     } catch (error) {
-      console.error('FlowClient: Error completing task flow:', error);
-      throw error;
+      console.error('FlowClient: Error completing task flow:', error)
+      throw error
     }
   }
 
@@ -170,22 +166,19 @@ export class FlowClient extends RestClient {
    * @param options Additional request options
    * @returns Promise with the resource data
    */
-  public async getResource<T = any>(
-    path: string,
-    options: Omit<RequestOptions, 'body'> = {}
-  ): Promise<T> {
+  public async getResource<T = any>(path: string, options: Omit<RequestOptions, 'body'> = {}): Promise<T> {
     if (!this.headers?.['Authorization']) {
-      throw new Error('FlowClient: Access token not set. Call setAccessToken before getting resource.');
+      throw new Error('FlowClient: Access token not set. Call setAccessToken before getting resource.')
     }
-    
+
     try {
-      const url = path.startsWith('/') ? path : `/${path}`;
-      return await this.get<T>(url, options);
+      const url = path.startsWith('/') ? path : `/${path}`
+      return await this.get<T>(url, options)
     } catch (error) {
-      console.error(`FlowClient: Error getting resource from ${path}:`, error);
-      throw error;
+      console.error(`FlowClient: Error getting resource from ${path}:`, error)
+      throw error
     }
   }
 }
 
-export const flowClient = new FlowClient();
+export const flowClient = new FlowClient()

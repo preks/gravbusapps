@@ -1,4 +1,4 @@
-import React, { useMemo } from "react";
+import React, { useMemo } from 'react'
 import {
   Card,
   CardContent,
@@ -9,29 +9,33 @@ import {
   ChartContainer,
   ChartConfig,
   ChartTooltip,
-  ChartTooltipContent,
-} from "@newwork/nw-design-system";
-import { RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Radar } from "recharts";
-import { CircleWavyIcon } from "@phosphor-icons/react";
-import radarChartData from "../../data/radarChartData.json";
+  ChartTooltipContent
+} from '@newwork/nw-design-system'
+import { RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Radar } from 'recharts'
+import { CircleWavyIcon } from '@phosphor-icons/react'
+import radarChartData from '../../data/radarChartData.json'
 
 interface RadarChartCustomLabelProps {
-  moduleColor?: string;
+  moduleColor?: string
 }
 
 const RadarChartCustomLabel: React.FC<RadarChartCustomLabelProps> = ({ moduleColor }) => {
-  const chartData = radarChartData.customLabel;
+  const chartData = radarChartData.customLabel
 
-  const chartConfig = useMemo(() => ({
-    // Data dimensions - no color needed (used for dataKey only)
-    visitors: { 
-      label: "Visitors", 
-      color: "none" 
-    },
-    // Visual categories - get automatic colors (used for legend)
-    desktop: { label: "Desktop" },
-    mobile: { label: "Mobile" },
-  }) satisfies ChartConfig, []);
+  const chartConfig = useMemo(
+    () =>
+      ({
+        // Data dimensions - no color needed (used for dataKey only)
+        visitors: {
+          label: 'Visitors',
+          color: 'none'
+        },
+        // Visual categories - get automatic colors (used for legend)
+        desktop: { label: 'Desktop' },
+        mobile: { label: 'Mobile' }
+      }) satisfies ChartConfig,
+    []
+  )
 
   return (
     <Card data-testid="radar-chart-custom-label">
@@ -43,25 +47,19 @@ const RadarChartCustomLabel: React.FC<RadarChartCustomLabelProps> = ({ moduleCol
         </div>
       </CardHeader>
       <CardContent className="gba:pb-0">
-        <ChartContainer
-          config={chartConfig}
-          className="gba:mx-auto gba:aspect-square gba:max-h-[250px]"
-        >
+        <ChartContainer config={chartConfig} className="gba:mx-auto gba:aspect-square gba:max-h-[250px]">
           <RadarChart data={chartData}>
-            <ChartTooltip
-              cursor={false}
-              content={<ChartTooltipContent />}
-            />
+            <ChartTooltip cursor={false} content={<ChartTooltipContent />} />
             <PolarGrid />
-            <PolarAngleAxis 
-              dataKey="month" 
-              tick={{ fontSize: 12, fill: "var(--foreground)" }}
+            <PolarAngleAxis
+              dataKey="month"
+              tick={{ fontSize: 12, fill: 'var(--foreground)' }}
               className="gba:text-xs gba:fill-foreground"
             />
-            <PolarRadiusAxis 
+            <PolarRadiusAxis
               angle={90}
               domain={[0, 350]}
-              tick={{ fontSize: 10, fill: "var(--muted-foreground)" }}
+              tick={{ fontSize: 10, fill: 'var(--muted-foreground)' }}
               tickCount={5}
               className="gba:fill-muted-foreground gba:text-xs"
             />
@@ -85,7 +83,7 @@ const RadarChartCustomLabel: React.FC<RadarChartCustomLabelProps> = ({ moduleCol
         </ChartContainer>
       </CardContent>
     </Card>
-  );
-};
+  )
+}
 
-export default RadarChartCustomLabel;
+export default RadarChartCustomLabel

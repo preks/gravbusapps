@@ -1,10 +1,10 @@
-import React from 'react';
-import { BusinessAppContextProps } from '../../../../../../common/BusinessAppContext';
+import React from 'react'
+import { BusinessAppContextProps } from '../../../../../../common/BusinessAppContext'
 
 interface EditLeadProps extends BusinessAppContextProps {
-  leadData: any;
-  onCancel: () => void;
-  onSave: (data: any) => void;
+  leadData: any
+  onCancel: () => void
+  onSave: (data: any) => void
 }
 
 const EditLead: React.FC<EditLeadProps> = ({ leadData, onCancel, onSave }) => {
@@ -14,7 +14,7 @@ const EditLead: React.FC<EditLeadProps> = ({ leadData, onCancel, onSave }) => {
       <p>Edit functionality will be implemented in future steps</p>
       <button onClick={onCancel}>Cancel</button>
     </div>
-  );
-};
+  )
+}
 
-export default EditLead; 
+export default EditLead

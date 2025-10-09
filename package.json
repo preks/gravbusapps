@@ -12,7 +12,8 @@
     "serve": "vite serve --port 5001 --strictPort",
     "proxy:conductor": "node ./scripts/conductor-proxy.js",
     "lint": "eslint .",
-    "lint:fix": "eslint . --fix"
+    "lint:fix": "eslint . --fix",
+    "format": "prettier --write ."
   },
   "dependencies": {
     "@ant-design/icons": "^5.0.0",
@@ -43,6 +44,8 @@
     "@azure/storage-blob": "^12.27.0",
     "@dotenvx/dotenvx": "^1.46.0",
     "@eslint/js": "^9.25.0",
+    "@newwork/eslint-config": "^0.1.1",
+    "@newwork/prettier-config": "^0.1.0",
     "@originjs/vite-plugin-federation": "^1.4.1",
     "@tailwindcss/postcss": "^4.1.8",
     "@tailwindcss/vite": "^4.1.6",

@@ -1,26 +1,26 @@
-import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient';
-import { BusinessAppContextProps } from '@/common/BusinessAppContext';
+import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
+import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 
 export interface ContactDocumentQueryVariables {
-  contactId: string;
+  contactId: string
 }
 
 export interface ContactDocumentData {
-  version: number;
-  id: string;
-  name: string;
-  createdAt: string;
+  version: number
+  id: string
+  name: string
+  createdAt: string
   documentType: {
-    value: string;
-  };
-  file?: string;
-  mimeType?: string;
-  fileSize?: number;
-  createdBy: string;
+    value: string
+  }
+  file?: string
+  mimeType?: string
+  fileSize?: number
+  createdBy: string
 }
 
 export interface ContactDocumentResponse {
-  CrmDocument: ContactDocumentData[];
+  CrmDocument: ContactDocumentData[]
 }
 
 export const GET_CONTACT_DOCUMENTS = (variables: ContactDocumentQueryVariables): string => {
@@ -40,22 +40,22 @@ export const GET_CONTACT_DOCUMENTS = (variables: ContactDocumentQueryVariables):
         createdBy
       }
     }
-  `;
-};
+  `
+}
 
 export const useGetContactDocuments = (context: BusinessAppContextProps) => {
-  const graphQLClient = useGraphQLClient(context.accessToken);
-  
-  const fetchContactDocuments = async (variables: ContactDocumentQueryVariables) => {
-    const query = GET_CONTACT_DOCUMENTS(variables);
-    try {
-      const result = await graphQLClient.request<ContactDocumentResponse>(query, variables);
-      return result;
-    } catch (error) {
-      console.error('Error fetching contact documents:', error);
-      throw error;
-    }
-  };
+  const graphQLClient = useGraphQLClient(context.accessToken)
 
-  return { fetchContactDocuments };
-}; 
+  const fetchContactDocuments = async (variables: ContactDocumentQueryVariables) => {
+    const query = GET_CONTACT_DOCUMENTS(variables)
+    try {
+      const result = await graphQLClient.request<ContactDocumentResponse>(query, variables)
+      return result
+    } catch (error) {
+      console.error('Error fetching contact documents:', error)
+      throw error
+    }
+  }
+
+  return { fetchContactDocuments }
+}

@@ -1,34 +1,23 @@
-import React, {
-  createContext,
-  useContext,
-  useState,
-  useEffect,
-  useRef,
-  ReactNode,
-  useMemo,
-} from "react";
-import { useTranslation } from "react-i18next";
-import { Form, message } from "antd";
-import {
-  ExpensePosition,
-  ExpenseType,
-  CostCenter,
-  Currency,
-  ExpenseGroup,
-  CustomField,
-} from "../types";
+import React, { createContext, useContext, useState, useEffect, useRef, ReactNode, useMemo } from 'react'
+import { useTranslation } from 'react-i18next'
+import { Form, message } from 'antd'
+import { ExpensePosition, ExpenseType, CostCenter, Currency, ExpenseGroup, CustomField } from '../types'
 
-import { getCurrentActiveUserLocale, getCatalogValue, getTranslationFromI18nKeyAndLabel } from "../../../../../../common/utils/windowUtils";
+import {
+  getCurrentActiveUserLocale,
+  getCatalogValue,
+  getTranslationFromI18nKeyAndLabel
+} from '../../../../../../common/utils/windowUtils'
 import {
   fetchExpenseCatalogueData,
   fetchExpenseRuleGeneralData,
   getStructureCostCenter,
-  expenseRequestByCurrencyQuery,
-} from "../ExpenseItemQueries";
-import { fetchEmployeeRule } from "../ExpenseItemQueries";
-import { DEFAULT_EMPLOYEE_ID, DEFAULT_POSITION, FORM_STEPS, FormStepType } from "../constants/constants";
-import { transformCurrencies } from "../utils/currencyUtils";
-import { createGraphQLClient } from "../services/graphqlClient";
+  expenseRequestByCurrencyQuery
+} from '../ExpenseItemQueries'
+import { fetchEmployeeRule } from '../ExpenseItemQueries'
+import { DEFAULT_EMPLOYEE_ID, DEFAULT_POSITION, FORM_STEPS, FormStepType } from '../constants/constants'
+import { transformCurrencies } from '../utils/currencyUtils'
+import { createGraphQLClient } from '../services/graphqlClient'
 import {
   addRequests,
   fetchCustomFields,
@@ -39,362 +28,333 @@ import {
   handleExpenseTypeChange,
   handleSubmit,
   handleFileUpload,
-  setByEdit,
-} from "./services";
-import { showToast } from "../../../utils/notificationUtils";
-import { useProcessEventState } from '@/business-apps/fin/expenses/utils/useProcessEventState';
-import { EVENTS } from "../../../utils/constants";
+  setByEdit
+} from './services'
+import { showToast } from '../../../utils/notificationUtils'
+import { useProcessEventState } from '@/business-apps/fin/expenses/utils/useProcessEventState'
+import { EVENTS } from '../../../utils/constants'
 
 interface ExpenseItemContextProps {
-  form: any;
-  currentStep: "start" | "form";
-  setCurrentStep: (step: "start" | "form") => void;
-  loading: boolean;
-  setLoading: (loading: boolean) => void;
-  fileList: any[];
-  setFileList: (files: any[]) => void;
-  isProcessingFiles: boolean;
-  setIsProcessingFiles: (isProcessing: boolean) => void;
-  isFormDisabled: boolean;
-  setIsFormDisabled: (isDisabled: boolean) => void;
-  multiPosition: boolean;
-  setMultiPosition: (isMulti: boolean) => void;
-  isEditMode: boolean;
-  setCurrentSelectedDate:(date:Date|null)=> void;
+  form: any
+  currentStep: 'start' | 'form'
+  setCurrentStep: (step: 'start' | 'form') => void
+  loading: boolean
+  setLoading: (loading: boolean) => void
+  fileList: any[]
+  setFileList: (files: any[]) => void
+  isProcessingFiles: boolean
+  setIsProcessingFiles: (isProcessing: boolean) => void
+  isFormDisabled: boolean
+  setIsFormDisabled: (isDisabled: boolean) => void
+  multiPosition: boolean
+  setMultiPosition: (isMulti: boolean) => void
+  isEditMode: boolean
+  setCurrentSelectedDate: (date: Date | null) => void
 
-  positions: ExpensePosition[];
-  setPositions: (positions: ExpensePosition[]) => void;
-  expenseGroups: ExpenseGroup[];
-  expenseTypes: { [classId: string]: ExpenseType[] };
-  customFields: { [expenseTypeId: string]: CustomField[] };
-  costCenters: CostCenter[];
-  currencies: Currency[];
-  expenseRequests: any[];
+  positions: ExpensePosition[]
+  setPositions: (positions: ExpensePosition[]) => void
+  expenseGroups: ExpenseGroup[]
+  expenseTypes: { [classId: string]: ExpenseType[] }
+  customFields: { [expenseTypeId: string]: CustomField[] }
+  costCenters: CostCenter[]
+  currencies: Currency[]
+  expenseRequests: any[]
 
-  employeeRuleId: string | null | object;
-  expenseRuleError: string | null;
-  additionalData?: any;
+  employeeRuleId: string | null | object
+  expenseRuleError: string | null
+  additionalData?: any
 
-  calculateTotal: () => number;
-  handleFileUpload: (files: File[]) => Promise<any | null>;
-  handleSubmit: () => Promise<void>;
-  handleCancel: (noDispatchEvent?: boolean) => void;
-  handleExpenseGroupChange: (
-    value: string,
-    positionIndex: number
-  ) => Promise<void>;
-  handleExpenseTypeChange: (
-    value: string,
-    positionIndex: number
-  ) => Promise<void>;
-  handleAddPosition: () => void;
-  handleRemovePosition: (positionId: string) => void;
-  handleAmountChange: (value: number, positionIndex: number) => void;
-  handleCurrencyChange: (currencyId: string) => Promise<void>;
-  fetchExpenseTypes: (classId: string) => Promise<ExpenseType[]>;
-  fetchCustomFields: (expenseTypeIds: string[]) => Promise<CustomField[]>;
-  setInitialItemValues: (id: string, version: string | number) => void;
+  calculateTotal: () => number
+  handleFileUpload: (files: File[]) => Promise<any | null>
+  handleSubmit: () => Promise<void>
+  handleCancel: (noDispatchEvent?: boolean) => void
+  handleExpenseGroupChange: (value: string, positionIndex: number) => Promise<void>
+  handleExpenseTypeChange: (value: string, positionIndex: number) => Promise<void>
+  handleAddPosition: () => void
+  handleRemovePosition: (positionId: string) => void
+  handleAmountChange: (value: number, positionIndex: number) => void
+  handleCurrencyChange: (currencyId: string) => Promise<void>
+  fetchExpenseTypes: (classId: string) => Promise<ExpenseType[]>
+  fetchCustomFields: (expenseTypeIds: string[]) => Promise<CustomField[]>
+  setInitialItemValues: (id: string, version: string | number) => void
 }
 
 interface ExpenseItemProviderProps {
-  children: ReactNode;
-  accessToken: string;
-  userInfo?: any;
-  additionalData?: any;
+  children: ReactNode
+  accessToken: string
+  userInfo?: any
+  additionalData?: any
 }
 
-export const ExpenseItemContext = createContext<
-  ExpenseItemContextProps | undefined
->(undefined);
+export const ExpenseItemContext = createContext<ExpenseItemContextProps | undefined>(undefined)
 
 export const ExpenseItemProvider: React.FC<ExpenseItemProviderProps> = ({
   children,
   accessToken,
   userInfo,
-  additionalData,
+  additionalData
 }): React.ReactNode => {
-  const { t } = useTranslation();
+  const { t } = useTranslation()
 
-  const [form] = Form.useForm();
-  const [currentStep, setCurrentStep] = useState<FormStepType>(FORM_STEPS.START);
-  const [loading, setLoading] = useState<boolean>(false);
-  const [fileList, setFileList] = useState<any[]>([]);
-  const [isProcessingFiles, setIsProcessingFiles] = useState<boolean>(false);
-  const [isFormDisabled, setIsFormDisabled] = useState<boolean>(false);
-  const [multiPosition, setMultiPosition] = useState<boolean>(false);
-  const [isEditMode, setIsEditMode] = useState<boolean>(false);
+  const [form] = Form.useForm()
+  const [currentStep, setCurrentStep] = useState<FormStepType>(FORM_STEPS.START)
+  const [loading, setLoading] = useState<boolean>(false)
+  const [fileList, setFileList] = useState<any[]>([])
+  const [isProcessingFiles, setIsProcessingFiles] = useState<boolean>(false)
+  const [isFormDisabled, setIsFormDisabled] = useState<boolean>(false)
+  const [multiPosition, setMultiPosition] = useState<boolean>(false)
+  const [isEditMode, setIsEditMode] = useState<boolean>(false)
 
-  const [positions, setPositions] = useState<ExpensePosition[]>([
-    DEFAULT_POSITION,
-  ]);
-  const [expenseGroups, setExpenseGroups] = useState<ExpenseGroup[]>([]);
+  const [positions, setPositions] = useState<ExpensePosition[]>([DEFAULT_POSITION])
+  const [expenseGroups, setExpenseGroups] = useState<ExpenseGroup[]>([])
   const [expenseTypes, setExpenseTypes] = useState<{
-    [classId: string]: ExpenseType[];
-  }>({});
+    [classId: string]: ExpenseType[]
+  }>({})
   const [customFields, setCustomFields] = useState<{
-    [expenseTypeId: string]: CustomField[];
-  }>({});
-  const [costCenters, setCostCenters] = useState<CostCenter[]>([]);
-  const [currencies, setCurrencies] = useState<Currency[]>([]);
-  const [expenseRequests, setExpenseRequests] = useState<any[]>([]);
+    [expenseTypeId: string]: CustomField[]
+  }>({})
+  const [costCenters, setCostCenters] = useState<CostCenter[]>([])
+  const [currencies, setCurrencies] = useState<Currency[]>([])
+  const [expenseRequests, setExpenseRequests] = useState<any[]>([])
 
-  const [employeeRuleId, setEmployeeRuleId] = useState<string | null | object>(
-    null
-  );
-  const [firstRunVariable, setFirstRunVariable] = useState<boolean>(false);
-  const [expenseRuleError, setExpenseRuleError] = useState<string | null>(null);
-  const [rerunRule, setRerunRule] = useState<boolean>(false);
+  const [employeeRuleId, setEmployeeRuleId] = useState<string | null | object>(null)
+  const [firstRunVariable, setFirstRunVariable] = useState<boolean>(false)
+  const [expenseRuleError, setExpenseRuleError] = useState<string | null>(null)
+  const [rerunRule, setRerunRule] = useState<boolean>(false)
 
-  const [generalDataResponse, setGeneralDataResponse] = useState<any>(null);
-  const [catalogueDataResponse, setCatalogueDataResponse] = useState<any>(null);
+  const [generalDataResponse, setGeneralDataResponse] = useState<any>(null)
+  const [catalogueDataResponse, setCatalogueDataResponse] = useState<any>(null)
 
-  const [userCostCenter, setUserCostCenter] = useState<string>("");
-  const [currentSelectedDate,setCurrentSelectedDate]= useState<Date |null>(null)
-  const [itemValues, setItemValues] = useState<{ id: string; version: string | number } | null>(null);
-  
-  const graphqlClient = useMemo(
-    () => createGraphQLClient(accessToken),
-    [accessToken]
-  );
-  const { dispatchProcessContinueEventIfEnabled, getIsProcessEventDispatched } = useProcessEventState(additionalData);
+  const [userCostCenter, setUserCostCenter] = useState<string>('')
+  const [currentSelectedDate, setCurrentSelectedDate] = useState<Date | null>(null)
+  const [itemValues, setItemValues] = useState<{ id: string; version: string | number } | null>(null)
+
+  const graphqlClient = useMemo(() => createGraphQLClient(accessToken), [accessToken])
+  const { dispatchProcessContinueEventIfEnabled, getIsProcessEventDispatched } = useProcessEventState(additionalData)
   useEffect(() => {
-
-    fetchInitialData();
-  }, [accessToken, userInfo, employeeRuleId, firstRunVariable, rerunRule]);
+    fetchInitialData()
+  }, [accessToken, userInfo, employeeRuleId, firstRunVariable, rerunRule])
 
   useEffect(() => {
     if (!accessToken || !generalDataResponse || !catalogueDataResponse || expenseRuleError) {
-      return;
+      return
     }
 
     try {
-      const expenseRuleGeneralExpense =
-        generalDataResponse?.data?.ExpenseRuleGeneralExpense || [];
+      const expenseRuleGeneralExpense = generalDataResponse?.data?.ExpenseRuleGeneralExpense || []
 
       const uniqueExpenseGroupRefs = [
         ...new Set(
-          typeof employeeRuleId === "object"
-            ? []
-            : expenseRuleGeneralExpense.map((item: any) => item.expenseGroupRef)
-        ),
-      ];
+          typeof employeeRuleId === 'object' ? [] : expenseRuleGeneralExpense.map((item: any) => item.expenseGroupRef)
+        )
+      ]
 
-      const expenseGroups = catalogueDataResponse?.data?.expenseGroup || [];
+      const expenseGroups = catalogueDataResponse?.data?.expenseGroup || []
 
-      const matchingItems = expenseGroups.filter((item: any) =>
-        uniqueExpenseGroupRefs.includes(item.id)
-      );
+      const matchingItems = expenseGroups.filter((item: any) => uniqueExpenseGroupRefs.includes(item.id))
 
-      setExpenseGroups(matchingItems);
+      setExpenseGroups(matchingItems)
     } catch (error) {
       showToast(
-        t("lowcoder:create_expense_type_item.process_error_expense_group", "Error processing expense groups"),
-        "error"
-      );
-      setExpenseGroups([]);
+        t('lowcoder:create_expense_type_item.process_error_expense_group', 'Error processing expense groups'),
+        'error'
+      )
+      setExpenseGroups([])
     }
-  }, [generalDataResponse, catalogueDataResponse, accessToken]);
+  }, [generalDataResponse, catalogueDataResponse, accessToken])
 
   useEffect(() => {
     if (catalogueDataResponse && accessToken && !expenseRuleError) {
-      addRequestsWrapper();
-      
+      addRequestsWrapper()
+
       // Get expenseRequestId from either the wizard or task payload
-      const expenseRequestId = 
-        additionalData?.expenseRequestId || 
-        additionalData?.psi_taskPayload?.psi_initialParameters?.expenseRequest;
+      const expenseRequestId =
+        additionalData?.expenseRequestId || additionalData?.psi_taskPayload?.psi_initialParameters?.expenseRequest
       if (expenseRequestId) {
-        form.setFieldsValue({ expenseRequestId });
+        form.setFieldsValue({ expenseRequestId })
       } else if (!isEditMode) {
-        form.setFieldsValue({ expenseRequestId: "0" });
+        form.setFieldsValue({ expenseRequestId: '0' })
       }
-      
+
       // Handle itemCurrency and useSingleCurrency if provided from wizard
       if (additionalData?.itemCurrency && currencies.length > 0) {
-        const currencyToSet = currencies.find(c => c.id === additionalData.itemCurrency);
+        const currencyToSet = currencies.find(c => c.id === additionalData.itemCurrency)
         if (currencyToSet) {
           if (typeof additionalData?.useSingleCurrency === 'boolean') {
-            form.setFieldsValue({ fixedCurrency: additionalData.useSingleCurrency });
+            form.setFieldsValue({ fixedCurrency: additionalData.useSingleCurrency })
           }
-          form.setFieldsValue({ currency: currencyToSet.id });
+          form.setFieldsValue({ currency: currencyToSet.id })
         }
       }
-
     }
-  }, [catalogueDataResponse, accessToken, additionalData, currencies]);
+  }, [catalogueDataResponse, accessToken, additionalData, currencies])
 
   // Avoid refetch loops: track attempted (requestId|currency) hydrations
-  const attemptedLabelHydrationsRef = useRef<Set<string>>(new Set());
+  const attemptedLabelHydrationsRef = useRef<Set<string>>(new Set())
 
   // Ensure expense request labels are available after edits/flows
   useEffect(() => {
-    const selectedRequestId = form.getFieldValue('expenseRequestId');
-    const currencyId = form.getFieldValue('currency');
-    const hasLabel = Array.isArray(expenseRequests) && expenseRequests.some((r: any) => r?.id === selectedRequestId);
+    const selectedRequestId = form.getFieldValue('expenseRequestId')
+    const currencyId = form.getFieldValue('currency')
+    const hasLabel = Array.isArray(expenseRequests) && expenseRequests.some((r: any) => r?.id === selectedRequestId)
 
     if (!selectedRequestId || selectedRequestId === '0' || !currencyId || hasLabel) {
-      return;
+      return
     }
 
-    const hydrateKey = `${selectedRequestId}|${currencyId}`;
+    const hydrateKey = `${selectedRequestId}|${currencyId}`
     if (attemptedLabelHydrationsRef.current.has(hydrateKey)) {
-      return;
+      return
     }
-    attemptedLabelHydrationsRef.current.add(hydrateKey);
+    attemptedLabelHydrationsRef.current.add(hydrateKey)
 
     handleCurrencyChangeWrapper(currencyId).catch(() => {
       showToast(
-        t("lowcoder:create_expense_type_item.process_error_expense_requests_fetch", "Error fetching expense requests"),
-        "error"
-      );
-    });
-  }, [expenseRequests]);
+        t('lowcoder:create_expense_type_item.process_error_expense_requests_fetch', 'Error fetching expense requests'),
+        'error'
+      )
+    })
+  }, [expenseRequests])
 
-  useEffect(()=>{
-    if(firstRunVariable===true)
-    {
+  useEffect(() => {
+    if (firstRunVariable === true) {
       setRerunRule(true)
       fetchInitialData()
     }
-  },[currentSelectedDate])
+  }, [currentSelectedDate])
   const aiGroupsAndTypes = useMemo(() => {
-
-    if (
-      typeof employeeRuleId === "object" ||
-      !generalDataResponse?.data.ExpenseRuleGeneralExpense
-    ) {
-      return [];
+    if (typeof employeeRuleId === 'object' || !generalDataResponse?.data.ExpenseRuleGeneralExpense) {
+      return []
     }
 
-    const uniqueLabels = new Map<string, boolean>();
+    const uniqueLabels = new Map<string, boolean>()
 
     type ExpenseAIItem = {
-      expenseCode: string;
-      expenseLabel: string;
-      expenseGroupCode: string;
-      expenseGroupLabel: string;
-    };
-
-    const result: ExpenseAIItem[] = [];
-
-    try {
-      generalDataResponse.data.ExpenseRuleGeneralExpense.forEach(
-        (item: any) => {
-          if (!item || !item.name || !item.code || !item.expenseGroup) {
-            return;
-          }
-
-          let expenseLabel = item.name;
-
-          if (uniqueLabels.has(expenseLabel.toLowerCase())) {
-            expenseLabel = `${item.name} (${item.code})`;
-          }
-
-          if (
-            uniqueLabels.has(expenseLabel.toLowerCase()) &&
-            item.expenseGroup.code
-          ) {
-            expenseLabel = `${item.name} (${item.code}-${item.expenseGroup.code})`;
-          }
-
-          uniqueLabels.set(expenseLabel.toLowerCase(), true);
-
-          const expenseGroupCode = item.expenseGroup?.code || "";
-          const expenseGroupLabel = item.expenseGroup
-            ? getCatalogValue(item.expenseGroup)
-            : "";
-
-          result.push({
-            expenseCode: item.code,
-            expenseLabel: expenseLabel,
-            expenseGroupCode: expenseGroupCode,
-            expenseGroupLabel: expenseGroupLabel,
-          });
-        }
-      );
-    } catch (error) {
-      showToast(
-        t("lowcoder:create_expense_type_item.process_error_ai_items", "Error processing expense AI items"),
-        "error"
-      );
+      expenseCode: string
+      expenseLabel: string
+      expenseGroupCode: string
+      expenseGroupLabel: string
     }
 
-    return result;
-  }, [generalDataResponse, employeeRuleId]);
+    const result: ExpenseAIItem[] = []
+
+    try {
+      generalDataResponse.data.ExpenseRuleGeneralExpense.forEach((item: any) => {
+        if (!item || !item.name || !item.code || !item.expenseGroup) {
+          return
+        }
+
+        let expenseLabel = item.name
+
+        if (uniqueLabels.has(expenseLabel.toLowerCase())) {
+          expenseLabel = `${item.name} (${item.code})`
+        }
+
+        if (uniqueLabels.has(expenseLabel.toLowerCase()) && item.expenseGroup.code) {
+          expenseLabel = `${item.name} (${item.code}-${item.expenseGroup.code})`
+        }
+
+        uniqueLabels.set(expenseLabel.toLowerCase(), true)
+
+        const expenseGroupCode = item.expenseGroup?.code || ''
+        const expenseGroupLabel = item.expenseGroup ? getCatalogValue(item.expenseGroup) : ''
+
+        result.push({
+          expenseCode: item.code,
+          expenseLabel: expenseLabel,
+          expenseGroupCode: expenseGroupCode,
+          expenseGroupLabel: expenseGroupLabel
+        })
+      })
+    } catch (error) {
+      showToast(
+        t('lowcoder:create_expense_type_item.process_error_ai_items', 'Error processing expense AI items'),
+        'error'
+      )
+    }
+
+    return result
+  }, [generalDataResponse, employeeRuleId])
 
   const addRequestsWrapper = () => {
     if (!accessToken) {
-      return;
+      return
     }
 
     if (!catalogueDataResponse) {
-
       setExpenseRequests([
         {
-          id: "0",
-          name: t("lowcoder:create_expense_type_item.none", "None"),
-        },
-      ]);
-      return;
+          id: '0',
+          name: t('lowcoder:create_expense_type_item.none', 'None')
+        }
+      ])
+      return
     }
 
     try {
-      addRequests(
-        catalogueDataResponse,
-        setExpenseRequests,
-        t
-      );
+      addRequests(catalogueDataResponse, setExpenseRequests, t)
     } catch (error) {
       showToast(
-        t("lowcoder:create_expense_type_item.process_error_expense_requests_fetch", "Error processing expense requests"),
-        "error"
-      );
+        t(
+          'lowcoder:create_expense_type_item.process_error_expense_requests_fetch',
+          'Error processing expense requests'
+        ),
+        'error'
+      )
 
       setExpenseRequests([
         {
-          id: "0",
-          name: t("lowcoder:create_expense_type_item.none", "None"),
-        },
-      ]);
+          id: '0',
+          name: t('lowcoder:create_expense_type_item.none', 'None')
+        }
+      ])
     }
-  };
+  }
 
   const fetchInitialData = async () => {
     try {
       if (!accessToken) {
-        return;
+        return
       }
 
       if (!userInfo) {
-        return;
+        return
       }
 
-      const currentDate = currentSelectedDate ? currentSelectedDate.toISOString() : new Date().toISOString();
-      const employeeIdValue =
-        userInfo?.employeeDetails?.employeeId || DEFAULT_EMPLOYEE_ID;
+      const currentDate = currentSelectedDate ? currentSelectedDate.toISOString() : new Date().toISOString()
+      const employeeIdValue = userInfo?.employeeDetails?.employeeId || DEFAULT_EMPLOYEE_ID
 
       if (!employeeIdValue) {
-        return;
+        return
       }
       try {
-        const employeeRuleData = await fetchEmployeeRule(
-          employeeIdValue,
-          currentDate,
-          accessToken
-        );
+        const employeeRuleData = await fetchEmployeeRule(employeeIdValue, currentDate, accessToken)
 
         if (employeeRuleData && employeeRuleData.expenseRuleId) {
-          setEmployeeRuleId(employeeRuleData.expenseRuleId);
-          setExpenseRuleError(null);
+          setEmployeeRuleId(employeeRuleData.expenseRuleId)
+          setExpenseRuleError(null)
         } else {
-          setExpenseRuleError(t('lowcoder:create_expense_item.missing_expense_rule_message', 'There is no rule set for your user, please reach out to your administrator.'));
+          setExpenseRuleError(
+            t(
+              'lowcoder:create_expense_item.missing_expense_rule_message',
+              'There is no rule set for your user, please reach out to your administrator.'
+            )
+          )
         }
       } catch (ruleError) {
-        setExpenseRuleError(t('lowcoder:create_expense_item.missing_expense_rule_message', 'There is no rule set for your user, please reach out to your administrator.'));
+        setExpenseRuleError(
+          t(
+            'lowcoder:create_expense_item.missing_expense_rule_message',
+            'There is no rule set for your user, please reach out to your administrator.'
+          )
+        )
         showToast(
-          t('lowcoder:create_expense_item.missing_expense_rule_message', 'There is no rule set for your user, please reach out to your administrator.'),
-          "error"
-        );
+          t(
+            'lowcoder:create_expense_item.missing_expense_rule_message',
+            'There is no rule set for your user, please reach out to your administrator.'
+          ),
+          'error'
+        )
       }
 
       try {
@@ -403,19 +363,16 @@ export const ExpenseItemProvider: React.FC<ExpenseItemProviderProps> = ({
           variables: {
             expenseRuleId: employeeRuleId,
             activeUserLocale: getCurrentActiveUserLocale(),
-            objectFilter: { useInExpense: true },
-          },
-        });
-        setGeneralDataResponse(generalData);
+            objectFilter: { useInExpense: true }
+          }
+        })
+        setGeneralDataResponse(generalData)
       } catch (generalDataError) {
-        showToast(
-          t("lowcoder:create_expense_type_item.process_error_data_fetch", "Error fetching data"),
-          "error"
-        );
+        showToast(t('lowcoder:create_expense_type_item.process_error_data_fetch', 'Error fetching data'), 'error')
       }
 
       if (rerunRule === false) {
-        let catalogueData;
+        let catalogueData
         try {
           catalogueData = await graphqlClient.query({
             query: fetchExpenseCatalogueData,
@@ -423,375 +380,316 @@ export const ExpenseItemProvider: React.FC<ExpenseItemProviderProps> = ({
               employeeId: employeeIdValue,
               expenseRuleId: employeeRuleId,
               activeUserLocale: getCurrentActiveUserLocale(),
-              objectFilter: { useInExpense: true },
-            },
-          });
-          setCatalogueDataResponse(catalogueData);
+              objectFilter: { useInExpense: true }
+            }
+          })
+          setCatalogueDataResponse(catalogueData)
         } catch (catalogueError) {
-          showToast(
-            t("lowcoder:create_expense_type_item.process_error_data_fetch", "Error fetching data"),
-            "error"
-          );
+          showToast(t('lowcoder:create_expense_type_item.process_error_data_fetch', 'Error fetching data'), 'error')
         }
 
         if (firstRunVariable === false && catalogueData?.data) {
-          const employeePosition =
-            catalogueData?.data?.EmployeePosition || [];
-          const structureId = employeePosition[0]?.structureId || "";
-          const expenseIdValue =
-          additionalData?.psi_taskPayload?.psi_initialParameters?.expenseId
-        if (expenseIdValue) {
-          setCurrentStep("form");
-          
-          const editData = await setByEdit(
-            expenseIdValue,
-            graphqlClient,
-            form,
-            setPositions,
-            setMultiPosition,
-            setExpenseRequests,
-            handleExpenseGroupChange,
-            handleExpenseTypeChange,
-            expenseTypes,
-            setExpenseTypes,
-            customFields,
-            setCustomFields,
-            employeeRuleId,
-            t,
-            setInitialItemValues
-          );
-          try {
-            const itemCurrencyId = editData?.ExpenseItemByPk?.currency?.id || form.getFieldValue('currency');
-            if (itemCurrencyId) {
-              await handleCurrencyChangeWrapper(itemCurrencyId);
-            }
-          } catch {}
-          setIsEditMode(true);
-        }
-          let costCenterData;
+          const employeePosition = catalogueData?.data?.EmployeePosition || []
+          const structureId = employeePosition[0]?.structureId || ''
+          const expenseIdValue = additionalData?.psi_taskPayload?.psi_initialParameters?.expenseId
+          if (expenseIdValue) {
+            setCurrentStep('form')
+
+            const editData = await setByEdit(
+              expenseIdValue,
+              graphqlClient,
+              form,
+              setPositions,
+              setMultiPosition,
+              setExpenseRequests,
+              handleExpenseGroupChange,
+              handleExpenseTypeChange,
+              expenseTypes,
+              setExpenseTypes,
+              customFields,
+              setCustomFields,
+              employeeRuleId,
+              t,
+              setInitialItemValues
+            )
+            try {
+              const itemCurrencyId = editData?.ExpenseItemByPk?.currency?.id || form.getFieldValue('currency')
+              if (itemCurrencyId) {
+                await handleCurrencyChangeWrapper(itemCurrencyId)
+              }
+            } catch {}
+            setIsEditMode(true)
+          }
+          let costCenterData
           try {
             costCenterData = await graphqlClient.query({
               query: getStructureCostCenter,
               variables: {
-                structureId: structureId,
-              },
-            });
+                structureId: structureId
+              }
+            })
 
-            const userCostCenters =
-              costCenterData?.data?.userCostCenters || [];
-            setCostCenters(userCostCenters);
+            const userCostCenters = costCenterData?.data?.userCostCenters || []
+            setCostCenters(userCostCenters)
           } catch (costCenterError) {
-            setCostCenters([]);
+            setCostCenters([])
           }
 
           try {
-            const updatedPositions = [...positions];
+            const updatedPositions = [...positions]
 
-            const employeePositionCostCenterId =
-              employeePosition[0]?.costCenterId;
-            const firstCostCenterId =
-              costCenterData?.data?.userCostCenters?.[0]?.id;
+            const employeePositionCostCenterId = employeePosition[0]?.costCenterId
+            const firstCostCenterId = costCenterData?.data?.userCostCenters?.[0]?.id
 
             if (employeePositionCostCenterId) {
-              updatedPositions[0].costCenter = employeePositionCostCenterId;
+              updatedPositions[0].costCenter = employeePositionCostCenterId
               setUserCostCenter(employeePositionCostCenterId)
             } else if (firstCostCenterId) {
-              updatedPositions[0].costCenter = firstCostCenterId;
+              updatedPositions[0].costCenter = firstCostCenterId
               setUserCostCenter(firstCostCenterId)
             }
 
-            setPositions(updatedPositions);
+            setPositions(updatedPositions)
 
             if (form && updatedPositions[0]?.costCenter) {
               form.setFieldsValue({
-                [`costCenter-0`]: updatedPositions[0].costCenter,
-              });
+                [`costCenter-0`]: updatedPositions[0].costCenter
+              })
             }
-          } catch (positionError) {
-           
-          }
+          } catch (positionError) {}
 
           try {
-            const currencyData = catalogueData?.data?.currency;
+            const currencyData = catalogueData?.data?.currency
             if (currencyData && Array.isArray(currencyData)) {
-              const finalCurrencies = transformCurrencies(currencyData);
-              setCurrencies(finalCurrencies);
+              const finalCurrencies = transformCurrencies(currencyData)
+              setCurrencies(finalCurrencies)
             } else {
-              setCurrencies([]);
+              setCurrencies([])
             }
           } catch (currencyError) {
-            setCurrencies([]);
+            setCurrencies([])
           }
-          setFirstRunVariable(true);
+          setFirstRunVariable(true)
         }
       }
-      setRerunRule(false);
+      setRerunRule(false)
     } catch (error) {
-      showToast(
-        t("lowcoder:create_expense_type_item.process_error_data_fetch", "Error fetching data"),
-        "error"
-      );
+      showToast(t('lowcoder:create_expense_type_item.process_error_data_fetch', 'Error fetching data'), 'error')
     }
-  };
+  }
 
-  const fetchExpenseTypesWrapper = async (
-    groupId: string
-  ): Promise<ExpenseType[]> => {
-    return await fetchExpenseTypes(
-      groupId,
-      positions,
-      employeeRuleId,
-      graphqlClient,
-      setExpenseTypes,
-      t
-    );
-  };
+  const fetchExpenseTypesWrapper = async (groupId: string): Promise<ExpenseType[]> => {
+    return await fetchExpenseTypes(groupId, positions, employeeRuleId, graphqlClient, setExpenseTypes, t)
+  }
 
-  const fetchCustomFieldsWrapper = async (
-    expenseTypeIds: string[]
-  ): Promise<CustomField[]> => {
-    return await fetchCustomFields(
-      expenseTypeIds,
-      graphqlClient,
-      setCustomFields,
-      t
-    );
-  };
+  const fetchCustomFieldsWrapper = async (expenseTypeIds: string[]): Promise<CustomField[]> => {
+    return await fetchCustomFields(expenseTypeIds, graphqlClient, setCustomFields, t)
+  }
 
   const calculateTotalWrapper = (): number => {
-    return calculateTotal(positions);
-  };
+    return calculateTotal(positions)
+  }
 
   const setByReceipts = (receiptData: any): void => {
     if (!receiptData || !receiptData.data) {
-      return;
+      return
     }
 
     try {
-      const data = receiptData.data;
+      const data = receiptData.data
 
       if (additionalData?.itemCurrency) {
-        const requestCurrency = currencies.find(
-          (c) => (c.id === additionalData?.itemCurrency)
-        );
+        const requestCurrency = currencies.find(c => c.id === additionalData?.itemCurrency)
         if (requestCurrency && requestCurrency.code !== data.currencyCode) {
           showToast(
             t(
-              "lowcoder:expense_item.currency_mismatchlowcoder:create_expense_type_item.process_error_currency_mismatch_detail",
-              "The Receipt could not be added as it does not match the request currency."
+              'lowcoder:expense_item.currency_mismatchlowcoder:create_expense_type_item.process_error_currency_mismatch_detail',
+              'The Receipt could not be added as it does not match the request currency.'
             ),
-            "error",
-            t("lowcoder:create_expense_type_item.process_error_currency_mismatch_title", "Currency Mismatch")
-          );
+            'error',
+            t('lowcoder:create_expense_type_item.process_error_currency_mismatch_title', 'Currency Mismatch')
+          )
 
-          return;
+          return
         }
       }
 
       if (data.vendor?.name) {
-        form.setFieldsValue({ title: data.vendor.name });
+        form.setFieldsValue({ title: data.vendor.name })
       }
 
       if (data.invoiceDate) {
         try {
-          let dateValue;
+          let dateValue
 
-          if (typeof data.invoiceDate === "string") {
-            if (data.invoiceDate.includes("T")) {
-              dateValue = new Date(data.invoiceDate);
+          if (typeof data.invoiceDate === 'string') {
+            if (data.invoiceDate.includes('T')) {
+              dateValue = new Date(data.invoiceDate)
             } else {
-              const [year, month, day] = data.invoiceDate
-                .split("-")
-                .map(Number);
-              dateValue = new Date(year, month - 1, day);
+              const [year, month, day] = data.invoiceDate.split('-').map(Number)
+              dateValue = new Date(year, month - 1, day)
             }
           } else {
-            dateValue = new Date(data.invoiceDate);
+            dateValue = new Date(data.invoiceDate)
           }
 
           if (!isNaN(dateValue.getTime())) {
-            form.setFieldsValue({ date: dateValue });
+            form.setFieldsValue({ date: dateValue })
           }
-        } catch (error) {
-        }
+        } catch (error) {}
       }
 
       if (data.currencyCode) {
-        const currencyId = currencies.find(
-          (c) => c.code === data.currencyCode
-        )?.id;
+        const currencyId = currencies.find(c => c.code === data.currencyCode)?.id
         if (currencyId) {
-          form.setFieldsValue({ currency: currencyId });
+          form.setFieldsValue({ currency: currencyId })
         }
       }
 
       if (data.items && data.items.length > 0) {
-        const newPositions: ExpensePosition[] = [];
+        const newPositions: ExpensePosition[] = []
 
-        const costCenterId = positions[0]?.costCenter || "";
+        const costCenterId = positions[0]?.costCenter || ''
 
         data.items.forEach((item: any, index: number) => {
           const newPosition: ExpensePosition = {
             id: `position-${Date.now()}-${index}`,
-            expenseGroup: "",
-            expenseType: "",
+            expenseGroup: '',
+            expenseType: '',
             amount: item.totalPrice || 0,
             costCenter: costCenterId,
             isReimbursable: true,
-            customField: "",
-          };
+            customField: ''
+          }
 
           if (item.expenseDetails) {
             if (item.expenseDetails.expenseGroupCode) {
-              const matchingGroup = expenseGroups.find(
-                (group) => group.code === item.expenseDetails.expenseGroupCode
-              );
+              const matchingGroup = expenseGroups.find(group => group.code === item.expenseDetails.expenseGroupCode)
 
               if (matchingGroup) {
-                newPosition.expenseGroup = matchingGroup.id;
+                newPosition.expenseGroup = matchingGroup.id
 
-                if (
-                  item.expenseDetails.expenseCode &&
-                  expenseTypes[matchingGroup.id]
-                ) {
+                if (item.expenseDetails.expenseCode && expenseTypes[matchingGroup.id]) {
                   const matchingType = expenseTypes[matchingGroup.id].find(
-                    (type) => type.code === item.expenseDetails.expenseCode
-                  );
+                    type => type.code === item.expenseDetails.expenseCode
+                  )
 
                   if (matchingType) {
-                    newPosition.expenseType = matchingType.id;
+                    newPosition.expenseType = matchingType.id
                   }
                 }
               }
             }
           }
 
-          if (
-            !newPosition.expenseGroup &&
-            item.expenseDetails?.expenseGroupCode
-          ) {
+          if (!newPosition.expenseGroup && item.expenseDetails?.expenseGroupCode) {
             const aiMatch = aiGroupsAndTypes.find(
-              (ai) =>
+              ai =>
                 ai.expenseGroupCode === item.expenseDetails.expenseGroupCode &&
                 ai.expenseCode === item.expenseDetails.expenseCode
-            );
+            )
 
             if (aiMatch) {
-
-              const matchingGroup = expenseGroups.find(
-                (group) => group.code === aiMatch.expenseGroupCode
-              );
+              const matchingGroup = expenseGroups.find(group => group.code === aiMatch.expenseGroupCode)
 
               if (matchingGroup) {
-                newPosition.expenseGroup = matchingGroup.id;
+                newPosition.expenseGroup = matchingGroup.id
               }
             }
           }
 
-          newPositions.push(newPosition);
-        });
+          newPositions.push(newPosition)
+        })
 
-        setPositions(newPositions);
+        setPositions(newPositions)
 
         // Sync form fields for all generated positions (amount, cost center, reimbursable)
-        const formValuesBatch: Record<string, any> = {};
+        const formValuesBatch: Record<string, any> = {}
         newPositions.forEach((pos, idx) => {
-          formValuesBatch[`expenseGroup-${idx}`] = pos.expenseGroup || undefined;
-          formValuesBatch[`amount-${idx}`] = pos.amount;
-          formValuesBatch[`costCenter-${idx}`] = pos.costCenter;
-          formValuesBatch[`isReimbursable-${idx}`] = pos.isReimbursable;
-        });
-        form.setFieldsValue(formValuesBatch);
+          formValuesBatch[`expenseGroup-${idx}`] = pos.expenseGroup || undefined
+          formValuesBatch[`amount-${idx}`] = pos.amount
+          formValuesBatch[`costCenter-${idx}`] = pos.costCenter
+          formValuesBatch[`isReimbursable-${idx}`] = pos.isReimbursable
+        })
+        form.setFieldsValue(formValuesBatch)
 
         if (newPositions.length > 1) {
-          setMultiPosition(true);
+          setMultiPosition(true)
         } else {
-          setMultiPosition(false);
+          setMultiPosition(false)
         }
 
         newPositions.forEach(async (position, index) => {
           if (position.expenseGroup && !position.expenseType) {
             try {
-              const types = await fetchExpenseTypesWrapper(
-                position.expenseGroup
-              );
+              const types = await fetchExpenseTypesWrapper(position.expenseGroup)
 
               if (data.items[index]?.expenseDetails?.expenseCode) {
-                const matchingType = types.find(
-                  (type) =>
-                    type.code === data.items[index].expenseDetails.expenseCode
-                );
+                const matchingType = types.find(type => type.code === data.items[index].expenseDetails.expenseCode)
 
                 if (matchingType) {
-                  const updatedPositions = [...newPositions];
-                  updatedPositions[index].expenseType = matchingType.id;
-                  setPositions(updatedPositions);
-                  form.setFieldsValue({ [`expenseType-${index}`]: matchingType.id });
+                  const updatedPositions = [...newPositions]
+                  updatedPositions[index].expenseType = matchingType.id
+                  setPositions(updatedPositions)
+                  form.setFieldsValue({ [`expenseType-${index}`]: matchingType.id })
                 }
               }
             } catch (error) {
               showToast(
-                t("lowcoder:create_expense_type_item.process_error_receipt_processing", "Error processing receipt data"),
-                "error"
-              );
-
+                t(
+                  'lowcoder:create_expense_type_item.process_error_receipt_processing',
+                  'Error processing receipt data'
+                ),
+                'error'
+              )
             }
           }
-        });
+        })
       }
     } catch (error) {
       showToast(
-        t("lowcoder:create_expense_type_item.process_error_receipt_processing", "Error processing receipt data"),
-        "error"
+        t('lowcoder:create_expense_type_item.process_error_receipt_processing', 'Error processing receipt data'),
+        'error'
       )
     }
-  };
+  }
 
-  const handleFileUploadWrapper = async (
-    files: File[]
-  ): Promise<any | null> => {
+  const handleFileUploadWrapper = async (files: File[]): Promise<any | null> => {
     if (!files || files.length === 0) {
-      message.error(t("lowcoder:expense_item.no_files", "No files selected for upload"));
-      return null;
+      message.error(t('lowcoder:expense_item.no_files', 'No files selected for upload'))
+      return null
     }
 
     try {
-      setIsProcessingFiles(true);
-      setIsFormDisabled(true);
+      setIsProcessingFiles(true)
+      setIsFormDisabled(true)
 
-
-      const result = await handleFileUpload(
-        files,
-        accessToken,
-        aiGroupsAndTypes,
-        t
-      );
+      const result = await handleFileUpload(files, accessToken, aiGroupsAndTypes, t)
 
       if (result) {
+        setByReceipts(result)
+      }
 
-        setByReceipts(result);
-      } 
+      setCurrentStep('form')
 
-      setCurrentStep("form");
+      setIsProcessingFiles(false)
+      setIsFormDisabled(false)
 
-      setIsProcessingFiles(false);
-      setIsFormDisabled(false);
-
-      return result;
+      return result
     } catch (error) {
       showToast(
-        t("lowcoder:create_expense_type_item.process_error_receipt_processing", "Error processing receipt data"),
-        "error"
-      );
+        t('lowcoder:create_expense_type_item.process_error_receipt_processing', 'Error processing receipt data'),
+        'error'
+      )
 
-      setIsProcessingFiles(false);
-      setIsFormDisabled(false);
+      setIsProcessingFiles(false)
+      setIsFormDisabled(false)
 
-      setCurrentStep("form");
+      setCurrentStep('form')
 
-      return null;
+      return null
     }
-  };
+  }
 
   const handleSubmitWrapper = async (): Promise<void> => {
     return await handleSubmit(
@@ -814,46 +712,39 @@ export const ExpenseItemProvider: React.FC<ExpenseItemProviderProps> = ({
       itemValues || undefined,
       getIsProcessEventDispatched,
       dispatchProcessContinueEventIfEnabled
-    );
-  };
+    )
+  }
 
   const handleCancelWrapper = (noDispatchEvent: boolean = false) => {
     try {
-      if(noDispatchEvent){
-        form.resetFields();
-        setPositions([DEFAULT_POSITION]);
-        setFileList([]);
-        setCurrentStep("start");
-      }
-      else {
-      dispatchProcessContinueEventIfEnabled(
-        EVENTS.ABORT, {
-          "event": EVENTS.ABORT,
-          pso_exitStrategy: "abort",
+      if (noDispatchEvent) {
+        form.resetFields()
+        setPositions([DEFAULT_POSITION])
+        setFileList([])
+        setCurrentStep('start')
+      } else {
+        dispatchProcessContinueEventIfEnabled(EVENTS.ABORT, {
+          event: EVENTS.ABORT,
+          pso_exitStrategy: 'abort',
           pso_completeNotification: {
             type: 'error',
             messageKey: getTranslationFromI18nKeyAndLabel(
               'lowcoder:absence_module.toast_notification_cancel_create_absence',
               'The action has been canceled.'
-              )
+            )
           }
         })
-    }} catch (error) {
-      showToast(
-        t("lowcoder:create_expense_type_item.error_flows", "Error in flow process"),
-        "error"
-      );
-      form.resetFields();
-      setPositions([DEFAULT_POSITION]);
-      setFileList([]);
-      setCurrentStep("start");
+      }
+    } catch (error) {
+      showToast(t('lowcoder:create_expense_type_item.error_flows', 'Error in flow process'), 'error')
+      form.resetFields()
+      setPositions([DEFAULT_POSITION])
+      setFileList([])
+      setCurrentStep('start')
     }
-  };
+  }
 
-  const handleExpenseGroupChangeWrapper = async (
-    value: string,
-    positionIndex: number
-  ): Promise<void> => {
+  const handleExpenseGroupChangeWrapper = async (value: string, positionIndex: number): Promise<void> => {
     await handleExpenseGroupChange(
       value,
       positionIndex,
@@ -865,45 +756,35 @@ export const ExpenseItemProvider: React.FC<ExpenseItemProviderProps> = ({
       setExpenseTypes,
       t,
       form
-    );
-  };
+    )
+  }
 
   const handleCurrencyChangeWrapper = async (currencyId: string): Promise<void> => {
     if (!accessToken || !userInfo) {
-      return;
+      return
     }
     try {
-      const employeeIdValue = userInfo?.employeeDetails?.employeeId || DEFAULT_EMPLOYEE_ID;
-      
+      const employeeIdValue = userInfo?.employeeDetails?.employeeId || DEFAULT_EMPLOYEE_ID
+
       if (!employeeIdValue) {
-        return;
+        return
       }
-      
+
       const expenseRequestByCurrency = await graphqlClient.query({
         query: expenseRequestByCurrencyQuery,
         variables: {
           employeeId: employeeIdValue,
-          givenCurrency: currencyId,
-        },
-      });
+          givenCurrency: currencyId
+        }
+      })
 
-      addRequests(
-        expenseRequestByCurrency,
-        setExpenseRequests,
-        t
-      );
+      addRequests(expenseRequestByCurrency, setExpenseRequests, t)
     } catch (error) {
-      showToast(
-        t("lowcoder:create_expense_type_item.process_error_data_fetch", "Error fetching data"),
-        "error"
-      );
+      showToast(t('lowcoder:create_expense_type_item.process_error_data_fetch', 'Error fetching data'), 'error')
     }
-  };
+  }
 
-  const handleExpenseTypeChangeWrapper = async (
-    value: string,
-    positionIndex: number
-  ): Promise<void> => {
+  const handleExpenseTypeChangeWrapper = async (value: string, positionIndex: number): Promise<void> => {
     await handleExpenseTypeChange(
       value,
       positionIndex,
@@ -914,30 +795,30 @@ export const ExpenseItemProvider: React.FC<ExpenseItemProviderProps> = ({
       setCustomFields,
       t,
       form
-    );
-  };
+    )
+  }
 
   const handleAddPositionWrapper = (): void => {
-    handleAddPosition(positions, setPositions, userCostCenter, form);
-  };
+    handleAddPosition(positions, setPositions, userCostCenter, form)
+  }
 
   const handleRemovePositionWrapper = (positionId: string): void => {
     if (positions.length <= 1) {
       showToast(
-        t("lowcoder:create_expense_type_item.position_deletion_warning", "At least one position is required"),
-        "warning"
-      );
-      return;
+        t('lowcoder:create_expense_type_item.position_deletion_warning', 'At least one position is required'),
+        'warning'
+      )
+      return
     }
-    
-    const positionIndex = positions.findIndex(pos => pos.id === positionId);
-    if (positionIndex === -1) return;
-    
-    const updatedPositions = positions.filter(pos => pos.id !== positionId);
-    
-    const formValues = form.getFieldsValue();
-    
-    const fieldsToReset = [];
+
+    const positionIndex = positions.findIndex(pos => pos.id === positionId)
+    if (positionIndex === -1) return
+
+    const updatedPositions = positions.filter(pos => pos.id !== positionId)
+
+    const formValues = form.getFieldsValue()
+
+    const fieldsToReset = []
     for (let i = 0; i < positions.length; i++) {
       fieldsToReset.push(
         `expenseGroup-${i}`,
@@ -948,42 +829,42 @@ export const ExpenseItemProvider: React.FC<ExpenseItemProviderProps> = ({
         `description-${i}`,
         `date-${i}`,
         `isReimbursable-${i}`
-      );
+      )
     }
-    form.resetFields(fieldsToReset);
-    
-    setPositions(updatedPositions);
-    
-    const newFormValues: Record<string, any> = {};
-    
+    form.resetFields(fieldsToReset)
+
+    setPositions(updatedPositions)
+
+    const newFormValues: Record<string, any> = {}
+
     updatedPositions.forEach((position, newIndex) => {
-      const oldIndex = positions.findIndex(pos => pos.id === position.id);
+      const oldIndex = positions.findIndex(pos => pos.id === position.id)
       if (oldIndex !== -1) {
-        newFormValues[`expenseGroup-${newIndex}`] = formValues[`expenseGroup-${oldIndex}`];
-        newFormValues[`expenseType-${newIndex}`] = formValues[`expenseType-${oldIndex}`];
-        newFormValues[`amount-${newIndex}`] = formValues[`amount-${oldIndex}`];
-        newFormValues[`currency-${newIndex}`] = formValues[`currency-${oldIndex}`];
-        newFormValues[`costCenter-${newIndex}`] = formValues[`costCenter-${oldIndex}`];
-        newFormValues[`description-${newIndex}`] = formValues[`description-${oldIndex}`];
-        newFormValues[`date-${newIndex}`] = formValues[`date-${oldIndex}`];
-        newFormValues[`isReimbursable-${newIndex}`] = formValues[`isReimbursable-${oldIndex}`];
+        newFormValues[`expenseGroup-${newIndex}`] = formValues[`expenseGroup-${oldIndex}`]
+        newFormValues[`expenseType-${newIndex}`] = formValues[`expenseType-${oldIndex}`]
+        newFormValues[`amount-${newIndex}`] = formValues[`amount-${oldIndex}`]
+        newFormValues[`currency-${newIndex}`] = formValues[`currency-${oldIndex}`]
+        newFormValues[`costCenter-${newIndex}`] = formValues[`costCenter-${oldIndex}`]
+        newFormValues[`description-${newIndex}`] = formValues[`description-${oldIndex}`]
+        newFormValues[`date-${newIndex}`] = formValues[`date-${oldIndex}`]
+        newFormValues[`isReimbursable-${newIndex}`] = formValues[`isReimbursable-${oldIndex}`]
       }
-    });
-    
-    form.setFieldsValue(newFormValues);
-  };
+    })
+
+    form.setFieldsValue(newFormValues)
+  }
 
   const handleAmountChangeWrapper = (value: number, positionIndex: number): void => {
-    const updatedPositions = [...positions];
+    const updatedPositions = [...positions]
     if (updatedPositions[positionIndex]) {
-      updatedPositions[positionIndex].amount = value;
-      setPositions(updatedPositions);
+      updatedPositions[positionIndex].amount = value
+      setPositions(updatedPositions)
     }
-  };
+  }
 
   const setInitialItemValues = (id: string, version: string | number) => {
-    setItemValues({ id, version });
-  };
+    setItemValues({ id, version })
+  }
 
   const contextValue: ExpenseItemContextProps = {
     form,
@@ -1024,22 +905,16 @@ export const ExpenseItemProvider: React.FC<ExpenseItemProviderProps> = ({
     handleCurrencyChange: handleCurrencyChangeWrapper,
     fetchExpenseTypes: fetchExpenseTypesWrapper,
     fetchCustomFields: fetchCustomFieldsWrapper,
-    setInitialItemValues: setInitialItemValues,
-  };
+    setInitialItemValues: setInitialItemValues
+  }
 
-  return (
-    <ExpenseItemContext.Provider value={contextValue}>
-      {children}
-    </ExpenseItemContext.Provider>
-  );
-};
+  return <ExpenseItemContext.Provider value={contextValue}>{children}</ExpenseItemContext.Provider>
+}
 
 export const useExpenseItem = () => {
-  const context = useContext(ExpenseItemContext);
+  const context = useContext(ExpenseItemContext)
   if (context === undefined) {
-    throw new Error(
-      "useExpenseItem must be used within an ExpenseItemProvider"
-    );
+    throw new Error('useExpenseItem must be used within an ExpenseItemProvider')
   }
-  return context;
-};
+  return context
+}

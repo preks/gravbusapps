@@ -1,34 +1,30 @@
-import React from "react";
-import { Card, CardContent, CardHeader, CardTitle, Badge, Button } from "@newwork/nw-design-system";
-import { TrendingUp } from "lucide-react";
-import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
+import React from 'react'
+import { Card, CardContent, CardHeader, CardTitle, Badge, Button } from '@newwork/nw-design-system'
+import { TrendingUp } from 'lucide-react'
+import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 
 export interface DealItem {
-  id: string;
-  name: string;
-  stage: string;
-  value: string; // already formatted value in original
-  owner?: string;
-  closeDate?: string;
+  id: string
+  name: string
+  stage: string
+  value: string // already formatted value in original
+  owner?: string
+  closeDate?: string
 }
 
 export interface DealSummaryProps {
-  deals: DealItem[];
-  moduleColor?: string;
-  onDealClick?: (dealId: string) => void;
+  deals: DealItem[]
+  moduleColor?: string
+  onDealClick?: (dealId: string) => void
 }
 
-export const DealSummary: React.FC<DealSummaryProps> = ({ 
-  deals, 
-  moduleColor = "default",
-  onDealClick 
-}) => {
+export const DealSummary: React.FC<DealSummaryProps> = ({ deals, moduleColor = 'default', onDealClick }) => {
   // Remove unused variable warning
-  const _ = moduleColor;
-  
+  const _ = moduleColor
+
   const handleDealClick = (dealId: string) => {
-    onDealClick?.(dealId);
-  };
+    onDealClick?.(dealId)
+  }
   return (
     <Card className="gba:h-full" data-testid="overview-deal-summary-container">
       <CardHeader>
@@ -42,8 +38,11 @@ export const DealSummary: React.FC<DealSummaryProps> = ({
         </div>
       </CardHeader>
       <CardContent>
-        <div className="gba:grid gba:grid-cols-1 md:gba:grid-cols-2 lg:gba:grid-cols-3 gba:gap-4" data-testid="key-deals-grid">
-          {deals.slice(0, 6).map((deal) => (
+        <div
+          className="gba:grid gba:grid-cols-1 md:gba:grid-cols-2 lg:gba:grid-cols-3 gba:gap-4"
+          data-testid="key-deals-grid"
+        >
+          {deals.slice(0, 6).map(deal => (
             <div
               key={deal.id}
               data-testid={`key-deal-item-${deal.id}`}
@@ -51,14 +50,10 @@ export const DealSummary: React.FC<DealSummaryProps> = ({
               onClick={() => handleDealClick(deal.id)}
             >
               <div className="gba:flex gba:items-start gba:justify-between gba:mb-2">
-                <div className="gba:text-sm gba:font-semibold gba:text-gray-900">
-                  {deal.name}
-                </div>
+                <div className="gba:text-sm gba:font-semibold gba:text-gray-900">{deal.name}</div>
                 <Badge variant="secondary">{deal.stage}</Badge>
               </div>
-              <div className="gba:text-lg gba:font-bold gba:text-blue-600 gba:mb-1">
-                {deal.value}
-              </div>
+              <div className="gba:text-lg gba:font-bold gba:text-blue-600 gba:mb-1">{deal.value}</div>
               <div className="gba:text-xs gba:text-gray-500">
                 {deal.owner} • {deal.closeDate}
               </div>
@@ -67,7 +62,7 @@ export const DealSummary: React.FC<DealSummaryProps> = ({
         </div>
       </CardContent>
     </Card>
-  );
-};
+  )
+}
 
-export default DealSummary;
+export default DealSummary

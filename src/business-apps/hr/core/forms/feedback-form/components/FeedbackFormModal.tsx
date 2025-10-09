@@ -1,15 +1,15 @@
-import React, { useState } from 'react';
-import { Modal, message } from 'antd';
-import FeedbackFormComponent from './FeedbackFormComponent';
-import { useFeedbackForm } from '../context/FeedbackFormContext';
-import { FeedbackFormValues } from '../types';
+import React, { useState } from 'react'
+import { Modal, message } from 'antd'
+import FeedbackFormComponent from './FeedbackFormComponent'
+import { useFeedbackForm } from '../context/FeedbackFormContext'
+import { FeedbackFormValues } from '../types'
 
 interface FeedbackFormModalProps {
-  visible: boolean;
-  onCancel: () => void;
-  onSubmit?: (values: FeedbackFormValues) => Promise<void>;
-  title?: string;
-  width?: number;
+  visible: boolean
+  onCancel: () => void
+  onSubmit?: (values: FeedbackFormValues) => Promise<void>
+  title?: string
+  width?: number
 }
 
 const FeedbackFormModal: React.FC<FeedbackFormModalProps> = ({
@@ -19,24 +19,24 @@ const FeedbackFormModal: React.FC<FeedbackFormModalProps> = ({
   title = 'Feedback Form',
   width = 800
 }) => {
-  const [confirmLoading, setConfirmLoading] = useState(false);
+  const [confirmLoading, setConfirmLoading] = useState(false)
 
   const handleSubmit = async () => {
-    setConfirmLoading(true);
+    setConfirmLoading(true)
     try {
-      await onSubmit({} as FeedbackFormValues); // The actual values will come from context
-      message.success('Feedback submitted successfully');
-      onCancel();
+      await onSubmit({} as FeedbackFormValues) // The actual values will come from context
+      message.success('Feedback submitted successfully')
+      onCancel()
     } catch (error) {
-      message.error('Failed to submit feedback');
+      message.error('Failed to submit feedback')
     } finally {
-      setConfirmLoading(false);
+      setConfirmLoading(false)
     }
-  };
+  }
 
   const handleCancel = () => {
-    onCancel();
-  };
+    onCancel()
+  }
 
   return (
     <Modal
@@ -50,7 +50,7 @@ const FeedbackFormModal: React.FC<FeedbackFormModalProps> = ({
     >
       <FeedbackFormComponent />
     </Modal>
-  );
-};
+  )
+}
 
-export default FeedbackFormModal;
+export default FeedbackFormModal

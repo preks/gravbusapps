@@ -1,2 +1,2 @@
-export { JobPositionList } from './JobPositionList';
-export { default } from './JobPositionList';
+export { JobPositionList } from './JobPositionList'
+export { default } from './JobPositionList'

@@ -1,5 +1,5 @@
-import React, { useCallback, useEffect, useState } from 'react';
-import { BusinessAppContextProps } from '@/common/BusinessAppContext';
+import React, { useCallback, useEffect, useState } from 'react'
+import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import {
   Button,
   PageLayout,
@@ -8,19 +8,19 @@ import {
   DialogHeader,
   DialogTitle,
   DialogTrigger
-} from '@newwork/nw-design-system';
-import { Users, Plus, FileText, BarChart3, FileSearch } from 'lucide-react';
-import { EmployeeLifecycleFlowService } from './services/EmployeeLifecycleFlowService';
-import { FlowTemplate } from '@/common/network/flows/FlowTemplateClient';
-import { showToast } from '@/business-apps/fin/expenses/utils/notificationUtils';
-import { DashboardTab } from './components/DashboardTab';
-import { EmployeeLifecycleTemplatesTab } from './components/EmployeeLifecycleTemplatesTab';
-import { AnalyticsTab } from './components/AnalyticsTab';
-import { AuditTab } from './components/AuditTab';
+} from '@newwork/nw-design-system'
+import { Users, Plus, FileText, BarChart3, FileSearch } from 'lucide-react'
+import { EmployeeLifecycleFlowService } from './services/EmployeeLifecycleFlowService'
+import { FlowTemplate } from '@/common/network/flows/FlowTemplateClient'
+import { showToast } from '@/business-apps/fin/expenses/utils/notificationUtils'
+import { DashboardTab } from './components/DashboardTab'
+import { EmployeeLifecycleTemplatesTab } from './components/EmployeeLifecycleTemplatesTab'
+import { AnalyticsTab } from './components/AnalyticsTab'
+import { AuditTab } from './components/AuditTab'
 
 export interface EmployeeLifecycleSolutionProps extends BusinessAppContextProps {}
 
-export const EmployeeLifecycleSolution: React.FC<EmployeeLifecycleSolutionProps> = (context) => {
+export const EmployeeLifecycleSolution: React.FC<EmployeeLifecycleSolutionProps> = context => {
   // View options configuration
   const viewOptions = [
     {
@@ -43,110 +43,106 @@ export const EmployeeLifecycleSolution: React.FC<EmployeeLifecycleSolutionProps>
       icon: <FileSearch className="gba:w-4 gba:h-4" />,
       label: 'Audit'
     }
-  ];
+  ]
 
   // Get initial view from URL or default to first view
   const getInitialView = () => {
-    const urlParams = new URLSearchParams(window.location.search);
-    const viewFromUrl = urlParams.get('view');
+    const urlParams = new URLSearchParams(window.location.search)
+    const viewFromUrl = urlParams.get('view')
 
-    if (viewFromUrl && viewOptions.some((option) => option.key === viewFromUrl)) {
-      return viewFromUrl;
+    if (viewFromUrl && viewOptions.some(option => option.key === viewFromUrl)) {
+      return viewFromUrl
     }
 
-    return viewOptions[0].key;
-  };
+    return viewOptions[0].key
+  }
 
-  const [activeTab, setActiveTab] = useState<string>(getInitialView());
-  const [isLaunchModalOpen, setIsLaunchModalOpen] = useState(false);
-  const [templates, setTemplates] = useState<FlowTemplate[]>([]);
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [activeTab, setActiveTab] = useState<string>(getInitialView())
+  const [isLaunchModalOpen, setIsLaunchModalOpen] = useState(false)
+  const [templates, setTemplates] = useState<FlowTemplate[]>([])
+  const [isLoading, setIsLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
 
   const loadTemplates = useCallback(async () => {
-    if (!context.accessToken) return;
-    setIsLoading(true);
-    setError(null);
+    if (!context.accessToken) return
+    setIsLoading(true)
+    setError(null)
     try {
       const { templates } = await EmployeeLifecycleFlowService.listTemplates(context.accessToken, {
         limit: 50,
         offset: 0
-      });
-      setTemplates(templates);
+      })
+      setTemplates(templates)
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Failed to load templates');
+      setError(e instanceof Error ? e.message : 'Failed to load templates')
     } finally {
-      setIsLoading(false);
+      setIsLoading(false)
     }
-  }, [context.accessToken]);
+  }, [context.accessToken])
 
   useEffect(() => {
-    loadTemplates();
-  }, [loadTemplates]);
+    loadTemplates()
+  }, [loadTemplates])
 
   // Update URL when view changes
   const updateUrl = (view: string) => {
-    const urlParams = new URLSearchParams(window.location.search);
-    urlParams.set('view', view);
-    const newUrl = `${window.location.pathname}?${urlParams.toString()}`;
-    window.history.replaceState({}, '', newUrl);
-  };
+    const urlParams = new URLSearchParams(window.location.search)
+    urlParams.set('view', view)
+    const newUrl = `${window.location.pathname}?${urlParams.toString()}`
+    window.history.replaceState({}, '', newUrl)
+  }
 
   const handleTabChange = (key: string) => {
-    if (!key) return;
-    setActiveTab(key);
-    updateUrl(key);
-  };
+    if (!key) return
+    setActiveTab(key)
+    updateUrl(key)
+  }
 
   // Ensure URL always has view parameter on initial load
   useEffect(() => {
-    const urlParams = new URLSearchParams(window.location.search);
+    const urlParams = new URLSearchParams(window.location.search)
     if (!urlParams.has('view')) {
-      updateUrl(activeTab);
+      updateUrl(activeTab)
     }
-  }, []);
+  }, [])
 
   // Listen for browser back/forward navigation
   useEffect(() => {
     const handlePopState = () => {
-      const newView = getInitialView();
-      setActiveTab(newView);
-    };
+      const newView = getInitialView()
+      setActiveTab(newView)
+    }
 
-    window.addEventListener('popstate', handlePopState);
-    return () => window.removeEventListener('popstate', handlePopState);
-  }, []);
+    window.addEventListener('popstate', handlePopState)
+    return () => window.removeEventListener('popstate', handlePopState)
+  }, [])
 
   const handleLaunch = async (template: FlowTemplate) => {
     try {
       await EmployeeLifecycleFlowService.executeTemplate(context.accessToken, template.id!, {
         initiator: context.userInfo?.id || 'unknown'
-      });
-      setIsLaunchModalOpen(false);
-      showToast(`Flow "${template.name}" started successfully`, 'success', 'Flow Started');
+      })
+      setIsLaunchModalOpen(false)
+      showToast(`Flow "${template.name}" started successfully`, 'success', 'Flow Started')
     } catch (e) {
-      showToast(
-        `Error starting flow: ${e instanceof Error ? e.message : 'Unknown error'}`,
-        'error',
-        'Start Failed'
-      );
+      showToast(`Error starting flow: ${e instanceof Error ? e.message : 'Unknown error'}`, 'error', 'Start Failed')
     }
-  };
+  }
 
   const renderTabContent = () => {
     switch (activeTab) {
       case 'dashboard':
-        return <DashboardTab {...context} onRefetchTemplates={loadTemplates} />;
+        return <DashboardTab {...context} onRefetchTemplates={loadTemplates} />
       case 'templates':
-        return <EmployeeLifecycleTemplatesTab {...context} />;
+        return <EmployeeLifecycleTemplatesTab {...context} />
       case 'analytics':
-        return <AnalyticsTab {...context} />;
+        return <AnalyticsTab {...context} />
       case 'audit':
-        return <AuditTab {...context} />;
+        return <AuditTab {...context} />
       default:
-        return null;
+        return null
     }
-  };
+  }
 
   return (
     <div data-testid="employee-lifecycle-solution-app">
@@ -162,7 +158,7 @@ export const EmployeeLifecycleSolution: React.FC<EmployeeLifecycleSolutionProps>
         headerSubViews={{
           value: activeTab,
           onValueChange: handleTabChange,
-          items: viewOptions.map((option) => ({
+          items: viewOptions.map(option => ({
             value: option.key,
             label: option.label,
             icon: option.icon
@@ -182,15 +178,13 @@ export const EmployeeLifecycleSolution: React.FC<EmployeeLifecycleSolutionProps>
               </DialogHeader>
               <div data-testid="employee-lifecycle-launch-list">
                 {isLoading && <div data-testid="employee-lifecycle-launch-loading">Loading...</div>}
-                {error && (
-                  <div data-testid="employee-lifecycle-launch-error">{error}</div>
-                )}
+                {error && <div data-testid="employee-lifecycle-launch-error">{error}</div>}
                 {!isLoading && !error && templates.length === 0 && (
                   <div data-testid="employee-lifecycle-launch-empty">No flows available</div>
                 )}
                 {!isLoading && !error && templates.length > 0 && (
                   <div>
-                    {templates.map((tpl) => (
+                    {templates.map(tpl => (
                       <div key={tpl.id} data-testid={`employee-lifecycle-launch-item-${tpl.id}`}>
                         <div>{tpl.name}</div>
                         <Button
@@ -211,15 +205,10 @@ export const EmployeeLifecycleSolution: React.FC<EmployeeLifecycleSolutionProps>
         }
         className="gba:min-h-screen"
       >
-        <div className="gba:h-full gba:overflow-auto">
-          {renderTabContent()}
-        </div>
+        <div className="gba:h-full gba:overflow-auto">{renderTabContent()}</div>
       </PageLayout>
     </div>
-  );
-};
+  )
+}
 
-export default EmployeeLifecycleSolution;
-
-
-
+export default EmployeeLifecycleSolution

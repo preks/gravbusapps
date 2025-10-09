@@ -1,2 +1,2 @@
-export { useContactData } from './useContactData';
-export { useContactAiSummary } from './useContactAiSummary';
+export { useContactData } from './useContactData'
+export { useContactAiSummary } from './useContactAiSummary'

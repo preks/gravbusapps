@@ -135,6 +135,6 @@ export const getExpensePlanRecordQuery = `
         }
       }
     }
-`;
+`
 
-export default getExpensePlanRecordQuery;
+export default getExpensePlanRecordQuery

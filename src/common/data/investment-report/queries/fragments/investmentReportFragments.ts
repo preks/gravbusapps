@@ -1,5 +1,5 @@
 // Investment Report Fragments - Reusable GraphQL fragments for investment reports
-import { CATALOG_ENTRY, AUDIT_FIELDS } from '@/common/network/graphql/commonFragments';
+import { CATALOG_ENTRY, AUDIT_FIELDS } from '@/common/network/graphql/commonFragments'
 
 /**
  * Core Investment Report Fragment
@@ -115,7 +115,7 @@ export const INVESTMENT_REPORT = `
       }
     }
   }
-`;
+`
 
 /**
  * Equity Investment Report Fragment
@@ -150,7 +150,7 @@ export const EQUITY_INVESTMENT_REPORT = `
       investmentGroup { ${CATALOG_ENTRY} }
     }
   }
-`;
+`
 
 /**
  * Liquid Fund Investment Report Fragment
@@ -200,7 +200,7 @@ export const LIQUID_FUND_INVESTMENT_REPORT = `
     }
     investmentLiquidFundType { ${CATALOG_ENTRY} }
   }
-`;
+`
 
 /**
  * Real Estate Investment Report Fragment
@@ -248,4 +248,4 @@ export const REAL_ESTATE_INVESTMENT_REPORT = `
       investmentGroup { ${CATALOG_ENTRY} }
     }
   }
-`;
+`

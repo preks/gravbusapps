@@ -1,1 +1,1 @@
-export { useHrSettingsCards } from './useHrSettingsCards' 
+export { useHrSettingsCards } from './useHrSettingsCards'

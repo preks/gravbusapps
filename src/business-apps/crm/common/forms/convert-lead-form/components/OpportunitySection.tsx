@@ -1,5 +1,5 @@
-import React, { useEffect, useState, useCallback, useMemo } from "react";
-import { Form } from "antd";
+import React, { useEffect, useState, useCallback, useMemo } from 'react'
+import { Form } from 'antd'
 import {
   Card,
   CardContent,
@@ -12,38 +12,38 @@ import {
   SelectTrigger,
   SelectValue,
   Textarea as DesignTextarea,
-  Label,
-} from "@newwork/nw-design-system";
-import SearchableSelect from "./SearchableSelect";
-import OwnerSelector from "./OwnerSelector";
-import { BusinessAppContextProps } from "@/common/BusinessAppContext";
-import { useAccountsGraphQL } from "../../opportunity-form/hooks/useAccountsGraphQL";
-import { useCurrenciesGraphQL } from "../../opportunity-form/hooks/useCurrenciesGraphQL";
-import { usePipelineCatalogs } from "../../opportunity-form/hooks/usePipelineCatalogs";
-import { useOpportunityStatusCatalog } from "../../opportunity-form/hooks/useOpportunityStatusCatalog";
-import { getTranslationFromI18nKeyAndLabel } from "@/common/utils/windowUtils";
+  Label
+} from '@newwork/nw-design-system'
+import SearchableSelect from './SearchableSelect'
+import OwnerSelector from './OwnerSelector'
+import { BusinessAppContextProps } from '@/common/BusinessAppContext'
+import { useAccountsGraphQL } from '../../opportunity-form/hooks/useAccountsGraphQL'
+import { useCurrenciesGraphQL } from '../../opportunity-form/hooks/useCurrenciesGraphQL'
+import { usePipelineCatalogs } from '../../opportunity-form/hooks/usePipelineCatalogs'
+import { useOpportunityStatusCatalog } from '../../opportunity-form/hooks/useOpportunityStatusCatalog'
+import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 
 // Define SelectOption interface for SearchableSelect
 interface SelectOption {
-  id: string | number;
-  value: string;
-  label: string;
-  name: string;
+  id: string | number
+  value: string
+  label: string
+  name: string
   extraInfo?: {
-    pictureThumbnail?: string;
-    jobPosition?: string;
-    organizationalUnit?: string;
-  };
+    pictureThumbnail?: string
+    jobPosition?: string
+    organizationalUnit?: string
+  }
 }
 
 export interface OpportunitySectionProps extends BusinessAppContextProps {
-  form: any; // Ant Design form instance
-  opportunityEmployeePositions: SelectOption[];
-  opportunityEmployeePositionsLoading: boolean;
-  opportunityEmployeePositionsHasMore: boolean;
-  loadMoreOpportunityEmployeePositions: () => Promise<void>;
-  searchOpportunityEmployeePositions: (searchTerm?: string) => void;
-  opportunityEmployeePositionsError: string | null;
+  form: any // Ant Design form instance
+  opportunityEmployeePositions: SelectOption[]
+  opportunityEmployeePositionsLoading: boolean
+  opportunityEmployeePositionsHasMore: boolean
+  loadMoreOpportunityEmployeePositions: () => Promise<void>
+  searchOpportunityEmployeePositions: (searchTerm?: string) => void
+  opportunityEmployeePositionsError: string | null
 }
 
 const OpportunitySection: React.FC<OpportunitySectionProps> = ({
@@ -54,14 +54,13 @@ const OpportunitySection: React.FC<OpportunitySectionProps> = ({
   opportunityEmployeePositionsHasMore,
   loadMoreOpportunityEmployeePositions,
   searchOpportunityEmployeePositions,
-  opportunityEmployeePositionsError,
+  opportunityEmployeePositionsError
 }) => {
   // State for pipeline management
-  const [currentPipeline, setCurrentPipeline] = useState<string>("");
+  const [currentPipeline, setCurrentPipeline] = useState<string>('')
 
   // Hooks for opportunity data
-  const { pipelineOptions, pipelineStageOptions, refetchStages } =
-    usePipelineCatalogs({ accessToken }, currentPipeline);
+  const { pipelineOptions, pipelineStageOptions, refetchStages } = usePipelineCatalogs({ accessToken }, currentPipeline)
 
   // Accounts hook for account selection
   const {
@@ -70,8 +69,8 @@ const OpportunitySection: React.FC<OpportunitySectionProps> = ({
     hasMore: simpleAccountsHasMore,
     search: searchSimpleAccounts,
     loadMore: loadMoreSimpleAccounts,
-    error: simpleAccountsError,
-  } = useAccountsGraphQL({ accessToken });
+    error: simpleAccountsError
+  } = useAccountsGraphQL({ accessToken })
 
   // Currencies hook
   const {
@@ -80,73 +79,64 @@ const OpportunitySection: React.FC<OpportunitySectionProps> = ({
     hasMore: currenciesHasMore,
     search: searchCurrencies,
     loadMore: loadMoreCurrencies,
-    error: currenciesError,
+    error: currenciesError
   } = useCurrenciesGraphQL({
-    accessToken,
-  });
+    accessToken
+  })
 
   // Opportunity status hook
   const { opportunityStatusOptions } = useOpportunityStatusCatalog({
-    accessToken,
-  });
+    accessToken
+  })
 
   // Transform pipeline and stage options
-  const pipelines = useMemo(
-    () => pipelineOptions as SelectOption[],
-    [pipelineOptions]
-  );
+  const pipelines = useMemo(() => pipelineOptions as SelectOption[], [pipelineOptions])
 
-  const salesPipelineStages = useMemo(
-    () => pipelineStageOptions as SelectOption[],
-    [pipelineStageOptions]
-  );
+  const salesPipelineStages = useMemo(() => pipelineStageOptions as SelectOption[], [pipelineStageOptions])
 
   // Auto-set default pipeline when pipelines are loaded
   useEffect(() => {
-    if (pipelines.length > 0 && !form.getFieldValue("opportunityPipeline")) {
+    if (pipelines.length > 0 && !form.getFieldValue('opportunityPipeline')) {
       // Try to find "standard" pipeline first, otherwise use the first one
       const standardPipeline = pipelines.find(
-        (p) =>
-          p?.label?.toLowerCase().includes("standard") ||
-          p?.value?.toLowerCase().includes("standard") ||
-          p?.name?.toLowerCase().includes("standard")
-      );
+        p =>
+          p?.label?.toLowerCase().includes('standard') ||
+          p?.value?.toLowerCase().includes('standard') ||
+          p?.name?.toLowerCase().includes('standard')
+      )
 
-      const selectedPipeline = standardPipeline || pipelines[0];
-      form.setFieldsValue({ opportunityPipeline: selectedPipeline.value });
-      setCurrentPipeline(selectedPipeline.value); // Trigger stages refetch automatically
+      const selectedPipeline = standardPipeline || pipelines[0]
+      form.setFieldsValue({ opportunityPipeline: selectedPipeline.value })
+      setCurrentPipeline(selectedPipeline.value) // Trigger stages refetch automatically
     }
-  }, [pipelines, form]);
+  }, [pipelines, form])
 
   // Initialize form with CRM default source app
   useEffect(() => {
-    if (!form.getFieldValue("opportunitySourceApp")) {
-      form.setFieldsValue({ opportunitySourceApp: "CRM" });
+    if (!form.getFieldValue('opportunitySourceApp')) {
+      form.setFieldsValue({ opportunitySourceApp: 'CRM' })
     }
-  }, [form]);
+  }, [form])
 
   // Auto-set default stage when stages are loaded
   useEffect(() => {
     if (currentPipeline) {
       if (salesPipelineStages.length > 0) {
         form.setFieldsValue({
-          opportunitySalesPipelineStage: salesPipelineStages[0].value,
-        });
-      } else if (form.getFieldValue("opportunitySalesPipelineStage")) {
+          opportunitySalesPipelineStage: salesPipelineStages[0].value
+        })
+      } else if (form.getFieldValue('opportunitySalesPipelineStage')) {
         // Clear the stage if no stages are available for the selected pipeline
-        form.setFieldsValue({ opportunitySalesPipelineStage: "" });
+        form.setFieldsValue({ opportunitySalesPipelineStage: '' })
       }
     }
-  }, [salesPipelineStages, currentPipeline, form]);
+  }, [salesPipelineStages, currentPipeline, form])
 
   return (
     <Card className="gba:mb-4" data-testid="opportunity-section">
       <CardHeader>
         <CardTitle className="gba:text-lg gba:font-semibold">
-          {getTranslationFromI18nKeyAndLabel(
-            "crm:convertLead.opportunity",
-            "Opportunity"
-          )}
+          {getTranslationFromI18nKeyAndLabel('crm:convertLead.opportunity', 'Opportunity')}
         </CardTitle>
       </CardHeader>
       <CardContent>
@@ -155,24 +145,18 @@ const OpportunitySection: React.FC<OpportunitySectionProps> = ({
           <div>
             <Form.Item
               name="opportunityName"
-              label={getTranslationFromI18nKeyAndLabel(
-                "crm:opportunity.name",
-                "Opportunity Name"
-              )}
+              label={getTranslationFromI18nKeyAndLabel('crm:opportunity.name', 'Opportunity Name')}
               rules={[
                 {
                   required: true,
                   message: getTranslationFromI18nKeyAndLabel(
-                    "crm:opportunity.nameRequired",
-                    "Please enter opportunity name"
-                  ),
-                },
+                    'crm:opportunity.nameRequired',
+                    'Please enter opportunity name'
+                  )
+                }
               ]}
             >
-              <DesignInput
-                data-testid="opportunity-name"
-                className="gba:h-11 gba:px-3 gba:text-sm"
-              />
+              <DesignInput data-testid="opportunity-name" className="gba:h-11 gba:px-3 gba:text-sm" />
             </Form.Item>
           </div>
 
@@ -180,30 +164,27 @@ const OpportunitySection: React.FC<OpportunitySectionProps> = ({
           <div>
             <Form.Item
               name="opportunityAccountId"
-              label={getTranslationFromI18nKeyAndLabel(
-                "crm:opportunity.account",
-                "Account"
-              )}
+              label={getTranslationFromI18nKeyAndLabel('crm:opportunity.account', 'Account')}
             >
               <SearchableSelect
                 name="opportunityAccountId"
-                value={form.getFieldValue("opportunityAccountId")}
+                value={form.getFieldValue('opportunityAccountId')}
                 placeholder={getTranslationFromI18nKeyAndLabel(
-                  "crm:opportunity.selectAccount",
-                  "Search and select account..."
+                  'crm:opportunity.selectAccount',
+                  'Search and select account...'
                 )}
                 options={simpleAccounts.map((account: any) => ({
                   id: account.id,
                   value: account.id,
                   label: account?.name,
-                  name: account?.name,
+                  name: account?.name
                 }))}
                 onSearch={searchSimpleAccounts}
                 loading={simpleAccountsLoading}
                 hasMore={simpleAccountsHasMore}
                 onLoadMore={loadMoreSimpleAccounts}
                 onChange={(value: string) => {
-                  form.setFieldsValue({ opportunityAccountId: value });
+                  form.setFieldsValue({ opportunityAccountId: value })
                 }}
                 error={simpleAccountsError}
                 data-testid="opportunity-account-select"
@@ -216,47 +197,44 @@ const OpportunitySection: React.FC<OpportunitySectionProps> = ({
             <div>
               <Form.Item
                 name="opportunityPipeline"
-                label={getTranslationFromI18nKeyAndLabel(
-                  "crm:opportunity.pipeline",
-                  "Pipeline"
-                )}
+                label={getTranslationFromI18nKeyAndLabel('crm:opportunity.pipeline', 'Pipeline')}
                 rules={[
                   {
                     required: true,
                     message: getTranslationFromI18nKeyAndLabel(
-                      "crm:opportunity.pipelineRequired",
-                      "Please select pipeline"
-                    ),
-                  },
+                      'crm:opportunity.pipelineRequired',
+                      'Please select pipeline'
+                    )
+                  }
                 ]}
               >
                 <DesignSelect
-                  value={form.getFieldValue("opportunityPipeline")}
-                  onValueChange={(value) => {
+                  value={form.getFieldValue('opportunityPipeline')}
+                  onValueChange={value => {
                     form.setFieldsValue({
                       opportunityPipeline: value,
-                      opportunitySalesPipelineStage: "", // Reset stage when pipeline changes
-                    });
-                    setCurrentPipeline(value); // Trigger stages refetch automatically
+                      opportunitySalesPipelineStage: '' // Reset stage when pipeline changes
+                    })
+                    setCurrentPipeline(value) // Trigger stages refetch automatically
                   }}
                   data-testid="opportunity-pipeline-select"
                 >
                   <SelectTrigger className="gba:border-gray-300 gba:bg-white">
                     <SelectValue
                       placeholder={getTranslationFromI18nKeyAndLabel(
-                        "crm:opportunity.selectPipeline",
-                        "Select Pipeline"
+                        'crm:opportunity.selectPipeline',
+                        'Select Pipeline'
                       )}
                     />
                   </SelectTrigger>
                   <SelectContent
                     className="gba:max-h-[200px] gba:overflow-y-auto"
                     style={{
-                      maxHeight: "200px",
-                      overflowY: "auto",
+                      maxHeight: '200px',
+                      overflowY: 'auto'
                     }}
                   >
-                    {pipelines.map((option) => (
+                    {pipelines.map(option => (
                       <SelectItem key={option.id} value={option.value}>
                         {option.label}
                       </SelectItem>
@@ -268,25 +246,19 @@ const OpportunitySection: React.FC<OpportunitySectionProps> = ({
             <div>
               <Form.Item
                 name="opportunitySalesPipelineStage"
-                label={getTranslationFromI18nKeyAndLabel(
-                  "crm:opportunity.salesPipelineStage",
-                  "Sales Pipeline Stage"
-                )}
+                label={getTranslationFromI18nKeyAndLabel('crm:opportunity.salesPipelineStage', 'Sales Pipeline Stage')}
                 rules={[
                   {
                     required: true,
-                    message: getTranslationFromI18nKeyAndLabel(
-                      "crm:opportunity.stageRequired",
-                      "Please select stage"
-                    ),
-                  },
+                    message: getTranslationFromI18nKeyAndLabel('crm:opportunity.stageRequired', 'Please select stage')
+                  }
                 ]}
               >
                 <DesignSelect
-                  value={form.getFieldValue("opportunitySalesPipelineStage")}
-                  onValueChange={(value) =>
+                  value={form.getFieldValue('opportunitySalesPipelineStage')}
+                  onValueChange={value =>
                     form.setFieldsValue({
-                      opportunitySalesPipelineStage: value,
+                      opportunitySalesPipelineStage: value
                     })
                   }
                   data-testid="opportunity-sales-pipeline-stage-select"
@@ -294,38 +266,35 @@ const OpportunitySection: React.FC<OpportunitySectionProps> = ({
                   <SelectTrigger className="gba:border-gray-300 gba:bg-white">
                     <SelectValue
                       placeholder={
-                        !form.getFieldValue("opportunityPipeline")
+                        !form.getFieldValue('opportunityPipeline')
                           ? getTranslationFromI18nKeyAndLabel(
-                              "crm:opportunity.selectPipelineFirst",
-                              "Select Pipeline First..."
+                              'crm:opportunity.selectPipelineFirst',
+                              'Select Pipeline First...'
                             )
                           : salesPipelineStages.length === 0
-                          ? getTranslationFromI18nKeyAndLabel(
-                              "crm:opportunity.noStagesAvailable",
-                              "No Stages Available"
-                            )
-                          : getTranslationFromI18nKeyAndLabel(
-                              "crm:opportunity.selectStage",
-                              "Select Stage"
-                            )
+                            ? getTranslationFromI18nKeyAndLabel(
+                                'crm:opportunity.noStagesAvailable',
+                                'No Stages Available'
+                              )
+                            : getTranslationFromI18nKeyAndLabel('crm:opportunity.selectStage', 'Select Stage')
                       }
                     />
                   </SelectTrigger>
                   <SelectContent
                     className="gba:max-h-[200px] gba:overflow-y-auto"
                     style={{
-                      maxHeight: "200px",
-                      overflowY: "auto",
+                      maxHeight: '200px',
+                      overflowY: 'auto'
                     }}
                   >
                     {salesPipelineStages.length === 0 ? (
                       <div className="gba:px-3 gba:py-2 gba:text-sm gba:text-gray-500 gba:text-center">
-                        {!form.getFieldValue("opportunityPipeline")
-                          ? "Please select a pipeline first"
-                          : "No stages available for this pipeline"}
+                        {!form.getFieldValue('opportunityPipeline')
+                          ? 'Please select a pipeline first'
+                          : 'No stages available for this pipeline'}
                       </div>
                     ) : (
-                      salesPipelineStages.map((option) => (
+                      salesPipelineStages.map(option => (
                         <SelectItem key={option.id} value={option.value}>
                           {option.label}
                         </SelectItem>
@@ -342,10 +311,7 @@ const OpportunitySection: React.FC<OpportunitySectionProps> = ({
             <div>
               <Form.Item
                 name="opportunityEstimatedAmount"
-                label={getTranslationFromI18nKeyAndLabel(
-                  "crm:opportunity.estimatedAmount",
-                  "Estimated Amount"
-                )}
+                label={getTranslationFromI18nKeyAndLabel('crm:opportunity.estimatedAmount', 'Estimated Amount')}
               >
                 <DesignInput
                   data-testid="opportunity-estimated-amount"
@@ -358,25 +324,19 @@ const OpportunitySection: React.FC<OpportunitySectionProps> = ({
             <div>
               <Form.Item
                 name="opportunityCurrency"
-                label={getTranslationFromI18nKeyAndLabel(
-                  "crm:opportunity.currency",
-                  "Currency"
-                )}
+                label={getTranslationFromI18nKeyAndLabel('crm:opportunity.currency', 'Currency')}
               >
                 <SearchableSelect
                   name="opportunityCurrency"
-                  value={form.getFieldValue("opportunityCurrency")}
-                  placeholder={getTranslationFromI18nKeyAndLabel(
-                    "crm:opportunity.selectCurrency",
-                    "Select Currency"
-                  )}
+                  value={form.getFieldValue('opportunityCurrency')}
+                  placeholder={getTranslationFromI18nKeyAndLabel('crm:opportunity.selectCurrency', 'Select Currency')}
                   options={stringCurrencies}
                   loading={currenciesLoading}
                   hasMore={currenciesHasMore}
                   onSearch={searchCurrencies}
                   onLoadMore={loadMoreCurrencies}
-                  onChange={(value) => {
-                    form.setFieldsValue({ opportunityCurrency: value });
+                  onChange={value => {
+                    form.setFieldsValue({ opportunityCurrency: value })
                   }}
                   error={currenciesError}
                   data-testid="opportunity-currency-select"
@@ -390,10 +350,7 @@ const OpportunitySection: React.FC<OpportunitySectionProps> = ({
             <div>
               <Form.Item
                 name="opportunityWinningChance"
-                label={getTranslationFromI18nKeyAndLabel(
-                  "crm:opportunity.winningChance",
-                  "Winning Chance (%)"
-                )}
+                label={getTranslationFromI18nKeyAndLabel('crm:opportunity.winningChance', 'Winning Chance (%)')}
               >
                 <DesignInput
                   data-testid="opportunity-winning-chance"
@@ -407,10 +364,7 @@ const OpportunitySection: React.FC<OpportunitySectionProps> = ({
             <div>
               <Form.Item
                 name="opportunityExpectedCloseDate"
-                label={getTranslationFromI18nKeyAndLabel(
-                  "crm:opportunity.expectedCloseDate",
-                  "Expected Close Date"
-                )}
+                label={getTranslationFromI18nKeyAndLabel('crm:opportunity.expectedCloseDate', 'Expected Close Date')}
               >
                 <DesignInput
                   data-testid="opportunity-expected-close-date"
@@ -425,20 +379,17 @@ const OpportunitySection: React.FC<OpportunitySectionProps> = ({
           <div>
             <Form.Item
               name="opportunityNoteSummary"
-              label={getTranslationFromI18nKeyAndLabel(
-                "crm:opportunity.noteSummary",
-                "Note Summary"
-              )}
+              label={getTranslationFromI18nKeyAndLabel('crm:opportunity.noteSummary', 'Note Summary')}
             >
               <DesignTextarea
                 data-testid="opportunity-note-summary"
                 rows={3}
                 placeholder={getTranslationFromI18nKeyAndLabel(
-                  "crm:opportunity.noteSummaryPlaceholder",
-                  "Enter note summary..."
+                  'crm:opportunity.noteSummaryPlaceholder',
+                  'Enter note summary...'
                 )}
                 className="gba:px-3 gba:py-2 gba:text-sm gba:resize-none"
-                style={{ minHeight: "80px" }}
+                style={{ minHeight: '80px' }}
               />
             </Form.Item>
           </div>
@@ -447,34 +398,31 @@ const OpportunitySection: React.FC<OpportunitySectionProps> = ({
           <div>
             <Form.Item
               name="opportunitySourceApp"
-              label={getTranslationFromI18nKeyAndLabel(
-                "crm:opportunity.sourceApp",
-                "Source App"
-              )}
+              label={getTranslationFromI18nKeyAndLabel('crm:opportunity.sourceApp', 'Source App')}
               rules={[
                 {
                   required: true,
                   message: getTranslationFromI18nKeyAndLabel(
-                    "crm:opportunity.sourceAppRequired",
-                    "Please select source app"
-                  ),
-                },
+                    'crm:opportunity.sourceAppRequired',
+                    'Please select source app'
+                  )
+                }
               ]}
               initialValue="CRM"
             >
               <DesignSelect
-                value={form.getFieldValue("opportunitySourceApp") || "CRM"}
+                value={form.getFieldValue('opportunitySourceApp') || 'CRM'}
                 defaultValue="CRM"
                 onValueChange={(value: string) => {
-                  form.setFieldsValue({ opportunitySourceApp: value });
+                  form.setFieldsValue({ opportunitySourceApp: value })
                 }}
                 data-testid="opportunity-source-app-select"
               >
                 <SelectTrigger className="gba:border-gray-300 gba:bg-white">
                   <SelectValue
                     placeholder={getTranslationFromI18nKeyAndLabel(
-                      "crm:opportunity.selectSourceApp",
-                      "Select Source App"
+                      'crm:opportunity.selectSourceApp',
+                      'Select Source App'
                     )}
                   />
                 </SelectTrigger>
@@ -495,22 +443,16 @@ const OpportunitySection: React.FC<OpportunitySectionProps> = ({
             <h4
               className="gba:text-lg gba:font-bold gba:mb-3 gba:text-gray-900 gba:border-b gba:border-gray-400 gba:pb-2"
               style={{
-                fontWeight: "700 !important",
-                fontSize: "18px",
-                color: "#111827",
+                fontWeight: '700 !important',
+                fontSize: '18px',
+                color: '#111827'
               }}
             >
-              {getTranslationFromI18nKeyAndLabel(
-                "crm:opportunity.ownerInformation",
-                "Owner Information"
-              )}
+              {getTranslationFromI18nKeyAndLabel('crm:opportunity.ownerInformation', 'Owner Information')}
             </h4>
             <div className="gba:space-y-2">
               <Label htmlFor="opportunity-owner-select">
-                {getTranslationFromI18nKeyAndLabel(
-                  "crm:opportunity.ownerEmployee",
-                  "Owner Employee"
-                )}
+                {getTranslationFromI18nKeyAndLabel('crm:opportunity.ownerEmployee', 'Owner Employee')}
                 <span className="gba:text-red-500 gba:ml-1">*</span>
               </Label>
               <Form.Item
@@ -520,25 +462,25 @@ const OpportunitySection: React.FC<OpportunitySectionProps> = ({
                   {
                     required: true,
                     message: getTranslationFromI18nKeyAndLabel(
-                      "crm:opportunity.ownerEmployeeRequired",
-                      "Please select owner employee"
-                    ),
-                  },
+                      'crm:opportunity.ownerEmployeeRequired',
+                      'Please select owner employee'
+                    )
+                  }
                 ]}
               >
                 <OwnerSelector
-                  value={form.getFieldValue("opportunityOwnerEmployee") || ""}
+                  value={form.getFieldValue('opportunityOwnerEmployee') || ''}
                   onChange={(value: string) => {
-                    form.setFieldsValue({ opportunityOwnerEmployee: value });
+                    form.setFieldsValue({ opportunityOwnerEmployee: value })
                     // Force form to update
-                    form.validateFields(["opportunityOwnerEmployee"]);
+                    form.validateFields(['opportunityOwnerEmployee'])
                   }}
                   employees={opportunityEmployeePositions as any}
                   loading={opportunityEmployeePositionsLoading}
                   hasMore={opportunityEmployeePositionsHasMore}
                   onLoadMore={loadMoreOpportunityEmployeePositions}
                   onSearch={(searchTerm: string) => {
-                    searchOpportunityEmployeePositions(searchTerm);
+                    searchOpportunityEmployeePositions(searchTerm)
                   }}
                   error={opportunityEmployeePositionsError}
                   dataTestId="opportunity-owner-select"
@@ -549,7 +491,7 @@ const OpportunitySection: React.FC<OpportunitySectionProps> = ({
         </div>
       </CardContent>
     </Card>
-  );
-};
+  )
+}
 
-export default OpportunitySection;
+export default OpportunitySection

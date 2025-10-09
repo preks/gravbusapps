@@ -1,4 +1,4 @@
-import React from "react";
+import React from 'react'
 import {
   Card,
   CardHeader,
@@ -7,29 +7,29 @@ import {
   ChartContainer,
   ChartConfig,
   ChartTooltip,
-  ChartTooltipContent,
-} from "@newwork/nw-design-system";
-import { getTranslationFromI18nKeyAndLabel } from "@/common/utils/windowUtils";
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Cell } from "recharts";
-import { formatCurrencyDisplay } from "../../../../personal-expenses/utils";
-import { resolveCssVar } from "./chartUtils";
+  ChartTooltipContent
+} from '@newwork/nw-design-system'
+import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Cell } from 'recharts'
+import { formatCurrencyDisplay } from '../../../../personal-expenses/utils'
+import { resolveCssVar } from './chartUtils'
 
 interface BarChartProps {
   data: {
-    name: string;
-    value: number;
-    [key: string]: any;
-  }[];
-  title: string;
-  xAxisDataKey?: string;
-  barDataKey?: string;
-  barColor?: string;
-  height?: number;
-  currency?: string;
-  valueType?: 'amount' | 'count';
-  countLabel?: string;
-  getColor?: (entry: any, index: number) => string | undefined;
-  dataTestId?: string;
+    name: string
+    value: number
+    [key: string]: any
+  }[]
+  title: string
+  xAxisDataKey?: string
+  barDataKey?: string
+  barColor?: string
+  height?: number
+  currency?: string
+  valueType?: 'amount' | 'count'
+  countLabel?: string
+  getColor?: (entry: any, index: number) => string | undefined
+  dataTestId?: string
 }
 
 /**
@@ -38,29 +38,29 @@ interface BarChartProps {
 const BarChartComponent: React.FC<BarChartProps> = ({
   data,
   title,
-  xAxisDataKey = "name",
-  barDataKey = "value",
-  barColor = "var(--nw-primary)",
+  xAxisDataKey = 'name',
+  barDataKey = 'value',
+  barColor = 'var(--nw-primary)',
   height = 300,
-  currency = "EUR",
+  currency = 'EUR',
   valueType = 'amount',
   countLabel = 'items',
   getColor,
-  dataTestId,
+  dataTestId
 }) => {
-  const resolvedBarColor = React.useMemo(() => resolveCssVar(barColor), [barColor]);
-  
+  const resolvedBarColor = React.useMemo(() => resolveCssVar(barColor), [barColor])
+
   const chartConfig = React.useMemo(() => {
     const config: ChartConfig = {
       [barDataKey]: {
         label:
           valueType === 'count'
-            ? getTranslationFromI18nKeyAndLabel("lowcoder:charts.tooltip.count", "Count")
-            : getTranslationFromI18nKeyAndLabel("lowcoder:charts.tooltip.amount", "Amount"),
-      },
-    };
-    return config;
-  }, [barDataKey, valueType]);
+            ? getTranslationFromI18nKeyAndLabel('lowcoder:charts.tooltip.count', 'Count')
+            : getTranslationFromI18nKeyAndLabel('lowcoder:charts.tooltip.amount', 'Amount')
+      }
+    }
+    return config
+  }, [barDataKey, valueType])
 
   if (!data || data.length === 0) {
     return (
@@ -73,15 +73,18 @@ const BarChartComponent: React.FC<BarChartProps> = ({
         <CardContent>
           <div className="gba:flex gba:flex-col gba:items-center gba:justify-center gba:p-8 gba:text-center gba:min-h-[200px]">
             <div className="gba:text-muted-foreground gba:text-lg gba:font-medium gba:mb-2">
-              {getTranslationFromI18nKeyAndLabel("lowcoder:charts.empty.title","No data available")}
+              {getTranslationFromI18nKeyAndLabel('lowcoder:charts.empty.title', 'No data available')}
             </div>
             <div className="gba:text-muted-foreground gba:text-sm">
-              {getTranslationFromI18nKeyAndLabel("lowcoder:charts.empty.description","There is no data to display for this chart.")}
+              {getTranslationFromI18nKeyAndLabel(
+                'lowcoder:charts.empty.description',
+                'There is no data to display for this chart.'
+              )}
             </div>
           </div>
         </CardContent>
       </Card>
-    );
+    )
   }
 
   return (
@@ -96,7 +99,7 @@ const BarChartComponent: React.FC<BarChartProps> = ({
           config={chartConfig}
           className="gba:w-full"
           style={{ height: height }}
-          data-testid={dataTestId ?? "bar-chart"}
+          data-testid={dataTestId ?? 'bar-chart'}
         >
           <BarChart
             data={data}
@@ -104,7 +107,7 @@ const BarChartComponent: React.FC<BarChartProps> = ({
               top: 5,
               right: 30,
               left: 20,
-              bottom: 5,
+              bottom: 5
             }}
           >
             <CartesianGrid strokeDasharray="3 3" />
@@ -116,32 +119,29 @@ const BarChartComponent: React.FC<BarChartProps> = ({
                 <ChartTooltipContent
                   formatter={(value: any, _name: string) => {
                     if (valueType === 'count') {
-                      const num = typeof value === 'number' ? value : Number(value ?? 0);
-                      const itemsLabel = getTranslationFromI18nKeyAndLabel(
-                        "lowcoder:charts.tooltip.items",
-                        countLabel,
-                      );
-                      return `${num} ${itemsLabel}`;
+                      const num = typeof value === 'number' ? value : Number(value ?? 0)
+                      const itemsLabel = getTranslationFromI18nKeyAndLabel('lowcoder:charts.tooltip.items', countLabel)
+                      return `${num} ${itemsLabel}`
                     }
                     // For amount type, just return the formatted currency
-                    return formatCurrencyDisplay(value, currency);
+                    return formatCurrencyDisplay(value, currency)
                   }}
                 />
               }
             />
             <Bar dataKey={barDataKey} fill={resolvedBarColor}>
               {data.map((entry, index) => {
-                const entryKey = entry[xAxisDataKey] || entry[barDataKey] || index;
-                const candidate = getColor ? (getColor(entry, index) || resolvedBarColor) : resolvedBarColor;
-                const fill = resolveCssVar(candidate);
-                return <Cell key={`cell-${entryKey}`} fill={fill} />;
+                const entryKey = entry[xAxisDataKey] || entry[barDataKey] || index
+                const candidate = getColor ? getColor(entry, index) || resolvedBarColor : resolvedBarColor
+                const fill = resolveCssVar(candidate)
+                return <Cell key={`cell-${entryKey}`} fill={fill} />
               })}
             </Bar>
           </BarChart>
         </ChartContainer>
       </CardContent>
     </Card>
-  );
-};
+  )
+}
 
-export default BarChartComponent;
+export default BarChartComponent

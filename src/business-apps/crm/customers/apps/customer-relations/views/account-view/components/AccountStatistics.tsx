@@ -1,30 +1,25 @@
-import React from 'react';
-import { WidgetGroup, WidgetItem } from '@/components/widget-group';
-import { 
-  BankOutlined,
-  TrophyOutlined,
-  DollarOutlined,
-  TeamOutlined
-} from '@ant-design/icons';
+import React from 'react'
+import { WidgetGroup, WidgetItem } from '@/components/widget-group'
+import { BankOutlined, TrophyOutlined, DollarOutlined, TeamOutlined } from '@ant-design/icons'
 
 interface TrendData {
-  current: number;
-  previous: number;
-  change: number;
-  changePercent: number;
-  isPositive: boolean;
+  current: number
+  previous: number
+  change: number
+  changePercent: number
+  isPositive: boolean
 }
 
 interface AccountStatisticsWithTrendProps {
   trendData: {
-    recentAccounts: TrendData;
-    activeAccounts: TrendData;
-    revenue: TrendData;
-    accountsThisYear: TrendData;
-  };
-  isLoading?: boolean;
-  error?: Error | null;
-  onRetry?: () => void;
+    recentAccounts: TrendData
+    activeAccounts: TrendData
+    revenue: TrendData
+    accountsThisYear: TrendData
+  }
+  isLoading?: boolean
+  error?: Error | null
+  onRetry?: () => void
 }
 
 /**
@@ -42,14 +37,14 @@ export const AccountStatisticsWithTrend: React.FC<AccountStatisticsWithTrendProp
       currency: 'USD',
       notation: 'compact',
       maximumFractionDigits: 1
-    }).format(amount);
-  };
+    }).format(amount)
+  }
 
   // Helper function to format trend percentage with proper sign
   const formatTrendPercent = (changePercent: number): string => {
-    const sign = changePercent >= 0 ? '+' : '';
-    return `${sign}${changePercent.toFixed(1)}%`;
-  };
+    const sign = changePercent >= 0 ? '+' : ''
+    return `${sign}${changePercent.toFixed(1)}%`
+  }
 
   // Transform the trend data into widgets format with trend information
   const widgets: WidgetItem[] = [
@@ -110,7 +105,7 @@ export const AccountStatisticsWithTrend: React.FC<AccountStatisticsWithTrendProp
         description: 'vs same period last year'
       }
     }
-  ];
+  ]
 
   return (
     <div data-testid="account-statistics-with-trend-container">
@@ -124,5 +119,5 @@ export const AccountStatisticsWithTrend: React.FC<AccountStatisticsWithTrendProp
         data-testid="account-statistics-with-trend"
       />
     </div>
-  );
-}; 
+  )
+}

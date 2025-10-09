@@ -1,37 +1,36 @@
-import React from "react";
-import { useSortable } from "@dnd-kit/sortable";
-import { CSS } from "@dnd-kit/utilities";
-import type { KanbanCardProps } from "../types";
+import React from 'react'
+import { useSortable } from '@dnd-kit/sortable'
+import { CSS } from '@dnd-kit/utilities'
+import type { KanbanCardProps } from '../types'
 
-export function KanbanCard({ item, onClick, renderContent, className = "", isInSourceColumn = false }: KanbanCardProps) {
-  const { 
-    attributes, 
-    listeners, 
-    setNodeRef, 
-    transform, 
-    transition,
-    isDragging 
-  } = useSortable({
+export function KanbanCard({
+  item,
+  onClick,
+  renderContent,
+  className = '',
+  isInSourceColumn = false
+}: KanbanCardProps) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: item.id,
     data: {
       type: 'item',
-      item,
-    },
-  });
+      item
+    }
+  })
 
   // Disable transform in source column to prevent position preview
   const style = {
     transform: isInSourceColumn ? undefined : CSS.Transform.toString(transform),
-    transition: isInSourceColumn ? undefined : transition,
-  };
+    transition: isInSourceColumn ? undefined : transition
+  }
 
   const handleClick = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    
+    e.stopPropagation()
+
     if (!isDragging && onClick) {
-      onClick(item.id);
+      onClick(item.id)
     }
-  };
+  }
 
   if (renderContent) {
     return (
@@ -45,7 +44,7 @@ export function KanbanCard({ item, onClick, renderContent, className = "", isInS
       >
         {renderContent(item)}
       </div>
-    );
+    )
   }
 
   return (
@@ -63,9 +62,7 @@ export function KanbanCard({ item, onClick, renderContent, className = "", isInS
       <div className="gba:p-3 gba:space-y-2">
         <div>
           <h4 className="gba:font-medium gba:text-sm gba:line-clamp-2">
-            <span className="gba:text-sm gba:font-medium gba:text-gray-900 gba:dark:text-gray-100">
-              {item.name}
-            </span>
+            <span className="gba:text-sm gba:font-medium gba:text-gray-900 gba:dark:text-gray-100">{item.name}</span>
           </h4>
           {item.description && (
             <p className="gba:text-xs gba:text-gray-500 gba:dark:text-gray-400 gba:line-clamp-1 gba:mt-1">
@@ -75,5 +72,5 @@ export function KanbanCard({ item, onClick, renderContent, className = "", isInS
         </div>
       </div>
     </div>
-  );
+  )
 }

@@ -1,24 +1,24 @@
-"use client"
+'use client'
 
-import { useState, useEffect } from "react"
-import { Button } from "@/components/ui/button"
-import { Card } from "@/components/ui/card"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Switch } from "@/components/ui/switch"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { PlusCircle, Trash2, Calculator, History } from "lucide-react"
+import { useState, useEffect } from 'react'
+import { Button } from '@/components/ui/button'
+import { Card } from '@/components/ui/card'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { Switch } from '@/components/ui/switch'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
+import { PlusCircle, Trash2, Calculator, History } from 'lucide-react'
 
 // Types for our salary components
 interface SalaryComponent {
   id: string
   name: string
   amount: number
-  type: "fixed" | "hourly" | "percentage" | "percentage-hour"
+  type: 'fixed' | 'hourly' | 'percentage' | 'percentage-hour'
   basis?: string // For percentage-based components
-  effectOnSalary: "add-to-gross" | "add-to-net" | "partially-to-gross" | "no-effect"
+  effectOnSalary: 'add-to-gross' | 'add-to-net' | 'partially-to-gross' | 'no-effect'
   isRecurring: boolean
   validFrom: string
   validTo: string
@@ -26,7 +26,7 @@ interface SalaryComponent {
 
 interface SalaryRow {
   id: string
-  paymentType: "hourly" | "monthly"
+  paymentType: 'hourly' | 'monthly'
   baseAmount: number
   targetHours?: number
   activeMonths?: number[]
@@ -37,7 +37,7 @@ interface SalaryRow {
 
 interface Absence {
   id: string
-  type: "sick" | "vacation" | "unpaid" | "other"
+  type: 'sick' | 'vacation' | 'unpaid' | 'other'
   startDate: string
   endDate: string
   hours: number
@@ -68,8 +68,8 @@ interface VehicleAbandonment {
 interface Vehicle {
   id: string
   licensePlate: string
-  type: "passenger-car" | "motorcycle" | "bicycle" | "pedelec" | "e-bike" | "scooter-with-seat" | "scooter-without-seat"
-  motor: "combustion" | "hybrid" | "electric" | "gas" | "fuel-cell" | "none"
+  type: 'passenger-car' | 'motorcycle' | 'bicycle' | 'pedelec' | 'e-bike' | 'scooter-with-seat' | 'scooter-without-seat'
+  motor: 'combustion' | 'hybrid' | 'electric' | 'gas' | 'fuel-cell' | 'none'
   grossListPrice: number
   roundedDownPrice: number
   kmHomeOffice?: number
@@ -89,8 +89,8 @@ interface Insurance {
   fileNumber: string
   type: string
   amount: number
-  frequency: "monthly" | "quarterly" | "semi-annual" | "annual"
-  effectType: "gross-deduction" | "net-deduction" | "additional" | "no-effect"
+  frequency: 'monthly' | 'quarterly' | 'semi-annual' | 'annual'
+  effectType: 'gross-deduction' | 'net-deduction' | 'additional' | 'no-effect'
   startDate: string
   endDate: string
   notes?: string
@@ -100,7 +100,7 @@ interface Garnishment {
   id: string
   dateOfReceipt: string
   timeOfReceipt: string
-  typeOfPayment: "regular" | "preferential" | "support" | "attachment" | "personal-insolvency" | "employer-loan"
+  typeOfPayment: 'regular' | 'preferential' | 'support' | 'attachment' | 'personal-insolvency' | 'employer-loan'
   orderNumber: number
   isActive: boolean
   totalAmount?: number
@@ -131,93 +131,93 @@ export default function SalaryAdministration() {
   const currentYear = currentDate.getFullYear()
 
   const [salary, setSalary] = useState<EmployeeSalary>({
-    currency: "EUR",
+    currency: 'EUR',
     salaryRows: [
       {
-        id: "row-1",
-        paymentType: "monthly",
+        id: 'row-1',
+        paymentType: 'monthly',
         baseAmount: 0,
         targetHours: 160,
         activeMonths: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11],
-        description: "Base Salary",
-        validFrom: new Date().toISOString().split("T")[0],
-        validTo: "",
-      },
+        description: 'Base Salary',
+        validFrom: new Date().toISOString().split('T')[0],
+        validTo: ''
+      }
     ],
     components: [],
     movementData: {
       absences: [],
-      hourlyMovements: [],
+      hourlyMovements: []
     },
     vehicles: [],
     insurances: [],
-    garnishments: [],
+    garnishments: []
   })
 
-  const [newComponent, setNewComponent] = useState<Omit<SalaryComponent, "id">>({
-    name: "",
+  const [newComponent, setNewComponent] = useState<Omit<SalaryComponent, 'id'>>({
+    name: '',
     amount: 0,
-    type: "fixed",
-    effectOnSalary: "add-to-gross",
+    type: 'fixed',
+    effectOnSalary: 'add-to-gross',
     isRecurring: true,
-    validFrom: new Date().toISOString().split("T")[0],
-    validTo: "",
+    validFrom: new Date().toISOString().split('T')[0],
+    validTo: ''
   })
 
-  const [newAbsence, setNewAbsence] = useState<Omit<Absence, "id">>({
-    type: "sick",
-    startDate: new Date().toISOString().split("T")[0],
-    endDate: new Date().toISOString().split("T")[0],
+  const [newAbsence, setNewAbsence] = useState<Omit<Absence, 'id'>>({
+    type: 'sick',
+    startDate: new Date().toISOString().split('T')[0],
+    endDate: new Date().toISOString().split('T')[0],
     hours: 8,
-    description: "",
+    description: ''
   })
 
   // New state for vehicle management
-  const [newVehicle, setNewVehicle] = useState<Omit<Vehicle, "id" | "abandonments">>({
-    licensePlate: "",
-    type: "passenger-car",
-    motor: "combustion",
+  const [newVehicle, setNewVehicle] = useState<Omit<Vehicle, 'id' | 'abandonments'>>({
+    licensePlate: '',
+    type: 'passenger-car',
+    motor: 'combustion',
     grossListPrice: 0,
     roundedDownPrice: 0,
-    validFrom: new Date().toISOString().split("T")[0],
-    validTo: "",
+    validFrom: new Date().toISOString().split('T')[0],
+    validTo: ''
   })
 
-  const [newAbandonment, setNewAbandonment] = useState<Omit<VehicleAbandonment, "id">>({
-    startDate: new Date().toISOString().split("T")[0],
-    endDate: new Date().toISOString().split("T")[0],
-    reason: "",
-    payrollNotes: "",
+  const [newAbandonment, setNewAbandonment] = useState<Omit<VehicleAbandonment, 'id'>>({
+    startDate: new Date().toISOString().split('T')[0],
+    endDate: new Date().toISOString().split('T')[0],
+    reason: '',
+    payrollNotes: ''
   })
 
   const [selectedVehicleId, setSelectedVehicleId] = useState<string | null>(null)
 
-  const [newInsurance, setNewInsurance] = useState<Omit<Insurance, "id">>({
-    provider: "",
-    fileNumber: "",
-    type: "",
+  const [newInsurance, setNewInsurance] = useState<Omit<Insurance, 'id'>>({
+    provider: '',
+    fileNumber: '',
+    type: '',
     amount: 0,
-    frequency: "monthly",
-    effectType: "no-effect",
-    startDate: new Date().toISOString().split("T")[0],
-    endDate: "",
-    notes: "",
+    frequency: 'monthly',
+    effectType: 'no-effect',
+    startDate: new Date().toISOString().split('T')[0],
+    endDate: '',
+    notes: ''
   })
 
   const [selectedInsuranceId, setSelectedInsuranceId] = useState<string | null>(null)
 
-  const [newGarnishment, setNewGarnishment] = useState<Omit<Garnishment, "id">>({
-    dateOfReceipt: new Date().toISOString().split("T")[0],
+  const [newGarnishment, setNewGarnishment] = useState<Omit<Garnishment, 'id'>>({
+    dateOfReceipt: new Date().toISOString().split('T')[0],
     timeOfReceipt: new Date().toTimeString().slice(0, 5),
-    typeOfPayment: "regular",
+    typeOfPayment: 'regular',
     orderNumber: 1,
     isActive: true,
-    fileNumber: "",
-    creditor: "",
-    iban: "",
-    bic: "",
-    creditInstitution: "",
-    isFulfilled: false,
+    fileNumber: '',
+    creditor: '',
+    iban: '',
+    bic: '',
+    creditInstitution: '',
+    isFulfilled: false
   })
 
   const [selectedGarnishmentId, setSelectedGarnishmentId] = useState<string | null>(null)
@@ -226,23 +226,23 @@ export default function SalaryAdministration() {
   const [selectedYear, setSelectedYear] = useState(currentYear)
 
   const [expectedSalary, setExpectedSalary] = useState(0)
-  const [activeTab, setActiveTab] = useState("base")
+  const [activeTab, setActiveTab] = useState('base')
 
-  const [historyDateFilter, setHistoryDateFilter] = useState<"all" | "past" | "current" | "future" | "custom">("all")
-  const [historyStartDate, setHistoryStartDate] = useState<string>("")
-  const [historyEndDate, setHistoryEndDate] = useState<string>("")
-  const [historyViewType, setHistoryViewType] = useState<"contract" | "paid">("contract")
+  const [historyDateFilter, setHistoryDateFilter] = useState<'all' | 'past' | 'current' | 'future' | 'custom'>('all')
+  const [historyStartDate, setHistoryStartDate] = useState<string>('')
+  const [historyEndDate, setHistoryEndDate] = useState<string>('')
+  const [historyViewType, setHistoryViewType] = useState<'contract' | 'paid'>('contract')
 
   // Calculate the expected salary whenever salary data changes
   useEffect(() => {
     // Calculate total from all salary rows
     let total = salary.salaryRows.reduce((sum, row) => {
-      if (row.paymentType === "monthly") {
+      if (row.paymentType === 'monthly') {
         return sum + row.baseAmount
       } else {
         // For hourly rows, check if we have actual hours in movement data
         const movement = salary.movementData.hourlyMovements.find(
-          (m) => m.rowId === row.id && m.month === selectedMonth && m.year === selectedYear,
+          m => m.rowId === row.id && m.month === selectedMonth && m.year === selectedYear
         )
 
         // Use actual hours if available, otherwise use target hours
@@ -264,7 +264,7 @@ export default function SalaryAdministration() {
     }, 0)
 
     // Calculate hourly rate for monthly employees (for absence deduction)
-    const monthlyRows = salary.salaryRows.filter((row) => row.paymentType === "monthly")
+    const monthlyRows = salary.salaryRows.filter(row => row.paymentType === 'monthly')
     if (monthlyRows.length > 0) {
       const avgMonthlyHours = monthlyRows.reduce((sum, row) => sum + (row.targetHours || 160), 0) / monthlyRows.length
       const avgHourlyRate = monthlyRows.reduce((sum, row) => sum + row.baseAmount, 0) / avgMonthlyHours
@@ -274,17 +274,17 @@ export default function SalaryAdministration() {
     }
 
     // Add all the components
-    salary.components.forEach((component) => {
-      if (component.type === "fixed") {
+    salary.components.forEach(component => {
+      if (component.type === 'fixed') {
         total += component.amount
-      } else if (component.type === "percentage" && component.basis === "base") {
+      } else if (component.type === 'percentage' && component.basis === 'base') {
         const baseSalaryTotal = salary.salaryRows.reduce((sum, row) => {
-          if (row.paymentType === "monthly") {
+          if (row.paymentType === 'monthly') {
             return sum + row.baseAmount
           } else {
             // For hourly rows, check if we have actual hours in movement data
             const movement = salary.movementData.hourlyMovements.find(
-              (m) => m.rowId === row.id && m.month === selectedMonth && m.year === selectedYear,
+              m => m.rowId === row.id && m.month === selectedMonth && m.year === selectedYear
             )
 
             // Use actual hours if available, otherwise use target hours
@@ -293,24 +293,24 @@ export default function SalaryAdministration() {
           }
         }, 0)
         total += baseSalaryTotal * (component.amount / 100)
-      } else if (component.type === "hourly") {
+      } else if (component.type === 'hourly') {
         // For hourly components, use the actual hours if available
         let totalHours = 0
-        salary.salaryRows.forEach((row) => {
-          if (row.paymentType === "hourly") {
+        salary.salaryRows.forEach(row => {
+          if (row.paymentType === 'hourly') {
             totalHours += getActualHours(row.id) || row.targetHours || 0
           } else {
             totalHours += row.targetHours || 0
           }
         })
         total += component.amount * totalHours
-      } else if (component.type === "percentage-hour") {
+      } else if (component.type === 'percentage-hour') {
         // Calculate percentage of specific hourly rate if basis is specified
         if (component.basis) {
-          const targetRow = salary.salaryRows.find((row) => row.id === component.basis && row.paymentType === "hourly")
+          const targetRow = salary.salaryRows.find(row => row.id === component.basis && row.paymentType === 'hourly')
           if (targetRow) {
             const movement = salary.movementData.hourlyMovements.find(
-              (m) => m.rowId === targetRow.id && m.month === selectedMonth && m.year === selectedYear,
+              m => m.rowId === targetRow.id && m.month === selectedMonth && m.year === selectedYear
             )
             const hours = movement ? movement.actualHours : targetRow.targetHours || 0
             const hourlyBonus = targetRow.baseAmount * (component.amount / 100)
@@ -319,10 +319,10 @@ export default function SalaryAdministration() {
         } else {
           // Fallback to all hourly rows if no basis specified
           const hourlyRowsTotal = salary.salaryRows
-            .filter((row) => row.paymentType === "hourly")
+            .filter(row => row.paymentType === 'hourly')
             .reduce((sum, row) => {
               const movement = salary.movementData.hourlyMovements.find(
-                (m) => m.rowId === row.id && m.month === selectedMonth && m.year === selectedYear,
+                m => m.rowId === row.id && m.month === selectedMonth && m.year === selectedYear
               )
               const hours = movement ? movement.actualHours : row.targetHours || 0
               const hourlyBonus = row.baseAmount * (component.amount / 100)
@@ -334,20 +334,20 @@ export default function SalaryAdministration() {
     })
 
     // Add employee monetary benefit from vehicles if applicable
-    salary.vehicles.forEach((vehicle) => {
+    salary.vehicles.forEach(vehicle => {
       if (vehicle.employeeMonetaryBenefit && isVehicleActiveInMonth(vehicle, selectedMonth, selectedYear)) {
         total += vehicle.employeeMonetaryBenefit
       }
     })
 
     // Add or subtract insurance amounts based on their effect type
-    salary.insurances.forEach((insurance) => {
+    salary.insurances.forEach(insurance => {
       if (isInsuranceActiveInMonth(insurance, selectedMonth, selectedYear)) {
         const monthlyAmount = getInsuranceMonthlyAmount(insurance)
 
-        if (insurance.effectType === "additional") {
+        if (insurance.effectType === 'additional') {
           total += monthlyAmount
-        } else if (insurance.effectType === "gross-deduction") {
+        } else if (insurance.effectType === 'gross-deduction') {
           total -= monthlyAmount
         }
         // Note: net-deduction doesn't affect the gross salary calculation
@@ -364,27 +364,27 @@ export default function SalaryAdministration() {
         ...salary.components,
         {
           ...newComponent,
-          id: `comp-${Date.now()}`,
-        },
-      ],
+          id: `comp-${Date.now()}`
+        }
+      ]
     })
 
     // Reset the new component form
     setNewComponent({
-      name: "",
+      name: '',
       amount: 0,
-      type: "fixed",
-      effectOnSalary: "add-to-gross",
+      type: 'fixed',
+      effectOnSalary: 'add-to-gross',
       isRecurring: true,
-      validFrom: new Date().toISOString().split("T")[0],
-      validTo: "",
+      validFrom: new Date().toISOString().split('T')[0],
+      validTo: ''
     })
   }
 
   const removeComponent = (id: string) => {
     setSalary({
       ...salary,
-      components: salary.components.filter((comp) => comp.id !== id),
+      components: salary.components.filter(comp => comp.id !== id)
     })
   }
 
@@ -397,19 +397,19 @@ export default function SalaryAdministration() {
           ...salary.movementData.absences,
           {
             ...newAbsence,
-            id: `absence-${Date.now()}`,
-          },
-        ],
-      },
+            id: `absence-${Date.now()}`
+          }
+        ]
+      }
     })
 
     // Reset the new absence form
     setNewAbsence({
-      type: "sick",
-      startDate: new Date().toISOString().split("T")[0],
-      endDate: new Date().toISOString().split("T")[0],
+      type: 'sick',
+      startDate: new Date().toISOString().split('T')[0],
+      endDate: new Date().toISOString().split('T')[0],
       hours: 8,
-      description: "",
+      description: ''
     })
   }
 
@@ -418,8 +418,8 @@ export default function SalaryAdministration() {
       ...salary,
       movementData: {
         ...salary.movementData,
-        absences: salary.movementData.absences.filter((absence) => absence.id !== id),
-      },
+        absences: salary.movementData.absences.filter(absence => absence.id !== id)
+      }
     })
   }
 
@@ -438,9 +438,9 @@ export default function SalaryAdministration() {
         {
           ...newVehicle,
           id: newVehicleId,
-          abandonments: [],
-        },
-      ],
+          abandonments: []
+        }
+      ]
     })
 
     // Select the newly created vehicle
@@ -448,20 +448,20 @@ export default function SalaryAdministration() {
 
     // Reset the new vehicle form
     setNewVehicle({
-      licensePlate: "",
-      type: "passenger-car",
-      motor: "combustion",
+      licensePlate: '',
+      type: 'passenger-car',
+      motor: 'combustion',
       grossListPrice: 0,
       roundedDownPrice: 0,
-      validFrom: new Date().toISOString().split("T")[0],
-      validTo: "",
+      validFrom: new Date().toISOString().split('T')[0],
+      validTo: ''
     })
   }
 
   const removeVehicle = (id: string) => {
     setSalary({
       ...salary,
-      vehicles: salary.vehicles.filter((vehicle) => vehicle.id !== id),
+      vehicles: salary.vehicles.filter(vehicle => vehicle.id !== id)
     })
 
     if (selectedVehicleId === id) {
@@ -476,7 +476,7 @@ export default function SalaryAdministration() {
 
     setSalary({
       ...salary,
-      vehicles: salary.vehicles.map((vehicle) => {
+      vehicles: salary.vehicles.map(vehicle => {
         if (vehicle.id === vehicleId) {
           return {
             ...vehicle,
@@ -484,36 +484,36 @@ export default function SalaryAdministration() {
               ...vehicle.abandonments,
               {
                 ...newAbandonment,
-                id: `abandonment-${Date.now()}`,
-              },
-            ],
+                id: `abandonment-${Date.now()}`
+              }
+            ]
           }
         }
         return vehicle
-      }),
+      })
     })
 
     // Reset the new abandonment form
     setNewAbandonment({
-      startDate: new Date().toISOString().split("T")[0],
-      endDate: new Date().toISOString().split("T")[0],
-      reason: "",
-      payrollNotes: "",
+      startDate: new Date().toISOString().split('T')[0],
+      endDate: new Date().toISOString().split('T')[0],
+      reason: '',
+      payrollNotes: ''
     })
   }
 
   const removeVehicleAbandonment = (vehicleId: string, abandonmentId: string) => {
     setSalary({
       ...salary,
-      vehicles: salary.vehicles.map((vehicle) => {
+      vehicles: salary.vehicles.map(vehicle => {
         if (vehicle.id === vehicleId) {
           return {
             ...vehicle,
-            abandonments: vehicle.abandonments.filter((abandonment) => abandonment.id !== abandonmentId),
+            abandonments: vehicle.abandonments.filter(abandonment => abandonment.id !== abandonmentId)
           }
         }
         return vehicle
-      }),
+      })
     })
   }
 
@@ -537,9 +537,9 @@ export default function SalaryAdministration() {
         ...salary.insurances,
         {
           ...newInsurance,
-          id: newInsuranceId,
-        },
-      ],
+          id: newInsuranceId
+        }
+      ]
     })
 
     // Select the newly created insurance
@@ -547,22 +547,22 @@ export default function SalaryAdministration() {
 
     // Reset the new insurance form
     setNewInsurance({
-      provider: "",
-      fileNumber: "",
-      type: "",
+      provider: '',
+      fileNumber: '',
+      type: '',
       amount: 0,
-      frequency: "monthly",
-      effectType: "no-effect",
-      startDate: new Date().toISOString().split("T")[0],
-      endDate: "",
-      notes: "",
+      frequency: 'monthly',
+      effectType: 'no-effect',
+      startDate: new Date().toISOString().split('T')[0],
+      endDate: '',
+      notes: ''
     })
   }
 
   const removeInsurance = (id: string) => {
     setSalary({
       ...salary,
-      insurances: salary.insurances.filter((insurance) => insurance.id !== id),
+      insurances: salary.insurances.filter(insurance => insurance.id !== id)
     })
 
     if (selectedInsuranceId === id) {
@@ -581,13 +581,13 @@ export default function SalaryAdministration() {
 
   const getInsuranceMonthlyAmount = (insurance: Insurance) => {
     switch (insurance.frequency) {
-      case "monthly":
+      case 'monthly':
         return insurance.amount
-      case "quarterly":
+      case 'quarterly':
         return insurance.amount / 3
-      case "semi-annual":
+      case 'semi-annual':
         return insurance.amount / 6
-      case "annual":
+      case 'annual':
         return insurance.amount
     }
   }
@@ -606,7 +606,7 @@ export default function SalaryAdministration() {
     }
 
     // Ensure order number is unique and sequential
-    const orderNumbers = salary.garnishments.map((g) => g.orderNumber)
+    const orderNumbers = salary.garnishments.map(g => g.orderNumber)
     const maxOrderNumber = orderNumbers.length > 0 ? Math.max(...orderNumbers) : 0
     const orderNumber = Math.max(newGarnishment.orderNumber, maxOrderNumber + 1)
 
@@ -614,7 +614,7 @@ export default function SalaryAdministration() {
     const newGarnishmentItem = {
       ...newGarnishment,
       id: newGarnishmentId,
-      orderNumber,
+      orderNumber
     }
 
     // Add the new garnishment
@@ -628,7 +628,7 @@ export default function SalaryAdministration() {
 
     setSalary({
       ...salary,
-      garnishments: finalGarnishments,
+      garnishments: finalGarnishments
     })
 
     // Select the newly created garnishment
@@ -636,22 +636,22 @@ export default function SalaryAdministration() {
 
     // Reset the new garnishment form
     setNewGarnishment({
-      dateOfReceipt: new Date().toISOString().split("T")[0],
+      dateOfReceipt: new Date().toISOString().split('T')[0],
       timeOfReceipt: new Date().toTimeString().slice(0, 5),
-      typeOfPayment: "regular",
+      typeOfPayment: 'regular',
       orderNumber: finalGarnishments.length + 1,
       isActive: true,
-      fileNumber: "",
-      creditor: "",
-      iban: "",
-      bic: "",
-      creditInstitution: "",
-      isFulfilled: false,
+      fileNumber: '',
+      creditor: '',
+      iban: '',
+      bic: '',
+      creditInstitution: '',
+      isFulfilled: false
     })
   }
 
   const removeGarnishment = (id: string) => {
-    const updatedGarnishments = salary.garnishments.filter((g) => g.id !== id)
+    const updatedGarnishments = salary.garnishments.filter(g => g.id !== id)
 
     // Re-number the remaining garnishments
     const renumberedGarnishments = updatedGarnishments
@@ -663,7 +663,7 @@ export default function SalaryAdministration() {
 
     setSalary({
       ...salary,
-      garnishments: finalGarnishments,
+      garnishments: finalGarnishments
     })
 
     if (selectedGarnishmentId === id) {
@@ -673,13 +673,13 @@ export default function SalaryAdministration() {
 
   const updateGarnishmentActiveStatus = (garnishments: Garnishment[]): Garnishment[] => {
     // Filter out fulfilled garnishments as they don't affect the active status logic
-    const activeGarnishments = garnishments.filter((g) => !g.isFulfilled)
+    const activeGarnishments = garnishments.filter(g => !g.isFulfilled)
 
     // Sort by order number
     const sortedGarnishments = [...activeGarnishments].sort((a, b) => a.orderNumber - b.orderNumber)
 
     // Find the first inactive garnishment
-    const firstInactiveIndex = sortedGarnishments.findIndex((g) => !g.isActive)
+    const firstInactiveIndex = sortedGarnishments.findIndex(g => !g.isActive)
 
     if (firstInactiveIndex !== -1) {
       // Set all garnishments after the first inactive one to inactive
@@ -689,14 +689,14 @@ export default function SalaryAdministration() {
     }
 
     // Combine with fulfilled garnishments
-    return [...sortedGarnishments, ...garnishments.filter((g) => g.isFulfilled)].sort(
-      (a, b) => a.orderNumber - b.orderNumber,
+    return [...sortedGarnishments, ...garnishments.filter(g => g.isFulfilled)].sort(
+      (a, b) => a.orderNumber - b.orderNumber
     )
   }
 
   const updateGarnishmentOrder = (garnishmentId: string, newOrder: number) => {
     // Get the garnishment to update
-    const garnishmentToUpdate = salary.garnishments.find((g) => g.id === garnishmentId)
+    const garnishmentToUpdate = salary.garnishments.find(g => g.id === garnishmentId)
     if (!garnishmentToUpdate) return
 
     // Get the current order
@@ -709,7 +709,7 @@ export default function SalaryAdministration() {
     const updatedGarnishments = [...salary.garnishments]
 
     // Update the order numbers
-    updatedGarnishments.forEach((g) => {
+    updatedGarnishments.forEach(g => {
       if (g.id === garnishmentId) {
         // Update the target garnishment
         g.orderNumber = newOrder
@@ -724,23 +724,23 @@ export default function SalaryAdministration() {
 
     // Sort and update active status
     const finalGarnishments = updateGarnishmentActiveStatus(
-      updatedGarnishments.sort((a, b) => a.orderNumber - b.orderNumber),
+      updatedGarnishments.sort((a, b) => a.orderNumber - b.orderNumber)
     )
 
     setSalary({
       ...salary,
-      garnishments: finalGarnishments,
+      garnishments: finalGarnishments
     })
   }
 
   const getGarnishmentTypeLabel = (type: string) => {
     const types: Record<string, string> = {
-      regular: "Regular Garnishment",
-      preferential: "Preferential Garnishment",
-      support: "Garnishment of Support Payments",
-      attachment: "Salary Attachment",
-      "personal-insolvency": "Personal Insolvency",
-      "employer-loan": "Employer Loan",
+      regular: 'Regular Garnishment',
+      preferential: 'Preferential Garnishment',
+      support: 'Garnishment of Support Payments',
+      attachment: 'Salary Attachment',
+      'personal-insolvency': 'Personal Insolvency',
+      'employer-loan': 'Employer Loan'
     }
     return types[type] || type
   }
@@ -774,7 +774,7 @@ export default function SalaryAdministration() {
 
   const updateHourlyMovement = (rowId: string, hours: number) => {
     const existingMovementIndex = salary.movementData.hourlyMovements.findIndex(
-      (m) => m.rowId === rowId && m.month === selectedMonth && m.year === selectedYear,
+      m => m.rowId === rowId && m.month === selectedMonth && m.year === selectedYear
     )
 
     const updatedMovements = [...salary.movementData.hourlyMovements]
@@ -783,7 +783,7 @@ export default function SalaryAdministration() {
       // Update existing movement
       updatedMovements[existingMovementIndex] = {
         ...updatedMovements[existingMovementIndex],
-        actualHours: hours,
+        actualHours: hours
       }
     } else {
       // Add new movement
@@ -791,7 +791,7 @@ export default function SalaryAdministration() {
         rowId,
         month: selectedMonth,
         year: selectedYear,
-        actualHours: hours,
+        actualHours: hours
       })
     }
 
@@ -799,77 +799,77 @@ export default function SalaryAdministration() {
       ...salary,
       movementData: {
         ...salary.movementData,
-        hourlyMovements: updatedMovements,
-      },
+        hourlyMovements: updatedMovements
+      }
     })
   }
 
   const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat("en-DE", {
-      style: "currency",
-      currency: salary.currency,
+    return new Intl.NumberFormat('en-DE', {
+      style: 'currency',
+      currency: salary.currency
     }).format(amount)
   }
 
   const formatDate = (dateString: string) => {
-    if (!dateString) return "Open"
+    if (!dateString) return 'Open'
     const date = new Date(dateString)
-    return `${date.getDate().toString().padStart(2, "0")}.${(date.getMonth() + 1).toString().padStart(2, "0")}.${date.getFullYear()}`
+    return `${date.getDate().toString().padStart(2, '0')}.${(date.getMonth() + 1).toString().padStart(2, '0')}.${date.getFullYear()}`
   }
 
   const getActiveMonthsString = (activeMonths?: number[]) => {
-    if (!activeMonths || activeMonths.length === 12) return "All Year"
-    const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
-    return activeMonths.map((m) => monthNames[m]).join(", ")
+    if (!activeMonths || activeMonths.length === 12) return 'All Year'
+    const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+    return activeMonths.map(m => monthNames[m]).join(', ')
   }
 
   const getBasisDescription = (component: SalaryComponent) => {
-    if (component.type === "percentage" && component.basis === "base") {
-      return "Base Salary"
-    } else if (component.type === "percentage-hour" && component.basis) {
-      const targetRow = salary.salaryRows.find((row) => row.id === component.basis)
-      return targetRow ? `${targetRow.description} (${formatCurrency(targetRow.baseAmount)}/hr)` : "Unknown"
+    if (component.type === 'percentage' && component.basis === 'base') {
+      return 'Base Salary'
+    } else if (component.type === 'percentage-hour' && component.basis) {
+      const targetRow = salary.salaryRows.find(row => row.id === component.basis)
+      return targetRow ? `${targetRow.description} (${formatCurrency(targetRow.baseAmount)}/hr)` : 'Unknown'
     }
-    return ""
+    return ''
   }
 
   const getActualHours = (rowId: string) => {
     const movement = salary.movementData.hourlyMovements.find(
-      (m) => m.rowId === rowId && m.month === selectedMonth && m.year === selectedYear,
+      m => m.rowId === rowId && m.month === selectedMonth && m.year === selectedYear
     )
     return movement ? movement.actualHours : undefined
   }
 
   const monthNames = [
-    "January",
-    "February",
-    "March",
-    "April",
-    "May",
-    "June",
-    "July",
-    "August",
-    "September",
-    "October",
-    "November",
-    "December",
+    'January',
+    'February',
+    'March',
+    'April',
+    'May',
+    'June',
+    'July',
+    'August',
+    'September',
+    'October',
+    'November',
+    'December'
   ]
 
   const isRowValidInRange = (validFrom: string, validTo: string) => {
-    if (historyDateFilter === "all") return true
+    if (historyDateFilter === 'all') return true
 
     const startDate = validFrom ? new Date(validFrom) : new Date(0)
     const endDate = validTo ? new Date(validTo) : new Date(9999, 11, 31)
     const now = new Date()
 
     switch (historyDateFilter) {
-      case "past":
+      case 'past':
         return endDate < now
-      case "current":
+      case 'current':
         return startDate <= now && (endDate >= now || !validTo)
-      case "future":
+      case 'future':
         return startDate > now
-      case "custom":
+      case 'custom':
         const filterStart = historyStartDate ? new Date(historyStartDate) : new Date(0)
         const filterEnd = historyEndDate ? new Date(historyEndDate) : new Date(9999, 11, 31)
         return startDate <= filterEnd && (!validTo || endDate >= filterStart)
@@ -880,23 +880,23 @@ export default function SalaryAdministration() {
 
   const getVehicleTypeLabel = (type: string) => {
     const types: Record<string, string> = {
-      "passenger-car": "Passenger Car",
-      motorcycle: "Motorcycle",
-      bicycle: "Bicycle",
-      pedelec: "Pedelec",
-      "e-bike": "E-Bike",
+      'passenger-car': 'Passenger Car',
+      motorcycle: 'Motorcycle',
+      bicycle: 'Bicycle',
+      pedelec: 'Pedelec',
+      'e-bike': 'E-Bike'
     }
     return types[type] || type
   }
 
   const getMotorTypeLabel = (motor: string) => {
     const motors: Record<string, string> = {
-      combustion: "Combustion Engine",
-      hybrid: "Hybrid Engine",
-      electric: "Electric Engine",
-      gas: "Gas-powered Engine",
-      "fuel-cell": "Fuel Cell",
-      none: "No Engine",
+      combustion: 'Combustion Engine',
+      hybrid: 'Hybrid Engine',
+      electric: 'Electric Engine',
+      gas: 'Gas-powered Engine',
+      'fuel-cell': 'Fuel Cell',
+      none: 'No Engine'
     }
     return motors[motor] || motor
   }
@@ -907,7 +907,7 @@ export default function SalaryAdministration() {
         <h2 className="text-xl font-semibold">Salary & Compensation</h2>
         <div className="flex items-center space-x-2">
           <Label htmlFor="currency">Currency</Label>
-          <Select value={salary.currency} onValueChange={(value) => setSalary({ ...salary, currency: value })}>
+          <Select value={salary.currency} onValueChange={value => setSalary({ ...salary, currency: value })}>
             <SelectTrigger className="w-20">
               <SelectValue placeholder="Currency" />
             </SelectTrigger>
@@ -936,7 +936,7 @@ export default function SalaryAdministration() {
           <div className="flex justify-between items-center">
             <h3 className="font-medium">Salary Rows</h3>
             <div className="flex gap-2">
-              <Button variant="outline" size="sm" onClick={() => setActiveTab("history")}>
+              <Button variant="outline" size="sm" onClick={() => setActiveTab('history')}>
                 <History className="mr-2 h-4 w-4" />
                 Show History
               </Button>
@@ -945,17 +945,17 @@ export default function SalaryAdministration() {
                 onClick={() => {
                   const newRow: SalaryRow = {
                     id: `row-${Date.now()}`,
-                    paymentType: "monthly",
+                    paymentType: 'monthly',
                     baseAmount: 0,
                     targetHours: 160,
                     activeMonths: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11],
                     description: `Salary Row ${salary.salaryRows.length + 1}`,
-                    validFrom: new Date().toISOString().split("T")[0],
-                    validTo: "",
+                    validFrom: new Date().toISOString().split('T')[0],
+                    validTo: ''
                   }
                   setSalary({
                     ...salary,
-                    salaryRows: [...salary.salaryRows, newRow],
+                    salaryRows: [...salary.salaryRows, newRow]
                   })
                 }}
                 size="sm"
@@ -972,9 +972,9 @@ export default function SalaryAdministration() {
                 <div className="flex justify-between items-center">
                   <Input
                     value={row.description}
-                    onChange={(e) => {
-                      const updatedRows = salary.salaryRows.map((r) =>
-                        r.id === row.id ? { ...r, description: e.target.value } : r,
+                    onChange={e => {
+                      const updatedRows = salary.salaryRows.map(r =>
+                        r.id === row.id ? { ...r, description: e.target.value } : r
                       )
                       setSalary({ ...salary, salaryRows: updatedRows })
                     }}
@@ -988,7 +988,7 @@ export default function SalaryAdministration() {
                       onClick={() => {
                         setSalary({
                           ...salary,
-                          salaryRows: salary.salaryRows.filter((r) => r.id !== row.id),
+                          salaryRows: salary.salaryRows.filter(r => r.id !== row.id)
                         })
                       }}
                     >
@@ -1002,9 +1002,9 @@ export default function SalaryAdministration() {
                     <Label className="text-xs">Payment Type</Label>
                     <Select
                       value={row.paymentType}
-                      onValueChange={(value: "hourly" | "monthly") => {
-                        const updatedRows = salary.salaryRows.map((r) =>
-                          r.id === row.id ? { ...r, paymentType: value } : r,
+                      onValueChange={(value: 'hourly' | 'monthly') => {
+                        const updatedRows = salary.salaryRows.map(r =>
+                          r.id === row.id ? { ...r, paymentType: value } : r
                         )
                         setSalary({ ...salary, salaryRows: updatedRows })
                       }}
@@ -1021,16 +1021,16 @@ export default function SalaryAdministration() {
 
                   <div className="flex-shrink-0 space-y-2">
                     <Label className="text-xs">
-                      {row.paymentType === "monthly" ? "Monthly Salary" : "Hourly Rate"}
+                      {row.paymentType === 'monthly' ? 'Monthly Salary' : 'Hourly Rate'}
                     </Label>
                     <Input
                       type="number"
                       min="0"
                       step="0.01"
                       value={row.baseAmount}
-                      onChange={(e) => {
-                        const updatedRows = salary.salaryRows.map((r) =>
-                          r.id === row.id ? { ...r, baseAmount: Number.parseFloat(e.target.value) || 0 } : r,
+                      onChange={e => {
+                        const updatedRows = salary.salaryRows.map(r =>
+                          r.id === row.id ? { ...r, baseAmount: Number.parseFloat(e.target.value) || 0 } : r
                         )
                         setSalary({ ...salary, salaryRows: updatedRows })
                       }}
@@ -1044,13 +1044,13 @@ export default function SalaryAdministration() {
                       type="number"
                       min="0"
                       value={row.targetHours}
-                      onChange={(e) => {
-                        const updatedRows = salary.salaryRows.map((r) =>
-                          r.id === row.id ? { ...r, targetHours: Number.parseInt(e.target.value) || 0 } : r,
+                      onChange={e => {
+                        const updatedRows = salary.salaryRows.map(r =>
+                          r.id === row.id ? { ...r, targetHours: Number.parseInt(e.target.value) || 0 } : r
                         )
                         setSalary({ ...salary, salaryRows: updatedRows })
                       }}
-                      disabled={row.paymentType === "monthly"}
+                      disabled={row.paymentType === 'monthly'}
                       className="h-8 text-xs w-20"
                     />
                   </div>
@@ -1058,32 +1058,32 @@ export default function SalaryAdministration() {
                   <div className="flex-shrink-0 border-l pl-4 ml-2">
                     <div className="flex gap-3 items-end">
                       {[
-                        { abbr: "Jan", month: 0 },
-                        { abbr: "Feb", month: 1 },
-                        { abbr: "Mar", month: 2 },
-                        { abbr: "Apr", month: 3 },
-                        { abbr: "May", month: 4 },
-                        { abbr: "Jun", month: 5 },
-                        { abbr: "Jul", month: 6 },
-                        { abbr: "Aug", month: 7 },
-                        { abbr: "Sep", month: 8 },
-                        { abbr: "Oct", month: 9 },
-                        { abbr: "Nov", month: 10 },
-                        { abbr: "Dec", month: 11 },
+                        { abbr: 'Jan', month: 0 },
+                        { abbr: 'Feb', month: 1 },
+                        { abbr: 'Mar', month: 2 },
+                        { abbr: 'Apr', month: 3 },
+                        { abbr: 'May', month: 4 },
+                        { abbr: 'Jun', month: 5 },
+                        { abbr: 'Jul', month: 6 },
+                        { abbr: 'Aug', month: 7 },
+                        { abbr: 'Sep', month: 8 },
+                        { abbr: 'Oct', month: 9 },
+                        { abbr: 'Nov', month: 10 },
+                        { abbr: 'Dec', month: 11 }
                       ].map(({ abbr, month }) => (
                         <div key={month} className="flex flex-col items-center space-y-1">
                           <Label className="text-xs font-normal">{abbr}</Label>
                           <input
                             type="checkbox"
                             checked={row.activeMonths?.includes(month) ?? true}
-                            onChange={(e) => {
+                            onChange={e => {
                               const activeMonths = row.activeMonths || [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]
                               const updatedMonths = e.target.checked
-                                ? [...activeMonths.filter((m) => m !== month), month].sort()
-                                : activeMonths.filter((m) => m !== month)
+                                ? [...activeMonths.filter(m => m !== month), month].sort()
+                                : activeMonths.filter(m => m !== month)
 
-                              const updatedRows = salary.salaryRows.map((r) =>
-                                r.id === row.id ? { ...r, activeMonths: updatedMonths } : r,
+                              const updatedRows = salary.salaryRows.map(r =>
+                                r.id === row.id ? { ...r, activeMonths: updatedMonths } : r
                               )
                               setSalary({ ...salary, salaryRows: updatedRows })
                             }}
@@ -1101,9 +1101,9 @@ export default function SalaryAdministration() {
                         <Input
                           type="date"
                           value={row.validFrom}
-                          onChange={(e) => {
-                            const updatedRows = salary.salaryRows.map((r) =>
-                              r.id === row.id ? { ...r, validFrom: e.target.value } : r,
+                          onChange={e => {
+                            const updatedRows = salary.salaryRows.map(r =>
+                              r.id === row.id ? { ...r, validFrom: e.target.value } : r
                             )
                             setSalary({ ...salary, salaryRows: updatedRows })
                           }}
@@ -1116,9 +1116,9 @@ export default function SalaryAdministration() {
                         <Input
                           type="date"
                           value={row.validTo}
-                          onChange={(e) => {
-                            const updatedRows = salary.salaryRows.map((r) =>
-                              r.id === row.id ? { ...r, validTo: e.target.value } : r,
+                          onChange={e => {
+                            const updatedRows = salary.salaryRows.map(r =>
+                              r.id === row.id ? { ...r, validTo: e.target.value } : r
                             )
                             setSalary({ ...salary, salaryRows: updatedRows })
                           }}
@@ -1135,7 +1135,7 @@ export default function SalaryAdministration() {
                     <span>Row Total:</span>
                     <span className="font-bold">
                       {formatCurrency(
-                        row.paymentType === "monthly" ? row.baseAmount : row.baseAmount * (row.targetHours || 0),
+                        row.paymentType === 'monthly' ? row.baseAmount : row.baseAmount * (row.targetHours || 0)
                       )}
                     </span>
                   </div>
@@ -1157,9 +1157,9 @@ export default function SalaryAdministration() {
                 {formatCurrency(
                   salary.salaryRows.reduce((total, row) => {
                     const rowTotal =
-                      row.paymentType === "monthly" ? row.baseAmount : row.baseAmount * (row.targetHours || 0)
+                      row.paymentType === 'monthly' ? row.baseAmount : row.baseAmount * (row.targetHours || 0)
                     return total + rowTotal
-                  }, 0),
+                  }, 0)
                 )}
               </span>
             </div>
@@ -1174,22 +1174,22 @@ export default function SalaryAdministration() {
               <p className="text-muted-foreground">No additional salary components added yet.</p>
             ) : (
               <div className="space-y-2">
-                {salary.components.map((component) => (
+                {salary.components.map(component => (
                   <div key={component.id} className="flex items-center justify-between p-3 border rounded-md">
                     <div>
                       <p className="font-medium">{component.name}</p>
                       <p className="text-sm text-muted-foreground">
-                        {component.type === "fixed" && `Fixed amount: ${formatCurrency(component.amount)}`}
-                        {component.type === "percentage" && `${component.amount}% of ${getBasisDescription(component)}`}
-                        {component.type === "percentage-hour" &&
+                        {component.type === 'fixed' && `Fixed amount: ${formatCurrency(component.amount)}`}
+                        {component.type === 'percentage' && `${component.amount}% of ${getBasisDescription(component)}`}
+                        {component.type === 'percentage-hour' &&
                           `${component.amount}% of ${getBasisDescription(component)}`}
-                        {component.type === "hourly" && `${formatCurrency(component.amount)} per hour`}
-                        {component.isRecurring ? " (recurring)" : " (one-time)"}
-                        {" • "}
-                        {component.effectOnSalary === "add-to-gross" && "Add to Gross"}
-                        {component.effectOnSalary === "add-to-net" && "Add to Net"}
-                        {component.effectOnSalary === "partially-to-gross" && "Partially to Gross"}
-                        {component.effectOnSalary === "no-effect" && "No Effect on Salary"}
+                        {component.type === 'hourly' && `${formatCurrency(component.amount)} per hour`}
+                        {component.isRecurring ? ' (recurring)' : ' (one-time)'}
+                        {' • '}
+                        {component.effectOnSalary === 'add-to-gross' && 'Add to Gross'}
+                        {component.effectOnSalary === 'add-to-net' && 'Add to Net'}
+                        {component.effectOnSalary === 'partially-to-gross' && 'Partially to Gross'}
+                        {component.effectOnSalary === 'no-effect' && 'No Effect on Salary'}
                       </p>
                       <p className="text-xs text-muted-foreground mt-1">
                         Valid: {formatDate(component.validFrom)} - {formatDate(component.validTo)}
@@ -1214,7 +1214,7 @@ export default function SalaryAdministration() {
                     id="componentName"
                     placeholder="e.g., Shift Bonus"
                     value={newComponent.name}
-                    onChange={(e) => setNewComponent({ ...newComponent, name: e.target.value })}
+                    onChange={e => setNewComponent({ ...newComponent, name: e.target.value })}
                     className="w-40"
                   />
                 </div>
@@ -1225,7 +1225,7 @@ export default function SalaryAdministration() {
                   </Label>
                   <Select
                     value={newComponent.type}
-                    onValueChange={(value: "fixed" | "hourly" | "percentage" | "percentage-hour") =>
+                    onValueChange={(value: 'fixed' | 'hourly' | 'percentage' | 'percentage-hour') =>
                       setNewComponent({ ...newComponent, type: value })
                     }
                   >
@@ -1235,7 +1235,7 @@ export default function SalaryAdministration() {
                     <SelectContent>
                       <SelectItem value="fixed">Fixed Amount</SelectItem>
                       <SelectItem value="percentage">Percentage of Base Salary</SelectItem>
-                      {salary.salaryRows.some((row) => row.paymentType === "hourly") && (
+                      {salary.salaryRows.some(row => row.paymentType === 'hourly') && (
                         <>
                           <SelectItem value="hourly">Per Hour</SelectItem>
                           <SelectItem value="percentage-hour">Percentage of Hourly Rate</SelectItem>
@@ -1247,20 +1247,20 @@ export default function SalaryAdministration() {
 
                 <div className="flex-shrink-0 space-y-2">
                   <Label htmlFor="componentAmount" className="text-xs">
-                    {newComponent.type === "percentage" || newComponent.type === "percentage-hour"
-                      ? "Percentage (%)"
-                      : "Amount"}
+                    {newComponent.type === 'percentage' || newComponent.type === 'percentage-hour'
+                      ? 'Percentage (%)'
+                      : 'Amount'}
                   </Label>
                   <Input
                     id="componentAmount"
                     type="number"
                     min="0"
-                    step={newComponent.type === "percentage" || newComponent.type === "percentage-hour" ? "1" : "0.01"}
+                    step={newComponent.type === 'percentage' || newComponent.type === 'percentage-hour' ? '1' : '0.01'}
                     value={newComponent.amount}
-                    onChange={(e) =>
+                    onChange={e =>
                       setNewComponent({
                         ...newComponent,
-                        amount: Number.parseFloat(e.target.value) || 0,
+                        amount: Number.parseFloat(e.target.value) || 0
                       })
                     }
                     className="w-24"
@@ -1271,20 +1271,20 @@ export default function SalaryAdministration() {
                   <Label htmlFor="componentBasis" className="text-xs">
                     Basis
                   </Label>
-                  {newComponent.type === "percentage" || newComponent.type === "percentage-hour" ? (
+                  {newComponent.type === 'percentage' || newComponent.type === 'percentage-hour' ? (
                     <Select
-                      value={newComponent.basis || (newComponent.type === "percentage" ? "base" : "")}
-                      onValueChange={(value) => setNewComponent({ ...newComponent, basis: value })}
+                      value={newComponent.basis || (newComponent.type === 'percentage' ? 'base' : '')}
+                      onValueChange={value => setNewComponent({ ...newComponent, basis: value })}
                     >
                       <SelectTrigger id="componentBasis" className="w-44">
                         <SelectValue placeholder="Select basis" />
                       </SelectTrigger>
                       <SelectContent>
-                        {newComponent.type === "percentage" && <SelectItem value="base">Base Salary</SelectItem>}
-                        {newComponent.type === "percentage-hour" &&
+                        {newComponent.type === 'percentage' && <SelectItem value="base">Base Salary</SelectItem>}
+                        {newComponent.type === 'percentage-hour' &&
                           salary.salaryRows
-                            .filter((row) => row.paymentType === "hourly")
-                            .map((row) => (
+                            .filter(row => row.paymentType === 'hourly')
+                            .map(row => (
                               <SelectItem key={row.id} value={row.id}>
                                 {row.description} ({formatCurrency(row.baseAmount)}/hr)
                               </SelectItem>
@@ -1302,7 +1302,7 @@ export default function SalaryAdministration() {
                   </Label>
                   <Select
                     value={newComponent.effectOnSalary}
-                    onValueChange={(value: "add-to-gross" | "add-to-net" | "partially-to-gross" | "no-effect") =>
+                    onValueChange={(value: 'add-to-gross' | 'add-to-net' | 'partially-to-gross' | 'no-effect') =>
                       setNewComponent({ ...newComponent, effectOnSalary: value })
                     }
                   >
@@ -1326,7 +1326,7 @@ export default function SalaryAdministration() {
                     id="componentValidFrom"
                     type="date"
                     value={newComponent.validFrom}
-                    onChange={(e) => setNewComponent({ ...newComponent, validFrom: e.target.value })}
+                    onChange={e => setNewComponent({ ...newComponent, validFrom: e.target.value })}
                     className="w-40"
                   />
                 </div>
@@ -1339,7 +1339,7 @@ export default function SalaryAdministration() {
                     id="componentValidTo"
                     type="date"
                     value={newComponent.validTo}
-                    onChange={(e) => setNewComponent({ ...newComponent, validTo: e.target.value })}
+                    onChange={e => setNewComponent({ ...newComponent, validTo: e.target.value })}
                     placeholder="Open-ended"
                     className="w-40"
                   />
@@ -1351,7 +1351,7 @@ export default function SalaryAdministration() {
                     <Switch
                       id="isRecurring"
                       checked={newComponent.isRecurring}
-                      onCheckedChange={(checked) => setNewComponent({ ...newComponent, isRecurring: checked })}
+                      onCheckedChange={checked => setNewComponent({ ...newComponent, isRecurring: checked })}
                     />
                   </div>
                 </div>
@@ -1379,7 +1379,7 @@ export default function SalaryAdministration() {
                 <Label htmlFor="selectedMonth">Month:</Label>
                 <Select
                   value={selectedMonth.toString()}
-                  onValueChange={(value) => setSelectedMonth(Number.parseInt(value))}
+                  onValueChange={value => setSelectedMonth(Number.parseInt(value))}
                 >
                   <SelectTrigger id="selectedMonth" className="w-32">
                     <SelectValue placeholder="Select month" />
@@ -1397,13 +1397,13 @@ export default function SalaryAdministration() {
                 <Label htmlFor="selectedYear">Year:</Label>
                 <Select
                   value={selectedYear.toString()}
-                  onValueChange={(value) => setSelectedYear(Number.parseInt(value))}
+                  onValueChange={value => setSelectedYear(Number.parseInt(value))}
                 >
                   <SelectTrigger id="selectedYear" className="w-24">
                     <SelectValue placeholder="Select year" />
                   </SelectTrigger>
                   <SelectContent>
-                    {[currentYear - 1, currentYear, currentYear + 1].map((year) => (
+                    {[currentYear - 1, currentYear, currentYear + 1].map(year => (
                       <SelectItem key={year} value={year.toString()}>
                         {year}
                       </SelectItem>
@@ -1425,13 +1425,13 @@ export default function SalaryAdministration() {
               {/* Base Salary Hourly Rows */}
               <div className="space-y-4">
                 <h5 className="font-medium text-sm border-b pb-2">Base Salary - Hourly Payments</h5>
-                {salary.salaryRows.filter((row) => row.paymentType === "hourly").length === 0 ? (
+                {salary.salaryRows.filter(row => row.paymentType === 'hourly').length === 0 ? (
                   <p className="text-muted-foreground text-sm">No hourly payment rows defined in Base Salary.</p>
                 ) : (
                   <div className="space-y-3">
                     {salary.salaryRows
-                      .filter((row) => row.paymentType === "hourly")
-                      .map((row) => {
+                      .filter(row => row.paymentType === 'hourly')
+                      .map(row => {
                         const actualHours = getActualHours(row.id) || row.targetHours || 0
                         const difference = actualHours - (row.targetHours || 0)
 
@@ -1459,7 +1459,7 @@ export default function SalaryAdministration() {
                                   min="0"
                                   step="0.5"
                                   value={actualHours}
-                                  onChange={(e) => updateHourlyMovement(row.id, Number(e.target.value) || 0)}
+                                  onChange={e => updateHourlyMovement(row.id, Number(e.target.value) || 0)}
                                   className="w-24 h-8 font-mono"
                                   placeholder="0"
                                 />
@@ -1468,9 +1468,9 @@ export default function SalaryAdministration() {
                               <div>
                                 <Label className="text-xs text-muted-foreground">Difference</Label>
                                 <p
-                                  className={`text-sm font-mono ${difference > 0 ? "text-green-600" : difference < 0 ? "text-red-600" : ""}`}
+                                  className={`text-sm font-mono ${difference > 0 ? 'text-green-600' : difference < 0 ? 'text-red-600' : ''}`}
                                 >
-                                  {difference > 0 ? "+" : ""}
+                                  {difference > 0 ? '+' : ''}
                                   {difference}
                                 </p>
                               </div>
@@ -1490,17 +1490,17 @@ export default function SalaryAdministration() {
               {/* Additional Components - Hourly */}
               <div className="space-y-4">
                 <h5 className="font-medium text-sm border-b pb-2">Additional Components - Per Hour</h5>
-                {salary.components.filter((comp) => comp.type === "hourly").length === 0 ? (
+                {salary.components.filter(comp => comp.type === 'hourly').length === 0 ? (
                   <p className="text-muted-foreground text-sm">No hourly additional components defined.</p>
                 ) : (
                   <div className="space-y-3">
                     {salary.components
-                      .filter((comp) => comp.type === "hourly")
-                      .map((component) => {
+                      .filter(comp => comp.type === 'hourly')
+                      .map(component => {
                         // Calculate total hours from all salary rows (both monthly and hourly)
                         let totalHours = 0
-                        salary.salaryRows.forEach((row) => {
-                          if (row.paymentType === "hourly") {
+                        salary.salaryRows.forEach(row => {
+                          if (row.paymentType === 'hourly') {
                             totalHours += getActualHours(row.id) || row.targetHours || 0
                           } else {
                             totalHours += row.targetHours || 0
@@ -1537,21 +1537,21 @@ export default function SalaryAdministration() {
               {/* Additional Components - Percentage of Hourly */}
               <div className="space-y-4">
                 <h5 className="font-medium text-sm border-b pb-2">Additional Components - Percentage of Hourly Rate</h5>
-                {salary.components.filter((comp) => comp.type === "percentage-hour").length === 0 ? (
+                {salary.components.filter(comp => comp.type === 'percentage-hour').length === 0 ? (
                   <p className="text-muted-foreground text-sm">No percentage-based hourly components defined.</p>
                 ) : (
                   <div className="space-y-3">
                     {salary.components
-                      .filter((comp) => comp.type === "percentage-hour")
-                      .map((component) => {
+                      .filter(comp => comp.type === 'percentage-hour')
+                      .map(component => {
                         let componentValue = 0
                         let hoursUsed = 0
                         let baseRate = 0
-                        let basisDescription = ""
+                        let basisDescription = ''
 
                         if (component.basis) {
                           const targetRow = salary.salaryRows.find(
-                            (row) => row.id === component.basis && row.paymentType === "hourly",
+                            row => row.id === component.basis && row.paymentType === 'hourly'
                           )
                           if (targetRow) {
                             hoursUsed = getActualHours(targetRow.id) || targetRow.targetHours || 0
@@ -1563,14 +1563,14 @@ export default function SalaryAdministration() {
                         } else {
                           // Use all hourly rows
                           salary.salaryRows
-                            .filter((row) => row.paymentType === "hourly")
-                            .forEach((row) => {
+                            .filter(row => row.paymentType === 'hourly')
+                            .forEach(row => {
                               const rowHours = getActualHours(row.id) || row.targetHours || 0
                               hoursUsed += rowHours
                               const hourlyBonus = row.baseAmount * (component.amount / 100)
                               componentValue += hourlyBonus * rowHours
                             })
-                          basisDescription = "All hourly rates"
+                          basisDescription = 'All hourly rates'
                         }
 
                         return (
@@ -1617,7 +1617,7 @@ export default function SalaryAdministration() {
                       <Label className="text-xs text-muted-foreground">Total Target Hours</Label>
                       <p className="font-semibold">
                         {salary.salaryRows
-                          .filter((row) => row.paymentType === "hourly")
+                          .filter(row => row.paymentType === 'hourly')
                           .reduce((sum, row) => sum + (row.targetHours || 0), 0)}
                       </p>
                     </div>
@@ -1625,7 +1625,7 @@ export default function SalaryAdministration() {
                       <Label className="text-xs text-muted-foreground">Total Actual Hours</Label>
                       <p className="font-semibold">
                         {salary.salaryRows
-                          .filter((row) => row.paymentType === "hourly")
+                          .filter(row => row.paymentType === 'hourly')
                           .reduce((sum, row) => sum + (getActualHours(row.id) || row.targetHours || 0), 0)}
                       </p>
                     </div>
@@ -1634,30 +1634,30 @@ export default function SalaryAdministration() {
                       <p
                         className={`font-semibold ${
                           salary.salaryRows
-                            .filter((row) => row.paymentType === "hourly")
+                            .filter(row => row.paymentType === 'hourly')
                             .reduce(
                               (sum, row) =>
                                 sum + ((getActualHours(row.id) || row.targetHours || 0) - (row.targetHours || 0)),
-                              0,
+                              0
                             ) > 0
-                            ? "text-green-600"
-                            : "text-red-600"
+                            ? 'text-green-600'
+                            : 'text-red-600'
                         }`}
                       >
                         {salary.salaryRows
-                          .filter((row) => row.paymentType === "hourly")
+                          .filter(row => row.paymentType === 'hourly')
                           .reduce((sum, row) => {
                             const diff = (getActualHours(row.id) || row.targetHours || 0) - (row.targetHours || 0)
                             return sum + diff
                           }, 0) > 0
-                          ? "+"
-                          : ""}
+                          ? '+'
+                          : ''}
                         {salary.salaryRows
-                          .filter((row) => row.paymentType === "hourly")
+                          .filter(row => row.paymentType === 'hourly')
                           .reduce(
                             (sum, row) =>
                               sum + ((getActualHours(row.id) || row.targetHours || 0) - (row.targetHours || 0)),
-                            0,
+                            0
                           )}
                       </p>
                     </div>
@@ -1684,7 +1684,7 @@ export default function SalaryAdministration() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {salary.movementData.absences.map((absence) => (
+                    {salary.movementData.absences.map(absence => (
                       <TableRow key={absence.id}>
                         <TableCell className="capitalize">{absence.type}</TableCell>
                         <TableCell>{formatDate(absence.startDate)}</TableCell>
@@ -1711,7 +1711,7 @@ export default function SalaryAdministration() {
                     </Label>
                     <Select
                       value={newAbsence.type}
-                      onValueChange={(value: "sick" | "vacation" | "unpaid" | "other") =>
+                      onValueChange={(value: 'sick' | 'vacation' | 'unpaid' | 'other') =>
                         setNewAbsence({ ...newAbsence, type: value })
                       }
                     >
@@ -1735,7 +1735,7 @@ export default function SalaryAdministration() {
                       id="absenceStartDate"
                       type="date"
                       value={newAbsence.startDate}
-                      onChange={(e) => setNewAbsence({ ...newAbsence, startDate: e.target.value })}
+                      onChange={e => setNewAbsence({ ...newAbsence, startDate: e.target.value })}
                       className="w-40"
                     />
                   </div>
@@ -1748,7 +1748,7 @@ export default function SalaryAdministration() {
                       id="absenceEndDate"
                       type="date"
                       value={newAbsence.endDate}
-                      onChange={(e) => setNewAbsence({ ...newAbsence, endDate: e.target.value })}
+                      onChange={e => setNewAbsence({ ...newAbsence, endDate: e.target.value })}
                       className="w-40"
                     />
                   </div>
@@ -1763,7 +1763,7 @@ export default function SalaryAdministration() {
                       min="0"
                       step="0.5"
                       value={newAbsence.hours}
-                      onChange={(e) => setNewAbsence({ ...newAbsence, hours: Number(e.target.value) || 0 })}
+                      onChange={e => setNewAbsence({ ...newAbsence, hours: Number(e.target.value) || 0 })}
                       className="w-20"
                     />
                   </div>
@@ -1776,7 +1776,7 @@ export default function SalaryAdministration() {
                       id="absenceDescription"
                       placeholder="Optional description"
                       value={newAbsence.description}
-                      onChange={(e) => setNewAbsence({ ...newAbsence, description: e.target.value })}
+                      onChange={e => setNewAbsence({ ...newAbsence, description: e.target.value })}
                     />
                   </div>
 
@@ -1806,7 +1806,7 @@ export default function SalaryAdministration() {
                   <span className="text-sm text-muted-foreground mr-2">Expected Monthly Pay:</span>
                   <span className="font-bold">{formatCurrency(expectedSalary)}</span>
                 </div>
-                <Button variant="outline" size="sm" onClick={() => setActiveTab("summary")}>
+                <Button variant="outline" size="sm" onClick={() => setActiveTab('summary')}>
                   <Calculator className="mr-2 h-4 w-4" />
                   View Summary
                 </Button>
@@ -1844,11 +1844,11 @@ export default function SalaryAdministration() {
                 <TableBody>
                   {salary.garnishments
                     .sort((a, b) => a.orderNumber - b.orderNumber)
-                    .map((garnishment) => (
+                    .map(garnishment => (
                       <TableRow
                         key={garnishment.id}
-                        className={`cursor-pointer ${selectedGarnishmentId === garnishment.id ? "bg-muted/50" : ""} ${
-                          garnishment.isFulfilled ? "text-muted-foreground" : ""
+                        className={`cursor-pointer ${selectedGarnishmentId === garnishment.id ? 'bg-muted/50' : ''} ${
+                          garnishment.isFulfilled ? 'text-muted-foreground' : ''
                         }`}
                         onClick={() => setSelectedGarnishmentId(garnishment.id)}
                       >
@@ -1857,10 +1857,10 @@ export default function SalaryAdministration() {
                         <TableCell>{garnishment.creditor}</TableCell>
                         <TableCell>{garnishment.fileNumber}</TableCell>
                         <TableCell>
-                          {garnishment.monthlyPayment ? formatCurrency(garnishment.monthlyPayment) : "-"}
+                          {garnishment.monthlyPayment ? formatCurrency(garnishment.monthlyPayment) : '-'}
                         </TableCell>
                         <TableCell>
-                          {garnishment.remainingAmount ? formatCurrency(garnishment.remainingAmount) : "-"}
+                          {garnishment.remainingAmount ? formatCurrency(garnishment.remainingAmount) : '-'}
                         </TableCell>
                         <TableCell>
                           <div className="flex items-center space-x-2">
@@ -1883,7 +1883,7 @@ export default function SalaryAdministration() {
                           <Button
                             variant="ghost"
                             size="icon"
-                            onClick={(e) => {
+                            onClick={e => {
                               e.stopPropagation()
                               removeGarnishment(garnishment.id)
                             }}
@@ -1913,7 +1913,7 @@ export default function SalaryAdministration() {
                         id="dateOfReceipt"
                         type="date"
                         value={newGarnishment.dateOfReceipt}
-                        onChange={(e) => setNewGarnishment({ ...newGarnishment, dateOfReceipt: e.target.value })}
+                        onChange={e => setNewGarnishment({ ...newGarnishment, dateOfReceipt: e.target.value })}
                         required
                         className="w-40"
                       />
@@ -1921,7 +1921,7 @@ export default function SalaryAdministration() {
                         id="timeOfReceipt"
                         type="time"
                         value={newGarnishment.timeOfReceipt}
-                        onChange={(e) => setNewGarnishment({ ...newGarnishment, timeOfReceipt: e.target.value })}
+                        onChange={e => setNewGarnishment({ ...newGarnishment, timeOfReceipt: e.target.value })}
                         required
                         className="w-32"
                       />
@@ -1936,12 +1936,12 @@ export default function SalaryAdministration() {
                       value={newGarnishment.typeOfPayment}
                       onValueChange={(
                         value:
-                          | "regular"
-                          | "preferential"
-                          | "support"
-                          | "attachment"
-                          | "personal-insolvency"
-                          | "employer-loan",
+                          | 'regular'
+                          | 'preferential'
+                          | 'support'
+                          | 'attachment'
+                          | 'personal-insolvency'
+                          | 'employer-loan'
                       ) => setNewGarnishment({ ...newGarnishment, typeOfPayment: value })}
                     >
                       <SelectTrigger id="typeOfPayment">
@@ -1968,10 +1968,10 @@ export default function SalaryAdministration() {
                       min="1"
                       step="1"
                       value={newGarnishment.orderNumber}
-                      onChange={(e) =>
+                      onChange={e =>
                         setNewGarnishment({
                           ...newGarnishment,
-                          orderNumber: Number.parseInt(e.target.value) || 1,
+                          orderNumber: Number.parseInt(e.target.value) || 1
                         })
                       }
                       required
@@ -1985,7 +1985,7 @@ export default function SalaryAdministration() {
                     <Input
                       id="fileNumber"
                       value={newGarnishment.fileNumber}
-                      onChange={(e) => setNewGarnishment({ ...newGarnishment, fileNumber: e.target.value })}
+                      onChange={e => setNewGarnishment({ ...newGarnishment, fileNumber: e.target.value })}
                       placeholder="e.g., 123-456-789"
                       required
                     />
@@ -1998,7 +1998,7 @@ export default function SalaryAdministration() {
                     <Input
                       id="creditor"
                       value={newGarnishment.creditor}
-                      onChange={(e) => setNewGarnishment({ ...newGarnishment, creditor: e.target.value })}
+                      onChange={e => setNewGarnishment({ ...newGarnishment, creditor: e.target.value })}
                       placeholder="Creditor name"
                       required
                     />
@@ -2013,11 +2013,11 @@ export default function SalaryAdministration() {
                       type="number"
                       min="0"
                       step="0.01"
-                      value={newGarnishment.totalAmount || ""}
-                      onChange={(e) =>
+                      value={newGarnishment.totalAmount || ''}
+                      onChange={e =>
                         setNewGarnishment({
                           ...newGarnishment,
-                          totalAmount: e.target.value ? Number.parseFloat(e.target.value) : undefined,
+                          totalAmount: e.target.value ? Number.parseFloat(e.target.value) : undefined
                         })
                       }
                       placeholder="0.00"
@@ -2033,11 +2033,11 @@ export default function SalaryAdministration() {
                       type="number"
                       min="0"
                       step="0.01"
-                      value={newGarnishment.monthlyPayment || ""}
-                      onChange={(e) =>
+                      value={newGarnishment.monthlyPayment || ''}
+                      onChange={e =>
                         setNewGarnishment({
                           ...newGarnishment,
-                          monthlyPayment: e.target.value ? Number.parseFloat(e.target.value) : undefined,
+                          monthlyPayment: e.target.value ? Number.parseFloat(e.target.value) : undefined
                         })
                       }
                       placeholder="0.00"
@@ -2053,11 +2053,11 @@ export default function SalaryAdministration() {
                       type="number"
                       min="0"
                       step="0.01"
-                      value={newGarnishment.remainingAmount || ""}
-                      onChange={(e) =>
+                      value={newGarnishment.remainingAmount || ''}
+                      onChange={e =>
                         setNewGarnishment({
                           ...newGarnishment,
-                          remainingAmount: e.target.value ? Number.parseFloat(e.target.value) : undefined,
+                          remainingAmount: e.target.value ? Number.parseFloat(e.target.value) : undefined
                         })
                       }
                       placeholder="0.00"
@@ -2071,7 +2071,7 @@ export default function SalaryAdministration() {
                     <Input
                       id="iban"
                       value={newGarnishment.iban}
-                      onChange={(e) => setNewGarnishment({ ...newGarnishment, iban: e.target.value })}
+                      onChange={e => setNewGarnishment({ ...newGarnishment, iban: e.target.value })}
                       placeholder="e.g., DE89 3704 0044 0532 0130 00"
                       required
                     />
@@ -2084,7 +2084,7 @@ export default function SalaryAdministration() {
                     <Input
                       id="bic"
                       value={newGarnishment.bic}
-                      onChange={(e) => setNewGarnishment({ ...newGarnishment, bic: e.target.value })}
+                      onChange={e => setNewGarnishment({ ...newGarnishment, bic: e.target.value })}
                       placeholder="e.g., COBADEFFXXX"
                       required
                     />
@@ -2097,7 +2097,7 @@ export default function SalaryAdministration() {
                     <Input
                       id="creditInstitution"
                       value={newGarnishment.creditInstitution}
-                      onChange={(e) => setNewGarnishment({ ...newGarnishment, creditInstitution: e.target.value })}
+                      onChange={e => setNewGarnishment({ ...newGarnishment, creditInstitution: e.target.value })}
                       placeholder="e.g., Deutsche Bank"
                       required
                     />
@@ -2110,8 +2110,8 @@ export default function SalaryAdministration() {
                     <Input
                       id="validTo"
                       type="date"
-                      value={newGarnishment.validTo || ""}
-                      onChange={(e) => setNewGarnishment({ ...newGarnishment, validTo: e.target.value })}
+                      value={newGarnishment.validTo || ''}
+                      onChange={e => setNewGarnishment({ ...newGarnishment, validTo: e.target.value })}
                       className="w-40"
                     />
                   </div>
@@ -2121,7 +2121,7 @@ export default function SalaryAdministration() {
                       <Switch
                         id="isActive"
                         checked={newGarnishment.isActive}
-                        onChange={(checked) => setNewGarnishment({ ...newGarnishment, isActive: checked })}
+                        onChange={checked => setNewGarnishment({ ...newGarnishment, isActive: checked })}
                       />
                       <Label htmlFor="isActive" className="text-sm">
                         Active
@@ -2134,7 +2134,7 @@ export default function SalaryAdministration() {
                       <Switch
                         id="isFulfilled"
                         checked={newGarnishment.isFulfilled}
-                        onChange={(checked) => setNewGarnishment({ ...newGarnishment, isFulfilled: checked })}
+                        onChange={checked => setNewGarnishment({ ...newGarnishment, isFulfilled: checked })}
                       />
                       <Label htmlFor="isFulfilled" className="text-sm">
                         Fulfilled
@@ -2163,7 +2163,7 @@ export default function SalaryAdministration() {
             ) : (
               // Edit existing garnishment
               (() => {
-                const garnishment = salary.garnishments.find((g) => g.id === selectedGarnishmentId)
+                const garnishment = salary.garnishments.find(g => g.id === selectedGarnishmentId)
                 if (!garnishment) return null
 
                 return (
@@ -2197,12 +2197,12 @@ export default function SalaryAdministration() {
                             id="edit-dateOfReceipt"
                             type="date"
                             value={garnishment.dateOfReceipt}
-                            onChange={(e) => {
+                            onChange={e => {
                               setSalary({
                                 ...salary,
-                                garnishments: salary.garnishments.map((g) =>
-                                  g.id === garnishment.id ? { ...g, dateOfReceipt: e.target.value } : g,
-                                ),
+                                garnishments: salary.garnishments.map(g =>
+                                  g.id === garnishment.id ? { ...g, dateOfReceipt: e.target.value } : g
+                                )
                               })
                             }}
                             required
@@ -2212,12 +2212,12 @@ export default function SalaryAdministration() {
                             id="edit-timeOfReceipt"
                             type="time"
                             value={garnishment.timeOfReceipt}
-                            onChange={(e) => {
+                            onChange={e => {
                               setSalary({
                                 ...salary,
-                                garnishments: salary.garnishments.map((g) =>
-                                  g.id === garnishment.id ? { ...g, timeOfReceipt: e.target.value } : g,
-                                ),
+                                garnishments: salary.garnishments.map(g =>
+                                  g.id === garnishment.id ? { ...g, timeOfReceipt: e.target.value } : g
+                                )
                               })
                             }}
                             required
@@ -2234,18 +2234,18 @@ export default function SalaryAdministration() {
                           value={garnishment.typeOfPayment}
                           onValueChange={(
                             value:
-                              | "regular"
-                              | "preferential"
-                              | "support"
-                              | "attachment"
-                              | "personal-insolvency"
-                              | "employer-loan",
+                              | 'regular'
+                              | 'preferential'
+                              | 'support'
+                              | 'attachment'
+                              | 'personal-insolvency'
+                              | 'employer-loan'
                           ) => {
                             setSalary({
                               ...salary,
-                              garnishments: salary.garnishments.map((g) =>
-                                g.id === garnishment.id ? { ...g, typeOfPayment: value } : g,
-                              ),
+                              garnishments: salary.garnishments.map(g =>
+                                g.id === garnishment.id ? { ...g, typeOfPayment: value } : g
+                              )
                             })
                           }}
                         >
@@ -2273,7 +2273,7 @@ export default function SalaryAdministration() {
                           min="1"
                           step="1"
                           value={garnishment.orderNumber}
-                          onChange={(e) => {
+                          onChange={e => {
                             const newOrder = Number.parseInt(e.target.value) || 1
                             updateGarnishmentOrder(garnishment.id, newOrder)
                           }}
@@ -2288,12 +2288,12 @@ export default function SalaryAdministration() {
                         <Input
                           id="edit-fileNumber"
                           value={garnishment.fileNumber}
-                          onChange={(e) => {
+                          onChange={e => {
                             setSalary({
                               ...salary,
-                              garnishments: salary.garnishments.map((g) =>
-                                g.id === garnishment.id ? { ...g, fileNumber: e.target.value } : g,
-                              ),
+                              garnishments: salary.garnishments.map(g =>
+                                g.id === garnishment.id ? { ...g, fileNumber: e.target.value } : g
+                              )
                             })
                           }}
                           placeholder="e.g., 123-456-789"
@@ -2308,12 +2308,12 @@ export default function SalaryAdministration() {
                         <Input
                           id="edit-creditor"
                           value={garnishment.creditor}
-                          onChange={(e) => {
+                          onChange={e => {
                             setSalary({
                               ...salary,
-                              garnishments: salary.garnishments.map((g) =>
-                                g.id === garnishment.id ? { ...g, creditor: e.target.value } : g,
-                              ),
+                              garnishments: salary.garnishments.map(g =>
+                                g.id === garnishment.id ? { ...g, creditor: e.target.value } : g
+                              )
                             })
                           }}
                           placeholder="Creditor name"
@@ -2330,18 +2330,18 @@ export default function SalaryAdministration() {
                           type="number"
                           min="0"
                           step="0.01"
-                          value={garnishment.totalAmount || ""}
-                          onChange={(e) => {
+                          value={garnishment.totalAmount || ''}
+                          onChange={e => {
                             setSalary({
                               ...salary,
-                              garnishments: salary.garnishments.map((g) =>
+                              garnishments: salary.garnishments.map(g =>
                                 g.id === garnishment.id
                                   ? {
                                       ...g,
-                                      totalAmount: e.target.value ? Number.parseFloat(e.target.value) : undefined,
+                                      totalAmount: e.target.value ? Number.parseFloat(e.target.value) : undefined
                                     }
-                                  : g,
-                              ),
+                                  : g
+                              )
                             })
                           }}
                           placeholder="0.00"
@@ -2357,18 +2357,18 @@ export default function SalaryAdministration() {
                           type="number"
                           min="0"
                           step="0.01"
-                          value={garnishment.monthlyPayment || ""}
-                          onChange={(e) => {
+                          value={garnishment.monthlyPayment || ''}
+                          onChange={e => {
                             setSalary({
                               ...salary,
-                              garnishments: salary.garnishments.map((g) =>
+                              garnishments: salary.garnishments.map(g =>
                                 g.id === garnishment.id
                                   ? {
                                       ...g,
-                                      monthlyPayment: e.target.value ? Number.parseFloat(e.target.value) : undefined,
+                                      monthlyPayment: e.target.value ? Number.parseFloat(e.target.value) : undefined
                                     }
-                                  : g,
-                              ),
+                                  : g
+                              )
                             })
                           }}
                           placeholder="0.00"
@@ -2384,18 +2384,18 @@ export default function SalaryAdministration() {
                           type="number"
                           min="0"
                           step="0.01"
-                          value={garnishment.remainingAmount || ""}
-                          onChange={(e) => {
+                          value={garnishment.remainingAmount || ''}
+                          onChange={e => {
                             setSalary({
                               ...salary,
-                              garnishments: salary.garnishments.map((g) =>
+                              garnishments: salary.garnishments.map(g =>
                                 g.id === garnishment.id
                                   ? {
                                       ...g,
-                                      remainingAmount: e.target.value ? Number.parseFloat(e.target.value) : undefined,
+                                      remainingAmount: e.target.value ? Number.parseFloat(e.target.value) : undefined
                                     }
-                                  : g,
-                              ),
+                                  : g
+                              )
                             })
                           }}
                           placeholder="0.00"
@@ -2409,12 +2409,12 @@ export default function SalaryAdministration() {
                         <Input
                           id="edit-iban"
                           value={garnishment.iban}
-                          onChange={(e) => {
+                          onChange={e => {
                             setSalary({
                               ...salary,
-                              garnishments: salary.garnishments.map((g) =>
-                                g.id === garnishment.id ? { ...g, iban: e.target.value } : g,
-                              ),
+                              garnishments: salary.garnishments.map(g =>
+                                g.id === garnishment.id ? { ...g, iban: e.target.value } : g
+                              )
                             })
                           }}
                           placeholder="e.g., DE89 3704 0044 0532 0130 00"
@@ -2429,12 +2429,12 @@ export default function SalaryAdministration() {
                         <Input
                           id="edit-bic"
                           value={garnishment.bic}
-                          onChange={(e) => {
+                          onChange={e => {
                             setSalary({
                               ...salary,
-                              garnishments: salary.garnishments.map((g) =>
-                                g.id === garnishment.id ? { ...g, bic: e.target.value } : g,
-                              ),
+                              garnishments: salary.garnishments.map(g =>
+                                g.id === garnishment.id ? { ...g, bic: e.target.value } : g
+                              )
                             })
                           }}
                           placeholder="e.g., COBADEFFXXX"
@@ -2449,12 +2449,12 @@ export default function SalaryAdministration() {
                         <Input
                           id="edit-creditInstitution"
                           value={garnishment.creditInstitution}
-                          onChange={(e) => {
+                          onChange={e => {
                             setSalary({
                               ...salary,
-                              garnishments: salary.garnishments.map((g) =>
-                                g.id === garnishment.id ? { ...g, creditInstitution: e.target.value } : g,
-                              ),
+                              garnishments: salary.garnishments.map(g =>
+                                g.id === garnishment.id ? { ...g, creditInstitution: e.target.value } : g
+                              )
                             })
                           }}
                           placeholder="e.g., Deutsche Bank"
@@ -2469,13 +2469,13 @@ export default function SalaryAdministration() {
                         <Input
                           id="edit-validTo"
                           type="date"
-                          value={garnishment.validTo || ""}
-                          onChange={(e) => {
+                          value={garnishment.validTo || ''}
+                          onChange={e => {
                             setSalary({
                               ...salary,
-                              garnishments: salary.garnishments.map((g) =>
-                                g.id === garnishment.id ? { ...g, validTo: e.target.value } : g,
-                              ),
+                              garnishments: salary.garnishments.map(g =>
+                                g.id === garnishment.id ? { ...g, validTo: e.target.value } : g
+                              )
                             })
                           }}
                           className="w-40"
@@ -2487,10 +2487,10 @@ export default function SalaryAdministration() {
                           <Switch
                             id="edit-isActive"
                             checked={garnishment.isActive}
-                            onChange={(checked) => {
+                            onChange={checked => {
                               // Update this garnishment's active status
-                              const updatedGarnishments = salary.garnishments.map((g) =>
-                                g.id === garnishment.id ? { ...g, isActive: checked } : g,
+                              const updatedGarnishments = salary.garnishments.map(g =>
+                                g.id === garnishment.id ? { ...g, isActive: checked } : g
                               )
 
                               // Apply the active status rules
@@ -2498,7 +2498,7 @@ export default function SalaryAdministration() {
 
                               setSalary({
                                 ...salary,
-                                garnishments: finalGarnishments,
+                                garnishments: finalGarnishments
                               })
                             }}
                           />
@@ -2513,10 +2513,10 @@ export default function SalaryAdministration() {
                           <Switch
                             id="edit-isFulfilled"
                             checked={garnishment.isFulfilled}
-                            onChange={(checked) => {
+                            onChange={checked => {
                               // Update this garnishment's fulfilled status
-                              const updatedGarnishments = salary.garnishments.map((g) =>
-                                g.id === garnishment.id ? { ...g, isFulfilled: checked } : g,
+                              const updatedGarnishments = salary.garnishments.map(g =>
+                                g.id === garnishment.id ? { ...g, isFulfilled: checked } : g
                               )
 
                               // Apply the active status rules
@@ -2524,7 +2524,7 @@ export default function SalaryAdministration() {
 
                               setSalary({
                                 ...salary,
-                                garnishments: finalGarnishments,
+                                garnishments: finalGarnishments
                               })
                             }}
                           />
@@ -2571,10 +2571,10 @@ export default function SalaryAdministration() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {salary.insurances.map((insurance) => (
+                  {salary.insurances.map(insurance => (
                     <TableRow
                       key={insurance.id}
-                      className={`cursor-pointer ${selectedInsuranceId === insurance.id ? "bg-muted/50" : ""}`}
+                      className={`cursor-pointer ${selectedInsuranceId === insurance.id ? 'bg-muted/50' : ''}`}
                       onClick={() => setSelectedInsuranceId(insurance.id)}
                     >
                       <TableCell>{insurance.provider}</TableCell>
@@ -2587,7 +2587,7 @@ export default function SalaryAdministration() {
                         <Button
                           variant="ghost"
                           size="icon"
-                          onClick={(e) => {
+                          onClick={e => {
                             e.stopPropagation()
                             removeInsurance(insurance.id)
                           }}
@@ -2615,7 +2615,7 @@ export default function SalaryAdministration() {
                     <Input
                       id="provider"
                       value={newInsurance.provider}
-                      onChange={(e) => setNewInsurance({ ...newInsurance, provider: e.target.value })}
+                      onChange={e => setNewInsurance({ ...newInsurance, provider: e.target.value })}
                       placeholder="e.g., Allianz"
                       required
                     />
@@ -2628,7 +2628,7 @@ export default function SalaryAdministration() {
                     <Input
                       id="type"
                       value={newInsurance.type}
-                      onChange={(e) => setNewInsurance({ ...newInsurance, type: e.target.value })}
+                      onChange={e => setNewInsurance({ ...newInsurance, type: e.target.value })}
                       placeholder="e.g., Health Insurance"
                       required
                     />
@@ -2641,7 +2641,7 @@ export default function SalaryAdministration() {
                     <Input
                       id="fileNumber"
                       value={newInsurance.fileNumber}
-                      onChange={(e) => setNewInsurance({ ...newInsurance, fileNumber: e.target.value })}
+                      onChange={e => setNewInsurance({ ...newInsurance, fileNumber: e.target.value })}
                       placeholder="e.g., 123-456-789"
                       required
                     />
@@ -2657,7 +2657,7 @@ export default function SalaryAdministration() {
                       min="0"
                       step="0.01"
                       value={newInsurance.amount}
-                      onChange={(e) =>
+                      onChange={e =>
                         setNewInsurance({ ...newInsurance, amount: Number.parseFloat(e.target.value) || 0 })
                       }
                       placeholder="0.00"
@@ -2671,7 +2671,7 @@ export default function SalaryAdministration() {
                     </Label>
                     <Select
                       value={newInsurance.frequency}
-                      onValueChange={(value: "monthly" | "quarterly" | "semi-annual" | "annual") =>
+                      onValueChange={(value: 'monthly' | 'quarterly' | 'semi-annual' | 'annual') =>
                         setNewInsurance({ ...newInsurance, frequency: value })
                       }
                     >
@@ -2693,7 +2693,7 @@ export default function SalaryAdministration() {
                     </Label>
                     <Select
                       value={newInsurance.effectType}
-                      onValueChange={(value: "gross-deduction" | "net-deduction" | "additional" | "no-effect") =>
+                      onValueChange={(value: 'gross-deduction' | 'net-deduction' | 'additional' | 'no-effect') =>
                         setNewInsurance({ ...newInsurance, effectType: value })
                       }
                     >
@@ -2717,7 +2717,7 @@ export default function SalaryAdministration() {
                       id="startDate"
                       type="date"
                       value={newInsurance.startDate}
-                      onChange={(e) => setNewInsurance({ ...newInsurance, startDate: e.target.value })}
+                      onChange={e => setNewInsurance({ ...newInsurance, startDate: e.target.value })}
                       required
                       className="w-40"
                     />
@@ -2731,7 +2731,7 @@ export default function SalaryAdministration() {
                       id="endDate"
                       type="date"
                       value={newInsurance.endDate}
-                      onChange={(e) => setNewInsurance({ ...newInsurance, endDate: e.target.value })}
+                      onChange={e => setNewInsurance({ ...newInsurance, endDate: e.target.value })}
                       className="w-40"
                     />
                   </div>
@@ -2742,8 +2742,8 @@ export default function SalaryAdministration() {
                     </Label>
                     <Input
                       id="notes"
-                      value={newInsurance.notes || ""}
-                      onChange={(e) => setNewInsurance({ ...newInsurance, notes: e.target.value })}
+                      value={newInsurance.notes || ''}
+                      onChange={e => setNewInsurance({ ...newInsurance, notes: e.target.value })}
                       placeholder="Optional notes"
                     />
                   </div>
@@ -2768,7 +2768,7 @@ export default function SalaryAdministration() {
             ) : (
               // Edit existing insurance
               (() => {
-                const insurance = salary.insurances.find((i) => i.id === selectedInsuranceId)
+                const insurance = salary.insurances.find(i => i.id === selectedInsuranceId)
                 if (!insurance) return null
 
                 return (
@@ -2800,12 +2800,12 @@ export default function SalaryAdministration() {
                         <Input
                           id="edit-provider"
                           value={insurance.provider}
-                          onChange={(e) => {
+                          onChange={e => {
                             setSalary({
                               ...salary,
-                              insurances: salary.insurances.map((i) =>
-                                i.id === insurance.id ? { ...i, provider: e.target.value } : i,
-                              ),
+                              insurances: salary.insurances.map(i =>
+                                i.id === insurance.id ? { ...i, provider: e.target.value } : i
+                              )
                             })
                           }}
                           placeholder="e.g., Allianz"
@@ -2820,12 +2820,12 @@ export default function SalaryAdministration() {
                         <Input
                           id="edit-type"
                           value={insurance.type}
-                          onChange={(e) => {
+                          onChange={e => {
                             setSalary({
                               ...salary,
-                              insurances: salary.insurances.map((i) =>
-                                i.id === insurance.id ? { ...i, type: e.target.value } : i,
-                              ),
+                              insurances: salary.insurances.map(i =>
+                                i.id === insurance.id ? { ...i, type: e.target.value } : i
+                              )
                             })
                           }}
                           placeholder="e.g., Health Insurance"
@@ -2840,12 +2840,12 @@ export default function SalaryAdministration() {
                         <Input
                           id="edit-fileNumber"
                           value={insurance.fileNumber}
-                          onChange={(e) => {
+                          onChange={e => {
                             setSalary({
                               ...salary,
-                              insurances: salary.insurances.map((i) =>
-                                i.id === insurance.id ? { ...i, fileNumber: e.target.value } : i,
-                              ),
+                              insurances: salary.insurances.map(i =>
+                                i.id === insurance.id ? { ...i, fileNumber: e.target.value } : i
+                              )
                             })
                           }}
                           placeholder="e.g., 123-456-789"
@@ -2863,12 +2863,12 @@ export default function SalaryAdministration() {
                           min="0"
                           step="0.01"
                           value={insurance.amount}
-                          onChange={(e) => {
+                          onChange={e => {
                             setSalary({
                               ...salary,
-                              insurances: salary.insurances.map((i) =>
-                                i.id === insurance.id ? { ...i, amount: Number.parseFloat(e.target.value) || 0 } : i,
-                              ),
+                              insurances: salary.insurances.map(i =>
+                                i.id === insurance.id ? { ...i, amount: Number.parseFloat(e.target.value) || 0 } : i
+                              )
                             })
                           }}
                           placeholder="0.00"
@@ -2882,12 +2882,12 @@ export default function SalaryAdministration() {
                         </Label>
                         <Select
                           value={insurance.frequency}
-                          onValueChange={(value: "monthly" | "quarterly" | "semi-annual" | "annual") => {
+                          onValueChange={(value: 'monthly' | 'quarterly' | 'semi-annual' | 'annual') => {
                             setSalary({
                               ...salary,
-                              insurances: salary.insurances.map((i) =>
-                                i.id === insurance.id ? { ...i, frequency: value } : i,
-                              ),
+                              insurances: salary.insurances.map(i =>
+                                i.id === insurance.id ? { ...i, frequency: value } : i
+                              )
                             })
                           }}
                         >
@@ -2909,12 +2909,12 @@ export default function SalaryAdministration() {
                         </Label>
                         <Select
                           value={insurance.effectType}
-                          onValueChange={(value: "gross-deduction" | "net-deduction" | "additional" | "no-effect") => {
+                          onValueChange={(value: 'gross-deduction' | 'net-deduction' | 'additional' | 'no-effect') => {
                             setSalary({
                               ...salary,
-                              insurances: salary.insurances.map((i) =>
-                                i.id === insurance.id ? { ...i, effectType: value } : i,
-                              ),
+                              insurances: salary.insurances.map(i =>
+                                i.id === insurance.id ? { ...i, effectType: value } : i
+                              )
                             })
                           }}
                         >
@@ -2938,12 +2938,12 @@ export default function SalaryAdministration() {
                           id="edit-startDate"
                           type="date"
                           value={insurance.startDate}
-                          onChange={(e) => {
+                          onChange={e => {
                             setSalary({
                               ...salary,
-                              insurances: salary.insurances.map((i) =>
-                                i.id === insurance.id ? { ...i, startDate: e.target.value } : i,
-                              ),
+                              insurances: salary.insurances.map(i =>
+                                i.id === insurance.id ? { ...i, startDate: e.target.value } : i
+                              )
                             })
                           }}
                           required
@@ -2959,12 +2959,12 @@ export default function SalaryAdministration() {
                           id="edit-endDate"
                           type="date"
                           value={insurance.endDate}
-                          onChange={(e) => {
+                          onChange={e => {
                             setSalary({
                               ...salary,
-                              insurances: salary.insurances.map((i) =>
-                                i.id === insurance.id ? { ...i, endDate: e.target.value } : i,
-                              ),
+                              insurances: salary.insurances.map(i =>
+                                i.id === insurance.id ? { ...i, endDate: e.target.value } : i
+                              )
                             })
                           }}
                           className="w-40"
@@ -2977,13 +2977,13 @@ export default function SalaryAdministration() {
                         </Label>
                         <Input
                           id="edit-notes"
-                          value={insurance.notes || ""}
-                          onChange={(e) => {
+                          value={insurance.notes || ''}
+                          onChange={e => {
                             setSalary({
                               ...salary,
-                              insurances: salary.insurances.map((i) =>
-                                i.id === insurance.id ? { ...i, notes: e.target.value } : i,
-                              ),
+                              insurances: salary.insurances.map(i =>
+                                i.id === insurance.id ? { ...i, notes: e.target.value } : i
+                              )
                             })
                           }}
                           placeholder="Optional notes"
@@ -3025,10 +3025,10 @@ export default function SalaryAdministration() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {salary.vehicles.map((vehicle) => (
+                  {salary.vehicles.map(vehicle => (
                     <TableRow
                       key={vehicle.id}
-                      className={`cursor-pointer ${selectedVehicleId === vehicle.id ? "bg-muted/50" : ""}`}
+                      className={`cursor-pointer ${selectedVehicleId === vehicle.id ? 'bg-muted/50' : ''}`}
                       onClick={() => setSelectedVehicleId(vehicle.id)}
                     >
                       <TableCell>{vehicle.licensePlate}</TableCell>
@@ -3039,7 +3039,7 @@ export default function SalaryAdministration() {
                         <Button
                           variant="ghost"
                           size="icon"
-                          onClick={(e) => {
+                          onClick={e => {
                             e.stopPropagation()
                             removeVehicle(vehicle.id)
                           }}
@@ -3067,7 +3067,7 @@ export default function SalaryAdministration() {
                     <Input
                       id="licensePlate"
                       value={newVehicle.licensePlate}
-                      onChange={(e) => setNewVehicle({ ...newVehicle, licensePlate: e.target.value })}
+                      onChange={e => setNewVehicle({ ...newVehicle, licensePlate: e.target.value })}
                       placeholder="e.g., ABC-123"
                       required
                     />
@@ -3081,13 +3081,13 @@ export default function SalaryAdministration() {
                       value={newVehicle.type}
                       onValueChange={(
                         value:
-                          | "passenger-car"
-                          | "motorcycle"
-                          | "bicycle"
-                          | "pedelec"
-                          | "e-bike"
-                          | "scooter-with-seat"
-                          | "scooter-without-seat",
+                          | 'passenger-car'
+                          | 'motorcycle'
+                          | 'bicycle'
+                          | 'pedelec'
+                          | 'e-bike'
+                          | 'scooter-with-seat'
+                          | 'scooter-without-seat'
                       ) => setNewVehicle({ ...newVehicle, type: value })}
                     >
                       <SelectTrigger id="type">
@@ -3109,7 +3109,7 @@ export default function SalaryAdministration() {
                     </Label>
                     <Select
                       value={newVehicle.motor}
-                      onValueChange={(value: "combustion" | "hybrid" | "electric" | "gas" | "fuel-cell" | "none") =>
+                      onValueChange={(value: 'combustion' | 'hybrid' | 'electric' | 'gas' | 'fuel-cell' | 'none') =>
                         setNewVehicle({ ...newVehicle, motor: value })
                       }
                     >
@@ -3137,7 +3137,7 @@ export default function SalaryAdministration() {
                       min="0"
                       step="0.01"
                       value={newVehicle.grossListPrice}
-                      onChange={(e) =>
+                      onChange={e =>
                         setNewVehicle({ ...newVehicle, grossListPrice: Number.parseFloat(e.target.value) || 0 })
                       }
                       placeholder="0.00"
@@ -3155,7 +3155,7 @@ export default function SalaryAdministration() {
                       min="0"
                       step="0.01"
                       value={newVehicle.roundedDownPrice}
-                      onChange={(e) =>
+                      onChange={e =>
                         setNewVehicle({ ...newVehicle, roundedDownPrice: Number.parseFloat(e.target.value) || 0 })
                       }
                       placeholder="0.00"
@@ -3170,7 +3170,7 @@ export default function SalaryAdministration() {
                       id="validFrom"
                       type="date"
                       value={newVehicle.validFrom}
-                      onChange={(e) => setNewVehicle({ ...newVehicle, validFrom: e.target.value })}
+                      onChange={e => setNewVehicle({ ...newVehicle, validFrom: e.target.value })}
                       required
                       className="w-40"
                     />
@@ -3184,7 +3184,7 @@ export default function SalaryAdministration() {
                       id="validTo"
                       type="date"
                       value={newVehicle.validTo}
-                      onChange={(e) => setNewVehicle({ ...newVehicle, validTo: e.target.value })}
+                      onChange={e => setNewVehicle({ ...newVehicle, validTo: e.target.value })}
                       required
                       className="w-40"
                     />
@@ -3204,7 +3204,7 @@ export default function SalaryAdministration() {
             ) : (
               // Edit existing vehicle
               (() => {
-                const vehicle = salary.vehicles.find((v) => v.id === selectedVehicleId)
+                const vehicle = salary.vehicles.find(v => v.id === selectedVehicleId)
                 if (!vehicle) return null
 
                 return (
@@ -3236,12 +3236,12 @@ export default function SalaryAdministration() {
                         <Input
                           id="edit-licensePlate"
                           value={vehicle.licensePlate}
-                          onChange={(e) => {
+                          onChange={e => {
                             setSalary({
                               ...salary,
-                              vehicles: salary.vehicles.map((v) =>
-                                v.id === vehicle.id ? { ...v, licensePlate: e.target.value } : v,
-                              ),
+                              vehicles: salary.vehicles.map(v =>
+                                v.id === vehicle.id ? { ...v, licensePlate: e.target.value } : v
+                              )
                             })
                           }}
                           placeholder="e.g., ABC-123"
@@ -3257,17 +3257,17 @@ export default function SalaryAdministration() {
                           value={vehicle.type}
                           onValueChange={(
                             value:
-                              | "passenger-car"
-                              | "motorcycle"
-                              | "bicycle"
-                              | "pedelec"
-                              | "e-bike"
-                              | "scooter-with-seat"
-                              | "scooter-without-seat",
+                              | 'passenger-car'
+                              | 'motorcycle'
+                              | 'bicycle'
+                              | 'pedelec'
+                              | 'e-bike'
+                              | 'scooter-with-seat'
+                              | 'scooter-without-seat'
                           ) => {
                             setSalary({
                               ...salary,
-                              vehicles: salary.vehicles.map((v) => (v.id === vehicle.id ? { ...v, type: value } : v)),
+                              vehicles: salary.vehicles.map(v => (v.id === vehicle.id ? { ...v, type: value } : v))
                             })
                           }}
                         >
@@ -3291,11 +3291,11 @@ export default function SalaryAdministration() {
                         <Select
                           value={vehicle.motor}
                           onValueChange={(
-                            value: "combustion" | "hybrid" | "electric" | "gas" | "fuel-cell" | "none",
+                            value: 'combustion' | 'hybrid' | 'electric' | 'gas' | 'fuel-cell' | 'none'
                           ) => {
                             setSalary({
                               ...salary,
-                              vehicles: salary.vehicles.map((v) => (v.id === vehicle.id ? { ...v, motor: value } : v)),
+                              vehicles: salary.vehicles.map(v => (v.id === vehicle.id ? { ...v, motor: value } : v))
                             })
                           }}
                         >
@@ -3323,14 +3323,14 @@ export default function SalaryAdministration() {
                           min="0"
                           step="0.01"
                           value={vehicle.grossListPrice}
-                          onChange={(e) => {
+                          onChange={e => {
                             setSalary({
                               ...salary,
-                              vehicles: salary.vehicles.map((v) =>
+                              vehicles: salary.vehicles.map(v =>
                                 v.id === vehicle.id
                                   ? { ...v, grossListPrice: Number.parseFloat(e.target.value) || 0 }
-                                  : v,
-                              ),
+                                  : v
+                              )
                             })
                           }}
                           placeholder="0.00"
@@ -3348,14 +3348,14 @@ export default function SalaryAdministration() {
                           min="0"
                           step="0.01"
                           value={vehicle.roundedDownPrice}
-                          onChange={(e) => {
+                          onChange={e => {
                             setSalary({
                               ...salary,
-                              vehicles: salary.vehicles.map((v) =>
+                              vehicles: salary.vehicles.map(v =>
                                 v.id === vehicle.id
                                   ? { ...v, roundedDownPrice: Number.parseFloat(e.target.value) || 0 }
-                                  : v,
-                              ),
+                                  : v
+                              )
                             })
                           }}
                           placeholder="0.00"
@@ -3370,12 +3370,12 @@ export default function SalaryAdministration() {
                           id="edit-validFrom"
                           type="date"
                           value={vehicle.validFrom}
-                          onChange={(e) => {
+                          onChange={e => {
                             setSalary({
                               ...salary,
-                              vehicles: salary.vehicles.map((v) =>
-                                v.id === vehicle.id ? { ...v, validFrom: e.target.value } : v,
-                              ),
+                              vehicles: salary.vehicles.map(v =>
+                                v.id === vehicle.id ? { ...v, validFrom: e.target.value } : v
+                              )
                             })
                           }}
                           required
@@ -3391,12 +3391,12 @@ export default function SalaryAdministration() {
                           id="edit-validTo"
                           type="date"
                           value={vehicle.validTo}
-                          onChange={(e) => {
+                          onChange={e => {
                             setSalary({
                               ...salary,
-                              vehicles: salary.vehicles.map((v) =>
-                                v.id === vehicle.id ? { ...v, validTo: e.target.value } : v,
-                              ),
+                              vehicles: salary.vehicles.map(v =>
+                                v.id === vehicle.id ? { ...v, validTo: e.target.value } : v
+                              )
                             })
                           }}
                           required
@@ -3421,7 +3421,7 @@ export default function SalaryAdministration() {
                             </TableRow>
                           </TableHeader>
                           <TableBody>
-                            {vehicle.abandonments.map((abandonment) => (
+                            {vehicle.abandonments.map(abandonment => (
                               <TableRow key={abandonment.id}>
                                 <TableCell>{formatDate(abandonment.startDate)}</TableCell>
                                 <TableCell>{formatDate(abandonment.endDate)}</TableCell>
@@ -3431,7 +3431,7 @@ export default function SalaryAdministration() {
                                   <Button
                                     variant="ghost"
                                     size="icon"
-                                    onClick={(e) => {
+                                    onClick={e => {
                                       e.stopPropagation()
                                       removeVehicleAbandonment(vehicle.id, abandonment.id)
                                     }}
@@ -3456,7 +3456,7 @@ export default function SalaryAdministration() {
                               id="abandonment-startDate"
                               type="date"
                               value={newAbandonment.startDate}
-                              onChange={(e) => setNewAbandonment({ ...newAbandonment, startDate: e.target.value })}
+                              onChange={e => setNewAbandonment({ ...newAbandonment, startDate: e.target.value })}
                               required
                               className="w-40"
                             />
@@ -3470,7 +3470,7 @@ export default function SalaryAdministration() {
                               id="abandonment-endDate"
                               type="date"
                               value={newAbandonment.endDate}
-                              onChange={(e) => setNewAbandonment({ ...newAbandonment, endDate: e.target.value })}
+                              onChange={e => setNewAbandonment({ ...newAbandonment, endDate: e.target.value })}
                               required
                               className="w-40"
                             />
@@ -3483,7 +3483,7 @@ export default function SalaryAdministration() {
                             <Input
                               id="abandonment-reason"
                               value={newAbandonment.reason}
-                              onChange={(e) => setNewAbandonment({ ...newAbandonment, reason: e.target.value })}
+                              onChange={e => setNewAbandonment({ ...newAbandonment, reason: e.target.value })}
                               placeholder="e.g., Repair"
                               required
                             />
@@ -3495,8 +3495,8 @@ export default function SalaryAdministration() {
                             </Label>
                             <Input
                               id="abandonment-payrollNotes"
-                              value={newAbandonment.payrollNotes || ""}
-                              onChange={(e) => setNewAbandonment({ ...newAbandonment, payrollNotes: e.target.value })}
+                              value={newAbandonment.payrollNotes || ''}
+                              onChange={e => setNewAbandonment({ ...newAbandonment, payrollNotes: e.target.value })}
                               placeholder="Optional notes"
                             />
                           </div>
@@ -3541,13 +3541,13 @@ export default function SalaryAdministration() {
                       {formatCurrency(
                         salary.salaryRows.reduce((total, row) => {
                           const rowTotal =
-                            row.paymentType === "monthly" ? row.baseAmount : row.baseAmount * (row.targetHours || 0)
+                            row.paymentType === 'monthly' ? row.baseAmount : row.baseAmount * (row.targetHours || 0)
                           return total + rowTotal
-                        }, 0),
+                        }, 0)
                       )}
                     </span>
                   </div>
-                  {salary.components.map((component) => (
+                  {salary.components.map(component => (
                     <div key={component.id} className="flex justify-between items-center">
                       <span>{component.name}:</span>
                       <span>{formatCurrency(component.amount)}</span>
@@ -3578,7 +3578,7 @@ export default function SalaryAdministration() {
                   </SelectContent>
                 </Select>
 
-                {historyDateFilter === "custom" && (
+                {historyDateFilter === 'custom' && (
                   <>
                     <div className="flex items-center space-x-2">
                       <Label htmlFor="historyStartDate">Start Date:</Label>
@@ -3586,7 +3586,7 @@ export default function SalaryAdministration() {
                         type="date"
                         id="historyStartDate"
                         value={historyStartDate}
-                        onChange={(e) => setHistoryStartDate(e.target.value)}
+                        onChange={e => setHistoryStartDate(e.target.value)}
                       />
                     </div>
                     <div className="flex items-center space-x-2">
@@ -3595,7 +3595,7 @@ export default function SalaryAdministration() {
                         type="date"
                         id="historyEndDate"
                         value={historyEndDate}
-                        onChange={(e) => setHistoryEndDate(e.target.value)}
+                        onChange={e => setHistoryEndDate(e.target.value)}
                       />
                     </div>
                   </>
@@ -3617,7 +3617,7 @@ export default function SalaryAdministration() {
 
               <div className="space-y-2">
                 <h4 className="font-medium">Salary Rows</h4>
-                {salary.salaryRows.filter((row) => isRowValidInRange(row.validFrom, row.validTo)).length === 0 ? (
+                {salary.salaryRows.filter(row => isRowValidInRange(row.validFrom, row.validTo)).length === 0 ? (
                   <p className="text-muted-foreground">No salary rows match the selected filter.</p>
                 ) : (
                   <Table>
@@ -3632,8 +3632,8 @@ export default function SalaryAdministration() {
                     </TableHeader>
                     <TableBody>
                       {salary.salaryRows
-                        .filter((row) => isRowValidInRange(row.validFrom, row.validTo))
-                        .map((row) => (
+                        .filter(row => isRowValidInRange(row.validFrom, row.validTo))
+                        .map(row => (
                           <TableRow key={row.id}>
                             <TableCell>{row.description}</TableCell>
                             <TableCell className="capitalize">{row.paymentType}</TableCell>

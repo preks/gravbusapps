@@ -1,4 +1,4 @@
-export { SalesTeamPerformanceOverview } from './SalesTeamPerformanceOverview';
+export { SalesTeamPerformanceOverview } from './SalesTeamPerformanceOverview'
 
-import { SalesTeamPerformanceOverview } from './SalesTeamPerformanceOverview';
-export default SalesTeamPerformanceOverview; 
+import { SalesTeamPerformanceOverview } from './SalesTeamPerformanceOverview'
+export default SalesTeamPerformanceOverview

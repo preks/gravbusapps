@@ -1,10 +1,10 @@
-import React, { useState, useEffect } from 'react';
-import { Card, Input, Button, Switch, Space, Tag, Tooltip, Select, Divider, Upload, message, Popover } from 'antd';
-import { 
-  PlusOutlined, 
-  DeleteOutlined, 
-  FileTextOutlined, 
-  LinkOutlined, 
+import React, { useState, useEffect } from 'react'
+import { Card, Input, Button, Switch, Space, Tag, Tooltip, Select, Divider, Upload, message, Popover } from 'antd'
+import {
+  PlusOutlined,
+  DeleteOutlined,
+  FileTextOutlined,
+  LinkOutlined,
   FileImageOutlined,
   MessageOutlined,
   UserOutlined,
@@ -19,20 +19,28 @@ import {
   EditOutlined,
   CheckOutlined,
   CloseOutlined
-} from '@ant-design/icons';
-import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
-import { FlowStep, Link, InputType, InputBlock, FlowStepType, TaskAssignment, AssignmentMode } from '@/common/network/flows/FlowTemplateClient';
-import { AssignmentSelector } from '../shared/AssignmentSelector';
+} from '@ant-design/icons'
+import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
+import {
+  FlowStep,
+  Link,
+  InputType,
+  InputBlock,
+  FlowStepType,
+  TaskAssignment,
+  AssignmentMode
+} from '@/common/network/flows/FlowTemplateClient'
+import { AssignmentSelector } from '../shared/AssignmentSelector'
 
-const { TextArea } = Input;
+const { TextArea } = Input
 
 interface FlowStepEditorProps {
-  step: FlowStep;
-  stepIndex: number;
-  onStepChange: (stepIndex: number, updatedStep: FlowStep) => void;
-  assignmentMode: AssignmentMode;
-  isNewStep?: boolean;
-  'data-testid'?: string;
+  step: FlowStep
+  stepIndex: number
+  onStepChange: (stepIndex: number, updatedStep: FlowStep) => void
+  assignmentMode: AssignmentMode
+  isNewStep?: boolean
+  'data-testid'?: string
 }
 
 // Configuration for input block types
@@ -67,7 +75,7 @@ const INPUT_BLOCK_CONFIG = {
     label: 'File Upload',
     description: 'File attachment input'
   }
-};
+}
 
 export const FlowStepEditor: React.FC<FlowStepEditorProps> = ({
   step,
@@ -77,62 +85,62 @@ export const FlowStepEditor: React.FC<FlowStepEditorProps> = ({
   isNewStep = false,
   'data-testid': testId = 'simplified-step-editor'
 }) => {
-  const [isExpanded, setIsExpanded] = useState(isNewStep);
-  const [showLinks, setShowLinks] = useState((step.links?.length || 0) > 0);
-  const [showInputs, setShowInputs] = useState(false); // default to false for simplicity
-  const [showAssignment, setShowAssignment] = useState(!!step.assignment);
-  const [editMode, setEditMode] = useState(false);
-  const [localTitle, setLocalTitle] = useState(step.title || '');
-  const [localMessage, setLocalMessage] = useState(step.message || '');
+  const [isExpanded, setIsExpanded] = useState(isNewStep)
+  const [showLinks, setShowLinks] = useState((step.links?.length || 0) > 0)
+  const [showInputs, setShowInputs] = useState(false) // default to false for simplicity
+  const [showAssignment, setShowAssignment] = useState(!!step.assignment)
+  const [editMode, setEditMode] = useState(false)
+  const [localTitle, setLocalTitle] = useState(step.title || '')
+  const [localMessage, setLocalMessage] = useState(step.message || '')
 
   useEffect(() => {
-    setLocalTitle(step.title || '');
-    setLocalMessage(step.message || '');
-  }, [step.title, step.message]);
+    setLocalTitle(step.title || '')
+    setLocalMessage(step.message || '')
+  }, [step.title, step.message])
 
   const updateStep = (updates: Partial<FlowStep>) => {
-    onStepChange(stepIndex, { ...step, ...updates });
-  };
+    onStepChange(stepIndex, { ...step, ...updates })
+  }
 
   const addLink = () => {
     const newLink: Link = {
       name: '',
       url: ''
-    };
-    const currentLinks = step.links || [];
+    }
+    const currentLinks = step.links || []
     updateStep({
       links: [...currentLinks, newLink]
-    });
-  };
+    })
+  }
 
   const handleFileUpload = (file: File) => {
     // Create a URL for the uploaded file (in a real app, this would be uploaded to a server)
-    const fileUrl = URL.createObjectURL(file);
-    
+    const fileUrl = URL.createObjectURL(file)
+
     const newLink: Link = {
       name: file.name,
       url: fileUrl
-    };
+    }
 
-    const currentLinks = step.links || [];
+    const currentLinks = step.links || []
     updateStep({
       links: [...currentLinks, newLink]
-    });
-  };
+    })
+  }
 
   const updateLink = (index: number, updates: Partial<Link>) => {
-    const currentLinks = step.links || [];
-    const updatedLinks = [...currentLinks];
-    updatedLinks[index] = { ...updatedLinks[index], ...updates };
-    updateStep({ links: updatedLinks });
-  };
+    const currentLinks = step.links || []
+    const updatedLinks = [...currentLinks]
+    updatedLinks[index] = { ...updatedLinks[index], ...updates }
+    updateStep({ links: updatedLinks })
+  }
 
   const removeLink = (index: number) => {
-    const currentLinks = step.links || [];
+    const currentLinks = step.links || []
     updateStep({
       links: currentLinks.filter((_, i) => i !== index)
-    });
-  };
+    })
+  }
 
   const addInputBlock = () => {
     const newInput: InputBlock = {
@@ -140,32 +148,32 @@ export const FlowStepEditor: React.FC<FlowStepEditorProps> = ({
       name: '',
       label: '',
       required: false
-    };
-    const currentInputs = step.inputs || [];
+    }
+    const currentInputs = step.inputs || []
     updateStep({
       inputs: [...currentInputs, newInput]
-    });
-  };
+    })
+  }
 
   const updateInputBlock = (index: number, updates: Partial<InputBlock>) => {
-    const currentInputs = step.inputs || [];
-    const updatedInputs = [...currentInputs];
-    updatedInputs[index] = { ...updatedInputs[index], ...updates };
-    updateStep({ inputs: updatedInputs });
-  };
+    const currentInputs = step.inputs || []
+    const updatedInputs = [...currentInputs]
+    updatedInputs[index] = { ...updatedInputs[index], ...updates }
+    updateStep({ inputs: updatedInputs })
+  }
 
   const removeInputBlock = (index: number) => {
-    const currentInputs = step.inputs || [];
-    const updatedInputs = currentInputs.filter((_, i) => i !== index);
-    updateStep({ inputs: updatedInputs });
-  };
+    const currentInputs = step.inputs || []
+    const updatedInputs = currentInputs.filter((_, i) => i !== index)
+    updateStep({ inputs: updatedInputs })
+  }
 
   const updateAssignment = (assignment: TaskAssignment) => {
-    updateStep({ assignment });
-  };
+    updateStep({ assignment })
+  }
 
   return (
-    <Card 
+    <Card
       className="gba:mb-4"
       data-testid={`${testId}-step-${stepIndex}`}
       title={
@@ -195,7 +203,7 @@ export const FlowStepEditor: React.FC<FlowStepEditorProps> = ({
             </label>
             <Select
               value={step.type}
-              onChange={(value) => updateStep({ type: value })}
+              onChange={value => updateStep({ type: value })}
               style={{ width: '100%' }}
               data-testid={`${testId}-step-type-select`}
             >
@@ -277,8 +285,8 @@ export const FlowStepEditor: React.FC<FlowStepEditorProps> = ({
                       type="primary"
                       size="small"
                       onClick={() => {
-                        updateStep({ title: localTitle, message: localMessage });
-                        setEditMode(false);
+                        updateStep({ title: localTitle, message: localMessage })
+                        setEditMode(false)
                       }}
                       data-testid={`${testId}-save-edit`}
                     >
@@ -288,9 +296,9 @@ export const FlowStepEditor: React.FC<FlowStepEditorProps> = ({
                       icon={<CloseOutlined />}
                       size="small"
                       onClick={() => {
-                        setLocalTitle(step.title || '');
-                        setLocalMessage(step.message || '');
-                        setEditMode(false);
+                        setLocalTitle(step.title || '')
+                        setLocalMessage(step.message || '')
+                        setEditMode(false)
                       }}
                       data-testid={`${testId}-cancel-edit`}
                     >
@@ -316,7 +324,7 @@ export const FlowStepEditor: React.FC<FlowStepEditorProps> = ({
             <div className="gba:flex gba:items-center gba:gap-2 gba:mb-3">
               <Switch
                 checked={showLinks}
-                onChange={(checked) => setShowLinks(checked)}
+                onChange={checked => setShowLinks(checked)}
                 data-testid={`${testId}-links-toggle`}
               />
               <label className="gba:text-sm gba:font-medium">
@@ -350,13 +358,19 @@ export const FlowStepEditor: React.FC<FlowStepEditorProps> = ({
                     <InboxOutlined className="gba:text-2xl gba:text-gray-400" />
                   </p>
                   <p className="gba:text-sm gba:text-gray-600">
-                    {getTranslationFromI18nKeyAndLabel('flow.creator.dragDropFiles', 'Click or drag files here to upload')}
+                    {getTranslationFromI18nKeyAndLabel(
+                      'flow.creator.dragDropFiles',
+                      'Click or drag files here to upload'
+                    )}
                   </p>
                   <p className="gba:text-xs gba:text-gray-400">
-                    {getTranslationFromI18nKeyAndLabel('flow.creator.supportedFiles', 'Supports documents, images, and other files')}
+                    {getTranslationFromI18nKeyAndLabel(
+                      'flow.creator.supportedFiles',
+                      'Supports documents, images, and other files'
+                    )}
                   </p>
                 </Upload.Dragger>
-                
+
                 {step.links?.length === 0 ? (
                   <div className="gba:text-center gba:py-4 gba:text-gray-500 gba:text-sm">
                     {getTranslationFromI18nKeyAndLabel('flow.creator.noLinks', 'No links added yet')}
@@ -368,7 +382,7 @@ export const FlowStepEditor: React.FC<FlowStepEditorProps> = ({
                         <div className="gba:flex gba:items-center gba:gap-2">
                           <Input
                             value={link.name}
-                            onChange={(e) => updateLink(index, { name: e.target.value })}
+                            onChange={e => updateLink(index, { name: e.target.value })}
                             placeholder="Link name"
                             data-testid={`${testId}-link-name-${index}`}
                           />
@@ -384,7 +398,7 @@ export const FlowStepEditor: React.FC<FlowStepEditorProps> = ({
                         <div className="gba:flex gba:items-center gba:gap-2">
                           <Input
                             value={link.url}
-                            onChange={(e) => updateLink(index, { url: e.target.value })}
+                            onChange={e => updateLink(index, { url: e.target.value })}
                             placeholder="URL"
                             data-testid={`${testId}-link-url-${index}`}
                           />
@@ -402,13 +416,12 @@ export const FlowStepEditor: React.FC<FlowStepEditorProps> = ({
           <div data-testid={`${testId}-inputs-section`}>
             <div className="gba:flex gba:items-center gba:justify-between gba:mb-3">
               <div className="gba:flex gba:items-center gba:gap-2">
-                <Switch
-                  checked={showInputs}
-                  onChange={setShowInputs}
-                  data-testid={`${testId}-inputs-toggle`}
-                />
+                <Switch checked={showInputs} onChange={setShowInputs} data-testid={`${testId}-inputs-toggle`} />
                 <label className="gba:text-sm gba:font-medium">
-                  {getTranslationFromI18nKeyAndLabel('flow.creator.showAdvancedInputConfig', 'Show advanced input configuration')}
+                  {getTranslationFromI18nKeyAndLabel(
+                    'flow.creator.showAdvancedInputConfig',
+                    'Show advanced input configuration'
+                  )}
                 </label>
               </div>
               {showInputs && (
@@ -436,7 +449,7 @@ export const FlowStepEditor: React.FC<FlowStepEditorProps> = ({
                       <div className="gba:flex gba:items-center gba:gap-2">
                         <Select
                           value={input.type}
-                          onChange={(value) => updateInputBlock(index, { type: value })}
+                          onChange={value => updateInputBlock(index, { type: value })}
                           style={{ width: 140 }}
                           data-testid={`${testId}-input-type-${index}`}
                         >
@@ -451,12 +464,12 @@ export const FlowStepEditor: React.FC<FlowStepEditorProps> = ({
                         </Select>
                         <Input
                           value={input.label}
-                          onChange={(e) => updateInputBlock(index, { label: e.target.value })}
+                          onChange={e => updateInputBlock(index, { label: e.target.value })}
                           data-testid={`${testId}-input-label-${index}`}
                         />
                         <Switch
                           checked={input.required}
-                          onChange={(required) => updateInputBlock(index, { required })}
+                          onChange={required => updateInputBlock(index, { required })}
                           data-testid={`${testId}-input-required-${index}`}
                         />
                         <span className="gba:text-xs gba:text-gray-500">
@@ -483,7 +496,7 @@ export const FlowStepEditor: React.FC<FlowStepEditorProps> = ({
             <div className="gba:flex gba:items-center gba:gap-2 gba:mb-3">
               <Switch
                 checked={showAssignment}
-                onChange={(checked) => setShowAssignment(checked)}
+                onChange={checked => setShowAssignment(checked)}
                 data-testid={`${testId}-assignment-toggle`}
               />
               <label className="gba:text-sm gba:font-medium">
@@ -492,7 +505,10 @@ export const FlowStepEditor: React.FC<FlowStepEditorProps> = ({
               <Popover
                 content={
                   <div className="gba:max-w-xs">
-                    {getTranslationFromI18nKeyAndLabel('flow.creator.assignmentExecutionInfo', 'By default the assignment will be configured at execution time.')}
+                    {getTranslationFromI18nKeyAndLabel(
+                      'flow.creator.assignmentExecutionInfo',
+                      'By default the assignment will be configured at execution time.'
+                    )}
                   </div>
                 }
                 title={getTranslationFromI18nKeyAndLabel('flow.creator.assignmentInfo', 'Assignment Information')}
@@ -505,7 +521,7 @@ export const FlowStepEditor: React.FC<FlowStepEditorProps> = ({
                 <InfoCircleOutlined className="gba:text-gray-400 gba:cursor-help" />
               </Popover>
             </div>
-            
+
             {showAssignment && (
               <div className="gba:pl-6">
                 <AssignmentSelector
@@ -520,5 +536,5 @@ export const FlowStepEditor: React.FC<FlowStepEditorProps> = ({
         </div>
       )}
     </Card>
-  );
-}; 
+  )
+}

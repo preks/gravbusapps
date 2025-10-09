@@ -1,13 +1,13 @@
-import { RestClient } from '../rest/RestClient';
-import { env } from '../../env/EnvUtils';
-import { setAccessTokenToAuthorizationHeader } from '../HeaderUtils';
-import { FeedbackRequestPayload } from '../../../business-apps/crm/common/forms/feedback-request-form/types';
+import { RestClient } from '../rest/RestClient'
+import { env } from '../../env/EnvUtils'
+import { setAccessTokenToAuthorizationHeader } from '../HeaderUtils'
+import { FeedbackRequestPayload } from '../../../business-apps/crm/common/forms/feedback-request-form/types'
 
 export interface FeedbackRequestResponse {
-  id: string;
-  status: string;
-  message: string;
-  [key: string]: any;
+  id: string
+  status: string
+  message: string
+  [key: string]: any
 }
 
 /**
@@ -16,7 +16,7 @@ export interface FeedbackRequestResponse {
  */
 export class FeedbackRequestClient extends RestClient {
   constructor() {
-    super(env('NEXT_PUBLIC_BASE_URL') ?? '');
+    super(env('NEXT_PUBLIC_BASE_URL') ?? '')
   }
 
   /**
@@ -25,10 +25,10 @@ export class FeedbackRequestClient extends RestClient {
    */
   setAccessToken(accessToken: string) {
     if (!this.headers) {
-      this.headers = {};
+      this.headers = {}
     }
 
-    this.headers['Authorization'] = setAccessTokenToAuthorizationHeader(accessToken);
+    this.headers['Authorization'] = setAccessTokenToAuthorizationHeader(accessToken)
   }
 
   /**
@@ -38,18 +38,14 @@ export class FeedbackRequestClient extends RestClient {
    */
   public async requestFeedback(payload: FeedbackRequestPayload): Promise<FeedbackRequestResponse> {
     try {
-      return await this.post<FeedbackRequestResponse>(
-        '/processes/employee/requestFeedback',
-        payload,
-        {
-          headers: {
-            'Content-Type': 'application/json'
-          }
+      return await this.post<FeedbackRequestResponse>('/processes/employee/requestFeedback', payload, {
+        headers: {
+          'Content-Type': 'application/json'
         }
-      );
+      })
     } catch (error) {
-      console.error('FeedbackRequestClient: Error requesting feedback:', error);
-      throw error;
+      console.error('FeedbackRequestClient: Error requesting feedback:', error)
+      throw error
     }
   }
 }

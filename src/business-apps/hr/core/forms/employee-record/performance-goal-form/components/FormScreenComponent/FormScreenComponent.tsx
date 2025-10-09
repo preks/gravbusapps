@@ -1,24 +1,19 @@
-'use client';
+'use client'
 
-import React, { useState } from 'react';
-import { Form, Row, Col } from 'antd';
-import { FormInstance } from 'antd/lib/form';
-import { useTranslation } from 'react-i18next';
-import {
-  Button,
-  DateInputField,
-  InputField,
-  SelectField,
-} from '@newwork/gravity-ui-catalog';
-import { getDateFormat } from '@/common/utils/windowUtils';
+import React, { useState } from 'react'
+import { Form, Row, Col } from 'antd'
+import { FormInstance } from 'antd/lib/form'
+import { useTranslation } from 'react-i18next'
+import { Button, DateInputField, InputField, SelectField } from '@newwork/gravity-ui-catalog'
+import { getDateFormat } from '@/common/utils/windowUtils'
 
 interface FormScreenComponentProps {
-  form: FormInstance;
-  isSubmitting: boolean;
-  handleFormSubmit: (e: React.FormEvent) => Promise<void>;
-  statusOptions: { value: string; label: string }[];
-  prefixDataTestId?: string;
-  isEditMode?: boolean;
+  form: FormInstance
+  isSubmitting: boolean
+  handleFormSubmit: (e: React.FormEvent) => Promise<void>
+  statusOptions: { value: string; label: string }[]
+  prefixDataTestId?: string
+  isEditMode?: boolean
 }
 
 export const FormScreenComponent: React.FC<FormScreenComponentProps> = ({
@@ -29,8 +24,8 @@ export const FormScreenComponent: React.FC<FormScreenComponentProps> = ({
   prefixDataTestId = 'performance-goal-form',
   isEditMode = false
 }) => {
-  const { t } = useTranslation();
-  const [formIsValid, setFormIsValid] = useState(false);
+  const { t } = useTranslation()
+  const [formIsValid, setFormIsValid] = useState(false)
 
   return (
     <Form
@@ -39,13 +34,13 @@ export const FormScreenComponent: React.FC<FormScreenComponentProps> = ({
       data-testid={`${prefixDataTestId}-form`}
       className="gba:w-full gba:max-w-2xl gba:mx-auto"
       onFieldsChange={() => {
-        const isFormValidValue = form.getFieldsError().every((fieldErr: any) => fieldErr.errors.length === 0);
-        setFormIsValid(isFormValidValue);
+        const isFormValidValue = form.getFieldsError().every((fieldErr: any) => fieldErr.errors.length === 0)
+        setFormIsValid(isFormValidValue)
       }}
       onValuesChange={() => {
-        form.validateFields();
-        const isFormValidValue = form.getFieldsError().every((fieldErr: any) => fieldErr.errors.length === 0);
-        setFormIsValid(isFormValidValue);
+        form.validateFields()
+        const isFormValidValue = form.getFieldsError().every((fieldErr: any) => fieldErr.errors.length === 0)
+        setFormIsValid(isFormValidValue)
       }}
       validateTrigger={['onChange', 'onBlur']}
     >
@@ -56,16 +51,16 @@ export const FormScreenComponent: React.FC<FormScreenComponentProps> = ({
           data-testid={`${prefixDataTestId}-title-field`}
         >
           <InputField
-            label={t("performance_goal.title_label", "Title")}
+            label={t('performance_goal.title_label', 'Title')}
             name="title"
-            placeholder={t("performance_goal.title_placeholder", "Enter goal title")}
-            onChange={(field) => form.setFieldsValue({ title: field.value as string })}
+            placeholder={t('performance_goal.title_placeholder', 'Enter goal title')}
+            onChange={field => form.setFieldsValue({ title: field.value as string })}
             required={true}
             maxLength={100}
           />
         </Form.Item>
       </div>
-      
+
       <div className="gba:marginBottom16">
         <Form.Item
           name="startDate"
@@ -73,20 +68,20 @@ export const FormScreenComponent: React.FC<FormScreenComponentProps> = ({
           data-testid={`${prefixDataTestId}-start-date-field`}
         >
           <DateInputField
-            label={t("performance_goal.start_date_label", "Start Date")}
+            label={t('performance_goal.start_date_label', 'Start Date')}
             name="startDate"
-            placeholder={t("performance_goal.start_date_placeholder", "Select start date")}
-                         onChange={(field) => {
-               if (field.value) {
-                 form.setFieldsValue({ startDate: field.value as Date });
-               }
-             }}
+            placeholder={t('performance_goal.start_date_placeholder', 'Select start date')}
+            onChange={field => {
+              if (field.value) {
+                form.setFieldsValue({ startDate: field.value as Date })
+              }
+            }}
             required={true}
             format={getDateFormat('date')}
           />
         </Form.Item>
       </div>
-      
+
       <div className="gba:marginBottom16">
         <Form.Item
           name="dueDate"
@@ -94,51 +89,53 @@ export const FormScreenComponent: React.FC<FormScreenComponentProps> = ({
             { required: true, message: t('performance_goal.due_date_required', 'Please select a due date') },
             ({ getFieldValue }) => ({
               validator(_, value) {
-                const startDate = getFieldValue('startDate');
-                if (!value || !startDate) return Promise.resolve();
-                
-                const dueDate = value instanceof Date ? value : new Date(value);
-                const start = startDate instanceof Date ? startDate : new Date(startDate);
-                
+                const startDate = getFieldValue('startDate')
+                if (!value || !startDate) return Promise.resolve()
+
+                const dueDate = value instanceof Date ? value : new Date(value)
+                const start = startDate instanceof Date ? startDate : new Date(startDate)
+
                 // Compare only the date part (year, month, day) ignoring time
-                const dueDateOnly = new Date(dueDate.getFullYear(), dueDate.getMonth(), dueDate.getDate());
-                const startDateOnly = new Date(start.getFullYear(), start.getMonth(), start.getDate());
-                
+                const dueDateOnly = new Date(dueDate.getFullYear(), dueDate.getMonth(), dueDate.getDate())
+                const startDateOnly = new Date(start.getFullYear(), start.getMonth(), start.getDate())
+
                 if (dueDateOnly >= startDateOnly) {
-                  return Promise.resolve();
+                  return Promise.resolve()
                 }
-                return Promise.reject(new Error(t('performance_goal.due_date_after_start', 'Due date must be on or after start date')));
-              },
-            }),
+                return Promise.reject(
+                  new Error(t('performance_goal.due_date_after_start', 'Due date must be on or after start date'))
+                )
+              }
+            })
           ]}
           data-testid={`${prefixDataTestId}-due-date-field`}
         >
           <DateInputField
-            label={t("performance_goal.due_date_label", "Due Date")}
+            label={t('performance_goal.due_date_label', 'Due Date')}
             name="dueDate"
-            placeholder={t("performance_goal.due_date_placeholder", "Select due date")}
-                         onChange={(field) => {
-               if (field.value) {
-                 form.setFieldsValue({ dueDate: field.value as Date });
-               }
-             }}
-             required={true}
+            placeholder={t('performance_goal.due_date_placeholder', 'Select due date')}
+            onChange={field => {
+              if (field.value) {
+                form.setFieldsValue({ dueDate: field.value as Date })
+              }
+            }}
+            required={true}
             format={getDateFormat('date')}
           />
         </Form.Item>
       </div>
-      
+
       <div className="gba:marginBottom16">
-        <Form.Item 
+        <Form.Item
           name="status"
           rules={[{ required: true, message: t('performance_goal.status_required', 'Please select a status') }]}
           data-testid={`${prefixDataTestId}-status-field`}
         >
           <SelectField
-            label={t("performance_goal.status_label", "Status")}
+            label={t('performance_goal.status_label', 'Status')}
             name="status"
-            placeholder={t("performance_goal.status_placeholder", "Select status")}
-            onChange={(field) => form.setFieldsValue({ status: field.value as string })}
+            placeholder={t('performance_goal.status_placeholder', 'Select status')}
+            onChange={field => form.setFieldsValue({ status: field.value as string })}
             required={true}
             data={statusOptions.map(option => ({
               id: option.value,
@@ -147,27 +144,29 @@ export const FormScreenComponent: React.FC<FormScreenComponentProps> = ({
           />
         </Form.Item>
       </div>
-      
+
       <div className="gba:marginBottom16">
         <Row gutter={16}>
           <Col span={24}>
             <Form.Item
               name="progressPercent"
-              rules={[{ 
-                required: true, 
-                message: t('performance_goal.progress_required', 'Please enter progress percentage') 
-              }]}
+              rules={[
+                {
+                  required: true,
+                  message: t('performance_goal.progress_required', 'Please enter progress percentage')
+                }
+              ]}
               data-testid={`${prefixDataTestId}-progress-field`}
             >
               <InputField
-                label={t("performance_goal.progress_label", "Progress")}
+                label={t('performance_goal.progress_label', 'Progress')}
                 name="progressPercent"
-                placeholder={t("performance_goal.progress_placeholder", "Enter progress percentage")}
-                onChange={(field) => {
-                  let value = parseInt(field.value as string || '0', 10);
-                  if (isNaN(value)) value = 0;
-                  value = Math.min(100, Math.max(0, value));
-                  form.setFieldsValue({ progressPercent: value });
+                placeholder={t('performance_goal.progress_placeholder', 'Enter progress percentage')}
+                onChange={field => {
+                  let value = parseInt((field.value as string) || '0', 10)
+                  if (isNaN(value)) value = 0
+                  value = Math.min(100, Math.max(0, value))
+                  form.setFieldsValue({ progressPercent: value })
                 }}
                 required={true}
                 suffix="%"
@@ -179,29 +178,26 @@ export const FormScreenComponent: React.FC<FormScreenComponentProps> = ({
           </Col>
         </Row>
       </div>
-      
+
       <div className="gba:marginTop16">
         <Form.Item>
           <div className="gba:flex gba:justify-center gba:mt-6">
-            <Button 
-              variant="primary" 
-              onClick={handleFormSubmit} 
+            <Button
+              variant="primary"
+              onClick={handleFormSubmit}
               loading={isSubmitting}
               disabled={!formIsValid}
               data-testid={`${prefixDataTestId}-submit-button`}
               className="gba:w-40"
               size="large"
             >
-               {isEditMode 
-                 ? t("performance_goal.update", "Update") 
-                 : t("performance_goal.submit", "Submit")
-               }
+              {isEditMode ? t('performance_goal.update', 'Update') : t('performance_goal.submit', 'Submit')}
             </Button>
           </div>
         </Form.Item>
       </div>
     </Form>
-  );
-};
+  )
+}
 
-export default FormScreenComponent;
+export default FormScreenComponent

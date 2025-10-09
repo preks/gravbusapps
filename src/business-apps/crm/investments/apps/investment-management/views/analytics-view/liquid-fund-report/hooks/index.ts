@@ -1,1 +1,1 @@
-export { useLiquidFundKPIIntegration } from './useLiquidFundKPIIntegration';
+export { useLiquidFundKPIIntegration } from './useLiquidFundKPIIntegration'

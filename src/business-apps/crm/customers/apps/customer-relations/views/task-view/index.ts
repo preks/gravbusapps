@@ -1,2 +1,2 @@
-export { default } from './TaskView';
-export { default as TaskView } from './TaskView'; 
+export { default } from './TaskView'
+export { default as TaskView } from './TaskView'

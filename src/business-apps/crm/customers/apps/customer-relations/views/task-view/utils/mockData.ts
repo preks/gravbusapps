@@ -1,4 +1,9 @@
-import { Task, TaskStatistics, TaskEmployee, TaskReference } from '@/common/components/common-relations/detail-sheets/task-detail-sheet';
+import {
+  Task,
+  TaskStatistics,
+  TaskEmployee,
+  TaskReference
+} from '@/common/components/common-relations/detail-sheets/task-detail-sheet'
 
 // Mock employees
 const mockEmployees: TaskEmployee[] = [
@@ -42,7 +47,7 @@ const mockEmployees: TaskEmployee[] = [
     department: 'Sales',
     initials: 'TB'
   }
-];
+]
 
 // Mock references
 const mockReferences: TaskReference[] = [
@@ -72,7 +77,7 @@ const mockReferences: TaskReference[] = [
     id: 'contact-1',
     name: 'Sarah Mitchell - Marketing Director'
   }
-];
+]
 
 // Mock tasks matching the wireframe
 export const mockTasks: Task[] = [
@@ -138,7 +143,7 @@ export const mockTasks: Task[] = [
     createdAt: '2024-12-01',
     updatedAt: '2024-12-10'
   }
-];
+]
 
 // Calculate statistics from mock tasks
 export const mockStatistics: TaskStatistics = {
@@ -146,4 +151,4 @@ export const mockStatistics: TaskStatistics = {
   inProgress: mockTasks.filter(task => task.status === 'in_progress').length,
   completed: mockTasks.filter(task => task.status === 'completed').length,
   overdue: mockTasks.filter(task => task.status === 'overdue').length
-}; 
+}

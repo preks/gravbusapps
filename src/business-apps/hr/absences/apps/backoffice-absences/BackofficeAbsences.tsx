@@ -1,123 +1,136 @@
-import React, { useState } from 'react';
+import React, { useState } from 'react'
 // Using PageLayout headerSubViews pattern like team expenses implementation
 //import { PiGauge, PiListBullets, PiChartBar, PiCalendarBlank } from 'react-icons/pi';
-import { GaugeIcon, ListBulletsIcon, ChartBarIcon, CalendarBlankIcon, WalletIcon } from '@phosphor-icons/react';
-import { PageLayout } from '@newwork/nw-design-system';
-import { BusinessAppContextProps } from '../../../../../common/BusinessAppContext';
+import { GaugeIcon, ListBulletsIcon, ChartBarIcon, CalendarBlankIcon, WalletIcon } from '@phosphor-icons/react'
+import { PageLayout } from '@newwork/nw-design-system'
+import { BusinessAppContextProps } from '../../../../../common/BusinessAppContext'
 
 // 🚀 OPTIMIZED: Using new organized tab structure following manager-absences pattern
-import { DashboardTab, AbsenceListTab, CalendarTab, ReportsTab, StatisticsTab } from './components/tabs';
-import { AbsenceDetails, EntitlementsDetails } from './components/pages';
-import { useDashboardData } from './hooks/useDashboardData';
-import { AbsenceDetailsFilter } from './types';
-import { MODULE_COLORS } from '@/common/constants/ui';
-import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
-const moduleColor = MODULE_COLORS.HR;
+import { DashboardTab, AbsenceListTab, CalendarTab, ReportsTab, StatisticsTab } from './components/tabs'
+import { AbsenceDetails, EntitlementsDetails } from './components/pages'
+import { useDashboardData } from './hooks/useDashboardData'
+import { AbsenceDetailsFilter } from './types'
+import { MODULE_COLORS } from '@/common/constants/ui'
+import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
+const moduleColor = MODULE_COLORS.HR
 export interface BackofficeAbsencesProps extends BusinessAppContextProps {}
 
 const BackofficeAbsences: React.FC<BackofficeAbsencesProps> = ({ accessToken, userInfo }) => {
   // State for current view/page - following manager-absences pattern
-  const [currentView, setCurrentView] = useState<'tabs' | 'absence-details' | 'entitlements-details'>('tabs');
+  const [currentView, setCurrentView] = useState<'tabs' | 'absence-details' | 'entitlements-details'>('tabs')
   // State for active tab within the tabs view
-  const [activeTab, setActiveTab] = useState('dashboard');
+  const [activeTab, setActiveTab] = useState('dashboard')
   // State for absence details page filters
-  const [absenceDetailsFilter, setAbsenceDetailsFilter] = useState<AbsenceDetailsFilter>({});
+  const [absenceDetailsFilter, setAbsenceDetailsFilter] = useState<AbsenceDetailsFilter>({})
 
   // State for time filter
-  const [timeFilter, setTimeFilter] = useState<'current-year' | 'quarter' | 'month' | 'everything'>('current-year');
+  const [timeFilter, setTimeFilter] = useState<'current-year' | 'quarter' | 'month' | 'everything'>('current-year')
 
   // 🚀 OPTIMIZED: Single comprehensive dashboard query with server-side aggregations
   // Replaces multiple individual API calls with one efficient request
-  const dashboardData = useDashboardData({ accessToken, timeFilter });
+  const dashboardData = useDashboardData({ accessToken, timeFilter })
 
   const handleTabChange = (value: string) => {
-    setActiveTab(value);
-  };
+    setActiveTab(value)
+  }
 
   // Navigation handlers - following manager-absences pattern
   const handleNavigateToAbsenceDetails = (month: string, year: number = new Date().getFullYear()) => {
     // Handle month names that might include year (e.g., "Dec 2024", "Jan 2025")
-    let monthName = month;
-    let actualYear = year;
-    
+    let monthName = month
+    let actualYear = year
+
     // Check if month includes year (e.g., "Jan 2025")
-    const yearMatch = month.match(/(\w+)\s+(\d{4})/);
+    const yearMatch = month.match(/(\w+)\s+(\d{4})/)
     if (yearMatch) {
-      monthName = yearMatch[1]; // Extract month part
-      actualYear = parseInt(yearMatch[2]); // Extract year part
+      monthName = yearMatch[1] // Extract month part
+      actualYear = parseInt(yearMatch[2]) // Extract year part
     }
-    
+
     // Calculate start and end dates for the selected month
     const monthIndex = [
-      'January', 'February', 'March', 'April', 'May', 'June',
-      'July', 'August', 'September', 'October', 'November', 'December'
-    ].findIndex(m => m.startsWith(monthName.substring(0, 3)));
-    
+      'January',
+      'February',
+      'March',
+      'April',
+      'May',
+      'June',
+      'July',
+      'August',
+      'September',
+      'October',
+      'November',
+      'December'
+    ].findIndex(m => m.startsWith(monthName.substring(0, 3)))
+
     if (monthIndex === -1) {
-      console.error('❌ Month not found:', { month, monthName });
-      return;
+      console.error('❌ Month not found:', { month, monthName })
+      return
     }
-    
-    const startDate = `${actualYear}-${String(monthIndex + 1).padStart(2, '0')}-01`;
-    const lastDayOfMonth = new Date(actualYear, monthIndex + 1, 0);
-    const endDate = `${actualYear}-${String(monthIndex + 1).padStart(2, '0')}-${String(lastDayOfMonth.getDate()).padStart(2, '0')}`;
-    const shortMonth = monthName.substring(0, 3);
-    
+
+    const startDate = `${actualYear}-${String(monthIndex + 1).padStart(2, '0')}-01`
+    const lastDayOfMonth = new Date(actualYear, monthIndex + 1, 0)
+    const endDate = `${actualYear}-${String(monthIndex + 1).padStart(2, '0')}-${String(lastDayOfMonth.getDate()).padStart(2, '0')}`
+    const shortMonth = monthName.substring(0, 3)
+
     // Set filters and navigate to details page
     setAbsenceDetailsFilter({
       month: shortMonth,
       startDate,
       endDate
-    });
-    setCurrentView('absence-details');
-  };
+    })
+    setCurrentView('absence-details')
+  }
 
   const handleNavigateBackToDashboard = () => {
-    setCurrentView('tabs');
-    setActiveTab('dashboard');
+    setCurrentView('tabs')
+    setActiveTab('dashboard')
     // Clear any filters when returning to dashboard
-    setAbsenceDetailsFilter({});
-    };
+    setAbsenceDetailsFilter({})
+  }
 
   // Handle navigation to absence details with filters (status, date range, etc.)
   const handleNavigateToAbsenceDetailsWithFilters = (filters: AbsenceDetailsFilter) => {
-    setAbsenceDetailsFilter(filters);
-    setCurrentView('absence-details');
-  };
+    setAbsenceDetailsFilter(filters)
+    setCurrentView('absence-details')
+  }
 
   // Handle navigation to entitlements details
   const handleNavigateToEntitlementsDetails = () => {
-    setCurrentView('entitlements-details');
-  };
+    setCurrentView('entitlements-details')
+  }
 
   // Tab view options like in manager expenses
   const viewOptions = [
     {
       key: 'dashboard',
       label: getTranslationFromI18nKeyAndLabel('lowcoder:absence_management_hub_backoffice.dashboard_btn', 'Dashboard'),
-      icon: <GaugeIcon className="w-5 h-5" />,
+      icon: <GaugeIcon className="w-5 h-5" />
     },
     {
       key: 'absence-list',
       label: getTranslationFromI18nKeyAndLabel('lowcoder:absence_management_hub_manager.absence_list', 'Absence List'),
-      icon: <ListBulletsIcon className="w-5 h-5" />,
+      icon: <ListBulletsIcon className="w-5 h-5" />
     },
     {
       key: 'calendar',
-      label: getTranslationFromI18nKeyAndLabel('lowcoder:absence_management_hub_backoffice.team_calendar_btn', 'Team Calendar'),
-      icon: <CalendarBlankIcon className="w-5 h-5" />,
+      label: getTranslationFromI18nKeyAndLabel(
+        'lowcoder:absence_management_hub_backoffice.team_calendar_btn',
+        'Team Calendar'
+      ),
+      icon: <CalendarBlankIcon className="w-5 h-5" />
     },
     {
       key: 'statistics',
       label: getTranslationFromI18nKeyAndLabel('lowcoder:absence_management_hub_manager.statistics', 'Statistics'),
-      icon: <ChartBarIcon className="w-5 h-5" />,
+      icon: <ChartBarIcon className="w-5 h-5" />
     },
     {
       key: 'reports',
       label: getTranslationFromI18nKeyAndLabel('lowcoder:absence_management_hub_manager.reports', 'Reports'),
-      icon: <ChartBarIcon className="w-5 h-5" />,
-    },
-  ];
+      icon: <ChartBarIcon className="w-5 h-5" />
+    }
+  ]
 
   const renderTabContent = () => {
     switch (activeTab) {
@@ -133,53 +146,30 @@ const BackofficeAbsences: React.FC<BackofficeAbsencesProps> = ({ accessToken, us
             onNavigateToDetails={handleNavigateToAbsenceDetailsWithFilters}
             onNavigateToEntitlements={handleNavigateToEntitlementsDetails}
           />
-        );
+        )
       case 'absence-list':
-        return (
-          <AbsenceListTab 
-            accessToken={accessToken} 
-            userInfo={userInfo}
-            dashboardData={dashboardData}
-          />
-        );
+        return <AbsenceListTab accessToken={accessToken} userInfo={userInfo} dashboardData={dashboardData} />
 
       case 'calendar':
-        return (
-          <CalendarTab 
-            accessToken={accessToken} 
-            userInfo={userInfo}
-            dashboardData={dashboardData}
-          />
-        );
+        return <CalendarTab accessToken={accessToken} userInfo={userInfo} dashboardData={dashboardData} />
       case 'reports':
-        return (
-          <ReportsTab 
-            accessToken={accessToken} 
-            userInfo={userInfo}
-            dashboardData={dashboardData}
-          />
-        );
+        return <ReportsTab accessToken={accessToken} userInfo={userInfo} dashboardData={dashboardData} />
       case 'statistics':
-        return (
-          <StatisticsTab
-            accessToken={accessToken}
-            userInfo={userInfo}
-            dashboardData={dashboardData}
-          />
-        );
+        return <StatisticsTab accessToken={accessToken} userInfo={userInfo} dashboardData={dashboardData} />
       default:
-        return null;
+        return null
     }
-  };
+  }
 
   // Render based on current view - following manager-absences pattern
   if (currentView === 'absence-details') {
     // Convert special "NO_DEPARTMENT_SPECIAL" identifier back to display name
-    const displayDepartment = absenceDetailsFilter.department === 'NO_DEPARTMENT_SPECIAL' 
-      ? getTranslationFromI18nKeyAndLabel('lowcoder:absence_management_hub_backoffice.no_department', 'No Department') 
-      : absenceDetailsFilter.department;
+    const displayDepartment =
+      absenceDetailsFilter.department === 'NO_DEPARTMENT_SPECIAL'
+        ? getTranslationFromI18nKeyAndLabel('lowcoder:absence_management_hub_backoffice.no_department', 'No Department')
+        : absenceDetailsFilter.department
 
-  return (
+    return (
       <div data-testid="backoffice-absences-container">
         <AbsenceDetails
           accessToken={accessToken}
@@ -194,7 +184,7 @@ const BackofficeAbsences: React.FC<BackofficeAbsencesProps> = ({ accessToken, us
           onNavigateBack={handleNavigateBackToDashboard}
         />
       </div>
-    );
+    )
   }
 
   // Render entitlements details page
@@ -207,8 +197,8 @@ const BackofficeAbsences: React.FC<BackofficeAbsencesProps> = ({ accessToken, us
           timeFilter={timeFilter}
           onNavigateBack={handleNavigateBackToDashboard}
         />
-        </div>
-    );
+      </div>
+    )
   }
 
   // Default tabs view
@@ -216,12 +206,18 @@ const BackofficeAbsences: React.FC<BackofficeAbsencesProps> = ({ accessToken, us
     <div data-testid="backoffice-absences-container">
       <PageLayout
         headerIcon={CalendarBlankIcon}
-        headerTitle={getTranslationFromI18nKeyAndLabel('lowcoder:absence_management_hub_backoffice.absence_management_hub_backoffice_title', 'Absence Management Hub (Backoffice)')}
-        headerDescription={getTranslationFromI18nKeyAndLabel('lowcoder:absence_management_hub_backoffice.absence_management_hub_backoffice_description', 'Manage and monitor all absence requests across the organization')}
+        headerTitle={getTranslationFromI18nKeyAndLabel(
+          'lowcoder:absence_management_hub_backoffice.absence_management_hub_backoffice_title',
+          'Absence Management Hub (Backoffice)'
+        )}
+        headerDescription={getTranslationFromI18nKeyAndLabel(
+          'lowcoder:absence_management_hub_backoffice.absence_management_hub_backoffice_description',
+          'Manage and monitor all absence requests across the organization'
+        )}
         headerSubViews={{
           value: activeTab,
           onValueChange: handleTabChange,
-          items: viewOptions.map((option) => ({
+          items: viewOptions.map(option => ({
             value: option.key,
             label: option.label,
             icon: option.icon
@@ -233,7 +229,7 @@ const BackofficeAbsences: React.FC<BackofficeAbsencesProps> = ({ accessToken, us
         {renderTabContent()}
       </PageLayout>
     </div>
-  );
-};
+  )
+}
 
-export default BackofficeAbsences;
+export default BackofficeAbsences

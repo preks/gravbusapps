@@ -127,4 +127,4 @@ export const GET_EXPENSE_PLAN_FOR_APPROVAL = `
       }
     }
   }
-`; 
+`

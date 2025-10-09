@@ -1,6 +1,4 @@
-import { ChangeEmployeeAddress } from './ChangeEmployeeAddress';
+import { ChangeEmployeeAddress } from './ChangeEmployeeAddress'
 
-export { ChangeEmployeeAddress };
-export default ChangeEmployeeAddress;
-
-
+export { ChangeEmployeeAddress }
+export default ChangeEmployeeAddress

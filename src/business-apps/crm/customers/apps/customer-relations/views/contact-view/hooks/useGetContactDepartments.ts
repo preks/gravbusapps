@@ -1,16 +1,16 @@
-import { useState, useEffect, useCallback } from "react";
-import { BusinessAppContextProps } from "@/common/BusinessAppContext";
-import { useGraphQLClient } from "@/common/network/graphql/useGraphQLClient";
+import { useState, useEffect, useCallback } from 'react'
+import { BusinessAppContextProps } from '@/common/BusinessAppContext'
+import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 
 export interface DepartmentOption {
-  id: string;
-  name: string;
+  id: string
+  name: string
 }
 
 export interface UseGetContactDepartmentsReturn {
-  departmentOptions: DepartmentOption[];
-  isLoading: boolean;
-  error: Error | null;
+  departmentOptions: DepartmentOption[]
+  isLoading: boolean
+  error: Error | null
 }
 
 const GET_DEPARTMENTS_QUERY = `
@@ -30,60 +30,59 @@ const GET_DEPARTMENTS_QUERY = `
       department
     }
   }
-`;
+`
 
 export const useGetContactDepartments = (
   context: BusinessAppContextProps,
-  search: string = ""
+  search: string = ''
 ): UseGetContactDepartmentsReturn => {
-  const [departmentOptions, setDepartmentOptions] = useState<DepartmentOption[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<Error | null>(null);
+  const [departmentOptions, setDepartmentOptions] = useState<DepartmentOption[]>([])
+  const [isLoading, setIsLoading] = useState(true)
+  const [error, setError] = useState<Error | null>(null)
 
-  const graphqlClient = useGraphQLClient(context.accessToken);
+  const graphqlClient = useGraphQLClient(context.accessToken)
 
   const fetchDepartments = useCallback(async () => {
     if (!context.accessToken) {
-      setIsLoading(false);
-      return;
+      setIsLoading(false)
+      return
     }
 
-    setIsLoading(true);
-    setError(null);
+    setIsLoading(true)
+    setError(null)
 
     try {
-      const searchPattern = search ? `%${search}%` : "%";
+      const searchPattern = search ? `%${search}%` : '%'
       const result = await graphqlClient.request(GET_DEPARTMENTS_QUERY, {
-        search: searchPattern,
-      });
+        search: searchPattern
+      })
 
       if (result?.Contact) {
-        const options = result.Contact
-          .filter((contact: any) => contact.department)
+        const options = result.Contact.filter((contact: any) => contact.department)
           .map((contact: any, index: number) => ({
             id: `department-${contact.department}-${index}`,
-            name: contact.department,
+            name: contact.department
           }))
-          .sort((a: DepartmentOption, b: DepartmentOption) => a.name.localeCompare(b.name));
-        setDepartmentOptions(options);
+          .sort((a: DepartmentOption, b: DepartmentOption) => a.name.localeCompare(b.name))
+        setDepartmentOptions(options)
       } else {
-        setDepartmentOptions([]);
+        setDepartmentOptions([])
       }
     } catch (err) {
-      setError(err instanceof Error ? err : new Error("Failed to fetch departments"));
-      console.error("Error fetching departments:", err);
+      setError(err instanceof Error ? err : new Error('Failed to fetch departments'))
+      console.error('Error fetching departments:', err)
     } finally {
-      setIsLoading(false);
+      setIsLoading(false)
     }
-  }, [context.accessToken, search, graphqlClient]);
+  }, [context.accessToken, search, graphqlClient])
 
   useEffect(() => {
-    fetchDepartments();
-  }, [fetchDepartments]);
+    fetchDepartments()
+  }, [fetchDepartments])
 
   return {
     departmentOptions,
     isLoading,
-    error,
-  };
-}; 
+    error
+  }
+}

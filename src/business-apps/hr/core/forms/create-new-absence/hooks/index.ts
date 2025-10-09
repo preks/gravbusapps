@@ -1,2 +1,2 @@
-export { useAbsenceTypesByGroup } from './useAbsenceTypesByGroup';
-export { useAbsenceValidation } from './useAbsenceValidation';
+export { useAbsenceTypesByGroup } from './useAbsenceTypesByGroup'
+export { useAbsenceValidation } from './useAbsenceValidation'

@@ -1,7 +1,7 @@
-import { useState, useEffect, useCallback } from 'react';
-import { BusinessAppContextProps } from '@/common/BusinessAppContext';
-import { useCampaignRecordQueries } from '../queries';
-import { CampaignRecord, UseCampaignRecordReturn } from '../types';
+import { useState, useEffect, useCallback } from 'react'
+import { BusinessAppContextProps } from '@/common/BusinessAppContext'
+import { useCampaignRecordQueries } from '../queries'
+import { CampaignRecord, UseCampaignRecordReturn } from '../types'
 
 // Helper function to parse catalog reference
 const parseCatalogReference = (typeRef?: string) => {
@@ -10,54 +10,54 @@ const parseCatalogReference = (typeRef?: string) => {
       id: '',
       code: '',
       value: 'Unknown'
-    };
+    }
   }
-  
+
   // Parse format like "SalesCampaignType:v1:SEASONAL_PROMOTION"
-  const parts = typeRef.split(':');
+  const parts = typeRef.split(':')
   if (parts.length >= 3) {
-    const code = parts[2];
+    const code = parts[2]
     // Convert code to readable value
-    const value = code.replace(/_/g, ' ').toLowerCase().replace(/\b\w/g, l => l.toUpperCase());
+    const value = code
+      .replace(/_/g, ' ')
+      .toLowerCase()
+      .replace(/\b\w/g, l => l.toUpperCase())
     return {
       id: typeRef,
       code: code,
       value: value
-    };
+    }
   }
-  
+
   return {
     id: typeRef,
     code: typeRef,
     value: typeRef
-  };
-};
+  }
+}
 
-export const useCampaignRecord = (
-  context: BusinessAppContextProps,
-  campaignId: string
-): UseCampaignRecordReturn => {
-  const [campaign, setCampaign] = useState<CampaignRecord | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+export const useCampaignRecord = (context: BusinessAppContextProps, campaignId: string): UseCampaignRecordReturn => {
+  const [campaign, setCampaign] = useState<CampaignRecord | null>(null)
+  const [isLoading, setIsLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
 
-  const { fetchCampaignRecord } = useCampaignRecordQueries(context);
+  const { fetchCampaignRecord } = useCampaignRecordQueries(context)
 
   const loadCampaignRecord = useCallback(async () => {
     if (!context.accessToken || !campaignId) {
-      setError('No access token or campaign ID available');
-      setIsLoading(false);
-      return;
+      setError('No access token or campaign ID available')
+      setIsLoading(false)
+      return
     }
 
-    setIsLoading(true);
-    setError(null);
+    setIsLoading(true)
+    setError(null)
 
     try {
-      const result = await fetchCampaignRecord({ campaignId });
-      
+      const result = await fetchCampaignRecord({ campaignId })
+
       if (result.SalesCampaign && result.SalesCampaign.length > 0) {
-        const campaignData = result.SalesCampaign[0];
+        const campaignData = result.SalesCampaign[0]
         setCampaign({
           id: campaignData.id,
           name: campaignData.name,
@@ -68,33 +68,33 @@ export const useCampaignRecord = (
           updatedAt: campaignData.updatedAt,
           isDeleted: campaignData.isDeleted,
           type: parseCatalogReference(campaignData.typeRef)
-        });
+        })
       } else {
-        setError('Campaign not found');
-        setCampaign(null);
+        setError('Campaign not found')
+        setCampaign(null)
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Unknown error');
-      setCampaign(null);
+      setError(err instanceof Error ? err.message : 'Unknown error')
+      setCampaign(null)
     } finally {
-      setIsLoading(false);
+      setIsLoading(false)
     }
-  }, [context.accessToken, campaignId, fetchCampaignRecord]);
+  }, [context.accessToken, campaignId, fetchCampaignRecord])
 
   const refetch = useCallback(() => {
-    loadCampaignRecord();
-  }, [loadCampaignRecord]);
+    loadCampaignRecord()
+  }, [loadCampaignRecord])
 
   useEffect(() => {
     if (context.accessToken && campaignId) {
-      loadCampaignRecord();
+      loadCampaignRecord()
     }
-  }, [context.accessToken, campaignId]);
+  }, [context.accessToken, campaignId])
 
   return {
     campaign,
     isLoading,
     error,
     refetch
-  };
-};
+  }
+}

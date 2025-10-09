@@ -74,4 +74,4 @@ export const GET_EXPENSE_ITEMS_BY_MANAGER = `
       }
     }
   }
-`;
+`

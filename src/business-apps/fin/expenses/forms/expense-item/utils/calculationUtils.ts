@@ -1,7 +1,7 @@
 /**
  * Calculation utilities for the Expense Item module
  */
-import { ExpensePosition } from "../types";
+import { ExpensePosition } from '../types'
 
 /**
  * Calculates the total amount from all expense positions
@@ -9,11 +9,8 @@ import { ExpensePosition } from "../types";
  * @returns Total amount as a number
  */
 export const calculateTotalAmount = (positions: ExpensePosition[]): number => {
-  return positions.reduce(
-    (total, position) => total + (Number(position.amount) || 0),
-    0
-  );
-};
+  return positions.reduce((total, position) => total + (Number(position.amount) || 0), 0)
+}
 
 /**
  * Formats a number to a currency string with 2 decimal places
@@ -22,6 +19,6 @@ export const calculateTotalAmount = (positions: ExpensePosition[]): number => {
  * @returns Formatted currency string
  */
 export const formatCurrency = (amount: number, currencyCode?: string): string => {
-  const formattedAmount = amount.toFixed(2);
-  return currencyCode ? `${formattedAmount} ${currencyCode}` : formattedAmount;
-};
+  const formattedAmount = amount.toFixed(2)
+  return currencyCode ? `${formattedAmount} ${currencyCode}` : formattedAmount
+}

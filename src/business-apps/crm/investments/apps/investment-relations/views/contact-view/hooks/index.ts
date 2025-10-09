@@ -1,2 +1,1 @@
-export { useContactView } from './useContactView';
-
+export { useContactView } from './useContactView'

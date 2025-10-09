@@ -17,8 +17,8 @@ A comprehensive document management component for the NEWWORK platform that prov
 ### Basic Usage
 
 ```tsx
-import React from 'react';
-import { DocumentManager, useDocumentDataController } from '@/components/document-manager';
+import React from 'react'
+import { DocumentManager, useDocumentDataController } from '@/components/document-manager'
 
 const MyComponent: React.FC = () => {
   const dataController = useDocumentDataController({
@@ -37,21 +37,21 @@ const MyComponent: React.FC = () => {
         format: 'FILE'
       }
     ]
-  });
+  })
 
   return (
     <DocumentManager
       entityId="investment-123"
       entityType="account"
       context={{
-        accessToken: "your-access-token",
-        flowContexts: ["customerAccountEntity"]
+        accessToken: 'your-access-token',
+        flowContexts: ['customerAccountEntity']
       }}
       dataController={dataController}
       onDocumentUpdate={() => console.log('Document updated')}
     />
-  );
-};
+  )
+}
 ```
 
 ### With Custom Filters
@@ -63,7 +63,7 @@ const dataController = useDocumentDataController({
     documentType: ['type-1'],
     documentGroup: ['group-1']
   }
-});
+})
 ```
 
 ### With Custom Columns
@@ -74,10 +74,10 @@ const dataController = useDocumentDataController({
     pageSize: 50,
     currentPage: 1
   }
-});
+})
 
 // The dataController.columns can be modified to show/hide columns
-dataController.onColumnVisibilityChange('expirationDate', true);
+dataController.onColumnVisibilityChange('expirationDate', true)
 ```
 
 ## Data Controller Pattern
@@ -95,14 +95,14 @@ The DocumentManager uses a data controller pattern to separate data logic from U
 
 ### DocumentManagerProps
 
-| Prop | Type | Required | Description |
-|------|------|----------|-------------|
-| `entityId` | `string` | Yes | The ID of the entity this document manager is attached to |
-| `entityType` | `'account' \| 'contact' \| 'lead' \| 'opportunity'` | Yes | The type of entity |
-| `context` | `{ accessToken?: string; flowContexts?: FlowContextName[] }` | Yes | Authentication and flow context |
-| `dataController` | `DocumentDataController` | Yes | The data controller instance |
-| `onDocumentUpdate` | `() => void` | No | Callback when documents are updated |
-| `className` | `string` | No | Additional CSS classes |
+| Prop               | Type                                                         | Required | Description                                               |
+| ------------------ | ------------------------------------------------------------ | -------- | --------------------------------------------------------- |
+| `entityId`         | `string`                                                     | Yes      | The ID of the entity this document manager is attached to |
+| `entityType`       | `'account' \| 'contact' \| 'lead' \| 'opportunity'`          | Yes      | The type of entity                                        |
+| `context`          | `{ accessToken?: string; flowContexts?: FlowContextName[] }` | Yes      | Authentication and flow context                           |
+| `dataController`   | `DocumentDataController`                                     | Yes      | The data controller instance                              |
+| `onDocumentUpdate` | `() => void`                                                 | No       | Callback when documents are updated                       |
+| `className`        | `string`                                                     | No       | Additional CSS classes                                    |
 
 ### DocumentDataController
 
@@ -126,39 +126,41 @@ The data controller provides these methods and properties:
 
 ```tsx
 interface Document {
-  id: string;
-  version: number;
-  name?: string | null;
-  createdAt: string;
-  expirationDate?: string | null;
+  id: string
+  version: number
+  name?: string | null
+  createdAt: string
+  expirationDate?: string | null
   documentType?: {
-    id: string;
-    value: string;
-    code?: string;
-  } | null;
+    id: string
+    value: string
+    code?: string
+  } | null
   documentGroup?: {
-    id: string;
-    value: string;
-    code?: string;
-  } | null;
-  file?: string | null;
-  mimeType?: string | null;
-  fileSize?: number;
-  createdBy?: string | null;
-  format?: string | null;
-  parentDocument?: string | null;
+    id: string
+    value: string
+    code?: string
+  } | null
+  file?: string | null
+  mimeType?: string | null
+  fileSize?: number
+  createdBy?: string | null
+  format?: string | null
+  parentDocument?: string | null
 }
 ```
 
 ## View Modes
 
 ### Icon View
+
 - Grid layout with document cards
 - File type icons with color coding
 - Compact information display
 - Action buttons on each card
 
 ### List View
+
 - Table format with sortable columns
 - Configurable column visibility
 - Bulk selection capabilities

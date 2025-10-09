@@ -1,3 +1,2 @@
-export { default as InvestmentReportForm } from './InvestmentReportForm';
-export { default } from './InvestmentReportForm';
-
+export { default as InvestmentReportForm } from './InvestmentReportForm'
+export { default } from './InvestmentReportForm'

@@ -1,13 +1,13 @@
-import React, { useState } from 'react';
-import { Button, Card, CardContent, CardHeader, CardTitle, Textarea, Spinner } from '@newwork/nw-design-system';
-import { Sparkles, Zap } from 'lucide-react';
-import { FlowTemplate } from '@/common/network/flows/FlowTemplateClient';
-import { flowAIClient } from '@/common/network/flows/FlowAIClient';
+import React, { useState } from 'react'
+import { Button, Card, CardContent, CardHeader, CardTitle, Textarea, Spinner } from '@newwork/nw-design-system'
+import { Sparkles, Zap } from 'lucide-react'
+import { FlowTemplate } from '@/common/network/flows/FlowTemplateClient'
+import { flowAIClient } from '@/common/network/flows/FlowAIClient'
 
 interface AIFlowGeneratorProps {
-  onFlowGenerated: (template: FlowTemplate) => void;
-  accessToken: string;
-  'data-testid'?: string;
+  onFlowGenerated: (template: FlowTemplate) => void
+  accessToken: string
+  'data-testid'?: string
 }
 
 /**
@@ -18,39 +18,41 @@ export const AIFlowGenerator: React.FC<AIFlowGeneratorProps> = ({
   accessToken,
   'data-testid': testId = 'ai-flow-generator'
 }) => {
-  const [aiPrompt, setAiPrompt] = useState('');
-  const [isGenerating, setIsGenerating] = useState(false);
+  const [aiPrompt, setAiPrompt] = useState('')
+  const [isGenerating, setIsGenerating] = useState(false)
 
   const handleAIGenerate = async () => {
-    if (!aiPrompt.trim()) return;
-    
-    setIsGenerating(true);
+    if (!aiPrompt.trim()) return
+
+    setIsGenerating(true)
     try {
-      console.log('Generating flow from prompt:', aiPrompt);
-      
+      console.log('Generating flow from prompt:', aiPrompt)
+
       // Call AI service to generate flow template
-      const generatedTemplate = await flowAIClient.generateFlowTemplate(aiPrompt.trim(), accessToken);
-      
-      console.log('Generated template:', generatedTemplate);
-      
+      const generatedTemplate = await flowAIClient.generateFlowTemplate(aiPrompt.trim(), accessToken)
+
+      console.log('Generated template:', generatedTemplate)
+
       // Pass the generated template to parent component
-      onFlowGenerated(generatedTemplate);
-      
+      onFlowGenerated(generatedTemplate)
+
       // Clear the prompt after successful generation
-      setAiPrompt('');
-      
+      setAiPrompt('')
     } catch (error) {
-      console.error('Error generating flow:', error);
+      console.error('Error generating flow:', error)
     } finally {
-      setIsGenerating(false);
+      setIsGenerating(false)
     }
-  };
+  }
 
   return (
-    <div className="gba:relative gba:overflow-hidden gba:rounded-xl gba:bg-gradient-to-br gba:from-purple-600 gba:via-purple-700 gba:to-indigo-800 gba:p-1" data-testid={testId}>
+    <div
+      className="gba:relative gba:overflow-hidden gba:rounded-xl gba:bg-gradient-to-br gba:from-purple-600 gba:via-purple-700 gba:to-indigo-800 gba:p-1"
+      data-testid={testId}
+    >
       {/* Animated background pattern */}
       <div className="gba:absolute gba:inset-0 gba:bg-gradient-to-r gba:from-purple-400/20 gba:via-pink-500/20 gba:to-indigo-600/20 gba:animate-pulse"></div>
-      
+
       {/* Content Card */}
       <Card className="gba:relative gba:bg-white gba:border-0 gba:shadow-2xl">
         <CardHeader className="gba:text-center gba:pb-4">
@@ -61,22 +63,20 @@ export const AIFlowGenerator: React.FC<AIFlowGeneratorProps> = ({
               <Sparkles className="gba:h-8 gba:w-8 gba:text-white" />
             </div>
           </div>
-          
+
           <CardTitle className="gba:text-xl gba:font-bold gba:bg-gradient-to-r gba:from-purple-600 gba:to-indigo-600 gba:bg-clip-text gba:text-transparent">
             Create with AI
           </CardTitle>
-          <p className="gba:text-sm gba:text-gray-600 gba:mt-2">
-            Describe your workflow and watch AI bring it to life
-          </p>
+          <p className="gba:text-sm gba:text-gray-600 gba:mt-2">Describe your workflow and watch AI bring it to life</p>
         </CardHeader>
-        
+
         <CardContent className="gba:space-y-6 gba:pt-0">
           {/* Enhanced Textarea */}
           <div className="gba:relative">
             <Textarea
               placeholder="✨ Try something like: 'Create an approval workflow for expense reports with manager review, finance approval, and automatic notifications...'"
               value={aiPrompt}
-              onChange={(e) => setAiPrompt(e.target.value)}
+              onChange={e => setAiPrompt(e.target.value)}
               rows={6}
               className="gba:min-h-[150px] gba:text-sm gba:border-2 gba:border-purple-200 gba:focus:border-purple-500 gba:rounded-lg gba:bg-gradient-to-br gba:from-purple-50/50 gba:to-indigo-50/50"
               data-testid={`${testId}-ai-prompt`}
@@ -86,7 +86,7 @@ export const AIFlowGenerator: React.FC<AIFlowGeneratorProps> = ({
               {aiPrompt.length}/500
             </div>
           </div>
-          
+
           {/* Enhanced Generate Button */}
           <Button
             onClick={handleAIGenerate}
@@ -106,7 +106,7 @@ export const AIFlowGenerator: React.FC<AIFlowGeneratorProps> = ({
               </>
             )}
           </Button>
-          
+
           {/* AI Tips with Better Design */}
           <div className="gba:bg-gradient-to-r gba:from-purple-50 gba:to-indigo-50 gba:border gba:border-purple-200 gba:rounded-lg gba:p-4">
             <h4 className="gba:font-semibold gba:text-sm gba:mb-3 gba:text-purple-800 gba:flex gba:items-center gba:gap-2">
@@ -135,5 +135,5 @@ export const AIFlowGenerator: React.FC<AIFlowGeneratorProps> = ({
         </CardContent>
       </Card>
     </div>
-  );
-};
+  )
+}

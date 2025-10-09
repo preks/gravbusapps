@@ -1,19 +1,19 @@
-import React from 'react';
-import { Select } from 'antd';
-import { LANGUAGES, Language } from '../utils/translationService';
+import React from 'react'
+import { Select } from 'antd'
+import { LANGUAGES, Language } from '../utils/translationService'
 
 interface LanguageDropdownProps {
-  selectedLanguage: string;
-  onChange: (languageCode: string) => void;
-  size?: 'small' | 'middle' | 'large';
-  style?: React.CSSProperties;
+  selectedLanguage: string
+  onChange: (languageCode: string) => void
+  size?: 'small' | 'middle' | 'large'
+  style?: React.CSSProperties
 }
 
-const { Option } = Select;
+const { Option } = Select
 
-export const LanguageDropdown: React.FC<LanguageDropdownProps> = ({ 
-  selectedLanguage, 
-  onChange, 
+export const LanguageDropdown: React.FC<LanguageDropdownProps> = ({
+  selectedLanguage,
+  onChange,
   size = 'small',
   style = {}
 }) => {
@@ -32,5 +32,5 @@ export const LanguageDropdown: React.FC<LanguageDropdownProps> = ({
         </Option>
       ))}
     </Select>
-  );
-}; 
+  )
+}

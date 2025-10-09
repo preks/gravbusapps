@@ -1,39 +1,41 @@
-import React, { useState, useCallback, useMemo } from 'react';
-import { ReferenceData } from '../hooks/useOpportunityData';
-import { StageProgression } from '@/components/stage-progression';
-import type { Stage, StageCondition } from '@/components/stage-progression';
-import { FlowContextName } from '@/common/types/FlowRegistryTypes';
-import { CheckCircleFilled, CloseCircleFilled } from '@ant-design/icons';
-import { AppActionMenu } from '@/components/app-action-menu/AppActionMenu';
-import { isOpportunityOpen } from '../utils/opportunityStatusUtils';
+import React, { useState, useCallback, useMemo } from 'react'
+import { ReferenceData } from '../hooks/useOpportunityData'
+import { StageProgression } from '@/components/stage-progression'
+import type { Stage, StageCondition } from '@/components/stage-progression'
+import { FlowContextName } from '@/common/types/FlowRegistryTypes'
+import { CheckCircleFilled, CloseCircleFilled } from '@ant-design/icons'
+import { AppActionMenu } from '@/components/app-action-menu/AppActionMenu'
+import { isOpportunityOpen } from '../utils/opportunityStatusUtils'
 
 // Tooltip content component for opportunity stage conditions
-const OpportunityStageTooltipContent: React.FC<{ 
-  stage: Stage; 
-  conditions: StageCondition[];
+const OpportunityStageTooltipContent: React.FC<{
+  stage: Stage
+  conditions: StageCondition[]
 }> = ({ stage, conditions }) => {
   // Sort conditions: incomplete (false) first, then completed (true)
   const sortedConditions = [...conditions].sort((a, b) => {
-    if (a.isCompleted === b.isCompleted) return 0;
-    return a.isCompleted ? 1 : -1; // false comes before true
-  });
-  
+    if (a.isCompleted === b.isCompleted) return 0
+    return a.isCompleted ? 1 : -1 // false comes before true
+  })
+
   return (
     <div style={{ maxWidth: '280px', padding: '4px 0' }}>
-      <div style={{ 
-        fontSize: '13px', 
-        fontWeight: '600', 
-        marginBottom: '8px',
-        color: '#ffffff',
-        borderBottom: '1px solid #4b5563',
-        paddingBottom: '6px'
-      }}>
+      <div
+        style={{
+          fontSize: '13px',
+          fontWeight: '600',
+          marginBottom: '8px',
+          color: '#ffffff',
+          borderBottom: '1px solid #4b5563',
+          paddingBottom: '6px'
+        }}
+      >
         {stage.value} Stage Conditions
       </div>
       <div style={{ maxHeight: '150px', overflowY: 'auto' }}>
         {sortedConditions.length > 0 ? (
-          sortedConditions.map((condition) => (
-            <div 
+          sortedConditions.map(condition => (
+            <div
               key={condition.id}
               style={{
                 display: 'flex',
@@ -49,19 +51,23 @@ const OpportunityStageTooltipContent: React.FC<{
                 <CloseCircleFilled style={{ color: '#d1d5db', fontSize: '12px', marginTop: '2px', flexShrink: 0 }} />
               )}
               <div style={{ flex: 1 }}>
-                <div style={{ 
-                  fontWeight: '500',
-                  color: condition.isCompleted ? '#4ade80' : '#e5e7eb',
-                  lineHeight: '1.3'
-                }}>
+                <div
+                  style={{
+                    fontWeight: '500',
+                    color: condition.isCompleted ? '#4ade80' : '#e5e7eb',
+                    lineHeight: '1.3'
+                  }}
+                >
                   {condition.title}
                 </div>
                 {condition.isCompleted && condition.completedBy && (
-                  <div style={{ 
-                    fontSize: '10px', 
-                    color: '#d1d5db',
-                    marginTop: '2px'
-                  }}>
+                  <div
+                    style={{
+                      fontSize: '10px',
+                      color: '#d1d5db',
+                      marginTop: '2px'
+                    }}
+                  >
                     Completed by: {condition.completedBy}
                   </div>
                 )}
@@ -69,75 +75,81 @@ const OpportunityStageTooltipContent: React.FC<{
             </div>
           ))
         ) : (
-          <div style={{
-            color: '#d1d5db',
-            fontSize: '12px',
-            fontStyle: 'italic',
-            textAlign: 'center',
-            padding: '8px 0'
-          }}>
+          <div
+            style={{
+              color: '#d1d5db',
+              fontSize: '12px',
+              fontStyle: 'italic',
+              textAlign: 'center',
+              padding: '8px 0'
+            }}
+          >
             No conditions configured for this stage
           </div>
         )}
       </div>
       {conditions.length > 0 && (
-        <div style={{
-          fontSize: '10px',
-          color: '#d1d5db',
-          marginTop: '8px',
-          paddingTop: '6px',
-          borderTop: '1px solid #4b5563',
-          fontStyle: 'italic'
-        }}>
+        <div
+          style={{
+            fontSize: '10px',
+            color: '#d1d5db',
+            marginTop: '8px',
+            paddingTop: '6px',
+            borderTop: '1px solid #4b5563',
+            fontStyle: 'italic'
+          }}
+        >
           Click stage to change • {conditions.filter(c => c.isCompleted).length}/{conditions.length} completed
         </div>
       )}
     </div>
-  );
-};
+  )
+}
 
 // Transform real stage condition status data for stage progression display
 // Filter conditions based on parentEntryId matching the stage (by stage ID)
 const getStageConditionsFromReal = (stageConditionStatuses: any[], stageId: string): StageCondition[] => {
   // Filter conditions that belong to this specific stage
   const stageSpecificConditions = stageConditionStatuses.filter(statusData => {
-    const conditionEntry = statusData.opportunityPipelineStageCondition;
-    const parentEntryId = conditionEntry?.parentEntryId;
-    return parentEntryId === stageId;
-  });
-  
+    const conditionEntry = statusData.opportunityPipelineStageCondition
+    const parentEntryId = conditionEntry?.parentEntryId
+    return parentEntryId === stageId
+  })
+
   return stageSpecificConditions.map(statusData => {
-    const conditionEntry = statusData.opportunityPipelineStageCondition;
-    const config = statusData.configSnapshot || conditionEntry?.objectValue || {};
-    const checkedType = config.check_type === 'MANUAL' ? 'User' : 'Automated';
-    
+    const conditionEntry = statusData.opportunityPipelineStageCondition
+    const config = statusData.configSnapshot || conditionEntry?.objectValue || {}
+    const checkedType = config.check_type === 'MANUAL' ? 'User' : 'Automated'
+
     // Get employee name - prefer displayName, fallback to firstName + lastName
     const getEmployeeName = (employee: any) => {
-      if (!employee) return null;
-      return employee.displayName || `${employee.firstName || ''} ${employee.lastName || ''}`.trim() || 'Unknown Employee';
-    };
-    
+      if (!employee) return null
+      return (
+        employee.displayName || `${employee.firstName || ''} ${employee.lastName || ''}`.trim() || 'Unknown Employee'
+      )
+    }
+
     return {
       id: statusData.id,
       title: conditionEntry?.value || 'Unknown Condition',
       isCompleted: statusData.completed || false,
       checkedType: checkedType as 'Automated' | 'User' | 'Manager' | 'Owner',
       completedBy: statusData.completedByEmployee ? getEmployeeName(statusData.completedByEmployee) : null
-    };
-  });
-};
+    }
+  })
+}
 
 // Calculate completion percentage for a specific stage (by stage ID)
 const getStageCompletionPercentageById = (stageConditionStatuses: any[], stageId: string): number => {
-  const conditions = getStageConditionsFromReal(stageConditionStatuses, stageId);
-  
+  const conditions = getStageConditionsFromReal(stageConditionStatuses, stageId)
+
   if (conditions.length === 0) {
-    return 100; // No conditions = 100% completion (all conditions met)
+    return 100 // No conditions = 100% completion (all conditions met)
   }
-  
-  const completedCount = conditions.filter(condition => condition.isCompleted).length;
-  return Math.round((completedCount / conditions.length) * 100);
-};
+
+  const completedCount = conditions.filter(condition => condition.isCompleted).length
+  return Math.round((completedCount / conditions.length) * 100)
+}
 
 // Convert ReferenceData to Stage format
 const convertToStageFormat = (referenceData: ReferenceData[] | undefined): Stage[] => {
@@ -145,19 +157,19 @@ const convertToStageFormat = (referenceData: ReferenceData[] | undefined): Stage
     id: ref.id,
     value: ref.value,
     code: ref.code
-  }));
-};
+  }))
+}
 
 interface OpportunityStageProgressionProps {
-  currentStage: string;
-  stages: ReferenceData[];
-  opportunityId: string;
-  stageConditionStatuses: any[];
-  accessToken: string;
-  opportunityVersion?: number;
-  onStageUpdate?: () => void;
-  readonly?: boolean;
-  opportunityStatus?: string; // Add opportunity status to control tooltip behavior
+  currentStage: string
+  stages: ReferenceData[]
+  opportunityId: string
+  stageConditionStatuses: any[]
+  accessToken: string
+  opportunityVersion?: number
+  onStageUpdate?: () => void
+  readonly?: boolean
+  opportunityStatus?: string // Add opportunity status to control tooltip behavior
 }
 
 export const OpportunityStageProgression: React.FC<OpportunityStageProgressionProps> = ({
@@ -171,53 +183,59 @@ export const OpportunityStageProgression: React.FC<OpportunityStageProgressionPr
   opportunityStatus
 }) => {
   // State for hover-based tooltip
-  const [hoveredStageId, setHoveredStageId] = useState<string | null>(null);
-  const [tooltipPosition, setTooltipPosition] = useState<{ x: number; y: number; width: number } | null>(null);
+  const [hoveredStageId, setHoveredStageId] = useState<string | null>(null)
+  const [tooltipPosition, setTooltipPosition] = useState<{ x: number; y: number; width: number } | null>(null)
 
   // Check if tooltips should be enabled (only when opportunity is open)
-  const tooltipsEnabled = isOpportunityOpen(opportunityStatus);
+  const tooltipsEnabled = isOpportunityOpen(opportunityStatus)
 
   // Handle tooltip hover using AppActionMenu hover handlers
-  const handleTooltipMouseEnter = useCallback((stageId: string, event: React.MouseEvent) => {
-    // Only show tooltip if opportunity is open
-    if (!tooltipsEnabled) {
-      return;
-    }
-    
-    const rect = event.currentTarget.getBoundingClientRect();
-    setHoveredStageId(stageId);
-    setTooltipPosition({
-      x: rect.left, // Use left edge instead of center
-      y: rect.bottom + 10, // Show below the stage
-      width: rect.width // Store the stage width
-    });
-  }, [tooltipsEnabled]);
+  const handleTooltipMouseEnter = useCallback(
+    (stageId: string, event: React.MouseEvent) => {
+      // Only show tooltip if opportunity is open
+      if (!tooltipsEnabled) {
+        return
+      }
+
+      const rect = event.currentTarget.getBoundingClientRect()
+      setHoveredStageId(stageId)
+      setTooltipPosition({
+        x: rect.left, // Use left edge instead of center
+        y: rect.bottom + 10, // Show below the stage
+        width: rect.width // Store the stage width
+      })
+    },
+    [tooltipsEnabled]
+  )
 
   const handleTooltipMouseLeave = useCallback(() => {
-    setHoveredStageId(null);
-    setTooltipPosition(null);
-  }, []);
+    setHoveredStageId(null)
+    setTooltipPosition(null)
+  }, [])
 
   // Stable context arrays
-  const emptyContextsArray = useMemo(() => [], []);
-  const transitionContextsArray = useMemo(() => [FlowContextName.investmentOpportunityStageTransition], []);
-  const stageStyle = useMemo(() => ({ flex: 1, display: 'flex' as const }), []);
+  const emptyContextsArray = useMemo(() => [], [])
+  const transitionContextsArray = useMemo(() => [FlowContextName.investmentOpportunityStageTransition], [])
+  const stageStyle = useMemo(() => ({ flex: 1, display: 'flex' as const }), [])
 
   // Create stable props for all stages
   const stageProps = useMemo(() => {
-    const props: Record<string, {
-      mouseHandlers: {
-        onMouseEnter: (e: React.MouseEvent<HTMLDivElement>) => void;
-        onMouseLeave: (e: React.MouseEvent<HTMLDivElement>) => void;
-      };
-      externalContextData: { opportunityId: string; targetStageRef: string };
-      contextsArray: FlowContextName[];
-    }> = {};
-    
+    const props: Record<
+      string,
+      {
+        mouseHandlers: {
+          onMouseEnter: (e: React.MouseEvent<HTMLDivElement>) => void
+          onMouseLeave: (e: React.MouseEvent<HTMLDivElement>) => void
+        }
+        externalContextData: { opportunityId: string; targetStageRef: string }
+        contextsArray: FlowContextName[]
+      }
+    > = {}
+
     convertToStageFormat(stages).forEach(stage => {
-      const isCurrentStage = stage.code === currentStage;
-      const isDisabled = readonly && !isCurrentStage;
-      
+      const isCurrentStage = stage.code === currentStage
+      const isDisabled = readonly && !isCurrentStage
+
       props[stage.id] = {
         mouseHandlers: {
           onMouseEnter: (e: React.MouseEvent<HTMLDivElement>) => handleTooltipMouseEnter(stage.id, e),
@@ -227,15 +245,24 @@ export const OpportunityStageProgression: React.FC<OpportunityStageProgressionPr
           opportunityId: opportunityId,
           targetStageRef: stage.id
         },
-        contextsArray: (isCurrentStage || isDisabled) ? emptyContextsArray : transitionContextsArray
-      };
-    });
-    
-    return props;
-  }, [stages, currentStage, opportunityId, handleTooltipMouseEnter, handleTooltipMouseLeave, emptyContextsArray, transitionContextsArray, readonly]);
+        contextsArray: isCurrentStage || isDisabled ? emptyContextsArray : transitionContextsArray
+      }
+    })
+
+    return props
+  }, [
+    stages,
+    currentStage,
+    opportunityId,
+    handleTooltipMouseEnter,
+    handleTooltipMouseLeave,
+    emptyContextsArray,
+    transitionContextsArray,
+    readonly
+  ])
 
   if (!stages || stages.length === 0) {
-    return null;
+    return null
   }
 
   return (
@@ -243,16 +270,16 @@ export const OpportunityStageProgression: React.FC<OpportunityStageProgressionPr
       <StageProgression
         stages={convertToStageFormat(stages)}
         currentStage={currentStage}
-        getStageCompletionPercentage={(stageCode) => {
-          const stage = convertToStageFormat(stages).find(s => s.code === stageCode);
-          const stageId = stage?.id || '';
-          return getStageCompletionPercentageById(stageConditionStatuses, stageId);
+        getStageCompletionPercentage={stageCode => {
+          const stage = convertToStageFormat(stages).find(s => s.code === stageCode)
+          const stageId = stage?.id || ''
+          return getStageCompletionPercentageById(stageConditionStatuses, stageId)
         }}
         dataTestIdPrefix="opportunity-stage-progression"
         onStageClick={() => {}} // Dummy function to enable pointer cursor for non-current stages
       >
         {(stage, isCurrentStage, _isCompleted, stageElement) => {
-          const stagePropsData = stageProps[stage.id];
+          const stagePropsData = stageProps[stage.id]
           // For the current stage, render a plain container (no action menu) to prevent any click interaction
           if (isCurrentStage) {
             return (
@@ -265,7 +292,7 @@ export const OpportunityStageProgression: React.FC<OpportunityStageProgressionPr
               >
                 {stageElement}
               </div>
-            );
+            )
           }
 
           // For non-current stages, keep the action menu to allow transitions
@@ -286,37 +313,40 @@ export const OpportunityStageProgression: React.FC<OpportunityStageProgressionPr
             >
               {stageElement}
             </AppActionMenu>
-          );
+          )
         }}
       </StageProgression>
 
       {/* Custom Tooltip Overlay - only show if tooltips are enabled */}
-      {tooltipsEnabled && hoveredStageId && tooltipPosition && (() => {
-        const hoveredStage = convertToStageFormat(stages).find(s => s.id === hoveredStageId);
-        if (!hoveredStage) return null;
+      {tooltipsEnabled &&
+        hoveredStageId &&
+        tooltipPosition &&
+        (() => {
+          const hoveredStage = convertToStageFormat(stages).find(s => s.id === hoveredStageId)
+          if (!hoveredStage) return null
 
-        const conditions = getStageConditionsFromReal(stageConditionStatuses, hoveredStage.id);
-        
-        return (
-          <div
-            style={{
-              position: 'fixed',
-              left: tooltipPosition.x,
-              top: tooltipPosition.y,
-              width: tooltipPosition.width, // Match stage width exactly
-              zIndex: 1050,
-              backgroundColor: '#1f2937',
-              color: 'white',
-              borderRadius: '6px',
-              padding: '4px',
-              boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)',
-              pointerEvents: 'none'
-            }}
-          >
-            <OpportunityStageTooltipContent stage={hoveredStage} conditions={conditions} />
-          </div>
-        );
-      })()}
+          const conditions = getStageConditionsFromReal(stageConditionStatuses, hoveredStage.id)
+
+          return (
+            <div
+              style={{
+                position: 'fixed',
+                left: tooltipPosition.x,
+                top: tooltipPosition.y,
+                width: tooltipPosition.width, // Match stage width exactly
+                zIndex: 1050,
+                backgroundColor: '#1f2937',
+                color: 'white',
+                borderRadius: '6px',
+                padding: '4px',
+                boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)',
+                pointerEvents: 'none'
+              }}
+            >
+              <OpportunityStageTooltipContent stage={hoveredStage} conditions={conditions} />
+            </div>
+          )
+        })()}
     </div>
-  );
-};
+  )
+}

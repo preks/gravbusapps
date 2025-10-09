@@ -1,66 +1,60 @@
-import React from 'react';
-import { Table, Tag } from 'antd';
-import type { TableProps } from 'antd';
-import { AppActionButton } from '@/components/app-action-button/AppActionButton';
-import { FlowContextName } from '@/common/types/FlowRegistryTypes';
-import { SalaryData, SalaryType, PaymentFrequency } from '../types/salaryTypes';
-import { formatCurrency } from '../utils/salaryCalculations';
-import { getCurrentActiveUserLocale } from '@/common/utils/windowUtils';
-import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
+import React from 'react'
+import { Table, Tag } from 'antd'
+import type { TableProps } from 'antd'
+import { AppActionButton } from '@/components/app-action-button/AppActionButton'
+import { FlowContextName } from '@/common/types/FlowRegistryTypes'
+import { SalaryData, SalaryType, PaymentFrequency } from '../types/salaryTypes'
+import { formatCurrency } from '../utils/salaryCalculations'
+import { getCurrentActiveUserLocale } from '@/common/utils/windowUtils'
+import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 
 interface SalaryTableProps {
-  salaries: SalaryData[];
-  loading?: boolean;
-  accessToken: string;
-  pagination?: TableProps<SalaryData>['pagination'];
-  onChange?: TableProps<SalaryData>['onChange'];
+  salaries: SalaryData[]
+  loading?: boolean
+  accessToken: string
+  pagination?: TableProps<SalaryData>['pagination']
+  onChange?: TableProps<SalaryData>['onChange']
 }
 
 /**
  * SalaryTable component for displaying employee salary data
  * Follows project guidelines with AppActionButton as first column
  */
-const SalaryTable: React.FC<SalaryTableProps> = ({
-  salaries,
-  loading = false,
-  accessToken,
-  pagination,
-  onChange,
-}) => {
-  const locale = getCurrentActiveUserLocale();
-  const PREFIX = 'salary-table';
+const SalaryTable: React.FC<SalaryTableProps> = ({ salaries, loading = false, accessToken, pagination, onChange }) => {
+  const locale = getCurrentActiveUserLocale()
+  const PREFIX = 'salary-table'
 
   // Helper function to get color for salary type tag
   const getSalaryTypeColor = (type: SalaryType) => {
     switch (type) {
       case SalaryType.MONTHLY:
-        return 'blue';
+        return 'blue'
       case SalaryType.HOURLY:
-        return 'green';
+        return 'green'
       default:
-        return 'default';
+        return 'default'
     }
-  };
+  }
 
   // Helper function to get color for payment frequency tag
   const getFrequencyColor = (frequency: PaymentFrequency) => {
     switch (frequency) {
       case PaymentFrequency.MONTHLY:
-        return 'purple';
+        return 'purple'
       case PaymentFrequency.BI_WEEKLY:
-        return 'cyan';
+        return 'cyan'
       case PaymentFrequency.WEEKLY:
-        return 'geekblue';
+        return 'geekblue'
       case PaymentFrequency.QUARTERLY:
-        return 'orange';
+        return 'orange'
       case PaymentFrequency.ANNUALLY:
-        return 'magenta';
+        return 'magenta'
       case PaymentFrequency.ONE_TIME:
-        return 'volcano';
+        return 'volcano'
       default:
-        return 'default';
+        return 'default'
     }
-  };
+  }
 
   const columns = [
     {
@@ -78,21 +72,19 @@ const SalaryTable: React.FC<SalaryTableProps> = ({
             accessToken={accessToken}
             emptyStateBehavior="disable"
             deferMainContextRequestsUntilClick
-            onClick={(e) => e.stopPropagation()}
+            onClick={e => e.stopPropagation()}
           />
         </div>
-      ),
+      )
     },
     {
       title: getTranslationFromI18nKeyAndLabel('salary.table.amount', 'Amount'),
       dataIndex: 'amount',
       key: 'amount',
       render: (amount: number, record: SalaryData) => (
-        <span data-testid={`${PREFIX}-amount-${record.id}`}>
-          {formatCurrency(amount, record.currency, locale)}
-        </span>
+        <span data-testid={`${PREFIX}-amount-${record.id}`}>{formatCurrency(amount, record.currency, locale)}</span>
       ),
-      sorter: (a: SalaryData, b: SalaryData) => a.amount - b.amount,
+      sorter: (a: SalaryData, b: SalaryData) => a.amount - b.amount
     },
     {
       title: getTranslationFromI18nKeyAndLabel('salary.table.type', 'Type'),
@@ -105,9 +97,9 @@ const SalaryTable: React.FC<SalaryTableProps> = ({
       ),
       filters: [
         { text: 'Monthly', value: SalaryType.MONTHLY },
-        { text: 'Hourly', value: SalaryType.HOURLY },
+        { text: 'Hourly', value: SalaryType.HOURLY }
       ],
-      onFilter: (value: string, record: SalaryData) => record.salaryType === value,
+      onFilter: (value: string, record: SalaryData) => record.salaryType === value
     },
     {
       title: getTranslationFromI18nKeyAndLabel('salary.table.frequency', 'Frequency'),
@@ -117,17 +109,15 @@ const SalaryTable: React.FC<SalaryTableProps> = ({
         <Tag color={getFrequencyColor(frequency)} data-testid={`${PREFIX}-frequency-${frequency}`}>
           {frequency.replace('_', ' ')}
         </Tag>
-      ),
+      )
     },
     {
       title: getTranslationFromI18nKeyAndLabel('salary.table.effectiveDate', 'Effective Date'),
       dataIndex: 'effectiveDate',
       key: 'effectiveDate',
-      render: (date: string) => (
-        <span>{new Date(date).toLocaleDateString(locale)}</span>
-      ),
-      sorter: (a: SalaryData, b: SalaryData) => 
-        new Date(a.effectiveDate).getTime() - new Date(b.effectiveDate).getTime(),
+      render: (date: string) => <span>{new Date(date).toLocaleDateString(locale)}</span>,
+      sorter: (a: SalaryData, b: SalaryData) =>
+        new Date(a.effectiveDate).getTime() - new Date(b.effectiveDate).getTime()
     },
     {
       title: getTranslationFromI18nKeyAndLabel('salary.table.status', 'Status'),
@@ -135,19 +125,18 @@ const SalaryTable: React.FC<SalaryTableProps> = ({
       key: 'isActive',
       render: (isActive: boolean) => (
         <Tag color={isActive ? 'success' : 'default'}>
-          {isActive 
+          {isActive
             ? getTranslationFromI18nKeyAndLabel('salary.status.active', 'Active')
-            : getTranslationFromI18nKeyAndLabel('salary.status.inactive', 'Inactive')
-          }
+            : getTranslationFromI18nKeyAndLabel('salary.status.inactive', 'Inactive')}
         </Tag>
       ),
       filters: [
         { text: 'Active', value: true },
-        { text: 'Inactive', value: false },
+        { text: 'Inactive', value: false }
       ],
-      onFilter: (value: boolean, record: SalaryData) => record.isActive === value,
-    },
-  ];
+      onFilter: (value: boolean, record: SalaryData) => record.isActive === value
+    }
+  ]
 
   return (
     <div data-testid="salary-table-container">
@@ -161,7 +150,7 @@ const SalaryTable: React.FC<SalaryTableProps> = ({
         data-testid="salary-table"
       />
     </div>
-  );
-};
+  )
+}
 
-export default SalaryTable;
+export default SalaryTable

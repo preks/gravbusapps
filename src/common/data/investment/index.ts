@@ -2,22 +2,22 @@
 // Based on nw_investment_relations.dbml schema
 
 // Export all types
-export * from './types';
+export * from './types'
 
 // Export all queries
-export * from './queries';
+export * from './queries'
 
 // Export all hooks
-export * from './hooks';
+export * from './hooks'
 
 // Export all mappers
-export * from './mappers';
+export * from './mappers'
 
 // Export all utilities
-export * from './utils';
+export * from './utils'
 
 // Export payload builders
-export * from './payloads';
+export * from './payloads'
 
 // Note: Components moved to investment-record/components/shared
 
@@ -29,12 +29,12 @@ export type {
   InvestmentContact,
   InvestmentLead,
   InvestmentOpportunity,
-  
+
   // Specific investment types
   EquityInvestment,
   RealEstateInvestment,
   LiquidFundInvestment,
-  
+
   // Report types
   InvestmentReport,
   InvestmentTransaction,
@@ -43,7 +43,7 @@ export type {
   RealEstateInvestmentReport,
   RealEstateInvestmentRentalUnit,
   LiquidFundInvestmentReport
-} from './types';
+} from './types'
 
 // Export enums
 export {
@@ -54,7 +54,7 @@ export {
   TaskAssigneeType,
   TaskHolidayPolicy,
   ReportScope
-} from './types';
+} from './types'
 
 // Export commonly used hooks
 export {
@@ -70,17 +70,14 @@ export {
   useGetInvestmentLeadById,
   useGetInvestmentOpportunities,
   useGetInvestmentOpportunityById,
-  
+
   // Integration hooks
   useInvestmentDataIntegration
-} from './hooks';
+} from './hooks'
 
 // Report hooks (re-exported from centralized investment-report module)
 // @deprecated Import from '@/common/data/investment-report/hooks' directly in new code.
-export {
-  useGetInvestmentReports,
-  useGetInvestmentReportById
-} from '@/common/data/investment-report/hooks';
+export { useGetInvestmentReports, useGetInvestmentReportById } from '@/common/data/investment-report/hooks'
 
 // Export commonly used queries
 export {
@@ -95,10 +92,10 @@ export {
   GET_INVESTMENT_LEADS,
   GET_INVESTMENT_LEAD_BY_ID,
   GET_INVESTMENT_OPPORTUNITIES,
-  GET_INVESTMENT_OPPORTUNITY_BY_ID,
+  GET_INVESTMENT_OPPORTUNITY_BY_ID
   // MIGRATION NOTE: Investment report queries moved to @/common/data/investment-report/queries
   // Use the centralized investment-report module for all report queries
-} from './queries';
+} from './queries'
 
 // Export commonly used mappers
 export {
@@ -107,8 +104,4 @@ export {
   toRealEstateInvestment,
   toLiquidFundInvestment,
   toLiquidFundInvestments
-} from './mappers';
-
-
-
-
+} from './mappers'

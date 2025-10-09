@@ -59,7 +59,7 @@ export const GET_EXPENSE_REQUESTS_BY_MANAGER = `
       }
     }
   }
-`;
+`
 
 // New query that follows the same pattern as expense plans with proper search and status filtering
 export const GET_MAIN_VIEW_EXPENSE_REQUESTS = `
@@ -143,7 +143,7 @@ export const GET_MAIN_VIEW_EXPENSE_REQUESTS = `
       }
     }
   }
-`;
+`
 
 export const GET_EXPENSE_REQUEST_BY_ID = `
   query GetExpenseRequestById($id: uuid!) {
@@ -172,7 +172,7 @@ export const GET_EXPENSE_REQUEST_BY_ID = `
       }
     }
   }
-`;
+`
 
 export const GET_TEAM_MEMBERS_BY_MANAGER = `
   query GetTeamMembersByManager($managerId: uuid!) {
@@ -193,7 +193,7 @@ export const GET_TEAM_MEMBERS_BY_MANAGER = `
       jobTitle
     }
   }
-`;
+`
 
 export const APPROVE_EXPENSE_REQUEST = `
   mutation ApproveExpenseRequest($id: uuid!) {
@@ -208,7 +208,7 @@ export const APPROVE_EXPENSE_REQUEST = `
       }
     }
   }
-`;
+`
 
 export const REJECT_EXPENSE_REQUEST = `
   mutation RejectExpenseRequest($id: uuid!, $rejectionReason: String) {
@@ -227,7 +227,7 @@ export const REJECT_EXPENSE_REQUEST = `
       }
     }
   }
-`;
+`
 
 export const GET_EXPENSE_REQUEST_STATISTICS = `
   query GetExpenseRequestStatistics($employeeId: uuid!) {
@@ -296,7 +296,7 @@ export const GET_EXPENSE_REQUEST_STATISTICS = `
     }
   }
 }
-`;
+`
 
 export const GET_EXPENSE_REQUEST_STATISTICS_WITH_CURRENCY = `
   query GetExpenseRequestStatisticsWithCurrency($employeeId: uuid!, $currencyRef: String!) {
@@ -369,4 +369,4 @@ export const GET_EXPENSE_REQUEST_STATISTICS_WITH_CURRENCY = `
     }
   }
 }
-`;
+`

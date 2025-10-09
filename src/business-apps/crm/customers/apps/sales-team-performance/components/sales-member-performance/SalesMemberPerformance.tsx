@@ -1,84 +1,82 @@
-import React, { useState, useRef } from "react";
-import { Spinner, Button, Card, CardContent, CardHeader, CardTitle } from "@newwork/nw-design-system";
-import { PiCalendar } from 'react-icons/pi';
-import { PerformanceHeader } from "./components/header";
-import { SalesPerformanceTab, SalesActivitiesTab } from "./components/tabs";
-import { ActivitiesCalendar } from "./components/activities/ActivitiesCalendar";
-import { useEmployeeHeaderData } from "./hooks/useEmployeeHeaderData";
-import { SalesMemberPerformanceProps, TabItem } from "./types";
+import React, { useState, useRef } from 'react'
+import { Spinner, Button, Card, CardContent, CardHeader, CardTitle } from '@newwork/nw-design-system'
+import { PiCalendar } from 'react-icons/pi'
+import { PerformanceHeader } from './components/header'
+import { SalesPerformanceTab, SalesActivitiesTab } from './components/tabs'
+import { ActivitiesCalendar } from './components/activities/ActivitiesCalendar'
+import { useEmployeeHeaderData } from './hooks/useEmployeeHeaderData'
+import { SalesMemberPerformanceProps, TabItem } from './types'
 
 // Helper to extract team context from URL or props
 const getTeamContextFromUrl = (): { teamId: string; teamName: string } | undefined => {
-  const urlParams = new URLSearchParams(window.location.search);
-  const teamId = urlParams.get("teamId");
-  
+  const urlParams = new URLSearchParams(window.location.search)
+  const teamId = urlParams.get('teamId')
+
   if (teamId) {
     // In real implementation, fetch team name from API or pass as prop
     // For now, use mock team names
     const mockTeamNames: Record<string, string> = {
       'team-1': 'Enterprise Sales',
-      'team-2': 'SMB Sales', 
+      'team-2': 'SMB Sales',
       'team-3': 'Key Accounts',
       'team-4': 'Inside Sales',
-      'team-5': 'Channel Partners',
-    };
-    
+      'team-5': 'Channel Partners'
+    }
+
     return {
       teamId,
-      teamName: mockTeamNames[teamId] || `Team ${teamId}`,
-    };
+      teamName: mockTeamNames[teamId] || `Team ${teamId}`
+    }
   }
-  
-  return undefined;
-};
 
-const DATA_TEST_ID_PREFIX = "SalesMemberPerformance";
+  return undefined
+}
+
+const DATA_TEST_ID_PREFIX = 'SalesMemberPerformance'
 
 export const SalesMemberPerformance: React.FC<SalesMemberPerformanceProps> = ({
   memberId,
   onBack,
-  initialTab = "performance",
+  initialTab = 'performance',
   accessToken,
   userInfo,
-  additionalData,
+  additionalData
 }) => {
-  const [activeTab, setActiveTab] = useState<"performance" | "activities" | "calendar">(
-    initialTab
-  );
-  const [hoveredTab, setHoveredTab] = useState<string | null>(null);
-  const tabContentRef = useRef<HTMLDivElement>(null);
-  
+  const [activeTab, setActiveTab] = useState<'performance' | 'activities' | 'calendar'>(initialTab)
+  const [hoveredTab, setHoveredTab] = useState<string | null>(null)
+  const tabContentRef = useRef<HTMLDivElement>(null)
+
   // Get team context for comparisons
-  const teamContext = getTeamContextFromUrl();
+  const teamContext = getTeamContextFromUrl()
 
   // Simplified tab change handler
   const handleTabChange = (value: string) => {
-    setActiveTab(value as "performance" | "activities" | "calendar");
-  };
+    setActiveTab(value as 'performance' | 'activities' | 'calendar')
+  }
 
   // Fetch real employee header data
   const {
     headerData,
     isLoading: headerLoading,
     error: headerError,
-    refetch,
-  } = useEmployeeHeaderData({ accessToken }, memberId);
+    refetch
+  } = useEmployeeHeaderData({ accessToken }, memberId)
 
   // Tab configuration
   const tabs: TabItem[] = [
     {
-      key: "performance",
-      label: "Sales Performance",
+      key: 'performance',
+      label: 'Sales Performance'
     },
     {
-      key: "activities",
-      label: "Sales Activities",
+      key: 'activities',
+      label: 'Sales Activities'
     },
     {
-      key: "calendar",
-      label: "Activity Calendar",
-    },
-  ];
+      key: 'calendar',
+      label: 'Activity Calendar'
+    }
+  ]
 
   // Overall loading state (only for header since other data is still mocked)
   if (headerLoading) {
@@ -89,14 +87,11 @@ export const SalesMemberPerformance: React.FC<SalesMemberPerformanceProps> = ({
       >
         <Spinner size="lg" />
       </div>
-    );
+    )
   }
 
   return (
-    <div
-      className="gba:w-full gba:min-h-screen gba:bg-gray-50"
-      data-testid={`${DATA_TEST_ID_PREFIX}-container`}
-    >
+    <div className="gba:w-full gba:min-h-screen gba:bg-gray-50" data-testid={`${DATA_TEST_ID_PREFIX}-container`}>
       {/* Header Section */}
       <div className="gba:p-6 gba:bg-white gba:border-b">
         <PerformanceHeader
@@ -121,39 +116,25 @@ export const SalesMemberPerformance: React.FC<SalesMemberPerformanceProps> = ({
                 onMouseLeave={() => setHoveredTab(null)}
               >
                 <Button
-                  variant={activeTab === tab.key ? "default" : "ghost"}
+                  variant={activeTab === tab.key ? 'default' : 'ghost'}
                   onClick={() => handleTabChange(tab.key)}
                   data-testid={`${DATA_TEST_ID_PREFIX}-tab-${tab.key}`}
                   className="gba:px-6 gba:py-3 gba:text-sm gba:font-medium gba:border-2 gba:mr-0 gba:transition-all gba:duration-200"
                   style={{
-                    borderColor: "var(--nw-color-card)",
-                    borderTop: "2px solid var(--nw-color-card)",
-                    borderLeft:
-                      index === 0
-                        ? "2px solid var(--nw-color-card)"
-                        : "1px solid var(--nw-color-card)",
+                    borderColor: 'var(--nw-color-card)',
+                    borderTop: '2px solid var(--nw-color-card)',
+                    borderLeft: index === 0 ? '2px solid var(--nw-color-card)' : '1px solid var(--nw-color-card)',
                     borderRight:
-                      index === tabs.length - 1
-                        ? "2px solid var(--nw-color-card)"
-                        : "1px solid var(--nw-color-card)",
-                    borderBottom:
-                      activeTab === tab.key
-                        ? "none"
-                        : "2px solid var(--nw-color-card)",
-                    borderRadius: "0",
-                    backgroundColor:
-                      activeTab === tab.key
-                        ? "var(--nw-color-card)"
-                        : "transparent",
-                    color:
-                      activeTab === tab.key
-                        ? "var(--nw-color-foreground)"
-                        : "var(--nw-color-muted-foreground)",
+                      index === tabs.length - 1 ? '2px solid var(--nw-color-card)' : '1px solid var(--nw-color-card)',
+                    borderBottom: activeTab === tab.key ? 'none' : '2px solid var(--nw-color-card)',
+                    borderRadius: '0',
+                    backgroundColor: activeTab === tab.key ? 'var(--nw-color-card)' : 'transparent',
+                    color: activeTab === tab.key ? 'var(--nw-color-foreground)' : 'var(--nw-color-muted-foreground)',
                     ...(hoveredTab === tab.key &&
                       activeTab !== tab.key && {
-                        backgroundColor: "var(--nw-color-muted)",
-                        color: "var(--nw-color-foreground)",
-                      }),
+                        backgroundColor: 'var(--nw-color-muted)',
+                        color: 'var(--nw-color-foreground)'
+                      })
                   }}
                 >
                   {tab.label}
@@ -162,7 +143,7 @@ export const SalesMemberPerformance: React.FC<SalesMemberPerformanceProps> = ({
                   <div
                     className="gba:absolute gba:bottom-0 gba:left-0 gba:right-0 gba:h-0.5 gba:z-10"
                     style={{
-                      backgroundColor: "var(--nw-color-foreground)",
+                      backgroundColor: 'var(--nw-color-foreground)'
                     }}
                   />
                 )}
@@ -172,12 +153,8 @@ export const SalesMemberPerformance: React.FC<SalesMemberPerformanceProps> = ({
         </div>
 
         {/* Tab Content */}
-        <div
-          ref={tabContentRef}
-          className="gba:w-full"
-          data-testid={`${DATA_TEST_ID_PREFIX}-tab-content-container`}
-        >
-          {activeTab === "performance" && (
+        <div ref={tabContentRef} className="gba:w-full" data-testid={`${DATA_TEST_ID_PREFIX}-tab-content-container`}>
+          {activeTab === 'performance' && (
             <div data-testid={`${DATA_TEST_ID_PREFIX}-performance-content`}>
               <SalesPerformanceTab
                 employeeId={memberId}
@@ -191,7 +168,7 @@ export const SalesMemberPerformance: React.FC<SalesMemberPerformanceProps> = ({
             </div>
           )}
 
-          {activeTab === "activities" && (
+          {activeTab === 'activities' && (
             <div data-testid={`${DATA_TEST_ID_PREFIX}-activities-content`}>
               <SalesActivitiesTab
                 memberId={memberId}
@@ -202,15 +179,15 @@ export const SalesMemberPerformance: React.FC<SalesMemberPerformanceProps> = ({
             </div>
           )}
 
-          {activeTab === "calendar" && (
+          {activeTab === 'calendar' && (
             <div data-testid={`${DATA_TEST_ID_PREFIX}-calendar-content`} className="gba:p-6">
               <ActivitiesCalendar
                 employeeId={memberId}
                 accessToken={accessToken}
                 userInfo={userInfo}
-                onTotalChange={(total) => {
+                onTotalChange={total => {
                   // Track total activities for this employee
-                  console.log(`Total activities for employee ${memberId}:`, total);
+                  console.log(`Total activities for employee ${memberId}:`, total)
                 }}
               />
             </div>
@@ -218,7 +195,7 @@ export const SalesMemberPerformance: React.FC<SalesMemberPerformanceProps> = ({
         </div>
       </div>
     </div>
-  );
-};
+  )
+}
 
-export default SalesMemberPerformance;
+export default SalesMemberPerformance

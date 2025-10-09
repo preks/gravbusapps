@@ -1,5 +1,5 @@
-import React, { useEffect, useState } from "react";
-import { message, Upload } from "antd";
+import React, { useEffect, useState } from 'react'
+import { message, Upload } from 'antd'
 import {
   Button,
   Spinner,
@@ -16,27 +16,20 @@ import {
   SelectTrigger,
   SelectValue,
   Textarea
-} from "@newwork/nw-design-system";
-import { useForm } from "react-hook-form";
-import {
-  Calendar,
-  User,
-  FileText,
-  Clock,
-  Search,
-  Upload as UploadIcon
-} from "lucide-react";
-import { useSalesTaskFormContext } from "../context/SalesTaskFormContext";
-import { SalesTaskFormValues } from "../types";
-import { formatDataTestId } from "@/common/utils/formatDataTestId";
-import { dispatchProcessContinueEvent } from "@/common/utils/processEventUtils";
-import { getTranslationFromI18nKeyAndLabel } from "@/common/utils/windowUtils";
-import dayjs from "dayjs";
-import { useFileClient } from "@/common/network/files/useFileClient";
-import { useRestClient } from "@/common/network/rest/useRestClient";
-import { env } from "@/common/env/EnvUtils";
+} from '@newwork/nw-design-system'
+import { useForm } from 'react-hook-form'
+import { Calendar, User, FileText, Clock, Search, Upload as UploadIcon } from 'lucide-react'
+import { useSalesTaskFormContext } from '../context/SalesTaskFormContext'
+import { SalesTaskFormValues } from '../types'
+import { formatDataTestId } from '@/common/utils/formatDataTestId'
+import { dispatchProcessContinueEvent } from '@/common/utils/processEventUtils'
+import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
+import dayjs from 'dayjs'
+import { useFileClient } from '@/common/network/files/useFileClient'
+import { useRestClient } from '@/common/network/rest/useRestClient'
+import { env } from '@/common/env/EnvUtils'
 
-const prefixDataTestId = "SalesTaskForm";
+const prefixDataTestId = 'SalesTaskForm'
 
 const SalesTaskFormComponent: React.FC = () => {
   const {
@@ -58,283 +51,253 @@ const SalesTaskFormComponent: React.FC = () => {
     searchEntities,
     setSelectedEntity,
     searchEmployees
-  } = useSalesTaskFormContext();
+  } = useSalesTaskFormContext()
 
-  const { accessToken, additionalData } = businessAppContext;
+  const { accessToken, additionalData } = businessAppContext
 
-  const fileClient = useFileClient({ accessToken } as any);
-  const restClient = useRestClient(env("NEXT_PUBLIC_KOGITO_PROCESSES_ENDPOINT"));
+  const fileClient = useFileClient({ accessToken } as any)
+  const restClient = useRestClient(env('NEXT_PUBLIC_KOGITO_PROCESSES_ENDPOINT'))
 
   // Check if this is an approval request (when Task Type should be hidden)
   // This can be set explicitly OR detected from pre-filled approval type
-  const processTypeRef =
-    additionalData?.psi_taskPayload?.psi_initialParameters?.typeRef ||
-    additionalData?.typeRef;
+  const processTypeRef = additionalData?.psi_taskPayload?.psi_initialParameters?.typeRef || additionalData?.typeRef
 
   const isApprovalRequest =
     additionalData?.isApprovalRequest ||
-    processTypeRef === "SalesTaskType:v1:APPROVAL" ||
-    processTypeRef?.includes("APPROVAL") ||
-    additionalData?.typeRef === "SalesTaskType:v1:APPROVAL" ||
-    additionalData?.typeRef?.includes("APPROVAL") ||
-    formValues.taskTypeRef === "SalesTaskType:v1:APPROVAL" ||
-    formValues.taskTypeRef?.includes("APPROVAL") ||
-    false;
+    processTypeRef === 'SalesTaskType:v1:APPROVAL' ||
+    processTypeRef?.includes('APPROVAL') ||
+    additionalData?.typeRef === 'SalesTaskType:v1:APPROVAL' ||
+    additionalData?.typeRef?.includes('APPROVAL') ||
+    formValues.taskTypeRef === 'SalesTaskType:v1:APPROVAL' ||
+    formValues.taskTypeRef?.includes('APPROVAL') ||
+    false
 
   // Entity search state
-  const [entitySearchTerm, setEntitySearchTerm] = useState("");
-  const [showEntityDropdown, setShowEntityDropdown] = useState(false);
+  const [entitySearchTerm, setEntitySearchTerm] = useState('')
+  const [showEntityDropdown, setShowEntityDropdown] = useState(false)
 
   // Employee search state
-  const [employeeSearchTerm, setEmployeeSearchTerm] = useState("");
-  const [showEmployeeDropdown, setShowEmployeeDropdown] = useState(false);
-  const [selectedEmployee, setSelectedEmployee] = useState<any>(null);
+  const [employeeSearchTerm, setEmployeeSearchTerm] = useState('')
+  const [showEmployeeDropdown, setShowEmployeeDropdown] = useState(false)
+  const [selectedEmployee, setSelectedEmployee] = useState<any>(null)
 
   // Document upload state
-  const [documentFileList, setDocumentFileList] = useState<any[]>([]);
+  const [documentFileList, setDocumentFileList] = useState<any[]>([])
 
   // Initialize react-hook-form
   const form = useForm<SalesTaskFormValues>({
     defaultValues: {
-      title: formValues.title || "",
-      code: formValues.code || "",
-      taskTypeRef: formValues.taskTypeRef || "",
-      priorityRef: formValues.priorityRef || "",
-      statusRef: formValues.statusRef || "SalesTaskStatus:v1:PENDING",
-      timingType: formValues.timingType || "DEADLINE",
-      assignedEmployeeId: formValues.assignedEmployeeId || "",
-      deadline: formValues.deadline || "",
-      templateStartDate: formValues.templateStartDate || "",
-      startDate: formValues.startDate || "",
-      endDate: formValues.endDate || "",
-      description: formValues.description || "",
-      relatedEntityId: formValues.relatedEntityId || "",
-      relatedEntityType: formValues.relatedEntityType || "",
+      title: formValues.title || '',
+      code: formValues.code || '',
+      taskTypeRef: formValues.taskTypeRef || '',
+      priorityRef: formValues.priorityRef || '',
+      statusRef: formValues.statusRef || 'SalesTaskStatus:v1:PENDING',
+      timingType: formValues.timingType || 'DEADLINE',
+      assignedEmployeeId: formValues.assignedEmployeeId || '',
+      deadline: formValues.deadline || '',
+      templateStartDate: formValues.templateStartDate || '',
+      startDate: formValues.startDate || '',
+      endDate: formValues.endDate || '',
+      description: formValues.description || '',
+      relatedEntityId: formValues.relatedEntityId || '',
+      relatedEntityType: formValues.relatedEntityType || '',
       files: formValues.files || [],
       id: formValues.id,
       version: formValues.version || 0,
       additionalProperties: formValues.additionalProperties || {}
     },
-    mode: "onChange"
-  });
+    mode: 'onChange'
+  })
 
   // Update form when context values change
   useEffect(() => {
     form.reset({
-      title: formValues.title || "",
-      code: formValues.code || "",
-      taskTypeRef: formValues.taskTypeRef || "",
-      priorityRef: formValues.priorityRef || "",
-      statusRef: formValues.statusRef || "SalesTaskStatus:v1:PENDING",
-      timingType: formValues.timingType || "DEADLINE",
-      assignedEmployeeId: formValues.assignedEmployeeId || "",
-      deadline: formValues.deadline || "",
-      templateStartDate: formValues.templateStartDate || "",
-      startDate: formValues.startDate || "",
-      endDate: formValues.endDate || "",
-      description: formValues.description || "",
-      relatedEntityId: formValues.relatedEntityId || "",
-      relatedEntityType: formValues.relatedEntityType || "",
+      title: formValues.title || '',
+      code: formValues.code || '',
+      taskTypeRef: formValues.taskTypeRef || '',
+      priorityRef: formValues.priorityRef || '',
+      statusRef: formValues.statusRef || 'SalesTaskStatus:v1:PENDING',
+      timingType: formValues.timingType || 'DEADLINE',
+      assignedEmployeeId: formValues.assignedEmployeeId || '',
+      deadline: formValues.deadline || '',
+      templateStartDate: formValues.templateStartDate || '',
+      startDate: formValues.startDate || '',
+      endDate: formValues.endDate || '',
+      description: formValues.description || '',
+      relatedEntityId: formValues.relatedEntityId || '',
+      relatedEntityType: formValues.relatedEntityType || '',
       files: formValues.files || [],
       id: formValues.id,
       version: formValues.version || 0,
       additionalProperties: formValues.additionalProperties || {}
-    });
-  }, [formValues, form, isApprovalRequest, isUpdateMode]);
+    })
+  }, [formValues, form, isApprovalRequest, isUpdateMode])
 
   // Fallback prefill for update approvals when employee list or deadline not yet resolved
   useEffect(() => {
-    if (!isUpdateMode) return;
+    if (!isUpdateMode) return
     const originalTask =
-      (additionalData?.taskData as any) ||
-      (additionalData?.psi_taskPayload as any)?.psi_initialParameters?.taskData;
-    if (!originalTask) return;
+      (additionalData?.taskData as any) || (additionalData?.psi_taskPayload as any)?.psi_initialParameters?.taskData
+    if (!originalTask) return
 
     // Prefill deadline if missing
-    if (!form.getValues("deadline")) {
+    if (!form.getValues('deadline')) {
       const rawDeadline =
-        originalTask.dueDate ||
-        originalTask.deadline ||
-        originalTask.dueDateTime ||
-        originalTask.scheduledAt;
+        originalTask.dueDate || originalTask.deadline || originalTask.dueDateTime || originalTask.scheduledAt
       if (rawDeadline) {
-        const value = dayjs(rawDeadline).isValid()
-          ? dayjs(rawDeadline).format("YYYY-MM-DDTHH:mm")
-          : "";
-        if (value) form.setValue("deadline", value);
+        const value = dayjs(rawDeadline).isValid() ? dayjs(rawDeadline).format('YYYY-MM-DDTHH:mm') : ''
+        if (value) form.setValue('deadline', value)
       }
     }
 
     // Prefill assigned employee if missing
     const assignedId =
-      formValues.assignedEmployeeId ||
-      originalTask.assignedEmployeeId ||
-      originalTask.assignedEmployee?.id;
+      formValues.assignedEmployeeId || originalTask.assignedEmployeeId || originalTask.assignedEmployee?.id
     if (assignedId && !selectedEmployee) {
-      const label =
-        originalTask.assignedEmployee?.displayName ||
-        originalTask.assignedEmployee?.fullName ||
-        "";
-      if (label) setEmployeeSearchTerm(label);
-      form.setValue("assignedEmployeeId", assignedId);
+      const label = originalTask.assignedEmployee?.displayName || originalTask.assignedEmployee?.fullName || ''
+      if (label) setEmployeeSearchTerm(label)
+      form.setValue('assignedEmployeeId', assignedId)
       setSelectedEmployee({
         id: assignedId,
         label: label || assignedId,
         value: assignedId
-      });
+      })
     }
-  }, [
-    isUpdateMode,
-    additionalData,
-    formValues.assignedEmployeeId,
-    selectedEmployee,
-    form
-  ]);
+  }, [isUpdateMode, additionalData, formValues.assignedEmployeeId, selectedEmployee, form])
 
   // Update entity search term when selected entity changes
   useEffect(() => {
     if (selectedEntity) {
-      setEntitySearchTerm(selectedEntity.name);
-      setShowEntityDropdown(false);
+      setEntitySearchTerm(selectedEntity.name)
+      setShowEntityDropdown(false)
     }
-  }, [selectedEntity]);
+  }, [selectedEntity])
 
   // Update employee search term when assigned employee changes
   useEffect(() => {
+    console.log('👤 EMPLOYEE EFFECT - Assigned Employee ID:', formValues.assignedEmployeeId)
     console.log(
-      "👤 EMPLOYEE EFFECT - Assigned Employee ID:",
-      formValues.assignedEmployeeId
-    );
-    console.log(
-      "👤 AVAILABLE EMPLOYEES:",
+      '👤 AVAILABLE EMPLOYEES:',
       employees.length,
-      employees.map((e) => ({ id: e.id, label: e.label }))
-    );
+      employees.map(e => ({ id: e.id, label: e.label }))
+    )
 
     if (formValues.assignedEmployeeId) {
-      const employee = employees.find(
-        (emp) => emp.id === formValues.assignedEmployeeId
-      );
-      console.log("👤 FOUND EMPLOYEE:", employee);
+      const employee = employees.find(emp => emp.id === formValues.assignedEmployeeId)
+      console.log('👤 FOUND EMPLOYEE:', employee)
 
       if (employee) {
-        setEmployeeSearchTerm(employee.label);
-        setSelectedEmployee(employee);
+        setEmployeeSearchTerm(employee.label)
+        setSelectedEmployee(employee)
       }
     } else {
       // Only clear if user hasn't manually entered a search term
       if (!showEmployeeDropdown) {
-        setEmployeeSearchTerm("");
-        setSelectedEmployee(null);
+        setEmployeeSearchTerm('')
+        setSelectedEmployee(null)
       }
     }
-  }, [formValues.assignedEmployeeId, employees]); // Re-added employees dependency
+  }, [formValues.assignedEmployeeId, employees]) // Re-added employees dependency
 
   // Update employee display when employees data loads and there's an assigned employee
   useEffect(() => {
-    if (
-      formValues.assignedEmployeeId &&
-      employees.length > 0 &&
-      !selectedEmployee
-    ) {
-      const employee = employees.find(
-        (emp) => emp.id === formValues.assignedEmployeeId
-      );
+    if (formValues.assignedEmployeeId && employees.length > 0 && !selectedEmployee) {
+      const employee = employees.find(emp => emp.id === formValues.assignedEmployeeId)
       if (employee) {
-        setEmployeeSearchTerm(employee.label);
-        setSelectedEmployee(employee);
+        setEmployeeSearchTerm(employee.label)
+        setSelectedEmployee(employee)
       }
     }
-  }, [employees, formValues.assignedEmployeeId, selectedEmployee]);
+  }, [employees, formValues.assignedEmployeeId, selectedEmployee])
 
   // Initialize entity search term from form values
   useEffect(() => {
     if (formValues.relatedEntityId && !selectedEntity) {
       // Find entity by ID to set the search term
-      const entity = entities.find((e) => e.id === formValues.relatedEntityId);
+      const entity = entities.find(e => e.id === formValues.relatedEntityId)
       if (entity) {
-        setEntitySearchTerm(entity.name);
-        setSelectedEntity(entity);
+        setEntitySearchTerm(entity.name)
+        setSelectedEntity(entity)
       }
     }
-  }, [formValues.relatedEntityId, entities, selectedEntity, setSelectedEntity]);
+  }, [formValues.relatedEntityId, entities, selectedEntity, setSelectedEntity])
 
   // Handle click outside to close dropdowns
   useEffect(() => {
     const handleClickOutside = () => {
-      setShowEntityDropdown(false);
-      setShowEmployeeDropdown(false);
-    };
+      setShowEntityDropdown(false)
+      setShowEmployeeDropdown(false)
+    }
 
     if (showEntityDropdown || showEmployeeDropdown) {
-      document.addEventListener("click", handleClickOutside);
-      return () => document.removeEventListener("click", handleClickOutside);
+      document.addEventListener('click', handleClickOutside)
+      return () => document.removeEventListener('click', handleClickOutside)
     }
-  }, [showEntityDropdown, showEmployeeDropdown]);
+  }, [showEntityDropdown, showEmployeeDropdown])
 
   // Handle entity search input change
   const handleEntitySearchChange = (value: string) => {
-    setEntitySearchTerm(value);
-    setShowEntityDropdown(true);
+    setEntitySearchTerm(value)
+    setShowEntityDropdown(true)
     if (value.trim().length >= 2) {
-      searchEntities(value);
+      searchEntities(value)
     } else {
       // Clear selection if search is cleared
       if (!value.trim()) {
-        setSelectedEntity(null);
-        form.setValue("relatedEntityId", "");
-        form.setValue("relatedEntityType", "");
+        setSelectedEntity(null)
+        form.setValue('relatedEntityId', '')
+        form.setValue('relatedEntityType', '')
       }
     }
-  };
+  }
 
   // Handle entity selection
   const handleEntitySelect = (entity: any) => {
-    setSelectedEntity(entity);
-    setEntitySearchTerm(entity.name);
-    setShowEntityDropdown(false);
-    form.setValue("relatedEntityId", entity.id);
-    form.setValue("relatedEntityType", entity.type);
+    setSelectedEntity(entity)
+    setEntitySearchTerm(entity.name)
+    setShowEntityDropdown(false)
+    form.setValue('relatedEntityId', entity.id)
+    form.setValue('relatedEntityType', entity.type)
     // Trigger validation to clear any error messages
-    form.trigger("relatedEntityId");
-  };
+    form.trigger('relatedEntityId')
+  }
 
   // Handle employee search input change
   const handleEmployeeSearchChange = (value: string) => {
-    setEmployeeSearchTerm(value);
-    setShowEmployeeDropdown(true);
+    setEmployeeSearchTerm(value)
+    setShowEmployeeDropdown(true)
     // Always trigger search, even with empty value to show all employees
-    searchEmployees(value);
+    searchEmployees(value)
     if (!value.trim()) {
       // Clear selection if search is cleared
-      setSelectedEmployee(null);
-      form.setValue("assignedEmployeeId", "");
+      setSelectedEmployee(null)
+      form.setValue('assignedEmployeeId', '')
     }
-  };
+  }
 
   // Handle employee field focus to show all employees
   const handleEmployeeFocus = () => {
-    setShowEmployeeDropdown(true);
+    setShowEmployeeDropdown(true)
     // If no search term, trigger search to load all employees
     // Always trigger a fetch so the dropdown is pre-populated in Update mode
-    searchEmployees(employeeSearchTerm || "");
-  };
+    searchEmployees(employeeSearchTerm || '')
+  }
 
   // Handle employee selection
   const handleEmployeeSelect = (employee: any) => {
-    setSelectedEmployee(employee);
-    setEmployeeSearchTerm(employee.label);
-    setShowEmployeeDropdown(false);
-    form.setValue("assignedEmployeeId", employee.id);
-  };
+    setSelectedEmployee(employee)
+    setEmployeeSearchTerm(employee.label)
+    setShowEmployeeDropdown(false)
+    form.setValue('assignedEmployeeId', employee.id)
+  }
 
   // Listen for process completion events to handle file upload and success message
   useEffect(() => {
     const handler = async (event: any) => {
       try {
-        const response = event.detail?.response;
-        const salesTask = response?.salesTask;
-        if (!salesTask) return;
+        const response = event.detail?.response
+        const salesTask = response?.salesTask
+        if (!salesTask) return
 
         // Handle document uploads if there are files
         if (documentFileList && documentFileList.length > 0) {
@@ -342,18 +305,14 @@ const SalesTaskFormComponent: React.FC = () => {
           for (const uploadFile of documentFileList) {
             if (uploadFile && uploadFile.originFileObj) {
               try {
-                const file = uploadFile.originFileObj;
-                const pathParams = { accessScope: "public" };
+                const file = uploadFile.originFileObj
+                const pathParams = { accessScope: 'public' }
                 const queryParams = {
-                  appName: "crm",
+                  appName: 'crm',
                   folderPath: `/sales-tasks/${salesTask.id}/documents`
-                };
+                }
 
-                const uploadResponse = await fileClient.uploadFile(
-                  file,
-                  pathParams,
-                  queryParams
-                );
+                const uploadResponse = await fileClient.uploadFile(file, pathParams, queryParams)
 
                 const crmDocumentPayload = {
                   employeeId: additionalData?.employeeId,
@@ -372,75 +331,51 @@ const SalesTaskFormComponent: React.FC = () => {
                     salesTask: salesTask.id,
                     version: 0
                   },
-                  changeMode: "INSERT"
-                };
+                  changeMode: 'INSERT'
+                }
 
-                await restClient.post(
-                  "/customer-relations/saveCrmDocument",
-                  crmDocumentPayload,
-                  {
-                    headers: { Authorization: `Bearer ${accessToken}` }
-                  }
-                );
+                await restClient.post('/customer-relations/saveCrmDocument', crmDocumentPayload, {
+                  headers: { Authorization: `Bearer ${accessToken}` }
+                })
 
-                console.log(`Document uploaded successfully: ${file.name}`);
+                console.log(`Document uploaded successfully: ${file.name}`)
               } catch (docError) {
-                console.error(
-                  `Failed to upload document ${uploadFile.name}:`,
-                  docError
-                );
-                message.error(`Failed to upload document: ${uploadFile.name}`);
+                console.error(`Failed to upload document ${uploadFile.name}:`, docError)
+                message.error(`Failed to upload document: ${uploadFile.name}`)
               }
             }
           }
         }
 
-        message.success(
-          isUpdateMode
-            ? "Task updated successfully"
-            : "Task created successfully"
-        );
+        message.success(isUpdateMode ? 'Task updated successfully' : 'Task created successfully')
       } catch (err: any) {
-        console.error("Error in process completion:", err);
-        message.error(err?.message || "Failed to create task");
+        console.error('Error in process completion:', err)
+        message.error(err?.message || 'Failed to create task')
       }
-    };
+    }
 
-    window.addEventListener(
-      "com.newwork.process.taskCompletion",
-      handler as EventListener
-    );
+    window.addEventListener('com.newwork.process.taskCompletion', handler as EventListener)
 
     return () => {
-      window.removeEventListener(
-        "com.newwork.process.taskCompletion",
-        handler as EventListener
-      );
-    };
-  }, [accessToken, documentFileList, isUpdateMode, additionalData]);
+      window.removeEventListener('com.newwork.process.taskCompletion', handler as EventListener)
+    }
+  }, [accessToken, documentFileList, isUpdateMode, additionalData])
 
   // Handle form submission
   const handleSubmit = async (values: SalesTaskFormValues) => {
     try {
-      await onSubmit(values);
+      await onSubmit(values)
 
       // Resolve assigned employee to ensure we always send it when present
-      const normalizedSearch = (employeeSearchTerm || "").trim().toLowerCase();
-      const fallbackMatched = employees.find(
-        (e) => (e.label || "").trim().toLowerCase() === normalizedSearch
-      );
-      const assignedEmployeeIdToUse =
-        values.assignedEmployeeId ||
-        selectedEmployee?.id ||
-        fallbackMatched?.id ||
-        "";
+      const normalizedSearch = (employeeSearchTerm || '').trim().toLowerCase()
+      const fallbackMatched = employees.find(e => (e.label || '').trim().toLowerCase() === normalizedSearch)
+      const assignedEmployeeIdToUse = values.assignedEmployeeId || selectedEmployee?.id || fallbackMatched?.id || ''
 
       // Build clean payload with only required model input fields
       const payload = {
         salesTask: {
           // System fields (only for updates)
-          ...(isUpdateMode &&
-            additionalData?.taskId && { id: additionalData.taskId }),
+          ...(isUpdateMode && additionalData?.taskId && { id: additionalData.taskId }),
           ...(isUpdateMode && { version: values.version || 0 }),
           ...(isUpdateMode &&
             values.additionalProperties && {
@@ -451,7 +386,7 @@ const SalesTaskFormComponent: React.FC = () => {
           // Core required fields
           name: values.title,
           ...(values.description && { description: values.description }),
-          typeRef: values.taskTypeRef || "",
+          typeRef: values.taskTypeRef || '',
           priorityRef: values.priorityRef,
           statusRef: values.statusRef,
           timingType: values.timingType,
@@ -486,124 +421,83 @@ const SalesTaskFormComponent: React.FC = () => {
           ...(additionalData?.accountId && {
             account: additionalData.accountId
           }),
-          ...(values.relatedEntityType === "lead" &&
-            values.relatedEntityId && { lead: values.relatedEntityId }),
-          ...(values.relatedEntityType === "contact" &&
-            values.relatedEntityId && { contact: values.relatedEntityId }),
-          ...(values.relatedEntityType === "account" &&
-            values.relatedEntityId && { account: values.relatedEntityId }),
-          ...(values.relatedEntityType === "opportunity" &&
+          ...(values.relatedEntityType === 'lead' && values.relatedEntityId && { lead: values.relatedEntityId }),
+          ...(values.relatedEntityType === 'contact' && values.relatedEntityId && { contact: values.relatedEntityId }),
+          ...(values.relatedEntityType === 'account' && values.relatedEntityId && { account: values.relatedEntityId }),
+          ...(values.relatedEntityType === 'opportunity' &&
             values.relatedEntityId && { opportunity: values.relatedEntityId })
         }
-      };
+      }
 
       // Log the payload for debugging
+      console.log(`${isUpdateMode ? 'Updating' : 'Creating'} sales task with payload:`, payload)
       console.log(
-        `${isUpdateMode ? "Updating" : "Creating"} sales task with payload:`,
-        payload
-      );
-      console.log(
-        "Form values - relatedEntityType:",
+        'Form values - relatedEntityType:',
         values.relatedEntityType,
-        "relatedEntityId:",
+        'relatedEntityId:',
         values.relatedEntityId
-      );
-      console.log("Selected entity:", selectedEntity);
-      console.log("Additional data:", additionalData);
+      )
+      console.log('Selected entity:', selectedEntity)
+      console.log('Additional data:', additionalData)
 
       // Dispatch the process continuation event
-      dispatchProcessContinueEvent("pse_submit", payload);
+      dispatchProcessContinueEvent('pse_submit', payload)
 
-      message.success(
-        `Sales task ${isUpdateMode ? "updated" : "created"} successfully`
-      );
-      onCancel();
+      message.success(`Sales task ${isUpdateMode ? 'updated' : 'created'} successfully`)
+      onCancel()
     } catch (error) {
-      console.error(
-        `Error ${isUpdateMode ? "updating" : "creating"} sales task:`,
-        error
-      );
-      message.error(
-        `Failed to ${
-          isUpdateMode ? "update" : "create"
-        } sales task. Please try again.`
-      );
+      console.error(`Error ${isUpdateMode ? 'updating' : 'creating'} sales task:`, error)
+      message.error(`Failed to ${isUpdateMode ? 'update' : 'create'} sales task. Please try again.`)
     }
-  };
+  }
 
   // Handle form cancellation
   const handleCancel = async () => {
     try {
-      await onCancel();
+      await onCancel()
 
       // Dispatch process continue event for cancellation (pause)
-      dispatchProcessContinueEvent("pse_pause", {});
+      dispatchProcessContinueEvent('pse_pause', {})
     } catch (err) {
-      console.error("Error cancelling sales task form:", err);
+      console.error('Error cancelling sales task form:', err)
     }
-  };
+  }
 
   return (
     <div className="gba:h-full gba:flex gba:flex-col gba:max-w-2xl gba:mx-auto gba:p-6">
-      <div
-        className="gba:space-y-6"
-        data-testid={formatDataTestId(prefixDataTestId, "Form")}
-      >
+      <div className="gba:space-y-6" data-testid={formatDataTestId(prefixDataTestId, 'Form')}>
         {/* Header */}
         <div className="gba:mb-6">
           <h1 className="gba:text-2xl gba:font-semibold gba:flex gba:items-center gba:gap-2">
             <FileText className="gba:h-6 gba:w-6" />
             {isUpdateMode
               ? isApprovalRequest
-                ? getTranslationFromI18nKeyAndLabel(
-                    "crm:salesTask.updateApproval",
-                    "Update Approval"
-                  )
-                : getTranslationFromI18nKeyAndLabel(
-                    "crm:salesTask.update",
-                    "Update Task"
-                  )
-              : getTranslationFromI18nKeyAndLabel(
-                  "crm:salesTask.create",
-                  "Create Sales Task"
-                )}
+                ? getTranslationFromI18nKeyAndLabel('crm:salesTask.updateApproval', 'Update Approval')
+                : getTranslationFromI18nKeyAndLabel('crm:salesTask.update', 'Update Task')
+              : getTranslationFromI18nKeyAndLabel('crm:salesTask.create', 'Create Sales Task')}
           </h1>
         </div>
 
         <Form {...form}>
-          <form
-            onSubmit={form.handleSubmit(handleSubmit)}
-            className="gba:space-y-6"
-          >
+          <form onSubmit={form.handleSubmit(handleSubmit)} className="gba:space-y-6">
             {/* Task Name */}
             <FormField
               control={form.control}
               name="title"
               rules={{
-                required: getTranslationFromI18nKeyAndLabel(
-                  "crm:salesTask.title.required",
-                  "Task name is required"
-                )
+                required: getTranslationFromI18nKeyAndLabel('crm:salesTask.title.required', 'Task name is required')
               }}
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>
-                    {getTranslationFromI18nKeyAndLabel(
-                      "crm:salesTask.title",
-                      "Task Name"
-                    )}
-                  </FormLabel>
+                  <FormLabel>{getTranslationFromI18nKeyAndLabel('crm:salesTask.title', 'Task Name')}</FormLabel>
                   <FormControl>
                     <Input
                       {...field}
                       placeholder={getTranslationFromI18nKeyAndLabel(
-                        "crm:salesTask.title.placeholder",
-                        "Enter task name"
+                        'crm:salesTask.title.placeholder',
+                        'Enter task name'
                       )}
-                      data-testid={formatDataTestId(
-                        prefixDataTestId,
-                        "TitleInput"
-                      )}
+                      data-testid={formatDataTestId(prefixDataTestId, 'TitleInput')}
                       className="gba:w-full"
                     />
                   </FormControl>
@@ -619,45 +513,28 @@ const SalesTaskFormComponent: React.FC = () => {
                 name="taskTypeRef"
                 rules={{
                   required: !isApprovalRequest
-                    ? getTranslationFromI18nKeyAndLabel(
-                        "crm:salesTask.type.required",
-                        "Task type is required"
-                      )
+                    ? getTranslationFromI18nKeyAndLabel('crm:salesTask.type.required', 'Task type is required')
                     : false
                 }}
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>
-                      {getTranslationFromI18nKeyAndLabel(
-                        "crm:salesTask.type",
-                        "Task Type"
-                      )}
-                    </FormLabel>
+                    <FormLabel>{getTranslationFromI18nKeyAndLabel('crm:salesTask.type', 'Task Type')}</FormLabel>
                     <FormControl>
-                      <Select
-                        value={field.value}
-                        onValueChange={field.onChange}
-                      >
+                      <Select value={field.value} onValueChange={field.onChange}>
                         <SelectTrigger
-                          data-testid={formatDataTestId(
-                            prefixDataTestId,
-                            "TypeSelect"
-                          )}
+                          data-testid={formatDataTestId(prefixDataTestId, 'TypeSelect')}
                           className="gba:w-full"
                         >
                           <SelectValue
                             placeholder={getTranslationFromI18nKeyAndLabel(
-                              "crm:salesTask.type.placeholder",
-                              "Select task type"
+                              'crm:salesTask.type.placeholder',
+                              'Select task type'
                             )}
                           />
                         </SelectTrigger>
                         <SelectContent>
-                          {taskTypes.map((type) => (
-                            <SelectItem
-                              key={type.id}
-                              value={type.id.toString()}
-                            >
+                          {taskTypes.map(type => (
+                            <SelectItem key={type.id} value={type.id.toString()}>
                               {type.label}
                             </SelectItem>
                           ))}
@@ -675,41 +552,27 @@ const SalesTaskFormComponent: React.FC = () => {
               control={form.control}
               name="priorityRef"
               rules={{
-                required: getTranslationFromI18nKeyAndLabel(
-                  "crm:salesTask.priority.required",
-                  "Priority is required"
-                )
+                required: getTranslationFromI18nKeyAndLabel('crm:salesTask.priority.required', 'Priority is required')
               }}
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>
-                    {getTranslationFromI18nKeyAndLabel(
-                      "crm:salesTask.priority",
-                      "Priority"
-                    )}
-                  </FormLabel>
+                  <FormLabel>{getTranslationFromI18nKeyAndLabel('crm:salesTask.priority', 'Priority')}</FormLabel>
                   <FormControl>
                     <Select value={field.value} onValueChange={field.onChange}>
                       <SelectTrigger
-                        data-testid={formatDataTestId(
-                          prefixDataTestId,
-                          "PrioritySelect"
-                        )}
+                        data-testid={formatDataTestId(prefixDataTestId, 'PrioritySelect')}
                         className="gba:w-full"
                       >
                         <SelectValue
                           placeholder={getTranslationFromI18nKeyAndLabel(
-                            "crm:salesTask.priority.placeholder",
-                            "Select priority"
+                            'crm:salesTask.priority.placeholder',
+                            'Select priority'
                           )}
                         />
                       </SelectTrigger>
                       <SelectContent>
-                        {priorities.map((priority) => (
-                          <SelectItem
-                            key={priority.id}
-                            value={priority.id.toString()}
-                          >
+                        {priorities.map(priority => (
+                          <SelectItem key={priority.id} value={priority.id.toString()}>
                             {priority.label}
                           </SelectItem>
                         ))}
@@ -726,41 +589,27 @@ const SalesTaskFormComponent: React.FC = () => {
               control={form.control}
               name="statusRef"
               rules={{
-                required: getTranslationFromI18nKeyAndLabel(
-                  "crm:salesTask.status.required",
-                  "Status is required"
-                )
+                required: getTranslationFromI18nKeyAndLabel('crm:salesTask.status.required', 'Status is required')
               }}
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>
-                    {getTranslationFromI18nKeyAndLabel(
-                      "crm:salesTask.status",
-                      "Status"
-                    )}
-                  </FormLabel>
+                  <FormLabel>{getTranslationFromI18nKeyAndLabel('crm:salesTask.status', 'Status')}</FormLabel>
                   <FormControl>
                     <Select value={field.value} onValueChange={field.onChange}>
                       <SelectTrigger
-                        data-testid={formatDataTestId(
-                          prefixDataTestId,
-                          "StatusSelect"
-                        )}
+                        data-testid={formatDataTestId(prefixDataTestId, 'StatusSelect')}
                         className="gba:w-full"
                       >
                         <SelectValue
                           placeholder={getTranslationFromI18nKeyAndLabel(
-                            "crm:salesTask.status.placeholder",
-                            "Select status"
+                            'crm:salesTask.status.placeholder',
+                            'Select status'
                           )}
                         />
                       </SelectTrigger>
                       <SelectContent>
-                        {statuses.map((status) => (
-                          <SelectItem
-                            key={status.id}
-                            value={status.id.toString()}
-                          >
+                        {statuses.map(status => (
+                          <SelectItem key={status.id} value={status.id.toString()}>
                             {status.label}
                           </SelectItem>
                         ))}
@@ -778,31 +627,23 @@ const SalesTaskFormComponent: React.FC = () => {
               name="timingType"
               rules={{
                 required: getTranslationFromI18nKeyAndLabel(
-                  "crm:salesTask.timingType.required",
-                  "Timing type is required"
+                  'crm:salesTask.timingType.required',
+                  'Timing type is required'
                 )
               }}
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>
-                    {getTranslationFromI18nKeyAndLabel(
-                      "crm:salesTask.timingType",
-                      "Timing Type"
-                    )}
-                  </FormLabel>
+                  <FormLabel>{getTranslationFromI18nKeyAndLabel('crm:salesTask.timingType', 'Timing Type')}</FormLabel>
                   <FormControl>
                     <Select value={field.value} onValueChange={field.onChange}>
                       <SelectTrigger
-                        data-testid={formatDataTestId(
-                          prefixDataTestId,
-                          "TimingTypeSelect"
-                        )}
+                        data-testid={formatDataTestId(prefixDataTestId, 'TimingTypeSelect')}
                         className="gba:w-full"
                       >
                         <SelectValue
                           placeholder={getTranslationFromI18nKeyAndLabel(
-                            "crm:salesTask.timingType.placeholder",
-                            "Select timing type"
+                            'crm:salesTask.timingType.placeholder',
+                            'Select timing type'
                           )}
                         />
                       </SelectTrigger>
@@ -835,48 +676,38 @@ const SalesTaskFormComponent: React.FC = () => {
                 <FormItem>
                   <FormLabel className="gba:flex gba:items-center gba:gap-2">
                     <User className="gba:h-4 gba:w-4" />
-                    {getTranslationFromI18nKeyAndLabel(
-                      "crm:salesTask.assignedTo",
-                      "Assigned To"
-                    )}
+                    {getTranslationFromI18nKeyAndLabel('crm:salesTask.assignedTo', 'Assigned To')}
                   </FormLabel>
                   <FormControl>
                     <div
                       className="gba:relative"
-                      onClick={(e) => e.stopPropagation()} // Prevent outside click when clicking inside
+                      onClick={e => e.stopPropagation()} // Prevent outside click when clicking inside
                     >
                       <Input
                         value={employeeSearchTerm}
-                        onChange={(e) =>
-                          handleEmployeeSearchChange(e.target.value)
-                        }
+                        onChange={e => handleEmployeeSearchChange(e.target.value)}
                         onFocus={handleEmployeeFocus}
                         placeholder={getTranslationFromI18nKeyAndLabel(
-                          "crm:salesTask.assignedTo.placeholder",
-                          "Search for employees..."
+                          'crm:salesTask.assignedTo.placeholder',
+                          'Search for employees...'
                         )}
-                        data-testid={formatDataTestId(
-                          prefixDataTestId,
-                          "AssignedToInput"
-                        )}
+                        data-testid={formatDataTestId(prefixDataTestId, 'AssignedToInput')}
                         className="gba:w-full"
                       />
                       {showEmployeeDropdown && (
                         <div className="gba:absolute gba:z-50 gba:w-full gba:bg-white gba:border gba:border-gray-200 gba:rounded-md gba:shadow-lg gba:mt-1 gba:max-h-64 gba:overflow-y-auto">
                           {employees.length > 0 ? (
-                            employees.map((employee) => (
+                            employees.map(employee => (
                               <div
                                 key={employee.id}
                                 className="gba:p-3 gba:cursor-pointer hover:gba:bg-gray-50 gba:border-b gba:border-gray-100 last:gba:border-b-0"
-                                onMouseDown={(e) => {
-                                  e.preventDefault(); // Prevent input blur
-                                  handleEmployeeSelect(employee);
+                                onMouseDown={e => {
+                                  e.preventDefault() // Prevent input blur
+                                  handleEmployeeSelect(employee)
                                 }}
                               >
                                 <div className="gba:flex gba:flex-col">
-                                  <div className="gba:font-medium gba:text-sm">
-                                    {employee.label}
-                                  </div>
+                                  <div className="gba:font-medium gba:text-sm">{employee.label}</div>
                                   <div className="gba:text-xs gba:text-gray-500 gba:flex gba:items-center gba:gap-1 gba:mt-1">
                                     {employee.extraInfo?.jobPosition && (
                                       <span className="gba:capitalize gba:font-medium gba:text-blue-600">
@@ -885,15 +716,8 @@ const SalesTaskFormComponent: React.FC = () => {
                                     )}
                                     {employee.extraInfo?.organizationalUnit && (
                                       <>
-                                        {employee.extraInfo?.jobPosition && (
-                                          <span>•</span>
-                                        )}
-                                        <span>
-                                          {
-                                            employee.extraInfo
-                                              .organizationalUnit
-                                          }
-                                        </span>
+                                        {employee.extraInfo?.jobPosition && <span>•</span>}
+                                        <span>{employee.extraInfo.organizationalUnit}</span>
                                       </>
                                     )}
                                   </div>
@@ -903,8 +727,8 @@ const SalesTaskFormComponent: React.FC = () => {
                           ) : (
                             <div className="gba:p-3 gba:text-sm gba:text-gray-500 gba:text-center">
                               {employeeSearchTerm.length >= 1
-                                ? "No results found. Try a different search term."
-                                : "Start typing to search for employees..."}
+                                ? 'No results found. Try a different search term.'
+                                : 'Start typing to search for employees...'}
                             </div>
                           )}
                         </div>
@@ -921,29 +745,20 @@ const SalesTaskFormComponent: React.FC = () => {
               control={form.control}
               name="deadline"
               rules={{
-                required: getTranslationFromI18nKeyAndLabel(
-                  "crm:salesTask.deadline.required",
-                  "Deadline is required"
-                )
+                required: getTranslationFromI18nKeyAndLabel('crm:salesTask.deadline.required', 'Deadline is required')
               }}
               render={({ field }) => (
                 <FormItem>
                   <FormLabel className="gba:flex gba:items-center gba:gap-2">
                     <Clock className="gba:h-4 gba:w-4" />
-                    {getTranslationFromI18nKeyAndLabel(
-                      "crm:salesTask.deadline",
-                      "Deadline"
-                    )}
+                    {getTranslationFromI18nKeyAndLabel('crm:salesTask.deadline', 'Deadline')}
                   </FormLabel>
                   <FormControl>
                     <Input
                       {...field}
-                      value={field.value || ""}
+                      value={field.value || ''}
                       type="datetime-local"
-                      data-testid={formatDataTestId(
-                        prefixDataTestId,
-                        "DeadlineInput"
-                      )}
+                      data-testid={formatDataTestId(prefixDataTestId, 'DeadlineInput')}
                       className="gba:w-full"
                     />
                   </FormControl>
@@ -961,56 +776,46 @@ const SalesTaskFormComponent: React.FC = () => {
                   required: {
                     value: true,
                     message: getTranslationFromI18nKeyAndLabel(
-                      "crm:salesTask.entity.required",
-                      "Related Entity is required"
+                      'crm:salesTask.entity.required',
+                      'Related Entity is required'
                     )
                   }
                 }}
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>
-                      {getTranslationFromI18nKeyAndLabel(
-                        "crm:salesTask.entity",
-                        "Related Entity"
-                      )} *
+                      {getTranslationFromI18nKeyAndLabel('crm:salesTask.entity', 'Related Entity')} *
                     </FormLabel>
                     <FormControl>
                       <div
                         className="gba:relative"
-                        onClick={(e) => e.stopPropagation()} // Prevent outside click when clicking inside
+                        onClick={e => e.stopPropagation()} // Prevent outside click when clicking inside
                       >
                         <Input
                           value={entitySearchTerm}
-                          onChange={(e) =>
-                            handleEntitySearchChange(e.target.value)
-                          }
+                          onChange={e => handleEntitySearchChange(e.target.value)}
                           onFocus={() => setShowEntityDropdown(true)}
                           placeholder={getTranslationFromI18nKeyAndLabel(
-                            "crm:salesTask.entity.placeholder",
-                            "Search for leads, contacts, accounts, or opportunities..."
+                            'crm:salesTask.entity.placeholder',
+                            'Search for leads, contacts, accounts, or opportunities...'
                           )}
-                          data-testid={formatDataTestId(
-                            prefixDataTestId,
-                            "EntityInput"
-                          )}
+                          data-testid={formatDataTestId(prefixDataTestId, 'EntityInput')}
                           className="gba:w-full"
                         />
                         {showEntityDropdown && entitySearchTerm.length >= 2 && (
                           <div className="gba:absolute gba:z-50 gba:w-full gba:bg-white gba:border gba:border-gray-200 gba:rounded-md gba:shadow-lg gba:mt-1 gba:max-h-64 gba:overflow-y-auto">
                             {entities.length > 0 ? (
-                              entities.map((entity) => (
+                              entities.map(entity => (
                                 <div
                                   key={entity.id}
                                   className="gba:p-3 gba:cursor-pointer hover:gba:bg-gray-50 gba:border-b gba:border-gray-100 last:gba:border-b-0"
-                                  onMouseDown={(e) => {
-                                    e.preventDefault(); // Prevent input blur
-                                    handleEntitySelect(entity);
+                                  onMouseDown={e => {
+                                    e.preventDefault() // Prevent input blur
+                                    handleEntitySelect(entity)
                                   }}
                                 >
                                   <div className="gba:flex gba:flex-col">
-                                    <div className="gba:font-medium gba:text-sm">
-                                      {entity.name}
-                                    </div>
+                                    <div className="gba:font-medium gba:text-sm">{entity.name}</div>
                                     <div className="gba:text-xs gba:text-gray-500 gba:flex gba:items-center gba:gap-1 gba:mt-1">
                                       <span className="gba:capitalize gba:font-medium gba:text-blue-600">
                                         {entity.type}
@@ -1032,15 +837,13 @@ const SalesTaskFormComponent: React.FC = () => {
                             )}
                           </div>
                         )}
-                        {showEntityDropdown &&
-                          entitySearchTerm.length < 2 &&
-                          entitySearchTerm.length > 0 && (
-                            <div className="gba:absolute gba:z-50 gba:w-full gba:bg-white gba:border gba:border-gray-200 gba:rounded-md gba:shadow-lg gba:mt-1">
-                              <div className="gba:p-3 gba:text-sm gba:text-gray-500 gba:text-center">
-                                Type at least 2 characters to search...
-                              </div>
+                        {showEntityDropdown && entitySearchTerm.length < 2 && entitySearchTerm.length > 0 && (
+                          <div className="gba:absolute gba:z-50 gba:w-full gba:bg-white gba:border gba:border-gray-200 gba:rounded-md gba:shadow-lg gba:mt-1">
+                            <div className="gba:p-3 gba:text-sm gba:text-gray-500 gba:text-center">
+                              Type at least 2 characters to search...
                             </div>
-                          )}
+                          </div>
+                        )}
                       </div>
                     </FormControl>
                     <FormMessage />
@@ -1055,24 +858,16 @@ const SalesTaskFormComponent: React.FC = () => {
               name="description"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>
-                    {getTranslationFromI18nKeyAndLabel(
-                      "crm:salesTask.description",
-                      "Description"
-                    )}
-                  </FormLabel>
+                  <FormLabel>{getTranslationFromI18nKeyAndLabel('crm:salesTask.description', 'Description')}</FormLabel>
                   <FormControl>
                     <Textarea
                       {...field}
                       placeholder={getTranslationFromI18nKeyAndLabel(
-                        "crm:salesTask.description.placeholder",
-                        "Enter task description"
+                        'crm:salesTask.description.placeholder',
+                        'Enter task description'
                       )}
                       rows={4}
-                      data-testid={formatDataTestId(
-                        prefixDataTestId,
-                        "DescriptionInput"
-                      )}
+                      data-testid={formatDataTestId(prefixDataTestId, 'DescriptionInput')}
                       className="gba:w-full"
                     />
                   </FormControl>
@@ -1085,10 +880,7 @@ const SalesTaskFormComponent: React.FC = () => {
             <FormItem>
               <FormLabel className="gba:flex gba:items-center gba:gap-2">
                 <UploadIcon className="gba:h-4 gba:w-4" />
-                {getTranslationFromI18nKeyAndLabel(
-                  "crm:salesTask.documents",
-                  "Attach Documents"
-                )}
+                {getTranslationFromI18nKeyAndLabel('crm:salesTask.documents', 'Attach Documents')}
               </FormLabel>
               <FormControl>
                 <Upload.Dragger
@@ -1097,25 +889,22 @@ const SalesTaskFormComponent: React.FC = () => {
                   beforeUpload={() => false} // Prevent automatic upload
                   multiple={true}
                   accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.jpg,.jpeg,.png,.gif,.txt"
-                  data-testid={formatDataTestId(
-                    prefixDataTestId,
-                    "DocumentUpload"
-                  )}
+                  data-testid={formatDataTestId(prefixDataTestId, 'DocumentUpload')}
                   className="gba:w-full"
-                  style={{ backgroundColor: "#fafafa" }}
+                  style={{ backgroundColor: '#fafafa' }}
                 >
                   <div className="gba:p-4 gba:text-center">
                     <UploadIcon className="gba:h-8 gba:w-8 gba:mx-auto gba:mb-2 gba:text-gray-400" />
                     <p className="gba:text-sm gba:font-medium gba:text-gray-700">
                       {getTranslationFromI18nKeyAndLabel(
-                        "crm:salesTask.documents.dragDrop",
-                        "Click or drag files to this area to upload"
+                        'crm:salesTask.documents.dragDrop',
+                        'Click or drag files to this area to upload'
                       )}
                     </p>
                     <p className="gba:text-xs gba:text-gray-500 gba:mt-1">
                       {getTranslationFromI18nKeyAndLabel(
-                        "crm:salesTask.documents.supportedFormats",
-                        "Support for PDF, Office documents, images, and text files"
+                        'crm:salesTask.documents.supportedFormats',
+                        'Support for PDF, Office documents, images, and text files'
                       )}
                     </p>
                   </div>
@@ -1137,22 +926,19 @@ const SalesTaskFormComponent: React.FC = () => {
                 variant="outline"
                 onClick={handleCancel}
                 disabled={isLoading}
-                data-testid={formatDataTestId(prefixDataTestId, "CancelButton")}
+                data-testid={formatDataTestId(prefixDataTestId, 'CancelButton')}
               >
-                {getTranslationFromI18nKeyAndLabel(
-                  "crm:common.cancel",
-                  "Cancel"
-                )}
+                {getTranslationFromI18nKeyAndLabel('crm:common.cancel', 'Cancel')}
               </Button>
               <Button
                 type="submit"
                 disabled={isLoading}
-                data-testid={formatDataTestId(prefixDataTestId, "SubmitButton")}
+                data-testid={formatDataTestId(prefixDataTestId, 'SubmitButton')}
               >
                 {isLoading && <Spinner className="gba:mr-2" />}
                 {getTranslationFromI18nKeyAndLabel(
-                  isUpdateMode ? "crm:common.update" : "crm:common.submit",
-                  isUpdateMode ? "Update" : "Submit"
+                  isUpdateMode ? 'crm:common.update' : 'crm:common.submit',
+                  isUpdateMode ? 'Update' : 'Submit'
                 )}
               </Button>
             </div>
@@ -1160,7 +946,7 @@ const SalesTaskFormComponent: React.FC = () => {
         </Form>
       </div>
     </div>
-  );
-};
+  )
+}
 
-export default SalesTaskFormComponent;
+export default SalesTaskFormComponent

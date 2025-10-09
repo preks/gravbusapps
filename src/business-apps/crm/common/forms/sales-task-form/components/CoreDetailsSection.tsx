@@ -1,14 +1,14 @@
-import React, { useState } from 'react';
-import { Form, Input, Select, Spin } from 'antd';
-import { useSalesTaskFormContext } from '../context/SalesTaskFormContext';
-import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
-import { formatDataTestId } from '@/common/utils/formatDataTestId';
+import React, { useState } from 'react'
+import { Form, Input, Select, Spin } from 'antd'
+import { useSalesTaskFormContext } from '../context/SalesTaskFormContext'
+import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
+import { formatDataTestId } from '@/common/utils/formatDataTestId'
 
-const prefixDataTestId = 'SalesTaskForm-CoreDetails';
+const prefixDataTestId = 'SalesTaskForm-CoreDetails'
 
 const CoreDetailsSection: React.FC = () => {
-  const [isExpanded, setIsExpanded] = useState(true); // Start expanded for core details
-  
+  const [isExpanded, setIsExpanded] = useState(true) // Start expanded for core details
+
   const {
     formValues,
     setFormValues,
@@ -20,8 +20,8 @@ const CoreDetailsSection: React.FC = () => {
     employeesLoading,
     searchTaskTypes,
     searchPriorities,
-    searchEmployees,
-  } = useSalesTaskFormContext();
+    searchEmployees
+  } = useSalesTaskFormContext()
 
   return (
     <div className="gba:bg-white gba:rounded-xl gba:shadow-sm gba:border gba:border-gray-100 gba:overflow-hidden">
@@ -33,11 +33,11 @@ const CoreDetailsSection: React.FC = () => {
           background: 'linear-gradient(to right, #bfdbfe, #a7f3d0)',
           transition: 'background 0.2s ease'
         }}
-        onMouseEnter={(e) => {
-          e.currentTarget.style.background = 'linear-gradient(to right, #93c5fd, #86efac)';
+        onMouseEnter={e => {
+          e.currentTarget.style.background = 'linear-gradient(to right, #93c5fd, #86efac)'
         }}
-        onMouseLeave={(e) => {
-          e.currentTarget.style.background = 'linear-gradient(to right, #bfdbfe, #a7f3d0)';
+        onMouseLeave={e => {
+          e.currentTarget.style.background = 'linear-gradient(to right, #bfdbfe, #a7f3d0)'
         }}
         data-testid={formatDataTestId(prefixDataTestId, 'Toggle')}
       >
@@ -45,23 +45,22 @@ const CoreDetailsSection: React.FC = () => {
           <div className="gba:w-2 gba:h-2 gba:bg-blue-500 gba:rounded-full"></div>
           {getTranslationFromI18nKeyAndLabel('crm:salesTask.coreDetails', 'Core Details')}
         </h3>
-        <span className="gba:text-gray-500 gba:text-lg">
-          {isExpanded ? '▲' : '▼'}
-        </span>
+        <span className="gba:text-gray-500 gba:text-lg">{isExpanded ? '▲' : '▼'}</span>
       </button>
-      
+
       {isExpanded && (
         <div className="gba:p-6 gba:space-y-6">
           {/* Task Type and Priority - Side by side */}
           <div className="gba:grid gba:grid-cols-1 gba:gap-6 gba:md:grid-cols-2">
             <div>
               <label className="gba:block gba:text-sm gba:font-medium gba:text-gray-900 gba:mb-2">
-                {getTranslationFromI18nKeyAndLabel('crm:salesTask.type', 'Type')} <span className="gba:text-red-500">*</span>
+                {getTranslationFromI18nKeyAndLabel('crm:salesTask.type', 'Type')}{' '}
+                <span className="gba:text-red-500">*</span>
               </label>
               <Select
                 data-testid={formatDataTestId(prefixDataTestId, 'TypeSelect')}
                 value={formValues.taskTypeRef || undefined}
-                onChange={(value) => setFormValues({ taskTypeRef: value })}
+                onChange={value => setFormValues({ taskTypeRef: value })}
                 className="gba:w-full"
                 showSearch
                 filterOption={false}
@@ -85,12 +84,13 @@ const CoreDetailsSection: React.FC = () => {
 
             <div>
               <label className="gba:block gba:text-sm gba:font-medium gba:text-gray-900 gba:mb-2">
-                {getTranslationFromI18nKeyAndLabel('crm:salesTask.priority', 'Priority')} <span className="gba:text-red-500">*</span>
+                {getTranslationFromI18nKeyAndLabel('crm:salesTask.priority', 'Priority')}{' '}
+                <span className="gba:text-red-500">*</span>
               </label>
               <Select
                 data-testid={formatDataTestId(prefixDataTestId, 'PrioritySelect')}
                 value={formValues.priorityRef || undefined}
-                onChange={(value) => setFormValues({ priorityRef: value })}
+                onChange={value => setFormValues({ priorityRef: value })}
                 className="gba:w-full"
                 showSearch
                 filterOption={false}
@@ -121,7 +121,7 @@ const CoreDetailsSection: React.FC = () => {
             <Select
               data-testid={formatDataTestId(prefixDataTestId, 'AssignedEmployeeSelect')}
               value={formValues.assignedEmployeeId || undefined}
-              onChange={(value) => setFormValues({ assignedEmployeeId: value || '' })}
+              onChange={value => setFormValues({ assignedEmployeeId: value || '' })}
               className="gba:w-full"
               showSearch
               filterOption={false}
@@ -140,7 +140,7 @@ const CoreDetailsSection: React.FC = () => {
         </div>
       )}
     </div>
-  );
-};
+  )
+}
 
-export default CoreDetailsSection; 
+export default CoreDetailsSection

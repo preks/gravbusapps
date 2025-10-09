@@ -1,3 +1,2 @@
-export { InvestmentAccountField } from './InvestmentAccountField';
-export { InvestmentRolesField } from './InvestmentRolesField';
-
+export { InvestmentAccountField } from './InvestmentAccountField'
+export { InvestmentRolesField } from './InvestmentRolesField'

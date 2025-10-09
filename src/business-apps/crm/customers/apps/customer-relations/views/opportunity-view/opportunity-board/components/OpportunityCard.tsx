@@ -1,74 +1,67 @@
-import { useSortable } from "@dnd-kit/sortable";
-import { CSS } from "@dnd-kit/utilities";
-import { formatCurrency } from "../lib/utils";
-import { CalendarOutlined, UserOutlined, HomeOutlined, TagOutlined, ClockCircleOutlined } from "@ant-design/icons";
-import { useKanbanStore } from "../lib/kanban-store";
-import { FIXED_STAGES } from '../lib/stages';
-import type { Opportunity } from "../lib/types";
+import { useSortable } from '@dnd-kit/sortable'
+import { CSS } from '@dnd-kit/utilities'
+import { formatCurrency } from '../lib/utils'
+import { CalendarOutlined, UserOutlined, HomeOutlined, TagOutlined, ClockCircleOutlined } from '@ant-design/icons'
+import { useKanbanStore } from '../lib/kanban-store'
+import { FIXED_STAGES } from '../lib/stages'
+import type { Opportunity } from '../lib/types'
 
 interface OpportunityCardProps {
-  opportunity: Opportunity;
-  onCardClick?: (id: string) => void;
+  opportunity: Opportunity
+  onCardClick?: (id: string) => void
 }
 
 export function OpportunityCard({ opportunity, onCardClick }: OpportunityCardProps) {
-  const { selectOpportunity } = useKanbanStore();
-  const { 
-    attributes, 
-    listeners, 
-    setNodeRef, 
-    transform, 
-    transition,
-    isDragging 
-  } = useSortable({
+  const { selectOpportunity } = useKanbanStore()
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: opportunity.id,
     data: {
       type: 'opportunity',
-      opportunity,
-    },
-  });
+      opportunity
+    }
+  })
 
   const style = {
     transform: CSS.Transform.toString(transform),
-    transition,
-  };
+    transition
+  }
 
-  let formattedDate = "";
+  let formattedDate = ''
   if (opportunity.closeDate) {
-    const closeDate = new Date(opportunity.closeDate);
-    formattedDate = new Intl.DateTimeFormat("en-US", {
-      month: "short",
-      day: "numeric",
-    }).format(closeDate);
+    const closeDate = new Date(opportunity.closeDate)
+    formattedDate = new Intl.DateTimeFormat('en-US', {
+      month: 'short',
+      day: 'numeric'
+    }).format(closeDate)
   }
-  
-  let formattedCreatedAt = "";
+
+  let formattedCreatedAt = ''
   if (opportunity.createdAt) {
-    const createdDate = new Date(opportunity.createdAt);
-    formattedCreatedAt = new Intl.DateTimeFormat("en-US", {
-      month: "short",
-      day: "numeric",
-      year: "numeric"
-    }).format(createdDate);
+    const createdDate = new Date(opportunity.createdAt)
+    formattedCreatedAt = new Intl.DateTimeFormat('en-US', {
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric'
+    }).format(createdDate)
   }
-  
-  const amount = opportunity.estimatedAmount || 0;
-  const companyName = opportunity.account?.name || '';
-  const ownerName = opportunity.ownerEmployee?.fullName || '';
-  const stage = FIXED_STAGES.find(stage => stage.id === opportunity.stageId);
-  const stageName = stage ? stage.name : '';
+
+  const amount = opportunity.estimatedAmount || 0
+  const companyName = opportunity.account?.name || ''
+  const ownerName = opportunity.ownerEmployee?.fullName || ''
+  const stage = FIXED_STAGES.find(stage => stage.id === opportunity.stageId)
+  const stageName = stage ? stage.name : ''
 
   const handleClick = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    
+    e.stopPropagation()
+
     if (!isDragging) {
       if (onCardClick) {
-        onCardClick(opportunity.id);
+        onCardClick(opportunity.id)
       } else {
-        selectOpportunity(opportunity.id);
+        selectOpportunity(opportunity.id)
       }
     }
-  };
+  }
 
   return (
     <div
@@ -91,11 +84,7 @@ export function OpportunityCard({ opportunity, onCardClick }: OpportunityCardPro
           <p className="gba:text-xs gba:text-gray-500 gba:dark:text-gray-400 gba:line-clamp-1 gba:mt-1">
             {companyName}
           </p>
-          {stageName && (
-            <p className="gba:text-xs gba:text-gray-400 gba:font-medium gba:mt-1">
-              {stageName}
-            </p>
-          )}
+          {stageName && <p className="gba:text-xs gba:text-gray-400 gba:font-medium gba:mt-1">{stageName}</p>}
         </div>
 
         <div className="gba:flex gba:items-center gba:justify-between">
@@ -118,7 +107,7 @@ export function OpportunityCard({ opportunity, onCardClick }: OpportunityCardPro
             {companyName}
           </div>
         )}
-        
+
         <div className="gba:flex gba:justify-between gba:items-center">
           {ownerName && (
             <div className="gba:flex gba:items-center gba:text-xs gba:text-gray-500 gba:dark:text-gray-400">
@@ -126,7 +115,7 @@ export function OpportunityCard({ opportunity, onCardClick }: OpportunityCardPro
               {ownerName}
             </div>
           )}
-          
+
           {formattedCreatedAt && (
             <div className="gba:flex gba:items-center gba:text-xs gba:text-gray-500 gba:dark:text-gray-400 gba:ml-auto">
               <ClockCircleOutlined style={{ fontSize: '12px', marginRight: '4px' }} />
@@ -138,8 +127,11 @@ export function OpportunityCard({ opportunity, onCardClick }: OpportunityCardPro
 
       {opportunity.tags && opportunity.tags.length > 0 && (
         <div className="gba:p-3 gba:pt-0 gba:flex gba:flex-wrap gba:gap-1 gba:border-t gba:border-gray-100 gba:dark:border-gray-800">
-          {opportunity.tags.map((tag) => (
-            <span key={tag} className="gba:inline-flex gba:items-center gba:px-2 gba:py-0.5 gba:rounded gba:text-xs gba:font-medium gba:bg-gray-100 gba:text-gray-800 gba:dark:bg-gray-700 gba:dark:text-gray-300">
+          {opportunity.tags.map(tag => (
+            <span
+              key={tag}
+              className="gba:inline-flex gba:items-center gba:px-2 gba:py-0.5 gba:rounded gba:text-xs gba:font-medium gba:bg-gray-100 gba:text-gray-800 gba:dark:bg-gray-700 gba:dark:text-gray-300"
+            >
               <TagOutlined style={{ fontSize: '12px', marginRight: '4px' }} />
               {tag}
             </span>
@@ -147,7 +139,7 @@ export function OpportunityCard({ opportunity, onCardClick }: OpportunityCardPro
         </div>
       )}
     </div>
-  );
+  )
 }
 
-export default OpportunityCard; 
+export default OpportunityCard

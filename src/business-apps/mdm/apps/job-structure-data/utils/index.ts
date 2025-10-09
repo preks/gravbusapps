@@ -5,4 +5,4 @@ export {
   enhanceJobLevelGroupsWithCalculatedLevels,
   getJobLevelGroupProgression,
   validateJobLevelGroupPayGrades
-} from './levelCalculations'; 
+} from './levelCalculations'

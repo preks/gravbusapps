@@ -1,40 +1,29 @@
-import React, { useMemo } from "react";
-import { BusinessAppContextProps } from "@/common/BusinessAppContext";
-import FormWrapperModal from "../../apps/generic-components/form-wrapper/FormWrapperModal";
-import {
-  Input,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormControl,
-  FormMessage,
-  Textarea,
-} from "@newwork/nw-design-system";
-import { formatDataTestId } from "@/common/utils/formatDataTestId";
-import { JobLevel } from "../../apps/job-structure-data";
-import { useCatalogManagerClient } from "@/common/network/catalogs/useCatalogManagerClient";
-import {
-  JOB_LEVEL_GROUP_CATALOG,
-  JOB_LEVEL_GROUP_VERSION,
-} from "../../apps/compensation-data/hooks/useJobLevelGroups";
-import { useCodeError } from "../../hooks/useCodeError";
+import React, { useMemo } from 'react'
+import { BusinessAppContextProps } from '@/common/BusinessAppContext'
+import FormWrapperModal from '../../apps/generic-components/form-wrapper/FormWrapperModal'
+import { Input, FormField, FormItem, FormLabel, FormControl, FormMessage, Textarea } from '@newwork/nw-design-system'
+import { formatDataTestId } from '@/common/utils/formatDataTestId'
+import { JobLevel } from '../../apps/job-structure-data'
+import { useCatalogManagerClient } from '@/common/network/catalogs/useCatalogManagerClient'
+import { JOB_LEVEL_GROUP_CATALOG, JOB_LEVEL_GROUP_VERSION } from '../../apps/compensation-data/hooks/useJobLevelGroups'
+import { useCodeError } from '../../hooks/useCodeError'
 
 export interface JobLevelGroup {
-  id: string;
-  name: string;
-  code: string;
-  description?: string;
-  levels?: JobLevel[];
+  id: string
+  name: string
+  code: string
+  description?: string
+  levels?: JobLevel[]
 }
 
 export interface JobLevelGroupFormProps extends BusinessAppContextProps {
-  jobLevelGroup?: Partial<JobLevelGroup>;
-  onCancel?: () => void;
-  prefixDataTestId?: string;
-  childAddButton: React.ReactNode;
-  refetch: () => void;
-  accessToken: string;
-  usedCodes?: string[];
+  jobLevelGroup?: Partial<JobLevelGroup>
+  onCancel?: () => void
+  prefixDataTestId?: string
+  childAddButton: React.ReactNode
+  refetch: () => void
+  accessToken: string
+  usedCodes?: string[]
 }
 
 const JobLevelGroupForm: React.FC<JobLevelGroupFormProps> = ({
@@ -44,15 +33,15 @@ const JobLevelGroupForm: React.FC<JobLevelGroupFormProps> = ({
   childAddButton,
   refetch,
   accessToken,
-  usedCodes = [],
+  usedCodes = []
 }) => {
-  const dataTestId = formatDataTestId(prefixDataTestId, "JobLevelGroupForm");
-  const catalogClient = useCatalogManagerClient(accessToken);
-  const { codeError, setCodeError, validateCode } = useCodeError(usedCodes);
+  const dataTestId = formatDataTestId(prefixDataTestId, 'JobLevelGroupForm')
+  const catalogClient = useCatalogManagerClient(accessToken)
+  const { codeError, setCodeError, validateCode } = useCodeError(usedCodes)
 
   const handleSubmit = async (values: any) => {
     if (!validateCode(values.code)) {
-      return;
+      return
     }
 
     const payload = {
@@ -60,40 +49,36 @@ const JobLevelGroupForm: React.FC<JobLevelGroupFormProps> = ({
       code: values.code,
       value: values.name,
       additionalValue1: values.description,
-      translations: [],
-    };
+      translations: []
+    }
 
     if (jobLevelGroup) {
       await catalogClient.updateCatalogEntry(
         JOB_LEVEL_GROUP_CATALOG,
         JOB_LEVEL_GROUP_VERSION,
-        jobLevelGroup.id ?? "",
-        payload,
-      );
+        jobLevelGroup.id ?? '',
+        payload
+      )
     } else {
-      await catalogClient.createCatalogEntry(
-        JOB_LEVEL_GROUP_CATALOG,
-        JOB_LEVEL_GROUP_VERSION,
-        payload,
-      );
+      await catalogClient.createCatalogEntry(JOB_LEVEL_GROUP_CATALOG, JOB_LEVEL_GROUP_VERSION, payload)
     }
 
-    refetch();
-  };
+    refetch()
+  }
 
   const defaultValues = useMemo(
     () => ({
-      name: jobLevelGroup?.name || "",
-      code: jobLevelGroup?.code || "",
-      description: jobLevelGroup?.description || "",
+      name: jobLevelGroup?.name || '',
+      code: jobLevelGroup?.code || '',
+      description: jobLevelGroup?.description || ''
     }),
-    [jobLevelGroup],
-  );
+    [jobLevelGroup]
+  )
 
   return (
     <FormWrapperModal
       childAddButton={childAddButton}
-      title={jobLevelGroup ? "Edit Job Level Group" : "Create Job Level Group"}
+      title={jobLevelGroup ? 'Edit Job Level Group' : 'Create Job Level Group'}
       description="Configure job level group details and career path information"
       onSubmit={handleSubmit}
       onCancel={onCancel}
@@ -105,7 +90,7 @@ const JobLevelGroupForm: React.FC<JobLevelGroupFormProps> = ({
     >
       <FormField
         name="name"
-        rules={{ required: "Please enter group name" }}
+        rules={{ required: 'Please enter group name' }}
         render={({ field }) => (
           <FormItem>
             <FormLabel>Group Name</FormLabel>
@@ -124,7 +109,7 @@ const JobLevelGroupForm: React.FC<JobLevelGroupFormProps> = ({
       {!jobLevelGroup && (
         <FormField
           name="code"
-          rules={{ required: "Please enter code" }}
+          rules={{ required: 'Please enter code' }}
           render={({ field }) => (
             <FormItem>
               <FormLabel>Code</FormLabel>
@@ -132,9 +117,9 @@ const JobLevelGroupForm: React.FC<JobLevelGroupFormProps> = ({
                 <Input
                   placeholder="e.g., SWE, MGT, SALES"
                   {...field}
-                  onChange={(e) => {
-                    field.onChange(e);
-                    validateCode(e.target.value);
+                  onChange={e => {
+                    field.onChange(e)
+                    validateCode(e.target.value)
                   }}
                   data-testid={`${dataTestId}-code-input`}
                 />
@@ -163,7 +148,7 @@ const JobLevelGroupForm: React.FC<JobLevelGroupFormProps> = ({
         )}
       />
     </FormWrapperModal>
-  );
-};
+  )
+}
 
-export default JobLevelGroupForm;
+export default JobLevelGroupForm

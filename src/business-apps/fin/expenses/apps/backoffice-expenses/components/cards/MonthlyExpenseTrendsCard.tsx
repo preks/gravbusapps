@@ -3,56 +3,74 @@
  * Shows the total amount of paid expenses per month in EUR for the current year
  */
 
-import React, { useMemo } from 'react';
-import { Card, CardHeader, CardTitle, CardContent, Spinner, Alert, IconAvatar, ChartContainer, ChartTooltip, ChartTooltipContent, ChartLegend, ChartLegendContent } from '@newwork/nw-design-system';
-import { BarChart, Bar, XAxis, YAxis } from 'recharts';
-import { MonthlyExpenseTrend } from '../../types';
-import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
-import { ChartBarIcon } from '@phosphor-icons/react';
-
+import React, { useMemo } from 'react'
+import {
+  Card,
+  CardHeader,
+  CardTitle,
+  CardContent,
+  Spinner,
+  Alert,
+  IconAvatar,
+  ChartContainer,
+  ChartTooltip,
+  ChartTooltipContent,
+  ChartLegend,
+  ChartLegendContent
+} from '@newwork/nw-design-system'
+import { BarChart, Bar, XAxis, YAxis } from 'recharts'
+import { MonthlyExpenseTrend } from '../../types'
+import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
+import { ChartBarIcon } from '@phosphor-icons/react'
 
 export interface MonthlyExpenseTrendsCardProps {
-  loading: boolean;
-  error: Error | null;
-  monthlyTrends: MonthlyExpenseTrend[];
-  selectedCurrencyCode: string;
-  moduleColor?: string;
+  loading: boolean
+  error: Error | null
+  monthlyTrends: MonthlyExpenseTrend[]
+  selectedCurrencyCode: string
+  moduleColor?: string
 }
 
-const MonthlyExpenseTrendsCard: React.FC<MonthlyExpenseTrendsCardProps> = ({ loading, error, monthlyTrends, selectedCurrencyCode, moduleColor }) => {
-  const currentYear = new Date().getFullYear();
+const MonthlyExpenseTrendsCard: React.FC<MonthlyExpenseTrendsCardProps> = ({
+  loading,
+  error,
+  monthlyTrends,
+  selectedCurrencyCode,
+  moduleColor
+}) => {
+  const currentYear = new Date().getFullYear()
 
   const formatCurrency = (value: number) => {
     return new Intl.NumberFormat('de-DE', {
       style: 'currency',
       currency: selectedCurrencyCode,
-      minimumFractionDigits: 2,
-    }).format(value);
-  };
+      minimumFractionDigits: 2
+    }).format(value)
+  }
 
   // Helper function to translate month names
   const getTranslatedMonthName = (monthName: string): string => {
     const monthMap: { [key: string]: string } = {
-      'Jan': 'lowcoder:absence_report.totals_table.jan',
-      'Feb': 'lowcoder:absence_report.totals_table.feb',
-      'Mar': 'lowcoder:absence_report.totals_table.mar',
-      'Apr': 'lowcoder:absence_report.totals_table.apr',
-      'May': 'lowcoder:absence_report.totals_table.may',
-      'Jun': 'lowcoder:absence_report.totals_table.jun',
-      'Jul': 'lowcoder:absence_report.totals_table.jul',
-      'Aug': 'lowcoder:absence_report.totals_table.aug',
-      'Sep': 'lowcoder:absence_report.totals_table.sep',
-      'Oct': 'lowcoder:absence_report.totals_table.oct',
-      'Nov': 'lowcoder:absence_report.totals_table.nov',
-      'Dec': 'lowcoder:absence_report.totals_table.dec'
-    };
-    
-    const translationKey = monthMap[monthName];
-    if (translationKey) {
-      return getTranslationFromI18nKeyAndLabel(translationKey, monthName);
+      Jan: 'lowcoder:absence_report.totals_table.jan',
+      Feb: 'lowcoder:absence_report.totals_table.feb',
+      Mar: 'lowcoder:absence_report.totals_table.mar',
+      Apr: 'lowcoder:absence_report.totals_table.apr',
+      May: 'lowcoder:absence_report.totals_table.may',
+      Jun: 'lowcoder:absence_report.totals_table.jun',
+      Jul: 'lowcoder:absence_report.totals_table.jul',
+      Aug: 'lowcoder:absence_report.totals_table.aug',
+      Sep: 'lowcoder:absence_report.totals_table.sep',
+      Oct: 'lowcoder:absence_report.totals_table.oct',
+      Nov: 'lowcoder:absence_report.totals_table.nov',
+      Dec: 'lowcoder:absence_report.totals_table.dec'
     }
-    return monthName;
-  };
+
+    const translationKey = monthMap[monthName]
+    if (translationKey) {
+      return getTranslationFromI18nKeyAndLabel(translationKey, monthName)
+    }
+    return monthName
+  }
 
   if (loading) {
     return (
@@ -60,7 +78,11 @@ const MonthlyExpenseTrendsCard: React.FC<MonthlyExpenseTrendsCardProps> = ({ loa
         <CardHeader>
           <CardTitle className="gba:flex gba:items-center gba:gap-2">
             <IconAvatar icon={ChartBarIcon} variant={moduleColor as any} size="md" decorative />
-            {getTranslationFromI18nKeyAndLabel('lowcoder:team_expenses_page.dashboard_tab.monthly_expense_trends', "Monthly Expense Trends")} {currentYear}
+            {getTranslationFromI18nKeyAndLabel(
+              'lowcoder:team_expenses_page.dashboard_tab.monthly_expense_trends',
+              'Monthly Expense Trends'
+            )}{' '}
+            {currentYear}
           </CardTitle>
         </CardHeader>
         <CardContent>
@@ -69,7 +91,7 @@ const MonthlyExpenseTrendsCard: React.FC<MonthlyExpenseTrendsCardProps> = ({ loa
           </div>
         </CardContent>
       </Card>
-    );
+    )
   }
 
   if (error) {
@@ -78,7 +100,11 @@ const MonthlyExpenseTrendsCard: React.FC<MonthlyExpenseTrendsCardProps> = ({ loa
         <CardHeader>
           <CardTitle className="gba:flex gba:items-center gba:gap-2">
             <IconAvatar icon={ChartBarIcon} variant={moduleColor as any} size="md" decorative />
-            {getTranslationFromI18nKeyAndLabel('lowcoder:team_expenses_page.dashboard_tab.monthly_expense_trends', "Monthly Expense Trends")} {currentYear}
+            {getTranslationFromI18nKeyAndLabel(
+              'lowcoder:team_expenses_page.dashboard_tab.monthly_expense_trends',
+              'Monthly Expense Trends'
+            )}{' '}
+            {currentYear}
           </CardTitle>
         </CardHeader>
         <CardContent>
@@ -89,22 +115,29 @@ const MonthlyExpenseTrendsCard: React.FC<MonthlyExpenseTrendsCardProps> = ({ loa
           </Alert>
         </CardContent>
       </Card>
-    );
+    )
   }
 
   // Chart configuration for design system
-  const chartConfig = useMemo(() => ({
-    totalAmount: { 
-      label: getTranslationFromI18nKeyAndLabel('lowcoder:initiate_advance_payment.total', "Total Amount")
-    }
-  }), []);
+  const chartConfig = useMemo(
+    () => ({
+      totalAmount: {
+        label: getTranslationFromI18nKeyAndLabel('lowcoder:initiate_advance_payment.total', 'Total Amount')
+      }
+    }),
+    []
+  )
 
   return (
     <Card data-testid="monthly-expense-trends-card">
       <CardHeader>
         <CardTitle className="gba:flex gba:items-center gba:gap-2">
           <IconAvatar icon={ChartBarIcon} variant={moduleColor as any} size="md" decorative />
-          {getTranslationFromI18nKeyAndLabel('lowcoder:team_expenses_page.dashboard_tab.monthly_expense_trends', "Monthly Expense Trends")} {currentYear}
+          {getTranslationFromI18nKeyAndLabel(
+            'lowcoder:team_expenses_page.dashboard_tab.monthly_expense_trends',
+            'Monthly Expense Trends'
+          )}{' '}
+          {currentYear}
         </CardTitle>
       </CardHeader>
       <CardContent>
@@ -121,22 +154,14 @@ const MonthlyExpenseTrendsCard: React.FC<MonthlyExpenseTrendsCardProps> = ({ loa
             data-testid="monthly-expense-trends-chart"
           >
             <BarChart data={monthlyTrends} margin={{ top: 20, right: 30, left: 20, bottom: 20 }}>
-              <XAxis 
-                dataKey="monthName" 
-                tick={{ fontSize: 12 }}
-                interval={0}
-                tickFormatter={getTranslatedMonthName}
-              />
-              <YAxis 
-                tickFormatter={formatCurrency}
-                tick={{ fontSize: 12 }}
-              />
+              <XAxis dataKey="monthName" tick={{ fontSize: 12 }} interval={0} tickFormatter={getTranslatedMonthName} />
+              <YAxis tickFormatter={formatCurrency} tick={{ fontSize: 12 }} />
               <ChartTooltip content={<ChartTooltipContent labelKey="monthName" />} />
               <ChartLegend content={<ChartLegendContent />} />
-              <Bar 
-                dataKey="totalAmount" 
+              <Bar
+                dataKey="totalAmount"
                 name="totalAmount"
-                stroke={`var(--color-totalAmount)`} 
+                stroke={`var(--color-totalAmount)`}
                 fill={`var(--color-totalAmount)`}
                 fillOpacity={0.8}
               />
@@ -145,7 +170,7 @@ const MonthlyExpenseTrendsCard: React.FC<MonthlyExpenseTrendsCardProps> = ({ loa
         )}
       </CardContent>
     </Card>
-  );
-};
+  )
+}
 
-export default MonthlyExpenseTrendsCard;
+export default MonthlyExpenseTrendsCard

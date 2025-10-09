@@ -13,11 +13,7 @@ export interface InvestmentSettingsProps extends BusinessAppContextProps {
   prefixDataTestId?: string
 }
 
-const InvestmentSettings: React.FC<InvestmentSettingsProps> = ({ 
-  className, 
-  prefixDataTestId,
-  ...context
-}) => {
+const InvestmentSettings: React.FC<InvestmentSettingsProps> = ({ className, prefixDataTestId, ...context }) => {
   const { t } = useTranslation()
   const [inlinePage, setInlinePage] = React.useState<{ key: string; tab?: string } | null>(null)
   const catalogClient = useCatalogManagerClient(context.accessToken)
@@ -135,9 +131,12 @@ const InvestmentSettings: React.FC<InvestmentSettingsProps> = ({
 }
 
 export default InvestmentSettings
-export { InvestmentSettings } 
+export { InvestmentSettings }
 
-function mkCatalogStateAndHandlers(catalogClient: ReturnType<typeof useCatalogManagerClient>, catalogIdentifier: string) {
+function mkCatalogStateAndHandlers(
+  catalogClient: ReturnType<typeof useCatalogManagerClient>,
+  catalogIdentifier: string
+) {
   const [items, setItems] = React.useState<any[]>([])
   const [isLoading, setIsLoading] = React.useState(true)
   const [error, setError] = React.useState<string | null>(null)
@@ -149,7 +148,13 @@ function mkCatalogStateAndHandlers(catalogClient: ReturnType<typeof useCatalogMa
       setError(null)
       const response = await catalogClient.getCatalogEntriesList(
         { catalogIdentifier, version: 'v1' },
-        { limit: 100, offset: 0, returnTotalRecords: true, includeChildCatalogEntries: false, ...(search && { searchCriteria: search }) }
+        {
+          limit: 100,
+          offset: 0,
+          returnTotalRecords: true,
+          includeChildCatalogEntries: false,
+          ...(search && { searchCriteria: search })
+        }
       )
       const entries = (response.data || []).map((entry: any) => ({
         id: entry.id,
@@ -168,7 +173,9 @@ function mkCatalogStateAndHandlers(catalogClient: ReturnType<typeof useCatalogMa
     }
   }
 
-  React.useEffect(() => { load() }, [catalogIdentifier, catalogClient, search])
+  React.useEffect(() => {
+    load()
+  }, [catalogIdentifier, catalogClient, search])
 
   const create = async (data: any) => {
     await catalogClient.createCatalogEntry(catalogIdentifier, 'v1', {
@@ -178,7 +185,7 @@ function mkCatalogStateAndHandlers(catalogClient: ReturnType<typeof useCatalogMa
       additionalValue1: data.additionalValue1,
       objectValue: {},
       translations: []
-    });
+    })
     await load()
   }
   const update = async (id: string, data: any) => {
@@ -189,7 +196,7 @@ function mkCatalogStateAndHandlers(catalogClient: ReturnType<typeof useCatalogMa
       additionalValue1: data.additionalValue1,
       objectValue: {},
       translations: []
-    });
+    })
     await load()
   }
   const remove = async (id: string) => {

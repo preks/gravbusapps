@@ -1,195 +1,195 @@
-import { useGraphQLClient } from "@/common/network/graphql/useGraphQLClient";
-import { BusinessAppContextProps } from "@/common/BusinessAppContext";
-import { useCallback } from "react";
+import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
+import { BusinessAppContextProps } from '@/common/BusinessAppContext'
+import { useCallback } from 'react'
 
 export interface InvestmentLeadQueryVariables {
-  id: string;
+  id: string
 }
 
 export interface InvestmentLeadQueryResult {
-  id: string;
-  code?: string;
-  firstName?: string;
-  lastName?: string;
-  email?: string;
-  phoneNumber?: string;
-  position?: string;
+  id: string
+  code?: string
+  firstName?: string
+  lastName?: string
+  email?: string
+  phoneNumber?: string
+  position?: string
 
   // Company Information
-  companyName?: string;
-  companyEmail?: string;
-  companyPhone?: string;
-  companyWebsite?: string;
+  companyName?: string
+  companyEmail?: string
+  companyPhone?: string
+  companyWebsite?: string
 
   // Owner Information
-  ownerEmployeeId?: string; // ✅ ADDED - This was missing!
+  ownerEmployeeId?: string // ✅ ADDED - This was missing!
   ownerEmployee?: {
-    id: string;
-    firstName: string;
-    lastName: string;
-    displayName: string;
-  };
+    id: string
+    firstName: string
+    lastName: string
+    displayName: string
+  }
 
   // Contact Information
-  academicTitleRef?: string; // ✅ ADDED
+  academicTitleRef?: string // ✅ ADDED
   academicTitle?: {
-    id: string;
-    code: string;
-    value: string;
-  };
+    id: string
+    code: string
+    value: string
+  }
 
   // Lead Information
-  leadSourceRef?: string;
+  leadSourceRef?: string
   leadSource?: {
-    id: string;
-    code: string;
-    value: string;
-  };
-  leadSourceType?: string; // ✅ ADDED
-  leadStatusRef?: string;
+    id: string
+    code: string
+    value: string
+  }
+  leadSourceType?: string // ✅ ADDED
+  leadStatusRef?: string
   leadStatus?: {
-    id: string;
-    code: string;
-    value: string;
-  };
-  leadRatingRef?: string;
+    id: string
+    code: string
+    value: string
+  }
+  leadRatingRef?: string
   leadRating?: {
-    id: string;
-    code: string;
-    value: string;
-  };
-  description?: string; // ✅ ADDED - Lead description/notes
-  sensitive?: boolean; // ✅ ADDED
+    id: string
+    code: string
+    value: string
+  }
+  description?: string // ✅ ADDED - Lead description/notes
+  sensitive?: boolean // ✅ ADDED
 
   // Company Details
-  legalFormRef?: string;
+  legalFormRef?: string
   legalForm?: {
-    id: string;
-    code: string;
-    value: string;
-  };
-  industryClassRef?: string; // ✅ FIXED - was industryRef
+    id: string
+    code: string
+    value: string
+  }
+  industryClassRef?: string // ✅ FIXED - was industryRef
   industryClass?: {
-    id: string;
-    code: string;
-    value: string;
-  };
-  companySizeRef?: string;
+    id: string
+    code: string
+    value: string
+  }
+  companySizeRef?: string
   companySize?: {
-    id: string;
-    code: string;
-    value: string;
-  };
-  accountAnnualRevenueBandRef?: string;
+    id: string
+    code: string
+    value: string
+  }
+  accountAnnualRevenueBandRef?: string
   accountAnnualRevenueBand?: {
-    id: string;
-    code: string;
-    value: string;
-  };
+    id: string
+    code: string
+    value: string
+  }
 
   // Address Information - Direct fields (NOT addresses relationship)
-  addressLine?: any; // JSON field with lines array
-  locality?: string;
-  postalCode?: string;
-  countryRef?: string;
+  addressLine?: any // JSON field with lines array
+  locality?: string
+  postalCode?: string
+  countryRef?: string
   country?: {
-    id: string;
-    code: string;
-    value: string;
-  };
-  regionRef?: string;
+    id: string
+    code: string
+    value: string
+  }
+  regionRef?: string
   region?: {
-    id: string;
-    code: string;
-    value: string;
-  };
+    id: string
+    code: string
+    value: string
+  }
 
   // Conversion Information
-  conversionDate?: string; // ✅ ADDED
-  convertedAccountId?: string; // ✅ ADDED
+  conversionDate?: string // ✅ ADDED
+  convertedAccountId?: string // ✅ ADDED
   convertedAccount?: {
-    id: string;
-    name: string;
-  };
-  convertedContactId?: string; // ✅ ADDED
+    id: string
+    name: string
+  }
+  convertedContactId?: string // ✅ ADDED
   convertedContact?: {
-    id: string;
-    firstName: string;
-    lastName: string;
-  };
-  convertedOpportunityId?: string; // ✅ ADDED
+    id: string
+    firstName: string
+    lastName: string
+  }
+  convertedOpportunityId?: string // ✅ ADDED
   convertedOpportunity?: {
-    id: string;
-    name: string;
-  };
+    id: string
+    name: string
+  }
 
   // Investment-specific fields
-  investmentName?: string;
-  investmentGroupRef?: string;
+  investmentName?: string
+  investmentGroupRef?: string
   investmentGroup?: {
-    id: string;
-    code: string;
-    value: string;
-  };
-  investmentTypeRef?: string;
+    id: string
+    code: string
+    value: string
+  }
+  investmentTypeRef?: string
   investmentType?: {
-    id: string;
-    code: string;
-    value: string;
-  };
-  investmentRoleRef?: string;
+    id: string
+    code: string
+    value: string
+  }
+  investmentRoleRef?: string
   investmentRole?: {
-    id: string;
-    code: string;
-    value: string;
-  };
-  investmentStakeTypeRef?: string;
+    id: string
+    code: string
+    value: string
+  }
+  investmentStakeTypeRef?: string
   investmentStakeType?: {
-    id: string;
-    code: string;
-    value: string;
-  };
-  stakePercentage?: number;
-  marketValue?: number;
-  initialInvestmentAmount?: number;
-  loanAmount?: number;
-  loanInterestRate?: number;
-  requiredCapitalAmount?: number;
-  forecastedProfitAmount?: number;
-  annualNetColdRent?: number;
+    id: string
+    code: string
+    value: string
+  }
+  stakePercentage?: number
+  marketValue?: number
+  initialInvestmentAmount?: number
+  loanAmount?: number
+  loanInterestRate?: number
+  requiredCapitalAmount?: number
+  forecastedProfitAmount?: number
+  annualNetColdRent?: number
 
   // Real Estate specific fields
-  buildingYear?: number;
-  size?: number;
-  sizeMeasurementUnitRef?: string;
+  buildingYear?: number
+  size?: number
+  sizeMeasurementUnitRef?: string
   sizeMeasurementUnit?: {
-    id: string;
-    code: string;
-    value: string;
-  };
+    id: string
+    code: string
+    value: string
+  }
 
   // Communication Channels
   communicationChannels?: Array<{
-    id: string;
-    communicationChannelRef: string;
-    value: string;
-    valueExtension?: string;
-    source?: string;
-    activeFrom?: string;
-    activeTo?: string;
+    id: string
+    communicationChannelRef: string
+    value: string
+    valueExtension?: string
+    source?: string
+    activeFrom?: string
+    activeTo?: string
     communicationChannel?: {
-      id: string;
-      value: string;
-      code: string;
-    };
-  }>;
+      id: string
+      value: string
+      code: string
+    }
+  }>
 
   // System fields
-  version?: number;
-  createdAt?: string; // ✅ ADDED
-  updatedAt?: string; // ✅ ADDED
-  createdBy?: string; // ✅ ADDED
-  updatedBy?: string; // ✅ ADDED
+  version?: number
+  createdAt?: string // ✅ ADDED
+  updatedAt?: string // ✅ ADDED
+  createdBy?: string // ✅ ADDED
+  updatedBy?: string // ✅ ADDED
 }
 
 export const GET_INVESTMENT_LEAD_BY_ID = `
@@ -381,33 +381,33 @@ export const GET_INVESTMENT_LEAD_BY_ID = `
       updatedBy
     }
   }
-`;
+`
 
 export const useGetInvestmentLeadById = (context: BusinessAppContextProps) => {
-  const graphqlClient = useGraphQLClient(context.accessToken);
+  const graphqlClient = useGraphQLClient(context.accessToken)
 
   const fetchInvestmentLeadById = useCallback(
     async (leadId: string): Promise<InvestmentLeadQueryResult | null> => {
-      if (!leadId) return null;
+      if (!leadId) return null
 
       try {
         const result = await graphqlClient.request<{
-          InvestmentLead: InvestmentLeadQueryResult[];
-        }>(GET_INVESTMENT_LEAD_BY_ID, { leadId: leadId });
-        return result.InvestmentLead?.[0] || null;
+          InvestmentLead: InvestmentLeadQueryResult[]
+        }>(GET_INVESTMENT_LEAD_BY_ID, { leadId: leadId })
+        return result.InvestmentLead?.[0] || null
       } catch (error) {
-        console.error("Error fetching investment lead by ID:", error);
-        throw error;
+        console.error('Error fetching investment lead by ID:', error)
+        throw error
       }
     },
     [graphqlClient]
-  );
+  )
 
-  return { fetchInvestmentLeadById };
-};
+  return { fetchInvestmentLeadById }
+}
 
 // Legacy exports for backward compatibility (can be removed later)
-export const GET_LEAD_BY_ID = GET_INVESTMENT_LEAD_BY_ID;
-export const useGetLeadById = useGetInvestmentLeadById;
-export type LeadQueryResult = InvestmentLeadQueryResult;
-export type LeadQueryVariables = InvestmentLeadQueryVariables;
+export const GET_LEAD_BY_ID = GET_INVESTMENT_LEAD_BY_ID
+export const useGetLeadById = useGetInvestmentLeadById
+export type LeadQueryResult = InvestmentLeadQueryResult
+export type LeadQueryVariables = InvestmentLeadQueryVariables

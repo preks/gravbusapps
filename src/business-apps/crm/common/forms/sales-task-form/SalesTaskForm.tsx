@@ -1,15 +1,15 @@
-import React from 'react';
-import { SalesTaskFormProvider } from './context/SalesTaskFormContext';
-import SalesTaskFormComponent from './components/SalesTaskFormComponent';
-import { SalesTaskFormValues } from './types';
-import { BusinessAppContextProps } from '@/common/BusinessAppContext';
+import React from 'react'
+import { SalesTaskFormProvider } from './context/SalesTaskFormContext'
+import SalesTaskFormComponent from './components/SalesTaskFormComponent'
+import { SalesTaskFormValues } from './types'
+import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 
 interface SalesTaskFormProps {
-  initialValues?: Partial<SalesTaskFormValues>;
-  onSubmit?: (values: SalesTaskFormValues) => Promise<void>;
-  onCancel?: () => Promise<void>;
-  taskData?: any;
-  isApprovalRequest?: boolean;
+  initialValues?: Partial<SalesTaskFormValues>
+  onSubmit?: (values: SalesTaskFormValues) => Promise<void>
+  onCancel?: () => Promise<void>
+  taskData?: any
+  isApprovalRequest?: boolean
 }
 
 const SalesTaskForm: React.FC<BusinessAppContextProps & SalesTaskFormProps> = ({
@@ -29,7 +29,7 @@ const SalesTaskForm: React.FC<BusinessAppContextProps & SalesTaskFormProps> = ({
           Error: No access token found. Please ensure you are properly authenticated.
         </div>
       </div>
-    );
+    )
   }
 
   const businessAppContext: BusinessAppContextProps = {
@@ -39,7 +39,7 @@ const SalesTaskForm: React.FC<BusinessAppContextProps & SalesTaskFormProps> = ({
       ...additionalData,
       isApprovalRequest
     }
-  };
+  }
 
   return (
     <SalesTaskFormProvider
@@ -51,7 +51,7 @@ const SalesTaskForm: React.FC<BusinessAppContextProps & SalesTaskFormProps> = ({
     >
       <SalesTaskFormComponent />
     </SalesTaskFormProvider>
-  );
-};
+  )
+}
 
-export default SalesTaskForm; 
+export default SalesTaskForm

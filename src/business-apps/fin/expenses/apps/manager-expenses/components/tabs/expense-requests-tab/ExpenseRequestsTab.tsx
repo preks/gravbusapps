@@ -1,24 +1,24 @@
-import React, { useMemo, useEffect } from "react";
-import { BusinessAppContextProps } from "@/common/BusinessAppContext";
-import { useGetExpenseRequests } from "../../../hooks/useGetExpenseRequests";
-import { useExpenseRequestFilters } from "../../../hooks/useExpenseRequestFilters";
-import ExpenseRequestStatistics from "./ExpenseRequestStatistics";
-import ExpenseRequestsTable from "./ExpenseRequestsTable";
+import React, { useMemo, useEffect } from 'react'
+import { BusinessAppContextProps } from '@/common/BusinessAppContext'
+import { useGetExpenseRequests } from '../../../hooks/useGetExpenseRequests'
+import { useExpenseRequestFilters } from '../../../hooks/useExpenseRequestFilters'
+import ExpenseRequestStatistics from './ExpenseRequestStatistics'
+import ExpenseRequestsTable from './ExpenseRequestsTable'
 
 export interface ExpenseRequestsTabProps extends BusinessAppContextProps {
-  moduleColor?: string;
+  moduleColor?: string
 }
 
-const ExpenseRequestsTab: React.FC<ExpenseRequestsTabProps> = (props) => {
+const ExpenseRequestsTab: React.FC<ExpenseRequestsTabProps> = props => {
   const contextProps = useMemo(
     () => ({
       accessToken: props.accessToken,
-      userInfo: props.userInfo,
+      userInfo: props.userInfo
     }),
-    [props.accessToken, props.userInfo],
-  );
+    [props.accessToken, props.userInfo]
+  )
 
-  const managerId = props.userInfo?.employeeDetails?.employeeId || "";
+  const managerId = props.userInfo?.employeeDetails?.employeeId || ''
 
   const {
     search: searchTerm,
@@ -29,40 +29,39 @@ const ExpenseRequestsTab: React.FC<ExpenseRequestsTabProps> = (props) => {
     handleDataFilterChange,
     filterLabelMap,
     addFilter,
-    removeFilter,
+    removeFilter
   } = useExpenseRequestFilters({
     accessToken: props.accessToken,
     managerId,
-    userInfo: props.userInfo,
-  });
+    userInfo: props.userInfo
+  })
 
-  const { requestStats, requestStatsLoading, requestStatsError, fetchRequestStatistics } =
-    useGetExpenseRequests({
-      ...contextProps,
-      currentCurrencyFilter: primaryCurrency,
-      statisticsOnly: true,
-    });
+  const { requestStats, requestStatsLoading, requestStatsError, fetchRequestStatistics } = useGetExpenseRequests({
+    ...contextProps,
+    currentCurrencyFilter: primaryCurrency,
+    statisticsOnly: true
+  })
 
   const {
     requests: expenseRequests,
     isLoading: requestsLoading,
     error: requestsError,
     totalCount,
-    fetchRequests,
+    fetchRequests
   } = useGetExpenseRequests({
     ...contextProps,
     pageSize: 10,
     searchTerm,
     currentStatusFilter: selectedFilters,
     currentCurrencyFilter: primaryCurrency,
-    statisticsOnly: false,
-  });
+    statisticsOnly: false
+  })
 
   useEffect(() => {
     if (props.accessToken) {
-      fetchRequests("", 1, 10, "requestDate:desc", selectedFilters, undefined, primaryCurrency);
+      fetchRequests('', 1, 10, 'requestDate:desc', selectedFilters, undefined, primaryCurrency)
     }
-  }, [props.accessToken, fetchRequests, selectedFilters, primaryCurrency]);
+  }, [props.accessToken, fetchRequests, selectedFilters, primaryCurrency])
 
   return (
     <div className="gba:h-full gba:flex gba:flex-col" data-testid="expense-requests-tab-container">
@@ -101,7 +100,7 @@ const ExpenseRequestsTab: React.FC<ExpenseRequestsTabProps> = (props) => {
         </div>
       </div>
     </div>
-  );
-};
+  )
+}
 
-export default ExpenseRequestsTab;
+export default ExpenseRequestsTab

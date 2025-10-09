@@ -1,62 +1,62 @@
-import React, { useState, useEffect } from 'react';
-import { Tabs, Typography } from 'antd';
-import { DollarOutlined, TeamOutlined } from '@ant-design/icons';
-import { BusinessAppContextProps } from '@/common/BusinessAppContext';
-import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
-import SalaryForecasting from './components/tabs/SalaryForecasting';
-import WorkforceForecasting from './components/tabs/WorkforceForecasting';
+import React, { useState, useEffect } from 'react'
+import { Tabs, Typography } from 'antd'
+import { DollarOutlined, TeamOutlined } from '@ant-design/icons'
+import { BusinessAppContextProps } from '@/common/BusinessAppContext'
+import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
+import SalaryForecasting from './components/tabs/SalaryForecasting'
+import WorkforceForecasting from './components/tabs/WorkforceForecasting'
 
-const { Title, Text } = Typography;
+const { Title, Text } = Typography
 
 interface ForecastingProps extends BusinessAppContextProps {
-  prefixDataTestId?: string;
+  prefixDataTestId?: string
 }
 
-export const Forecasting: React.FC<ForecastingProps> = (props) => {
-  const { prefixDataTestId = 'Forecasting' } = props;
-  
+export const Forecasting: React.FC<ForecastingProps> = props => {
+  const { prefixDataTestId = 'Forecasting' } = props
+
   // Define valid tabs
-  const validTabs = ['salary', 'workforce'];
-  const defaultTab = 'salary';
+  const validTabs = ['salary', 'workforce']
+  const defaultTab = 'salary'
 
   // Get content from URL query parameter or use default
   const getInitialTab = () => {
-    const urlParams = new URLSearchParams(window.location.search);
-    const contentFromUrl = urlParams.get('content');
-    
+    const urlParams = new URLSearchParams(window.location.search)
+    const contentFromUrl = urlParams.get('content')
+
     if (validTabs.includes(contentFromUrl ?? '')) {
-      return contentFromUrl!;
+      return contentFromUrl!
     } else {
       // No valid content in URL, set default content in URL
-      const url = new URL(window.location.href);
-      url.searchParams.set('content', defaultTab);
-      window.history.replaceState({}, '', url.toString());
-      return defaultTab;
+      const url = new URL(window.location.href)
+      url.searchParams.set('content', defaultTab)
+      window.history.replaceState({}, '', url.toString())
+      return defaultTab
     }
-  };
+  }
 
-  const [activeTab, setActiveTab] = useState<string>(getInitialTab);
+  const [activeTab, setActiveTab] = useState<string>(getInitialTab)
 
   // Update URL when content changes
   const handleTabChange = (key: string) => {
-    setActiveTab(key);
-    const url = new URL(window.location.href);
-    url.searchParams.set('content', key);
-    window.history.pushState({}, '', url.toString());
-  };
+    setActiveTab(key)
+    const url = new URL(window.location.href)
+    url.searchParams.set('content', key)
+    window.history.pushState({}, '', url.toString())
+  }
 
   // Handle browser back/forward navigation
   useEffect(() => {
     const handlePopState = () => {
-      const urlParams = new URLSearchParams(window.location.search);
-      const contentFromUrl = urlParams.get('content');
-      const newTab = validTabs.includes(contentFromUrl ?? '') ? contentFromUrl! : defaultTab;
-      setActiveTab(newTab);
-    };
+      const urlParams = new URLSearchParams(window.location.search)
+      const contentFromUrl = urlParams.get('content')
+      const newTab = validTabs.includes(contentFromUrl ?? '') ? contentFromUrl! : defaultTab
+      setActiveTab(newTab)
+    }
 
-    window.addEventListener('popstate', handlePopState);
-    return () => window.removeEventListener('popstate', handlePopState);
-  }, []);
+    window.addEventListener('popstate', handlePopState)
+    return () => window.removeEventListener('popstate', handlePopState)
+  }, [])
 
   const tabItems = [
     {
@@ -79,10 +79,10 @@ export const Forecasting: React.FC<ForecastingProps> = (props) => {
       ),
       children: <WorkforceForecasting {...props} prefixDataTestId="WorkforceForecasting" />
     }
-  ];
+  ]
 
   return (
-    <div 
+    <div
       data-testid={prefixDataTestId}
       className="gba:flex gba:flex-col gba:gap-6 gba:p-6"
       style={{
@@ -98,7 +98,10 @@ export const Forecasting: React.FC<ForecastingProps> = (props) => {
             {getTranslationFromI18nKeyAndLabel('hr_analytics_forecasting_analysis', 'Forecasting Analysis')}
           </Title>
           <Text className="gba:text-gray-600">
-            {getTranslationFromI18nKeyAndLabel('hr_analytics_forecasting_description', 'Predictive workforce analytics, salary trends, and headcount projections')}
+            {getTranslationFromI18nKeyAndLabel(
+              'hr_analytics_forecasting_description',
+              'Predictive workforce analytics, salary trends, and headcount projections'
+            )}
           </Text>
         </div>
       </div>
@@ -115,7 +118,7 @@ export const Forecasting: React.FC<ForecastingProps> = (props) => {
         />
       </div>
     </div>
-  );
-};
+  )
+}
 
-export default Forecasting; 
+export default Forecasting

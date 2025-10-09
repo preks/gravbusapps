@@ -1,12 +1,12 @@
-import { useEffect, useState } from 'react';
-import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient';
+import { useEffect, useState } from 'react'
+import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 
 export interface EquityInvestmentType {
-  id: string;
-  code: string;
-  value: string;
-  additionalValue1: string | null;
-  displayOrder: number;
+  id: string
+  code: string
+  value: string
+  additionalValue1: string | null
+  displayOrder: number
 }
 
 const GET_EQUITY_INVESTMENT_TYPES = `
@@ -28,23 +28,23 @@ const GET_EQUITY_INVESTMENT_TYPES = `
       }
     }
   }
-`;
+`
 
 export const useEquityInvestmentTypes = (accessToken: string) => {
-  const [investmentTypes, setInvestmentTypes] = useState<EquityInvestmentType[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  
-  const graphQLClient = useGraphQLClient(accessToken);
+  const [investmentTypes, setInvestmentTypes] = useState<EquityInvestmentType[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+
+  const graphQLClient = useGraphQLClient(accessToken)
 
   useEffect(() => {
     const fetchInvestmentTypes = async () => {
       try {
-        setLoading(true);
-        setError(null);
-        
-        const result = await graphQLClient.request(GET_EQUITY_INVESTMENT_TYPES);
-        
+        setLoading(true)
+        setError(null)
+
+        const result = await graphQLClient.request(GET_EQUITY_INVESTMENT_TYPES)
+
         if (result?.CatalogEntry) {
           // Transform and sort by additionalValue1 (display order)
           const types: EquityInvestmentType[] = result.CatalogEntry.map((entry: any) => ({
@@ -53,30 +53,30 @@ export const useEquityInvestmentTypes = (accessToken: string) => {
             value: entry.value,
             additionalValue1: entry.additionalValue1,
             displayOrder: parseInt(entry.additionalValue1 || '0', 10)
-          })).sort((a: EquityInvestmentType, b: EquityInvestmentType) => a.displayOrder - b.displayOrder);
-          
-          setInvestmentTypes(types);
-          setError(null);
+          })).sort((a: EquityInvestmentType, b: EquityInvestmentType) => a.displayOrder - b.displayOrder)
+
+          setInvestmentTypes(types)
+          setError(null)
         } else {
-          setInvestmentTypes([]);
+          setInvestmentTypes([])
         }
       } catch (err) {
-        console.error('Error fetching equity investment types:', err);
-        const errorMessage = err instanceof Error ? err.message : 'Unknown error occurred';
-        setError(`Failed to load equity investment types: ${errorMessage}`);
-        setInvestmentTypes([]);
+        console.error('Error fetching equity investment types:', err)
+        const errorMessage = err instanceof Error ? err.message : 'Unknown error occurred'
+        setError(`Failed to load equity investment types: ${errorMessage}`)
+        setInvestmentTypes([])
       } finally {
-        setLoading(false);
+        setLoading(false)
       }
-    };
+    }
 
     if (accessToken) {
-      fetchInvestmentTypes();
+      fetchInvestmentTypes()
     } else {
-      setLoading(false);
-      setError('No access token available');
+      setLoading(false)
+      setError('No access token available')
     }
-  }, [accessToken, graphQLClient]);
+  }, [accessToken, graphQLClient])
 
-  return { investmentTypes, loading, error };
-};
+  return { investmentTypes, loading, error }
+}

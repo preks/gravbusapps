@@ -55,7 +55,7 @@ const SimpleRadialChart = ({ moduleColor }) => {
       </CardContent>
     </Card>
   );
-};`;
+};`
 
 export const radialTextCode = `import React, { useMemo } from "react";
 import {
@@ -122,7 +122,7 @@ const RadialChartText = ({ moduleColor }) => {
       </CardContent>
     </Card>
   );
-};`;
+};`
 
 export const radialLabelCode = `import React, { useMemo } from "react";
 import {
@@ -182,7 +182,7 @@ const RadialChartLabel = ({ moduleColor }) => {
       </CardContent>
     </Card>
   );
-};`;
+};`
 
 export const radialGridCode = `import React, { useMemo } from "react";
 import {
@@ -243,7 +243,7 @@ const RadialChartGrid = ({ moduleColor }) => {
       </CardContent>
     </Card>
   );
-};`;
+};`
 
 export const radialStackedCode = `import React, { useMemo } from "react";
 import {
@@ -303,7 +303,7 @@ const RadialChartStacked = ({ moduleColor }) => {
       </CardContent>
     </Card>
   );
-};`;
+};`
 
 export const radialShapeCode = `import React, { useMemo } from "react";
 import {
@@ -369,4 +369,4 @@ const RadialChartShape = ({ moduleColor }) => {
       </CardContent>
     </Card>
   );
-};`;
+};`

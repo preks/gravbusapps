@@ -1,2 +1,2 @@
-export { TranslatableField } from './TranslatableField';
-export type { TranslatableFieldProps } from './TranslatableField'; 
+export { TranslatableField } from './TranslatableField'
+export type { TranslatableFieldProps } from './TranslatableField'

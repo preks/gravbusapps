@@ -1,5 +1,5 @@
-import React, { useState, useMemo, useCallback, useEffect } from "react";
-import { useTranslation } from "react-i18next";
+import React, { useState, useMemo, useCallback, useEffect } from 'react'
+import { useTranslation } from 'react-i18next'
 import {
   ArrowsDownUpIcon,
   EyeIcon,
@@ -16,12 +16,12 @@ import {
   WarningIcon,
   WallIcon,
   FileIcon,
-  IdentificationCardIcon,
-} from "@phosphor-icons/react";
-import { BusinessAppContextProps } from "@/common/BusinessAppContext";
-import { useDebounce } from "@/common/hooks/useDebounce";
-import { useProjects } from "../../hooks";
-import { Project } from "../../types";
+  IdentificationCardIcon
+} from '@phosphor-icons/react'
+import { BusinessAppContextProps } from '@/common/BusinessAppContext'
+import { useDebounce } from '@/common/hooks/useDebounce'
+import { useProjects } from '../../hooks'
+import { Project } from '../../types'
 import {
   DataTable,
   Button,
@@ -40,96 +40,85 @@ import {
   SheetClose,
   Spinner,
   Progress,
-  CardHeader,
-} from "@newwork/nw-design-system";
-import { ColumnDef } from "@tanstack/react-table";
-import { formatDataTestId } from "@/common/utils/formatDataTestId";
-import CardTabHeaderComponent from "../../../generic-components/card";
-import { VerticalTable, VerticalTableProps } from "../../../generic-components/table/VerticalTable";
-import {
-  NavigationLinkCards,
-  NavigationLinkCardsProps,
-} from "../../../generic-components/card/NavigationLinkCards";
-import { DeleteButton } from "../../../generic-components/delete-button/DeleteButton";
-import ProjectForm from "@/business-apps/mdm/forms/project-form";
-import { useRestClient } from "@/common/network/rest/useRestClient";
-import { env } from "@/common/env/EnvUtils";
+  CardHeader
+} from '@newwork/nw-design-system'
+import { ColumnDef } from '@tanstack/react-table'
+import { formatDataTestId } from '@/common/utils/formatDataTestId'
+import CardTabHeaderComponent from '../../../generic-components/card'
+import { VerticalTable, VerticalTableProps } from '../../../generic-components/table/VerticalTable'
+import { NavigationLinkCards, NavigationLinkCardsProps } from '../../../generic-components/card/NavigationLinkCards'
+import { DeleteButton } from '../../../generic-components/delete-button/DeleteButton'
+import ProjectForm from '@/business-apps/mdm/forms/project-form'
+import { useRestClient } from '@/common/network/rest/useRestClient'
+import { env } from '@/common/env/EnvUtils'
 
 export interface ProjectsTabProps extends BusinessAppContextProps {
-  prefixDataTestId?: string;
+  prefixDataTestId?: string
 }
 
-const DATA_TEST_ID_PREFIX = "ProjectsTab";
-const ORGCHART_BASE_URL = `${env("NEXT_PUBLIC_ORGCHART_API_URL")}/orgchart/api/v1`;
+const DATA_TEST_ID_PREFIX = 'ProjectsTab'
+const ORGCHART_BASE_URL = `${env('NEXT_PUBLIC_ORGCHART_API_URL')}/orgchart/api/v1`
 
 const ProjectsTab: React.FC<ProjectsTabProps> = ({ prefixDataTestId, ...context }) => {
-  const dataTestId = formatDataTestId(prefixDataTestId, DATA_TEST_ID_PREFIX);
-  const { t } = useTranslation();
-  const restClient = useRestClient(ORGCHART_BASE_URL);
+  const dataTestId = formatDataTestId(prefixDataTestId, DATA_TEST_ID_PREFIX)
+  const { t } = useTranslation()
+  const restClient = useRestClient(ORGCHART_BASE_URL)
 
   // Data integration
-  const {
-    projects,
-    accounts,
-    isLoading,
-    error,
-    refetch,
-    totalProjects,
-    filterProjects,
-    structureId,
-  } = useProjects(context);
+  const { projects, accounts, isLoading, error, refetch, totalProjects, filterProjects, structureId } =
+    useProjects(context)
   // Local state
-  const [searchInput, setSearchInput] = useState("");
+  const [searchInput, setSearchInput] = useState('')
 
-  const [selectedProject, setSelectedProject] = useState<Project | null>(null);
-  const [drawerVisible, setDrawerVisible] = useState(false);
-  const showNavigationItems = false;
+  const [selectedProject, setSelectedProject] = useState<Project | null>(null)
+  const [drawerVisible, setDrawerVisible] = useState(false)
+  const showNavigationItems = false
 
   // Debounce search input
-  const debouncedSearchTerm = useDebounce(searchInput, 300);
+  const debouncedSearchTerm = useDebounce(searchInput, 300)
 
   useEffect(() => {
     if (selectedProject) {
-      const updatedSelectedProject = projects.find((project) => project.id === selectedProject.id);
+      const updatedSelectedProject = projects.find(project => project.id === selectedProject.id)
 
       if (updatedSelectedProject) {
-        setSelectedProject(updatedSelectedProject);
+        setSelectedProject(updatedSelectedProject)
       }
     }
-  }, [projects]);
+  }, [projects])
 
   // Filter projects based on search and filters
   const filteredProjects = useMemo(() => {
     // With server-side pagination, we only filter the current page results
     // The full filtered count will be handled by the API
-    return filterProjects(debouncedSearchTerm);
-  }, [filterProjects, debouncedSearchTerm]);
+    return filterProjects(debouncedSearchTerm)
+  }, [filterProjects, debouncedSearchTerm])
 
   const handleSearchChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
-    setSearchInput(e.target.value);
-  }, []);
+    setSearchInput(e.target.value)
+  }, [])
 
   const dataTable = useMemo(
     () =>
-      filteredProjects.map((project) => {
-        const account = accounts.find((account) => account.id === project.customerId);
+      filteredProjects.map(project => {
+        const account = accounts.find(account => account.id === project.customerId)
 
         return {
           ...project,
-          accountName: account?.name,
-        };
+          accountName: account?.name
+        }
       }),
-    [filteredProjects],
-  );
+    [filteredProjects]
+  )
 
   const renderProjectsTable = () => {
     const columns: ColumnDef<Project>[] = [
       {
-        accessorKey: "projectType",
+        accessorKey: 'projectType',
         header: ({ column }) => (
           <Button
             variant="ghost"
-            onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+            onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}
             className="gba:h-auto gba:p-0 gba:font-semibold gba:hover:bg-transparent gba:justify-start"
           >
             Project Type
@@ -139,23 +128,23 @@ const ProjectsTab: React.FC<ProjectsTabProps> = ({ prefixDataTestId, ...context 
         enableSorting: true,
         enableColumnFilter: true,
         cell: ({ getValue }) => {
-          const projectType = getValue() as string;
+          const projectType = getValue() as string
           const displayType = projectType
             ? projectType.charAt(0).toUpperCase() + projectType.slice(1).toLowerCase()
-            : "N/A";
+            : 'N/A'
           return (
             <div className="gba:flex gba:items-center">
               <Badge variant={getProjectTypeColor(projectType)}>{displayType}</Badge>
             </div>
-          );
-        },
+          )
+        }
       },
       {
-        accessorKey: "name",
+        accessorKey: 'name',
         header: ({ column }) => (
           <Button
             variant="ghost"
-            onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+            onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}
             className="gba:h-auto gba:p-0 gba:font-semibold gba:hover:bg-transparent gba:justify-start"
           >
             Project Name
@@ -164,20 +153,20 @@ const ProjectsTab: React.FC<ProjectsTabProps> = ({ prefixDataTestId, ...context 
         ),
         enableSorting: true,
         cell: ({ getValue }) => {
-          const name = getValue();
+          const name = getValue()
           return (
             <div className="gba:flex gba:items-center">
               <div className="gba:font-semibold">{name as string}</div>
             </div>
-          );
-        },
+          )
+        }
       },
       {
-        accessorKey: "accountName",
+        accessorKey: 'accountName',
         header: ({ column }) => (
           <Button
             variant="ghost"
-            onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+            onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}
             className="gba:h-auto gba:p-0 gba:font-semibold gba:hover:bg-transparent gba:justify-start"
           >
             Account
@@ -186,16 +175,16 @@ const ProjectsTab: React.FC<ProjectsTabProps> = ({ prefixDataTestId, ...context 
         ),
         enableSorting: true,
         cell: ({ getValue }) => {
-          const accountName = getValue();
-          return <div className="gba:font-semibold">{accountName as string}</div>;
-        },
+          const accountName = getValue()
+          return <div className="gba:font-semibold">{accountName as string}</div>
+        }
       },
       {
-        accessorKey: "status",
+        accessorKey: 'status',
         header: ({ column }) => (
           <Button
             variant="ghost"
-            onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+            onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}
             className="gba:h-auto gba:p-0 gba:font-semibold gba:hover:bg-transparent gba:justify-start"
           >
             Status
@@ -204,30 +193,26 @@ const ProjectsTab: React.FC<ProjectsTabProps> = ({ prefixDataTestId, ...context 
         ),
         enableSorting: true,
         cell: ({ getValue, row }) => {
-          const status = getValue() ?? "N/A";
-          const daysUntilExpiry = row.original.daysUntilExpiry;
+          const status = getValue() ?? 'N/A'
+          const daysUntilExpiry = row.original.daysUntilExpiry
           return (
             <div className="gba:flex gba:flex-col gba:gap-2">
-              <Badge variant={getStatusColor(status as string)}>
-                {(status as string) ?? "N/A"}
-              </Badge>
+              <Badge variant={getStatusColor(status as string)}>{(status as string) ?? 'N/A'}</Badge>
               {daysUntilExpiry !== undefined && (
-                <div style={{ fontSize: "11px", color: "#666", marginTop: "2px" }}>
-                  {daysUntilExpiry > 0
-                    ? `${daysUntilExpiry} days left`
-                    : `${Math.abs(daysUntilExpiry)} days ago`}
+                <div style={{ fontSize: '11px', color: '#666', marginTop: '2px' }}>
+                  {daysUntilExpiry > 0 ? `${daysUntilExpiry} days left` : `${Math.abs(daysUntilExpiry)} days ago`}
                 </div>
               )}
             </div>
-          );
-        },
+          )
+        }
       },
       {
-        accessorKey: "validTo",
+        accessorKey: 'validTo',
         header: ({ column }) => (
           <Button
             variant="ghost"
-            onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+            onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}
             className="gba:h-auto gba:p-0 gba:font-semibold gba:hover:bg-transparent gba:justify-start"
           >
             Valid Until
@@ -236,27 +221,27 @@ const ProjectsTab: React.FC<ProjectsTabProps> = ({ prefixDataTestId, ...context 
         ),
         enableSorting: true,
         cell: ({ row }) => {
-          const formattedDate = row.original.formattedValidTo;
+          const formattedDate = row.original.formattedValidTo
           return (
-            <div style={{ display: "flex", alignItems: "center" }}>
+            <div style={{ display: 'flex', alignItems: 'center' }}>
               {formattedDate ? (
                 <>
-                  <CalendarBlankIcon style={{ marginRight: "4px", color: "#666" }} />
+                  <CalendarBlankIcon style={{ marginRight: '4px', color: '#666' }} />
                   <span>{formattedDate}</span>
                 </>
               ) : (
-                <span style={{ color: "#999", fontStyle: "italic" }}>No expiry</span>
+                <span style={{ color: '#999', fontStyle: 'italic' }}>No expiry</span>
               )}
             </div>
-          );
-        },
+          )
+        }
       },
       {
-        accessorKey: "description",
+        accessorKey: 'description',
         header: ({ column }) => (
           <Button
             variant="ghost"
-            onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+            onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}
             className="gba:h-auto gba:p-0 gba:font-semibold gba:hover:bg-transparent gba:justify-start"
           >
             Description
@@ -265,17 +250,17 @@ const ProjectsTab: React.FC<ProjectsTabProps> = ({ prefixDataTestId, ...context 
         ),
         enableSorting: true,
         cell: ({ getValue }) => {
-          const description = getValue();
-          return <div>{description as string}</div>;
-        },
+          const description = getValue()
+          return <div>{description as string}</div>
+        }
       },
       {
-        id: "actions",
-        header: "Actions",
+        id: 'actions',
+        header: 'Actions',
         enableSorting: false,
         enableHiding: true,
         cell: ({ row }) => {
-          const targetProject = projects.find((project) => project.id === row.original.id);
+          const targetProject = projects.find(project => project.id === row.original.id)
 
           return (
             <div className="gba:flex gba:items-center">
@@ -290,7 +275,7 @@ const ProjectsTab: React.FC<ProjectsTabProps> = ({ prefixDataTestId, ...context 
 
               <ProjectForm
                 childAddButton={
-                  <Button variant="ghost" onClick={(event) => event.stopPropagation()}>
+                  <Button variant="ghost" onClick={event => event.stopPropagation()}>
                     <PencilSimpleLineIcon />
                   </Button>
                 }
@@ -303,174 +288,164 @@ const ProjectsTab: React.FC<ProjectsTabProps> = ({ prefixDataTestId, ...context 
 
               <DeleteButton
                 onDelete={() => handleDelete(targetProject)}
-                itemName={targetProject?.name ?? ""}
-                itemTitle={"Project"}
+                itemName={targetProject?.name ?? ''}
+                itemTitle={'Project'}
               />
             </div>
-          );
-        },
-      },
-    ];
+          )
+        }
+      }
+    ]
 
     return (
       <DataTable
         defaultDataSetId="projects"
         dataSets={[
           {
-            id: "projects",
-            label: "Projects",
+            id: 'projects',
+            label: 'Projects',
             data: dataTable,
-            columns: columns,
-          },
+            columns: columns
+          }
         ]}
       />
-    );
-  };
+    )
+  }
 
   const drawerItems = useMemo(() => {
-    if (!selectedProject) return [];
-    const account = accounts.find((account) => account.id === selectedProject.customerId);
+    if (!selectedProject) return []
+    const account = accounts.find(account => account.id === selectedProject.customerId)
     const items: VerticalTableProps[] = [
       {
         icon: <InfoIcon />,
-        title: "Project Information",
+        title: 'Project Information',
         verticalTable: true,
         items: [
           {
-            label: "Name",
-            value: selectedProject.name,
-          },
-        ],
-      },
-    ];
+            label: 'Name',
+            value: selectedProject.name
+          }
+        ]
+      }
+    ]
 
     if (account) {
       items[0].items.push({
-        label: "Account",
-        value: account.name,
-      });
+        label: 'Account',
+        value: account.name
+      })
     }
 
     if (selectedProject.validTo) {
       items[0].items.push({
-        label: "Valid Until",
-        value:
-          selectedProject.formattedValidTo ||
-          new Date(selectedProject.validTo).toLocaleDateString(),
-      });
+        label: 'Valid Until',
+        value: selectedProject.formattedValidTo || new Date(selectedProject.validTo).toLocaleDateString()
+      })
     }
 
     if (selectedProject.description) {
       items[0].items.push({
-        label: "Description",
-        value: selectedProject.description,
-      });
+        label: 'Description',
+        value: selectedProject.description
+      })
     }
 
-    return items;
-  }, [selectedProject]);
+    return items
+  }, [selectedProject])
 
   const navigationItems = useMemo(() => {
-    if (!selectedProject) return [];
+    if (!selectedProject) return []
 
     const items: NavigationLinkCardsProps[] = [
       {
         redirectLink: `/project-management/tasks?projectId=${selectedProject.id}`,
-        color: "blue",
+        color: 'blue',
         icon: CheckCircleIcon,
-        title: "View Tasks & Milestones",
-        description: "Track project tasks and upcoming milestones",
+        title: 'View Tasks & Milestones',
+        description: 'Track project tasks and upcoming milestones'
       },
       {
         redirectLink: `/project-management/teams?projectId=${selectedProject.id}`,
-        color: "green",
+        color: 'green',
         icon: UsersIcon,
-        title: "View Team Members",
-        description: "See all team members and roles assigned to this project",
+        title: 'View Team Members',
+        description: 'See all team members and roles assigned to this project'
       },
       {
-        redirectLink: selectedProject.customerId
-          ? `/customer-management/customers/${selectedProject.customerId}`
-          : "#",
-        color: "purple",
+        redirectLink: selectedProject.customerId ? `/customer-management/customers/${selectedProject.customerId}` : '#',
+        color: 'purple',
         icon: IdentificationCardIcon,
-        title: "View Customer Details",
-        description: "View details about the customer for this project",
+        title: 'View Customer Details',
+        description: 'View details about the customer for this project'
       },
       {
         redirectLink: `/project-management/reports?projectId=${selectedProject.id}`,
-        color: "cyan",
+        color: 'cyan',
         icon: FileIcon,
-        title: "View Project Reports",
-        description: "Access project reports and analytics",
-      },
-    ];
+        title: 'View Project Reports',
+        description: 'Access project reports and analytics'
+      }
+    ]
 
-    return items;
-  }, [selectedProject]);
+    return items
+  }, [selectedProject])
 
   const handleView = (targetProject: Project | undefined) => {
-    if (!targetProject) return;
-    setSelectedProject(targetProject);
-    setDrawerVisible(true);
-  };
+    if (!targetProject) return
+    setSelectedProject(targetProject)
+    setDrawerVisible(true)
+  }
 
   const handleDelete = async (project: Project | undefined) => {
-    if (!project) return;
+    if (!project) return
 
     await restClient.delete(`/projects/${project.id}`, {
-      headers: { Authorization: `Bearer ${context.accessToken}` },
-    });
+      headers: { Authorization: `Bearer ${context.accessToken}` }
+    })
 
-    refetch();
-  };
+    refetch()
+  }
 
   const getStatusColor = (status: string) => {
     switch (status) {
-      case "Active":
-        return "success";
-      case "Expired":
-        return "destructive";
-      case "Expiring Soon":
-        return "warning";
+      case 'Active':
+        return 'success'
+      case 'Expired':
+        return 'destructive'
+      case 'Expiring Soon':
+        return 'warning'
       default:
-        return "secondary";
+        return 'secondary'
     }
-  };
+  }
 
   const getProjectTypeColor = (type: string) => {
-    return type === "INTERNAL" ? "info" : "ext1";
-  };
+    return type === 'INTERNAL' ? 'info' : 'ext1'
+  }
 
   if (isLoading) {
     return (
       <div
-        data-testid={`${prefixDataTestId || ""}-ProjectsTab`}
+        data-testid={`${prefixDataTestId || ''}-ProjectsTab`}
         style={{
-          background: "linear-gradient(to bottom, #f9fafb, #f3f4f6)",
-          minHeight: "100%",
-          padding: "24px",
-          borderRadius: "8px",
-          display: "flex",
-          justifyContent: "center",
-          alignItems: "center",
+          background: 'linear-gradient(to bottom, #f9fafb, #f3f4f6)',
+          minHeight: '100%',
+          padding: '24px',
+          borderRadius: '8px',
+          display: 'flex',
+          justifyContent: 'center',
+          alignItems: 'center'
         }}
       >
         <Spinner size="lg" />
       </div>
-    );
+    )
   }
 
   if (error) {
     return (
-      <div
-        className="gba:p-6 gba:text-center"
-        data-testid={`${prefixDataTestId || ""}-ProjectsTab`}
-      >
-        <Alert
-          className="gba:w-full gba:!flex gba:justify-between gba:!items-center"
-          variant="destructive"
-        >
+      <div className="gba:p-6 gba:text-center" data-testid={`${prefixDataTestId || ''}-ProjectsTab`}>
+        <Alert className="gba:w-full gba:!flex gba:justify-between gba:!items-center" variant="destructive">
           <AlertTitle className="gba:flex gba:items-center gba:justify-center gba:gap-2">
             <XCircleIcon className="h-4 w-4" />
             Error Loading Projects
@@ -482,11 +457,11 @@ const ProjectsTab: React.FC<ProjectsTabProps> = ({ prefixDataTestId, ...context 
           </AlertDescription>
         </Alert>
       </div>
-    );
+    )
   }
 
   return (
-    <Card data-testid={`${prefixDataTestId || ""}-JobProfilesTab`} className="gba:overflow-hidden">
+    <Card data-testid={`${prefixDataTestId || ''}-JobProfilesTab`} className="gba:overflow-hidden">
       {!isLoading && (
         <CardTabHeaderComponent
           addButton={
@@ -494,8 +469,8 @@ const ProjectsTab: React.FC<ProjectsTabProps> = ({ prefixDataTestId, ...context 
               childAddButton={
                 <Button
                   variant="default"
-                  onClick={(event) => event.stopPropagation()}
-                  data-testid={`${prefixDataTestId || ""}-ProjectsTab-AddButton`}
+                  onClick={event => event.stopPropagation()}
+                  data-testid={`${prefixDataTestId || ''}-ProjectsTab-AddButton`}
                 >
                   <PlusIcon /> Add Project
                 </Button>
@@ -506,7 +481,7 @@ const ProjectsTab: React.FC<ProjectsTabProps> = ({ prefixDataTestId, ...context 
               accounts={accounts}
             />
           }
-          cardTitle={`${t("hr.project_management", "Project Management")} (${totalProjects})`}
+          cardTitle={`${t('hr.project_management', 'Project Management')} (${totalProjects})`}
           cardDescription="Manage projects and their details"
         />
       )}
@@ -518,7 +493,7 @@ const ProjectsTab: React.FC<ProjectsTabProps> = ({ prefixDataTestId, ...context 
             value={searchInput}
             onChange={handleSearchChange}
             className="gba:ml-6"
-            data-testid={`${prefixDataTestId || ""}-ProjectsTab-SearchInput`}
+            data-testid={`${prefixDataTestId || ''}-ProjectsTab-SearchInput`}
           />
         </div>
 
@@ -527,24 +502,24 @@ const ProjectsTab: React.FC<ProjectsTabProps> = ({ prefixDataTestId, ...context 
         {selectedProject && (
           <Sheet
             open={drawerVisible}
-            onOpenChange={(openStatus) => {
+            onOpenChange={openStatus => {
               if (!openStatus) {
-                setSelectedProject(null);
+                setSelectedProject(null)
               }
-              setDrawerVisible(openStatus);
+              setDrawerVisible(openStatus)
             }}
           >
             <style jsx>{`
-              [data-slot="sheet-overlay"] {
+              [data-slot='sheet-overlay'] {
                 z-index: 1000 !important;
               }
-              [data-slot="sheet-content"] {
+              [data-slot='sheet-content'] {
                 z-index: 1001 !important;
               }
-              [data-slot="select-content"] {
+              [data-slot='select-content'] {
                 z-index: 1002 !important;
               }
-              [data-slot="popover-content"] {
+              [data-slot='popover-content'] {
                 z-index: 1002 !important;
               }
             `}</style>
@@ -560,28 +535,26 @@ const ProjectsTab: React.FC<ProjectsTabProps> = ({ prefixDataTestId, ...context 
                 <div className="gba:space-y-6">
                   <div className="gba:grid gba:grid-cols-2 gba:gap-4">
                     <Card className="gba:!gap-2 gba:text-lg">
-                      <CardHeader className="gba:text-sm gba:text-gray-400">
-                        Project Type
-                      </CardHeader>
+                      <CardHeader className="gba:text-sm gba:text-gray-400">Project Type</CardHeader>
                       <CardContent
-                        className={`${selectedProject.projectType === "INTERNAL" ? "gba:text-[#1890ff]" : "gba:text-[#722ed1]"} gba:!pt-0 gba:flex gba:items-center gba:gap-2`}
+                        className={`${selectedProject.projectType === 'INTERNAL' ? 'gba:text-[#1890ff]' : 'gba:text-[#722ed1]'} gba:!pt-0 gba:flex gba:items-center gba:gap-2`}
                       >
                         <WallIcon />
                         {selectedProject.projectType
                           ? selectedProject.projectType.charAt(0).toUpperCase() +
                             selectedProject.projectType.slice(1).toLowerCase()
-                          : "N/A"}
+                          : 'N/A'}
                       </CardContent>
                     </Card>
 
                     <Card className="gba:!gap-2 gba:text-lg">
                       <CardHeader className="gba:text-sm gba:text-gray-400">Status</CardHeader>
                       <CardContent
-                        className={`${selectedProject.status === "Active" ? "gba:text-[#52c41a]" : selectedProject.status === "Expired" ? "gba:text-[#f5222d]" : "gba:text-[#fa8c16]"} gba:!pt-0 gba:flex gba:items-center gba:gap-2`}
+                        className={`${selectedProject.status === 'Active' ? 'gba:text-[#52c41a]' : selectedProject.status === 'Expired' ? 'gba:text-[#f5222d]' : 'gba:text-[#fa8c16]'} gba:!pt-0 gba:flex gba:items-center gba:gap-2`}
                       >
-                        {selectedProject.status === "Active" ? (
+                        {selectedProject.status === 'Active' ? (
                           <CheckCircleIcon />
-                        ) : selectedProject.status === "Expired" ? (
+                        ) : selectedProject.status === 'Expired' ? (
                           <WarningIcon />
                         ) : (
                           <ClockIcon />
@@ -595,7 +568,7 @@ const ProjectsTab: React.FC<ProjectsTabProps> = ({ prefixDataTestId, ...context 
                       <div className="gba:flex gba:items-center gba:justify-between">
                         <h1 className="gba:font-medium">Time Remaining</h1>
                         <h1
-                          className={`gba:text-sm gba:font-medium ${selectedProject.isActive ? "" : "gba:text-red-500"}`}
+                          className={`gba:text-sm gba:font-medium ${selectedProject.isActive ? '' : 'gba:text-red-500'}`}
                         >
                           {selectedProject.daysUntilExpiry > 0
                             ? `${selectedProject.daysUntilExpiry} days remaining`
@@ -619,7 +592,7 @@ const ProjectsTab: React.FC<ProjectsTabProps> = ({ prefixDataTestId, ...context 
                     </div>
                   )}
 
-                  {drawerItems.map((item) => {
+                  {drawerItems.map(item => {
                     return (
                       <VerticalTable
                         icon={item.icon}
@@ -627,7 +600,7 @@ const ProjectsTab: React.FC<ProjectsTabProps> = ({ prefixDataTestId, ...context 
                         items={item.items}
                         verticalTable={item.verticalTable}
                       />
-                    );
+                    )
                   })}
                 </div>
                 {showNavigationItems && (
@@ -639,7 +612,7 @@ const ProjectsTab: React.FC<ProjectsTabProps> = ({ prefixDataTestId, ...context 
 
                     <div className="gba:grid gba:grid-cols-1 gba:gap-4">
                       {navigationItems.map((item, index) => {
-                        return <NavigationLinkCards key={index} {...item} />;
+                        return <NavigationLinkCards key={index} {...item} />
                       })}
                     </div>
                   </div>
@@ -671,7 +644,7 @@ const ProjectsTab: React.FC<ProjectsTabProps> = ({ prefixDataTestId, ...context 
         )}
       </CardContent>
     </Card>
-  );
-};
+  )
+}
 
-export default ProjectsTab;
+export default ProjectsTab

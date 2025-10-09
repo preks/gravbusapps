@@ -1,6 +1,4 @@
-import UnallocatedExpenseItems from './UnallocatedExpenseItems';
+import UnallocatedExpenseItems from './UnallocatedExpenseItems'
 
-export { UnallocatedExpenseItems };
-export default UnallocatedExpenseItems;
-
-
+export { UnallocatedExpenseItems }
+export default UnallocatedExpenseItems

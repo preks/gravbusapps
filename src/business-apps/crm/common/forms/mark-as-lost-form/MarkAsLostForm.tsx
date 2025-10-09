@@ -1,12 +1,12 @@
-import React from 'react';
-import { MarkAsLostFormProvider } from './context/MarkAsLostFormContext';
-import MarkAsLostFormComponent from './components/MarkAsLostFormComponent';
-import { MarkAsLostFormValues } from './types';
-import { BusinessAppContextProps } from '@/common/BusinessAppContext';
+import React from 'react'
+import { MarkAsLostFormProvider } from './context/MarkAsLostFormContext'
+import MarkAsLostFormComponent from './components/MarkAsLostFormComponent'
+import { MarkAsLostFormValues } from './types'
+import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 
 interface MarkAsLostFormProps {
-  onSubmit?: (values: MarkAsLostFormValues) => Promise<void>;
-  onCancel?: () => Promise<void>;
+  onSubmit?: (values: MarkAsLostFormValues) => Promise<void>
+  onCancel?: () => Promise<void>
 }
 
 const MarkAsLostForm: React.FC<BusinessAppContextProps & MarkAsLostFormProps> = ({
@@ -23,24 +23,20 @@ const MarkAsLostForm: React.FC<BusinessAppContextProps & MarkAsLostFormProps> = 
           Error: No access token found. Please ensure you are properly authenticated.
         </div>
       </div>
-    );
+    )
   }
 
   const businessAppContext: BusinessAppContextProps = {
     accessToken,
     userInfo,
     additionalData
-  };
+  }
 
   return (
-    <MarkAsLostFormProvider
-      businessAppContext={businessAppContext}
-      onSubmit={onSubmit}
-      onCancel={onCancel}
-    >
+    <MarkAsLostFormProvider businessAppContext={businessAppContext} onSubmit={onSubmit} onCancel={onCancel}>
       <MarkAsLostFormComponent />
     </MarkAsLostFormProvider>
-  );
-};
+  )
+}
 
-export default MarkAsLostForm; 
+export default MarkAsLostForm

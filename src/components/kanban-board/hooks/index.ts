@@ -1,2 +1,2 @@
-export { useGenericPipelines } from './useGenericPipelines';
-export { useGenericPipelineStages } from './useGenericPipelineStages';
+export { useGenericPipelines } from './useGenericPipelines'
+export { useGenericPipelineStages } from './useGenericPipelineStages'

@@ -1,27 +1,20 @@
-import {
-  Input,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormControl,
-  FormMessage,
-} from '@newwork/nw-design-system';
-import { Control, FieldValues, Path } from 'react-hook-form';
-import { formatDataTestId } from '@/common/utils/formatDataTestId';
-import { DynamicFieldDefinition } from '../DynamicFormField';
+import { Input, FormField, FormItem, FormLabel, FormControl, FormMessage } from '@newwork/nw-design-system'
+import { Control, FieldValues, Path } from 'react-hook-form'
+import { formatDataTestId } from '@/common/utils/formatDataTestId'
+import { DynamicFieldDefinition } from '../DynamicFormField'
 
 interface PercentageFieldProps<TFieldValues extends FieldValues = FieldValues> {
-  field: DynamicFieldDefinition;
-  fieldName: string;
-  control: Control<TFieldValues>;
-  testIdPrefix: string;
+  field: DynamicFieldDefinition
+  fieldName: string
+  control: Control<TFieldValues>
+  testIdPrefix: string
 }
 
 export function PercentageField<TFieldValues extends FieldValues = FieldValues>({
   field,
   fieldName,
   control,
-  testIdPrefix,
+  testIdPrefix
 }: PercentageFieldProps<TFieldValues>) {
   return (
     <FormField
@@ -37,9 +30,9 @@ export function PercentageField<TFieldValues extends FieldValues = FieldValues>(
             <Input
               {...formField}
               value={formField.value ?? ''}
-              onChange={(e) => {
-                const value = e.target.value === '' ? '' : e.target.value;
-                formField.onChange(value);
+              onChange={e => {
+                const value = e.target.value === '' ? '' : e.target.value
+                formField.onChange(value)
               }}
               type="number"
               step="0.01"
@@ -54,6 +47,5 @@ export function PercentageField<TFieldValues extends FieldValues = FieldValues>(
         </FormItem>
       )}
     />
-  );
+  )
 }
-

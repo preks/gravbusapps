@@ -1,122 +1,117 @@
-import React, { useState, useEffect, useRef } from 'react';
-import {
-  PlusCircleOutlined,
-  CloseOutlined,
-  LoadingOutlined,
-  CheckCircleOutlined,
-} from '@ant-design/icons';
-import { Spin, Alert, Empty, message, Timeline, Typography } from 'antd';
-import { Button } from '@newwork/nw-design-system';
-import { AppAction } from '@/components/app-action/AppAction';
-import { FlowContextName } from '@/common/types/FlowRegistryTypes';
-import { ActivityDeletePopup } from '@/common/components/common-relations/popups/activity-delete-popup';
+import React, { useState, useEffect, useRef } from 'react'
+import { PlusCircleOutlined, CloseOutlined, LoadingOutlined, CheckCircleOutlined } from '@ant-design/icons'
+import { Spin, Alert, Empty, message, Timeline, Typography } from 'antd'
+import { Button } from '@newwork/nw-design-system'
+import { AppAction } from '@/components/app-action/AppAction'
+import { FlowContextName } from '@/common/types/FlowRegistryTypes'
+import { ActivityDeletePopup } from '@/common/components/common-relations/popups/activity-delete-popup'
 // import { Clock, Calendar } from 'lucide-react'; // Unused import
 // import { startProcess } from '@/common/utils/start-process';
-import { useProcessCompletion } from '@/common/hooks/useProcessCompletion';
-import { BusinessAppContextProps } from '@/common/BusinessAppContext';
-import { NotesSection } from './NotesSection';
+import { useProcessCompletion } from '@/common/hooks/useProcessCompletion'
+import { BusinessAppContextProps } from '@/common/BusinessAppContext'
+import { NotesSection } from './NotesSection'
 
 import {
   useGetInvestmentActivitiesByContactId,
-  useGetInvestmentTasksByContactId,
-} from '@/common/data/investment/hooks/useInvestmentContacts';
-import type { InvestmentActivity, InvestmentTask } from '@/common/data/investment/types';
-import { useEmployeeData } from '@/business-apps/crm/common/hooks/useEmployeeData';
+  useGetInvestmentTasksByContactId
+} from '@/common/data/investment/hooks/useInvestmentContacts'
+import type { InvestmentActivity, InvestmentTask } from '@/common/data/investment/types'
+import { useEmployeeData } from '@/business-apps/crm/common/hooks/useEmployeeData'
 // import { useRestClient } from '@/common/network/rest/useRestClient';
 // import { env } from '@/common/env/EnvUtils';
-import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient';
-import { DeleteConfirmPopup } from '@/common/components/common-relations/popups/delete-confirm-popup';
-import dayjs from 'dayjs';
-import weekday from 'dayjs/plugin/weekday';
-import localeData from 'dayjs/plugin/localeData';
+import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
+import { DeleteConfirmPopup } from '@/common/components/common-relations/popups/delete-confirm-popup'
+import dayjs from 'dayjs'
+import weekday from 'dayjs/plugin/weekday'
+import localeData from 'dayjs/plugin/localeData'
 
 // Configure dayjs with required plugins
-dayjs.extend(weekday);
-dayjs.extend(localeData);
-dayjs.locale('en');
-import { LanguageDropdown } from './LanguageDropdown';
-import { translateMultipleTexts } from '../utils/translationService';
-import { isApprovalTask } from '../../../utils/taskUtils';
+dayjs.extend(weekday)
+dayjs.extend(localeData)
+dayjs.locale('en')
+import { LanguageDropdown } from './LanguageDropdown'
+import { translateMultipleTexts } from '../utils/translationService'
+import { isApprovalTask } from '../../../utils/taskUtils'
 // import { useSalesManagerEmployees } from '../../opportunity-record/hooks/useSalesManagerEmployees';
 
-const { Text } = Typography;
+const { Text } = Typography
 
 interface ActivityTimelineProps {
-  contactId?: string;
-  context: BusinessAppContextProps;
+  contactId?: string
+  context: BusinessAppContextProps
 }
 
 interface TranslatedActivity extends InvestmentActivity {
-  translatedTitle?: string;
-  translatedDescription?: string;
-  isTranslating?: boolean;
+  translatedTitle?: string
+  translatedDescription?: string
+  isTranslating?: boolean
 }
 
 export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({ contactId, context }) => {
   // Read initial tab from URL parameters
   const getInitialTab = (): 'activities' | 'notes' | 'approvals' => {
-    const urlParams = new URLSearchParams(window.location.search);
-    const tabParam = urlParams.get('tab');
+    const urlParams = new URLSearchParams(window.location.search)
+    const tabParam = urlParams.get('tab')
     if (tabParam === 'activities' || tabParam === 'notes' || tabParam === 'approvals') {
-      return tabParam as 'activities' | 'notes' | 'approvals';
+      return tabParam as 'activities' | 'notes' | 'approvals'
     }
-    return 'activities';
-  };
+    return 'activities'
+  }
 
-  const [activeTab, setActiveTab] = useState<'activities' | 'notes' | 'approvals'>(getInitialTab);
-  const [activities, setActivities] = useState<TranslatedActivity[]>([]);
-  const [activitiesLoading, setActivitiesLoading] = useState(false);
-  const [activitiesError, setActivitiesError] = useState<string | null>(null);
-  const [notesKey, setNotesKey] = useState(0);
-  const [selectedLanguage, setSelectedLanguage] = useState('Original');
-  const [translating, setTranslating] = useState(false);
-  const [approvalTasks, setApprovalTasks] = useState<InvestmentTask[]>([]);
-  const [approvalTasksLoading, setApprovalTasksLoading] = useState(false);
-  const [approvalTasksError, setApprovalTasksError] = useState<string | null>(null);
-  const originalActivitiesRef = useRef<InvestmentActivity[]>([]);
+  const [activeTab, setActiveTab] = useState<'activities' | 'notes' | 'approvals'>(getInitialTab)
+  const [activities, setActivities] = useState<TranslatedActivity[]>([])
+  const [activitiesLoading, setActivitiesLoading] = useState(false)
+  const [activitiesError, setActivitiesError] = useState<string | null>(null)
+  const [notesKey, setNotesKey] = useState(0)
+  const [selectedLanguage, setSelectedLanguage] = useState('Original')
+  const [translating, setTranslating] = useState(false)
+  const [approvalTasks, setApprovalTasks] = useState<InvestmentTask[]>([])
+  const [approvalTasksLoading, setApprovalTasksLoading] = useState(false)
+  const [approvalTasksError, setApprovalTasksError] = useState<string | null>(null)
+  const originalActivitiesRef = useRef<InvestmentActivity[]>([])
 
-  const { fetchInvestmentActivitiesByContactId } = useGetInvestmentActivitiesByContactId(context);
-  const { fetchInvestmentTasksByContactId } = useGetInvestmentTasksByContactId(context);
-  const { getEmployeeDisplayName } = useEmployeeData(context.accessToken);
-  const graphqlClient = useGraphQLClient(context.accessToken);
+  const { fetchInvestmentActivitiesByContactId } = useGetInvestmentActivitiesByContactId(context)
+  const { fetchInvestmentTasksByContactId } = useGetInvestmentTasksByContactId(context)
+  const { getEmployeeDisplayName } = useEmployeeData(context.accessToken)
+  const graphqlClient = useGraphQLClient(context.accessToken)
   const [deleteApprovalPopup, setDeleteApprovalPopup] = useState<{
-    open: boolean;
-    task?: InvestmentTask;
-  }>({ open: false });
+    open: boolean
+    task?: InvestmentTask
+  }>({ open: false })
   // const { salesManagers } = useSalesManagerEmployees(context.accessToken);
 
   // Listen for process completion to refetch approval tasks
   useProcessCompletion({
     onSuccess: () => {
-      console.log('Process completed successfully, refreshing approval tasks');
+      console.log('Process completed successfully, refreshing approval tasks')
       if (activeTab === 'approvals') {
-        loadApprovalTasks();
+        loadApprovalTasks()
       }
     },
     onFailure: () => {
-      console.log('Process failed');
-      message.error('Failed to create approval task');
-    },
-  });
+      console.log('Process failed')
+      message.error('Failed to create approval task')
+    }
+  })
 
   const loadActivities = async () => {
-    if (!contactId) return;
+    if (!contactId) return
 
-    setActivitiesLoading(true);
-    setActivitiesError(null);
+    setActivitiesLoading(true)
+    setActivitiesError(null)
 
     try {
-      const result = await fetchInvestmentActivitiesByContactId(contactId);
+      const result = await fetchInvestmentActivitiesByContactId(contactId)
       // Sort activities by occurredAt in descending order (newest first), fallback to createdAt
       const sortedActivities = (result || []).sort((a, b) => {
-        const dateA = new Date(a.occurredAt || a.createdAt).getTime();
-        const dateB = new Date(b.occurredAt || b.createdAt).getTime();
-        return dateB - dateA;
-      });
+        const dateA = new Date(a.occurredAt || a.createdAt).getTime()
+        const dateB = new Date(b.occurredAt || b.createdAt).getTime()
+        return dateB - dateA
+      })
 
       // Fetch creator employee information for activities where ownerEmployee is null
       const enhancedActivities = await Promise.all(
-        sortedActivities.map(async (activity) => {
+        sortedActivities.map(async activity => {
           if (!activity.ownerEmployee && activity.createdBy) {
             try {
               // Look up employee by userId
@@ -130,122 +125,112 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({ contactId, c
                     fullName
                   }
                 }
-              `;
+              `
 
               // Validate that createdBy is a string before making the request
               if (typeof activity.createdBy === 'string') {
                 const employeeResult = await graphqlClient.request(employeeQuery, {
-                  userId: activity.createdBy,
-                });
-                const employee = employeeResult?.Employee?.[0];
+                  userId: activity.createdBy
+                })
+                const employee = employeeResult?.Employee?.[0]
                 if (employee) {
-                  return { ...activity, ownerEmployee: employee };
+                  return { ...activity, ownerEmployee: employee }
                 }
               } else {
-                console.warn(
-                  'Invalid createdBy value for activity:',
-                  activity.id,
-                  typeof activity.createdBy,
-                );
+                console.warn('Invalid createdBy value for activity:', activity.id, typeof activity.createdBy)
               }
             } catch (error) {
-              console.warn('Failed to fetch creator employee for activity:', activity.id, error);
+              console.warn('Failed to fetch creator employee for activity:', activity.id, error)
             }
           }
-          return activity;
-        }),
-      );
+          return activity
+        })
+      )
 
       // Store original activities for translation reference
-      originalActivitiesRef.current = enhancedActivities;
-      setActivities(enhancedActivities);
+      originalActivitiesRef.current = enhancedActivities
+      setActivities(enhancedActivities)
     } catch (err) {
-      setActivitiesError(err instanceof Error ? err.message : 'Failed to load activities');
+      setActivitiesError(err instanceof Error ? err.message : 'Failed to load activities')
     } finally {
-      setActivitiesLoading(false);
+      setActivitiesLoading(false)
     }
-  };
+  }
 
   // Handle language change and translate activities
   useEffect(() => {
     const translateActivities = async () => {
-      const originalActivities = originalActivitiesRef.current;
+      const originalActivities = originalActivitiesRef.current
 
       if (selectedLanguage === 'Original' || originalActivities.length === 0) {
         // Reset to original text for Original language or no activities
-        setActivities(originalActivities);
-        return;
+        setActivities(originalActivities)
+        return
       }
 
-      setTranslating(true);
+      setTranslating(true)
 
       try {
         // Collect all text to translate from original activities
-        const textsToTranslate: string[] = [];
+        const textsToTranslate: string[] = []
         const activityMapping: Array<{
-          activityIndex: number;
-          titleIndex: number;
-          descriptionIndex: number;
-        }> = [];
+          activityIndex: number
+          titleIndex: number
+          descriptionIndex: number
+        }> = []
 
         originalActivities.forEach((activity, activityIndex) => {
-          const titleIndex = textsToTranslate.length;
-          textsToTranslate.push(activity.title || '');
+          const titleIndex = textsToTranslate.length
+          textsToTranslate.push(activity.title || '')
 
-          const descriptionIndex = textsToTranslate.length;
-          textsToTranslate.push(activity.description || '');
+          const descriptionIndex = textsToTranslate.length
+          textsToTranslate.push(activity.description || '')
 
-          activityMapping.push({ activityIndex, titleIndex, descriptionIndex });
-        });
+          activityMapping.push({ activityIndex, titleIndex, descriptionIndex })
+        })
 
-        const translatedTexts = await translateMultipleTexts(
-          textsToTranslate,
-          selectedLanguage,
-          context.accessToken!,
-        );
+        const translatedTexts = await translateMultipleTexts(textsToTranslate, selectedLanguage, context.accessToken!)
 
-        const translatedActivities: TranslatedActivity[] = originalActivities.map(
-          (originalActivity, activityIndex) => {
-            const mapping = activityMapping[activityIndex];
-            return {
-              ...originalActivity,
-              translatedTitle: translatedTexts[mapping.titleIndex],
-              translatedDescription: translatedTexts[mapping.descriptionIndex],
-              isTranslating: false,
-            };
-          },
-        );
+        const translatedActivities: TranslatedActivity[] = originalActivities.map((originalActivity, activityIndex) => {
+          const mapping = activityMapping[activityIndex]
+          return {
+            ...originalActivity,
+            translatedTitle: translatedTexts[mapping.titleIndex],
+            translatedDescription: translatedTexts[mapping.descriptionIndex],
+            isTranslating: false
+          }
+        })
 
-        setActivities(translatedActivities);
+        setActivities(translatedActivities)
       } catch (err) {
-        console.error('Translation error:', err);
-        message.error('Failed to translate activities');
-        setActivities(originalActivities);
+        console.error('Translation error:', err)
+        message.error('Failed to translate activities')
+        setActivities(originalActivities)
       } finally {
-        setTranslating(false);
+        setTranslating(false)
       }
-    };
+    }
 
     if (activeTab === 'activities') {
-      translateActivities();
+      translateActivities()
     }
-  }, [selectedLanguage, activeTab, context.accessToken]);
+  }, [selectedLanguage, activeTab, context.accessToken])
 
   const loadApprovalTasks = async () => {
-    if (!contactId) return;
+    if (!contactId) return
 
-    setApprovalTasksLoading(true);
-    setApprovalTasksError(null);
+    setApprovalTasksLoading(true)
+    setApprovalTasksError(null)
 
     try {
-      const result = await fetchInvestmentTasksByContactId(contactId);
+      const result = await fetchInvestmentTasksByContactId(contactId)
 
       // Filter for approval tasks only using helper
-      const approvalsOnly = (result || []).filter(isApprovalTask);
+      const approvalsOnly = (result || []).filter(isApprovalTask)
 
       // Fetch creator employee information for tasks where creatorEmployee is null
       const enhancedTasks = await Promise.all(
-        approvalsOnly.map(async (task) => {
+        approvalsOnly.map(async task => {
           if (!task.creatorEmployee && task.createdBy) {
             try {
               // Look up employee by userId
@@ -259,85 +244,85 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({ contactId, c
                     fullName
                   }
                 }
-              `;
+              `
 
               // Validate that createdBy is a string before making the request
               if (typeof task.createdBy === 'string') {
                 const employeeResult = await graphqlClient.request(employeeQuery, {
-                  userId: task.createdBy,
-                });
-                const employee = employeeResult?.Employee?.[0];
+                  userId: task.createdBy
+                })
+                const employee = employeeResult?.Employee?.[0]
                 if (employee) {
-                  return { ...task, creatorEmployee: employee };
+                  return { ...task, creatorEmployee: employee }
                 }
               } else {
-                console.warn('Invalid createdBy value for task:', task.id, typeof task.createdBy);
+                console.warn('Invalid createdBy value for task:', task.id, typeof task.createdBy)
               }
             } catch (error) {
-              console.warn('Failed to fetch creator employee for task:', task.id, error);
+              console.warn('Failed to fetch creator employee for task:', task.id, error)
             }
           }
-          return task;
-        }),
-      );
+          return task
+        })
+      )
 
-      setApprovalTasks(enhancedTasks);
+      setApprovalTasks(enhancedTasks)
     } catch (err) {
-      setApprovalTasksError(err instanceof Error ? err.message : 'Failed to load approval tasks');
+      setApprovalTasksError(err instanceof Error ? err.message : 'Failed to load approval tasks')
     } finally {
-      setApprovalTasksLoading(false);
+      setApprovalTasksLoading(false)
     }
-  };
+  }
 
   const refreshNotes = () => {
-    setNotesKey((prev) => prev + 1);
-  };
+    setNotesKey(prev => prev + 1)
+  }
 
   useEffect(() => {
     if (activeTab === 'activities') {
-      loadActivities();
+      loadActivities()
     } else if (activeTab === 'approvals') {
-      loadApprovalTasks();
+      loadApprovalTasks()
     }
-  }, [contactId, activeTab]);
+  }, [contactId, activeTab])
 
   useEffect(() => {
     const handleFocus = () => {
       if (activeTab === 'activities') {
-        loadActivities();
+        loadActivities()
       } else if (activeTab === 'approvals') {
-        loadApprovalTasks();
+        loadApprovalTasks()
       }
-      refreshNotes();
-    };
+      refreshNotes()
+    }
 
-    window.addEventListener('focus', handleFocus);
+    window.addEventListener('focus', handleFocus)
     document.addEventListener('visibilitychange', () => {
       if (!document.hidden) {
-        handleFocus();
+        handleFocus()
       }
-    });
+    })
 
     return () => {
-      window.removeEventListener('focus', handleFocus);
-      document.removeEventListener('visibilitychange', handleFocus);
-    };
-  }, [activeTab, contactId]);
+      window.removeEventListener('focus', handleFocus)
+      document.removeEventListener('visibilitychange', handleFocus)
+    }
+  }, [activeTab, contactId])
 
   useEffect(() => {
     const handleProcessCompletion = (event: any) => {
       try {
         if (event.detail?.resolution === 'success') {
-          loadActivities();
-          loadApprovalTasks();
-          refreshNotes();
+          loadActivities()
+          loadApprovalTasks()
+          refreshNotes()
 
-          return;
+          return
         }
       } catch (err) {
-        console.error('Error handling process completion:', err);
+        console.error('Error handling process completion:', err)
       }
-    };
+    }
 
     const handlePostMessage = (event: MessageEvent) => {
       try {
@@ -345,18 +330,15 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({ contactId, c
           // This part of the logic is no longer needed as documents are removed
         }
       } catch (err) {
-        console.error('Error handling postMessage:', err);
+        console.error('Error handling postMessage:', err)
       }
-    };
+    }
 
     const handleAllEvents = (event: any) => {
-      if (
-        (event.type && event.type.includes('process')) ||
-        (event.type && event.type.includes('task'))
-      ) {
-        handleProcessCompletion(event);
+      if ((event.type && event.type.includes('process')) || (event.type && event.type.includes('task'))) {
+        handleProcessCompletion(event)
       }
-    };
+    }
 
     const eventNames = [
       'com.newwork.process.taskCompletion',
@@ -368,51 +350,51 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({ contactId, c
       'taskCompleted',
       'processCompleted',
       'task-completion',
-      'process-completion',
-    ];
+      'process-completion'
+    ]
 
-    eventNames.forEach((eventName) => {
-      window.addEventListener(eventName, handleProcessCompletion as EventListener);
-    });
+    eventNames.forEach(eventName => {
+      window.addEventListener(eventName, handleProcessCompletion as EventListener)
+    })
 
-    window.addEventListener('message', handlePostMessage);
+    window.addEventListener('message', handlePostMessage)
 
-    const originalDispatchEvent = window.dispatchEvent;
+    const originalDispatchEvent = window.dispatchEvent
     window.dispatchEvent = function (event: Event) {
       if (event.type && (event.type.includes('process') || event.type.includes('task'))) {
-        handleAllEvents(event);
+        handleAllEvents(event)
       }
-      return originalDispatchEvent.call(this, event);
-    };
+      return originalDispatchEvent.call(this, event)
+    }
 
     return () => {
-      eventNames.forEach((eventName) => {
-        window.removeEventListener(eventName, handleProcessCompletion as EventListener);
-      });
-      window.removeEventListener('message', handlePostMessage);
+      eventNames.forEach(eventName => {
+        window.removeEventListener(eventName, handleProcessCompletion as EventListener)
+      })
+      window.removeEventListener('message', handlePostMessage)
 
-      window.dispatchEvent = originalDispatchEvent;
-    };
-  }, [contactId]);
+      window.dispatchEvent = originalDispatchEvent
+    }
+  }, [contactId])
 
   const [deletePopup, setDeletePopup] = useState<{ open: boolean; activity?: InvestmentActivity }>({
-    open: false,
-  });
+    open: false
+  })
 
   const handleDeleteActivity = (activity: InvestmentActivity) => {
-    setDeletePopup({ open: true, activity });
-  };
+    setDeletePopup({ open: true, activity })
+  }
 
   const handleLanguageChange = (languageCode: string) => {
-    setSelectedLanguage(languageCode);
-  };
+    setSelectedLanguage(languageCode)
+  }
 
   const getActivityTypeValue = (activityType: any): string => {
-    if (!activityType) return '';
-    if (typeof activityType === 'string') return activityType;
-    if (activityType.value) return activityType.value;
-    return '';
-  };
+    if (!activityType) return ''
+    if (typeof activityType === 'string') return activityType
+    if (activityType.value) return activityType.value
+    return ''
+  }
 
   return (
     <div
@@ -422,7 +404,7 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({ contactId, c
         border: '1px solid #f0f0f0',
         overflow: 'hidden',
         marginBottom: '24px',
-        height: 'fit-content',
+        height: 'fit-content'
       }}
       data-testid="contact-activity-timeline"
     >
@@ -430,7 +412,7 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({ contactId, c
       <div
         style={{
           borderBottom: '1px solid #f0f0f0',
-          backgroundColor: '#fafafa',
+          backgroundColor: '#fafafa'
         }}
       >
         <div style={{ display: 'flex' }}>
@@ -442,7 +424,7 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({ contactId, c
               backgroundColor: activeTab === 'activities' ? 'white' : 'transparent',
               flex: 1,
               textAlign: 'center',
-              cursor: 'pointer',
+              cursor: 'pointer'
             }}
             onClick={() => setActiveTab('activities')}
             data-testid="activities-tab"
@@ -457,7 +439,7 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({ contactId, c
               backgroundColor: activeTab === 'notes' ? 'white' : 'transparent',
               flex: 1,
               textAlign: 'center',
-              cursor: 'pointer',
+              cursor: 'pointer'
             }}
             onClick={() => setActiveTab('notes')}
             data-testid="notes-tab"
@@ -472,7 +454,7 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({ contactId, c
               backgroundColor: activeTab === 'approvals' ? 'white' : 'transparent',
               flex: 1,
               textAlign: 'center',
-              cursor: 'pointer',
+              cursor: 'pointer'
             }}
             onClick={() => setActiveTab('approvals')}
             data-testid="approvals-tab"
@@ -490,27 +472,22 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({ contactId, c
               display: 'flex',
               justifyContent: 'space-between',
               alignItems: 'center',
-              padding: '16px 24px',
+              padding: '16px 24px'
             }}
           >
             <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
               <div className="gba:activities-title" style={{ fontSize: '18px', fontWeight: '500' }}>
                 Activities
               </div>
-              <LanguageDropdown
-                selectedLanguage={selectedLanguage}
-                onChange={handleLanguageChange}
-              />
-              {translating && (
-                <Spin indicator={<LoadingOutlined style={{ fontSize: 16 }} spin />} size="small" />
-              )}
+              <LanguageDropdown selectedLanguage={selectedLanguage} onChange={handleLanguageChange} />
+              {translating && <Spin indicator={<LoadingOutlined style={{ fontSize: 16 }} spin />} size="small" />}
             </div>
             <AppAction
               contextsArray={[FlowContextName.createInvestmentActivity]}
               externalContextData={{
                 contactId,
                 contact: contactId,
-                investmentActivity: { contact: contactId },
+                investmentActivity: { contact: contactId }
               }}
               prefixDataTestId="investment-contact-add-activity"
               accessToken={context.accessToken}
@@ -547,14 +524,8 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({ contactId, c
             )}
 
             {!activitiesLoading && !activitiesError && activities.length === 0 && (
-              <Empty
-                description="No activities yet"
-                style={{ padding: '40px 0' }}
-                data-testid="empty-activities"
-              >
-                <div style={{ fontSize: '14px', color: '#8c8c8c' }}>
-                  Start by adding your first activity
-                </div>
+              <Empty description="No activities yet" style={{ padding: '40px 0' }} data-testid="empty-activities">
+                <div style={{ fontSize: '14px', color: '#8c8c8c' }}>Start by adding your first activity</div>
               </Empty>
             )}
 
@@ -567,21 +538,16 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({ contactId, c
                         style={{
                           display: 'flex',
                           justifyContent: 'space-between',
-                          alignItems: 'center',
+                          alignItems: 'center'
                         }}
                       >
                         <Text strong>{activity.translatedTitle || activity.title}</Text>
                       </div>
                       <div>
                         <Text type="secondary">
-                          {dayjs(activity.occurredAt || activity.createdAt).format(
-                            'MMM D, YYYY [at] h:mm A',
-                          )}{' '}
-                          -{' '}
+                          {dayjs(activity.occurredAt || activity.createdAt).format('MMM D, YYYY [at] h:mm A')} -{' '}
                           {activity.ownerEmployee?.displayName ||
-                            getEmployeeDisplayName(
-                              activity.ownerEmployee?.id || activity.createdBy,
-                            ) ||
+                            getEmployeeDisplayName(activity.ownerEmployee?.id || activity.createdBy) ||
                             'Unknown User'}
                         </Text>
                       </div>
@@ -594,7 +560,7 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({ contactId, c
                               padding: '2px 8px',
                               borderRadius: '4px',
                               fontSize: '12px',
-                              fontWeight: '500',
+                              fontWeight: '500'
                             }}
                           >
                             {getActivityTypeValue(activity.activityType)}
@@ -612,7 +578,7 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({ contactId, c
                           right: 0,
                           top: 0,
                           padding: '4px',
-                          lineHeight: 1,
+                          lineHeight: 1
                         }}
                         onClick={() => handleDeleteActivity(activity)}
                         data-testid={`delete-activity-${activity.id}`}
@@ -643,7 +609,7 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({ contactId, c
               display: 'flex',
               justifyContent: 'space-between',
               alignItems: 'center',
-              padding: '16px 24px',
+              padding: '16px 24px'
             }}
           >
             <div style={{ fontSize: '18px', fontWeight: '500' }}>Approval Tasks</div>
@@ -651,7 +617,7 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({ contactId, c
               contextsArray={[FlowContextName.investmentTaskCreate]}
               externalContextData={{
                 contactId,
-                typeRef: 'InvestmentTaskType:v1:APPROVAL',
+                typeRef: 'InvestmentTaskType:v1:APPROVAL'
               }}
               prefixDataTestId="irm-contact-approvals"
               accessToken={context.accessToken}
@@ -689,11 +655,7 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({ contactId, c
             )}
 
             {!approvalTasksLoading && !approvalTasksError && approvalTasks.length === 0 && (
-              <Empty
-                description="No approval tasks"
-                style={{ padding: '40px 0' }}
-                data-testid="empty-approval-tasks"
-              >
+              <Empty description="No approval tasks" style={{ padding: '40px 0' }} data-testid="empty-approval-tasks">
                 <div style={{ fontSize: '14px', color: '#8c8c8c' }}>
                   No approval tasks have been created for this contact yet.
                 </div>
@@ -702,7 +664,7 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({ contactId, c
 
             {!approvalTasksLoading && !approvalTasksError && approvalTasks.length > 0 && (
               <Timeline>
-                {approvalTasks.map((task) => (
+                {approvalTasks.map(task => (
                   <Timeline.Item
                     key={task.id}
                     dot={<CheckCircleOutlined style={{ color: '#52c41a' }} />}
@@ -714,7 +676,7 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({ contactId, c
                           display: 'flex',
                           alignItems: 'center',
                           gap: '8px',
-                          marginBottom: '4px',
+                          marginBottom: '4px'
                         }}
                       >
                         <Text strong style={{ fontSize: '16px' }}>
@@ -728,7 +690,7 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({ contactId, c
                               padding: '2px 6px',
                               borderRadius: '4px',
                               fontSize: '12px',
-                              fontWeight: '500',
+                              fontWeight: '500'
                             }}
                           >
                             Approval
@@ -750,7 +712,7 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({ contactId, c
                               padding: '2px 6px',
                               borderRadius: '4px',
                               fontSize: '12px',
-                              fontWeight: '500',
+                              fontWeight: '500'
                             }}
                           >
                             {task.taskPriority?.value || 'Normal'}
@@ -779,9 +741,7 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({ contactId, c
                       )}
                       {task.dueDate && (
                         <div style={{ marginBottom: '4px' }}>
-                          <Text type="secondary">
-                            Due: {dayjs(task.dueDate).format('MMM D, YYYY [at] h:mm A')}
-                          </Text>
+                          <Text type="secondary">Due: {dayjs(task.dueDate).format('MMM D, YYYY [at] h:mm A')}</Text>
                         </div>
                       )}
                       {task.description && (
@@ -798,7 +758,7 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({ contactId, c
                         right: 0,
                         top: 0,
                         padding: '4px',
-                        lineHeight: 1,
+                        lineHeight: 1
                       }}
                       onClick={() => setDeleteApprovalPopup({ open: true, task })}
                       data-testid={`delete-approval-task-${task.id}`}
@@ -823,14 +783,12 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({ contactId, c
           contactId={contactId}
           domain="investments"
           onSuccess={() => {
-            setActivities((prev) => prev.filter((a) => a.id !== deletePopup.activity!.id));
-            originalActivitiesRef.current = originalActivitiesRef.current.filter(
-              (a) => a.id !== deletePopup.activity!.id,
-            );
-            message.success('Activity deleted successfully');
+            setActivities(prev => prev.filter(a => a.id !== deletePopup.activity!.id))
+            originalActivitiesRef.current = originalActivitiesRef.current.filter(a => a.id !== deletePopup.activity!.id)
+            message.success('Activity deleted successfully')
           }}
           onError={() => {
-            message.error('Failed to delete activity');
+            message.error('Failed to delete activity')
           }}
         />
       ) : null}
@@ -840,32 +798,30 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({ contactId, c
           isOpen={deleteApprovalPopup.open}
           onClose={() => setDeleteApprovalPopup({ open: false })}
           accessToken={context.accessToken}
-          itemTitle={
-            deleteApprovalPopup.task?.name ? String(deleteApprovalPopup.task.name) : 'Approval Task'
-          }
+          itemTitle={deleteApprovalPopup.task?.name ? String(deleteApprovalPopup.task.name) : 'Approval Task'}
           itemType="task"
           flowContextName={FlowContextName.investmentTaskDelete}
           externalContextData={{
             taskId: deleteApprovalPopup.task!.id,
             investmentTask: {
               id: deleteApprovalPopup.task!.id,
-              version: deleteApprovalPopup.task!.version,
+              version: deleteApprovalPopup.task!.version
             },
-            contactId,
+            contactId
           }}
           onFlowSuccess={() => {
-            const id = deleteApprovalPopup.task!.id;
-            setApprovalTasks((prev) => prev.filter((t) => t.id !== id));
-            setDeleteApprovalPopup({ open: false });
-            message.success('Approval task deleted successfully');
+            const id = deleteApprovalPopup.task!.id
+            setApprovalTasks(prev => prev.filter(t => t.id !== id))
+            setDeleteApprovalPopup({ open: false })
+            message.success('Approval task deleted successfully')
           }}
           onFlowError={() => {
-            setDeleteApprovalPopup({ open: false });
-            message.error('Failed to delete approval task');
+            setDeleteApprovalPopup({ open: false })
+            message.error('Failed to delete approval task')
           }}
           data-testid={`delete-approval-task-popup`}
         />
       ) : null}
     </div>
-  );
-};
+  )
+}

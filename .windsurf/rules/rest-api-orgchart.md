@@ -1,9 +1,11 @@
 ---
 alwaysApply: false
 ---
+
 # REST API and Orgchart Endpoints Integration
 
 ## Base URL Configuration
+
 - **Orgchart API Base URL**: `https://newwork-dev.newwork.com/orgchart/api/v1`
 - **Authentication**: Bearer token via `context.accessToken`
 - **Structure ID**: Use `context.additionalData?.structureId` or fallback to `'99b1ba64-a4d3-4dd0-8302-b1dc0c4daaaf'`
@@ -11,148 +13,152 @@ alwaysApply: false
 ## Hook Pattern for Orgchart API Integration
 
 ### Standard Hook Structure
-```typescript
-import { useState, useEffect, useCallback } from 'react';
-import { BusinessAppContextProps } from '@/common/BusinessAppContext';
-import { useRestClient } from '@/common/network/rest/useRestClient';
 
-const ORGCHART_BASE_URL = env('NEXT_PUBLIC_REST_ENDPOINT_ORGCHART')!;
+```typescript
+import { useState, useEffect, useCallback } from 'react'
+import { BusinessAppContextProps } from '@/common/BusinessAppContext'
+import { useRestClient } from '@/common/network/rest/useRestClient'
+
+const ORGCHART_BASE_URL = env('NEXT_PUBLIC_REST_ENDPOINT_ORGCHART')!
 
 export const useEntityData = (context: BusinessAppContextProps) => {
-  const [entities, setEntities] = useState<Entity[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const [entities, setEntities] = useState<Entity[]>([])
+  const [isLoading, setIsLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
 
-  const restClient = useRestClient(ORGCHART_BASE_URL);
+  const restClient = useRestClient(ORGCHART_BASE_URL)
 
   const fetchData = useCallback(async (): Promise<Entity[]> => {
     try {
-      const structureId = context.additionalData?.structureId || '99b1ba64-a4d3-4dd0-8302-b1dc0c4daaaf';
-      
+      const structureId = context.additionalData?.structureId || '99b1ba64-a4d3-4dd0-8302-b1dc0c4daaaf'
+
       if (!structureId) {
-        throw new Error('Structure ID is required');
+        throw new Error('Structure ID is required')
       }
 
-      const response = await restClient.get<EntityResponse[]>(
-        '/endpoint',
-        {
-          params: { structureId },
-          headers: {
-            Authorization: `Bearer ${context.accessToken}`
-          }
+      const response = await restClient.get<EntityResponse[]>('/endpoint', {
+        params: { structureId },
+        headers: {
+          Authorization: `Bearer ${context.accessToken}`
         }
-      );
+      })
 
-      return response.map(transformEntity);
+      return response.map(transformEntity)
     } catch (error) {
-      console.error('Error fetching data:', error);
-      throw new Error('Failed to fetch data from orgchart API');
+      console.error('Error fetching data:', error)
+      throw new Error('Failed to fetch data from orgchart API')
     }
-  }, [context.accessToken, context.additionalData?.structureId, restClient]);
+  }, [context.accessToken, context.additionalData?.structureId, restClient])
 
   const loadData = useCallback(async () => {
-    setIsLoading(true);
-    setError(null);
+    setIsLoading(true)
+    setError(null)
 
     try {
-      const data = await fetchData();
-      setEntities(data);
+      const data = await fetchData()
+      setEntities(data)
     } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'Unknown error occurred';
-      setError(errorMessage);
-      console.error('Error loading data:', err);
+      const errorMessage = err instanceof Error ? err.message : 'Unknown error occurred'
+      setError(errorMessage)
+      console.error('Error loading data:', err)
     } finally {
-      setIsLoading(false);
+      setIsLoading(false)
     }
-  }, [fetchData]);
+  }, [fetchData])
 
   const refetch = useCallback(() => {
-    return loadData();
-  }, [loadData]);
+    return loadData()
+  }, [loadData])
 
   useEffect(() => {
     if (context.accessToken) {
-      loadData();
+      loadData()
     }
-  }, [context.accessToken, loadData]);
+  }, [context.accessToken, loadData])
 
   return {
     entities,
     isLoading,
     error,
-    refetch,
+    refetch
     // Add filter and search functions as needed
-  };
-};
+  }
+}
 ```
 
 ## Available Orgchart Endpoints
 
 ### Site Locations
+
 - **Endpoint**: `/site-locations?structureId={structureId}`
 - **Method**: GET
 - **Response Structure**:
   ```typescript
   interface SiteLocationResponse {
-    id: string;
-    structureId: string;
-    name: string;
+    id: string
+    structureId: string
+    name: string
     addressLine?: {
-      streetAddress: string;
-    };
-    postalCode?: string;
-    locality?: string;
-    region_ref?: string;
-    country_ref?: string;
-    code?: string;
-    employees: Employee[];
-    costCenters: CostCenter[];
+      streetAddress: string
+    }
+    postalCode?: string
+    locality?: string
+    region_ref?: string
+    country_ref?: string
+    code?: string
+    employees: Employee[]
+    costCenters: CostCenter[]
   }
   ```
 
 ### Companies
+
 - **Endpoint**: `/companies?structureId={structureId}`
 - **Method**: GET
 - **Hierarchical Structure**: Supports nested company structures with parent-child relationships
 
-### Projects  
+### Projects
+
 - **Endpoint**: `/projects?structureId={structureId}`
 - **Method**: GET
 - **Optional Parameters**: `valid_to` for date filtering
 
 ### Cost Centers
+
 - **Endpoint**: `/cost-centers?structureId={structureId}`
 - **Method**: GET
 - **Response Structure**:
   ```typescript
   interface CostCenterResponse {
-    id: string;
-    structureId: string;
-    code: string;
-    name: string;
-    description: string;
-    siteLocationId?: string;
-    siteLocationName?: string;
+    id: string
+    structureId: string
+    code: string
+    name: string
+    description: string
+    siteLocationId?: string
+    siteLocationName?: string
     organizationalUnits: {
-      organizationalUnitId: string;
-      organizationalUnitName: string;
-    }[];
+      organizationalUnitId: string
+      organizationalUnitName: string
+    }[]
     employees: {
-      employeeId: string;
-      employeeFirstName: string;
-      employeeLastName: string;
-    }[];
-    additionalProperties: Record<string, any>;
+      employeeId: string
+      employeeFirstName: string
+      employeeLastName: string
+    }[]
+    additionalProperties: Record<string, any>
   }
   ```
 
 ### Organizational Units
+
 - **Endpoint**: `/organizational-units?structureId={structureId}`
 - **Method**: GET
 
 ## Authentication Requirements
 
 ### Headers
+
 ```typescript
 headers: {
   Authorization: `Bearer ${context.accessToken}`
@@ -160,6 +166,7 @@ headers: {
 ```
 
 ### Error Handling
+
 - Always wrap API calls in try-catch blocks
 - Provide meaningful error messages to users
 - Log detailed errors to console for debugging
@@ -168,18 +175,20 @@ headers: {
 ## Data Transformation Pattern
 
 ### Transform Raw API Data
+
 ```typescript
 const transformEntity = (apiData: ApiResponse): UiEntity => {
   return {
     id: apiData.id,
-    name: apiData.name,
+    name: apiData.name
     // Transform other fields as needed for UI
     // Add computed properties (status, formatted dates, etc.)
-  };
-};
+  }
+}
 ```
 
 ## Common Query Parameters
+
 - `structureId`: Required for all endpoints (identifies the organizational structure)
 - `limit`: For pagination (when supported)
 - `offset`: For pagination (when supported)
@@ -198,11 +207,13 @@ const transformEntity = (apiData: ApiResponse): UiEntity => {
 ## Department/Organizational Units Implementation
 
 ### API Endpoint
+
 - **URL**: `/structures/{structureId}?nodeType=organization_unit&isPlanningMode=false`
 - **Method**: GET
 - **Purpose**: Fetch hierarchical organizational units (departments and teams)
 
 ### Response Structure
+
 ```json
 {
   "structure": {
@@ -265,6 +276,7 @@ const transformEntity = (apiData: ApiResponse): UiEntity => {
 ```
 
 ### Implementation Notes
+
 - Use `useDepartments` hook for data fetching and hierarchy management
 - Display as tree structure with expand/collapse functionality
 - Show statistics (employee count, sub-units, open positions)
@@ -276,11 +288,13 @@ const transformEntity = (apiData: ApiResponse): UiEntity => {
 ## Matrix Teams Implementation
 
 ### API Endpoint
+
 - **URL**: `/matrix-units?structureId={structureId}`
 - **Method**: GET
 - **Purpose**: Fetch flat list of matrix teams (cross-functional teams)
 
 ### Response Structure
+
 ```json
 [
   {
@@ -311,6 +325,7 @@ const transformEntity = (apiData: ApiResponse): UiEntity => {
 ```
 
 ### Implementation Notes
+
 - Use `useTeams` hook for data fetching and flat list management
 - Display as table or card grid (not hierarchical like departments)
 - Support both table and cards view modes

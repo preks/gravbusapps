@@ -21,4 +21,4 @@ export interface HrSettingsCategory {
 
 export interface HrSettingsFormData {
   [key: string]: string | number | boolean
-} 
+}

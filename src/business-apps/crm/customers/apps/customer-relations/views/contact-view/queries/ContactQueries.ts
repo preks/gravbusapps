@@ -1,63 +1,63 @@
-import { useCallback } from "react";
-import { useGraphQLClient } from "@/common/network/graphql/useGraphQLClient";
-import { BusinessAppContextProps } from "@/common/BusinessAppContext";
+import { useCallback } from 'react'
+import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
+import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 
 export interface ContactQueryVariables {
-  offset?: number;
-  limit?: number;
-  where?: any;
-  orderBy?: any;
+  offset?: number
+  limit?: number
+  where?: any
+  orderBy?: any
 }
 
 export interface ContactData {
-  id: string;
-  firstName: string;
-  lastName: string;
-  email: string;
-  phone: string;
-  jobTitle: string;
-  department?: string;
-  contactType?: string;
-  pictureUrl?: string;
-  linkedinUrl?: string;
-  xingUrl?: string;
-  bio?: string;
-  birthDate?: string;
+  id: string
+  firstName: string
+  lastName: string
+  email: string
+  phone: string
+  jobTitle: string
+  department?: string
+  contactType?: string
+  pictureUrl?: string
+  linkedinUrl?: string
+  xingUrl?: string
+  bio?: string
+  birthDate?: string
 
   academicTitle?: {
-    id: string;
-    value: string;
-    objectValue?: any;
-  };
-  updatedAt?: string;
-  createdAt?: string;
-  accountId?: string;
+    id: string
+    value: string
+    objectValue?: any
+  }
+  updatedAt?: string
+  createdAt?: string
+  accountId?: string
   account?: {
-    name?: string;
-    id?: string;
-  };
+    name?: string
+    id?: string
+  }
   ownerEmployee?: {
-    id: string;
-    firstName: string;
-    lastName: string;
-    displayName?: string;
-    fullName?: string;
-    pictureThumbnail?: string;
+    id: string
+    firstName: string
+    lastName: string
+    displayName?: string
+    fullName?: string
+    pictureThumbnail?: string
     employeePosition?: {
       company?: {
-        name?: string;
-      };
-    };
-  };
+        name?: string
+      }
+    }
+  }
 }
 
 export interface GetContactsResponse {
-  Contact: ContactData[];
+  Contact: ContactData[]
   ContactAggregate: {
     aggregate: {
-      count: number;
-    };
-  };
+      count: number
+    }
+  }
 }
 
 export const GET_CONTACTS_DATA = `
@@ -118,27 +118,24 @@ export const GET_CONTACTS_DATA = `
       }
     }
   }
-`;
+`
 
 export const useGetContactsData = (context: BusinessAppContextProps) => {
-  const graphqlClient = useGraphQLClient(context.accessToken);
+  const graphqlClient = useGraphQLClient(context.accessToken)
 
   const fetchContactsData = useCallback(
     async (variables: ContactQueryVariables = {}) => {
-      const query = GET_CONTACTS_DATA;
+      const query = GET_CONTACTS_DATA
       try {
-        const result = await graphqlClient.request<GetContactsResponse>(
-          query,
-          variables
-        );
-        return result;
+        const result = await graphqlClient.request<GetContactsResponse>(query, variables)
+        return result
       } catch (error) {
-        console.error("Error fetching contacts data:", error);
-        throw error;
+        console.error('Error fetching contacts data:', error)
+        throw error
       }
     },
     [graphqlClient]
-  );
+  )
 
-  return { fetchContactsData };
-};
+  return { fetchContactsData }
+}

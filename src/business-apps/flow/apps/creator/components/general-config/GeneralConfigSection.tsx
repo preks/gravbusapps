@@ -1,22 +1,25 @@
-import React from 'react';
-import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
-import { useFlowTemplateStore } from '../../hooks/useFlowTemplateStore';
-import { AssignmentMode } from '../../types/flowTemplate';
-import { ReminderConfig } from './ReminderConfig';
-import { EscalationConfig } from './EscalationConfig';
-import { Input, Label, Textarea, Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@newwork/nw-design-system';
+import React from 'react'
+import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
+import { useFlowTemplateStore } from '../../hooks/useFlowTemplateStore'
+import { AssignmentMode } from '../../types/flowTemplate'
+import { ReminderConfig } from './ReminderConfig'
+import { EscalationConfig } from './EscalationConfig'
+import {
+  Input,
+  Label,
+  Textarea,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue
+} from '@newwork/nw-design-system'
 
 /**
  * General configuration section for the flow template
  */
 export const GeneralConfigSection: React.FC = () => {
-  const { 
-    flowTemplate, 
-    updateTitle,
-    updateDescription,
-    updateAssignmentMode,
-    updateType
-  } = useFlowTemplateStore();
+  const { flowTemplate, updateTitle, updateDescription, updateAssignmentMode, updateType } = useFlowTemplateStore()
 
   return (
     <div className="gba:space-y-8" data-testid="general-config-section">
@@ -25,7 +28,7 @@ export const GeneralConfigSection: React.FC = () => {
         <h3 className="gba:text-lg gba:font-semibold gba:text-gray-900">
           {getTranslationFromI18nKeyAndLabel('flow.creator.general.basic_info', 'Basic Information')}
         </h3>
-        
+
         <div className="gba:grid gba:grid-cols-1 gba:gap-4">
           {/* Template Name */}
           <div className="gba:space-y-2">
@@ -35,8 +38,11 @@ export const GeneralConfigSection: React.FC = () => {
             <Input
               id="template-name"
               value={flowTemplate.name}
-              onChange={(e) => updateTitle(e.target.value)}
-              placeholder={getTranslationFromI18nKeyAndLabel('flow.creator.general.template_name_placeholder', 'Enter definition name')}
+              onChange={e => updateTitle(e.target.value)}
+              placeholder={getTranslationFromI18nKeyAndLabel(
+                'flow.creator.general.template_name_placeholder',
+                'Enter definition name'
+              )}
               data-testid="template-name-input"
             />
           </div>
@@ -49,8 +55,11 @@ export const GeneralConfigSection: React.FC = () => {
             <Textarea
               id="template-description"
               value={flowTemplate.description || ''}
-              onChange={(e) => updateDescription(e.target.value)}
-              placeholder={getTranslationFromI18nKeyAndLabel('flow.creator.general.template_description_placeholder', 'Enter definition description')}
+              onChange={e => updateDescription(e.target.value)}
+              placeholder={getTranslationFromI18nKeyAndLabel(
+                'flow.creator.general.template_description_placeholder',
+                'Enter definition description'
+              )}
               rows={3}
               data-testid="template-description-input"
             />
@@ -67,7 +76,12 @@ export const GeneralConfigSection: React.FC = () => {
               data-testid="template-type-select"
             >
               <SelectTrigger>
-                <SelectValue placeholder={getTranslationFromI18nKeyAndLabel('flow.creator.general.select_template_type', 'Select definition type')} />
+                <SelectValue
+                  placeholder={getTranslationFromI18nKeyAndLabel(
+                    'flow.creator.general.select_template_type',
+                    'Select definition type'
+                  )}
+                />
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="TEMPLATE">
@@ -79,10 +93,15 @@ export const GeneralConfigSection: React.FC = () => {
               </SelectContent>
             </Select>
             <p className="gba:text-sm gba:text-gray-500">
-              {flowTemplate.type === 'TEMPLATE' 
-                ? getTranslationFromI18nKeyAndLabel('flow.creator.general.template_type_template_description', 'Definition flows require configuration before execution')
-                : getTranslationFromI18nKeyAndLabel('flow.creator.general.template_type_self_service_description', 'Self-service flows can be launched directly with predefined inputs')
-              }
+              {flowTemplate.type === 'TEMPLATE'
+                ? getTranslationFromI18nKeyAndLabel(
+                    'flow.creator.general.template_type_template_description',
+                    'Definition flows require configuration before execution'
+                  )
+                : getTranslationFromI18nKeyAndLabel(
+                    'flow.creator.general.template_type_self_service_description',
+                    'Self-service flows can be launched directly with predefined inputs'
+                  )}
             </p>
           </div>
 
@@ -97,7 +116,12 @@ export const GeneralConfigSection: React.FC = () => {
               data-testid="assignment-mode-select"
             >
               <SelectTrigger>
-                <SelectValue placeholder={getTranslationFromI18nKeyAndLabel('flow.creator.general.select_assignment_mode', 'Select assignment mode')} />
+                <SelectValue
+                  placeholder={getTranslationFromI18nKeyAndLabel(
+                    'flow.creator.general.select_assignment_mode',
+                    'Select assignment mode'
+                  )}
+                />
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value={AssignmentMode.CLAIM}>
@@ -109,10 +133,15 @@ export const GeneralConfigSection: React.FC = () => {
               </SelectContent>
             </Select>
             <p className="gba:text-sm gba:text-gray-500">
-              {flowTemplate.assignmentMode === AssignmentMode.CLAIM 
-                ? getTranslationFromI18nKeyAndLabel('flow.creator.general.assignment_mode_claim_description', 'Tasks must be claimed before execution')
-                : getTranslationFromI18nKeyAndLabel('flow.creator.general.assignment_mode_assign_description', 'Tasks are directly assigned to users')
-              }
+              {flowTemplate.assignmentMode === AssignmentMode.CLAIM
+                ? getTranslationFromI18nKeyAndLabel(
+                    'flow.creator.general.assignment_mode_claim_description',
+                    'Tasks must be claimed before execution'
+                  )
+                : getTranslationFromI18nKeyAndLabel(
+                    'flow.creator.general.assignment_mode_assign_description',
+                    'Tasks are directly assigned to users'
+                  )}
             </p>
           </div>
         </div>
@@ -123,12 +152,12 @@ export const GeneralConfigSection: React.FC = () => {
         <h3 className="gba:text-lg gba:font-semibold gba:text-gray-900">
           {getTranslationFromI18nKeyAndLabel('flow.creator.general.advanced_config', 'Advanced Configuration')}
         </h3>
-        
+
         <div className="gba:space-y-6">
           <ReminderConfig />
           <EscalationConfig />
         </div>
       </div>
     </div>
-  );
-};
+  )
+}

@@ -1,3 +1,1 @@
-export { StatisticsTab } from './StatisticsTab';
-
-
+export { StatisticsTab } from './StatisticsTab'
