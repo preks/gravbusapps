@@ -164,6 +164,7 @@ const ProjectForm: React.FC<ProjectFormProps> = ({
                 })}
                 {...field}
                 data-testid={`${dataTestId}-name-input`}
+                type="date"
               />
             </FormControl>
             <FormMessage />

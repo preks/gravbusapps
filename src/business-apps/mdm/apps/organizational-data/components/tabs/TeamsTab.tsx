@@ -215,9 +215,7 @@ const TeamsTab: React.FC<TeamsTabProps> = context => {
           return leaderName ? (
             <div className="gba:flex gba:flex-col gba:gap-2">
               <p className="gba:font-semibold">{(leaderName as string) ?? '-'}</p>
-              <p className="gba:text-sm gba:text-gray-500">
-                {(leaderJobPosition as string) ?? '-'}
-              </p>
+              <p className="gba:text-sm gba:text-gray-500">{leaderJobPosition ?? '-'}</p>
             </div>
           ) : (
             '-'
@@ -574,6 +572,7 @@ const TeamsTab: React.FC<TeamsTabProps> = context => {
                 refetch={refetch}
                 team={selectedTeam}
                 isDrawerActive={true}
+                key={selectedTeam.id}
               />
             ]}
           />

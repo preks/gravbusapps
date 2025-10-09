@@ -103,6 +103,14 @@ const ProjectsTab: React.FC<ProjectsTabProps> = ({ prefixDataTestId, ...context 
     setSearchInput(e.target.value)
   }, [])
 
+  const inactiveStatusIcon = useCallback((status: string) => {
+    return status === 'Expired' ? <WarningIcon /> : <ClockIcon />;
+  }, []);
+
+  const inactiveStatusColor = useCallback((status: string) => {
+    return status === 'Expired' ? 'gba:text-[#f5222d]' : 'gba:text-[#fa8c16]';
+  }, []);
+
   const dataTable = useMemo(
     () =>
       filteredProjects.map(project => {
@@ -553,14 +561,12 @@ const ProjectsTab: React.FC<ProjectsTabProps> = ({ prefixDataTestId, ...context 
                     <Card className="gba:!gap-2 gba:text-lg">
                       <CardHeader className="gba:text-sm gba:text-gray-400">Status</CardHeader>
                       <CardContent
-                        className={`${selectedProject.status === 'Active' ? 'gba:text-[#52c41a]' : selectedProject.status === 'Expired' ? 'gba:text-[#f5222d]' : 'gba:text-[#fa8c16]'} gba:!pt-0 gba:flex gba:items-center gba:gap-2`}
+                        className={`${selectedProject.status === 'Active' ? 'gba:text-[#52c41a]' : inactiveStatusColor(selectedProject.status)} gba:!pt-0 gba:flex gba:items-center gba:gap-2`}
                       >
                         {selectedProject.status === 'Active' ? (
                           <CheckCircleIcon />
-                        ) : selectedProject.status === 'Expired' ? (
-                          <WarningIcon />
                         ) : (
-                          <ClockIcon />
+                          inactiveStatusIcon(selectedProject.status)
                         )}
                         {selectedProject.status}
                       </CardContent>

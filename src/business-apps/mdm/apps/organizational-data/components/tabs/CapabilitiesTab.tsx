@@ -428,6 +428,7 @@ const CapabilitiesTab: React.FC<CapabilitiesTabProps> = context => {
                 layers={layers}
                 capability={selectedCapability}
                 isDrawerActive={true}
+                key={selectedCapability.id}
               />
             ]}
           />
