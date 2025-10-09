@@ -40,7 +40,7 @@ const JobLevelGroupForm: React.FC<JobLevelGroupFormProps> = ({
   const { codeError, setCodeError, validateCode } = useCodeError(usedCodes)
 
   const handleSubmit = async (values: any) => {
-    if (!validateCode(values.code)) {
+    if (!validateCode(values.code) && !jobLevelGroup) {
       return
     }
 

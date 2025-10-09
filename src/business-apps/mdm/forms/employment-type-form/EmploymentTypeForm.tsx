@@ -43,7 +43,7 @@ const EmploymentTypeForm: React.FC<EmploymentTypeFormProps> = ({
   const { codeError, setCodeError, validateCode } = useCodeError(usedCodes)
 
   const handleSubmit = async (values: any) => {
-    if (!validateCode(values.code)) {
+    if (!validateCode(values.code) && !employmentType) {
       return
     }
 

@@ -54,7 +54,7 @@ const JobFamilyForm: React.FC<JobFamilyFormProps> = ({
   const handleSubmit = async (values: JobFamily) => {
     try {
       // Validate code before submitting
-      if (!validateCode(values.code)) {
+      if (!validateCode(values.code) && !jobFamily) {
         return
       }
 
@@ -113,6 +113,7 @@ const JobFamilyForm: React.FC<JobFamilyFormProps> = ({
     >
       <FormField
         name="name"
+        rules={{ required: 'Please enter job family name' }}
         render={({ field }) => (
           <FormItem>
             <FormLabel>Name</FormLabel>

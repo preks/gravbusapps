@@ -1,6 +1,6 @@
-import React, { Dispatch, SetStateAction, useMemo, useState } from 'react'
-import { BusinessAppContextProps } from '@/common/BusinessAppContext'
-import FormWrapperModal from '../../apps/generic-components/form-wrapper/FormWrapperModal'
+import React, { Dispatch, SetStateAction, useMemo, useState } from 'react';
+import { BusinessAppContextProps } from '@/common/BusinessAppContext';
+import FormWrapperModal from '../../../../components/form-wrapper/FormWrapperModal';
 import {
   Input,
   FormField,

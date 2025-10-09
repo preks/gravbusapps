@@ -32,13 +32,13 @@ const ContractTypeForm: React.FC<ContractTypeFormProps> = ({
   isDrawerActive,
   usedCodes = []
 }) => {
-  const dataTestId = formatDataTestId(prefixDataTestId, 'ContractTypeForm')
-  const catalogClient = useCatalogManagerClient(accessToken)
-  const { codeError, setCodeError, validateCode } = useCodeError(usedCodes)
+  const dataTestId = formatDataTestId(prefixDataTestId, 'ContractTypeForm');
+  const catalogClient = useCatalogManagerClient(accessToken);
+  const { codeError, setCodeError, validateCode } = useCodeError(usedCodes);
 
   const handleSubmit = async (data: any) => {
-    if (!validateCode(data.code)) {
-      return
+    if (!validateCode(data.code) && !contractType) {
+      return;
     }
 
     const payload = {
