@@ -20,6 +20,7 @@ import {
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 import { useEmployeeNamesBatch } from '../../../hooks/useEmployeeNamesBatch';
 import { EnhancedEmployeeDisplay } from '../../../components/shared';
+import { formatDate, formatDateTime, getUserDateFormat, getUserLocale } from '../../../config/dateTimeConfig';
 import { 
   ServicePortalComment, 
   ServicePortalCommentVisibility, 
@@ -41,7 +42,8 @@ export interface RequestCommentsProps extends BusinessAppContextProps {
 const CommentItem: React.FC<{
   comment: ServicePortalComment;
   employeeData?: any;
-}> = ({ comment, employeeData }) => {
+  userInfo?: any;
+}> = ({ comment, employeeData, userInfo }) => {
 
   const formatTimeAgo = (dateString: string): string => {
     const now = new Date();
@@ -58,7 +60,7 @@ const CommentItem: React.FC<{
     const diffDays = Math.floor(diffHours / 24);
     if (diffDays < 7) return `${diffDays}d ago`;
     
-    return commentDate.toLocaleDateString();
+    return formatDateTime(commentDate.toISOString());
   };
 
   const displayName = employeeData?.displayName || employeeData?.fullName || 'Unknown User';
@@ -286,6 +288,7 @@ export const RequestComments: React.FC<RequestCommentsProps> = ({
                     key={comment.id}
                     comment={comment}
                     employeeData={employees.get(comment.authorId)}
+                    userInfo={contextProps.userInfo}
                   />
                 ))}
             </div>

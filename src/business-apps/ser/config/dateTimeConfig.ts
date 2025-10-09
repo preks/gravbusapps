@@ -89,7 +89,7 @@ export const formatDateTime = (
   const formatOptions = options || SER_DATETIME_CONFIG.DEFAULT_DATETIME_FORMAT;
   const formatLocale = locale || SER_DATETIME_CONFIG.DEFAULT_LOCALE;
   
-  return dateObj.toLocaleDateString(formatLocale, formatOptions);
+  return dateObj.toLocaleString(formatLocale, formatOptions);
 };
 
 /**
