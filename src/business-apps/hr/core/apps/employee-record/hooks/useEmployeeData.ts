@@ -239,6 +239,7 @@ export const GET_EMPLOYEE_DATA = /*sql*/ `
       lastName
       pictureThumbnail
       picture
+      displayName
     }
     jobPosition {
       id
