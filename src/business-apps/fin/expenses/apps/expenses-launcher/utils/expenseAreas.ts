@@ -12,6 +12,7 @@ import {
   ChartPie,
   Plus
 } from '@phosphor-icons/react';
+import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
 
 export const expenseAreas: ExpenseArea[] = [
   {
@@ -117,25 +118,25 @@ export const managerExpenseAreas: ExpenseArea[] = [
 export const quickActions: QuickAction[] = [
   {
     id: 'create-plan',
-    label: 'Create Plan',
+    label: getTranslationFromI18nKeyAndLabel('lowcoder:expenses_launcher.create_plan', 'Create Plan'),
     icon: Plus,
     action: 'create-plan'
   },
   {
     id: 'add-expense-item',
-    label: 'Add Expense Item',
+    label: getTranslationFromI18nKeyAndLabel('lowcoder:expenses_launcher.add_expense_item', 'Add Expense Item'),
     icon: Plus,
     action: 'create-expense-item'
   },
   {
     id: 'request-advance',
-    label: 'Request Advance',
+    label: getTranslationFromI18nKeyAndLabel('lowcoder:expenses_launcher.request_advance', 'Request Advance'),
     icon: Plus,
     action: 'request-advance'
   },
   {
     id: 'submit-request',
-    label: 'Submit Request',
+    label: getTranslationFromI18nKeyAndLabel('lowcoder:expenses_launcher.submit_request', 'Submit Request'),
     icon: Plus,
     action: 'submit-request'
   }
