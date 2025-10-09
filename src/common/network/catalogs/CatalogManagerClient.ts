@@ -54,14 +54,11 @@ export class CatalogManagerClient extends RestClient {
     params: GetCatalogsParams = {},
     options: Omit<RequestOptions, "body"> = {}
   ): Promise<GetCatalogEntriesResponse> {
-    const { limit, offset, value, ...restParams } = params;
-    const path = this.replacePathParams(
-      "/catalogs/{catalogIdentifier}/{version}/entries",
-      {
-        catalogIdentifier: pathParams.catalogIdentifier,
-        version: pathParams.version || "v1", // Default to 'v1' if not provided
-      }
-    );
+    const { limit, offset, value, parentEntryId, ...restParams } = params;
+    const path = this.replacePathParams("/catalogs/{catalogIdentifier}/{version}/entries", {
+      catalogIdentifier: pathParams.catalogIdentifier,
+      version: pathParams.version || "v1", // Default to 'v1' if not provided
+    });
 
     const queryParams: Record<string, string | number | boolean> = {
       ...restParams,
@@ -76,6 +73,10 @@ export class CatalogManagerClient extends RestClient {
 
     if (value !== undefined) {
       queryParams.value = value;
+    }
+
+    if (parentEntryId !== undefined) {
+      queryParams.parentEntryId = parentEntryId;
     }
 
     return this.get<GetCatalogEntriesResponse>(path, {

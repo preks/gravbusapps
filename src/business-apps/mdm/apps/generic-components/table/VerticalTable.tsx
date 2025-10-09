@@ -8,7 +8,7 @@ import {
   TooltipContent,
   cn,
 } from "@newwork/nw-design-system";
-import { useCallback } from "react";
+import React, { useCallback } from "react";
 
 export type VerticalTableProps = {
   title: string;
