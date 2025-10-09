@@ -116,6 +116,7 @@ const FormWrapperModal = ({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [message, setMessage] = useState<FormMessage | null>(null);
   const isSubmittingRef = useRef(false);
+  const isEditingForm = useMemo(() => (isEditing ? 'Update' : 'Create'), [isEditing]);
 
   // Create internal form if no external form provided
   const internalForm = useForm<FieldValues>({ defaultValues, resolver, mode: 'onChange' });
@@ -271,9 +272,7 @@ const FormWrapperModal = ({
                   variant={submitButtonVariant}
                   data-testid={submitButtonTestId || `${dataTestId}-submit-button`}
                 >
-                  {isSubmitting
-                    ? 'Saving...'
-                    : submitButtonText || (isEditing ? 'Update' : 'Create')}
+                  {isSubmitting ? 'Saving...' : submitButtonText || isEditingForm}
                 </Button>
               </div>
             </form>
