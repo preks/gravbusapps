@@ -1,10 +1,10 @@
-import React, { useState, useEffect } from 'react';
-import { 
-  Table, 
-  TableBody, 
-  TableCell, 
-  TableHead, 
-  TableHeader, 
+import React, { useState, useEffect } from 'react'
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
   TableRow,
   Button,
   Dialog,
@@ -24,77 +24,73 @@ import {
   Alert,
   AlertDescription,
   Spinner
-} from '@newwork/nw-design-system';
-import { Plus, Edit, Trash2 } from 'lucide-react';
-import { useTranslation } from 'react-i18next';
-import { BusinessAppContextProps } from '@/common/BusinessAppContext';
-import { useCatalogManagerClient } from '@/common/network/catalogs/useCatalogManagerClient';
-import { DebouncedInput } from '@/components/data-filter/DebouncedInput';
-import { useForm } from 'react-hook-form';
+} from '@newwork/nw-design-system'
+import { Plus, Edit, Trash2 } from 'lucide-react'
+import { useTranslation } from 'react-i18next'
+import { BusinessAppContextProps } from '@/common/BusinessAppContext'
+import { useCatalogManagerClient } from '@/common/network/catalogs/useCatalogManagerClient'
+import { DebouncedInput } from '@/components/data-filter/DebouncedInput'
+import { useForm } from 'react-hook-form'
 
 export interface TaskPrioritiesTabProps extends BusinessAppContextProps {
-  sourceApp: 'CRM' | 'IRM';
-  prefixDataTestId?: string;
+  sourceApp: 'CRM' | 'IRM'
+  prefixDataTestId?: string
 }
 
 interface TaskPriority {
-  id: string;
-  code: string;
-  value: string;
-  alternativeCode?: string;
-  additionalValue1?: string;
-  additionalValue2?: string;
-  additionalValue3?: string;
+  id: string
+  code: string
+  value: string
+  alternativeCode?: string
+  additionalValue1?: string
+  additionalValue2?: string
+  additionalValue3?: string
 }
 
 interface TaskPriorityFormData {
-  code: string;
-  value: string;
-  alternativeCode?: string;
-  additionalValue1?: string;
+  code: string
+  value: string
+  alternativeCode?: string
+  additionalValue1?: string
 }
 
-const DATA_TEST_ID = 'TaskPrioritiesTab';
+const DATA_TEST_ID = 'TaskPrioritiesTab'
 
 const getPriorityColor = (code: string) => {
-  const lowerCode = code.toLowerCase();
+  const lowerCode = code.toLowerCase()
   if (lowerCode.includes('high') || lowerCode.includes('urgent') || lowerCode.includes('critical')) {
-    return 'destructive';
+    return 'destructive'
   }
   if (lowerCode.includes('medium') || lowerCode.includes('normal')) {
-    return 'default';
+    return 'default'
   }
   if (lowerCode.includes('low')) {
-    return 'secondary';
+    return 'secondary'
   }
-  return 'outline';
-};
+  return 'outline'
+}
 
-export const TaskPrioritiesTab: React.FC<TaskPrioritiesTabProps> = ({
-  accessToken,
-  sourceApp,
-  prefixDataTestId
-}) => {
-  const { t } = useTranslation();
-  const [taskPriorities, setTaskPriorities] = useState<TaskPriority[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [searchTerm, setSearchTerm] = useState('');
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [editingTaskPriority, setEditingTaskPriority] = useState<TaskPriority | null>(null);
+export const TaskPrioritiesTab: React.FC<TaskPrioritiesTabProps> = ({ accessToken, sourceApp, prefixDataTestId }) => {
+  const { t } = useTranslation()
+  const [taskPriorities, setTaskPriorities] = useState<TaskPriority[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+  const [searchTerm, setSearchTerm] = useState('')
+  const [isModalOpen, setIsModalOpen] = useState(false)
+  const [editingTaskPriority, setEditingTaskPriority] = useState<TaskPriority | null>(null)
 
-  const form = useForm<TaskPriorityFormData>();
-  const catalogClient = useCatalogManagerClient(accessToken);
-  
+  const form = useForm<TaskPriorityFormData>()
+  const catalogClient = useCatalogManagerClient(accessToken)
+
   // Determine catalog name based on source app
-  const catalogName = sourceApp === 'CRM' ? 'SalesTaskPriority' : 'InvestmentTaskPriority';
+  const catalogName = sourceApp === 'CRM' ? 'SalesTaskPriority' : 'InvestmentTaskPriority'
 
   // Load task priorities
   const loadTaskPriorities = async () => {
     try {
-      setLoading(true);
-      setError(null);
-      
+      setLoading(true)
+      setError(null)
+
       const response = await catalogClient.getCatalogEntriesList(
         {
           catalogIdentifier: catalogName,
@@ -107,100 +103,97 @@ export const TaskPrioritiesTab: React.FC<TaskPrioritiesTabProps> = ({
           includeChildCatalogEntries: false,
           ...(searchTerm && { searchCriteria: searchTerm })
         }
-      );
+      )
 
-      const entries = response.data?.map((entry: any) => ({
-        id: entry.id,
-        code: entry.code,
-        value: entry.value,
-        alternativeCode: entry.alternativeCode,
-        additionalValue1: entry.additionalValue1,
-        additionalValue2: entry.additionalValue2,
-        additionalValue3: entry.additionalValue3,
-      })) || [];
+      const entries =
+        response.data?.map((entry: any) => ({
+          id: entry.id,
+          code: entry.code,
+          value: entry.value,
+          alternativeCode: entry.alternativeCode,
+          additionalValue1: entry.additionalValue1,
+          additionalValue2: entry.additionalValue2,
+          additionalValue3: entry.additionalValue3
+        })) || []
 
-      setTaskPriorities(entries);
+      setTaskPriorities(entries)
     } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'Failed to load task priorities';
-      setError(errorMessage);
-      console.error('Error loading task priorities:', err);
+      const errorMessage = err instanceof Error ? err.message : 'Failed to load task priorities'
+      setError(errorMessage)
+      console.error('Error loading task priorities:', err)
     } finally {
-      setLoading(false);
+      setLoading(false)
     }
-  };
+  }
 
   useEffect(() => {
     if (accessToken) {
-      loadTaskPriorities();
+      loadTaskPriorities()
     }
-  }, [accessToken, searchTerm, catalogName]);
+  }, [accessToken, searchTerm, catalogName])
 
   const handleAdd = () => {
-    setEditingTaskPriority(null);
-    form.reset();
-    setIsModalOpen(true);
-  };
+    setEditingTaskPriority(null)
+    form.reset()
+    setIsModalOpen(true)
+  }
 
   const handleEdit = (taskPriority: TaskPriority) => {
-    setEditingTaskPriority(taskPriority);
+    setEditingTaskPriority(taskPriority)
     form.reset({
       code: taskPriority.code,
       value: taskPriority.value,
       alternativeCode: taskPriority.alternativeCode || '',
       additionalValue1: taskPriority.additionalValue1 || ''
-    });
-    setIsModalOpen(true);
-  };
+    })
+    setIsModalOpen(true)
+  }
 
   const handleDelete = async (id: string) => {
     try {
       // TODO: Implement actual delete operation with catalog API
-      console.log('Delete task priority:', id);
-      loadTaskPriorities();
+      console.log('Delete task priority:', id)
+      loadTaskPriorities()
     } catch (err) {
-      console.error('Failed to delete task priority:', err);
+      console.error('Failed to delete task priority:', err)
     }
-  };
+  }
 
   const handleSubmit = async (data: TaskPriorityFormData) => {
     try {
       if (editingTaskPriority) {
         // TODO: Implement actual update operation with catalog API
-        console.log('Update task priority:', data);
+        console.log('Update task priority:', data)
       } else {
         // TODO: Implement actual create operation with catalog API
-        console.log('Create task priority:', data);
+        console.log('Create task priority:', data)
       }
-      
-      setIsModalOpen(false);
-      loadTaskPriorities();
-    } catch (err) {
-      console.error('Failed to save task priority:', err);
-    }
-  };
 
-  const filteredTaskPriorities = taskPriorities.filter(item =>
-    item.code.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    item.value.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    (item.alternativeCode && item.alternativeCode.toLowerCase().includes(searchTerm.toLowerCase()))
-  );
+      setIsModalOpen(false)
+      loadTaskPriorities()
+    } catch (err) {
+      console.error('Failed to save task priority:', err)
+    }
+  }
+
+  const filteredTaskPriorities = taskPriorities.filter(
+    item =>
+      item.code.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      item.value.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (item.alternativeCode && item.alternativeCode.toLowerCase().includes(searchTerm.toLowerCase()))
+  )
 
   if (error) {
     return (
       <Alert className="gba:border-red-200 gba:bg-red-50">
         <AlertDescription>
           {t('mdm.task_priorities.error', 'Error Loading Task Priorities')}: {error}
-          <Button 
-            variant="outline" 
-            size="sm" 
-            onClick={loadTaskPriorities}
-            className="gba:ml-2"
-          >
+          <Button variant="outline" size="sm" onClick={loadTaskPriorities} className="gba:ml-2">
             {t('common.retry', 'Retry')}
           </Button>
         </AlertDescription>
       </Alert>
-    );
+    )
   }
 
   return (
@@ -209,16 +202,14 @@ export const TaskPrioritiesTab: React.FC<TaskPrioritiesTabProps> = ({
       <div className="gba:flex gba:items-center gba:justify-between">
         <div>
           <h3 className="gba:text-lg gba:font-semibold gba:flex gba:items-center gba:gap-2">
-            {t('mdm.task_priorities', 'Task Priorities')} 
-            <Badge variant={sourceApp === 'CRM' ? 'default' : 'secondary'}>
-              {sourceApp}
-            </Badge>
+            {t('mdm.task_priorities', 'Task Priorities')}
+            <Badge variant={sourceApp === 'CRM' ? 'default' : 'secondary'}>{sourceApp}</Badge>
           </h3>
           <p className="gba:text-sm gba:text-gray-600">
             {t('mdm.task_priorities.description', 'Manage priority levels for tasks')}
           </p>
         </div>
-        
+
         <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
           <DialogTrigger asChild>
             <Button onClick={handleAdd} data-testid={`${prefixDataTestId}-${DATA_TEST_ID}-Add-Button`}>
@@ -229,16 +220,17 @@ export const TaskPrioritiesTab: React.FC<TaskPrioritiesTabProps> = ({
           <DialogContent data-testid={`${prefixDataTestId}-${DATA_TEST_ID}-Modal`}>
             <DialogHeader>
               <DialogTitle>
-                {editingTaskPriority ? t('mdm.task_priority.edit', 'Edit Task Priority') : t('mdm.task_priority.add', 'Add Task Priority')}
+                {editingTaskPriority
+                  ? t('mdm.task_priority.edit', 'Edit Task Priority')
+                  : t('mdm.task_priority.add', 'Add Task Priority')}
               </DialogTitle>
               <DialogDescription>
-                {editingTaskPriority 
+                {editingTaskPriority
                   ? t('mdm.task_priority.edit.description', 'Update the task priority details below.')
-                  : t('mdm.task_priority.add.description', 'Add a new task priority to the catalog.')
-                }
+                  : t('mdm.task_priority.add.description', 'Add a new task priority to the catalog.')}
               </DialogDescription>
             </DialogHeader>
-            
+
             <Form {...form}>
               <form onSubmit={form.handleSubmit(handleSubmit)} className="gba:space-y-4">
                 <FormField
@@ -278,7 +270,10 @@ export const TaskPrioritiesTab: React.FC<TaskPrioritiesTabProps> = ({
                     <FormItem>
                       <FormLabel>{t('mdm.alternative_code', 'Alternative Code')}</FormLabel>
                       <FormControl>
-                        <Input {...field} placeholder={t('mdm.alternative_code.placeholder', 'Enter alternative code')} />
+                        <Input
+                          {...field}
+                          placeholder={t('mdm.alternative_code.placeholder', 'Enter alternative code')}
+                        />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -292,7 +287,10 @@ export const TaskPrioritiesTab: React.FC<TaskPrioritiesTabProps> = ({
                     <FormItem>
                       <FormLabel>{t('mdm.additional_value_1', 'Additional Value 1')}</FormLabel>
                       <FormControl>
-                        <Input {...field} placeholder={t('mdm.additional_value_1.placeholder', 'Enter additional value 1')} />
+                        <Input
+                          {...field}
+                          placeholder={t('mdm.additional_value_1.placeholder', 'Enter additional value 1')}
+                        />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -303,9 +301,7 @@ export const TaskPrioritiesTab: React.FC<TaskPrioritiesTabProps> = ({
                   <Button type="button" variant="outline" onClick={() => setIsModalOpen(false)}>
                     {t('common.cancel', 'Cancel')}
                   </Button>
-                  <Button type="submit">
-                    {t('common.save', 'Save')}
-                  </Button>
+                  <Button type="submit">{t('common.save', 'Save')}</Button>
                 </div>
               </form>
             </Form>
@@ -347,7 +343,7 @@ export const TaskPrioritiesTab: React.FC<TaskPrioritiesTabProps> = ({
                   </TableCell>
                 </TableRow>
               ) : (
-                filteredTaskPriorities.map((item) => (
+                filteredTaskPriorities.map(item => (
                   <TableRow key={item.id}>
                     <TableCell>
                       <Badge variant={getPriorityColor(item.code) as any}>{item.code}</Badge>
@@ -388,5 +384,5 @@ export const TaskPrioritiesTab: React.FC<TaskPrioritiesTabProps> = ({
         )}
       </div>
     </div>
-  );
-}; 
+  )
+}

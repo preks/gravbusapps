@@ -1,7 +1,7 @@
 # Manual Publishing with Custom Screen Selection:
-# 
+#
 # Both `publish-manual` and `publish-manual-prod` pipelines support optional variables:
-# 
+#
 # SCREENS_TO_PUBLISH:
 # - Allows you to specify which screens to publish instead of using automatic change detection
 # - Leave empty (default) to use change detection
@@ -96,17 +96,17 @@ definitions:
           - manual-screens.txt
 
     - step: &publish-changed-prod-screens
-          name: Publish Changed Production Screens
-          size: 2x
-          caches:
-            - nodecustom
-          services:
-            - docker
-          script:
-            - export SKIP_RESOURCE_URL_SYNC="true"
-            - node scripts/publish-prod-screens.js
-          artifacts:
-            - changed-tsx.txt
+        name: Publish Changed Production Screens
+        size: 2x
+        caches:
+          - nodecustom
+        services:
+          - docker
+        script:
+          - export SKIP_RESOURCE_URL_SYNC="true"
+          - node scripts/publish-prod-screens.js
+        artifacts:
+          - changed-tsx.txt
 
     - step: &publish-manual-screens
         name: Publish Manual Screens
@@ -176,8 +176,8 @@ pipelines:
     develop:
       - step: *install_dependencies
       - step: *publish-changed-screens
-# Deactivated due to current SonarCloud sizing limits
-#      - step: *sonar_scan
+    # Deactivated due to current SonarCloud sizing limits
+    #      - step: *sonar_scan
     hotfix/*:
       - step: *install_dependencies
       - step: *publish-changed-prod-screens
@@ -194,22 +194,22 @@ pipelines:
     build-manual:
       - variables:
           - name: SCREENS_TO_PUBLISH
-            default: ""
+            default: ''
       - step: *install_dependencies
       - step: *build-validate-screens
 
     publish-manual:
       - variables:
           - name: SCREENS_TO_PUBLISH
-            default: ""
+            default: ''
       - step: *install_dependencies
       - step: *publish-manual-screens
 
     publish-manual-prod:
       - variables:
           - name: SCREENS_TO_PUBLISH
-            default: ""
+            default: ''
           - name: SKIP_RESOURCE_URL_SYNC
-            default: "true"
+            default: 'true'
       - step: *install_dependencies
       - step: *publish-manual-prod-screens

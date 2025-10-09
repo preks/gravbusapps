@@ -1,24 +1,24 @@
-import React from "react";
-import { PerformanceStatistics } from "../statistics";
-import { PerformanceTrendsChart } from "../performance-trends";
-import { EntitiesOwnedSection } from "../entities";
-import { BusinessAppContextProps } from "@/common/BusinessAppContext";
-import { EntitiesOwned } from "../../types";
+import React from 'react'
+import { PerformanceStatistics } from '../statistics'
+import { PerformanceTrendsChart } from '../performance-trends'
+import { EntitiesOwnedSection } from '../entities'
+import { BusinessAppContextProps } from '@/common/BusinessAppContext'
+import { EntitiesOwned } from '../../types'
 
-const DATA_TEST_ID_PREFIX = "SalesPerformanceTab";
+const DATA_TEST_ID_PREFIX = 'SalesPerformanceTab'
 
 interface SalesPerformanceTabProps extends BusinessAppContextProps {
-  employeeId: string;
-  entitiesOwned?: EntitiesOwned; // Make optional since we use real data
-  isLoading?: boolean;
-  error?: Error | null;
-  onRetry?: () => void;
+  employeeId: string
+  entitiesOwned?: EntitiesOwned // Make optional since we use real data
+  isLoading?: boolean
+  error?: Error | null
+  onRetry?: () => void
   // Enhanced context for comparisons
   teamContext?: {
-    teamId: string;
-    teamName: string;
-  };
-  showComparisons?: boolean;
+    teamId: string
+    teamName: string
+  }
+  showComparisons?: boolean
 }
 
 export const SalesPerformanceTab: React.FC<SalesPerformanceTabProps> = ({
@@ -33,10 +33,7 @@ export const SalesPerformanceTab: React.FC<SalesPerformanceTabProps> = ({
   ...context
 }) => {
   return (
-    <div
-      className="gba:flex gba:flex-col gba:gap-6"
-      data-testid={`${DATA_TEST_ID_PREFIX}-container`}
-    >
+    <div className="gba:flex gba:flex-col gba:gap-6" data-testid={`${DATA_TEST_ID_PREFIX}-container`}>
       {/* Performance Statistics Section with Enhanced Context */}
       <PerformanceStatistics
         employeeId={employeeId}
@@ -48,11 +45,7 @@ export const SalesPerformanceTab: React.FC<SalesPerformanceTabProps> = ({
       />
 
       {/* Performance Trends Chart Section */}
-      <PerformanceTrendsChart
-        employeeId={employeeId}
-        accessToken={accessToken}
-        {...context}
-      />
+      <PerformanceTrendsChart employeeId={employeeId} accessToken={accessToken} {...context} />
 
       {/* Entities Owned Section */}
       <EntitiesOwnedSection
@@ -62,7 +55,7 @@ export const SalesPerformanceTab: React.FC<SalesPerformanceTabProps> = ({
         isLoading={isLoading}
       />
     </div>
-  );
-};
+  )
+}
 
-export default SalesPerformanceTab;
+export default SalesPerformanceTab

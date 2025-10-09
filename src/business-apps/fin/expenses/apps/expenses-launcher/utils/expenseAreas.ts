@@ -1,7 +1,7 @@
-import { ExpenseArea, QuickAction } from '../types';
-import { 
-  Receipt, 
-  Article, 
+import { ExpenseArea, QuickAction } from '../types'
+import {
+  Receipt,
+  Article,
   CurrencyDollar,
   FileText,
   Calendar,
@@ -11,8 +11,7 @@ import {
   ChartBar,
   ChartPie,
   Plus
-} from '@phosphor-icons/react';
-import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
+} from '@phosphor-icons/react'
 
 export const expenseAreas: ExpenseArea[] = [
   {
@@ -57,7 +56,7 @@ export const expenseAreas: ExpenseArea[] = [
     icon: ChartLine,
     category: 'reporting'
   }
-];
+]
 
 // Manager-specific cards (used as templates for dynamic generation)
 export const managerExpenseAreas: ExpenseArea[] = [
@@ -113,7 +112,7 @@ export const managerExpenseAreas: ExpenseArea[] = [
     buttonLabel: 'View Team Analytics',
     buttonAction: 'navigate-team-analytics'
   }
-];
+]
 
 export const quickActions: QuickAction[] = [
   {
@@ -140,15 +139,15 @@ export const quickActions: QuickAction[] = [
     icon: Plus,
     action: 'submit-request'
   }
-];
+]
 
 export const categoryLabels: Record<string, string> = {
   core: 'Core Expense Management',
   planning: 'Planning & Budgeting',
   reporting: 'Reports & Analytics',
   manager: 'Manager Dashboard'
-};
+}
 
 export const getExpenseAreasByCategory = (category: string): ExpenseArea[] => {
-  return expenseAreas.filter(area => area.category === category);
-}; 
+  return expenseAreas.filter(area => area.category === category)
+}

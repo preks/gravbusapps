@@ -24,7 +24,7 @@ import { InvestmentSettings } from '@/business-apps/crm/investments/apps/investm
 
 function App() {
   return (
-    <InvestmentSettings 
+    <InvestmentSettings
       prefixDataTestId="MyApp"
       className="custom-class"
       accessToken="your-access-token"
@@ -54,6 +54,7 @@ The settings are organized into the following categories:
 ## Pipeline Data Integration
 
 This app integrates with the Pipeline Data MDM module (`/platform/mdm/pipeline-data`) with the following tabs:
+
 - Pipelines
 - Stages
 - Sources
@@ -68,4 +69,4 @@ Test IDs are automatically generated with the format: `{prefixDataTestId}-Invest
 - React 18+
 - Ant Design
 - react-i18next
-- @remixicon/react 
+- @remixicon/react

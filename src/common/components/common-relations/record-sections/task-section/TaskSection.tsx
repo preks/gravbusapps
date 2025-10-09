@@ -1,118 +1,149 @@
-import React, { useState } from 'react';
-import { Button, TimelineLayout, Badge, Sheet, SheetContent, SheetHeader, SheetTitle, Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@newwork/nw-design-system';
-import { AppAction } from '@/components/app-action';
-import { AppActionMenu } from '@/components/app-action-menu/AppActionMenu';
-import type { AppActionCommonProps } from '@/common/hooks/useAppActionData';
-import { BusinessAppContextProps } from '@/common/BusinessAppContext';
-import { TaskDetailSheet, Task as CommonTask, TaskReference } from '@/common/components/common-relations/detail-sheets/task-detail-sheet';
-import dayjs from 'dayjs';
-import { CheckIcon, ClockIcon, WarningIcon, PlayIcon, PlusIcon, DotsThreeVertical, CalendarCheck } from '@phosphor-icons/react';
-import { buildPlatformUrl } from '@/common/utils/navigationUtils';
-import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
+import React, { useState } from 'react'
+import {
+  Button,
+  TimelineLayout,
+  Badge,
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger
+} from '@newwork/nw-design-system'
+import { AppAction } from '@/components/app-action'
+import { AppActionMenu } from '@/components/app-action-menu/AppActionMenu'
+import type { AppActionCommonProps } from '@/common/hooks/useAppActionData'
+import { BusinessAppContextProps } from '@/common/BusinessAppContext'
+import {
+  TaskDetailSheet,
+  Task as CommonTask,
+  TaskReference
+} from '@/common/components/common-relations/detail-sheets/task-detail-sheet'
+import dayjs from 'dayjs'
+import {
+  CheckIcon,
+  ClockIcon,
+  WarningIcon,
+  PlayIcon,
+  PlusIcon,
+  DotsThreeVertical,
+  CalendarCheck
+} from '@phosphor-icons/react'
+import { buildPlatformUrl } from '@/common/utils/navigationUtils'
+import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 
 type CatalogEntry = {
-  id?: string;
-  code?: string;
-  value?: string;
-  type?: string;
-};
+  id?: string
+  code?: string
+  value?: string
+  type?: string
+}
 
 type TaskItem = {
-  id: string;
-  title: string;
-  description?: string;
-  createdAt?: string;
-  due?: string;
-  assignee?: string;
-  statusCode?: 'PENDING' | 'IN_PROGRESS' | 'OVERDUE' | 'COMPLETED';
-  taskStatus?: CatalogEntry;
-  taskPriority?: CatalogEntry;
+  id: string
+  title: string
+  description?: string
+  createdAt?: string
+  due?: string
+  assignee?: string
+  statusCode?: 'PENDING' | 'IN_PROGRESS' | 'OVERDUE' | 'COMPLETED'
+  taskStatus?: CatalogEntry
+  taskPriority?: CatalogEntry
   assigneeEmployee?: {
-    id: string;
-    displayName?: string;
-    firstName?: string;
-    lastName?: string;
-    pictureThumbnail?: string;
-  };
+    id: string
+    displayName?: string
+    firstName?: string
+    lastName?: string
+    pictureThumbnail?: string
+  }
   creatorEmployee?: {
-    id: string;
-    displayName?: string;
-    firstName?: string;
-    lastName?: string;
-    pictureThumbnail?: string;
-  };
-  reference?: TaskReference;
-  taskTiming?: 'DEADLINE' | 'SCHEDULED' | 'UNKNOWN_TIMING_TYPE';
-  startDate?: string;
-};
+    id: string
+    displayName?: string
+    firstName?: string
+    lastName?: string
+    pictureThumbnail?: string
+  }
+  reference?: TaskReference
+  taskTiming?: 'DEADLINE' | 'SCHEDULED' | 'UNKNOWN_TIMING_TYPE'
+  startDate?: string
+}
 
 interface TaskSectionProps extends BusinessAppContextProps {
-  accountId?: string;
-  contactId?: string;
-  opportunityId?: string;
-  leadId?: string;
-  investmentId?: string;
-  tasks?: TaskItem[];
-  'data-testid'?: string;
-  taskActionProps?: Omit<AppActionCommonProps, 'accessToken'>;
-  taskEntityActionProps?: Omit<AppActionCommonProps, 'accessToken'>;
-  sectionTitle?: string;
-  buildReferenceUrl?: (reference: TaskReference) => string;
+  accountId?: string
+  contactId?: string
+  opportunityId?: string
+  leadId?: string
+  investmentId?: string
+  tasks?: TaskItem[]
+  'data-testid'?: string
+  taskActionProps?: Omit<AppActionCommonProps, 'accessToken'>
+  taskEntityActionProps?: Omit<AppActionCommonProps, 'accessToken'>
+  sectionTitle?: string
+  buildReferenceUrl?: (reference: TaskReference) => string
 }
 
 const TaskSection: React.FC<TaskSectionProps> = ({ accessToken, tasks, taskEntityActionProps, buildReferenceUrl }) => {
-  const [selectedTask, setSelectedTask] = useState<CommonTask | null>(null);
+  const [selectedTask, setSelectedTask] = useState<CommonTask | null>(null)
   // Determine color and icon based on status
   const getStatusColorAndIcon = (statusCode?: string) => {
     if (statusCode === 'COMPLETED') {
-      return { 
-        color: 'success', 
+      return {
+        color: 'success',
         icon: (props: any) => <CheckIcon weight="bold" {...props} />
-      };
+      }
     }
     if (statusCode === 'OVERDUE') {
-      return { 
-        color: 'destructive', 
+      return {
+        color: 'destructive',
         icon: (props: any) => <WarningIcon weight="bold" {...props} />
-      };
+      }
     }
     if (statusCode === 'IN_PROGRESS') {
-      return { 
-        color: 'info', 
+      return {
+        color: 'info',
         icon: (props: any) => <PlayIcon weight="bold" {...props} />
-      };
+      }
     }
     if (statusCode === 'PENDING') {
-      return { 
-        color: 'warning', 
+      return {
+        color: 'warning',
         icon: (props: any) => <ClockIcon weight="bold" {...props} />
-      };
+      }
     }
-    return { 
-      color: 'info', 
+    return {
+      color: 'info',
       icon: (props: any) => <ClockIcon weight="bold" {...props} />
-    };
-  };
+    }
+  }
 
   // Get timing type icon for deadline vs scheduled tasks
   const getTimingTypeIcon = (taskTiming?: string) => {
-    if (!taskTiming) return { icon: <ClockIcon size={14} className="gba:text-gray-400" weight="bold" />, tooltip: 'No timing type specified' };
-    
+    if (!taskTiming)
+      return {
+        icon: <ClockIcon size={14} className="gba:text-gray-400" weight="bold" />,
+        tooltip: 'No timing type specified'
+      }
+
     switch (taskTiming.toUpperCase()) {
       case 'DEADLINE':
-        return { 
-          icon: <ClockIcon size={14} className="gba:text-destructive" weight="bold" />, 
-          tooltip: 'Deadline - Complete by this date' 
-        };
+        return {
+          icon: <ClockIcon size={14} className="gba:text-destructive" weight="bold" />,
+          tooltip: 'Deadline - Complete by this date'
+        }
       case 'SCHEDULED':
-        return { 
-          icon: <CalendarCheck size={14} className="gba:text-info" weight="bold" />, 
-          tooltip: 'Scheduled - Execute on this specific date' 
-        };
+        return {
+          icon: <CalendarCheck size={14} className="gba:text-info" weight="bold" />,
+          tooltip: 'Scheduled - Execute on this specific date'
+        }
       default:
-        return { icon: <ClockIcon size={14} className="gba:text-gray-400" weight="bold" />, tooltip: 'Unknown timing type' };
+        return {
+          icon: <ClockIcon size={14} className="gba:text-gray-400" weight="bold" />,
+          tooltip: 'Unknown timing type'
+        }
     }
-  };
+  }
 
   // Convert TaskItem to CommonTask format
   const convertToCommonTask = (taskItem: TaskItem): CommonTask => {
@@ -125,17 +156,20 @@ const TaskSection: React.FC<TaskSectionProps> = ({ accessToken, tasks, taskEntit
         firstName: taskItem.assigneeEmployee?.firstName || '',
         lastName: taskItem.assigneeEmployee?.lastName || '',
         displayName: taskItem.assigneeEmployee?.displayName || taskItem.assignee || 'Unknown',
-        pictureThumbnail: taskItem.assigneeEmployee?.pictureThumbnail,
+        pictureThumbnail: taskItem.assigneeEmployee?.pictureThumbnail
       },
-      creatorEmployee: taskItem.creatorEmployee ? {
-        id: taskItem.creatorEmployee.id,
-        firstName: taskItem.creatorEmployee.firstName || '',
-        lastName: taskItem.creatorEmployee.lastName || '',
-        displayName: taskItem.creatorEmployee.displayName || 
-          `${taskItem.creatorEmployee.firstName || ''} ${taskItem.creatorEmployee.lastName || ''}`.trim() || 
-          'Unknown',
-        pictureThumbnail: taskItem.creatorEmployee.pictureThumbnail,
-      } : undefined,
+      creatorEmployee: taskItem.creatorEmployee
+        ? {
+            id: taskItem.creatorEmployee.id,
+            firstName: taskItem.creatorEmployee.firstName || '',
+            lastName: taskItem.creatorEmployee.lastName || '',
+            displayName:
+              taskItem.creatorEmployee.displayName ||
+              `${taskItem.creatorEmployee.firstName || ''} ${taskItem.creatorEmployee.lastName || ''}`.trim() ||
+              'Unknown',
+            pictureThumbnail: taskItem.creatorEmployee.pictureThumbnail
+          }
+        : undefined,
       type: taskItem.taskPriority?.type || '',
       priority: (taskItem.taskPriority?.type?.toLowerCase() as any) || 'medium',
       status: (taskItem.statusCode?.toLowerCase() as any) || 'pending',
@@ -144,57 +178,57 @@ const TaskSection: React.FC<TaskSectionProps> = ({ accessToken, tasks, taskEntit
       updatedAt: taskItem.createdAt || '',
       reference: taskItem.reference,
       timingType: taskItem.taskTiming as any,
-      scheduleDate: taskItem.startDate,
-    };
-  };
+      scheduleDate: taskItem.startDate
+    }
+  }
 
   const handleTaskClick = (taskItem: TaskItem) => {
-    const commonTask = convertToCommonTask(taskItem);
-    setSelectedTask(commonTask);
-  };
+    const commonTask = convertToCommonTask(taskItem)
+    setSelectedTask(commonTask)
+  }
 
   const getEmployeeDisplayName = (emp: any) => {
-    if (!emp) return 'Unknown User';
-    
+    if (!emp) return 'Unknown User'
+
     // Use firstName + lastName first
-    const fullName = `${emp.firstName || ''} ${emp.lastName || ''}`.trim();
-    if (fullName) return fullName;
-    
+    const fullName = `${emp.firstName || ''} ${emp.lastName || ''}`.trim()
+    if (fullName) return fullName
+
     // Fallback to displayName
-    return emp.displayName || 'Unknown User';
-  };
+    return emp.displayName || 'Unknown User'
+  }
 
   // Map task priority type to badge variant
   const getPriorityBadgeVariant = (priority?: CatalogEntry): 'offline' | 'secondary' | 'warning' => {
-    const type = priority?.type?.toUpperCase();
+    const type = priority?.type?.toUpperCase()
     switch (type) {
       case 'LOW':
-        return 'offline';
+        return 'offline'
       case 'MEDIUM':
-        return 'secondary';
+        return 'secondary'
       case 'HIGH':
-        return 'warning';
+        return 'warning'
       default:
-        return 'secondary';
+        return 'secondary'
     }
-  };
+  }
 
   // Map task status type to badge variant
   const getStatusBadgeVariant = (status?: CatalogEntry): 'success' | 'info' | 'destructive' | 'warning' => {
-    const type = status?.type?.toUpperCase();
+    const type = status?.type?.toUpperCase()
     switch (type) {
       case 'COMPLETED':
-        return 'success';
+        return 'success'
       case 'IN_PROGRESS':
-        return 'info';
+        return 'info'
       case 'OVERDUE':
-        return 'destructive';
+        return 'destructive'
       case 'PENDING':
-        return 'warning';
+        return 'warning'
       default:
-        return 'warning';
+        return 'warning'
     }
-  };
+  }
 
   return (
     <>
@@ -203,106 +237,112 @@ const TaskSection: React.FC<TaskSectionProps> = ({ accessToken, tasks, taskEntit
           <TooltipProvider>
             <TimelineLayout
               items={tasks.map((t, idx) => {
-              const createdDate = t.createdAt ? (dayjs(t.createdAt).isValid() ? dayjs(t.createdAt).format('MMM D, YYYY [at] h:mm A') : t.createdAt) : '';
-              const due = t.due ? (dayjs(t.due).isValid() ? dayjs(t.due).format('MMM D, YYYY [at] h:mm A') : t.due) : '';
-              const descParts: string[] = [];
-              if (due) descParts.push(`Due ${due}`);
-              const code = t.statusCode;
-              
-              const { color, icon } = getStatusColorAndIcon(code);
-              
-              const assigneeName = t.assigneeEmployee ? getEmployeeDisplayName(t.assigneeEmployee) : t.assignee;
-              const assigneeId = t.assigneeEmployee?.id;
-              
-              // Get timing type icon and tooltip once to avoid duplicate function calls
-              const timingTypeData = t.taskTiming ? getTimingTypeIcon(t.taskTiming) : null;
-              
-              const taskActions = taskEntityActionProps ? (
-                <AppActionMenu
-                  accessToken={accessToken}
-                  contextsArray={taskEntityActionProps.contextsArray}
-                  externalContextData={{ 
-                    ...taskEntityActionProps.externalContextData, 
-                    taskId: t.id
-                  }}
-                  prefixDataTestId={`${taskEntityActionProps.prefixDataTestId}-${t.id}`}
-                  deferMainContextRequestsUntilClick={true}
-                  emptyStateBehavior="enable"
-                >
-                  <div 
-                    className="gba:flex gba:items-center gba:justify-center gba:h-6 gba:w-6 gba:cursor-pointer gba:rounded gba:hover:bg-muted gba:transition-colors"
-                    data-testid={`task-menu-${t.id}`}
+                const createdDate = t.createdAt
+                  ? dayjs(t.createdAt).isValid()
+                    ? dayjs(t.createdAt).format('MMM D, YYYY [at] h:mm A')
+                    : t.createdAt
+                  : ''
+                const due = t.due
+                  ? dayjs(t.due).isValid()
+                    ? dayjs(t.due).format('MMM D, YYYY [at] h:mm A')
+                    : t.due
+                  : ''
+                const descParts: string[] = []
+                if (due) descParts.push(`Due ${due}`)
+                const code = t.statusCode
+
+                const { color, icon } = getStatusColorAndIcon(code)
+
+                const assigneeName = t.assigneeEmployee ? getEmployeeDisplayName(t.assigneeEmployee) : t.assignee
+                const assigneeId = t.assigneeEmployee?.id
+
+                // Get timing type icon and tooltip once to avoid duplicate function calls
+                const timingTypeData = t.taskTiming ? getTimingTypeIcon(t.taskTiming) : null
+
+                const taskActions = taskEntityActionProps ? (
+                  <AppActionMenu
+                    accessToken={accessToken}
+                    contextsArray={taskEntityActionProps.contextsArray}
+                    externalContextData={{
+                      ...taskEntityActionProps.externalContextData,
+                      taskId: t.id
+                    }}
+                    prefixDataTestId={`${taskEntityActionProps.prefixDataTestId}-${t.id}`}
+                    deferMainContextRequestsUntilClick={true}
+                    emptyStateBehavior="enable"
                   >
-                    <DotsThreeVertical size={16} />
-                  </div>
-                </AppActionMenu>
-              ) : null;
-              
-              return {
-                id: t.id || `task-${idx}`,
-                date: createdDate,
-                title: (
-                  <div className="gba:flex gba:items-center gba:justify-between gba:w-full gba:gap-2">
-                    <div 
-                      className="gba:flex gba:items-center gba:gap-2 gba:flex-1 gba:min-w-0 gba:cursor-pointer gba:hover:bg-accent gba:rounded gba:px-2 gba:py-1 gba:-mx-2 gba:-my-1 gba:transition-colors"
-                      onClick={() => handleTaskClick(t)}
-                      data-testid={`task-item-${t.id}`}
+                    <div
+                      className="gba:flex gba:items-center gba:justify-center gba:h-6 gba:w-6 gba:cursor-pointer gba:rounded gba:hover:bg-muted gba:transition-colors"
+                      data-testid={`task-menu-${t.id}`}
                     >
-                      <span className="gba:truncate">{t.title}</span>
-                      {t.taskStatus && (
-                        <Badge variant={getStatusBadgeVariant(t.taskStatus)} size="sm">
-                          {t.taskStatus.value || t.taskStatus.code}
-                        </Badge>
-                      )}
-                      {t.taskPriority && (
-                        <Badge variant={getPriorityBadgeVariant(t.taskPriority)} size="sm">
-                          {t.taskPriority.value || t.taskPriority.code}
-                        </Badge>
-                      )}
+                      <DotsThreeVertical size={16} />
                     </div>
-                    {taskActions}
-                  </div>
-                ),
-                actor: assigneeName
-                  ? assigneeId
-                    ? (
-                        <a
-                          href={buildPlatformUrl('/platform/employee-record', { employeeId: assigneeId })}
-                          className="gba:underline gba:text-inherit gba:hover:text-primary"
-                          data-testid={`task-assignee-link-${assigneeId}`}
-                          onClick={(e) => e.stopPropagation()}
-                        >
-                          {assigneeName}
-                        </a>
-                      )
-                    : assigneeName
-                  : undefined,
-                description: (
-                  <div className="gba:flex gba:items-center gba:gap-2">
-                    {timingTypeData && (
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <div className="gba:flex gba:items-center">
-                            {timingTypeData.icon}
-                          </div>
-                        </TooltipTrigger>
-                        <TooltipContent>
-                          <p>{timingTypeData.tooltip}</p>
-                        </TooltipContent>
-                      </Tooltip>
-                    )}
-                    <span>{descParts.join(' • ')}</span>
-                  </div>
-                ),
-                color,
-                icon,
-              } as any;
-            })}
-            variant="default"
-            orientation="vertical"
-            datePosition="inline"
-            className="gba:w-full"
-          />
+                  </AppActionMenu>
+                ) : null
+
+                return {
+                  id: t.id || `task-${idx}`,
+                  date: createdDate,
+                  title: (
+                    <div className="gba:flex gba:items-center gba:justify-between gba:w-full gba:gap-2">
+                      <div
+                        className="gba:flex gba:items-center gba:gap-2 gba:flex-1 gba:min-w-0 gba:cursor-pointer gba:hover:bg-accent gba:rounded gba:px-2 gba:py-1 gba:-mx-2 gba:-my-1 gba:transition-colors"
+                        onClick={() => handleTaskClick(t)}
+                        data-testid={`task-item-${t.id}`}
+                      >
+                        <span className="gba:truncate">{t.title}</span>
+                        {t.taskStatus && (
+                          <Badge variant={getStatusBadgeVariant(t.taskStatus)} size="sm">
+                            {t.taskStatus.value || t.taskStatus.code}
+                          </Badge>
+                        )}
+                        {t.taskPriority && (
+                          <Badge variant={getPriorityBadgeVariant(t.taskPriority)} size="sm">
+                            {t.taskPriority.value || t.taskPriority.code}
+                          </Badge>
+                        )}
+                      </div>
+                      {taskActions}
+                    </div>
+                  ),
+                  actor: assigneeName ? (
+                    assigneeId ? (
+                      <a
+                        href={buildPlatformUrl('/platform/employee-record', { employeeId: assigneeId })}
+                        className="gba:underline gba:text-inherit gba:hover:text-primary"
+                        data-testid={`task-assignee-link-${assigneeId}`}
+                        onClick={e => e.stopPropagation()}
+                      >
+                        {assigneeName}
+                      </a>
+                    ) : (
+                      assigneeName
+                    )
+                  ) : undefined,
+                  description: (
+                    <div className="gba:flex gba:items-center gba:gap-2">
+                      {timingTypeData && (
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <div className="gba:flex gba:items-center">{timingTypeData.icon}</div>
+                          </TooltipTrigger>
+                          <TooltipContent>
+                            <p>{timingTypeData.tooltip}</p>
+                          </TooltipContent>
+                        </Tooltip>
+                      )}
+                      <span>{descParts.join(' • ')}</span>
+                    </div>
+                  ),
+                  color,
+                  icon
+                } as any
+              })}
+              variant="default"
+              orientation="vertical"
+              datePosition="inline"
+              className="gba:w-full"
+            />
           </TooltipProvider>
         ) : (
           <div className="gba:text-center gba:text-sm gba:text-muted-foreground">
@@ -312,10 +352,10 @@ const TaskSection: React.FC<TaskSectionProps> = ({ accessToken, tasks, taskEntit
       </div>
 
       {/* Task Details Sheet */}
-      <Sheet 
-        open={!!selectedTask} 
-        onOpenChange={(open) => {
-          if (!open) setSelectedTask(null);
+      <Sheet
+        open={!!selectedTask}
+        onOpenChange={open => {
+          if (!open) setSelectedTask(null)
         }}
         title="Task Details"
       >
@@ -327,26 +367,28 @@ const TaskSection: React.FC<TaskSectionProps> = ({ accessToken, tasks, taskEntit
           </SheetHeader>
           <div className="gba:flex-1 gba:overflow-hidden gba:px-6">
             {selectedTask ? (
-              <TaskDetailSheet task={selectedTask} buildReferenceUrl={buildReferenceUrl} data-testid="task-section-detail-sheet" />
+              <TaskDetailSheet
+                task={selectedTask}
+                buildReferenceUrl={buildReferenceUrl}
+                data-testid="task-section-detail-sheet"
+              />
             ) : (
-              <div className="gba:p-4 gba:text-center gba:text-muted-foreground">
-                No task selected
-              </div>
+              <div className="gba:p-4 gba:text-center gba:text-muted-foreground">No task selected</div>
             )}
           </div>
         </SheetContent>
       </Sheet>
     </>
-  );
-};
+  )
+}
 
 // Static properties for SectionWrapper
-(TaskSection as any).sectionTitle = (props: TaskSectionProps) => props.sectionTitle || 'Tasks';
-(TaskSection as any).sectionActions = (props: TaskSectionProps) => {
-  const { accessToken, taskActionProps } = props;
-  
+;(TaskSection as any).sectionTitle = (props: TaskSectionProps) => props.sectionTitle || 'Tasks'
+;(TaskSection as any).sectionActions = (props: TaskSectionProps) => {
+  const { accessToken, taskActionProps } = props
+
   if (!taskActionProps) {
-    return null;
+    return null
   }
 
   return (
@@ -361,7 +403,7 @@ const TaskSection: React.FC<TaskSectionProps> = ({ accessToken, tasks, taskEntit
         <PlusIcon />
       </Button>
     </AppAction>
-  );
-};
+  )
+}
 
-export default TaskSection;
+export default TaskSection

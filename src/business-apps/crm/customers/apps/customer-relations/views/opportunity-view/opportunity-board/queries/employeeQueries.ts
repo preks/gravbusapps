@@ -1,16 +1,16 @@
-import { useCallback } from 'react';
-import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient';
-import { BusinessAppContextProps } from '@/common/BusinessAppContext';
+import { useCallback } from 'react'
+import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
+import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 
 export interface Employee {
-  id: string;
-  firstName: string;
-  lastName: string;
-  displayName: string;
+  id: string
+  firstName: string
+  lastName: string
+  displayName: string
 }
 
 export interface UseEmployeesWithOpportunitiesReturn {
-  fetchEmployeesWithOpportunities: (sourceApp?: string) => Promise<Employee[]>;
+  fetchEmployeesWithOpportunities: (sourceApp?: string) => Promise<Employee[]>
 }
 
 export const GET_EMPLOYEES_WITH_OPPORTUNITIES = `
@@ -32,42 +32,45 @@ export const GET_EMPLOYEES_WITH_OPPORTUNITIES = `
       ownerEmployeeId
     }
   }
-`;
+`
 
-export const useGetEmployeesWithOpportunities = (context: BusinessAppContextProps): UseEmployeesWithOpportunitiesReturn => {
-  const graphqlClient = useGraphQLClient(context.accessToken);
-  
-  const fetchEmployeesWithOpportunities = useCallback(async (sourceApp?: string): Promise<Employee[]> => {
-    try {
-      const result = await graphqlClient.request<{
-        Opportunity: Array<{
-          ownerEmployee: Employee | null;
-          ownerEmployeeId: string | null;
-        }>;
-      }>(GET_EMPLOYEES_WITH_OPPORTUNITIES, { sourceApp });
-      
-      if (!result?.Opportunity) {
-        return [];
-      }
+export const useGetEmployeesWithOpportunities = (
+  context: BusinessAppContextProps
+): UseEmployeesWithOpportunitiesReturn => {
+  const graphqlClient = useGraphQLClient(context.accessToken)
 
-      // De-duplicate employees by ID
-      const employeeMap = new Map<string, Employee>();
-      
-      result.Opportunity.forEach(opportunity => {
-        if (opportunity.ownerEmployee && opportunity.ownerEmployeeId) {
-          employeeMap.set(opportunity.ownerEmployeeId, opportunity.ownerEmployee);
+  const fetchEmployeesWithOpportunities = useCallback(
+    async (sourceApp?: string): Promise<Employee[]> => {
+      try {
+        const result = await graphqlClient.request<{
+          Opportunity: Array<{
+            ownerEmployee: Employee | null
+            ownerEmployeeId: string | null
+          }>
+        }>(GET_EMPLOYEES_WITH_OPPORTUNITIES, { sourceApp })
+
+        if (!result?.Opportunity) {
+          return []
         }
-      });
-      
-      // Convert map to array and sort by display name
-      return Array.from(employeeMap.values()).sort((a, b) => 
-        a.displayName.localeCompare(b.displayName)
-      );
-    } catch (error) {
-      console.error('Error fetching employees with opportunities:', error);
-      throw error;
-    }
-  }, [graphqlClient]);
 
-  return { fetchEmployeesWithOpportunities };
-}; 
+        // De-duplicate employees by ID
+        const employeeMap = new Map<string, Employee>()
+
+        result.Opportunity.forEach(opportunity => {
+          if (opportunity.ownerEmployee && opportunity.ownerEmployeeId) {
+            employeeMap.set(opportunity.ownerEmployeeId, opportunity.ownerEmployee)
+          }
+        })
+
+        // Convert map to array and sort by display name
+        return Array.from(employeeMap.values()).sort((a, b) => a.displayName.localeCompare(b.displayName))
+      } catch (error) {
+        console.error('Error fetching employees with opportunities:', error)
+        throw error
+      }
+    },
+    [graphqlClient]
+  )
+
+  return { fetchEmployeesWithOpportunities }
+}

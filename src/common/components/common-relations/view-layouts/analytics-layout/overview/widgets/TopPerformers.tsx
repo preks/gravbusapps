@@ -1,40 +1,24 @@
-import React from "react";
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-  CardDescription,
-  IconAvatar,
-} from "@newwork/nw-design-system";
-import { TrophyIcon } from "@phosphor-icons/react";
+import React from 'react'
+import { Card, CardContent, CardHeader, CardTitle, CardDescription, IconAvatar } from '@newwork/nw-design-system'
+import { TrophyIcon } from '@phosphor-icons/react'
 
 export interface TopPerformerItem {
-  employeeId: string;
-  employeeName: string;
-  dealsWon: number;
-  totalValue: number;
+  employeeId: string
+  employeeName: string
+  dealsWon: number
+  totalValue: number
 }
 
 export interface TopPerformersProps {
-  performers: TopPerformerItem[];
-  moduleColor?: string;
+  performers: TopPerformerItem[]
+  moduleColor?: string
 }
 
-export const TopPerformers: React.FC<TopPerformersProps> = ({ 
-  performers, 
-  moduleColor = "default" 
-}) => {
+export const TopPerformers: React.FC<TopPerformersProps> = ({ performers, moduleColor = 'default' }) => {
   return (
     <Card data-testid="top-performers-section">
       <CardHeader className="gba:flex gba:items-center gba:gap-3">
-        <IconAvatar
-          icon={TrophyIcon}
-          variant={moduleColor as any}
-          size="md"
-          iconWeight="regular"
-          decorative={true}
-        />
+        <IconAvatar icon={TrophyIcon} variant={moduleColor as any} size="md" iconWeight="regular" decorative={true} />
         <div>
           <CardTitle>Top Performers</CardTitle>
           <CardDescription>Best performing team members</CardDescription>
@@ -73,8 +57,7 @@ export const TopPerformers: React.FC<TopPerformersProps> = ({
         )}
       </CardContent>
     </Card>
-  );
-};
+  )
+}
 
-export default TopPerformers;
-
+export default TopPerformers

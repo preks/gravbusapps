@@ -1,89 +1,81 @@
-import React from 'react';
-import { 
-  Card, 
-  CardContent, 
-  CardHeader, 
-  CardTitle
-} from '@newwork/nw-design-system';
-import { 
-  FileText, 
-  CurrencyDollar, 
-  TrendUp, 
-  Calendar 
-} from '@phosphor-icons/react';
-import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
-import { formatDataTestId } from '@/common/utils/formatDataTestId';
-import { 
-  LineChart, 
-  Line, 
-  XAxis, 
-  YAxis, 
-  CartesianGrid, 
-  Tooltip, 
+import React from 'react'
+import { Card, CardContent, CardHeader, CardTitle } from '@newwork/nw-design-system'
+import { FileText, CurrencyDollar, TrendUp, Calendar } from '@phosphor-icons/react'
+import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
+import { formatDataTestId } from '@/common/utils/formatDataTestId'
+import {
+  LineChart,
+  Line,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
   ResponsiveContainer,
   BarChart,
   Bar,
   PieChart,
   Pie,
   Cell
-} from 'recharts';
-import type { InvestmentReport, Investment } from '@/common/data/investment';
-import dayjs from 'dayjs';
+} from 'recharts'
+import type { InvestmentReport, Investment } from '@/common/data/investment'
+import dayjs from 'dayjs'
 
 interface ReportAnalyticsProps {
-  reports: InvestmentReport[];
-  investments: Investment[];
-  prefixDataTestId: string;
+  reports: InvestmentReport[]
+  investments: Investment[]
+  prefixDataTestId: string
 }
 
-export const ReportAnalytics: React.FC<ReportAnalyticsProps> = ({
-  reports,
-  investments,
-  prefixDataTestId
-}) => {
+export const ReportAnalytics: React.FC<ReportAnalyticsProps> = ({ reports, investments, prefixDataTestId }) => {
   // Calculate statistics
-  const totalReports = reports.length;
-  const totalInvestments = investments.length;
-  const totalMarketValue = reports.reduce((sum, report) => sum + (report.investmentMarketValue || 0), 0);
-  const averageMarketValue = totalReports > 0 ? totalMarketValue / totalReports : 0;
+  const totalReports = reports.length
+  const totalInvestments = investments.length
+  const totalMarketValue = reports.reduce((sum, report) => sum + (report.investmentMarketValue || 0), 0)
+  const averageMarketValue = totalReports > 0 ? totalMarketValue / totalReports : 0
 
   // Reports by month (last 12 months)
   const reportsByMonth = Array.from({ length: 12 }, (_, i) => {
-    const date = dayjs().subtract(i, 'month');
-    const monthKey = date.format('YYYY-MM');
-    const monthLabel = date.format('MMM YYYY');
-    
+    const date = dayjs().subtract(i, 'month')
+    const monthKey = date.format('YYYY-MM')
+    const monthLabel = date.format('MMM YYYY')
+
     const count = reports.filter(report => {
-      if (!report.date) return false;
-      return dayjs(report.date).format('YYYY-MM') === monthKey;
-    }).length;
-    
-    return { month: monthLabel, count };
-  }).reverse();
+      if (!report.date) return false
+      return dayjs(report.date).format('YYYY-MM') === monthKey
+    }).length
+
+    return { month: monthLabel, count }
+  }).reverse()
 
   // Reports by investment type
-  const reportsByType = reports.reduce((acc, report) => {
-    const type = report.investment?.investmentType?.value || 'Unknown';
-    acc[type] = (acc[type] || 0) + 1;
-    return acc;
-  }, {} as Record<string, number>);
+  const reportsByType = reports.reduce(
+    (acc, report) => {
+      const type = report.investment?.investmentType?.value || 'Unknown'
+      acc[type] = (acc[type] || 0) + 1
+      return acc
+    },
+    {} as Record<string, number>
+  )
 
   const typeChartData = Object.entries(reportsByType).map(([type, count]) => ({
     type,
     count
-  }));
+  }))
 
   // Reports by scope
-  const reportsByScope = reports.reduce((acc, report) => {
-    const scope = report.scope || 'Unknown';
-    acc[scope] = (acc[scope] || 0) + 1;
-    return acc;
-  }, {} as Record<string, number>);
+  const reportsByScope = reports.reduce(
+    (acc, report) => {
+      const scope = report.scope || 'Unknown'
+      acc[scope] = (acc[scope] || 0) + 1
+      return acc
+    },
+    {} as Record<string, number>
+  )
 
   const scopeChartData = Object.entries(reportsByScope).map(([scope, count]) => ({
     scope,
     count
-  }));
+  }))
 
   // Market value trend over time
   const marketValueTrend = reports
@@ -92,14 +84,21 @@ export const ReportAnalytics: React.FC<ReportAnalyticsProps> = ({
     .map(report => ({
       date: dayjs(report.date!).format('MMM DD'),
       value: report.investmentMarketValue || 0
-    }));
+    }))
 
-  const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884D8'];
+  const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884D8']
 
   return (
     <div data-testid={formatDataTestId(prefixDataTestId, 'ReportAnalytics')}>
       {/* Statistics Cards */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '16px', marginBottom: '24px' }}>
+      <div
+        style={{
+          display: 'grid',
+          gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
+          gap: '16px',
+          marginBottom: '24px'
+        }}
+      >
         <Card>
           <CardHeader>
             <CardTitle style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
@@ -108,12 +107,10 @@ export const ReportAnalytics: React.FC<ReportAnalyticsProps> = ({
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div style={{ fontSize: '24px', fontWeight: '600', color: '#3f8600' }}>
-              {totalReports}
-            </div>
+            <div style={{ fontSize: '24px', fontWeight: '600', color: '#3f8600' }}>{totalReports}</div>
           </CardContent>
         </Card>
-        
+
         <Card>
           <CardHeader>
             <CardTitle style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
@@ -122,12 +119,10 @@ export const ReportAnalytics: React.FC<ReportAnalyticsProps> = ({
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div style={{ fontSize: '24px', fontWeight: '600', color: '#1890ff' }}>
-              {totalInvestments}
-            </div>
+            <div style={{ fontSize: '24px', fontWeight: '600', color: '#1890ff' }}>{totalInvestments}</div>
           </CardContent>
         </Card>
-        
+
         <Card>
           <CardHeader>
             <CardTitle style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
@@ -146,7 +141,7 @@ export const ReportAnalytics: React.FC<ReportAnalyticsProps> = ({
             </div>
           </CardContent>
         </Card>
-        
+
         <Card>
           <CardHeader>
             <CardTitle style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
@@ -181,10 +176,10 @@ export const ReportAnalytics: React.FC<ReportAnalyticsProps> = ({
                 <XAxis dataKey="month" />
                 <YAxis />
                 <Tooltip />
-                <Line 
-                  type="monotone" 
-                  dataKey="count" 
-                  stroke="#1890ff" 
+                <Line
+                  type="monotone"
+                  dataKey="count"
+                  stroke="#1890ff"
                   strokeWidth={2}
                   dot={{ fill: '#1890ff', strokeWidth: 2, r: 4 }}
                 />
@@ -196,7 +191,9 @@ export const ReportAnalytics: React.FC<ReportAnalyticsProps> = ({
         {/* Reports by Investment Type */}
         <Card>
           <CardHeader>
-            <CardTitle>{getTranslationFromI18nKeyAndLabel('analytics.reportsByType', 'Reports by Investment Type')}</CardTitle>
+            <CardTitle>
+              {getTranslationFromI18nKeyAndLabel('analytics.reportsByType', 'Reports by Investment Type')}
+            </CardTitle>
           </CardHeader>
           <CardContent>
             <ResponsiveContainer width="100%" height={300}>
@@ -242,7 +239,9 @@ export const ReportAnalytics: React.FC<ReportAnalyticsProps> = ({
         {/* Market Value Trend */}
         <Card>
           <CardHeader>
-            <CardTitle>{getTranslationFromI18nKeyAndLabel('analytics.marketValueTrend', 'Market Value Trend')}</CardTitle>
+            <CardTitle>
+              {getTranslationFromI18nKeyAndLabel('analytics.marketValueTrend', 'Market Value Trend')}
+            </CardTitle>
           </CardHeader>
           <CardContent>
             <ResponsiveContainer width="100%" height={300}>
@@ -250,17 +249,19 @@ export const ReportAnalytics: React.FC<ReportAnalyticsProps> = ({
                 <CartesianGrid strokeDasharray="3 3" />
                 <XAxis dataKey="date" />
                 <YAxis />
-                <Tooltip 
-                  formatter={(value) => new Intl.NumberFormat('en-US', {
-                    style: 'currency',
-                    currency: 'USD',
-                    notation: 'compact'
-                  }).format(value as number)}
+                <Tooltip
+                  formatter={value =>
+                    new Intl.NumberFormat('en-US', {
+                      style: 'currency',
+                      currency: 'USD',
+                      notation: 'compact'
+                    }).format(value as number)
+                  }
                 />
-                <Line 
-                  type="monotone" 
-                  dataKey="value" 
-                  stroke="#722ed1" 
+                <Line
+                  type="monotone"
+                  dataKey="value"
+                  stroke="#722ed1"
                   strokeWidth={2}
                   dot={{ fill: '#722ed1', strokeWidth: 2, r: 4 }}
                 />
@@ -270,5 +271,5 @@ export const ReportAnalytics: React.FC<ReportAnalyticsProps> = ({
         </Card>
       </div>
     </div>
-  );
-};
+  )
+}

@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useEffect, useRef } from "react";
+import React, { useState, useCallback, useEffect, useRef } from 'react'
 import {
   Table,
   TableBody,
@@ -10,64 +10,63 @@ import {
   Spinner,
   Alert,
   Button
-} from "@newwork/nw-design-system";
-import { Building2, Calendar, User, ChevronUp, ChevronDown } from "lucide-react";
-import { BusinessAppContextProps } from "@/common/BusinessAppContext";
-import { DataContainer } from "@/components/layout/dataContainer/DataContainer";
-import { ColumnConfig } from "@/components/dataController";
-import { AppActionButton } from "@/components/app-action-button/AppActionButton";
-import { FlowContextName } from "@/common/types/FlowRegistryTypes";
+} from '@newwork/nw-design-system'
+import { Building2, Calendar, User, ChevronUp, ChevronDown } from 'lucide-react'
+import { BusinessAppContextProps } from '@/common/BusinessAppContext'
+import { DataContainer } from '@/components/layout/dataContainer/DataContainer'
+import { ColumnConfig } from '@/components/dataController'
+import { AppActionButton } from '@/components/app-action-button/AppActionButton'
+import { FlowContextName } from '@/common/types/FlowRegistryTypes'
 // no i18n usage here
-import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils';
-import { formatCurrency, formatDate } from "../../utils";
-import PlannedExitsMetrics from "./components/PlannedExitsMetrics";
-import { usePlannedExitsData } from "./hooks/usePlannedExitsData";
-import { OwnerDisplay } from "../../../../../../components/shared";
-import { DateRangeFilter } from '@/business-apps/crm/customers/apps/customer-relations/views/lead-view/components/DateRangeFilter';
-import ExpenseAmountRangeFilter from '@/business-apps/fin/expenses/apps/personal-expenses/components/tabs/expense-items-tab/ExpenseAmountRangeFilter';
-import { useEmployeeSearch } from '@/common/data/employee/useEmployeeSearch';
+import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils'
+import { formatCurrency, formatDate } from '../../utils'
+import PlannedExitsMetrics from './components/PlannedExitsMetrics'
+import { usePlannedExitsData } from './hooks/usePlannedExitsData'
+import { OwnerDisplay } from '../../../../../../components/shared'
+import { DateRangeFilter } from '@/business-apps/crm/customers/apps/customer-relations/views/lead-view/components/DateRangeFilter'
+import ExpenseAmountRangeFilter from '@/business-apps/fin/expenses/apps/personal-expenses/components/tabs/expense-items-tab/ExpenseAmountRangeFilter'
+import { useEmployeeSearch } from '@/common/data/employee/useEmployeeSearch'
 
 interface PlannedExitsProps extends BusinessAppContextProps {}
 
 const PlannedExits: React.FC<PlannedExitsProps> = ({ accessToken, userInfo }) => {
-  const [searchTerm, setSearchTerm] = useState("");
-  const [currentPage, setCurrentPage] = useState(1);
-  const [pageSize, setPageSize] = useState(20);
-  const [sortField, setSortField] = useState<string>("plannedExitDate");
-  const [sortOrder, setSortOrder] = useState<"ASC" | "DESC">("ASC");
-  const [selectedFilters, setSelectedFilters] = useState<string[]>([]);
+  const [searchTerm, setSearchTerm] = useState('')
+  const [currentPage, setCurrentPage] = useState(1)
+  const [pageSize, setPageSize] = useState(20)
+  const [sortField, setSortField] = useState<string>('plannedExitDate')
+  const [sortOrder, setSortOrder] = useState<'ASC' | 'DESC'>('ASC')
+  const [selectedFilters, setSelectedFilters] = useState<string[]>([])
   // Custom filter state for column-specific filters
-  const [investmentName, setInvestmentName] = useState("");
-  const [totalRange, setTotalRange] = useState<{ min?: number; max?: number } | null>(null);
-  const [marketRange, setMarketRange] = useState<{ min?: number; max?: number } | null>(null);
-  const [performanceRange, setPerformanceRange] = useState<{ min?: number; max?: number } | null>(null); // not applied server-side
-  const [plannedAfter, setPlannedAfter] = useState<string | undefined>(undefined);
-  const [plannedBefore, setPlannedBefore] = useState<string | undefined>(undefined);
-  const [createdAfter, setCreatedAfter] = useState<string | undefined>(undefined);
-  const [createdBefore, setCreatedBefore] = useState<string | undefined>(undefined);
+  const [investmentName, setInvestmentName] = useState('')
+  const [totalRange, setTotalRange] = useState<{ min?: number; max?: number } | null>(null)
+  const [marketRange, setMarketRange] = useState<{ min?: number; max?: number } | null>(null)
+  const [performanceRange, setPerformanceRange] = useState<{ min?: number; max?: number } | null>(null) // not applied server-side
+  const [plannedAfter, setPlannedAfter] = useState<string | undefined>(undefined)
+  const [plannedBefore, setPlannedBefore] = useState<string | undefined>(undefined)
+  const [createdAfter, setCreatedAfter] = useState<string | undefined>(undefined)
+  const [createdBefore, setCreatedBefore] = useState<string | undefined>(undefined)
 
   // Owner backend search
-  const { employees: employeeOptions, search: searchEmployees, loading: loadingEmployees, error: employeeError } = useEmployeeSearch(accessToken);
-  const lastOwnerSearchRef = useRef<string>("");
+  const {
+    employees: employeeOptions,
+    search: searchEmployees,
+    loading: loadingEmployees,
+    error: employeeError
+  } = useEmployeeSearch(accessToken)
+  const lastOwnerSearchRef = useRef<string>('')
 
-  const { 
-    investments, 
-    isLoading, 
-    error, 
-    totalCount,
-    refetch 
-  } = usePlannedExitsData({
+  const { investments, isLoading, error, totalCount, refetch } = usePlannedExitsData({
     accessToken,
     searchTerm,
     sortBy: sortField,
-    sortDirection: sortOrder.toLowerCase() as "asc" | "desc",
+    sortDirection: sortOrder.toLowerCase() as 'asc' | 'desc',
     limit: pageSize,
     offset: (currentPage - 1) * pageSize,
     filters: {
       // map selectedFilters -> where as needed (DataContainer sends array of ids)
       // include directly; server understands these IDs inside our hook
       investmentGroupIds: selectedFilters.filter(f => f.startsWith('InvestmentGroup:')),
-      ownerEmployeeIds: selectedFilters.filter(f => f.startsWith('Employee:')).map(id => id.replace('Employee:','')),
+      ownerEmployeeIds: selectedFilters.filter(f => f.startsWith('Employee:')).map(id => id.replace('Employee:', '')),
       // Column filters
       plannedExitDateFrom: plannedAfter,
       plannedExitDateTo: plannedBefore,
@@ -77,66 +76,67 @@ const PlannedExits: React.FC<PlannedExitsProps> = ({ accessToken, userInfo }) =>
       totalInvestmentMinAmount: totalRange?.min,
       totalInvestmentMaxAmount: totalRange?.max,
       investmentMarketValueMinAmount: marketRange?.min,
-      investmentMarketValueMaxAmount: marketRange?.max,
+      investmentMarketValueMaxAmount: marketRange?.max
     }
-  });
+  })
 
   const handleSearch = useCallback((value: string) => {
-    setSearchTerm(value);
-    setCurrentPage(1);
-  }, []);
+    setSearchTerm(value)
+    setCurrentPage(1)
+  }, [])
 
   const handleSetFilter = useCallback((filters: string[]) => {
-    setSelectedFilters(filters);
-    setCurrentPage(1);
-  }, []);
+    setSelectedFilters(filters)
+    setCurrentPage(1)
+  }, [])
 
   const handlePaginationChange = useCallback((page: number, newPageSize?: number) => {
-    setCurrentPage(page);
+    setCurrentPage(page)
     if (newPageSize) {
-      setPageSize(newPageSize);
+      setPageSize(newPageSize)
     }
-  }, []);
+  }, [])
 
   // Sorting handler
   const handleSortingChange = useCallback((field: string) => {
-    setSortField((prevField) => {
+    setSortField(prevField => {
       if (prevField === field) {
         // Toggle ASC -> DESC -> none(ASC default)
-        setSortOrder((prev) => (prev === 'ASC' ? 'DESC' : 'ASC'));
-        return prevField;
+        setSortOrder(prev => (prev === 'ASC' ? 'DESC' : 'ASC'))
+        return prevField
       }
-      setSortOrder('ASC');
-      return field;
-    });
-    setCurrentPage(1);
-  }, []);
+      setSortOrder('ASC')
+      return field
+    })
+    setCurrentPage(1)
+  }, [])
 
   // Sortable header helper
   const SortableHead: React.FC<{ label: string; field: string }> = ({ label, field }) => {
-    const isSorted = sortField === field;
+    const isSorted = sortField === field
     return (
       <TableHead className="gba:cursor-pointer" onClick={() => handleSortingChange(field)}>
         <div className="gba:flex gba:items-center gba:gap-1">
           {label}
-          {isSorted && (sortOrder === 'ASC' ? (
-            <ChevronUp className="gba:w-4 gba:h-4" />
-          ) : (
-            <ChevronDown className="gba:w-4 gba:h-4" />
-          ))}
+          {isSorted &&
+            (sortOrder === 'ASC' ? (
+              <ChevronUp className="gba:w-4 gba:h-4" />
+            ) : (
+              <ChevronDown className="gba:w-4 gba:h-4" />
+            ))}
         </div>
       </TableHead>
-    );
-  };
+    )
+  }
 
   const handleRowClick = useCallback((investmentId: string) => {
-    const detailsUrl = buildPlatformUrl('/platform/irm/investment-record', { 
+    const detailsUrl = buildPlatformUrl('/platform/irm/investment-record', {
       investmentId,
       fromView: 'divestments',
       fromSubView: 'planned-exits'
-    });
-    navigateTo(detailsUrl);
-  }, []);
+    })
+    navigateTo(detailsUrl)
+  }, [])
 
   // Column visibility configuration
   const [columnConfig, setColumnConfig] = useState<ColumnConfig[]>([
@@ -151,38 +151,38 @@ const PlannedExits: React.FC<PlannedExitsProps> = ({ accessToken, userInfo }) =>
     // Optional
     { id: 'created', label: 'Created', visible: false },
     // Actions column must be LAST
-    { id: 'actions', label: 'Actions', visible: true, disabled: true },
-  ]);
+    { id: 'actions', label: 'Actions', visible: true, disabled: true }
+  ])
 
   useEffect(() => {
     const handleProcessCompletion = (event: any) => {
       try {
         // Check for successful completion
         if (event.detail?.resolution === 'success') {
-          refetch();
-          return;
+          refetch()
+          return
         }
-        
+
         // Check for different event structures
-        const response = event.detail?.response;
+        const response = event.detail?.response
         if (response?.detail?.resolution === 'success' || response?.investment) {
-          refetch();
-          return;
+          refetch()
+          return
         }
-        
+
         // Check for continue events with payload (investment updates)
         if (event.type === 'com.newwork.process.continue' && event.detail?.payload) {
-          refetch();
+          refetch()
         }
       } catch (err) {
         console.error('Error handling process completion event:', {
           eventType: event?.type,
           eventDetail: event?.detail,
           error: err
-        });
+        })
         // Continue execution - don't let event processing errors break the component
       }
-    };
+    }
 
     // Listen to multiple possible event names for investment updates
     const eventNames = [
@@ -195,26 +195,25 @@ const PlannedExits: React.FC<PlannedExitsProps> = ({ accessToken, userInfo }) =>
       'taskCompleted',
       'processCompleted',
       'task-completion',
-      'process-completion',
-    ];
+      'process-completion'
+    ]
 
-    eventNames.forEach((eventName) => {
-      window.addEventListener(eventName, handleProcessCompletion);
-    });
+    eventNames.forEach(eventName => {
+      window.addEventListener(eventName, handleProcessCompletion)
+    })
 
     return () => {
-      eventNames.forEach((eventName) => {
-        window.removeEventListener(eventName, handleProcessCompletion);
-      });
-    };
-  }, [refetch]);
+      eventNames.forEach(eventName => {
+        window.removeEventListener(eventName, handleProcessCompletion)
+      })
+    }
+  }, [refetch])
 
-
-  const visibleColumns = columnConfig.filter(c => c.visible).map(c => c.id);
+  const visibleColumns = columnConfig.filter(c => c.visible).map(c => c.id)
 
   const handleColumnVisibilityChange = useCallback((columnId: string, visible: boolean) => {
-    setColumnConfig(prev => prev.map(c => c.id === columnId ? { ...c, visible } : c));
-  }, []);
+    setColumnConfig(prev => prev.map(c => (c.id === columnId ? { ...c, visible } : c)))
+  }, [])
 
   // Map columns to filters so only visible ones appear
   const columnToFilterMap: Record<string, string> = {
@@ -226,8 +225,8 @@ const PlannedExits: React.FC<PlannedExitsProps> = ({ accessToken, userInfo }) =>
     performance: 'performanceRange',
     plannedExitDate: 'plannedExitDate',
     owner: 'owner',
-    created: 'createdDate',
-  };
+    created: 'createdDate'
+  }
 
   const filterGroupsAll = [
     // Investment name text filter
@@ -239,28 +238,57 @@ const PlannedExits: React.FC<PlannedExitsProps> = ({ accessToken, userInfo }) =>
         value: investmentName,
         onChange: (e: any) => setInvestmentName(e?.target?.value || ''),
         placeholder: 'Search investment name',
-        className: 'gba:w-full gba:h-8 gba:px-2 gba:text-sm gba:bg-gray-100/40 gba:rounded gba:border-none gba:outline-none'
+        className:
+          'gba:w-full gba:h-8 gba:px-2 gba:text-sm gba:bg-gray-100/40 gba:rounded gba:border-none gba:outline-none'
       }),
-      hideSearch: true,
+      hideSearch: true
     },
     {
       id: 'investmentGroup',
       title: 'Investment Group',
       filters: [
-        { id: 'InvestmentGroup:v1:REAL_ESTATE', label: 'Real Estate', selected: selectedFilters.includes('InvestmentGroup:v1:REAL_ESTATE') },
-        { id: 'InvestmentGroup:v1:EQUITY', label: 'Equity', selected: selectedFilters.includes('InvestmentGroup:v1:EQUITY') },
-        { id: 'InvestmentGroup:v1:LIQUID_FUND', label: 'Liquid Fund', selected: selectedFilters.includes('InvestmentGroup:v1:LIQUID_FUND') },
-      ],
+        {
+          id: 'InvestmentGroup:v1:REAL_ESTATE',
+          label: 'Real Estate',
+          selected: selectedFilters.includes('InvestmentGroup:v1:REAL_ESTATE')
+        },
+        {
+          id: 'InvestmentGroup:v1:EQUITY',
+          label: 'Equity',
+          selected: selectedFilters.includes('InvestmentGroup:v1:EQUITY')
+        },
+        {
+          id: 'InvestmentGroup:v1:LIQUID_FUND',
+          label: 'Liquid Fund',
+          selected: selectedFilters.includes('InvestmentGroup:v1:LIQUID_FUND')
+        }
+      ]
     },
     {
       id: 'investmentType',
       title: 'Investment Type',
       filters: [
-        { id: 'InvestmentType:v1:EQUITY_STOCK', label: 'Equity Stock', selected: selectedFilters.includes('InvestmentType:v1:EQUITY_STOCK') },
-        { id: 'InvestmentType:v1:REAL_ESTATE_PROPERTY', label: 'Real Estate Property', selected: selectedFilters.includes('InvestmentType:v1:REAL_ESTATE_PROPERTY') },
-        { id: 'InvestmentType:v1:LIQUID_FUND_BOND', label: 'Liquid Fund Bond', selected: selectedFilters.includes('InvestmentType:v1:LIQUID_FUND_BOND') },
-        { id: 'InvestmentType:v1:PRIVATE_EQUITY', label: 'Private Equity', selected: selectedFilters.includes('InvestmentType:v1:PRIVATE_EQUITY') },
-      ],
+        {
+          id: 'InvestmentType:v1:EQUITY_STOCK',
+          label: 'Equity Stock',
+          selected: selectedFilters.includes('InvestmentType:v1:EQUITY_STOCK')
+        },
+        {
+          id: 'InvestmentType:v1:REAL_ESTATE_PROPERTY',
+          label: 'Real Estate Property',
+          selected: selectedFilters.includes('InvestmentType:v1:REAL_ESTATE_PROPERTY')
+        },
+        {
+          id: 'InvestmentType:v1:LIQUID_FUND_BOND',
+          label: 'Liquid Fund Bond',
+          selected: selectedFilters.includes('InvestmentType:v1:LIQUID_FUND_BOND')
+        },
+        {
+          id: 'InvestmentType:v1:PRIVATE_EQUITY',
+          label: 'Private Equity',
+          selected: selectedFilters.includes('InvestmentType:v1:PRIVATE_EQUITY')
+        }
+      ]
     },
     // Ranges matching numeric columns
     {
@@ -273,7 +301,7 @@ const PlannedExits: React.FC<PlannedExitsProps> = ({ accessToken, userInfo }) =>
         label: 'Total Investment',
         dataTestIdPrefix: 'planned-exits-total-range'
       }),
-      hideSearch: true,
+      hideSearch: true
     },
     {
       id: 'marketValueRange',
@@ -285,7 +313,7 @@ const PlannedExits: React.FC<PlannedExitsProps> = ({ accessToken, userInfo }) =>
         label: 'Market Value',
         dataTestIdPrefix: 'planned-exits-market-range'
       }),
-      hideSearch: true,
+      hideSearch: true
     },
     {
       id: 'performanceRange',
@@ -297,23 +325,28 @@ const PlannedExits: React.FC<PlannedExitsProps> = ({ accessToken, userInfo }) =>
         label: 'Performance %',
         dataTestIdPrefix: 'planned-exits-performance-range'
       }),
-      hideSearch: true,
+      hideSearch: true
     },
     {
       id: 'owner',
       title: 'Owner',
       filters: [],
       backendSearch: (term: string) => {
-        const q = (term || '').trim();
+        const q = (term || '').trim()
         if (q !== lastOwnerSearchRef.current) {
-          lastOwnerSearchRef.current = q;
+          lastOwnerSearchRef.current = q
           if (q.length >= 2) {
-            void searchEmployees(q);
+            void searchEmployees(q)
           }
         }
-        const opts = (employeeOptions || []).map((e) => ({ id: `Employee:${e.id}`, label: e.displayName, value: e.id, selected: selectedFilters.includes(`Employee:${e.id}`) }));
-        return { filters: q.length >= 2 ? opts : [], loading: loadingEmployees, error: employeeError || null } as any;
-      },
+        const opts = (employeeOptions || []).map(e => ({
+          id: `Employee:${e.id}`,
+          label: e.displayName,
+          value: e.id,
+          selected: selectedFilters.includes(`Employee:${e.id}`)
+        }))
+        return { filters: q.length >= 2 ? opts : [], loading: loadingEmployees, error: employeeError || null } as any
+      }
     },
     {
       id: 'plannedExitDate',
@@ -322,9 +355,12 @@ const PlannedExits: React.FC<PlannedExitsProps> = ({ accessToken, userInfo }) =>
       customComponent: React.createElement(DateRangeFilter, {
         createdAfter: plannedAfter,
         createdBefore: plannedBefore,
-        onDateRangeChange: (after?: string, before?: string) => { setPlannedAfter(after); setPlannedBefore(before); }
+        onDateRangeChange: (after?: string, before?: string) => {
+          setPlannedAfter(after)
+          setPlannedBefore(before)
+        }
       }),
-      hideSearch: true,
+      hideSearch: true
     },
     {
       id: 'createdDate',
@@ -333,22 +369,25 @@ const PlannedExits: React.FC<PlannedExitsProps> = ({ accessToken, userInfo }) =>
       customComponent: React.createElement(DateRangeFilter, {
         createdAfter: createdAfter,
         createdBefore: createdBefore,
-        onDateRangeChange: (after?: string, before?: string) => { setCreatedAfter(after); setCreatedBefore(before); }
+        onDateRangeChange: (after?: string, before?: string) => {
+          setCreatedAfter(after)
+          setCreatedBefore(before)
+        }
       }),
-      hideSearch: true,
+      hideSearch: true
     }
-  ];
+  ]
 
   const visibleFilterGroups = filterGroupsAll.filter(g =>
     Object.values(columnToFilterMap).includes(g.id) ? visibleColumns.some(c => columnToFilterMap[c] === g.id) : true
-  );
+  )
 
   if (isLoading && investments.length === 0) {
     return (
       <div className="gba:flex gba:items-center gba:justify-center gba:h-64">
         <Spinner size="lg" />
       </div>
-    );
+    )
   }
 
   if (error) {
@@ -361,7 +400,7 @@ const PlannedExits: React.FC<PlannedExitsProps> = ({ accessToken, userInfo }) =>
           </Button>
         </div>
       </Alert>
-    );
+    )
   }
 
   return (
@@ -388,128 +427,165 @@ const PlannedExits: React.FC<PlannedExitsProps> = ({ accessToken, userInfo }) =>
                 <span className="gba:text-gray-500">({totalCount})</span>
               </div>
             </div>
-          ),
+          )
         }}
         dataFilterProps={{
           filterGroups: visibleFilterGroups,
           onFilterChange: (id, checked) => {
-            setSelectedFilters((prev) => checked ? [...prev, id] : prev.filter(f => f !== id));
-          },
+            setSelectedFilters(prev => (checked ? [...prev, id] : prev.filter(f => f !== id)))
+          }
         }}
         dataBody={
           <div className="gba:bg-white gba:rounded-lg gba:border">
             <Table>
               <TableHeader>
                 <TableRow>
-                  {visibleColumns.includes('investment') && (<SortableHead label="Investment" field="name" />)}
-                  {visibleColumns.includes('group') && (<SortableHead label="Group" field="investmentGroup.value" />)}
-                  {visibleColumns.includes('type') && (<SortableHead label="Type" field="investmentType.value" />)}
-                  {visibleColumns.includes('totalInvestment') && (<SortableHead label="Total Investment" field="totalInvestmentAmount" />)}
-                  {visibleColumns.includes('marketValue') && (<SortableHead label="Market Value" field="investmentMarketValue" />)}
-                  {visibleColumns.includes('performance') && (<TableHead>Performance</TableHead>)}
-                  {visibleColumns.includes('plannedExitDate') && (<SortableHead label="Planned Exit Date" field="plannedExitDate" />)}
-                  {visibleColumns.includes('owner') && (<SortableHead label="Owner" field="ownerEmployee.displayName" />)}
-                  {visibleColumns.includes('created') && (<SortableHead label="Created" field="createdAt" />)}
-                  {visibleColumns.includes('actions') && (<TableHead className="gba:w-[60px]">Actions</TableHead>)}
+                  {visibleColumns.includes('investment') && <SortableHead label="Investment" field="name" />}
+                  {visibleColumns.includes('group') && <SortableHead label="Group" field="investmentGroup.value" />}
+                  {visibleColumns.includes('type') && <SortableHead label="Type" field="investmentType.value" />}
+                  {visibleColumns.includes('totalInvestment') && (
+                    <SortableHead label="Total Investment" field="totalInvestmentAmount" />
+                  )}
+                  {visibleColumns.includes('marketValue') && (
+                    <SortableHead label="Market Value" field="investmentMarketValue" />
+                  )}
+                  {visibleColumns.includes('performance') && <TableHead>Performance</TableHead>}
+                  {visibleColumns.includes('plannedExitDate') && (
+                    <SortableHead label="Planned Exit Date" field="plannedExitDate" />
+                  )}
+                  {visibleColumns.includes('owner') && <SortableHead label="Owner" field="ownerEmployee.displayName" />}
+                  {visibleColumns.includes('created') && <SortableHead label="Created" field="createdAt" />}
+                  {visibleColumns.includes('actions') && <TableHead className="gba:w-[60px]">Actions</TableHead>}
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {investments.map((investment) => (
-                  <TableRow key={investment.id} className="gba:cursor-pointer" onClick={() => handleRowClick(investment.id)}>
-                    {visibleColumns.includes('investment') && (<TableCell>
-                      <div className="gba:flex gba:items-center gba:gap-2">
-                        <Building2 className="gba:w-4 gba:h-4 gba:text-gray-500" />
-                        <span className="gba:font-medium">{investment.name}</span>
-                      </div>
-                    </TableCell>)}
-                    {visibleColumns.includes('group') && (<TableCell>
-                      <Badge variant="outline">{investment.investmentGroup?.value || "Unknown"}</Badge>
-                    </TableCell>)}
-                    {visibleColumns.includes('type') && (<TableCell>
-                      <Badge variant="secondary">{investment.investmentType?.value || "Unknown"}</Badge>
-                    </TableCell>)}
-                    {visibleColumns.includes('totalInvestment') && (<TableCell>
-                      <span>{formatCurrency(investment.totalInvestmentAmount || 0)}</span>
-                    </TableCell>)}
-                    {visibleColumns.includes('marketValue') && (<TableCell>
-                      <span>{formatCurrency(investment.investmentMarketValue || 0)}</span>
-                    </TableCell>)}
-                    {visibleColumns.includes('performance') && (<TableCell>
-                      {(() => {
-                        const currentValue = investment.investmentMarketValue || 0;
-                        const totalInvestmentValue = investment.totalInvestmentAmount || 0;
-                        const performanceAmount = currentValue - totalInvestmentValue;
-                        const performancePercentage = totalInvestmentValue > 0 ? (performanceAmount / totalInvestmentValue) * 100 : 0;
-                        
-                        return (
-                          <div className="gba:flex gba:flex-col gba:items-start">
-                            <span className={`gba:font-semibold ${
-                              performancePercentage === 0 ? 'gba:text-gray-500' : 
-                              performancePercentage > 0 ? 'gba:text-green-600' : 'gba:text-red-600'
-                            }`}>
-                              {formatCurrency(performanceAmount)}
-                            </span>
-                            <span className={`gba:text-sm ${
-                              performancePercentage === 0 ? 'gba:text-gray-400' : 
-                              performancePercentage > 0 ? 'gba:text-green-500' : 'gba:text-red-500'
-                            }`}>
-                              ({performancePercentage === 0 ? '' : performancePercentage > 0 ? '+' : ''}{performancePercentage.toFixed(2)}%)
-                            </span>
-                          </div>
-                        );
-                      })()}
-                    </TableCell>)}
-                    {visibleColumns.includes('plannedExitDate') && (<TableCell>
-                      {investment.plannedExitDate ? (
+                {investments.map(investment => (
+                  <TableRow
+                    key={investment.id}
+                    className="gba:cursor-pointer"
+                    onClick={() => handleRowClick(investment.id)}
+                  >
+                    {visibleColumns.includes('investment') && (
+                      <TableCell>
                         <div className="gba:flex gba:items-center gba:gap-2">
-                          <Calendar className="gba:w-4 gba:h-4 gba:text-gray-500" />
-                          <span>{formatDate(investment.plannedExitDate)}</span>
+                          <Building2 className="gba:w-4 gba:h-4 gba:text-gray-500" />
+                          <span className="gba:font-medium">{investment.name}</span>
                         </div>
-                      ) : (
-                        <span className="gba:text-gray-400">N/A</span>
-                      )}
-                    </TableCell>)}
-                    {visibleColumns.includes('owner') && (<TableCell>
-                      <OwnerDisplay 
-                        ownerEmployee={investment.ownerEmployee}
-                        entityId={investment.id}
-                        testIdPrefix="planned-exit-investment"
-                      />
-                    </TableCell>)}
+                      </TableCell>
+                    )}
+                    {visibleColumns.includes('group') && (
+                      <TableCell>
+                        <Badge variant="outline">{investment.investmentGroup?.value || 'Unknown'}</Badge>
+                      </TableCell>
+                    )}
+                    {visibleColumns.includes('type') && (
+                      <TableCell>
+                        <Badge variant="secondary">{investment.investmentType?.value || 'Unknown'}</Badge>
+                      </TableCell>
+                    )}
+                    {visibleColumns.includes('totalInvestment') && (
+                      <TableCell>
+                        <span>{formatCurrency(investment.totalInvestmentAmount || 0)}</span>
+                      </TableCell>
+                    )}
+                    {visibleColumns.includes('marketValue') && (
+                      <TableCell>
+                        <span>{formatCurrency(investment.investmentMarketValue || 0)}</span>
+                      </TableCell>
+                    )}
+                    {visibleColumns.includes('performance') && (
+                      <TableCell>
+                        {(() => {
+                          const currentValue = investment.investmentMarketValue || 0
+                          const totalInvestmentValue = investment.totalInvestmentAmount || 0
+                          const performanceAmount = currentValue - totalInvestmentValue
+                          const performancePercentage =
+                            totalInvestmentValue > 0 ? (performanceAmount / totalInvestmentValue) * 100 : 0
+
+                          return (
+                            <div className="gba:flex gba:flex-col gba:items-start">
+                              <span
+                                className={`gba:font-semibold ${
+                                  performancePercentage === 0
+                                    ? 'gba:text-gray-500'
+                                    : performancePercentage > 0
+                                      ? 'gba:text-green-600'
+                                      : 'gba:text-red-600'
+                                }`}
+                              >
+                                {formatCurrency(performanceAmount)}
+                              </span>
+                              <span
+                                className={`gba:text-sm ${
+                                  performancePercentage === 0
+                                    ? 'gba:text-gray-400'
+                                    : performancePercentage > 0
+                                      ? 'gba:text-green-500'
+                                      : 'gba:text-red-500'
+                                }`}
+                              >
+                                ({performancePercentage === 0 ? '' : performancePercentage > 0 ? '+' : ''}
+                                {performancePercentage.toFixed(2)}%)
+                              </span>
+                            </div>
+                          )
+                        })()}
+                      </TableCell>
+                    )}
+                    {visibleColumns.includes('plannedExitDate') && (
+                      <TableCell>
+                        {investment.plannedExitDate ? (
+                          <div className="gba:flex gba:items-center gba:gap-2">
+                            <Calendar className="gba:w-4 gba:h-4 gba:text-gray-500" />
+                            <span>{formatDate(investment.plannedExitDate)}</span>
+                          </div>
+                        ) : (
+                          <span className="gba:text-gray-400">N/A</span>
+                        )}
+                      </TableCell>
+                    )}
+                    {visibleColumns.includes('owner') && (
+                      <TableCell>
+                        <OwnerDisplay
+                          ownerEmployee={investment.ownerEmployee}
+                          entityId={investment.id}
+                          testIdPrefix="planned-exit-investment"
+                        />
+                      </TableCell>
+                    )}
                     {visibleColumns.includes('created') && (
                       <TableCell>
                         <span>{formatDate((investment as any).createdAt)}</span>
                       </TableCell>
                     )}
-                    {visibleColumns.includes('actions') && (<TableCell onClick={(e) => e.stopPropagation()}>
-                      <div className="gba:flex gba:justify-start gba:gap-2">
-                        <AppActionButton
-                          data-testid={`planned-exit-investment-update-button-${investment.id}`}
-                          size="icon"
-                          contextsArray={[FlowContextName.investmentEntity]}
-                          externalContextData={{ investmentId: investment.id }}
-                          prefixDataTestId={`planned-exit-investment-update`}
-                          accessToken={accessToken}
-                          emptyStateBehavior="enable"
-                          deferMainContextRequestsUntilClick
-                          onClick={(e) => e.stopPropagation()}
-                        />
-                      </div>
-                    </TableCell>)}
+                    {visibleColumns.includes('actions') && (
+                      <TableCell onClick={e => e.stopPropagation()}>
+                        <div className="gba:flex gba:justify-start gba:gap-2">
+                          <AppActionButton
+                            data-testid={`planned-exit-investment-update-button-${investment.id}`}
+                            size="icon"
+                            contextsArray={[FlowContextName.investmentEntity]}
+                            externalContextData={{ investmentId: investment.id }}
+                            prefixDataTestId={`planned-exit-investment-update`}
+                            accessToken={accessToken}
+                            emptyStateBehavior="enable"
+                            deferMainContextRequestsUntilClick
+                            onClick={e => e.stopPropagation()}
+                          />
+                        </div>
+                      </TableCell>
+                    )}
                   </TableRow>
                 ))}
               </TableBody>
             </Table>
-            
+
             {/* Pagination */}
             <div
               className="gba:flex gba:items-center gba:justify-between gba:px-4 gba:py-4 gba:border-t"
               data-testid="planned-exits-pagination"
             >
-              <div
-                className="gba:text-sm gba:text-muted-foreground"
-                data-testid="planned-exits-pagination-info"
-              >
+              <div className="gba:text-sm gba:text-muted-foreground" data-testid="planned-exits-pagination-info">
                 {`${(currentPage - 1) * pageSize + 1}-${Math.min(
                   currentPage * pageSize,
                   totalCount
@@ -520,7 +596,7 @@ const PlannedExits: React.FC<PlannedExitsProps> = ({ accessToken, userInfo }) =>
                   <p className="gba:text-sm gba:font-medium">Rows per page</p>
                   <select
                     value={pageSize}
-                    onChange={(e) => handlePaginationChange(1, Number(e.target.value))}
+                    onChange={e => handlePaginationChange(1, Number(e.target.value))}
                     className="gba:h-8 gba:w-[70px] gba:rounded gba:border gba:border-input gba:px-3 gba:py-1 gba:text-sm"
                     data-testid="planned-exits-page-size-select"
                   >
@@ -562,7 +638,7 @@ const PlannedExits: React.FC<PlannedExitsProps> = ({ accessToken, userInfo }) =>
         }
       />
     </div>
-  );
-};
+  )
+}
 
-export default PlannedExits;
+export default PlannedExits

@@ -41,7 +41,7 @@ export const getProducts = `
       }
     }
   }
-`;
+`
 
 export const getProductKPIs = `
   query GetProductKPIs($where: NwSalesProductBoolExp) {
@@ -85,7 +85,7 @@ export const getProductKPIs = `
       }
     }
   }
-`;
+`
 
 export const getProductCategories = `
   query GetProductCategories($limit: Int, $offset: Int) {
@@ -98,7 +98,7 @@ export const getProductCategories = `
       productTypeCode
     }
   }
-`;
+`
 
 export const searchProducts = `
   query SearchProducts(
@@ -156,4 +156,4 @@ export const searchProducts = `
       }
     }
   }
-`;
+`

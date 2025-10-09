@@ -1,4 +1,4 @@
-import PerformanceGoalForm from './PerformanceGoalForm';
+import PerformanceGoalForm from './PerformanceGoalForm'
 
-export { PerformanceGoalForm };
-export default PerformanceGoalForm;
+export { PerformanceGoalForm }
+export default PerformanceGoalForm

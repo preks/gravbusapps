@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useMemo, useEffect } from "react";
+import React, { useState, useCallback, useMemo, useEffect } from 'react'
 import {
   ArrowsDownUpIcon,
   EyeIcon,
@@ -6,16 +6,12 @@ import {
   PencilSimpleLineIcon,
   XCircleIcon,
   PlusIcon,
-  BankIcon,
-} from "@phosphor-icons/react";
-import { BusinessAppContextProps } from "@/common/BusinessAppContext";
-import { useCostCenters } from "../../hooks";
-import {
-  CostCenter,
-  CostCenterEmployeeTable,
-  CostCenterOrganizationalUnitTable,
-} from "../../types";
-import { ColumnDef } from "@tanstack/react-table";
+  BankIcon
+} from '@phosphor-icons/react'
+import { BusinessAppContextProps } from '@/common/BusinessAppContext'
+import { useCostCenters } from '../../hooks'
+import { CostCenter, CostCenterEmployeeTable, CostCenterOrganizationalUnitTable } from '../../types'
+import { ColumnDef } from '@tanstack/react-table'
 import {
   Accordion,
   Badge,
@@ -28,28 +24,28 @@ import {
   AlertTitle,
   AlertDescription,
   Icon,
-  DataTable,
-} from "@newwork/nw-design-system";
-import CardTabHeaderComponent from "../../../generic-components/card";
-import { formatDataTestId } from "@/common/utils/formatDataTestId";
-import SheetWrapperComponent from "../../../generic-components/sheet-wrapper/SheetWrapperComponent";
-import { VerticalTableProps } from "../../../generic-components/table/VerticalTable";
-import { DeleteButton } from "../../../generic-components/delete-button/DeleteButton";
-import CostCenterForm from "@/business-apps/mdm/forms/cost-center-form";
-import { useRestClient } from "@/common/network/rest/useRestClient";
-import { env } from "@/common/env/EnvUtils";
+  DataTable
+} from '@newwork/nw-design-system'
+import CardTabHeaderComponent from '../../../generic-components/card'
+import { formatDataTestId } from '@/common/utils/formatDataTestId'
+import SheetWrapperComponent from '../../../generic-components/sheet-wrapper/SheetWrapperComponent'
+import { VerticalTableProps } from '../../../generic-components/table/VerticalTable'
+import { DeleteButton } from '../../../generic-components/delete-button/DeleteButton'
+import CostCenterForm from '@/business-apps/mdm/forms/cost-center-form'
+import { useRestClient } from '@/common/network/rest/useRestClient'
+import { env } from '@/common/env/EnvUtils'
 
 export interface CostCentersTabProps extends BusinessAppContextProps {
-  prefixDataTestId?: string;
+  prefixDataTestId?: string
 }
 
-const DATA_TEST_ID_PREFIX = "CostCentersTab";
-const ORGCHART_BASE_URL = `${env("NEXT_PUBLIC_ORGCHART_API_URL")}/orgchart/api/v1`;
+const DATA_TEST_ID_PREFIX = 'CostCentersTab'
+const ORGCHART_BASE_URL = `${env('NEXT_PUBLIC_ORGCHART_API_URL')}/orgchart/api/v1`
 
-const CostCentersTab: React.FC<CostCentersTabProps> = (context) => {
-  const { prefixDataTestId } = context;
-  const dataTestId = formatDataTestId(prefixDataTestId, DATA_TEST_ID_PREFIX);
-  const restClient = useRestClient(ORGCHART_BASE_URL);
+const CostCentersTab: React.FC<CostCentersTabProps> = context => {
+  const { prefixDataTestId } = context
+  const dataTestId = formatDataTestId(prefixDataTestId, DATA_TEST_ID_PREFIX)
+  const restClient = useRestClient(ORGCHART_BASE_URL)
 
   const {
     costCenters,
@@ -60,189 +56,178 @@ const CostCentersTab: React.FC<CostCentersTabProps> = (context) => {
     totalCostCenters,
     structureId,
     getEmployees,
-    getOrgUnits,
-  } = useCostCenters(context);
+    getOrgUnits
+  } = useCostCenters(context)
 
-  const [searchTerm, setSearchTerm] = useState("");
-  const [selectedCostCenter, setSelectedCostCenter] = useState<CostCenter | null>(null);
-  const [drawerVisible, setDrawerVisible] = useState(false);
-  const [accordionValue, setAccordionValue] = useState<string | string[]>([]);
+  const [searchTerm, setSearchTerm] = useState('')
+  const [selectedCostCenter, setSelectedCostCenter] = useState<CostCenter | null>(null)
+  const [drawerVisible, setDrawerVisible] = useState(false)
+  const [accordionValue, setAccordionValue] = useState<string | string[]>([])
   const [costCenterData, setCostCenterData] = useState<
-    Record<
-      string,
-      { employees: unknown[]; orgUnits: unknown[]; isLoading: boolean; error: string | null }
-    >
-  >({});
+    Record<string, { employees: unknown[]; orgUnits: unknown[]; isLoading: boolean; error: string | null }>
+  >({})
 
   const filteredCostCenters = costCenters.filter(
-    (costCenter) =>
+    costCenter =>
       costCenter.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
       costCenter.code.toLowerCase().includes(searchTerm.toLowerCase()) ||
       costCenter.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (costCenter.siteLocationName &&
-        costCenter.siteLocationName.toLowerCase().includes(searchTerm.toLowerCase())),
-  );
+      (costCenter.siteLocationName && costCenter.siteLocationName.toLowerCase().includes(searchTerm.toLowerCase()))
+  )
 
   useEffect(() => {
     if (selectedCostCenter) {
-      const updatedSelectedCostCenter = costCenters.find(
-        (costCenter) => costCenter.id === selectedCostCenter.id,
-      );
+      const updatedSelectedCostCenter = costCenters.find(costCenter => costCenter.id === selectedCostCenter.id)
 
       if (updatedSelectedCostCenter) {
-        setSelectedCostCenter(updatedSelectedCostCenter);
+        setSelectedCostCenter(updatedSelectedCostCenter)
       }
     }
-  }, [costCenters, selectedCostCenter]);
+  }, [costCenters, selectedCostCenter])
 
   const loadCostCenterData = useCallback(
     async (costCenterId: string) => {
       // Check if data is already loaded or loading
-      if (
-        costCenterData[costCenterId]?.isLoading ||
-        costCenterData[costCenterId]?.employees.length > 0
-      ) {
-        return;
+      if (costCenterData[costCenterId]?.isLoading || costCenterData[costCenterId]?.employees.length > 0) {
+        return
       }
 
       // Set loading state
-      setCostCenterData((prev) => ({
+      setCostCenterData(prev => ({
         ...prev,
         [costCenterId]: {
           employees: [],
           orgUnits: [],
           isLoading: true,
-          error: null,
-        },
-      }));
+          error: null
+        }
+      }))
 
       try {
         // Load both employees and org units in parallel
         const [employeesResponse, orgUnitsResponse] = await Promise.all([
           getEmployees(costCenterId),
-          getOrgUnits(costCenterId),
-        ]);
+          getOrgUnits(costCenterId)
+        ])
 
-        setCostCenterData((prev) => ({
+        setCostCenterData(prev => ({
           ...prev,
           [costCenterId]: {
             employees: Array.isArray(employeesResponse) ? employeesResponse : [],
             orgUnits: Array.isArray(orgUnitsResponse) ? orgUnitsResponse : [],
             isLoading: false,
-            error: null,
-          },
-        }));
+            error: null
+          }
+        }))
       } catch (error) {
-        setCostCenterData((prev) => ({
+        setCostCenterData(prev => ({
           ...prev,
           [costCenterId]: {
             employees: [],
             orgUnits: [],
             isLoading: false,
-            error: error instanceof Error ? error.message : "Failed to load data",
-          },
-        }));
+            error: error instanceof Error ? error.message : 'Failed to load data'
+          }
+        }))
       }
     },
-    [getEmployees, getOrgUnits, costCenterData],
-  );
+    [getEmployees, getOrgUnits, costCenterData]
+  )
 
   const handleRowClick = useCallback(
     (record: CostCenter) => {
-      setSelectedCostCenter(record);
-      setDrawerVisible(true);
+      setSelectedCostCenter(record)
+      setDrawerVisible(true)
       // Load data when opening drawer
-      loadCostCenterData(record.id);
+      loadCostCenterData(record.id)
     },
-    [loadCostCenterData],
-  );
+    [loadCostCenterData]
+  )
 
   const handleAccordionChange = useCallback(
     (value: string | string[]) => {
-      setAccordionValue(value);
+      setAccordionValue(value)
 
       // Load data for expanded cost centers
-      const expandedIds = Array.isArray(value) ? value : [value];
-      expandedIds.forEach((costCenterId) => {
+      const expandedIds = Array.isArray(value) ? value : [value]
+      expandedIds.forEach(costCenterId => {
         if (costCenterId) {
-          loadCostCenterData(costCenterId);
+          loadCostCenterData(costCenterId)
         }
-      });
+      })
     },
-    [loadCostCenterData],
-  );
+    [loadCostCenterData]
+  )
 
   const employeeDataTable = useCallback(
     (employees: CostCenterEmployeeTable[]) =>
-      employees.map((employee) => ({
+      employees.map(employee => ({
         id: employee.id,
         firstName: employee.firstName,
         lastName: employee.lastName,
         name: `${employee.firstName} ${employee.lastName}`,
         jobPosition: employee.jobPosition?.jobPositionName,
-        organizationalUnit: employee.organizationalUnit?.organizationalUnitName,
+        organizationalUnit: employee.organizationalUnit?.organizationalUnitName
       })),
-    [],
-  );
+    []
+  )
 
   const organizationalUnitDataTable = useCallback(
     (organizationalUnits: CostCenterOrganizationalUnitTable[]) =>
-      organizationalUnits.map((organizationalUnit) => ({
+      organizationalUnits.map(organizationalUnit => ({
         id: organizationalUnit.id,
         name: organizationalUnit.name,
         type: organizationalUnit.type,
-        description: organizationalUnit.description,
+        description: organizationalUnit.description
       })),
-    [],
-  );
+    []
+  )
 
   const handleDelete = useCallback(
     async (costCenter: CostCenter) => {
-      if (!costCenter) return;
+      if (!costCenter) return
 
       await restClient.delete(`/cost-centers/${costCenter.id}`, {
-        headers: { Authorization: `Bearer ${context.accessToken}` },
-      });
+        headers: { Authorization: `Bearer ${context.accessToken}` }
+      })
 
-      refetch();
+      refetch()
     },
-    [restClient, context.accessToken, refetch],
-  );
+    [restClient, context.accessToken, refetch]
+  )
 
   const renderCostCenterTable = useCallback(
     (costCenter: CostCenter) => {
-      const costCenterDataForId = costCenterData[costCenter.id];
-      const isLoading = costCenterDataForId?.isLoading || false;
-      const error = costCenterDataForId?.error;
+      const costCenterDataForId = costCenterData[costCenter.id]
+      const isLoading = costCenterDataForId?.isLoading || false
+      const error = costCenterDataForId?.error
 
       // Use API data if available, otherwise fallback to cost center data
       const employeeData =
         costCenterDataForId?.employees?.length > 0
           ? employeeDataTable(costCenterDataForId.employees as CostCenterEmployeeTable[])
-          : [];
+          : []
 
       const organizationalUnitData =
         costCenterDataForId?.orgUnits?.length > 0
-          ? organizationalUnitDataTable(
-              costCenterDataForId.orgUnits as CostCenterOrganizationalUnitTable[],
-            )
-          : [];
+          ? organizationalUnitDataTable(costCenterDataForId.orgUnits as CostCenterOrganizationalUnitTable[])
+          : []
 
       // Employee columns
       const employeeColumns: ColumnDef<{
-        id: string;
-        firstName: string;
-        lastName: string;
-        name: string;
-        jobPosition?: { jobPositionName?: string };
-        organizationalUnit?: { organizationalUnitName?: string };
+        id: string
+        firstName: string
+        lastName: string
+        name: string
+        jobPosition?: { jobPositionName?: string }
+        organizationalUnit?: { organizationalUnitName?: string }
       }>[] = [
         {
-          accessorKey: "name",
+          accessorKey: 'name',
           header: ({ column }) => (
             <Button
               variant="ghost"
-              onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+              onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}
               className="gba:h-auto gba:p-0 gba:font-semibold gba:hover:bg-transparent gba:justify-start"
             >
               Name
@@ -251,20 +236,20 @@ const CostCentersTab: React.FC<CostCentersTabProps> = (context) => {
           ),
           enableSorting: true,
           cell: ({ getValue }) => {
-            const name = getValue();
+            const name = getValue()
             return (
               <div className="gba:flex gba:items-center">
                 <div className="gba:font-semibold">{name as string}</div>
               </div>
-            );
-          },
+            )
+          }
         },
         {
-          accessorKey: "jobPosition",
+          accessorKey: 'jobPosition',
           header: ({ column }) => (
             <Button
               variant="ghost"
-              onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+              onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}
               className="gba:h-auto gba:p-0 gba:font-semibold gba:hover:bg-transparent gba:justify-start"
             >
               Job Position
@@ -273,16 +258,16 @@ const CostCentersTab: React.FC<CostCentersTabProps> = (context) => {
           ),
           enableSorting: true,
           cell: ({ row }) => {
-            const jobPosition = row.original?.jobPosition;
-            return jobPosition ?? "N/A";
-          },
+            const jobPosition = row.original?.jobPosition
+            return jobPosition ?? 'N/A'
+          }
         },
         {
-          accessorKey: "organizationalUnit",
+          accessorKey: 'organizationalUnit',
           header: ({ column }) => (
             <Button
               variant="ghost"
-              onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+              onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}
               className="gba:h-auto gba:p-0 gba:font-semibold gba:hover:bg-transparent gba:justify-start"
             >
               Organizational Unit
@@ -291,25 +276,25 @@ const CostCentersTab: React.FC<CostCentersTabProps> = (context) => {
           ),
           enableSorting: true,
           cell: ({ row }) => {
-            const organizationalUnit = row.original?.organizationalUnit;
-            return organizationalUnit ?? "N/A";
-          },
-        },
-      ];
+            const organizationalUnit = row.original?.organizationalUnit
+            return organizationalUnit ?? 'N/A'
+          }
+        }
+      ]
 
       // Organizational Unit columns
       const orgUnitColumns: ColumnDef<{
-        id: string;
-        name: string;
-        type?: string;
-        description?: string;
+        id: string
+        name: string
+        type?: string
+        description?: string
       }>[] = [
         {
-          accessorKey: "name",
+          accessorKey: 'name',
           header: ({ column }) => (
             <Button
               variant="ghost"
-              onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+              onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}
               className="gba:h-auto gba:p-0 gba:font-semibold gba:hover:bg-transparent gba:justify-start"
             >
               Name
@@ -318,20 +303,20 @@ const CostCentersTab: React.FC<CostCentersTabProps> = (context) => {
           ),
           enableSorting: true,
           cell: ({ getValue }) => {
-            const name = getValue();
+            const name = getValue()
             return (
               <div className="gba:flex gba:items-center">
                 <div className="gba:font-semibold">{name as string}</div>
               </div>
-            );
-          },
+            )
+          }
         },
         {
-          accessorKey: "type",
+          accessorKey: 'type',
           header: ({ column }) => (
             <Button
               variant="ghost"
-              onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+              onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}
               className="gba:h-auto gba:p-0 gba:font-semibold gba:hover:bg-transparent gba:justify-start"
             >
               Type
@@ -339,14 +324,14 @@ const CostCentersTab: React.FC<CostCentersTabProps> = (context) => {
             </Button>
           ),
           enableSorting: true,
-          cell: ({ getValue }) => getValue() ?? "N/A",
+          cell: ({ getValue }) => getValue() ?? 'N/A'
         },
         {
-          accessorKey: "description",
+          accessorKey: 'description',
           header: ({ column }) => (
             <Button
               variant="ghost"
-              onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+              onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}
               className="gba:h-auto gba:p-0 gba:font-semibold gba:hover:bg-transparent gba:justify-start"
             >
               Description
@@ -355,22 +340,22 @@ const CostCentersTab: React.FC<CostCentersTabProps> = (context) => {
           ),
           enableSorting: true,
           cell: ({ row }) => {
-            const description = row.original?.description;
+            const description = row.original?.description
             return (
               <div className="gba:flex gba:items-center">
-                <div className="gba:font-semibold">{description ?? "N/A"}</div>
+                <div className="gba:font-semibold">{description ?? 'N/A'}</div>
               </div>
-            );
-          },
-        },
-      ];
+            )
+          }
+        }
+      ]
 
       if (isLoading) {
         return (
           <div className="gba:flex gba:justify-center gba:items-center gba:py-8">
             <Spinner size="lg" />
           </div>
-        );
+        )
       }
 
       if (error) {
@@ -381,7 +366,7 @@ const CostCentersTab: React.FC<CostCentersTabProps> = (context) => {
               <AlertDescription>{error}</AlertDescription>
             </Alert>
           </div>
-        );
+        )
       }
 
       return (
@@ -389,30 +374,30 @@ const CostCentersTab: React.FC<CostCentersTabProps> = (context) => {
           defaultDataSetId="cost-centers"
           dataSets={[
             {
-              id: "employees",
+              id: 'employees',
               label: `Employees (${costCenterDataForId?.employees?.length})`,
               data: employeeData,
-              columns: employeeColumns,
+              columns: employeeColumns
             },
             {
-              id: "org-units",
+              id: 'org-units',
               label: `Organizational Units (${costCenterDataForId?.orgUnits?.length})`,
               data: organizationalUnitData,
-              columns: orgUnitColumns,
-            },
+              columns: orgUnitColumns
+            }
           ]}
         />
-      );
+      )
     },
-    [costCenterData, employeeDataTable, organizationalUnitDataTable],
-  );
+    [costCenterData, employeeDataTable, organizationalUnitDataTable]
+  )
 
   const groupItems = useMemo(
     () =>
-      filteredCostCenters.map((costCenter) => ({
+      filteredCostCenters.map(costCenter => ({
         id: costCenter.id,
         title: costCenter.name,
-        description: `Code: ${costCenter.code || "N/A"}`,
+        description: `Code: ${costCenter.code || 'N/A'}`,
         buttons: [
           {
             icon: () => (
@@ -424,7 +409,7 @@ const CostCentersTab: React.FC<CostCentersTabProps> = (context) => {
                 <EyeIcon />
               </Button>
             ),
-            onClick: () => {},
+            onClick: () => {}
           },
           {
             icon: () => (
@@ -432,7 +417,7 @@ const CostCentersTab: React.FC<CostCentersTabProps> = (context) => {
                 childAddButton={
                   <Button
                     variant="ghost"
-                    onClick={(event) => event.stopPropagation()}
+                    onClick={event => event.stopPropagation()}
                     data-testid={`${prefixDataTestId}-edit-${costCenter.id}`}
                   >
                     <PencilSimpleLineIcon />
@@ -448,18 +433,18 @@ const CostCentersTab: React.FC<CostCentersTabProps> = (context) => {
                 costCenter={costCenter}
               />
             ),
-            onClick: () => {},
+            onClick: () => {}
           },
           {
             icon: () => (
               <DeleteButton
                 onDelete={() => handleDelete(costCenter)}
-                itemName={costCenter?.name ?? ""}
-                itemTitle={"Cost Center"}
+                itemName={costCenter?.name ?? ''}
+                itemTitle={'Cost Center'}
               />
             ),
-            onClick: () => {},
-          },
+            onClick: () => {}
+          }
         ],
         content: (
           <div className="gba:space-y-4">
@@ -481,7 +466,7 @@ const CostCentersTab: React.FC<CostCentersTabProps> = (context) => {
             </div>
             <div className="gba:w-full">{renderCostCenterTable(costCenter)}</div>
           </div>
-        ),
+        )
       })),
     [
       filteredCostCenters,
@@ -493,68 +478,65 @@ const CostCentersTab: React.FC<CostCentersTabProps> = (context) => {
       structureId,
       context.accessToken,
       costCenters,
-      costCenterNodes,
-    ],
-  );
+      costCenterNodes
+    ]
+  )
 
   const drawerItems = useMemo(() => {
-    if (!selectedCostCenter) return [];
-    const costCenterDataForId = costCenterData[selectedCostCenter.id];
+    if (!selectedCostCenter) return []
+    const costCenterDataForId = costCenterData[selectedCostCenter.id]
 
     const items: VerticalTableProps[] = [
       {
         icon: <InfoIcon />,
-        title: "Basic Information",
+        title: 'Basic Information',
         items: [
           {
-            label: "Name",
-            value: selectedCostCenter.name ?? "-",
+            label: 'Name',
+            value: selectedCostCenter.name ?? '-'
           },
           {
-            label: "Code",
-            value: selectedCostCenter.code ?? "-",
+            label: 'Code',
+            value: selectedCostCenter.code ?? '-'
           },
           {
-            label: "Description",
-            value: selectedCostCenter.description ?? "-",
-          },
-        ],
-      },
-    ];
+            label: 'Description',
+            value: selectedCostCenter.description ?? '-'
+          }
+        ]
+      }
+    ]
 
     items.push({
       icon: <InfoIcon />,
-      title: "Statistics",
+      title: 'Statistics',
       items: [
         {
-          label: "Employees",
-          value: costCenterDataForId?.employees?.length ?? "-",
+          label: 'Employees',
+          value: costCenterDataForId?.employees?.length ?? '-'
         },
         {
-          label: "Organizational Units",
-          value: costCenterDataForId?.orgUnits?.length ?? "-",
-        },
-      ],
-    });
+          label: 'Organizational Units',
+          value: costCenterDataForId?.orgUnits?.length ?? '-'
+        }
+      ]
+    })
 
-    return items;
-  }, [selectedCostCenter, costCenterData]);
+    return items
+  }, [selectedCostCenter, costCenterData])
 
   if (isLoading && costCenters.length === 0) {
     return (
       <div className="gba:flex gba:justify-center gba:items-center gba:h-64">
         <Spinner size="lg" />
       </div>
-    );
+    )
   }
 
   if (error) {
     return (
       <div className="gba:p-6 gba:text-center">
-        <Alert
-          className="gba:w-full gba:!flex gba:justify-between gba:!items-center"
-          variant="destructive"
-        >
+        <Alert className="gba:w-full gba:!flex gba:justify-between gba:!items-center" variant="destructive">
           <AlertTitle className="gba:flex gba:items-center gba:justify-center gba:gap-2">
             <Icon icon={XCircleIcon} />
             Error Loading Cost Centers
@@ -566,11 +548,11 @@ const CostCentersTab: React.FC<CostCentersTabProps> = (context) => {
           </AlertDescription>
         </Alert>
       </div>
-    );
+    )
   }
 
   return (
-    <Card data-testid={`${prefixDataTestId || ""}-CostCentersTab`} className="gba:overflow-hidden">
+    <Card data-testid={`${prefixDataTestId || ''}-CostCentersTab`} className="gba:overflow-hidden">
       {!isLoading && (
         <CardTabHeaderComponent
           addButton={
@@ -578,8 +560,8 @@ const CostCentersTab: React.FC<CostCentersTabProps> = (context) => {
               childAddButton={
                 <Button
                   variant="default"
-                  onClick={(event) => event.stopPropagation()}
-                  data-testid={`${prefixDataTestId || ""}-CostCentersTab-AddButton`}
+                  onClick={event => event.stopPropagation()}
+                  data-testid={`${prefixDataTestId || ''}-CostCentersTab-AddButton`}
                 >
                   <PlusIcon /> Add Cost Center
                 </Button>
@@ -603,7 +585,7 @@ const CostCentersTab: React.FC<CostCentersTabProps> = (context) => {
           <Input
             placeholder="Search cost centers..."
             value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
+            onChange={e => setSearchTerm(e.target.value)}
             data-testid={`${dataTestId}-search-input`}
           />
         </div>
@@ -619,11 +601,11 @@ const CostCentersTab: React.FC<CostCentersTabProps> = (context) => {
           <SheetWrapperComponent
             prefixDataTestId={dataTestId}
             isDrawerVisible={drawerVisible}
-            onOpenChange={(openStatus) => {
+            onOpenChange={openStatus => {
               if (!openStatus) {
-                setSelectedCostCenter(null);
+                setSelectedCostCenter(null)
               }
-              setDrawerVisible(openStatus);
+              setDrawerVisible(openStatus)
             }}
             title="Cost Center Details"
             titleIcon={BankIcon}
@@ -631,10 +613,7 @@ const CostCentersTab: React.FC<CostCentersTabProps> = (context) => {
             footerButtons={[
               <CostCenterForm
                 childAddButton={
-                  <Button
-                    variant="default"
-                    data-testid={`${prefixDataTestId || ""}-CostCentersTab-EditButton`}
-                  >
+                  <Button variant="default" data-testid={`${prefixDataTestId || ''}-CostCentersTab-EditButton`}>
                     <PencilSimpleLineIcon /> Edit
                   </Button>
                 }
@@ -647,14 +626,14 @@ const CostCentersTab: React.FC<CostCentersTabProps> = (context) => {
                 costCenterNodes={costCenterNodes}
                 costCenter={selectedCostCenter}
                 isDrawerActive={true}
-              />,
+              />
             ]}
           />
         )}
       </CardContent>
     </Card>
-  );
-};
+  )
+}
 
-export default CostCentersTab;
-export { CostCentersTab };
+export default CostCentersTab
+export { CostCentersTab }

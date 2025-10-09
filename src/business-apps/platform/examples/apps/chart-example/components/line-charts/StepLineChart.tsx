@@ -1,4 +1,4 @@
-import React, { useMemo } from "react";
+import React, { useMemo } from 'react'
 import {
   Card,
   CardContent,
@@ -9,23 +9,27 @@ import {
   ChartContainer,
   ChartConfig,
   ChartTooltip,
-  ChartTooltipContent,
-} from "@newwork/nw-design-system";
-import { LineChart, Line, XAxis, YAxis, CartesianGrid } from "recharts";
-import { TrendUpIcon } from "@phosphor-icons/react";
-import lineChartData from "../../data/lineChartData.json";
+  ChartTooltipContent
+} from '@newwork/nw-design-system'
+import { LineChart, Line, XAxis, YAxis, CartesianGrid } from 'recharts'
+import { TrendUpIcon } from '@phosphor-icons/react'
+import lineChartData from '../../data/lineChartData.json'
 
 interface StepLineChartProps {
-  moduleColor?: string;
+  moduleColor?: string
 }
 
 const StepLineChart: React.FC<StepLineChartProps> = ({ moduleColor }) => {
-  const chartData = lineChartData.step;
+  const chartData = lineChartData.step
 
-  const chartConfig = useMemo(() => ({
-    desktop: { label: "Desktop" },
-    mobile: { label: "Mobile" },
-  }) satisfies ChartConfig, []);
+  const chartConfig = useMemo(
+    () =>
+      ({
+        desktop: { label: 'Desktop' },
+        mobile: { label: 'Mobile' }
+      }) satisfies ChartConfig,
+    []
+  )
 
   return (
     <Card data-testid="step-line-chart">
@@ -45,29 +49,17 @@ const StepLineChart: React.FC<StepLineChartProps> = ({ moduleColor }) => {
               tickLine={false}
               axisLine={false}
               tickMargin={8}
-              tickFormatter={(value) => typeof value === 'string' ? value.slice(0, 3) : value}
+              tickFormatter={value => (typeof value === 'string' ? value.slice(0, 3) : value)}
             />
             <YAxis tickLine={false} axisLine={false} tickMargin={8} />
             <ChartTooltip cursor={false} content={<ChartTooltipContent />} />
-            <Line
-              dataKey="desktop"
-              type="stepAfter"
-              stroke="var(--color-desktop)"
-              strokeWidth={2}
-              dot={false}
-            />
-            <Line
-              dataKey="mobile"
-              type="stepAfter"
-              stroke="var(--color-mobile)"
-              strokeWidth={2}
-              dot={false}
-            />
+            <Line dataKey="desktop" type="stepAfter" stroke="var(--color-desktop)" strokeWidth={2} dot={false} />
+            <Line dataKey="mobile" type="stepAfter" stroke="var(--color-mobile)" strokeWidth={2} dot={false} />
           </LineChart>
         </ChartContainer>
       </CardContent>
     </Card>
-  );
-};
+  )
+}
 
-export default StepLineChart;
+export default StepLineChart

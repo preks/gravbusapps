@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect } from 'react'
 import {
   Card,
   Button,
@@ -9,16 +9,9 @@ import {
   DialogHeader,
   DialogTitle,
   DialogDescription,
-  DialogFooter,
-} from "@newwork/nw-design-system";
-import {
-  Plus,
-  Edit,
-  Trash2,
-  GripVertical,
-  CheckSquare,
-  Clock,
-} from "lucide-react";
+  DialogFooter
+} from '@newwork/nw-design-system'
+import { Plus, Edit, Trash2, GripVertical, CheckSquare, Clock } from 'lucide-react'
 import {
   DndContext,
   closestCorners,
@@ -27,45 +20,45 @@ import {
   DragStartEvent,
   PointerSensor,
   useSensor,
-  useSensors,
-} from "@dnd-kit/core";
-import { SortableContext, verticalListSortingStrategy, useSortable } from "@dnd-kit/sortable";
-import { CSS } from "@dnd-kit/utilities";
-import { BusinessAppContextProps } from "@/common/BusinessAppContext";
-import { useCatalogManagerClient } from "@/common/network/catalogs/useCatalogManagerClient";
-import ConditionForm from "./ConditionForm";
+  useSensors
+} from '@dnd-kit/core'
+import { SortableContext, verticalListSortingStrategy, useSortable } from '@dnd-kit/sortable'
+import { CSS } from '@dnd-kit/utilities'
+import { BusinessAppContextProps } from '@/common/BusinessAppContext'
+import { useCatalogManagerClient } from '@/common/network/catalogs/useCatalogManagerClient'
+import ConditionForm from './ConditionForm'
 
 interface ConditionsFormProps extends BusinessAppContextProps {
-  isOpen: boolean;
-  onClose: () => void;
-  selectedStage: any;
+  isOpen: boolean
+  onClose: () => void
+  selectedStage: any
   catalogConfig: {
-    conditionCatalog: string;
-    version?: string;
-  };
-  prefixDataTestId?: string;
+    conditionCatalog: string
+    version?: string
+  }
+  prefixDataTestId?: string
 }
 
 // Draggable Condition Item Component
 const DraggableConditionItem: React.FC<{
-  condition: any;
-  index: number;
-  prefixDataTestId?: string;
-  onEdit: (condition: any) => void;
-  onDelete: (condition: any) => void;
+  condition: any
+  index: number
+  prefixDataTestId?: string
+  onEdit: (condition: any) => void
+  onDelete: (condition: any) => void
 }> = ({ condition, index, prefixDataTestId, onEdit, onDelete }) => {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: condition.id,
     data: {
-      type: "condition",
-      condition,
-    },
-  });
+      type: 'condition',
+      condition
+    }
+  })
 
   const style = {
     transform: CSS.Transform.toString(transform),
-    transition,
-  };
+    transition
+  }
 
   return (
     <div
@@ -129,20 +122,18 @@ const DraggableConditionItem: React.FC<{
               <p
                 className="gba:text-gray-500 gba:text-xs gba:leading-tight gba:flex-1"
                 style={{
-                  display: "-webkit-box",
+                  display: '-webkit-box',
                   WebkitLineClamp: 2,
-                  WebkitBoxOrient: "vertical",
-                  overflow: "hidden",
+                  WebkitBoxOrient: 'vertical',
+                  overflow: 'hidden'
                 }}
               >
-                {condition.objectValue?.description ||
-                  condition.additionalValue1 ||
-                  "No description"}
+                {condition.objectValue?.description || condition.additionalValue1 || 'No description'}
               </p>
               <div className="gba:flex gba:items-center gba:gap-1 gba:flex-shrink-0">
                 <span className="gba:text-xs gba:text-gray-400">Checked by:</span>
                 <Badge variant="default" className="gba:text-xs gba:px-1.5 gba:py-0.5">
-                  {condition.objectValue?.check_type || "User"}
+                  {condition.objectValue?.check_type || 'User'}
                 </Badge>
               </div>
             </div>
@@ -153,9 +144,9 @@ const DraggableConditionItem: React.FC<{
             <Button
               variant="ghost"
               size="sm"
-              onClick={(e) => {
-                e.stopPropagation();
-                onEdit(condition);
+              onClick={e => {
+                e.stopPropagation()
+                onEdit(condition)
               }}
               className="gba:text-gray-400 hover:gba:text-blue-500 gba:p-1 gba:h-7 gba:w-7"
               data-testid={`${prefixDataTestId}-edit-condition-${condition.id}`}
@@ -165,9 +156,9 @@ const DraggableConditionItem: React.FC<{
             <Button
               variant="ghost"
               size="sm"
-              onClick={(e) => {
-                e.stopPropagation();
-                onDelete(condition.id);
+              onClick={e => {
+                e.stopPropagation()
+                onDelete(condition.id)
               }}
               className="gba:text-gray-400 hover:gba:text-red-500 gba:p-1 gba:h-7 gba:w-7"
               data-testid={`${prefixDataTestId}-delete-condition-${condition.id}`}
@@ -178,113 +169,113 @@ const DraggableConditionItem: React.FC<{
         </div>
       </Card>
     </div>
-  );
-};
+  )
+}
 
 const ConditionsForm: React.FC<ConditionsFormProps> = ({
   isOpen,
   onClose,
   selectedStage,
   catalogConfig,
-  prefixDataTestId = "conditions-form",
-  accessToken,
+  prefixDataTestId = 'conditions-form',
+  accessToken
 }) => {
-  const [conditions, setConditions] = useState<any[]>([]);
-  const [isLoading, setIsLoading] = useState(false);
-  const [operationLoading, setOperationLoading] = useState(false);
-  const [activeCondition, setActiveCondition] = useState<string | null>(null);
-  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
-  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
-  const [editingCondition, setEditingCondition] = useState<any>(null);
+  const [conditions, setConditions] = useState<any[]>([])
+  const [isLoading, setIsLoading] = useState(false)
+  const [operationLoading, setOperationLoading] = useState(false)
+  const [activeCondition, setActiveCondition] = useState<string | null>(null)
+  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false)
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false)
+  const [editingCondition, setEditingCondition] = useState<any>(null)
 
-  const catalogClient = useCatalogManagerClient(accessToken);
+  const catalogClient = useCatalogManagerClient(accessToken)
 
   const sensors = useSensors(
     useSensor(PointerSensor, {
       activationConstraint: {
-        distance: 5,
-      },
+        distance: 5
+      }
     })
-  );
+  )
 
   // Fetch conditions for the selected stage
   const fetchConditions = async (stageId: string) => {
-    if (!catalogConfig.conditionCatalog || !stageId) return;
-    
-    setIsLoading(true);
+    if (!catalogConfig.conditionCatalog || !stageId) return
+
+    setIsLoading(true)
     try {
       const response = await catalogClient.getCatalogEntriesList(
         {
           catalogIdentifier: catalogConfig.conditionCatalog,
-          version: catalogConfig.version || "v1",
+          version: catalogConfig.version || 'v1'
         },
         {
           limit: 1000,
           offset: 0,
           returnTotalRecords: true,
-          includeChildCatalogEntries: true,
+          includeChildCatalogEntries: true
         }
-      );
+      )
 
       // Filter conditions for this stage
-      const stageConditions = response.data.filter((entry) => entry.parentEntryId === stageId);
-      setConditions(stageConditions.sort((a, b) => (a.displayOrder || 0) - (b.displayOrder || 0)));
+      const stageConditions = response.data.filter(entry => entry.parentEntryId === stageId)
+      setConditions(stageConditions.sort((a, b) => (a.displayOrder || 0) - (b.displayOrder || 0)))
     } catch (err) {
-      console.error("Error fetching conditions:", err);
-      setConditions([]);
+      console.error('Error fetching conditions:', err)
+      setConditions([])
     } finally {
-      setIsLoading(false);
+      setIsLoading(false)
     }
-  };
+  }
 
   // Load conditions when stage changes
   useEffect(() => {
     if (isOpen && selectedStage) {
-      fetchConditions(selectedStage.id);
+      fetchConditions(selectedStage.id)
     }
-  }, [isOpen, selectedStage]);
+  }, [isOpen, selectedStage])
 
   // Drag and drop handlers
   const handleConditionDragStart = (event: DragStartEvent) => {
-    const { active } = event;
-    setActiveCondition(active.id as string);
-  };
+    const { active } = event
+    setActiveCondition(active.id as string)
+  }
 
   const handleConditionDragEnd = async (event: DragEndEvent) => {
-    const { active, over } = event;
-    setActiveCondition(null);
+    const { active, over } = event
+    setActiveCondition(null)
 
     if (!over || active.id === over.id || !selectedStage) {
-      return;
+      return
     }
 
-    const activeIndex = conditions.findIndex((condition) => condition.id === active.id);
-    const overIndex = conditions.findIndex((condition) => condition.id === over.id);
+    const activeIndex = conditions.findIndex(condition => condition.id === active.id)
+    const overIndex = conditions.findIndex(condition => condition.id === over.id)
 
     if (activeIndex === -1 || overIndex === -1) {
-      return;
+      return
     }
 
-    const newConditions = [...conditions];
-    const [movedCondition] = newConditions.splice(activeIndex, 1);
-    newConditions.splice(overIndex, 0, movedCondition);
+    const newConditions = [...conditions]
+    const [movedCondition] = newConditions.splice(activeIndex, 1)
+    newConditions.splice(overIndex, 0, movedCondition)
 
     // Update display order for all conditions
     const updatedConditions = newConditions.map((condition, index) => ({
       ...condition,
       displayOrder: index + 1,
-      additionalValue1: (index + 1).toString(),
-    }));
+      additionalValue1: (index + 1).toString()
+    }))
 
-    setConditions(updatedConditions);
+    setConditions(updatedConditions)
 
     // Update ranks on server
     try {
-      setOperationLoading(true);
+      setOperationLoading(true)
       await Promise.all(
-        updatedConditions.map(async (condition) => {
+        updatedConditions.map(async condition => {
           // Fetch current condition data to preserve all fields
-          const currentCondition = await catalogClient.getCatalogEntryById(condition.id);
+          const currentCondition = await catalogClient.getCatalogEntryById(condition.id)
 
           const updateData = {
             // Required fields
@@ -294,58 +285,58 @@ const ConditionsForm: React.FC<ConditionsFormProps> = ({
             alternativeCode: condition.alternativeCode,
             parentEntryId: condition.parentEntryId || currentCondition.parentEntryId,
             displayOrder: condition.displayOrder,
-            
+
             // Additional fields - preserve existing values
             additionalValue1: condition.displayOrder.toString(),
             additionalValue2: currentCondition.additionalValue2 || undefined,
             additionalValue3: currentCondition.additionalValue3 || undefined,
-            objectValue: condition.objectValue || currentCondition.objectValue || {},
-          };
+            objectValue: condition.objectValue || currentCondition.objectValue || {}
+          }
 
-          return catalogClient.updateCatalogEntry(condition.id, updateData);
-        }),
-      );
+          return catalogClient.updateCatalogEntry(condition.id, updateData)
+        })
+      )
     } catch (err) {
-      console.error("Error updating condition ranks:", err);
+      console.error('Error updating condition ranks:', err)
       // Reload conditions to reset to server state
-      await fetchConditions(selectedStage.id);
+      await fetchConditions(selectedStage.id)
     } finally {
-      setOperationLoading(false);
+      setOperationLoading(false)
     }
-  };
+  }
 
   // Condition management handlers
   const handleDeleteCondition = async (conditionId: string) => {
-    if (!selectedStage) return;
+    if (!selectedStage) return
 
     try {
-      setOperationLoading(true);
-      await catalogClient.deleteCatalogEntry(conditionId);
-      await fetchConditions(selectedStage.id);
+      setOperationLoading(true)
+      await catalogClient.deleteCatalogEntry(conditionId)
+      await fetchConditions(selectedStage.id)
     } catch (err) {
-      console.error("Error deleting condition:", err);
+      console.error('Error deleting condition:', err)
     } finally {
-      setOperationLoading(false);
+      setOperationLoading(false)
     }
-  };
+  }
 
   const openCreateModal = () => {
-    setIsCreateModalOpen(true);
-  };
+    setIsCreateModalOpen(true)
+  }
 
   const openEditModal = (condition: any) => {
-    setEditingCondition(condition);
-    setIsEditModalOpen(true);
-  };
+    setEditingCondition(condition)
+    setIsEditModalOpen(true)
+  }
 
   const handleConditionSuccess = () => {
     if (selectedStage) {
-      fetchConditions(selectedStage.id);
+      fetchConditions(selectedStage.id)
     }
-  };
+  }
 
   if (!selectedStage) {
-    return null;
+    return null
   }
 
   return (
@@ -390,10 +381,7 @@ const ConditionsForm: React.FC<ConditionsFormProps> = ({
                 onDragEnd={handleConditionDragEnd}
               >
                 <div className="gba:space-y-2">
-                  <SortableContext
-                    items={conditions.map((c) => c.id)}
-                    strategy={verticalListSortingStrategy}
-                  >
+                  <SortableContext items={conditions.map(c => c.id)} strategy={verticalListSortingStrategy}>
                     {conditions.map((condition, index) => (
                       <DraggableConditionItem
                         key={condition.id}
@@ -408,15 +396,17 @@ const ConditionsForm: React.FC<ConditionsFormProps> = ({
 
                   <DragOverlay dropAnimation={null}>
                     {activeCondition ? (
-                      <div style={{ 
-                        opacity: 0.8, 
-                        transform: 'rotate(1deg)',
-                        cursor: 'grabbing',
-                        pointerEvents: 'none'
-                      }}>
+                      <div
+                        style={{
+                          opacity: 0.8,
+                          transform: 'rotate(1deg)',
+                          cursor: 'grabbing',
+                          pointerEvents: 'none'
+                        }}
+                      >
                         <DraggableConditionItem
-                          condition={conditions.find((c) => c.id === activeCondition)!}
-                          index={conditions.findIndex((c) => c.id === activeCondition) + 1}
+                          condition={conditions.find(c => c.id === activeCondition)!}
+                          index={conditions.findIndex(c => c.id === activeCondition) + 1}
                           prefixDataTestId={prefixDataTestId}
                           onEdit={() => {}}
                           onDelete={() => {}}
@@ -452,8 +442,8 @@ const ConditionsForm: React.FC<ConditionsFormProps> = ({
       <ConditionForm
         isOpen={isEditModalOpen}
         onClose={() => {
-          setIsEditModalOpen(false);
-          setEditingCondition(null);
+          setIsEditModalOpen(false)
+          setEditingCondition(null)
         }}
         onSuccess={handleConditionSuccess}
         editingCondition={editingCondition}
@@ -463,10 +453,7 @@ const ConditionsForm: React.FC<ConditionsFormProps> = ({
         accessToken={accessToken}
       />
     </>
-  );
-};
+  )
+}
 
-export default ConditionsForm;
-
-
-
+export default ConditionsForm

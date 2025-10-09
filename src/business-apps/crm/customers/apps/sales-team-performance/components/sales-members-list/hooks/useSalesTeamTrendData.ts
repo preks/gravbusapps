@@ -1,20 +1,20 @@
-import { useState, useEffect, useCallback } from "react";
-import { useGraphQLClient } from "@/common/network/graphql/useGraphQLClient";
+import { useState, useEffect, useCallback } from 'react'
+import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 
 export interface TrendData {
-  currentValue: number;
-  previousValue: number;
-  trend: "up" | "down" | "stable";
-  trendPercentage: number;
+  currentValue: number
+  previousValue: number
+  trend: 'up' | 'down' | 'stable'
+  trendPercentage: number
 }
 
 export interface SalesTeamTrends {
-  totalRevenue: TrendData;
-  averageWinRate: TrendData;
-  totalActivities: TrendData;
-  pipelineValue: TrendData;
-  isLoading: boolean;
-  error: string | null;
+  totalRevenue: TrendData
+  averageWinRate: TrendData
+  totalActivities: TrendData
+  pipelineValue: TrendData
+  isLoading: boolean
+  error: string | null
 }
 
 export const useSalesTeamTrendData = (accessToken: string) => {
@@ -22,70 +22,61 @@ export const useSalesTeamTrendData = (accessToken: string) => {
     totalRevenue: {
       currentValue: 0,
       previousValue: 0,
-      trend: "stable",
-      trendPercentage: 0,
+      trend: 'stable',
+      trendPercentage: 0
     },
     averageWinRate: {
       currentValue: 0,
       previousValue: 0,
-      trend: "stable",
-      trendPercentage: 0,
+      trend: 'stable',
+      trendPercentage: 0
     },
     totalActivities: {
       currentValue: 0,
       previousValue: 0,
-      trend: "stable",
-      trendPercentage: 0,
+      trend: 'stable',
+      trendPercentage: 0
     },
     pipelineValue: {
       currentValue: 0,
       previousValue: 0,
-      trend: "stable",
-      trendPercentage: 0,
+      trend: 'stable',
+      trendPercentage: 0
     },
     isLoading: true,
-    error: null,
-  });
+    error: null
+  })
 
-  const graphqlClient = useGraphQLClient(accessToken);
+  const graphqlClient = useGraphQLClient(accessToken)
 
   const calculateTrend = (
     current: number,
     previous: number
-  ): { trend: "up" | "down" | "stable"; percentage: number } => {
-    if (previous === 0 && current > 0) return { trend: "up", percentage: 100 };
-    if (previous === 0 && current === 0)
-      return { trend: "stable", percentage: 0 };
+  ): { trend: 'up' | 'down' | 'stable'; percentage: number } => {
+    if (previous === 0 && current > 0) return { trend: 'up', percentage: 100 }
+    if (previous === 0 && current === 0) return { trend: 'stable', percentage: 0 }
 
-    const percentage = ((current - previous) / previous) * 100;
-    const trend = percentage > 5 ? "up" : percentage < -5 ? "down" : "stable";
+    const percentage = ((current - previous) / previous) * 100
+    const trend = percentage > 5 ? 'up' : percentage < -5 ? 'down' : 'stable'
 
-    return { trend, percentage }; // ✅ Removed Math.abs() to preserve sign
-  };
+    return { trend, percentage } // ✅ Removed Math.abs() to preserve sign
+  }
 
   const getCurrentAndPreviousMonthDates = () => {
-    const now = new Date();
-    const currentMonth = new Date(now.getFullYear(), now.getMonth(), 1);
-    const previousMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
-    const previousMonthEnd = new Date(
-      now.getFullYear(),
-      now.getMonth(),
-      0,
-      23,
-      59,
-      59
-    );
+    const now = new Date()
+    const currentMonth = new Date(now.getFullYear(), now.getMonth(), 1)
+    const previousMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1)
+    const previousMonthEnd = new Date(now.getFullYear(), now.getMonth(), 0, 23, 59, 59)
 
     return {
       currentStart: currentMonth.toISOString(),
       previousStart: previousMonth.toISOString(),
-      previousEnd: previousMonthEnd.toISOString(),
-    };
-  };
+      previousEnd: previousMonthEnd.toISOString()
+    }
+  }
 
   const fetchRevenueTrends = async () => {
-    const { currentStart, previousStart, previousEnd } =
-      getCurrentAndPreviousMonthDates();
+    const { currentStart, previousStart, previousEnd } = getCurrentAndPreviousMonthDates()
 
     // Current month closed opportunities
     const currentRevenueQuery = `
@@ -100,7 +91,7 @@ export const useSalesTeamTrendData = (accessToken: string) => {
           estimatedAmount
         }
       }
-    `;
+    `
 
     // Previous month closed opportunities
     const previousRevenueQuery = `
@@ -115,43 +106,39 @@ export const useSalesTeamTrendData = (accessToken: string) => {
           estimatedAmount
         }
       }
-    `;
+    `
 
     try {
       const [currentResult, previousResult] = await Promise.all([
         graphqlClient.request(currentRevenueQuery),
-        graphqlClient.request(previousRevenueQuery),
-      ]);
+        graphqlClient.request(previousRevenueQuery)
+      ])
 
       const currentRevenue = (currentResult as any).Opportunity.reduce(
         (sum: number, opp: any) => sum + (opp.estimatedAmount || 0),
         0
-      );
+      )
       const previousRevenue = (previousResult as any).Opportunity.reduce(
         (sum: number, opp: any) => sum + (opp.estimatedAmount || 0),
         0
-      );
+      )
 
-      const { trend, percentage } = calculateTrend(
-        currentRevenue,
-        previousRevenue
-      );
+      const { trend, percentage } = calculateTrend(currentRevenue, previousRevenue)
 
       return {
         currentValue: currentRevenue,
         previousValue: previousRevenue,
         trend,
-        trendPercentage: percentage,
-      };
+        trendPercentage: percentage
+      }
     } catch (error) {
-      console.error("Error fetching revenue trends:", error);
-      throw error;
+      console.error('Error fetching revenue trends:', error)
+      throw error
     }
-  };
+  }
 
   const fetchWinRateTrends = async () => {
-    const { currentStart, previousStart, previousEnd } =
-      getCurrentAndPreviousMonthDates();
+    const { currentStart, previousStart, previousEnd } = getCurrentAndPreviousMonthDates()
 
     const currentWinRateQuery = `
       query GetCurrentMonthWinRate {
@@ -165,7 +152,7 @@ export const useSalesTeamTrendData = (accessToken: string) => {
           salesPipelineStage { value }
         }
       }
-    `;
+    `
 
     const previousWinRateQuery = `
       query GetPreviousMonthWinRate {
@@ -179,50 +166,40 @@ export const useSalesTeamTrendData = (accessToken: string) => {
           salesPipelineStage { value }
         }
       }
-    `;
+    `
 
     try {
       const [currentResult, previousResult] = await Promise.all([
         graphqlClient.request(currentWinRateQuery),
-        graphqlClient.request(previousWinRateQuery),
-      ]);
+        graphqlClient.request(previousWinRateQuery)
+      ])
 
       const calculateWinRate = (opportunities: any[]) => {
-        const total = opportunities.length;
-        if (total === 0) return 0;
-        const won = opportunities.filter(
-          (opp) => opp.salesPipelineStage?.value === "Closed Won"
-        ).length;
-        return (won / total) * 100;
-      };
+        const total = opportunities.length
+        if (total === 0) return 0
+        const won = opportunities.filter(opp => opp.salesPipelineStage?.value === 'Closed Won').length
+        return (won / total) * 100
+      }
 
-      const currentWinRate = calculateWinRate(
-        (currentResult as any).closedOpportunities
-      );
-      const previousWinRate = calculateWinRate(
-        (previousResult as any).closedOpportunities
-      );
+      const currentWinRate = calculateWinRate((currentResult as any).closedOpportunities)
+      const previousWinRate = calculateWinRate((previousResult as any).closedOpportunities)
 
-      const { trend, percentage } = calculateTrend(
-        currentWinRate,
-        previousWinRate
-      );
+      const { trend, percentage } = calculateTrend(currentWinRate, previousWinRate)
 
       return {
         currentValue: currentWinRate,
         previousValue: previousWinRate,
         trend,
-        trendPercentage: percentage,
-      };
+        trendPercentage: percentage
+      }
     } catch (error) {
-      console.error("Error fetching win rate trends:", error);
-      throw error;
+      console.error('Error fetching win rate trends:', error)
+      throw error
     }
-  };
+  }
 
   const fetchActivityTrends = async () => {
-    const { currentStart, previousStart, previousEnd } =
-      getCurrentAndPreviousMonthDates();
+    const { currentStart, previousStart, previousEnd } = getCurrentAndPreviousMonthDates()
 
     const currentActivitiesQuery = `
       query GetCurrentMonthActivities {
@@ -235,7 +212,7 @@ export const useSalesTeamTrendData = (accessToken: string) => {
           id
         }
       }
-    `;
+    `
 
     const previousActivitiesQuery = `
       query GetPreviousMonthActivities {
@@ -248,38 +225,35 @@ export const useSalesTeamTrendData = (accessToken: string) => {
           id
         }
       }
-    `;
+    `
 
     try {
       const [currentResult, previousResult] = await Promise.all([
         graphqlClient.request(currentActivitiesQuery),
-        graphqlClient.request(previousActivitiesQuery),
-      ]);
+        graphqlClient.request(previousActivitiesQuery)
+      ])
 
-      const currentActivities = (currentResult as any).SalesActivity.length;
-      const previousActivities = (previousResult as any).SalesActivity.length;
+      const currentActivities = (currentResult as any).SalesActivity.length
+      const previousActivities = (previousResult as any).SalesActivity.length
 
-      const { trend, percentage } = calculateTrend(
-        currentActivities,
-        previousActivities
-      );
+      const { trend, percentage } = calculateTrend(currentActivities, previousActivities)
 
       return {
         currentValue: currentActivities,
         previousValue: previousActivities,
         trend,
-        trendPercentage: percentage,
-      };
+        trendPercentage: percentage
+      }
     } catch (error) {
-      console.error("Error fetching activity trends:", error);
-      throw error;
+      console.error('Error fetching activity trends:', error)
+      throw error
     }
-  };
+  }
 
   const fetchPipelineTrends = async () => {
-    const now = new Date();
-    const currentMonth = new Date(now.getFullYear(), now.getMonth(), 1);
-    const previousMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+    const now = new Date()
+    const currentMonth = new Date(now.getFullYear(), now.getMonth(), 1)
+    const previousMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1)
 
     const currentPipelineQuery = `
       query GetCurrentPipeline {
@@ -293,7 +267,7 @@ export const useSalesTeamTrendData = (accessToken: string) => {
           estimatedAmount
         }
       }
-    `;
+    `
 
     const previousPipelineQuery = `
       query GetPreviousPipeline {
@@ -307,53 +281,49 @@ export const useSalesTeamTrendData = (accessToken: string) => {
           estimatedAmount
         }
       }
-    `;
+    `
 
     try {
       const [currentResult, previousResult] = await Promise.all([
         graphqlClient.request(currentPipelineQuery),
-        graphqlClient.request(previousPipelineQuery),
-      ]);
+        graphqlClient.request(previousPipelineQuery)
+      ])
 
       const currentPipeline = (currentResult as any).Opportunity.reduce(
         (sum: number, opp: any) => sum + (opp.estimatedAmount || 0),
         0
-      );
+      )
       const previousPipeline = (previousResult as any).Opportunity.reduce(
         (sum: number, opp: any) => sum + (opp.estimatedAmount || 0),
         0
-      );
+      )
 
-      const { trend, percentage } = calculateTrend(
-        currentPipeline,
-        previousPipeline
-      );
+      const { trend, percentage } = calculateTrend(currentPipeline, previousPipeline)
 
       return {
         currentValue: currentPipeline,
         previousValue: previousPipeline,
         trend,
-        trendPercentage: percentage,
-      };
+        trendPercentage: percentage
+      }
     } catch (error) {
-      console.error("Error fetching pipeline trends:", error);
-      throw error;
+      console.error('Error fetching pipeline trends:', error)
+      throw error
     }
-  };
+  }
 
   const fetchAllTrends = useCallback(async () => {
-    if (!accessToken) return;
+    if (!accessToken) return
 
-    setTrends((prev) => ({ ...prev, isLoading: true, error: null }));
+    setTrends(prev => ({ ...prev, isLoading: true, error: null }))
 
     try {
-      const [revenueTrend, winRateTrend, activityTrend, pipelineTrend] =
-        await Promise.all([
-          fetchRevenueTrends(),
-          fetchWinRateTrends(),
-          fetchActivityTrends(),
-          fetchPipelineTrends(),
-        ]);
+      const [revenueTrend, winRateTrend, activityTrend, pipelineTrend] = await Promise.all([
+        fetchRevenueTrends(),
+        fetchWinRateTrends(),
+        fetchActivityTrends(),
+        fetchPipelineTrends()
+      ])
 
       setTrends({
         totalRevenue: revenueTrend,
@@ -361,24 +331,23 @@ export const useSalesTeamTrendData = (accessToken: string) => {
         totalActivities: activityTrend,
         pipelineValue: pipelineTrend,
         isLoading: false,
-        error: null,
-      });
+        error: null
+      })
     } catch (error) {
-      setTrends((prev) => ({
+      setTrends(prev => ({
         ...prev,
         isLoading: false,
-        error:
-          error instanceof Error ? error.message : "Failed to fetch trend data",
-      }));
+        error: error instanceof Error ? error.message : 'Failed to fetch trend data'
+      }))
     }
-  }, [accessToken]);
+  }, [accessToken])
 
   useEffect(() => {
-    fetchAllTrends();
-  }, [fetchAllTrends]);
+    fetchAllTrends()
+  }, [fetchAllTrends])
 
   return {
     trends,
-    refetch: fetchAllTrends,
-  };
-};
+    refetch: fetchAllTrends
+  }
+}

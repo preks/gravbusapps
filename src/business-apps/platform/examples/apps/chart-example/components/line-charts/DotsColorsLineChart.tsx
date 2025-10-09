@@ -1,4 +1,4 @@
-import React, { useMemo } from "react";
+import React, { useMemo } from 'react'
 import {
   Card,
   CardContent,
@@ -11,26 +11,30 @@ import {
   ChartTooltip,
   ChartTooltipContent,
   ChartLegend,
-  ChartLegendContent,
-} from "@newwork/nw-design-system";
-import { LineChart, Line, XAxis, YAxis, CartesianGrid } from "recharts";
-import { ChartLineIcon } from "@phosphor-icons/react";
-import lineChartData from "../../data/lineChartData.json";
+  ChartLegendContent
+} from '@newwork/nw-design-system'
+import { LineChart, Line, XAxis, YAxis, CartesianGrid } from 'recharts'
+import { ChartLineIcon } from '@phosphor-icons/react'
+import lineChartData from '../../data/lineChartData.json'
 
 interface DotsColorsLineChartProps {
-  moduleColor?: string;
+  moduleColor?: string
 }
 
 const DotsColorsLineChart: React.FC<DotsColorsLineChartProps> = ({ moduleColor }) => {
-  const chartData = lineChartData.dotsColors;
+  const chartData = lineChartData.dotsColors
 
-  const chartConfig = useMemo(() => ({
-    // Data dimensions - used for sizing only
-    visitors: { label: "Visitors", color: "none" },
-    // Visual categories - used for legend/colors
-    desktop: { label: "Desktop" },
-    mobile: { label: "Mobile" },
-  }) satisfies ChartConfig, []);
+  const chartConfig = useMemo(
+    () =>
+      ({
+        // Data dimensions - used for sizing only
+        visitors: { label: 'Visitors', color: 'none' },
+        // Visual categories - used for legend/colors
+        desktop: { label: 'Desktop' },
+        mobile: { label: 'Mobile' }
+      }) satisfies ChartConfig,
+    []
+  )
 
   return (
     <Card data-testid="dots-colors-line-chart">
@@ -47,7 +51,7 @@ const DotsColorsLineChart: React.FC<DotsColorsLineChartProps> = ({ moduleColor }
             data={chartData}
             margin={{
               left: 12,
-              right: 12,
+              right: 12
             }}
           >
             <CartesianGrid vertical={false} />
@@ -56,39 +60,32 @@ const DotsColorsLineChart: React.FC<DotsColorsLineChartProps> = ({ moduleColor }
               tickLine={false}
               axisLine={false}
               tickMargin={8}
-              tickFormatter={(value) => typeof value === 'string' ? value.slice(0, 3) : value}
+              tickFormatter={value => (typeof value === 'string' ? value.slice(0, 3) : value)}
             />
-            <YAxis
-              tickLine={false}
-              axisLine={false}
-              tickMargin={8}
-            />
-            <ChartTooltip
-              cursor={false}
-              content={<ChartTooltipContent />}
-            />
+            <YAxis tickLine={false} axisLine={false} tickMargin={8} />
+            <ChartTooltip cursor={false} content={<ChartTooltipContent />} />
             <Line
               type="monotone"
               dataKey="desktop"
               stroke="var(--color-desktop)"
               strokeWidth={2}
-              dot={{ fill: "var(--color-desktop)" }}
-              activeDot={{ r: 8, stroke: "var(--color-desktop)", fill: "var(--background)" }}
+              dot={{ fill: 'var(--color-desktop)' }}
+              activeDot={{ r: 8, stroke: 'var(--color-desktop)', fill: 'var(--background)' }}
             />
             <Line
               type="monotone"
               dataKey="mobile"
               stroke="var(--color-mobile)"
               strokeWidth={2}
-              dot={{ fill: "var(--color-mobile)" }}
-              activeDot={{ r: 8, stroke: "var(--color-mobile)", fill: "var(--background)" }}
+              dot={{ fill: 'var(--color-mobile)' }}
+              activeDot={{ r: 8, stroke: 'var(--color-mobile)', fill: 'var(--background)' }}
             />
             <ChartLegend content={<ChartLegendContent />} />
           </LineChart>
         </ChartContainer>
       </CardContent>
     </Card>
-  );
-};
+  )
+}
 
-export default DotsColorsLineChart;
+export default DotsColorsLineChart

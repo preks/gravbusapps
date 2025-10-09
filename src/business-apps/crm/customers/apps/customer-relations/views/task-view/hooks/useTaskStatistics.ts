@@ -1,171 +1,170 @@
-"use client";
+'use client'
 
-import { useState, useCallback, useEffect, useRef } from 'react';
-import { TaskStatistics, TaskStatisticItem } from '@/common/components/common-relations/detail-sheets/task-detail-sheet';
-import { TaskFilters } from './useTaskFilters';
-import { useSalesTaskQueries } from './useSalesTaskQueries';
+import { useState, useCallback, useEffect, useRef } from 'react'
+import { TaskStatistics, TaskStatisticItem } from '@/common/components/common-relations/detail-sheets/task-detail-sheet'
+import { TaskFilters } from './useTaskFilters'
+import { useSalesTaskQueries } from './useSalesTaskQueries'
 
 interface UseTaskStatisticsProps extends TaskFilters {
-  accessToken: string;
+  accessToken: string
 }
 
 interface UseTaskStatisticsReturn {
-  statistics: TaskStatistics;
-  loading: boolean;
-  error: Error | null;
-  refetch: () => void;
+  statistics: TaskStatistics
+  loading: boolean
+  error: Error | null
+  refetch: () => void
 }
 
 /**
  * Calculate growth percentage and direction
  */
-const calculateGrowth = (current: number, previous: number): { growth: number; growthDirection: 'up' | 'down' | 'stable' } => {
+const calculateGrowth = (
+  current: number,
+  previous: number
+): { growth: number; growthDirection: 'up' | 'down' | 'stable' } => {
   if (previous === 0) {
     return {
       growth: current > 0 ? 100 : 0,
       growthDirection: current > 0 ? 'up' : 'stable'
-    };
+    }
   }
-  
-  const growth = ((current - previous) / previous) * 100;
-  let growthDirection: 'up' | 'down' | 'stable' = 'stable';
-  
-  if (growth > 2) growthDirection = 'up';
-  else if (growth < -2) growthDirection = 'down';
-  
-  return { growth, growthDirection };
-};
+
+  const growth = ((current - previous) / previous) * 100
+  let growthDirection: 'up' | 'down' | 'stable' = 'stable'
+
+  if (growth > 2) growthDirection = 'up'
+  else if (growth < -2) growthDirection = 'down'
+
+  return { growth, growthDirection }
+}
 
 /**
  * Calculate statistics from sales tasks with growth comparison
  */
-const calculateStatisticsWithGrowth = (
-  currentTasks: any[], 
-  previousTasks: any[], 
-  allTasks: any[]
-): TaskStatistics => {
+const calculateStatisticsWithGrowth = (currentTasks: any[], previousTasks: any[], allTasks: any[]): TaskStatistics => {
   // Calculate current period statistics
-  let currentTotal = 0;
-  let currentInProgress = 0;
-  let currentCompleted = 0;
-  let currentOverdue = 0;
+  let currentTotal = 0
+  let currentInProgress = 0
+  let currentCompleted = 0
+  let currentOverdue = 0
 
   currentTasks.forEach(task => {
-    currentTotal++;
-    
+    currentTotal++
+
     if (task.statusRef) {
-      const statusValue = task.statusRef.split(':').pop()?.toLowerCase();
+      const statusValue = task.statusRef.split(':').pop()?.toLowerCase()
       switch (statusValue) {
         case 'completed':
         case 'done':
-          currentCompleted++;
-          break;
+          currentCompleted++
+          break
         case 'in_progress':
         case 'active':
-          currentInProgress++;
-          break;
+          currentInProgress++
+          break
         case 'overdue':
-          currentOverdue++;
-          break;
+          currentOverdue++
+          break
         default:
           if (task.dueDate && new Date(task.dueDate) < new Date()) {
-            currentOverdue++;
+            currentOverdue++
           } else {
-            currentInProgress++;
+            currentInProgress++
           }
       }
     } else {
       if (task.dueDate && new Date(task.dueDate) < new Date()) {
-        currentOverdue++;
+        currentOverdue++
       } else {
-        currentInProgress++;
+        currentInProgress++
       }
     }
-  });
+  })
 
   // Calculate previous period statistics
-  let previousTotal = 0;
-  let previousInProgress = 0;
-  let previousCompleted = 0;
-  let previousOverdue = 0;
+  let previousTotal = 0
+  let previousInProgress = 0
+  let previousCompleted = 0
+  let previousOverdue = 0
 
   previousTasks.forEach(task => {
-    previousTotal++;
-    
+    previousTotal++
+
     if (task.statusRef) {
-      const statusValue = task.statusRef.split(':').pop()?.toLowerCase();
+      const statusValue = task.statusRef.split(':').pop()?.toLowerCase()
       switch (statusValue) {
         case 'completed':
         case 'done':
-          previousCompleted++;
-          break;
+          previousCompleted++
+          break
         case 'in_progress':
         case 'active':
-          previousInProgress++;
-          break;
+          previousInProgress++
+          break
         case 'overdue':
-          previousOverdue++;
-          break;
+          previousOverdue++
+          break
         default:
           if (task.dueDate && new Date(task.dueDate) < new Date()) {
-            previousOverdue++;
+            previousOverdue++
           } else {
-            previousInProgress++;
+            previousInProgress++
           }
       }
     } else {
       if (task.dueDate && new Date(task.dueDate) < new Date()) {
-        previousOverdue++;
+        previousOverdue++
       } else {
-        previousInProgress++;
+        previousInProgress++
       }
     }
-  });
+  })
 
   // Calculate statistics from filtered all tasks (not system-wide)
-  let filteredTotal = 0;
-  let filteredInProgress = 0;
-  let filteredCompleted = 0;
-  let filteredOverdue = 0;
+  let filteredTotal = 0
+  let filteredInProgress = 0
+  let filteredCompleted = 0
+  let filteredOverdue = 0
 
   allTasks.forEach(task => {
-    filteredTotal++;
-    
+    filteredTotal++
+
     if (task.statusRef) {
-      const statusValue = task.statusRef.split(':').pop()?.toLowerCase();
+      const statusValue = task.statusRef.split(':').pop()?.toLowerCase()
       switch (statusValue) {
         case 'completed':
         case 'done':
-          filteredCompleted++;
-          break;
+          filteredCompleted++
+          break
         case 'in_progress':
         case 'active':
-          filteredInProgress++;
-          break;
+          filteredInProgress++
+          break
         case 'overdue':
-          filteredOverdue++;
-          break;
+          filteredOverdue++
+          break
         default:
           if (task.dueDate && new Date(task.dueDate) < new Date()) {
-            filteredOverdue++;
+            filteredOverdue++
           } else {
-            filteredInProgress++;
+            filteredInProgress++
           }
       }
     } else {
       if (task.dueDate && new Date(task.dueDate) < new Date()) {
-        filteredOverdue++;
+        filteredOverdue++
       } else {
-        filteredInProgress++;
+        filteredInProgress++
       }
     }
-  });
+  })
 
   // Calculate growth indicators
-  const totalGrowth = calculateGrowth(currentTotal, previousTotal);
-  const inProgressGrowth = calculateGrowth(currentInProgress, previousInProgress);
-  const completedGrowth = calculateGrowth(currentCompleted, previousCompleted);
-  const overdueGrowth = calculateGrowth(currentOverdue, previousOverdue);
+  const totalGrowth = calculateGrowth(currentTotal, previousTotal)
+  const inProgressGrowth = calculateGrowth(currentInProgress, previousInProgress)
+  const completedGrowth = calculateGrowth(currentCompleted, previousCompleted)
+  const overdueGrowth = calculateGrowth(currentOverdue, previousOverdue)
 
   return {
     totalTasks: {
@@ -192,8 +191,8 @@ const calculateStatisticsWithGrowth = (
       growth: overdueGrowth.growth,
       growthDirection: overdueGrowth.growthDirection
     }
-  };
-};
+  }
+}
 
 export const useTaskStatistics = (props: UseTaskStatisticsProps): UseTaskStatisticsReturn => {
   const {
@@ -206,7 +205,7 @@ export const useTaskStatistics = (props: UseTaskStatisticsProps): UseTaskStatist
     search,
     createdAfter,
     createdBefore
-  } = props;
+  } = props
 
   // State
   const [statistics, setStatistics] = useState<TaskStatistics>({
@@ -214,90 +213,86 @@ export const useTaskStatistics = (props: UseTaskStatisticsProps): UseTaskStatist
     inProgress: { value: 0 },
     completed: { value: 0 },
     overdue: { value: 0 }
-  });
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<Error | null>(null);
+  })
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState<Error | null>(null)
 
   // Throttling to prevent excessive requests
-  const lastFetchTime = useRef(0);
-  const FETCH_THROTTLE_MS = 3000; // Only allow refetch every 3 seconds
+  const lastFetchTime = useRef(0)
+  const FETCH_THROTTLE_MS = 3000 // Only allow refetch every 3 seconds
 
   // GraphQL queries
-  const { fetchHistoricalStatistics } = useSalesTaskQueries({ accessToken });
+  const { fetchHistoricalStatistics } = useSalesTaskQueries({ accessToken })
 
   // Build filter variables for statistics
   const getFilterVariables = useCallback(() => {
-    const filterVariables: any = {};
-    
+    const filterVariables: any = {}
+
     if (assignedEmployeeIds?.length) {
-      filterVariables.assignedEmployeeIds = assignedEmployeeIds;
+      filterVariables.assignedEmployeeIds = assignedEmployeeIds
     }
-    
+
     if (statusRefs?.length) {
-      filterVariables.statusRefs = statusRefs;
+      filterVariables.statusRefs = statusRefs
     }
-    
+
     if (priorityRefs?.length) {
-      filterVariables.priorityRefs = priorityRefs;
+      filterVariables.priorityRefs = priorityRefs
     }
-    
+
     if (taskTypes?.length) {
-      filterVariables.taskTypes = taskTypes;
+      filterVariables.taskTypes = taskTypes
     }
-    
-    return filterVariables;
-  }, [assignedEmployeeIds, statusRefs, priorityRefs, taskTypes]);
+
+    return filterVariables
+  }, [assignedEmployeeIds, statusRefs, priorityRefs, taskTypes])
 
   // Fetch statistics with historical comparison (THROTTLED)
   const fetchStatistics = useCallback(async () => {
     if (!accessToken) {
-      console.warn('No access token provided to useTaskStatistics');
-      return;
+      console.warn('No access token provided to useTaskStatistics')
+      return
     }
 
     // Throttle rapid requests
-    const now = Date.now();
+    const now = Date.now()
     if (now - lastFetchTime.current < FETCH_THROTTLE_MS) {
-      return; // Skip if too recent
+      return // Skip if too recent
     }
-    lastFetchTime.current = now;
+    lastFetchTime.current = now
 
-    setLoading(true);
-    setError(null);
+    setLoading(true)
+    setError(null)
 
     try {
       // Fetch historical data for 30-day comparison with current filters
-      const filterVariables = getFilterVariables();
-      const result = await fetchHistoricalStatistics(30, filterVariables);
-      
-      const stats = calculateStatisticsWithGrowth(
-        result.currentTasks, 
-        result.previousTasks, 
-        result.allTasks
-      );
-      setStatistics(stats);
+      const filterVariables = getFilterVariables()
+      const result = await fetchHistoricalStatistics(30, filterVariables)
+
+      const stats = calculateStatisticsWithGrowth(result.currentTasks, result.previousTasks, result.allTasks)
+      setStatistics(stats)
     } catch (err) {
-      const error = err instanceof Error ? err : new Error('Failed to load task statistics');
-      setError(error);
-      console.error('Error loading task statistics:', error);
+      const error = err instanceof Error ? err : new Error('Failed to load task statistics')
+      setError(error)
+      console.error('Error loading task statistics:', error)
     } finally {
-      setLoading(false);
+      setLoading(false)
     }
-  }, [accessToken, fetchHistoricalStatistics, getFilterVariables]);
+  }, [accessToken, fetchHistoricalStatistics, getFilterVariables])
 
   // Refetch function (THROTTLED)
   const refetch = useCallback(() => {
-    const now = Date.now();
+    const now = Date.now()
     if (now - lastFetchTime.current < FETCH_THROTTLE_MS) {
-      return; // Skip if too recent
+      return // Skip if too recent
     }
-    fetchStatistics();
-  }, [fetchStatistics]);
+    fetchStatistics()
+  }, [fetchStatistics])
 
   // Auto-reload when accessToken or filters change
   useEffect(() => {
     if (accessToken) {
-      fetchStatistics();
+      fetchStatistics()
     }
   }, [
     accessToken,
@@ -307,12 +302,12 @@ export const useTaskStatistics = (props: UseTaskStatisticsProps): UseTaskStatist
     statusRefs,
     priorityRefs,
     taskTypes
-  ]);
+  ])
 
   return {
     statistics,
     loading,
     error,
     refetch
-  };
-}; 
+  }
+}

@@ -1,95 +1,93 @@
-import React, { useState, useEffect, useCallback } from "react";
-import { BusinessAppContextProps } from "@/common/BusinessAppContext";
-import { Button } from "@newwork/nw-design-system";
-import { WidgetGroup, WidgetItem } from "@/components/widget-group";
-import { Users, FileText, Clock, Play, UserPlus, UserMinus } from "lucide-react";
-import { EmployeeLifecycleFlowService } from '../services/EmployeeLifecycleFlowService';
-import { FlowTemplate } from '@/common/network/flows/FlowTemplateClient';
-import { getTranslationFromI18nKeyAndLabel } from "@/common/utils/windowUtils";
+import React, { useState, useEffect, useCallback } from 'react'
+import { BusinessAppContextProps } from '@/common/BusinessAppContext'
+import { Button } from '@newwork/nw-design-system'
+import { WidgetGroup, WidgetItem } from '@/components/widget-group'
+import { Users, FileText, Clock, Play, UserPlus, UserMinus } from 'lucide-react'
+import { EmployeeLifecycleFlowService } from '../services/EmployeeLifecycleFlowService'
+import { FlowTemplate } from '@/common/network/flows/FlowTemplateClient'
+import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 
 export interface DashboardTabProps extends BusinessAppContextProps {
-  onRefetchTemplates?: () => void;
+  onRefetchTemplates?: () => void
 }
 
-export const DashboardTab: React.FC<DashboardTabProps> = (context) => {
-  const [templates, setTemplates] = useState<FlowTemplate[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+export const DashboardTab: React.FC<DashboardTabProps> = context => {
+  const [templates, setTemplates] = useState<FlowTemplate[]>([])
+  const [isLoading, setIsLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
 
   const loadData = useCallback(async () => {
     try {
-      setIsLoading(true);
-      setError(null);
+      setIsLoading(true)
+      setError(null)
 
       // Fetch employee lifecycle templates
       const { templates } = await EmployeeLifecycleFlowService.listTemplates(context.accessToken, {
         limit: 20,
         offset: 0
-      });
-      setTemplates(templates);
+      })
+      setTemplates(templates)
     } catch (err) {
-      console.error("Error loading employee lifecycle data:", err);
-      setError(err instanceof Error ? err.message : "Failed to load employee lifecycle data");
+      console.error('Error loading employee lifecycle data:', err)
+      setError(err instanceof Error ? err.message : 'Failed to load employee lifecycle data')
     } finally {
-      setIsLoading(false);
+      setIsLoading(false)
     }
-  }, [context.accessToken]);
+  }, [context.accessToken])
 
   // Load templates on mount and when notified of new template
   useEffect(() => {
-    loadData();
-    const handler = () => loadData();
-    window.addEventListener("employee-lifecycle-template-created", handler);
-    return () => window.removeEventListener("employee-lifecycle-template-created", handler);
-  }, [context.accessToken, loadData]);
+    loadData()
+    const handler = () => loadData()
+    window.addEventListener('employee-lifecycle-template-created', handler)
+    return () => window.removeEventListener('employee-lifecycle-template-created', handler)
+  }, [context.accessToken, loadData])
 
   // Calculate statistics from templates
-  const totalTemplates = templates.length;
-  const onboardingTemplates = templates.filter((t) => 
-    t.name.toLowerCase().includes('onboarding') || 
-    t.description?.toLowerCase().includes('onboarding')
-  ).length;
-  const offboardingTemplates = templates.filter((t) => 
-    t.name.toLowerCase().includes('offboarding') || 
-    t.description?.toLowerCase().includes('offboarding')
-  ).length;
-  const otherTemplates = totalTemplates - onboardingTemplates - offboardingTemplates;
+  const totalTemplates = templates.length
+  const onboardingTemplates = templates.filter(
+    t => t.name.toLowerCase().includes('onboarding') || t.description?.toLowerCase().includes('onboarding')
+  ).length
+  const offboardingTemplates = templates.filter(
+    t => t.name.toLowerCase().includes('offboarding') || t.description?.toLowerCase().includes('offboarding')
+  ).length
+  const otherTemplates = totalTemplates - onboardingTemplates - offboardingTemplates
 
   // Widget configuration for statistics - offboarding placed last
   const widgets: WidgetItem[] = [
     {
-      key: "total-lifecycle-flows",
-      title: "Total Lifecycle Flows",
+      key: 'total-lifecycle-flows',
+      title: 'Total Lifecycle Flows',
       value: totalTemplates,
       prefix: <Users className="gba:h-5 gba:w-5 gba:text-blue-600" />,
-      color: "#3b82f6",
-      description: "All employee lifecycle processes",
+      color: '#3b82f6',
+      description: 'All employee lifecycle processes'
     },
     {
-      key: "onboarding-flows",
-      title: "Onboarding Flows",
+      key: 'onboarding-flows',
+      title: 'Onboarding Flows',
       value: onboardingTemplates,
       prefix: <UserPlus className="gba:h-5 gba:w-5 gba:text-green-600" />,
-      color: "#16a34a",
-      description: "New employee onboarding",
+      color: '#16a34a',
+      description: 'New employee onboarding'
     },
     {
-      key: "other-flows",
-      title: "Other Flows",
+      key: 'other-flows',
+      title: 'Other Flows',
       value: otherTemplates,
       prefix: <FileText className="gba:h-5 gba:w-5 gba:text-purple-600" />,
-      color: "#9333ea",
-      description: "Career changes & updates",
+      color: '#9333ea',
+      description: 'Career changes & updates'
     },
     {
-      key: "offboarding-flows",
-      title: "Offboarding Flows",
+      key: 'offboarding-flows',
+      title: 'Offboarding Flows',
       value: offboardingTemplates,
       prefix: <UserMinus className="gba:h-5 gba:w-5 gba:text-orange-600" />,
-      color: "#ea580c",
-      description: "Employee departure process",
-    },
-  ];
+      color: '#ea580c',
+      description: 'Employee departure process'
+    }
+  ]
 
   return (
     <div className="gba:space-y-6" data-testid="employee-lifecycle-dashboard-tab">
@@ -118,7 +116,7 @@ export const DashboardTab: React.FC<DashboardTabProps> = (context) => {
         <h3 className="gba:text-base gba:font-medium gba:mb-3">Employee Lifecycle Flows</h3>
         {isLoading ? (
           <div className="gba:grid gba:grid-cols-1 md:gba:grid-cols-2 lg:gba:grid-cols-3 gba:gap-4">
-            {[1, 2, 3].map((i) => (
+            {[1, 2, 3].map(i => (
               <div
                 key={i}
                 className="gba:h-32 gba:rounded-lg gba:animate-pulse gba:bg-gray-200 gba:border gba:shadow-sm"
@@ -128,7 +126,7 @@ export const DashboardTab: React.FC<DashboardTabProps> = (context) => {
           </div>
         ) : templates.length > 0 ? (
           <div className="gba:grid gba:grid-cols-1 md:gba:grid-cols-2 lg:gba:grid-cols-3 gba:gap-4">
-            {templates.map((template) => (
+            {templates.map(template => (
               <div
                 key={template.id}
                 className="gba:p-4 gba:rounded-lg gba:border gba:shadow-sm gba:bg-white hover:gba:shadow-md gba:transition-shadow"
@@ -164,25 +162,18 @@ export const DashboardTab: React.FC<DashboardTabProps> = (context) => {
             ))}
           </div>
         ) : (
-          <div
-            className="gba:text-center gba:py-8"
-            style={{ color: "var(--color-muted-foreground)" }}
-          >
+          <div className="gba:text-center gba:py-8" style={{ color: 'var(--color-muted-foreground)' }}>
             <Users
               className="gba:h-12 gba:w-12 gba:mx-auto gba:mb-4"
-              style={{ color: "var(--color-muted-foreground)" }}
+              style={{ color: 'var(--color-muted-foreground)' }}
             />
             <p>No employee lifecycle flows found</p>
-            <p className="gba:text-sm">
-              Flow templates with 'solution: employeeLifecycle' tag will appear here
-            </p>
+            <p className="gba:text-sm">Flow templates with 'solution: employeeLifecycle' tag will appear here</p>
           </div>
         )}
       </div>
     </div>
-  );
-};
+  )
+}
 
-export default DashboardTab;
-
-
+export default DashboardTab

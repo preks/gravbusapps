@@ -1,67 +1,58 @@
-import React, { useRef, useState, useCallback } from "react";
-import { Modal, Upload } from "antd";
-import { useExpenseItem } from "../../context/ExpenseItemContext";
-import { Button } from "@newwork/gravity-ui-catalog";
-import { useTranslation } from "react-i18next";
-import { ICONS } from "@/business-apps/fin/expenses/utils/icons";
-import { showToast } from "@/business-apps/fin/expenses/utils/notificationUtils";
+import React, { useRef, useState, useCallback } from 'react'
+import { Modal, Upload } from 'antd'
+import { useExpenseItem } from '../../context/ExpenseItemContext'
+import { Button } from '@newwork/gravity-ui-catalog'
+import { useTranslation } from 'react-i18next'
+import { ICONS } from '@/business-apps/fin/expenses/utils/icons'
+import { showToast } from '@/business-apps/fin/expenses/utils/notificationUtils'
 
 interface UploadComponentProps {
-  fileList: any[];
-  setFileList: (files: any[]) => void;
+  fileList: any[]
+  setFileList: (files: any[]) => void
 }
 
-const ALLOWED_FILE_TYPES = [".pdf", ".PDF", ".jpg", ".JPG", ".jpeg", ".JPEG", ".png", ".PNG"];
+const ALLOWED_FILE_TYPES = ['.pdf', '.PDF', '.jpg', '.JPG', '.jpeg', '.JPEG', '.png', '.PNG']
 
-export const UploadComponent: React.FC<UploadComponentProps> = ({ 
-  fileList, 
-  setFileList
-}) => {
-  const { 
-    currentStep, 
-    handleFileUpload, 
-    isProcessingFiles
-  } = useExpenseItem();
-  
-const { t } = useTranslation();
-  const [isHandlingUpload, setIsHandlingUpload] = useState<boolean>(false);
-  
+export const UploadComponent: React.FC<UploadComponentProps> = ({ fileList, setFileList }) => {
+  const { currentStep, handleFileUpload, isProcessingFiles } = useExpenseItem()
 
-  const lastUploadTimestampRef = useRef<number>(0);
-  
+  const { t } = useTranslation()
+  const [isHandlingUpload, setIsHandlingUpload] = useState<boolean>(false)
 
-  const [pendingFiles, setPendingFiles] = useState<File[]>([]);
-  
+  const lastUploadTimestampRef = useRef<number>(0)
 
-  const [isModalVisible, setIsModalVisible] = useState<boolean>(false);
-  
+  const [pendingFiles, setPendingFiles] = useState<File[]>([])
+
+  const [isModalVisible, setIsModalVisible] = useState<boolean>(false)
 
   const validateFileType = (file: File) => {
     const isValidType = ALLOWED_FILE_TYPES.some(type => {
-      const extension = `.${file.name.split('.').pop()}`;
-      return type.toLowerCase() === extension.toLowerCase();
-    });
-    
+      const extension = `.${file.name.split('.').pop()}`
+      return type.toLowerCase() === extension.toLowerCase()
+    })
+
     if (!isValidType) {
-         showToast(
-            t("lowcoder:create_expense_type_item.error_file_type_message", "File type not supported. Please upload PDF, JPG, JPEG, or PNG files only."),
-            "error"
-          );
+      showToast(
+        t(
+          'lowcoder:create_expense_type_item.error_file_type_message',
+          'File type not supported. Please upload PDF, JPG, JPEG, or PNG files only.'
+        ),
+        'error'
+      )
     }
-    
-    return isValidType;
-  };
-  
+
+    return isValidType
+  }
 
   const handleBeforeUpload = (file: File) => {
     if (!validateFileType(file)) {
-      return Upload.LIST_IGNORE;
+      return Upload.LIST_IGNORE
     }
 
     if (fileList.length > 0 && !isProcessingFiles && !isHandlingUpload) {
-      setPendingFiles([file]);
-      setTimeout(() => setIsModalVisible(true), 0);
-      return Upload.LIST_IGNORE;
+      setPendingFiles([file])
+      setTimeout(() => setIsModalVisible(true), 0)
+      return Upload.LIST_IGNORE
     }
 
     if (!isProcessingFiles && !isHandlingUpload) {
@@ -70,96 +61,104 @@ const { t } = useTranslation();
         name: file.name,
         status: 'done',
         originFileObj: file
-      };
-      const newFileList = [...fileList, newFile];
-      setFileList(newFileList);
-      processFiles([file]);
+      }
+      const newFileList = [...fileList, newFile]
+      setFileList(newFileList)
+      processFiles([file])
     }
 
-    return false;
-  };
+    return false
+  }
 
-  const processFiles = useCallback((files: File[]) => {
-    if (isHandlingUpload || isProcessingFiles || files.length === 0) {
-      return;
-    }
+  const processFiles = useCallback(
+    (files: File[]) => {
+      if (isHandlingUpload || isProcessingFiles || files.length === 0) {
+        return
+      }
 
-    const now = Date.now();
-    if (now - lastUploadTimestampRef.current < 500) {
-      return;
-    }
+      const now = Date.now()
+      if (now - lastUploadTimestampRef.current < 500) {
+        return
+      }
 
-    lastUploadTimestampRef.current = now;
-    setIsHandlingUpload(true);
+      lastUploadTimestampRef.current = now
+      setIsHandlingUpload(true)
 
-    setTimeout(() => {
-      handleFileUpload(files).finally(() => {
-        setIsHandlingUpload(false);
-      });
-    },0);
-  }, [handleFileUpload, isHandlingUpload, isProcessingFiles]);
+      setTimeout(() => {
+        handleFileUpload(files).finally(() => {
+          setIsHandlingUpload(false)
+        })
+      }, 0)
+    },
+    [handleFileUpload, isHandlingUpload, isProcessingFiles]
+  )
 
-  const handleModalConfirm = useCallback((keepExisting: boolean) => {
-    if (!pendingFiles.length) return;
+  const handleModalConfirm = useCallback(
+    (keepExisting: boolean) => {
+      if (!pendingFiles.length) return
 
-    setIsModalVisible(false);
+      setIsModalVisible(false)
 
-    if (keepExisting) {
-      const existingFiles = fileList.map(f => f.originFileObj).filter(Boolean);
-      const newFileListItems = pendingFiles.map(file => ({
-        uid: Date.now().toString() + Math.random().toString(36).substring(2, 9),
-        name: file.name,
-        status: 'done',
-        originFileObj: file
-      }));
-      setFileList([...fileList, ...newFileListItems]);
-      processFiles([...existingFiles, ...pendingFiles]);
-    } else {
-      const newFileListItems = pendingFiles.map(file => ({
-        uid: Date.now().toString() + Math.random().toString(36).substring(2, 9),
-        name: file.name,
-        status: 'done',
-        originFileObj: file
-      }));
-      setFileList(newFileListItems);
-      processFiles(pendingFiles);
-    }
+      if (keepExisting) {
+        const existingFiles = fileList.map(f => f.originFileObj).filter(Boolean)
+        const newFileListItems = pendingFiles.map(file => ({
+          uid: Date.now().toString() + Math.random().toString(36).substring(2, 9),
+          name: file.name,
+          status: 'done',
+          originFileObj: file
+        }))
+        setFileList([...fileList, ...newFileListItems])
+        processFiles([...existingFiles, ...pendingFiles])
+      } else {
+        const newFileListItems = pendingFiles.map(file => ({
+          uid: Date.now().toString() + Math.random().toString(36).substring(2, 9),
+          name: file.name,
+          status: 'done',
+          originFileObj: file
+        }))
+        setFileList(newFileListItems)
+        processFiles(pendingFiles)
+      }
 
-    setPendingFiles([]);
-  }, [fileList, pendingFiles, processFiles, setFileList]);
+      setPendingFiles([])
+    },
+    [fileList, pendingFiles, processFiles, setFileList]
+  )
 
   const handleChange = (info: any) => {
     const validFiles = info.fileList.filter((file: any) => {
       if (!file.response && file.status !== 'error') {
-        return validateFileType(file.originFileObj);
+        return validateFileType(file.originFileObj)
       }
-      return true;
-    });
+      return true
+    })
 
     if (!isModalVisible) {
-      setFileList(validFiles);
+      setFileList(validFiles)
     }
-  };
+  }
 
   const handleRemove = (file: any) => {
-    const newFileList = fileList.filter(item => item.uid !== file.uid);
-    setFileList(newFileList);
-  };
+    const newFileList = fileList.filter(item => item.uid !== file.uid)
+    setFileList(newFileList)
+  }
 
   const getButtonContent = () => {
-    if (fileList.length === 0 && currentStep === "start") {
+    if (fileList.length === 0 && currentStep === 'start') {
       return (
-        <div style={{
-          display: 'flex',
-          flexDirection: 'column',
-          alignItems: 'center',
-          justifyContent: 'center',
-          gap: '16px',
-          cursor: 'pointer',
-          padding: '20px',
-          width: '100%',
-          height: '100%'
-        }}>
+        <div
+          style={{
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: '16px',
+            cursor: 'pointer',
+            padding: '20px',
+            width: '100%',
+            height: '100%'
+          }}
+        >
           {isProcessingFiles ? (
             <>
               <img
@@ -174,33 +173,37 @@ const { t } = useTranslation();
             </>
           ) : (
             <>
-              <img 
-                src={ICONS.FOCUS} 
-                alt={t('lowcoder:create_expense_type_item.focus_alt_text', 'Focus')} 
+              <img
+                src={ICONS.FOCUS}
+                alt={t('lowcoder:create_expense_type_item.focus_alt_text', 'Focus')}
                 style={{ width: '36px', height: '36px' }}
                 width="36"
                 height="36"
                 data-testid="upload-icon-large"
               />
-              <span className="gba:font-medium gba:text-black" data-testid="attach-receipt-text-start">{t('lowcoder:create_expense_type_item.attach_receipt', 'Attach Receipt')}</span>
+              <span className="gba:font-medium gba:text-black" data-testid="attach-receipt-text-start">
+                {t('lowcoder:create_expense_type_item.attach_receipt', 'Attach Receipt')}
+              </span>
             </>
           )}
         </div>
-      );
+      )
     }
 
     if (fileList.length === 0) {
       return (
-        <div style={{
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          cursor: 'pointer',
-          padding: '20px 20px',
-          width: '100%',
-          height: '100%',
-          gap: '16px'
-        }}>
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            cursor: 'pointer',
+            padding: '20px 20px',
+            width: '100%',
+            height: '100%',
+            gap: '16px'
+          }}
+        >
           {isProcessingFiles ? (
             <>
               <img
@@ -213,21 +216,23 @@ const { t } = useTranslation();
             </>
           ) : (
             <>
-              <span className="gba:font-medium gba:text-black" data-testid="attach-receipt-text-form">{t('lowcoder:create_expense_type_item.attach_receipt', 'Attach Receipt')}</span>
-              <img 
-                src={ICONS.FOCUS} 
-                alt={t('lowcoder:create_expense_type_item.focus_alt_text', 'Focus')} 
+              <span className="gba:font-medium gba:text-black" data-testid="attach-receipt-text-form">
+                {t('lowcoder:create_expense_type_item.attach_receipt', 'Attach Receipt')}
+              </span>
+              <img
+                src={ICONS.FOCUS}
+                alt={t('lowcoder:create_expense_type_item.focus_alt_text', 'Focus')}
                 style={{ width: '18px', height: '18px' }}
                 data-testid="upload-icon-small"
               />
             </>
           )}
         </div>
-      );
+      )
     }
 
-    return null;
-  };
+    return null
+  }
 
   const getContainerStyles = (): React.CSSProperties => {
     if (fileList.length > 0) {
@@ -238,10 +243,10 @@ const { t } = useTranslation();
         position: 'relative' as const,
         backgroundColor: '#fff',
         minHeight: '80px'
-      };
+      }
     }
 
-    if (currentStep === "start") {
+    if (currentStep === 'start') {
       return {
         border: '2px solid #EFEFEF',
         borderRadius: '4px',
@@ -251,7 +256,7 @@ const { t } = useTranslation();
         alignItems: 'center',
         justifyContent: 'center',
         backgroundColor: '#fff'
-      };
+      }
     }
 
     return {
@@ -259,10 +264,10 @@ const { t } = useTranslation();
       borderRadius: '4px',
       padding: '0',
       backgroundColor: '#fff'
-    };
-  };
+    }
+  }
 
-  const acceptedFileTypes = "application/pdf,image/jpeg,image/png,.pdf,.jpg,.jpeg,.png,.PDF,.JPG,.JPEG,.PNG";
+  const acceptedFileTypes = 'application/pdf,image/jpeg,image/png,.pdf,.jpg,.jpeg,.png,.PDF,.JPG,.JPEG,.PNG'
 
   return (
     <div style={getContainerStyles()} data-testid="upload-container">
@@ -283,7 +288,11 @@ const { t } = useTranslation();
         </Upload>
       ) : (
         <div style={{ width: '100%', display: 'flex', flexDirection: 'column' }} data-testid="files-flex-container">
-          <div style={{ width: '100%' }} data-testid="file-list-row" className="gba:[&_.ant-upload-list-item-name]:flex">
+          <div
+            style={{ width: '100%' }}
+            data-testid="file-list-row"
+            className="gba:[&_.ant-upload-list-item-name]:flex"
+          >
             <Upload
               listType="text"
               fileList={fileList}
@@ -296,13 +305,16 @@ const { t } = useTranslation();
               showUploadList={{
                 showPreviewIcon: false,
                 showDownloadIcon: false,
-                showRemoveIcon: true,
+                showRemoveIcon: true
               }}
               data-testid="upload-input-with-files"
             />
           </div>
 
-          <div style={{ width: '100%', display: 'flex', justifyContent: 'flex-end', marginTop: '16px' }} data-testid="attach-button-row">
+          <div
+            style={{ width: '100%', display: 'flex', justifyContent: 'flex-end', marginTop: '16px' }}
+            data-testid="attach-button-row"
+          >
             <Upload
               showUploadList={false}
               beforeUpload={handleBeforeUpload}
@@ -312,10 +324,24 @@ const { t } = useTranslation();
               disabled={isProcessingFiles}
               data-testid="attach-more-upload"
             >
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', cursor: 'pointer', gap: '16px' }} data-testid="attach-more-container">
+              <div
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'flex-end',
+                  cursor: 'pointer',
+                  gap: '16px'
+                }}
+                data-testid="attach-more-container"
+              >
                 {isProcessingFiles ? (
                   <>
-                    <span data-testid="processing-text">{t('lowcoder:create_expense_item.change_expense_item_container.file_add_document_processing', 'Processing the receipt...')}</span>
+                    <span data-testid="processing-text">
+                      {t(
+                        'lowcoder:create_expense_item.change_expense_item_container.file_add_document_processing',
+                        'Processing the receipt...'
+                      )}
+                    </span>
                     <img
                       src={ICONS.SPINNER_ICON}
                       alt="Loading"
@@ -325,10 +351,12 @@ const { t } = useTranslation();
                   </>
                 ) : (
                   <>
-                    <span className="gba:font-medium gba:text-black" data-testid="attach-receipt-text">{t('lowcoder:create_expense_type_item.attach_receipt', 'Attach Receipt')}</span>
-                    <img 
-                      src={ICONS.FOCUS} 
-                      alt={t('lowcoder:create_expense_type_item.focus_alt_text', 'Focus')} 
+                    <span className="gba:font-medium gba:text-black" data-testid="attach-receipt-text">
+                      {t('lowcoder:create_expense_type_item.attach_receipt', 'Attach Receipt')}
+                    </span>
+                    <img
+                      src={ICONS.FOCUS}
+                      alt={t('lowcoder:create_expense_type_item.focus_alt_text', 'Focus')}
                       style={{ width: '18px', height: '18px' }}
                       data-testid="attach-receipt-icon"
                     />
@@ -345,8 +373,8 @@ const { t } = useTranslation();
           title={t('lowcoder:create_expense_type_item.attach_additional_files', 'Attach Additional Files')}
           open={true}
           onCancel={() => {
-            setIsModalVisible(false);
-            setPendingFiles([]);
+            setIsModalVisible(false)
+            setPendingFiles([])
           }}
           footer={null}
           maskClosable={false}
@@ -357,10 +385,22 @@ const { t } = useTranslation();
           width={500}
         >
           <div style={{ padding: '16px 0', fontFamily: 'Roboto, sans-serif' }} data-testid="modal-content">
-            <p style={{ marginBottom: '24px', fontSize: '16px', color: '#333', textAlign: 'center' }} data-testid="modal-message">{
-            fileList.length > 1 ? t("lowcoder:create_expense_type_item.upload_file_modal_message","Do you want to keep the current file as well?"): t("lowcoder:create_expense_type_item.upload_file_modal_message","Do you want to keep the current file as well?")}</p>
+            <p
+              style={{ marginBottom: '24px', fontSize: '16px', color: '#333', textAlign: 'center' }}
+              data-testid="modal-message"
+            >
+              {fileList.length > 1
+                ? t(
+                    'lowcoder:create_expense_type_item.upload_file_modal_message',
+                    'Do you want to keep the current file as well?'
+                  )
+                : t(
+                    'lowcoder:create_expense_type_item.upload_file_modal_message',
+                    'Do you want to keep the current file as well?'
+                  )}
+            </p>
             <div style={{ display: 'flex', justifyContent: 'center', gap: '16px' }} data-testid="modal-buttons">
-              <Button 
+              <Button
                 variant="secondary"
                 onClick={() => handleModalConfirm(false)}
                 data-testid="modal-no-button"
@@ -368,7 +408,7 @@ const { t } = useTranslation();
               >
                 {t('lowcoder:create_expense_type_item.cancel_button_modal', 'No')}
               </Button>
-              <Button 
+              <Button
                 variant="primary"
                 onClick={() => handleModalConfirm(true)}
                 data-testid="modal-yes-button"
@@ -381,7 +421,7 @@ const { t } = useTranslation();
         </Modal>
       )}
     </div>
-  );
-};
+  )
+}
 
-export default UploadComponent;
+export default UploadComponent

@@ -1,31 +1,26 @@
-import React from 'react';
-import { WidgetGroup, WidgetItem } from '@/components/widget-group';
-import { 
-  DollarOutlined,
-  TrophyOutlined,
-  RiseOutlined,
-  ClockCircleOutlined
-} from '@ant-design/icons';
-import { formatCompactCurrency } from '@/common/utils/numberFormatter';
+import React from 'react'
+import { WidgetGroup, WidgetItem } from '@/components/widget-group'
+import { DollarOutlined, TrophyOutlined, RiseOutlined, ClockCircleOutlined } from '@ant-design/icons'
+import { formatCompactCurrency } from '@/common/utils/numberFormatter'
 
 interface TrendData {
-  current: number;
-  previous: number;
-  change: number;
-  changePercent: number;
-  isPositive: boolean;
+  current: number
+  previous: number
+  change: number
+  changePercent: number
+  isPositive: boolean
 }
 
 interface OpportunityStatisticsWithTrendProps {
   trendData: {
-    recentOpportunities: TrendData;
-    opportunityValue: TrendData;
-    winRate: TrendData;
-    opportunitiesThisYear: TrendData;
-  };
-  isLoading?: boolean;
-  error?: Error | null;
-  onRetry?: () => void;
+    recentOpportunities: TrendData
+    opportunityValue: TrendData
+    winRate: TrendData
+    opportunitiesThisYear: TrendData
+  }
+  isLoading?: boolean
+  error?: Error | null
+  onRetry?: () => void
 }
 
 /**
@@ -37,13 +32,13 @@ export const OpportunityStatisticsWithTrend: React.FC<OpportunityStatisticsWithT
   error = null,
   onRetry
 }) => {
-  const formatCurrency = (amount: number): string => formatCompactCurrency(amount, 'USD');
+  const formatCurrency = (amount: number): string => formatCompactCurrency(amount, 'USD')
 
   // Helper function to format trend percentage with proper sign
   const formatTrendPercent = (changePercent: number): string => {
-    const sign = changePercent >= 0 ? '+' : '';
-    return `${sign}${changePercent.toFixed(1)}%`;
-  };
+    const sign = changePercent >= 0 ? '+' : ''
+    return `${sign}${changePercent.toFixed(1)}%`
+  }
 
   // Transform the trend data into widgets format with trend information
   const widgets: WidgetItem[] = [
@@ -105,7 +100,7 @@ export const OpportunityStatisticsWithTrend: React.FC<OpportunityStatisticsWithT
         description: 'vs same period last year'
       }
     }
-  ];
+  ]
 
   return (
     <div data-testid="opportunity-statistics-with-trend-container">
@@ -119,5 +114,5 @@ export const OpportunityStatisticsWithTrend: React.FC<OpportunityStatisticsWithT
         data-testid="opportunity-statistics-with-trend"
       />
     </div>
-  );
-}; 
+  )
+}

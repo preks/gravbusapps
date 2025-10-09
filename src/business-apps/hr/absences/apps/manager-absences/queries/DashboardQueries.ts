@@ -1,4 +1,3 @@
-
 export const GET_APPROVED_ABSENCES_2025 = (currentYearStart: string, currentYearEnd: string): string => `
   query GetApprovedAbsences2025($supervisorId: uuid, $currentYearStart: timestamp!, $currentYearEnd: timestamp!) {
     EmployeeAbsenceAggregate(
@@ -14,7 +13,7 @@ export const GET_APPROVED_ABSENCES_2025 = (currentYearStart: string, currentYear
       }
     }
   }
-`;
+`
 
 export const GET_PENDING_REQUESTS = (currentYearStart: string, currentYearEnd: string): string => `
   query GetPendingRequests($supervisorId: uuid, $currentYearStart: timestamp!, $currentYearEnd: timestamp!) {
@@ -31,7 +30,7 @@ export const GET_PENDING_REQUESTS = (currentYearStart: string, currentYearEnd: s
       }
     }
   }
-`;
+`
 
 export const GET_TEAM_MEMBERS_AWAY = (todayStart: string, todayEnd: string): string => `
   query GetTeamMembersAway($supervisorId: uuid, $todayStart: timestamp!, $todayEnd: timestamp!) {
@@ -56,7 +55,7 @@ export const GET_TEAM_MEMBERS_AWAY = (todayStart: string, todayEnd: string): str
       }
     }
   }
-`;
+`
 
 export const GET_UPCOMING_ABSENCES = (todayStart: string): string => `
   query GetUpcomingAbsences($supervisorId: uuid, $todayStart: timestamp!) {
@@ -73,7 +72,7 @@ export const GET_UPCOMING_ABSENCES = (todayStart: string): string => `
       }
     }
   }
-`;
+`
 
 export const GET_VACATION_ABSENCES = (currentYearStart: string, currentYearEnd: string): string => `
   query GetVacationAbsences($supervisorId: uuid, $currentYearStart: timestamp!, $currentYearEnd: timestamp!) {
@@ -91,7 +90,7 @@ export const GET_VACATION_ABSENCES = (currentYearStart: string, currentYearEnd: 
       }
     }
   }
-`;
+`
 
 export const GET_SICK_ABSENCES = (currentYearStart: string, currentYearEnd: string): string => `
   query GetSickAbsences($supervisorId: uuid, $currentYearStart: timestamp!, $currentYearEnd: timestamp!) {
@@ -109,7 +108,7 @@ export const GET_SICK_ABSENCES = (currentYearStart: string, currentYearEnd: stri
       }
     }
   }
-`;
+`
 
 export const GET_PERSONAL_ABSENCES = (currentYearStart: string, currentYearEnd: string): string => `
   query GetPersonalAbsences($supervisorId: uuid, $currentYearStart: timestamp!, $currentYearEnd: timestamp!) {
@@ -127,7 +126,7 @@ export const GET_PERSONAL_ABSENCES = (currentYearStart: string, currentYearEnd: 
       }
     }
   }
-`;
+`
 
 export const GET_PENDING_ABSENCES = (currentYearStart: string, currentYearEnd: string): string => `
   query GetPendingAbsences($supervisorId: uuid, $currentYearStart: timestamp!, $currentYearEnd: timestamp!) {
@@ -144,7 +143,7 @@ export const GET_PENDING_ABSENCES = (currentYearStart: string, currentYearEnd: s
       }
     }
   }
-`;
+`
 
 export const GET_REJECTED_ABSENCES = (currentYearStart: string, currentYearEnd: string): string => `
   query GetRejectedAbsences($supervisorId: uuid, $currentYearStart: timestamp!, $currentYearEnd: timestamp!) {
@@ -161,7 +160,7 @@ export const GET_REJECTED_ABSENCES = (currentYearStart: string, currentYearEnd: 
       }
     }
   }
-`;
+`
 
 export const GET_SICK_ABSENCES_BY_MONTH = (currentYearStart: string, currentYearEnd: string): string => `
   query GetSickAbsencesByMonth($supervisorId: uuid, $currentYearStart: timestamp!, $currentYearEnd: timestamp!) {
@@ -186,4 +185,4 @@ export const GET_SICK_ABSENCES_BY_MONTH = (currentYearStart: string, currentYear
       }
     }
   }
-`; 
+`

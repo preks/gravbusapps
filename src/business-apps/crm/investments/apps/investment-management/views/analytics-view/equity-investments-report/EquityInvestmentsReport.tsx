@@ -1,107 +1,118 @@
-import React, { useState, useCallback, useEffect } from 'react';
-import { Button } from '@newwork/nw-design-system';
-import { Tabs, TabsList, TabsTrigger, TabsContent } from '@newwork/nw-design-system';
-import { Alert, AlertTitle, AlertDescription } from '@newwork/nw-design-system';
-import { Spinner } from '@newwork/nw-design-system';
-import { Badge } from '@newwork/nw-design-system';
-import { TrendingUp, BarChart, PieChart } from 'lucide-react';
-import { WidgetGroup } from '@/components/widget-group';
-import { DollarCircleOutlined, BankOutlined, RiseOutlined, TeamOutlined } from '@ant-design/icons';
-import { BusinessAppContextProps } from '@/common/BusinessAppContext';
-import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
-import { formatDataTestId } from '@/common/utils/formatDataTestId';
-import { useGetInvestments } from '@/common/data/investment';
-import type { Investment, EquityInvestment } from '@/common/data/investment';
+import React, { useState, useCallback, useEffect } from 'react'
+import { Button } from '@newwork/nw-design-system'
+import { Tabs, TabsList, TabsTrigger, TabsContent } from '@newwork/nw-design-system'
+import { Alert, AlertTitle, AlertDescription } from '@newwork/nw-design-system'
+import { Spinner } from '@newwork/nw-design-system'
+import { Badge } from '@newwork/nw-design-system'
+import { TrendingUp, BarChart, PieChart } from 'lucide-react'
+import { WidgetGroup } from '@/components/widget-group'
+import { DollarCircleOutlined, BankOutlined, RiseOutlined, TeamOutlined } from '@ant-design/icons'
+import { BusinessAppContextProps } from '@/common/BusinessAppContext'
+import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
+import { formatDataTestId } from '@/common/utils/formatDataTestId'
+import { useGetInvestments } from '@/common/data/investment'
+import type { Investment, EquityInvestment } from '@/common/data/investment'
 
 // Extended Investment type that includes specialization fields from GraphQL queries
 interface InvestmentWithSpecializations extends Investment {
-  equityInvestment?: EquityInvestment[];
-  realEstateInvestment?: any[];
-  liquidFundInvestment?: any[];
-  bookValue?: number;
+  equityInvestment?: EquityInvestment[]
+  realEstateInvestment?: any[]
+  liquidFundInvestment?: any[]
+  bookValue?: number
   investmentRole?: Array<{
-    id: string;
-    displayOrder?: number;
+    id: string
+    displayOrder?: number
     investmentRole?: {
-      value?: string;
-    };
-  }>;
+      value?: string
+    }
+  }>
 }
-import { useEquityChartData, useEquityKPIIntegration } from './hooks';
-import { 
+import { useEquityChartData, useEquityKPIIntegration } from './hooks'
+import {
   calculateChange,
   formatCurrency,
   extractCurrencyCode,
   getInvestmentStatusColor,
   getRiskLevelColor,
   getInvestmentRoleColor
-} from '../shared/utils';
-import type { EquityInvestmentSummary } from '../shared/types';
-import { EquityTimelineCharts, EquityAnalyticsCharts, EquityDistributionCharts } from './components';
+} from '../shared/utils'
+import type { EquityInvestmentSummary } from '../shared/types'
+import { EquityTimelineCharts, EquityAnalyticsCharts, EquityDistributionCharts } from './components'
 
 // Legacy interface - kept for compatibility but not used for KPIs anymore
 export interface EquityInvestmentKPIs {
-  totalEquityValue: number;
-  averageCompanyValuation: number;
-  totalEbitda: number;
-  numberOfEquityInvestments: number;
+  totalEquityValue: number
+  averageCompanyValuation: number
+  totalEbitda: number
+  numberOfEquityInvestments: number
 }
 
 // Helper function to safely extract currency code from CatalogEntry or string
 const safeCurrencyExtraction = (currency: any): string => {
-  if (!currency) return 'EUR';
-  
+  if (!currency) return 'EUR'
+
   if (typeof currency === 'object') {
     // Handle CatalogEntry: try code first, then value
-    const currencyStr = currency.code || currency.value;
-    return extractCurrencyCode(currencyStr || 'EUR');
+    const currencyStr = currency.code || currency.value
+    return extractCurrencyCode(currencyStr || 'EUR')
   }
-  
-  // Handle string values
-  return extractCurrencyCode(currency);
-};
 
-interface EquityInvestmentsReportProps extends BusinessAppContextProps {
-  prefixDataTestId?: string;
+  // Handle string values
+  return extractCurrencyCode(currency)
 }
 
-const EquityInvestmentsReport: React.FC<EquityInvestmentsReportProps> = (props) => {
-  const prefixDataTestId = props.prefixDataTestId || 'EquityInvestmentsReport';
-  const [activeTab, setActiveTab] = useState('distribution');
-  
-  const [equityInvestments, setEquityInvestments] = useState<EquityInvestmentSummary[]>([]);
-  const [dataLoading, setDataLoading] = useState(true);
-  const [dataError, setDataError] = useState<string | null>(null);
+interface EquityInvestmentsReportProps extends BusinessAppContextProps {
+  prefixDataTestId?: string
+}
+
+const EquityInvestmentsReport: React.FC<EquityInvestmentsReportProps> = props => {
+  const prefixDataTestId = props.prefixDataTestId || 'EquityInvestmentsReport'
+  const [activeTab, setActiveTab] = useState('distribution')
+
+  const [equityInvestments, setEquityInvestments] = useState<EquityInvestmentSummary[]>([])
+  const [dataLoading, setDataLoading] = useState(true)
+  const [dataError, setDataError] = useState<string | null>(null)
 
   // Use the new KPI integration hook for real GraphQL aggregate queries
-  const { current: kpis, previous: previousKpis, isLoading: kpiLoading, error: kpiError, refetch: refetchKpis } = useEquityKPIIntegration(props);
-  
-  const { fetchInvestments } = useGetInvestments(props);
+  const {
+    current: kpis,
+    previous: previousKpis,
+    isLoading: kpiLoading,
+    error: kpiError,
+    refetch: refetchKpis
+  } = useEquityKPIIntegration(props)
+
+  const { fetchInvestments } = useGetInvestments(props)
 
   // Combined loading and error states
-  const isLoading = dataLoading || kpiLoading;
-  const error = dataError || kpiError;
+  const isLoading = dataLoading || kpiLoading
+  const error = dataError || kpiError
 
   // Transform equity data
   const transformEquityData = useCallback((investments: InvestmentWithSpecializations[]): EquityInvestmentSummary[] => {
     return investments
       .filter(investment => {
         // Include investments that have equityInvestment data OR are equity-related by investment type
-        const hasEquityData = investment.equityInvestment && Array.isArray(investment.equityInvestment) && investment.equityInvestment.length > 0;
-        const isEquityType = (investment.investmentType?.value ?? '').toLowerCase().includes('equity') || 
-                           (investment.investmentGroup?.value ?? '').toLowerCase().includes('equity');
-        return hasEquityData || isEquityType;
+        const hasEquityData =
+          investment.equityInvestment &&
+          Array.isArray(investment.equityInvestment) &&
+          investment.equityInvestment.length > 0
+        const isEquityType =
+          (investment.investmentType?.value ?? '').toLowerCase().includes('equity') ||
+          (investment.investmentGroup?.value ?? '').toLowerCase().includes('equity')
+        return hasEquityData || isEquityType
       })
       .map(investment => {
         // Get the first equity investment or create a default one
-        const equityInvestment = (investment.equityInvestment && investment.equityInvestment.length > 0) 
-          ? investment.equityInvestment[0] 
-          : { id: investment.id, ebitdaAmount: 0, marketValue: 0, turnoverAmount: 0 };
-        
-        const bookValue = investment.bookValue || 0;
-        const marketValue = investment.investmentMarketValue || bookValue;
-        const roi = bookValue > 0 ? ((marketValue - bookValue) / bookValue) * 100 : 0;
-        
+        const equityInvestment =
+          investment.equityInvestment && investment.equityInvestment.length > 0
+            ? investment.equityInvestment[0]
+            : { id: investment.id, ebitdaAmount: 0, marketValue: 0, turnoverAmount: 0 }
+
+        const bookValue = investment.bookValue || 0
+        const marketValue = investment.investmentMarketValue || bookValue
+        const roi = bookValue > 0 ? ((marketValue - bookValue) / bookValue) * 100 : 0
+
         return {
           id: equityInvestment.id,
           investment,
@@ -115,48 +126,48 @@ const EquityInvestmentsReport: React.FC<EquityInvestmentsReportProps> = (props) 
           isActive: investment.investmentStatus?.value?.toLowerCase() === 'active',
           ebitdaMargin: (equityInvestment as any).ebitdaMargin || 0,
           roleColor: getInvestmentRoleColor(
-            (Array.isArray(investment.investmentRole) && investment.investmentRole.length > 0)
+            Array.isArray(investment.investmentRole) && investment.investmentRole.length > 0
               ? investment.investmentRole[0]?.investmentRole?.value || ''
               : ''
           )
-        };
-      });
-  }, []);
+        }
+      })
+  }, [])
 
   // Load equity investment data for chart display
   const loadData = useCallback(async () => {
     if (!props.accessToken) {
-      setDataError('Access token not available');
-      setDataLoading(false);
-      return;
+      setDataError('Access token not available')
+      setDataLoading(false)
+      return
     }
 
-    setDataLoading(true);
-    setDataError(null);
-    
+    setDataLoading(true)
+    setDataError(null)
+
     try {
-      const result = await fetchInvestments();
-      const enhancedEquityInvestments = transformEquityData(result.Investment as InvestmentWithSpecializations[]);
-      setEquityInvestments(enhancedEquityInvestments);
+      const result = await fetchInvestments()
+      const enhancedEquityInvestments = transformEquityData(result.Investment as InvestmentWithSpecializations[])
+      setEquityInvestments(enhancedEquityInvestments)
     } catch (err) {
-      setDataError(err instanceof Error ? err.message : 'Unknown error');
+      setDataError(err instanceof Error ? err.message : 'Unknown error')
     } finally {
-      setDataLoading(false);
+      setDataLoading(false)
     }
-  }, [props.accessToken, fetchInvestments, transformEquityData]);
+  }, [props.accessToken, fetchInvestments, transformEquityData])
 
   // Load data on mount and when access token changes
   useEffect(() => {
     if (props.accessToken) {
-      loadData();
+      loadData()
     }
-  }, [props.accessToken, loadData]);
+  }, [props.accessToken, loadData])
 
   // Combined refetch function for error retry
   const refetch = useCallback(async () => {
-    await Promise.all([loadData(), refetchKpis()]);
-  }, [loadData, refetchKpis]);
-  const chartData = useEquityChartData(equityInvestments);
+    await Promise.all([loadData(), refetchKpis()])
+  }, [loadData, refetchKpis])
+  const chartData = useEquityChartData(equityInvestments)
 
   if (isLoading) {
     return (
@@ -171,15 +182,12 @@ const EquityInvestmentsReport: React.FC<EquityInvestmentsReportProps> = (props) 
       >
         <Spinner size="lg" />
       </div>
-    );
+    )
   }
 
   if (error) {
     return (
-      <Alert
-        data-testid={formatDataTestId(prefixDataTestId, 'Error')}
-        variant="destructive"
-      >
+      <Alert data-testid={formatDataTestId(prefixDataTestId, 'Error')} variant="destructive">
         <AlertTitle>{getTranslationFromI18nKeyAndLabel('error.loading', 'Error Loading Data')}</AlertTitle>
         <AlertDescription>{error}</AlertDescription>
         <div className="gba:mt-2">
@@ -188,7 +196,7 @@ const EquityInvestmentsReport: React.FC<EquityInvestmentsReportProps> = (props) 
           </Button>
         </div>
       </Alert>
-    );
+    )
   }
 
   const {
@@ -203,7 +211,7 @@ const EquityInvestmentsReport: React.FC<EquityInvestmentsReportProps> = (props) 
     roleInvestmentAmountData,
     concentrationByRoleData,
     topCompaniesByValuationData
-  } = chartData;
+  } = chartData
 
   return (
     <div
@@ -216,7 +224,10 @@ const EquityInvestmentsReport: React.FC<EquityInvestmentsReportProps> = (props) 
           <h3 className="gba:text-2xl gba:font-bold gba:text-gray-900 gba:m-0">
             {getTranslationFromI18nKeyAndLabel('equity.investments.title', 'Equity Investments Report')}
           </h3>
-          <Badge variant="secondary">{kpis?.totalInvestments || 0} {getTranslationFromI18nKeyAndLabel('equity.investments.items', 'equity investments')}</Badge>
+          <Badge variant="secondary">
+            {kpis?.totalInvestments || 0}{' '}
+            {getTranslationFromI18nKeyAndLabel('equity.investments.items', 'equity investments')}
+          </Badge>
         </div>
       </div>
 
@@ -225,64 +236,64 @@ const EquityInvestmentsReport: React.FC<EquityInvestmentsReportProps> = (props) 
         <WidgetGroup
           widgets={[
             {
-              key: "total-investments",
+              key: 'total-investments',
               title: getTranslationFromI18nKeyAndLabel('kpi.totalInvestments', 'Total Investments'),
               value: kpis.totalInvestments,
               prefix: <TeamOutlined />,
-              color: "var(--nw-color-primary-500)",
+              color: 'var(--nw-color-primary-500)',
               span: { xs: 24, sm: 12, lg: 6 },
-              description: "Total number of equity investments",
+              description: 'Total number of equity investments',
               trend: {
                 value: calculateChange(kpis.totalInvestments, previousKpis.totalInvestments).value,
                 positive: calculateChange(kpis.totalInvestments, previousKpis.totalInvestments).positive,
-                description: "vs 7 days ago",
-              },
+                description: 'vs 7 days ago'
+              }
             },
             {
-              key: "total-amount-invested",
+              key: 'total-amount-invested',
               title: getTranslationFromI18nKeyAndLabel('kpi.totalAmountInvested', 'Total Amount Invested'),
               value: formatCurrency(kpis.totalAmountInvested),
               prefix: <DollarCircleOutlined />,
-              color: "var(--nw-color-success-500)",
+              color: 'var(--nw-color-success-500)',
               valueIsString: true,
               span: { xs: 24, sm: 12, lg: 6 },
-              description: "Sum of all equity investment amounts",
+              description: 'Sum of all equity investment amounts',
               trend: {
                 value: calculateChange(kpis.totalAmountInvested, previousKpis.totalAmountInvested).value,
                 positive: calculateChange(kpis.totalAmountInvested, previousKpis.totalAmountInvested).positive,
-                description: "vs 7 days ago",
-              },
+                description: 'vs 7 days ago'
+              }
             },
             {
-              key: "total-market-value",
+              key: 'total-market-value',
               title: getTranslationFromI18nKeyAndLabel('kpi.totalMarketValue', 'Total Market Value'),
               value: formatCurrency(kpis.totalMarketValue),
               prefix: <RiseOutlined />,
-              color: "var(--nw-color-warning-500)",
+              color: 'var(--nw-color-warning-500)',
               valueIsString: true,
               span: { xs: 24, sm: 12, lg: 6 },
-              description: "Current total market value of equity positions",
+              description: 'Current total market value of equity positions',
               trend: {
                 value: calculateChange(kpis.totalMarketValue, previousKpis.totalMarketValue).value,
                 positive: calculateChange(kpis.totalMarketValue, previousKpis.totalMarketValue).positive,
-                description: "vs 7 days ago",
-              },
+                description: 'vs 7 days ago'
+              }
             },
             {
-              key: "average-company-valuation",
+              key: 'average-company-valuation',
               title: getTranslationFromI18nKeyAndLabel('kpi.averageCompanyValuation', 'Average Company Valuation'),
               value: formatCurrency(kpis.averageCompanyValuation),
               prefix: <BankOutlined />,
-              color: "var(--nw-color-purple-500)",
+              color: 'var(--nw-color-purple-500)',
               valueIsString: true,
               span: { xs: 24, sm: 12, lg: 6 },
-              description: "Average valuation across all companies",
+              description: 'Average valuation across all companies',
               trend: {
                 value: calculateChange(kpis.averageCompanyValuation, previousKpis.averageCompanyValuation).value,
                 positive: calculateChange(kpis.averageCompanyValuation, previousKpis.averageCompanyValuation).positive,
-                description: "vs 7 days ago",
-              },
-            },
+                description: 'vs 7 days ago'
+              }
+            }
           ]}
           isLoading={isLoading}
           error={error ? new Error(error) : null}
@@ -293,8 +304,8 @@ const EquityInvestmentsReport: React.FC<EquityInvestmentsReportProps> = (props) 
 
       {/* Tabbed Charts */}
       <div className="gba:bg-white gba:rounded-lg gba:p-4">
-        <Tabs 
-          value={activeTab} 
+        <Tabs
+          value={activeTab}
           onValueChange={setActiveTab}
           data-testid={formatDataTestId(prefixDataTestId, 'ChartTabs')}
         >
@@ -343,7 +354,7 @@ const EquityInvestmentsReport: React.FC<EquityInvestmentsReportProps> = (props) 
         </Tabs>
       </div>
     </div>
-  );
-};
+  )
+}
 
-export default EquityInvestmentsReport; 
+export default EquityInvestmentsReport

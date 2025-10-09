@@ -1,44 +1,33 @@
-import React, { useState, useEffect } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@newwork/nw-design-system';
-import { 
-  Form, 
-  Select, 
-  Switch, 
-  Typography, 
-  Alert,
-  Tooltip,
-  Tag,
-  List,
-  Radio,
-  Space
-} from 'antd';
-import { UserOutlined, TeamOutlined, InfoCircleOutlined, CheckCircleOutlined, SettingOutlined } from '@ant-design/icons';
-import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
-import { useWizardStore } from '../../hooks/useWizardStore';
+import React, { useState, useEffect } from 'react'
+import { Card, CardContent, CardHeader, CardTitle } from '@newwork/nw-design-system'
+import { Form, Select, Switch, Typography, Alert, Tooltip, Tag, List, Radio, Space } from 'antd'
+import { UserOutlined, TeamOutlined, InfoCircleOutlined, CheckCircleOutlined, SettingOutlined } from '@ant-design/icons'
+import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
+import { useWizardStore } from '../../hooks/useWizardStore'
 
-const { Title, Text } = Typography;
-const { Option } = Select;
+const { Title, Text } = Typography
+const { Option } = Select
 
 interface AssignmentConfigurationProps {
-  'data-testid'?: string;
+  'data-testid'?: string
 }
 
 interface AssignmentRules {
-  type: 'single' | 'multiple' | 'any' | 'all';
-  strategy: 'manual' | 'role-based' | 'department-based' | 'manager-based' | 'requester-based';
-  allowReassignment: boolean;
-  autoAssign: boolean;
-  requiresApproval: boolean;
+  type: 'single' | 'multiple' | 'any' | 'all'
+  strategy: 'manual' | 'role-based' | 'department-based' | 'manager-based' | 'requester-based'
+  allowReassignment: boolean
+  autoAssign: boolean
+  requiresApproval: boolean
   escalation: {
-    enabled: boolean;
-    timeoutHours: number;
-    escalateTo: 'manager' | 'admin' | 'custom';
-  };
+    enabled: boolean
+    timeoutHours: number
+    escalateTo: 'manager' | 'admin' | 'custom'
+  }
   constraints: {
-    sameUser: boolean; // Can't assign to same user as previous step
-    skipWeekends: boolean;
-    businessHoursOnly: boolean;
-  };
+    sameUser: boolean // Can't assign to same user as previous step
+    skipWeekends: boolean
+    businessHoursOnly: boolean
+  }
 }
 
 /**
@@ -47,8 +36,8 @@ interface AssignmentRules {
 export const AssignmentConfiguration: React.FC<AssignmentConfigurationProps> = ({
   'data-testid': testId = 'assignment-configuration'
 }) => {
-  const { configuration, updateConfiguration } = useWizardStore();
-  
+  const { configuration, updateConfiguration } = useWizardStore()
+
   const [rules, setRules] = useState<AssignmentRules>(() => ({
     type: 'single',
     strategy: 'manual',
@@ -65,103 +54,103 @@ export const AssignmentConfiguration: React.FC<AssignmentConfigurationProps> = (
       skipWeekends: false,
       businessHoursOnly: false
     }
-  }));
+  }))
 
   // Load initial value from configuration
   useEffect(() => {
     if (configuration.assignmentRules) {
-      setRules(configuration.assignmentRules);
+      setRules(configuration.assignmentRules)
     }
-  }, [configuration.assignmentRules]);
+  }, [configuration.assignmentRules])
 
   // Update configuration when rules change
   useEffect(() => {
-    updateConfiguration('assignmentRules', rules);
-  }, [rules, updateConfiguration]);
+    updateConfiguration('assignmentRules', rules)
+  }, [rules, updateConfiguration])
 
   const handleRulesChange = (updates: Partial<AssignmentRules>) => {
-    setRules(prev => ({ ...prev, ...updates }));
-  };
+    setRules(prev => ({ ...prev, ...updates }))
+  }
 
   const handleEscalationChange = (updates: Partial<AssignmentRules['escalation']>) => {
     setRules(prev => ({
       ...prev,
       escalation: { ...prev.escalation, ...updates }
-    }));
-  };
+    }))
+  }
 
   const handleConstraintsChange = (updates: Partial<AssignmentRules['constraints']>) => {
     setRules(prev => ({
       ...prev,
       constraints: { ...prev.constraints, ...updates }
-    }));
-  };
+    }))
+  }
 
   const assignmentTypeOptions = [
-    { 
-      value: 'single', 
-      label: 'Single Person', 
+    {
+      value: 'single',
+      label: 'Single Person',
       description: 'One person must complete this task',
       icon: <UserOutlined />
     },
-    { 
-      value: 'multiple', 
-      label: 'Multiple People', 
+    {
+      value: 'multiple',
+      label: 'Multiple People',
       description: 'Multiple people can work on this task',
       icon: <TeamOutlined />
     },
-    { 
-      value: 'any', 
-      label: 'Any One Person', 
+    {
+      value: 'any',
+      label: 'Any One Person',
       description: 'Any one person from the assigned group',
       icon: <UserOutlined />
     },
-    { 
-      value: 'all', 
-      label: 'All People', 
+    {
+      value: 'all',
+      label: 'All People',
       description: 'All assigned people must complete',
       icon: <TeamOutlined />
     }
-  ];
+  ]
 
   const strategyOptions = [
-    { 
-      value: 'manual', 
-      label: 'Manual Assignment', 
+    {
+      value: 'manual',
+      label: 'Manual Assignment',
       description: 'Assignments will be made manually at execution time',
       icon: <UserOutlined />
     },
-    { 
-      value: 'role-based', 
-      label: 'Role-Based Assignment', 
+    {
+      value: 'role-based',
+      label: 'Role-Based Assignment',
       description: 'Assign based on user roles (e.g., Manager, Analyst)',
       icon: <TeamOutlined />
     },
-    { 
-      value: 'department-based', 
-      label: 'Department-Based Assignment', 
+    {
+      value: 'department-based',
+      label: 'Department-Based Assignment',
       description: 'Assign based on department structure',
       icon: <TeamOutlined />
     },
-    { 
-      value: 'manager-based', 
-      label: 'Manager-Based Assignment', 
-      description: 'Assign to the requester\'s manager or hierarchy',
+    {
+      value: 'manager-based',
+      label: 'Manager-Based Assignment',
+      description: "Assign to the requester's manager or hierarchy",
       icon: <UserOutlined />
     },
-    { 
-      value: 'requester-based', 
-      label: 'Requester-Based Assignment', 
+    {
+      value: 'requester-based',
+      label: 'Requester-Based Assignment',
       description: 'Assign back to the workflow requester',
       icon: <UserOutlined />
     }
-  ];
+  ]
 
   const escalationOptions = [
     { value: 'manager', label: 'Direct Manager' },
     { value: 'admin', label: 'System Administrator' },
     { value: 'custom', label: 'Custom Rules' }
-  ];
+  ]
 
   const timeoutOptions = [
     { value: 1, label: '1 Hour' },
@@ -171,7 +160,7 @@ export const AssignmentConfiguration: React.FC<AssignmentConfigurationProps> = (
     { value: 48, label: '2 Days' },
     { value: 72, label: '3 Days' },
     { value: 168, label: '1 Week' }
-  ];
+  ]
 
   return (
     <div className="gba:space-y-6" data-testid={testId}>
@@ -197,9 +186,7 @@ export const AssignmentConfiguration: React.FC<AssignmentConfigurationProps> = (
                       <div className="gba:font-medium gba:text-gray-900">{step.title}</div>
                       <div className="gba:text-sm gba:text-gray-600">{step.description}</div>
                     </div>
-                    <Tag color="blue">
-                      Requires Assignment
-                    </Tag>
+                    <Tag color="blue">Requires Assignment</Tag>
                   </div>
                 </List.Item>
               )}
@@ -222,17 +209,15 @@ export const AssignmentConfiguration: React.FC<AssignmentConfigurationProps> = (
           <Form.Item>
             <Radio.Group
               value={rules.type}
-              onChange={(e) => handleRulesChange({ type: e.target.value })}
+              onChange={e => handleRulesChange({ type: e.target.value })}
               className="gba:w-full"
             >
               <div className="gba:space-y-3">
                 {assignmentTypeOptions.map(option => (
-                  <div 
-                    key={option.value} 
+                  <div
+                    key={option.value}
                     className={`gba:w-full gba:p-4 gba:border gba:border-gray-200 gba:rounded-lg gba:cursor-pointer gba:transition-colors ${
-                      rules.type === option.value 
-                        ? 'gba:border-blue-500 gba:bg-blue-50' 
-                        : 'hover:gba:border-blue-300'
+                      rules.type === option.value ? 'gba:border-blue-500 gba:bg-blue-50' : 'hover:gba:border-blue-300'
                     }`}
                     onClick={() => handleRulesChange({ type: option.value as any })}
                   >
@@ -266,7 +251,7 @@ export const AssignmentConfiguration: React.FC<AssignmentConfigurationProps> = (
           <Form.Item>
             <Select
               value={rules.strategy}
-              onChange={(value) => handleRulesChange({ strategy: value })}
+              onChange={value => handleRulesChange({ strategy: value })}
               style={{ width: '100%' }}
               size="large"
             >
@@ -283,7 +268,7 @@ export const AssignmentConfiguration: React.FC<AssignmentConfigurationProps> = (
               ))}
             </Select>
           </Form.Item>
-          
+
           {rules.strategy !== 'manual' && (
             <Alert
               message="Automatic Assignment"
@@ -311,39 +296,30 @@ export const AssignmentConfiguration: React.FC<AssignmentConfigurationProps> = (
             <div className="gba:flex gba:items-center gba:justify-between">
               <div>
                 <Text strong>Allow Reassignment</Text>
-                <div className="gba:text-sm gba:text-gray-600">
-                  Allow assigned users to reassign tasks to others
-                </div>
+                <div className="gba:text-sm gba:text-gray-600">Allow assigned users to reassign tasks to others</div>
               </div>
               <Switch
                 checked={rules.allowReassignment}
-                onChange={(checked) => handleRulesChange({ allowReassignment: checked })}
+                onChange={checked => handleRulesChange({ allowReassignment: checked })}
               />
             </div>
 
             <div className="gba:flex gba:items-center gba:justify-between">
               <div>
                 <Text strong>Auto-assign</Text>
-                <div className="gba:text-sm gba:text-gray-600">
-                  Automatically assign when workflow step starts
-                </div>
+                <div className="gba:text-sm gba:text-gray-600">Automatically assign when workflow step starts</div>
               </div>
-              <Switch
-                checked={rules.autoAssign}
-                onChange={(checked) => handleRulesChange({ autoAssign: checked })}
-              />
+              <Switch checked={rules.autoAssign} onChange={checked => handleRulesChange({ autoAssign: checked })} />
             </div>
 
             <div className="gba:flex gba:items-center gba:justify-between">
               <div>
                 <Text strong>Requires Approval</Text>
-                <div className="gba:text-sm gba:text-gray-600">
-                  Assignment must be approved before task can start
-                </div>
+                <div className="gba:text-sm gba:text-gray-600">Assignment must be approved before task can start</div>
               </div>
               <Switch
                 checked={rules.requiresApproval}
-                onChange={(checked) => handleRulesChange({ requiresApproval: checked })}
+                onChange={checked => handleRulesChange({ requiresApproval: checked })}
               />
             </div>
           </div>
@@ -365,13 +341,11 @@ export const AssignmentConfiguration: React.FC<AssignmentConfigurationProps> = (
             <div className="gba:flex gba:items-center gba:justify-between">
               <div>
                 <Text strong>Enable Escalation</Text>
-                <div className="gba:text-sm gba:text-gray-600">
-                  Escalate overdue tasks automatically
-                </div>
+                <div className="gba:text-sm gba:text-gray-600">Escalate overdue tasks automatically</div>
               </div>
               <Switch
                 checked={rules.escalation.enabled}
-                onChange={(checked) => handleEscalationChange({ enabled: checked })}
+                onChange={checked => handleEscalationChange({ enabled: checked })}
               />
             </div>
 
@@ -380,7 +354,7 @@ export const AssignmentConfiguration: React.FC<AssignmentConfigurationProps> = (
                 <Form.Item label="Escalate After">
                   <Select
                     value={rules.escalation.timeoutHours}
-                    onChange={(value) => handleEscalationChange({ timeoutHours: value })}
+                    onChange={value => handleEscalationChange({ timeoutHours: value })}
                     style={{ width: '100%' }}
                   >
                     {timeoutOptions.map(option => (
@@ -394,7 +368,7 @@ export const AssignmentConfiguration: React.FC<AssignmentConfigurationProps> = (
                 <Form.Item label="Escalate To">
                   <Select
                     value={rules.escalation.escalateTo}
-                    onChange={(value) => handleEscalationChange({ escalateTo: value })}
+                    onChange={value => handleEscalationChange({ escalateTo: value })}
                     style={{ width: '100%' }}
                   >
                     {escalationOptions.map(option => (
@@ -425,39 +399,33 @@ export const AssignmentConfiguration: React.FC<AssignmentConfigurationProps> = (
             <div className="gba:flex gba:items-center gba:justify-between">
               <div>
                 <Text strong>Prevent Same User Assignment</Text>
-                <div className="gba:text-sm gba:text-gray-600">
-                  Don't assign to the same user as the previous step
-                </div>
+                <div className="gba:text-sm gba:text-gray-600">Don't assign to the same user as the previous step</div>
               </div>
               <Switch
                 checked={rules.constraints.sameUser}
-                onChange={(checked) => handleConstraintsChange({ sameUser: checked })}
+                onChange={checked => handleConstraintsChange({ sameUser: checked })}
               />
             </div>
 
             <div className="gba:flex gba:items-center gba:justify-between">
               <div>
                 <Text strong>Skip Weekends</Text>
-                <div className="gba:text-sm gba:text-gray-600">
-                  Don't assign tasks on weekends
-                </div>
+                <div className="gba:text-sm gba:text-gray-600">Don't assign tasks on weekends</div>
               </div>
               <Switch
                 checked={rules.constraints.skipWeekends}
-                onChange={(checked) => handleConstraintsChange({ skipWeekends: checked })}
+                onChange={checked => handleConstraintsChange({ skipWeekends: checked })}
               />
             </div>
 
             <div className="gba:flex gba:items-center gba:justify-between">
               <div>
                 <Text strong>Business Hours Only</Text>
-                <div className="gba:text-sm gba:text-gray-600">
-                  Only assign during business hours
-                </div>
+                <div className="gba:text-sm gba:text-gray-600">Only assign during business hours</div>
               </div>
               <Switch
                 checked={rules.constraints.businessHoursOnly}
-                onChange={(checked) => handleConstraintsChange({ businessHoursOnly: checked })}
+                onChange={checked => handleConstraintsChange({ businessHoursOnly: checked })}
               />
             </div>
           </div>
@@ -475,5 +443,5 @@ export const AssignmentConfiguration: React.FC<AssignmentConfigurationProps> = (
         />
       </div>
     </div>
-  );
-};
+  )
+}

@@ -1,99 +1,111 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { BusinessAppContextProps } from '@/common/BusinessAppContext';
-import { getTranslationFromI18nKeyAndLabel, formatDateToISO } from '@/common/utils/windowUtils';
-import FormHeader from '../components/FormHeader';
-import UploadComponent from '../components/UploadComponent';
-import flowIconUrl from '@/assets/icons/flowSmall.svg';
-import { ChangePersonalDataProvider, useChangePersonalData } from './ChangePersonalDataContext';
-import { useForm } from 'react-hook-form';
-import { Separator, Button } from '@newwork/nw-design-system';
-import type { PersonalDataFormValues, CatalogEntry } from './types';
-import NamesGroup from './components/NamesGroup';
-import BirthAndGenderGroup from './components/BirthAndGenderGroup';
-import NationalityLanguageStatusGroup from './components/NationalityLanguageStatusGroup';
-import QualificationFields from './components/QualificationFields';
-import { useFileClient } from '@/common/network/files/useFileClient';
-import { env } from '@/common/env/EnvUtils';
-import { AppActionForm } from '@/components/app-action-form/AppActionForm';
+import React, { useEffect, useMemo, useRef, useState } from 'react'
+import { BusinessAppContextProps } from '@/common/BusinessAppContext'
+import { getTranslationFromI18nKeyAndLabel, formatDateToISO } from '@/common/utils/windowUtils'
+import FormHeader from '../components/FormHeader'
+import UploadComponent from '../components/UploadComponent'
+import flowIconUrl from '@/assets/icons/flowSmall.svg'
+import { ChangePersonalDataProvider, useChangePersonalData } from './ChangePersonalDataContext'
+import { useForm } from 'react-hook-form'
+import { Separator, Button } from '@newwork/nw-design-system'
+import type { PersonalDataFormValues, CatalogEntry } from './types'
+import NamesGroup from './components/NamesGroup'
+import BirthAndGenderGroup from './components/BirthAndGenderGroup'
+import NationalityLanguageStatusGroup from './components/NationalityLanguageStatusGroup'
+import QualificationFields from './components/QualificationFields'
+import { useFileClient } from '@/common/network/files/useFileClient'
+import { env } from '@/common/env/EnvUtils'
+import { AppActionForm } from '@/components/app-action-form/AppActionForm'
 // import { useProcessEventState } from '@/business-apps/fin/expenses/utils/useProcessEventState';
-import { dispatchProcessContinueEvent } from '@/common/utils/processEventUtils';
- 
+import { dispatchProcessContinueEvent } from '@/common/utils/processEventUtils'
 
 export interface ChangePersonalDataFormProps extends BusinessAppContextProps {}
 
 // form values type moved to types.ts
 
 const ChangePersonalDataContent: React.FC<ChangePersonalDataFormProps> = ({ accessToken, additionalData }) => {
-  const [fileList, setFileList] = useState<any[]>([]);
-  const { data } = useChangePersonalData();
- 
-  const employee = useMemo(() => data?.employee?.EmployeeByPk, [data]);
-  const catalogSalutation: CatalogEntry[] = useMemo(() => data?.catalogs?.salutation || [], [data]);
-  const catalogs = useMemo(() => ({
-    gender: data?.catalogs?.gender || [],
-    nationality: data?.catalogs?.nationality || [],
-    language: data?.catalogs?.language || [],
-    maritalStatus: data?.catalogs?.maritalStatus || [],
-    schoolQualification: data?.catalogs?.schoolQualification || [],
-    academicTitle: data?.catalogs?.academicTitle || [],
-  }), [data]);
+  const [fileList, setFileList] = useState<any[]>([])
+  const { data } = useChangePersonalData()
+
+  const employee = useMemo(() => data?.employee?.EmployeeByPk, [data])
+  const catalogSalutation: CatalogEntry[] = useMemo(() => data?.catalogs?.salutation || [], [data])
+  const catalogs = useMemo(
+    () => ({
+      gender: data?.catalogs?.gender || [],
+      nationality: data?.catalogs?.nationality || [],
+      language: data?.catalogs?.language || [],
+      maritalStatus: data?.catalogs?.maritalStatus || [],
+      schoolQualification: data?.catalogs?.schoolQualification || [],
+      academicTitle: data?.catalogs?.academicTitle || []
+    }),
+    [data]
+  )
 
   const normalizeDate = (value?: string | null): string => {
-    if (!value) return '';
+    if (!value) return ''
     // Expect incoming values like 'YYYY-MM-DD' or ISO strings
-    return String(value).slice(0, 10);
-  };
+    return String(value).slice(0, 10)
+  }
 
   const computeDisplayName = (emp: any): string => {
-    const hasDisplay = emp?.displayName && String(emp.displayName).trim().length > 0;
-    if (hasDisplay) return String(emp.displayName).trim();
-    const title = (emp?.title || '').toString().trim();
-    const preferred = (emp?.preferredName || '').toString().trim();
-    const first = (emp?.firstName || '').toString().trim();
-    const last = (emp?.lastName || '').toString().trim();
-    const parts = preferred
-      ? [title, preferred, last]
-      : [title, first, last];
-    return parts.filter(Boolean).join(' ').trim();
-  };
+    const hasDisplay = emp?.displayName && String(emp.displayName).trim().length > 0
+    if (hasDisplay) return String(emp.displayName).trim()
+    const title = (emp?.title || '').toString().trim()
+    const preferred = (emp?.preferredName || '').toString().trim()
+    const first = (emp?.firstName || '').toString().trim()
+    const last = (emp?.lastName || '').toString().trim()
+    const parts = preferred ? [title, preferred, last] : [title, first, last]
+    return parts.filter(Boolean).join(' ').trim()
+  }
 
-  const defaultValues: PersonalDataFormValues = useMemo(() => ({
-    salutationRef: employee?.salutationRef ?? null,
-    title: employee?.title ?? '',
-    firstName: employee?.firstName ?? '',
-    lastName: employee?.lastName ?? '',
-    // Note: Labels requested are intentionally swapped by specification
-    displayName: computeDisplayName(employee) ?? '',
-    preferredName: employee?.preferredName ?? '',
-    birthName: employee?.birthName ?? '',
-    birthDate: normalizeDate(employee?.birthDate ?? ''),
-    birthPlace: employee?.birthPlace ?? '',
-    genderRef: employee?.genderRef ?? null,
-    nationalityRef: employee?.nationalityRef ?? null,
-    languageRef: employee?.languageRef ?? null,
-    maritalStatusRef: employee?.maritalStatusRef ?? null,
-    severelyDisabilityDegree: employee?.severelyDisabilityDegree ?? '',
-    schoolQualificationRef: employee?.schoolQualificationRef ?? null,
-    academicTitleRefs: Array.isArray(employee?.academicTitleRef) ? employee.academicTitleRef : (employee?.academicTitleRef ? [employee.academicTitleRef] : []),
-    comment: employee?.notes ?? '',
-  }), [employee]);
+  const defaultValues: PersonalDataFormValues = useMemo(
+    () => ({
+      salutationRef: employee?.salutationRef ?? null,
+      title: employee?.title ?? '',
+      firstName: employee?.firstName ?? '',
+      lastName: employee?.lastName ?? '',
+      // Note: Labels requested are intentionally swapped by specification
+      displayName: computeDisplayName(employee) ?? '',
+      preferredName: employee?.preferredName ?? '',
+      birthName: employee?.birthName ?? '',
+      birthDate: normalizeDate(employee?.birthDate ?? ''),
+      birthPlace: employee?.birthPlace ?? '',
+      genderRef: employee?.genderRef ?? null,
+      nationalityRef: employee?.nationalityRef ?? null,
+      languageRef: employee?.languageRef ?? null,
+      maritalStatusRef: employee?.maritalStatusRef ?? null,
+      severelyDisabilityDegree: employee?.severelyDisabilityDegree ?? '',
+      schoolQualificationRef: employee?.schoolQualificationRef ?? null,
+      academicTitleRefs: Array.isArray(employee?.academicTitleRef)
+        ? employee.academicTitleRef
+        : employee?.academicTitleRef
+          ? [employee.academicTitleRef]
+          : [],
+      comment: employee?.notes ?? ''
+    }),
+    [employee]
+  )
 
   const form = useForm<PersonalDataFormValues>({
     defaultValues,
-    mode: 'onChange',
-  });
+    mode: 'onChange'
+  })
 
-  const fileClient = useFileClient({ accessToken } as any);
+  const fileClient = useFileClient({ accessToken } as any)
 
   // Normalize default values to match Select option value types (string ids)
   const normalizedDefaults: PersonalDataFormValues = useMemo(() => {
-    const toIdString = (val: any) => (val === null || val === undefined || val === '' ? null : String(val));
+    const toIdString = (val: any) => (val === null || val === undefined || val === '' ? null : String(val))
     const findId = (list: CatalogEntry[] | undefined, current: any) => {
-      if (!list || current === null || current === undefined || current === '') return null;
-      const currentStr = String(current);
-      const match = list.find((e) => String(e?.id) === currentStr || String(e?.value) === currentStr || String(e?.translations?.[0]?.value) === currentStr);
-      return match ? String(match.id) : toIdString(current);
-    };
+      if (!list || current === null || current === undefined || current === '') return null
+      const currentStr = String(current)
+      const match = list.find(
+        e =>
+          String(e?.id) === currentStr ||
+          String(e?.value) === currentStr ||
+          String(e?.translations?.[0]?.value) === currentStr
+      )
+      return match ? String(match.id) : toIdString(current)
+    }
 
     return {
       ...defaultValues,
@@ -104,21 +116,21 @@ const ChangePersonalDataContent: React.FC<ChangePersonalDataFormProps> = ({ acce
       maritalStatusRef: findId(catalogs.maritalStatus, defaultValues.maritalStatusRef),
       schoolQualificationRef: findId(catalogs.schoolQualification, defaultValues.schoolQualificationRef),
       academicTitleRefs: Array.isArray(defaultValues.academicTitleRefs)
-        ? defaultValues.academicTitleRefs.map((v) => findId(catalogs.academicTitle, v)).filter(Boolean) as string[]
-        : [],
-    } as PersonalDataFormValues;
-  }, [defaultValues, catalogSalutation, catalogs]);
+        ? (defaultValues.academicTitleRefs.map(v => findId(catalogs.academicTitle, v)).filter(Boolean) as string[])
+        : []
+    } as PersonalDataFormValues
+  }, [defaultValues, catalogSalutation, catalogs])
 
   // Reset to normalized defaults whenever employee/catalogs change
   useEffect(() => {
-    form.reset(normalizedDefaults);
-  }, [normalizedDefaults]);
+    form.reset(normalizedDefaults)
+  }, [normalizedDefaults])
 
   // Track initial values for change detection
-  const initialRef = useRef<PersonalDataFormValues>(normalizedDefaults);
+  const initialRef = useRef<PersonalDataFormValues>(normalizedDefaults)
   useEffect(() => {
-    initialRef.current = normalizedDefaults;
-  }, [normalizedDefaults]);
+    initialRef.current = normalizedDefaults
+  }, [normalizedDefaults])
 
   const normalizeForCompare = (v: PersonalDataFormValues) => ({
     salutationRef: v.salutationRef || null,
@@ -137,31 +149,37 @@ const ChangePersonalDataContent: React.FC<ChangePersonalDataFormProps> = ({ acce
     severelyDisabilityDegree: v.severelyDisabilityDegree === '' ? '' : v.severelyDisabilityDegree,
     schoolQualificationRef: v.schoolQualificationRef || null,
     academicTitleRefs: Array.isArray(v.academicTitleRefs) ? v.academicTitleRefs : [],
-    comment: v.comment || '',
-  });
+    comment: v.comment || ''
+  })
 
-  const watchedValues = form.watch();
+  const watchedValues = form.watch()
   const isUnchangedNow = useMemo(() => {
     return (
       JSON.stringify(normalizeForCompare(watchedValues as any)) ===
       JSON.stringify(normalizeForCompare(initialRef.current))
-    );
-  }, [watchedValues]);
+    )
+  }, [watchedValues])
 
-  const title = useMemo(() =>
-    getTranslationFromI18nKeyAndLabel(
-      'lowcoder:employee_profile.employee_tabs.flows_button.change_personal_data',
-      'Change Personal Data'
-    ),
+  const title = useMemo(
+    () =>
+      getTranslationFromI18nKeyAndLabel(
+        'lowcoder:employee_profile.employee_tabs.flows_button.change_personal_data',
+        'Change Personal Data'
+      ),
     []
-  );
-
+  )
 
   return (
-    <div className="gba:mx-auto gba:font-primary gba:flex gba:flex-col gba:w-[100%] gba:max-w-[800px]" data-testid="flw_changePersonalData_screenContentLayout">
+    <div
+      className="gba:mx-auto gba:font-primary gba:flex gba:flex-col gba:w-[100%] gba:max-w-[800px]"
+      data-testid="flw_changePersonalData_screenContentLayout"
+    >
       <FormHeader title={title} flowIconUrl={flowIconUrl} />
 
-      <div className="gba:flex gba:flex-col gba:gap-4 gba:[&>div[data-testid='change-personal-data']]:!pt-0 gba:[&>div[data-testid='change-personal-data']]:!px-0" data-testid="change-personal-data-form-content">
+      <div
+        className="gba:flex gba:flex-col gba:gap-4 gba:[&>div[data-testid='change-personal-data']]:!pt-0 gba:[&>div[data-testid='change-personal-data']]:!px-0"
+        data-testid="change-personal-data-form-content"
+      >
         {/* moved upload below comment - removed from here */}
 
         <AppActionForm
@@ -170,20 +188,20 @@ const ChangePersonalDataContent: React.FC<ChangePersonalDataFormProps> = ({ acce
           formData={normalizedDefaults}
           submitEventType="pse_submit"
           onCancel={() => {
-            form.reset(normalizedDefaults);
-            initialRef.current = normalizedDefaults;
+            form.reset(normalizedDefaults)
+            initialRef.current = normalizedDefaults
           }}
           customFormLayout
-          handlePreSubmit={async (values) => {
-            let uploadedEmployeeDocumentId: string | undefined;
+          handlePreSubmit={async values => {
+            let uploadedEmployeeDocumentId: string | undefined
             try {
               if (fileList && fileList.length > 0 && fileList[0]?.originFileObj) {
-                const file: File = fileList[0].originFileObj as File;
+                const file: File = fileList[0].originFileObj as File
                 const employeeId =
                   additionalData?.psi_taskPayload?.employeeId ||
                   additionalData?.psi_taskPayload?.initialParameters?.employeeId ||
                   data?.employee?.EmployeeByPk?.id ||
-                  data?.employee?.EmployeeByPk?.employeeId;
+                  data?.employee?.EmployeeByPk?.employeeId
 
                 const uploadResp = await fileClient.uploadFile(
                   file,
@@ -191,13 +209,14 @@ const ChangePersonalDataContent: React.FC<ChangePersonalDataFormProps> = ({ acce
                   {
                     appName: 'employee-profile',
                     folderPath: `/documents/${employeeId}`,
-                    mimeType: (file as any)?.type || 'application/octet-stream',
+                    mimeType: (file as any)?.type || 'application/octet-stream'
                   },
                   'fileContent'
-                );
+                )
 
-                const processesBase = env('NEXT_PUBLIC_PROCESSES_ENDPOINT') || 'https://newwork-dev.newwork.com/processes';
-                const createDocUrl = `${processesBase}/employee/employeeDocuments`;
+                const processesBase =
+                  env('NEXT_PUBLIC_PROCESSES_ENDPOINT') || 'https://newwork-dev.newwork.com/processes'
+                const createDocUrl = `${processesBase}/employee/employeeDocuments`
                 const body = {
                   employeeDocument: {
                     employeeId: employeeId,
@@ -208,34 +227,34 @@ const ChangePersonalDataContent: React.FC<ChangePersonalDataFormProps> = ({ acce
                     file: uploadResp?.fileInfo?.fileId,
                     mimeType: uploadResp?.fileInfo?.fileMetadata?.mimeType,
                     fileSize: 0,
-                    validFrom: new Date().toISOString(),
-                  },
-                };
+                    validFrom: new Date().toISOString()
+                  }
+                }
 
                 await fetch(createDocUrl, {
                   method: 'POST',
                   headers: {
                     'Content-Type': 'application/json',
-                    Authorization: accessToken ? `Bearer ${accessToken}` : '',
+                    Authorization: accessToken ? `Bearer ${accessToken}` : ''
                   },
-                  body: JSON.stringify(body),
+                  body: JSON.stringify(body)
                 })
-                  .then(async (r) => {
-                    const json = await r.json();
-                    uploadedEmployeeDocumentId = json?.employeeDocument?.id;
+                  .then(async r => {
+                    const json = await r.json()
+                    uploadedEmployeeDocumentId = json?.employeeDocument?.id
                   })
                   .catch(() => {
-                    uploadedEmployeeDocumentId = undefined;
-                  });
+                    uploadedEmployeeDocumentId = undefined
+                  })
               }
             } catch (e) {
-              uploadedEmployeeDocumentId = undefined;
+              uploadedEmployeeDocumentId = undefined
             }
 
-            return { ...(values as any), employeeDocumentId: uploadedEmployeeDocumentId } as PersonalDataFormValues;
+            return { ...(values as any), employeeDocumentId: uploadedEmployeeDocumentId } as PersonalDataFormValues
           }}
           onSubmit={async (values: PersonalDataFormValues) => {
-            const uploadedEmployeeDocumentId = values.employeeDocumentId || '';
+            const uploadedEmployeeDocumentId = values.employeeDocumentId || ''
             const payload = {
               event: 'pse_submit',
               employeeDocument: null,
@@ -243,7 +262,7 @@ const ChangePersonalDataContent: React.FC<ChangePersonalDataFormProps> = ({ acce
                 id: employee?.id || '',
                 notes: values.comment || '',
                 title: values.title || '',
-                personalDocument: uploadedEmployeeDocumentId || null, //uploadedEmployeeDocumentId || 
+                personalDocument: uploadedEmployeeDocumentId || null, //uploadedEmployeeDocumentId ||
                 version: employee?.version ?? 0,
                 academicTitleRef: values.academicTitleRefs || [],
                 salutationRef: values.salutationRef || '',
@@ -257,10 +276,10 @@ const ChangePersonalDataContent: React.FC<ChangePersonalDataFormProps> = ({ acce
                 nationalityRef: values.nationalityRef || '',
                 languageRef: values.languageRef || '',
                 maritalStatusRef: values.maritalStatusRef || '',
-                severelyDisabilityDegree: values.severelyDisabilityDegree !== '' ? values.severelyDisabilityDegree : "",
+                severelyDisabilityDegree: values.severelyDisabilityDegree !== '' ? values.severelyDisabilityDegree : '',
                 schoolQualificationRef: values.schoolQualificationRef || '',
                 birthPlace: values.birthPlace || '',
-                userId: employee?.userId || '',
+                userId: employee?.userId || ''
               },
               oldPersonalInformation: {
                 id: employee?.id || '',
@@ -278,12 +297,12 @@ const ChangePersonalDataContent: React.FC<ChangePersonalDataFormProps> = ({ acce
                 languageRef: employee?.languageRef || '',
                 maritalStatusRef: employee?.maritalStatusRef || '',
                 birthPlace: employee?.birthPlace || '',
-                severelyDisabilityDegree: employee?.severelyDisabilityDegree ?? "",
+                severelyDisabilityDegree: employee?.severelyDisabilityDegree ?? '',
                 schoolQualificationRef: employee?.schoolQualificationRef || '',
-                userId: employee?.userId || '',
-              },
-            };
-            return payload;
+                userId: employee?.userId || ''
+              }
+            }
+            return payload
           }}
           data-testid="change-personal-data"
           submitButtonText={getTranslationFromI18nKeyAndLabel('lowcoder:hr_absences.create_absence.submit', 'Submit')}
@@ -296,10 +315,20 @@ const ChangePersonalDataContent: React.FC<ChangePersonalDataFormProps> = ({ acce
             <BirthAndGenderGroup control={form.control} catalogs={{ gender: catalogs.gender }} />
 
             {/* Group 3: Nationality, Language, Marital Status, Disability */}
-            <NationalityLanguageStatusGroup control={form.control} catalogs={{ nationality: catalogs.nationality, language: catalogs.language, maritalStatus: catalogs.maritalStatus }} />
+            <NationalityLanguageStatusGroup
+              control={form.control}
+              catalogs={{
+                nationality: catalogs.nationality,
+                language: catalogs.language,
+                maritalStatus: catalogs.maritalStatus
+              }}
+            />
 
             {/* Qualification fields (school + academic titles) */}
-            <QualificationFields control={form.control} catalogs={{ schoolQualification: catalogs.schoolQualification, academicTitle: catalogs.academicTitle }} />
+            <QualificationFields
+              control={form.control}
+              catalogs={{ schoolQualification: catalogs.schoolQualification, academicTitle: catalogs.academicTitle }}
+            />
 
             {/* Upload (compact single-line), placed under comment */}
             <UploadComponent
@@ -307,7 +336,10 @@ const ChangePersonalDataContent: React.FC<ChangePersonalDataFormProps> = ({ acce
               multiple={false}
               fileList={fileList}
               setFileList={setFileList}
-              labelText={getTranslationFromI18nKeyAndLabel('lowcoder:hr_absences.create_absence.upload_document', 'Upload document')}
+              labelText={getTranslationFromI18nKeyAndLabel(
+                'lowcoder:hr_absences.create_absence.upload_document',
+                'Upload document'
+              )}
             />
           </div>
 
@@ -315,7 +347,10 @@ const ChangePersonalDataContent: React.FC<ChangePersonalDataFormProps> = ({ acce
 
           <Separator className="gba:mt-4 gba:mb-4" data-testid="change-personal-data-divider" />
 
-          <div className="gba:flex gba:justify-end gba:items-center gba:gap-2 gba:mt-auto gba:pt-4" data-testid="change-personal-data-actions-wrapper">
+          <div
+            className="gba:flex gba:justify-end gba:items-center gba:gap-2 gba:mt-auto gba:pt-4"
+            data-testid="change-personal-data-actions-wrapper"
+          >
             <div className="gba:flex gba:gap-2" data-testid="change-personal-data-actions-left">
               <Button
                 type="button"
@@ -331,8 +366,8 @@ const ChangePersonalDataContent: React.FC<ChangePersonalDataFormProps> = ({ acce
                         'The action has been canceled.'
                       )
                     }
-                  });
-                  form.reset(defaultValues);
+                  })
+                  form.reset(defaultValues)
                 }}
                 data-testid="flw_changePersonalData_btnCancel"
               >
@@ -353,18 +388,17 @@ const ChangePersonalDataContent: React.FC<ChangePersonalDataFormProps> = ({ acce
         </AppActionForm>
       </div>
     </div>
-  );
-};
+  )
+}
 
-export const ChangePersonalData: React.FC<ChangePersonalDataFormProps> = (context) => {
+export const ChangePersonalData: React.FC<ChangePersonalDataFormProps> = context => {
   return (
-    <><ChangePersonalDataProvider {...context}>
-      <ChangePersonalDataContent {...context} />
-    </ChangePersonalDataProvider>
+    <>
+      <ChangePersonalDataProvider {...context}>
+        <ChangePersonalDataContent {...context} />
+      </ChangePersonalDataProvider>
     </>
-  );
-};
+  )
+}
 
-export default ChangePersonalData;
-
-
+export default ChangePersonalData

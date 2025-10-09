@@ -3,10 +3,9 @@ export function formatCurrency(value: number): string {
     style: 'currency',
     currency: 'USD',
     minimumFractionDigits: 0,
-    maximumFractionDigits: 0,
-  }).format(value);
+    maximumFractionDigits: 0
+  }).format(value)
 }
-
 
 const stageNameMap: Record<string, string> = {
   NEW_OPPORTUNITY: 'New Opportunity',
@@ -14,9 +13,8 @@ const stageNameMap: Record<string, string> = {
   PROPOSAL_IN_PROGRESS: 'Proposal In Progress',
   NEGOTIATION: 'Negotiation',
   CLOSED: 'Closed'
-};
-
+}
 
 export function formatStage(stageCode: string): string {
-  return stageNameMap[stageCode] || stageCode;
-} 
+  return stageNameMap[stageCode] || stageCode
+}

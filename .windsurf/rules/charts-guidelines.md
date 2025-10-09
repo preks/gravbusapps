@@ -2,6 +2,7 @@
 description: Whenever the Agent has to create or use Chart components. Whenever charts or visualizations or used.
 alwaysApply: false
 ---
+
 # Chart Components Guidelines
 
 ## Overview
@@ -19,21 +20,10 @@ import {
   ChartTooltipContent,
   ChartLegend,
   ChartLegendContent
-} from '@newwork/nw-design-system';
+} from '@newwork/nw-design-system'
 
 // Import specific recharts components as needed
-import {
-  PieChart,
-  Pie,
-  Cell,
-  LineChart,
-  Line,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  BarChart,
-  Bar
-} from 'recharts';
+import { PieChart, Pie, Cell, LineChart, Line, XAxis, YAxis, CartesianGrid, BarChart, Bar } from 'recharts'
 ```
 
 ### ChartContainer
@@ -41,10 +31,12 @@ import {
 The `ChartContainer` is the wrapper for all charts and MUST be used for every chart implementation.
 
 **Required Props:**
+
 - `config`: Chart configuration object defining data keys, labels, and colors
 - `className`: For sizing (e.g., `"gba:h-[300px]"`)
 
 **Example:**
+
 ```typescript
 const chartConfig = {
   revenue: {
@@ -52,7 +44,7 @@ const chartConfig = {
     color: "#3B82F6",
   },
   profit: {
-    label: "Profit", 
+    label: "Profit",
     color: "#10B981",
   },
 };
@@ -69,26 +61,26 @@ const chartConfig = {
 ```typescript
 type ChartConfig = {
   [key: string]: {
-    label: string;
-    color: string;
-    icon?: React.ComponentType; // Optional
-  };
-};
+    label: string
+    color: string
+    icon?: React.ComponentType // Optional
+  }
+}
 ```
 
 ### Dynamic Configuration Example
 
 ```typescript
 const chartConfig = React.useMemo(() => {
-  const config: Record<string, { label: string; color: string }> = {};
+  const config: Record<string, { label: string; color: string }> = {}
   data.forEach(item => {
     config[item.key] = {
       label: item.displayName,
       color: item.color
-    };
-  });
-  return config;
-}, [data]);
+    }
+  })
+  return config
+}, [data])
 ```
 
 ## Common Chart Patterns
@@ -124,22 +116,22 @@ const chartConfig = React.useMemo(() => {
 <ChartContainer config={chartConfig} className="gba:h-[300px]">
   <LineChart data={data}>
     <CartesianGrid strokeDasharray="3 3" />
-    <XAxis 
-      dataKey="month" 
+    <XAxis
+      dataKey="month"
       tickLine={false}
       axisLine={false}
       tickMargin={8}
     />
-    <YAxis 
+    <YAxis
       tickLine={false}
       axisLine={false}
       tickMargin={8}
     />
     <ChartTooltip content={<ChartTooltipContent />} />
-    <Line 
-      type="monotone" 
-      dataKey="value" 
-      stroke="var(--nw-color-value)" 
+    <Line
+      type="monotone"
+      dataKey="value"
+      stroke="var(--nw-color-value)"
       strokeWidth={3}
       dot={{ r: 4 }}
       activeDot={{ r: 6 }}
@@ -157,9 +149,9 @@ const chartConfig = React.useMemo(() => {
     <XAxis dataKey="category" />
     <YAxis />
     <ChartTooltip content={<ChartTooltipContent />} />
-    <Bar 
-      dataKey="value" 
-      fill="var(--nw-color-value)" 
+    <Bar
+      dataKey="value"
+      fill="var(--nw-color-value)"
       radius={[4, 4, 0, 0]}
     />
   </BarChart>
@@ -173,9 +165,9 @@ For progress indicators, use the `Progress` component instead of custom implemen
 ```typescript
 import { Progress } from '@newwork/nw-design-system';
 
-<Progress 
-  value={Math.min((actualValue / maxValue) * 100, 100)} 
-  className="gba:h-3" 
+<Progress
+  value={Math.min((actualValue / maxValue) * 100, 100)}
+  className="gba:h-3"
 />
 ```
 
@@ -186,21 +178,23 @@ import { Progress } from '@newwork/nw-design-system';
 Charts expect data in specific formats:
 
 **Pie Chart Data:**
+
 ```typescript
 const pieData = [
   { name: 'Category A', value: 400, fill: '#0088FE' },
   { name: 'Category B', value: 300, fill: '#00C49F' },
   { name: 'Category C', value: 300, fill: '#FFBB28' }
-];
+]
 ```
 
 **Line/Bar Chart Data:**
+
 ```typescript
 const lineData = [
   { month: 'Jan', value: 400, target: 350 },
   { month: 'Feb', value: 300, target: 400 },
   { month: 'Mar', value: 200, target: 300 }
-];
+]
 ```
 
 ## Styling and Theming
@@ -210,9 +204,9 @@ const lineData = [
 Charts automatically use CSS variables for colors when using `var(--nw-color-{key})`:
 
 ```typescript
-<Line 
-  dataKey="revenue" 
-  stroke="var(--nw-color-revenue)" 
+<Line
+  dataKey="revenue"
+  stroke="var(--nw-color-revenue)"
 />
 ```
 
@@ -221,10 +215,7 @@ Charts automatically use CSS variables for colors when using `var(--nw-color-{ke
 Use these standard colors for consistency:
 
 ```typescript
-const STANDARD_COLORS = [
-  '#1890FF', '#2FC25B', '#FACC14', '#223273', 
-  '#8543E0', '#13C2C2', '#3436C7', '#F04864'
-];
+const STANDARD_COLORS = ['#1890FF', '#2FC25B', '#FACC14', '#223273', '#8543E0', '#13C2C2', '#3436C7', '#F04864']
 ```
 
 ### Sizing Classes
@@ -232,7 +223,7 @@ const STANDARD_COLORS = [
 Always use Tailwind classes with `gba:` prefix for chart containers:
 
 - `gba:h-[200px]` - Small charts
-- `gba:h-[300px]` - Standard charts  
+- `gba:h-[300px]` - Standard charts
 - `gba:h-[400px]` - Large charts
 - `gba:h-[500px]` - Extra large charts
 
@@ -258,22 +249,27 @@ import { Card, CardContent, CardHeader, CardTitle } from '@newwork/nw-design-sys
 ## Best Practices
 
 ### 1. Always Use ChartContainer
+
 - Never use recharts components directly without ChartContainer wrapper
 - Always provide proper chartConfig object
 
 ### 2. Responsive Design
+
 - Use responsive classes: `gba:h-[200px] md:gba:h-[300px]`
 - Test charts on different screen sizes
 
 ### 3. Loading States
+
 - Use `Spinner` component for loading states
 - Provide proper loading indicators
 
 ### 4. Error Handling
+
 - Use `Alert` component for error states
 - Provide meaningful error messages
 
 ### 5. Accessibility
+
 - Include proper labels in chartConfig
 - Ensure sufficient color contrast
 - Provide alternative data representation when needed
@@ -324,21 +320,25 @@ import { PieChart } from 'recharts';
 ## Troubleshooting
 
 ### Chart Not Displaying
+
 1. Check if `ChartContainer` is properly configured
 2. Verify chartConfig matches data keys
 3. Ensure proper data structure
 
 ### Colors Not Working
+
 1. Verify chartConfig includes color properties
 2. Use `var(--nw-color-{key})` format
 3. Check data includes `fill` property for Pie charts
 
 ### Tooltips Not Showing
+
 1. Ensure `ChartTooltip` is included
 2. Use `ChartTooltipContent` component
 3. Check data structure includes proper keys
 
 ### Performance Issues
+
 1. Memoize chartConfig with `React.useMemo`
 2. Memoize chart data
 3. Avoid recreating objects in render
@@ -362,4 +362,4 @@ When migrating from antd charts or direct recharts usage:
 
 ---
 
-**Remember:** Consistency is key. Always follow these patterns to ensure maintainable and accessible charts across the application. 
+**Remember:** Consistency is key. Always follow these patterns to ensure maintainable and accessible charts across the application.

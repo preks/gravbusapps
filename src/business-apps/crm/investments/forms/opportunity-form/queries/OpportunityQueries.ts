@@ -1,121 +1,121 @@
-import { useGraphQLClient } from "@/common/network/graphql/useGraphQLClient";
-import { BusinessAppContextProps } from "@/common/BusinessAppContext";
-import { useCallback } from "react";
+import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
+import { BusinessAppContextProps } from '@/common/BusinessAppContext'
+import { useCallback } from 'react'
 
 export interface InvestmentOpportunityQueryVariables {
-  opportunityId: string;
+  opportunityId: string
 }
 
 export interface InvestmentOpportunityQueryResult {
-  id: string;
-  version?: number;
-  businessKey?: string;
-  code?: string;
+  id: string
+  version?: number
+  businessKey?: string
+  code?: string
 
   // Basic Information
-  name?: string;
-  investmentName?: string;
-  dealType?: string;
+  name?: string
+  investmentName?: string
+  dealType?: string
 
   // Pipeline Information
-  opportunityPipelineRef?: string;
-  opportunityPipelineStageRef?: string;
+  opportunityPipelineRef?: string
+  opportunityPipelineStageRef?: string
 
   // Notes
-  notesSummary?: string;
+  notesSummary?: string
 
   // Financial Information
-  estimatedAmount?: number;
-  forecastedProfitAmount?: number;
-  initialInvestmentAmount?: number;
+  estimatedAmount?: number
+  forecastedProfitAmount?: number
+  initialInvestmentAmount?: number
   currency?: {
-    id: string;
-    code: string;
-    value: string;
-    objectValue?: any;
-  };
-  currencyRef?: string;
-  closeDate?: string;
+    id: string
+    code: string
+    value: string
+    objectValue?: any
+  }
+  currencyRef?: string
+  closeDate?: string
 
   // Investment Classification
   investmentGroup?: {
-    id: string;
-    code: string;
-    value: string;
-    objectValue?: any;
-  };
-  investmentGroupRef?: string;
+    id: string
+    code: string
+    value: string
+    objectValue?: any
+  }
+  investmentGroupRef?: string
   investmentRole?: {
-    id: string;
-    code: string;
-    value: string;
-    objectValue?: any;
-  };
-  investmentRoleRef?: string;
+    id: string
+    code: string
+    value: string
+    objectValue?: any
+  }
+  investmentRoleRef?: string
   investmentStakeType?: {
-    id: string;
-    code: string;
-    value: string;
-    objectValue?: any;
-  };
-  investmentStakeTypeRef?: string;
+    id: string
+    code: string
+    value: string
+    objectValue?: any
+  }
+  investmentStakeTypeRef?: string
   investmentType?: {
-    id: string;
-    code: string;
-    value: string;
-    objectValue?: any;
-  };
-  investmentTypeRef?: string;
-  stakePercentage?: number;
+    id: string
+    code: string
+    value: string
+    objectValue?: any
+  }
+  investmentTypeRef?: string
+  stakePercentage?: number
 
   // Loan Information
-  loanAmount?: number;
-  loanInterestRate?: number;
-  marketValue?: number;
-  requiredCapitalAmount?: number;
+  loanAmount?: number
+  loanInterestRate?: number
+  marketValue?: number
+  requiredCapitalAmount?: number
 
   // Real Estate Specific
-  annualNetColdRent?: number;
+  annualNetColdRent?: number
 
   // Relationships
   account?: {
-    id: string;
-    name: string;
-  };
-  accountId?: string;
+    id: string
+    name: string
+  }
+  accountId?: string
 
   // Owner Information
   ownerEmployee?: {
-    id: string;
-    firstName: string;
-    lastName: string;
-    displayName?: string;
-    pictureThumbnail?: string;
-  };
+    id: string
+    firstName: string
+    lastName: string
+    displayName?: string
+    pictureThumbnail?: string
+  }
   ownerOrganization?: {
-    id: string;
-    name: string;
-  };
-  ownerOrganizationId?: string;
+    id: string
+    name: string
+  }
+  ownerOrganizationId?: string
 
   // Process and system fields
-  processInstanceId?: string;
+  processInstanceId?: string
 
   // Additional Properties
-  additionalProperties?: Record<string, any>;
+  additionalProperties?: Record<string, any>
 
   // Audit information
-  activeFrom?: string;
-  activeTo?: string;
-  createdAt?: string;
-  createdBy?: string;
-  updatedAt?: string;
-  updatedBy?: string;
-  synchronizedAt?: string;
+  activeFrom?: string
+  activeTo?: string
+  createdAt?: string
+  createdBy?: string
+  updatedAt?: string
+  updatedBy?: string
+  synchronizedAt?: string
 }
 
 export interface InvestmentOpportunityDataResponse {
-  InvestmentOpportunity: InvestmentOpportunityQueryResult[];
+  InvestmentOpportunity: InvestmentOpportunityQueryResult[]
 }
 
 export const GET_INVESTMENT_OPPORTUNITY_BY_ID = `
@@ -228,56 +228,44 @@ export const GET_INVESTMENT_OPPORTUNITY_BY_ID = `
       synchronizedAt
     }
   }
-`;
+`
 
-export const useGetInvestmentOpportunityData = (
-  context: BusinessAppContextProps
-) => {
-  const graphqlClient = useGraphQLClient(context.accessToken);
+export const useGetInvestmentOpportunityData = (context: BusinessAppContextProps) => {
+  const graphqlClient = useGraphQLClient(context.accessToken)
 
-  const fetchInvestmentOpportunityData = async (
-    variables: InvestmentOpportunityQueryVariables
-  ) => {
-    const query = GET_INVESTMENT_OPPORTUNITY_BY_ID;
+  const fetchInvestmentOpportunityData = async (variables: InvestmentOpportunityQueryVariables) => {
+    const query = GET_INVESTMENT_OPPORTUNITY_BY_ID
     try {
-      const result =
-        await graphqlClient.request<InvestmentOpportunityDataResponse>(
-          query,
-          variables
-        );
-      return result;
+      const result = await graphqlClient.request<InvestmentOpportunityDataResponse>(query, variables)
+      return result
     } catch (error) {
-      console.error("Error fetching investment opportunity data:", error);
-      throw error;
+      console.error('Error fetching investment opportunity data:', error)
+      throw error
     }
-  };
+  }
 
-  return { fetchInvestmentOpportunityData };
-};
+  return { fetchInvestmentOpportunityData }
+}
 
-export const useGetInvestmentOpportunityById = (
-  context: BusinessAppContextProps
-) => {
-  const graphqlClient = useGraphQLClient(context.accessToken);
+export const useGetInvestmentOpportunityById = (context: BusinessAppContextProps) => {
+  const graphqlClient = useGraphQLClient(context.accessToken)
 
   const fetchInvestmentOpportunityById = useCallback(
-    async (
-      opportunityId: string
-    ): Promise<InvestmentOpportunityQueryResult | null> => {
-      if (!opportunityId) return null;
+    async (opportunityId: string): Promise<InvestmentOpportunityQueryResult | null> => {
+      if (!opportunityId) return null
 
       try {
         const result = await graphqlClient.request<{
-          InvestmentOpportunity: InvestmentOpportunityQueryResult[];
-        }>(GET_INVESTMENT_OPPORTUNITY_BY_ID, { opportunityId: opportunityId });
-        return result.InvestmentOpportunity?.[0] || null;
+          InvestmentOpportunity: InvestmentOpportunityQueryResult[]
+        }>(GET_INVESTMENT_OPPORTUNITY_BY_ID, { opportunityId: opportunityId })
+        return result.InvestmentOpportunity?.[0] || null
       } catch (error) {
-        console.error("Error fetching investment opportunity by ID:", error);
-        throw error;
+        console.error('Error fetching investment opportunity by ID:', error)
+        throw error
       }
     },
     [graphqlClient]
-  );
+  )
 
-  return { fetchInvestmentOpportunityById };
-};
+  return { fetchInvestmentOpportunityById }
+}

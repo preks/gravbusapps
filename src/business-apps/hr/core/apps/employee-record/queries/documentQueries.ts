@@ -51,7 +51,7 @@ query screenData($employeeId: uuid!, $activeUserLocale: String = "en-US") {
     }
   }
 }
-`;
+`
 
 export const documentTypeCatalogQuery = `
 query catalogData($documentTypeRefs: [String!]!) {
@@ -61,4 +61,4 @@ query catalogData($documentTypeRefs: [String!]!) {
     code
   }
 }
-`;
+`

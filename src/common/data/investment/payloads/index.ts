@@ -1,3 +1,2 @@
-export * from './investmentPayloads';
-export * from './investmentRelationPayloads';
-
+export * from './investmentPayloads'
+export * from './investmentRelationPayloads'

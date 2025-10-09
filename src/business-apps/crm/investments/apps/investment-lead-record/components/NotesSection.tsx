@@ -1,114 +1,110 @@
-import React, { useState, useEffect } from 'react';
-import { Spin, Alert, Timeline, Typography, message, Modal, Input } from 'antd';
-import { Button } from '@newwork/nw-design-system';
-import { NoteDeletePopup } from '@/common/components/common-relations/popups/note-delete-popup';
-import { PlusCircleOutlined, CloseOutlined, UserOutlined } from '@ant-design/icons';
-import { AppAction } from '@/components/app-action/AppAction';
-import { FlowContextName } from '@/common/types/FlowRegistryTypes';
-import { BusinessAppContextProps } from '@/common/BusinessAppContext';
-import { useRestClient } from '@/common/network/rest/useRestClient';
-import { env } from '@/common/env/EnvUtils';
-import dayjs from 'dayjs';
+import React, { useState, useEffect } from 'react'
+import { Spin, Alert, Timeline, Typography, message, Modal, Input } from 'antd'
+import { Button } from '@newwork/nw-design-system'
+import { NoteDeletePopup } from '@/common/components/common-relations/popups/note-delete-popup'
+import { PlusCircleOutlined, CloseOutlined, UserOutlined } from '@ant-design/icons'
+import { AppAction } from '@/components/app-action/AppAction'
+import { FlowContextName } from '@/common/types/FlowRegistryTypes'
+import { BusinessAppContextProps } from '@/common/BusinessAppContext'
+import { useRestClient } from '@/common/network/rest/useRestClient'
+import { env } from '@/common/env/EnvUtils'
+import dayjs from 'dayjs'
 // import { useEmployeeData } from '@/business-apps/crm/common/hooks/useEmployeeData';
-import { useGetInvestmentNotesByLeadId } from '@/common/data/investment/hooks/useInvestmentLeads';
-import type { InvestmentNote } from '@/common/data/investment/types';
+import { useGetInvestmentNotesByLeadId } from '@/common/data/investment/hooks/useInvestmentLeads'
+import type { InvestmentNote } from '@/common/data/investment/types'
 
-const { TextArea } = Input;
-const { Text } = Typography;
+const { TextArea } = Input
+const { Text } = Typography
 
 interface NotesSectionProps {
-  leadId?: string;
-  context: BusinessAppContextProps;
-  showHeader?: boolean;
+  leadId?: string
+  context: BusinessAppContextProps
+  showHeader?: boolean
 }
 
 // Use the actual investment note type
-type SimpleNoteData = InvestmentNote;
+type SimpleNoteData = InvestmentNote
 
-export const NotesSection: React.FC<NotesSectionProps> = ({
-  leadId,
-  context,
-  showHeader = true,
-}) => {
-  const [notes, setNotes] = useState<SimpleNoteData[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [saving, setSaving] = useState(false);
-  const [isModalVisible, setIsModalVisible] = useState(false);
-  const [editingNote, setEditingNote] = useState<SimpleNoteData | null>(null);
-  const [noteTitle, setNoteTitle] = useState('');
-  const [noteText, setNoteText] = useState('');
+export const NotesSection: React.FC<NotesSectionProps> = ({ leadId, context, showHeader = true }) => {
+  const [notes, setNotes] = useState<SimpleNoteData[]>([])
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const [saving, setSaving] = useState(false)
+  const [isModalVisible, setIsModalVisible] = useState(false)
+  const [editingNote, setEditingNote] = useState<SimpleNoteData | null>(null)
+  const [noteTitle, setNoteTitle] = useState('')
+  const [noteText, setNoteText] = useState('')
 
-  const restClient = useRestClient(env('NEXT_PUBLIC_KOGITO_PROCESSES_ENDPOINT'));
+  const restClient = useRestClient(env('NEXT_PUBLIC_KOGITO_PROCESSES_ENDPOINT'))
   // const { getEmployeeDisplayName } = useEmployeeData(context.accessToken);
-  const { fetchInvestmentNotesByLeadId } = useGetInvestmentNotesByLeadId(context);
+  const { fetchInvestmentNotesByLeadId } = useGetInvestmentNotesByLeadId(context)
 
   const loadNotes = async () => {
-    if (!leadId) return;
+    if (!leadId) return
 
-    setLoading(true);
-    setError(null);
+    setLoading(true)
+    setError(null)
 
     try {
-      const notesData = await fetchInvestmentNotesByLeadId(leadId);
-      setNotes(notesData);
+      const notesData = await fetchInvestmentNotesByLeadId(leadId)
+      setNotes(notesData)
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to load notes');
+      setError(err instanceof Error ? err.message : 'Failed to load notes')
     } finally {
-      setLoading(false);
+      setLoading(false)
     }
-  };
+  }
 
   useEffect(() => {
-    loadNotes();
-  }, [leadId]);
+    loadNotes()
+  }, [leadId])
 
   // Add focus event listener to refresh data when user returns to the tab
   useEffect(() => {
     const handleFocus = () => {
-      console.log('Window gained focus, refreshing notes...');
-      loadNotes();
-    };
+      console.log('Window gained focus, refreshing notes...')
+      loadNotes()
+    }
 
-    window.addEventListener('focus', handleFocus);
+    window.addEventListener('focus', handleFocus)
     document.addEventListener('visibilitychange', () => {
       if (!document.hidden) {
-        handleFocus();
+        handleFocus()
       }
-    });
+    })
 
     return () => {
-      window.removeEventListener('focus', handleFocus);
-      document.removeEventListener('visibilitychange', handleFocus);
-    };
-  }, [leadId]);
+      window.removeEventListener('focus', handleFocus)
+      document.removeEventListener('visibilitychange', handleFocus)
+    }
+  }, [leadId])
 
   // Listen for process completion events to refresh notes
   useEffect(() => {
     const handleProcessCompletion = (event: any) => {
       try {
         if (event.detail?.resolution === 'success') {
-          loadNotes();
-          return;
+          loadNotes()
+          return
         }
 
         // Also check for different event structure
-        const response = event.detail?.response;
+        const response = event.detail?.response
         if (response?.detail?.resolution === 'success') {
-          loadNotes();
+          loadNotes()
         }
       } catch (err) {
-        console.error('Error handling process completion:', err);
+        console.error('Error handling process completion:', err)
       }
-    };
+    }
 
     // Universal event listener to capture all events
     const handleAllEvents = (event: any) => {
       if (event.type && (event.type.includes('process') || event.type.includes('note'))) {
-        console.log('Detected process/note event:', event.type, event);
-        handleProcessCompletion(event);
+        console.log('Detected process/note event:', event.type, event)
+        handleProcessCompletion(event)
       }
-    };
+    }
 
     // Listen to multiple possible event names
     const eventNames = [
@@ -118,32 +114,32 @@ export const NotesSection: React.FC<NotesSectionProps> = ({
       'processCompletion',
       'noteCompletion',
       'noteCompleted',
-      'processCompleted',
-    ];
+      'processCompleted'
+    ]
 
-    eventNames.forEach((eventName) => {
-      window.addEventListener(eventName, handleProcessCompletion as EventListener);
-    });
+    eventNames.forEach(eventName => {
+      window.addEventListener(eventName, handleProcessCompletion as EventListener)
+    })
 
     // Add a universal listener for debugging
-    const originalDispatchEvent = window.dispatchEvent;
+    const originalDispatchEvent = window.dispatchEvent
     window.dispatchEvent = function (event: Event) {
       if (event.type && (event.type.includes('process') || event.type.includes('note'))) {
-        console.log('Custom Event dispatched:', event.type, event);
-        handleAllEvents(event);
+        console.log('Custom Event dispatched:', event.type, event)
+        handleAllEvents(event)
       }
-      return originalDispatchEvent.call(this, event);
-    };
+      return originalDispatchEvent.call(this, event)
+    }
 
     return () => {
-      eventNames.forEach((eventName) => {
-        window.removeEventListener(eventName, handleProcessCompletion as EventListener);
-      });
+      eventNames.forEach(eventName => {
+        window.removeEventListener(eventName, handleProcessCompletion as EventListener)
+      })
 
       // Restore original dispatchEvent
-      window.dispatchEvent = originalDispatchEvent;
-    };
-  }, [leadId]);
+      window.dispatchEvent = originalDispatchEvent
+    }
+  }, [leadId])
 
   // const handleAddNoteClick = () => {
   //   setEditingNote(null);
@@ -154,11 +150,11 @@ export const NotesSection: React.FC<NotesSectionProps> = ({
 
   const handleSaveNote = async () => {
     if (!noteTitle.trim() || !noteText.trim()) {
-      message.error('Please fill in both title and text');
-      return;
+      message.error('Please fill in both title and text')
+      return
     }
 
-    setSaving(true);
+    setSaving(true)
     try {
       if (editingNote) {
         // Update existing note
@@ -170,10 +166,10 @@ export const NotesSection: React.FC<NotesSectionProps> = ({
             id: editingNote.id,
             title: noteTitle.trim(),
             text: noteText.trim(),
-            version: editingNote.version || 1,
-          },
-        });
-        message.success('Note updated successfully');
+            version: editingNote.version || 1
+          }
+        })
+        message.success('Note updated successfully')
       } else {
         // Create new note
         await restClient.post('/investments/saveInvestmentNote', {
@@ -183,42 +179,42 @@ export const NotesSection: React.FC<NotesSectionProps> = ({
             // Updated from 'crmNote'
             title: noteTitle.trim(),
             text: noteText.trim(),
-            leadId: leadId,
-          },
-        });
-        message.success('Note created successfully');
+            leadId: leadId
+          }
+        })
+        message.success('Note created successfully')
       }
 
-      setIsModalVisible(false);
-      loadNotes(); // Refresh the list
+      setIsModalVisible(false)
+      loadNotes() // Refresh the list
     } catch (err) {
-      console.error('Error saving note:', err);
-      message.error('Failed to save note');
+      console.error('Error saving note:', err)
+      message.error('Failed to save note')
     } finally {
-      setSaving(false);
+      setSaving(false)
     }
-  };
+  }
 
   const [deletePopup, setDeletePopup] = useState<{ open: boolean; note?: SimpleNoteData }>({
-    open: false,
-  });
+    open: false
+  })
   const handleDeleteNote = (note: SimpleNoteData) => {
-    setDeletePopup({ open: true, note });
-  };
+    setDeletePopup({ open: true, note })
+  }
 
   const handleModalCancel = () => {
-    setIsModalVisible(false);
-    setEditingNote(null);
-    setNoteTitle('');
-    setNoteText('');
-  };
+    setIsModalVisible(false)
+    setEditingNote(null)
+    setNoteTitle('')
+    setNoteText('')
+  }
 
   if (loading) {
     return (
       <div className="gba:flex gba:justify-center gba:py-8">
         <Spin size="large" />
       </div>
-    );
+    )
   }
 
   if (error) {
@@ -235,7 +231,7 @@ export const NotesSection: React.FC<NotesSectionProps> = ({
           </Button>
         }
       />
-    );
+    )
   }
 
   return (
@@ -254,7 +250,7 @@ export const NotesSection: React.FC<NotesSectionProps> = ({
             externalContextData={{
               leadId,
               lead: leadId,
-              investmentNote: { lead: leadId },
+              investmentNote: { lead: leadId }
             }}
             staticFlowData={[]}
             prefixDataTestId="add-note"
@@ -278,7 +274,7 @@ export const NotesSection: React.FC<NotesSectionProps> = ({
         </div>
       ) : (
         <Timeline>
-          {notes.map((note) => (
+          {notes.map(note => (
             <Timeline.Item key={note.id} className="gba:pb-6">
               <div className="gba:bg-white gba:border gba:border-gray-200 gba:rounded-lg gba:p-4 gba:shadow-sm">
                 <div className="gba:flex gba:justify-between gba:items-start gba:mb-3">
@@ -297,9 +293,7 @@ export const NotesSection: React.FC<NotesSectionProps> = ({
                         </span>
                       )}
 
-                      <span>
-                        Created: {dayjs(note.createdAt).format('MMM D, YYYY [at] h:mm A')}
-                      </span>
+                      <span>Created: {dayjs(note.createdAt).format('MMM D, YYYY [at] h:mm A')}</span>
                     </div>
                   </div>
 
@@ -333,24 +327,20 @@ export const NotesSection: React.FC<NotesSectionProps> = ({
       >
         <div className="gba:space-y-4">
           <div>
-            <label className="gba:block gba:text-sm gba:font-medium gba:text-gray-700 gba:mb-2">
-              Title
-            </label>
+            <label className="gba:block gba:text-sm gba:font-medium gba:text-gray-700 gba:mb-2">Title</label>
             <Input
               value={noteTitle}
-              onChange={(e) => setNoteTitle(e.target.value)}
+              onChange={e => setNoteTitle(e.target.value)}
               placeholder="Enter note title"
               maxLength={100}
             />
           </div>
 
           <div>
-            <label className="gba:block gba:text-sm gba:font-medium gba:text-gray-700 gba:mb-2">
-              Note Text
-            </label>
+            <label className="gba:block gba:text-sm gba:font-medium gba:text-gray-700 gba:mb-2">Note Text</label>
             <TextArea
               value={noteText}
-              onChange={(e) => setNoteText(e.target.value)}
+              onChange={e => setNoteText(e.target.value)}
               placeholder="Enter your note content"
               rows={6}
               maxLength={1000}
@@ -370,13 +360,13 @@ export const NotesSection: React.FC<NotesSectionProps> = ({
           noteTitle={deletePopup.note.title || 'Untitled Note'}
           domain="investments"
           onSuccess={() => {
-            const id = deletePopup.note!.id;
-            setNotes((prev) => prev.filter((n) => n.id !== id));
-            setDeletePopup({ open: false });
+            const id = deletePopup.note!.id
+            setNotes(prev => prev.filter(n => n.id !== id))
+            setDeletePopup({ open: false })
           }}
           onError={() => setDeletePopup({ open: false })}
         />
       )}
     </div>
-  );
-};
+  )
+}

@@ -1,4 +1,4 @@
-import React, { useMemo } from "react";
+import React, { useMemo } from 'react'
 import {
   Card,
   CardContent,
@@ -11,33 +11,37 @@ import {
   ChartTooltip,
   ChartTooltipContent,
   ChartLegend,
-  ChartLegendContent,
-} from "@newwork/nw-design-system";
-import { AreaChart, Area, XAxis, YAxis, CartesianGrid } from "recharts";
-import { TrendUpIcon, DesktopIcon, DeviceMobileIcon } from "@phosphor-icons/react";
-import areaChartData from "../../data/areaChartData.json";
+  ChartLegendContent
+} from '@newwork/nw-design-system'
+import { AreaChart, Area, XAxis, YAxis, CartesianGrid } from 'recharts'
+import { TrendUpIcon, DesktopIcon, DeviceMobileIcon } from '@phosphor-icons/react'
+import areaChartData from '../../data/areaChartData.json'
 
 interface AreaChartIconsProps {
-  moduleColor?: string;
+  moduleColor?: string
 }
 
 const AreaChartIcons: React.FC<AreaChartIconsProps> = ({ moduleColor }) => {
-  const chartData = areaChartData.icons;
+  const chartData = areaChartData.icons
 
-  const chartConfig = useMemo(() => ({
-    visitors: { label: "Visitors", color: "none" },
-    chrome: { 
-      label: "Chrome",
-      icon: DesktopIcon,
-    },
-    safari: { 
-      label: "Safari",
-      icon: DeviceMobileIcon,
-    },
-    firefox: { label: "Firefox" },
-    edge: { label: "Edge" },
-    other: { label: "Other" },
-  }) satisfies ChartConfig, []);
+  const chartConfig = useMemo(
+    () =>
+      ({
+        visitors: { label: 'Visitors', color: 'none' },
+        chrome: {
+          label: 'Chrome',
+          icon: DesktopIcon
+        },
+        safari: {
+          label: 'Safari',
+          icon: DeviceMobileIcon
+        },
+        firefox: { label: 'Firefox' },
+        edge: { label: 'Edge' },
+        other: { label: 'Other' }
+      }) satisfies ChartConfig,
+    []
+  )
 
   return (
     <Card data-testid="area-chart-icons">
@@ -52,17 +56,9 @@ const AreaChartIcons: React.FC<AreaChartIconsProps> = ({ moduleColor }) => {
         <ChartContainer config={chartConfig} className="gba:h-[300px]">
           <AreaChart data={chartData} margin={{ left: 12, right: 12 }}>
             <CartesianGrid vertical={false} />
-            <XAxis
-              dataKey="browser"
-              tickLine={false}
-              axisLine={false}
-              tickMargin={8}
-            />
+            <XAxis dataKey="browser" tickLine={false} axisLine={false} tickMargin={8} />
             <YAxis tickLine={false} axisLine={false} tickMargin={8} />
-            <ChartTooltip
-              cursor={false}
-              content={<ChartTooltipContent nameKey="browser" />}
-            />
+            <ChartTooltip cursor={false} content={<ChartTooltipContent nameKey="browser" />} />
             <Area
               dataKey="visitors"
               type="natural"
@@ -75,7 +71,7 @@ const AreaChartIcons: React.FC<AreaChartIconsProps> = ({ moduleColor }) => {
         </ChartContainer>
       </CardContent>
     </Card>
-  );
-};
+  )
+}
 
-export default AreaChartIcons;
+export default AreaChartIcons

@@ -1,33 +1,48 @@
-import React from 'react';
-import { Button, Form, FormControl, FormField, FormItem, FormLabel, FormMessage, Input, Select, SelectContent, SelectItem, SelectTrigger, SelectValue, Textarea } from '@newwork/nw-design-system';
-import { useForm } from 'react-hook-form';
-import { useEffect } from 'react';
-import { useCampaignFormContext } from '../context/CampaignFormContext';
-import type { CampaignFormValues } from '../types';
-import dayjs from 'dayjs';
-import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
-import { dispatchProcessContinueEvent } from '@/common/utils/processEventUtils';
+import React from 'react'
+import {
+  Button,
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+  Input,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+  Textarea
+} from '@newwork/nw-design-system'
+import { useForm } from 'react-hook-form'
+import { useEffect } from 'react'
+import { useCampaignFormContext } from '../context/CampaignFormContext'
+import type { CampaignFormValues } from '../types'
+import dayjs from 'dayjs'
+import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
+import { dispatchProcessContinueEvent } from '@/common/utils/processEventUtils'
 
 const CampaignFormComponent: React.FC = () => {
-  const { formValues, onSubmit, onCancel, campaignTypes, isLoading, isUpdateMode } = useCampaignFormContext();
+  const { formValues, onSubmit, onCancel, campaignTypes, isLoading, isUpdateMode } = useCampaignFormContext()
 
   const form = useForm<CampaignFormValues>({
     defaultValues: formValues,
     mode: 'onChange'
-  });
+  })
 
   // Keep form in sync when context-provided values change (e.g., after fetch)
   useEffect(() => {
-    form.reset(formValues);
-  }, [formValues, form]);
+    form.reset(formValues)
+  }, [formValues, form])
 
   const handleSubmit = async (values: CampaignFormValues) => {
     const normalized: CampaignFormValues = {
       ...values,
       startDate: values.startDate ? dayjs(values.startDate).format('YYYY-MM-DD') : '',
-      endDate: values.endDate ? dayjs(values.endDate).format('YYYY-MM-DD') : '',
-    };
-    await onSubmit(normalized);
+      endDate: values.endDate ? dayjs(values.endDate).format('YYYY-MM-DD') : ''
+    }
+    await onSubmit(normalized)
     const payload = {
       changeMode: isUpdateMode ? 'UPDATE' : 'INSERT',
       salesCampaign: {
@@ -37,16 +52,16 @@ const CampaignFormComponent: React.FC = () => {
         typeRef: normalized.typeRef,
         startDate: normalized.startDate,
         endDate: normalized.endDate,
-        description: normalized.description || '',
-      },
-    };
-    dispatchProcessContinueEvent('pse_submit', payload);
-  };
+        description: normalized.description || ''
+      }
+    }
+    dispatchProcessContinueEvent('pse_submit', payload)
+  }
 
   const handleCancel = async () => {
-    await onCancel();
-    dispatchProcessContinueEvent('pse_pause', {});
-  };
+    await onCancel()
+    dispatchProcessContinueEvent('pse_pause', {})
+  }
 
   return (
     <div className="gba:max-w-2xl gba:w-full gba:mx-auto gba:p-6">
@@ -91,7 +106,7 @@ const CampaignFormComponent: React.FC = () => {
                       <SelectValue placeholder="Select campaign type" />
                     </SelectTrigger>
                     <SelectContent>
-                      {campaignTypes.map((t) => (
+                      {campaignTypes.map(t => (
                         <SelectItem value={t.id} key={t.id}>
                           {t.label}
                         </SelectItem>
@@ -146,7 +161,12 @@ const CampaignFormComponent: React.FC = () => {
               <FormItem>
                 <FormLabel>Description</FormLabel>
                 <FormControl>
-                  <Textarea {...field} rows={4} placeholder="Enter campaign description" data-testid="campaign-form-description-input" />
+                  <Textarea
+                    {...field}
+                    rows={4}
+                    placeholder="Enter campaign description"
+                    data-testid="campaign-form-description-input"
+                  />
                 </FormControl>
                 <FormMessage />
               </FormItem>
@@ -164,9 +184,7 @@ const CampaignFormComponent: React.FC = () => {
         </form>
       </Form>
     </div>
-  );
-};
+  )
+}
 
-export default CampaignFormComponent;
-
-
+export default CampaignFormComponent

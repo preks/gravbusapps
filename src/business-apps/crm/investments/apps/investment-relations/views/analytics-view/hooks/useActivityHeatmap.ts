@@ -1,27 +1,27 @@
-import { useState, useEffect } from 'react';
-import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient';
+import { useState, useEffect } from 'react'
+import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 
 export interface ActivityHeatmapData {
-  day: string;
-  hour: number;
-  activities: number;
-  dayIndex: number;
+  day: string
+  hour: number
+  activities: number
+  dayIndex: number
 }
 
 export const useActivityHeatmap = (accessToken: string) => {
-  const [activityData, setActivityData] = useState<ActivityHeatmapData[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const graphqlClient = useGraphQLClient(accessToken);
+  const [activityData, setActivityData] = useState<ActivityHeatmapData[]>([])
+  const [isLoading, setIsLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+  const graphqlClient = useGraphQLClient(accessToken)
 
   useEffect(() => {
     const fetchActivityHeatmap = async () => {
       try {
-        setIsLoading(true);
-        setError(null);
+        setIsLoading(true)
+        setError(null)
 
-        const currentDate = new Date();
-        const thirtyDaysAgo = new Date(currentDate.getTime() - 30 * 24 * 60 * 60 * 1000).toISOString();
+        const currentDate = new Date()
+        const thirtyDaysAgo = new Date(currentDate.getTime() - 30 * 24 * 60 * 60 * 1000).toISOString()
 
         const query = `
           query GetActivityHeatmap {
@@ -65,21 +65,21 @@ export const useActivityHeatmap = (accessToken: string) => {
               createdAt
             }
           }
-        `;
+        `
 
-        const result = await graphqlClient.request(query);
-        
+        const result = await graphqlClient.request(query)
+
         // Combine all activities
         const allActivities = [
           ...result.leadActivities,
           ...result.accountActivities,
           ...result.opportunityActivities,
           ...result.contactActivities
-        ];
+        ]
 
         // Create heatmap data structure
-        const dayNames = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
-        const heatmapData: ActivityHeatmapData[] = [];
+        const dayNames = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']
+        const heatmapData: ActivityHeatmapData[] = []
 
         // Initialize data structure
         dayNames.forEach((day, dayIndex) => {
@@ -89,36 +89,35 @@ export const useActivityHeatmap = (accessToken: string) => {
               hour,
               activities: 0,
               dayIndex
-            });
+            })
           }
-        });
+        })
 
         // Process activities and count by day/hour
         allActivities.forEach((activity: any) => {
-          const date = new Date(activity.createdAt);
-          const dayOfWeek = (date.getDay() + 6) % 7; // Convert Sunday=0 to Monday=0
-          const hour = date.getHours();
-          
-          const dataPoint = heatmapData.find(d => d.dayIndex === dayOfWeek && d.hour === hour);
-          if (dataPoint) {
-            dataPoint.activities++;
-          }
-        });
+          const date = new Date(activity.createdAt)
+          const dayOfWeek = (date.getDay() + 6) % 7 // Convert Sunday=0 to Monday=0
+          const hour = date.getHours()
 
-        setActivityData(heatmapData);
-        
+          const dataPoint = heatmapData.find(d => d.dayIndex === dayOfWeek && d.hour === hour)
+          if (dataPoint) {
+            dataPoint.activities++
+          }
+        })
+
+        setActivityData(heatmapData)
       } catch (err) {
         // console.error('Error fetching activity heatmap:', err);
-        setError(err instanceof Error ? err.message : 'Unknown error');
+        setError(err instanceof Error ? err.message : 'Unknown error')
       } finally {
-        setIsLoading(false);
+        setIsLoading(false)
       }
-    };
+    }
 
     if (accessToken) {
-      fetchActivityHeatmap();
+      fetchActivityHeatmap()
     }
-  }, [accessToken, graphqlClient]);
+  }, [accessToken, graphqlClient])
 
-  return { activityData, isLoading, error };
-};
+  return { activityData, isLoading, error }
+}

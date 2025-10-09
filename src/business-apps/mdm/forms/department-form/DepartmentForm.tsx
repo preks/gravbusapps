@@ -1,37 +1,29 @@
-import React, { Dispatch, SetStateAction, useState } from "react";
-import { BusinessAppContextProps } from "@/common/BusinessAppContext";
-import FormWrapperModal from "../../apps/generic-components/form-wrapper/FormWrapperModal";
-import {
-  Input,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormControl,
-  FormMessage,
-  Textarea,
-} from "@newwork/nw-design-system";
-import { useRestClient } from "@/common/network/rest/useRestClient";
-import { env } from "@/common/env/EnvUtils";
-import { formatDataTestId } from "@/common/utils/formatDataTestId";
-import { useTranslation } from "react-i18next";
-import { Department } from "../../apps/organizational-data/types";
+import React, { Dispatch, SetStateAction, useState } from 'react'
+import { BusinessAppContextProps } from '@/common/BusinessAppContext'
+import FormWrapperModal from '../../apps/generic-components/form-wrapper/FormWrapperModal'
+import { Input, FormField, FormItem, FormLabel, FormControl, FormMessage, Textarea } from '@newwork/nw-design-system'
+import { useRestClient } from '@/common/network/rest/useRestClient'
+import { env } from '@/common/env/EnvUtils'
+import { formatDataTestId } from '@/common/utils/formatDataTestId'
+import { useTranslation } from 'react-i18next'
+import { Department } from '../../apps/organizational-data/types'
 
-const DATA_TEST_ID_PREFIX = "DepartmentForm";
-const ORGCHART_BASE_URL = `${env("NEXT_PUBLIC_ORGCHART_API_URL")}/orgchart/api/v1`;
+const DATA_TEST_ID_PREFIX = 'DepartmentForm'
+const ORGCHART_BASE_URL = `${env('NEXT_PUBLIC_ORGCHART_API_URL')}/orgchart/api/v1`
 
 export interface DepartmentFormProps extends BusinessAppContextProps {
-  prefixDataTestId?: string;
-  department?: Department;
-  refetch: () => void;
-  structureId: string;
-  open?: boolean;
-  setOpen?: Dispatch<SetStateAction<boolean>>;
-  isDrawerActive?: boolean;
-  childAddButton?: React.ReactNode;
-  parentNodeId?: string;
-  rank?: number;
-  isEditDepartment?: boolean;
-  onCancel: () => void;
+  prefixDataTestId?: string
+  department?: Department
+  refetch: () => void
+  structureId: string
+  open?: boolean
+  setOpen?: Dispatch<SetStateAction<boolean>>
+  isDrawerActive?: boolean
+  childAddButton?: React.ReactNode
+  parentNodeId?: string
+  rank?: number
+  isEditDepartment?: boolean
+  onCancel: () => void
 }
 
 export const DepartmentForm: React.FC<DepartmentFormProps> = ({
@@ -47,95 +39,91 @@ export const DepartmentForm: React.FC<DepartmentFormProps> = ({
   parentNodeId,
   rank,
   isEditDepartment,
-  onCancel,
+  onCancel
 }) => {
-  const dataTestId = formatDataTestId(prefixDataTestId, DATA_TEST_ID_PREFIX);
-  const restClient = useRestClient(ORGCHART_BASE_URL);
-  const { t } = useTranslation("master-data");
+  const dataTestId = formatDataTestId(prefixDataTestId, DATA_TEST_ID_PREFIX)
+  const restClient = useRestClient(ORGCHART_BASE_URL)
+  const { t } = useTranslation('master-data')
 
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(false)
 
   const defaultValues = {
-    name: "",
-    code: "",
-    type: "",
-    description: "",
-    parentNodeId: "",
-  };
+    name: '',
+    code: '',
+    type: '',
+    description: '',
+    parentNodeId: ''
+  }
 
   const onCancelForm = () => {
-    onCancel();
-    setOpen?.(false);
-  };
+    onCancel()
+    setOpen?.(false)
+  }
 
   const handleSubmit = async (values: Record<string, unknown>) => {
     try {
-      setLoading(true);
+      setLoading(true)
 
       const departmentData = {
-        type: "organization_unit",
+        type: 'organization_unit',
         ...(parentNodeId && !isEditDepartment ? { parentNode: parentNodeId } : {}),
         data: {
           organizationalUnitData: {
-            ...(isEditDepartment && department
-              ? { company: { companyId: department.companyId ?? null } }
-              : {}),
+            ...(isEditDepartment && department ? { company: { companyId: department.companyId ?? null } } : {}),
             ...(isEditDepartment && department
               ? {
                   costCenter: {
                     costCenterId: department.costCenterId ?? null,
-                    costCenterName: department.costCenterName ?? null,
-                  },
+                    costCenterName: department.costCenterName ?? null
+                  }
                 }
               : {}),
             name: values.name,
-            description: values.description ?? "",
-            ...(isEditDepartment && department
-              ? { organizationUnitId: department.organizationUnitId }
-              : {}),
-            type: parentNodeId ? "DEPARTMENT" : "MANAGEMENT",
+            description: values.description ?? '',
+            ...(isEditDepartment && department ? { organizationUnitId: department.organizationUnitId } : {}),
+            type: parentNodeId ? 'DEPARTMENT' : 'MANAGEMENT'
           },
-          ...(parentNodeId ? { rank: rank } : {}),
+          ...(parentNodeId ? { rank: rank } : {})
         },
-        ...(isEditDepartment && department ? { id: department.nodeId } : {}),
-      };
+        ...(isEditDepartment && department ? { id: department.nodeId } : {})
+      }
 
       if (isEditDepartment) {
         // Update existing department
         await restClient.put(`/nodes/${structureId}`, departmentData, {
-          headers: { Authorization: `Bearer ${accessToken}` },
-        });
+          headers: { Authorization: `Bearer ${accessToken}` }
+        })
       } else {
         // Create new department
         await restClient.post(`/nodes/${structureId}`, departmentData, {
-          headers: { Authorization: `Bearer ${accessToken}` },
-        });
+          headers: { Authorization: `Bearer ${accessToken}` }
+        })
       }
 
-      refetch();
-      setOpen?.(false);
+      refetch()
+      setOpen?.(false)
     } catch (error) {
-      console.error("Error saving department:", error);
+      console.error('Error saving department:', error)
     } finally {
-      onCancel();
-      setLoading(false);
-      setOpen?.(false);
+      onCancel()
+      setLoading(false)
+      setOpen?.(false)
     }
-  };
+  }
   return (
     <FormWrapperModal
       childAddButton={childAddButton}
-      title={department ? "Edit Department" : "Create Department"}
+      title={department ? 'Edit Department' : 'Create Department'}
       description="Configure department details and information"
       onSubmit={handleSubmit}
       onCancel={onCancelForm}
       defaultValues={
         department
           ? {
-              ...department,
+              ...department
             }
           : {
-              ...defaultValues,
+              ...defaultValues
             }
       }
       isEditing={!!department}
@@ -147,19 +135,17 @@ export const DepartmentForm: React.FC<DepartmentFormProps> = ({
       <FormField
         name="name"
         rules={{
-          required: t("forms.department.fields.name.validation", {
-            defaultValue: "Please enter department name",
-          }),
+          required: t('forms.department.fields.name.validation', {
+            defaultValue: 'Please enter department name'
+          })
         }}
         render={({ field }) => (
           <FormItem>
-            <FormLabel>
-              {t("forms.department.fields.name.label", { defaultValue: "Name" })}
-            </FormLabel>
+            <FormLabel>{t('forms.department.fields.name.label', { defaultValue: 'Name' })}</FormLabel>
             <FormControl>
               <Input
-                placeholder={t("forms.department.fields.name.placeholder", {
-                  defaultValue: "Enter department name",
+                placeholder={t('forms.department.fields.name.placeholder', {
+                  defaultValue: 'Enter department name'
                 })}
                 data-testid={`${dataTestId}-name-input`}
                 {...field}
@@ -174,13 +160,11 @@ export const DepartmentForm: React.FC<DepartmentFormProps> = ({
         name="description"
         render={({ field }) => (
           <FormItem>
-            <FormLabel>
-              {t("forms.department.fields.description.label", { defaultValue: "Description" })}
-            </FormLabel>
+            <FormLabel>{t('forms.department.fields.description.label', { defaultValue: 'Description' })}</FormLabel>
             <FormControl>
               <Textarea
-                placeholder={t("forms.department.fields.description.placeholder", {
-                  defaultValue: "Enter department description (optional)",
+                placeholder={t('forms.department.fields.description.placeholder', {
+                  defaultValue: 'Enter department description (optional)'
                 })}
                 data-testid={`${dataTestId}-description-textarea`}
                 {...field}
@@ -191,7 +175,7 @@ export const DepartmentForm: React.FC<DepartmentFormProps> = ({
         )}
       />
     </FormWrapperModal>
-  );
-};
+  )
+}
 
-export default DepartmentForm;
+export default DepartmentForm

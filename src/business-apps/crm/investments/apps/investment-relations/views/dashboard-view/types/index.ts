@@ -1,1 +1,1 @@
-export * from './dashboardTypes';
+export * from './dashboardTypes'

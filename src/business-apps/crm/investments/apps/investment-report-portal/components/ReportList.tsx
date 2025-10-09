@@ -1,73 +1,58 @@
-import React, { useState } from 'react';
-import { 
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-  Button, 
-  Badge
-} from '@newwork/nw-design-system';
-import { 
-  PencilSimple, 
-  Eye, 
-  DownloadSimple, 
-  FileText,
-  Calendar,
-  CurrencyDollar
-} from '@phosphor-icons/react';
-import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
-import { formatDataTestId } from '@/common/utils/formatDataTestId';
-import type { InvestmentReport } from '@/common/data/investment';
-import dayjs from 'dayjs';
+import React, { useState } from 'react'
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow, Button, Badge } from '@newwork/nw-design-system'
+import { PencilSimple, Eye, DownloadSimple, FileText, Calendar, CurrencyDollar } from '@phosphor-icons/react'
+import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
+import { formatDataTestId } from '@/common/utils/formatDataTestId'
+import type { InvestmentReport } from '@/common/data/investment'
+import dayjs from 'dayjs'
 
 interface ReportListProps {
-  reports: InvestmentReport[];
-  onEdit: (reportId: string) => void;
-  prefixDataTestId: string;
-  showPagination?: boolean;
+  reports: InvestmentReport[]
+  onEdit: (reportId: string) => void
+  prefixDataTestId: string
+  showPagination?: boolean
 }
 
-export const ReportList: React.FC<ReportListProps> = ({
-  reports,
-  onEdit,
-  prefixDataTestId,
-  showPagination = true
-}) => {
-  const [currentPage, setCurrentPage] = useState(1);
-  const pageSize = 10;
+export const ReportList: React.FC<ReportListProps> = ({ reports, onEdit, prefixDataTestId, showPagination = true }) => {
+  const [currentPage, setCurrentPage] = useState(1)
+  const pageSize = 10
 
-  const paginatedReports = showPagination 
+  const paginatedReports = showPagination
     ? reports.slice((currentPage - 1) * pageSize, currentPage * pageSize)
-    : reports;
+    : reports
 
-  const totalPages = Math.ceil(reports.length / pageSize);
+  const totalPages = Math.ceil(reports.length / pageSize)
 
   const handlePageChange = (page: number) => {
-    setCurrentPage(page);
-  };
+    setCurrentPage(page)
+  }
 
   const formatDate = (dateString: string | undefined) => {
-    if (!dateString) return '-';
-    return dayjs(dateString).format('MMM DD, YYYY');
-  };
+    if (!dateString) return '-'
+    return dayjs(dateString).format('MMM DD, YYYY')
+  }
 
   const getReportScopeLabel = (scope: string | undefined) => {
-    if (!scope) return '-';
-    return getTranslationFromI18nKeyAndLabel(`report.scope.${scope.toLowerCase()}`, scope.replace(/_/g, ' '));
-  };
+    if (!scope) return '-'
+    return getTranslationFromI18nKeyAndLabel(`report.scope.${scope.toLowerCase()}`, scope.replace(/_/g, ' '))
+  }
 
   const getStatusBadge = (status: string | undefined) => {
     const statusConfig = {
-      ACTIVE: { variant: 'default' as const, label: getTranslationFromI18nKeyAndLabel('report.status.active', 'Active') },
-      ARCHIVED: { variant: 'secondary' as const, label: getTranslationFromI18nKeyAndLabel('report.status.archived', 'Archived') },
+      ACTIVE: {
+        variant: 'default' as const,
+        label: getTranslationFromI18nKeyAndLabel('report.status.active', 'Active')
+      },
+      ARCHIVED: {
+        variant: 'secondary' as const,
+        label: getTranslationFromI18nKeyAndLabel('report.status.archived', 'Archived')
+      },
       DRAFT: { variant: 'outline' as const, label: getTranslationFromI18nKeyAndLabel('report.status.draft', 'Draft') }
-    };
+    }
 
-    const config = statusConfig[status as keyof typeof statusConfig] || statusConfig.ACTIVE;
-    return <Badge variant={config.variant}>{config.label}</Badge>;
-  };
+    const config = statusConfig[status as keyof typeof statusConfig] || statusConfig.ACTIVE
+    return <Badge variant={config.variant}>{config.label}</Badge>
+  }
 
   if (reports.length === 0) {
     return (
@@ -77,10 +62,13 @@ export const ReportList: React.FC<ReportListProps> = ({
           {getTranslationFromI18nKeyAndLabel('report.list.empty.title', 'No Reports Found')}
         </h3>
         <p style={{ margin: 0, color: '#6b7280' }}>
-          {getTranslationFromI18nKeyAndLabel('report.list.empty.description', 'No investment reports match your current filters.')}
+          {getTranslationFromI18nKeyAndLabel(
+            'report.list.empty.description',
+            'No investment reports match your current filters.'
+          )}
         </p>
       </div>
-    );
+    )
   }
 
   return (
@@ -109,19 +97,18 @@ export const ReportList: React.FC<ReportListProps> = ({
           </TableRow>
         </TableHeader>
         <TableBody>
-          {paginatedReports.map((report) => (
+          {paginatedReports.map(report => (
             <TableRow key={report.id} data-testid={formatDataTestId(prefixDataTestId, `ReportRow-${report.id}`)}>
               <TableCell>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                   <FileText size={16} style={{ color: '#6b7280' }} />
                   <div>
                     <div style={{ fontWeight: '500' }}>
-                      {report.investment?.name || getTranslationFromI18nKeyAndLabel('report.list.unknown.investment', 'Unknown Investment')}
+                      {report.investment?.name ||
+                        getTranslationFromI18nKeyAndLabel('report.list.unknown.investment', 'Unknown Investment')}
                     </div>
                     {report.investment?.code && (
-                      <div style={{ fontSize: '12px', color: '#6b7280' }}>
-                        {report.investment.code}
-                      </div>
+                      <div style={{ fontSize: '12px', color: '#6b7280' }}>{report.investment.code}</div>
                     )}
                   </div>
                 </div>
@@ -133,13 +120,9 @@ export const ReportList: React.FC<ReportListProps> = ({
                 </div>
               </TableCell>
               <TableCell>
-                <Badge variant="outline">
-                  {getReportScopeLabel(report.scope)}
-                </Badge>
+                <Badge variant="outline">{getReportScopeLabel(report.scope)}</Badge>
               </TableCell>
-              <TableCell>
-                {getStatusBadge('ACTIVE')}
-              </TableCell>
+              <TableCell>{getStatusBadge('ACTIVE')}</TableCell>
               <TableCell>
                 {report.investmentMarketValue ? (
                   <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
@@ -163,7 +146,7 @@ export const ReportList: React.FC<ReportListProps> = ({
                     size="sm"
                     onClick={() => {
                       // TODO: Implement view functionality
-                      console.log('View report:', report.id);
+                      console.log('View report:', report.id)
                     }}
                     style={{ padding: '4px 8px' }}
                   >
@@ -184,7 +167,7 @@ export const ReportList: React.FC<ReportListProps> = ({
                     size="sm"
                     onClick={() => {
                       // TODO: Implement download functionality
-                      console.log('Download report:', report.id);
+                      console.log('Download report:', report.id)
                     }}
                     style={{ padding: '4px 8px' }}
                   >
@@ -199,13 +182,15 @@ export const ReportList: React.FC<ReportListProps> = ({
 
       {/* Pagination */}
       {showPagination && totalPages > 1 && (
-        <div style={{ 
-          display: 'flex', 
-          justifyContent: 'center', 
-          alignItems: 'center', 
-          gap: '8px', 
-          marginTop: '24px' 
-        }}>
+        <div
+          style={{
+            display: 'flex',
+            justifyContent: 'center',
+            alignItems: 'center',
+            gap: '8px',
+            marginTop: '24px'
+          }}
+        >
           <Button
             variant="outline"
             size="sm"
@@ -214,14 +199,14 @@ export const ReportList: React.FC<ReportListProps> = ({
           >
             {getTranslationFromI18nKeyAndLabel('pagination.previous', 'Previous')}
           </Button>
-          
+
           <span style={{ fontSize: '14px', color: '#6b7280' }}>
             {getTranslationFromI18nKeyAndLabel('pagination.pageInfo', 'Page {current} of {total}', {
               current: currentPage,
               total: totalPages
             })}
           </span>
-          
+
           <Button
             variant="outline"
             size="sm"
@@ -233,5 +218,5 @@ export const ReportList: React.FC<ReportListProps> = ({
         </div>
       )}
     </div>
-  );
-};
+  )
+}

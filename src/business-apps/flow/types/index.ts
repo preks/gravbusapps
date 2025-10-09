@@ -1,2 +1,1 @@
-export * from './FlowTags';
-
+export * from './FlowTags'

@@ -1,5 +1,5 @@
-import React, { useState, useMemo, useEffect } from "react";
-import { useTranslation } from "react-i18next";
+import React, { useState, useMemo, useEffect } from 'react'
+import { useTranslation } from 'react-i18next'
 import {
   ArrowsDownUpIcon,
   EyeIcon,
@@ -11,11 +11,11 @@ import {
   CrownSimpleIcon,
   CalendarBlankIcon,
   SquaresFourIcon,
-  ListDashesIcon,
-} from "@phosphor-icons/react";
-import { BusinessAppContextProps } from "@/common/BusinessAppContext";
-import { useTeams } from "../../hooks";
-import { Team } from "../../types";
+  ListDashesIcon
+} from '@phosphor-icons/react'
+import { BusinessAppContextProps } from '@/common/BusinessAppContext'
+import { useTeams } from '../../hooks'
+import { Team } from '../../types'
 import {
   Card,
   CardContent,
@@ -41,144 +41,143 @@ import {
   AlertTitle,
   AlertDescription,
   Input,
-  Spinner,
-} from "@newwork/nw-design-system";
-import CardTabHeaderComponent from "../../../generic-components/card";
-import { ColumnDef } from "@tanstack/react-table";
-import { formatDataTestId } from "@/common/utils/formatDataTestId";
-import SheetWrapperComponent from "../../../generic-components/sheet-wrapper/SheetWrapperComponent";
-import { InfoIcon } from "lucide-react";
-import { DeleteButton } from "../../../generic-components/delete-button/DeleteButton";
-import TeamForm from "@/business-apps/mdm/forms/team-form";
-import { useRestClient } from "@/common/network/rest/useRestClient";
-import { env } from "@/common/env/EnvUtils";
+  Spinner
+} from '@newwork/nw-design-system'
+import CardTabHeaderComponent from '../../../generic-components/card'
+import { ColumnDef } from '@tanstack/react-table'
+import { formatDataTestId } from '@/common/utils/formatDataTestId'
+import SheetWrapperComponent from '../../../generic-components/sheet-wrapper/SheetWrapperComponent'
+import { InfoIcon } from 'lucide-react'
+import { DeleteButton } from '../../../generic-components/delete-button/DeleteButton'
+import TeamForm from '@/business-apps/mdm/forms/team-form'
+import { useRestClient } from '@/common/network/rest/useRestClient'
+import { env } from '@/common/env/EnvUtils'
 
 export interface TeamsTabProps extends BusinessAppContextProps {
-  prefixDataTestId?: string;
+  prefixDataTestId?: string
 }
 
-const DATA_TEST_ID_PREFIX = "TeamsTab";
-const ORGCHART_BASE_URL = `${env("NEXT_PUBLIC_ORGCHART_API_URL")}/orgchart/api/v1`;
+const DATA_TEST_ID_PREFIX = 'TeamsTab'
+const ORGCHART_BASE_URL = `${env('NEXT_PUBLIC_ORGCHART_API_URL')}/orgchart/api/v1`
 
-const TeamsTab: React.FC<TeamsTabProps> = (context) => {
-  const { t } = useTranslation();
-  const { prefixDataTestId } = context;
-  const dataTestId = formatDataTestId(prefixDataTestId, DATA_TEST_ID_PREFIX);
-  const restClient = useRestClient(ORGCHART_BASE_URL);
+const TeamsTab: React.FC<TeamsTabProps> = context => {
+  const { t } = useTranslation()
+  const { prefixDataTestId } = context
+  const dataTestId = formatDataTestId(prefixDataTestId, DATA_TEST_ID_PREFIX)
+  const restClient = useRestClient(ORGCHART_BASE_URL)
 
-  const { teams, structureId, isLoading, error, refetch, searchTeams, getSortedTeams, totalTeams } =
-    useTeams(context);
+  const { teams, structureId, isLoading, error, refetch, searchTeams, getSortedTeams, totalTeams } = useTeams(context)
 
-  const [searchQuery, setSearchQuery] = useState("");
-  const [sortBy, setSortBy] = useState<"name" | "rank" | "created" | "leader">("rank");
-  const [viewMode, setViewMode] = useState<"table" | "cards">("cards");
-  const [selectedTeam, setSelectedTeam] = useState<Team | null>(null);
-  const [drawerVisible, setDrawerVisible] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('')
+  const [sortBy, setSortBy] = useState<'name' | 'rank' | 'created' | 'leader'>('rank')
+  const [viewMode, setViewMode] = useState<'table' | 'cards'>('cards')
+  const [selectedTeam, setSelectedTeam] = useState<Team | null>(null)
+  const [drawerVisible, setDrawerVisible] = useState(false)
 
   useEffect(() => {
     if (selectedTeam) {
-      const updatedSelectedTeam = teams.find((team) => team.id === selectedTeam.id);
+      const updatedSelectedTeam = teams.find(team => team.id === selectedTeam.id)
 
       if (updatedSelectedTeam) {
-        setSelectedTeam(updatedSelectedTeam);
+        setSelectedTeam(updatedSelectedTeam)
       }
     }
-  }, [teams, selectedTeam]);
+  }, [teams, selectedTeam])
 
   // Get filtered and sorted teams
   const getDisplayTeams = (): Team[] => {
-    let filteredTeams = teams;
+    let filteredTeams = teams
 
     // Apply search filter
     if (searchQuery.trim()) {
-      filteredTeams = searchTeams(searchQuery);
+      filteredTeams = searchTeams(searchQuery)
     }
 
     // Apply sorting
-    return getSortedTeams(sortBy, filteredTeams);
-  };
+    return getSortedTeams(sortBy, filteredTeams)
+  }
 
   const handleView = (team: Team | undefined) => {
-    if (!team) return;
-    setSelectedTeam(team);
-    setDrawerVisible(true);
-  };
+    if (!team) return
+    setSelectedTeam(team)
+    setDrawerVisible(true)
+  }
 
   const handleDeleteTeam = async (team: Team | undefined) => {
-    if (!team) return;
+    if (!team) return
 
     await restClient.delete(`/matrix-units/${team.id}`, {
-      headers: { Authorization: `Bearer ${context.accessToken}` },
-    });
+      headers: { Authorization: `Bearer ${context.accessToken}` }
+    })
 
-    refetch();
-  };
+    refetch()
+  }
 
   const parseImageUrl = (pictureUrl: string): string | null => {
     try {
-      if (!pictureUrl) return null;
-      const parsed = JSON.parse(pictureUrl);
-      return parsed.path || null;
+      if (!pictureUrl) return null
+      const parsed = JSON.parse(pictureUrl)
+      return parsed.path || null
     } catch {
-      return pictureUrl || null;
+      return pictureUrl || null
     }
-  };
+  }
 
   const drawerItems = useMemo(() => {
-    if (!selectedTeam) return [];
+    if (!selectedTeam) return []
 
     const items = [
       {
         icon: <InfoIcon />,
-        title: "Basic Information",
+        title: 'Basic Information',
         verticalTable: true,
         items: [
           {
-            label: "Name",
-            value: selectedTeam.name ?? "-",
+            label: 'Name',
+            value: selectedTeam.name ?? '-'
           },
           {
-            label: "Description",
-            value: selectedTeam.description ?? "-",
-          },
-        ],
-      },
-    ];
+            label: 'Description',
+            value: selectedTeam.description ?? '-'
+          }
+        ]
+      }
+    ]
 
     if (selectedTeam.hasLeader) {
       items.push({
         icon: <CrownSimpleIcon />,
-        title: "Team Leader",
+        title: 'Team Leader',
         verticalTable: true,
         items: [
-          { label: "Leader Name", value: selectedTeam.leaderName ?? "-" },
+          { label: 'Leader Name', value: selectedTeam.leaderName ?? '-' },
           {
-            label: "Role",
-            value: selectedTeam.leaderRole ?? "-",
+            label: 'Role',
+            value: selectedTeam.leaderRole ?? '-'
           },
           {
-            label: "Job Position",
-            value: selectedTeam.leaderJobPosition ?? "-",
+            label: 'Job Position',
+            value: selectedTeam.leaderJobPosition ?? '-'
           },
           {
-            label: "Matrix Unit",
-            value: selectedTeam.leaderMatrixUnitName ?? "-",
-          },
-        ],
-      });
+            label: 'Matrix Unit',
+            value: selectedTeam.leaderMatrixUnitName ?? '-'
+          }
+        ]
+      })
     }
 
-    return items;
-  }, [selectedTeam]);
+    return items
+  }, [selectedTeam])
 
   const renderTeamsTable = () => {
     const columns: ColumnDef<Team>[] = [
       {
-        accessorKey: "name",
+        accessorKey: 'name',
         header: ({ column }) => (
           <Button
             variant="ghost"
-            onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+            onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}
             className="gba:h-auto gba:p-0 gba:font-semibold gba:hover:bg-transparent gba:justify-start"
           >
             Name
@@ -187,20 +186,20 @@ const TeamsTab: React.FC<TeamsTabProps> = (context) => {
         ),
         enableSorting: true,
         cell: ({ getValue }) => {
-          const name = getValue();
+          const name = getValue()
           return (
             <div className="gba:flex gba:items-center">
               <div className="gba:font-semibold">{name as string}</div>
             </div>
-          );
-        },
+          )
+        }
       },
       {
-        accessorKey: "leaderName",
+        accessorKey: 'leaderName',
         header: ({ column }) => (
           <Button
             variant="ghost"
-            onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+            onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}
             className="gba:h-auto gba:p-0 gba:font-semibold gba:hover:bg-transparent gba:justify-start"
           >
             Leader
@@ -209,27 +208,25 @@ const TeamsTab: React.FC<TeamsTabProps> = (context) => {
         ),
         enableSorting: true,
         cell: ({ row }) => {
-          const leaderName = row.original.leaderName;
-          const leaderJobPosition = row.original.leaderJobPosition;
+          const leaderName = row.original.leaderName
+          const leaderJobPosition = row.original.leaderJobPosition
 
           return leaderName ? (
             <div className="gba:flex gba:flex-col gba:gap-2">
-              <p className="gba:font-semibold">{(leaderName as string) ?? "-"}</p>
-              <p className="gba:text-sm gba:text-gray-500">
-                {(leaderJobPosition as string) ?? "-"}
-              </p>
+              <p className="gba:font-semibold">{(leaderName as string) ?? '-'}</p>
+              <p className="gba:text-sm gba:text-gray-500">{(leaderJobPosition as string) ?? '-'}</p>
             </div>
           ) : (
-            "-"
-          );
-        },
+            '-'
+          )
+        }
       },
       {
-        accessorKey: "rank",
+        accessorKey: 'rank',
         header: ({ column }) => (
           <Button
             variant="ghost"
-            onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+            onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}
             className="gba:h-auto gba:p-0 gba:font-semibold gba:hover:bg-transparent gba:justify-start"
           >
             Rank
@@ -237,14 +234,14 @@ const TeamsTab: React.FC<TeamsTabProps> = (context) => {
           </Button>
         ),
         enableSorting: true,
-        cell: ({ getValue }) => getValue() ?? "-",
+        cell: ({ getValue }) => getValue() ?? '-'
       },
       {
-        accessorKey: "createdAt",
+        accessorKey: 'createdAt',
         header: ({ column }) => (
           <Button
             variant="ghost"
-            onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+            onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}
             className="gba:h-auto gba:p-0 gba:font-semibold gba:hover:bg-transparent gba:justify-start"
           >
             Created
@@ -253,8 +250,8 @@ const TeamsTab: React.FC<TeamsTabProps> = (context) => {
         ),
         enableSorting: true,
         cell: ({ row }) => {
-          const age = row.original.age;
-          const createAt = new Date(row.original.createdAt).toLocaleDateString();
+          const age = row.original.age
+          const createAt = new Date(row.original.createdAt).toLocaleDateString()
           return (
             <div className="gba:flex gba:items-center">
               <Tooltip>
@@ -264,16 +261,16 @@ const TeamsTab: React.FC<TeamsTabProps> = (context) => {
                 <TooltipContent>{createAt}</TooltipContent>
               </Tooltip>
             </div>
-          );
-        },
+          )
+        }
       },
       {
-        id: "actions",
-        header: "Actions",
+        id: 'actions',
+        header: 'Actions',
         enableSorting: false,
         enableHiding: true,
         cell: ({ row }) => {
-          const team = teams.find((team) => team.id === row.original.id);
+          const team = teams.find(team => team.id === row.original.id)
 
           return (
             <div className="gba:flex gba:items-center">
@@ -290,7 +287,7 @@ const TeamsTab: React.FC<TeamsTabProps> = (context) => {
                 childAddButton={
                   <Button
                     variant="ghost"
-                    onClick={(event) => event.stopPropagation()}
+                    onClick={event => event.stopPropagation()}
                     data-testid={`${prefixDataTestId}-edit-team-${team?.id}`}
                   >
                     <PencilSimpleLineIcon />
@@ -304,36 +301,32 @@ const TeamsTab: React.FC<TeamsTabProps> = (context) => {
                 isDrawerActive={true}
               />
 
-              <DeleteButton
-                onDelete={() => handleDeleteTeam(team)}
-                itemName={team?.name ?? ""}
-                itemTitle={"Team"}
-              />
+              <DeleteButton onDelete={() => handleDeleteTeam(team)} itemName={team?.name ?? ''} itemTitle={'Team'} />
             </div>
-          );
-        },
-      },
-    ];
+          )
+        }
+      }
+    ]
 
-    const dataTable = displayTeams.map((team) => ({ ...team }));
+    const dataTable = displayTeams.map(team => ({ ...team }))
 
     return (
       <DataTable
         defaultDataSetId="job-profiles"
         dataSets={[
           {
-            id: "job-profiles",
-            label: "Job Profiles",
+            id: 'job-profiles',
+            label: 'Job Profiles',
             data: dataTable,
-            columns: columns,
-          },
+            columns: columns
+          }
         ]}
       />
-    );
-  };
+    )
+  }
 
   const renderTeamCard = (team: Team) => {
-    const imageUrl = parseImageUrl(team.leaderPictureUrl || "") ?? "";
+    const imageUrl = parseImageUrl(team.leaderPictureUrl || '') ?? ''
 
     return (
       <Card className="gba:h-full gba:w-full gba:!p-6 gba:!gap-0 gba:cursor-pointer">
@@ -388,7 +381,7 @@ const TeamsTab: React.FC<TeamsTabProps> = (context) => {
               <Button
                 variant="link"
                 className="gba:w-1/2 gba:h-full gba:flex gba:items-center gba:justify-center"
-                onClick={(event) => event.stopPropagation()}
+                onClick={event => event.stopPropagation()}
               >
                 <Icon icon={PencilSimpleLineIcon} />
               </Button>
@@ -401,31 +394,24 @@ const TeamsTab: React.FC<TeamsTabProps> = (context) => {
             isDrawerActive={true}
           />
 
-          <DeleteButton
-            onDelete={() => handleDeleteTeam(team)}
-            itemName={team.name}
-            itemTitle={"Team"}
-          />
+          <DeleteButton onDelete={() => handleDeleteTeam(team)} itemName={team.name} itemTitle={'Team'} />
         </CardFooter>
       </Card>
-    );
-  };
+    )
+  }
 
   if (isLoading && teams.length === 0) {
     return (
       <div className="gba:flex gba:justify-center gba:items-center gba:h-64">
         <Spinner size="lg" />
       </div>
-    );
+    )
   }
 
   if (error) {
     return (
       <div className="gba:p-6 gba:text-center">
-        <Alert
-          className="gba:w-full gba:!flex gba:justify-between gba:!items-center"
-          variant="destructive"
-        >
+        <Alert className="gba:w-full gba:!flex gba:justify-between gba:!items-center" variant="destructive">
           <AlertTitle className="gba:flex gba:items-center gba:justify-center gba:gap-2">
             <Icon icon={XCircleIcon} />
             Error Loading Teams
@@ -437,13 +423,13 @@ const TeamsTab: React.FC<TeamsTabProps> = (context) => {
           </AlertDescription>
         </Alert>
       </div>
-    );
+    )
   }
 
-  const displayTeams = getDisplayTeams();
+  const displayTeams = getDisplayTeams()
 
   return (
-    <Card data-testid={`${prefixDataTestId || ""}-TeamsTab`} className="gba:overflow-hidden">
+    <Card data-testid={`${prefixDataTestId || ''}-TeamsTab`} className="gba:overflow-hidden">
       {!isLoading && (
         <CardTabHeaderComponent
           addButton={
@@ -451,8 +437,8 @@ const TeamsTab: React.FC<TeamsTabProps> = (context) => {
               childAddButton={
                 <Button
                   variant="default"
-                  onClick={(event) => event.stopPropagation()}
-                  data-testid={`${prefixDataTestId || ""}-TeamsTab-AddButton`}
+                  onClick={event => event.stopPropagation()}
+                  data-testid={`${prefixDataTestId || ''}-TeamsTab-AddButton`}
                 >
                   <PlusIcon /> Add Team
                 </Button>
@@ -472,27 +458,25 @@ const TeamsTab: React.FC<TeamsTabProps> = (context) => {
         {/* Controls */}
         <div
           style={{
-            display: "flex",
-            justifyContent: "space-between",
-            alignItems: "center",
-            marginBottom: "16px",
-            gap: "16px",
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            marginBottom: '16px',
+            gap: '16px'
           }}
         >
           <div className="gba:flex gba:gap-4 gba:items-center">
             <Input
-              placeholder={t("mdm.search_teams", "Search teams...")}
+              placeholder={t('mdm.search_teams', 'Search teams...')}
               value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
+              onChange={e => setSearchQuery(e.target.value)}
               data-testid={`${dataTestId}-search-input`}
             />
 
-            {viewMode === "cards" && (
+            {viewMode === 'cards' && (
               <Select
                 defaultValue={sortBy}
-                onValueChange={(value) =>
-                  setSortBy(value as "name" | "rank" | "created" | "leader")
-                }
+                onValueChange={value => setSortBy(value as 'name' | 'rank' | 'created' | 'leader')}
               >
                 <SelectTrigger>
                   <SelectValue />
@@ -511,15 +495,15 @@ const TeamsTab: React.FC<TeamsTabProps> = (context) => {
             <ToggleGroup defaultValue="cards" size="default" variant="default">
               <ToggleGroupItem
                 value="cards"
-                onClick={() => setViewMode("cards")}
-                data-testid={`${prefixDataTestId || ""}-TeamsTab-CardsView`}
+                onClick={() => setViewMode('cards')}
+                data-testid={`${prefixDataTestId || ''}-TeamsTab-CardsView`}
               >
                 <Icon icon={SquaresFourIcon} />
               </ToggleGroupItem>
               <ToggleGroupItem
                 value="table"
-                onClick={() => setViewMode("table")}
-                data-testid={`${prefixDataTestId || ""}-TeamsTab-TableView`}
+                onClick={() => setViewMode('table')}
+                data-testid={`${prefixDataTestId || ''}-TeamsTab-TableView`}
               >
                 <Icon icon={ListDashesIcon} />
               </ToggleGroupItem>
@@ -530,14 +514,14 @@ const TeamsTab: React.FC<TeamsTabProps> = (context) => {
         {/* Content */}
         {displayTeams.length > 0 ? (
           <>
-            {viewMode === "cards" ? (
+            {viewMode === 'cards' ? (
               <div
                 className="gba:grid gba:gap-4"
                 style={{
-                  gridTemplateColumns: "repeat(auto-fit, minmax(280px, 350px))",
+                  gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 350px))'
                 }}
               >
-                {displayTeams.map((team) => renderTeamCard(team))}
+                {displayTeams.map(team => renderTeamCard(team))}
               </div>
             ) : (
               <>{renderTeamsTable()}</>
@@ -548,7 +532,7 @@ const TeamsTab: React.FC<TeamsTabProps> = (context) => {
             <h1 className="gba:text-base gba:text-gray-500">No teams found</h1>
             <TeamForm
               childAddButton={
-                <Button variant="default" onClick={(event) => event.stopPropagation()}>
+                <Button variant="default" onClick={event => event.stopPropagation()}>
                   <PlusIcon /> Add First Team
                 </Button>
               }
@@ -564,11 +548,11 @@ const TeamsTab: React.FC<TeamsTabProps> = (context) => {
           <SheetWrapperComponent
             prefixDataTestId={dataTestId}
             isDrawerVisible={drawerVisible}
-            onOpenChange={(openStatus) => {
+            onOpenChange={openStatus => {
               if (!openStatus) {
-                setSelectedTeam(null);
+                setSelectedTeam(null)
               }
-              setDrawerVisible(openStatus);
+              setDrawerVisible(openStatus)
             }}
             title="Team Details"
             titleIcon={UsersIcon}
@@ -578,8 +562,8 @@ const TeamsTab: React.FC<TeamsTabProps> = (context) => {
                 childAddButton={
                   <Button
                     variant="default"
-                    onClick={(event) => event.stopPropagation()}
-                    data-testid={`${prefixDataTestId || ""}-TeamsTab-EditButton`}
+                    onClick={event => event.stopPropagation()}
+                    data-testid={`${prefixDataTestId || ''}-TeamsTab-EditButton`}
                   >
                     <PencilSimpleLineIcon /> Edit
                   </Button>
@@ -590,14 +574,14 @@ const TeamsTab: React.FC<TeamsTabProps> = (context) => {
                 refetch={refetch}
                 team={selectedTeam}
                 isDrawerActive={true}
-              />,
+              />
             ]}
           />
         )}
       </CardContent>
     </Card>
-  );
-};
+  )
+}
 
-export default TeamsTab;
-export { TeamsTab };
+export default TeamsTab
+export { TeamsTab }

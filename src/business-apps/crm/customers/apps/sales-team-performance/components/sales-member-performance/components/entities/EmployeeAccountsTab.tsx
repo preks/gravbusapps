@@ -1,20 +1,16 @@
-import React, { useState, useEffect, useMemo } from "react";
-import { DataContainer } from "@/components/layout/dataContainer";
-import { useAccountFilters } from "@/business-apps/crm/customers/apps/customer-relations/views/account-view/hooks/useAccountFilters";
-import { useEmployeeAccountsData } from "../../hooks/useEmployeeAccountsData";
-import { AccountsTable } from "./AccountsTable";
-import { BusinessAppContextProps } from "@/common/BusinessAppContext";
+import React, { useState, useEffect, useMemo } from 'react'
+import { DataContainer } from '@/components/layout/dataContainer'
+import { useAccountFilters } from '@/business-apps/crm/customers/apps/customer-relations/views/account-view/hooks/useAccountFilters'
+import { useEmployeeAccountsData } from '../../hooks/useEmployeeAccountsData'
+import { AccountsTable } from './AccountsTable'
+import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 
 interface EmployeeAccountsTabProps extends BusinessAppContextProps {
-  employeeId: string;
-  onTotalChange?: (total: number) => void;
+  employeeId: string
+  onTotalChange?: (total: number) => void
 }
 
-export const EmployeeAccountsTab: React.FC<EmployeeAccountsTabProps> = ({
-  employeeId,
-  accessToken,
-  onTotalChange,
-}) => {
+export const EmployeeAccountsTab: React.FC<EmployeeAccountsTabProps> = ({ employeeId, accessToken, onTotalChange }) => {
   // Filters and search
   const {
     search,
@@ -28,44 +24,43 @@ export const EmployeeAccountsTab: React.FC<EmployeeAccountsTabProps> = ({
     clearAllFilters,
     createdAfter,
     createdBefore,
-    handleDateRangeChange,
-  } = useAccountFilters({ accessToken });
+    handleDateRangeChange
+  } = useAccountFilters({ accessToken })
 
   // Pagination and sorting
-  const [currentPage, setCurrentPage] = useState(1);
-  const [pageSize, setPageSize] = useState(20);
-  const [sortField, setSortField] = useState<string>("createdAt");
-  const [sortOrder, setSortOrder] = useState<"ASC" | "DESC" | "">("DESC");
+  const [currentPage, setCurrentPage] = useState(1)
+  const [pageSize, setPageSize] = useState(20)
+  const [sortField, setSortField] = useState<string>('createdAt')
+  const [sortOrder, setSortOrder] = useState<'ASC' | 'DESC' | ''>('DESC')
 
   // Map filter state to GraphQL where clause
-  const filters = getFilters();
+  const filters = getFilters()
   const additionalFilters = useMemo(() => {
-    const andConditions: any[] = [];
+    const andConditions: any[] = []
     if (filters.industries && filters.industries.length > 0) {
-      andConditions.push({ industry: { value: { _in: filters.industries } } });
+      andConditions.push({ industry: { value: { _in: filters.industries } } })
     }
     if (filters.createdAfter) {
-      andConditions.push({ createdAt: { _gte: filters.createdAfter } });
+      andConditions.push({ createdAt: { _gte: filters.createdAfter } })
     }
     if (filters.createdBefore) {
-      andConditions.push({ createdAt: { _lte: filters.createdBefore } });
+      andConditions.push({ createdAt: { _lte: filters.createdBefore } })
     }
-    return andConditions.length > 0 ? { _and: andConditions } : {};
-  }, [filters]);
+    return andConditions.length > 0 ? { _and: andConditions } : {}
+  }, [filters])
 
   // Data fetching
-  const { accounts, total, loading, error, hasMore, loadPage, retry } =
-    useEmployeeAccountsData({
-      employeeId,
-      search,
-      sortField,
-      sortOrder: sortOrder as "ASC" | "DESC",
-      accessToken,
-    });
+  const { accounts, total, loading, error, hasMore, loadPage, retry } = useEmployeeAccountsData({
+    employeeId,
+    search,
+    sortField,
+    sortOrder: sortOrder as 'ASC' | 'DESC',
+    accessToken
+  })
 
   // Initial and reactive data loading
   useEffect(() => {
-    loadPage(currentPage, pageSize, additionalFilters);
+    loadPage(currentPage, pageSize, additionalFilters)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
     employeeId,
@@ -75,43 +70,43 @@ export const EmployeeAccountsTab: React.FC<EmployeeAccountsTabProps> = ({
     sortOrder,
     currentPage,
     pageSize,
-    filters.industries && filters.industries.join(","),
+    filters.industries && filters.industries.join(','),
     filters.createdAfter,
-    filters.createdBefore,
-  ]);
+    filters.createdBefore
+  ])
 
   // Report total to parent
   useEffect(() => {
     if (onTotalChange) {
-      onTotalChange(total);
+      onTotalChange(total)
     }
-  }, [total, onTotalChange]);
+  }, [total, onTotalChange])
 
   // Handlers
   const handlePaginationChange = (page: number, newPageSize?: number) => {
-    setCurrentPage(page);
+    setCurrentPage(page)
     if (newPageSize && newPageSize !== pageSize) {
-      setPageSize(newPageSize);
+      setPageSize(newPageSize)
     }
-  };
-  const handleSortingChange = (field: string, order: "ASC" | "DESC" | "") => {
-    setSortField(field);
-    setSortOrder(order as "ASC" | "DESC");
-    setCurrentPage(1);
-  };
+  }
+  const handleSortingChange = (field: string, order: 'ASC' | 'DESC' | '') => {
+    setSortField(field)
+    setSortOrder(order as 'ASC' | 'DESC')
+    setCurrentPage(1)
+  }
   const handleSetFilter = (filters: string[]) => {
-    clearAllFilters();
-    filters.forEach(addFilter);
-    setCurrentPage(1);
-  };
+    clearAllFilters()
+    filters.forEach(addFilter)
+    setCurrentPage(1)
+  }
   const handleFilterChange = (filterId: string, selected: boolean) => {
     if (selected) {
-      addFilter(filterId);
+      addFilter(filterId)
     } else {
-      removeFilter(filterId);
+      removeFilter(filterId)
     }
-    setCurrentPage(1);
-  };
+    setCurrentPage(1)
+  }
 
   return (
     <DataContainer
@@ -127,11 +122,11 @@ export const EmployeeAccountsTab: React.FC<EmployeeAccountsTabProps> = ({
             <span className="gba:text-lg gba:font-semibold">Accounts</span>
             <span className="gba:text-gray-500">({total})</span>
           </div>
-        ),
+        )
       }}
       dataFilterProps={{
         filterGroups,
-        onFilterChange: handleFilterChange,
+        onFilterChange: handleFilterChange
       }}
       dataBody={
         <AccountsTable
@@ -144,7 +139,7 @@ export const EmployeeAccountsTab: React.FC<EmployeeAccountsTabProps> = ({
           pageSize={pageSize}
           currentPage={currentPage}
           sortField={sortField}
-          sortOrder={sortOrder as "ASC" | "DESC" | ""}
+          sortOrder={sortOrder as 'ASC' | 'DESC' | ''}
           onPaginationChange={handlePaginationChange}
           onSortingChange={handleSortingChange}
           accessToken={accessToken}
@@ -152,5 +147,5 @@ export const EmployeeAccountsTab: React.FC<EmployeeAccountsTabProps> = ({
         />
       }
     />
-  );
-};
+  )
+}

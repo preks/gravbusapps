@@ -1,129 +1,129 @@
-import React, { useState, useEffect } from 'react';
-import { Spin, Alert, Timeline, Typography, message } from 'antd';
-import { Button } from '@newwork/nw-design-system';
-import { PlusCircleOutlined, CloseOutlined } from '@ant-design/icons';
-import { Clock, Calendar } from 'lucide-react';
-import { AppAction } from '@/components/app-action';
-import { FlowContextName } from '@/common/types/FlowRegistryTypes';
-import { BusinessAppContextProps } from '@/common/BusinessAppContext';
-import dayjs from 'dayjs';
-import { useGetInvestmentTasksByAccountId } from '@/common/data/investment/hooks/useInvestmentAccounts';
-import type { InvestmentTask } from '@/common/data/investment/types';
-import { DeleteConfirmPopup } from '@/common/components/common-relations/popups/delete-confirm-popup';
+import React, { useState, useEffect } from 'react'
+import { Spin, Alert, Timeline, Typography, message } from 'antd'
+import { Button } from '@newwork/nw-design-system'
+import { PlusCircleOutlined, CloseOutlined } from '@ant-design/icons'
+import { Clock, Calendar } from 'lucide-react'
+import { AppAction } from '@/components/app-action'
+import { FlowContextName } from '@/common/types/FlowRegistryTypes'
+import { BusinessAppContextProps } from '@/common/BusinessAppContext'
+import dayjs from 'dayjs'
+import { useGetInvestmentTasksByAccountId } from '@/common/data/investment/hooks/useInvestmentAccounts'
+import type { InvestmentTask } from '@/common/data/investment/types'
+import { DeleteConfirmPopup } from '@/common/components/common-relations/popups/delete-confirm-popup'
 
-const { Text } = Typography;
+const { Text } = Typography
 
 // Use InvestmentTask type for consistency
-type TaskData = InvestmentTask;
+type TaskData = InvestmentTask
 
 interface TasksSectionProps {
-  accountId?: string;
-  context: BusinessAppContextProps;
+  accountId?: string
+  context: BusinessAppContextProps
 }
 
 export const TasksSection: React.FC<TasksSectionProps> = ({ accountId, context }) => {
-  const [tasks, setTasks] = useState<TaskData[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [tasks, setTasks] = useState<TaskData[]>([])
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
 
   // Use the centralized investment data hook
-  const { fetchInvestmentTasksByAccountId } = useGetInvestmentTasksByAccountId(context);
+  const { fetchInvestmentTasksByAccountId } = useGetInvestmentTasksByAccountId(context)
   const [deleteTaskPopup, setDeleteTaskPopup] = useState<{ open: boolean; task?: TaskData }>({
-    open: false,
-  });
+    open: false
+  })
 
   // Helper function to get timing type icon
   const getTimingTypeIcon = (timingType?: string) => {
     if (!timingType) {
-      return <Clock style={{ fontSize: '14px', color: '#8c8c8c' }} />;
+      return <Clock style={{ fontSize: '14px', color: '#8c8c8c' }} />
     }
 
     switch (timingType.toUpperCase()) {
       case 'DEADLINE':
-        return <Clock style={{ fontSize: '14px', color: '#ff4d4f' }} />;
+        return <Clock style={{ fontSize: '14px', color: '#ff4d4f' }} />
       case 'SCHEDULED':
-        return <Calendar style={{ fontSize: '14px', color: '#1677ff' }} />;
+        return <Calendar style={{ fontSize: '14px', color: '#1677ff' }} />
       default:
-        return <Clock style={{ fontSize: '14px', color: '#8c8c8c' }} />;
+        return <Clock style={{ fontSize: '14px', color: '#8c8c8c' }} />
     }
-  };
+  }
 
   const loadTasks = async () => {
-    if (!accountId) return;
+    if (!accountId) return
 
-    setLoading(true);
-    setError(null);
+    setLoading(true)
+    setError(null)
 
     try {
-      const tasks = await fetchInvestmentTasksByAccountId(accountId);
+      const tasks = await fetchInvestmentTasksByAccountId(accountId)
 
       // Filter out approval tasks - they should only appear in the Approvals tab
-      const nonApprovalTasks = tasks.filter((task) => {
-        const isApprovalTask = task.taskType?.code?.toLowerCase() === 'approval';
-        return !isApprovalTask;
-      });
+      const nonApprovalTasks = tasks.filter(task => {
+        const isApprovalTask = task.taskType?.code?.toLowerCase() === 'approval'
+        return !isApprovalTask
+      })
 
       // Sort tasks by createdAt in descending order (newest first)
       const sortedTasks = nonApprovalTasks.sort(
-        (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
-      );
+        (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+      )
 
-      setTasks(sortedTasks);
+      setTasks(sortedTasks)
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to load tasks');
+      setError(err instanceof Error ? err.message : 'Failed to load tasks')
     } finally {
-      setLoading(false);
+      setLoading(false)
     }
-  };
+  }
 
   useEffect(() => {
-    loadTasks();
-  }, [accountId]);
+    loadTasks()
+  }, [accountId])
 
   // Add focus event listener to refresh data when user returns to the tab
   useEffect(() => {
     const handleFocus = () => {
-      loadTasks();
-    };
+      loadTasks()
+    }
 
-    window.addEventListener('focus', handleFocus);
+    window.addEventListener('focus', handleFocus)
     document.addEventListener('visibilitychange', () => {
       if (!document.hidden) {
-        handleFocus();
+        handleFocus()
       }
-    });
+    })
 
     return () => {
-      window.removeEventListener('focus', handleFocus);
-      document.removeEventListener('visibilitychange', handleFocus);
-    };
-  }, [accountId]);
+      window.removeEventListener('focus', handleFocus)
+      document.removeEventListener('visibilitychange', handleFocus)
+    }
+  }, [accountId])
 
   // Listen for process completion events to refresh tasks
   useEffect(() => {
     const handleProcessCompletion = (event: any) => {
       try {
         if (event.detail?.resolution === 'success') {
-          loadTasks();
-          return;
+          loadTasks()
+          return
         }
 
         // Also check for different event structure
-        const response = event.detail?.response;
+        const response = event.detail?.response
         if (response?.detail?.resolution === 'success') {
-          loadTasks();
+          loadTasks()
         }
       } catch (err) {
-        console.error('Error handling process completion:', err);
+        console.error('Error handling process completion:', err)
       }
-    };
+    }
 
     // Universal event listener to capture all events
     const handleAllEvents = (event: any) => {
       if (event.type && (event.type.includes('process') || event.type.includes('task'))) {
-        handleProcessCompletion(event);
+        handleProcessCompletion(event)
       }
-    };
+    }
 
     // Listen to multiple possible event names (comprehensive list like opportunity record)
     const eventNames = [
@@ -136,49 +136,49 @@ export const TasksSection: React.FC<TasksSectionProps> = ({ accountId, context }
       'taskCompleted',
       'processCompleted',
       'task-completion',
-      'process-completion',
-    ];
+      'process-completion'
+    ]
 
-    eventNames.forEach((eventName) => {
-      window.addEventListener(eventName, handleProcessCompletion as EventListener);
-    });
+    eventNames.forEach(eventName => {
+      window.addEventListener(eventName, handleProcessCompletion as EventListener)
+    })
 
-    const originalDispatchEvent = window.dispatchEvent;
+    const originalDispatchEvent = window.dispatchEvent
     window.dispatchEvent = function (event: Event) {
       if (event.type && (event.type.includes('process') || event.type.includes('task'))) {
-        handleAllEvents(event);
+        handleAllEvents(event)
       }
-      return originalDispatchEvent.call(this, event);
-    };
+      return originalDispatchEvent.call(this, event)
+    }
 
     return () => {
-      eventNames.forEach((eventName) => {
-        window.removeEventListener(eventName, handleProcessCompletion as EventListener);
-      });
-      window.dispatchEvent = originalDispatchEvent;
-    };
-  }, [accountId]);
+      eventNames.forEach(eventName => {
+        window.removeEventListener(eventName, handleProcessCompletion as EventListener)
+      })
+      window.dispatchEvent = originalDispatchEvent
+    }
+  }, [accountId])
 
   // Add task handled by AppAction component
 
   const handleDeleteTask = (task: TaskData) => {
-    setDeleteTaskPopup({ open: true, task });
-  };
+    setDeleteTaskPopup({ open: true, task })
+  }
 
   // Deletion handled by DeleteConfirmPopup flow
 
   const getPriorityColor = (priority: string) => {
     switch (priority?.toLowerCase()) {
       case 'high':
-        return 'red';
+        return 'red'
       case 'medium':
-        return 'orange';
+        return 'orange'
       case 'low':
-        return 'green';
+        return 'green'
       default:
-        return 'blue';
+        return 'blue'
     }
-  };
+  }
 
   // Removed unused helpers from legacy data shape
 
@@ -190,7 +190,7 @@ export const TasksSection: React.FC<TasksSectionProps> = ({ accountId, context }
         border: '1px solid #f0f0f0',
         overflow: 'hidden',
         marginBottom: '24px',
-        height: 'fit-content',
+        height: 'fit-content'
       }}
       data-testid="investment-account-tasks-section"
     >
@@ -199,7 +199,7 @@ export const TasksSection: React.FC<TasksSectionProps> = ({ accountId, context }
           display: 'flex',
           justifyContent: 'space-between',
           alignItems: 'center',
-          padding: '16px 24px',
+          padding: '16px 24px'
         }}
       >
         <div className="gba:tasks-title" style={{ fontSize: '18px', fontWeight: '500' }}>
@@ -210,7 +210,7 @@ export const TasksSection: React.FC<TasksSectionProps> = ({ accountId, context }
           externalContextData={{
             accountId,
             account: accountId,
-            investmentTask: { account: accountId },
+            investmentTask: { account: accountId }
           }}
           staticFlowData={[]}
           prefixDataTestId="add-task"
@@ -256,17 +256,14 @@ export const TasksSection: React.FC<TasksSectionProps> = ({ accountId, context }
         {!loading && !error && tasks.length > 0 && (
           <Timeline style={{ marginTop: '16px' }}>
             {tasks.map((task, index) => (
-              <Timeline.Item
-                key={task.id || index}
-                color={getPriorityColor(task.taskPriorityLabel || 'Normal')}
-              >
+              <Timeline.Item key={task.id || index} color={getPriorityColor(task.taskPriorityLabel || 'Normal')}>
                 <div style={{ position: 'relative' }}>
                   <div
                     style={{
                       display: 'flex',
                       alignItems: 'center',
                       gap: '8px',
-                      marginBottom: '4px',
+                      marginBottom: '4px'
                     }}
                   >
                     <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
@@ -281,7 +278,7 @@ export const TasksSection: React.FC<TasksSectionProps> = ({ accountId, context }
                           padding: '2px 6px',
                           borderRadius: '4px',
                           fontSize: '12px',
-                          fontWeight: 500,
+                          fontWeight: 500
                         }}
                       >
                         {task.taskPriorityLabel || 'Normal'}
@@ -293,7 +290,7 @@ export const TasksSection: React.FC<TasksSectionProps> = ({ accountId, context }
                           padding: '2px 6px',
                           borderRadius: '4px',
                           fontSize: '12px',
-                          fontWeight: 500,
+                          fontWeight: 500
                         }}
                       >
                         {task.taskStatusLabel || 'Open'}
@@ -302,8 +299,7 @@ export const TasksSection: React.FC<TasksSectionProps> = ({ accountId, context }
                   </div>
                   <div>
                     <Text type="secondary">
-                      {dayjs(task.createdAt).format('MMM D, YYYY [at] h:mm A')} -{' '}
-                      {task.creatorDisplayName || 'Unknown'}
+                      {dayjs(task.createdAt).format('MMM D, YYYY [at] h:mm A')} - {task.creatorDisplayName || 'Unknown'}
                     </Text>
                     {task.dueDate && (
                       <Text type="secondary" style={{ marginLeft: '16px' }}>
@@ -320,7 +316,7 @@ export const TasksSection: React.FC<TasksSectionProps> = ({ accountId, context }
                           color: '#333',
                           padding: '2px 8px',
                           borderRadius: '4px',
-                          fontSize: '12px',
+                          fontSize: '12px'
                         }}
                       >
                         {task.taskPriorityLabel || 'Normal'}
@@ -331,16 +327,14 @@ export const TasksSection: React.FC<TasksSectionProps> = ({ accountId, context }
                           color: '#333',
                           padding: '2px 8px',
                           borderRadius: '4px',
-                          fontSize: '12px',
+                          fontSize: '12px'
                         }}
                       >
                         {task.taskTypeLabel || 'General'}
                       </span>
                     </div>
                   </div>
-                  <div
-                    style={{ position: 'absolute', right: 0, top: 0, display: 'flex', gap: '4px' }}
-                  >
+                  <div style={{ position: 'absolute', right: 0, top: 0, display: 'flex', gap: '4px' }}>
                     <Button
                       variant="ghost"
                       size="icon"
@@ -371,23 +365,23 @@ export const TasksSection: React.FC<TasksSectionProps> = ({ accountId, context }
             taskId: deleteTaskPopup.task!.id,
             investmentTask: {
               id: deleteTaskPopup.task!.id,
-              version: deleteTaskPopup.task!.version,
+              version: deleteTaskPopup.task!.version
             },
-            accountId,
+            accountId
           }}
           onFlowSuccess={() => {
-            const id = deleteTaskPopup.task!.id;
-            setTasks((prev) => prev.filter((t) => t.id !== id));
-            setDeleteTaskPopup({ open: false });
-            message.success('Task deleted successfully');
+            const id = deleteTaskPopup.task!.id
+            setTasks(prev => prev.filter(t => t.id !== id))
+            setDeleteTaskPopup({ open: false })
+            message.success('Task deleted successfully')
           }}
           onFlowError={() => {
-            setDeleteTaskPopup({ open: false });
-            message.error('Failed to delete task');
+            setDeleteTaskPopup({ open: false })
+            message.error('Failed to delete task')
           }}
           data-testid={`delete-task-popup`}
         />
       ) : null}
     </div>
-  );
-};
+  )
+}

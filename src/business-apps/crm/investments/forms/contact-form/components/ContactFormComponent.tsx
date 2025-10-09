@@ -1,60 +1,49 @@
-import React from "react";
-import {
-  Button,
-  Alert,
-  AlertDescription,
-} from "@newwork/nw-design-system";
-import { formatDataTestId } from "@/common/utils/formatDataTestId";
-import { dispatchProcessContinueEvent } from "@/common/utils/processEventUtils";
-import { useContactFormContext } from "../context/ContactFormContext";
-import PersonalInformationSection from "./PersonalInformationSection";
-import OwnerInformationSection from "./OwnerInformationSection";
+import React from 'react'
+import { Button, Alert, AlertDescription } from '@newwork/nw-design-system'
+import { formatDataTestId } from '@/common/utils/formatDataTestId'
+import { dispatchProcessContinueEvent } from '@/common/utils/processEventUtils'
+import { useContactFormContext } from '../context/ContactFormContext'
+import PersonalInformationSection from './PersonalInformationSection'
+import OwnerInformationSection from './OwnerInformationSection'
 
-const prefixDataTestId = "ContactForm";
+const prefixDataTestId = 'ContactForm'
 
 const ContactFormComponent: React.FC = () => {
-  const { formValues, onSubmit, onCancel, isLoading, error, hideActions } =
-    useContactFormContext();
+  const { formValues, onSubmit, onCancel, isLoading, error, hideActions } = useContactFormContext()
 
   // Safety check - if context is not properly initialized, show error
   if (!formValues) {
     return (
       <div className="gba:p-6 gba:text-center">
-        <div className="gba:text-red-500">
-          Error: Form context not properly initialized. Please refresh the page.
-        </div>
+        <div className="gba:text-red-500">Error: Form context not properly initialized. Please refresh the page.</div>
       </div>
-    );
+    )
   }
 
   // Check if all mandatory fields are filled
-  const isFormValid =
-    formValues.firstName &&
-    formValues.lastName &&
-    formValues.email &&
-    formValues.ownerEmployeeId;
+  const isFormValid = formValues.firstName && formValues.lastName && formValues.email && formValues.ownerEmployeeId
 
   // Helper function to convert values to strings safely
   const toStringOrUndefined = (value: string): string | undefined => {
-    return value && value.trim() ? value.trim() : undefined;
-  };
+    return value && value.trim() ? value.trim() : undefined
+  }
 
   // Handle form submission
   const handleSubmit = async () => {
     // Prevent duplicate submissions
     if (isLoading) {
-      return;
+      return
     }
 
     try {
       // Determine if this is an update or create operation
-      const isUpdate = formValues.id;
+      const isUpdate = formValues.id
 
       // ✅ UPDATED: Prepare InvestmentContact payload matching expected API structure exactly
       const investmentContactPayload: any = {
         firstName: toStringOrUndefined(formValues.firstName),
         lastName: toStringOrUndefined(formValues.lastName),
-        fullName: `${(formValues.firstName || "").trim()} ${(formValues.lastName || "").trim()}`.trim(),
+        fullName: `${(formValues.firstName || '').trim()} ${(formValues.lastName || '').trim()}`.trim(),
         type: toStringOrUndefined(formValues.type),
         birthDate: toStringOrUndefined(formValues.birthDate),
 
@@ -72,39 +61,39 @@ const ContactFormComponent: React.FC = () => {
         academicTitleRef: toStringOrUndefined(formValues.academicTitleRef),
         // languageRef: toStringOrUndefined(formValues.languageRef),
 
-        additionalProperties: formValues.additionalProperties || {},
-      };
+        additionalProperties: formValues.additionalProperties || {}
+      }
 
       // ✅ NEW: Add communication channels for LinkedIn and Xing
-      const communicationChannels = [];
-      
+      const communicationChannels = []
+
       // Add LinkedIn communication channel if provided
       if (formValues.linkedinUrl && formValues.linkedinUrl.trim()) {
         communicationChannels.push({
-          communicationChannelRef: "CommunicationChannel:v1:LinkedIn",
+          communicationChannelRef: 'CommunicationChannel:v1:LinkedIn',
           value: formValues.linkedinUrl.trim(),
           valueExtension: null,
-          source: "FORM_INPUT",
+          source: 'FORM_INPUT',
           activeFrom: new Date().toISOString(),
-          activeTo: null,
-        });
+          activeTo: null
+        })
       }
-      
+
       // Add Xing communication channel if provided
       if (formValues.xingUrl && formValues.xingUrl.trim()) {
         communicationChannels.push({
-          communicationChannelRef: "CommunicationChannel:v1:Xing", 
+          communicationChannelRef: 'CommunicationChannel:v1:Xing',
           value: formValues.xingUrl.trim(),
           valueExtension: null,
-          source: "FORM_INPUT",
+          source: 'FORM_INPUT',
           activeFrom: new Date().toISOString(),
-          activeTo: null,
-        });
+          activeTo: null
+        })
       }
 
       // Add communication channels to payload if any exist
       if (communicationChannels.length > 0) {
-        investmentContactPayload.communicationChannels = communicationChannels;
+        investmentContactPayload.communicationChannels = communicationChannels
       }
 
       // ✅ NEW: Add account IDs to payload - always include as array
@@ -112,65 +101,58 @@ const ContactFormComponent: React.FC = () => {
 
       // ✅ FIXED: Handle ID and version for UPDATE mode only
       if (isUpdate) {
-        investmentContactPayload.id = formValues.id;
+        investmentContactPayload.id = formValues.id
         if (formValues.version !== undefined && formValues.version !== null) {
-          investmentContactPayload.version = formValues.version;
+          investmentContactPayload.version = formValues.version
         }
       }
 
       // Determine change mode based on whether we have an ID
-      const changeMode = isUpdate ? "UPDATE" : "INSERT";
+      const changeMode = isUpdate ? 'UPDATE' : 'INSERT'
 
       // ✅ FIXED: Extract account IDs from accountIds (handle both string[] and object[] formats)
-      const extractedAccountIds = (formValues.accountIds || []).map(account => 
+      const extractedAccountIds = (formValues.accountIds || []).map(account =>
         typeof account === 'object' ? account.id : account
-      );
+      )
 
       // ✅ FIXED: Create clean payload structure to prevent context field pollution
       const cleanPayload = {
         investmentContact: investmentContactPayload,
         changeMode: changeMode,
-        accountIds: extractedAccountIds, // ✅ UPDATED: Array of account IDs (extracted from objects if needed)
-      };
+        accountIds: extractedAccountIds // ✅ UPDATED: Array of account IDs (extracted from objects if needed)
+      }
 
-      const isolatedPayload = JSON.parse(JSON.stringify(cleanPayload));
-      
+      const isolatedPayload = JSON.parse(JSON.stringify(cleanPayload))
 
-      dispatchProcessContinueEvent("pse_submit", isolatedPayload);
+      dispatchProcessContinueEvent('pse_submit', isolatedPayload)
 
       // Call the onSubmit callback after dispatching the process event
       // This ensures the process event is always dispatched even if onSubmit fails
       try {
-        await onSubmit(formValues);
+        await onSubmit(formValues)
       } catch (submitError) {
-        console.warn(
-          "onSubmit callback failed, but process event was dispatched:",
-          submitError
-        );
+        console.warn('onSubmit callback failed, but process event was dispatched:', submitError)
       }
     } catch (err) {
-      console.error("Error submitting investment contact form:", err);
+      console.error('Error submitting investment contact form:', err)
     }
-  };
+  }
 
   // Handle form cancellation
   const handleCancel = async () => {
     try {
-      await onCancel();
+      await onCancel()
 
       // Dispatch process continue event for cancellation (pause)
-      dispatchProcessContinueEvent("pse_pause", null);
+      dispatchProcessContinueEvent('pse_pause', null)
     } catch (err) {
-      console.error("Error cancelling investment contact form:", err);
+      console.error('Error cancelling investment contact form:', err)
     }
-  };
+  }
 
   return (
     <div className="gba:h-full gba:flex gba:flex-col gba:max-w-md gba:mx-auto gba:p-6">
-      <div
-        className="gba:h-full gba:flex gba:flex-col"
-        data-testid={formatDataTestId(prefixDataTestId, "Form")}
-      >
+      <div className="gba:h-full gba:flex gba:flex-col" data-testid={formatDataTestId(prefixDataTestId, 'Form')}>
         {/* Form Fields Container - Takes up available space */}
         <div className="gba:flex-1 gba:overflow-y-auto gba:space-y-8">
           {/* Contact Owner Section - First and most important (WITHOUT section header) */}
@@ -196,7 +178,7 @@ const ContactFormComponent: React.FC = () => {
               className="gba:flex-1"
               size="lg"
               onClick={handleCancel}
-              data-testid={formatDataTestId(prefixDataTestId, "cancel-button")}
+              data-testid={formatDataTestId(prefixDataTestId, 'cancel-button')}
             >
               Cancel
             </Button>
@@ -207,15 +189,15 @@ const ContactFormComponent: React.FC = () => {
               className="gba:flex-1"
               size="lg"
               onClick={handleSubmit}
-              data-testid={formatDataTestId(prefixDataTestId, "submit-button")}
+              data-testid={formatDataTestId(prefixDataTestId, 'submit-button')}
             >
-              {formValues.id ? "Update Contact" : "Create Contact"}
+              {formValues.id ? 'Update Contact' : 'Create Contact'}
             </Button>
           </div>
         )}
       </div>
     </div>
-  );
-};
+  )
+}
 
-export default ContactFormComponent;
+export default ContactFormComponent

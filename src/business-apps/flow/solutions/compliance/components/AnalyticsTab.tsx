@@ -1,37 +1,56 @@
-import React, { useEffect, useState } from 'react';
-import { BusinessAppContextProps } from '@/common/BusinessAppContext';
-import { 
-  Card, CardHeader, CardTitle, CardContent, Alert, Button,
-  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+import React, { useEffect, useState } from 'react'
+import { BusinessAppContextProps } from '@/common/BusinessAppContext'
+import {
+  Card,
+  CardHeader,
+  CardTitle,
+  CardContent,
+  Alert,
+  Button,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
   Spinner,
-  ChartContainer, ChartTooltip, ChartTooltipContent
-} from '@newwork/nw-design-system';
-import { 
-  BarChart3, TrendingUp, Calendar, Clock, CheckCircle2, Workflow, PieChart, Target
-} from 'lucide-react';
-import { Bar, BarChart, XAxis, YAxis, CartesianGrid, ResponsiveContainer } from 'recharts';
-import { WidgetGroup, WidgetItem } from '@/components/widget-group';
-import { 
-  useFlowManagementAnalytics, 
-  useTemplatePerformanceAnalytics, 
-  useTaskPerformanceAnalytics 
-} from '@/business-apps/flow/apps/success/hooks/useFlowAnalytics';
+  ChartContainer,
+  ChartTooltip,
+  ChartTooltipContent
+} from '@newwork/nw-design-system'
+import { BarChart3, TrendingUp, Calendar, Clock, CheckCircle2, Workflow, PieChart, Target } from 'lucide-react'
+import { Bar, BarChart, XAxis, YAxis, CartesianGrid, ResponsiveContainer } from 'recharts'
+import { WidgetGroup, WidgetItem } from '@/components/widget-group'
+import {
+  useFlowManagementAnalytics,
+  useTemplatePerformanceAnalytics,
+  useTaskPerformanceAnalytics
+} from '@/business-apps/flow/apps/success/hooks/useFlowAnalytics'
 
 interface AnalyticsTabProps extends BusinessAppContextProps {}
 
 export const AnalyticsTab: React.FC<AnalyticsTabProps> = ({ accessToken, ..._context }) => {
-  const [timeframe, setTimeframe] = useState<'wtd' | 'mtd' | 'qtd' | 'ytd'>('mtd');
+  const [timeframe, setTimeframe] = useState<'wtd' | 'mtd' | 'qtd' | 'ytd'>('mtd')
 
   // Fetch flow analytics filtered for compliance
-  const { data: flowAnalytics, isLoading: flowLoading, error: flowError, refetch: refetchFlows } = useFlowManagementAnalytics({
+  const {
+    data: flowAnalytics,
+    isLoading: flowLoading,
+    error: flowError,
+    refetch: refetchFlows
+  } = useFlowManagementAnalytics({
     timeframe,
     accessToken,
     // @ts-ignore extend hook to append tag.solution on request
     tags: { solution: 'compliance' }
-  } as any);
+  } as any)
 
   // Template performance for compliance flows
-  const { data: templateData, isLoading: templateLoading, error: templateError, refetch: refetchTemplates } = useTemplatePerformanceAnalytics({
+  const {
+    data: templateData,
+    isLoading: templateLoading,
+    error: templateError,
+    refetch: refetchTemplates
+  } = useTemplatePerformanceAnalytics({
     timeframe,
     accessToken,
     limit: 10,
@@ -40,29 +59,37 @@ export const AnalyticsTab: React.FC<AnalyticsTabProps> = ({ accessToken, ..._con
     sortOrder: 'desc',
     // @ts-ignore extend hook to append tag.solution on request
     tags: { solution: 'compliance' }
-  } as any);
+  } as any)
 
   // Task performance for compliance flows
-  const { data: taskAnalytics, isLoading: taskLoading, error: taskError, refetch: refetchTasks } = useTaskPerformanceAnalytics({
+  const {
+    data: taskAnalytics,
+    isLoading: taskLoading,
+    error: taskError,
+    refetch: refetchTasks
+  } = useTaskPerformanceAnalytics({
     timeframe,
     accessToken,
     // @ts-ignore extend hook to append tag.solution on request
     tags: { solution: 'compliance' }
-  } as any);
+  } as any)
 
   useEffect(() => {
     // reset state on timeframe change if needed
-  }, [timeframe]);
+  }, [timeframe])
 
-  const isLoading = flowLoading || templateLoading || taskLoading;
-  const error = flowError || templateError || taskError || null;
+  const isLoading = flowLoading || templateLoading || taskLoading
+  const error = flowError || templateError || taskError || null
 
   if (isLoading) {
     return (
-      <div className="gba:flex gba:justify-center gba:items-center gba:h-64" data-testid="compliance-analytics-tab-loading">
+      <div
+        className="gba:flex gba:justify-center gba:items-center gba:h-64"
+        data-testid="compliance-analytics-tab-loading"
+      >
         <Spinner />
       </div>
-    );
+    )
   }
 
   if (error) {
@@ -71,18 +98,26 @@ export const AnalyticsTab: React.FC<AnalyticsTabProps> = ({ accessToken, ..._con
         <div>
           <h3>Error Loading Compliance Analytics</h3>
           <p>{error.message}</p>
-          <Button onClick={() => { refetchFlows(); refetchTemplates(); refetchTasks(); }} variant="secondary" className="gba:mt-2">
+          <Button
+            onClick={() => {
+              refetchFlows()
+              refetchTemplates()
+              refetchTasks()
+            }}
+            variant="secondary"
+            className="gba:mt-2"
+          >
             Retry
           </Button>
         </div>
       </Alert>
-    );
+    )
   }
 
-  const statusMetrics = flowAnalytics?.statusMetrics;
-  const timeSeries = flowAnalytics?.timeSeries || [];
-  const templates = templateData?.templates || [];
-  const templateSummary = templateData?.summary;
+  const statusMetrics = flowAnalytics?.statusMetrics
+  const timeSeries = flowAnalytics?.timeSeries || []
+  const templates = templateData?.templates || []
+  const templateSummary = templateData?.summary
 
   // Top KPI widgets: TASK metrics (explicit) and FLOW metrics (explicit)
   const taskKpis: WidgetItem[] = [
@@ -106,8 +141,8 @@ export const AnalyticsTab: React.FC<AnalyticsTabProps> = ({ accessToken, ..._con
       key: 'avg-task-completion-rate',
       title: 'Avg Task Completion Rate',
       value: (() => {
-        const list = taskAnalytics?.taskTypePerformance || [];
-        return list.length > 0 ? Math.round(list.reduce((s, t) => s + (t.completionRate || 0), 0) / list.length) : 0;
+        const list = taskAnalytics?.taskTypePerformance || []
+        return list.length > 0 ? Math.round(list.reduce((s, t) => s + (t.completionRate || 0), 0) / list.length) : 0
       })(),
       suffix: '%',
       prefix: <CheckCircle2 className="gba:h-4 gba:w-4" />,
@@ -118,15 +153,15 @@ export const AnalyticsTab: React.FC<AnalyticsTabProps> = ({ accessToken, ..._con
       key: 'avg-tasks-per-user',
       title: 'Avg Tasks per User',
       value: (() => {
-        const users = (taskAnalytics?.userProductivity || []).length || 0;
-        const completed = (taskAnalytics?.userProductivity || []).reduce((s, u) => s + (u.tasksCompleted || 0), 0);
-        return users > 0 ? Math.round((completed / users) * 10) / 10 : 0;
+        const users = (taskAnalytics?.userProductivity || []).length || 0
+        const completed = (taskAnalytics?.userProductivity || []).reduce((s, u) => s + (u.tasksCompleted || 0), 0)
+        return users > 0 ? Math.round((completed / users) * 10) / 10 : 0
       })(),
       prefix: <Target className="gba:h-4 gba:w-4" />,
       color: '#8b5cf6',
       description: 'Average completed tasks across active users'
     }
-  ];
+  ]
 
   const flowKpis: WidgetItem[] = [
     {
@@ -162,7 +197,7 @@ export const AnalyticsTab: React.FC<AnalyticsTabProps> = ({ accessToken, ..._con
       color: '#0ea5e9',
       description: 'All compliance flows (filtered)'
     }
-  ];
+  ]
 
   // Additional KPI cards requested: Total Flows and Avg Tasks per User
   const extraKpis: WidgetItem[] = [
@@ -179,34 +214,34 @@ export const AnalyticsTab: React.FC<AnalyticsTabProps> = ({ accessToken, ..._con
       title: 'Avg Tasks per User',
       value: (() => {
         // Approximate from task analytics: tasks completed divided by distinct users if available
-        const users = (taskAnalytics?.userProductivity || []).length || 0;
-        const completed = (taskAnalytics?.userProductivity || []).reduce((s, u) => s + (u.tasksCompleted || 0), 0);
-        return users > 0 ? Math.round((completed / users) * 10) / 10 : 0;
+        const users = (taskAnalytics?.userProductivity || []).length || 0
+        const completed = (taskAnalytics?.userProductivity || []).reduce((s, u) => s + (u.tasksCompleted || 0), 0)
+        return users > 0 ? Math.round((completed / users) * 10) / 10 : 0
       })(),
       prefix: <Target className="gba:h-4 gba:w-4" />,
       color: '#8b5cf6',
       description: 'Average completed tasks across active users'
     }
-  ];
+  ]
 
   // Task performance derived
-  const taskTypePerformance = taskAnalytics?.taskTypePerformance ?? [];
+  const taskTypePerformance = taskAnalytics?.taskTypePerformance ?? []
   const taskTypeChartData = taskTypePerformance
-    .filter((t) => t && typeof t.taskType !== 'undefined')
+    .filter(t => t && typeof t.taskType !== 'undefined')
     .slice(0, 10)
-    .map((task) => {
-      const fullName = String(task.taskType ?? 'UNKNOWN');
-      const name = fullName.length > 15 ? fullName.substring(0, 15) + '...' : fullName;
+    .map(task => {
+      const fullName = String(task.taskType ?? 'UNKNOWN')
+      const name = fullName.length > 15 ? fullName.substring(0, 15) + '...' : fullName
       return {
         name,
         fullName,
         completionRate: task.completionRate ?? 0,
         totalTasks: task.totalTasks ?? 0,
-        avgResponseTime: task.avgResponseTime ?? 0,
-      };
-    });
+        avgResponseTime: task.avgResponseTime ?? 0
+      }
+    })
 
-  const taskStatusData = (taskAnalytics as any)?.taskStatusDistribution ?? [];
+  const taskStatusData = (taskAnalytics as any)?.taskStatusDistribution ?? []
 
   return (
     <div className="gba:space-y-6" data-testid="compliance-analytics-tab">
@@ -214,9 +249,12 @@ export const AnalyticsTab: React.FC<AnalyticsTabProps> = ({ accessToken, ..._con
       <div className="gba:flex gba:justify-between gba:items-center">
         <div>
           <h2 className="gba:text-2xl gba:font-bold gba:text-gray-900">Compliance Analytics</h2>
-          <p className="gba:text-gray-600">Task and flow performance for solution=compliance{templateSummary && (
-            <span className="gba:ml-2 gba:text-sm gba:text-blue-600"> • {templateSummary.totalTemplates} flows</span>
-          )}</p>
+          <p className="gba:text-gray-600">
+            Task and flow performance for solution=compliance
+            {templateSummary && (
+              <span className="gba:ml-2 gba:text-sm gba:text-blue-600"> • {templateSummary.totalTemplates} flows</span>
+            )}
+          </p>
         </div>
         <Select value={timeframe} onValueChange={(value: any) => setTimeframe(value)}>
           <SelectTrigger className="gba:w-[180px]" data-testid={`compliance-analytics-timeframe`}>
@@ -268,33 +306,39 @@ export const AnalyticsTab: React.FC<AnalyticsTabProps> = ({ accessToken, ..._con
                 </tr>
               </thead>
               <tbody>
-                {templates.length > 0 ? templates.map((template: any, index: number) => (
-                  <tr 
-                    key={template.templateId} 
-                    className={`gba:border-b gba:border-gray-100 ${index % 2 === 0 ? 'gba:bg-gray-50' : ''}`}
-                    data-testid={`compliance-analytics-template-row-${index}`}
-                  >
-                    <td className="gba:p-3 gba:font-medium">{template.templateName}</td>
-                    <td className="gba:p-3 gba:text-right">{template.totalWorkflows}</td>
-                    <td className="gba:p-3 gba:text-right">{template.completedWorkflows}</td>
-                    <td className="gba:p-3 gba:text-right">
-                      <span className={`gba:inline-flex gba:items-center gba:px-2 gba:py-1 gba:rounded-full gba:text-xs gba:font-medium ${
-                        template.completionRate >= 90 ? 'gba:bg-green-100 gba:text-green-800' :
-                        template.completionRate >= 80 ? 'gba:bg-yellow-100 gba:text-yellow-800' :
-                        'gba:bg-red-100 gba:text-red-800'
-                      }`}>
-                        {template.completionRate.toFixed(1)}%
-                      </span>
-                    </td>
-                    <td className="gba:p-3 gba:text-right">{template.avgCycleTime}</td>
-                    <td className="gba:p-3 gba:text-right">{template.medianCycleTime}</td>
-                    <td className="gba:p-3 gba:text-right">
-                      {typeof template.completedTasks !== 'undefined' && typeof template.totalTasks !== 'undefined'
-                        ? `${template.completedTasks}/${template.totalTasks}`
-                        : '—'}
-                    </td>
-                  </tr>
-                )) : (
+                {templates.length > 0 ? (
+                  templates.map((template: any, index: number) => (
+                    <tr
+                      key={template.templateId}
+                      className={`gba:border-b gba:border-gray-100 ${index % 2 === 0 ? 'gba:bg-gray-50' : ''}`}
+                      data-testid={`compliance-analytics-template-row-${index}`}
+                    >
+                      <td className="gba:p-3 gba:font-medium">{template.templateName}</td>
+                      <td className="gba:p-3 gba:text-right">{template.totalWorkflows}</td>
+                      <td className="gba:p-3 gba:text-right">{template.completedWorkflows}</td>
+                      <td className="gba:p-3 gba:text-right">
+                        <span
+                          className={`gba:inline-flex gba:items-center gba:px-2 gba:py-1 gba:rounded-full gba:text-xs gba:font-medium ${
+                            template.completionRate >= 90
+                              ? 'gba:bg-green-100 gba:text-green-800'
+                              : template.completionRate >= 80
+                                ? 'gba:bg-yellow-100 gba:text-yellow-800'
+                                : 'gba:bg-red-100 gba:text-red-800'
+                          }`}
+                        >
+                          {template.completionRate.toFixed(1)}%
+                        </span>
+                      </td>
+                      <td className="gba:p-3 gba:text-right">{template.avgCycleTime}</td>
+                      <td className="gba:p-3 gba:text-right">{template.medianCycleTime}</td>
+                      <td className="gba:p-3 gba:text-right">
+                        {typeof template.completedTasks !== 'undefined' && typeof template.totalTasks !== 'undefined'
+                          ? `${template.completedTasks}/${template.totalTasks}`
+                          : '—'}
+                      </td>
+                    </tr>
+                  ))
+                ) : (
                   <tr>
                     <td colSpan={6} className="gba:p-8 gba:text-center gba:text-gray-500">
                       <Workflow className="gba:h-8 gba:w-8 gba:mx-auto gba:mb-2 gba:text-gray-300" />
@@ -323,10 +367,12 @@ export const AnalyticsTab: React.FC<AnalyticsTabProps> = ({ accessToken, ..._con
                 config={{ count: { label: 'Flows', color: 'hsl(200, 85%, 55%)' } }}
                 className="gba:h-[250px] gba:w-full"
               >
-                <BarChart data={[
-                  { status: 'Completed', count: statusMetrics?.completed_workflows || 0 },
-                  { status: 'Pending', count: statusMetrics?.pending_workflows || 0 }
-                ]}>
+                <BarChart
+                  data={[
+                    { status: 'Completed', count: statusMetrics?.completed_workflows || 0 },
+                    { status: 'Pending', count: statusMetrics?.pending_workflows || 0 }
+                  ]}
+                >
                   <CartesianGrid strokeDasharray="3 3" />
                   <XAxis dataKey="status" />
                   <YAxis />
@@ -356,14 +402,18 @@ export const AnalyticsTab: React.FC<AnalyticsTabProps> = ({ accessToken, ..._con
                   >
                     <BarChart data={timeSeries.slice(-7)}>
                       <CartesianGrid strokeDasharray="3 3" />
-                      <XAxis 
-                        dataKey="date" 
-                        tickFormatter={(value) => new Date(value).toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit' })}
+                      <XAxis
+                        dataKey="date"
+                        tickFormatter={value =>
+                          new Date(value).toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit' })
+                        }
                       />
                       <YAxis />
-                      <ChartTooltip 
-                        content={<ChartTooltipContent />} 
-                        labelFormatter={(value) => new Date(value).toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit' })}
+                      <ChartTooltip
+                        content={<ChartTooltipContent />}
+                        labelFormatter={value =>
+                          new Date(value).toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit' })
+                        }
                       />
                       <Bar dataKey="workflows_started" fill="hsl(200, 85%, 70%)" name="Started" />
                       <Bar dataKey="workflows_completed" fill="hsl(200, 85%, 55%)" name="Completed" />
@@ -398,16 +448,22 @@ export const AnalyticsTab: React.FC<AnalyticsTabProps> = ({ accessToken, ..._con
                   className="gba:w-full gba:h-[200px]"
                 >
                   <ResponsiveContainer width="100%" height="100%">
-                    <BarChart data={taskStatusData.map((item: any) => ({ name: item.status, percentage: item.percentage, totalTasks: item.totalTasks }))}>
+                    <BarChart
+                      data={taskStatusData.map((item: any) => ({
+                        name: item.status,
+                        percentage: item.percentage,
+                        totalTasks: item.totalTasks
+                      }))}
+                    >
                       <CartesianGrid strokeDasharray="3 3" />
                       <XAxis dataKey="name" />
                       <YAxis domain={[0, 100]} />
-                      <ChartTooltip 
+                      <ChartTooltip
                         content={<ChartTooltipContent />}
                         formatter={(value: any, _name: any, props: any) => {
-                          const item = props?.payload;
-                          if (!item) return [`${value}%`, 'Percentage'];
-                          return [`${value}%`, `${item.totalTasks} tasks`];
+                          const item = props?.payload
+                          if (!item) return [`${value}%`, 'Percentage']
+                          return [`${value}%`, `${item.totalTasks} tasks`]
                         }}
                       />
                       <Bar dataKey="percentage" fill="hsl(200, 85%, 55%)" name="Percentage" radius={[4, 4, 0, 0]} />
@@ -436,7 +492,7 @@ export const AnalyticsTab: React.FC<AnalyticsTabProps> = ({ accessToken, ..._con
                   <ChartContainer
                     config={{
                       tasks_started: { label: 'Started', color: 'hsl(200,85%,70%)' },
-                      tasks_completed: { label: 'Completed', color: 'hsl(200,85%,55%)' },
+                      tasks_completed: { label: 'Completed', color: 'hsl(200,85%,55%)' }
                     }}
                     className="gba:w-full gba:h-[220px]"
                   >
@@ -491,5 +547,5 @@ export const AnalyticsTab: React.FC<AnalyticsTabProps> = ({ accessToken, ..._con
         </div>
       </div>
     </div>
-  );
-};
+  )
+}

@@ -1,4 +1,4 @@
-import React, { useMemo } from "react";
+import React, { useMemo } from 'react'
 import {
   Card,
   CardContent,
@@ -11,26 +11,30 @@ import {
   ChartTooltip,
   ChartTooltipContent,
   ChartLegend,
-  ChartLegendContent,
-} from "@newwork/nw-design-system";
-import { LineChart, Line, XAxis, YAxis, CartesianGrid } from "recharts";
-import { ChartLineIcon } from "@phosphor-icons/react";
-import lineChartData from "../../data/lineChartData.json";
+  ChartLegendContent
+} from '@newwork/nw-design-system'
+import { LineChart, Line, XAxis, YAxis, CartesianGrid } from 'recharts'
+import { ChartLineIcon } from '@phosphor-icons/react'
+import lineChartData from '../../data/lineChartData.json'
 
 interface CustomDotsLineChartProps {
-  moduleColor?: string;
+  moduleColor?: string
 }
 
 const CustomDotsLineChart: React.FC<CustomDotsLineChartProps> = ({ moduleColor }) => {
-  const chartData = lineChartData.customDots;
+  const chartData = lineChartData.customDots
 
-  const chartConfig = useMemo(() => ({
-    // Data dimensions - used for sizing only
-    visitors: { label: "Visitors", color: "none" },
-    // Visual categories - used for legend/colors
-    desktop: { label: "Desktop" },
-    mobile: { label: "Mobile" },
-  }) satisfies ChartConfig, []);
+  const chartConfig = useMemo(
+    () =>
+      ({
+        // Data dimensions - used for sizing only
+        visitors: { label: 'Visitors', color: 'none' },
+        // Visual categories - used for legend/colors
+        desktop: { label: 'Desktop' },
+        mobile: { label: 'Mobile' }
+      }) satisfies ChartConfig,
+    []
+  )
 
   return (
     <Card data-testid="custom-dots-line-chart">
@@ -47,7 +51,7 @@ const CustomDotsLineChart: React.FC<CustomDotsLineChartProps> = ({ moduleColor }
             data={chartData}
             margin={{
               left: 12,
-              right: 12,
+              right: 12
             }}
           >
             <CartesianGrid vertical={false} />
@@ -56,29 +60,22 @@ const CustomDotsLineChart: React.FC<CustomDotsLineChartProps> = ({ moduleColor }
               tickLine={false}
               axisLine={false}
               tickMargin={8}
-              tickFormatter={(value) => typeof value === 'string' ? value.slice(0, 3) : value}
+              tickFormatter={value => (typeof value === 'string' ? value.slice(0, 3) : value)}
             />
-            <YAxis
-              tickLine={false}
-              axisLine={false}
-              tickMargin={8}
-            />
-            <ChartTooltip
-              cursor={false}
-              content={<ChartTooltipContent />}
-            />
+            <YAxis tickLine={false} axisLine={false} tickMargin={8} />
+            <ChartTooltip cursor={false} content={<ChartTooltipContent />} />
             <Line
               type="monotone"
               dataKey="desktop"
               stroke="var(--color-desktop)"
               strokeWidth={2}
               dot={{
-                fill: "var(--color-desktop)",
+                fill: 'var(--color-desktop)',
                 strokeWidth: 2,
-                r: 4,
+                r: 4
               }}
               activeDot={{
-                r: 6,
+                r: 6
               }}
             />
             <Line
@@ -87,12 +84,12 @@ const CustomDotsLineChart: React.FC<CustomDotsLineChartProps> = ({ moduleColor }
               stroke="var(--color-mobile)"
               strokeWidth={2}
               dot={{
-                fill: "var(--color-mobile)",
+                fill: 'var(--color-mobile)',
                 strokeWidth: 2,
-                r: 4,
+                r: 4
               }}
               activeDot={{
-                r: 6,
+                r: 6
               }}
             />
             <ChartLegend content={<ChartLegendContent />} />
@@ -100,7 +97,7 @@ const CustomDotsLineChart: React.FC<CustomDotsLineChartProps> = ({ moduleColor }
         </ChartContainer>
       </CardContent>
     </Card>
-  );
-};
+  )
+}
 
-export default CustomDotsLineChart;
+export default CustomDotsLineChart

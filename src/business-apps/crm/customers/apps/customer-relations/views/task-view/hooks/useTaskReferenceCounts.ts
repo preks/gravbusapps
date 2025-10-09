@@ -1,45 +1,48 @@
-import { useState, useCallback, useEffect } from 'react';
-import { useSalesTaskQueries } from './useSalesTaskQueries';
+import { useState, useCallback, useEffect } from 'react'
+import { useSalesTaskQueries } from './useSalesTaskQueries'
 
 export interface ReferenceTypeCounts {
-  opportunity: number;
-  account: number;
-  lead: number;
-  contact: number;
+  opportunity: number
+  account: number
+  lead: number
+  contact: number
 }
 
 export interface UseTaskReferenceCountsProps {
-  accessToken: string;
-  sourceApp?: string;
+  accessToken: string
+  sourceApp?: string
 }
 
 export interface UseTaskReferenceCountsReturn {
-  counts: ReferenceTypeCounts;
-  loading: boolean;
-  error: Error | null;
-  refetch: () => void;
+  counts: ReferenceTypeCounts
+  loading: boolean
+  error: Error | null
+  refetch: () => void
 }
 
-export const useTaskReferenceCounts = ({ accessToken, sourceApp }: UseTaskReferenceCountsProps): UseTaskReferenceCountsReturn => {
+export const useTaskReferenceCounts = ({
+  accessToken,
+  sourceApp
+}: UseTaskReferenceCountsProps): UseTaskReferenceCountsReturn => {
   const [counts, setCounts] = useState<ReferenceTypeCounts>({
     opportunity: 0,
     account: 0,
     lead: 0,
     contact: 0
-  });
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<Error | null>(null);
+  })
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState<Error | null>(null)
 
-  const { fetchSalesTasks } = useSalesTaskQueries({ accessToken });
+  const { fetchSalesTasks } = useSalesTaskQueries({ accessToken })
 
   const calculateReferenceCounts = useCallback(async () => {
     if (!accessToken) {
-      console.warn('No access token provided to useTaskReferenceCounts');
-      return;
+      console.warn('No access token provided to useTaskReferenceCounts')
+      return
     }
 
-    setLoading(true);
-    setError(null);
+    setLoading(true)
+    setError(null)
 
     try {
       // Fetch all tasks to calculate reference counts (non-deleted only)
@@ -47,56 +50,56 @@ export const useTaskReferenceCounts = ({ accessToken, sourceApp }: UseTaskRefere
         limit: 1000, // Get enough records to calculate accurate counts
         offset: 0,
         orderBy: [{ createdAt: 'DESC' }]
-        // Note: Deletion filtering is already handled by salesTaskQueryBuilder.ts 
+        // Note: Deletion filtering is already handled by salesTaskQueryBuilder.ts
         // which adds: recordState: { _neq: "DELETED" }
-      });
+      })
 
-      const tasks = result.SalesTask || [];
-      
+      const tasks = result.SalesTask || []
+
       // Calculate counts based on which reference entities exist
       const referenceCounts = {
         opportunity: 0,
         account: 0,
         lead: 0,
         contact: 0
-      };
+      }
 
       tasks.forEach(task => {
         if (task.opportunity?.id) {
-          referenceCounts.opportunity++;
+          referenceCounts.opportunity++
         } else if (task.account?.id) {
-          referenceCounts.account++;
+          referenceCounts.account++
         } else if (task.lead?.id) {
-          referenceCounts.lead++;
+          referenceCounts.lead++
         } else if (task.contact?.id) {
-          referenceCounts.contact++;
+          referenceCounts.contact++
         }
-      });
+      })
 
-      setCounts(referenceCounts);
+      setCounts(referenceCounts)
     } catch (err) {
-      const error = err instanceof Error ? err : new Error('Failed to calculate reference counts');
-      setError(error);
-      console.error('Error calculating reference counts:', error);
+      const error = err instanceof Error ? err : new Error('Failed to calculate reference counts')
+      setError(error)
+      console.error('Error calculating reference counts:', error)
     } finally {
-      setLoading(false);
+      setLoading(false)
     }
-  }, [accessToken, fetchSalesTasks]);
+  }, [accessToken, fetchSalesTasks])
 
   const refetch = useCallback(() => {
-    calculateReferenceCounts();
-  }, [calculateReferenceCounts]);
+    calculateReferenceCounts()
+  }, [calculateReferenceCounts])
 
   useEffect(() => {
     if (accessToken) {
-      calculateReferenceCounts();
+      calculateReferenceCounts()
     }
-  }, [calculateReferenceCounts]);
+  }, [calculateReferenceCounts])
 
   return {
     counts,
     loading,
     error,
     refetch
-  };
-}; 
+  }
+}

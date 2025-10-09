@@ -1,5 +1,5 @@
-export { DynamicFormField } from './DynamicFormField';
-export type { DynamicFieldDefinition, DynamicFormFieldProps } from './DynamicFormField';
+export { DynamicFormField } from './DynamicFormField'
+export type { DynamicFieldDefinition, DynamicFormFieldProps } from './DynamicFormField'
 
 // Export individual field type components for custom usage
 export {
@@ -11,6 +11,5 @@ export {
   AmountField,
   PercentageField,
   CatalogField,
-  ReferenceField,
-} from './field-types';
-
+  ReferenceField
+} from './field-types'

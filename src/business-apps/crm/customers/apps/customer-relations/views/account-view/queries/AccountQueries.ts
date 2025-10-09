@@ -1,83 +1,83 @@
-import { useCallback } from "react";
-import { useGraphQLClient } from "@/common/network/graphql/useGraphQLClient";
-import { BusinessAppContextProps } from "@/common/BusinessAppContext";
+import { useCallback } from 'react'
+import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
+import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 
 export interface AccountQueryVariables {
-  offset?: number;
-  limit?: number;
-  where?: any;
-  orderBy?: any;
+  offset?: number
+  limit?: number
+  where?: any
+  orderBy?: any
 }
 
 export interface AccountData {
-  id: string;
-  name: string;
-  version: number;
-  website: string;
-  phone: string;
-  email: string;
-  geographicPresence?: string;
+  id: string
+  name: string
+  version: number
+  website: string
+  phone: string
+  email: string
+  geographicPresence?: string
   legalForm: {
-    value: string;
-    code: string;
-    id: string;
-    objectValue?: any;
-  };
+    value: string
+    code: string
+    id: string
+    objectValue?: any
+  }
   numberOfEmployees: {
-    value: string;
-  };
+    value: string
+  }
   annualRevenue: {
-    value: string;
-    code: string;
-    id: string;
-    objectValue?: any;
-  };
+    value: string
+    code: string
+    id: string
+    objectValue?: any
+  }
   accountContacts: {
     contact: {
-      id: string;
-      firstName: string;
-      lastName: string;
-      email: string;
-      phone: string;
-    };
-  }[];
+      id: string
+      firstName: string
+      lastName: string
+      email: string
+      phone: string
+    }
+  }[]
   addresses: {
-    city: string;
+    city: string
     country: {
-      id: string;
-      value: string;
-      code: string;
-    };
+      id: string
+      value: string
+      code: string
+    }
     region: {
-      id: string;
-      value: string;
-      code: string;
-    };
-  }[];
-  foundationDate: string;
+      id: string
+      value: string
+      code: string
+    }
+  }[]
+  foundationDate: string
   industry: {
-    id: string;
-    code: string;
-    value: string;
-    objectValue?: any;
-  };
+    id: string
+    code: string
+    value: string
+    objectValue?: any
+  }
   ownerEmployee: {
-    id: string;
-    lastName: string;
-    firstName: string;
-    pictureThumbnail?: string;
-  };
-  createdAt: string;
-  updatedAt: string;
+    id: string
+    lastName: string
+    firstName: string
+    pictureThumbnail?: string
+  }
+  createdAt: string
+  updatedAt: string
 }
 
 export interface GetAccountsResponse {
-  Account: AccountData[];
+  Account: AccountData[]
   AccountAggregate: {
     aggregate: {
-      count: number;
-    };
-  };
+      count: number
+    }
+  }
 }
 
 export const GET_ACCOUNTS_DATA = `
@@ -159,27 +159,24 @@ export const GET_ACCOUNTS_DATA = `
       }
     }
   }
-`;
+`
 
 export const useGetAccountsData = (context: BusinessAppContextProps) => {
-  const graphqlClient = useGraphQLClient(context.accessToken);
+  const graphqlClient = useGraphQLClient(context.accessToken)
 
   const fetchAccountsData = useCallback(
     async (variables: AccountQueryVariables = {}) => {
-      const query = GET_ACCOUNTS_DATA;
+      const query = GET_ACCOUNTS_DATA
       try {
-        const result = await graphqlClient.request<GetAccountsResponse>(
-          query,
-          variables
-        );
-        return result;
+        const result = await graphqlClient.request<GetAccountsResponse>(query, variables)
+        return result
       } catch (error) {
-        console.error("Error fetching accounts data:", error);
-        throw error;
+        console.error('Error fetching accounts data:', error)
+        throw error
       }
     },
     [graphqlClient]
-  );
+  )
 
-  return { fetchAccountsData };
-};
+  return { fetchAccountsData }
+}

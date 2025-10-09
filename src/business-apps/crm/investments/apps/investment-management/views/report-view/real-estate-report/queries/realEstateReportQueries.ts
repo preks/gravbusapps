@@ -1,13 +1,13 @@
-import { CATALOG_ENTRY, AUDIT_FIELDS } from '@/common/network/graphql/commonFragments';
-import { EMPLOYEE_REF } from '@/common/data/employee/queries/fragments/employeeFragments';
+import { CATALOG_ENTRY, AUDIT_FIELDS } from '@/common/network/graphql/commonFragments'
+import { EMPLOYEE_REF } from '@/common/data/employee/queries/fragments/employeeFragments'
 
 export interface RealEstateReportQueryVariables {
-  investmentType?: string;
-  startDate?: string;
-  endDate?: string;
-  currency?: string;
-  limit?: number;
-  offset?: number;
+  investmentType?: string
+  startDate?: string
+  endDate?: string
+  currency?: string
+  limit?: number
+  offset?: number
 }
 
 // Real Estate Investment fragment with detailed fields
@@ -27,7 +27,7 @@ const REAL_ESTATE_INVESTMENT_DETAILS = `
   locality
   liquidityForecast
   ${AUDIT_FIELDS}
-`;
+`
 
 // Investment fragment with all fields needed for real estate reports
 const INVESTMENT_FULL_DETAILS = `
@@ -88,19 +88,19 @@ const INVESTMENT_FULL_DETAILS = `
   realEstateInvestment {
     ${REAL_ESTATE_INVESTMENT_DETAILS}
   }
-`;
+`
 
 // Build where condition for Investment queries with real estate filters
 const buildRealEstateWhereCondition = (variables: RealEstateReportQueryVariables = {}) => {
-  let whereClause = 'where: { isDeleted: { _eq: false }';
+  let whereClause = 'where: { isDeleted: { _eq: false }'
 
   // Filter by real estate investment types
   const realEstateTypeIds = [
-    "InvestmentType:v1:EXISTING_PROPERTY",
-    "InvestmentType:v1:PROJECT_DEVELOPMENT", 
-    "InvestmentType:v1:MEZZANINE_LOANS",
-    "InvestmentType:v1:OTHER_REAL_ESTATE"
-  ];
+    'InvestmentType:v1:EXISTING_PROPERTY',
+    'InvestmentType:v1:PROJECT_DEVELOPMENT',
+    'InvestmentType:v1:MEZZANINE_LOANS',
+    'InvestmentType:v1:OTHER_REAL_ESTATE'
+  ]
 
   if (variables.investmentType) {
     // Filter by specific investment type if provided
@@ -108,39 +108,39 @@ const buildRealEstateWhereCondition = (variables: RealEstateReportQueryVariables
       'Existing Properties': 'InvestmentType:v1:EXISTING_PROPERTY',
       'Project Development': 'InvestmentType:v1:PROJECT_DEVELOPMENT',
       'Mezzanine Loans': 'InvestmentType:v1:MEZZANINE_LOANS',
-      'Others': 'InvestmentType:v1:OTHER_REAL_ESTATE'
-    };
-    const mappedType = typeMapping[variables.investmentType as keyof typeof typeMapping];
+      Others: 'InvestmentType:v1:OTHER_REAL_ESTATE'
+    }
+    const mappedType = typeMapping[variables.investmentType as keyof typeof typeMapping]
     if (mappedType) {
-      whereClause += `, investmentType: { id: { _eq: "${mappedType}" } }`;
+      whereClause += `, investmentType: { id: { _eq: "${mappedType}" } }`
     }
   } else {
     // Filter by all real estate types if no specific type provided
-    whereClause += `, investmentType: { id: { _in: [${realEstateTypeIds.map(id => `"${id}"`).join(', ')}] } }`;
+    whereClause += `, investmentType: { id: { _in: [${realEstateTypeIds.map(id => `"${id}"`).join(', ')}] } }`
   }
 
   // Filter by acquisition date range if provided
   if (variables.startDate) {
-    whereClause += `, acquisitionDate: { _gte: "${variables.startDate}" }`;
+    whereClause += `, acquisitionDate: { _gte: "${variables.startDate}" }`
   }
   if (variables.endDate) {
-    whereClause += `, acquisitionDate: { _lte: "${variables.endDate}" }`;
+    whereClause += `, acquisitionDate: { _lte: "${variables.endDate}" }`
   }
 
   // Filter by currency if provided
   if (variables.currency) {
-    whereClause += `, currency: { code: { _eq: "${variables.currency}" } }`;
+    whereClause += `, currency: { code: { _eq: "${variables.currency}" } }`
   }
 
-  whereClause += ' }';
-  return whereClause;
-};
+  whereClause += ' }'
+  return whereClause
+}
 
 // Get Real Estate Investments with full details
 export const GET_REAL_ESTATE_INVESTMENTS = (variables: RealEstateReportQueryVariables = {}): string => {
-  const limit = Math.min(variables.limit || 100, 1000);
-  const offset = variables.offset || 0;
-  const where = buildRealEstateWhereCondition(variables);
+  const limit = Math.min(variables.limit || 100, 1000)
+  const offset = variables.offset || 0
+  const where = buildRealEstateWhereCondition(variables)
 
   return `
     query GetRealEstateInvestments {
@@ -159,27 +159,27 @@ export const GET_REAL_ESTATE_INVESTMENTS = (variables: RealEstateReportQueryVari
         }
       }
     }
-  `;
-};
+  `
+}
 
 // Get Real Estate Investments by specific type with enhanced fields for reports
 export const GET_REAL_ESTATE_INVESTMENTS_BY_TYPE = (
   investmentType: string,
   variables: RealEstateReportQueryVariables = {}
 ): string => {
-  const enhancedVariables = { ...variables, investmentType };
-  return GET_REAL_ESTATE_INVESTMENTS(enhancedVariables);
-};
+  const enhancedVariables = { ...variables, investmentType }
+  return GET_REAL_ESTATE_INVESTMENTS(enhancedVariables)
+}
 
 // Search Real Estate Investments
 export const SEARCH_REAL_ESTATE_INVESTMENTS = (
   searchTerm: string,
   variables: RealEstateReportQueryVariables = {}
 ): string => {
-  const limit = Math.min(variables.limit || 50, 100);
-  const offset = variables.offset || 0;
-  const baseWhere = buildRealEstateWhereCondition(variables);
-  
+  const limit = Math.min(variables.limit || 50, 100)
+  const offset = variables.offset || 0
+  const baseWhere = buildRealEstateWhereCondition(variables)
+
   // Add search conditions to the base where clause
   const searchWhere = baseWhere.replace(
     ' }',
@@ -190,7 +190,7 @@ export const SEARCH_REAL_ESTATE_INVESTMENTS = (
       { fundManagerName: { _ilike: "%${searchTerm}%" } },
       { loanRecipientName: { _ilike: "%${searchTerm}%" } }
     ] }`
-  );
+  )
 
   return `
     query SearchRealEstateInvestments {
@@ -209,8 +209,8 @@ export const SEARCH_REAL_ESTATE_INVESTMENTS = (
         }
       }
     }
-  `;
-};
+  `
+}
 
 // Get Investment Roles for investment role information
 export const GET_INVESTMENT_ROLES = (investmentId: string): string => {
@@ -230,5 +230,5 @@ export const GET_INVESTMENT_ROLES = (investmentId: string): string => {
         ${AUDIT_FIELDS}
       }
     }
-  `;
-};
+  `
+}

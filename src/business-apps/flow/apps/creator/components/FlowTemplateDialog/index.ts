@@ -1,4 +1,4 @@
-import { FlowTemplateDialog } from './FlowTemplateDialog';
+import { FlowTemplateDialog } from './FlowTemplateDialog'
 
-export { FlowTemplateDialog };
-export default FlowTemplateDialog;
+export { FlowTemplateDialog }
+export default FlowTemplateDialog

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useMemo, useRef } from "react";
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import {
   Avatar,
   AvatarImage,
@@ -18,85 +18,82 @@ import {
   Dialog,
   DialogContent,
   DialogHeader,
-  DialogTitle,
-} from "@newwork/nw-design-system";
-import { PiArrowUp, PiArrowDown } from "react-icons/pi";
-import { BusinessAppContextProps } from "@/common/BusinessAppContext";
-import { ExpensePlan, SortField } from "../../../hooks/useMainViewExpensePlans";
-import { getExpensePlanStatusDisplay, ExpenseStatus } from "../../../utils";
+  DialogTitle
+} from '@newwork/nw-design-system'
+import { PiArrowUp, PiArrowDown } from 'react-icons/pi'
+import { BusinessAppContextProps } from '@/common/BusinessAppContext'
+import { ExpensePlan, SortField } from '../../../hooks/useMainViewExpensePlans'
+import { getExpensePlanStatusDisplay, ExpenseStatus } from '../../../utils'
 
 // Status → token classes (design-system)
 const PLAN_STATUS_CLASSES: Record<string, string> = {
-  success: "gba:bg-success gba:text-success-foreground",
-  warning: "gba:bg-warning gba:text-warning-foreground",
-  info: "gba:bg-info gba:text-info-foreground",
-  destructive: "gba:bg-destructive gba:text-destructive-foreground",
-  offline: "gba:bg-offline gba:text-offline-foreground",
-  draft: "gba:bg-muted gba:text-muted-foreground",
-  completed: "gba:bg-success gba:text-success-foreground",
-  waiting: "gba:bg-info gba:text-info-foreground",
-  task: "gba:bg-warning gba:text-warning-foreground",
-  error: "gba:bg-destructive gba:text-destructive-foreground",
-  preparing: "gba:bg-muted gba:text-muted-foreground",
-};
-import {
-  getTranslationFromI18nKeyAndLabel,
-  getCurrentActiveUserLocale,
-} from "@/common/utils/windowUtils";
-import { formatCurrencyDisplay } from "../../../../personal-expenses/utils";
-import { navigateTo, buildPlatformUrl } from "@/common/utils/navigationUtils";
-import { AppActionButton } from "@/components/app-action-button/AppActionButton";
-import { useExpensePlanFileService } from "../../../../personal-expenses/utils/expensePlanFileService";
-import ExpensePlanDetails from "./ExpensePlanDetails";
-import { ensureShortDateFormat } from "../../../utils/dateUtils";
+  success: 'gba:bg-success gba:text-success-foreground',
+  warning: 'gba:bg-warning gba:text-warning-foreground',
+  info: 'gba:bg-info gba:text-info-foreground',
+  destructive: 'gba:bg-destructive gba:text-destructive-foreground',
+  offline: 'gba:bg-offline gba:text-offline-foreground',
+  draft: 'gba:bg-muted gba:text-muted-foreground',
+  completed: 'gba:bg-success gba:text-success-foreground',
+  waiting: 'gba:bg-info gba:text-info-foreground',
+  task: 'gba:bg-warning gba:text-warning-foreground',
+  error: 'gba:bg-destructive gba:text-destructive-foreground',
+  preparing: 'gba:bg-muted gba:text-muted-foreground'
+}
+import { getTranslationFromI18nKeyAndLabel, getCurrentActiveUserLocale } from '@/common/utils/windowUtils'
+import { formatCurrencyDisplay } from '../../../../personal-expenses/utils'
+import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils'
+import { AppActionButton } from '@/components/app-action-button/AppActionButton'
+import { useExpensePlanFileService } from '../../../../personal-expenses/utils/expensePlanFileService'
+import ExpensePlanDetails from './ExpensePlanDetails'
+import { ensureShortDateFormat } from '../../../utils/dateUtils'
 
 interface ExpensePlansTableProps extends BusinessAppContextProps {
-  search?: string;
-  onSearchChange?: (search: string) => void;
-  employeeId?: string;
-  activeFilter?: ExpenseStatus[] | null;
-  onFilterChange?: (filter: ExpenseStatus[] | null) => void;
-  onClearFilters?: () => void;
-  onViewDetails?: (plan: ExpensePlan) => void;
-  currencyFilter?: string | null;
-  expensePlans: ExpensePlan[];
-  loading: boolean;
-  error: Error | null;
-  totalCount: number;
-  currentPage: number;
-  setCurrentPage: (page: number) => void;
-  sorting: any;
-  updateSorting: (field: SortField) => void;
-  pageSize: number;
-  setPageSize: (size: number) => void;
+  search?: string
+  onSearchChange?: (search: string) => void
+  employeeId?: string
+  activeFilter?: ExpenseStatus[] | null
+  onFilterChange?: (filter: ExpenseStatus[] | null) => void
+  onClearFilters?: () => void
+  onViewDetails?: (plan: ExpensePlan) => void
+  currencyFilter?: string | null
+  expensePlans: ExpensePlan[]
+  loading: boolean
+  error: Error | null
+  totalCount: number
+  currentPage: number
+  setCurrentPage: (page: number) => void
+  sorting: any
+  updateSorting: (field: SortField) => void
+  pageSize: number
+  setPageSize: (size: number) => void
 }
 
-const DATA_TEST_ID_PREFIX = "ExpensePlansTable";
+const DATA_TEST_ID_PREFIX = 'ExpensePlansTable'
 
-const ExpensePlansTable: React.FC<ExpensePlansTableProps> = (props) => {
+const ExpensePlansTable: React.FC<ExpensePlansTableProps> = props => {
   // Extract only the necessary props to prevent unnecessary re-renders
   const contextProps = useMemo(
     () => ({
       accessToken: props.accessToken,
-      userInfo: props.userInfo,
+      userInfo: props.userInfo
     }),
-    [props.accessToken, props.userInfo],
-  );
+    [props.accessToken, props.userInfo]
+  )
 
   // Use parent's filter state directly
-  const currentStatusFilter = props.activeFilter || [];
+  const currentStatusFilter = props.activeFilter || []
 
   // Use the currency filter passed from parent instead of global store
-  const currentCurrencyFilter = props.currencyFilter || "EUR";
+  const currentCurrencyFilter = props.currencyFilter || 'EUR'
 
   // Set up local state
-  const [printModalOpen, setPrintModalOpen] = useState<boolean>(false);
-  const [printPdfUrl, setPrintPdfUrl] = useState<string>("");
-  const [printLoading, setPrintLoading] = useState<boolean>(false);
-  const [selectedItem, setSelectedItem] = useState<ExpensePlan | null>(null);
+  const [printModalOpen, setPrintModalOpen] = useState<boolean>(false)
+  const [printPdfUrl, setPrintPdfUrl] = useState<string>('')
+  const [printLoading, setPrintLoading] = useState<boolean>(false)
+  const [selectedItem, setSelectedItem] = useState<ExpensePlan | null>(null)
 
   // Use the file service hook
-  const { printExpensePlan, isMounted } = useExpensePlanFileService(contextProps);
+  const { printExpensePlan, isMounted } = useExpensePlanFileService(contextProps)
 
   // Get expense plans data and functions from props
   const {
@@ -109,47 +106,47 @@ const ExpensePlansTable: React.FC<ExpensePlansTableProps> = (props) => {
     sorting,
     updateSorting,
     pageSize,
-    setPageSize,
-  } = props;
+    setPageSize
+  } = props
 
   // Reset page to 1 when filter changes (fixes pagination issue when switching filters)
-  const prevFilterRef = useRef<ExpenseStatus[] | null>(null);
+  const prevFilterRef = useRef<ExpenseStatus[] | null>(null)
   useEffect(() => {
-    const currentFilterStr = JSON.stringify(currentStatusFilter);
-    const prevFilterStr = JSON.stringify(prevFilterRef.current);
+    const currentFilterStr = JSON.stringify(currentStatusFilter)
+    const prevFilterStr = JSON.stringify(prevFilterRef.current)
 
     // Only reset page if filter actually changed (not on initial render)
     if (prevFilterRef.current !== null && currentFilterStr !== prevFilterStr) {
-      setCurrentPage(1);
+      setCurrentPage(1)
     }
 
     // Update the ref with current filter
-    prevFilterRef.current = currentStatusFilter;
-  }, [currentStatusFilter, setCurrentPage]);
+    prevFilterRef.current = currentStatusFilter
+  }, [currentStatusFilter, setCurrentPage])
 
   // Handle selecting an item for details view
   const handleSelectItem = useCallback((item: ExpensePlan) => {
-    setSelectedItem(item);
-  }, []);
+    setSelectedItem(item)
+  }, [])
 
   // Handle closing details
   const handleCloseDetails = useCallback(() => {
-    setSelectedItem(null);
-  }, []);
+    setSelectedItem(null)
+  }, [])
 
   // Handle viewing details for a plan
   const handleViewDetails = useCallback((plan: ExpensePlan) => {
-    const url = buildPlatformUrl("/platform/fin/expenses/expense-plan-record", {
-      expensePlanId: plan.id,
-    });
-    navigateTo(url);
-  }, []);
+    const url = buildPlatformUrl('/platform/fin/expenses/expense-plan-record', {
+      expensePlanId: plan.id
+    })
+    navigateTo(url)
+  }, [])
 
   // Handle printing a plan
   const handlePrintPlan = useCallback(
     async (plan: ExpensePlan) => {
-      setPrintLoading(true);
-      setPrintModalOpen(true);
+      setPrintLoading(true)
+      setPrintModalOpen(true)
 
       try {
         // Map manager-expenses ExpensePlan to personal-expenses format
@@ -169,73 +166,73 @@ const ExpensePlansTable: React.FC<ExpensePlansTableProps> = (props) => {
           currencyRef: `Currency:v1:${plan.currency}`,
           expenseRequest: [],
           currency: { value: plan.currency, label: plan.currency } as any,
-          description: plan.description || "",
+          description: plan.description || '',
           employee: {
             ...plan.employee,
             code: plan.employee.id,
-            firstName: plan.employee.displayName?.split(" ")[0] || "",
-            lastName: plan.employee.displayName?.split(" ").slice(1).join(" ") || "",
-          },
-        };
+            firstName: plan.employee.displayName?.split(' ')[0] || '',
+            lastName: plan.employee.displayName?.split(' ').slice(1).join(' ') || ''
+          }
+        }
 
-        const result = await printExpensePlan(mappedPlan);
+        const result = await printExpensePlan(mappedPlan)
 
         if (result.success && result.pdfUrl && isMounted.current) {
-          setPrintPdfUrl(result.pdfUrl);
+          setPrintPdfUrl(result.pdfUrl)
         } else if (!result.success) {
-          console.error("[Print Error]", result.error);
+          console.error('[Print Error]', result.error)
         }
       } catch (error) {
-        console.error("[Print Exception]", error);
+        console.error('[Print Exception]', error)
       } finally {
         if (isMounted.current) {
-          setPrintLoading(false);
+          setPrintLoading(false)
         }
       }
     },
-    [printExpensePlan, isMounted],
-  );
+    [printExpensePlan, isMounted]
+  )
 
   // Pagination handlers - used directly in the component
   const handlePageChange = useCallback(
     (page: number) => {
-      setCurrentPage(page);
+      setCurrentPage(page)
     },
-    [setCurrentPage],
-  );
+    [setCurrentPage]
+  )
 
   // Sorting handler
   const handleSort = useCallback(
     (field: SortField) => {
-      updateSorting(field);
+      updateSorting(field)
     },
-    [updateSorting],
-  );
+    [updateSorting]
+  )
 
   // Render sort indicator
   const renderSortIndicator = useCallback(
     (field: SortField) => {
       if (sorting.lastField === field && sorting.order !== null) {
-        return sorting.order === "ASC" ? (
+        return sorting.order === 'ASC' ? (
           <PiArrowUp className="gba:inline gba:ml-1" size={12} />
         ) : (
           <PiArrowDown className="gba:inline gba:ml-1" size={12} />
-        );
+        )
       }
-      return null;
+      return null
     },
-    [sorting],
-  );
+    [sorting]
+  )
 
   // Handle page size changes in the pagination controls
   const handlePageSizeChange = useCallback(
     (event: React.ChangeEvent<HTMLSelectElement>) => {
-      const size = parseInt(event.target.value, 10);
-      setPageSize(size);
-      setCurrentPage(1); // Reset to first page when changing page size
+      const size = parseInt(event.target.value, 10)
+      setPageSize(size)
+      setCurrentPage(1) // Reset to first page when changing page size
     },
-    [setPageSize, setCurrentPage],
-  );
+    [setPageSize, setCurrentPage]
+  )
 
   // Show error state
   if (error) {
@@ -253,7 +250,7 @@ const ExpensePlansTable: React.FC<ExpensePlansTableProps> = (props) => {
           Retry
         </Button>
       </div>
-    );
+    )
   }
 
   // Show loading state
@@ -262,7 +259,7 @@ const ExpensePlansTable: React.FC<ExpensePlansTableProps> = (props) => {
       <div className="gba:flex gba:justify-center gba:p-8" data-testid="expense-plans-loading">
         <Spinner />
       </div>
-    );
+    )
   }
 
   // Show empty state
@@ -271,12 +268,12 @@ const ExpensePlansTable: React.FC<ExpensePlansTableProps> = (props) => {
       <div className="gba:flex gba:flex-col gba:items-center gba:justify-center gba:p-8 gba:text-center">
         <div className="gba:text-muted-foreground gba:text-lg gba:font-medium gba:mb-2">
           {getTranslationFromI18nKeyAndLabel(
-            "lowcoder:create_expense_request.no_plans_found_search",
-            "No expense plans found",
+            'lowcoder:create_expense_request.no_plans_found_search',
+            'No expense plans found'
           )}
         </div>
       </div>
-    );
+    )
   }
 
   return (
@@ -294,165 +291,153 @@ const ExpensePlansTable: React.FC<ExpensePlansTableProps> = (props) => {
                 ></TableHead>
                 <TableHead
                   className="gba:w-[18%] gba:cursor-pointer gba:select-none gba:bg-muted gba:font-semibold"
-                  onClick={() => handleSort("title")}
+                  onClick={() => handleSort('title')}
                   data-testid={`${DATA_TEST_ID_PREFIX}-title-header`}
                 >
                   <div className="gba:flex gba:items-center">
-                    {getTranslationFromI18nKeyAndLabel(
-                      "lowcoder:expense_item_list.expense_table.title",
-                      "Title",
-                    )}
-                    {renderSortIndicator("title")}
+                    {getTranslationFromI18nKeyAndLabel('lowcoder:expense_item_list.expense_table.title', 'Title')}
+                    {renderSortIndicator('title')}
                   </div>
                 </TableHead>
                 <TableHead className="gba:w-[10%] gba:bg-muted gba:font-semibold">
                   {getTranslationFromI18nKeyAndLabel(
-                    "lowcoder:expense_request_list.expense_request_filter.request_number_input",
-                    "Request Code",
+                    'lowcoder:expense_request_list.expense_request_filter.request_number_input',
+                    'Request Code'
                   )}
                 </TableHead>
                 <TableHead
                   className="gba:w-[8%] gba:cursor-pointer gba:select-none gba:bg-muted gba:font-semibold"
-                  onClick={() => handleSort("startDate")}
+                  onClick={() => handleSort('startDate')}
                   data-testid={`${DATA_TEST_ID_PREFIX}-start-date-header`}
                 >
                   <div className="gba:flex gba:items-center">
-                    {getTranslationFromI18nKeyAndLabel(
-                      "lowcoder:personal_expenses.start_date",
-                      "Start Date",
-                    )}
-                    {renderSortIndicator("startDate")}
+                    {getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.start_date', 'Start Date')}
+                    {renderSortIndicator('startDate')}
                   </div>
                 </TableHead>
                 <TableHead
                   className="gba:w-[8%] gba:cursor-pointer gba:select-none gba:bg-muted gba:font-semibold"
-                  onClick={() => handleSort("endDate")}
+                  onClick={() => handleSort('endDate')}
                   data-testid={`${DATA_TEST_ID_PREFIX}-end-date-header`}
                 >
                   <div className="gba:flex gba:items-center">
-                    {getTranslationFromI18nKeyAndLabel(
-                      "lowcoder:personal_expenses.end_date",
-                      "End Date",
-                    )}
+                    {getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.end_date', 'End Date')}
 
-                    {renderSortIndicator("endDate")}
+                    {renderSortIndicator('endDate')}
                   </div>
                 </TableHead>
                 <TableHead
                   className="gba:w-[20%] gba:cursor-pointer gba:select-none gba:bg-muted gba:font-semibold"
-                  onClick={() => handleSort("employee.fullName")}
+                  onClick={() => handleSort('employee.fullName')}
                   data-testid={`${DATA_TEST_ID_PREFIX}-employee-header`}
                 >
                   <div className="gba:flex gba:items-center">
-                    {getTranslationFromI18nKeyAndLabel(
-                      "lowcoder:hr_absences.create_absence.employee",
-                      "Employee",
-                    )}
-                    {renderSortIndicator("employee.fullName")}
+                    {getTranslationFromI18nKeyAndLabel('lowcoder:hr_absences.create_absence.employee', 'Employee')}
+                    {renderSortIndicator('employee.fullName')}
                   </div>
                 </TableHead>
                 <TableHead
                   className="gba:w-[8%] gba:cursor-pointer gba:select-none gba:bg-muted gba:font-semibold"
-                  onClick={() => handleSort("createdAt")}
+                  onClick={() => handleSort('createdAt')}
                   data-testid={`${DATA_TEST_ID_PREFIX}-creation-date-header`}
                 >
                   <div className="gba:flex gba:items-center">
                     {getTranslationFromI18nKeyAndLabel(
-                      "lowcoder:manager_expense_request_list.expense_table.creation_date",
-                      "Creation Date",
+                      'lowcoder:manager_expense_request_list.expense_table.creation_date',
+                      'Creation Date'
                     )}
-                    {renderSortIndicator("createdAt")}
+                    {renderSortIndicator('createdAt')}
                   </div>
                 </TableHead>
                 <TableHead
                   className="gba:w-[12%] gba:cursor-pointer gba:select-none gba:bg-muted gba:font-semibold"
-                  onClick={() => handleSort("totalAmount")}
+                  onClick={() => handleSort('totalAmount')}
                   data-testid={`${DATA_TEST_ID_PREFIX}-amount-header`}
                 >
                   <div className="gba:flex gba:items-center gba:justify-start">
-                    {getTranslationFromI18nKeyAndLabel("lowcoder:sales_hub.amount", "Amount")}
-                    {renderSortIndicator("totalAmount")}
+                    {getTranslationFromI18nKeyAndLabel('lowcoder:sales_hub.amount', 'Amount')}
+                    {renderSortIndicator('totalAmount')}
                   </div>
                 </TableHead>
                 <TableHead
                   className="gba:w-[20%] gba:cursor-pointer gba:select-none gba:bg-muted gba:font-semibold gba:pr-6"
-                  onClick={() => handleSort("status")}
+                  onClick={() => handleSort('status')}
                   data-testid={`${DATA_TEST_ID_PREFIX}-status-header`}
                 >
                   <div className="gba:flex gba:items-center">
                     {getTranslationFromI18nKeyAndLabel(
-                      "lowcoder:expense_request_list.expense_plan_table.status",
-                      "Status",
+                      'lowcoder:expense_request_list.expense_plan_table.status',
+                      'Status'
                     )}
-                    {renderSortIndicator("status")}
+                    {renderSortIndicator('status')}
                   </div>
                 </TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {expensePlans.map((plan: ExpensePlan) => {
-                const display = getExpensePlanStatusDisplay(plan.status as ExpenseStatus);
+                const display = getExpensePlanStatusDisplay(plan.status as ExpenseStatus)
                 return (
                   <TableRow
                     key={plan.id}
                     data-testid={`${DATA_TEST_ID_PREFIX}-row-${plan.id}`}
                     className={`gba:cursor-pointer gba:hover:bg-accent gba:transition-colors ${
-                      selectedItem?.id === plan.id ? "gba:bg-accent/50" : ""
+                      selectedItem?.id === plan.id ? 'gba:bg-accent/50' : ''
                     }`}
                     onClick={() => handleSelectItem(plan)}
                   >
-                    <TableCell 
-                      className="gba:w-[60px] gba:min-w-[60px] gba:max-w-[60px] gba:box-border gba:py-3 gba:px-4" 
+                    <TableCell
+                      className="gba:w-[60px] gba:min-w-[60px] gba:max-w-[60px] gba:box-border gba:py-3 gba:px-4"
                       data-testid={`${DATA_TEST_ID_PREFIX}-actions-cell-${plan.id}`}
-                      onClick={(e) => e.stopPropagation()}
+                      onClick={e => e.stopPropagation()}
                     >
                       <div className="gba:flex gba:justify-start gba:gap-2">
                         <AppActionButton
-                          onClick={(e) => e.stopPropagation()}
+                          onClick={e => e.stopPropagation()}
                           data-testid={`${DATA_TEST_ID_PREFIX}-update-expense-plan-button-${plan.id}`}
                           size="icon"
                           staticFlowData={[
                             // Print action - only available for finalized plans with documents
-                            ...((plan.status === "APPROVED" ||
-                              plan.status === "VERIFIED" ||
-                              plan.status === "BOOKED" ||
-                              plan.status === "TRANSFERRED" ||
-                              plan.status === "PAID") &&
+                            ...((plan.status === 'APPROVED' ||
+                              plan.status === 'VERIFIED' ||
+                              plan.status === 'BOOKED' ||
+                              plan.status === 'TRANSFERRED' ||
+                              plan.status === 'PAID') &&
                             plan.employeeDocument?.file?.trim()
                               ? [
                                   {
                                     category: getTranslationFromI18nKeyAndLabel(
-                                      "lowcoder:employee_list.flows_button.actions",
-                                      "Actions",
+                                      'lowcoder:employee_list.flows_button.actions',
+                                      'Actions'
                                     ),
-                                    key: "print",
+                                    key: 'print',
                                     label: getTranslationFromI18nKeyAndLabel(
-                                      "lowcoder:expense_plan_list.expense_plan_flows.print",
-                                      "Print",
+                                      'lowcoder:expense_plan_list.expense_plan_flows.print',
+                                      'Print'
                                     ),
                                     onClick: (e?: React.MouseEvent) => {
-                                      e?.stopPropagation();
-                                      handlePrintPlan(plan);
-                                    },
-                                  },
+                                      e?.stopPropagation()
+                                      handlePrintPlan(plan)
+                                    }
+                                  }
                                 ]
                               : []),
                             // View Plan Details - always available
                             {
                               category: getTranslationFromI18nKeyAndLabel(
-                                "lowcoder:employee_list.flows_button.navigations",
-                                "Navigations",
+                                'lowcoder:employee_list.flows_button.navigations',
+                                'Navigations'
                               ),
-                              key: "view-plan-details",
+                              key: 'view-plan-details',
                               label: getTranslationFromI18nKeyAndLabel(
-                                "lowcoder:expense_plan_list.expense_plan_flows.view_plan_details",
-                                "View Plan Details",
+                                'lowcoder:expense_plan_list.expense_plan_flows.view_plan_details',
+                                'View Plan Details'
                               ),
                               onClick: (e?: React.MouseEvent) => {
-                                e?.stopPropagation();
-                                handleViewDetails(plan);
-                              },
-                            },
+                                e?.stopPropagation()
+                                handleViewDetails(plan)
+                              }
+                            }
                           ]}
                           prefixDataTestId={`${DATA_TEST_ID_PREFIX}-update-expense-plan`}
                           accessToken={contextProps.accessToken}
@@ -464,23 +449,24 @@ const ExpensePlansTable: React.FC<ExpensePlansTableProps> = (props) => {
                     <TableCell className="gba:text-left gba:py-3 gba:px-4 gba:w-[18%]">
                       <div className="gba:font-medium gba:text-sm gba:whitespace-nowrap gba:truncate">{plan.title}</div>
                       <div className="gba:text-xs gba:text-muted-foreground gba:whitespace-nowrap gba:truncate">
-                        {plan.code || getTranslationFromI18nKeyAndLabel("lowcoder:common.not_available","N/A")}
+                        {plan.code || getTranslationFromI18nKeyAndLabel('lowcoder:common.not_available', 'N/A')}
                       </div>
                     </TableCell>
                     <TableCell className="gba:w-[10%] gba:py-4 gba:px-3 gba:text-sm">
                       {Array.isArray(plan.expenseRequest) && plan.expenseRequest.length > 0
-                        ? (plan.expenseRequest[0]?.code || getTranslationFromI18nKeyAndLabel("lowcoder:common.not_available","N/A"))
-                        : getTranslationFromI18nKeyAndLabel("lowcoder:common.not_available","N/A")}
+                        ? plan.expenseRequest[0]?.code ||
+                          getTranslationFromI18nKeyAndLabel('lowcoder:common.not_available', 'N/A')
+                        : getTranslationFromI18nKeyAndLabel('lowcoder:common.not_available', 'N/A')}
                     </TableCell>
                     <TableCell className="gba:text-sm gba:py-3 gba:px-4">
                       {plan.startDate
                         ? ensureShortDateFormat(plan.startDate)
-                        : getTranslationFromI18nKeyAndLabel("lowcoder:common.not_available","N/A")}
+                        : getTranslationFromI18nKeyAndLabel('lowcoder:common.not_available', 'N/A')}
                     </TableCell>
                     <TableCell className="gba:text-sm gba:py-3 gba:px-4">
                       {plan.endDate
                         ? ensureShortDateFormat(plan.endDate)
-                        : getTranslationFromI18nKeyAndLabel("lowcoder:common.not_available","N/A")}
+                        : getTranslationFromI18nKeyAndLabel('lowcoder:common.not_available', 'N/A')}
                     </TableCell>
                     <TableCell>
                       <div className="gba:flex gba:items-center gba:gap-2">
@@ -493,31 +479,21 @@ const ExpensePlansTable: React.FC<ExpensePlansTableProps> = (props) => {
                             }
                             alt={plan.employee?.fullName}
                           />
-                          <AvatarFallback>
-                            {plan.employee?.displayName?.charAt(0) || "U"}
-                          </AvatarFallback>
+                          <AvatarFallback>{plan.employee?.displayName?.charAt(0) || 'U'}</AvatarFallback>
                         </Avatar>
-                        <span className="gba:font-medium gba:text-sm">
-                          {plan.employee?.displayName}
-                        </span>
+                        <span className="gba:font-medium gba:text-sm">{plan.employee?.displayName}</span>
                       </div>
                     </TableCell>
                     <TableCell className="gba:text-sm gba:py-3 gba:px-4">
                       {plan.createdAt
                         ? ensureShortDateFormat(plan.createdAt)
-                        : getTranslationFromI18nKeyAndLabel("lowcoder:common.not_available","N/A")}
+                        : getTranslationFromI18nKeyAndLabel('lowcoder:common.not_available', 'N/A')}
                     </TableCell>
                     <TableCell className="gba:text-right">
                       <span className="gba:font-medium gba:text-sm">
-                        {typeof plan.totalAmount === "number"
-                          ? formatCurrencyDisplay(
-                              plan.totalAmount,
-                              currentCurrencyFilter || plan.currency || "EUR",
-                            )
-                          : formatCurrencyDisplay(
-                              0,
-                              currentCurrencyFilter || plan.currency || "EUR",
-                            )}
+                        {typeof plan.totalAmount === 'number'
+                          ? formatCurrencyDisplay(plan.totalAmount, currentCurrencyFilter || plan.currency || 'EUR')
+                          : formatCurrencyDisplay(0, currentCurrencyFilter || plan.currency || 'EUR')}
                       </span>
                     </TableCell>
                     <TableCell className="gba:pr-6 gba:w-[20%]">
@@ -531,7 +507,7 @@ const ExpensePlansTable: React.FC<ExpensePlansTableProps> = (props) => {
                       </span>
                     </TableCell>
                   </TableRow>
-                );
+                )
               })}
             </TableBody>
           </Table>
@@ -549,16 +525,13 @@ const ExpensePlansTable: React.FC<ExpensePlansTableProps> = (props) => {
             >
               {`${(currentPage - 1) * pageSize + 1}-${Math.min(
                 currentPage * pageSize,
-                totalCount,
-              )} ${getTranslationFromI18nKeyAndLabel("lowcoder:personal_expenses.of", "of")} ${totalCount} ${getTranslationFromI18nKeyAndLabel("lowcoder:team_expenses_page.expense_plans_tab.footer_expense_plans", "expense plans")} `}
+                totalCount
+              )} ${getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.of', 'of')} ${totalCount} ${getTranslationFromI18nKeyAndLabel('lowcoder:team_expenses_page.expense_plans_tab.footer_expense_plans', 'expense plans')} `}
             </div>
             <div className="gba:flex gba:items-center gba:space-x-6 gba:lg:space-x-8">
               <div className="gba:flex gba:items-center gba:space-x-2">
                 <p className="gba:text-sm gba:font-medium">
-                  {getTranslationFromI18nKeyAndLabel(
-                    "lowcoder:personal_expenses.rows_per_page",
-                    "Rows per page",
-                  )}
+                  {getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.rows_per_page', 'Rows per page')}
                 </p>
                 <select
                   className="gba:h-8 gba:w-[70px] gba:rounded gba:border gba:border-input gba:px-3 gba:py-1 gba:text-sm"
@@ -576,9 +549,8 @@ const ExpensePlansTable: React.FC<ExpensePlansTableProps> = (props) => {
                 className="gba:flex gba:w-[100px] gba:items-center gba:justify-center gba:text-sm gba:font-medium"
                 data-testid={`${DATA_TEST_ID_PREFIX}-page-info`}
               >
-                {getTranslationFromI18nKeyAndLabel("lowcoder:personal_expenses.page", "Page")}{" "}
-                {currentPage}{" "}
-                {getTranslationFromI18nKeyAndLabel("lowcoder:personal_expenses.of", "of")}{" "}
+                {getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.page', 'Page')} {currentPage}{' '}
+                {getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.of', 'of')}{' '}
                 {Math.ceil(totalCount / pageSize)}
               </div>
               <div className="gba:flex gba:items-center gba:space-x-2">
@@ -629,18 +601,16 @@ const ExpensePlansTable: React.FC<ExpensePlansTableProps> = (props) => {
       {/* Print Dialog */}
       <Dialog
         open={printModalOpen}
-        onOpenChange={(open) => {
+        onOpenChange={open => {
           if (!open) {
-            setPrintModalOpen(false);
-            setPrintPdfUrl("");
+            setPrintModalOpen(false)
+            setPrintPdfUrl('')
           }
         }}
       >
         <DialogContent className="gba:max-w-[90vw] gba:h-[90vh]" data-testid="print-plan-dialog">
           <DialogHeader>
-            <DialogTitle>
-              {getTranslationFromI18nKeyAndLabel("lowcoder:print.title", "Print Expense Plan")}
-            </DialogTitle>
+            <DialogTitle>{getTranslationFromI18nKeyAndLabel('lowcoder:print.title', 'Print Expense Plan')}</DialogTitle>
           </DialogHeader>
           {(() => {
             if (printLoading) {
@@ -648,31 +618,34 @@ const ExpensePlansTable: React.FC<ExpensePlansTableProps> = (props) => {
                 <div className="gba:flex gba:justify-center gba:items-center gba:py-8">
                   <Spinner />
                 </div>
-              );
+              )
             }
             if (printPdfUrl) {
               return (
                 <iframe
                   src={printPdfUrl}
                   className="gba:w-full gba:h-full gba:border-0"
-                  title={getTranslationFromI18nKeyAndLabel("lowcoder:print.preview_title","Print Preview")}
+                  title={getTranslationFromI18nKeyAndLabel('lowcoder:print.preview_title', 'Print Preview')}
                   data-testid="print-plan-iframe"
                 />
-              );
+              )
             }
             return (
               <div className="gba:flex gba:flex-col gba:items-center gba:justify-center gba:py-8 gba:text-center">
                 <div className="gba:text-muted-foreground gba:mb-4">
-                  {getTranslationFromI18nKeyAndLabel("lowcoder:print.no_document","No document available for printing")}
+                  {getTranslationFromI18nKeyAndLabel(
+                    'lowcoder:print.no_document',
+                    'No document available for printing'
+                  )}
                 </div>
                 <div className="gba:text-sm gba:text-muted-foreground">
                   {getTranslationFromI18nKeyAndLabel(
-                    "lowcoder:print.no_document_details",
-                    "This expense plan does not have an associated document to print."
+                    'lowcoder:print.no_document_details',
+                    'This expense plan does not have an associated document to print.'
                   )}
                 </div>
               </div>
-            );
+            )
           })()}
         </DialogContent>
       </Dialog>
@@ -680,12 +653,12 @@ const ExpensePlansTable: React.FC<ExpensePlansTableProps> = (props) => {
       {/* Expense Plan Details Sheet - title is required by DS Sheet props */}
       <Sheet
         open={!!selectedItem}
-        onOpenChange={(open) => !open && handleCloseDetails()}
+        onOpenChange={open => !open && handleCloseDetails()}
         title={
           selectedItem?.title ||
           getTranslationFromI18nKeyAndLabel(
-            "lowcoder:approve_expense_plan.expense_subtitle_details",
-            "Expense Plan Details",
+            'lowcoder:approve_expense_plan.expense_subtitle_details',
+            'Expense Plan Details'
           )
         }
       >
@@ -694,8 +667,8 @@ const ExpensePlansTable: React.FC<ExpensePlansTableProps> = (props) => {
             <SheetTitle className="gba:text-xl gba:font-semibold gba:text-gray-900">
               {selectedItem?.title ||
                 getTranslationFromI18nKeyAndLabel(
-                  "lowcoder:approve_expense_plan.expense_subtitle_details",
-                  "Expense Plan Details",
+                  'lowcoder:approve_expense_plan.expense_subtitle_details',
+                  'Expense Plan Details'
                 )}
             </SheetTitle>
           </SheetHeader>
@@ -712,8 +685,8 @@ const ExpensePlansTable: React.FC<ExpensePlansTableProps> = (props) => {
         </SheetContent>
       </Sheet>
     </div>
-  );
-};
+  )
+}
 
 // Memoize component to prevent unnecessary re-renders
-export default React.memo(ExpensePlansTable);
+export default React.memo(ExpensePlansTable)

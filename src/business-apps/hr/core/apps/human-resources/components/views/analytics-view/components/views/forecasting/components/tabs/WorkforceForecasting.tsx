@@ -1,56 +1,56 @@
-import React, { useMemo } from 'react';
-import { Typography } from 'antd';
-import { SectionKpiCards, KpiCardData } from '@newwork/nw-design-system';
-import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
-import { BusinessAppContextProps } from '@/common/BusinessAppContext';
-import { WorkingConditionKpi } from '../../../../../hooks/useWorkingConditionForecast';
-import { useWorkingConditionForecast } from '../../../../../hooks/useWorkingConditionForecast';
-import { useQueryExecutionClient, QueryType, Services } from '@/common/network/dataset';
-import { useState, useEffect, useCallback } from 'react';
-import HeadcountChangesChart from '../HeadcountChangesChart';
+import React, { useMemo } from 'react'
+import { Typography } from 'antd'
+import { SectionKpiCards, KpiCardData } from '@newwork/nw-design-system'
+import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
+import { BusinessAppContextProps } from '@/common/BusinessAppContext'
+import { WorkingConditionKpi } from '../../../../../hooks/useWorkingConditionForecast'
+import { useWorkingConditionForecast } from '../../../../../hooks/useWorkingConditionForecast'
+import { useQueryExecutionClient, QueryType, Services } from '@/common/network/dataset'
+import { useState, useEffect, useCallback } from 'react'
+import HeadcountChangesChart from '../HeadcountChangesChart'
 
-const { Title, Text } = Typography;
+const { Title, Text } = Typography
 
 interface WorkforceForecastingProps extends BusinessAppContextProps {
-  prefixDataTestId?: string;
+  prefixDataTestId?: string
 }
 
-export const WorkforceForecasting: React.FC<WorkforceForecastingProps> = (props) => {
-  const { prefixDataTestId = 'WorkforceForecasting' } = props;
-  const kpiData = useWorkingConditionForecast(props);
-  
+export const WorkforceForecasting: React.FC<WorkforceForecastingProps> = props => {
+  const { prefixDataTestId = 'WorkforceForecasting' } = props
+  const kpiData = useWorkingConditionForecast(props)
+
   // Add authoritative employee count hook
-  const [totalEmployeeCount, setTotalEmployeeCount] = useState<number>(0);
-  const [isLoadingEmployeeCount, setIsLoadingEmployeeCount] = useState(true);
-  const queryClient = useQueryExecutionClient(props.accessToken, Services.EMPLOYEE);
+  const [totalEmployeeCount, setTotalEmployeeCount] = useState<number>(0)
+  const [isLoadingEmployeeCount, setIsLoadingEmployeeCount] = useState(true)
+  const queryClient = useQueryExecutionClient(props.accessToken, Services.EMPLOYEE)
 
   const loadTotalEmployeeCount = useCallback(async () => {
-    if (!props.accessToken) return;
-    
-    setIsLoadingEmployeeCount(true);
+    if (!props.accessToken) return
+
+    setIsLoadingEmployeeCount(true)
     try {
       // Use the same authoritative source as Demographics and Workforce views
-      const totalEmployeeData = await queryClient.executeQuery('totalEmployeeCount', QueryType.DATASET, {});
-      const count = totalEmployeeData.data.length > 0 ? totalEmployeeData.data[0].value : 0;
-      setTotalEmployeeCount(count);
+      const totalEmployeeData = await queryClient.executeQuery('totalEmployeeCount', QueryType.DATASET, {})
+      const count = totalEmployeeData.data.length > 0 ? totalEmployeeData.data[0].value : 0
+      setTotalEmployeeCount(count)
     } catch (error) {
-      console.error('Error fetching total employee count:', error);
-      setTotalEmployeeCount(0);
+      console.error('Error fetching total employee count:', error)
+      setTotalEmployeeCount(0)
     } finally {
-      setIsLoadingEmployeeCount(false);
+      setIsLoadingEmployeeCount(false)
     }
-  }, [queryClient, props.accessToken]);
+  }, [queryClient, props.accessToken])
 
   useEffect(() => {
     if (props.accessToken) {
-      loadTotalEmployeeCount();
+      loadTotalEmployeeCount()
     }
-  }, [props.accessToken, loadTotalEmployeeCount]);
+  }, [props.accessToken, loadTotalEmployeeCount])
 
   // Calculate Workforce-related KPI metrics
   const workforceKpiCards: KpiCardData[] = useMemo(() => {
-    const { loading, data } = kpiData;
-    const employees: WorkingConditionKpi[] = data as WorkingConditionKpi[];
+    const { loading, data } = kpiData
+    const employees: WorkingConditionKpi[] = data as WorkingConditionKpi[]
 
     if (loading || isLoadingEmployeeCount) {
       return [
@@ -96,31 +96,27 @@ export const WorkforceForecasting: React.FC<WorkforceForecastingProps> = (props)
           icon: 'calendar',
           iconColor: '#13c2c2'
         }
-      ];
+      ]
     }
 
     // Calculate metrics using working condition data for hire/departure calculations
-    const today = new Date();
-    const startOfYear = new Date(today.getFullYear(), 0, 1);
-    
-    const ytdHires = employees.filter(wc =>
-      wc.hireDate &&
-      new Date(wc.hireDate) >= startOfYear &&
-      new Date(wc.hireDate) <= today
-    ).length;
-    
-    const ytdDepartures = employees.filter(wc =>
-      wc.exitDate &&
-      new Date(wc.exitDate) >= startOfYear &&
-      new Date(wc.exitDate) <= today
-    ).length;
+    const today = new Date()
+    const startOfYear = new Date(today.getFullYear(), 0, 1)
 
-    const netChange = ytdHires - ytdDepartures;
-    
+    const ytdHires = employees.filter(
+      wc => wc.hireDate && new Date(wc.hireDate) >= startOfYear && new Date(wc.hireDate) <= today
+    ).length
+
+    const ytdDepartures = employees.filter(
+      wc => wc.exitDate && new Date(wc.exitDate) >= startOfYear && new Date(wc.exitDate) <= today
+    ).length
+
+    const netChange = ytdHires - ytdDepartures
+
     // Use authoritative total employee count for headcount and calculations
-    const headcount = totalEmployeeCount;
-    const turnoverRate = headcount > 0 ? (ytdDepartures / headcount) * 100 : 0;
-    const growthRate = headcount > 0 ? (netChange / headcount) * 100 : 0;
+    const headcount = totalEmployeeCount
+    const turnoverRate = headcount > 0 ? (ytdDepartures / headcount) * 100 : 0
+    const growthRate = headcount > 0 ? (netChange / headcount) * 100 : 0
 
     return [
       {
@@ -171,14 +167,11 @@ export const WorkforceForecasting: React.FC<WorkforceForecastingProps> = (props)
         iconColor: growthRate >= 0 ? '#52c41a' : '#ff4d4f',
         footer: 'Year-to-date growth'
       }
-    ];
-  }, [kpiData, isLoadingEmployeeCount, totalEmployeeCount]);
+    ]
+  }, [kpiData, isLoadingEmployeeCount, totalEmployeeCount])
 
   return (
-    <div 
-      data-testid={prefixDataTestId}
-      className="gba:flex gba:flex-col gba:gap-6"
-    >
+    <div data-testid={prefixDataTestId} className="gba:flex gba:flex-col gba:gap-6">
       {/* Header */}
       <div className="gba:flex gba:justify-between gba:items-center">
         <div>
@@ -186,7 +179,10 @@ export const WorkforceForecasting: React.FC<WorkforceForecastingProps> = (props)
             {getTranslationFromI18nKeyAndLabel('hr_analytics_workforce_forecasting', 'Workforce Forecasting')}
           </Title>
           <Text className="gba:text-gray-600">
-            {getTranslationFromI18nKeyAndLabel('hr_analytics_workforce_forecasting_description', 'Headcount trends, hiring projections, and workforce analytics')}
+            {getTranslationFromI18nKeyAndLabel(
+              'hr_analytics_workforce_forecasting_description',
+              'Headcount trends, hiring projections, and workforce analytics'
+            )}
           </Text>
         </div>
       </div>
@@ -202,7 +198,7 @@ export const WorkforceForecasting: React.FC<WorkforceForecastingProps> = (props)
         {/* Future workforce-related charts can be added here */}
       </div>
     </div>
-  );
-};
+  )
+}
 
-export default WorkforceForecasting; 
+export default WorkforceForecasting

@@ -148,4 +148,4 @@ export const GET_EXPENSE_REQUEST_FOR_APPROVAL = `
       }
     }
   }
-`; 
+`

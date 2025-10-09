@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState } from 'react'
 import {
   Card,
   Button,
@@ -20,25 +20,17 @@ import {
   FormControl,
   FormMessage,
   Badge
-} from '@newwork/nw-design-system';
-import {
-  User,
-  CheckCircle,
-  XCircle,
-  MessageSquare,
-  FileText,
-  PlayCircle,
-  ExternalLink
-} from 'lucide-react';
-import { useForm } from 'react-hook-form';
+} from '@newwork/nw-design-system'
+import { User, CheckCircle, XCircle, MessageSquare, FileText, PlayCircle, ExternalLink } from 'lucide-react'
+import { useForm } from 'react-hook-form'
 
 interface StepSimulationFormProps {
-  step: any;
-  stepIndex: number;
-  simulationMode: boolean;
-  userPerspective: string;
-  onStepComplete: (stepIndex: number, data: any) => void;
-  'data-testid'?: string;
+  step: any
+  stepIndex: number
+  simulationMode: boolean
+  userPerspective: string
+  onStepComplete: (stepIndex: number, data: any) => void
+  'data-testid'?: string
 }
 
 export const StepSimulationForm: React.FC<StepSimulationFormProps> = ({
@@ -49,46 +41,46 @@ export const StepSimulationForm: React.FC<StepSimulationFormProps> = ({
   onStepComplete,
   'data-testid': testId = 'step-simulation-form'
 }) => {
-  const [isSimulating, setIsSimulating] = useState(false);
-  const [simulationResult, setSimulationResult] = useState<'APPROVED' | 'REJECTED' | 'COMPLETED' | null>(null);
-  
+  const [isSimulating, setIsSimulating] = useState(false)
+  const [simulationResult, setSimulationResult] = useState<'APPROVED' | 'REJECTED' | 'COMPLETED' | null>(null)
+
   const form = useForm<Record<string, any>>({
     defaultValues: {}
-  });
+  })
 
   const getStepTypeIcon = (stepType: string) => {
     switch (stepType) {
       case 'TASK':
-        return <User className="gba:w-4 gba:h-4" />;
+        return <User className="gba:w-4 gba:h-4" />
       case 'APPROVAL':
-        return <CheckCircle className="gba:w-4 gba:h-4" />;
+        return <CheckCircle className="gba:w-4 gba:h-4" />
       case 'INFORMATION':
-        return <MessageSquare className="gba:w-4 gba:h-4" />;
+        return <MessageSquare className="gba:w-4 gba:h-4" />
       case 'ACKNOWLEDGE':
-        return <FileText className="gba:w-4 gba:h-4" />;
+        return <FileText className="gba:w-4 gba:h-4" />
       default:
-        return <PlayCircle className="gba:w-4 gba:h-4" />;
+        return <PlayCircle className="gba:w-4 gba:h-4" />
     }
-  };
+  }
 
   const getStepTypeColor = (stepType: string) => {
     switch (stepType) {
       case 'TASK':
-        return 'var(--color-primary-500)';
+        return 'var(--color-primary-500)'
       case 'APPROVAL':
-        return 'var(--color-warning-500)';
+        return 'var(--color-warning-500)'
       case 'INFORMATION':
-        return 'var(--color-info-500)';
+        return 'var(--color-info-500)'
       case 'ACKNOWLEDGE':
-        return 'var(--color-success-500)';
+        return 'var(--color-success-500)'
       default:
-        return 'var(--color-surface-disabled)';
+        return 'var(--color-surface-disabled)'
     }
-  };
+  }
 
   const renderInputField = (input: any, index: number) => {
-    const fieldName = input.name || `input_${index}`;
-    
+    const fieldName = input.name || `input_${index}`
+
     switch (input.type) {
       case 'TEXTAREA':
         return (
@@ -111,8 +103,8 @@ export const StepSimulationForm: React.FC<StepSimulationFormProps> = ({
               </FormItem>
             )}
           />
-        );
-        
+        )
+
       case 'SELECT':
         return (
           <FormField
@@ -130,10 +122,7 @@ export const StepSimulationForm: React.FC<StepSimulationFormProps> = ({
                   </FormControl>
                   <SelectContent>
                     {input.options?.map((option: any, optIndex: number) => (
-                      <SelectItem 
-                        key={optIndex} 
-                        value={typeof option === 'string' ? option : option.value}
-                      >
+                      <SelectItem key={optIndex} value={typeof option === 'string' ? option : option.value}>
                         {typeof option === 'string' ? option : option.label}
                       </SelectItem>
                     ))}
@@ -143,8 +132,8 @@ export const StepSimulationForm: React.FC<StepSimulationFormProps> = ({
               </FormItem>
             )}
           />
-        );
-        
+        )
+
       case 'CHECKBOX':
         if (input.options && input.options.length > 0) {
           return (
@@ -161,18 +150,16 @@ export const StepSimulationForm: React.FC<StepSimulationFormProps> = ({
                         <Checkbox
                           id={`${fieldName}-${optIndex}`}
                           checked={field.value?.includes(option.value) || false}
-                          onCheckedChange={(checked) => {
-                            const currentValue = field.value || [];
+                          onCheckedChange={checked => {
+                            const currentValue = field.value || []
                             if (checked) {
-                              field.onChange([...currentValue, option.value]);
+                              field.onChange([...currentValue, option.value])
                             } else {
-                              field.onChange(currentValue.filter((v: any) => v !== option.value));
+                              field.onChange(currentValue.filter((v: any) => v !== option.value))
                             }
                           }}
                         />
-                        <Label htmlFor={`${fieldName}-${optIndex}`}>
-                          {option.label}
-                        </Label>
+                        <Label htmlFor={`${fieldName}-${optIndex}`}>{option.label}</Label>
                       </div>
                     ))}
                   </div>
@@ -180,7 +167,7 @@ export const StepSimulationForm: React.FC<StepSimulationFormProps> = ({
                 </FormItem>
               )}
             />
-          );
+          )
         }
         return (
           <FormField
@@ -190,10 +177,7 @@ export const StepSimulationForm: React.FC<StepSimulationFormProps> = ({
             render={({ field }) => (
               <FormItem className="gba:flex gba:flex-row gba:items-start gba:space-x-3 gba:space-y-0">
                 <FormControl>
-                  <Checkbox
-                    checked={field.value || false}
-                    onCheckedChange={field.onChange}
-                  />
+                  <Checkbox checked={field.value || false} onCheckedChange={field.onChange} />
                 </FormControl>
                 <div className="gba:space-y-1 gba:leading-none">
                   <FormLabel>{input.label}</FormLabel>
@@ -201,8 +185,8 @@ export const StepSimulationForm: React.FC<StepSimulationFormProps> = ({
               </FormItem>
             )}
           />
-        );
-        
+        )
+
       case 'RADIO':
         return (
           <FormField
@@ -220,7 +204,7 @@ export const StepSimulationForm: React.FC<StepSimulationFormProps> = ({
                   >
                     {input.options?.map((option: any, optIndex: number) => (
                       <div key={optIndex} className="gba:flex gba:items-center gba:space-x-2">
-                        <RadioGroupItem 
+                        <RadioGroupItem
                           value={typeof option === 'string' ? option : option.value}
                           id={`${fieldName}-${optIndex}`}
                         />
@@ -235,7 +219,7 @@ export const StepSimulationForm: React.FC<StepSimulationFormProps> = ({
               </FormItem>
             )}
           />
-        );
+        )
 
       case 'DATE':
         return (
@@ -258,7 +242,7 @@ export const StepSimulationForm: React.FC<StepSimulationFormProps> = ({
               </FormItem>
             )}
           />
-        );
+        )
 
       case 'MULTISELECT':
         return (
@@ -275,12 +259,12 @@ export const StepSimulationForm: React.FC<StepSimulationFormProps> = ({
                       <Checkbox
                         id={`${fieldName}-${optIndex}`}
                         checked={field.value?.includes(option.value) || false}
-                        onCheckedChange={(checked) => {
-                          const currentValue = field.value || [];
+                        onCheckedChange={checked => {
+                          const currentValue = field.value || []
                           if (checked) {
-                            field.onChange([...currentValue, option.value]);
+                            field.onChange([...currentValue, option.value])
                           } else {
-                            field.onChange(currentValue.filter((v: any) => v !== option.value));
+                            field.onChange(currentValue.filter((v: any) => v !== option.value))
                           }
                         }}
                         data-testid={`${testId}-input-${index}-option-${optIndex}`}
@@ -295,8 +279,8 @@ export const StepSimulationForm: React.FC<StepSimulationFormProps> = ({
               </FormItem>
             )}
           />
-        );
-        
+        )
+
       case 'TEXT':
       default:
         return (
@@ -308,62 +292,57 @@ export const StepSimulationForm: React.FC<StepSimulationFormProps> = ({
               <FormItem>
                 <FormLabel>{input.label}</FormLabel>
                 <FormControl>
-                  <Input
-                    placeholder={input.placeholder}
-                    {...field}
-                    data-testid={`${testId}-input-${index}`}
-                  />
+                  <Input placeholder={input.placeholder} {...field} data-testid={`${testId}-input-${index}`} />
                 </FormControl>
                 <FormMessage />
               </FormItem>
             )}
           />
-        );
+        )
     }
-  };
+  }
 
   const handleSimulateStep = async (result: 'APPROVED' | 'REJECTED' | 'COMPLETED') => {
-    setIsSimulating(true);
-    setSimulationResult(result);
-    
+    setIsSimulating(true)
+    setSimulationResult(result)
+
     try {
       // Validate form if there are inputs
       if (step.form && step.form.length > 0) {
-        const isValid = await form.trigger();
+        const isValid = await form.trigger()
         if (!isValid) {
-          setIsSimulating(false);
-          setSimulationResult(null);
-          return;
+          setIsSimulating(false)
+          setSimulationResult(null)
+          return
         }
       }
-      
-      const formData = form.getValues();
-      
+
+      const formData = form.getValues()
+
       const simulationData = {
         stepIndex,
         formData,
         completedBy: userPerspective,
         completedAt: new Date().toISOString(),
         result
-      };
-      
+      }
+
       // Simulate processing delay
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
-      onStepComplete(stepIndex, simulationData);
-      
+      await new Promise(resolve => setTimeout(resolve, 1000))
+
+      onStepComplete(stepIndex, simulationData)
     } catch (error) {
-      console.error('Simulation error:', error);
+      console.error('Simulation error:', error)
     } finally {
-      setIsSimulating(false);
+      setIsSimulating(false)
     }
-  };
+  }
 
   const getActionButtons = () => {
     if (!simulationMode) {
-      return null;
+      return null
     }
-    
+
     switch (step.type) {
       case 'APPROVAL':
         return (
@@ -390,8 +369,8 @@ export const StepSimulationForm: React.FC<StepSimulationFormProps> = ({
               Approve
             </Button>
           </div>
-        );
-        
+        )
+
       default:
         return (
           <Button
@@ -404,27 +383,22 @@ export const StepSimulationForm: React.FC<StepSimulationFormProps> = ({
             <CheckCircle className="gba:w-4 gba:h-4" />
             {isSimulating ? 'Simulating...' : 'Complete Step'}
           </Button>
-        );
+        )
     }
-  };
+  }
 
   return (
-    <div 
-      style={{ display: 'flex', flexDirection: 'column', gap: 'var(--spacing-2xl)' }}
-      data-testid={testId}
-    >
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--spacing-2xl)' }} data-testid={testId}>
       {/* Step Info */}
       <div>
-        <div 
+        <div
           className="gba:flex gba:items-center"
-          style={{ 
+          style={{
             gap: 'var(--spacing-md)',
             marginBottom: 'var(--spacing-lg)'
           }}
         >
-          <div style={{ color: getStepTypeColor(step.type) }}>
-            {getStepTypeIcon(step.type)}
-          </div>
+          <div style={{ color: getStepTypeColor(step.type) }}>{getStepTypeIcon(step.type)}</div>
           <Badge
             variant="outline"
             style={{
@@ -436,16 +410,16 @@ export const StepSimulationForm: React.FC<StepSimulationFormProps> = ({
             {step.type}
           </Badge>
         </div>
-        
+
         {step.message && (
-          <div 
+          <div
             className="gba:p-4 gba:rounded-lg gba:border"
             style={{
               backgroundColor: 'var(--color-surface-secondary)',
               borderColor: 'var(--color-border-default)'
             }}
           >
-            <p 
+            <p
               className="gba:text-sm gba:leading-relaxed gba:whitespace-pre-wrap"
               style={{ color: 'var(--color-text-primary)' }}
             >
@@ -457,7 +431,7 @@ export const StepSimulationForm: React.FC<StepSimulationFormProps> = ({
         {/* Related Links */}
         {step.links && step.links.length > 0 && (
           <div style={{ marginTop: 'var(--spacing-xl)' }}>
-            <h5 
+            <h5
               className="gba:flex gba:items-center"
               style={{
                 fontSize: '0.875rem',
@@ -471,13 +445,10 @@ export const StepSimulationForm: React.FC<StepSimulationFormProps> = ({
               <FileText style={{ width: '1rem', height: '1rem' }} />
               Related Links
             </h5>
-            
-            <div 
-              className="gba:grid"
-              style={{ gap: 'var(--spacing-sm)' }}
-            >
+
+            <div className="gba:grid" style={{ gap: 'var(--spacing-sm)' }}>
               {step.links.map((link: any, index: number) => (
-                <div 
+                <div
                   key={index}
                   className="gba:group gba:rounded-lg gba:border gba:transition-all gba:duration-200 gba:hover:shadow-sm"
                   style={{
@@ -487,9 +458,9 @@ export const StepSimulationForm: React.FC<StepSimulationFormProps> = ({
                   }}
                 >
                   {link.url ? (
-                    <a 
-                      href={link.url} 
-                      target="_blank" 
+                    <a
+                      href={link.url}
+                      target="_blank"
                       rel="noopener noreferrer"
                       className="gba:flex gba:items-center gba:group-hover:underline"
                       style={{
@@ -500,7 +471,7 @@ export const StepSimulationForm: React.FC<StepSimulationFormProps> = ({
                         lineHeight: '1.25rem'
                       }}
                     >
-                      <div 
+                      <div
                         className="gba:flex-shrink-0 gba:rounded-full"
                         style={{
                           width: '0.5rem',
@@ -509,13 +480,13 @@ export const StepSimulationForm: React.FC<StepSimulationFormProps> = ({
                         }}
                       ></div>
                       <span className="gba:flex-1">{link.name || link.url}</span>
-                      <ExternalLink 
+                      <ExternalLink
                         className="gba:opacity-60 gba:group-hover:opacity-100"
                         style={{ width: '1rem', height: '1rem' }}
                       />
                     </a>
                   ) : (
-                    <div 
+                    <div
                       className="gba:flex gba:items-center"
                       style={{
                         gap: 'var(--spacing-md)',
@@ -523,7 +494,7 @@ export const StepSimulationForm: React.FC<StepSimulationFormProps> = ({
                         lineHeight: '1.25rem'
                       }}
                     >
-                      <div 
+                      <div
                         className="gba:flex-shrink-0 gba:rounded-full"
                         style={{
                           width: '0.5rem',
@@ -531,10 +502,7 @@ export const StepSimulationForm: React.FC<StepSimulationFormProps> = ({
                           backgroundColor: 'var(--color-text-secondary)'
                         }}
                       ></div>
-                      <span 
-                        className="gba:flex-1" 
-                        style={{ color: 'var(--color-text-primary)' }}
-                      >
+                      <span className="gba:flex-1" style={{ color: 'var(--color-text-primary)' }}>
                         {link.name}
                       </span>
                     </div>
@@ -548,7 +516,7 @@ export const StepSimulationForm: React.FC<StepSimulationFormProps> = ({
 
       {/* Form Inputs */}
       {step.form && step.form.length > 0 && (
-        <Card 
+        <Card
           style={{
             boxShadow: 'var(--shadow-sm)',
             border: `1px solid var(--color-border-default)`,
@@ -556,7 +524,7 @@ export const StepSimulationForm: React.FC<StepSimulationFormProps> = ({
           }}
         >
           <div style={{ padding: 'var(--spacing-2xl)' }}>
-            <h4 
+            <h4
               className="gba:flex gba:items-center"
               style={{
                 fontSize: '1.125rem',
@@ -570,12 +538,10 @@ export const StepSimulationForm: React.FC<StepSimulationFormProps> = ({
               <FileText style={{ width: '1rem', height: '1rem' }} />
               Form Fields
             </h4>
-            
+
             <Form {...form}>
               <form style={{ display: 'flex', flexDirection: 'column', gap: 'var(--spacing-lg)' }}>
-                {step.form.map((input: any, index: number) => 
-                  renderInputField(input, index)
-                )}
+                {step.form.map((input: any, index: number) => renderInputField(input, index))}
               </form>
             </Form>
           </div>
@@ -584,25 +550,18 @@ export const StepSimulationForm: React.FC<StepSimulationFormProps> = ({
 
       {/* Action Buttons */}
       {simulationMode && !simulationResult && (
-        <div 
-          className="gba:flex gba:justify-center"
-          style={{ paddingTop: 'var(--spacing-xl)' }}
-        >
+        <div className="gba:flex gba:justify-center" style={{ paddingTop: 'var(--spacing-xl)' }}>
           {getActionButtons()}
         </div>
       )}
 
       {/* Simulation Result */}
       {simulationResult && (
-        <div 
+        <div
           className="gba:p-4 gba:rounded-lg gba:border"
           style={{
-            backgroundColor: simulationResult === 'REJECTED' 
-              ? 'var(--color-danger-50)' 
-              : 'var(--color-success-50)',
-            borderColor: simulationResult === 'REJECTED' 
-              ? 'var(--color-danger-300)' 
-              : 'var(--color-success-300)'
+            backgroundColor: simulationResult === 'REJECTED' ? 'var(--color-danger-50)' : 'var(--color-success-50)',
+            borderColor: simulationResult === 'REJECTED' ? 'var(--color-danger-300)' : 'var(--color-success-300)'
           }}
         >
           <div className="gba:flex gba:items-center gba:gap-2">
@@ -611,12 +570,10 @@ export const StepSimulationForm: React.FC<StepSimulationFormProps> = ({
             ) : (
               <CheckCircle className="gba:w-5 gba:h-5" style={{ color: 'var(--color-success-600)' }} />
             )}
-            <span 
+            <span
               className="gba:font-medium"
-              style={{ 
-                color: simulationResult === 'REJECTED' 
-                  ? 'var(--color-danger-700)' 
-                  : 'var(--color-success-700)' 
+              style={{
+                color: simulationResult === 'REJECTED' ? 'var(--color-danger-700)' : 'var(--color-success-700)'
               }}
             >
               Step {simulationResult === 'REJECTED' ? 'Rejected' : 'Completed'} Successfully
@@ -625,5 +582,5 @@ export const StepSimulationForm: React.FC<StepSimulationFormProps> = ({
         </div>
       )}
     </div>
-  );
-};
+  )
+}

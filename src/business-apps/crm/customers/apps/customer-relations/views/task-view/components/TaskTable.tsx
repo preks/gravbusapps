@@ -1,7 +1,7 @@
-"use client";
+'use client'
 
-import React, { useCallback, useState } from "react";
-import { useTranslation } from "react-i18next";
+import React, { useCallback, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import {
   Avatar,
   AvatarFallback,
@@ -19,45 +19,45 @@ import {
   Tooltip,
   TooltipContent,
   TooltipProvider,
-  TooltipTrigger,
-} from "@newwork/nw-design-system";
-import { PiUser, PiArrowUp, PiArrowDown, PiLightning } from "react-icons/pi";
-import { Clock, Calendar } from "lucide-react";
-import { AppActionButton } from "@/components/app-action-button/AppActionButton";
-import { FlowContextName } from "@/common/types/FlowRegistryTypes";
-import { Task } from '@/common/components/common-relations/detail-sheets/task-detail-sheet';
+  TooltipTrigger
+} from '@newwork/nw-design-system'
+import { PiUser, PiArrowUp, PiArrowDown, PiLightning } from 'react-icons/pi'
+import { Clock, Calendar } from 'lucide-react'
+import { AppActionButton } from '@/components/app-action-button/AppActionButton'
+import { FlowContextName } from '@/common/types/FlowRegistryTypes'
+import { Task } from '@/common/components/common-relations/detail-sheets/task-detail-sheet'
 import {
   getTaskStatusBadgeVariant,
   getTaskPriorityBadgeVariant,
   getTaskTypeBadgeVariant,
-  getReferenceTypeBadgeVariant,
-} from "../utils/taskBadgeUtils";
-import dayjs from "dayjs";
-import { navigateTo, buildPlatformUrl } from "@/common/utils/navigationUtils";
+  getReferenceTypeBadgeVariant
+} from '../utils/taskBadgeUtils'
+import dayjs from 'dayjs'
+import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils'
 
 interface TaskTableProps {
-  tasks: Task[];
-  loading: boolean;
-  error: Error | null;
-  hasMore: boolean;
-  loadMore: () => void;
-  loadPage: (page: number, pageSize?: number) => Promise<void>;
-  retry: () => void;
-  total: number;
-  currentPage: number;
-  pageSize: number;
-  sortField: string;
-  sortOrder: "ASC" | "DESC" | "";
-  onSelectTask?: (task: Task) => void;
-  onPaginationChange: (page: number, pageSize?: number) => void;
-  onSortingChange: (field: string, order: "ASC" | "DESC" | "") => void;
-  selectedTaskId?: string;
-  accessToken: string;
-  sourceApp?: string;
-  hideAssignedTo?: boolean; // New prop to hide assigned to column
+  tasks: Task[]
+  loading: boolean
+  error: Error | null
+  hasMore: boolean
+  loadMore: () => void
+  loadPage: (page: number, pageSize?: number) => Promise<void>
+  retry: () => void
+  total: number
+  currentPage: number
+  pageSize: number
+  sortField: string
+  sortOrder: 'ASC' | 'DESC' | ''
+  onSelectTask?: (task: Task) => void
+  onPaginationChange: (page: number, pageSize?: number) => void
+  onSortingChange: (field: string, order: 'ASC' | 'DESC' | '') => void
+  selectedTaskId?: string
+  accessToken: string
+  sourceApp?: string
+  hideAssignedTo?: boolean // New prop to hide assigned to column
 }
 
-const DATA_TEST_ID_PREFIX = "TaskTable";
+const DATA_TEST_ID_PREFIX = 'TaskTable'
 
 /**
  * Table component for displaying tasks with pagination and actions
@@ -81,98 +81,95 @@ export const TaskTable: React.FC<TaskTableProps> = ({
   selectedTaskId,
   accessToken,
   sourceApp,
-  hideAssignedTo,
+  hideAssignedTo
 }) => {
-  const { t } = useTranslation();
+  const { t } = useTranslation()
 
   const formatDate = (dateString: string) => {
-    return dayjs(dateString).format("MM/DD/YYYY");
-  };
+    return dayjs(dateString).format('MM/DD/YYYY')
+  }
 
   const getInitials = (firstName: string, lastName: string): string => {
-    return `${firstName.charAt(0)}${lastName.charAt(0)}`.toUpperCase();
-  };
+    return `${firstName.charAt(0)}${lastName.charAt(0)}`.toUpperCase()
+  }
 
   // Helper function to get timing type icon and tooltip
   const getTimingTypeIcon = (timingType?: string) => {
     if (!timingType) {
       return {
         icon: <Clock className="gba:h-4 gba:w-4 gba:text-gray-400" />,
-        tooltip: "No timing type specified",
-      };
+        tooltip: 'No timing type specified'
+      }
     }
 
     switch (timingType.toUpperCase()) {
-      case "DEADLINE":
+      case 'DEADLINE':
         return {
           icon: <Clock className="gba:h-4 gba:w-4 gba:text-red-500" />,
-          tooltip: "Deadline - Complete by this date",
-        };
-      case "SCHEDULED":
+          tooltip: 'Deadline - Complete by this date'
+        }
+      case 'SCHEDULED':
         return {
           icon: <Calendar className="gba:h-4 gba:w-4 gba:text-blue-500" />,
-          tooltip: "Scheduled - Execute on this specific date",
-        };
+          tooltip: 'Scheduled - Execute on this specific date'
+        }
       default:
         return {
           icon: <Clock className="gba:h-4 gba:w-4 gba:text-gray-400" />,
-          tooltip: "Unknown timing type",
-        };
+          tooltip: 'Unknown timing type'
+        }
     }
-  };
+  }
 
   // Handle employee profile navigation
-  const handleEmployeeClick = useCallback((employee: Task["assignedTo"]) => {
-    const url = buildPlatformUrl("/platform/employee-record", {
-      employeeId: employee.id,
-    });
-    navigateTo(url);
-  }, []);
+  const handleEmployeeClick = useCallback((employee: Task['assignedTo']) => {
+    const url = buildPlatformUrl('/platform/employee-record', {
+      employeeId: employee.id
+    })
+    navigateTo(url)
+  }, [])
 
   // Handle reference record navigation
   const handleReferenceClick = useCallback(
-    (reference: Task["reference"]) => {
+    (reference: Task['reference']) => {
       // Determine source based on sourceApp
-      const source =
-        sourceApp === "investment-relations" || sourceApp === "IRM"
-          ? "investments"
-          : "customer-relations";
+      const source = sourceApp === 'investment-relations' || sourceApp === 'IRM' ? 'investments' : 'customer-relations'
 
-      let url: string;
+      let url: string
       switch (reference.type) {
-        case "lead":
-          url = buildPlatformUrl("/platform/crm/lead-record", {
+        case 'lead':
+          url = buildPlatformUrl('/platform/crm/lead-record', {
             leadId: reference.id,
-            source: source,
-          });
-          break;
-        case "account":
-          url = buildPlatformUrl("/platform/crm/account-record", {
+            source: source
+          })
+          break
+        case 'account':
+          url = buildPlatformUrl('/platform/crm/account-record', {
             accountId: reference.id,
-            source: source,
-          });
-          break;
-        case "contact":
-          url = buildPlatformUrl("/platform/crm/contact-record", {
+            source: source
+          })
+          break
+        case 'contact':
+          url = buildPlatformUrl('/platform/crm/contact-record', {
             contactId: reference.id,
-            source: source,
-          });
-          break;
-        case "opportunity":
-          url = buildPlatformUrl("/platform/crm/opportunity-record", {
+            source: source
+          })
+          break
+        case 'opportunity':
+          url = buildPlatformUrl('/platform/crm/opportunity-record', {
             opportunityId: reference.id,
-            source: source,
-          });
-          break;
+            source: source
+          })
+          break
         default:
-          console.warn("Unknown reference type:", reference.type);
-          return;
+          console.warn('Unknown reference type:', reference.type)
+          return
       }
 
-      navigateTo(url);
+      navigateTo(url)
     },
     [sourceApp]
-  );
+  )
 
   // Handle row click - opens task details in side panel
   const handleRowClick = useCallback(
@@ -181,12 +178,12 @@ export const TaskTable: React.FC<TaskTableProps> = ({
         taskId: record.id,
         taskName: record.name,
         hasOnSelectTask: !!onSelectTask
-      });
+      })
       // Call the selection callback to open side panel
-      onSelectTask?.(record);
+      onSelectTask?.(record)
     },
     [onSelectTask]
-  );
+  )
 
   // Show error state
   if (error) {
@@ -196,45 +193,39 @@ export const TaskTable: React.FC<TaskTableProps> = ({
         data-testid={`${DATA_TEST_ID_PREFIX}-error-state`}
       >
         <div className="gba:text-red-500 gba:text-lg gba:font-medium gba:mb-2">
-          {t("task.error.title", "Error Loading Tasks")}
+          {t('task.error.title', 'Error Loading Tasks')}
         </div>
         <div className="gba:text-gray-600 gba:mb-4">{error.message}</div>
-        <Button
-          variant="default"
-          onClick={retry}
-          data-testid={`${DATA_TEST_ID_PREFIX}-retry-button`}
-        >
-          {t("common.retry", "Retry")}
+        <Button variant="default" onClick={retry} data-testid={`${DATA_TEST_ID_PREFIX}-retry-button`}>
+          {t('common.retry', 'Retry')}
         </Button>
       </div>
-    );
+    )
   }
 
   // Helper function to handle column sorting
   const handleSort = (field: string) => {
     if (sortField === field) {
       // Cycle through: ASC -> DESC -> clear
-      if (sortOrder === "ASC") {
-        onSortingChange(field, "DESC");
-      } else if (sortOrder === "DESC") {
-        onSortingChange("", "");
+      if (sortOrder === 'ASC') {
+        onSortingChange(field, 'DESC')
+      } else if (sortOrder === 'DESC') {
+        onSortingChange('', '')
       } else {
-        onSortingChange(field, "ASC");
+        onSortingChange(field, 'ASC')
       }
     } else {
-      onSortingChange(field, "ASC");
+      onSortingChange(field, 'ASC')
     }
-  };
+  }
 
   // Helper function to render sort icon
   const renderSortIcon = (field: string) => {
-    if (sortField !== field) return null;
-    if (sortOrder === "ASC")
-      return <PiArrowUp className="gba:inline gba:ml-1" size={12} />;
-    if (sortOrder === "DESC")
-      return <PiArrowDown className="gba:inline gba:ml-1" size={12} />;
-    return null;
-  };
+    if (sortField !== field) return null
+    if (sortOrder === 'ASC') return <PiArrowUp className="gba:inline gba:ml-1" size={12} />
+    if (sortOrder === 'DESC') return <PiArrowDown className="gba:inline gba:ml-1" size={12} />
+    return null
+  }
 
   return (
     <Card data-testid={`${DATA_TEST_ID_PREFIX}-container`}>
@@ -251,84 +242,84 @@ export const TaskTable: React.FC<TaskTableProps> = ({
               <TableRow className="gba:border-b gba:bg-gray-50">
                 <TableHead
                   className="gba:w-[25%] gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6 gba:cursor-pointer gba:select-none hover:gba:bg-gray-100"
-                  onClick={() => handleSort("name")}
+                  onClick={() => handleSort('name')}
                   data-testid={`${DATA_TEST_ID_PREFIX}-task-header`}
                 >
                   <div className="gba:flex gba:items-center">
-                    {t("task.name", "Task")}
-                    {renderSortIcon("name")}
+                    {t('task.name', 'Task')}
+                    {renderSortIcon('name')}
                   </div>
                 </TableHead>
                 {!hideAssignedTo && (
                   <TableHead
                     className="gba:w-[20%] gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6 gba:cursor-pointer gba:select-none hover:gba:bg-gray-100"
-                    onClick={() => handleSort("assignedTo")}
+                    onClick={() => handleSort('assignedTo')}
                     data-testid={`${DATA_TEST_ID_PREFIX}-assigned-to-header`}
                   >
                     <div className="gba:flex gba:items-center">
-                      {t("task.assignedTo", "Assigned To")}
-                      {renderSortIcon("assignedTo")}
+                      {t('task.assignedTo', 'Assigned To')}
+                      {renderSortIcon('assignedTo')}
                     </div>
                   </TableHead>
                 )}
                 <TableHead
                   className="gba:w-[12%] gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6 gba:cursor-pointer gba:select-none hover:gba:bg-gray-100"
-                  onClick={() => handleSort("type")}
+                  onClick={() => handleSort('type')}
                   data-testid={`${DATA_TEST_ID_PREFIX}-type-header`}
                 >
                   <div className="gba:flex gba:items-center">
-                    {t("task.type", "Type")}
-                    {renderSortIcon("type")}
+                    {t('task.type', 'Type')}
+                    {renderSortIcon('type')}
                   </div>
                 </TableHead>
                 <TableHead
                   className="gba:w-[12%] gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6 gba:cursor-pointer gba:select-none hover:gba:bg-gray-100"
-                  onClick={() => handleSort("priority")}
+                  onClick={() => handleSort('priority')}
                   data-testid={`${DATA_TEST_ID_PREFIX}-priority-header`}
                 >
                   <div className="gba:flex gba:items-center">
-                    {t("task.priority", "Priority")}
-                    {renderSortIcon("priority")}
+                    {t('task.priority', 'Priority')}
+                    {renderSortIcon('priority')}
                   </div>
                 </TableHead>
                 <TableHead
                   className="gba:w-[12%] gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6 gba:cursor-pointer gba:select-none hover:gba:bg-gray-100"
-                  onClick={() => handleSort("status")}
+                  onClick={() => handleSort('status')}
                   data-testid={`${DATA_TEST_ID_PREFIX}-status-header`}
                 >
                   <div className="gba:flex gba:items-center">
-                    {t("task.status", "Status")}
-                    {renderSortIcon("status")}
+                    {t('task.status', 'Status')}
+                    {renderSortIcon('status')}
                   </div>
                 </TableHead>
                 <TableHead
                   className="gba:w-[20%] gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6 gba:cursor-pointer gba:select-none hover:gba:bg-gray-100"
-                  onClick={() => handleSort("reference")}
+                  onClick={() => handleSort('reference')}
                   data-testid={`${DATA_TEST_ID_PREFIX}-reference-header`}
                 >
                   <div className="gba:flex gba:items-center">
-                    {t("task.reference", "Reference")}
-                    {renderSortIcon("reference")}
+                    {t('task.reference', 'Reference')}
+                    {renderSortIcon('reference')}
                   </div>
                 </TableHead>
                 <TableHead
                   className="gba:w-[15%] gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6 gba:cursor-pointer gba:select-none hover:gba:bg-gray-100"
-                  onClick={() => handleSort("dueDate")}
+                  onClick={() => handleSort('dueDate')}
                   data-testid={`${DATA_TEST_ID_PREFIX}-schedule-header`}
                 >
                   <div className="gba:flex gba:items-center">
-                    {t("task.schedule", "Schedule / Due Date")}
-                    {renderSortIcon("dueDate")}
+                    {t('task.schedule', 'Schedule / Due Date')}
+                    {renderSortIcon('dueDate')}
                   </div>
                 </TableHead>
                 <TableHead
                   className="gba:w-[15%] gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6 gba:cursor-pointer gba:select-none hover:gba:bg-gray-100"
-                  onClick={() => handleSort("createdBy")}
+                  onClick={() => handleSort('createdBy')}
                   data-testid={`${DATA_TEST_ID_PREFIX}-created-by-header`}
                 >
                   <div className="gba:flex gba:items-center">
-                    {t("task.createdBy", "Created By")}
-                    {renderSortIcon("createdBy")}
+                    {t('task.createdBy', 'Created By')}
+                    {renderSortIcon('createdBy')}
                   </div>
                 </TableHead>
                 <TableHead
@@ -340,15 +331,15 @@ export const TaskTable: React.FC<TaskTableProps> = ({
               </TableRow>
             </TableHeader>
             <TableBody>
-              {tasks.map((record) => (
+              {tasks.map(record => (
                 <TableRow
                   key={record.id}
                   className={`gba:border-b gba:hover:bg-gray-50 gba:transition-colors gba:cursor-pointer ${
-                    selectedTaskId === record.id ? "gba:bg-blue-50" : ""
+                    selectedTaskId === record.id ? 'gba:bg-blue-50' : ''
                   }`}
                   onClick={() => {
-                    console.log('🔍 TableRow clicked:', record.id);
-                    handleRowClick(record);
+                    console.log('🔍 TableRow clicked:', record.id)
+                    handleRowClick(record)
                   }}
                   data-testid={`${DATA_TEST_ID_PREFIX}-row-${record.id}`}
                 >
@@ -361,9 +352,7 @@ export const TaskTable: React.FC<TaskTableProps> = ({
                       data-testid={`${DATA_TEST_ID_PREFIX}-task-name-${record.id}`}
                     >
                       <div>
-                        <div className="gba:font-medium gba:text-sm">
-                          {record.name}
-                        </div>
+                        <div className="gba:font-medium gba:text-sm">{record.name}</div>
                       </div>
                     </div>
                   </TableCell>
@@ -374,27 +363,20 @@ export const TaskTable: React.FC<TaskTableProps> = ({
                     >
                       <div
                         className="gba:flex gba:items-center gba:gap-3 gba:cursor-pointer gba:hover:bg-gray-50 gba:p-2 gba:rounded gba:transition-colors"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleEmployeeClick(record.assignedTo);
+                        onClick={e => {
+                          e.stopPropagation()
+                          handleEmployeeClick(record.assignedTo)
                         }}
                         data-testid={`${DATA_TEST_ID_PREFIX}-assigned-to-link-${record.id}`}
                       >
                         <Avatar size="sm">
                           <AvatarFallback>
-                            {getInitials(
-                              record.assignedTo.firstName,
-                              record.assignedTo.lastName
-                            )}
+                            {getInitials(record.assignedTo.firstName, record.assignedTo.lastName)}
                           </AvatarFallback>
                         </Avatar>
                         <div className="gba:flex gba:flex-col">
-                          <span className="gba:font-medium gba:text-sm">
-                            {record.assignedTo.displayName}
-                          </span>
-                          <span className="gba:text-xs gba:text-gray-500">
-                            {record.assignedTo.department}
-                          </span>
+                          <span className="gba:font-medium gba:text-sm">{record.assignedTo.displayName}</span>
+                          <span className="gba:text-xs gba:text-gray-500">{record.assignedTo.department}</span>
                         </div>
                       </div>
                     </TableCell>
@@ -404,19 +386,15 @@ export const TaskTable: React.FC<TaskTableProps> = ({
                     data-testid={`${DATA_TEST_ID_PREFIX}-type-cell-${record.id}`}
                   >
                     <Badge variant={getTaskTypeBadgeVariant(record.type)}>
-                      {record.type.charAt(0).toUpperCase() +
-                        record.type.slice(1).toLowerCase()}
+                      {record.type.charAt(0).toUpperCase() + record.type.slice(1).toLowerCase()}
                     </Badge>
                   </TableCell>
                   <TableCell
                     className="gba:py-4 gba:px-6"
                     data-testid={`${DATA_TEST_ID_PREFIX}-priority-cell-${record.id}`}
                   >
-                    <Badge
-                      variant={getTaskPriorityBadgeVariant(record.priority)}
-                    >
-                      {record.priority.charAt(0).toUpperCase() +
-                        record.priority.slice(1).toLowerCase()}
+                    <Badge variant={getTaskPriorityBadgeVariant(record.priority)}>
+                      {record.priority.charAt(0).toUpperCase() + record.priority.slice(1).toLowerCase()}
                     </Badge>
                   </TableCell>
                   <TableCell
@@ -424,10 +402,9 @@ export const TaskTable: React.FC<TaskTableProps> = ({
                     data-testid={`${DATA_TEST_ID_PREFIX}-status-cell-${record.id}`}
                   >
                     <Badge variant={getTaskStatusBadgeVariant(record.status)}>
-                      {record.status === "in_progress"
-                        ? "In Progress"
-                        : record.status.charAt(0).toUpperCase() +
-                          record.status.slice(1)}
+                      {record.status === 'in_progress'
+                        ? 'In Progress'
+                        : record.status.charAt(0).toUpperCase() + record.status.slice(1)}
                     </Badge>
                   </TableCell>
                   <TableCell
@@ -436,9 +413,9 @@ export const TaskTable: React.FC<TaskTableProps> = ({
                   >
                     <div
                       className="gba:cursor-pointer gba:hover:bg-gray-50 gba:p-2 gba:rounded gba:transition-colors gba:min-w-0"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleReferenceClick(record.reference);
+                      onClick={e => {
+                        e.stopPropagation()
+                        handleReferenceClick(record.reference)
                       }}
                       data-testid={`${DATA_TEST_ID_PREFIX}-reference-link-${record.id}`}
                     >
@@ -447,16 +424,16 @@ export const TaskTable: React.FC<TaskTableProps> = ({
                       </div>
                       <div className="gba:flex gba:items-center gba:gap-1 gba:mt-1 gba:min-w-0">
                         <Badge
-                          variant={getReferenceTypeBadgeVariant(
-                            record.reference.type
-                          )}
+                          variant={getReferenceTypeBadgeVariant(record.reference.type)}
                           className="gba:text-xs gba:shrink-0"
                         >
-                          {record.reference.type.charAt(0).toUpperCase() +
-                            record.reference.type.slice(1)}
+                          {record.reference.type.charAt(0).toUpperCase() + record.reference.type.slice(1)}
                         </Badge>
                         {record.reference.description && (
-                          <span className="gba:text-xs gba:text-gray-500 gba:truncate gba:min-w-0" title={record.reference.description}>
+                          <span
+                            className="gba:text-xs gba:text-gray-500 gba:truncate gba:min-w-0"
+                            title={record.reference.description}
+                          >
                             {record.reference.description}
                           </span>
                         )}
@@ -471,20 +448,14 @@ export const TaskTable: React.FC<TaskTableProps> = ({
                       <TooltipProvider>
                         <Tooltip>
                           <TooltipTrigger asChild>
-                            <div className="gba:flex gba:items-center">
-                              {getTimingTypeIcon(record.timingType).icon}
-                            </div>
+                            <div className="gba:flex gba:items-center">{getTimingTypeIcon(record.timingType).icon}</div>
                           </TooltipTrigger>
                           <TooltipContent>
-                            <p>
-                              {getTimingTypeIcon(record.timingType).tooltip}
-                            </p>
+                            <p>{getTimingTypeIcon(record.timingType).tooltip}</p>
                           </TooltipContent>
                         </Tooltip>
                       </TooltipProvider>
-                      <span className="gba:text-sm">
-                        {formatDate(record.dueDate)}
-                      </span>
+                      <span className="gba:text-sm">{formatDate(record.dueDate)}</span>
                     </div>
                   </TableCell>
                   <TableCell
@@ -492,8 +463,19 @@ export const TaskTable: React.FC<TaskTableProps> = ({
                     data-testid={`${DATA_TEST_ID_PREFIX}-created-by-cell-${record.id}`}
                   >
                     {record.creatorEmployee ? (
-                      <div className="gba:flex gba:items-center gba:gap-3 gba:cursor-pointer gba:hover:bg-gray-50 gba:p-2 gba:rounded gba:transition-colors" onClick={(e) => { e.stopPropagation(); handleEmployeeClick(record.creatorEmployee!); }} data-testid={`${DATA_TEST_ID_PREFIX}-creator-link-${record.id}`}>
-                        <Avatar size="sm"><AvatarFallback>{getInitials(record.creatorEmployee.firstName || '', record.creatorEmployee.lastName || '')}</AvatarFallback></Avatar>
+                      <div
+                        className="gba:flex gba:items-center gba:gap-3 gba:cursor-pointer gba:hover:bg-gray-50 gba:p-2 gba:rounded gba:transition-colors"
+                        onClick={e => {
+                          e.stopPropagation()
+                          handleEmployeeClick(record.creatorEmployee!)
+                        }}
+                        data-testid={`${DATA_TEST_ID_PREFIX}-creator-link-${record.id}`}
+                      >
+                        <Avatar size="sm">
+                          <AvatarFallback>
+                            {getInitials(record.creatorEmployee.firstName || '', record.creatorEmployee.lastName || '')}
+                          </AvatarFallback>
+                        </Avatar>
                         <div className="gba:flex gba:flex-col">
                           <span className="gba:font-medium gba:text-sm">{record.creatorEmployee.displayName}</span>
                           <span className="gba:text-xs gba:text-gray-500">{record.creatorEmployee.department}</span>
@@ -506,7 +488,7 @@ export const TaskTable: React.FC<TaskTableProps> = ({
                   <TableCell
                     className="gba:py-4 gba:px-6"
                     data-testid={`${DATA_TEST_ID_PREFIX}-actions-cell-${record.id}`}
-                    onClick={(e) => e.stopPropagation()}
+                    onClick={e => e.stopPropagation()}
                   >
                     <div className="gba:flex gba:justify-start gba:gap-2">
                       <AppActionButton
@@ -514,13 +496,13 @@ export const TaskTable: React.FC<TaskTableProps> = ({
                         size="icon"
                         contextsArray={[FlowContextName.customerTaskEntity]}
                         externalContextData={{
-                          taskId: record.id,
+                          taskId: record.id
                         }}
                         prefixDataTestId={`${DATA_TEST_ID_PREFIX}-update-task`}
                         accessToken={accessToken}
                         emptyStateBehavior="enable"
                         deferMainContextRequestsUntilClick
-                        onClick={(e) => e.stopPropagation()}
+                        onClick={e => e.stopPropagation()}
                       />
                     </div>
                   </TableCell>
@@ -536,21 +518,15 @@ export const TaskTable: React.FC<TaskTableProps> = ({
         className="gba:flex gba:items-center gba:justify-between gba:px-2 gba:py-4"
         data-testid={`${DATA_TEST_ID_PREFIX}-pagination`}
       >
-        <div
-          className="gba:text-sm gba:text-muted-foreground"
-          data-testid={`${DATA_TEST_ID_PREFIX}-pagination-info`}
-        >
-          {`${(currentPage - 1) * pageSize + 1}-${Math.min(
-            currentPage * pageSize,
-            total
-          )} of ${total} tasks`}
+        <div className="gba:text-sm gba:text-muted-foreground" data-testid={`${DATA_TEST_ID_PREFIX}-pagination-info`}>
+          {`${(currentPage - 1) * pageSize + 1}-${Math.min(currentPage * pageSize, total)} of ${total} tasks`}
         </div>
         <div className="gba:flex gba:items-center gba:space-x-6 gba:lg:space-x-8">
           <div className="gba:flex gba:items-center gba:space-x-2">
             <p className="gba:text-sm gba:font-medium">Rows per page</p>
             <select
               value={pageSize}
-              onChange={(e) => onPaginationChange(1, Number(e.target.value))}
+              onChange={e => onPaginationChange(1, Number(e.target.value))}
               className="gba:h-8 gba:w-[70px] gba:rounded gba:border gba:border-input gba:px-3 gba:py-1 gba:text-sm"
               data-testid={`${DATA_TEST_ID_PREFIX}-page-size-select`}
             >
@@ -609,5 +585,5 @@ export const TaskTable: React.FC<TaskTableProps> = ({
         </div>
       </div>
     </Card>
-  );
-};
+  )
+}

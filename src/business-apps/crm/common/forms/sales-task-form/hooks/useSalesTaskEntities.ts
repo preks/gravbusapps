@@ -1,11 +1,11 @@
-import { useState, useCallback } from 'react';
-import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient';
+import { useState, useCallback } from 'react'
+import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 
 export interface EntityOption {
-  id: string;
-  name: string;
-  type: 'lead' | 'contact' | 'account' | 'opportunity';
-  subtitle?: string;
+  id: string
+  name: string
+  type: 'lead' | 'contact' | 'account' | 'opportunity'
+  subtitle?: string
 }
 
 const SEARCH_ENTITIES_QUERY = `
@@ -104,96 +104,100 @@ const SEARCH_ENTITIES_QUERY = `
       }
     }
   }
-`;
+`
 
 export const useSalesTaskEntities = (accessToken: string) => {
-  const [entities, setEntities] = useState<EntityOption[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<any>(null);
-  const graphqlClient = useGraphQLClient(accessToken);
+  const [entities, setEntities] = useState<EntityOption[]>([])
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState<any>(null)
+  const graphqlClient = useGraphQLClient(accessToken)
 
-  const searchEntities = useCallback(async (searchTerm: string) => {
-    if (!accessToken) {
-      console.warn('No access token provided to useSalesTaskEntities');
-      return;
-    }
+  const searchEntities = useCallback(
+    async (searchTerm: string) => {
+      if (!accessToken) {
+        console.warn('No access token provided to useSalesTaskEntities')
+        return
+      }
 
-    if (!searchTerm?.trim() || searchTerm.trim().length < 2) {
-      setEntities([]);
-      return;
-    }
+      if (!searchTerm?.trim() || searchTerm.trim().length < 2) {
+        setEntities([])
+        return
+      }
 
-    setLoading(true);
-    setError(null);
+      setLoading(true)
+      setError(null)
 
-    try {
-      const searchPattern = `%${searchTerm.trim()}%`;
-      const variables = {
-        searchPattern,
-        limit: 20
-      };
+      try {
+        const searchPattern = `%${searchTerm.trim()}%`
+        const variables = {
+          searchPattern,
+          limit: 20
+        }
 
-      const result = await graphqlClient.request<{
-        Lead: any[];
-        Contact: any[];
-        Account: any[];
-        Opportunity: any[];
-      }>(SEARCH_ENTITIES_QUERY, variables);
+        const result = await graphqlClient.request<{
+          Lead: any[]
+          Contact: any[]
+          Account: any[]
+          Opportunity: any[]
+        }>(SEARCH_ENTITIES_QUERY, variables)
 
-      const allEntities: EntityOption[] = [];
+        const allEntities: EntityOption[] = []
 
-      // Process leads
-      (result.Lead || []).forEach(lead => {
-        const leadName = `${lead.firstName || ''} ${lead.lastName || ''}`.trim() || lead.companyName || 'Lead';
-        allEntities.push({
-          id: lead.id,
-          name: leadName,
-          type: 'lead',
-          subtitle: lead.companyName && leadName !== lead.companyName ? lead.companyName : lead.email
-        });
-      });
+        // Process leads
+        ;(result.Lead || []).forEach(lead => {
+          const leadName = `${lead.firstName || ''} ${lead.lastName || ''}`.trim() || lead.companyName || 'Lead'
+          allEntities.push({
+            id: lead.id,
+            name: leadName,
+            type: 'lead',
+            subtitle: lead.companyName && leadName !== lead.companyName ? lead.companyName : lead.email
+          })
+        })
 
-      // Process contacts
-      (result.Contact || []).forEach(contact => {
-        const contactName = `${contact.firstName || ''} ${contact.lastName || ''}`.trim() || 'Contact';
-        allEntities.push({
-          id: contact.id,
-          name: contactName,
-          type: 'contact',
-          subtitle: contact.account?.name || contact.email
-        });
-      });
+        // Process contacts
+        ;(result.Contact || []).forEach(contact => {
+          const contactName = `${contact.firstName || ''} ${contact.lastName || ''}`.trim() || 'Contact'
+          allEntities.push({
+            id: contact.id,
+            name: contactName,
+            type: 'contact',
+            subtitle: contact.account?.name || contact.email
+          })
+        })
 
-      // Process accounts
-      (result.Account || []).forEach(account => {
-        allEntities.push({
-          id: account.id,
-          name: account.name || 'Account',
-          type: 'account',
-          subtitle: account.industry?.value || account.website
-        });
-      });
+        // Process accounts
+        ;(result.Account || []).forEach(account => {
+          allEntities.push({
+            id: account.id,
+            name: account.name || 'Account',
+            type: 'account',
+            subtitle: account.industry?.value || account.website
+          })
+        })
 
-      // Process opportunities
-      (result.Opportunity || []).forEach(opportunity => {
-        allEntities.push({
-          id: opportunity.id,
-          name: opportunity.name || 'Opportunity',
-          type: 'opportunity',
-          subtitle: opportunity.account?.name || (opportunity.estimatedAmount ? `€${opportunity.estimatedAmount}` : undefined)
-        });
-      });
+        // Process opportunities
+        ;(result.Opportunity || []).forEach(opportunity => {
+          allEntities.push({
+            id: opportunity.id,
+            name: opportunity.name || 'Opportunity',
+            type: 'opportunity',
+            subtitle:
+              opportunity.account?.name || (opportunity.estimatedAmount ? `€${opportunity.estimatedAmount}` : undefined)
+          })
+        })
 
-      setEntities(allEntities);
-    } catch (err) {
-      const error = err instanceof Error ? err : new Error('Failed to search entities');
-      setError(error);
-      console.error('Error searching entities:', error);
-      setEntities([]);
-    } finally {
-      setLoading(false);
-    }
-  }, [accessToken, graphqlClient]);
+        setEntities(allEntities)
+      } catch (err) {
+        const error = err instanceof Error ? err : new Error('Failed to search entities')
+        setError(error)
+        console.error('Error searching entities:', error)
+        setEntities([])
+      } finally {
+        setLoading(false)
+      }
+    },
+    [accessToken, graphqlClient]
+  )
 
-  return { entities, loading, error, searchEntities };
-}; 
+  return { entities, loading, error, searchEntities }
+}

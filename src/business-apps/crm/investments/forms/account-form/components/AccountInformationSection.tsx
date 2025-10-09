@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect } from 'react'
 import {
   Input,
   Label,
@@ -10,19 +10,19 @@ import {
   SelectContent,
   SelectItem,
   SelectTrigger,
-  SelectValue,
-} from "@newwork/nw-design-system";
-import { formatDataTestId } from "@/common/utils/formatDataTestId";
-import { getTranslationFromI18nKeyAndLabel } from "@/common/utils/windowUtils";
-import { useAccountFormContext } from "../context/AccountFormContext";
-import OwnerSelector from "./OwnerSelector";
-import SearchableSelect from "./SearchableSelect";
+  SelectValue
+} from '@newwork/nw-design-system'
+import { formatDataTestId } from '@/common/utils/formatDataTestId'
+import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
+import { useAccountFormContext } from '../context/AccountFormContext'
+import OwnerSelector from './OwnerSelector'
+import SearchableSelect from './SearchableSelect'
 
-const prefixDataTestId = "AccountForm";
+const prefixDataTestId = 'AccountForm'
 
 const AccountInformationSection: React.FC = () => {
-  const [isLegalFormOpen, setIsLegalFormOpen] = useState(false);
-  const [isIndustryOpen, setIsIndustryOpen] = useState(false);
+  const [isLegalFormOpen, setIsLegalFormOpen] = useState(false)
+  const [isIndustryOpen, setIsIndustryOpen] = useState(false)
 
   const {
     formValues,
@@ -34,7 +34,7 @@ const AccountInformationSection: React.FC = () => {
     employeePositionsHasMore,
     searchEmployeePositions,
     loadMoreEmployeePositions,
-    
+
     // Legal Forms
     legalForms,
     legalFormsLoading,
@@ -55,104 +55,74 @@ const AccountInformationSection: React.FC = () => {
     industriesDisplayCount,
     industriesTotalFetched,
     loadMoreIndustries,
-    showMoreIndustries,
-  } = useAccountFormContext();
+    showMoreIndustries
+  } = useAccountFormContext()
 
   // Simple effect to load more legal forms when needed
   useEffect(() => {
     if (legalFormsNeedsMoreData && !legalFormsLoading && legalFormsHasMore) {
-      loadMoreLegalForms();
+      loadMoreLegalForms()
     }
-  }, [
-    legalFormsNeedsMoreData,
-    legalFormsLoading,
-    legalFormsHasMore,
-    legalFormsTotalFetched,
-    loadMoreLegalForms,
-  ]);
+  }, [legalFormsNeedsMoreData, legalFormsLoading, legalFormsHasMore, legalFormsTotalFetched, loadMoreLegalForms])
 
   // Simple effect to load more industries when needed
   useEffect(() => {
     if (industriesNeedsMoreData && !industriesLoading && industriesHasMore) {
-      loadMoreIndustries();
+      loadMoreIndustries()
     }
-  }, [
-    industriesNeedsMoreData,
-    industriesLoading,
-    industriesHasMore,
-    industriesTotalFetched,
-    loadMoreIndustries,
-  ]);
+  }, [industriesNeedsMoreData, industriesLoading, industriesHasMore, industriesTotalFetched, loadMoreIndustries])
 
   // When Legal Form dropdown opens, show more if we have them cached
   useEffect(() => {
-    if (
-      isLegalFormOpen &&
-      legalFormsDisplayCount < legalFormsTotalFetched &&
-      legalFormsTotalFetched > 5
-    ) {
-      showMoreLegalForms();
+    if (isLegalFormOpen && legalFormsDisplayCount < legalFormsTotalFetched && legalFormsTotalFetched > 5) {
+      showMoreLegalForms()
     }
-  }, [
-    isLegalFormOpen,
-    legalFormsDisplayCount,
-    legalFormsTotalFetched,
-    showMoreLegalForms,
-  ]);
+  }, [isLegalFormOpen, legalFormsDisplayCount, legalFormsTotalFetched, showMoreLegalForms])
 
   // When Industry dropdown opens, show more if we have them cached
   useEffect(() => {
-    if (
-      isIndustryOpen &&
-      industriesDisplayCount < industriesTotalFetched &&
-      industriesTotalFetched > 5
-    ) {
-      showMoreIndustries();
+    if (isIndustryOpen && industriesDisplayCount < industriesTotalFetched && industriesTotalFetched > 5) {
+      showMoreIndustries()
     }
-  }, [
-    isIndustryOpen,
-    industriesDisplayCount,
-    industriesTotalFetched,
-    showMoreIndustries,
-  ]);
+  }, [isIndustryOpen, industriesDisplayCount, industriesTotalFetched, showMoreIndustries])
 
   const handleLoadMoreLegalForms = () => {
     if (legalFormsNeedsMoreData && !legalFormsLoading && legalFormsHasMore) {
-      loadMoreLegalForms();
+      loadMoreLegalForms()
     } else if (legalFormsDisplayCount < legalFormsTotalFetched) {
-      showMoreLegalForms();
+      showMoreLegalForms()
     }
-  };
+  }
 
   const handleLoadMoreIndustries = () => {
     if (industriesNeedsMoreData && !industriesLoading && industriesHasMore) {
-      loadMoreIndustries();
+      loadMoreIndustries()
     } else if (industriesDisplayCount < industriesTotalFetched) {
-      showMoreIndustries();
+      showMoreIndustries()
     }
-  };
+  }
 
   return (
     <Card
       className="gba:border-0 gba:shadow-none gba:bg-transparent"
       style={{
-        border: "0",
-        borderWidth: "0",
-        borderStyle: "none",
-        borderColor: "transparent",
-        boxShadow: "none",
-        padding: "0",
-        background: "transparent",
+        border: '0',
+        borderWidth: '0',
+        borderStyle: 'none',
+        borderColor: 'transparent',
+        boxShadow: 'none',
+        padding: '0',
+        background: 'transparent'
       }}
     >
       <CardContent
         className="gba:space-y-6 gba:p-0"
         style={{
-          border: "0",
-          borderWidth: "0",
-          borderStyle: "none",
-          borderColor: "transparent",
-          padding: "0",
+          border: '0',
+          borderWidth: '0',
+          borderStyle: 'none',
+          borderColor: 'transparent',
+          padding: '0'
         }}
       >
         {error && (
@@ -164,7 +134,8 @@ const AccountInformationSection: React.FC = () => {
         {/* Owner */}
         <div>
           <Label className="gba:block gba:text-sm gba:font-medium gba:text-gray-900 gba:mb-2">
-            {getTranslationFromI18nKeyAndLabel('investments.account.owner', 'Owner')} <span className="gba:text-red-500">*</span>
+            {getTranslationFromI18nKeyAndLabel('investments.account.owner', 'Owner')}{' '}
+            <span className="gba:text-red-500">*</span>
           </Label>
           <OwnerSelector
             value={formValues.owner}
@@ -174,25 +145,26 @@ const AccountInformationSection: React.FC = () => {
             hasMore={employeePositionsHasMore}
             onLoadMore={loadMoreEmployeePositions}
             onSearch={(searchTerm: string) => {
-              searchEmployeePositions(searchTerm);
+              searchEmployeePositions(searchTerm)
             }}
             error={employeePositionsError}
-            dataTestId={formatDataTestId(prefixDataTestId, "owner-select")}
+            dataTestId={formatDataTestId(prefixDataTestId, 'owner-select')}
           />
         </div>
 
         {/* Account Name */}
         <div>
           <Label className="gba:block gba:text-sm gba:font-medium gba:text-gray-900 gba:mb-2">
-            {getTranslationFromI18nKeyAndLabel('investments.account.accountName', 'Account Name')} <span className="gba:text-red-500">*</span>
+            {getTranslationFromI18nKeyAndLabel('investments.account.accountName', 'Account Name')}{' '}
+            <span className="gba:text-red-500">*</span>
           </Label>
           <Input
             name="accountName"
             value={formValues.accountName}
-            onChange={(e) => setFormValues({ accountName: e.target.value })}
+            onChange={e => setFormValues({ accountName: e.target.value })}
             placeholder={getTranslationFromI18nKeyAndLabel('common.pleaseEnter', 'Please Enter...')}
             className="gba:border-gray-300 gba:bg-white"
-            data-testid={formatDataTestId(prefixDataTestId, "account-name-input")}
+            data-testid={formatDataTestId(prefixDataTestId, 'account-name-input')}
           />
         </div>
 
@@ -204,36 +176,35 @@ const AccountInformationSection: React.FC = () => {
             </Label>
             <Select
               value={formValues.legalForm}
-              onValueChange={(value) => setFormValues({ legalForm: value })}
+              onValueChange={value => setFormValues({ legalForm: value })}
               onOpenChange={setIsLegalFormOpen}
-              data-testid={formatDataTestId(
-                prefixDataTestId,
-                "legal-form-select"
-              )}
+              data-testid={formatDataTestId(prefixDataTestId, 'legal-form-select')}
             >
               <SelectTrigger className="gba:border-gray-300 gba:bg-white">
-                <SelectValue placeholder={getTranslationFromI18nKeyAndLabel('common.pleaseSelect', 'Please Select...')} />
+                <SelectValue
+                  placeholder={getTranslationFromI18nKeyAndLabel('common.pleaseSelect', 'Please Select...')}
+                />
               </SelectTrigger>
               <SelectContent
                 className="gba:max-h-[200px] gba:overflow-y-auto"
-                style={{ maxHeight: "200px", overflowY: "auto" }}
+                style={{ maxHeight: '200px', overflowY: 'auto' }}
               >
                 {legalForms.map((option, index) => (
-                  <SelectItem
-                    key={`${option.id}-${index}`}
-                    value={option.value}
-                  >
+                  <SelectItem key={`${option.id}-${index}`} value={option.value}>
                     {option.label}
                   </SelectItem>
                 ))}
 
                 {/* Load More button or loading message */}
                 {legalFormsLoading && (
-                  <div 
+                  <div
                     className="gba:px-3 gba:py-2 gba:text-sm gba:text-blue-600 gba:text-center gba:font-medium"
                     data-testid={formatDataTestId(prefixDataTestId, 'legal-forms-loading-status')}
                   >
-                    {getTranslationFromI18nKeyAndLabel('investments.account.loadingMoreLegalForms', '🔄 Loading more legal forms...')}
+                    {getTranslationFromI18nKeyAndLabel(
+                      'investments.account.loadingMoreLegalForms',
+                      '🔄 Loading more legal forms...'
+                    )}
                   </div>
                 )}
 
@@ -243,10 +214,14 @@ const AccountInformationSection: React.FC = () => {
                       type="button"
                       onClick={handleLoadMoreLegalForms}
                       className="gba:w-full gba:px-3 gba:py-2 gba:text-sm gba:text-blue-600 gba:bg-blue-50 gba:border gba:border-blue-200 gba:rounded gba:hover:bg-blue-100 gba:transition-colors"
-                      data-testid={formatDataTestId(prefixDataTestId, "load-more-legal-forms-button")}
+                      data-testid={formatDataTestId(prefixDataTestId, 'load-more-legal-forms-button')}
                     >
-                      {getTranslationFromI18nKeyAndLabel('investments.account.loadMoreLegalForms', '📥 Load More Legal Forms')} ({legalFormsDisplayCount}/
-                      {legalFormsTotalFetched} {getTranslationFromI18nKeyAndLabel('common.shown', 'shown')})
+                      {getTranslationFromI18nKeyAndLabel(
+                        'investments.account.loadMoreLegalForms',
+                        '📥 Load More Legal Forms'
+                      )}{' '}
+                      ({legalFormsDisplayCount}/{legalFormsTotalFetched}{' '}
+                      {getTranslationFromI18nKeyAndLabel('common.shown', 'shown')})
                     </button>
                   </div>
                 )}
@@ -260,36 +235,35 @@ const AccountInformationSection: React.FC = () => {
             </Label>
             <Select
               value={formValues.industry}
-              onValueChange={(value) => setFormValues({ industry: value })}
+              onValueChange={value => setFormValues({ industry: value })}
               onOpenChange={setIsIndustryOpen}
-              data-testid={formatDataTestId(
-                prefixDataTestId,
-                "industry-select"
-              )}
+              data-testid={formatDataTestId(prefixDataTestId, 'industry-select')}
             >
               <SelectTrigger className="gba:border-gray-300 gba:bg-white">
-                <SelectValue placeholder={getTranslationFromI18nKeyAndLabel('common.pleaseSelect', 'Please Select...')} />
+                <SelectValue
+                  placeholder={getTranslationFromI18nKeyAndLabel('common.pleaseSelect', 'Please Select...')}
+                />
               </SelectTrigger>
               <SelectContent
                 className="gba:max-h-[200px] gba:overflow-y-auto"
-                style={{ maxHeight: "200px", overflowY: "auto" }}
+                style={{ maxHeight: '200px', overflowY: 'auto' }}
               >
                 {industries.map((option, index) => (
-                  <SelectItem
-                    key={`${option.id}-${index}`}
-                    value={option.value}
-                  >
+                  <SelectItem key={`${option.id}-${index}`} value={option.value}>
                     {option.label}
                   </SelectItem>
                 ))}
 
                 {/* Load More button or loading message */}
                 {industriesLoading && (
-                  <div 
+                  <div
                     className="gba:px-3 gba:py-2 gba:text-sm gba:text-blue-600 gba:text-center gba:font-medium"
                     data-testid={formatDataTestId(prefixDataTestId, 'industries-loading-status')}
                   >
-                    {getTranslationFromI18nKeyAndLabel('investments.account.loadingMoreIndustries', '🔄 Loading more industries...')}
+                    {getTranslationFromI18nKeyAndLabel(
+                      'investments.account.loadingMoreIndustries',
+                      '🔄 Loading more industries...'
+                    )}
                   </div>
                 )}
 
@@ -299,10 +273,14 @@ const AccountInformationSection: React.FC = () => {
                       type="button"
                       onClick={handleLoadMoreIndustries}
                       className="gba:w-full gba:px-3 gba:py-2 gba:text-sm gba:text-blue-600 gba:bg-blue-50 gba:border gba:border-blue-200 gba:rounded gba:hover:bg-blue-100 gba:transition-colors"
-                      data-testid={formatDataTestId(prefixDataTestId, "load-more-industries-button")}
+                      data-testid={formatDataTestId(prefixDataTestId, 'load-more-industries-button')}
                     >
-                      {getTranslationFromI18nKeyAndLabel('investments.account.loadMoreIndustries', '📥 Load More Industries')} ({industriesDisplayCount}/
-                      {industriesTotalFetched} {getTranslationFromI18nKeyAndLabel('common.shown', 'shown')})
+                      {getTranslationFromI18nKeyAndLabel(
+                        'investments.account.loadMoreIndustries',
+                        '📥 Load More Industries'
+                      )}{' '}
+                      ({industriesDisplayCount}/{industriesTotalFetched}{' '}
+                      {getTranslationFromI18nKeyAndLabel('common.shown', 'shown')})
                     </button>
                   </div>
                 )}
@@ -319,10 +297,10 @@ const AccountInformationSection: React.FC = () => {
           <Input
             name="website"
             value={formValues.website}
-            onChange={(e) => setFormValues({ website: e.target.value })}
+            onChange={e => setFormValues({ website: e.target.value })}
             placeholder={getTranslationFromI18nKeyAndLabel('common.pleaseEnter', 'Please Enter...')}
             className="gba:border-gray-300 gba:bg-white"
-            data-testid={formatDataTestId(prefixDataTestId, "website-input")}
+            data-testid={formatDataTestId(prefixDataTestId, 'website-input')}
           />
         </div>
 
@@ -335,10 +313,10 @@ const AccountInformationSection: React.FC = () => {
             <Input
               name="phone"
               value={formValues.phone}
-              onChange={(e) => setFormValues({ phone: e.target.value })}
+              onChange={e => setFormValues({ phone: e.target.value })}
               placeholder={getTranslationFromI18nKeyAndLabel('common.pleaseEnter', 'Please Enter...')}
               className="gba:border-gray-300 gba:bg-white"
-              data-testid={formatDataTestId(prefixDataTestId, "phone-input")}
+              data-testid={formatDataTestId(prefixDataTestId, 'phone-input')}
             />
           </div>
 
@@ -349,10 +327,10 @@ const AccountInformationSection: React.FC = () => {
             <Input
               name="email"
               value={formValues.email}
-              onChange={(e) => setFormValues({ email: e.target.value })}
+              onChange={e => setFormValues({ email: e.target.value })}
               placeholder={getTranslationFromI18nKeyAndLabel('common.pleaseEnter', 'Please Enter...')}
               className="gba:border-gray-300 gba:bg-white"
-              data-testid={formatDataTestId(prefixDataTestId, "email-input")}
+              data-testid={formatDataTestId(prefixDataTestId, 'email-input')}
             />
           </div>
         </div>
@@ -360,7 +338,7 @@ const AccountInformationSection: React.FC = () => {
         {/* ✅ REMOVED: Sales Campaign Section - not relevant for InvestmentAccount */}
       </CardContent>
     </Card>
-  );
-};
+  )
+}
 
-export default AccountInformationSection;
+export default AccountInformationSection

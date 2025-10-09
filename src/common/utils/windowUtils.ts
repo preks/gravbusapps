@@ -1,8 +1,8 @@
 export function getCurrentActiveStructureId(): string {
   if (window?.lowcoder?.activeStructureId) {
-    return window.lowcoder.activeStructureId;
+    return window.lowcoder.activeStructureId
   }
-  return "99b1ba64-a4d3-4dd0-8302-b1dc0c4daaaf";
+  return '99b1ba64-a4d3-4dd0-8302-b1dc0c4daaaf'
 }
 
 /**
@@ -21,7 +21,7 @@ export function getPlatformContext() {
   // Start from the platform-provided context when available
   const base: any = window.lowcoder?.platformContext
     ? { ...(window.lowcoder as any).platformContext }
-    : { structureId: getCurrentActiveStructureId() ?? "" };
+    : { structureId: getCurrentActiveStructureId() ?? '' }
 
   // Try to ensure employeeDetails.userId exists for flows referencing it
   // Derive from multiple potential sources available on the host platform
@@ -30,7 +30,7 @@ export function getPlatformContext() {
     (window as any)?.lowcoder?.platformContext?.userId ||
     (window as any)?.lowcoder?.currentUser?.id ||
     (window as any)?.lowcoder?.user?.id ||
-    base?.employeeDetails?.userId;
+    base?.employeeDetails?.userId
 
   // Always provide an employeeDetails object so expressions like #{employeeDetails.userId} resolve
   base.employeeDetails = {
@@ -40,129 +40,110 @@ export function getPlatformContext() {
       derivedUserId ||
       (window as any)?.lowcoder?.user?.id ||
       (window as any)?.lowcoder?.currentUser?.id ||
-      "",
-  };
+      ''
+  }
 
   // Fallback: if userId is still empty but we have employeeId, reuse it
   if (!base.employeeDetails.userId && base.employeeId) {
-    base.employeeDetails.userId = base.employeeId;
+    base.employeeDetails.userId = base.employeeId
   }
 
   // Normalize: if userId is present but not a UUID and employeeId is a UUID, use employeeId
   const isUuid = (v: any) =>
-    typeof v === "string" &&
-    /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-5][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$/.test(
-      v,
-    );
+    typeof v === 'string' &&
+    /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-5][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$/.test(v)
   if (!isUuid(base.employeeDetails.userId) && isUuid(base.employeeId)) {
-    base.employeeDetails.userId = base.employeeId;
+    base.employeeDetails.userId = base.employeeId
   }
 
   // Also expose a top-level userId for flows that expect it
-  base.userId =
-    base.userId ||
-    base.employeeDetails.userId ||
-    (window as any)?.lowcoder?.platformContext?.userId ||
-    "";
+  base.userId = base.userId || base.employeeDetails.userId || (window as any)?.lowcoder?.platformContext?.userId || ''
 
-  return base;
+  return base
 }
 
 export function getCurrentActiveUserLocale(): string {
   if (window?.lowcoder?.i18n && window?.lowcoder?.i18n?.selectedLocale) {
-    return window?.lowcoder?.i18n?.selectedLocale;
+    return window?.lowcoder?.i18n?.selectedLocale
   }
-  return "en-US";
+  return 'en-US'
 }
 
 export function getCatalogValue(catalogEntry: any): string {
   // Handle null, undefined, or empty catalogEntry
   if (!catalogEntry) {
-    return "";
+    return ''
   }
 
   try {
-    const currentLocale = (window?.lowcoder?.i18n?.selectedLocale || "en-US").toLowerCase();
+    const currentLocale = (window?.lowcoder?.i18n?.selectedLocale || 'en-US').toLowerCase()
     if (Array.isArray(catalogEntry.translations)) {
-      const translation = catalogEntry.translations.find(
-        (t: any) => t?.localeCode?.toLowerCase() === currentLocale,
-      );
-      if (translation && translation.value) return translation.value;
+      const translation = catalogEntry.translations.find((t: any) => t?.localeCode?.toLowerCase() === currentLocale)
+      if (translation && translation.value) return translation.value
     }
-    return catalogEntry.value || "";
+    return catalogEntry.value || ''
   } catch {
-    return catalogEntry?.value || "";
+    return catalogEntry?.value || ''
   }
 }
 
 export function getDateFormat(format: string): string {
-  if (window?.lowcoder?.getDateFormat) return window.lowcoder.getDateFormat(format);
-  return "DD.MM.YYYY";
+  if (window?.lowcoder?.getDateFormat) return window.lowcoder.getDateFormat(format)
+  return 'DD.MM.YYYY'
 }
 
-export function getTranslationFromI18nKeyAndLabel(
-  key: string,
-  defaultValue: string,
-  translationVariables?: {},
-) {
+export function getTranslationFromI18nKeyAndLabel(key: string, defaultValue: string, translationVariables?: {}) {
   if (globalThis.window === undefined) {
-    return defaultValue;
+    return defaultValue
   }
-  if (typeof globalThis.window?.lowcoder?.i18n?.t !== "function") {
-    return defaultValue;
+  if (typeof globalThis.window?.lowcoder?.i18n?.t !== 'function') {
+    return defaultValue
   }
   const translation = globalThis.window?.lowcoder?.i18n?.t(key, {
     defaultValue,
-    ...(translationVariables || {}),
-  });
-  if (key?.split("lowcoder:")?.[1] === translation) {
-    return defaultValue;
+    ...(translationVariables || {})
+  })
+  if (key?.split('lowcoder:')?.[1] === translation) {
+    return defaultValue
   }
-  return translation || defaultValue;
+  return translation || defaultValue
 }
 
 export const formatDate = (
   dateValue: Date | string | undefined,
-  format = "date.short",
-  customSpecificFormat = null,
+  format = 'date.short',
+  customSpecificFormat = null
 ): string | undefined => {
-  if (!dateValue) return dateValue;
+  if (!dateValue) return dateValue
 
-  const date = new Date(dateValue);
+  const date = new Date(dateValue)
 
-  if (typeof window?.lowcoder?.i18n?.formatDate !== "function") {
-    return date.toISOString();
+  if (typeof window?.lowcoder?.i18n?.formatDate !== 'function') {
+    return date.toISOString()
   }
 
-  return window?.lowcoder?.i18n?.formatDate(date, format, customSpecificFormat);
-};
+  return window?.lowcoder?.i18n?.formatDate(date, format, customSpecificFormat)
+}
 
-export const formatNumberFunction = (
-  number: number | string,
-  format: string = "0.00[,]00",
-): string => {
-  if (
-    !window.lowcoder?.i18n?.formatNumber ||
-    typeof window.lowcoder.i18n?.formatNumber !== "function"
-  ) {
-    return String(number);
+export const formatNumberFunction = (number: number | string, format: string = '0.00[,]00'): string => {
+  if (!window.lowcoder?.i18n?.formatNumber || typeof window.lowcoder.i18n?.formatNumber !== 'function') {
+    return String(number)
   }
 
-  const numericValue = typeof number === "string" ? parseFloat(number) : number;
+  const numericValue = typeof number === 'string' ? parseFloat(number) : number
 
-  return window.lowcoder.i18n.formatNumber(numericValue, format);
-};
+  return window.lowcoder.i18n.formatNumber(numericValue, format)
+}
 
 export const formatDateToISO = (dateValue: Date): Date | string | undefined => {
-  if (!dateValue) return "";
+  if (!dateValue) return ''
   try {
-    if (!window?.lowcoder?.i18n?.l10nResources?.dateTime["fullDateTime.ISO"]) {
-      return dateValue;
+    if (!window?.lowcoder?.i18n?.l10nResources?.dateTime['fullDateTime.ISO']) {
+      return dateValue
     }
-    if (window.lowcoder.formatDate)
-      return window.lowcoder.formatDate(dateValue, "fullDateTime.ISO");
-    return dateValue.toISOString();
+    if (window.lowcoder.formatDate) return window.lowcoder.formatDate(dateValue, 'fullDateTime.ISO')
+    return dateValue.toISOString()
   } catch {
-    return dateValue;
+    return dateValue
   }
-};
+}

@@ -1,4 +1,4 @@
-import ExpenseCalendarTab from './ExpenseCalendarTab';
+import ExpenseCalendarTab from './ExpenseCalendarTab'
 
-export { ExpenseCalendarTab };
-export default ExpenseCalendarTab;
+export { ExpenseCalendarTab }
+export default ExpenseCalendarTab

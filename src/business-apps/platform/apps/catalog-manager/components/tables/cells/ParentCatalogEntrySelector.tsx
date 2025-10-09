@@ -1,152 +1,138 @@
-import React, { useState, useEffect, useCallback, useRef } from "react";
-import {
-  Button,
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-  Spinner,
-  Badge,
-} from "@newwork/nw-design-system";
-import { ChevronDown, X, Database, FileText } from "lucide-react";
-import { DebouncedInput } from "@/components/debounced-input";
-import {
-  useCatalogs,
-  useCatalogEntries,
-  Catalog,
-  CatalogEntry,
-} from "@/common/data/catalog";
-import { BusinessAppContextProps } from "@/common/BusinessAppContext";
+import React, { useState, useEffect, useCallback, useRef } from 'react'
+import { Button, Popover, PopoverContent, PopoverTrigger, Spinner, Badge } from '@newwork/nw-design-system'
+import { ChevronDown, X, Database, FileText } from 'lucide-react'
+import { DebouncedInput } from '@/components/debounced-input'
+import { useCatalogs, useCatalogEntries, Catalog, CatalogEntry } from '@/common/data/catalog'
+import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 
 interface ParentCatalogEntrySelectorProps {
-  value?: string; // Parent entry ID
-  onChange: (entryId: string | undefined) => void;
-  accessToken: string;
-  placeholder?: string;
-  disabled?: boolean;
-  "data-testid"?: string;
+  value?: string // Parent entry ID
+  onChange: (entryId: string | undefined) => void
+  accessToken: string
+  placeholder?: string
+  disabled?: boolean
+  'data-testid'?: string
 }
 
 interface SelectorState {
-  catalogSearchTerm: string;
-  entrySearchTerm: string;
-  selectedCatalog: Catalog | null;
-  selectedEntry: CatalogEntry | null;
+  catalogSearchTerm: string
+  entrySearchTerm: string
+  selectedCatalog: Catalog | null
+  selectedEntry: CatalogEntry | null
   // Pagination state
-  catalogPage: number;
-  entryPage: number;
-  catalogHasMore: boolean;
-  entryHasMore: boolean;
+  catalogPage: number
+  entryPage: number
+  catalogHasMore: boolean
+  entryHasMore: boolean
 }
 
-const ITEMS_PER_PAGE = 20;
+const ITEMS_PER_PAGE = 20
 
 export const ParentCatalogEntrySelector: React.FC<ParentCatalogEntrySelectorProps> = ({
   value,
   onChange,
   accessToken,
-  placeholder = "",
+  placeholder = '',
   disabled = false,
-  "data-testid": dataTestId = "ParentCatalogEntrySelector",
+  'data-testid': dataTestId = 'ParentCatalogEntrySelector'
 }) => {
-  const [isOpen, setIsOpen] = useState(false);
+  const [isOpen, setIsOpen] = useState(false)
   const [state, setState] = useState<SelectorState>({
-    catalogSearchTerm: "",
-    entrySearchTerm: "",
+    catalogSearchTerm: '',
+    entrySearchTerm: '',
     selectedCatalog: null,
     selectedEntry: null,
     catalogPage: 1,
     entryPage: 1,
     catalogHasMore: true,
-    entryHasMore: true,
-  });
+    entryHasMore: true
+  })
 
-  const [catalogs, setCatalogs] = useState<Catalog[]>([]);
-  const [entries, setEntries] = useState<CatalogEntry[]>([]);
-  const [catalogsLoading, setCatalogsLoading] = useState(false);
-  const [entriesLoading, setEntriesLoading] = useState(false);
+  const [catalogs, setCatalogs] = useState<Catalog[]>([])
+  const [entries, setEntries] = useState<CatalogEntry[]>([])
+  const [catalogsLoading, setCatalogsLoading] = useState(false)
+  const [entriesLoading, setEntriesLoading] = useState(false)
 
   // Refs for scroll detection
-  const catalogScrollRef = useRef<HTMLDivElement>(null);
-  const entryScrollRef = useRef<HTMLDivElement>(null);
+  const catalogScrollRef = useRef<HTMLDivElement>(null)
+  const entryScrollRef = useRef<HTMLDivElement>(null)
 
   // Use standardized GraphQL hooks
-  const context = { accessToken } as BusinessAppContextProps;
-  const { fetchCatalogs } = useCatalogs(context);
-  const { fetchCatalogEntriesByIdentifier } = useCatalogEntries({ accessToken });
+  const context = { accessToken } as BusinessAppContextProps
+  const { fetchCatalogs } = useCatalogs(context)
+  const { fetchCatalogEntriesByIdentifier } = useCatalogEntries({ accessToken })
 
   // Load catalogs with pagination
   const loadCatalogs = useCallback(
     async (reset: boolean = false) => {
-      if (!accessToken) return;
+      if (!accessToken) return
 
       // Only show loading on initial load when we have no data
       if (reset && catalogs.length === 0) {
-        setCatalogsLoading(true);
+        setCatalogsLoading(true)
       }
       try {
         const variables = {
           limit: ITEMS_PER_PAGE,
           offset: reset ? 0 : (state.catalogPage - 1) * ITEMS_PER_PAGE,
-          search: state.catalogSearchTerm || undefined,
-        };
+          search: state.catalogSearchTerm || undefined
+        }
 
-        const searchVariables = state.catalogSearchTerm
-          ? { ...variables, search: state.catalogSearchTerm }
-          : variables;
-        const list = await fetchCatalogs(searchVariables);
+        const searchVariables = state.catalogSearchTerm ? { ...variables, search: state.catalogSearchTerm } : variables
+        const list = await fetchCatalogs(searchVariables)
 
-        const pageItems = list.items || [];
-        setCatalogs((prev) => (reset ? pageItems : [...prev, ...pageItems]));
-        setState((prev) => ({
+        const pageItems = list.items || []
+        setCatalogs(prev => (reset ? pageItems : [...prev, ...pageItems]))
+        setState(prev => ({
           ...prev,
-          catalogHasMore: ((reset ? 0 : catalogs.length) + pageItems.length) < (list.total || pageItems.length),
-          catalogPage: reset ? 2 : prev.catalogPage + 1,
-        }));
+          catalogHasMore: (reset ? 0 : catalogs.length) + pageItems.length < (list.total || pageItems.length),
+          catalogPage: reset ? 2 : prev.catalogPage + 1
+        }))
       } catch (error) {
-        console.error("Error loading catalogs:", error);
+        console.error('Error loading catalogs:', error)
       } finally {
         // Only clear loading if we set it
         if (reset && catalogs.length === 0) {
-          setCatalogsLoading(false);
+          setCatalogsLoading(false)
         }
       }
     },
-    [accessToken, fetchCatalogs, state.catalogSearchTerm, state.catalogPage, catalogs.length],
-  );
+    [accessToken, fetchCatalogs, state.catalogSearchTerm, state.catalogPage, catalogs.length]
+  )
 
   // Load catalog entries with pagination
   const loadEntries = useCallback(
     async (reset: boolean = false) => {
-      if (!accessToken || !state.selectedCatalog) return;
+      if (!accessToken || !state.selectedCatalog) return
 
       // Only show loading on initial load when we have no data
       if (reset && entries.length === 0) {
-        setEntriesLoading(true);
+        setEntriesLoading(true)
       }
       try {
         const variables = {
           limit: ITEMS_PER_PAGE,
           offset: reset ? 0 : (state.entryPage - 1) * ITEMS_PER_PAGE,
-          search: state.entrySearchTerm || undefined,
-        };
+          search: state.entrySearchTerm || undefined
+        }
 
         const { entries: pageEntries, totalCount } = await fetchCatalogEntriesByIdentifier(
           state.selectedCatalog.identifier,
-          variables,
-        );
+          variables
+        )
 
-        setEntries((prev) => (reset ? pageEntries : [...prev, ...pageEntries]));
-        setState((prev) => ({
+        setEntries(prev => (reset ? pageEntries : [...prev, ...pageEntries]))
+        setState(prev => ({
           ...prev,
-          entryHasMore: ((reset ? 0 : entries.length) + pageEntries.length) < totalCount,
-          entryPage: reset ? 2 : prev.entryPage + 1,
-        }));
+          entryHasMore: (reset ? 0 : entries.length) + pageEntries.length < totalCount,
+          entryPage: reset ? 2 : prev.entryPage + 1
+        }))
       } catch (error) {
-        console.error("Error loading entries:", error);
+        console.error('Error loading entries:', error)
       } finally {
         // Only clear loading if we set it
         if (reset && entries.length === 0) {
-          setEntriesLoading(false);
+          setEntriesLoading(false)
         }
       }
     },
@@ -156,142 +142,139 @@ export const ParentCatalogEntrySelector: React.FC<ParentCatalogEntrySelectorProp
       state.selectedCatalog,
       state.entrySearchTerm,
       state.entryPage,
-      entries.length,
-    ],
-  );
+      entries.length
+    ]
+  )
 
   // Handle search changes
   const handleCatalogSearch = useCallback(
     (searchTerm: string) => {
-      setState((prev) => ({
+      setState(prev => ({
         ...prev,
         catalogSearchTerm: searchTerm,
         catalogPage: 1,
-        catalogHasMore: true,
-      }));
-      setCatalogs([]);
+        catalogHasMore: true
+      }))
+      setCatalogs([])
       // Load without triggering spinner since we're just changing search
-      loadCatalogs(true);
+      loadCatalogs(true)
     },
-    [loadCatalogs],
-  );
+    [loadCatalogs]
+  )
 
   const handleEntrySearch = useCallback(
     (searchTerm: string) => {
-      setState((prev) => ({
+      setState(prev => ({
         ...prev,
         entrySearchTerm: searchTerm,
         entryPage: 1,
-        entryHasMore: true,
-      }));
-      setEntries([]);
+        entryHasMore: true
+      }))
+      setEntries([])
       // Load without triggering spinner since we're just changing search
-      loadEntries(true);
+      loadEntries(true)
     },
-    [loadEntries],
-  );
+    [loadEntries]
+  )
 
   // Scroll handlers for infinite scroll
   const handleCatalogScroll = useCallback(() => {
-    if (!catalogScrollRef.current || catalogsLoading || !state.catalogHasMore) return;
+    if (!catalogScrollRef.current || catalogsLoading || !state.catalogHasMore) return
 
-    const { scrollTop, scrollHeight, clientHeight } = catalogScrollRef.current;
+    const { scrollTop, scrollHeight, clientHeight } = catalogScrollRef.current
     if (scrollTop + clientHeight >= scrollHeight - 100) {
-      loadCatalogs(false);
+      loadCatalogs(false)
     }
-  }, [catalogsLoading, state.catalogHasMore, loadCatalogs]);
+  }, [catalogsLoading, state.catalogHasMore, loadCatalogs])
 
   const handleEntryScroll = useCallback(() => {
-    if (!entryScrollRef.current || entriesLoading || !state.entryHasMore) return;
+    if (!entryScrollRef.current || entriesLoading || !state.entryHasMore) return
 
-    const { scrollTop, scrollHeight, clientHeight } = entryScrollRef.current;
+    const { scrollTop, scrollHeight, clientHeight } = entryScrollRef.current
     if (scrollTop + clientHeight >= scrollHeight - 100) {
-      loadEntries(false);
+      loadEntries(false)
     }
-  }, [entriesLoading, state.entryHasMore, loadEntries]);
+  }, [entriesLoading, state.entryHasMore, loadEntries])
 
   // Selection handlers
-  const handleCatalogSelect = useCallback(
-    (catalog: Catalog) => {
-      setState((prev) => ({
-        ...prev,
-        selectedCatalog: catalog,
-        selectedEntry: null,
-        entrySearchTerm: "",
-        entryPage: 1,
-        entryHasMore: true,
-      }));
-      setEntries([]);
-    },
-    [],
-  );
+  const handleCatalogSelect = useCallback((catalog: Catalog) => {
+    setState(prev => ({
+      ...prev,
+      selectedCatalog: catalog,
+      selectedEntry: null,
+      entrySearchTerm: '',
+      entryPage: 1,
+      entryHasMore: true
+    }))
+    setEntries([])
+  }, [])
 
   const handleEntrySelect = useCallback(
     (entry: CatalogEntry) => {
-      setState((prev) => ({ ...prev, selectedEntry: entry }));
-      onChange(entry.id);
-      setIsOpen(false);
+      setState(prev => ({ ...prev, selectedEntry: entry }))
+      onChange(entry.id)
+      setIsOpen(false)
     },
-    [onChange],
-  );
+    [onChange]
+  )
 
   // Clear selection
   const handleClear = useCallback(() => {
-    setState((prev) => ({
+    setState(prev => ({
       ...prev,
       selectedCatalog: null,
       selectedEntry: null,
-      catalogSearchTerm: "",
-      entrySearchTerm: "",
+      catalogSearchTerm: '',
+      entrySearchTerm: '',
       catalogPage: 1,
       entryPage: 1,
       catalogHasMore: true,
-      entryHasMore: true,
-    }));
-    setCatalogs([]);
-    setEntries([]);
-    onChange(undefined);
-    setIsOpen(false);
-  }, [onChange]);
+      entryHasMore: true
+    }))
+    setCatalogs([])
+    setEntries([])
+    onChange(undefined)
+    setIsOpen(false)
+  }, [onChange])
 
   // Initial load when popover opens
   useEffect(() => {
     if (isOpen && catalogs.length === 0) {
       // This will trigger loading spinner since we have no data
-      loadCatalogs(true);
+      loadCatalogs(true)
     }
-  }, [isOpen, catalogs.length, loadCatalogs]);
+  }, [isOpen, catalogs.length, loadCatalogs])
 
   // Reset search when popover closes
   useEffect(() => {
     if (!isOpen) {
-      setState((prev) => ({
+      setState(prev => ({
         ...prev,
-        catalogSearchTerm: "",
-        entrySearchTerm: "",
+        catalogSearchTerm: '',
+        entrySearchTerm: '',
         catalogPage: 1,
         entryPage: 1,
         catalogHasMore: true,
-        entryHasMore: true,
-      }));
-      setCatalogs([]);
-      setEntries([]);
+        entryHasMore: true
+      }))
+      setCatalogs([])
+      setEntries([])
     }
-  }, [isOpen]);
+  }, [isOpen])
 
   // Load entries when a catalog is selected (fixes double-click requirement)
   useEffect(() => {
     if (state.selectedCatalog) {
-      loadEntries(true);
+      loadEntries(true)
     }
-  }, [state.selectedCatalog, loadEntries]);
+  }, [state.selectedCatalog, loadEntries])
 
   // Display value
   const displayValue = state.selectedEntry
-    ? `${state.selectedEntry.code || state.selectedEntry.id} (${state.selectedCatalog?.name || "Unknown Catalog"})`
+    ? `${state.selectedEntry.code || state.selectedEntry.id} (${state.selectedCatalog?.name || 'Unknown Catalog'})`
     : value
       ? `ID: ${value}`
-      : "";
+      : ''
 
   return (
     <div className="gba:w-full" data-testid={dataTestId}>
@@ -302,7 +285,7 @@ export const ParentCatalogEntrySelector: React.FC<ParentCatalogEntrySelectorProp
             role="combobox"
             aria-expanded={isOpen}
             className="gba:w-full gba:justify-between gba:h-6 gba:border-0 gba:bg-transparent gba:p-1 gba:text-xs gba:focus:bg-white gba:focus:border"
-            style={{ minWidth: "150px" }}
+            style={{ minWidth: '150px' }}
             disabled={disabled}
             data-testid={`${dataTestId}-Trigger`}
           >
@@ -311,9 +294,9 @@ export const ParentCatalogEntrySelector: React.FC<ParentCatalogEntrySelectorProp
               {displayValue && (
                 <X
                   className="gba:h-3 gba:w-3 gba:text-gray-500 gba:hover:text-gray-700"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    handleClear();
+                  onClick={e => {
+                    e.stopPropagation()
+                    handleClear()
                   }}
                 />
               )}
@@ -342,11 +325,11 @@ export const ParentCatalogEntrySelector: React.FC<ParentCatalogEntrySelectorProp
                 className="gba:max-h-[316px] gba:overflow-y-auto"
                 onScroll={handleCatalogScroll}
               >
-                {catalogs.map((catalog) => (
+                {catalogs.map(catalog => (
                   <div
                     key={catalog.id}
                     className={`gba:p-2 gba:cursor-pointer gba:border-b gba:border-gray-100 gba:hover:bg-gray-50 ${
-                      state.selectedCatalog?.id === catalog.id ? "gba:bg-blue-50" : ""
+                      state.selectedCatalog?.id === catalog.id ? 'gba:bg-blue-50' : ''
                     }`}
                     onClick={() => handleCatalogSelect(catalog)}
                     data-testid={`${dataTestId}-CatalogOption-${catalog.id}`}
@@ -354,12 +337,8 @@ export const ParentCatalogEntrySelector: React.FC<ParentCatalogEntrySelectorProp
                     <div className="gba:flex gba:items-center gba:gap-2">
                       <Database className="gba:h-3 gba:w-3 gba:text-blue-500" />
                       <div>
-                        <div className="gba:text-xs gba:font-medium gba:truncate">
-                          {catalog.name}
-                        </div>
-                        <div className="gba:text-xs gba:text-gray-500 gba:truncate">
-                          {catalog.identifier}
-                        </div>
+                        <div className="gba:text-xs gba:font-medium gba:truncate">{catalog.name}</div>
+                        <div className="gba:text-xs gba:text-gray-500 gba:truncate">{catalog.identifier}</div>
                       </div>
                     </div>
                   </div>
@@ -370,14 +349,10 @@ export const ParentCatalogEntrySelector: React.FC<ParentCatalogEntrySelectorProp
                   </div>
                 )}
                 {!state.catalogHasMore && catalogs.length > 0 && (
-                  <div className="gba:p-2 gba:text-xs gba:text-gray-500 gba:text-center">
-                    All catalogs loaded
-                  </div>
+                  <div className="gba:p-2 gba:text-xs gba:text-gray-500 gba:text-center">All catalogs loaded</div>
                 )}
                 {catalogs.length === 0 && !catalogsLoading && (
-                  <div className="gba:p-2 gba:text-xs gba:text-gray-500 gba:text-center">
-                    No catalogs found
-                  </div>
+                  <div className="gba:p-2 gba:text-xs gba:text-gray-500 gba:text-center">No catalogs found</div>
                 )}
               </div>
             </div>
@@ -400,14 +375,10 @@ export const ParentCatalogEntrySelector: React.FC<ParentCatalogEntrySelectorProp
                   <div className="gba:text-xs gba:text-gray-500">Select a catalog first</div>
                 )}
               </div>
-              <div
-                ref={entryScrollRef}
-                className="gba:max-h-[316px] gba:overflow-y-auto"
-                onScroll={handleEntryScroll}
-              >
+              <div ref={entryScrollRef} className="gba:max-h-[316px] gba:overflow-y-auto" onScroll={handleEntryScroll}>
                 {state.selectedCatalog ? (
                   <>
-                    {entries.map((entry) => (
+                    {entries.map(entry => (
                       <div
                         key={entry.id}
                         className="gba:p-2 gba:cursor-pointer gba:border-b gba:border-gray-100 gba:hover:bg-gray-50"
@@ -421,13 +392,11 @@ export const ParentCatalogEntrySelector: React.FC<ParentCatalogEntrySelectorProp
                               {entry.value || entry.code || entry.id}
                             </div>
                             {entry.code && entry.code !== entry.value && (
-                              <div className="gba:text-xs gba:text-gray-500 gba:truncate">
-                                {entry.code}
-                              </div>
+                              <div className="gba:text-xs gba:text-gray-500 gba:truncate">{entry.code}</div>
                             )}
                           </div>
                           <Badge variant="outline" className="gba:text-xs gba:ml-auto">
-                            {entry.type || "DEFAULT"}
+                            {entry.type || 'DEFAULT'}
                           </Badge>
                         </div>
                       </div>
@@ -438,14 +407,10 @@ export const ParentCatalogEntrySelector: React.FC<ParentCatalogEntrySelectorProp
                       </div>
                     )}
                     {!state.entryHasMore && entries.length > 0 && (
-                      <div className="gba:p-2 gba:text-xs gba:text-gray-500 gba:text-center">
-                        All entries loaded
-                      </div>
+                      <div className="gba:p-2 gba:text-xs gba:text-gray-500 gba:text-center">All entries loaded</div>
                     )}
                     {entries.length === 0 && !entriesLoading && (
-                      <div className="gba:p-3 gba:text-xs gba:text-gray-500 gba:text-center">
-                        No entries found
-                      </div>
+                      <div className="gba:p-3 gba:text-xs gba:text-gray-500 gba:text-center">No entries found</div>
                     )}
                   </>
                 ) : (
@@ -459,5 +424,5 @@ export const ParentCatalogEntrySelector: React.FC<ParentCatalogEntrySelectorProp
         </PopoverContent>
       </Popover>
     </div>
-  );
-};
+  )
+}

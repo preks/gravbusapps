@@ -1,5 +1,5 @@
-import AdvancePaymentsTab from './AdvancePaymentsTab';
-import AdvancePaymentsTable from './AdvancePaymentsTable';
+import AdvancePaymentsTab from './AdvancePaymentsTab'
+import AdvancePaymentsTable from './AdvancePaymentsTable'
 
-export { AdvancePaymentsTab, AdvancePaymentsTable };
-export default AdvancePaymentsTab;
+export { AdvancePaymentsTab, AdvancePaymentsTable }
+export default AdvancePaymentsTab

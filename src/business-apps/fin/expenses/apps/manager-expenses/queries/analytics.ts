@@ -69,11 +69,11 @@ export const GET_ALL_CURRENCIES = `
       currencyRef
     }
   }
-`;
+`
 
 // For backward compatibility, we'll keep these exports but they'll use the same query
-export const GET_DISTINCT_CURRENCIES = GET_ALL_CURRENCIES;
-export const GET_MOST_USED_CURRENCY = GET_ALL_CURRENCIES;
+export const GET_DISTINCT_CURRENCIES = GET_ALL_CURRENCIES
+export const GET_MOST_USED_CURRENCY = GET_ALL_CURRENCIES
 export const GET_EXPENSE_ANALYTICS_DATA = `
   query GetExpenseAnalyticsData($managerId: uuid!, $startDate: timestamptz, $endDate: timestamptz, $currencyRef: String) {
     # Expense Items analytics
@@ -235,4 +235,4 @@ export const GET_EXPENSE_ANALYTICS_DATA = `
       }
     }
   }
-`;
+`

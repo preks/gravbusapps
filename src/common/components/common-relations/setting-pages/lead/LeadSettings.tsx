@@ -1,9 +1,33 @@
 import React, { useMemo, useState } from 'react'
-import { 
-  Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
-  Button, Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger,
-  Form, FormControl, FormField, FormItem, FormLabel, FormMessage, Input, Badge, Alert, AlertDescription,
-  Tabs, TabsList, TabsTrigger, TabsContent, PageHeader
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+  Button,
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+  Input,
+  Badge,
+  Alert,
+  AlertDescription,
+  Tabs,
+  TabsList,
+  TabsTrigger,
+  TabsContent,
+  PageHeader
 } from '@newwork/nw-design-system'
 import { DebouncedInput } from '@/components/data-filter/DebouncedInput'
 import { useForm } from 'react-hook-form'
@@ -82,11 +106,12 @@ const GenericCatalogTab: React.FC<GenericTabProps> = ({
   const filtered = useMemo(() => {
     const s = search.toLowerCase().trim()
     if (!s) return items
-    return items.filter((i) =>
-      i.code.toLowerCase().includes(s) ||
-      i.value.toLowerCase().includes(s) ||
-      (i.alternativeCode && i.alternativeCode.toLowerCase().includes(s)) ||
-      (i.displayOrder != null && String(i.displayOrder).toLowerCase().includes(s))
+    return items.filter(
+      i =>
+        i.code.toLowerCase().includes(s) ||
+        i.value.toLowerCase().includes(s) ||
+        (i.alternativeCode && i.alternativeCode.toLowerCase().includes(s)) ||
+        (i.displayOrder != null && String(i.displayOrder).toLowerCase().includes(s))
     )
   }, [items, search])
 
@@ -157,9 +182,7 @@ const GenericCatalogTab: React.FC<GenericTabProps> = ({
           <DialogContent data-testid={`${dataTestId}-Modal`}>
             <DialogHeader>
               <DialogTitle>{editing ? 'Edit' : 'Add'}</DialogTitle>
-              <DialogDescription>
-                {editing ? 'Update the details below.' : 'Add a new entry.'}
-              </DialogDescription>
+              <DialogDescription>{editing ? 'Update the details below.' : 'Add a new entry.'}</DialogDescription>
             </DialogHeader>
             <Form {...form}>
               <form onSubmit={form.handleSubmit(handleSubmit)}>
@@ -246,16 +269,14 @@ const GenericCatalogTab: React.FC<GenericTabProps> = ({
         <DebouncedInput
           placeholder="Search..."
           value={search}
-          onChange={(v) => setSearch(v)}
+          onChange={v => setSearch(v)}
           data-testid={`${dataTestId}-Search-Input`}
         />
       </div>
 
       <div>
         {isLoading ? (
-          <div>
-            Loading...
-          </div>
+          <div>Loading...</div>
         ) : (
           <Table data-testid={`${dataTestId}-Table`}>
             <TableHeader>
@@ -269,12 +290,10 @@ const GenericCatalogTab: React.FC<GenericTabProps> = ({
             <TableBody>
               {filtered.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={4}>
-                    No entries found
-                  </TableCell>
+                  <TableCell colSpan={4}>No entries found</TableCell>
                 </TableRow>
               ) : (
-                filtered.map((item) => (
+                filtered.map(item => (
                   <TableRow key={item.id}>
                     <TableCell>
                       <Badge variant="outline">{item.code}</Badge>
@@ -283,8 +302,10 @@ const GenericCatalogTab: React.FC<GenericTabProps> = ({
                     <TableCell>
                       {item.displayOrder != null ? (
                         <Badge variant="secondary">{item.displayOrder}</Badge>
+                      ) : item.alternativeCode ? (
+                        <Badge variant="secondary">{item.alternativeCode}</Badge>
                       ) : (
-                        item.alternativeCode ? <Badge variant="secondary">{item.alternativeCode}</Badge> : <span>-</span>
+                        <span>-</span>
                       )}
                     </TableCell>
                     <TableCell>
@@ -349,7 +370,11 @@ export const LeadSettings: React.FC<LeadSettingsProps> = ({
       />
 
       <div>
-        <Tabs value={active} onValueChange={(k) => setActive(k as any)} data-testid={`${prefixDataTestId || ''}-LeadSettings-Tabs`}>
+        <Tabs
+          value={active}
+          onValueChange={k => setActive(k as any)}
+          data-testid={`${prefixDataTestId || ''}-LeadSettings-Tabs`}
+        >
           <TabsList>
             <TabsTrigger value="ratings">Ratings</TabsTrigger>
             <TabsTrigger value="statuses">Statuses</TabsTrigger>
@@ -392,5 +417,3 @@ export const LeadSettings: React.FC<LeadSettingsProps> = ({
 }
 
 export default LeadSettings
-
-

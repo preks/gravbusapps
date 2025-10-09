@@ -1,153 +1,153 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { PlusCircleOutlined, CloseOutlined, LoadingOutlined } from '@ant-design/icons';
-import { Button, Spin, Alert, Empty, Timeline, Typography, message, Modal } from 'antd';
-import { startProcess } from '@/common/utils/start-process';
-import { AppAction } from '@/components/app-action/AppAction';
-import { FlowContextName } from '@/common/types/FlowRegistryTypes';
-import { BusinessAppContextProps } from '@/common/BusinessAppContext';
-import { useGetCrmNotes, CrmNoteData } from '../queries/CrmNoteQueries';
-import { useRestClient } from '@/common/network/rest/useRestClient';
-import { NoteDeletePopup } from '@/common/components/common-relations/popups/note-delete-popup';
-import { env } from '@/common/env/EnvUtils';
-import dayjs from 'dayjs';
-import { LanguageDropdown } from './LanguageDropdown';
-import { translateMultipleTexts } from '../utils/translationService';
-import { useEmployeeData } from '@/business-apps/crm/common/hooks/useEmployeeData';
+import React, { useState, useEffect, useRef } from 'react'
+import { PlusCircleOutlined, CloseOutlined, LoadingOutlined } from '@ant-design/icons'
+import { Button, Spin, Alert, Empty, Timeline, Typography, message, Modal } from 'antd'
+import { startProcess } from '@/common/utils/start-process'
+import { AppAction } from '@/components/app-action/AppAction'
+import { FlowContextName } from '@/common/types/FlowRegistryTypes'
+import { BusinessAppContextProps } from '@/common/BusinessAppContext'
+import { useGetCrmNotes, CrmNoteData } from '../queries/CrmNoteQueries'
+import { useRestClient } from '@/common/network/rest/useRestClient'
+import { NoteDeletePopup } from '@/common/components/common-relations/popups/note-delete-popup'
+import { env } from '@/common/env/EnvUtils'
+import dayjs from 'dayjs'
+import { LanguageDropdown } from './LanguageDropdown'
+import { translateMultipleTexts } from '../utils/translationService'
+import { useEmployeeData } from '@/business-apps/crm/common/hooks/useEmployeeData'
 
-const { Text } = Typography;
+const { Text } = Typography
 
 interface NotesSectionProps {
-  opportunityId?: string;
-  context: BusinessAppContextProps;
+  opportunityId?: string
+  context: BusinessAppContextProps
 }
 
 interface TranslatedNote extends CrmNoteData {
-  translatedTitle?: string;
-  translatedText?: string;
-  isTranslating?: boolean;
+  translatedTitle?: string
+  translatedText?: string
+  isTranslating?: boolean
 }
 
 export const NotesSection: React.FC<NotesSectionProps> = ({ opportunityId, context }) => {
-  const [notes, setNotes] = useState<TranslatedNote[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [selectedLanguage, setSelectedLanguage] = useState('Original');
-  const [translating, setTranslating] = useState(false);
-  const originalNotesRef = useRef<CrmNoteData[]>([]);
-  const { fetchCrmNotes } = useGetCrmNotes(context);
-  const restClient = useRestClient(env('NEXT_PUBLIC_KOGITO_PROCESSES_ENDPOINT'));
-  const [deletePopup, setDeletePopup] = useState<{ open: boolean; note?: CrmNoteData }>({ open: false });
-  const { getEmployeeDisplayName } = useEmployeeData(context.accessToken);
+  const [notes, setNotes] = useState<TranslatedNote[]>([])
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const [selectedLanguage, setSelectedLanguage] = useState('Original')
+  const [translating, setTranslating] = useState(false)
+  const originalNotesRef = useRef<CrmNoteData[]>([])
+  const { fetchCrmNotes } = useGetCrmNotes(context)
+  const restClient = useRestClient(env('NEXT_PUBLIC_KOGITO_PROCESSES_ENDPOINT'))
+  const [deletePopup, setDeletePopup] = useState<{ open: boolean; note?: CrmNoteData }>({ open: false })
+  const { getEmployeeDisplayName } = useEmployeeData(context.accessToken)
 
   const loadNotes = async () => {
-    if (!opportunityId) return;
-    
-    setLoading(true);
-    setError(null);
-    
+    if (!opportunityId) return
+
+    setLoading(true)
+    setError(null)
+
     try {
-      const result = await fetchCrmNotes({ opportunityId });
-      const sortedNotes = (result.CrmNote || []).sort((a, b) => 
-        new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
-      );
-      
-      originalNotesRef.current = sortedNotes;
-      setNotes(sortedNotes);
+      const result = await fetchCrmNotes({ opportunityId })
+      const sortedNotes = (result.CrmNote || []).sort(
+        (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+      )
+
+      originalNotesRef.current = sortedNotes
+      setNotes(sortedNotes)
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to load notes');
+      setError(err instanceof Error ? err.message : 'Failed to load notes')
     } finally {
-      setLoading(false);
+      setLoading(false)
     }
-  };
+  }
 
   useEffect(() => {
-    loadNotes();
-  }, [opportunityId]);
+    loadNotes()
+  }, [opportunityId])
 
   useEffect(() => {
     const translateNotes = async () => {
-      const originalNotes = originalNotesRef.current;
-      
+      const originalNotes = originalNotesRef.current
+
       if (selectedLanguage === 'Original' || originalNotes.length === 0) {
-        setNotes(originalNotes);
-        return;
+        setNotes(originalNotes)
+        return
       }
 
-      setTranslating(true);
-      
-      try {
-        const textsToTranslate: string[] = [];
-        const noteMapping: Array<{ noteIndex: number, titleIndex: number, textIndex: number }> = [];
-        
-        originalNotes.forEach((note, noteIndex) => {
-          const titleIndex = textsToTranslate.length;
-          textsToTranslate.push(note.noteTitle);
-          
-          const textIndex = textsToTranslate.length;
-          textsToTranslate.push(note.noteText);
-          
-          noteMapping.push({ noteIndex, titleIndex, textIndex });
-        });
+      setTranslating(true)
 
-        const translatedTexts = await translateMultipleTexts(textsToTranslate, selectedLanguage, context.accessToken);
-        
+      try {
+        const textsToTranslate: string[] = []
+        const noteMapping: Array<{ noteIndex: number; titleIndex: number; textIndex: number }> = []
+
+        originalNotes.forEach((note, noteIndex) => {
+          const titleIndex = textsToTranslate.length
+          textsToTranslate.push(note.noteTitle)
+
+          const textIndex = textsToTranslate.length
+          textsToTranslate.push(note.noteText)
+
+          noteMapping.push({ noteIndex, titleIndex, textIndex })
+        })
+
+        const translatedTexts = await translateMultipleTexts(textsToTranslate, selectedLanguage, context.accessToken)
+
         const translatedNotes: TranslatedNote[] = originalNotes.map((originalNote, noteIndex) => {
-          const mapping = noteMapping[noteIndex];
+          const mapping = noteMapping[noteIndex]
           return {
             ...originalNote,
             translatedTitle: translatedTexts[mapping.titleIndex],
             translatedText: translatedTexts[mapping.textIndex],
             isTranslating: false
-          };
-        });
-        
-        setNotes(translatedNotes);
-      } catch (err) {
-        console.error('Translation error:', err);
-        message.error('Failed to translate notes');
-        setNotes(originalNotes);
-      } finally {
-        setTranslating(false);
-      }
-    };
+          }
+        })
 
-    translateNotes();
-  }, [selectedLanguage, context.accessToken]);
+        setNotes(translatedNotes)
+      } catch (err) {
+        console.error('Translation error:', err)
+        message.error('Failed to translate notes')
+        setNotes(originalNotes)
+      } finally {
+        setTranslating(false)
+      }
+    }
+
+    translateNotes()
+  }, [selectedLanguage, context.accessToken])
 
   useEffect(() => {
     const handleProcessCompletion = (event: any) => {
       try {
-        const response = event.detail?.response;
-        
+        const response = event.detail?.response
+
         if (response?.crmNote) {
-          loadNotes();
+          loadNotes()
         }
       } catch (err) {
-        console.error('Error handling process completion:', err);
+        console.error('Error handling process completion:', err)
       }
-    };
+    }
 
     const eventNames = [
       'com.newwork.process.taskCompletion',
       'com.newwork.process.completion',
       'processCompletion',
       'taskCompletion'
-    ];
+    ]
 
     eventNames.forEach(eventName => {
-      window.addEventListener(eventName, handleProcessCompletion as EventListener);
-    });
+      window.addEventListener(eventName, handleProcessCompletion as EventListener)
+    })
 
     return () => {
       eventNames.forEach(eventName => {
-        window.removeEventListener(eventName, handleProcessCompletion as EventListener);
-      });
-    };
-  }, [opportunityId]);
+        window.removeEventListener(eventName, handleProcessCompletion as EventListener)
+      })
+    }
+  }, [opportunityId])
 
   const handleDeleteNote = (note: CrmNoteData) => {
-    setDeletePopup({ open: true, note });
-  };
+    setDeletePopup({ open: true, note })
+  }
 
   const handleAddNote = () => {
     if (opportunityId) {
@@ -155,20 +155,20 @@ export const NotesSection: React.FC<NotesSectionProps> = ({ opportunityId, conte
         domain: 'customer-relations',
         processName: 'saveCrmNote',
         payload: {
-          opportunityId,
+          opportunityId
         },
-        builderType: 'NATIVE_SCREEN',
-      });
+        builderType: 'NATIVE_SCREEN'
+      })
     }
-  };
+  }
 
   const handleLanguageChange = (languageCode: string) => {
-    setSelectedLanguage(languageCode);
-  };
+    setSelectedLanguage(languageCode)
+  }
 
   return (
     <div className="gba:notes-content" data-testid="notes-content">
-      <div 
+      <div
         style={{
           display: 'flex',
           justifyContent: 'space-between',
@@ -177,22 +177,11 @@ export const NotesSection: React.FC<NotesSectionProps> = ({ opportunityId, conte
         }}
       >
         <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-          <div 
-            className="gba:notes-title" 
-            style={{ fontSize: '18px', fontWeight: '500' }}
-          >
+          <div className="gba:notes-title" style={{ fontSize: '18px', fontWeight: '500' }}>
             Notes
           </div>
-          <LanguageDropdown
-            selectedLanguage={selectedLanguage}
-            onChange={handleLanguageChange}
-          />
-          {translating && (
-            <Spin 
-              indicator={<LoadingOutlined style={{ fontSize: 16 }} spin />} 
-              size="small" 
-            />
-          )}
+          <LanguageDropdown selectedLanguage={selectedLanguage} onChange={handleLanguageChange} />
+          {translating && <Spin indicator={<LoadingOutlined style={{ fontSize: 16 }} spin />} size="small" />}
         </div>
         <AppAction
           contextsArray={[FlowContextName.customerNoteCreate]}
@@ -201,26 +190,29 @@ export const NotesSection: React.FC<NotesSectionProps> = ({ opportunityId, conte
             opportunity: opportunityId,
             crmNote: { opportunity: opportunityId }
           }}
-          staticFlowData={opportunityId ? [{
-            key: 'create-crm-note-fallback',
-            label: 'Add Note',
-            onClick: () => startProcess({
-              domain: 'customer-relations',
-              processName: 'saveCrmNote',
-              payload: { opportunityId },
-              builderType: 'NATIVE_SCREEN'
-            })
-          }] : []}
+          staticFlowData={
+            opportunityId
+              ? [
+                  {
+                    key: 'create-crm-note-fallback',
+                    label: 'Add Note',
+                    onClick: () =>
+                      startProcess({
+                        domain: 'customer-relations',
+                        processName: 'saveCrmNote',
+                        payload: { opportunityId },
+                        builderType: 'NATIVE_SCREEN'
+                      })
+                  }
+                ]
+              : []
+          }
           prefixDataTestId="add-note"
           accessToken={context.accessToken}
           emptyStateBehavior="enable"
           deferMainContextRequestsUntilClick
         >
-          <Button 
-            type="primary"
-            icon={<PlusCircleOutlined />}
-            data-testid="add-note-button"
-          >
+          <Button type="primary" icon={<PlusCircleOutlined />} data-testid="add-note-button">
             Add Note
           </Button>
         </AppAction>
@@ -249,14 +241,8 @@ export const NotesSection: React.FC<NotesSectionProps> = ({ opportunityId, conte
         )}
 
         {!loading && !error && notes.length === 0 && (
-          <Empty
-            description="No notes yet"
-            style={{ padding: '40px 0' }}
-            data-testid="empty-notes"
-          >
-            <div style={{ fontSize: '14px', color: '#8c8c8c' }}>
-              Start by adding your first note
-            </div>
+          <Empty description="No notes yet" style={{ padding: '40px 0' }} data-testid="empty-notes">
+            <div style={{ fontSize: '14px', color: '#8c8c8c' }}>Start by adding your first note</div>
           </Empty>
         )}
 
@@ -266,25 +252,24 @@ export const NotesSection: React.FC<NotesSectionProps> = ({ opportunityId, conte
               <Timeline.Item key={note.id || index} color="blue">
                 <div style={{ position: 'relative' }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <Text strong>
-                      {note.translatedTitle || note.noteTitle}
-                    </Text>
+                    <Text strong>{note.translatedTitle || note.noteTitle}</Text>
                   </div>
                   <div>
                     <Text type="secondary">
-                      {dayjs(note.createdAt).format('MMM D, YYYY [at] h:mm A')} - {getEmployeeDisplayName(note.createdBy)}
+                      {dayjs(note.createdAt).format('MMM D, YYYY [at] h:mm A')} -{' '}
+                      {getEmployeeDisplayName(note.createdBy)}
                     </Text>
                   </div>
                   <div style={{ marginTop: '4px' }}>
                     <div>{note.translatedText || note.noteText}</div>
                   </div>
-                  <Button 
-                    type="text" 
-                    icon={<CloseOutlined />} 
+                  <Button
+                    type="text"
+                    icon={<CloseOutlined />}
                     size="small"
-                    style={{ 
-                      position: 'absolute', 
-                      right: 0, 
+                    style={{
+                      position: 'absolute',
+                      right: 0,
                       top: 0,
                       padding: '4px',
                       lineHeight: 1
@@ -309,14 +294,14 @@ export const NotesSection: React.FC<NotesSectionProps> = ({ opportunityId, conte
           noteTitle={deletePopup.note.noteTitle}
           domain="crm"
           onSuccess={() => {
-            const id = deletePopup.note!.id;
-            setNotes(prev => prev.filter(n => n.id !== id));
-            originalNotesRef.current = originalNotesRef.current.filter(n => n.id !== id);
-            setDeletePopup({ open: false });
+            const id = deletePopup.note!.id
+            setNotes(prev => prev.filter(n => n.id !== id))
+            originalNotesRef.current = originalNotesRef.current.filter(n => n.id !== id)
+            setDeletePopup({ open: false })
           }}
           onError={() => setDeletePopup({ open: false })}
         />
       )}
     </div>
-  );
-}; 
+  )
+}

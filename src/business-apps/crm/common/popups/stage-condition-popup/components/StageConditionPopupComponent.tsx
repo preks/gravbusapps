@@ -1,61 +1,55 @@
-import React, { useEffect, useState } from "react";
-import {
-  Button,
-  Alert,
-  AlertDescription,
-  Spinner,
-  Badge,
-} from "@newwork/nw-design-system";
-import { message } from "antd";
-import { useStageConditionPopupContext } from "../context/StageConditionPopupContext";
-import { getTranslationFromI18nKeyAndLabel } from "@/common/utils/windowUtils";
-import { formatDataTestId } from "@/common/utils/formatDataTestId";
-import { dispatchProcessContinueEvent } from "@/common/utils/processEventUtils";
+import React, { useEffect, useState } from 'react'
+import { Button, Alert, AlertDescription, Spinner, Badge } from '@newwork/nw-design-system'
+import { message } from 'antd'
+import { useStageConditionPopupContext } from '../context/StageConditionPopupContext'
+import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
+import { formatDataTestId } from '@/common/utils/formatDataTestId'
+import { dispatchProcessContinueEvent } from '@/common/utils/processEventUtils'
 
-const prefixDataTestId = "StageConditionPopup";
+const prefixDataTestId = 'StageConditionPopup'
 
 const StageConditionPopupComponent: React.FC = () => {
-  const { formValues, error, businessAppContext, isLoading } = useStageConditionPopupContext();
+  const { formValues, error, businessAppContext, isLoading } = useStageConditionPopupContext()
 
-  const [submitting, setSubmitting] = useState(false);
+  const [submitting, setSubmitting] = useState(false)
 
   // Add process completion listener
   useEffect(() => {
     const handler = async (event: any) => {
       try {
-        const response = event.detail?.response;
+        const response = event.detail?.response
         if (response) {
-          message.success('Stage condition updated successfully');
-          setSubmitting(false);
+          message.success('Stage condition updated successfully')
+          setSubmitting(false)
         }
       } catch (err: any) {
-        console.error('Error in process completion:', err);
-        message.error(err?.message || 'Failed to update stage condition');
-        setSubmitting(false);
+        console.error('Error in process completion:', err)
+        message.error(err?.message || 'Failed to update stage condition')
+        setSubmitting(false)
       }
-    };
-    
-    window.addEventListener('com.newwork.process.taskCompletion', handler as EventListener);
-    
+    }
+
+    window.addEventListener('com.newwork.process.taskCompletion', handler as EventListener)
+
     return () => {
-      window.removeEventListener('com.newwork.process.taskCompletion', handler as EventListener);
-    };
-  }, []);
+      window.removeEventListener('com.newwork.process.taskCompletion', handler as EventListener)
+    }
+  }, [])
 
   // Handle form submission
   const handleSubmit = async () => {
-    setSubmitting(true);
-    
+    setSubmitting(true)
+
     try {
       // Update the form values to toggle the status
       const updatedValues = {
         ...formValues,
-        completed: !formValues.completed,
-      };
+        completed: !formValues.completed
+      }
 
       // Get the current user's employee ID
-      const currentEmployeeId = businessAppContext.userInfo?.employeeDetails?.employeeId;
-      
+      const currentEmployeeId = businessAppContext.userInfo?.employeeDetails?.employeeId
+
       // Prepare stage condition status payload
       const payload: any = {
         opportunityStageConditionStatus: {
@@ -63,34 +57,30 @@ const StageConditionPopupComponent: React.FC = () => {
           version: formValues.version,
           completed: updatedValues.completed,
           // Include the employee ID of who is completing the condition
-          ...(currentEmployeeId && updatedValues.completed && { completedByEmployee: currentEmployeeId }),
+          ...(currentEmployeeId && updatedValues.completed && { completedByEmployee: currentEmployeeId })
         },
-        changeMode: "UPDATE",
-      };
-      
-      console.log("Submitting payload:", payload);
-      dispatchProcessContinueEvent("pse_submit", payload);
-      
+        changeMode: 'UPDATE'
+      }
+
+      console.log('Submitting payload:', payload)
+      dispatchProcessContinueEvent('pse_submit', payload)
     } catch (error) {
-      console.error('Error submitting stage condition form:', error);
-      message.error('Failed to submit form');
-      setSubmitting(false);
+      console.error('Error submitting stage condition form:', error)
+      message.error('Failed to submit form')
+      setSubmitting(false)
     }
-  };
+  }
 
   // Handle form cancellation
   const handleCancel = () => {
-    dispatchProcessContinueEvent("pse_pause", {});
-  };
+    dispatchProcessContinueEvent('pse_pause', {})
+  }
 
   // Determine the confirmation message based on current status
-  const newStatus = !formValues.completed;
+  const newStatus = !formValues.completed
 
   return (
-    <div
-      className="gba:max-w-md gba:mx-auto gba:p-6"
-      data-testid={formatDataTestId(prefixDataTestId, "container")}
-    >
+    <div className="gba:max-w-md gba:mx-auto gba:p-6" data-testid={formatDataTestId(prefixDataTestId, 'container')}>
       {/* Error Display */}
       {error && (
         <Alert variant="destructive" className="gba:mb-4">
@@ -111,11 +101,11 @@ const StageConditionPopupComponent: React.FC = () => {
         <div className="gba:text-center gba:mb-6">
           <p
             className="gba:text-lg gba:text-gray-800"
-            data-testid={formatDataTestId(prefixDataTestId, "ConfirmationText")}
+            data-testid={formatDataTestId(prefixDataTestId, 'ConfirmationText')}
           >
             Are you sure you want to set this condition to{' '}
-            <Badge variant={newStatus ? "success" : "secondary"} className="gba:inline">
-              {newStatus ? "completed" : "uncompleted"}
+            <Badge variant={newStatus ? 'success' : 'secondary'} className="gba:inline">
+              {newStatus ? 'completed' : 'uncompleted'}
             </Badge>
             ?
           </p>
@@ -131,12 +121,9 @@ const StageConditionPopupComponent: React.FC = () => {
             size="lg"
             onClick={handleCancel}
             disabled={submitting}
-            data-testid={formatDataTestId(prefixDataTestId, "CancelButton")}
+            data-testid={formatDataTestId(prefixDataTestId, 'CancelButton')}
           >
-            {getTranslationFromI18nKeyAndLabel(
-              "crm:common.cancel",
-              "Cancel"
-            )}
+            {getTranslationFromI18nKeyAndLabel('crm:common.cancel', 'Cancel')}
           </Button>
           <Button
             variant="default"
@@ -144,17 +131,14 @@ const StageConditionPopupComponent: React.FC = () => {
             size="lg"
             onClick={handleSubmit}
             disabled={submitting}
-            data-testid={formatDataTestId(prefixDataTestId, "ConfirmButton")}
+            data-testid={formatDataTestId(prefixDataTestId, 'ConfirmButton')}
           >
-            {getTranslationFromI18nKeyAndLabel(
-              "crm:common.confirm",
-              "Confirm"
-            )}
+            {getTranslationFromI18nKeyAndLabel('crm:common.confirm', 'Confirm')}
           </Button>
         </div>
       )}
     </div>
-  );
-};
+  )
+}
 
-export default StageConditionPopupComponent;
+export default StageConditionPopupComponent

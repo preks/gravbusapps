@@ -1,52 +1,54 @@
-import { useState, useEffect } from 'react';
-import { BusinessAppContextProps } from '@/common/BusinessAppContext';
-import { UserRole, UserRoleContext, UserPermissions } from '../types/userRoles';
+import { useState, useEffect } from 'react'
+import { BusinessAppContextProps } from '@/common/BusinessAppContext'
+import { UserRole, UserRoleContext, UserPermissions } from '../types/userRoles'
 
 /**
  * Hook to detect user role and permissions based on organizational context
  */
-export const useUserRole = (context: BusinessAppContextProps): UserRoleContext & { 
-  isLoading: boolean; 
-  error: string | null;
-  permissions: UserPermissions;
+export const useUserRole = (
+  context: BusinessAppContextProps
+): UserRoleContext & {
+  isLoading: boolean
+  error: string | null
+  permissions: UserPermissions
 } => {
   const [roleContext, setRoleContext] = useState<UserRoleContext>({
     role: 'individual',
     canViewAllTeams: false,
     canViewTeam: false,
-    canViewIndividuals: true, // Default to true for individual access
-  });
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+    canViewIndividuals: true // Default to true for individual access
+  })
+  const [isLoading, setIsLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
     const detectUserRole = () => {
       try {
-        console.log('Starting role detection...', { userInfo: !!context.userInfo, accessToken: !!context.accessToken });
-        
-        setError(null);
+        console.log('Starting role detection...', { userInfo: !!context.userInfo, accessToken: !!context.accessToken })
+
+        setError(null)
 
         // Default to individual role - most permissive for testing
-        let detectedRole: UserRole = 'individual';
-        let canViewAllTeams = true; // Temporarily allow all access for testing
-        let canViewTeam = true; 
-        let canViewIndividuals = true;
-        let managedTeamId: string | undefined = 'default-team';
-        let managedTeamName: string | undefined = 'Default Team';
+        let detectedRole: UserRole = 'individual'
+        let canViewAllTeams = true // Temporarily allow all access for testing
+        let canViewTeam = true
+        let canViewIndividuals = true
+        let managedTeamId: string | undefined = 'default-team'
+        let managedTeamName: string | undefined = 'Default Team'
 
         // For now, always default to CEO role to test the system
         // TODO: Implement proper role detection later
-        detectedRole = 'ceo';
-        canViewAllTeams = true;
-        canViewTeam = true;
-        canViewIndividuals = true;
+        detectedRole = 'ceo'
+        canViewAllTeams = true
+        canViewTeam = true
+        canViewIndividuals = true
 
         console.log('Role Detection Complete:', {
           detectedRole,
           canViewAllTeams,
           canViewTeam,
           canViewIndividuals
-        });
+        })
 
         setRoleContext({
           role: detectedRole,
@@ -54,33 +56,32 @@ export const useUserRole = (context: BusinessAppContextProps): UserRoleContext &
           canViewTeam,
           canViewIndividuals,
           managedTeamId,
-          managedTeamName,
-        });
-
+          managedTeamName
+        })
       } catch (err) {
-        console.error('Role detection error:', err);
-        setError(err instanceof Error ? err.message : 'Failed to detect user role');
-        
+        console.error('Role detection error:', err)
+        setError(err instanceof Error ? err.message : 'Failed to detect user role')
+
         // Safe default to individual role on any error
         setRoleContext({
           role: 'individual',
           canViewAllTeams: true, // Allow access for testing
           canViewTeam: true,
-          canViewIndividuals: true,
-        });
+          canViewIndividuals: true
+        })
       } finally {
-        console.log('Setting isLoading to false');
-        setIsLoading(false);
+        console.log('Setting isLoading to false')
+        setIsLoading(false)
       }
-    };
+    }
 
     // Add a small timeout to ensure loading doesn't hang
     const timer = setTimeout(() => {
-      detectUserRole();
-    }, 100);
+      detectUserRole()
+    }, 100)
 
-    return () => clearTimeout(timer);
-  }, []); // Simplified dependencies - run only once
+    return () => clearTimeout(timer)
+  }, []) // Simplified dependencies - run only once
 
   // Calculate permissions based on role
   const permissions: UserPermissions = {
@@ -88,16 +89,16 @@ export const useUserRole = (context: BusinessAppContextProps): UserRoleContext &
     viewOwnTeam: roleContext.canViewTeam,
     viewIndividuals: roleContext.canViewIndividuals,
     compareTeams: roleContext.role === 'ceo',
-    exportData: roleContext.role !== 'individual',
-  };
+    exportData: roleContext.role !== 'individual'
+  }
 
   return {
     ...roleContext,
     isLoading,
     error,
-    permissions,
-  };
-};
+    permissions
+  }
+}
 
 /**
  * Simple role checker utility
@@ -105,15 +106,14 @@ export const useUserRole = (context: BusinessAppContextProps): UserRoleContext &
 export const checkUserRole = (userInfo: any): UserRole => {
   // This is a simplified version - in a real app, you'd check against
   // proper role/permission systems, organizational charts, etc.
-  
-  if (userInfo?.userName?.toLowerCase().includes('ceo') || 
-      userInfo?.userName?.toLowerCase().includes('admin')) {
-    return 'ceo';
+
+  if (userInfo?.userName?.toLowerCase().includes('ceo') || userInfo?.userName?.toLowerCase().includes('admin')) {
+    return 'ceo'
   }
-  
+
   if (userInfo?.employeeDetails?.organizationalUnit) {
-    return 'manager'; // Simplified assumption
+    return 'manager' // Simplified assumption
   }
-  
-  return 'individual';
-};
+
+  return 'individual'
+}

@@ -1,13 +1,13 @@
-import React from 'react';
-import type { BusinessAppContextProps } from '@/common/BusinessAppContext';
-import { CampaignFormProvider } from './context/CampaignFormContext';
-import CampaignFormComponent from './components/CampaignFormComponent';
-import type { CampaignFormValues } from './types';
+import React from 'react'
+import type { BusinessAppContextProps } from '@/common/BusinessAppContext'
+import { CampaignFormProvider } from './context/CampaignFormContext'
+import CampaignFormComponent from './components/CampaignFormComponent'
+import type { CampaignFormValues } from './types'
 
 interface CampaignFormProps {
-  initialValues?: Partial<CampaignFormValues>;
-  onSubmit?: (values: CampaignFormValues) => Promise<void>;
-  onCancel?: () => Promise<void>;
+  initialValues?: Partial<CampaignFormValues>
+  onSubmit?: (values: CampaignFormValues) => Promise<void>
+  onCancel?: () => Promise<void>
 }
 
 const CampaignForm: React.FC<BusinessAppContextProps & CampaignFormProps> = ({
@@ -23,14 +23,14 @@ const CampaignForm: React.FC<BusinessAppContextProps & CampaignFormProps> = ({
       <div className="gba:p-6 gba:text-center">
         <div className="gba:text-red-500">Error: No access token found. Please authenticate.</div>
       </div>
-    );
+    )
   }
 
   const businessAppContext: BusinessAppContextProps = {
     accessToken,
     userInfo,
-    additionalData,
-  };
+    additionalData
+  }
 
   return (
     <CampaignFormProvider
@@ -41,9 +41,7 @@ const CampaignForm: React.FC<BusinessAppContextProps & CampaignFormProps> = ({
     >
       <CampaignFormComponent />
     </CampaignFormProvider>
-  );
-};
+  )
+}
 
-export default CampaignForm;
-
-
+export default CampaignForm

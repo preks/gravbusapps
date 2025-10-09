@@ -1,6 +1,7 @@
 # Human Resources Application
 
 ## Overview
+
 The Human Resources application provides a unified interface for managing employees and job positions within the organization. It follows the same pattern as other relation-based applications in the platform.
 
 ## Structure
@@ -50,18 +51,21 @@ src/business-apps/hr/core/apps/human-resources/
 ## Features
 
 ### Employee View
+
 - Comprehensive employee listing with filtering capabilities
 - Employee details panel with expandable information
 - Search and filter functionality
 - Add new employee functionality
 
 ### Job Position View
+
 - Job position management with vacancy tracking
 - Position details and requirements
 - Filtering by department, job family, and other criteria
 - Support for missing job profile identification
 
 ### Analytics View
+
 - Comprehensive HR analytics dashboard with multiple specialized views:
   - **Dashboard**: Overview metrics and key performance indicators
   - **Demographics**: Employee demographic analysis and visualizations
@@ -71,13 +75,17 @@ src/business-apps/hr/core/apps/human-resources/
   - **Structural Analysis**: Organizational hierarchy analysis and reporting chain insights
 
 ## Navigation
+
 The application uses URL-based navigation with query parameters:
+
 - `?view=employees` - Shows the employee management view
 - `?view=positions` - Shows the job position management view
 - `?view=analytics` - Shows the HR analytics view
 
 ### Analytics Sub-Navigation
+
 When in analytics view, additional sub-view parameters are supported:
+
 - `?view=analytics&subView=dashboard` - Analytics dashboard
 - `?view=analytics&subView=demographics` - Demographics analysis
 - `?view=analytics&subView=workforce` - Workforce analytics
@@ -86,11 +94,12 @@ When in analytics view, additional sub-view parameters are supported:
 - `?view=analytics&subView=structural-analysis` - Structural analysis
 
 ## Usage
+
 ```typescript
 import { HumanResources } from '@/business-apps/hr/core/apps/human-resources';
 
 // Use in your application
-<HumanResources 
+<HumanResources
   accessToken={accessToken}
   userInfo={userInfo}
   additionalData={additionalData}
@@ -98,6 +107,7 @@ import { HumanResources } from '@/business-apps/hr/core/apps/human-resources';
 ```
 
 ## Dependencies
+
 - Reuses existing HR core hooks and components
 - Follows BusinessAppContextProps interface
 - Uses @newwork/nw-design-system for UI components

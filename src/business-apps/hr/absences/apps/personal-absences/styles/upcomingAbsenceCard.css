@@ -1,190 +1,192 @@
-.gba\:upcomingAbsenceCard {
-  position: relative;
-  overflow: hidden;
-  background: #fff;
-  border-radius: 14px;
-  padding: 24px 28px;
-}
+@layer legacy-unlayered-override {
+  .gba\:upcomingAbsenceCard {
+    position: relative;
+    overflow: hidden;
+    background: #fff;
+    border-radius: 14px;
+    padding: 24px 28px;
+  }
 
-.gba\:upcomingAbsenceCard::before {
-  content: "";
-  position: absolute;
-  inset: 0;
-  background: var(--gba-bg, #f5f5f5);
-  opacity: 0.15;
-  z-index: 0;
-  pointer-events: none;
-  border-radius: inherit;
-}
+  .gba\:upcomingAbsenceCard::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: var(--gba-bg, #f5f5f5);
+    opacity: 0.15;
+    z-index: 0;
+    pointer-events: none;
+    border-radius: inherit;
+  }
 
-.gba\:upcomingAbsenceCard > * {
-  position: relative;
-  z-index: 1;
-}
+  .gba\:upcomingAbsenceCard > * {
+    position: relative;
+    z-index: 1;
+  }
 
-.gba\:absenceCard--green {
-  border-color: #7ee2b8;
-  background: #eafff3;
-}
-.gba\:absenceCard--red {
-  border-color: #ffbdbd;
-  background: #fff4f4;
-}
-.gba\:absenceCard--blue {
-  border-color: #b7d7ff;
-  background: #f4f8ff;
-}
+  .gba\:absenceCard--green {
+    border-color: #7ee2b8;
+    background: #eafff3;
+  }
+  .gba\:absenceCard--red {
+    border-color: #ffbdbd;
+    background: #fff4f4;
+  }
+  .gba\:absenceCard--blue {
+    border-color: #b7d7ff;
+    background: #f4f8ff;
+  }
 
-.gba\:absenceCardTopRow {
-  display: flex;
-  align-items: center;
-  margin-bottom: 2px;
-}
+  .gba\:absenceCardTopRow {
+    display: flex;
+    align-items: center;
+    margin-bottom: 2px;
+  }
 
-.gba\:absenceCardIcon {
-  font-size: 26px;
-  margin-right: 10px;
-  display: flex;
-  align-items: center;
-}
+  .gba\:absenceCardIcon {
+    font-size: 26px;
+    margin-right: 10px;
+    display: flex;
+    align-items: center;
+  }
 
-.gba\:absenceCardType {
-  font-size: 18px;
-  font-weight: 600;
-  color: var(--gba-pill-color, #1a3a2b);
-  margin-right: auto;
-}
-.gba\:absenceCard--red .gba\:absenceCardType {
-  color: #b71c1c;
-}
-.gba\:absenceCard--blue .gba\:absenceCardType {
-  color: #1443b7;
-}
+  .gba\:absenceCardType {
+    font-size: 18px;
+    font-weight: 600;
+    color: var(--gba-pill-color, #1a3a2b);
+    margin-right: auto;
+  }
+  .gba\:absenceCard--red .gba\:absenceCardType {
+    color: #b71c1c;
+  }
+  .gba\:absenceCard--blue .gba\:absenceCardType {
+    color: #1443b7;
+  }
 
-.gba\:absenceCardPill {
-  position: relative;
-  color: var(--gba-pill-color, #1a3a2b);
-  border-radius: 20px;
-  padding: 4px 6px;
-  font-size: 12px;
-  font-weight: 600;
-  margin-left: 10px;
-  display: flex;
-  align-items: center;
-  border: 1px solid var(--gba-pill-border, #ccc);
-  background: transparent;
-  z-index: 1;
-}
+  .gba\:absenceCardPill {
+    position: relative;
+    color: var(--gba-pill-color, #1a3a2b);
+    border-radius: 20px;
+    padding: 4px 6px;
+    font-size: 12px;
+    font-weight: 600;
+    margin-left: 10px;
+    display: flex;
+    align-items: center;
+    border: 1px solid var(--gba-pill-border, #ccc);
+    background: transparent;
+    z-index: 1;
+  }
 
-.gba\:absenceCardPill::before {
-  content: "";
-  position: absolute;
-  inset: 0;
-  background: var(--gba-pill-bg, #f5f5f5);
-  opacity: 0.15;
-  z-index: 0;
-  pointer-events: none;
-  border-radius: inherit;
-}
+  .gba\:absenceCardPill::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: var(--gba-pill-bg, #f5f5f5);
+    opacity: 0.15;
+    z-index: 0;
+    pointer-events: none;
+    border-radius: inherit;
+  }
 
-.gba\:absenceCardPill > * {
-  position: relative;
-  z-index: 1;
-}
+  .gba\:absenceCardPill > * {
+    position: relative;
+    z-index: 1;
+  }
 
-.gba\:absenceCard--green .gba\:absenceCardPill {
-  background: #eafff3;
-  border: 1px solid #27ae60;
-}
-.gba\:absenceCard--red .gba\:absenceCardPill {
-  background: #fff4f4;
-  border: 1px solid #b71c1c;
-}
-.gba\:absenceCard--blue .gba\:absenceCardPill {
-  background: #f4f8ff;
-  border: 1px solid #1443b7;
-}
+  .gba\:absenceCard--green .gba\:absenceCardPill {
+    background: #eafff3;
+    border: 1px solid #27ae60;
+  }
+  .gba\:absenceCard--red .gba\:absenceCardPill {
+    background: #fff4f4;
+    border: 1px solid #b71c1c;
+  }
+  .gba\:absenceCard--blue .gba\:absenceCardPill {
+    background: #f4f8ff;
+    border: 1px solid #1443b7;
+  }
 
-.gba\:absenceCardDates {
-  font-size: 16px;
-  color: var(--gba-pill-color);
-  font-weight: 500;
-  margin-top: 8px;
-}
-.gba\:absenceCard--red .gba\:absenceCardDates {
-  color: var(--gba-pill-color);
-}
-.gba\:absenceCard--blue .gba\:absenceCardDates {
-  color: #1443b7;
-}
+  .gba\:absenceCardDates {
+    font-size: 16px;
+    color: var(--gba-pill-color);
+    font-weight: 500;
+    margin-top: 8px;
+  }
+  .gba\:absenceCard--red .gba\:absenceCardDates {
+    color: var(--gba-pill-color);
+  }
+  .gba\:absenceCard--blue .gba\:absenceCardDates {
+    color: #1443b7;
+  }
 
-.gba\:absenceCardDescription {
-  font-size: 16px;
-  color: #1a3a2b;
-  margin-top: 3px;
-}
-.gba\:absenceCard--red .gba\:absenceCardDescription {
-  color: #b71c1c;
-}
-.gba\:absenceCard--blue .gba\:absenceCardDescription {
-  color: #1443b7;
-}
+  .gba\:absenceCardDescription {
+    font-size: 16px;
+    color: #1a3a2b;
+    margin-top: 3px;
+  }
+  .gba\:absenceCard--red .gba\:absenceCardDescription {
+    color: #b71c1c;
+  }
+  .gba\:absenceCard--blue .gba\:absenceCardDescription {
+    color: #1443b7;
+  }
 
-.gba\:absenceType {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  font-size: 10px;
-  font-weight: 600;
-  color: #1976d2;
-}
-.gba\:absenceType--blue {
-  color: #1976d2;
-}
-.gba\:absenceType--green {
-  color: #27ae60;
-}
-.gba\:absenceType--orange {
-  color: #fb8c00;
-}
-.gba\:absenceType--purple {
-  color: #8e24aa;
-}
-.gba\:absenceType--red {
-  color: #e53935;
-}
+  .gba\:absenceType {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 10px;
+    font-weight: 600;
+    color: #1976d2;
+  }
+  .gba\:absenceType--blue {
+    color: #1976d2;
+  }
+  .gba\:absenceType--green {
+    color: #27ae60;
+  }
+  .gba\:absenceType--orange {
+    color: #fb8c00;
+  }
+  .gba\:absenceType--purple {
+    color: #8e24aa;
+  }
+  .gba\:absenceType--red {
+    color: #e53935;
+  }
 
-.gba\:absenceDates {
-  font-size: 10px;
-  color: #6b7280;
-}
+  .gba\:absenceDates {
+    font-size: 10px;
+    color: #6b7280;
+  }
 
-.gba\:absenceDescription {
-  font-size: 10px;
-  color: #333;
-  margin-top: 2px;
-}
+  .gba\:absenceDescription {
+    font-size: 10px;
+    color: #333;
+    margin-top: 2px;
+  }
 
-.gba\:absenceStatus {
-  display: inline-block;
-  padding: 2px 8px;
-  font-size: 10px;
-  border-radius: 12px;
-  font-weight: 500;
-}
-.gba\:status--approved {
-  background: #e6f9f0;
-  color: #27ae60;
-}
-.gba\:status--pending {
-  background: #fff3e0;
-  color: #fb8c00;
-}
-.gba\:status--rejected {
-  background: #ffebee;
-  color: #e53935;
-}
-.gba\:status--info {
-  background: #e3f0ff;
-  color: #1976d2;
+  .gba\:absenceStatus {
+    display: inline-block;
+    padding: 2px 8px;
+    font-size: 10px;
+    border-radius: 12px;
+    font-weight: 500;
+  }
+  .gba\:status--approved {
+    background: #e6f9f0;
+    color: #27ae60;
+  }
+  .gba\:status--pending {
+    background: #fff3e0;
+    color: #fb8c00;
+  }
+  .gba\:status--rejected {
+    background: #ffebee;
+    color: #e53935;
+  }
+  .gba\:status--info {
+    background: #e3f0ff;
+    color: #1976d2;
+  }
 }

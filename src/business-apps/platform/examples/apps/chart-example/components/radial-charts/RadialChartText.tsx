@@ -1,4 +1,4 @@
-import React, { useMemo } from "react";
+import React, { useMemo } from 'react'
 import {
   Card,
   CardContent,
@@ -9,31 +9,35 @@ import {
   ChartContainer,
   ChartConfig,
   ChartTooltip,
-  ChartTooltipContent,
-} from "@newwork/nw-design-system";
-import { RadialBarChart, RadialBar } from "recharts";
-import { CircleHalfIcon } from "@phosphor-icons/react";
-import radialChartData from "../../data/radialChartData.json";
+  ChartTooltipContent
+} from '@newwork/nw-design-system'
+import { RadialBarChart, RadialBar } from 'recharts'
+import { CircleHalfIcon } from '@phosphor-icons/react'
+import radialChartData from '../../data/radialChartData.json'
 
 interface RadialChartTextProps {
-  moduleColor?: string;
+  moduleColor?: string
 }
 
 const RadialChartText: React.FC<RadialChartTextProps> = ({ moduleColor }) => {
-  const chartData = radialChartData.text;
-  
-  const totalVisitors = useMemo(() => {
-    return chartData.reduce((acc, curr) => acc + curr.visitors, 0);
-  }, [chartData]);
+  const chartData = radialChartData.text
 
-  const chartConfig = useMemo(() => ({
-    // Data dimension - used for bar sizing only
-    visitors: { label: "Visitors", color: "none" },
-    // Visual categories - used for legend/colors
-    chrome: { label: "Chrome" },
-    safari: { label: "Safari" },
-    firefox: { label: "Firefox" },
-  }) satisfies ChartConfig, []);
+  const totalVisitors = useMemo(() => {
+    return chartData.reduce((acc, curr) => acc + curr.visitors, 0)
+  }, [chartData])
+
+  const chartConfig = useMemo(
+    () =>
+      ({
+        // Data dimension - used for bar sizing only
+        visitors: { label: 'Visitors', color: 'none' },
+        // Visual categories - used for legend/colors
+        chrome: { label: 'Chrome' },
+        safari: { label: 'Safari' },
+        firefox: { label: 'Firefox' }
+      }) satisfies ChartConfig,
+    []
+  )
 
   return (
     <Card data-testid="radial-chart-text">
@@ -46,15 +50,9 @@ const RadialChartText: React.FC<RadialChartTextProps> = ({ moduleColor }) => {
       </CardHeader>
       <CardContent className="gba:flex-1 gba:pb-0">
         <div className="gba:relative">
-          <ChartContainer
-            config={chartConfig}
-            className="gba:mx-auto gba:aspect-square gba:max-h-[250px]"
-          >
+          <ChartContainer config={chartConfig} className="gba:mx-auto gba:aspect-square gba:max-h-[250px]">
             <RadialBarChart data={chartData} innerRadius={60} outerRadius={110}>
-              <ChartTooltip
-                cursor={false}
-                content={<ChartTooltipContent hideLabel nameKey="browser" />}
-              />
+              <ChartTooltip cursor={false} content={<ChartTooltipContent hideLabel nameKey="browser" />} />
               <RadialBar dataKey="visitors" background />
             </RadialBarChart>
           </ChartContainer>
@@ -67,7 +65,7 @@ const RadialChartText: React.FC<RadialChartTextProps> = ({ moduleColor }) => {
         </div>
       </CardContent>
     </Card>
-  );
-};
+  )
+}
 
-export default RadialChartText;
+export default RadialChartText

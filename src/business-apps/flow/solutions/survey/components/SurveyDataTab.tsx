@@ -1,168 +1,212 @@
-import React, { useState, useEffect, useCallback } from 'react';
-import { BusinessAppContextProps } from '@/common/BusinessAppContext';
-import { 
-  Card, CardHeader, CardTitle, CardContent, Alert, Button, 
-  Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
-  Badge, Spinner, Input, Select, SelectContent, SelectItem, SelectTrigger, SelectValue
-} from '@newwork/nw-design-system';
-import { 
-  Download, Search, Filter, RefreshCw, Eye, BarChart3, 
-  Calendar, Users, MessageSquare, FileText, ExternalLink
-} from 'lucide-react';
-import { SurveyDataService, SurveyFlow } from '../services/SurveyDataService';
-import { DebouncedInput } from '@/components/data-filter/DebouncedInput';
+import React, { useState, useEffect, useCallback } from 'react'
+import { BusinessAppContextProps } from '@/common/BusinessAppContext'
+import {
+  Card,
+  CardHeader,
+  CardTitle,
+  CardContent,
+  Alert,
+  Button,
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+  Badge,
+  Spinner,
+  Input,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue
+} from '@newwork/nw-design-system'
+import {
+  Download,
+  Search,
+  Filter,
+  RefreshCw,
+  Eye,
+  BarChart3,
+  Calendar,
+  Users,
+  MessageSquare,
+  FileText,
+  ExternalLink
+} from 'lucide-react'
+import { SurveyDataService, SurveyFlow } from '../services/SurveyDataService'
+import { DebouncedInput } from '@/components/data-filter/DebouncedInput'
 
 interface SurveyDataTabProps extends BusinessAppContextProps {}
 
 export const SurveyDataTab: React.FC<SurveyDataTabProps> = ({ accessToken, ...context }) => {
-  const [surveys, setSurveys] = useState<SurveyFlow[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [searchTerm, setSearchTerm] = useState('');
-  const [statusFilter, setStatusFilter] = useState<string>('all');
-  const [typeFilter, setTypeFilter] = useState<string>('all');
-  const [isExporting, setIsExporting] = useState<{ [key: string]: boolean }>({});
+  const [surveys, setSurveys] = useState<SurveyFlow[]>([])
+  const [isLoading, setIsLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+  const [searchTerm, setSearchTerm] = useState('')
+  const [statusFilter, setStatusFilter] = useState<string>('all')
+  const [typeFilter, setTypeFilter] = useState<string>('all')
+  const [isExporting, setIsExporting] = useState<{ [key: string]: boolean }>({})
 
   const loadSurveys = useCallback(async () => {
     try {
-      setIsLoading(true);
-      setError(null);
+      setIsLoading(true)
+      setError(null)
 
-      const response = await SurveyDataService.getSurveyFlows(accessToken, 20, 0);
-      setSurveys(response.flows);
+      const response = await SurveyDataService.getSurveyFlows(accessToken, 20, 0)
+      setSurveys(response.flows)
     } catch (err) {
-      console.error('Error loading surveys:', err);
-      setError(err instanceof Error ? err.message : 'Failed to load surveys');
+      console.error('Error loading surveys:', err)
+      setError(err instanceof Error ? err.message : 'Failed to load surveys')
     } finally {
-      setIsLoading(false);
+      setIsLoading(false)
     }
-  }, [accessToken]);
+  }, [accessToken])
 
   useEffect(() => {
     if (accessToken) {
-      loadSurveys();
+      loadSurveys()
     }
-  }, [accessToken, loadSurveys]);
+  }, [accessToken, loadSurveys])
 
   // Listen for survey creation events
   useEffect(() => {
-    const handleSurveyCreated = () => loadSurveys();
-    window.addEventListener('survey-flow-created', handleSurveyCreated);
-    return () => window.removeEventListener('survey-flow-created', handleSurveyCreated);
-  }, [loadSurveys]);
+    const handleSurveyCreated = () => loadSurveys()
+    window.addEventListener('survey-flow-created', handleSurveyCreated)
+    return () => window.removeEventListener('survey-flow-created', handleSurveyCreated)
+  }, [loadSurveys])
 
   const handleExportSurvey = async (surveyId: string, surveyName: string) => {
     try {
-      setIsExporting(prev => ({ ...prev, [surveyId]: true }));
-      
+      setIsExporting(prev => ({ ...prev, [surveyId]: true }))
+
       // Fetch survey responses
-      const responses = await SurveyDataService.getSurveyResponses(accessToken, surveyId);
-      
+      const responses = await SurveyDataService.getSurveyResponses(accessToken, surveyId)
+
       if (responses.length === 0) {
-        alert('No responses found for this survey');
-        return;
+        alert('No responses found for this survey')
+        return
       }
 
       // Convert responses to CSV
-      const csvContent = convertToCSV(responses, surveyName);
-      
+      const csvContent = convertToCSV(responses, surveyName)
+
       // Download CSV file
-      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-      const link = document.createElement('a');
-      const url = URL.createObjectURL(blob);
-      link.setAttribute('href', url);
-      link.setAttribute('download', `survey-${surveyName.replace(/[^a-zA-Z0-9]/g, '_')}-responses.csv`);
-      link.style.visibility = 'hidden';
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      
+      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })
+      const link = document.createElement('a')
+      const url = URL.createObjectURL(blob)
+      link.setAttribute('href', url)
+      link.setAttribute('download', `survey-${surveyName.replace(/[^a-zA-Z0-9]/g, '_')}-responses.csv`)
+      link.style.visibility = 'hidden'
+      document.body.appendChild(link)
+      link.click()
+      document.body.removeChild(link)
     } catch (err) {
-      console.error('Error exporting survey:', err);
-      alert(`Failed to export survey: ${err instanceof Error ? err.message : 'Unknown error'}`);
+      console.error('Error exporting survey:', err)
+      alert(`Failed to export survey: ${err instanceof Error ? err.message : 'Unknown error'}`)
     } finally {
-      setIsExporting(prev => ({ ...prev, [surveyId]: false }));
+      setIsExporting(prev => ({ ...prev, [surveyId]: false }))
     }
-  };
+  }
 
   const convertToCSV = (responses: any[], surveyName: string): string => {
-    if (responses.length === 0) return '';
+    if (responses.length === 0) return ''
 
     // Get all unique keys from responses to create headers
-    const allKeys = new Set<string>();
+    const allKeys = new Set<string>()
     responses.forEach(response => {
-      Object.keys(response).forEach(key => allKeys.add(key));
-    });
+      Object.keys(response).forEach(key => allKeys.add(key))
+    })
 
-    const headers = Array.from(allKeys);
-    const csvHeaders = ['Survey Name', 'Response ID', 'Submitted At', ...headers].join(',');
+    const headers = Array.from(allKeys)
+    const csvHeaders = ['Survey Name', 'Response ID', 'Submitted At', ...headers].join(',')
 
     // Convert each response to CSV row
     const csvRows = responses.map((response, index) => {
-      const responseId = response.id || `response_${index + 1}`;
-      const submittedAt = response.submittedAt || response.createdAt || new Date().toISOString();
-      
+      const responseId = response.id || `response_${index + 1}`
+      const submittedAt = response.submittedAt || response.createdAt || new Date().toISOString()
+
       const values = [
         `"${surveyName}"`,
         `"${responseId}"`,
         `"${submittedAt}"`,
         ...headers.map(header => {
-          const value = response[header];
-          if (value === null || value === undefined) return '""';
-          return `"${String(value).replace(/"/g, '""')}"`;
+          const value = response[header]
+          if (value === null || value === undefined) return '""'
+          return `"${String(value).replace(/"/g, '""')}"`
         })
-      ];
-      
-      return values.join(',');
-    });
+      ]
 
-    return [csvHeaders, ...csvRows].join('\n');
-  };
+      return values.join(',')
+    })
+
+    return [csvHeaders, ...csvRows].join('\n')
+  }
 
   // Filter surveys based on search and filters
   const filteredSurveys = surveys.filter(survey => {
-    const matchesSearch = !searchTerm || 
+    const matchesSearch =
+      !searchTerm ||
       survey.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      survey.description?.toLowerCase().includes(searchTerm.toLowerCase());
-    
-    const matchesStatus = statusFilter === 'all' || survey.status === statusFilter;
-    const matchesType = typeFilter === 'all' || survey.surveyType === typeFilter;
-    
-    return matchesSearch && matchesStatus && matchesType;
-  });
+      survey.description?.toLowerCase().includes(searchTerm.toLowerCase())
+
+    const matchesStatus = statusFilter === 'all' || survey.status === statusFilter
+    const matchesType = typeFilter === 'all' || survey.surveyType === typeFilter
+
+    return matchesSearch && matchesStatus && matchesType
+  })
 
   const getStatusBadge = (status: string) => {
     switch (status) {
       case 'RUNNING':
-        return <Badge variant="default" className="gba:bg-green-100 gba:text-green-800">Active</Badge>;
+        return (
+          <Badge variant="default" className="gba:bg-green-100 gba:text-green-800">
+            Active
+          </Badge>
+        )
       case 'COMPLETED':
-        return <Badge variant="secondary" className="gba:bg-blue-100 gba:text-blue-800">Completed</Badge>;
+        return (
+          <Badge variant="secondary" className="gba:bg-blue-100 gba:text-blue-800">
+            Completed
+          </Badge>
+        )
       case 'PAUSED':
-        return <Badge variant="outline" className="gba:bg-yellow-100 gba:text-yellow-800">Paused</Badge>;
+        return (
+          <Badge variant="outline" className="gba:bg-yellow-100 gba:text-yellow-800">
+            Paused
+          </Badge>
+        )
       case 'FAILED':
-        return <Badge variant="destructive">Failed</Badge>;
+        return <Badge variant="destructive">Failed</Badge>
       default:
-        return <Badge variant="outline">{status}</Badge>;
+        return <Badge variant="outline">{status}</Badge>
     }
-  };
+  }
 
   const getSurveyTypeLabel = (type?: string) => {
     switch (type) {
-      case 'feedback': return 'Feedback';
-      case 'research': return 'Research';
-      case 'assessment': return 'Assessment';
-      case 'poll': return 'Poll';
-      case 'custom': return 'Custom';
-      default: return 'Survey';
+      case 'feedback':
+        return 'Feedback'
+      case 'research':
+        return 'Research'
+      case 'assessment':
+        return 'Assessment'
+      case 'poll':
+        return 'Poll'
+      case 'custom':
+        return 'Custom'
+      default:
+        return 'Survey'
     }
-  };
+  }
 
   if (isLoading) {
     return (
       <div className="gba:flex gba:justify-center gba:items-center gba:h-64" data-testid="survey-data-tab-loading">
         <Spinner />
       </div>
-    );
+    )
   }
 
   if (error) {
@@ -171,18 +215,13 @@ export const SurveyDataTab: React.FC<SurveyDataTabProps> = ({ accessToken, ...co
         <div>
           <h3>Error Loading Survey Data</h3>
           <p>{error}</p>
-          <Button
-            onClick={loadSurveys}
-            variant="secondary"
-            className="gba:mt-2"
-            data-testid="survey-data-retry-button"
-          >
+          <Button onClick={loadSurveys} variant="secondary" className="gba:mt-2" data-testid="survey-data-retry-button">
             <RefreshCw className="gba:w-4 gba:h-4 gba:mr-2" />
             Retry
           </Button>
         </div>
       </Alert>
-    );
+    )
   }
 
   return (
@@ -193,12 +232,7 @@ export const SurveyDataTab: React.FC<SurveyDataTabProps> = ({ accessToken, ...co
           <h2 className="gba:text-2xl gba:font-bold gba:text-gray-900">Survey Data Management</h2>
           <p className="gba:text-gray-600">List, view, and export survey responses and data</p>
         </div>
-        <Button
-            onClick={loadSurveys}
-            variant="outline"
-            size="sm"
-            data-testid="survey-data-refresh-button"
-          >
+        <Button onClick={loadSurveys} variant="outline" size="sm" data-testid="survey-data-refresh-button">
           <RefreshCw className="gba:w-4 gba:h-4 gba:mr-2" />
           Refresh
         </Button>
@@ -284,7 +318,7 @@ export const SurveyDataTab: React.FC<SurveyDataTabProps> = ({ accessToken, ...co
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {filteredSurveys.map((survey) => (
+                  {filteredSurveys.map(survey => (
                     <TableRow key={survey.id} data-testid={`survey-row-${survey.id}`}>
                       <TableCell>
                         <div>
@@ -297,9 +331,7 @@ export const SurveyDataTab: React.FC<SurveyDataTabProps> = ({ accessToken, ...co
                         </div>
                       </TableCell>
                       <TableCell>
-                        <Badge variant="outline">
-                          {getSurveyTypeLabel(survey.surveyType)}
-                        </Badge>
+                        <Badge variant="outline">{getSurveyTypeLabel(survey.surveyType)}</Badge>
                       </TableCell>
                       <TableCell>{getStatusBadge(survey.status)}</TableCell>
                       <TableCell>
@@ -357,15 +389,14 @@ export const SurveyDataTab: React.FC<SurveyDataTabProps> = ({ accessToken, ...co
               <FileText className="gba:h-12 gba:w-12 gba:mx-auto gba:mb-4 gba:text-gray-300" />
               <p>No surveys found</p>
               <p className="gba:text-sm">
-                {searchTerm || statusFilter !== 'all' || typeFilter !== 'all' 
+                {searchTerm || statusFilter !== 'all' || typeFilter !== 'all'
                   ? 'Try adjusting your filters'
-                  : 'Create your first survey to get started'
-                }
+                  : 'Create your first survey to get started'}
               </p>
             </div>
           )}
         </CardContent>
       </Card>
     </div>
-  );
-};
+  )
+}

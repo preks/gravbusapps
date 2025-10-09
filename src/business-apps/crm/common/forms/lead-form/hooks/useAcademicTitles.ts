@@ -1,27 +1,27 @@
-import { useState, useEffect, useCallback } from 'react';
-import { useCatalogManagerClient } from '@/common/network/catalogs/useCatalogManagerClient';
+import { useState, useEffect, useCallback } from 'react'
+import { useCatalogManagerClient } from '@/common/network/catalogs/useCatalogManagerClient'
 
 export interface AcademicTitleOption {
-  id: string;
-  value: string;
-  label: string;
-  name: string;
+  id: string
+  value: string
+  label: string
+  name: string
 }
 
 export const useAcademicTitles = (accessToken: string) => {
-  const [academicTitleOptions, setAcademicTitleOptions] = useState<AcademicTitleOption[]>([]);
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [academicTitleOptions, setAcademicTitleOptions] = useState<AcademicTitleOption[]>([])
+  const [isLoading, setIsLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
 
-  const catalogClient = useCatalogManagerClient(accessToken);
+  const catalogClient = useCatalogManagerClient(accessToken)
 
   const fetchAcademicTitles = useCallback(async () => {
     if (!accessToken) {
-      return;
+      return
     }
 
-    setIsLoading(true);
-    setError(null);
+    setIsLoading(true)
+    setError(null)
 
     try {
       const response = await catalogClient.getCatalogEntriesList(
@@ -35,34 +35,34 @@ export const useAcademicTitles = (accessToken: string) => {
           returnTotalRecords: true,
           includeChildCatalogEntries: true
         }
-      );
+      )
 
       const options = response.data.map(entry => ({
         id: entry.id,
         value: entry.value,
         label: entry.value,
         name: entry.value
-      }));
+      }))
 
-      setAcademicTitleOptions(options);
+      setAcademicTitleOptions(options)
     } catch (err) {
-      console.error('Error fetching academic titles:', err);
-      setError(err instanceof Error ? err.message : 'Failed to fetch academic titles');
+      console.error('Error fetching academic titles:', err)
+      setError(err instanceof Error ? err.message : 'Failed to fetch academic titles')
       // Fallback to empty array on error
-      setAcademicTitleOptions([]);
+      setAcademicTitleOptions([])
     } finally {
-      setIsLoading(false);
+      setIsLoading(false)
     }
-  }, [catalogClient, accessToken]);
+  }, [catalogClient, accessToken])
 
   useEffect(() => {
-    fetchAcademicTitles();
-  }, [fetchAcademicTitles]);
+    fetchAcademicTitles()
+  }, [fetchAcademicTitles])
 
   return {
     academicTitleOptions,
     isLoading,
     error,
     refetch: fetchAcademicTitles
-  };
-}; 
+  }
+}

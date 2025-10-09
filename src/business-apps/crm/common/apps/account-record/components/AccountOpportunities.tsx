@@ -1,11 +1,11 @@
-import React, { useState, useEffect } from 'react';
-import { 
-  Card, 
-  CardHeader, 
-  CardTitle, 
-  CardContent, 
-  Spinner, 
-  Alert, 
+import React, { useState, useEffect } from 'react'
+import {
+  Card,
+  CardHeader,
+  CardTitle,
+  CardContent,
+  Spinner,
+  Alert,
   Badge,
   Table,
   TableHeader,
@@ -14,59 +14,56 @@ import {
   TableRow,
   TableCell,
   Button
-} from '@newwork/nw-design-system';
-import { BusinessAppContextProps } from '@/common/BusinessAppContext';
-import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient';
-import { navigateTo } from '@/common/utils/navigationUtils';
-import { buildPlatformUrl } from '@/common/utils/navigationUtils';
-import { BarChartOutlined } from '@ant-design/icons';
+} from '@newwork/nw-design-system'
+import { BusinessAppContextProps } from '@/common/BusinessAppContext'
+import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
+import { navigateTo } from '@/common/utils/navigationUtils'
+import { buildPlatformUrl } from '@/common/utils/navigationUtils'
+import { BarChartOutlined } from '@ant-design/icons'
 
 interface AccountOpportunitiesProps {
-  accountId: string;
-  context: BusinessAppContextProps;
+  accountId: string
+  context: BusinessAppContextProps
 }
 
 interface Opportunity {
-  id: string;
-  name: string;
-  estimatedAmount?: number;
-  stage?: string;
-  status?: string;
-  closeDate?: string;
-  createdAt?: string;
+  id: string
+  name: string
+  estimatedAmount?: number
+  stage?: string
+  status?: string
+  closeDate?: string
+  createdAt?: string
   currency?: {
-    id: string;
-    code: string;
-    value: string;
-  };
+    id: string
+    code: string
+    value: string
+  }
   ownerEmployee?: {
-    firstName: string;
-    lastName: string;
-  };
+    firstName: string
+    lastName: string
+  }
   salesPipelineStage?: {
-    value: string;
-  };
+    value: string
+  }
 }
 
-export const AccountOpportunities: React.FC<AccountOpportunitiesProps> = ({ 
-  accountId, 
-  context 
-}) => {
-  const [opportunities, setOpportunities] = useState<Opportunity[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+export const AccountOpportunities: React.FC<AccountOpportunitiesProps> = ({ accountId, context }) => {
+  const [opportunities, setOpportunities] = useState<Opportunity[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
 
-  const graphQLClient = useGraphQLClient(context.accessToken);
+  const graphQLClient = useGraphQLClient(context.accessToken)
 
   useEffect(() => {
     const fetchOpportunities = async () => {
       if (!accountId || !context.accessToken) {
-        setLoading(false);
-        return;
+        setLoading(false)
+        return
       }
 
-      setLoading(true);
-      setError(null);
+      setLoading(true)
+      setError(null)
 
       try {
         const GET_ACCOUNT_OPPORTUNITIES = `
@@ -100,23 +97,23 @@ export const AccountOpportunities: React.FC<AccountOpportunitiesProps> = ({
               }
             }
           }
-        `;
+        `
 
         const result = await graphQLClient.request<{
-          Opportunity: Opportunity[];
-        }>(GET_ACCOUNT_OPPORTUNITIES, { accountId });
+          Opportunity: Opportunity[]
+        }>(GET_ACCOUNT_OPPORTUNITIES, { accountId })
 
-        setOpportunities(result.Opportunity || []);
+        setOpportunities(result.Opportunity || [])
       } catch (err) {
-        console.error('Error fetching account opportunities:', err);
-        setError(err instanceof Error ? err.message : 'Failed to load opportunities');
+        console.error('Error fetching account opportunities:', err)
+        setError(err instanceof Error ? err.message : 'Failed to load opportunities')
       } finally {
-        setLoading(false);
+        setLoading(false)
       }
-    };
+    }
 
-    fetchOpportunities();
-  }, [accountId, context.accessToken, graphQLClient]);
+    fetchOpportunities()
+  }, [accountId, context.accessToken, graphQLClient])
 
   const formatCurrency = (amount: number, currencyCode: string = 'EUR') => {
     return new Intl.NumberFormat('en-US', {
@@ -124,42 +121,40 @@ export const AccountOpportunities: React.FC<AccountOpportunitiesProps> = ({
       currency: currencyCode,
       minimumFractionDigits: 0,
       maximumFractionDigits: 0
-    }).format(amount);
-  };
-
-
+    }).format(amount)
+  }
 
   const handleOpportunityClick = (opportunityId: string) => {
-    const url = buildPlatformUrl('/platform/crm/opportunity-record', { 
-      opportunityId, 
-      source: 'customer-relations' 
-    });
-    navigateTo(url);
-  };
+    const url = buildPlatformUrl('/platform/crm/opportunity-record', {
+      opportunityId,
+      source: 'customer-relations'
+    })
+    navigateTo(url)
+  }
 
   const getStageVariant = (stage: string) => {
-    const variants: Record<string, "default" | "secondary" | "destructive" | "outline"> = {
-      'NEW_OPPORTUNITY': 'default',
-      'IN_QUALIFICATION': 'secondary',
-      'PROPOSAL_IN_PROGRESS': 'outline',
-      'NEGOTIATION': 'secondary',
-      'CLOSED': 'default'
-    };
-    return variants[stage] || 'outline';
-  };
+    const variants: Record<string, 'default' | 'secondary' | 'destructive' | 'outline'> = {
+      NEW_OPPORTUNITY: 'default',
+      IN_QUALIFICATION: 'secondary',
+      PROPOSAL_IN_PROGRESS: 'outline',
+      NEGOTIATION: 'secondary',
+      CLOSED: 'default'
+    }
+    return variants[stage] || 'outline'
+  }
 
   const getStatusVariant = (status: string) => {
-    const variants: Record<string, "default" | "secondary" | "destructive" | "outline"> = {
-      'Open': 'default',
-      'Won': 'default',
-      'Lost': 'destructive'
-    };
-    return variants[status] || 'outline';
-  };
+    const variants: Record<string, 'default' | 'secondary' | 'destructive' | 'outline'> = {
+      Open: 'default',
+      Won: 'default',
+      Lost: 'destructive'
+    }
+    return variants[status] || 'outline'
+  }
 
-  const totalValue = opportunities.reduce((sum, opp) => sum + (opp.estimatedAmount || 0), 0);
-  const openOpportunities = opportunities.filter(opp => opp.status !== 'Lost' && opp.status !== 'Won');
-  const wonOpportunities = opportunities.filter(opp => opp.status === 'Won');
+  const totalValue = opportunities.reduce((sum, opp) => sum + (opp.estimatedAmount || 0), 0)
+  const openOpportunities = opportunities.filter(opp => opp.status !== 'Lost' && opp.status !== 'Won')
+  const wonOpportunities = opportunities.filter(opp => opp.status === 'Won')
 
   return (
     <Card className="gba:w-full" data-testid="account-opportunities-card">
@@ -199,12 +194,8 @@ export const AccountOpportunities: React.FC<AccountOpportunitiesProps> = ({
         ) : opportunities.length === 0 ? (
           <div className="gba:text-center gba:py-10" data-testid="no-opportunities-message">
             <div className="gba:text-4xl gba:mb-4">💼</div>
-            <h3 className="gba:text-lg gba:font-semibold gba:text-gray-700 gba:mb-2">
-              No Opportunities Found
-            </h3>
-            <p className="gba:text-gray-500">
-              This account doesn't have any opportunities yet.
-            </p>
+            <h3 className="gba:text-lg gba:font-semibold gba:text-gray-700 gba:mb-2">No Opportunities Found</h3>
+            <p className="gba:text-gray-500">This account doesn't have any opportunities yet.</p>
           </div>
         ) : (
           <div className="gba:w-full" data-testid="opportunities-table">
@@ -221,7 +212,7 @@ export const AccountOpportunities: React.FC<AccountOpportunitiesProps> = ({
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {opportunities.map((opportunity) => (
+                {opportunities.map(opportunity => (
                   <TableRow key={opportunity.id}>
                     <TableCell>
                       <Button
@@ -234,13 +225,12 @@ export const AccountOpportunities: React.FC<AccountOpportunitiesProps> = ({
                       </Button>
                     </TableCell>
                     <TableCell>
-                      {opportunity.estimatedAmount 
+                      {opportunity.estimatedAmount
                         ? formatCurrency(opportunity.estimatedAmount, opportunity.currency?.code || 'EUR')
-                        : '-'
-                      }
+                        : '-'}
                     </TableCell>
                     <TableCell>
-                      <Badge 
+                      <Badge
                         variant={getStageVariant(opportunity.salesPipelineStage?.value || '')}
                         data-testid={`opportunity-stage-${opportunity.id}`}
                       >
@@ -249,34 +239,27 @@ export const AccountOpportunities: React.FC<AccountOpportunitiesProps> = ({
                     </TableCell>
                     <TableCell>
                       {opportunity.status ? (
-                        <Badge variant={getStatusVariant(opportunity.status)}>
-                          {opportunity.status}
-                        </Badge>
-                      ) : '-'}
+                        <Badge variant={getStatusVariant(opportunity.status)}>{opportunity.status}</Badge>
+                      ) : (
+                        '-'
+                      )}
                     </TableCell>
                     <TableCell>
-                      {opportunity.ownerEmployee 
+                      {opportunity.ownerEmployee
                         ? `${opportunity.ownerEmployee.firstName || ''} ${opportunity.ownerEmployee.lastName || ''}`.trim()
-                        : '-'
-                      }
+                        : '-'}
                     </TableCell>
                     <TableCell>
-                      {opportunity.closeDate 
-                        ? new Date(opportunity.closeDate).toLocaleDateString()
-                        : '-'
-                      }
+                      {opportunity.closeDate ? new Date(opportunity.closeDate).toLocaleDateString() : '-'}
                     </TableCell>
                     <TableCell>
-                      {opportunity.createdAt 
-                        ? new Date(opportunity.createdAt).toLocaleDateString()
-                        : '-'
-                      }
+                      {opportunity.createdAt ? new Date(opportunity.createdAt).toLocaleDateString() : '-'}
                     </TableCell>
                   </TableRow>
                 ))}
               </TableBody>
             </Table>
-            
+
             {/* Simple pagination info */}
             <div className="gba:mt-4 gba:text-sm gba:text-gray-500 gba:text-center">
               Showing {opportunities.length} opportunities
@@ -285,5 +268,5 @@ export const AccountOpportunities: React.FC<AccountOpportunitiesProps> = ({
         )}
       </CardContent>
     </Card>
-  );
-}; 
+  )
+}

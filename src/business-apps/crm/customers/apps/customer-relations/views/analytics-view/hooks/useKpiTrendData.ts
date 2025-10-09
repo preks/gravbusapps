@@ -1,71 +1,73 @@
-import { useState, useEffect } from 'react';
-import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient';
+import { useState, useEffect } from 'react'
+import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 
 // Trend data interface for KPI comparisons
 export interface KpiTrendData {
   // Current month counts (newly created)
-  currentMonthLeads: number;
-  previousMonthLeads: number;
-  currentMonthAccounts: number;
-  previousMonthAccounts: number;
-  currentMonthOpportunities: number;
-  previousMonthOpportunities: number;
-  currentMonthContacts: number;
-  previousMonthContacts: number;
-  
+  currentMonthLeads: number
+  previousMonthLeads: number
+  currentMonthAccounts: number
+  previousMonthAccounts: number
+  currentMonthOpportunities: number
+  previousMonthOpportunities: number
+  currentMonthContacts: number
+  previousMonthContacts: number
+
   // Total counts (existing as of month end)
-  totalLeadsThisMonth: number;
-  totalLeadsLastMonth: number;
-  totalAccountsThisMonth: number;
-  totalAccountsLastMonth: number;
-  totalOpportunitiesThisMonth: number;
-  totalOpportunitiesLastMonth: number;
-  totalContactsThisMonth: number;
-  totalContactsLastMonth: number;
-  
+  totalLeadsThisMonth: number
+  totalLeadsLastMonth: number
+  totalAccountsThisMonth: number
+  totalAccountsLastMonth: number
+  totalOpportunitiesThisMonth: number
+  totalOpportunitiesLastMonth: number
+  totalContactsThisMonth: number
+  totalContactsLastMonth: number
+
   // Current month conversion metrics
-  currentMonthConvertedLeads: number;
-  previousMonthConvertedLeads: number;
-  currentMonthWonOpportunities: number;
-  previousMonthWonOpportunities: number;
-  currentMonthTotalOpportunityValue: number;
-  previousMonthTotalOpportunityValue: number;
-  currentMonthWonOpportunityCount: number;
-  previousMonthWonOpportunityCount: number;
+  currentMonthConvertedLeads: number
+  previousMonthConvertedLeads: number
+  currentMonthWonOpportunities: number
+  previousMonthWonOpportunities: number
+  currentMonthTotalOpportunityValue: number
+  previousMonthTotalOpportunityValue: number
+  currentMonthWonOpportunityCount: number
+  previousMonthWonOpportunityCount: number
 
   // Actual KPI values for comparison
-  actualConversionRateThisMonth: number;
-  actualConversionRateLastMonth: number;
-  actualOpportunityWinRateThisMonth: number;
-  actualOpportunityWinRateLastMonth: number;
-  actualAvgDealSizeThisMonth: number;
-  actualAvgDealSizeLastMonth: number;
+  actualConversionRateThisMonth: number
+  actualConversionRateLastMonth: number
+  actualOpportunityWinRateThisMonth: number
+  actualOpportunityWinRateLastMonth: number
+  actualAvgDealSizeThisMonth: number
+  actualAvgDealSizeLastMonth: number
 }
 
 // Custom hook for KPI trend data
 export const useKpiTrendData = (accessToken: string) => {
-  const [trendData, setTrendData] = useState<KpiTrendData | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
-  const graphqlClient = useGraphQLClient(accessToken);
+  const [trendData, setTrendData] = useState<KpiTrendData | null>(null)
+  const [isLoading, setIsLoading] = useState(true)
+  const graphqlClient = useGraphQLClient(accessToken)
 
   useEffect(() => {
     const fetchTrendData = async () => {
       try {
-        setIsLoading(true);
-        
-        const currentDate = new Date();
-        const currentYear = currentDate.getFullYear();
-        const currentMonth = currentDate.getMonth() + 1;
-        
+        setIsLoading(true)
+
+        const currentDate = new Date()
+        const currentYear = currentDate.getFullYear()
+        const currentMonth = currentDate.getMonth() + 1
+
         // Calculate date ranges
-        const currentMonthStart = `${currentYear}-${String(currentMonth).padStart(2, '0')}-01T00:00:00Z`;
-        const nextMonthStart = currentMonth === 12 
-          ? `${currentYear + 1}-01-01T00:00:00Z`
-          : `${currentYear}-${String(currentMonth + 1).padStart(2, '0')}-01T00:00:00Z`;
-        
-        const previousMonthStart = currentMonth === 1
-          ? `${currentYear - 1}-12-01T00:00:00Z`
-          : `${currentYear}-${String(currentMonth - 1).padStart(2, '0')}-01T00:00:00Z`;
+        const currentMonthStart = `${currentYear}-${String(currentMonth).padStart(2, '0')}-01T00:00:00Z`
+        const nextMonthStart =
+          currentMonth === 12
+            ? `${currentYear + 1}-01-01T00:00:00Z`
+            : `${currentYear}-${String(currentMonth + 1).padStart(2, '0')}-01T00:00:00Z`
+
+        const previousMonthStart =
+          currentMonth === 1
+            ? `${currentYear - 1}-12-01T00:00:00Z`
+            : `${currentYear}-${String(currentMonth - 1).padStart(2, '0')}-01T00:00:00Z`
 
         const query = `
           query GetKpiTrendData {
@@ -204,10 +206,10 @@ export const useKpiTrendData = (accessToken: string) => {
               }
             ) { aggregate { count sum { estimatedAmount } } }
           }
-        `;
+        `
 
-        const result = await graphqlClient.request(query);
-        
+        const result = await graphqlClient.request(query)
+
         setTrendData({
           currentMonthLeads: result.currentMonthLeads.aggregate.count,
           previousMonthLeads: result.previousMonthLeads.aggregate.count,
@@ -233,30 +235,48 @@ export const useKpiTrendData = (accessToken: string) => {
           previousMonthTotalOpportunityValue: result.previousMonthOpportunities.aggregate.sum?.estimatedAmount || 0,
           currentMonthWonOpportunityCount: result.currentMonthWonOpportunities.aggregate.count,
           previousMonthWonOpportunityCount: result.previousMonthWonOpportunities.aggregate.count,
-          actualConversionRateThisMonth: result.currentMonthLeads.aggregate.count > 0 ? 
-            (result.currentMonthConvertedLeads.aggregate.count / result.currentMonthLeads.aggregate.count) * 100 : 0,
-          actualConversionRateLastMonth: result.previousMonthLeads.aggregate.count > 0 ? 
-            (result.previousMonthConvertedLeads.aggregate.count / result.previousMonthLeads.aggregate.count) * 100 : 0,
-          actualOpportunityWinRateThisMonth: result.currentMonthOpportunities.aggregate.count > 0 ? 
-            (result.currentMonthWonOpportunities.aggregate.count / result.currentMonthOpportunities.aggregate.count) * 100 : 0,
-          actualOpportunityWinRateLastMonth: result.previousMonthOpportunities.aggregate.count > 0 ? 
-            (result.previousMonthWonOpportunities.aggregate.count / result.previousMonthOpportunities.aggregate.count) * 100 : 0,
-          actualAvgDealSizeThisMonth: result.currentMonthWonOpportunities.aggregate.count > 0 ? 
-            (result.currentMonthWonOpportunities.aggregate.sum?.estimatedAmount || 0) / result.currentMonthWonOpportunities.aggregate.count : 0,
-          actualAvgDealSizeLastMonth: result.previousMonthWonOpportunities.aggregate.count > 0 ? 
-            (result.previousMonthWonOpportunities.aggregate.sum?.estimatedAmount || 0) / result.previousMonthWonOpportunities.aggregate.count : 0,
-        });
+          actualConversionRateThisMonth:
+            result.currentMonthLeads.aggregate.count > 0
+              ? (result.currentMonthConvertedLeads.aggregate.count / result.currentMonthLeads.aggregate.count) * 100
+              : 0,
+          actualConversionRateLastMonth:
+            result.previousMonthLeads.aggregate.count > 0
+              ? (result.previousMonthConvertedLeads.aggregate.count / result.previousMonthLeads.aggregate.count) * 100
+              : 0,
+          actualOpportunityWinRateThisMonth:
+            result.currentMonthOpportunities.aggregate.count > 0
+              ? (result.currentMonthWonOpportunities.aggregate.count /
+                  result.currentMonthOpportunities.aggregate.count) *
+                100
+              : 0,
+          actualOpportunityWinRateLastMonth:
+            result.previousMonthOpportunities.aggregate.count > 0
+              ? (result.previousMonthWonOpportunities.aggregate.count /
+                  result.previousMonthOpportunities.aggregate.count) *
+                100
+              : 0,
+          actualAvgDealSizeThisMonth:
+            result.currentMonthWonOpportunities.aggregate.count > 0
+              ? (result.currentMonthWonOpportunities.aggregate.sum?.estimatedAmount || 0) /
+                result.currentMonthWonOpportunities.aggregate.count
+              : 0,
+          actualAvgDealSizeLastMonth:
+            result.previousMonthWonOpportunities.aggregate.count > 0
+              ? (result.previousMonthWonOpportunities.aggregate.sum?.estimatedAmount || 0) /
+                result.previousMonthWonOpportunities.aggregate.count
+              : 0
+        })
       } catch (err) {
         // console.error('Error fetching KPI trend data:', err);
       } finally {
-        setIsLoading(false);
+        setIsLoading(false)
       }
-    };
+    }
 
     if (accessToken) {
-      fetchTrendData();
+      fetchTrendData()
     }
-  }, [accessToken, graphqlClient]);
+  }, [accessToken, graphqlClient])
 
-  return { trendData, isLoading };
-};
+  return { trendData, isLoading }
+}

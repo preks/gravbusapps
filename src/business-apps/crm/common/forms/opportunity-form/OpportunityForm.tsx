@@ -1,13 +1,13 @@
-import React from 'react';
-import { OpportunityFormProvider } from './context/OpportunityFormContext';
-import OpportunityFormComponent from './components/OpportunityFormComponent';
-import { OpportunityFormValues } from './types';
-import { BusinessAppContextProps } from '@/common/BusinessAppContext';
+import React from 'react'
+import { OpportunityFormProvider } from './context/OpportunityFormContext'
+import OpportunityFormComponent from './components/OpportunityFormComponent'
+import { OpportunityFormValues } from './types'
+import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 
 interface OpportunityFormProps {
-  initialValues?: Partial<OpportunityFormValues>;
-  onSubmit?: (values: OpportunityFormValues) => Promise<void>;
-  onCancel?: () => Promise<void>;
+  initialValues?: Partial<OpportunityFormValues>
+  onSubmit?: (values: OpportunityFormValues) => Promise<void>
+  onCancel?: () => Promise<void>
 }
 
 const OpportunityForm: React.FC<BusinessAppContextProps & OpportunityFormProps> = ({
@@ -25,14 +25,14 @@ const OpportunityForm: React.FC<BusinessAppContextProps & OpportunityFormProps> 
           Error: No access token found. Please ensure you are properly authenticated.
         </div>
       </div>
-    );
+    )
   }
 
   const businessAppContext: BusinessAppContextProps = {
     accessToken,
     userInfo,
     additionalData
-  };
+  }
 
   return (
     <OpportunityFormProvider
@@ -43,7 +43,7 @@ const OpportunityForm: React.FC<BusinessAppContextProps & OpportunityFormProps> 
     >
       <OpportunityFormComponent />
     </OpportunityFormProvider>
-  );
-};
+  )
+}
 
-export default OpportunityForm; 
+export default OpportunityForm

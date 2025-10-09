@@ -1,31 +1,27 @@
-import { useState, useCallback, useEffect } from "react";
-import { SelectOption } from "../types";
-import { useGraphQLClient } from "@/common/network/graphql/useGraphQLClient";
+import { useState, useCallback, useEffect } from 'react'
+import { SelectOption } from '../types'
+import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 
 interface SearchableCatalogConfig {
-  accessToken: string;
-  catalogIdentifier: string;
-  pageSize?: number;
+  accessToken: string
+  catalogIdentifier: string
+  pageSize?: number
 }
 
 interface SearchableCatalogState {
-  allOptions: SelectOption[];
-  options: SelectOption[];
-  loading: boolean;
-  error: string | null;
-  hasMore: boolean;
-  needsMoreData: boolean;
-  displayCount: number;
-  totalFetched: number;
-  currentSearch: string;
-  offset: number;
+  allOptions: SelectOption[]
+  options: SelectOption[]
+  loading: boolean
+  error: string | null
+  hasMore: boolean
+  needsMoreData: boolean
+  displayCount: number
+  totalFetched: number
+  currentSearch: string
+  offset: number
 }
 
-export const useSearchableCatalog = ({
-  accessToken,
-  catalogIdentifier,
-  pageSize = 20,
-}: SearchableCatalogConfig) => {
+export const useSearchableCatalog = ({ accessToken, catalogIdentifier, pageSize = 20 }: SearchableCatalogConfig) => {
   const [state, setState] = useState<SearchableCatalogState>({
     allOptions: [],
     options: [],
@@ -35,13 +31,13 @@ export const useSearchableCatalog = ({
     needsMoreData: false,
     displayCount: 5, // Initial display count
     totalFetched: 0,
-    currentSearch: "",
-    offset: 0,
-  });
+    currentSearch: '',
+    offset: 0
+  })
 
-  const graphqlClient = useGraphQLClient(accessToken);
+  const graphqlClient = useGraphQLClient(accessToken)
 
-  const buildCatalogQuery = (search: string = "", offset: number = 0) =>
+  const buildCatalogQuery = (search: string = '', offset: number = 0) =>
     search.trim()
       ? `
         query GetCatalogEntries($catalogIdentifier: String!, $limit: Int, $offset: Int, $search: String) {
@@ -97,62 +93,54 @@ export const useSearchableCatalog = ({
             }
           }
         }
-      `;
+      `
 
   const fetchCatalogEntries = useCallback(
-    async (
-      search: string = "",
-      offset: number = 0,
-      append: boolean = false
-    ) => {
+    async (search: string = '', offset: number = 0, append: boolean = false) => {
       if (!accessToken) {
-        return;
+        return
       }
 
-      setState((prev) => ({
+      setState(prev => ({
         ...prev,
         loading: true,
         error: null,
-        ...(append ? {} : {}),
-      }));
+        ...(append ? {} : {})
+      }))
 
       try {
-        const query = buildCatalogQuery(search, offset);
+        const query = buildCatalogQuery(search, offset)
 
         const variables: any = {
           catalogIdentifier,
           limit: pageSize,
-          offset,
-        };
-
-        if (search.trim()) {
-          variables.search = `%${search.trim()}%`;
+          offset
         }
 
-        const response = await graphqlClient.request(query, variables);
+        if (search.trim()) {
+          variables.search = `%${search.trim()}%`
+        }
 
-        const mappedOptions: SelectOption[] = response.CatalogEntry.map(
-          (entry: any) => ({
-            id: entry.id,
-            name: entry.value || "Unknown",
-            label: entry.value || "Unknown",
-            value: entry.id,
-            extraInfo: {
-              code: entry.code,
-              alternativeCode: entry.alternativeCode,
-              additionalValue1: entry.additionalValue1,
-              additionalValue2: entry.additionalValue2,
-              additionalValue3: entry.additionalValue3,
-            },
-          })
-        );
+        const response = await graphqlClient.request(query, variables)
 
-        const hasMoreRecords = mappedOptions.length === pageSize;
+        const mappedOptions: SelectOption[] = response.CatalogEntry.map((entry: any) => ({
+          id: entry.id,
+          name: entry.value || 'Unknown',
+          label: entry.value || 'Unknown',
+          value: entry.id,
+          extraInfo: {
+            code: entry.code,
+            alternativeCode: entry.alternativeCode,
+            additionalValue1: entry.additionalValue1,
+            additionalValue2: entry.additionalValue2,
+            additionalValue3: entry.additionalValue3
+          }
+        }))
 
-        setState((prev) => {
-          const newAllOptions = append
-            ? [...prev.allOptions, ...mappedOptions]
-            : mappedOptions;
+        const hasMoreRecords = mappedOptions.length === pageSize
+
+        setState(prev => {
+          const newAllOptions = append ? [...prev.allOptions, ...mappedOptions] : mappedOptions
 
           return {
             ...prev,
@@ -160,74 +148,59 @@ export const useSearchableCatalog = ({
             options: newAllOptions.slice(0, prev.displayCount),
             loading: false,
             hasMore: hasMoreRecords,
-            needsMoreData:
-              newAllOptions.length < prev.displayCount && hasMoreRecords,
+            needsMoreData: newAllOptions.length < prev.displayCount && hasMoreRecords,
             totalFetched: newAllOptions.length,
             currentSearch: search,
-            offset: append
-              ? prev.offset + mappedOptions.length
-              : mappedOptions.length,
-          };
-        });
+            offset: append ? prev.offset + mappedOptions.length : mappedOptions.length
+          }
+        })
       } catch (error) {
-        console.error(`❌ Error fetching ${catalogIdentifier} catalog:`, error);
-        setState((prev) => ({
+        console.error(`❌ Error fetching ${catalogIdentifier} catalog:`, error)
+        setState(prev => ({
           ...prev,
           loading: false,
-          error:
-            error instanceof Error
-              ? error.message
-              : `Failed to fetch ${catalogIdentifier} catalog`,
-        }));
+          error: error instanceof Error ? error.message : `Failed to fetch ${catalogIdentifier} catalog`
+        }))
       }
     },
     [accessToken, graphqlClient, pageSize, catalogIdentifier]
-  );
+  )
 
   const search = useCallback(
     (searchTerm: string) => {
-      fetchCatalogEntries(searchTerm, 0, false);
+      fetchCatalogEntries(searchTerm, 0, false)
     },
     [fetchCatalogEntries]
-  );
+  )
 
   const loadMore = useCallback(() => {
     if (state.hasMore && !state.loading) {
-      fetchCatalogEntries(state.currentSearch, state.offset, true);
+      fetchCatalogEntries(state.currentSearch, state.offset, true)
     }
-  }, [
-    fetchCatalogEntries,
-    state.hasMore,
-    state.loading,
-    state.currentSearch,
-    state.offset,
-  ]);
+  }, [fetchCatalogEntries, state.hasMore, state.loading, state.currentSearch, state.offset])
 
   const showMore = useCallback(() => {
-    setState((prev) => {
-      const newDisplayCount = Math.min(
-        prev.displayCount + 20,
-        prev.totalFetched
-      );
+    setState(prev => {
+      const newDisplayCount = Math.min(prev.displayCount + 20, prev.totalFetched)
       return {
         ...prev,
         displayCount: newDisplayCount,
         options: prev.allOptions.slice(0, newDisplayCount),
-        needsMoreData: newDisplayCount >= prev.totalFetched && prev.hasMore,
-      };
-    });
-  }, []);
+        needsMoreData: newDisplayCount >= prev.totalFetched && prev.hasMore
+      }
+    })
+  }, [])
 
   const initialize = useCallback(() => {
-    fetchCatalogEntries("", 0, false);
-  }, [fetchCatalogEntries]);
+    fetchCatalogEntries('', 0, false)
+  }, [fetchCatalogEntries])
 
   useEffect(() => {
     if (accessToken && catalogIdentifier) {
-      console.log(`🏷️ ${catalogIdentifier} catalog hook initializing...`);
-      initialize();
+      console.log(`🏷️ ${catalogIdentifier} catalog hook initializing...`)
+      initialize()
     }
-  }, [accessToken, catalogIdentifier, initialize]);
+  }, [accessToken, catalogIdentifier, initialize])
 
   return {
     allOptions: state.allOptions,
@@ -241,6 +214,6 @@ export const useSearchableCatalog = ({
     search,
     loadMore,
     showMore,
-    initialize,
-  };
-};
+    initialize
+  }
+}

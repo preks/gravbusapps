@@ -1,47 +1,62 @@
-import React, { useState, useMemo } from 'react';
-import { Card, CardHeader, CardTitle, CardContent, CardDescription, IconAvatar, ChartContainer, ChartTooltip, ChartTooltipContent, ChartLegend, ChartLegendContent, Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@newwork/nw-design-system';
-import { PieChart, Pie, Cell } from 'recharts';
-import { formatCurrency } from '@/common/data/investment';
-import { ChartPieSliceIcon, CurrencyCircleDollarIcon } from '@phosphor-icons/react';
-import { EquityInvestmentSummary } from '../../shared/types';
-import { CHART_COLORS, renderCustomizedLabel, createChartConfig } from './shared/chartUtils';
+import React, { useState, useMemo } from 'react'
+import {
+  Card,
+  CardHeader,
+  CardTitle,
+  CardContent,
+  CardDescription,
+  IconAvatar,
+  ChartContainer,
+  ChartTooltip,
+  ChartTooltipContent,
+  ChartLegend,
+  ChartLegendContent,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue
+} from '@newwork/nw-design-system'
+import { PieChart, Pie, Cell } from 'recharts'
+import { formatCurrency } from '@/common/data/investment'
+import { ChartPieSliceIcon, CurrencyCircleDollarIcon } from '@phosphor-icons/react'
+import { EquityInvestmentSummary } from '../../shared/types'
+import { CHART_COLORS, renderCustomizedLabel, createChartConfig } from './shared/chartUtils'
 
 interface RoleDistributionChartsProps {
-  roleData: any[];
-  rawInvestments: EquityInvestmentSummary[];
+  roleData: any[]
+  rawInvestments: EquityInvestmentSummary[]
 }
 
-export const RoleDistributionCharts: React.FC<RoleDistributionChartsProps> = ({
-  roleData,
-  rawInvestments
-}) => {
-  const [roleCurrencyFilter, setRoleCurrencyFilter] = useState('EUR');
+export const RoleDistributionCharts: React.FC<RoleDistributionChartsProps> = ({ roleData, rawInvestments }) => {
+  const [roleCurrencyFilter, setRoleCurrencyFilter] = useState('EUR')
 
   // Create chart configurations
-  const roleCountConfig = useMemo(() => createChartConfig(roleData), [roleData]);
-  const roleValueConfig = useMemo(() => createChartConfig(roleData), [roleData]);
+  const roleCountConfig = useMemo(() => createChartConfig(roleData), [roleData])
+  const roleValueConfig = useMemo(() => createChartConfig(roleData), [roleData])
 
   // Filter data by currency for value chart
   const filteredRoleData = useMemo(() => {
     return roleData.map(item => {
       const totalValue = rawInvestments
-        .filter(inv => 
-          (inv.equityInvestment?.investmentRole?.value || 'Unknown') === item.name &&
-          inv.currencyCode === roleCurrencyFilter
+        .filter(
+          inv =>
+            (inv.equityInvestment?.investmentRole?.value || 'Unknown') === item.name &&
+            inv.currencyCode === roleCurrencyFilter
         )
-        .reduce((sum, inv) => sum + (inv.investment.totalInvestmentAmount || 0), 0);
-      
+        .reduce((sum, inv) => sum + (inv.investment.totalInvestmentAmount || 0), 0)
+
       return {
         ...item,
         totalvalue: totalValue
-      };
-    });
-  }, [roleData, rawInvestments, roleCurrencyFilter]);
+      }
+    })
+  }, [roleData, rawInvestments, roleCurrencyFilter])
 
   const availableCurrencies = useMemo(() => {
-    const currencies = new Set(rawInvestments.map(inv => inv.currencyCode));
-    return Array.from(currencies);
-  }, [rawInvestments]);
+    const currencies = new Set(rawInvestments.map(inv => inv.currencyCode))
+    return Array.from(currencies)
+  }, [rawInvestments])
 
   return (
     <div className="gba:grid gba:grid-cols-2 gba:gap-4">
@@ -73,10 +88,7 @@ export const RoleDistributionCharts: React.FC<RoleDistributionChartsProps> = ({
                 dataKey="count"
               >
                 {roleData.map((entry, index) => (
-                  <Cell 
-                    key={`role_count_${entry.name}_${index}`} 
-                    fill={CHART_COLORS[index % CHART_COLORS.length]} 
-                  />
+                  <Cell key={`role_count_${entry.name}_${index}`} fill={CHART_COLORS[index % CHART_COLORS.length]} />
                 ))}
               </Pie>
             </PieChart>
@@ -113,11 +125,12 @@ export const RoleDistributionCharts: React.FC<RoleDistributionChartsProps> = ({
         <CardContent>
           <ChartContainer config={roleValueConfig}>
             <PieChart>
-              <ChartTooltip 
-                content={<ChartTooltipContent formatter={(value, name) => [
-                  formatCurrency(value as number, roleCurrencyFilter),
-                  name
-                ]} />} 
+              <ChartTooltip
+                content={
+                  <ChartTooltipContent
+                    formatter={(value, name) => [formatCurrency(value as number, roleCurrencyFilter), name]}
+                  />
+                }
               />
               <ChartLegend content={<ChartLegendContent />} />
               <Pie
@@ -131,10 +144,7 @@ export const RoleDistributionCharts: React.FC<RoleDistributionChartsProps> = ({
                 dataKey="totalvalue"
               >
                 {filteredRoleData.map((entry, index) => (
-                  <Cell 
-                    key={`role_value_${entry.name}_${index}`} 
-                    fill={CHART_COLORS[index % CHART_COLORS.length]} 
-                  />
+                  <Cell key={`role_value_${entry.name}_${index}`} fill={CHART_COLORS[index % CHART_COLORS.length]} />
                 ))}
               </Pie>
             </PieChart>
@@ -142,5 +152,5 @@ export const RoleDistributionCharts: React.FC<RoleDistributionChartsProps> = ({
         </CardContent>
       </Card>
     </div>
-  );
-};
+  )
+}

@@ -1,3 +1,3 @@
-import FormScreenComponent from './FormScreenComponent';
+import FormScreenComponent from './FormScreenComponent'
 
-export default FormScreenComponent;
+export default FormScreenComponent

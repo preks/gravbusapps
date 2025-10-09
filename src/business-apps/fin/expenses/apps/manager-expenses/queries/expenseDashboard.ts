@@ -162,7 +162,7 @@ query GetExpenseDashboardByManager($managerId: uuid!, $startDate: timestamp, $ye
     totalAmount
   }
   }
-`;
+`
 
 // GraphQL query for fetching all team employees under a manager
 export const GET_ALL_TEAM_EMPLOYEES = `
@@ -190,4 +190,4 @@ export const GET_ALL_TEAM_EMPLOYEES = `
       }
     }
   }
-`;
+`

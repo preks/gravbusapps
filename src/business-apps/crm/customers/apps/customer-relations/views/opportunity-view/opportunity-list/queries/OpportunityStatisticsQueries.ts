@@ -1,17 +1,17 @@
-import { BusinessAppContextProps } from '@/common/BusinessAppContext';
-import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient';
-import { useCallback } from 'react';
+import { BusinessAppContextProps } from '@/common/BusinessAppContext'
+import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
+import { useCallback } from 'react'
 
 export interface UseOpportunityStatisticsQueriesProps extends BusinessAppContextProps {
-  sourceApp: string;
+  sourceApp: string
 }
 
 interface TrendData {
-  current: number;
-  previous: number;
-  change: number;
-  changePercent: number;
-  isPositive: boolean;
+  current: number
+  previous: number
+  change: number
+  changePercent: number
+  isPositive: boolean
 }
 
 // Enhanced queries that fetch both current and previous period data for trend calculations
@@ -38,7 +38,7 @@ export const GET_RECENT_OPPORTUNITIES_WITH_TREND = `
       }
     }
   }
-`;
+`
 
 // Query to get total opportunity value with trend (current vs last quarter)
 export const GET_OPPORTUNITY_VALUE_WITH_TREND = `
@@ -67,7 +67,7 @@ export const GET_OPPORTUNITY_VALUE_WITH_TREND = `
       }
     }
   }
-`;
+`
 
 // Query to compute win rate with trend: won / (won + lost) for this year vs last year
 export const GET_WIN_RATE_WITH_TREND = `
@@ -105,7 +105,7 @@ export const GET_WIN_RATE_WITH_TREND = `
       opportunityStatus: {code: {_in: ["WON", "LOST"]}}
     }) { aggregate { count } }
   }
-`;
+`
 
 // Query to get opportunities this year vs same period last year
 export const GET_OPPORTUNITIES_THIS_YEAR_WITH_TREND = `
@@ -129,134 +129,128 @@ export const GET_OPPORTUNITIES_THIS_YEAR_WITH_TREND = `
       }
     }
   }
-`;
+`
 
 export const useOpportunityStatisticsQueries = (context: UseOpportunityStatisticsQueriesProps) => {
-  const graphqlClient = useGraphQLClient(context.accessToken);
-  const { sourceApp } = context;
+  const graphqlClient = useGraphQLClient(context.accessToken)
+  const { sourceApp } = context
 
   const calculateTrend = (current: number, previous: number): TrendData => {
-    const change = current - previous;
-    const changePercent = previous > 0 ? (change / previous) * 100 : (current > 0 ? 100 : 0);
+    const change = current - previous
+    const changePercent = previous > 0 ? (change / previous) * 100 : current > 0 ? 100 : 0
     return {
       current,
       previous,
       change,
       changePercent,
       isPositive: change >= 0
-    };
-  };
+    }
+  }
 
   const fetchRecentOpportunitiesWithTrend = useCallback(async (): Promise<TrendData> => {
     try {
-      const now = new Date();
-      const currentStart = new Date(now.getTime() - (14 * 24 * 60 * 60 * 1000));
-      const previousEnd = currentStart;
-      const previousStart = new Date(currentStart.getTime() - (14 * 24 * 60 * 60 * 1000));
-      
+      const now = new Date()
+      const currentStart = new Date(now.getTime() - 14 * 24 * 60 * 60 * 1000)
+      const previousEnd = currentStart
+      const previousStart = new Date(currentStart.getTime() - 14 * 24 * 60 * 60 * 1000)
+
       const result = await graphqlClient.request<{
-        current: { aggregate: { count: number } };
-        previous: { aggregate: { count: number } };
-      }>(GET_RECENT_OPPORTUNITIES_WITH_TREND, { 
+        current: { aggregate: { count: number } }
+        previous: { aggregate: { count: number } }
+      }>(GET_RECENT_OPPORTUNITIES_WITH_TREND, {
         currentStart: currentStart.toISOString(),
         previousStart: previousStart.toISOString(),
         previousEnd: previousEnd.toISOString(),
-        sourceApp 
-      });
-      
-      return calculateTrend(
-        result.current.aggregate.count,
-        result.previous.aggregate.count
-      );
+        sourceApp
+      })
+
+      return calculateTrend(result.current.aggregate.count, result.previous.aggregate.count)
     } catch (error) {
-      console.error('Error fetching recent opportunities with trend:', error);
-      throw error;
+      console.error('Error fetching recent opportunities with trend:', error)
+      throw error
     }
-  }, [graphqlClient, sourceApp]);
+  }, [graphqlClient, sourceApp])
 
   const fetchOpportunityValueWithTrend = useCallback(async (): Promise<TrendData> => {
     try {
-      const now = new Date();
-      const lastQuarter = new Date(now.getFullYear(), now.getMonth() - 3, now.getDate());
-      
+      const now = new Date()
+      const lastQuarter = new Date(now.getFullYear(), now.getMonth() - 3, now.getDate())
+
       const result = await graphqlClient.request<{
-        current: { aggregate: { sum: { estimatedAmount: number } } };
-        previous: { aggregate: { sum: { estimatedAmount: number } } };
-      }>(GET_OPPORTUNITY_VALUE_WITH_TREND, { 
+        current: { aggregate: { sum: { estimatedAmount: number } } }
+        previous: { aggregate: { sum: { estimatedAmount: number } } }
+      }>(GET_OPPORTUNITY_VALUE_WITH_TREND, {
         lastQuarter: lastQuarter.toISOString(),
-        sourceApp 
-      });
-      
-      const currentValue = result.current.aggregate.sum?.estimatedAmount || 0;
-      const previousValue = result.previous.aggregate.sum?.estimatedAmount || 0;
-      
-      return calculateTrend(currentValue, previousValue);
+        sourceApp
+      })
+
+      const currentValue = result.current.aggregate.sum?.estimatedAmount || 0
+      const previousValue = result.previous.aggregate.sum?.estimatedAmount || 0
+
+      return calculateTrend(currentValue, previousValue)
     } catch (error) {
-      console.error('Error fetching opportunity value with trend:', error);
-      throw error;
+      console.error('Error fetching opportunity value with trend:', error)
+      throw error
     }
-  }, [graphqlClient, sourceApp]);
+  }, [graphqlClient, sourceApp])
 
   const fetchWinRateWithTrend = useCallback(async (): Promise<TrendData> => {
     try {
-      const now = new Date();
-      const thisYearStart = new Date(now.getFullYear(), 0, 1);
-      const lastYearStart = new Date(now.getFullYear() - 1, 0, 1);
-      const lastYearEnd = new Date(now.getFullYear() - 1, 11, 31, 23, 59, 59, 999);
+      const now = new Date()
+      const thisYearStart = new Date(now.getFullYear(), 0, 1)
+      const lastYearStart = new Date(now.getFullYear() - 1, 0, 1)
+      const lastYearEnd = new Date(now.getFullYear() - 1, 11, 31, 23, 59, 59, 999)
 
       const result = await graphqlClient.request<{
-        currentWon: { aggregate: { count: number } };
-        currentClosed: { aggregate: { count: number } };
-        previousWon: { aggregate: { count: number } };
-        previousClosed: { aggregate: { count: number } };
+        currentWon: { aggregate: { count: number } }
+        currentClosed: { aggregate: { count: number } }
+        previousWon: { aggregate: { count: number } }
+        previousClosed: { aggregate: { count: number } }
       }>(GET_WIN_RATE_WITH_TREND, {
         thisYearStart: thisYearStart.toISOString(),
         lastYearStart: lastYearStart.toISOString(),
         lastYearEnd: lastYearEnd.toISOString(),
-        sourceApp,
-      });
+        sourceApp
+      })
 
-      const currentWon = result.currentWon.aggregate.count || 0;
-      const currentClosed = result.currentClosed.aggregate.count || 0;
-      const previousWon = result.previousWon.aggregate.count || 0;
-      const previousClosed = result.previousClosed.aggregate.count || 0;
+      const currentWon = result.currentWon.aggregate.count || 0
+      const currentClosed = result.currentClosed.aggregate.count || 0
+      const previousWon = result.previousWon.aggregate.count || 0
+      const previousClosed = result.previousClosed.aggregate.count || 0
 
-      const currentRate = currentClosed > 0 ? Math.round((currentWon / currentClosed) * 100) : 0;
-      const previousRate = previousClosed > 0 ? Math.round((previousWon / previousClosed) * 100) : 0;
+      const currentRate = currentClosed > 0 ? Math.round((currentWon / currentClosed) * 100) : 0
+      const previousRate = previousClosed > 0 ? Math.round((previousWon / previousClosed) * 100) : 0
 
-      return calculateTrend(currentRate, previousRate);
+      return calculateTrend(currentRate, previousRate)
     } catch (error) {
-      console.error('Error fetching win rate with trend:', error);
-      throw error;
+      console.error('Error fetching win rate with trend:', error)
+      throw error
     }
-  }, [graphqlClient, sourceApp]);
+  }, [graphqlClient, sourceApp])
 
   const fetchOpportunitiesThisYearWithTrend = useCallback(async (): Promise<TrendData> => {
     try {
-      const now = new Date();
-      const thisYearStart = new Date(now.getFullYear(), 0, 1);
-      const lastYearStart = new Date(now.getFullYear() - 1, 0, 1);
-      const lastYearEnd = new Date(now.getFullYear() - 1, now.getMonth(), now.getDate());
-      
+      const now = new Date()
+      const thisYearStart = new Date(now.getFullYear(), 0, 1)
+      const lastYearStart = new Date(now.getFullYear() - 1, 0, 1)
+      const lastYearEnd = new Date(now.getFullYear() - 1, now.getMonth(), now.getDate())
+
       const result = await graphqlClient.request<{
-        current: { aggregate: { count: number } };
-        previous: { aggregate: { count: number } };
-      }>(GET_OPPORTUNITIES_THIS_YEAR_WITH_TREND, { 
+        current: { aggregate: { count: number } }
+        previous: { aggregate: { count: number } }
+      }>(GET_OPPORTUNITIES_THIS_YEAR_WITH_TREND, {
         thisYearStart: thisYearStart.toISOString(),
         lastYearStart: lastYearStart.toISOString(),
         lastYearEnd: lastYearEnd.toISOString(),
-        sourceApp 
-      });
-      
-      return calculateTrend(
-        result.current.aggregate.count,
-        result.previous.aggregate.count
-      );
+        sourceApp
+      })
+
+      return calculateTrend(result.current.aggregate.count, result.previous.aggregate.count)
     } catch (error) {
-      console.error('Error fetching opportunities this year with trend:', error);
-      throw error;
+      console.error('Error fetching opportunities this year with trend:', error)
+      throw error
     }
-  }, [graphqlClient, sourceApp]);
+  }, [graphqlClient, sourceApp])
 
   return {
     // Enhanced methods with trend data
@@ -264,5 +258,5 @@ export const useOpportunityStatisticsQueries = (context: UseOpportunityStatistic
     fetchOpportunityValueWithTrend,
     fetchWinRateWithTrend,
     fetchOpportunitiesThisYearWithTrend
-  };
-}; 
+  }
+}

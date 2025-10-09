@@ -1,10 +1,10 @@
-import { Employee } from '../hooks/useGetEmployeesReport';
+import { Employee } from '../hooks/useGetEmployeesReport'
 
-export type SortDirection = 'asc' | 'desc';
+export type SortDirection = 'asc' | 'desc'
 
 export interface SortConfig {
-  key: keyof Employee;
-  direction: SortDirection;
+  key: keyof Employee
+  direction: SortDirection
 }
 
 /**
@@ -15,24 +15,24 @@ export interface SortConfig {
  */
 export const sortData = (data: Employee[], sortConfig: SortConfig | null): Employee[] => {
   if (!sortConfig) {
-    return data;
+    return data
   }
 
-  const { key, direction } = sortConfig;
+  const { key, direction } = sortConfig
 
   return [...data].sort((a, b) => {
-    const aValue = a[key];
-    const bValue = b[key];
+    const aValue = a[key]
+    const bValue = b[key]
 
-    if (aValue === null || aValue === undefined) return 1;
-    if (bValue === null || bValue === undefined) return -1;
+    if (aValue === null || aValue === undefined) return 1
+    if (bValue === null || bValue === undefined) return -1
 
     if (aValue < bValue) {
-      return direction === 'asc' ? -1 : 1;
+      return direction === 'asc' ? -1 : 1
     }
     if (aValue > bValue) {
-      return direction === 'asc' ? 1 : -1;
+      return direction === 'asc' ? 1 : -1
     }
-    return 0;
-  });
-};
+    return 0
+  })
+}

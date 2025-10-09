@@ -1,36 +1,36 @@
-import React, { useMemo } from 'react';
-import { Table } from 'antd';
-import { Card, CardHeader, CardTitle, CardContent, Icon } from '@newwork/nw-design-system';
-import type { ColumnsType } from 'antd/es/table';
-import Pill from '@/components/pill';
-import { ExpenseRequestItem } from '../types/expenseRequestRecord.types';
-import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
-import { SectionKpiCards, type KpiCardData } from '@newwork/nw-design-system';
-import { Check } from '@phosphor-icons/react';
-import { formatCurrencyDisplay } from '../../expense-plan-record/utils/currency';
-import { formatDate } from '@/common/utils/windowUtils';
+import React, { useMemo } from 'react'
+import { Table } from 'antd'
+import { Card, CardHeader, CardTitle, CardContent, Icon } from '@newwork/nw-design-system'
+import type { ColumnsType } from 'antd/es/table'
+import Pill from '@/components/pill'
+import { ExpenseRequestItem } from '../types/expenseRequestRecord.types'
+import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
+import { SectionKpiCards, type KpiCardData } from '@newwork/nw-design-system'
+import { Check } from '@phosphor-icons/react'
+import { formatCurrencyDisplay } from '../../expense-plan-record/utils/currency'
+import { formatDate } from '@/common/utils/windowUtils'
 
 interface ExpenseRequestItemsProps {
-  expenseRequestItems: ExpenseRequestItem[];
-  currencyCode?: string;
+  expenseRequestItems: ExpenseRequestItem[]
+  currencyCode?: string
 }
 
 // Table summary component defined outside parent component to fix lint error
 interface TableSummaryProps {
-  pageData: readonly ExpenseRequestItem[];
-  formatAmount: (amount: number) => string;
+  pageData: readonly ExpenseRequestItem[]
+  formatAmount: (amount: number) => string
 }
 
 const TableSummary: React.FC<TableSummaryProps> = ({ pageData, formatAmount }) => {
-  let totalAmount = 0;
-  let totalReimbursable = 0;
-  let totalDeductible = 0;
+  let totalAmount = 0
+  let totalReimbursable = 0
+  let totalDeductible = 0
 
   pageData.forEach(({ totalAmount: amount, reimbursableAmount, deductibleAmount }) => {
-    totalAmount += amount;
-    totalReimbursable += reimbursableAmount;
-    totalDeductible += deductibleAmount;
-  });
+    totalAmount += amount
+    totalReimbursable += reimbursableAmount
+    totalDeductible += deductibleAmount
+  })
 
   return (
     <Table.Summary fixed>
@@ -51,173 +51,202 @@ const TableSummary: React.FC<TableSummaryProps> = ({ pageData, formatAmount }) =
         </Table.Summary.Cell>
       </Table.Summary.Row>
     </Table.Summary>
-  );
-};
+  )
+}
 
 const ExpenseRequestItems: React.FC<ExpenseRequestItemsProps> = ({ expenseRequestItems, currencyCode }) => {
-  const loading = false;
+  const loading = false
   // Date formatting via platform utility
   const formatDateOnly = (dateString: string | null) => {
-    if (!dateString) return '-';
-    return formatDate(dateString, 'date.short') || '-';
-  };
+    if (!dateString) return '-'
+    return formatDate(dateString, 'date.short') || '-'
+  }
 
   // Format amount helper function
-  const formatAmount = (amount: number, itemCurrencyCode?: string) => 
-    formatCurrencyDisplay(amount, itemCurrencyCode ?? currencyCode);
+  const formatAmount = (amount: number, itemCurrencyCode?: string) =>
+    formatCurrencyDisplay(amount, itemCurrencyCode ?? currencyCode)
 
   const columns: ColumnsType<ExpenseRequestItem> = [
     {
       title: getTranslationFromI18nKeyAndLabel('lowcoder:expense_calculation_rule.expense_table.code', 'Code'),
       dataIndex: 'code',
       key: 'code',
-      render: (code: string | null) => code === null || code === '' ? '-' : code,
-      width: 100,
+      render: (code: string | null) => (code === null || code === '' ? '-' : code),
+      width: 100
     },
     {
-      title: getTranslationFromI18nKeyAndLabel('lowcoder:calculation_rule_tab_custom_fields.custom_fields_modal.affected_expense_modal.title', 'Title'),
+      title: getTranslationFromI18nKeyAndLabel(
+        'lowcoder:calculation_rule_tab_custom_fields.custom_fields_modal.affected_expense_modal.title',
+        'Title'
+      ),
       dataIndex: 'title',
       key: 'title',
-      render: (text: string) => <span className="gba:font-semibold">{text}</span>,
+      render: (text: string) => <span className="gba:font-semibold">{text}</span>
     },
     {
-      title: getTranslationFromI18nKeyAndLabel('lowcoder:create_expense_type_item.multi_position_item', 'Expense Group'),
+      title: getTranslationFromI18nKeyAndLabel(
+        'lowcoder:create_expense_type_item.multi_position_item',
+        'Expense Group'
+      ),
       key: 'expenseGroup',
       render: (_: unknown, record: ExpenseRequestItem) => {
-        const isAllowance = record?.expenseGroup?.value === 'Allowances';
-        const onePositionItem = record?.expensePosition?.length === 1;
-        const isMultipositionItem = record?.expensePosition?.length > 1;
+        const isAllowance = record?.expenseGroup?.value === 'Allowances'
+        const onePositionItem = record?.expensePosition?.length === 1
+        const isMultipositionItem = record?.expensePosition?.length > 1
         if (isAllowance || onePositionItem) {
           const labelText = isAllowance
             ? getTranslationFromI18nKeyAndLabel('lowcoder:create_expense_type_item.allowance', 'Allowance')
-            : (record?.expensePosition?.[0]?.expenseGroup?.value ?? '-');
+            : (record?.expensePosition?.[0]?.expenseGroup?.value ?? '-')
+          return <Pill label={labelText} type="waiting" data-testid={`expense-group-pill-${labelText}`} />
+        }
+        if (isMultipositionItem) {
           return (
-            <Pill 
-              label={labelText}
-              type="waiting" 
-              data-testid={`expense-group-pill-${labelText}`}
-            />
-          );
+            <div className="gba:flex gba:items-center gba:gap-2">
+              <span className="gba:font-semibold">
+                {getTranslationFromI18nKeyAndLabel(
+                  'lowcoder:create_expense_type_item.multi_position_item',
+                  'Multi Position Item'
+                )}
+              </span>
+              <Icon icon={Check} size="sm" decorative />
+            </div>
+          )
         }
-        if(isMultipositionItem){
-        return (
-          <div className="gba:flex gba:items-center gba:gap-2">
-            <span className="gba:font-semibold">{getTranslationFromI18nKeyAndLabel('lowcoder:create_expense_type_item.multi_position_item', 'Multi Position Item')}</span>
-            <Icon icon={Check} size="sm" decorative />
-          </div>
-        );
-        }
-      },
+      }
     },
     {
       title: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.expense_class', 'Expense Class'),
       dataIndex: ['expenseClass', 'value'],
-      key: 'expenseClass',
+      key: 'expenseClass'
     },
     {
       title: getTranslationFromI18nKeyAndLabel('lowcoder:expense_request_list.expense_plan_table.date', 'Date'),
       dataIndex: 'expenseDate',
       key: 'expenseDate',
       render: (date: string) => formatDateOnly(date),
-      sorter: (a, b) => new Date(a.expenseDate).getTime() - new Date(b.expenseDate).getTime(),
+      sorter: (a, b) => new Date(a.expenseDate).getTime() - new Date(b.expenseDate).getTime()
     },
     {
-      title: getTranslationFromI18nKeyAndLabel('lowcoder:expense_request_list.expense_plan_table.total_amount', 'Total Amount'),
+      title: getTranslationFromI18nKeyAndLabel(
+        'lowcoder:expense_request_list.expense_plan_table.total_amount',
+        'Total Amount'
+      ),
       dataIndex: 'totalAmount',
       key: 'totalAmount',
       align: 'right',
       render: (amount: number, record) => (
-        <span className="gba:font-semibold">{ amount ? formatAmount(amount, record?.currency?.code) : '-'}</span>
+        <span className="gba:font-semibold">{amount ? formatAmount(amount, record?.currency?.code) : '-'}</span>
       ),
-      sorter: (a, b) => a.totalAmount - b.totalAmount,
+      sorter: (a, b) => a.totalAmount - b.totalAmount
     },
     {
       title: getTranslationFromI18nKeyAndLabel('lowcoder:expense_item_request_card.reimbursable', 'Reimbursable'),
       dataIndex: 'reimbursableAmount',
       key: 'reimbursableAmount',
       align: 'right',
-      render: (amount: number, record) => amount ? formatAmount(amount, record?.currency?.code) : '-',
+      render: (amount: number, record) => (amount ? formatAmount(amount, record?.currency?.code) : '-')
     },
     {
-      title: getTranslationFromI18nKeyAndLabel('lowcoder:expense_calculation_rule_details.calculation_rule_tab_other_calculation.deductible', 'Deductible'),
+      title: getTranslationFromI18nKeyAndLabel(
+        'lowcoder:expense_calculation_rule_details.calculation_rule_tab_other_calculation.deductible',
+        'Deductible'
+      ),
       dataIndex: 'deductibleAmount',
       key: 'deductibleAmount',
       align: 'right',
-      render: (amount: number, record) => amount ? formatAmount(amount, record?.currency?.code) : '-',
-    },
-  ];
+      render: (amount: number, record) => (amount ? formatAmount(amount, record?.currency?.code) : '-')
+    }
+  ]
 
   // Calculate summary amounts for the KPI cards
   const summaryAmounts = useMemo(() => {
     if (!expenseRequestItems.length) {
-      return { 
-        reimbursable: 0, 
-        nonReimbursable: 0, 
-        deductible: 0, 
+      return {
+        reimbursable: 0,
+        nonReimbursable: 0,
+        deductible: 0,
         nonDeductible: 0,
         total: 0
-      };
+      }
     }
-    
-    return expenseRequestItems.reduce((acc, item) => {
-      // Calculate totals
-      acc.reimbursable += item.reimbursableAmount || 0;
-      acc.deductible += item.deductibleAmount || 0;
-      acc.nonDeductible += item.nonDeductibleAmount || 0;
-      acc.total += item.totalAmount || 0;
-      
-      // Calculate non-reimbursable (total minus reimbursable)
-      const nonReimbursable = item.totalAmount - item.reimbursableAmount;
-      acc.nonReimbursable += nonReimbursable > 0 ? nonReimbursable : 0;
-      
-      return acc;
-    }, { 
-      reimbursable: 0, 
-      nonReimbursable: 0, 
-      deductible: 0, 
-      nonDeductible: 0,
-      total: 0
-    });
-  }, [expenseRequestItems]);
+
+    return expenseRequestItems.reduce(
+      (acc, item) => {
+        // Calculate totals
+        acc.reimbursable += item.reimbursableAmount || 0
+        acc.deductible += item.deductibleAmount || 0
+        acc.nonDeductible += item.nonDeductibleAmount || 0
+        acc.total += item.totalAmount || 0
+
+        // Calculate non-reimbursable (total minus reimbursable)
+        const nonReimbursable = item.totalAmount - item.reimbursableAmount
+        acc.nonReimbursable += nonReimbursable > 0 ? nonReimbursable : 0
+
+        return acc
+      },
+      {
+        reimbursable: 0,
+        nonReimbursable: 0,
+        deductible: 0,
+        nonDeductible: 0,
+        total: 0
+      }
+    )
+  }, [expenseRequestItems])
   // KPI cards from design system
-  const kpiCards: KpiCardData[] = useMemo(() => ([
-    {
-      id: 'total-amount',
-      title: getTranslationFromI18nKeyAndLabel('lowcoder:expense_request_list.expense_plan_table.total_amount', 'Total Amount'),
-      value: formatAmount(summaryAmounts.total),
-    },
-    {
-      id: 'reimbursable-amount',
-      title: getTranslationFromI18nKeyAndLabel('lowcoder:expense_item_request_card.reimbursable', 'Reimbursable'),
-      value: formatAmount(summaryAmounts.reimbursable),
-    },
-    {
-      id: 'non-reimbursable-amount',
-      title: getTranslationFromI18nKeyAndLabel('lowcoder:expense_plan.item.nonReimbursableAmount', 'Non-Reimbursable'),
-      value: formatAmount(summaryAmounts.nonReimbursable),
-    },
-    {
-      id: 'deductible-amount',
-      title: getTranslationFromI18nKeyAndLabel('lowcoder:expense_calculation_rule_details.calculation_rule_tab_other_calculation.deductible', 'Deductible'),
-      value: formatAmount(summaryAmounts.deductible),
-    },
-    {
-      id: 'non-deductible-amount',
-      title: getTranslationFromI18nKeyAndLabel('lowcoder:expense_records.plan.non_deductible', 'Non-Deductible'),
-      value: formatAmount(summaryAmounts.nonDeductible),
-    },
-  ]), [summaryAmounts, currencyCode]);
+  const kpiCards: KpiCardData[] = useMemo(
+    () => [
+      {
+        id: 'total-amount',
+        title: getTranslationFromI18nKeyAndLabel(
+          'lowcoder:expense_request_list.expense_plan_table.total_amount',
+          'Total Amount'
+        ),
+        value: formatAmount(summaryAmounts.total)
+      },
+      {
+        id: 'reimbursable-amount',
+        title: getTranslationFromI18nKeyAndLabel('lowcoder:expense_item_request_card.reimbursable', 'Reimbursable'),
+        value: formatAmount(summaryAmounts.reimbursable)
+      },
+      {
+        id: 'non-reimbursable-amount',
+        title: getTranslationFromI18nKeyAndLabel(
+          'lowcoder:expense_plan.item.nonReimbursableAmount',
+          'Non-Reimbursable'
+        ),
+        value: formatAmount(summaryAmounts.nonReimbursable)
+      },
+      {
+        id: 'deductible-amount',
+        title: getTranslationFromI18nKeyAndLabel(
+          'lowcoder:expense_calculation_rule_details.calculation_rule_tab_other_calculation.deductible',
+          'Deductible'
+        ),
+        value: formatAmount(summaryAmounts.deductible)
+      },
+      {
+        id: 'non-deductible-amount',
+        title: getTranslationFromI18nKeyAndLabel('lowcoder:expense_records.plan.non_deductible', 'Non-Deductible'),
+        value: formatAmount(summaryAmounts.nonDeductible)
+      }
+    ],
+    [summaryAmounts, currencyCode]
+  )
 
   return (
     <Card data-testid="expense-request-items" className="gba:p-8 gba:m-6">
       <CardHeader className="gba:border-b gba:border-gray-200">
         <CardTitle className="gba:text-lg gba:font-semibold gba:mb-4">
-          {getTranslationFromI18nKeyAndLabel('lowcoder:expense_records.request.expense_request_items', 'Expense Request Items')}
+          {getTranslationFromI18nKeyAndLabel(
+            'lowcoder:expense_records.request.expense_request_items',
+            'Expense Request Items'
+          )}
         </CardTitle>
       </CardHeader>
       <CardContent className="gba:p-0">
         <div className="gba:mb-6" data-testid="expense-request-summary-widgets">
-          <SectionKpiCards 
+          <SectionKpiCards
             cards={kpiCards}
             className="gba:!grid-cols-5 gba:md:!grid-cols-5 gba:lg:!grid-cols-5 gba:[&_[data-slot=card-title]]:!text-xl"
           />
@@ -229,13 +258,11 @@ const ExpenseRequestItems: React.FC<ExpenseRequestItemsProps> = ({ expenseReques
           pagination={false}
           size="middle"
           scroll={{ x: 'max-content' }}
-          summary={(pageData) => (
-            <TableSummary pageData={pageData} formatAmount={formatAmount} />
-          )}
+          summary={pageData => <TableSummary pageData={pageData} formatAmount={formatAmount} />}
         />
       </CardContent>
     </Card>
-  );
-};
+  )
+}
 
-export default ExpenseRequestItems;
+export default ExpenseRequestItems

@@ -1,2 +1,2 @@
-export { useRealEstateChartData } from './useRealEstateChartData';
-export { useRealEstateKPIIntegration } from './useRealEstateKPIIntegration';
+export { useRealEstateChartData } from './useRealEstateChartData'
+export { useRealEstateKPIIntegration } from './useRealEstateKPIIntegration'

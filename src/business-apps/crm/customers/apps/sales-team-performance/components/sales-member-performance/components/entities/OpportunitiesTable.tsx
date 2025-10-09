@@ -1,5 +1,5 @@
-import React, { useCallback } from "react";
-import { useTranslation } from "react-i18next";
+import React, { useCallback } from 'react'
+import { useTranslation } from 'react-i18next'
 import {
   Table,
   TableHeader,
@@ -11,43 +11,34 @@ import {
   Spinner,
   Button,
   Card,
-  CardContent,
-} from "@newwork/nw-design-system";
-import {
-  PiFunnel,
-  PiCalendar,
-  PiBuilding,
-  PiArrowUp,
-  PiArrowDown,
-} from "react-icons/pi";
-import { AppActionButton } from "@/components/app-action-button/AppActionButton";
-import { FlowContextName } from "@/common/types/FlowRegistryTypes";
-import { Opportunity } from "../../../../../../components/opportunity-list/types";
-import {
-  getWinningChanceBadgeVariant,
-  getSalesPipelineStageBadgeVariant,
-} from "@/common/utils/badgeUtils";
-import { navigateTo, buildPlatformUrl } from "@/common/utils/navigationUtils";
+  CardContent
+} from '@newwork/nw-design-system'
+import { PiFunnel, PiCalendar, PiBuilding, PiArrowUp, PiArrowDown } from 'react-icons/pi'
+import { AppActionButton } from '@/components/app-action-button/AppActionButton'
+import { FlowContextName } from '@/common/types/FlowRegistryTypes'
+import { Opportunity } from '../../../../../../components/opportunity-list/types'
+import { getWinningChanceBadgeVariant, getSalesPipelineStageBadgeVariant } from '@/common/utils/badgeUtils'
+import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils'
 
-const DATA_TEST_ID_PREFIX = "EmployeeOpportunitiesTable";
+const DATA_TEST_ID_PREFIX = 'EmployeeOpportunitiesTable'
 
 interface OpportunitiesTableProps {
-  opportunities: Opportunity[];
-  loading: boolean;
-  error: Error | null;
-  hasMore: boolean;
-  retry: () => void;
-  total: number;
-  pageSize: number;
-  currentPage: number;
-  sortField: string;
-  sortOrder: "ASC" | "DESC" | "";
-  onSelectOpportunity?: (opportunity: Opportunity) => void;
-  onPaginationChange: (page: number, pageSize?: number) => void;
-  onSortingChange: (field: string, order: "ASC" | "DESC" | "") => void;
-  selectedOpportunityId?: string;
-  accessToken: string;
-  employeeId?: string;
+  opportunities: Opportunity[]
+  loading: boolean
+  error: Error | null
+  hasMore: boolean
+  retry: () => void
+  total: number
+  pageSize: number
+  currentPage: number
+  sortField: string
+  sortOrder: 'ASC' | 'DESC' | ''
+  onSelectOpportunity?: (opportunity: Opportunity) => void
+  onPaginationChange: (page: number, pageSize?: number) => void
+  onSortingChange: (field: string, order: 'ASC' | 'DESC' | '') => void
+  selectedOpportunityId?: string
+  accessToken: string
+  employeeId?: string
 }
 
 export const OpportunitiesTable: React.FC<OpportunitiesTableProps> = ({
@@ -66,27 +57,24 @@ export const OpportunitiesTable: React.FC<OpportunitiesTableProps> = ({
   onSortingChange,
   selectedOpportunityId,
   accessToken,
-  employeeId,
+  employeeId
 }) => {
-  const { t } = useTranslation();
+  const { t } = useTranslation()
 
-  const formatCurrency = (
-    amount: number | undefined,
-    currency?: string
-  ): string => {
-    if (!amount) return "$0";
-    return new Intl.NumberFormat("en-US", {
-      style: "currency",
-      currency: currency || "USD",
+  const formatCurrency = (amount: number | undefined, currency?: string): string => {
+    if (!amount) return '$0'
+    return new Intl.NumberFormat('en-US', {
+      style: 'currency',
+      currency: currency || 'USD',
       minimumFractionDigits: 0,
-      maximumFractionDigits: 0,
-    }).format(amount);
-  };
+      maximumFractionDigits: 0
+    }).format(amount)
+  }
 
   const formatDate = (dateString?: string): string => {
-    if (!dateString) return "-";
-    return new Date(dateString).toLocaleDateString();
-  };
+    if (!dateString) return '-'
+    return new Date(dateString).toLocaleDateString()
+  }
 
   // Handle row click
   const handleRowClick = useCallback(
@@ -94,52 +82,47 @@ export const OpportunitiesTable: React.FC<OpportunitiesTableProps> = ({
       // Navigate to opportunity record page
       const navigationParams: Record<string, string> = {
         opportunityId: record.id,
-        source: "customer-relations",
-        fromEntity: "salesPerformance",
-      };
+        source: 'customer-relations',
+        fromEntity: 'salesPerformance'
+      }
 
       // Add employee ID if available for proper back navigation
       if (employeeId) {
-        navigationParams.employeeId = employeeId;
+        navigationParams.employeeId = employeeId
       }
 
-      const url = buildPlatformUrl(
-        "/platform/crm/opportunity-record",
-        navigationParams
-      );
-      navigateTo(url);
+      const url = buildPlatformUrl('/platform/crm/opportunity-record', navigationParams)
+      navigateTo(url)
 
       // Also call the selection callback if provided
-      onSelectOpportunity?.(record);
+      onSelectOpportunity?.(record)
     },
     [onSelectOpportunity, employeeId]
-  );
+  )
 
   // Helper function to handle column sorting
   const handleSort = (field: string) => {
     if (sortField === field) {
       // Cycle through: ASC -> DESC -> clear
-      if (sortOrder === "ASC") {
-        onSortingChange(field, "DESC");
-      } else if (sortOrder === "DESC") {
-        onSortingChange("", "");
+      if (sortOrder === 'ASC') {
+        onSortingChange(field, 'DESC')
+      } else if (sortOrder === 'DESC') {
+        onSortingChange('', '')
       } else {
-        onSortingChange(field, "ASC");
+        onSortingChange(field, 'ASC')
       }
     } else {
-      onSortingChange(field, "ASC");
+      onSortingChange(field, 'ASC')
     }
-  };
+  }
 
   // Helper function to render sort icon
   const renderSortIcon = (field: string) => {
-    if (sortField !== field) return null;
-    if (sortOrder === "ASC")
-      return <PiArrowUp className="gba:inline gba:ml-1" size={12} />;
-    if (sortOrder === "DESC")
-      return <PiArrowDown className="gba:inline gba:ml-1" size={12} />;
-    return null;
-  };
+    if (sortField !== field) return null
+    if (sortOrder === 'ASC') return <PiArrowUp className="gba:inline gba:ml-1" size={12} />
+    if (sortOrder === 'DESC') return <PiArrowDown className="gba:inline gba:ml-1" size={12} />
+    return null
+  }
 
   // Show error state
   if (error) {
@@ -149,18 +132,14 @@ export const OpportunitiesTable: React.FC<OpportunitiesTableProps> = ({
         data-testid={`${DATA_TEST_ID_PREFIX}-error-state`}
       >
         <div className="gba:text-red-500 gba:text-lg gba:font-medium gba:mb-2">
-          {t("opportunity.error.title", "Error Loading Opportunities")}
+          {t('opportunity.error.title', 'Error Loading Opportunities')}
         </div>
         <div className="gba:text-gray-600 gba:mb-4">{error.message}</div>
-        <Button
-          variant="default"
-          onClick={retry}
-          data-testid={`${DATA_TEST_ID_PREFIX}-retry-button`}
-        >
-          {t("common.retry", "Retry")}
+        <Button variant="default" onClick={retry} data-testid={`${DATA_TEST_ID_PREFIX}-retry-button`}>
+          {t('common.retry', 'Retry')}
         </Button>
       </div>
-    );
+    )
   }
 
   return (
@@ -184,42 +163,42 @@ export const OpportunitiesTable: React.FC<OpportunitiesTableProps> = ({
                 </TableHead>
                 <TableHead
                   className="gba:w-[25%] gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6 gba:cursor-pointer gba:select-none hover:gba:bg-gray-100"
-                  onClick={() => handleSort("name")}
+                  onClick={() => handleSort('name')}
                   data-testid={`${DATA_TEST_ID_PREFIX}-opportunity-header`}
                 >
                   <div className="gba:flex gba:items-center">
                     Opportunity
-                    {renderSortIcon("name")}
+                    {renderSortIcon('name')}
                   </div>
                 </TableHead>
                 <TableHead
                   className="gba:w-[16%] gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6 gba:cursor-pointer gba:select-none hover:gba:bg-gray-100"
-                  onClick={() => handleSort("estimatedAmount")}
+                  onClick={() => handleSort('estimatedAmount')}
                   data-testid={`${DATA_TEST_ID_PREFIX}-value-header`}
                 >
                   <div className="gba:flex gba:items-center">
                     Value
-                    {renderSortIcon("estimatedAmount")}
+                    {renderSortIcon('estimatedAmount')}
                   </div>
                 </TableHead>
                 <TableHead
                   className="gba:w-[14%] gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6 gba:cursor-pointer gba:select-none hover:gba:bg-gray-100"
-                  onClick={() => handleSort("winningChance")}
+                  onClick={() => handleSort('winningChance')}
                   data-testid={`${DATA_TEST_ID_PREFIX}-win-rate-header`}
                 >
                   <div className="gba:flex gba:items-center">
                     Win Rate
-                    {renderSortIcon("winningChance")}
+                    {renderSortIcon('winningChance')}
                   </div>
                 </TableHead>
                 <TableHead
                   className="gba:w-[14%] gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6 gba:cursor-pointer gba:select-none hover:gba:bg-gray-100"
-                  onClick={() => handleSort("stage")}
+                  onClick={() => handleSort('stage')}
                   data-testid={`${DATA_TEST_ID_PREFIX}-stage-header`}
                 >
                   <div className="gba:flex gba:items-center">
                     Stage
-                    {renderSortIcon("stage")}
+                    {renderSortIcon('stage')}
                   </div>
                 </TableHead>
                 <TableHead
@@ -230,24 +209,22 @@ export const OpportunitiesTable: React.FC<OpportunitiesTableProps> = ({
                 </TableHead>
                 <TableHead
                   className="gba:w-[15%] gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6 gba:cursor-pointer gba:select-none hover:gba:bg-gray-100"
-                  onClick={() => handleSort("closeDate")}
+                  onClick={() => handleSort('closeDate')}
                   data-testid={`${DATA_TEST_ID_PREFIX}-close-date-header`}
                 >
                   <div className="gba:flex gba:items-center">
                     Close Date
-                    {renderSortIcon("closeDate")}
+                    {renderSortIcon('closeDate')}
                   </div>
                 </TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {opportunities.map((opportunity) => (
+              {opportunities.map(opportunity => (
                 <TableRow
                   key={opportunity.id}
                   className={`gba:border-b gba:hover:bg-gray-50 gba:transition-colors ${
-                    selectedOpportunityId === opportunity.id
-                      ? "gba:bg-blue-50"
-                      : ""
+                    selectedOpportunityId === opportunity.id ? 'gba:bg-blue-50' : ''
                   }`}
                   data-testid={`${DATA_TEST_ID_PREFIX}-row-${opportunity.id}`}
                 >
@@ -262,13 +239,13 @@ export const OpportunitiesTable: React.FC<OpportunitiesTableProps> = ({
                         variant="secondary"
                         contextsArray={[FlowContextName.opportunityEntity]}
                         externalContextData={{
-                          opportunityId: opportunity.id,
+                          opportunityId: opportunity.id
                         }}
                         prefixDataTestId={`${DATA_TEST_ID_PREFIX}-update-opportunity`}
                         accessToken={accessToken}
                         emptyStateBehavior="disable"
                         deferMainContextRequestsUntilClick
-                        onClick={(e) => e.stopPropagation()}
+                        onClick={e => e.stopPropagation()}
                       />
                     </div>
                   </TableCell>
@@ -280,25 +257,19 @@ export const OpportunitiesTable: React.FC<OpportunitiesTableProps> = ({
                   >
                     <div
                       className="gba:cursor-pointer gba:hover:bg-gray-50 gba:p-2 gba:rounded gba:transition-colors"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleRowClick(opportunity);
+                      onClick={e => {
+                        e.stopPropagation()
+                        handleRowClick(opportunity)
                       }}
                       data-testid={`${DATA_TEST_ID_PREFIX}-opportunity-name-${opportunity.id}`}
                     >
-                      <div
-                        className="gba:font-medium gba:text-sm gba:truncate"
-                        title={opportunity.name}
-                      >
+                      <div className="gba:font-medium gba:text-sm gba:truncate" title={opportunity.name}>
                         {opportunity.name}
                       </div>
                       {opportunity.account && (
                         <div className="gba:flex gba:items-center gba:gap-1 gba:text-xs gba:text-gray-500">
                           <PiBuilding size={12} />
-                          <span
-                            className="gba:truncate"
-                            title={opportunity.account.name}
-                          >
+                          <span className="gba:truncate" title={opportunity.account.name}>
                             {opportunity.account.name}
                           </span>
                         </div>
@@ -312,10 +283,7 @@ export const OpportunitiesTable: React.FC<OpportunitiesTableProps> = ({
                     data-testid={`${DATA_TEST_ID_PREFIX}-value-cell-${opportunity.id}`}
                   >
                     <div className="gba:text-sm gba:font-medium">
-                      {formatCurrency(
-                        opportunity.estimatedAmount,
-                        opportunity.currency?.code
-                      )}
+                      {formatCurrency(opportunity.estimatedAmount, opportunity.currency?.code)}
                     </div>
                   </TableCell>
 
@@ -324,14 +292,8 @@ export const OpportunitiesTable: React.FC<OpportunitiesTableProps> = ({
                     className="gba:py-4 gba:px-6"
                     data-testid={`${DATA_TEST_ID_PREFIX}-win-rate-cell-${opportunity.id}`}
                   >
-                    <Badge
-                      variant={getWinningChanceBadgeVariant(
-                        opportunity.winningChance
-                      )}
-                    >
-                      {opportunity.winningChance
-                        ? `${opportunity.winningChance}%`
-                        : "0%"}
+                    <Badge variant={getWinningChanceBadgeVariant(opportunity.winningChance)}>
+                      {opportunity.winningChance ? `${opportunity.winningChance}%` : '0%'}
                     </Badge>
                   </TableCell>
 
@@ -340,12 +302,8 @@ export const OpportunitiesTable: React.FC<OpportunitiesTableProps> = ({
                     className="gba:py-4 gba:px-6"
                     data-testid={`${DATA_TEST_ID_PREFIX}-stage-cell-${opportunity.id}`}
                   >
-                    <Badge
-                      variant={getSalesPipelineStageBadgeVariant(
-                        opportunity.salesPipelineStage
-                      )}
-                    >
-                      {opportunity.salesPipelineStage?.value || "Unknown Stage"}
+                    <Badge variant={getSalesPipelineStageBadgeVariant(opportunity.salesPipelineStage)}>
+                      {opportunity.salesPipelineStage?.value || 'Unknown Stage'}
                     </Badge>
                   </TableCell>
 
@@ -356,11 +314,8 @@ export const OpportunitiesTable: React.FC<OpportunitiesTableProps> = ({
                   >
                     <div className="gba:flex gba:items-center gba:gap-1 gba:text-sm">
                       <PiFunnel size={14} className="gba:text-gray-400" />
-                      <span
-                        className="gba:truncate"
-                        title={opportunity.salesPipeline?.value}
-                      >
-                        {opportunity.salesPipeline?.value || "-"}
+                      <span className="gba:truncate" title={opportunity.salesPipeline?.value}>
+                        {opportunity.salesPipeline?.value || '-'}
                       </span>
                     </div>
                   </TableCell>
@@ -386,21 +341,15 @@ export const OpportunitiesTable: React.FC<OpportunitiesTableProps> = ({
           className="gba:flex gba:items-center gba:justify-between gba:px-2 gba:py-4"
           data-testid={`${DATA_TEST_ID_PREFIX}-pagination`}
         >
-          <div
-            className="gba:text-sm gba:text-muted-foreground"
-            data-testid={`${DATA_TEST_ID_PREFIX}-pagination-info`}
-          >
-            {`${(currentPage - 1) * pageSize + 1}-${Math.min(
-              currentPage * pageSize,
-              total
-            )} of ${total} opportunities`}
+          <div className="gba:text-sm gba:text-muted-foreground" data-testid={`${DATA_TEST_ID_PREFIX}-pagination-info`}>
+            {`${(currentPage - 1) * pageSize + 1}-${Math.min(currentPage * pageSize, total)} of ${total} opportunities`}
           </div>
           <div className="gba:flex gba:items-center gba:space-x-3 gba:lg:space-x-4">
             <div className="gba:flex gba:items-center gba:space-x-2">
               <p className="gba:text-sm gba:font-medium">Rows per page</p>
               <select
                 value={pageSize}
-                onChange={(e) => onPaginationChange(1, Number(e.target.value))}
+                onChange={e => onPaginationChange(1, Number(e.target.value))}
                 className="gba:h-8 gba:w-[70px] gba:rounded gba:border gba:border-input gba:px-3 gba:py-1 gba:text-sm"
                 data-testid={`${DATA_TEST_ID_PREFIX}-page-size-select`}
               >
@@ -460,7 +409,7 @@ export const OpportunitiesTable: React.FC<OpportunitiesTableProps> = ({
         </div>
       </CardContent>
     </Card>
-  );
-};
+  )
+}
 
-export default OpportunitiesTable;
+export default OpportunitiesTable

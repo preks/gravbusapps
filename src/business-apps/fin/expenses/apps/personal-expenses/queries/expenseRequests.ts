@@ -65,7 +65,7 @@ export const GET_EXPENSE_REQUESTS_BY_EMPLOYEE = `
       }
     }
   }
-`;
+`
 
 export const GET_EXPENSE_REQUEST_BY_ID = `
   query GetExpenseRequestById($id: uuid!) {
@@ -116,7 +116,7 @@ export const GET_EXPENSE_REQUEST_BY_ID = `
       }
     }
   }
-`;
+`
 
 export const GET_EXPENSE_REQUEST_STATISTICS = `
   query GetExpenseRequestStatistics($employeeId: uuid!, $startDate: timestamp!, $endDate: timestamp!, $currencyRef: String!) {
@@ -173,4 +173,4 @@ export const GET_EXPENSE_REQUEST_STATISTICS = `
       }
     }
   }
-`;
+`

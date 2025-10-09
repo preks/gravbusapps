@@ -1,4 +1,4 @@
-import React, { useMemo } from "react";
+import React, { useMemo } from 'react'
 import {
   Card,
   CardContent,
@@ -9,26 +9,30 @@ import {
   ChartContainer,
   ChartConfig,
   ChartTooltip,
-  ChartTooltipContent,
-} from "@newwork/nw-design-system";
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, LabelList } from "recharts";
-import { ChartBarIcon } from "@phosphor-icons/react";
-import barChartData from "../../data/barChartData.json";
+  ChartTooltipContent
+} from '@newwork/nw-design-system'
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, LabelList } from 'recharts'
+import { ChartBarIcon } from '@phosphor-icons/react'
+import barChartData from '../../data/barChartData.json'
 
 interface CustomLabelBarChartProps {
-  moduleColor?: string;
+  moduleColor?: string
 }
 
 const CustomLabelBarChart: React.FC<CustomLabelBarChartProps> = ({ moduleColor }) => {
-  const chartData = barChartData.customLabel;
+  const chartData = barChartData.customLabel
 
-  const chartConfig = useMemo(() => ({
-    // Data dimensions - used for bar sizing only
-    visitors: { label: "Visitors", color: "none" },
-    // Visual categories - used for legend/colors
-    desktop: { label: "Desktop" },
-    mobile: { label: "Mobile" },
-  }) satisfies ChartConfig, []);
+  const chartConfig = useMemo(
+    () =>
+      ({
+        // Data dimensions - used for bar sizing only
+        visitors: { label: 'Visitors', color: 'none' },
+        // Visual categories - used for legend/colors
+        desktop: { label: 'Desktop' },
+        mobile: { label: 'Mobile' }
+      }) satisfies ChartConfig,
+    []
+  )
 
   return (
     <Card data-testid="custom-label-bar-chart">
@@ -46,7 +50,7 @@ const CustomLabelBarChart: React.FC<CustomLabelBarChartProps> = ({ moduleColor }
             margin={{
               top: 20,
               left: 12,
-              right: 12,
+              right: 12
             }}
           >
             <CartesianGrid vertical={false} />
@@ -55,18 +59,10 @@ const CustomLabelBarChart: React.FC<CustomLabelBarChartProps> = ({ moduleColor }
               tickLine={false}
               axisLine={false}
               tickMargin={8}
-              tickFormatter={(value) => typeof value === 'string' ? value.slice(0, 3) : value}
+              tickFormatter={value => (typeof value === 'string' ? value.slice(0, 3) : value)}
             />
-            <YAxis
-              tickLine={false}
-              axisLine={false}
-              tickMargin={8}
-              tickFormatter={(value) => `${value}`}
-            />
-            <ChartTooltip
-              cursor={false}
-              content={<ChartTooltipContent hideLabel />}
-            />
+            <YAxis tickLine={false} axisLine={false} tickMargin={8} tickFormatter={value => `${value}`} />
+            <ChartTooltip cursor={false} content={<ChartTooltipContent hideLabel />} />
             <Bar dataKey="desktop" fill="var(--color-desktop)" radius={8}>
               <LabelList
                 position="top"
@@ -89,7 +85,7 @@ const CustomLabelBarChart: React.FC<CustomLabelBarChartProps> = ({ moduleColor }
         </ChartContainer>
       </CardContent>
     </Card>
-  );
-};
+  )
+}
 
-export default CustomLabelBarChart;
+export default CustomLabelBarChart

@@ -1,1 +1,1 @@
-export { PerformanceHeader } from './PerformanceHeader'; 
+export { PerformanceHeader } from './PerformanceHeader'

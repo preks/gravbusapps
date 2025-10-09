@@ -1,7 +1,6 @@
-
-import { CATALOG_ENTRY, AUDIT_FIELDS } from '@/common/network/graphql/commonFragments';
-import { EMPLOYEE_REF } from '@/common/data/employee/queries/fragments/employeeFragments';
-import { INVESTMENT_REF } from './investmentFragments';
+import { CATALOG_ENTRY, AUDIT_FIELDS } from '@/common/network/graphql/commonFragments'
+import { EMPLOYEE_REF } from '@/common/data/employee/queries/fragments/employeeFragments'
+import { INVESTMENT_REF } from './investmentFragments'
 
 export const INVESTMENT_ADDRESS = `
     id
@@ -15,7 +14,7 @@ export const INVESTMENT_ADDRESS = `
     country {
         ${CATALOG_ENTRY}
     }
-`;
+`
 
 export const INVESTMENT_COMMUNICATION_CHANNEL = `
     id
@@ -35,7 +34,7 @@ export const INVESTMENT_COMMUNICATION_CHANNEL = `
     processInstanceId
     synchronizedAt
     ${AUDIT_FIELDS}
-`;
+`
 
 export const INVESTMENT_LEAD = `
         id
@@ -130,7 +129,7 @@ export const INVESTMENT_LEAD = `
         ownerEmployee {
           ${EMPLOYEE_REF}
         }
-`;
+`
 
 export const INVESTMENT_LEAD_REF = `
     id
@@ -140,7 +139,7 @@ export const INVESTMENT_LEAD_REF = `
     companyName
     email
     phoneNumber
-`;
+`
 
 export const INVESTMENT_CONTACT_REF = `
     id
@@ -163,7 +162,7 @@ export const INVESTMENT_CONTACT_REF = `
     salutation {
         ${CATALOG_ENTRY}
     }
-`;
+`
 
 export const INVESTMENT_CONTACT = `
     id
@@ -204,7 +203,7 @@ export const INVESTMENT_CONTACT = `
     ownerEmployee {
         ${EMPLOYEE_REF}
     }
-`;
+`
 
 export const INVESTMENT_ACCOUNT_REF = `
     id
@@ -238,7 +237,7 @@ export const INVESTMENT_ACCOUNT_REF = `
     ownerEmployee {
         ${EMPLOYEE_REF}
     }
-`;
+`
 
 export const INVESTMENT_ACCOUNT = `
     id
@@ -297,7 +296,7 @@ export const INVESTMENT_ACCOUNT = `
     investmentAddress(where: { isDeleted: { _eq: false } }) {
         ${INVESTMENT_ADDRESS}
     }
-`;
+`
 
 export const INVESTMENT_OPPORTUNITY_REF = `
     id
@@ -306,7 +305,7 @@ export const INVESTMENT_OPPORTUNITY_REF = `
     dealType
     estimatedAmount
     closeDate
-`;
+`
 
 export const INVESTMENT_OPPORTUNITY = `
     id
@@ -401,7 +400,7 @@ export const INVESTMENT_OPPORTUNITY = `
         ${CATALOG_ENTRY}
       }
     }
-`;
+`
 
 export const INVESTMENT_TASK = `
     id
@@ -442,7 +441,7 @@ export const INVESTMENT_TASK = `
     # User references
     creatorUserId
     assignedUserId
-`;
+`
 
 export const INVESTMENT_ACTIVITY = `
     id
@@ -478,7 +477,7 @@ export const INVESTMENT_ACTIVITY = `
     lead {
       ${INVESTMENT_LEAD_REF}
     }
-`;
+`
 
 export const INVESTMENT_NOTE = `
     id
@@ -496,7 +495,7 @@ export const INVESTMENT_NOTE = `
     investment {
       ${INVESTMENT_REF}
     }
-`;
+`
 
 export const INVESTMENT_DOCUMENT = `
     id

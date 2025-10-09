@@ -1,10 +1,10 @@
-import { useState, useEffect, useCallback } from "react";
-import { useGraphQLClient } from "@/common/network/graphql/useGraphQLClient";
-import { BusinessAppContextProps } from "@/common/BusinessAppContext";
+import { useState, useEffect, useCallback } from 'react'
+import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
+import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 
 export interface ContactAccount {
-  id: string;
-  name: string;
+  id: string
+  name: string
 }
 
 const GET_CONTACT_ACCOUNTS_QUERY = `
@@ -21,26 +21,22 @@ const GET_CONTACT_ACCOUNTS_QUERY = `
       }
     }
   }
-`;
+`
 
-export const useGetContactAccounts = (
-  context: BusinessAppContextProps,
-  search: string = "",
-  offset: number = 0
-) => {
-  const [contactAccounts, setContactAccounts] = useState<ContactAccount[]>([]);
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState<any>(null);
+export const useGetContactAccounts = (context: BusinessAppContextProps, search: string = '', offset: number = 0) => {
+  const [contactAccounts, setContactAccounts] = useState<ContactAccount[]>([])
+  const [isLoading, setIsLoading] = useState(false)
+  const [error, setError] = useState<any>(null)
 
-  const graphqlClient = useGraphQLClient(context.accessToken);
+  const graphqlClient = useGraphQLClient(context.accessToken)
 
   const fetchContactAccounts = useCallback(async () => {
     if (!context.accessToken) {
-      return;
+      return
     }
 
-    setIsLoading(true);
-    setError(null);
+    setIsLoading(true)
+    setError(null)
 
     try {
       // Build where condition with account search and ensure account exists
@@ -52,59 +48,54 @@ export const useGetContactAccounts = (
             ...(search.trim()
               ? [
                   {
-                    _or: [
-                      { name: { _ilike: `%${search}%` } },
-                    ],
-                  },
+                    _or: [{ name: { _ilike: `%${search}%` } }]
+                  }
                 ]
-              : []),
-          ],
-        },
-      };
+              : [])
+          ]
+        }
+      }
 
       const variables = {
         where: whereCondition,
         limit: 20,
-        offset,
-      };
+        offset
+      }
 
-      const result = await graphqlClient.request(
-        GET_CONTACT_ACCOUNTS_QUERY,
-        variables
-      );
+      const result = await graphqlClient.request(GET_CONTACT_ACCOUNTS_QUERY, variables)
 
       if (result?.Contact) {
         const accounts = result.Contact.filter((contact: any) => contact.account) // Ensure account exists
           .map((contact: any) => ({
             id: contact.account.id,
-            name: contact.account.name || "Unnamed Account",
+            name: contact.account.name || 'Unnamed Account'
           }))
           .filter((account: ContactAccount, index: number, self: ContactAccount[]) => {
             // Remove duplicates by account ID
-            return self.findIndex(a => a.id === account.id) === index;
+            return self.findIndex(a => a.id === account.id) === index
           })
-          .slice(0, 20); // Frontend enforcement of limit
+          .slice(0, 20) // Frontend enforcement of limit
 
-        setContactAccounts(accounts);
+        setContactAccounts(accounts)
       } else {
-        setContactAccounts([]);
+        setContactAccounts([])
       }
     } catch (err) {
-      console.error("Error fetching contact accounts:", err);
-      setError(err);
-      setContactAccounts([]);
+      console.error('Error fetching contact accounts:', err)
+      setError(err)
+      setContactAccounts([])
     } finally {
-      setIsLoading(false);
+      setIsLoading(false)
     }
-  }, [context.accessToken, search, offset, graphqlClient]);
+  }, [context.accessToken, search, offset, graphqlClient])
 
   useEffect(() => {
-    fetchContactAccounts();
-  }, [fetchContactAccounts]);
+    fetchContactAccounts()
+  }, [fetchContactAccounts])
 
   return {
     contactAccounts,
     isLoading,
-    error,
-  };
-}; 
+    error
+  }
+}

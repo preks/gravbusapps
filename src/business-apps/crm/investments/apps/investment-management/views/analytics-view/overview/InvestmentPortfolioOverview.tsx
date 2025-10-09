@@ -1,39 +1,49 @@
-import React, { useState } from 'react';
-import { Alert, AlertTitle, AlertDescription, Spinner, Card, Tabs, TabsContent, TabsList, TabsTrigger } from '@newwork/nw-design-system';
-import { PieChartOutlined, BarChartOutlined, RiseOutlined } from '@ant-design/icons';
-import { BarChart } from 'lucide-react';
-import { Button, Badge } from '@newwork/nw-design-system';
-import { WidgetGroup, WidgetItem } from '@/components/widget-group';
-import { BusinessAppContextProps } from '@/common/BusinessAppContext';
-import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
-import { formatDataTestId } from '@/common/utils/formatDataTestId';
-import { useInvestmentPortfolioIntegration, usePortfolioChartData } from './hooks';
-import { formatCurrency, formatNumber, formatPercentage } from './utils';
-import { PortfolioTimelineCharts } from './components/PortfolioTimelineCharts';
-import { PortfolioAnalyticsCharts } from './components/PortfolioAnalyticsCharts';
-import { PortfolioDistributionCharts } from './components/PortfolioDistributionCharts';
+import React, { useState } from 'react'
+import {
+  Alert,
+  AlertTitle,
+  AlertDescription,
+  Spinner,
+  Card,
+  Tabs,
+  TabsContent,
+  TabsList,
+  TabsTrigger
+} from '@newwork/nw-design-system'
+import { PieChartOutlined, BarChartOutlined, RiseOutlined } from '@ant-design/icons'
+import { BarChart } from 'lucide-react'
+import { Button, Badge } from '@newwork/nw-design-system'
+import { WidgetGroup, WidgetItem } from '@/components/widget-group'
+import { BusinessAppContextProps } from '@/common/BusinessAppContext'
+import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
+import { formatDataTestId } from '@/common/utils/formatDataTestId'
+import { useInvestmentPortfolioIntegration, usePortfolioChartData } from './hooks'
+import { formatCurrency, formatNumber, formatPercentage } from './utils'
+import { PortfolioTimelineCharts } from './components/PortfolioTimelineCharts'
+import { PortfolioAnalyticsCharts } from './components/PortfolioAnalyticsCharts'
+import { PortfolioDistributionCharts } from './components/PortfolioDistributionCharts'
 
 // Typography components removed - using native HTML elements with nw-design-system styling
 
 interface InvestmentPortfolioOverviewProps extends BusinessAppContextProps {
-  prefixDataTestId?: string;
+  prefixDataTestId?: string
 }
 
 const calculateChange = (current: number, previous: number): { value: string; positive: boolean } => {
-  if (previous === 0) return { value: "N/A", positive: true };
-  const change = ((current - previous) / previous) * 100;
+  if (previous === 0) return { value: 'N/A', positive: true }
+  const change = ((current - previous) / previous) * 100
   return {
-    value: `${change >= 0 ? "+" : ""}${change.toFixed(1)}%`,
+    value: `${change >= 0 ? '+' : ''}${change.toFixed(1)}%`,
     positive: change >= 0
-  };
-};
+  }
+}
 
-const InvestmentPortfolioOverview: React.FC<InvestmentPortfolioOverviewProps> = (props) => {
-  const prefixDataTestId = props.prefixDataTestId || 'InvestmentPortfolioOverview';
-  const [activeTab, setActiveTab] = useState('distribution');
-  
-  const { investments, kpis, previousKpis, isLoading, error, refetch } = useInvestmentPortfolioIntegration(props);
-  const chartData = usePortfolioChartData(investments);
+const InvestmentPortfolioOverview: React.FC<InvestmentPortfolioOverviewProps> = props => {
+  const prefixDataTestId = props.prefixDataTestId || 'InvestmentPortfolioOverview'
+  const [activeTab, setActiveTab] = useState('distribution')
+
+  const { investments, kpis, previousKpis, isLoading, error, refetch } = useInvestmentPortfolioIntegration(props)
+  const chartData = usePortfolioChartData(investments)
 
   if (isLoading) {
     return (
@@ -43,15 +53,12 @@ const InvestmentPortfolioOverview: React.FC<InvestmentPortfolioOverviewProps> = 
       >
         <Spinner size="lg" />
       </div>
-    );
+    )
   }
 
   if (error) {
     return (
-      <Alert
-        data-testid={formatDataTestId(prefixDataTestId, 'Error')}
-        variant="destructive"
-      >
+      <Alert data-testid={formatDataTestId(prefixDataTestId, 'Error')} variant="destructive">
         <AlertTitle>{getTranslationFromI18nKeyAndLabel('error.loading', 'Error Loading Data')}</AlertTitle>
         <AlertDescription>{error}</AlertDescription>
         <div className="gba:mt-2">
@@ -60,7 +67,7 @@ const InvestmentPortfolioOverview: React.FC<InvestmentPortfolioOverviewProps> = 
           </Button>
         </div>
       </Alert>
-    );
+    )
   }
 
   return (
@@ -75,7 +82,8 @@ const InvestmentPortfolioOverview: React.FC<InvestmentPortfolioOverviewProps> = 
             {getTranslationFromI18nKeyAndLabel('investment.portfolio.title', 'Investment Portfolio Overview')}
           </h1>
           <Badge variant="secondary" className="gba:text-sm">
-            {kpis?.totalInvestments || 0} {getTranslationFromI18nKeyAndLabel('investment.portfolio.items', 'investments')}
+            {kpis?.totalInvestments || 0}{' '}
+            {getTranslationFromI18nKeyAndLabel('investment.portfolio.items', 'investments')}
           </Badge>
         </div>
       </div>
@@ -85,63 +93,63 @@ const InvestmentPortfolioOverview: React.FC<InvestmentPortfolioOverviewProps> = 
         <WidgetGroup
           widgets={[
             {
-              key: "total-portfolio-value",
+              key: 'total-portfolio-value',
               title: getTranslationFromI18nKeyAndLabel('kpi.totalPortfolioValue', 'Total Portfolio Value'),
               value: formatCurrency(kpis.totalPortfolioValue),
               prefix: <PieChartOutlined />,
-              color: "var(--nw-color-primary-500)",
+              color: 'var(--nw-color-primary-500)',
               valueIsString: true,
               span: { xs: 24, sm: 12, lg: 6 },
-              description: "Current market valuation across all investments",
+              description: 'Current market valuation across all investments',
               trend: {
                 value: calculateChange(kpis.totalPortfolioValue, previousKpis.totalPortfolioValue).value,
                 positive: calculateChange(kpis.totalPortfolioValue, previousKpis.totalPortfolioValue).positive,
-                description: "vs 7 days ago",
-              },
+                description: 'vs 7 days ago'
+              }
             },
             {
-              key: "total-investments",
+              key: 'total-investments',
               title: getTranslationFromI18nKeyAndLabel('kpi.totalInvestments', 'Total Investments'),
               value: kpis.totalInvestments,
               prefix: <BarChartOutlined />,
-              color: "var(--nw-color-success-500)",
+              color: 'var(--nw-color-success-500)',
               span: { xs: 24, sm: 12, lg: 6 },
-              description: "Total number of investment positions",
+              description: 'Total number of investment positions',
               trend: {
                 value: calculateChange(kpis.totalInvestments, previousKpis.totalInvestments).value,
                 positive: calculateChange(kpis.totalInvestments, previousKpis.totalInvestments).positive,
-                description: "vs 7 days ago",
-              },
+                description: 'vs 7 days ago'
+              }
             },
             {
-              key: "total-amount-invested",
+              key: 'total-amount-invested',
               title: getTranslationFromI18nKeyAndLabel('kpi.totalAmountInvested', 'Total Amount Invested'),
               value: formatCurrency(kpis.totalAmountInvested),
               prefix: <BarChartOutlined />,
-              color: "var(--nw-color-warning-500)",
+              color: 'var(--nw-color-warning-500)',
               valueIsString: true,
               span: { xs: 24, sm: 12, lg: 6 },
-              description: "Sum of all total invested amounts",
+              description: 'Sum of all total invested amounts',
               trend: {
                 value: calculateChange(kpis.totalAmountInvested, previousKpis.totalAmountInvested).value,
                 positive: calculateChange(kpis.totalAmountInvested, previousKpis.totalAmountInvested).positive,
-                description: "vs 7 days ago",
-              },
+                description: 'vs 7 days ago'
+              }
             },
             {
-              key: "active-investments",
+              key: 'active-investments',
               title: getTranslationFromI18nKeyAndLabel('kpi.activeInvestments', 'Active Investments'),
               value: kpis.activeInvestments,
               prefix: <RiseOutlined />,
-              color: "var(--nw-color-purple-500)",
+              color: 'var(--nw-color-purple-500)',
               span: { xs: 24, sm: 12, lg: 6 },
-              description: "Currently active investment positions",
+              description: 'Currently active investment positions',
               trend: {
                 value: calculateChange(kpis.activeInvestments, previousKpis.activeInvestments).value,
                 positive: calculateChange(kpis.activeInvestments, previousKpis.activeInvestments).positive,
-                description: "vs 7 days ago",
-              },
-            },
+                description: 'vs 7 days ago'
+              }
+            }
           ]}
           isLoading={isLoading}
           error={error ? new Error(error) : null}
@@ -154,22 +162,22 @@ const InvestmentPortfolioOverview: React.FC<InvestmentPortfolioOverviewProps> = 
       <Card className="gba:rounded-lg gba:bg-white gba:p-6">
         <Tabs value={activeTab} onValueChange={setActiveTab} className="gba:w-full">
           <TabsList className="gba:grid gba:w-full gba:grid-cols-3 gba:mb-6">
-            <TabsTrigger 
-              value="distribution" 
+            <TabsTrigger
+              value="distribution"
               data-testid={formatDataTestId(prefixDataTestId, 'DistributionTab')}
               startIcon={<PieChartOutlined />}
             >
               {getTranslationFromI18nKeyAndLabel('tab.distribution.analysis', 'Distribution Analysis')}
             </TabsTrigger>
-            <TabsTrigger 
-              value="timeline" 
+            <TabsTrigger
+              value="timeline"
               data-testid={formatDataTestId(prefixDataTestId, 'TimelineTab')}
               startIcon={<RiseOutlined />}
             >
               {getTranslationFromI18nKeyAndLabel('tab.timeline.analysis', 'Timeline Analysis')}
             </TabsTrigger>
-            <TabsTrigger 
-              value="analytics" 
+            <TabsTrigger
+              value="analytics"
               data-testid={formatDataTestId(prefixDataTestId, 'AnalyticsTab')}
               startIcon={<BarChart />}
             >
@@ -177,8 +185,8 @@ const InvestmentPortfolioOverview: React.FC<InvestmentPortfolioOverviewProps> = 
             </TabsTrigger>
           </TabsList>
 
-          <TabsContent 
-            value="distribution" 
+          <TabsContent
+            value="distribution"
             className="gba:py-4"
             data-testid={formatDataTestId(prefixDataTestId, 'DistributionContent')}
           >
@@ -190,36 +198,34 @@ const InvestmentPortfolioOverview: React.FC<InvestmentPortfolioOverviewProps> = 
             />
           </TabsContent>
 
-          <TabsContent 
-            value="timeline" 
+          <TabsContent
+            value="timeline"
             className="gba:py-4"
             data-testid={formatDataTestId(prefixDataTestId, 'TimelineContent')}
           >
-                  <PortfolioTimelineCharts
-                    performanceTimelineData={chartData.performanceTimelineData}
-                    valueOverTimeData={chartData.valueOverTimeData}
+            <PortfolioTimelineCharts
+              performanceTimelineData={chartData.performanceTimelineData}
+              valueOverTimeData={chartData.valueOverTimeData}
               rawInvestments={investments}
             />
           </TabsContent>
 
-          <TabsContent 
-            value="analytics" 
+          <TabsContent
+            value="analytics"
             className="gba:py-4"
             data-testid={formatDataTestId(prefixDataTestId, 'AnalyticsContent')}
           >
             <div className="gba:grid gba:grid-cols-1 gba:lg:gba:grid-cols-2 gba:gap-6">
-                    <PortfolioAnalyticsCharts
-                      concentrationByGroupData={chartData.concentrationByGroupData}
-                      valueByAccountData={chartData.valueByAccountData}
-                    />
-                  </div>
+              <PortfolioAnalyticsCharts
+                concentrationByGroupData={chartData.concentrationByGroupData}
+                valueByAccountData={chartData.valueByAccountData}
+              />
+            </div>
           </TabsContent>
         </Tabs>
       </Card>
     </div>
-  );
-};
+  )
+}
 
-export default InvestmentPortfolioOverview;
-
-
+export default InvestmentPortfolioOverview

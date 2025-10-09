@@ -3,7 +3,7 @@
  * Features: Infinite scroll, 100-item initial load, comprehensive search including Description and Display Order
  */
 
-import React, { useEffect } from "react";
+import React, { useEffect } from 'react'
 import {
   Card,
   CardContent,
@@ -16,31 +16,35 @@ import {
   TableHeader,
   TableRow,
   Spinner,
-  Progress,
-} from "@newwork/nw-design-system";
-import { BusinessAppContextProps } from "@/common/BusinessAppContext";
-import { Catalog, CatalogEntry } from "@/common/data/catalog";
-import { CatalogTableToolbar } from './components/CatalogTableToolbar';
-import { CatalogTableRow } from './components/CatalogTableRow';
-import { JsonEditorModal } from './components/JsonEditorModal';
-import { useCatalogTableState } from './hooks/useCatalogTableState';
-import { useCatalogTableActions } from './hooks/useCatalogTableActions';
+  Progress
+} from '@newwork/nw-design-system'
+import { BusinessAppContextProps } from '@/common/BusinessAppContext'
+import { Catalog, CatalogEntry } from '@/common/data/catalog'
+import { CatalogTableToolbar } from './components/CatalogTableToolbar'
+import { CatalogTableRow } from './components/CatalogTableRow'
+import { JsonEditorModal } from './components/JsonEditorModal'
+import { useCatalogTableState } from './hooks/useCatalogTableState'
+import { useCatalogTableActions } from './hooks/useCatalogTableActions'
 
 interface CatalogEntryTableProps extends BusinessAppContextProps {
-  catalog: Catalog;
-  onViewCatalog?: (catalog: Catalog) => void;
-  "data-testid"?: string;
+  catalog: Catalog
+  onViewCatalog?: (catalog: Catalog) => void
+  'data-testid'?: string
   prefetched?: {
-    initialEntries?: CatalogEntry[];
-    initialTotalCount?: number;
-    externalLoadEntries?: (searchTerm?: string, limit?: number, offset?: number) => Promise<{ entries: CatalogEntry[]; totalCount: number }>;
-  };
+    initialEntries?: CatalogEntry[]
+    initialTotalCount?: number
+    externalLoadEntries?: (
+      searchTerm?: string,
+      limit?: number,
+      offset?: number
+    ) => Promise<{ entries: CatalogEntry[]; totalCount: number }>
+  }
 }
 
 export const CatalogEntryTable: React.FC<CatalogEntryTableProps> = ({
   catalog,
   onViewCatalog,
-  "data-testid": dataTestId = "CatalogEntryTable",
+  'data-testid': dataTestId = 'CatalogEntryTable',
   prefetched,
   ...context
 }) => {
@@ -62,8 +66,8 @@ export const CatalogEntryTable: React.FC<CatalogEntryTableProps> = ({
     loadEntries,
     handleSearchChange,
     loadMoreEntries,
-    hasUnsavedChanges,
-  } = useCatalogTableState(context, catalog, prefetched);
+    hasUnsavedChanges
+  } = useCatalogTableState(context, catalog, prefetched)
 
   const {
     handleCreateEntry,
@@ -81,7 +85,7 @@ export const CatalogEntryTable: React.FC<CatalogEntryTableProps> = ({
     handleSaveAll,
     handleDiscardChanges,
     handleSaveEntry,
-    handleDiscardEntry,
+    handleDiscardEntry
   } = useCatalogTableActions({
     context,
     catalog,
@@ -95,33 +99,29 @@ export const CatalogEntryTable: React.FC<CatalogEntryTableProps> = ({
     importCatalogEntries,
     exportCatalogs,
     loadEntries,
-    onViewCatalog,
-  });
+    onViewCatalog
+  })
 
   // Infinite scroll observer
   useEffect(() => {
     const observer = new IntersectionObserver(
-      (entries) => {
+      entries => {
         if (entries[0].isIntersecting && state.hasMore && !state.isLoadingMore) {
-          loadMoreEntries();
+          loadMoreEntries()
         }
       },
       { threshold: 0.1 }
-    );
+    )
 
     if (loadingRef.current) {
-      observer.observe(loadingRef.current);
+      observer.observe(loadingRef.current)
     }
 
-    return () => observer.disconnect();
-  }, [state.hasMore, state.isLoadingMore, loadMoreEntries]);
+    return () => observer.disconnect()
+  }, [state.hasMore, state.isLoadingMore, loadMoreEntries])
 
   if (error) {
-    return (
-      <Alert data-testid={`${dataTestId}-Error`}>
-        {error}
-      </Alert>
-    );
+    return <Alert data-testid={`${dataTestId}-Error`}>{error}</Alert>
   }
 
   return (
@@ -144,16 +144,26 @@ export const CatalogEntryTable: React.FC<CatalogEntryTableProps> = ({
             onSaveAll={handleSaveAll}
             onDiscardChanges={handleDiscardChanges}
             onDeleteSelected={async () => {
-              if (state.selectedIds.size === 0) return;
-              if (!window.confirm(`Delete ${state.selectedIds.size} selected entries?`)) return;
-              const ids = Array.from(state.selectedIds);
-              setState((prev) => ({ ...prev, bulkDeleteProgress: { current: 0, total: ids.length } }));
+              if (state.selectedIds.size === 0) return
+              if (!window.confirm(`Delete ${state.selectedIds.size} selected entries?`)) return
+              const ids = Array.from(state.selectedIds)
+              setState(prev => ({ ...prev, bulkDeleteProgress: { current: 0, total: ids.length } }))
               for (let i = 0; i < ids.length; i++) {
-                await deleteCatalogEntry(catalog.identifier, 'v1', ids[i]);
-                setState((prev) => prev.bulkDeleteProgress ? { ...prev, bulkDeleteProgress: { current: prev.bulkDeleteProgress.current + 1, total: prev.bulkDeleteProgress.total } } : prev);
+                await deleteCatalogEntry(catalog.identifier, 'v1', ids[i])
+                setState(prev =>
+                  prev.bulkDeleteProgress
+                    ? {
+                        ...prev,
+                        bulkDeleteProgress: {
+                          current: prev.bulkDeleteProgress.current + 1,
+                          total: prev.bulkDeleteProgress.total
+                        }
+                      }
+                    : prev
+                )
               }
-              setState((prev) => ({ ...prev, selectedIds: new Set(), bulkDeleteProgress: null }));
-              loadEntries(state.searchTerm, state.currentLimit);
+              setState(prev => ({ ...prev, selectedIds: new Set(), bulkDeleteProgress: null }))
+              loadEntries(state.searchTerm, state.currentLimit)
             }}
             anySelectedCount={state.selectedIds.size}
             hasUnsavedChanges={hasUnsavedChanges}
@@ -165,9 +175,14 @@ export const CatalogEntryTable: React.FC<CatalogEntryTableProps> = ({
           {/* Bulk delete progress */}
           {state.bulkDeleteProgress && (
             <div className="gba:mb-2">
-              <div className="gba:flex gba:justify-between gba:text-xs" style={{ color: 'var(--nw-color-text-secondary)' }}>
+              <div
+                className="gba:flex gba:justify-between gba:text-xs"
+                style={{ color: 'var(--nw-color-text-secondary)' }}
+              >
                 <span>Deleting entries...</span>
-                <span>{state.bulkDeleteProgress.current} / {state.bulkDeleteProgress.total}</span>
+                <span>
+                  {state.bulkDeleteProgress.current} / {state.bulkDeleteProgress.total}
+                </span>
               </div>
               <Progress value={(state.bulkDeleteProgress.current / state.bulkDeleteProgress.total) * 100} />
             </div>
@@ -178,8 +193,8 @@ export const CatalogEntryTable: React.FC<CatalogEntryTableProps> = ({
             ref={tableRef}
             className="gba:border gba:rounded-lg gba:overflow-auto"
             style={{
-              maxHeight: "600px",
-              backgroundColor: "var(--nw-color-surface-primary)",
+              maxHeight: '600px',
+              backgroundColor: 'var(--nw-color-surface-primary)'
             }}
             data-testid={`${dataTestId}-TableContainer`}
           >
@@ -201,7 +216,7 @@ export const CatalogEntryTable: React.FC<CatalogEntryTableProps> = ({
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {state.allEntries.map((entry) => (
+                {state.allEntries.map(entry => (
                   <CatalogTableRow
                     key={entry.id}
                     entry={entry}
@@ -218,10 +233,11 @@ export const CatalogEntryTable: React.FC<CatalogEntryTableProps> = ({
                     onDeleteEntry={handleDeleteEntry}
                     onNavigateToChildCatalog={handleNavigateToChildCatalog}
                     onToggleSelect={(id, checked) =>
-                      setState((prev) => {
-                        const next = new Set(prev.selectedIds);
-                        if (checked) next.add(id); else next.delete(id);
-                        return { ...prev, selectedIds: next };
+                      setState(prev => {
+                        const next = new Set(prev.selectedIds)
+                        if (checked) next.add(id)
+                        else next.delete(id)
+                        return { ...prev, selectedIds: next }
                       })
                     }
                     isSelected={state.selectedIds.has(entry.id)}
@@ -233,15 +249,11 @@ export const CatalogEntryTable: React.FC<CatalogEntryTableProps> = ({
             </Table>
 
             {/* Loading indicator for infinite scroll */}
-            <div
-              ref={loadingRef}
-              className="gba:p-4 gba:text-center"
-              data-testid={`${dataTestId}-LoadingIndicator`}
-            >
+            <div ref={loadingRef} className="gba:p-4 gba:text-center" data-testid={`${dataTestId}-LoadingIndicator`}>
               {isLoading && (
                 <div className="gba:flex gba:justify-center gba:items-center gba:gap-2">
                   <Spinner size="sm" />
-                  <span className="gba:text-sm" style={{ color: "var(--nw-color-text-secondary)" }}>
+                  <span className="gba:text-sm" style={{ color: 'var(--nw-color-text-secondary)' }}>
                     Loading entries...
                   </span>
                 </div>
@@ -249,20 +261,20 @@ export const CatalogEntryTable: React.FC<CatalogEntryTableProps> = ({
               {state.isLoadingMore && (
                 <div className="gba:flex gba:justify-center gba:items-center gba:gap-2">
                   <Spinner size="sm" />
-                  <span className="gba:text-sm" style={{ color: "var(--nw-color-text-secondary)" }}>
+                  <span className="gba:text-sm" style={{ color: 'var(--nw-color-text-secondary)' }}>
                     Loading more entries...
                   </span>
                 </div>
               )}
               {!state.hasMore && state.allEntries.length > 0 && (
-                <div className="gba:text-sm" style={{ color: "var(--nw-color-text-secondary)" }}>
+                <div className="gba:text-sm" style={{ color: 'var(--nw-color-text-secondary)' }}>
                   All {state.allEntries.length} entries loaded
                 </div>
               )}
               {state.allEntries.length === 0 && !isLoading && (
                 <div className="gba:text-center gba:py-8">
-                  <div className="gba:text-sm" style={{ color: "var(--nw-color-text-secondary)" }}>
-                    {state.searchTerm ? "No entries found matching your search." : "No entries in this catalog."}
+                  <div className="gba:text-sm" style={{ color: 'var(--nw-color-text-secondary)' }}>
+                    {state.searchTerm ? 'No entries found matching your search.' : 'No entries in this catalog.'}
                   </div>
                 </div>
               )}
@@ -285,7 +297,7 @@ export const CatalogEntryTable: React.FC<CatalogEntryTableProps> = ({
         dataTestId={dataTestId}
       />
     </div>
-  );
-};
+  )
+}
 
-export default CatalogEntryTable;
+export default CatalogEntryTable

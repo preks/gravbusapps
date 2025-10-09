@@ -1,40 +1,40 @@
-import React, { createContext, useContext, useState, useCallback, useEffect } from 'react';
-import { BusinessAppContextProps } from '@/common/BusinessAppContext';
-import { StageConditionFormValues, StageConditionContextState } from '../types';
-import { useStageConditionData } from '../hooks/useStageConditionData';
+import React, { createContext, useContext, useState, useCallback, useEffect } from 'react'
+import { BusinessAppContextProps } from '@/common/BusinessAppContext'
+import { StageConditionFormValues, StageConditionContextState } from '../types'
+import { useStageConditionData } from '../hooks/useStageConditionData'
 
 // Create context
-const StageConditionFormContext = createContext<StageConditionContextState | null>(null);
+const StageConditionFormContext = createContext<StageConditionContextState | null>(null)
 
 // Custom hook to use the context
 export const useStageConditionFormContext = (): StageConditionContextState => {
-  const context = useContext(StageConditionFormContext);
+  const context = useContext(StageConditionFormContext)
   if (!context) {
-    throw new Error('useStageConditionFormContext must be used within a StageConditionFormProvider');
+    throw new Error('useStageConditionFormContext must be used within a StageConditionFormProvider')
   }
-  return context;
-};
+  return context
+}
 
 interface StageConditionFormProviderProps {
-  children: React.ReactNode;
-  businessAppContext: BusinessAppContextProps;
-  initialValues?: Partial<StageConditionFormValues>;
+  children: React.ReactNode
+  businessAppContext: BusinessAppContextProps
+  initialValues?: Partial<StageConditionFormValues>
 }
 
 export const StageConditionFormProvider: React.FC<StageConditionFormProviderProps> = ({
   children,
   businessAppContext,
-  initialValues = {},
+  initialValues = {}
 }) => {
   // Stage condition data loading hook (following lead form pattern)
   const {
     stageConditionData,
     isLoading: stageConditionDataLoading,
     error: stageConditionDataError,
-    mapStageConditionToFormValues,
+    mapStageConditionToFormValues
   } = useStageConditionData({
-    businessAppContext,
-  });
+    businessAppContext
+  })
 
   // Form state
   const [formValues, setFormValuesState] = useState<StageConditionFormValues>({
@@ -43,32 +43,32 @@ export const StageConditionFormProvider: React.FC<StageConditionFormProviderProp
     completed: false,
     conditionTitle: '',
     currentStatus: '',
-    ...initialValues,
-  });
+    ...initialValues
+  })
 
   // Global state
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
 
   // Initialize form values when stage condition data is loaded
   useEffect(() => {
     if (stageConditionData && !error) {
-      const mappedValues = mapStageConditionToFormValues(stageConditionData);
-      setFormValuesState(prev => ({ ...prev, ...mappedValues, ...initialValues }));
+      const mappedValues = mapStageConditionToFormValues(stageConditionData)
+      setFormValuesState(prev => ({ ...prev, ...mappedValues, ...initialValues }))
     }
-  }, [stageConditionData, mapStageConditionToFormValues, initialValues, error]);
+  }, [stageConditionData, mapStageConditionToFormValues, initialValues, error])
 
   // Set error from data loading hook
   useEffect(() => {
     if (stageConditionDataError) {
-      setError(stageConditionDataError);
+      setError(stageConditionDataError)
     }
-  }, [stageConditionDataError]);
+  }, [stageConditionDataError])
 
   // Set form values with validation
   const setFormValues = useCallback((values: StageConditionFormValues) => {
-    setFormValuesState(values);
-  }, []);
+    setFormValuesState(values)
+  }, [])
 
   // Simplified: no default handlers needed, context just manages data
 
@@ -78,12 +78,8 @@ export const StageConditionFormProvider: React.FC<StageConditionFormProviderProp
     isLoading: isLoading || stageConditionDataLoading,
     error: error || stageConditionDataError,
     setFormValues,
-    businessAppContext,
-  };
+    businessAppContext
+  }
 
-  return (
-    <StageConditionFormContext.Provider value={contextValue}>
-      {children}
-    </StageConditionFormContext.Provider>
-  );
-};
+  return <StageConditionFormContext.Provider value={contextValue}>{children}</StageConditionFormContext.Provider>
+}

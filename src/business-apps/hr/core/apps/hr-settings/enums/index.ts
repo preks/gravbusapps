@@ -10,4 +10,4 @@ export enum HrSettingsSections {
   ORGANIZATIONAL_STRUCTURE = 'organizational-structure',
   COMPLIANCE_POLICIES = 'compliance-policies',
   REPORTING_ANALYTICS = 'reporting-analytics'
-} 
+}

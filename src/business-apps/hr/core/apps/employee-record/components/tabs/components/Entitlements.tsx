@@ -1,6 +1,6 @@
-import React from 'react';
-import { EntitlementsProps } from '../../../queries/types';
-import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
+import React from 'react'
+import { EntitlementsProps } from '../../../queries/types'
+import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 
 const Entitlements: React.FC<EntitlementsProps> = ({ entitlements, loading, error }) => {
   if (loading) {
@@ -9,44 +9,32 @@ const Entitlements: React.FC<EntitlementsProps> = ({ entitlements, loading, erro
         className="gba:loading-skeleton gba:grid gba:grid-cols-1 md:gba:grid-cols-2 lg:gba:grid-cols-3 gba:gap-4"
         data-testid="entitlements-loading"
       >
-        {[1, 2, 3].map((i) => (
+        {[1, 2, 3].map(i => (
           <div key={i} className="gba:h-40 gba:bg-gray-100 gba:rounded gba:animate-pulse"></div>
         ))}
       </div>
-    );
+    )
   }
 
   if (error) {
     return (
-      <div
-        className="gba:error-container gba:text-center gba:py-8"
-        data-testid="entitlements-error"
-      >
+      <div className="gba:error-container gba:text-center gba:py-8" data-testid="entitlements-error">
         <div className="gba:text-red-500 gba:text-lg gba:mb-2">
-          {getTranslationFromI18nKeyAndLabel(
-            'lowcoder:absence_hub.error_loading',
-            'Failed to load entitlements data.',
-          )}
+          {getTranslationFromI18nKeyAndLabel('lowcoder:absence_hub.error_loading', 'Failed to load entitlements data.')}
         </div>
         <div className="gba:text-gray-500">
           {getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.try_again', 'Try again.')}
         </div>
       </div>
-    );
+    )
   }
 
   if (entitlements.length === 0) {
     return (
-      <div
-        className="gba:no-entitlements gba:text-center gba:text-gray-500 gba:py-8"
-        data-testid="no-entitlements"
-      >
-        {getTranslationFromI18nKeyAndLabel(
-          'lowcoder:team_expenses_page.dashboard_tab.no_data_found',
-          'No data found',
-        )}
+      <div className="gba:no-entitlements gba:text-center gba:text-gray-500 gba:py-8" data-testid="no-entitlements">
+        {getTranslationFromI18nKeyAndLabel('lowcoder:team_expenses_page.dashboard_tab.no_data_found', 'No data found')}
       </div>
-    );
+    )
   }
 
   return (
@@ -73,10 +61,7 @@ const Entitlements: React.FC<EntitlementsProps> = ({ entitlements, loading, erro
           <div className="gba:entitlement-details gba:mt-4">
             <div className="gba:flex gba:justify-between gba:mb-1">
               <span className="gba:text-gray-500">
-                {getTranslationFromI18nKeyAndLabel(
-                  'lowcoder:absence_hub.used_annual_leave',
-                  'Used',
-                )}
+                {getTranslationFromI18nKeyAndLabel('lowcoder:absence_hub.used_annual_leave', 'Used')}
               </span>
               <span className="gba:font-medium">
                 {entitlement.used} / {entitlement.total}
@@ -88,7 +73,7 @@ const Entitlements: React.FC<EntitlementsProps> = ({ entitlements, loading, erro
                 className="gba:progress gba:h-full gba:rounded-full"
                 style={{
                   width: `${entitlement.total > 0 ? (entitlement.used / entitlement.total) * 100 : 0}%`,
-                  backgroundColor: `#${entitlement.color}`,
+                  backgroundColor: `#${entitlement.color}`
                 }}
               ></div>
             </div>
@@ -97,26 +82,18 @@ const Entitlements: React.FC<EntitlementsProps> = ({ entitlements, loading, erro
               <span className="gba:text-gray-500">
                 {getTranslationFromI18nKeyAndLabel('lowcoder:hr_absences.available', 'Available')}
               </span>
-              <span className="gba:font-medium gba:text-lg gba:text-green-600">
-                {entitlement.available}
-              </span>
+              <span className="gba:font-medium gba:text-lg gba:text-green-600">{entitlement.available}</span>
             </div>
 
             {entitlement.pending > 0 && (
               <div className="gba:flex gba:justify-between gba:mt-2 gba:items-center">
                 <span className="gba:text-amber-500">
-                  {getTranslationFromI18nKeyAndLabel(
-                    'lowcoder:personal_expenses.pending',
-                    'Pending',
-                  )}
+                  {getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.pending', 'Pending')}
                 </span>
                 <div className="gba:flex gba:items-center gba:gap-1">
                   <span className="gba:text-amber-500 gba:font-medium">{entitlement.pending}</span>
                   <span className="gba:text-xs gba:text-gray-500">
-                    {getTranslationFromI18nKeyAndLabel(
-                      'lowcoder:entitlements.status_in_approval',
-                      'days in approval',
-                    )}
+                    {getTranslationFromI18nKeyAndLabel('lowcoder:entitlements.status_in_approval', 'days in approval')}
                   </span>
                 </div>
               </div>
@@ -126,7 +103,7 @@ const Entitlements: React.FC<EntitlementsProps> = ({ entitlements, loading, erro
               <div className="gba:entitlement-note gba:mt-3 gba:text-xs gba:text-gray-500 gba:border-t gba:pt-2">
                 {getTranslationFromI18nKeyAndLabel(
                   'lowcoder:absence_hub.entitlement_note',
-                  'Entitlement is checked before approval',
+                  'Entitlement is checked before approval'
                 )}
               </div>
             )}
@@ -134,7 +111,7 @@ const Entitlements: React.FC<EntitlementsProps> = ({ entitlements, loading, erro
         </div>
       ))}
     </div>
-  );
-};
+  )
+}
 
-export default Entitlements;
+export default Entitlements

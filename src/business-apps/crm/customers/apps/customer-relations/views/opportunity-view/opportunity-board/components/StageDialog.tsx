@@ -1,78 +1,78 @@
-import { useState, useEffect } from "react";
-import { useKanbanStore } from "../lib/kanban-store";
+import { useState, useEffect } from 'react'
+import { useKanbanStore } from '../lib/kanban-store'
 
 export function StageDialog() {
-  const { 
-    isAddingStage, 
-    isEditingStage, 
-    editingStageId, 
-    selectedPipelineId, 
-    stages, 
-    addStage, 
-    updateStage, 
-    setIsAddingStage, 
-    setEditingStage 
-  } = useKanbanStore();
+  const {
+    isAddingStage,
+    isEditingStage,
+    editingStageId,
+    selectedPipelineId,
+    stages,
+    addStage,
+    updateStage,
+    setIsAddingStage,
+    setEditingStage
+  } = useKanbanStore()
 
-  const [name, setName] = useState("");
-  const [probability, setProbability] = useState(50);
-  const [rotting, setRotting] = useState(true);
-  const [rottingDays, setRottingDays] = useState(7);
+  const [name, setName] = useState('')
+  const [probability, setProbability] = useState(50)
+  const [rotting, setRotting] = useState(true)
+  const [rottingDays, setRottingDays] = useState(7)
 
-  const isOpen = isAddingStage || isEditingStage;
-  const isEditing = isEditingStage && editingStageId;
-  const title = isEditing ? "Edit Column" : "Add Column";
+  const isOpen = isAddingStage || isEditingStage
+  const isEditing = isEditingStage && editingStageId
+  const title = isEditing ? 'Edit Column' : 'Add Column'
 
   // Reset form when dialog opens/closes
   useEffect(() => {
     if (isOpen) {
       if (isEditing && editingStageId) {
-        const stage = stages.find((s: any) => s.id === editingStageId);
+        const stage = stages.find((s: any) => s.id === editingStageId)
         if (stage) {
-          setName(stage.name);
-          setProbability(stage.probability);
-          setRotting(stage.rotting);
-          setRottingDays(stage.rottingDays);
+          setName(stage.name)
+          setProbability(stage.probability)
+          setRotting(stage.rotting)
+          setRottingDays(stage.rottingDays)
         }
       } else {
-        setName("");
-        setProbability(50);
-        setRotting(true);
-        setRottingDays(7);
+        setName('')
+        setProbability(50)
+        setRotting(true)
+        setRottingDays(7)
       }
     }
-  }, [isOpen, isEditing, editingStageId, stages]);
+  }, [isOpen, isEditing, editingStageId, stages])
 
   const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
+    e.preventDefault()
 
     if (isEditing && editingStageId) {
       updateStage(editingStageId, {
         name,
         probability,
         rotting,
-        rottingDays,
-      });
+        rottingDays
+      })
     } else {
       addStage({
         name,
         pipelineId: selectedPipelineId,
         probability,
         rotting,
-        rottingDays,
-      });
+        rottingDays
+      })
     }
-  };
+  }
 
   const handleClose = () => {
     if (isEditing) {
-      setEditingStage(null);
+      setEditingStage(null)
     } else {
-      setIsAddingStage(false);
+      setIsAddingStage(false)
     }
-  };
+  }
 
-  if (!isOpen) return null;
+  if (!isOpen) return null
 
   return (
     <div className="gba:fixed gba:inset-0 gba:bg-black/50 gba:flex gba:items-center gba:justify-center gba:p-4 gba:z-50">
@@ -89,7 +89,7 @@ export function StageDialog() {
                   id="name"
                   type="text"
                   value={name}
-                  onChange={(e) => setName(e.target.value)}
+                  onChange={e => setName(e.target.value)}
                   className="gba:w-full gba:px-3 gba:py-2 gba:border gba:border-gray-300 gba:dark:border-gray-600 gba:rounded-md"
                   required
                 />
@@ -106,7 +106,7 @@ export function StageDialog() {
                   max="100"
                   step="5"
                   value={probability}
-                  onChange={(e) => setProbability(parseInt(e.target.value))}
+                  onChange={e => setProbability(parseInt(e.target.value))}
                   className="gba:w-full"
                 />
               </div>
@@ -116,7 +116,7 @@ export function StageDialog() {
                   id="rotting"
                   type="checkbox"
                   checked={rotting}
-                  onChange={(e) => setRotting(e.target.checked)}
+                  onChange={e => setRotting(e.target.checked)}
                   className="gba:h-4 gba:w-4 gba:mr-2"
                 />
                 <label htmlFor="rotting" className="gba:text-sm gba:font-medium">
@@ -135,7 +135,7 @@ export function StageDialog() {
                     min="1"
                     max="30"
                     value={rottingDays}
-                    onChange={(e) => setRottingDays(parseInt(e.target.value))}
+                    onChange={e => setRottingDays(parseInt(e.target.value))}
                     className="gba:w-full"
                   />
                 </div>
@@ -153,7 +153,7 @@ export function StageDialog() {
                   type="submit"
                   className="gba:px-4 gba:py-2 gba:bg-blue-600 gba:text-white gba:rounded-md gba:text-sm gba:font-medium gba:hover:bg-blue-700"
                 >
-                  {isEditing ? "Update" : "Add"}
+                  {isEditing ? 'Update' : 'Add'}
                 </button>
               </div>
             </div>
@@ -161,7 +161,7 @@ export function StageDialog() {
         </div>
       </div>
     </div>
-  );
+  )
 }
 
-export default StageDialog; 
+export default StageDialog

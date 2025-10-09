@@ -1,20 +1,12 @@
-import React from "react";
-import { WidgetGroup, WidgetItem } from "@/components/widget-group";
-import {
-  PiChartBar,
-  PiUsers,
-  PiTarget,
-  PiTrophy,
-  PiTrendUp,
-  PiTrendDown,
-  PiChartLine,
-} from "react-icons/pi";
-import { ActivitiesStatisticsProps } from "../../types/activitiesTypes";
-import { useEmployeeActivitiesStatistics } from "../../hooks/useEmployeeActivitiesStatistics";
-import { useEmployeeActivitiesTrendData } from "../../hooks/useEmployeeActivitiesTrendData";
-import { useEmployeeActivitiesData } from "../../hooks/useEmployeeActivitiesData";
+import React from 'react'
+import { WidgetGroup, WidgetItem } from '@/components/widget-group'
+import { PiChartBar, PiUsers, PiTarget, PiTrophy, PiTrendUp, PiTrendDown, PiChartLine } from 'react-icons/pi'
+import { ActivitiesStatisticsProps } from '../../types/activitiesTypes'
+import { useEmployeeActivitiesStatistics } from '../../hooks/useEmployeeActivitiesStatistics'
+import { useEmployeeActivitiesTrendData } from '../../hooks/useEmployeeActivitiesTrendData'
+import { useEmployeeActivitiesData } from '../../hooks/useEmployeeActivitiesData'
 
-const DATA_TEST_ID_PREFIX = "ActivitiesStatistics";
+const DATA_TEST_ID_PREFIX = 'ActivitiesStatistics'
 
 export const ActivitiesStatistics: React.FC<ActivitiesStatisticsProps> = ({
   employeeId,
@@ -25,82 +17,71 @@ export const ActivitiesStatistics: React.FC<ActivitiesStatisticsProps> = ({
   ...context
 }) => {
   // Fetch real activities statistics
-  const { statistics, loading, error, refetch } =
-    useEmployeeActivitiesStatistics({
-      employeeId,
-      accessToken,
-      userInfo, // Now passing real userInfo for proper createdBy filtering
-      periodInMonths: 1, // Across all references
-    });
+  const { statistics, loading, error, refetch } = useEmployeeActivitiesStatistics({
+    employeeId,
+    accessToken,
+    userInfo, // Now passing real userInfo for proper createdBy filtering
+    periodInMonths: 1 // Across all references
+  })
 
   // Fetch trend data for real comparisons
-  const { trends, refetch: refetchTrends } = useEmployeeActivitiesTrendData(
-    accessToken,
-    employeeId
-  );
+  const { trends, refetch: refetchTrends } = useEmployeeActivitiesTrendData(accessToken, employeeId)
 
   // Get aggregate total from the activities query
-  const { total: aggregateTotal, retry: retryActivitiesData } =
-    useEmployeeActivitiesData({
-      employeeId,
-      accessToken,
-      search: "",
-      sortField: "createdAt",
-      sortOrder: "DESC",
-      userInfo, // Now passing real userInfo for proper createdBy filtering
-    });
+  const { total: aggregateTotal, retry: retryActivitiesData } = useEmployeeActivitiesData({
+    employeeId,
+    accessToken,
+    search: '',
+    sortField: 'createdAt',
+    sortOrder: 'DESC',
+    userInfo // Now passing real userInfo for proper createdBy filtering
+  })
 
   // Handle retry
   const handleRetry = () => {
-    refetch();
-    refetchTrends();
-    retryActivitiesData();
+    refetch()
+    refetchTrends()
+    retryActivitiesData()
     if (onRetry) {
-      onRetry();
+      onRetry()
     }
-  };
+  }
 
   // Helper functions for trend visualization
-  const getTrendIcon = (trend: "up" | "down" | "stable") => {
+  const getTrendIcon = (trend: 'up' | 'down' | 'stable') => {
     switch (trend) {
-      case "up":
-        return <PiTrendUp />;
-      case "down":
-        return <PiTrendDown />;
+      case 'up':
+        return <PiTrendUp />
+      case 'down':
+        return <PiTrendDown />
       default:
-        return <PiChartLine />;
+        return <PiChartLine />
     }
-  };
+  }
 
-  const getTrendColor = (trend: "up" | "down" | "stable") => {
+  const getTrendColor = (trend: 'up' | 'down' | 'stable') => {
     switch (trend) {
-      case "up":
-        return "#10b981";
-      case "down":
-        return "#ef4444";
+      case 'up':
+        return '#10b981'
+      case 'down':
+        return '#ef4444'
       default:
-        return "#6b7280";
+        return '#6b7280'
     }
-  };
+  }
 
-  const getTrendDescription = (
-    trend: "up" | "down" | "stable",
-    percentage: number,
-    baseDescription: string
-  ) => {
-    if (trend === "stable") return `${baseDescription} • Stable vs last month`;
-    const direction = trend === "up" ? "increase" : "decrease";
-    return `${baseDescription} • ${percentage.toFixed(
-      1
-    )}% ${direction} vs last month`;
-  };
+  const getTrendDescription = (trend: 'up' | 'down' | 'stable', percentage: number, baseDescription: string) => {
+    if (trend === 'stable') return `${baseDescription} • Stable vs last month`
+    const direction = trend === 'up' ? 'increase' : 'decrease'
+    return `${baseDescription} • ${percentage.toFixed(1)}% ${direction} vs last month`
+  }
 
   // Transform stats data into widgets format with real trend comparisons
   const widgets: WidgetItem[] = statistics
     ? [
         {
-          key: "total-activities",
-          title: "Total Activities",
+          key: 'total-activities',
+          title: 'Total Activities',
           value: statistics.totalActivities.count,
           prefix: getTrendIcon(trends.totalActivities.trend),
           color: getTrendColor(trends.totalActivities.trend),
@@ -110,17 +91,14 @@ export const ActivitiesStatistics: React.FC<ActivitiesStatisticsProps> = ({
             statistics.totalActivities.period
           ),
           trend: {
-            value: `${Math.round(
-              (trends.completedActivities.currentValue / aggregateTotal) * 100
-            )}%`,
-            positive:
-              trends.completedActivities.currentValue / aggregateTotal >= 0.8,
-            description: "completion rate",
-          },
+            value: `${Math.round((trends.completedActivities.currentValue / aggregateTotal) * 100)}%`,
+            positive: trends.completedActivities.currentValue / aggregateTotal >= 0.8,
+            description: 'completion rate'
+          }
         },
         {
-          key: "completed-activities",
-          title: "Completed Activities",
+          key: 'completed-activities',
+          title: 'Completed Activities',
           value: trends.completedActivities.currentValue,
           prefix: getTrendIcon(trends.completedActivities.trend),
           color: getTrendColor(trends.completedActivities.trend),
@@ -131,64 +109,57 @@ export const ActivitiesStatistics: React.FC<ActivitiesStatisticsProps> = ({
           ),
           precision: 0,
           trend: {
-            value: `${Math.round(
-              (trends.completedActivities.currentValue / aggregateTotal) * 100
-            )}%`,
-            positive:
-              trends.completedActivities.currentValue / aggregateTotal >= 0.8,
-            description: "completion rate",
-          },
+            value: `${Math.round((trends.completedActivities.currentValue / aggregateTotal) * 100)}%`,
+            positive: trends.completedActivities.currentValue / aggregateTotal >= 0.8,
+            description: 'completion rate'
+          }
         },
         {
-          key: "most-common-activity",
-          title: "Most Common Activity",
+          key: 'most-common-activity',
+          title: 'Most Common Activity',
           value:
-            trends.mostCommonActivityType.current.count === 0
-              ? "No data"
-              : trends.mostCommonActivityType.current.type,
+            trends.mostCommonActivityType.current.count === 0 ? 'No data' : trends.mostCommonActivityType.current.type,
           prefix: <PiUsers />,
-          color: "#722ed1",
+          color: '#722ed1',
           valueIsString: true,
           description:
             trends.mostCommonActivityType.current.count === 0
-              ? "No activities found"
+              ? 'No activities found'
               : `${trends.mostCommonActivityType.current.count} activities (${trends.mostCommonActivityType.current.percentage}%)`,
           trend:
             trends.mostCommonActivityType.current.count > 0
               ? {
                   value: `${trends.mostCommonActivityType.current.percentage}%`,
-                  positive:
-                    trends.mostCommonActivityType.current.percentage >= 40,
-                  description: "of total activities",
+                  positive: trends.mostCommonActivityType.current.percentage >= 40,
+                  description: 'of total activities'
                 }
-              : undefined,
+              : undefined
         },
         {
-          key: "most-worked-entity",
-          title: "Most Worked Entity",
+          key: 'most-worked-entity',
+          title: 'Most Worked Entity',
           value:
             trends.mostWorkedEntityType.current.count === 0
-              ? "No data"
+              ? 'No data'
               : trends.mostWorkedEntityType.current.entityType,
           prefix: <PiTarget />,
-          color: "#52c41a",
+          color: '#52c41a',
           valueIsString: true,
           description:
             trends.mostWorkedEntityType.current.count === 0
-              ? "No activities found"
+              ? 'No activities found'
               : `${trends.mostWorkedEntityType.current.count} activities (${trends.mostWorkedEntityType.current.percentage}%)`,
           trend:
             trends.mostWorkedEntityType.current.count > 0
               ? {
                   value: `${trends.mostWorkedEntityType.current.percentage}%`,
-                  positive:
-                    trends.mostWorkedEntityType.current.percentage >= 30,
-                  description: "focus distribution",
+                  positive: trends.mostWorkedEntityType.current.percentage >= 30,
+                  description: 'focus distribution'
                 }
-              : undefined,
-        },
+              : undefined
+        }
       ]
-    : [];
+    : []
 
   return (
     <div data-testid={`${DATA_TEST_ID_PREFIX}-container`}>
@@ -202,7 +173,7 @@ export const ActivitiesStatistics: React.FC<ActivitiesStatisticsProps> = ({
         data-testid={`${DATA_TEST_ID_PREFIX}-widget-group`}
       />
     </div>
-  );
-};
+  )
+}
 
-export default ActivitiesStatistics;
+export default ActivitiesStatistics

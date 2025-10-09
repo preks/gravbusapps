@@ -1,131 +1,131 @@
-import { useGraphQLClient } from "@/common/network/graphql/useGraphQLClient";
-import { BusinessAppContextProps } from "@/common/BusinessAppContext";
-import { useCallback } from "react";
+import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
+import { BusinessAppContextProps } from '@/common/BusinessAppContext'
+import { useCallback } from 'react'
 
 export interface OpportunityQueryVariables {
-  opportunityId: string;
+  opportunityId: string
 }
 
 export interface OpportunityQueryResult {
-  id: string;
-  version?: number;
-  name?: string;
-  businessKey?: string;
-  code?: string;
-  sourceApp?: string;
-  personal?: boolean;
+  id: string
+  version?: number
+  name?: string
+  businessKey?: string
+  code?: string
+  sourceApp?: string
+  personal?: boolean
 
   // Sales Information
-  estimatedAmount?: number;
+  estimatedAmount?: number
   currency?: {
-    id: string;
-    code: string;
-    value: string;
-    objectValue?: any;
-  };
-  currencyRef?: string;
-  winningChance?: number;
-  closeDate?: string;
+    id: string
+    code: string
+    value: string
+    objectValue?: any
+  }
+  currencyRef?: string
+  winningChance?: number
+  closeDate?: string
 
   // Relationships
   account?: {
-    id: string;
-    name: string;
-  };
-  accountId?: string;
+    id: string
+    name: string
+  }
+  accountId?: string
   lead?: {
-    id: string;
-    name: string;
-    firstName?: string;
-    lastName?: string;
-  };
-  leadId?: string;
+    id: string
+    name: string
+    firstName?: string
+    lastName?: string
+  }
+  leadId?: string
 
   // Owner Information
   ownerEmployee?: {
-    id: string;
-    firstName: string;
-    lastName: string;
-    displayName?: string;
-    pictureThumbnail?: string;
-  };
-  ownerEmployeeId?: string;
+    id: string
+    firstName: string
+    lastName: string
+    displayName?: string
+    pictureThumbnail?: string
+  }
+  ownerEmployeeId?: string
   ownerOrganization?: {
-    id: string;
-    name: string;
-  };
-  ownerOrganizationId?: string;
+    id: string
+    name: string
+  }
+  ownerOrganizationId?: string
 
   // Status and Pipeline Information
   opportunityStatus?: {
-    id: string;
-    code: string;
-    value: string;
-    objectValue?: any;
-  };
-  opportunityStatusRef?: string;
+    id: string
+    code: string
+    value: string
+    objectValue?: any
+  }
+  opportunityStatusRef?: string
   salesPipeline?: {
-    id: string;
-    code: string;
-    value: string;
-    objectValue?: any;
-  };
-  salesPipelineRef?: string;
+    id: string
+    code: string
+    value: string
+    objectValue?: any
+  }
+  salesPipelineRef?: string
   salesPipelineStage?: {
-    id: string;
-    code: string;
-    value: string;
-    objectValue?: any;
-  };
-  salesPipelineStageRef?: string;
-  stage?: string;
-  status?: string;
+    id: string
+    code: string
+    value: string
+    objectValue?: any
+  }
+  salesPipelineStageRef?: string
+  stage?: string
+  status?: string
 
   // Campaign Information
   salesCampaign?: {
-    id: string;
-    name: string;
-  };
-  salesCampaignId?: string;
+    id: string
+    name: string
+  }
+  salesCampaignId?: string
 
   // Additional Information
-  notesSummary?: string;
-  lastInteraction?: string;
+  notesSummary?: string
+  lastInteraction?: string
 
   // Process and system fields
-  processInstanceId?: string;
-  recordState?: string;
+  processInstanceId?: string
+  recordState?: string
 
   // Addresses (array relationship)
   addresses?: Array<{
-    id?: string;
-    addressType: string;
-    addressLine: string;
-    postalCode: string;
-    city: string;
+    id?: string
+    addressType: string
+    addressLine: string
+    postalCode: string
+    city: string
     region: {
-      id: string;
-      code: string;
-      value: string;
-    };
+      id: string
+      code: string
+      value: string
+    }
     country: {
-      id: string;
-      code: string;
-      value: string;
-    };
-  }>;
+      id: string
+      code: string
+      value: string
+    }
+  }>
 
   // Communication Channels (array relationship)
   communicationChannels?: Array<{
-    id?: string;
-    communicationChannelRef?: string;
+    id?: string
+    communicationChannelRef?: string
     communicationChannel?: {
-      id: string;
-      value: string;
-      code: string;
-    };
-    createdAt?: string;
-  }>;
+      id: string
+      value: string
+      code: string
+    }
+    createdAt?: string
+  }>
 
   // Tags (array relationship) - commented out - field may not exist in schema
   // tags?: Array<{
@@ -135,22 +135,22 @@ export interface OpportunityQueryResult {
   // }>;
 
   // Additional Properties and Express fields
-  additionalProperties?: Record<string, any>;
-  express1?: Record<string, any>;
-  express2?: Record<string, any>;
+  additionalProperties?: Record<string, any>
+  express1?: Record<string, any>
+  express2?: Record<string, any>
 
   // Audit information
-  activeFrom?: string;
-  activeTo?: string;
-  createdAt?: string;
-  createdBy?: string;
-  updatedAt?: string;
-  updatedBy?: string;
-  synchronizedAt?: string;
+  activeFrom?: string
+  activeTo?: string
+  createdAt?: string
+  createdBy?: string
+  updatedAt?: string
+  updatedBy?: string
+  synchronizedAt?: string
 }
 
 export interface OpportunityDataResponse {
-  Opportunity: OpportunityQueryResult[];
+  Opportunity: OpportunityQueryResult[]
 }
 
 export const GET_OPPORTUNITY_BY_ID = `
@@ -298,47 +298,44 @@ export const GET_OPPORTUNITY_BY_ID = `
       synchronizedAt
     }
   }
-`;
+`
 
 export const useGetOpportunityData = (context: BusinessAppContextProps) => {
-  const graphqlClient = useGraphQLClient(context.accessToken);
+  const graphqlClient = useGraphQLClient(context.accessToken)
 
   const fetchOpportunityData = async (variables: OpportunityQueryVariables) => {
-    const query = GET_OPPORTUNITY_BY_ID;
+    const query = GET_OPPORTUNITY_BY_ID
     try {
-      const result = await graphqlClient.request<OpportunityDataResponse>(
-        query,
-        variables
-      );
-      return result;
+      const result = await graphqlClient.request<OpportunityDataResponse>(query, variables)
+      return result
     } catch (error) {
-      console.error("Error fetching opportunity data:", error);
-      throw error;
+      console.error('Error fetching opportunity data:', error)
+      throw error
     }
-  };
+  }
 
-  return { fetchOpportunityData };
-};
+  return { fetchOpportunityData }
+}
 
 export const useGetOpportunityById = (context: BusinessAppContextProps) => {
-  const graphqlClient = useGraphQLClient(context.accessToken);
+  const graphqlClient = useGraphQLClient(context.accessToken)
 
   const fetchOpportunityById = useCallback(
     async (opportunityId: string): Promise<OpportunityQueryResult | null> => {
-      if (!opportunityId) return null;
+      if (!opportunityId) return null
 
       try {
         const result = await graphqlClient.request<{
-          Opportunity: OpportunityQueryResult[];
-        }>(GET_OPPORTUNITY_BY_ID, { opportunityId: opportunityId });
-        return result.Opportunity?.[0] || null;
+          Opportunity: OpportunityQueryResult[]
+        }>(GET_OPPORTUNITY_BY_ID, { opportunityId: opportunityId })
+        return result.Opportunity?.[0] || null
       } catch (error) {
-        console.error("Error fetching opportunity by ID:", error);
-        throw error;
+        console.error('Error fetching opportunity by ID:', error)
+        throw error
       }
     },
     [graphqlClient]
-  );
+  )
 
-  return { fetchOpportunityById };
-};
+  return { fetchOpportunityById }
+}

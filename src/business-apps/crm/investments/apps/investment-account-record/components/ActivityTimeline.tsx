@@ -1,157 +1,155 @@
-import React, { useState, useEffect } from 'react';
-import { PlusCircleOutlined, CheckCircleOutlined, CloseOutlined } from '@ant-design/icons';
-import { Spin, Alert, Empty, Timeline, Typography, message } from 'antd';
-import { Button } from '@newwork/nw-design-system';
-import { Clock, Calendar } from 'lucide-react';
-import { startProcess } from '@/common/utils/start-process';
-import { AppAction } from '@/components/app-action/AppAction';
-import { FlowContextName } from '@/common/types/FlowRegistryTypes';
-import { ActivityDeletePopup } from '@/common/components/common-relations/popups/activity-delete-popup';
-import { DeleteConfirmPopup } from '@/common/components/common-relations/popups/delete-confirm-popup';
-import { BusinessAppContextProps } from '@/common/BusinessAppContext';
-import dayjs from 'dayjs';
+import React, { useState, useEffect } from 'react'
+import { PlusCircleOutlined, CheckCircleOutlined, CloseOutlined } from '@ant-design/icons'
+import { Spin, Alert, Empty, Timeline, Typography, message } from 'antd'
+import { Button } from '@newwork/nw-design-system'
+import { Clock, Calendar } from 'lucide-react'
+import { startProcess } from '@/common/utils/start-process'
+import { AppAction } from '@/components/app-action/AppAction'
+import { FlowContextName } from '@/common/types/FlowRegistryTypes'
+import { ActivityDeletePopup } from '@/common/components/common-relations/popups/activity-delete-popup'
+import { DeleteConfirmPopup } from '@/common/components/common-relations/popups/delete-confirm-popup'
+import { BusinessAppContextProps } from '@/common/BusinessAppContext'
+import dayjs from 'dayjs'
 import {
   useGetInvestmentActivitiesByAccountId,
-  useGetInvestmentTasksByAccountId,
-} from '@/common/data/investment/hooks/useInvestmentAccounts';
-import type { InvestmentActivity, InvestmentTask } from '@/common/data/investment/types';
-import { NotesSection } from './NotesSection';
+  useGetInvestmentTasksByAccountId
+} from '@/common/data/investment/hooks/useInvestmentAccounts'
+import type { InvestmentActivity, InvestmentTask } from '@/common/data/investment/types'
+import { NotesSection } from './NotesSection'
 
-const { Text } = Typography;
+const { Text } = Typography
 
 // Use Investment types for consistency
-type SalesActivityData = InvestmentActivity;
+type SalesActivityData = InvestmentActivity
 
 interface ActivityTimelineProps {
-  accountId?: string;
-  context: BusinessAppContextProps;
-  defaultTab?: 'activities' | 'notes' | 'approvals' | 'documents';
+  accountId?: string
+  context: BusinessAppContextProps
+  defaultTab?: 'activities' | 'notes' | 'approvals' | 'documents'
 }
 
 export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({
   accountId,
   context,
-  defaultTab = 'activities',
+  defaultTab = 'activities'
 }) => {
-  const [activeTab, setActiveTab] = useState<'activities' | 'notes' | 'approvals' | 'documents'>(
-    defaultTab,
-  );
-  const [activities, setActivities] = useState<SalesActivityData[]>([]);
-  const [activitiesLoading, setActivitiesLoading] = useState(false);
-  const [activitiesError, setActivitiesError] = useState<string | null>(null);
-  const [notesKey, setNotesKey] = useState(0);
+  const [activeTab, setActiveTab] = useState<'activities' | 'notes' | 'approvals' | 'documents'>(defaultTab)
+  const [activities, setActivities] = useState<SalesActivityData[]>([])
+  const [activitiesLoading, setActivitiesLoading] = useState(false)
+  const [activitiesError, setActivitiesError] = useState<string | null>(null)
+  const [notesKey, setNotesKey] = useState(0)
 
   // Approval tasks state
-  const [approvalTasks, setApprovalTasks] = useState<any[]>([]);
-  const [approvalTasksLoading, setApprovalTasksLoading] = useState(false);
-  const [approvalTasksError, setApprovalTasksError] = useState<string | null>(null);
+  const [approvalTasks, setApprovalTasks] = useState<any[]>([])
+  const [approvalTasksLoading, setApprovalTasksLoading] = useState(false)
+  const [approvalTasksError, setApprovalTasksError] = useState<string | null>(null)
 
   const [deletePopup, setDeletePopup] = useState<{ open: boolean; activity?: SalesActivityData }>({
-    open: false,
-  });
+    open: false
+  })
   const [deleteApprovalPopup, setDeleteApprovalPopup] = useState<{
-    open: boolean;
-    task?: InvestmentTask;
-  }>({ open: false });
+    open: boolean
+    task?: InvestmentTask
+  }>({ open: false })
 
   // Use the centralized investment data hooks
-  const { fetchInvestmentActivitiesByAccountId } = useGetInvestmentActivitiesByAccountId(context);
-  const { fetchInvestmentTasksByAccountId } = useGetInvestmentTasksByAccountId(context);
+  const { fetchInvestmentActivitiesByAccountId } = useGetInvestmentActivitiesByAccountId(context)
+  const { fetchInvestmentTasksByAccountId } = useGetInvestmentTasksByAccountId(context)
 
   const loadActivities = async () => {
-    if (!accountId) return;
+    if (!accountId) return
 
-    setActivitiesLoading(true);
-    setActivitiesError(null);
+    setActivitiesLoading(true)
+    setActivitiesError(null)
 
     try {
-      const activities = await fetchInvestmentActivitiesByAccountId(accountId);
+      const activities = await fetchInvestmentActivitiesByAccountId(accountId)
 
       // Sort activities by createdAt in descending order (newest first)
       const sortedActivities = activities.sort(
-        (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
-      );
+        (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+      )
 
-      setActivities(sortedActivities);
+      setActivities(sortedActivities)
     } catch (err) {
-      setActivitiesError(err instanceof Error ? err.message : 'Failed to load activities');
+      setActivitiesError(err instanceof Error ? err.message : 'Failed to load activities')
     } finally {
-      setActivitiesLoading(false);
+      setActivitiesLoading(false)
     }
-  };
+  }
 
   const loadApprovalTasks = async () => {
-    if (!accountId) return;
+    if (!accountId) return
 
-    setApprovalTasksLoading(true);
-    setApprovalTasksError(null);
+    setApprovalTasksLoading(true)
+    setApprovalTasksError(null)
 
     try {
-      const allTasks = await fetchInvestmentTasksByAccountId(accountId);
+      const allTasks = await fetchInvestmentTasksByAccountId(accountId)
 
       // Filter for approval tasks only
       const approvalTasks = allTasks.filter((task: any) => {
-        const taskType = task.taskType;
-        const taskTypeValue = taskType?.code;
-        const typeRef = task.typeRef || '';
+        const taskType = task.taskType
+        const taskTypeValue = taskType?.code
+        const typeRef = task.typeRef || ''
 
         return (
           (taskTypeValue && taskTypeValue.toLowerCase() === 'approval') ||
           typeRef.toLowerCase().includes('approval') ||
           typeRef === 'InvestmentTaskType:v1:APPROVAL'
-        );
-      });
+        )
+      })
 
       // Sort by createdAt in descending order (newest first)
       const sortedTasks = approvalTasks.sort(
-        (a: any, b: any) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
-      );
+        (a: any, b: any) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+      )
 
-      setApprovalTasks(sortedTasks);
+      setApprovalTasks(sortedTasks)
     } catch (err) {
-      setApprovalTasksError(err instanceof Error ? err.message : 'Failed to load approval tasks');
+      setApprovalTasksError(err instanceof Error ? err.message : 'Failed to load approval tasks')
     } finally {
-      setApprovalTasksLoading(false);
+      setApprovalTasksLoading(false)
     }
-  };
+  }
 
   // request approval handled by AppAction
 
   const getPriorityColor = (priority: string) => {
     switch (priority?.toLowerCase()) {
       case 'high':
-        return 'red';
+        return 'red'
       case 'medium':
-        return 'orange';
+        return 'orange'
       case 'low':
-        return 'green';
+        return 'green'
       default:
-        return 'blue';
+        return 'blue'
     }
-  };
+  }
 
   const getPriorityValue = (priority: any): string => {
-    if (typeof priority === 'string') return priority;
-    return priority?.value || 'Medium';
-  };
+    if (typeof priority === 'string') return priority
+    return priority?.value || 'Medium'
+  }
 
   // no-op
 
   // Helper function to get timing type icon
   const getTimingTypeIcon = (timingType?: string) => {
     if (!timingType) {
-      return <Clock style={{ fontSize: '14px', color: '#8c8c8c' }} />;
+      return <Clock style={{ fontSize: '14px', color: '#8c8c8c' }} />
     }
 
     switch (timingType.toUpperCase()) {
       case 'DEADLINE':
-        return <Clock style={{ fontSize: '14px', color: '#ff4d4f' }} />;
+        return <Clock style={{ fontSize: '14px', color: '#ff4d4f' }} />
       case 'SCHEDULED':
-        return <Calendar style={{ fontSize: '14px', color: '#1677ff' }} />;
+        return <Calendar style={{ fontSize: '14px', color: '#1677ff' }} />
       default:
-        return <Clock style={{ fontSize: '14px', color: '#8c8c8c' }} />;
+        return <Clock style={{ fontSize: '14px', color: '#8c8c8c' }} />
     }
-  };
+  }
 
   // update handled by flows elsewhere
 
@@ -159,66 +157,66 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({
 
   useEffect(() => {
     if (activeTab === 'activities') {
-      loadActivities();
+      loadActivities()
     } else if (activeTab === 'approvals') {
-      loadApprovalTasks();
+      loadApprovalTasks()
     }
-  }, [activeTab, accountId]);
+  }, [activeTab, accountId])
 
   // Add focus event listener to refresh data when user returns to the tab
   useEffect(() => {
     const handleFocus = () => {
-      console.log('ActivityTimeline: Window gained focus, refreshing data...');
+      console.log('ActivityTimeline: Window gained focus, refreshing data...')
       if (activeTab === 'activities') {
-        loadActivities();
+        loadActivities()
       }
       // Also refresh notes by updating key
-      setNotesKey((prev) => prev + 1);
-    };
+      setNotesKey(prev => prev + 1)
+    }
 
-    window.addEventListener('focus', handleFocus);
+    window.addEventListener('focus', handleFocus)
     document.addEventListener('visibilitychange', () => {
       if (!document.hidden) {
-        handleFocus();
+        handleFocus()
       }
-    });
+    })
 
     return () => {
-      window.removeEventListener('focus', handleFocus);
-      document.removeEventListener('visibilitychange', handleFocus);
-    };
-  }, [activeTab, accountId]);
+      window.removeEventListener('focus', handleFocus)
+      document.removeEventListener('visibilitychange', handleFocus)
+    }
+  }, [activeTab, accountId])
 
   // Listen for process completion events to refresh data
   useEffect(() => {
     const handleProcessCompletion = (event: any) => {
       try {
-        console.log('ActivityTimeline: Process completion event received:', event.type);
+        console.log('ActivityTimeline: Process completion event received:', event.type)
 
         // Check for successful completion with different response structures
-        let activityCreated = false;
-        let documentUploaded = false;
-        let noteCreated = false;
+        let activityCreated = false
+        let documentUploaded = false
+        let noteCreated = false
 
         // Check for successful completion first
         if (event.detail?.resolution === 'success') {
-          console.log('ActivityTimeline: Process completed successfully, refreshing current tab');
+          console.log('ActivityTimeline: Process completed successfully, refreshing current tab')
           if (activeTab === 'activities') {
-            loadActivities();
+            loadActivities()
           } else if (activeTab === 'approvals') {
-            loadApprovalTasks();
+            loadApprovalTasks()
           }
           // Force refresh of notes tab by updating key
-          setNotesKey((prev) => prev + 1);
-          return;
+          setNotesKey(prev => prev + 1)
+          return
         }
 
-        const response = event.detail?.response;
+        const response = event.detail?.response
 
         // Check if activity was created
         if (response?.investmentActivity || event.detail?.investmentActivity) {
-          activityCreated = true;
-          console.log('ActivityTimeline: Investment activity detected, refreshing activities');
+          activityCreated = true
+          console.log('ActivityTimeline: Investment activity detected, refreshing activities')
         }
 
         // Check if document was uploaded
@@ -227,25 +225,23 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({
           event.detail?.investmentDocument ||
           event.detail?.resolution === 'success'
         ) {
-          documentUploaded = true;
-          console.log(
-            'ActivityTimeline: Investment document upload detected, refreshing documents',
-          );
+          documentUploaded = true
+          console.log('ActivityTimeline: Investment document upload detected, refreshing documents')
         }
 
         // Check if note was created
         if (response?.investmentNote || event.detail?.investmentNote) {
-          noteCreated = true;
-          console.log('ActivityTimeline: Investment note creation detected, refreshing notes');
+          noteCreated = true
+          console.log('ActivityTimeline: Investment note creation detected, refreshing notes')
         }
 
         // Refresh the appropriate tab data
         if (activityCreated && activeTab === 'activities') {
-          loadActivities();
+          loadActivities()
         }
         if (noteCreated) {
           // Force refresh of notes tab by updating key
-          setNotesKey((prev) => prev + 1);
+          setNotesKey(prev => prev + 1)
         }
 
         // If no specific data detected but process was successful, refresh current tab
@@ -256,23 +252,23 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({
           (event.detail?.resolution === 'success' || response)
         ) {
           if (activeTab === 'activities') {
-            loadActivities();
+            loadActivities()
           } else if (activeTab === 'notes') {
-            setNotesKey((prev) => prev + 1);
+            setNotesKey(prev => prev + 1)
           }
         }
       } catch (err) {
-        console.error('Error handling process completion:', err);
+        console.error('Error handling process completion:', err)
       }
-    };
+    }
 
     // Universal event listener to capture all events
     const handleAllEvents = (event: any) => {
       if (event.type && (event.type.includes('process') || event.type.includes('task'))) {
-        console.log('ActivityTimeline: Detected process/task event:', event.type, event);
-        handleProcessCompletion(event);
+        console.log('ActivityTimeline: Detected process/task event:', event.type, event)
+        handleProcessCompletion(event)
       }
-    };
+    }
 
     // Listen to multiple possible event names (comprehensive list)
     const eventNames = [
@@ -285,46 +281,46 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({
       'taskCompleted',
       'processCompleted',
       'task-completion',
-      'process-completion',
-    ];
+      'process-completion'
+    ]
 
-    eventNames.forEach((eventName) => {
-      window.addEventListener(eventName, handleProcessCompletion as EventListener);
-    });
+    eventNames.forEach(eventName => {
+      window.addEventListener(eventName, handleProcessCompletion as EventListener)
+    })
 
     // Add universal dispatcher override to catch all events
-    const originalDispatchEvent = window.dispatchEvent;
+    const originalDispatchEvent = window.dispatchEvent
     window.dispatchEvent = function (event: Event) {
       if (event.type && (event.type.includes('process') || event.type.includes('task'))) {
-        console.log('ActivityTimeline: Custom Event dispatched:', event.type, event);
-        handleAllEvents(event);
+        console.log('ActivityTimeline: Custom Event dispatched:', event.type, event)
+        handleAllEvents(event)
       }
-      return originalDispatchEvent.call(this, event);
-    };
+      return originalDispatchEvent.call(this, event)
+    }
 
     const handlePostMessage = (_event: MessageEvent) => {
       try {
         // Document handling removed - no longer needed
       } catch (err) {
-        console.error('Error handling postMessage:', err);
+        console.error('Error handling postMessage:', err)
       }
-    };
+    }
 
-    window.addEventListener('message', handlePostMessage);
+    window.addEventListener('message', handlePostMessage)
 
-    console.log('ActivityTimeline: Added comprehensive event listeners for process completion');
+    console.log('ActivityTimeline: Added comprehensive event listeners for process completion')
 
     return () => {
-      eventNames.forEach((eventName) => {
-        window.removeEventListener(eventName, handleProcessCompletion as EventListener);
-      });
+      eventNames.forEach(eventName => {
+        window.removeEventListener(eventName, handleProcessCompletion as EventListener)
+      })
 
-      window.removeEventListener('message', handlePostMessage);
+      window.removeEventListener('message', handlePostMessage)
 
       // Restore original dispatchEvent
-      window.dispatchEvent = originalDispatchEvent;
-    };
-  }, [activeTab, accountId]);
+      window.dispatchEvent = originalDispatchEvent
+    }
+  }, [activeTab, accountId])
 
   // Activity and document actions handled by AppAction components
 
@@ -333,11 +329,11 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({
   // activity deletion uses ActivityDeletePopup only
 
   const getActivityTypeValue = (activityType: any): string => {
-    if (!activityType) return '';
-    if (typeof activityType === 'string') return activityType;
-    if (activityType.value) return activityType.value;
-    return '';
-  };
+    if (!activityType) return ''
+    if (typeof activityType === 'string') return activityType
+    if (activityType.value) return activityType.value
+    return ''
+  }
 
   return (
     <div
@@ -347,14 +343,14 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({
         border: '1px solid #f0f0f0',
         overflow: 'hidden',
         marginBottom: '24px',
-        height: 'fit-content',
+        height: 'fit-content'
       }}
     >
       {/* Tab Navigation */}
       <div
         style={{
           borderBottom: '1px solid #f0f0f0',
-          backgroundColor: '#fafafa',
+          backgroundColor: '#fafafa'
         }}
       >
         <div style={{ display: 'flex' }}>
@@ -368,7 +364,7 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({
               backgroundColor: activeTab === 'activities' ? 'white' : 'transparent',
               flex: 1,
               textAlign: 'center',
-              cursor: 'pointer',
+              cursor: 'pointer'
             }}
             onClick={() => setActiveTab('activities')}
           >
@@ -384,7 +380,7 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({
               backgroundColor: activeTab === 'notes' ? 'white' : 'transparent',
               flex: 1,
               textAlign: 'center',
-              cursor: 'pointer',
+              cursor: 'pointer'
             }}
             onClick={() => setActiveTab('notes')}
           >
@@ -400,7 +396,7 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({
               backgroundColor: activeTab === 'approvals' ? 'white' : 'transparent',
               flex: 1,
               textAlign: 'center',
-              cursor: 'pointer',
+              cursor: 'pointer'
             }}
             onClick={() => setActiveTab('approvals')}
           >
@@ -417,7 +413,7 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({
               display: 'flex',
               justifyContent: 'space-between',
               alignItems: 'center',
-              padding: '16px 24px',
+              padding: '16px 24px'
             }}
           >
             <div className="gba:activities-title" style={{ fontSize: '18px', fontWeight: '500' }}>
@@ -428,7 +424,7 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({
               externalContextData={{
                 accountId,
                 account: accountId,
-                investmentActivity: { account: accountId },
+                investmentActivity: { account: accountId }
               }}
               prefixDataTestId="investment-account-add-activity"
               accessToken={context.accessToken}
@@ -465,17 +461,13 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({
             )}
 
             {!activitiesLoading && !activitiesError && activities.length === 0 && (
-              <Empty
-                description="No activities yet"
-                style={{ padding: '40px 0' }}
-                data-testid="empty-activities"
-              >
+              <Empty description="No activities yet" style={{ padding: '40px 0' }} data-testid="empty-activities">
                 <AppAction
                   contextsArray={[FlowContextName.createInvestmentActivity]}
                   externalContextData={{
                     accountId,
                     account: accountId,
-                    investmentActivity: { account: accountId },
+                    investmentActivity: { account: accountId }
                   }}
                   staticFlowData={
                     accountId
@@ -488,9 +480,9 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({
                                 domain: 'investments',
                                 processName: 'saveInvestmentActivity',
                                 payload: { accountId },
-                                builderType: 'NATIVE_SCREEN',
-                              }),
-                          },
+                                builderType: 'NATIVE_SCREEN'
+                              })
+                          }
                         ]
                       : []
                   }
@@ -516,7 +508,7 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({
                         style={{
                           display: 'flex',
                           justifyContent: 'space-between',
-                          alignItems: 'center',
+                          alignItems: 'center'
                         }}
                       >
                         <Text strong style={{ fontSize: '16px', color: '#1f2937' }}>
@@ -543,7 +535,7 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({
                               padding: '2px 8px',
                               borderRadius: '4px',
                               fontSize: '12px',
-                              fontWeight: '500',
+                              fontWeight: '500'
                             }}
                           >
                             {getActivityTypeValue(activity.activityType)}
@@ -551,9 +543,7 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({
                         </div>
                       )}
                       {activity.description && (
-                        <div style={{ marginTop: '4px', color: '#374151' }}>
-                          {activity.description}
-                        </div>
+                        <div style={{ marginTop: '4px', color: '#374151' }}>{activity.description}</div>
                       )}
                       <Button
                         variant="ghost"
@@ -563,7 +553,7 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({
                           right: 0,
                           top: 0,
                           padding: '4px',
-                          lineHeight: 1,
+                          lineHeight: 1
                         }}
                         onClick={() => setDeletePopup({ open: true, activity })}
                         data-testid={`delete-activity-${activity.id}`}
@@ -580,9 +570,7 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({
       )}
 
       {/* Notes Tab Content */}
-      {activeTab === 'notes' && (
-        <NotesSection accountId={accountId} context={context} key={notesKey} />
-      )}
+      {activeTab === 'notes' && <NotesSection accountId={accountId} context={context} key={notesKey} />}
 
       {/* Approvals Tab Content */}
       {activeTab === 'approvals' && (
@@ -592,7 +580,7 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({
               display: 'flex',
               justifyContent: 'space-between',
               alignItems: 'center',
-              padding: '24px 24px 16px 24px',
+              padding: '24px 24px 16px 24px'
             }}
           >
             <div className="gba:approvals-title" style={{ fontSize: '18px', fontWeight: '500' }}>
@@ -602,7 +590,7 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({
               contextsArray={[FlowContextName.investmentTaskCreate]}
               externalContextData={{
                 accountId,
-                typeRef: 'InvestmentTaskType:v1:APPROVAL',
+                typeRef: 'InvestmentTaskType:v1:APPROVAL'
               }}
               prefixDataTestId="irm-account-approvals"
               accessToken={context.accessToken}
@@ -655,16 +643,13 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({
             {!approvalTasksLoading && !approvalTasksError && approvalTasks.length > 0 && (
               <Timeline style={{ marginTop: '16px' }}>
                 {approvalTasks.map((task, index) => (
-                  <Timeline.Item
-                    key={task.id || index}
-                    color={getPriorityColor(getPriorityValue(task.priority))}
-                  >
+                  <Timeline.Item key={task.id || index} color={getPriorityColor(getPriorityValue(task.priority))}>
                     <div style={{ position: 'relative' }}>
                       <div
                         style={{
                           display: 'flex',
                           justifyContent: 'space-between',
-                          alignItems: 'center',
+                          alignItems: 'center'
                         }}
                       >
                         <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
@@ -682,12 +667,8 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({
                             type="secondary"
                             style={{
                               marginLeft: '16px',
-                              color: dayjs(task.dueDate).isBefore(dayjs(), 'day')
-                                ? '#ff4d4f'
-                                : undefined,
-                              fontWeight: dayjs(task.dueDate).isBefore(dayjs(), 'day')
-                                ? '500'
-                                : undefined,
+                              color: dayjs(task.dueDate).isBefore(dayjs(), 'day') ? '#ff4d4f' : undefined,
+                              fontWeight: dayjs(task.dueDate).isBefore(dayjs(), 'day') ? '500' : undefined
                             }}
                           >
                             Due: {dayjs(task.dueDate).format('MMM D, YYYY')}
@@ -704,7 +685,7 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({
                               color: 'white',
                               padding: '2px 8px',
                               borderRadius: '4px',
-                              fontSize: '12px',
+                              fontSize: '12px'
                             }}
                           >
                             {getPriorityValue(task.priority)}
@@ -715,7 +696,7 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({
                               color: '#1677ff',
                               padding: '2px 8px',
                               borderRadius: '4px',
-                              fontSize: '12px',
+                              fontSize: '12px'
                             }}
                           >
                             Approval
@@ -738,7 +719,7 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({
                                     : '#8c8c8c',
                               padding: '2px 8px',
                               borderRadius: '4px',
-                              fontSize: '12px',
+                              fontSize: '12px'
                             }}
                           >
                             {task.statusRef
@@ -756,7 +737,7 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({
                           right: 0,
                           top: 0,
                           display: 'flex',
-                          gap: '4px',
+                          gap: '4px'
                         }}
                       >
                         <Button
@@ -790,11 +771,11 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({
           accountId={accountId}
           domain="investments"
           onSuccess={() => {
-            setActivities((prev) => prev.filter((a) => a.id !== deletePopup.activity!.id));
-            message.success('Activity deleted successfully');
+            setActivities(prev => prev.filter(a => a.id !== deletePopup.activity!.id))
+            message.success('Activity deleted successfully')
           }}
           onError={() => {
-            message.error('Failed to delete activity');
+            message.error('Failed to delete activity')
           }}
         />
       ) : null}
@@ -804,32 +785,30 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({
           isOpen={deleteApprovalPopup.open}
           onClose={() => setDeleteApprovalPopup({ open: false })}
           accessToken={context.accessToken}
-          itemTitle={
-            deleteApprovalPopup.task?.name ? String(deleteApprovalPopup.task.name) : 'Approval Task'
-          }
+          itemTitle={deleteApprovalPopup.task?.name ? String(deleteApprovalPopup.task.name) : 'Approval Task'}
           itemType="task"
           flowContextName={FlowContextName.investmentTaskDelete}
           externalContextData={{
             taskId: deleteApprovalPopup.task!.id,
             investmentTask: {
               id: deleteApprovalPopup.task!.id,
-              version: deleteApprovalPopup.task!.version,
+              version: deleteApprovalPopup.task!.version
             },
-            accountId,
+            accountId
           }}
           onFlowSuccess={() => {
-            const id = deleteApprovalPopup.task!.id;
-            setApprovalTasks((prev) => prev.filter((t) => t.id !== id));
-            setDeleteApprovalPopup({ open: false });
-            message.success('Approval task deleted successfully');
+            const id = deleteApprovalPopup.task!.id
+            setApprovalTasks(prev => prev.filter(t => t.id !== id))
+            setDeleteApprovalPopup({ open: false })
+            message.success('Approval task deleted successfully')
           }}
           onFlowError={() => {
-            setDeleteApprovalPopup({ open: false });
-            message.error('Failed to delete approval task');
+            setDeleteApprovalPopup({ open: false })
+            message.error('Failed to delete approval task')
           }}
           data-testid={`delete-approval-task-popup`}
         />
       ) : null}
     </div>
-  );
-};
+  )
+}

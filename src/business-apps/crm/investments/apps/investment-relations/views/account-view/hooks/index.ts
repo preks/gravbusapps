@@ -1,2 +1,1 @@
-export { useAccountView } from './useAccountView';
-
+export { useAccountView } from './useAccountView'

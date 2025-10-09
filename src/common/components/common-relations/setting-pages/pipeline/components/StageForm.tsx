@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState } from 'react'
 import {
   Dialog,
   DialogContent,
@@ -18,37 +18,37 @@ import {
   SelectContent,
   SelectItem,
   SelectTrigger,
-  SelectValue,
-} from "@newwork/nw-design-system";
-import { useForm } from "react-hook-form";
-import { BusinessAppContextProps } from "@/common/BusinessAppContext";
-import { useCatalogManagerClient } from "@/common/network/catalogs/useCatalogManagerClient";
+  SelectValue
+} from '@newwork/nw-design-system'
+import { useForm } from 'react-hook-form'
+import { BusinessAppContextProps } from '@/common/BusinessAppContext'
+import { useCatalogManagerClient } from '@/common/network/catalogs/useCatalogManagerClient'
 
 interface StageFormData {
-  value: string;
-  type: string;
+  value: string
+  type: string
 }
 
 interface StageFormProps extends BusinessAppContextProps {
-  isOpen: boolean;
-  onClose: () => void;
-  onSuccess: () => void;
-  editingStage?: any;
-  pipeline: any;
+  isOpen: boolean
+  onClose: () => void
+  onSuccess: () => void
+  editingStage?: any
+  pipeline: any
   catalogConfig: {
-    stageCatalog: string;
-    version?: string;
-  };
-  prefixDataTestId?: string;
+    stageCatalog: string
+    version?: string
+  }
+  prefixDataTestId?: string
 }
 
 const STAGE_TYPE_OPTIONS = [
-  { value: "DISCOVERY", label: "Discovery" },
-  { value: "QUALIFICATION", label: "Qualification" },
-  { value: "NEGOTIATION", label: "Negotiation" },
-  { value: "CLOSED_WON", label: "Closed Won" },
-  { value: "CLOSED_LOST", label: "Closed Lost" },
-];
+  { value: 'DISCOVERY', label: 'Discovery' },
+  { value: 'QUALIFICATION', label: 'Qualification' },
+  { value: 'NEGOTIATION', label: 'Negotiation' },
+  { value: 'CLOSED_WON', label: 'Closed Won' },
+  { value: 'CLOSED_LOST', label: 'Closed Lost' }
+]
 
 const StageForm: React.FC<StageFormProps> = ({
   isOpen,
@@ -57,27 +57,27 @@ const StageForm: React.FC<StageFormProps> = ({
   editingStage,
   pipeline,
   catalogConfig,
-  accessToken,
+  accessToken
 }) => {
-  const [operationLoading, setOperationLoading] = useState(false);
-  const catalogClient = useCatalogManagerClient(accessToken);
+  const [operationLoading, setOperationLoading] = useState(false)
+  const catalogClient = useCatalogManagerClient(accessToken)
 
   const form = useForm<StageFormData>({
     defaultValues: {
-      value: "",
-      type: "DISCOVERY",
-    },
-  });
+      value: '',
+      type: 'DISCOVERY'
+    }
+  })
 
   const handleCreateStage = async (data: StageFormData) => {
-    if (!pipeline) return;
+    if (!pipeline) return
 
     try {
-      setOperationLoading(true);
+      setOperationLoading(true)
 
       // Auto-generate code from stage name
-      const code = data.value.toUpperCase().replace(/[^A-Z0-9]/g, "_");
-      const displayOrder = 1; // Will be calculated based on existing stages
+      const code = data.value.toUpperCase().replace(/[^A-Z0-9]/g, '_')
+      const displayOrder = 1 // Will be calculated based on existing stages
 
       const newStageEntry = {
         code: code,
@@ -86,37 +86,33 @@ const StageForm: React.FC<StageFormProps> = ({
         alternativeCode: data.type, // Set alternativeCode as fallback for type
         parentEntryId: pipeline.id,
         displayOrder: displayOrder,
-        additionalValue1: displayOrder.toString().padStart(2, "0"),
+        additionalValue1: displayOrder.toString().padStart(2, '0'),
         additionalValue2: undefined,
         additionalValue3: undefined,
         objectValue: {},
-        translations: [],
-      };
+        translations: []
+      }
 
-      await catalogClient.createCatalogEntry(
-        catalogConfig.stageCatalog,
-        catalogConfig.version || "v1",
-        newStageEntry
-      );
+      await catalogClient.createCatalogEntry(catalogConfig.stageCatalog, catalogConfig.version || 'v1', newStageEntry)
 
-      onClose();
-      form.reset();
-      onSuccess();
+      onClose()
+      form.reset()
+      onSuccess()
     } catch (err) {
-      console.error("Error creating stage:", err);
+      console.error('Error creating stage:', err)
     } finally {
-      setOperationLoading(false);
+      setOperationLoading(false)
     }
-  };
+  }
 
   const handleUpdateStage = async (data: StageFormData) => {
-    if (!editingStage) return;
+    if (!editingStage) return
 
     try {
-      setOperationLoading(true);
+      setOperationLoading(true)
 
       // Fetch the current stage data to preserve all fields
-      const currentStage = await catalogClient.getCatalogEntryById(editingStage.id);
+      const currentStage = await catalogClient.getCatalogEntryById(editingStage.id)
 
       const updateData = {
         // Required fields that must be preserved
@@ -127,27 +123,28 @@ const StageForm: React.FC<StageFormProps> = ({
         alternativeCode: data.type, // Set alternativeCode as fallback for type
         parentEntryId: editingStage.parentEntryId || currentStage.parentEntryId,
         displayOrder: editingStage.displayOrder || currentStage.displayOrder,
-        
+
         // Additional fields - preserve existing values
-        additionalValue1: editingStage.displayOrder?.toString().padStart(2, "0") || currentStage.additionalValue1 || "01",
+        additionalValue1:
+          editingStage.displayOrder?.toString().padStart(2, '0') || currentStage.additionalValue1 || '01',
         additionalValue2: currentStage.additionalValue2 || undefined,
         additionalValue3: currentStage.additionalValue3 || undefined,
-        objectValue: editingStage.objectValue || currentStage.objectValue || {},
-      };
+        objectValue: editingStage.objectValue || currentStage.objectValue || {}
+      }
 
-      await catalogClient.updateCatalogEntry(editingStage.id, updateData);
+      await catalogClient.updateCatalogEntry(editingStage.id, updateData)
 
-      onClose();
-      form.reset();
-      onSuccess();
+      onClose()
+      form.reset()
+      onSuccess()
     } catch (err) {
-      console.error("Error updating stage:", err);
+      console.error('Error updating stage:', err)
     } finally {
-      setOperationLoading(false);
+      setOperationLoading(false)
     }
-  };
+  }
 
-  const handleSubmit = editingStage ? handleUpdateStage : handleCreateStage;
+  const handleSubmit = editingStage ? handleUpdateStage : handleCreateStage
 
   // Reset form when modal opens/closes or editing stage changes
   React.useEffect(() => {
@@ -155,28 +152,24 @@ const StageForm: React.FC<StageFormProps> = ({
       if (editingStage) {
         form.reset({
           value: editingStage.value,
-          type: editingStage.type || editingStage.alternativeCode || "DISCOVERY",
-        });
+          type: editingStage.type || editingStage.alternativeCode || 'DISCOVERY'
+        })
       } else {
         form.reset({
-          value: "",
-          type: "DISCOVERY",
-        });
+          value: '',
+          type: 'DISCOVERY'
+        })
       }
     }
-  }, [isOpen, editingStage, form]);
+  }, [isOpen, editingStage, form])
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>
-            {editingStage ? "Edit Stage" : "Create New Stage"}
-          </DialogTitle>
+          <DialogTitle>{editingStage ? 'Edit Stage' : 'Create New Stage'}</DialogTitle>
           <DialogDescription>
-            {editingStage
-              ? "Update the stage information below."
-              : "Enter the stage details below."}
+            {editingStage ? 'Update the stage information below.' : 'Enter the stage details below.'}
           </DialogDescription>
         </DialogHeader>
 
@@ -185,7 +178,7 @@ const StageForm: React.FC<StageFormProps> = ({
             <FormField
               control={form.control}
               name="value"
-              rules={{ required: "Stage name is required" }}
+              rules={{ required: 'Stage name is required' }}
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>Stage Name</FormLabel>
@@ -200,7 +193,7 @@ const StageForm: React.FC<StageFormProps> = ({
             <FormField
               control={form.control}
               name="type"
-              rules={{ required: "Stage type is required" }}
+              rules={{ required: 'Stage type is required' }}
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>Stage Type</FormLabel>
@@ -211,7 +204,7 @@ const StageForm: React.FC<StageFormProps> = ({
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent>
-                      {STAGE_TYPE_OPTIONS.map((option) => (
+                      {STAGE_TYPE_OPTIONS.map(option => (
                         <SelectItem key={option.value} value={option.value}>
                           {option.label}
                         </SelectItem>
@@ -224,30 +217,18 @@ const StageForm: React.FC<StageFormProps> = ({
             />
 
             <DialogFooter>
-              <Button
-                type="button"
-                variant="outline"
-                onClick={onClose}
-                disabled={operationLoading}
-              >
+              <Button type="button" variant="outline" onClick={onClose} disabled={operationLoading}>
                 Cancel
               </Button>
               <Button type="submit" disabled={operationLoading}>
-                {operationLoading
-                  ? "Saving..."
-                  : editingStage
-                  ? "Update Stage"
-                  : "Create Stage"}
+                {operationLoading ? 'Saving...' : editingStage ? 'Update Stage' : 'Create Stage'}
               </Button>
             </DialogFooter>
           </form>
         </Form>
       </DialogContent>
     </Dialog>
-  );
-};
+  )
+}
 
-export default StageForm;
-
-
-
+export default StageForm

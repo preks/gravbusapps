@@ -1,96 +1,96 @@
-import { useGraphQLClient } from "@/common/network/graphql/useGraphQLClient";
-import { BusinessAppContextProps } from "@/common/BusinessAppContext";
+import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
+import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 
 export interface InvestmentAccountQueryVariables {
-  accountId: string;
+  accountId: string
 }
 
 export interface InvestmentAccountDataResponse {
   InvestmentAccount: Array<{
-    id: string;
-    version: number;
-    code?: string;
-    name: string;
-    email?: string;
-    phone?: string;
-    website?: string;
-    foundationDate?: string;
-    geographicPresence?: string;
-    specialty?: string;
-    mission?: string;
-    liquidationDate?: string;
-    picture?: string;
-    pictureThumbnail?: string;
-    businessKey?: string;
+    id: string
+    version: number
+    code?: string
+    name: string
+    email?: string
+    phone?: string
+    website?: string
+    foundationDate?: string
+    geographicPresence?: string
+    specialty?: string
+    mission?: string
+    liquidationDate?: string
+    picture?: string
+    pictureThumbnail?: string
+    businessKey?: string
     ownerEmployee?: {
-      id: string;
-      firstName: string;
-      lastName: string;
-      displayName: string;
-      pictureThumbnail?: string;
-    };
+      id: string
+      firstName: string
+      lastName: string
+      displayName: string
+      pictureThumbnail?: string
+    }
     legalForm?: {
-      id: string;
-      value: string;
-      code: string;
-      objectValue?: any;
-    };
+      id: string
+      value: string
+      code: string
+      objectValue?: any
+    }
     industryClass?: {
-      id: string;
-      value: string;
-      code: string;
-      objectValue?: any;
-    };
+      id: string
+      value: string
+      code: string
+      objectValue?: any
+    }
     companySize?: {
-      id: string;
-      value: string;
-      code: string;
-      objectValue?: any;
-    };
+      id: string
+      value: string
+      code: string
+      objectValue?: any
+    }
     accountAnnualRevenueBand?: {
-      id: string;
-      value: string;
-      code: string;
-      objectValue?: any;
-    };
+      id: string
+      value: string
+      code: string
+      objectValue?: any
+    }
     // Address relationships
     investmentAddress?: Array<{
-      id: string;
-      version: number;
-      addressType?: string;
-      addressLine?: any; // Jsonb
-      postalCode?: string;
-      locality?: string;
-      regionRef?: string;
-      countryRef?: string;
+      id: string
+      version: number
+      addressType?: string
+      addressLine?: any // Jsonb
+      postalCode?: string
+      locality?: string
+      regionRef?: string
+      countryRef?: string
       region?: {
-        id: string;
-        value: string;
-        code: string;
-      };
+        id: string
+        value: string
+        code: string
+      }
       country?: {
-        id: string;
-        value: string;
-        code: string;
-      };
-    }>;
+        id: string
+        value: string
+        code: string
+      }
+    }>
     // Contact relationships
     investmentAccountContact?: Array<{
-      id: string;
+      id: string
       contact: {
-        id: string;
-        firstName?: string;
-        lastName?: string;
-        fullName?: string;
-        email?: string;
-      };
-    }>;
+        id: string
+        firstName?: string
+        lastName?: string
+        fullName?: string
+        email?: string
+      }
+    }>
     // Audit fields
-    createdAt: string;
-    createdBy: string;
+    createdAt: string
+    createdBy: string
     // System fields
-    additionalProperties?: any;
-  }>;
+    additionalProperties?: any
+  }>
 }
 
 export const GET_INVESTMENT_ACCOUNT_BY_ID = `
@@ -189,28 +189,21 @@ export const GET_INVESTMENT_ACCOUNT_BY_ID = `
       additionalProperties
     }
   }
-`;
+`
 
-export const useGetInvestmentAccountData = (
-  context: BusinessAppContextProps
-) => {
-  const graphqlClient = useGraphQLClient(context.accessToken);
+export const useGetInvestmentAccountData = (context: BusinessAppContextProps) => {
+  const graphqlClient = useGraphQLClient(context.accessToken)
 
-  const fetchInvestmentAccountData = async (
-    variables: InvestmentAccountQueryVariables
-  ) => {
-    const query = GET_INVESTMENT_ACCOUNT_BY_ID;
+  const fetchInvestmentAccountData = async (variables: InvestmentAccountQueryVariables) => {
+    const query = GET_INVESTMENT_ACCOUNT_BY_ID
     try {
-      const result = await graphqlClient.request<InvestmentAccountDataResponse>(
-        query,
-        variables
-      );
-      return result;
+      const result = await graphqlClient.request<InvestmentAccountDataResponse>(query, variables)
+      return result
     } catch (error) {
-      console.error("Error fetching investment account data:", error);
-      throw error;
+      console.error('Error fetching investment account data:', error)
+      throw error
     }
-  };
+  }
 
-  return { fetchInvestmentAccountData };
-};
+  return { fetchInvestmentAccountData }
+}

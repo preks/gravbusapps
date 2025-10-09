@@ -1,11 +1,11 @@
-import React from 'react';
-import { StageConditionPopupProvider } from './context/StageConditionPopupContext';
-import StageConditionPopupComponent from './components/StageConditionPopupComponent';
-import { BusinessAppContextProps } from '@/common/BusinessAppContext';
-import { StageConditionPopupValues } from './types';
+import React from 'react'
+import { StageConditionPopupProvider } from './context/StageConditionPopupContext'
+import StageConditionPopupComponent from './components/StageConditionPopupComponent'
+import { BusinessAppContextProps } from '@/common/BusinessAppContext'
+import { StageConditionPopupValues } from './types'
 
 interface StageConditionPopupProps {
-  initialValues?: Partial<StageConditionPopupValues>;
+  initialValues?: Partial<StageConditionPopupValues>
 }
 
 const StageConditionPopup: React.FC<BusinessAppContextProps & StageConditionPopupProps> = ({
@@ -14,8 +14,6 @@ const StageConditionPopup: React.FC<BusinessAppContextProps & StageConditionPopu
   userInfo,
   additionalData
 }) => {
-
-
   if (!accessToken) {
     return (
       <div className="gba:p-6 gba:text-center">
@@ -23,24 +21,21 @@ const StageConditionPopup: React.FC<BusinessAppContextProps & StageConditionPopu
           Error: No access token found. Please ensure you are properly authenticated.
         </div>
       </div>
-    );
+    )
   }
 
   const businessAppContext: BusinessAppContextProps = {
     accessToken,
     userInfo,
     additionalData
-  };
+  }
 
   return (
-    <StageConditionPopupProvider
-      businessAppContext={businessAppContext}
-      initialValues={initialValues}
-    >
+    <StageConditionPopupProvider businessAppContext={businessAppContext} initialValues={initialValues}>
       <StageConditionPopupComponent />
     </StageConditionPopupProvider>
-  );
-};
+  )
+}
 
-export { StageConditionPopup };
-export default StageConditionPopup;
+export { StageConditionPopup }
+export default StageConditionPopup

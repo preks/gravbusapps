@@ -1,4 +1,4 @@
-import React, { useMemo } from "react";
+import React, { useMemo } from 'react'
 import {
   Card,
   CardContent,
@@ -11,24 +11,28 @@ import {
   ChartTooltip,
   ChartTooltipContent,
   ChartLegend,
-  ChartLegendContent,
-} from "@newwork/nw-design-system";
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid } from "recharts";
-import { ChartBarIcon } from "@phosphor-icons/react";
-import barChartData from "../../data/barChartData.json";
+  ChartLegendContent
+} from '@newwork/nw-design-system'
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid } from 'recharts'
+import { ChartBarIcon } from '@phosphor-icons/react'
+import barChartData from '../../data/barChartData.json'
 
 interface MultipleBarChartProps {
-  moduleColor?: string;
+  moduleColor?: string
 }
 
 const MultipleBarChart: React.FC<MultipleBarChartProps> = ({ moduleColor }) => {
-  const chartData = barChartData.multiple;
+  const chartData = barChartData.multiple
 
-  const chartConfig = useMemo(() => ({
-    desktop: { label: "Desktop" },
-    mobile: { label: "Mobile" },
-    tablet: { label: "Tablet" },
-  }) satisfies ChartConfig, []);
+  const chartConfig = useMemo(
+    () =>
+      ({
+        desktop: { label: 'Desktop' },
+        mobile: { label: 'Mobile' },
+        tablet: { label: 'Tablet' }
+      }) satisfies ChartConfig,
+    []
+  )
 
   return (
     <Card data-testid="multiple-bar-chart">
@@ -48,7 +52,7 @@ const MultipleBarChart: React.FC<MultipleBarChartProps> = ({ moduleColor }) => {
               tickLine={false}
               axisLine={false}
               tickMargin={8}
-              tickFormatter={(value) => typeof value === 'string' ? value.slice(0, 3) : value}
+              tickFormatter={value => (typeof value === 'string' ? value.slice(0, 3) : value)}
             />
             <YAxis tickLine={false} axisLine={false} tickMargin={8} />
             <ChartTooltip content={<ChartTooltipContent indicator="dashed" />} />
@@ -60,7 +64,7 @@ const MultipleBarChart: React.FC<MultipleBarChartProps> = ({ moduleColor }) => {
         </ChartContainer>
       </CardContent>
     </Card>
-  );
-};
+  )
+}
 
-export default MultipleBarChart;
+export default MultipleBarChart

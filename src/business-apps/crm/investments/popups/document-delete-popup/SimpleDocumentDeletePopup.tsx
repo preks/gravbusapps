@@ -1,25 +1,25 @@
-import React from 'react';
-import { BusinessAppContextProps } from '@/common/BusinessAppContext';
-import { DeleteConfirmPopup } from '@/common/components/common-relations/popups/delete-confirm-popup';
-import { FlowContextName } from '@/common/types/FlowRegistryTypes';
+import React from 'react'
+import { BusinessAppContextProps } from '@/common/BusinessAppContext'
+import { DeleteConfirmPopup } from '@/common/components/common-relations/popups/delete-confirm-popup'
+import { FlowContextName } from '@/common/types/FlowRegistryTypes'
 
 export interface SimpleDocumentDeletePopupProps extends BusinessAppContextProps {
-  isOpen: boolean;
-  onClose: () => void;
-  documentId: string;
-  documentVersion?: number;
-  documentName: string;
+  isOpen: boolean
+  onClose: () => void
+  documentId: string
+  documentVersion?: number
+  documentName: string
 
   // Entity scoping (at least one should be present)
-  opportunityId?: string;
-  accountId?: string;
-  contactId?: string;
-  leadId?: string;
+  opportunityId?: string
+  accountId?: string
+  contactId?: string
+  leadId?: string
 
-  onSuccess?: () => void;
-  onError?: (error: any) => void;
+  onSuccess?: () => void
+  onError?: (error: any) => void
 
-  'data-testid'?: string;
+  'data-testid'?: string
 }
 
 const SimpleDocumentDeletePopup: React.FC<SimpleDocumentDeletePopupProps> = ({
@@ -31,18 +31,18 @@ const SimpleDocumentDeletePopup: React.FC<SimpleDocumentDeletePopupProps> = ({
   accessToken,
   onSuccess,
   onError,
-  'data-testid': dataTestId = 'simple-document-delete-popup',
+  'data-testid': dataTestId = 'simple-document-delete-popup'
 }) => {
-  const flowContextName = FlowContextName.investmentDocumentDelete;
+  const flowContextName = FlowContextName.investmentDocumentDelete
 
   const externalContextData: Record<string, any> = {
     documentId,
     investmentDocumentId: documentId,
     investmentDocument: {
       id: documentId,
-      ...(typeof documentVersion === 'number' ? { version: documentVersion } : {}),
-    },
-  };
+      ...(typeof documentVersion === 'number' ? { version: documentVersion } : {})
+    }
+  }
 
   return (
     <DeleteConfirmPopup
@@ -57,8 +57,8 @@ const SimpleDocumentDeletePopup: React.FC<SimpleDocumentDeletePopupProps> = ({
       onFlowError={onError}
       data-testid={dataTestId}
     />
-  );
-};
+  )
+}
 
-export default SimpleDocumentDeletePopup;
-export { SimpleDocumentDeletePopup };
+export default SimpleDocumentDeletePopup
+export { SimpleDocumentDeletePopup }

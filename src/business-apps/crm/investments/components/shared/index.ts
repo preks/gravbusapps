@@ -1,1 +1,1 @@
-export { OwnerDisplay } from './OwnerDisplay';
+export { OwnerDisplay } from './OwnerDisplay'

@@ -45,7 +45,7 @@ export const DEFAULT_STAGE_TRANSITION_CONDITIONS: StageTransitionCondition[] = [
       }
     ]
   }
-];
+]
 ```
 
 ## Usage
@@ -53,19 +53,19 @@ export const DEFAULT_STAGE_TRANSITION_CONDITIONS: StageTransitionCondition[] = [
 ### Basic Stage Transition
 
 ```typescript
-import { useWorkflowStatus } from './hooks/useWorkflowStatus';
+import { useWorkflowStatus } from './hooks/useWorkflowStatus'
 
-const { 
-  checkStageTransitionConditions,
-  startStageTransitionWorkflows 
-} = useWorkflowStatus({ opportunityId, accessToken });
+const { checkStageTransitionConditions, startStageTransitionWorkflows } = useWorkflowStatus({
+  opportunityId,
+  accessToken
+})
 
 // Check if conditions exist
-const conditions = checkStageTransitionConditions('Discovery', 'Qualification');
+const conditions = checkStageTransitionConditions('Discovery', 'Qualification')
 
 if (conditions.length > 0) {
   // Start approval workflows
-  await startStageTransitionWorkflows(conditions, opportunityData);
+  await startStageTransitionWorkflows(conditions, opportunityData)
 }
 ```
 
@@ -142,4 +142,4 @@ The implementation includes comprehensive error handling and loading states. Tes
 - Admin interface for condition configuration
 - Email notifications for pending approvals
 - Workflow analytics and reporting
-- Integration with other business processes 
+- Integration with other business processes

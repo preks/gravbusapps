@@ -1,40 +1,48 @@
-import React from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@newwork/nw-design-system";
-import { DollarSign, TrendingUp, Target, Clock } from "lucide-react";
+import React from 'react'
+import { Card, CardContent, CardHeader, CardTitle } from '@newwork/nw-design-system'
+import { DollarSign, TrendingUp, Target, Clock } from 'lucide-react'
 interface EnhancedInvestmentLike {
-  type: string;
-  status: string;
-  rawData: { investment: { initialInvestmentAmount: number; bookValue: number } };
+  type: string
+  status: string
+  rawData: { investment: { initialInvestmentAmount: number; bookValue: number } }
 }
 
-interface RealEstateMetricsCardsProps { investments: EnhancedInvestmentLike[]; }
+interface RealEstateMetricsCardsProps {
+  investments: EnhancedInvestmentLike[]
+}
 
 /**
  * Component displaying key real estate metrics cards for the real estate tab
  */
 const RealEstateMetricsCards: React.FC<RealEstateMetricsCardsProps> = ({ investments }) => {
   // Filter real estate investments
-  const realEstateInvestments = investments.filter(inv => inv.type === 'Real Estate');
+  const realEstateInvestments = investments.filter(inv => inv.type === 'Real Estate')
 
   // Calculate metrics
-  const totalInvested = realEstateInvestments.reduce((sum, inv) => 
-    sum + inv.rawData.investment.initialInvestmentAmount, 0
-  );
-  
-  const totalBookValue = realEstateInvestments.reduce((sum, inv) => 
-    sum + inv.rawData.investment.bookValue, 0
-  );
+  const totalInvested = realEstateInvestments.reduce(
+    (sum, inv) => sum + inv.rawData.investment.initialInvestmentAmount,
+    0
+  )
 
-  const bookValueChange = totalBookValue - totalInvested;
-  const changePercent = totalInvested > 0 ? (bookValueChange / totalInvested) * 100 : 0;
+  const totalBookValue = realEstateInvestments.reduce((sum, inv) => sum + inv.rawData.investment.bookValue, 0)
 
-  const avgROI = realEstateInvestments.length > 0 ? 
-    realEstateInvestments.reduce((sum, inv) => {
-      const roi = ((inv.rawData.investment.bookValue - inv.rawData.investment.initialInvestmentAmount) / inv.rawData.investment.initialInvestmentAmount) * 100;
-      return sum + roi;
-    }, 0) / realEstateInvestments.length : 0;
+  const bookValueChange = totalBookValue - totalInvested
+  const changePercent = totalInvested > 0 ? (bookValueChange / totalInvested) * 100 : 0
 
-  const activeInvestments = realEstateInvestments.filter(inv => inv.status === 'active' || inv.status === 'Active').length;
+  const avgROI =
+    realEstateInvestments.length > 0
+      ? realEstateInvestments.reduce((sum, inv) => {
+          const roi =
+            ((inv.rawData.investment.bookValue - inv.rawData.investment.initialInvestmentAmount) /
+              inv.rawData.investment.initialInvestmentAmount) *
+            100
+          return sum + roi
+        }, 0) / realEstateInvestments.length
+      : 0
+
+  const activeInvestments = realEstateInvestments.filter(
+    inv => inv.status === 'active' || inv.status === 'Active'
+  ).length
 
   // Format currency
   const formatCurrency = (amount: number): string => {
@@ -43,8 +51,8 @@ const RealEstateMetricsCards: React.FC<RealEstateMetricsCardsProps> = ({ investm
       currency: 'EUR',
       minimumFractionDigits: 0,
       maximumFractionDigits: 0
-    }).format(amount);
-  };
+    }).format(amount)
+  }
 
   return (
     <div className="gba:grid gba:gap-4 gba:grid-cols-1 gba:md:grid-cols-4">
@@ -57,11 +65,12 @@ const RealEstateMetricsCards: React.FC<RealEstateMetricsCardsProps> = ({ investm
         <CardContent>
           <div className="gba:text-2xl gba:font-bold">{formatCurrency(totalInvested)}</div>
           <p className="gba:text-xs gba:text-muted-foreground">
-            {formatCurrency(bookValueChange)} ({changePercent >= 0 ? '+' : ''}{changePercent.toFixed(1)}%)
+            {formatCurrency(bookValueChange)} ({changePercent >= 0 ? '+' : ''}
+            {changePercent.toFixed(1)}%)
           </p>
         </CardContent>
       </Card>
-      
+
       {/* Book Value Card */}
       <Card>
         <CardHeader className="gba:flex gba:flex-row gba:items-center gba:justify-between gba:space-y-0 gba:pb-2">
@@ -71,11 +80,12 @@ const RealEstateMetricsCards: React.FC<RealEstateMetricsCardsProps> = ({ investm
         <CardContent>
           <div className="gba:text-2xl gba:font-bold">{formatCurrency(totalBookValue)}</div>
           <p className="gba:text-xs gba:text-muted-foreground">
-            {formatCurrency(bookValueChange)} ({changePercent >= 0 ? '+' : ''}{changePercent.toFixed(1)}%)
+            {formatCurrency(bookValueChange)} ({changePercent >= 0 ? '+' : ''}
+            {changePercent.toFixed(1)}%)
           </p>
         </CardContent>
       </Card>
-      
+
       {/* Avg. Expected ROI Card */}
       <Card>
         <CardHeader className="gba:flex gba:flex-row gba:items-center gba:justify-between gba:space-y-0 gba:pb-2">
@@ -89,7 +99,7 @@ const RealEstateMetricsCards: React.FC<RealEstateMetricsCardsProps> = ({ investm
           </p>
         </CardContent>
       </Card>
-      
+
       {/* Active Investments Card */}
       <Card>
         <CardHeader className="gba:flex gba:flex-row gba:items-center gba:justify-between gba:space-y-0 gba:pb-2">
@@ -98,13 +108,11 @@ const RealEstateMetricsCards: React.FC<RealEstateMetricsCardsProps> = ({ investm
         </CardHeader>
         <CardContent>
           <div className="gba:text-2xl gba:font-bold">{activeInvestments}</div>
-          <p className="gba:text-xs gba:text-muted-foreground">
-            of {realEstateInvestments.length} total
-          </p>
+          <p className="gba:text-xs gba:text-muted-foreground">of {realEstateInvestments.length} total</p>
         </CardContent>
       </Card>
     </div>
-  );
-};
+  )
+}
 
-export default RealEstateMetricsCards;
+export default RealEstateMetricsCards

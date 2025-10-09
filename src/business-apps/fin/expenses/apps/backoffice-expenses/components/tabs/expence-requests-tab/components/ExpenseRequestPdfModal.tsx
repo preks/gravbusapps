@@ -1,13 +1,13 @@
-import React from 'react';
-import { Modal } from 'antd';
-import { Alert, Spinner } from '@newwork/nw-design-system';
+import React from 'react'
+import { Modal } from 'antd'
+import { Alert, Spinner } from '@newwork/nw-design-system'
 
 interface ExpenseRequestPdfModalProps {
-  isVisible: boolean;
-  pdfUrl: string;
-  pdfLoading: boolean;
-  pdfError: string;
-  onClose: () => void;
+  isVisible: boolean
+  pdfUrl: string
+  pdfLoading: boolean
+  pdfError: string
+  onClose: () => void
 }
 
 const ExpenseRequestPdfModal: React.FC<ExpenseRequestPdfModalProps> = ({
@@ -52,7 +52,7 @@ const ExpenseRequestPdfModal: React.FC<ExpenseRequestPdfModalProps> = ({
         </div>
       )}
     </Modal>
-  );
-};
+  )
+}
 
-export default ExpenseRequestPdfModal; 
+export default ExpenseRequestPdfModal

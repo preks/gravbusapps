@@ -1,6 +1,6 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { FileText, Upload as UploadIcon, X } from 'lucide-react';
-import { 
+import React, { useState, useEffect, useRef } from 'react'
+import { FileText, Upload as UploadIcon, X } from 'lucide-react'
+import {
   FormField,
   FormItem,
   FormLabel,
@@ -17,162 +17,165 @@ import {
   Button,
   Badge,
   AiBadge
-} from '@newwork/nw-design-system';
-import { useForm } from 'react-hook-form';
-import { BusinessAppContextProps } from '@/common/BusinessAppContext';
-import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
-import { useGetInvestments } from '@/common/data/investment';
-import { useInvestmentFileUpload } from './hooks/useInvestmentFileUpload';
-import { AppActionForm } from '@/components/app-action-form';
-import type { InvestmentReportUploadFormProps, UploadFile } from './types';
+} from '@newwork/nw-design-system'
+import { useForm } from 'react-hook-form'
+import { BusinessAppContextProps } from '@/common/BusinessAppContext'
+import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
+import { useGetInvestments } from '@/common/data/investment'
+import { useInvestmentFileUpload } from './hooks/useInvestmentFileUpload'
+import { AppActionForm } from '@/components/app-action-form'
+import type { InvestmentReportUploadFormProps, UploadFile } from './types'
 
-const DEFAULT_ALLOWED_FILE_TYPES = ['.pdf', '.doc', '.docx', '.xls', '.xlsx', '.txt', '.jpg', '.jpeg', '.png'];
-const DEFAULT_MAX_FILES = 1;
+const DEFAULT_ALLOWED_FILE_TYPES = ['.pdf', '.doc', '.docx', '.xls', '.xlsx', '.txt', '.jpg', '.jpeg', '.png']
+const DEFAULT_MAX_FILES = 1
 
 export const InvestmentReportUploadForm: React.FC<BusinessAppContextProps & InvestmentReportUploadFormProps> = ({
   // Form behavior props
   onSuccess,
   onCancel,
-  
+
   // Investment context props
   investmentId,
   showInvestmentSelector = true,
-  
+
   // UI customization props
   title,
   description,
   maxFiles = DEFAULT_MAX_FILES,
   allowedFileTypes = DEFAULT_ALLOWED_FILE_TYPES,
-  
+
   // Business app context props
   accessToken,
   userInfo,
   additionalData
 }) => {
   // Extract investmentId from flow context data if not provided directly
-  const effectiveInvestmentId = investmentId || 
-    additionalData?.investmentId || 
+  const effectiveInvestmentId =
+    investmentId ||
+    additionalData?.investmentId ||
     additionalData?.externalContextData?.investmentId ||
-    additionalData?.context?.investmentId;
+    additionalData?.context?.investmentId
 
   // Determine if investment selector should be shown
   const isInvestmentFromExternalContext = !!(
     additionalData?.externalContextData?.investmentId ||
     additionalData?.context?.investmentId ||
     additionalData?.investmentId
-  );
-  
-  const effectiveShowInvestmentSelector = isInvestmentFromExternalContext 
-    ? false 
-    : showInvestmentSelector;
-    
+  )
 
-  const [fileList, setFileList] = useState<UploadFile[]>([]);
-  const [investments, setInvestments] = useState<any[]>([]);
-  const [loadingInvestments, setLoadingInvestments] = useState(false);
-  const [investmentsError, setInvestmentsError] = useState(false);
+  const effectiveShowInvestmentSelector = isInvestmentFromExternalContext ? false : showInvestmentSelector
+
+  const [fileList, setFileList] = useState<UploadFile[]>([])
+  const [investments, setInvestments] = useState<any[]>([])
+  const [loadingInvestments, setLoadingInvestments] = useState(false)
+  const [investmentsError, setInvestmentsError] = useState(false)
 
   // Form data structure
   const [formData] = useState({
     investmentId: effectiveInvestmentId || '',
     files: []
-  });
+  })
 
   const form = useForm({
     defaultValues: formData,
     mode: 'onChange'
-  });
+  })
 
   // File upload hook - modified to not trigger onSuccess automatically
-  const { uploadFiles, uploadProgress, error: uploadError } = useInvestmentFileUpload({
+  const {
+    uploadFiles,
+    uploadProgress,
+    error: uploadError
+  } = useInvestmentFileUpload({
     accessToken,
     onSuccess: () => {}, // Don't trigger success here, AppActionForm handles it
-    onError: (errorMsg) => {
-      console.error('Upload error:', errorMsg);
+    onError: errorMsg => {
+      console.error('Upload error:', errorMsg)
     }
-  });
+  })
 
   // Initialize investment hook with error boundary
-  let fetchInvestments: any = null;
+  let fetchInvestments: any = null
   try {
-    const investmentHook = useGetInvestments({ accessToken, userInfo, additionalData });
-    fetchInvestments = investmentHook.fetchInvestments;
+    const investmentHook = useGetInvestments({ accessToken, userInfo, additionalData })
+    fetchInvestments = investmentHook.fetchInvestments
   } catch (error) {
-    console.warn('Investment hook initialization failed, using fallback:', error);
+    console.warn('Investment hook initialization failed, using fallback:', error)
   }
 
   // Update form values when investmentId prop changes
   useEffect(() => {
     if (effectiveInvestmentId) {
-      form.setValue('investmentId', effectiveInvestmentId);
+      form.setValue('investmentId', effectiveInvestmentId)
     }
-  }, [effectiveInvestmentId, form]);
+  }, [effectiveInvestmentId, form])
 
   // Load investments when form is displayed
   useEffect(() => {
     const loadInvestments = async () => {
       if (!fetchInvestments) {
-        console.warn('fetchInvestments not available, skipping investment loading');
-        setInvestmentsError(true);
-        return;
+        console.warn('fetchInvestments not available, skipping investment loading')
+        setInvestmentsError(true)
+        return
       }
 
       try {
-        setLoadingInvestments(true);
-        setInvestmentsError(false);
-        
-        const result = await fetchInvestments({ limit: 100 });
-        const investmentList = result?.Investment || [];
-        
+        setLoadingInvestments(true)
+        setInvestmentsError(false)
+
+        const result = await fetchInvestments({ limit: 100 })
+        const investmentList = result?.Investment || []
+
         if (investmentList.length === 0) {
-          console.warn('No investments found');
-          setInvestmentsError(true);
+          console.warn('No investments found')
+          setInvestmentsError(true)
         } else {
-          setInvestments(investmentList);
+          setInvestments(investmentList)
         }
-        
       } catch (error) {
-        console.error('Failed to load investments:', error);
-        setInvestmentsError(true);
+        console.error('Failed to load investments:', error)
+        setInvestmentsError(true)
       } finally {
-        setLoadingInvestments(false);
+        setLoadingInvestments(false)
       }
-    };
+    }
 
     if (accessToken && fetchInvestments && (effectiveShowInvestmentSelector || effectiveInvestmentId)) {
-      loadInvestments();
+      loadInvestments()
     }
-  }, [effectiveShowInvestmentSelector, effectiveInvestmentId, accessToken, fetchInvestments]);
+  }, [effectiveShowInvestmentSelector, effectiveInvestmentId, accessToken, fetchInvestments])
 
   const validateFile = (file: File): boolean => {
-    const fileExtension = '.' + file.name.split('.').pop()?.toLowerCase();
+    const fileExtension = '.' + file.name.split('.').pop()?.toLowerCase()
     if (!allowedFileTypes.includes(fileExtension)) {
-      throw new Error(getTranslationFromI18nKeyAndLabel(
-        'investment.document.upload.error.fileType',
-        `File type ${fileExtension} is not allowed`
-      ));
+      throw new Error(
+        getTranslationFromI18nKeyAndLabel(
+          'investment.document.upload.error.fileType',
+          `File type ${fileExtension} is not allowed`
+        )
+      )
     }
-    return true;
-  };
+    return true
+  }
 
-  const fileInputRef = useRef<HTMLInputElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null)
 
   // Handle file selection from input
   const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const selectedFiles = Array.from(event.target.files || []);
-    handleFilesAdded(selectedFiles);
-  };
+    const selectedFiles = Array.from(event.target.files || [])
+    handleFilesAdded(selectedFiles)
+  }
 
   // Handle drag and drop
   const handleDrop = (event: React.DragEvent<HTMLDivElement>) => {
-    event.preventDefault();
-    const droppedFiles = Array.from(event.dataTransfer.files);
-    handleFilesAdded(droppedFiles);
-  };
+    event.preventDefault()
+    const droppedFiles = Array.from(event.dataTransfer.files)
+    handleFilesAdded(droppedFiles)
+  }
 
   const handleDragOver = (event: React.DragEvent<HTMLDivElement>) => {
-    event.preventDefault();
-  };
+    event.preventDefault()
+  }
 
   // Process and validate added files
   const handleFilesAdded = (newFiles: File[]) => {
@@ -182,69 +185,74 @@ export const InvestmentReportUploadForm: React.FC<BusinessAppContextProps & Inve
         name: file.name,
         status: 'done',
         originFileObj: file
-      };
-      
+      }
+
       // Validate file with proper error handling
       try {
-        validateFile(file);
-        return uploadFile;
+        validateFile(file)
+        return uploadFile
       } catch (error) {
         // Log the validation error for debugging
-        console.warn(`File validation failed for ${file.name}:`, error instanceof Error ? error.message : 'Unknown error');
-        return { 
-          ...uploadFile, 
+        console.warn(
+          `File validation failed for ${file.name}:`,
+          error instanceof Error ? error.message : 'Unknown error'
+        )
+        return {
+          ...uploadFile,
           status: 'error' as const,
           errorMessage: error instanceof Error ? error.message : 'File validation failed'
-        };
+        }
       }
-    });
+    })
 
-    setFileList(validFiles);
-  };
+    setFileList(validFiles)
+  }
 
   // Remove file from list
   const removeFile = (uid: string) => {
-    setFileList(prev => prev.filter(file => file.uid !== uid));
-  };
+    setFileList(prev => prev.filter(file => file.uid !== uid))
+  }
 
   // Open file picker
   const openFilePicker = () => {
-    fileInputRef.current?.click();
-  };
+    fileInputRef.current?.click()
+  }
 
   // Pre-submission handler: Upload single file and transform response
   const handlePreSubmit = async (formData: any): Promise<any> => {
-    
     // Extract files from UI state
-    const files = fileList.map(f => f.originFileObj).filter(Boolean) as File[];
-    
+    const files = fileList.map(f => f.originFileObj).filter(Boolean) as File[]
+
     if (!files.length) {
-      throw new Error(getTranslationFromI18nKeyAndLabel(
-        'investment.document.upload.error.noFile', 
-        'Please select a file'
-      ));
+      throw new Error(
+        getTranslationFromI18nKeyAndLabel('investment.document.upload.error.noFile', 'Please select a file')
+      )
     }
 
     if (files.length > 1) {
-      throw new Error(getTranslationFromI18nKeyAndLabel(
-        'investment.document.upload.error.tooManyFiles', 
-        'Please select only one file'
-      ));
+      throw new Error(
+        getTranslationFromI18nKeyAndLabel(
+          'investment.document.upload.error.tooManyFiles',
+          'Please select only one file'
+        )
+      )
     }
 
     if (!formData.investmentId) {
-      throw new Error(getTranslationFromI18nKeyAndLabel(
-        'investment.document.upload.error.investmentRequired', 
-        'Please select an investment'
-      ));
+      throw new Error(
+        getTranslationFromI18nKeyAndLabel(
+          'investment.document.upload.error.investmentRequired',
+          'Please select an investment'
+        )
+      )
     }
 
     // Upload single file using existing hook - now returns full responses
-    const uploadResults = await uploadFiles(files, formData.investmentId);
-    
+    const uploadResults = await uploadFiles(files, formData.investmentId)
+
     // Get the single upload result
-    const uploadResult: any = uploadResults[0];
-    
+    const uploadResult: any = uploadResults[0]
+
     // Transform upload result to investmentDocument format (single object, not array)
     const investmentDocument = {
       investment: formData.investmentId,
@@ -253,8 +261,7 @@ export const InvestmentReportUploadForm: React.FC<BusinessAppContextProps & Inve
       mimeType: uploadResult.fileInfo.fileMetadata.mimeType,
       folder: false,
       name: uploadResult.fileInfo.fileMetadata.originalFileName
-    };
-
+    }
 
     // Return enhanced data with single investment document
     return {
@@ -265,51 +272,46 @@ export const InvestmentReportUploadForm: React.FC<BusinessAppContextProps & Inve
         documentType: 'FUND_PERFORMANCE_REPORT',
         documentGroup: 'FINANCIAL'
       }
-    };
-  };
+    }
+  }
 
   // Standard submission handler: Just return the payload
   const handleSubmit = async (enhancedData: any) => {
-    
     // Return the payload structure with single investmentDocument object
     return {
       investmentDocument: enhancedData.investmentDocument
-    };
-  };
+    }
+  }
 
   const handleSuccess = (result: any) => {
-    
     if (onSuccess) {
       // Extract file ID for backward compatibility (single file)
       // The file field now contains the fileId directly as a string, not a JSON string
-      let fileId = null;
-      
+      let fileId = null
+
       if (result.investmentDocument?.file) {
         // Direct string assignment - no need to parse as JSON
-        fileId = result.investmentDocument.file;
+        fileId = result.investmentDocument.file
       } else if (result.investmentDocument?.fileInfo?.fileId) {
         // Fallback: try to get from fileInfo object
-        fileId = result.investmentDocument.fileInfo.fileId;
+        fileId = result.investmentDocument.fileInfo.fileId
       }
-      
+
       if (fileId) {
-        onSuccess([fileId]);
+        onSuccess([fileId])
       } else {
-        console.warn('Could not extract file ID for success callback');
-        onSuccess([]);
+        console.warn('Could not extract file ID for success callback')
+        onSuccess([])
       }
     }
-  };
+  }
 
-  const defaultTitle = getTranslationFromI18nKeyAndLabel(
-    'investment.document.upload.title', 
-    'Upload Investment Report'
-  );
-  
+  const defaultTitle = getTranslationFromI18nKeyAndLabel('investment.document.upload.title', 'Upload Investment Report')
+
   const defaultDescription = getTranslationFromI18nKeyAndLabel(
     'investment.document.upload.description',
     'Upload your investment report documents and let our AI analyze them automatically. Your documents will be securely stored and easily accessible for future reference.'
-  );
+  )
 
   // Error handling for missing access token
   if (!accessToken) {
@@ -317,65 +319,69 @@ export const InvestmentReportUploadForm: React.FC<BusinessAppContextProps & Inve
       <div className="gba:h-full gba:flex gba:flex-col gba:max-w-md gba:mx-auto gba:p-6">
         <div className="gba:h-full gba:flex gba:flex-col">
           <div className="gba:mb-6">
-            <h2 className="gba:text-xl gba:font-semibold gba:text-gray-900">{getTranslationFromI18nKeyAndLabel('common.error', 'Error')}</h2>
+            <h2 className="gba:text-xl gba:font-semibold gba:text-gray-900">
+              {getTranslationFromI18nKeyAndLabel('common.error', 'Error')}
+            </h2>
           </div>
           <div className="gba:flex-1">
             <Alert>
               <AlertDescription>
-                {getTranslationFromI18nKeyAndLabel('auth.accessTokenRequired', 'Authentication Required: Access token is required to upload documents.')}
+                {getTranslationFromI18nKeyAndLabel(
+                  'auth.accessTokenRequired',
+                  'Authentication Required: Access token is required to upload documents.'
+                )}
               </AlertDescription>
             </Alert>
           </div>
         </div>
       </div>
-    );
+    )
   }
 
   // Form validation
   const validateForm = (data: any): string[] | null => {
-    const errors = [];
-    
+    const errors = []
+
     if (!data.investmentId) {
-      errors.push(getTranslationFromI18nKeyAndLabel(
-        'investment.document.upload.error.investmentRequired', 
-        'Please select an investment'
-      ));
+      errors.push(
+        getTranslationFromI18nKeyAndLabel(
+          'investment.document.upload.error.investmentRequired',
+          'Please select an investment'
+        )
+      )
     }
-    
+
     if (fileList.length === 0) {
-      errors.push(getTranslationFromI18nKeyAndLabel(
-        'investment.document.upload.error.noFile', 
-        'Please select a file'
-      ));
+      errors.push(getTranslationFromI18nKeyAndLabel('investment.document.upload.error.noFile', 'Please select a file'))
     }
-    
+
     if (fileList.length > 1) {
-      errors.push(getTranslationFromI18nKeyAndLabel(
-        'investment.document.upload.error.tooManyFiles', 
-        'Please select only one file'
-      ));
+      errors.push(
+        getTranslationFromI18nKeyAndLabel(
+          'investment.document.upload.error.tooManyFiles',
+          'Please select only one file'
+        )
+      )
     }
-    
-    return errors.length > 0 ? errors : null;
-  };
+
+    return errors.length > 0 ? errors : null
+  }
 
   return (
     <div className="gba:h-full gba:flex gba:flex-col gba:max-w-md gba:mx-auto">
       {/* Form Title */}
       <div className="gba:mb-6">
         <h2 className="gba:text-xl gba:font-semibold gba:text-gray-900 gba:flex gba:items-center gba:gap-2">
-          <AiBadge 
-            label="AI" 
-            variant="aiGenerated" 
+          <AiBadge
+            label="AI"
+            variant="aiGenerated"
             size="lg"
             ariaLabel="AI-powered document analysis"
             data-testid="investment-report-upload-ai-badge"
           />
           {title || defaultTitle}
         </h2>
-        <p className="gba:text-sm gba:text-gray-600 gba:mt-2">
-          {description || defaultDescription}
-        </p>
+        <p className="gba:text-sm gba:text-gray-600 gba:mt-2">{description || defaultDescription}</p>
       </div>
 
       <AppActionForm
@@ -398,20 +404,30 @@ export const InvestmentReportUploadForm: React.FC<BusinessAppContextProps & Inve
             <FormField
               control={form.control}
               name="investmentId"
-              rules={{ 
-                required: getTranslationFromI18nKeyAndLabel('investment.document.upload.error.investmentRequired', 'Please select an investment') 
+              rules={{
+                required: getTranslationFromI18nKeyAndLabel(
+                  'investment.document.upload.error.investmentRequired',
+                  'Please select an investment'
+                )
               }}
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>{getTranslationFromI18nKeyAndLabel('investment.document.upload.investment', 'Investment')}</FormLabel>
+                  <FormLabel>
+                    {getTranslationFromI18nKeyAndLabel('investment.document.upload.investment', 'Investment')}
+                  </FormLabel>
                   <FormControl>
                     {!investmentsError && investments.length > 0 ? (
                       <Select onValueChange={field.onChange} value={field.value} disabled={loadingInvestments}>
                         <SelectTrigger data-testid="investment-select" className="gba:w-full">
-                          <SelectValue placeholder={getTranslationFromI18nKeyAndLabel('investment.document.upload.investment.placeholder', 'Select an investment')} />
+                          <SelectValue
+                            placeholder={getTranslationFromI18nKeyAndLabel(
+                              'investment.document.upload.investment.placeholder',
+                              'Select an investment'
+                            )}
+                          />
                         </SelectTrigger>
                         <SelectContent>
-                          {investments.map((investment) => (
+                          {investments.map(investment => (
                             <SelectItem key={investment.id} value={investment.id}>
                               {investment.name || investment.businessKey || investment.id}
                               {investment.businessKey && ` (${investment.businessKey})`}
@@ -423,7 +439,10 @@ export const InvestmentReportUploadForm: React.FC<BusinessAppContextProps & Inve
                       <div>
                         <Input
                           {...field}
-                          placeholder={getTranslationFromI18nKeyAndLabel('investment.document.upload.investment.placeholder.manual', 'Enter investment ID')}
+                          placeholder={getTranslationFromI18nKeyAndLabel(
+                            'investment.document.upload.investment.placeholder.manual',
+                            'Enter investment ID'
+                          )}
                           data-testid="investment-input"
                           className="gba:w-full"
                         />
@@ -448,20 +467,26 @@ export const InvestmentReportUploadForm: React.FC<BusinessAppContextProps & Inve
           {!effectiveShowInvestmentSelector && effectiveInvestmentId && (
             <div className="gba:space-y-2">
               <label className="gba:text-sm gba:font-medium gba:text-gray-700">
-                {getTranslationFromI18nKeyAndLabel('investment.document.upload.selectedInvestment', 'Selected Investment')}
+                {getTranslationFromI18nKeyAndLabel(
+                  'investment.document.upload.selectedInvestment',
+                  'Selected Investment'
+                )}
               </label>
               <div className="gba:p-3 gba:bg-gray-50 gba:border gba:border-gray-200 gba:rounded-md">
                 <div className="gba:flex gba:items-center gba:gap-2">
                   <div className="gba:h-2 gba:w-2 gba:bg-green-500 gba:rounded-full"></div>
-                  <span className="gba:text-sm gba:font-medium gba:text-gray-900" data-testid="selected-investment-display">
+                  <span
+                    className="gba:text-sm gba:font-medium gba:text-gray-900"
+                    data-testid="selected-investment-display"
+                  >
                     {(() => {
                       // Try to find the investment name from loaded investments
-                      const foundInvestment = investments.find(inv => inv.id === effectiveInvestmentId);
+                      const foundInvestment = investments.find(inv => inv.id === effectiveInvestmentId)
                       if (foundInvestment) {
-                        return `${foundInvestment.name || foundInvestment.businessKey || foundInvestment.id}${foundInvestment.businessKey ? ` (${foundInvestment.businessKey})` : ''}`;
+                        return `${foundInvestment.name || foundInvestment.businessKey || foundInvestment.id}${foundInvestment.businessKey ? ` (${foundInvestment.businessKey})` : ''}`
                       }
                       // Fallback to just showing the ID
-                      return `Investment ID: ${effectiveInvestmentId}`;
+                      return `Investment ID: ${effectiveInvestmentId}`
                     })()}
                   </span>
                 </div>
@@ -475,21 +500,21 @@ export const InvestmentReportUploadForm: React.FC<BusinessAppContextProps & Inve
               {getTranslationFromI18nKeyAndLabel('investment.document.upload.files', 'Document Files')}
             </label>
             {/* Custom File Upload Area */}
-            <div 
+            <div
               className="gba:border-2 gba:border-dashed gba:rounded-lg gba:p-8 gba:text-center gba:transition-colors gba:cursor-pointer"
               style={{
                 borderColor: 'var(--nw-color-border-default)',
-                backgroundColor: 'var(--nw-color-surface-secondary)',
+                backgroundColor: 'var(--nw-color-surface-secondary)'
               }}
               onDrop={handleDrop}
               onDragOver={handleDragOver}
               onClick={openFilePicker}
               data-testid="file-upload-dragger"
-              onMouseEnter={(e) => {
-                e.currentTarget.style.backgroundColor = 'var(--nw-color-surface-primary)';
+              onMouseEnter={e => {
+                e.currentTarget.style.backgroundColor = 'var(--nw-color-surface-primary)'
               }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.backgroundColor = 'var(--nw-color-surface-secondary)';
+              onMouseLeave={e => {
+                e.currentTarget.style.backgroundColor = 'var(--nw-color-surface-secondary)'
               }}
             >
               <div className="gba:flex gba:justify-center gba:mb-4">
@@ -526,20 +551,22 @@ export const InvestmentReportUploadForm: React.FC<BusinessAppContextProps & Inve
                 <label className="gba:text-sm gba:font-medium" style={{ color: 'var(--nw-color-text-primary)' }}>
                   {getTranslationFromI18nKeyAndLabel('investment.document.upload.selectedFiles', 'Selected Files')}
                 </label>
-                {fileList.map((file) => (
-                  <div 
-                    key={file.uid} 
+                {fileList.map(file => (
+                  <div
+                    key={file.uid}
                     className="gba:flex gba:items-center gba:justify-between gba:p-3 gba:rounded-md"
                     style={{
                       backgroundColor: 'var(--nw-color-surface-primary)',
-                      border: '1px solid var(--nw-color-border-default)',
+                      border: '1px solid var(--nw-color-border-default)'
                     }}
                     data-testid={`file-item-${file.uid}`}
                   >
                     <div className="gba:flex gba:flex-col gba:gap-1">
                       <div className="gba:flex gba:items-center gba:gap-2">
                         <FileText className="gba:h-4 gba:w-4" style={{ color: 'var(--nw-muted-foreground)' }} />
-                        <span className="gba:text-sm gba:font-medium" style={{ color: 'var(--nw-color-text-primary)' }}>{file.name}</span>
+                        <span className="gba:text-sm gba:font-medium" style={{ color: 'var(--nw-color-text-primary)' }}>
+                          {file.name}
+                        </span>
                         {file.status === 'error' && (
                           <Badge variant="destructive" className="gba:text-xs">
                             {getTranslationFromI18nKeyAndLabel('common.error', 'Error')}
@@ -555,9 +582,9 @@ export const InvestmentReportUploadForm: React.FC<BusinessAppContextProps & Inve
                     <Button
                       variant="ghost"
                       size="sm"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        removeFile(file.uid);
+                      onClick={e => {
+                        e.stopPropagation()
+                        removeFile(file.uid)
                       }}
                       className="gba:h-6 gba:w-6 gba:p-0"
                       data-testid={`remove-file-${file.uid}`}
@@ -575,10 +602,12 @@ export const InvestmentReportUploadForm: React.FC<BusinessAppContextProps & Inve
             <div className="gba:mb-4">
               <div className="gba:flex gba:justify-between gba:text-sm gba:text-gray-600 gba:mb-2">
                 <span>Uploading files...</span>
-                <span>{uploadProgress.current} / {uploadProgress.total}</span>
+                <span>
+                  {uploadProgress.current} / {uploadProgress.total}
+                </span>
               </div>
               <div className="gba:w-full gba:bg-gray-200 gba:rounded-full gba:h-2">
-                <div 
+                <div
                   className="gba:bg-blue-600 gba:h-2 gba:rounded-full gba:transition-all"
                   style={{ width: `${(uploadProgress.current / uploadProgress.total) * 100}%` }}
                 />
@@ -589,13 +618,11 @@ export const InvestmentReportUploadForm: React.FC<BusinessAppContextProps & Inve
           {/* Error Display */}
           {uploadError && (
             <Alert>
-              <AlertDescription>
-                {uploadError}
-              </AlertDescription>
+              <AlertDescription>{uploadError}</AlertDescription>
             </Alert>
           )}
         </div>
       </AppActionForm>
     </div>
-  );
-};
+  )
+}
