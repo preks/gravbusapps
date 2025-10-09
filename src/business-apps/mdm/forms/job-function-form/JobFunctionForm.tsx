@@ -1,6 +1,6 @@
 import React, { useMemo, useState } from 'react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
-import FormWrapperModal from '@/business-apps/mdm/apps/generic-components/form-wrapper/FormWrapperModal'
+import { FormWrapperModal } from '@/components/form-wrapper'
 import {
   Input,
   FormField,

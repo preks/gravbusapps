@@ -85,10 +85,10 @@ const CapabilitiesTab: React.FC<CapabilitiesTabProps> = context => {
 
   const { capabilities, layers, isLoading, error, refetch, totalCount, structureId } = useCapabilities(context)
 
-  const [searchTerm, setSearchTerm] = useState('');
-  const [selectedCapability, setSelectedCapability] = useState<Capability | null>(null);
-  const [drawerVisible, setDrawerVisible] = useState(false);
-  const [sorting, setSorting] = useState<SortingState>([]);
+  const [searchTerm, setSearchTerm] = useState('')
+  const [selectedCapability, setSelectedCapability] = useState<Capability | null>(null)
+  const [drawerVisible, setDrawerVisible] = useState(false)
+  const [sorting, setSorting] = useState<SortingState>([])
 
   const filteredCapabilities = capabilities.filter(
     capability =>

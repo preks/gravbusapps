@@ -1,6 +1,6 @@
 import React, { useMemo } from 'react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
-import FormWrapperModal from '../../apps/generic-components/form-wrapper/FormWrapperModal'
+import { FormWrapperModal } from '@/components/form-wrapper'
 import { Input, FormField, FormItem, FormLabel, FormControl, FormMessage, Textarea } from '@newwork/nw-design-system'
 import { formatDataTestId } from '@/common/utils/formatDataTestId'
 import { JobLevel } from '../../apps/job-structure-data'
