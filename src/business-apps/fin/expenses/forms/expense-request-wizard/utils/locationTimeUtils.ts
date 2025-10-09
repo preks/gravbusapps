@@ -107,8 +107,6 @@ export const validateAndSanitizeLocation = (location: LocationData, limits: Date
     // Only apply time constraints if the date matches the boundary date
     const shouldCheckMinTime = minDate && minTime && checkIfSameDay(departureDate, minDate);
     const shouldCheckMaxTime = maxDate && maxTime && checkIfSameDay(departureDate, maxDate);
-    console.log("shouldCheckMinTime", shouldCheckMinTime, shouldCheckMaxTime, departureDate, minDate, maxDate);
-
     // Normalize comparisons to time-of-day only (ignore embedded date on time objects)
     const toMinutesSinceMidnight = (t: Date): number => {
       const d = new Date(t);
