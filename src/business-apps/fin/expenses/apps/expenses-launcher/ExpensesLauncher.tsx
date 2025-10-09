@@ -64,25 +64,9 @@ const ExpensesLauncher: React.FC<ExpensesLauncherProps> = (context) => {
     context.accessToken || "",
   );
 
-  // Local permission debug log (always print once when ready)
-  useEffect(() => {
-    if (!permissionsLoading) {
-      // eslint-disable-next-line no-console
-      console.log("[ExpensesLauncher][permissions]", {
-        canViewPersonalExpenses: canViewPersonalExpenses(),
-        canViewTeamExpenses: canViewTeamExpenses(),
-        canApproveExpenses: canApproveExpenses(),
-        hasManagerPermissions: hasManagerPermissions(),
-        hasFinancePermissions: hasFinancePermissions(),
-        accessibleFeatures: getAccessibleFeatures(),
-        raw: getAllPermissions?.(),
-      });
-    }
-  }, [permissionsLoading]);
-
-  // Determine UI layout based on permissions (following HR pattern)
-  const showFinanceView = hasFinancePermissions();
+  const hasBothManagerAndFinance = hasManagerPermissions() && hasFinancePermissions();
   const showManagerView = hasManagerPermissions() && !hasFinancePermissions();
+  const showFinanceView = hasFinancePermissions() && !hasManagerPermissions();
   const showEmployeeView = !hasManagerPermissions() && !hasFinancePermissions();
 
   // Format currency localized with code placement per locale
@@ -201,7 +185,145 @@ const ExpensesLauncher: React.FC<ExpensesLauncherProps> = (context) => {
   const sections = useMemo((): LauncherSectionConfig[] => {
     const areas: ExpenseArea[] = [];
 
-    if (showFinanceView) {
+    if (hasBothManagerAndFinance) {
+      // Combined view: Manager cards first, then Finance-specific cards
+      // Order: Manager cards → Finance-specific cards
+      
+      // 1. Personal Expenses (Manager card - shared)
+      if (canViewPersonalExpenses()) {
+        areas.push({
+          id: "personal-expenses",
+          title: "Personal Expenses",
+          description: "Manage your own expense submissions and track spending",
+          icon: User,
+          category: "manager",
+          kpiType: "personal",
+          links: [
+            { label: "Expense Items", action: "personal-expense-items" },
+            { label: "Expense Plans", action: "personal-expense-plans" },
+            { label: "Advance Payments", action: "personal-advance-payments" },
+            { label: "Expense Requests", action: "personal-expense-requests" },
+          ],
+          buttonLabel: "Go to Personal Expenses",
+          buttonAction: "navigate-personal-expenses",
+        });
+      }
+
+      // 2. Team Expenses (Manager card)
+      if (canViewTeamExpenses()) {
+        areas.push({
+          id: "team-expenses",
+          title: "Team Expenses",
+          description: "Review and manage your team members expense submissions",
+          icon: Users,
+          category: "manager",
+          kpiType: "team",
+          links: [
+            { label: "Expense Plans", action: "team-expense-plans" },
+            { label: "Advance Payments", action: "team-advance-payments" },
+            { label: "Expense Requests", action: "team-expense-requests" },
+            { label: "Expense Calendar", action: "team-expense-calendar" },
+          ],
+          buttonLabel: "Go to Team Expenses",
+          buttonAction: "navigate-team-expenses",
+        });
+      }
+
+      // 3. Finance Settings (Manager card - shared)
+      areas.push({
+        id: "finance-settings",
+        title: "Finance Settings",
+        description: "Manage expense calculation rules, mileage policies, and travel regulations",
+        icon: Sliders,
+        category: "manager",
+        kpiType: "settings",
+        links: [
+          {
+            label: "Expense Calculation Rule Assignment",
+            action: "finance-expense-assignment-rule",
+          },
+          { label: "Mileage Rules", action: "finance-mileage-rules" },
+          {
+            label: "Travel Region Rules",
+            action: "finance-travel-region-rules",
+          },
+          {
+            label: "Expense Calculation Rules",
+            action: "finance-calculation-rules",
+          },
+        ],
+        buttonLabel: "Manage Settings",
+        buttonAction: "navigate-finance-settings",
+      });
+
+      // 4. Calendar (Manager card - shared)
+      areas.push({
+        id: "calendar-view",
+        title: "Calendar",
+        description: "View expenses, plans, and events in a calendar timeline",
+        icon: Calendar,
+        category: "reporting",
+        kpiType: "calendar",
+        buttonLabel: "View Calendar",
+        buttonAction: "navigate-calendar-view",
+      });
+
+      // 5. My Expense Analytics (Manager card - shared)
+      areas.push({
+        id: "my-expense-analytics",
+        title: "My Expense Analytics",
+        description: "Personal spending insights, trends, and budget analysis",
+        icon: ChartBar,
+        category: "manager",
+        kpiType: "analytics",
+        buttonLabel: "View My Analytics",
+        buttonAction: "navigate-personal-analytics",
+      });
+
+      // 6. Team Expense Analytics (Manager card)
+      if (canViewTeamExpenses() || canManageBudgets()) {
+        areas.push({
+          id: "team-expense-analytics",
+          title: "Team Expense Analytics",
+          description: "Team spending insights, budget tracking, and performance metrics",
+          icon: ChartPie,
+          category: "manager",
+          kpiType: "analytics",
+          buttonLabel: "View Team Analytics",
+          buttonAction: "navigate-team-analytics",
+        });
+      }
+
+      // === FINANCE-SPECIFIC CARDS (shown after Manager cards) ===
+
+      // 7. Expense Management (Finance-specific)
+      areas.push({
+        id: "expense-management",
+        title: "Expense Management",
+        description: "Comprehensive expense oversight and policy management",
+        icon: Gear,
+        category: "manager",
+        kpiType: "team",
+        links: [
+          { label: "Expense Requests", action: "finance-expense-requests" },
+          { label: "Advance Payments", action: "finance-advance-payments" },
+        ],
+        buttonLabel: "Go to Expense Management",
+        buttonAction: "navigate-finance-management",
+      });
+
+      // 8. Advanced Expense Analytics (Finance-specific)
+      areas.push({
+        id: "advanced-expense-analytics",
+        title: "Advanced Expense Analytics",
+        description: "Enterprise spending insights, budget tracking, and performance metrics",
+        icon: ChartLine,
+        category: "reporting",
+        kpiType: "analytics",
+        buttonLabel: "View Advanced Analytics",
+        buttonAction: "navigate-advanced-analytics",
+      });
+    } else if (showFinanceView) {
       // Finance view: specialized finance cards
       if (canViewPersonalExpenses()) {
         areas.push({
@@ -395,15 +517,15 @@ const ExpensesLauncher: React.FC<ExpensesLauncherProps> = (context) => {
         });
       }
     } else {
-      if (canViewPersonalExpenses()) {
-        areas.push({
-          id: "expense-items",
-          title: "Expense Items",
-          description: "Manage individual expense entries, receipts, and categorization",
-          icon: Receipt, // Now directly using PhosphorIcon components
-          category: "core",
-        });
-      }
+      // Employee View - always show all cards (remove permission gate for employee view)
+      // This ensures users with only personal-expenses access see a functional dashboard
+      areas.push({
+        id: "expense-items",
+        title: "Expense Items",
+        description: "Manage individual expense entries, receipts, and categorization",
+        icon: Receipt, // Now directly using PhosphorIcon components
+        category: "core",
+      });
 
       areas.push({
         id: "plans",
@@ -545,20 +667,25 @@ const ExpensesLauncher: React.FC<ExpensesLauncherProps> = (context) => {
     return [
       {
         id: "expense-modules",
-        title: showFinanceView
-          ? "Finance Dashboard"
-          : showManagerView
-            ? "Management Dashboard"
-            : "Expense Management",
-        description: showFinanceView
-          ? "Comprehensive expense oversight and policy management"
-          : showManagerView
-            ? "Personal and team expense management tools"
-            : "Essential expense functions for daily operations and financial management",
+        title: hasBothManagerAndFinance
+          ? "Complete Expense Dashboard"
+          : showFinanceView
+            ? "Finance Dashboard"
+            : showManagerView
+              ? "Management Dashboard"
+              : "Expense Management",
+        description: hasBothManagerAndFinance
+          ? "Full access to personal, team, and enterprise expense management"
+          : showFinanceView
+            ? "Comprehensive expense oversight and policy management"
+            : showManagerView
+              ? "Personal and team expense management tools"
+              : "Essential expense functions for daily operations and financial management",
         cards,
       },
     ];
   }, [
+    hasBothManagerAndFinance,
     showFinanceView,
     showManagerView,
     canViewPersonalExpenses,
@@ -764,21 +891,31 @@ const ExpensesLauncher: React.FC<ExpensesLauncherProps> = (context) => {
   }
 
   // Show error state if permission check failed
+  // BUT: If it's a 401 (unauthorized/expired token), continue with default Employee view
+  // instead of blocking the entire dashboard
   if (permissionsError) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-decorative-1">
-        <div className="max-w-md mx-auto p-6">
-          <Alert variant="destructive" className="bg-card/90 backdrop-blur-md">
-            <RemixIcons.RiErrorWarningLine className="h-4 w-4" />
-            <AlertTitle>Permission Check Failed</AlertTitle>
-            <AlertDescription>
-              Unable to determine your permissions. {permissionsError?.message || "Unknown error"}{" "}
-              Showing limited view.
-            </AlertDescription>
-          </Alert>
+    const is401Error = permissionsError?.message?.includes('401') || 
+                       permissionsError?.message?.includes('Unauthorized');
+    
+    if (is401Error) {
+      // Continue rendering with Employee view as fallback (don't block the dashboard)
+    } else {
+      // For other permission errors, show error message
+      return (
+        <div className="min-h-screen flex items-center justify-center bg-gradient-decorative-1">
+          <div className="max-w-md mx-auto p-6">
+            <Alert variant="destructive" className="bg-card/90 backdrop-blur-md">
+              <RemixIcons.RiErrorWarningLine className="h-4 w-4" />
+              <AlertTitle>Permission Check Failed</AlertTitle>
+              <AlertDescription>
+                Unable to determine your permissions. {permissionsError?.message || "Unknown error"}{" "}
+                Showing limited view.
+              </AlertDescription>
+            </Alert>
+          </div>
         </div>
-      </div>
-    );
+      );
+    }
   }
 
   // Show error state if stats loading failed
