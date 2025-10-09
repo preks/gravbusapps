@@ -44,7 +44,7 @@
     "@azure/storage-blob": "^12.27.0",
     "@dotenvx/dotenvx": "^1.46.0",
     "@eslint/js": "^9.25.0",
-    "@newwork/eslint-config": "^0.1.1",
+    "@newwork/eslint-config": "^0.1.2",
     "@newwork/prettier-config": "^0.1.0",
     "@originjs/vite-plugin-federation": "^1.4.1",
     "@tailwindcss/postcss": "^4.1.8",
