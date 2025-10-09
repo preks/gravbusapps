@@ -61,7 +61,7 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
                 {getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.this_month', 'This Month')}
               </SelectItem>
               <SelectItem value="everything">
-                {getTranslationFromI18nKeyAndLabel('filters.timePeriod.allTime', 'All Time')}
+                {getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.all_time', 'All Times')}
               </SelectItem>
             </SelectContent>
           </Select>
