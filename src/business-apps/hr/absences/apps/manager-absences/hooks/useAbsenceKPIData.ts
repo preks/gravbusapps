@@ -133,7 +133,7 @@ export const useAbsenceKPIData = (context: BusinessAppContextProps, _filters?: A
 
   const graphQLClient = useGraphQLClient(accessToken);
 
-  export const getMonthName = (date: string): string => {
+  const getMonthName = (date: string): string => {
     const monthIndex = new Date(date).getMonth();
     const monthKeys = [
       'lowcoder:absence_report.employee_table.january',
