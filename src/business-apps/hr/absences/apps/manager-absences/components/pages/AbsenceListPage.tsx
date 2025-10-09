@@ -250,7 +250,7 @@ export const AbsenceListPage: React.FC<AbsenceListPageProps> = (props) => {
         );
       case 'recent':
         return getTranslationFromI18nKeyAndLabel(
-          'lowcoder:absence_management_hub_manager.recent_requests_btn',
+          'lowcoder:absence_management_hub_manager.dashboard.recent_requests_btn',
           'Recent Requests',
         );
       case 'sick':

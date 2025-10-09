@@ -9,6 +9,22 @@ import { dispatchProcessContinueEvent } from '@/common/utils/processEventUtils';
 import { EVENTS } from '../../../utils/constants';
 
 /**
+ * Parse an ISO date-time string into a local date-only Date at midnight.
+ * Avoids timezone shifts that occur with new Date('YYYY-MM-DD').
+ */
+const parseDateOnlyLocal = (isoDateTime?: string): Date | undefined => {
+  if (!isoDateTime) return undefined;
+  try {
+    const datePart = isoDateTime.split('T')[0];
+    const [y, m, d] = datePart.split('-').map((v) => parseInt(v, 10));
+    if (!y || !m || !d) return undefined;
+    return new Date(y, m - 1, d, 0, 0, 0, 0); // local midnight
+  } catch {
+    return undefined;
+  }
+};
+
+/**
  * Prepares trip data for saving
  * @param startLocation - Start location data
  * @param destinations - Destinations data
@@ -537,7 +553,7 @@ export const setByExternalCustomComponent = (
       setStartLocation(prev => ({
         ...prev,
         location: startPoint.address || '',
-        departureDate: startPoint.tripDateTime ? new Date(startPoint.tripDateTime.split('T')[0]) : undefined,
+        departureDate: parseDateOnlyLocal(startPoint.tripDateTime),
         departureTime: startPoint.tripDateTime ? new Date(startPoint.tripDateTime) : undefined,
         travelRegionRef: startPoint.travelRegionRef || '',
         isAbroad
@@ -572,7 +588,7 @@ export const setByExternalCustomComponent = (
           id: `destination-${index}`,
           name: '',
           location: destination.address || '',
-          departureDate: destination.tripDateTime ? new Date(destination.tripDateTime.split('T')[0]) : undefined,
+          departureDate: parseDateOnlyLocal(destination.tripDateTime),
           departureTime: destination.tripDateTime ? new Date(destination.tripDateTime) : undefined,
           isCollapsed: false,
           travelRegionRef: destination.travelRegionRef || '',
@@ -590,7 +606,7 @@ export const setByExternalCustomComponent = (
       setEndLocation(prev => ({
         ...prev,
         location: endPoint.address || '',
-        departureDate: endPoint.tripDateTime ? new Date(endPoint.tripDateTime.split('T')[0]) : undefined,
+        departureDate: parseDateOnlyLocal(endPoint.tripDateTime),
         departureTime: endPoint.tripDateTime ? new Date(endPoint.tripDateTime) : undefined,
         travelRegionRef: endPoint.travelRegionRef || '',
         isAbroad
