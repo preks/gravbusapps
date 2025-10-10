@@ -137,31 +137,18 @@ export const DataContainer = <T extends DataControllerProps = DataControllerProp
     onDetailsPanelClose()
   }, [dataDetails, onDetailsPanelClose])
 
-  // Measure the main content (controller + body) to cap the filter height
+  // Reference for main content container
   const mainContentRef = React.useRef<HTMLDivElement>(null)
-  const [mainContentHeight, setMainContentHeight] = React.useState<number>(0)
-  React.useEffect(() => {
-    const el = mainContentRef.current
-    if (!el || typeof ResizeObserver === 'undefined') return
-    const ro = new ResizeObserver(entries => {
-      for (const entry of entries) {
-        setMainContentHeight(entry.contentRect.height)
-      }
-    })
-    ro.observe(el)
-    return () => ro.disconnect()
-  }, [])
 
   return (
     <div
       className={cn('gba:flex gba:flex-row gba:h-full gba:w-full gba:relative gba:min-w-0', className)}
       data-testid="data-container"
     >
-      {/* Filter Sidebar - left column, visible if open; capped to main content height */}
+      {/* Filter Sidebar - left column, visible if open */}
       {showDataFilter && (
         <div
           className="gba:flex gba:flex-col gba:w-[336px] gba:border-r gba:border-gray-100 gba:bg-white gba:z-0"
-          style={{ maxHeight: mainContentHeight ? `${mainContentHeight}px` : undefined, overflowY: 'auto' }}
           data-testid="data-container-filter-sidebar"
         >
           <DataFilter show={showDataFilter} onClose={handleCloseDataFilter} {...dataFilterProps} />
@@ -207,7 +194,8 @@ export const DataContainer = <T extends DataControllerProps = DataControllerProp
 
         {/* Details Sidebar - right column or floating, only if present */}
         {dataDetails && (
-          <div
+          <aside
+            aria-label="Details panel"
             className={cn(
               !floatingDetails
                 ? 'gba:flex gba:flex-col gba:w-[336px] gba:h-full gba:border-l gba:border-gray-100 gba:bg-white gba:z-0'
@@ -216,7 +204,6 @@ export const DataContainer = <T extends DataControllerProps = DataControllerProp
                 ? 'gba:fixed gba:top-12 gba:right-0 gba:bottom-0 gba:w-[400px] gba:bg-white gba:border-l gba:border-gray-200 gba:z-20 gba:flex gba:flex-col gba:!shadow-lg'
                 : ''
             )}
-            onClick={e => e.stopPropagation()}
             data-testid={floatingDetails ? 'data-container-details-floating' : 'data-container-details-sidebar'}
           >
             <DataDetails
@@ -227,7 +214,7 @@ export const DataContainer = <T extends DataControllerProps = DataControllerProp
             >
               {dataDetails.content}
             </DataDetails>
-          </div>
+          </aside>
         )}
       </div>
     </div>

@@ -7,9 +7,7 @@ import {
   IconAvatar,
   ChartContainer,
   ChartTooltip,
-  ChartTooltipContent,
-  ChartLegend,
-  ChartLegendContent
+  ChartTooltipContent
 } from '@newwork/nw-design-system'
 import { BarChart, Bar, XAxis, YAxis } from 'recharts'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
@@ -100,7 +98,6 @@ const ExpenseTrendsChart: React.FC<ExpenseTrendsChartProps> = ({
               data-testid="expense-trends-chart-y-axis"
             />
             <ChartTooltip content={<ChartTooltipContent labelKey="month" />} />
-            <ChartLegend content={<ChartLegendContent />} />
             <Bar
               dataKey="amount"
               name="amount"
@@ -111,6 +108,12 @@ const ExpenseTrendsChart: React.FC<ExpenseTrendsChartProps> = ({
             />
           </BarChart>
         </ChartContainer>
+        <div className="gba:mt-2 gba:text-sm gba:text-muted-foreground" data-testid="expense-trends-bucketing-note">
+          {getTranslationFromI18nKeyAndLabel(
+            'lowcoder:team_expenses_page.dashboard_tab.bucketing_note',
+            'Note: Trip items are attributed to the month of the trip start date; expenses-type items use their own expense date.'
+          )}
+        </div>
       </CardContent>
     </Card>
   )

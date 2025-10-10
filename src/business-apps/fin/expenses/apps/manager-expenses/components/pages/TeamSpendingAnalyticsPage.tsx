@@ -1,6 +1,6 @@
 import React, { useMemo, useState, useEffect } from 'react'
 import { useCurrencyStore } from '../../store/useCurrencyStore'
-import { standardizeCurrencyRef } from '../../hooks/useCurrencyData'
+import { standardizeCurrencyRef } from '../../utils/currencyUtils'
 import {
   Card,
   CardContent,
@@ -26,7 +26,7 @@ import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { useTeamSpendingAnalytics, DateRangeOption } from '../../hooks/useTeamSpendingAnalytics'
 import { LineChartComponent, PieChartComponent, BarChartComponent } from '../modals/charts'
 import StatusLegend from '../StatusLegend'
-import { getTranslationFromI18nKeyAndLabel, getCurrentActiveUserLocale } from '@/common/utils/windowUtils'
+import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 // removed unused formatCurrencyDisplay
 import {
   getExpenseRequestStatusDisplay,
@@ -35,6 +35,7 @@ import {
 } from '../../utils'
 import { WidgetGroup, WidgetItem } from '@/components/widget-group'
 import CurrencyFilter from '../../components/currency-filter'
+import { useManagerExpensesOverview } from '../../hooks/useManagerExpensesOverview'
 
 interface TeamSpendingAnalyticsPageProps extends BusinessAppContextProps {
   onNavigateBack: () => void
@@ -94,8 +95,8 @@ const TeamSpendingAnalyticsPage: React.FC<TeamSpendingAnalyticsPageProps> = ({
   const { primaryCurrency } = useCurrencyStore()
   const [activeTab, setActiveTab] = React.useState<string>('expense-items')
 
-  // Initialize currency filter with null, will be set after data is loaded
-  const [currencyFilter, setCurrencyFilter] = useState<string | null>(null)
+  // Initialize currency to primaryCurrency - will be updated once data loads
+  const [currencyFilter, setCurrencyFilter] = useState<string | null>(primaryCurrency || null)
 
   // Create a standardized currency reference for GraphQL queries
   const standardizedCurrencyRef = useMemo(() => {
@@ -124,20 +125,44 @@ const TeamSpendingAnalyticsPage: React.FC<TeamSpendingAnalyticsPageProps> = ({
     standardizedCurrencyRef // Use standardized currency reference instead of raw currencyFilter
   )
 
+  // Consolidated overview (runs alongside analytics to avoid breaking charts)
+  const overview = useManagerExpensesOverview(
+    { accessToken, userInfo },
+    {
+      managerId: userInfo?.employeeDetails?.employeeId || '',
+      currencyRef: standardizedCurrencyRef || undefined,
+      searchTerm: undefined
+    }
+  )
+
+  // Prefer overview currencies when available, otherwise fallback to analytics-derived ones
+  const currenciesFromOverview = React.useMemo(() => {
+    const refs = overview.data?.distinctCurrencies || []
+    return refs.map(r => (r?.includes(':') ? r.split(':').pop() || r : r))
+  }, [overview.data?.distinctCurrencies])
+
+  const mergedCurrencies = React.useMemo(() => {
+    // availableCurrencies is already sorted by usage (most used first)
+    // Just merge and deduplicate, preserving the usage-based order from availableCurrencies
+    const merged = [...availableCurrencies]
+    for (const curr of currenciesFromOverview) {
+      if (curr && !merged.includes(curr)) {
+        merged.push(curr)
+      }
+    }
+    return merged.filter(Boolean)
+  }, [currenciesFromOverview, availableCurrencies])
+
   // Use the expense group catalog hook to get category names
   // catalog names are resolved in hook; no need to load here
 
-  // Set the default currency when analytics data is loaded
+  // If primary currency is not in list, fall back once when options load (no refetch churn)
   useEffect(() => {
     if (!currencyFilter && availableCurrencies.length > 0 && !isLoading) {
-      // Use the first available currency (they're sorted alphabetically)
-      // or fall back to primaryCurrency if it exists in the list
-      const defaultCurrency = availableCurrencies.includes(primaryCurrency || '')
-        ? primaryCurrency
-        : availableCurrencies[0]
-      setCurrencyFilter(defaultCurrency || null)
+      const fallback = availableCurrencies[0]
+      setCurrencyFilter(fallback || null)
     }
-  }, [availableCurrencies, currencyFilter, isLoading, primaryCurrency])
+  }, [availableCurrencies, currencyFilter, isLoading])
 
   // Transform expense items by category data to use actual category names
   const expenseItemsByCategoryWithNames = useMemo(() => {
@@ -151,22 +176,19 @@ const TeamSpendingAnalyticsPage: React.FC<TeamSpendingAnalyticsPageProps> = ({
     setDateRange(value as DateRangeOption)
   }
 
-  // Create widgets for summary statistics (force two decimals in KPI formatting)
-  const kpiCurrencyCode = currencyFilter || primaryCurrency || 'EUR'
+  // Create widgets for summary statistics (use Intl currency formatting per guidelines)
+  const kpiCurrencyCode = (currencyFilter || primaryCurrency || 'EUR').split(':').pop() || 'EUR'
   const formatKpiAmount = (amount: number | null | undefined): string => {
     const safe = typeof amount === 'number' ? amount : 0
-    const userLocale = getCurrentActiveUserLocale()
-    const formatted = new Intl.NumberFormat(userLocale, {
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 2
+    // Show 2 decimals if they're not .00, otherwise show 0 decimals
+    const hasDecimals = safe % 1 !== 0
+    return new Intl.NumberFormat('en-US', {
+      style: 'currency',
+      currency: kpiCurrencyCode,
+      currencyDisplay: 'code', // Display currency code (EUR) instead of symbol (€)
+      minimumFractionDigits: hasDecimals ? 2 : 0,
+      maximumFractionDigits: hasDecimals ? 2 : 0
     }).format(safe)
-    const lang = userLocale.split('-')[0].toLowerCase()
-
-    // Avoid nested template literals: construct string parts separately
-    if (lang === 'en') {
-      return kpiCurrencyCode + ' ' + formatted
-    }
-    return formatted + ' ' + kpiCurrencyCode
   }
 
   // Create widgets for summary statistics
@@ -868,9 +890,9 @@ const TeamSpendingAnalyticsPage: React.FC<TeamSpendingAnalyticsPageProps> = ({
             </div>
             <div className="gba:flex gba:items-center gba:space-x-3 gba:py-1">
               <RadioGroupItem
-                value={DateRangeOption.YEAR_TO_DATE}
+                value={DateRangeOption.CURRENT_YEAR}
                 id="current-year"
-                data-testid="team-analytics-date-range-year-to-date"
+                data-testid="team-analytics-date-range-current-year"
               />
               <Label htmlFor="current-year" className="gba:text-sm gba:leading-relaxed gba:cursor-pointer">
                 {getTranslationFromI18nKeyAndLabel(
@@ -951,13 +973,13 @@ const TeamSpendingAnalyticsPage: React.FC<TeamSpendingAnalyticsPageProps> = ({
             data-testid="team-analytics-currency-filter"
             value={currencyFilter}
             onChange={setCurrencyFilter}
-            currencies={availableCurrencies}
+            currencies={mergedCurrencies}
             showAllOption={false}
             placeholder={getTranslationFromI18nKeyAndLabel(
               'lowcoder:expense_calculation_rule.expense_calculation_rule_modal.currency_placeholder',
               'Select Currency'
             )}
-            isLoading={isLoading}
+            isLoading={isLoading || overview.isLoading}
           />
         </div>
 
@@ -1074,6 +1096,12 @@ const TeamSpendingAnalyticsPage: React.FC<TeamSpendingAnalyticsPageProps> = ({
               )}
               data-testid="team-spending-analytics-statistics"
             />
+            <div className="gba:mt-2 gba:text-sm gba:text-muted-foreground" data-testid="team-analytics-bucketing-note">
+              {getTranslationFromI18nKeyAndLabel(
+                'lowcoder:team_expenses_page.dashboard_tab.bucketing_note',
+                'Note: Trip items are attributed to the month of the trip start date; expenses-type items use their own expense date.'
+              )}
+            </div>
 
             {/* Tabs */}
             {error ? (

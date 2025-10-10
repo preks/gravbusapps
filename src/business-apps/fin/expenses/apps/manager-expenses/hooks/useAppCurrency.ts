@@ -69,6 +69,62 @@ interface CurrencyResponse {
   }[]
 }
 
+// Helper: Extract currency refs from a single collection
+const extractRefsFromCollection = (collection: Array<{ currencyRef?: string }> | undefined, refs: string[]) => {
+  if (!collection) return
+
+  for (const item of collection) {
+    if (item.currencyRef) {
+      refs.push(item.currencyRef)
+    }
+  }
+}
+
+// Helper: Extract currency references from response data
+const extractCurrencyRefsFromData = (data: CurrencyResponse): string[] => {
+  const allCurrencyRefs: string[] = []
+
+  extractRefsFromCollection(data.advancePaymentCurrencies, allCurrencyRefs)
+  extractRefsFromCollection(data.expenseRequestCurrencies, allCurrencyRefs)
+  extractRefsFromCollection(data.expensePlanCurrencies, allCurrencyRefs)
+
+  return allCurrencyRefs
+}
+
+// Helper: Count currency occurrences and return sorted by frequency
+const countAndSortCurrencies = (currencyRefs: string[]): CurrencyCount[] => {
+  const currencyMap = new Map<string, number>()
+
+  for (const ref of currencyRefs) {
+    const extractedCode = extractCurrencyCode(ref)
+    if (extractedCode) {
+      currencyMap.set(extractedCode, (currencyMap.get(extractedCode) || 0) + 1)
+    }
+  }
+
+  const currencyCounts: CurrencyCount[] = Array.from(currencyMap.entries()).map(([currencyRef, count]) => ({
+    currencyRef,
+    count
+  }))
+
+  currencyCounts.sort((a, b) => b.count - a.count)
+  return currencyCounts
+}
+
+// Helper: Update store with most used currency
+const updateCurrencyStore = (
+  mostUsedCurrency: string,
+  isUserSelected: boolean,
+  setMostUsedCurrency: (currency: string) => void,
+  setPrimaryCurrency: (currency: string) => void
+) => {
+  setMostUsedCurrency(mostUsedCurrency)
+
+  if (!isUserSelected) {
+    setPrimaryCurrency(mostUsedCurrency)
+  }
+}
+
 /**
  * Hook to fetch and manage the most used currency across the manager-expenses app
  */
@@ -92,7 +148,6 @@ export const useAppCurrency = ({ accessToken, userInfo }: BusinessAppContextProp
       return
     }
 
-    // Set loading state
     setLoading(true)
 
     try {
@@ -116,71 +171,14 @@ export const useAppCurrency = ({ accessToken, userInfo }: BusinessAppContextProp
       }
 
       const data = result.data as CurrencyResponse
-
-      // Extract all currency references and count occurrences
-      const allCurrencyRefs: string[] = []
-
-      // Process advance payment currencies
-      if (data.advancePaymentCurrencies) {
-        data.advancePaymentCurrencies.forEach(item => {
-          if (item.currencyRef) {
-            allCurrencyRefs.push(item.currencyRef)
-          }
-        })
-      }
-
-      // Process expense request currencies
-      if (data.expenseRequestCurrencies) {
-        data.expenseRequestCurrencies.forEach(item => {
-          if (item.currencyRef) {
-            allCurrencyRefs.push(item.currencyRef)
-          }
-        })
-      }
-
-      // Process expense plan currencies
-      if (data.expensePlanCurrencies) {
-        data.expensePlanCurrencies.forEach(item => {
-          if (item.currencyRef) {
-            allCurrencyRefs.push(item.currencyRef)
-          }
-        })
-      }
-
-      // Count occurrences of each currency
-      const currencyMap = new Map<string, number>()
-      allCurrencyRefs.forEach(ref => {
-        const extractedCode = extractCurrencyCode(ref)
-        if (extractedCode) {
-          currencyMap.set(extractedCode, (currencyMap.get(extractedCode) || 0) + 1)
-        }
-      })
-
-      // Convert to array of CurrencyCount objects
-      const currencyCounts: CurrencyCount[] = Array.from(currencyMap.entries()).map(([currencyRef, count]) => ({
-        currencyRef,
-        count
-      }))
-
-      // Sort by count in descending order
-      currencyCounts.sort((a, b) => b.count - a.count)
-
-      // Use the most frequent currency or default to EUR
+      const allCurrencyRefs = extractCurrencyRefsFromData(data)
+      const currencyCounts = countAndSortCurrencies(allCurrencyRefs)
       const mostUsedCurrency = currencyCounts.length > 0 ? currencyCounts[0].currencyRef : 'EUR'
 
-      // Update both the most used currency and primary currency in the store
-      setMostUsedCurrency(mostUsedCurrency)
-
-      // Only set primary currency if user hasn't made a selection
-      if (!isUserSelected) {
-        setPrimaryCurrency(mostUsedCurrency)
-      }
-
-      // Mark as no longer loading
+      updateCurrencyStore(mostUsedCurrency, isUserSelected, setMostUsedCurrency, setPrimaryCurrency)
       setLoading(false)
     } catch (err) {
       console.error('Error fetching most used currency:', err)
-      // Keep the default currency in case of error
       setLoading(false)
     }
   }, [accessToken, managerId, isInitialized, isUserSelected, setPrimaryCurrency, setMostUsedCurrency, setLoading])

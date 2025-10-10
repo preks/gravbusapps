@@ -1,12 +1,8 @@
-import React, { useMemo, useState, useEffect, useCallback } from 'react'
+import React, { useMemo } from 'react'
 import { Typography, Spin, Alert } from 'antd'
 import { CalendarTimeline } from '@newwork/gravity-ui-catalog'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
-import { useCalendarExpensePlans, ExpensePlan } from '../../../hooks/useCalendarExpensePlans'
-import { useGetExpenseRequests, ExpenseRequest } from '../../../hooks/useGetExpenseRequests'
-import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
-import { GET_ALL_TEAM_EMPLOYEES } from '../../../queries/expenseDashboard'
-import { getCurrentActiveStructureId } from '@/common/utils/windowUtils'
+import { useManagerExpensesOverview } from '../../../hooks/useManagerExpensesOverview'
 import { ExpenseStatus, getExpensePlanStatusDisplay, getExpenseRequestStatusDisplay } from '../../../utils'
 import { getTranslationFromI18nKeyAndLabel, getCurrentActiveUserLocale } from '@/common/utils/windowUtils'
 
@@ -44,88 +40,27 @@ interface ExpenseTimelineEvent {
   eventType: 'Plan' | 'Request'
 }
 
-export interface ExpenseCalendarProps extends BusinessAppContextProps {
-  moduleColor?: string
-}
+export interface ExpenseCalendarProps extends BusinessAppContextProps {}
 
 export const ExpenseCalendar: React.FC<ExpenseCalendarProps> = props => {
-  const { accessToken, userInfo } = props
-
+  const { userInfo } = props
   const userLocale = getCurrentActiveUserLocale()
-  const graphQLClient = useGraphQLClient(accessToken)
 
-  // State for team employees
-  const [allTeamEmployees, setAllTeamEmployees] = useState<TeamEmployee[]>([])
-  const [isLoadingEmployees, setIsLoadingEmployees] = useState<boolean>(false)
-  const [employeesError, setEmployeesError] = useState<string | null>(null)
+  const managerId = userInfo?.employeeDetails?.employeeId || userInfo?.id || ''
 
-  const {
-    plans: expensePlans,
-    loading: isLoadingPlans,
-    error: plansError
-  } = useCalendarExpensePlans({
-    accessToken,
-    userInfo,
-    pageSize: 1000
+  // Use consolidated overview to load plans/requests once (high limit for calendar)
+  // Note: currencyRef is intentionally undefined to show all expenses regardless of currency
+  const overview = useManagerExpensesOverview(props, {
+    managerId,
+    currencyRef: undefined,
+    searchTerm: undefined,
+    requests: { limit: 1000, offset: 0 },
+    plans: { limit: 1000, offset: 0 },
+    payments: { limit: 0, offset: 0 }
   })
 
-  const {
-    requests: expenseRequests,
-    isLoading: isLoadingRequests,
-    error: requestsError
-  } = useGetExpenseRequests({
-    accessToken,
-    userInfo
-  })
-
-  // Fetch team employees
-  const fetchTeamEmployees = useCallback(async () => {
-    if (!accessToken || !userInfo?.employeeDetails?.employeeId) {
-      setEmployeesError('Access token or manager ID not found')
-      setAllTeamEmployees([])
-      setIsLoadingEmployees(false)
-      return
-    }
-
-    setIsLoadingEmployees(true)
-    setEmployeesError(null)
-
-    try {
-      const managerId = userInfo.employeeDetails.employeeId
-      const structureId = getCurrentActiveStructureId()
-
-      const result = await graphQLClient.request(GET_ALL_TEAM_EMPLOYEES, {
-        managerId,
-        activeStructure: structureId
-      })
-
-      const teamEmployees = result?.Employee || []
-
-      // Transform the data to ensure consistent naming
-      const transformedEmployees = teamEmployees.map((emp: any) => ({
-        id: emp.id,
-        userId: emp.userId,
-        firstName: emp.firstName,
-        lastName: emp.lastName,
-        fullName: emp.fullName || `${emp.firstName} ${emp.lastName}`,
-        displayName: emp.displayName || `${emp.firstName} ${emp.lastName}`,
-        employeePosition: emp.employeePosition
-      }))
-
-      setAllTeamEmployees(transformedEmployees)
-    } catch (err) {
-      setEmployeesError(err instanceof Error ? err.message : 'Failed to fetch team employees')
-      setAllTeamEmployees([])
-    } finally {
-      setIsLoadingEmployees(false)
-    }
-  }, [accessToken, userInfo?.employeeDetails?.employeeId, graphQLClient])
-
-  useEffect(() => {
-    if (accessToken && userInfo?.employeeDetails?.employeeId) {
-      fetchTeamEmployees()
-    }
-  }, [fetchTeamEmployees])
+  const expensePlans = overview.data?.expensePlans || []
+  const expenseRequests = overview.data?.expenseRequests || []
 
   const mapToCalendarTimelineType = (type: string): string => {
     switch (type) {
@@ -147,67 +82,53 @@ export const ExpenseCalendar: React.FC<ExpenseCalendarProps> = props => {
   const getColorForType = (type: string): string => {
     switch (type) {
       case 'draft':
-        return '#797d82'
+        return 'var(--nw-color-neutral-500)'
       case 'waiting':
-        return '#0094D1'
+        return 'var(--nw-color-info-500)'
       case 'task':
-        return '#FF9E02'
+        return 'var(--nw-color-warning-500)'
       case 'completed':
-        return '#0DBC7B'
+        return 'var(--nw-color-success-500)'
       case 'error':
-        return '#DE1D49'
+        return 'var(--nw-color-destructive-500)'
       default:
-        return '#797d82'
+        return 'var(--nw-color-neutral-500)'
     }
   }
 
   const timelineItems = useMemo((): ExpenseTimelineItem[] => {
-    // Start with all team employees as the base
     const employeesMap = new Map<string, ExpenseTimelineItem>()
 
-    // Add all team employees first (even those without expenses)
-    allTeamEmployees?.forEach((employee: TeamEmployee) => {
-      if (employee.id && !employeesMap.has(employee.id)) {
-        employeesMap.set(employee.id, {
-          id: employee.id,
-          name: employee.fullName ?? employee.displayName ?? 'Unknown Employee',
-          detail: employee.employeePosition?.organizationalUnit?.name ?? ''
+    // Build unique employees from plans and requests (only those with expenses)
+    for (const item of expensePlans || []) {
+      const emp = item.employee
+      if (emp?.id && !employeesMap.has(emp.id)) {
+        employeesMap.set(emp.id, {
+          id: emp.id,
+          name: emp.fullName ?? emp.displayName ?? 'Unknown Employee',
+          detail: emp.employeePosition?.organizationalUnit?.name ?? ''
         })
       }
-    })
+    }
 
-    // Then add any employees from expense plans that might not be in the team list
-    expensePlans?.forEach((item: ExpensePlan) => {
-      if (item.employee && item.employee.id && !employeesMap.has(item.employee.id)) {
-        employeesMap.set(item.employee.id, {
-          id: item.employee.id,
-          name: item.employee.fullName ?? item.employee.displayName ?? 'Unknown Employee',
-          detail: item.employee.employeePosition?.organizationalUnit?.name ?? ''
+    for (const item of expenseRequests || []) {
+      const emp = item.employee
+      if (emp?.id && !employeesMap.has(emp.id)) {
+        employeesMap.set(emp.id, {
+          id: emp.id,
+          name: emp.fullName ?? emp.displayName ?? 'Unknown Employee',
+          detail: emp.employeePosition?.organizationalUnit?.name ?? ''
         })
       }
-    })
-
-    // Then add any employees from expense requests that might not be in the team list
-    expenseRequests?.forEach((item: ExpenseRequest) => {
-      if (item.employee && item.employee.id && !employeesMap.has(item.employee.id)) {
-        employeesMap.set(item.employee.id, {
-          id: item.employee.id,
-          name: item.employee.fullName ?? item.employee.displayName ?? 'Unknown Employee',
-          detail:
-            (item.employee as any).department?.name ??
-            (item.employee as any).employeePosition?.organizationalUnit?.name ??
-            ''
-        })
-      }
-    })
+    }
 
     return Array.from(employeesMap.values())
-  }, [allTeamEmployees, expensePlans, expenseRequests])
+  }, [expensePlans, expenseRequests])
 
   const timelineEvents = useMemo((): ExpenseTimelineEvent[] => {
     const events: ExpenseTimelineEvent[] = []
 
-    expensePlans?.forEach((plan: ExpensePlan) => {
+    for (const plan of expensePlans || []) {
       let eventStartDate = plan.startDate
       let eventEndDate = plan.endDate
 
@@ -217,7 +138,7 @@ export const ExpenseCalendar: React.FC<ExpenseCalendarProps> = props => {
       }
 
       // Skip if no valid date can be determined
-      if (!eventStartDate || !eventEndDate) return
+      if (!eventStartDate || !eventEndDate) continue
 
       // Get proper status display
       const statusDisplay = getExpensePlanStatusDisplay(plan.status as ExpenseStatus)
@@ -235,9 +156,9 @@ export const ExpenseCalendar: React.FC<ExpenseCalendarProps> = props => {
         title: plan.title || 'Expense Plan',
         eventType: 'Plan'
       })
-    })
+    }
 
-    expenseRequests?.forEach((request: ExpenseRequest) => {
+    for (const request of expenseRequests || []) {
       let eventStartDate = request.startDate
       let eventEndDate = request.endDate
 
@@ -246,9 +167,9 @@ export const ExpenseCalendar: React.FC<ExpenseCalendarProps> = props => {
         eventEndDate = request.requestDate
       }
 
-      if (!eventStartDate || !eventEndDate) return
+      if (!eventStartDate || !eventEndDate) continue
 
-      if (!request.employee?.id) return
+      if (!request.employee?.id) continue
 
       const statusDisplay = getExpenseRequestStatusDisplay(request.status as ExpenseStatus)
 
@@ -265,7 +186,7 @@ export const ExpenseCalendar: React.FC<ExpenseCalendarProps> = props => {
         title: request.title || 'Expense Request',
         eventType: 'Request'
       })
-    })
+    }
 
     return events
   }, [expensePlans, expenseRequests, userLocale])
@@ -273,21 +194,21 @@ export const ExpenseCalendar: React.FC<ExpenseCalendarProps> = props => {
   const legendItems = useMemo(() => {
     const uniqueStatusTypes = new Map<string, { label: string; type: string }>()
 
-    expensePlans?.forEach((plan: ExpensePlan) => {
+    for (const plan of expensePlans || []) {
       const statusDisplay = getExpensePlanStatusDisplay(plan.status as ExpenseStatus)
       uniqueStatusTypes.set(statusDisplay.type, {
         label: statusDisplay.label,
         type: statusDisplay.type
       })
-    })
+    }
 
-    expenseRequests?.forEach((request: ExpenseRequest) => {
+    for (const request of expenseRequests || []) {
       const statusDisplay = getExpenseRequestStatusDisplay(request.status as ExpenseStatus)
       uniqueStatusTypes.set(statusDisplay.type, {
         label: statusDisplay.label,
         type: statusDisplay.type
       })
-    })
+    }
 
     const legendItems = Array.from(uniqueStatusTypes.values()).map(status => ({
       label: status.label,
@@ -298,22 +219,23 @@ export const ExpenseCalendar: React.FC<ExpenseCalendarProps> = props => {
   }, [expensePlans, expenseRequests])
 
   const renderDataBody = () => {
-    if (isLoadingPlans || isLoadingRequests || isLoadingEmployees)
+    if (overview.isLoading)
       return (
-        <div className="gba:flex gba:justify-center gba:items-center gba:h-full">
-          <Spin size="large" />
+        <div className="gba:flex gba:justify-center gba:items-center gba:h-full" data-testid="expense-calendar-loading">
+          <Spin size="large" data-testid="expense-calendar-loading-spinner" />
         </div>
       )
 
     let errorMessages = []
-    if (plansError) errorMessages.push(`Error fetching expense plans: ${plansError.message}`)
-    if (requestsError) errorMessages.push(`Error fetching expense requests: ${requestsError}`)
-    if (employeesError) errorMessages.push(`Error fetching team employees: ${employeesError}`)
-    if (errorMessages.length > 0) return <Alert message={errorMessages.join('\n')} type="error" showIcon />
+    if (overview.error) errorMessages.push(`Error loading calendar data: ${overview.error}`)
+    if (errorMessages.length > 0)
+      return (
+        <Alert message={errorMessages.join('\n')} type="error" showIcon data-testid="expense-calendar-error-alert" />
+      )
 
     if (timelineItems.length === 0 && timelineEvents.length === 0)
       return (
-        <Text>
+        <Text data-testid="expense-calendar-empty-state">
           {getTranslationFromI18nKeyAndLabel(
             'lowcoder:personal_expenses.no_expense_data_available',
             'No expense data available.'
@@ -322,38 +244,40 @@ export const ExpenseCalendar: React.FC<ExpenseCalendarProps> = props => {
       )
 
     return (
-      <CalendarTimeline<ExpenseTimelineItem, ExpenseTimelineEvent>
-        title={getTranslationFromI18nKeyAndLabel(
-          'lowcoder:team_expenses_page.dashboard_tab.expense_calendar',
-          'Expense Calendar'
-        )}
-        items={timelineItems}
-        events={timelineEvents}
-        itemLabel={getTranslationFromI18nKeyAndLabel('lowcoder:hr_absences.create_absence.employee', 'Employee')}
-        itemDetailLabel={getTranslationFromI18nKeyAndLabel(
-          'lowcoder:employee_list.search_employee_list.recent_employees_table.department',
-          'Department'
-        )}
-        searchPlaceholder={getTranslationFromI18nKeyAndLabel(
-          'lowcoder:expense_request_table.employee_search_filter',
-          'Search Employee...'
-        )}
-        renderItemContent={item => (
-          <div className="gba:p-2">
-            <Text strong>{item.name}</Text>
-            {item.detail && (
-              <Text type="secondary" style={{ fontSize: '12px', display: 'block' }}>
-                {item.detail}
-              </Text>
-            )}
-          </div>
-        )}
-        legendItems={legendItems}
-      />
+      <div data-testid="expense-calendar-timeline">
+        <CalendarTimeline<ExpenseTimelineItem, ExpenseTimelineEvent>
+          title={getTranslationFromI18nKeyAndLabel(
+            'lowcoder:team_expenses_page.dashboard_tab.expense_calendar',
+            'Expense Calendar'
+          )}
+          items={timelineItems}
+          events={timelineEvents}
+          itemLabel={getTranslationFromI18nKeyAndLabel('lowcoder:hr_absences.create_absence.employee', 'Employee')}
+          itemDetailLabel={getTranslationFromI18nKeyAndLabel(
+            'lowcoder:employee_list.search_employee_list.recent_employees_table.department',
+            'Department'
+          )}
+          searchPlaceholder={getTranslationFromI18nKeyAndLabel(
+            'lowcoder:expense_request_table.employee_search_filter',
+            'Search Employee...'
+          )}
+          renderItemContent={item => (
+            <div className="gba:p-2">
+              <Text strong>{item.name}</Text>
+              {item.detail && (
+                <Text type="secondary" className="gba:text-xs gba:block">
+                  {item.detail}
+                </Text>
+              )}
+            </div>
+          )}
+          legendItems={legendItems}
+        />
+      </div>
     )
   }
 
-  return <div>{renderDataBody()}</div>
+  return <div data-testid="expense-calendar-container">{renderDataBody()}</div>
 }
 
 export default ExpenseCalendar

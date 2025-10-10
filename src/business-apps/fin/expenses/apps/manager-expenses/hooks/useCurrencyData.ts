@@ -4,83 +4,61 @@ import { extractCurrencyCode } from '../utils/currencyUtils'
 import { useCurrencyStore } from '../store/useCurrencyStore'
 import { GET_ALL_CURRENCIES } from '../queries/analytics'
 
-/**
- * Helper function to standardize currency reference format.
- * Exported publicly for use in other components that need to format currency references.
- *
- * @param currencyRef - Currency reference string (either "USD" or "Currency:v1:USD")
- * @returns Standardized currency reference in format "Currency:v1:CODE"
- *
- * @example
- * standardizeCurrencyRef("USD") // Returns "Currency:v1:USD"
- * standardizeCurrencyRef("Currency:v1:EUR") // Returns "Currency:v1:EUR"
- */
-export const standardizeCurrencyRef = (currencyRef: string): string => {
-  if (!currencyRef) return ''
+// Re-export standardizeCurrencyRef for backward compatibility
+export { standardizeCurrencyRef } from '../utils/currencyUtils'
 
-  // If it's already in the format Currency:v1:CODE, return as is
-  if (currencyRef.startsWith('Currency:v1:')) {
-    return currencyRef
+// Module-scope in-flight registry keyed by managerId
+const inFlightByManager = new Map<string, Promise<any>>()
+
+// Helper: Process a collection of items and add their currencies to the map
+const processCurrencyCollection = (
+  items: Array<{ currencyRef?: string }> | undefined,
+  currencyMap: Map<string, number>
+) => {
+  if (!items) return
+
+  for (const item of items) {
+    const code = extractCurrencyCode(item.currencyRef)
+    if (code) {
+      currencyMap.set(code, (currencyMap.get(code) || 0) + 1)
+    }
   }
-
-  // If it's just a currency code (e.g., USD, EUR), convert to standard format
-  return `Currency:v1:${currencyRef}`
 }
 
 /**
  * Hook to fetch available currencies and most used currency
  */
 export const useCurrencyData = (accessToken: string, managerId: string) => {
+  // Global in-flight guard per manager to prevent duplicate StrictMode/dev fetches
+  // and cross-component duplicate requests.
+
   // Function to process currency data from API response
   const processCurrencyData = (response: any) => {
     const currencyMap = new Map<string, number>()
 
-    if (response?.expenseItems) {
-      response.expenseItems.forEach((item: any) => {
-        const code = extractCurrencyCode(item.currencyRef)
-        if (code) currencyMap.set(code, (currencyMap.get(code) || 0) + 1)
-      })
-    }
-
-    if (response?.expenseRequests) {
-      response.expenseRequests.forEach((item: any) => {
-        const code = extractCurrencyCode(item.currencyRef)
-        if (code) currencyMap.set(code, (currencyMap.get(code) || 0) + 1)
-      })
-    }
-
-    if (response?.expensePlans) {
-      response.expensePlans.forEach((item: any) => {
-        const code = extractCurrencyCode(item.currencyRef)
-        if (code) currencyMap.set(code, (currencyMap.get(code) || 0) + 1)
-      })
-    }
-
-    if (response?.advancePayments) {
-      response.advancePayments.forEach((item: any) => {
-        const code = extractCurrencyCode(item.currencyRef)
-        if (code) currencyMap.set(code, (currencyMap.get(code) || 0) + 1)
-      })
-    }
+    processCurrencyCollection(response?.expenseItems, currencyMap)
+    processCurrencyCollection(response?.expenseRequests, currencyMap)
+    processCurrencyCollection(response?.expensePlans, currencyMap)
+    processCurrencyCollection(response?.advancePayments, currencyMap)
 
     return Array.from(currencyMap.entries()).map(([currencyCode, count]) => ({ currencyCode, count }))
   }
-  const [availableCurrencies, setLocalCurrencies] = useState<string[]>([])
+  const [localAvailableCurrencies, setLocalAvailableCurrencies] = useState<string[]>([])
   const [isLoading, setIsLoading] = useState<boolean>(true)
   const [error, setError] = useState<string | null>(null)
   const [localMostUsedCurrency, setLocalMostUsedCurrency] = useState<string | null>(null)
 
-  // Access the global currency store
+  // Access the global currency store (value + setter pairs)
   const {
-    setAvailableCurrencies: setStoreCurrencies,
     availableCurrencies: storeCurrencies,
+    setAvailableCurrencies: setStoreCurrencies,
+    mostUsedCurrency: storeMostUsedCurrency,
+    setMostUsedCurrency,
     primaryCurrency,
     setPrimaryCurrency,
-    isUserSelected,
+    isInitialized,
     setInitialized,
-    setMostUsedCurrency,
-    mostUsedCurrency: storeMostUsedCurrency,
-    isInitialized
+    isUserSelected
   } = useCurrencyStore()
 
   // GraphQL client for data fetching
@@ -91,8 +69,11 @@ export const useCurrencyData = (accessToken: string, managerId: string) => {
     try {
       setError(null)
       setIsLoading(true)
-      // Fetch all currencies from different entities
-      const response = await graphQLClient.request(GET_ALL_CURRENCIES, { managerId })
+      // Deduplicate concurrent/in-flight calls per managerId
+      if (!inFlightByManager.has(managerId)) {
+        inFlightByManager.set(managerId, graphQLClient.request(GET_ALL_CURRENCIES, { managerId }))
+      }
+      const response = await inFlightByManager.get(managerId)!
       // Process currency data from all entities
       const currencyCounts = processCurrencyData(response)
       // Sort currencies by frequency
@@ -104,7 +85,7 @@ export const useCurrencyData = (accessToken: string, managerId: string) => {
       // Determine most used currency
       const mostUsed = currencyCounts.length > 0 ? currencyCounts[0].currencyCode : null
       // Update local state
-      setLocalCurrencies(uniqueCurrencies)
+      setLocalAvailableCurrencies(uniqueCurrencies)
       setLocalMostUsedCurrency(mostUsed)
       // Update global store
       setStoreCurrencies(uniqueCurrencies)
@@ -118,8 +99,9 @@ export const useCurrencyData = (accessToken: string, managerId: string) => {
     } catch (err) {
       console.error('Error fetching currency data:', err)
       setError(err instanceof Error ? err.message : 'Failed to fetch currency data')
-      setLocalCurrencies([])
+      setLocalAvailableCurrencies([])
     } finally {
+      inFlightByManager.delete(managerId)
       setIsLoading(false)
     }
   }, [
@@ -141,7 +123,7 @@ export const useCurrencyData = (accessToken: string, managerId: string) => {
     if (!isInitialized) {
       fetchCurrencyData()
     } else {
-      setLocalCurrencies(storeCurrencies)
+      setLocalAvailableCurrencies(storeCurrencies)
       setLocalMostUsedCurrency(storeMostUsedCurrency)
       setIsLoading(false)
     }
@@ -155,7 +137,7 @@ export const useCurrencyData = (accessToken: string, managerId: string) => {
 
   // Combine all data for the component
   return {
-    availableCurrencies: availableCurrencies.length > 0 ? availableCurrencies : storeCurrencies,
+    availableCurrencies: localAvailableCurrencies.length > 0 ? localAvailableCurrencies : storeCurrencies,
     isLoading,
     error,
     mostUsedCurrency: localMostUsedCurrency || storeMostUsedCurrency,

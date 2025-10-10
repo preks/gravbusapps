@@ -1,6 +1,5 @@
 export * from './useGetAdvancePayments'
 export * from './useGetExpenseRequests'
-export * from './useGetExpenseDashboard'
 export * from './useGetExpensePlans'
 export * from './useExpensePlanFilters'
 

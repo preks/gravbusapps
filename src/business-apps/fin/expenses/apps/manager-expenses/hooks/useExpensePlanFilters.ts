@@ -135,11 +135,11 @@ export const useExpensePlanFilters = ({
   // Memoize filterLabelMap with stable dependencies
   const filterLabelMap: Record<string, string> = useMemo(() => {
     const map: Record<string, string> = {}
-    availableFilterStatuses.forEach(status => {
+    for (const status of availableFilterStatuses) {
       // Use the getExpensePlanStatusDisplay function for consistent translated labels
       const display = getExpensePlanStatusDisplay(status)
       map[status] = display.label
-    })
+    }
     return map
   }, [])
 

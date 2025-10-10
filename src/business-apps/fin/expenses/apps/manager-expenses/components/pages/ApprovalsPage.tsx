@@ -125,6 +125,7 @@ const ApprovalsPage: React.FC<ApprovalsPageProps> = ({ onNavigateBack, ...props 
       >
         <div className="gba:px-6" data-testid="approvals-page">
           <ApprovalTable
+            key={activeTab}
             {...props}
             tasks={tasks}
             totalCount={totalCount}
