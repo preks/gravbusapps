@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { 
   Button, 
   Alert, 
@@ -57,7 +57,6 @@ import { CSS } from '@dnd-kit/utilities';
 const toast = (message: string, type: 'success' | 'error' = 'success') => {
   console.log(`[${type.toUpperCase()}] ${message}`);
 };
-
 interface TravelRegion {
   id: string;
   code: string;
@@ -212,6 +211,17 @@ const TravelRegionMatrixView: React.FC<TravelRegionMatrixViewProps> = ({
   const [isRuleModalOpen, setIsRuleModalOpen] = useState(false);
   const [isRuleModalLoading, setIsRuleModalLoading] = useState(false);
   const [isRegionModalOpen, setIsRegionModalOpen] = useState(false);
+  
+  // Pagination state
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize] = useState(20);
+  const [totalRegions, setTotalRegions] = useState(0);
+  const [isLoadingRegions, setIsLoadingRegions] = useState(false);
+  
+  // Search state
+  const [searchTerm, setSearchTerm] = useState('');
+  const [isSearching, setIsSearching] = useState(false);
+  const searchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   const graphqlClient = useGraphQLClient(accessToken);
   const catalogClient = useCatalogManagerClient(accessToken);
@@ -220,7 +230,6 @@ const TravelRegionMatrixView: React.FC<TravelRegionMatrixViewProps> = ({
   // Initialize client
   useEffect(() => {
     if (accessToken) {
-      console.log('🔍 Setting access token on ExpenseSettingsClient');
       expenseSettingsClient.setAccessToken(accessToken);
     }
   }, [accessToken]);
@@ -257,12 +266,70 @@ const TravelRegionMatrixView: React.FC<TravelRegionMatrixViewProps> = ({
     }
   }, [catalogClient]);
 
-  // Load travel regions
-  const loadTravelRegions = useCallback(async () => {
+  // Load travel regions with pagination and search
+  const loadTravelRegions = useCallback(async (page: number = currentPage, limit: number = pageSize, search: string = searchTerm) => {
     try {
-      // Use GraphQL to filter by parentEntryId directly on the server
-      const query = `
-        query GetTravelRegionsByParent($parentEntryId: String!) {
+      setIsLoadingRegions(true);
+      const offset = (page - 1) * limit;
+      
+      // First, get the total count from the parent entry's childEntriesAggregate
+      const countQuery = `
+        query GetTravelRegionSetCount($parentEntryId: String!) {
+          CatalogEntry(
+            where: {
+              id: { _eq: $parentEntryId }
+              catalog: {
+                identifier: { _eq: "TravelRegionSet" }
+                version: { _eq: "v1" }
+              }
+              isDeleted: { _eq: false }
+            }
+          ) {
+            id
+            childEntriesAggregate(
+              where: { 
+                isDeleted: { _eq: false },
+                catalog: { 
+                  identifier: { _eq: "TravelRegion" }, 
+                  version: { _eq: "v1" } 
+                }
+              }
+            ) {
+              aggregate {
+                count
+              }
+            }
+          }
+        }
+      `;
+      
+      // Then get the paginated regions with search
+      const regionsQuery = search ? `
+        query GetTravelRegionsByParent($parentEntryId: String!, $limit: Int!, $offset: Int!, $search: String!) {
+          CatalogEntry(
+            where: {
+              catalog: {
+                identifier: { _eq: "TravelRegion" }
+                version: { _eq: "v1" }
+              }
+              parentEntryId: { _eq: $parentEntryId }
+              isDeleted: { _eq: false }
+              _or: [
+                { value: { _ilike: $search } }
+                { code: { _ilike: $search } }
+              ]
+            }
+            orderBy: { code: ASC }
+            limit: $limit
+            offset: $offset
+          ) {
+            id
+            code
+            value
+          }
+        }
+      ` : `
+        query GetTravelRegionsByParent($parentEntryId: String!, $limit: Int!, $offset: Int!) {
           CatalogEntry(
             where: {
               catalog: {
@@ -273,6 +340,8 @@ const TravelRegionMatrixView: React.FC<TravelRegionMatrixViewProps> = ({
               isDeleted: { _eq: false }
             }
             orderBy: { code: ASC }
+            limit: $limit
+            offset: $offset
           ) {
             id
             code
@@ -281,21 +350,66 @@ const TravelRegionMatrixView: React.FC<TravelRegionMatrixViewProps> = ({
         }
       `;
       
-      const result = await graphqlClient.request<{ CatalogEntry: any[] }>(
-        query,
-        { parentEntryId: travelRegionSetId }
-      );
+      // Execute both queries in parallel
+      const searchPattern = search ? `%${search}%` : undefined;
+      const [countResult, regionsResult] = await Promise.all([
+        graphqlClient.request<{ CatalogEntry: any[] }>(countQuery, { parentEntryId: travelRegionSetId }),
+        graphqlClient.request<{ CatalogEntry: any[] }>(regionsQuery, { 
+          parentEntryId: travelRegionSetId, 
+          limit, 
+          offset,
+          ...(searchPattern && { search: searchPattern })
+        })
+      ]);
       
-      return result.CatalogEntry.map((item: any) => ({
+      const regions = regionsResult.CatalogEntry.map((item: any) => ({
         id: item.id,
         code: item.code,
         value: item.value
       }));
+      
+      const totalCount = countResult.CatalogEntry[0]?.childEntriesAggregate?.aggregate?.count || 0;
+      setTotalRegions(totalCount);
+      
+      return regions;
     } catch (err) {
       console.error('Error loading travel regions:', err);
       return [];
+    } finally {
+      setIsLoadingRegions(false);
     }
-  }, [graphqlClient, travelRegionSetId]);
+  }, [graphqlClient, travelRegionSetId, currentPage, pageSize]);
+
+  // Handle search
+  const handleSearch = useCallback(async (search: string) => {
+    setCurrentPage(1); // Reset to first page when searching
+    setIsSearching(true);
+    
+    try {
+      const regions = await loadTravelRegions(1, pageSize, search);
+      // Update the regions state
+      const editableRegions = regions.map(region => ({
+        ...region,
+        isEditing: false,
+        editingCode: region.code,
+        editingValue: region.value,
+        validityPeriods: [],
+        isModified: false,
+        isNew: false
+      }));
+      setEditableTravelRegions(editableRegions);
+      
+      // Regenerate cells for new regions
+      const cells = convertToEditableCells(allowanceRegionRules, regions);
+      const validatedCells = validateCurrencies(cells);
+      setEditableCells(validatedCells);
+      
+    } catch (err) {
+      console.error('❌ Error searching regions:', err);
+    } finally {
+      setIsSearching(false);
+    }
+  }, [loadTravelRegions, pageSize, allowanceRegionRules]);
 
   // Load allowance region rules
   const loadAllowanceRegionRules = useCallback(async () => {
@@ -427,7 +541,7 @@ const TravelRegionMatrixView: React.FC<TravelRegionMatrixViewProps> = ({
     });
     
     // Mark cells with currency conflicts
-    return cells.map(cell => {
+    const finalCells = cells.map(cell => {
       const regionCurrenciesSet = regionCurrencies[cell.travelRegionId];
       const hasConflict = regionCurrenciesSet && regionCurrenciesSet.size > 1;
       
@@ -437,6 +551,8 @@ const TravelRegionMatrixView: React.FC<TravelRegionMatrixViewProps> = ({
         errorMessage: hasConflict ? 'Currency mismatch in this region' : undefined
       };
     });
+    
+    return finalCells;
   }, []);
 
   // Load all data
@@ -446,7 +562,7 @@ const TravelRegionMatrixView: React.FC<TravelRegionMatrixViewProps> = ({
     
     try {
       const [regions, rules] = await Promise.all([
-        loadTravelRegions(),
+        loadTravelRegions(currentPage, pageSize, ''), // No search for normal load
         loadAllowanceRegionRules(),
         loadCurrencies()
       ]);
@@ -474,12 +590,11 @@ const TravelRegionMatrixView: React.FC<TravelRegionMatrixViewProps> = ({
       })));
       
     } catch (err) {
-      console.error('Error loading matrix data:', err);
       setError(err instanceof Error ? err.message : 'Failed to load matrix data');
     } finally {
       setIsLoading(false);
     }
-  }, [loadTravelRegions, loadAllowanceRegionRules, loadCurrencies, convertToEditableCells, validateCurrencies]);
+  }, [loadTravelRegions, loadAllowanceRegionRules, loadCurrencies, validateCurrencies, currentPage, pageSize]);
 
   // Convert regular travel regions to editable ones
   const convertToEditableRegions = useCallback((regions: TravelRegion[], cells: EditableCell[]): EditableTravelRegion[] => {
@@ -541,16 +656,72 @@ const TravelRegionMatrixView: React.FC<TravelRegionMatrixViewProps> = ({
     }
   }, [accessToken, travelRegionSetId, loadData]);
 
+  // Handle page change
+  const handlePageChange = useCallback(async (newPage: number) => {
+    setCurrentPage(newPage);
+    setIsLoadingRegions(true);
+    
+    try {
+      const regions = await loadTravelRegions(newPage, pageSize);
+      
+      // Update editable regions with new page data
+      const uniqueRegions = regions.filter((region, index, self) => 
+        index === self.findIndex(r => r.id === region.id)
+      );
+      
+      setEditableTravelRegions(uniqueRegions.map(region => ({
+        ...region,
+        isEditing: false,
+        editingCode: region.code,
+        editingValue: region.value,
+        isModified: false,
+        isNew: false,
+        validityPeriods: []
+      })));
+      
+      // Regenerate cells for new regions
+      const cells = convertToEditableCells(allowanceRegionRules, regions);
+      const validatedCells = validateCurrencies(cells);
+      setEditableCells(validatedCells);
+      
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to load page');
+    } finally {
+      setIsLoadingRegions(false);
+    }
+  }, [loadTravelRegions, pageSize, allowanceRegionRules, validateCurrencies]);
+
   // Update editable regions with validity periods after cells are loaded
+  // Only update if we don't have manually added periods (to preserve user-added periods)
   useEffect(() => {
     if (editableTravelRegions.length > 0 && editableCells.length > 0) {
-      const updatedRegions = convertToEditableRegions(
-        editableTravelRegions.map(r => ({ id: r.id, code: r.code, value: r.value })),
-        editableCells
+      // Check if any region has manually added periods (periods with timestamp-based IDs)
+      const hasManuallyAddedPeriods = editableTravelRegions.some(region => 
+        region.validityPeriods.some(period => period.id.includes('-period-'))
       );
-      setEditableTravelRegions(updatedRegions);
+      
+      // Check if any cells are new (manually added)
+      const hasNewCells = editableCells.some(cell => cell.isNew);
+      
+      // Only update if no manually added periods exist AND no new cells exist
+      if (!hasManuallyAddedPeriods && !hasNewCells) {
+        const updatedRegions = convertToEditableRegions(
+          editableTravelRegions.map(r => ({ id: r.id, code: r.code, value: r.value })),
+          editableCells
+        );
+        setEditableTravelRegions(updatedRegions);
+      } 
     }
-  }, [editableCells, convertToEditableRegions]);
+  }, [editableCells]);
+
+  // Cleanup search timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (searchTimeoutRef.current) {
+        clearTimeout(searchTimeoutRef.current);
+      }
+    };
+  }, []);
 
   // Handle region field editing
   const handleRegionEdit = (regionId: string, field: 'code' | 'value') => {
@@ -641,6 +812,48 @@ const TravelRegionMatrixView: React.FC<TravelRegionMatrixViewProps> = ({
         : region
     ));
 
+    // Also create corresponding cells for all rules for this new period
+    setEditableCells(prev => {
+      
+      const newCells: EditableCell[] = [];
+      allowanceRegionRules.forEach(rule => {
+        // Check if cell already exists for this rule and period
+        const existingCell = prev.find(cell => 
+          cell.travelRegionId === regionId && 
+          cell.allowanceRegionRuleId === rule.id && 
+          cell.validityPeriodId === newPeriodId
+        );
+        
+        if (!existingCell) {
+          newCells.push({
+            id: undefined,
+            travelRegionId: regionId,
+            allowanceRegionRuleId: rule.id,
+            amount: 0,
+            currencyCode: 'EUR',
+            activeFrom: newPeriod.activeFrom,
+            activeTo: newPeriod.activeTo,
+            isNew: true,
+            isModified: false,
+            hasError: false,
+            validityPeriodId: newPeriodId
+          });
+        }
+      });
+      
+      return [...prev, ...newCells];
+    });
+
+    // Auto-focus the first cell of the new period for immediate editing
+    if (allowanceRegionRules.length > 0) {
+      const firstRule = allowanceRegionRules[0];
+      setEditingCell({ 
+        ruleId: firstRule.id, 
+        regionId: regionId, 
+        field: undefined 
+      });
+    }
+
     setHasUnsavedChanges(true);
   };
 
@@ -671,7 +884,7 @@ const TravelRegionMatrixView: React.FC<TravelRegionMatrixViewProps> = ({
         return updatedRules;
       });
     }
-  }, [convertToEditableCells, editableTravelRegions, validateCurrencies]);
+  }, [editableTravelRegions, validateCurrencies]);
 
   // Open region creation modal
   const handleAddRegion = () => {
@@ -695,11 +908,10 @@ const TravelRegionMatrixView: React.FC<TravelRegionMatrixViewProps> = ({
         ]
       };
 
-      console.log('🚀 Creating travel region from modal:', regionData);
       await catalogClient.createCatalogEntry('TravelRegion', 'v1', regionData);
       
-      // Reload data to show the new region
-      await loadData();
+      // Reload current page to show the new region
+      await handlePageChange(currentPage);
       setIsRegionModalOpen(false);
       toast('Travel region created successfully', 'success');
     } catch (err) {
@@ -741,15 +953,10 @@ const TravelRegionMatrixView: React.FC<TravelRegionMatrixViewProps> = ({
         additionalProperties: {},
         businessKey: formData.code.trim()
       };
-
-      console.log('🚀 Creating Allowance Region Rule from modal:', ruleData);
-      console.log('🔍 Access Token available:', !!accessToken);
-      console.log('🔍 Access Token preview:', accessToken ? `${accessToken.substring(0, 20)}...` : 'No token');
       
       // Ensure access token is set before making the API call
       if (accessToken) {
         expenseSettingsClient.setAccessToken(accessToken);
-        console.log('🔍 Access token set on client before API call');
       }
       
       // Send the rule data directly (like AllowanceRegionRuleForm does)
@@ -761,7 +968,6 @@ const TravelRegionMatrixView: React.FC<TravelRegionMatrixViewProps> = ({
       setIsRuleModalOpen(false);
       toast('Allowance rule created successfully', 'success');
     } catch (err) {
-      console.error('Error creating rule from modal:', err);
       toast('Failed to create rule', 'error');
     } finally {
       setIsRuleModalLoading(false);
@@ -809,27 +1015,27 @@ const TravelRegionMatrixView: React.FC<TravelRegionMatrixViewProps> = ({
   };
 
   const handleCellChange = (ruleId: string, regionId: string, field: 'amount', value: number) => {
-    const currentEditingCell = editingCell;
     
-    setEditableCells(prev => prev.map(cell => {
-      // Match by rule, region, and validity period
-      if (cell.allowanceRegionRuleId === ruleId && 
-          cell.travelRegionId === regionId &&
-          currentEditingCell) {
-        
-        // Find the correct period for this editing session
-        const region = editableTravelRegions.find(r => r.id === regionId);
-        const matchingPeriod = region?.validityPeriods.find(p => 
-          cell.activeFrom === p.activeFrom && 
-          (cell.activeTo || undefined) === (p.activeTo || undefined)
-        );
-        
-        if (matchingPeriod) {
-          return { ...cell, [field]: value, isModified: true };
+    setEditableCells(prev => {
+      const updatedCells = prev.map(cell => {
+        // Match by rule and region - simplified matching
+        if (cell.allowanceRegionRuleId === ruleId && 
+            cell.travelRegionId === regionId) {
+          
+          const updatedCell = { 
+            ...cell, 
+            [field]: value, 
+            isModified: true,
+            isNew: cell.isNew || true // Mark as new if it doesn't have an ID
+          };
+          
+          return updatedCell;
         }
-      }
-      return cell;
-    }));
+        return cell;
+      });
+      
+      return updatedCells;
+    });
     setHasUnsavedChanges(true);
   };
 
@@ -839,37 +1045,65 @@ const TravelRegionMatrixView: React.FC<TravelRegionMatrixViewProps> = ({
 
   // Save all changes
   const handleSaveAll = async () => {
+    // Prevent multiple simultaneous save operations
+    if (isSaving) {
+      return;
+    }
+    
     setIsSaving(true);
     try {
+      // Only save cells that are modified/new (temporarily allow amount 0 for testing)
       const modifiedCells = editableCells.filter(cell => 
-        (cell.isModified && !cell.isNew && cell.amount > 0) || 
-        (cell.isNew && cell.amount > 0)
+        ((cell.isModified && !cell.isNew) || cell.isNew)
+        // && cell.amount > 0  // Temporarily disabled for testing
       );
 
+      if (modifiedCells.length === 0) {
+        toast('No changes to save', 'success');
+        return;
+      }
       // Group by rule and save
       const savePromises = modifiedCells.map(async (cell) => {
+      const currency = currencies.find(c => c.code === cell.currencyCode);
+        
+        if (!currency) {
+          throw new Error(`Currency not found for code: ${cell.currencyCode}`);
+        }
+        
         const saveData = {
-          id: cell.id,
+          id: cell.id, // undefined for new records, existing ID for updates
           amount: cell.amount,
-          currencyRef: currencies.find(c => c.code === cell.currencyCode)?.id,
+          currencyRef: currency.id,
           activeFrom: cell.activeFrom,
           activeTo: cell.activeTo,
           travelRegionRef: cell.travelRegionId,
-          allowanceRegionRuleRef: cell.allowanceRegionRuleId
+          allowanceRegionRuleRef: cell.allowanceRegionRuleId,
+          version: cell.id ? 1 : undefined // Only include version for updates
         };
 
         return expenseSettingsClient.saveAllowanceRegionRuleDetail(saveData);
       });
 
-      await Promise.all(savePromises);
+      const newRecords = modifiedCells.filter(cell => !cell.id).length;
+      const updatedRecords = modifiedCells.filter(cell => cell.id).length;
       
-      toast('All changes saved successfully', 'success');
+      let successMessage = 'All changes saved successfully';
+      if (newRecords > 0 && updatedRecords > 0) {
+        successMessage = `Saved ${newRecords} new records and updated ${updatedRecords} existing records`;
+      } else if (newRecords > 0) {
+        successMessage = `Saved ${newRecords} new allowance records`;
+      } else if (updatedRecords > 0) {
+        successMessage = `Updated ${updatedRecords} allowance records`;
+      }
+      
+      toast(successMessage, 'success');
       setHasUnsavedChanges(false);
       loadData(); // Refresh data
       
     } catch (err) {
-      console.error('Error saving changes:', err);
-      toast('Failed to save changes', 'error');
+      console.error('❌ Error saving changes:', err);
+      const errorMessage = err instanceof Error ? err.message : 'Failed to save changes';
+      toast(`Error: ${errorMessage}`, 'error');
     } finally {
       setIsSaving(false);
     }
@@ -927,26 +1161,81 @@ const TravelRegionMatrixView: React.FC<TravelRegionMatrixViewProps> = ({
               Travel Region Matrix: {travelRegionSetName}
             </h2>
             <p className="gba:text-gray-600">
-                              Excel-like editing - {editableTravelRegions.length} regions × {allowanceRegionRules.length} rules
+              Excel-like editing - {totalRegions} regions × {allowanceRegionRules.length} rules
             </p>
+            
+            {/* Search Input */}
+            <div className="gba:mt-3 gba:flex gba:items-center gba:gap-2">
+              <Input
+                type="text"
+                placeholder="Search regions..."
+                value={searchTerm}
+                onChange={(e) => {
+                  const value = e.target.value;
+                  setSearchTerm(value);
+                  // Debounce search - search after 500ms of no typing
+                  if (searchTimeoutRef.current) {
+                    clearTimeout(searchTimeoutRef.current);
+                  }
+                  searchTimeoutRef.current = setTimeout(() => {
+                    handleSearch(value);
+                  }, 500);
+                }}
+                className="gba:w-80 gba:h-9"
+                data-testid="travel-region-search-input"
+              />
+              {searchTerm && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    setSearchTerm('');
+                    handleSearch('');
+                  }}
+                  className="gba:h-9 gba:px-3"
+                  data-testid="clear-search-button"
+                >
+                  Clear
+                </Button>
+              )}
+              {isSearching && (
+                <div className="gba:text-sm gba:text-gray-500">
+                  Searching...
+                </div>
+              )}
+            </div>
           </div>
           <div className="gba:flex gba:gap-3">
-            {hasUnsavedChanges && (
-              <Button 
-                onClick={handleSaveAll} 
-                disabled={isSaving}
-                className="gba:bg-green-600 hover:gba:bg-green-700"
-              >
-                <PiFloppyDisk className="gba:w-4 gba:h-4 gba:mr-2" />
-                {isSaving ? 'Saving...' : 'Save All Changes'}
-              </Button>
-            )}
+            {/* Always show Save button for testing */}
+            <Button 
+              onClick={handleSaveAll} 
+              disabled={isSaving}
+              className="gba:bg-green-600 hover:gba:bg-green-700"
+              data-testid="save-all-changes-button"
+            >
+              <PiFloppyDisk className="gba:w-4 gba:h-4 gba:mr-2" />
+              {isSaving ? 'Saving...' : 'Save All Changes'}
+            </Button>
+            
+            {/* Debug info */}
+            <div className="gba:text-xs gba:text-gray-500 gba:flex gba:items-center">
+              Unsaved: {hasUnsavedChanges ? 'Yes' : 'No'} | 
+              Cells: {editableCells.length} | 
+              Modified: {editableCells.filter(c => c.isModified || c.isNew).length}
+            </div>
           </div>
         </div>
       </div>
 
       {/* Excel-like Matrix Table */}
-      {editableTravelRegions.length > 0 && allowanceRegionRules.length > 0 ? (
+      {isLoadingRegions ? (
+        <div className="gba:flex gba:justify-center gba:items-center gba:py-12 gba:bg-gray-50 gba:rounded-lg">
+          <div className="gba:flex gba:items-center gba:gap-3">
+            <div className="gba:animate-spin gba:rounded-full gba:h-6 gba:w-6 gba:border-b-2 gba:border-blue-600"></div>
+            <span className="gba:text-gray-600">Loading regions...</span>
+          </div>
+        </div>
+      ) : editableTravelRegions.length > 0 && allowanceRegionRules.length > 0 ? (
         <div className="gba:border gba:rounded-lg gba:overflow-hidden">
           <div className="gba:overflow-x-auto">
             <DndContext
@@ -1085,6 +1374,7 @@ const TravelRegionMatrixView: React.FC<TravelRegionMatrixViewProps> = ({
                           
                           {/* Validity Period & Currency - Editable for this specific row */}
                           <div className="gba:space-y-2 gba:bg-gray-50 gba:p-2 gba:rounded">
+                            
                             {/* Currency Selection */}
                             <div className="gba:flex gba:items-center gba:gap-2">
                               <span className="gba:text-xs gba:text-gray-600 gba:w-16">Currency:</span>
@@ -1205,8 +1495,10 @@ const TravelRegionMatrixView: React.FC<TravelRegionMatrixViewProps> = ({
                         
                         const isEditing = editingCell?.ruleId === rule.id && 
                                         editingCell?.regionId === region.id &&
-                                        editingCell?.field === undefined && // Only for amount editing
-                                        cell?.validityPeriodId === period.id;
+                                        editingCell?.field === undefined; // Only for amount editing
+                        
+                        // For new cells, always show input field
+                        const shouldShowInput = isEditing || (cell?.isNew && cell?.validityPeriodId === period.id);
                         
                         return (
                           <TableCell 
@@ -1214,20 +1506,23 @@ const TravelRegionMatrixView: React.FC<TravelRegionMatrixViewProps> = ({
                             className={`gba:text-center gba:relative gba:cursor-pointer gba:hover:bg-gray-50 gba:h-16 ${
                               cell?.hasError ? 'gba:bg-red-50' : 
                               cell?.isModified ? 'gba:bg-blue-50' : 
-                              cell?.isNew ? 'gba:bg-green-50' : ''
+                              cell?.isNew ? 'gba:bg-green-50 gba:border-2 gba:border-green-300' : ''
                             }`}
                             onClick={() => handleCellClick(rule.id, region.id, period.id)}
                           >
                             {cell ? (
                               <div className="gba:text-center gba:p-2">
-                                {isEditing ? (
+                                {shouldShowInput ? (
                                   /* Simple Amount Editing */
                                   <div className="gba:space-y-2">
                                     <Input
                                       type="number"
                                       step="0.01"
                                       value={cell.amount || ''}
-                                      onChange={(e) => handleCellChange(rule.id, region.id, 'amount', parseFloat(e.target.value) || 0)}
+                                      onChange={(e) => {
+                                        const value = parseFloat(e.target.value) || 0;
+                                        handleCellChange(rule.id, region.id, 'amount', value);
+                                      }}
                                       onBlur={handleCellBlur}
                                       className="gba:w-20 gba:h-8 gba:text-center gba:mx-auto"
                                       placeholder="0.00"
@@ -1301,6 +1596,82 @@ const TravelRegionMatrixView: React.FC<TravelRegionMatrixViewProps> = ({
               Add Rule
             </Button>
           </div>
+        </div>
+      )}
+
+      {/* Pagination Controls */}
+      {totalRegions > 0 && allowanceRegionRules.length > 0 && (
+        <div className="gba:flex gba:items-center gba:justify-between gba:mt-6 gba:px-4 gba:py-4 gba:bg-blue-50 gba:border gba:border-blue-200 gba:rounded-lg">
+          <div className="gba:flex gba:items-center gba:gap-2">
+            <span className="gba:text-sm gba:text-gray-700">
+              {searchTerm ? (
+                <>Showing {editableTravelRegions.length} search results for "{searchTerm}"</>
+              ) : (
+                <>Showing {((currentPage - 1) * pageSize) + 1} to {Math.min(currentPage * pageSize, totalRegions)} of {totalRegions} regions</>
+              )}
+            </span>
+            {totalRegions > pageSize && (
+              <span className="gba:text-sm gba:font-medium gba:text-blue-700 gba:bg-blue-200 gba:px-3 gba:py-1 gba:rounded-full">
+                Page {currentPage} of {Math.ceil(totalRegions / pageSize)}
+              </span>
+            )}
+          </div>
+          
+          {!searchTerm && totalRegions > pageSize ? (
+            <div className="gba:flex gba:items-center gba:gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => handlePageChange(currentPage - 1)}
+                disabled={currentPage === 1 || isLoadingRegions}
+                data-testid={`${prefixDataTestId}-prev-page-button`}
+              >
+                Previous
+              </Button>
+              
+              <div className="gba:flex gba:items-center gba:gap-1">
+                {/* Show page numbers */}
+                {Array.from({ length: Math.min(5, Math.ceil(totalRegions / pageSize)) }, (_, i) => {
+                  const pageNum = Math.max(1, Math.min(
+                    Math.ceil(totalRegions / pageSize) - 4,
+                    currentPage - 2
+                  )) + i;
+                  
+                  if (pageNum > Math.ceil(totalRegions / pageSize)) return null;
+                  
+                  return (
+                    <Button
+                      key={pageNum}
+                      variant={pageNum === currentPage ? "default" : "outline"}
+                      size="sm"
+                      onClick={() => handlePageChange(pageNum)}
+                      disabled={isLoadingRegions}
+                      className="gba:w-8 gba:h-8 gba:p-0"
+                      data-testid={`${prefixDataTestId}-page-${pageNum}-button`}
+                    >
+                      {pageNum}
+                    </Button>
+                  );
+                })}
+              </div>
+              
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => handlePageChange(currentPage + 1)}
+                disabled={currentPage >= Math.ceil(totalRegions / pageSize) || isLoadingRegions}
+                data-testid={`${prefixDataTestId}-next-page-button`}
+              >
+                Next
+              </Button>
+            </div>
+          ) : (
+            <div className="gba:flex gba:items-center gba:gap-2">
+              <span className="gba:text-sm gba:text-gray-500">
+                All regions displayed
+              </span>
+            </div>
+          )}
         </div>
       )}
 
