@@ -9,7 +9,7 @@ import {
   SiteLocationCountry,
   SiteLocationRegion
 } from '@/business-apps/mdm/apps/organizational-data/types'
-import FormWrapperModal from '@/business-apps/mdm/apps/generic-components/form-wrapper/FormWrapperModal'
+import { FormWrapperModal } from '@/components/form-wrapper'
 import { formatDataTestId } from '@/common/utils/formatDataTestId'
 
 const DATA_TEST_ID_PREFIX = 'SiteLocationForm'

@@ -1,6 +1,5 @@
-import React, { Dispatch, SetStateAction, useMemo, useState } from 'react'
-import { BusinessAppContextProps } from '@/common/BusinessAppContext'
-import FormWrapperModal from '../../apps/generic-components/form-wrapper/FormWrapperModal'
+import React, { Dispatch, SetStateAction, useMemo, useState } from 'react';
+import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 import {
   Input,
   FormField,
@@ -16,6 +15,7 @@ import { env } from '@/common/env/EnvUtils'
 import { formatDataTestId } from '@/common/utils/formatDataTestId'
 import { useTranslation } from 'react-i18next'
 import { Capability, CapabilityLayer } from '../../apps/organizational-data/components/tabs/CapabilitiesTab'
+import { FormWrapperModal } from '@/components/form-wrapper';
 
 const DATA_TEST_ID_PREFIX = 'CapabilityForm'
 const ORGCHART_BASE_URL = `${env('NEXT_PUBLIC_ORGCHART_API_URL')}/orgchart/api/v1`

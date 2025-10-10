@@ -1,6 +1,6 @@
 import React, { Dispatch, SetStateAction, useState, useEffect, useMemo } from 'react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
-import FormWrapperModal from '../../apps/generic-components/form-wrapper/FormWrapperModal'
+import { FormWrapperModal } from '@/components/form-wrapper'
 import {
   Input,
   FormField,
@@ -164,6 +164,7 @@ const ProjectForm: React.FC<ProjectFormProps> = ({
                 })}
                 {...field}
                 data-testid={`${dataTestId}-name-input`}
+                type="date"
               />
             </FormControl>
             <FormMessage />

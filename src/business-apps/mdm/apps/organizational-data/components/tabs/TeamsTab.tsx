@@ -44,7 +44,7 @@ import {
   Spinner
 } from '@newwork/nw-design-system'
 import CardTabHeaderComponent from '../../../generic-components/card'
-import { ColumnDef } from '@tanstack/react-table'
+import { ColumnDef, SortingState } from '@tanstack/react-table'
 import { formatDataTestId } from '@/common/utils/formatDataTestId'
 import SheetWrapperComponent from '../../../generic-components/sheet-wrapper/SheetWrapperComponent'
 import { InfoIcon } from 'lucide-react'
@@ -73,6 +73,7 @@ const TeamsTab: React.FC<TeamsTabProps> = context => {
   const [viewMode, setViewMode] = useState<'table' | 'cards'>('cards')
   const [selectedTeam, setSelectedTeam] = useState<Team | null>(null)
   const [drawerVisible, setDrawerVisible] = useState(false)
+  const [sorting, setSorting] = useState<SortingState>([])
 
   useEffect(() => {
     if (selectedTeam) {
@@ -214,7 +215,7 @@ const TeamsTab: React.FC<TeamsTabProps> = context => {
           return leaderName ? (
             <div className="gba:flex gba:flex-col gba:gap-2">
               <p className="gba:font-semibold">{(leaderName as string) ?? '-'}</p>
-              <p className="gba:text-sm gba:text-gray-500">{(leaderJobPosition as string) ?? '-'}</p>
+              <p className="gba:text-sm gba:text-gray-500">{leaderJobPosition ?? '-'}</p>
             </div>
           ) : (
             '-'
@@ -312,15 +313,12 @@ const TeamsTab: React.FC<TeamsTabProps> = context => {
 
     return (
       <DataTable
-        defaultDataSetId="job-profiles"
-        dataSets={[
-          {
-            id: 'job-profiles',
-            label: 'Job Profiles',
-            data: dataTable,
-            columns: columns
-          }
-        ]}
+        data={dataTable}
+        columns={columns as ColumnDef<(typeof dataTable)[number]>[]}
+        enableSorting
+        enablePagination
+        sorting={sorting}
+        onSortingChange={setSorting}
       />
     )
   }
@@ -574,6 +572,7 @@ const TeamsTab: React.FC<TeamsTabProps> = context => {
                 refetch={refetch}
                 team={selectedTeam}
                 isDrawerActive={true}
+                key={selectedTeam.id}
               />
             ]}
           />

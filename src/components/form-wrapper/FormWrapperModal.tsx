@@ -1,0 +1,286 @@
+import React, {
+  useState,
+  useEffect,
+  SetStateAction,
+  Dispatch,
+  useRef,
+  useCallback,
+  useMemo,
+} from 'react';
+import {
+  Dialog,
+  DialogContent,
+  DialogTrigger,
+  Button,
+  Form,
+  DialogTitle,
+  Alert,
+} from '@newwork/nw-design-system';
+import { useForm, type Resolver, type UseFormReturn, type FieldValues } from 'react-hook-form';
+import { toast } from 'sonner';
+import { cn } from '@/common/utils/cn';
+
+export interface FormMessage {
+  type: 'success' | 'error' | 'info';
+  message: string;
+}
+
+interface FormWrapperModalProps {
+  childAddButton?: React.ReactNode;
+  children: React.ReactNode;
+  title?: string;
+  description?: string;
+  onSubmit?: (_data: FieldValues) => void | Promise<void>;
+  onCancel?: () => void;
+  onError?: (_error: string) => void;
+  defaultValues?: FieldValues;
+  isEditing?: boolean;
+  loading?: boolean;
+  dataTestId?: string;
+  isDrawerActive?: boolean;
+  open?: boolean;
+  setOpen?: Dispatch<SetStateAction<boolean>>;
+  isValid?: boolean;
+  setCodeError?: Dispatch<SetStateAction<string>>;
+
+  // Form handling
+  form?: UseFormReturn<FieldValues>;
+  resolver?: Resolver<FieldValues>;
+  validateForm?: (_formData: FieldValues) => string[] | null;
+  isSubmitDisabled?: boolean;
+  preventDuplicateSubmission?: boolean;
+
+  // Error handling
+  showErrorMessage?: boolean;
+  errorMessage?: string;
+
+  // Layout customization
+  formClassName?: string;
+  contentClassName?: string;
+
+  // Button customization
+  submitButtonText?: string;
+  cancelButtonText?: string;
+  submitButtonVariant?: 'default' | 'destructive' | 'outline' | 'secondary' | 'ghost' | 'link';
+  showCancelButton?: boolean;
+
+  // Test IDs
+  submitButtonTestId?: string;
+  cancelButtonTestId?: string;
+}
+
+const FormWrapperModal = ({
+  childAddButton,
+  children,
+  title = 'Form',
+  description,
+  onSubmit,
+  onCancel,
+  onError,
+  defaultValues = {},
+  isEditing = false,
+  loading = false,
+  isDrawerActive = false,
+  dataTestId = 'form-wrapper-modal',
+  open,
+  setOpen,
+  isValid = true,
+  setCodeError,
+
+  // Form handling
+  form: externalForm,
+  resolver,
+  validateForm,
+  isSubmitDisabled = false,
+  preventDuplicateSubmission = true,
+
+  // Error handling
+  showErrorMessage = false,
+  errorMessage,
+
+  // Layout customization
+  formClassName,
+  contentClassName,
+
+  // Button customization
+  submitButtonText,
+  cancelButtonText,
+  submitButtonVariant = 'default',
+  showCancelButton = true,
+
+  // Test IDs
+  submitButtonTestId,
+  cancelButtonTestId,
+}: FormWrapperModalProps) => {
+  const [isOpen, setIsOpen] = useState(open);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [message, setMessage] = useState<FormMessage | null>(null);
+  const isSubmittingRef = useRef(false);
+  const isEditingForm = useMemo(() => (isEditing ? 'Update' : 'Create'), [isEditing]);
+
+  // Create internal form if no external form provided
+  const internalForm = useForm<FieldValues>({ defaultValues, resolver, mode: 'onChange' });
+  const form = externalForm || internalForm;
+  const isFormValid = useMemo(() => {
+    return form.formState.isValid && form.formState.isDirty;
+  }, [form.formState.isValid, form.formState.isDirty]);
+
+  useEffect(() => {
+    form.reset(defaultValues);
+    form.clearErrors();
+    setMessage(null);
+  }, [form, defaultValues]);
+
+  useEffect(() => {
+    if (errorMessage) {
+      setMessage({ type: 'error', message: errorMessage });
+    }
+  }, [errorMessage]);
+
+  const handleSubmit = useCallback(
+    async (values?: FieldValues) => {
+      // Prevent duplicate submissions using ref for synchronous check
+      if (preventDuplicateSubmission && isSubmittingRef.current) {
+        return;
+      }
+
+      if (!onSubmit) return;
+
+      try {
+        if (preventDuplicateSubmission) {
+          isSubmittingRef.current = true;
+        }
+        setIsSubmitting(true);
+        setMessage(null);
+
+        const dataForValidation = values ?? form.getValues();
+
+        if (validateForm) {
+          const errors = validateForm(dataForValidation);
+          if (errors && errors.length > 0) {
+            setMessage({ type: 'error', message: errors.join(', ') });
+            if (onError) {
+              onError(errors.join(', '));
+            }
+            return;
+          }
+        }
+
+        await onSubmit(dataForValidation);
+
+        setIsOpen(false);
+        setOpen?.(false);
+        form.reset();
+        setMessage(null);
+      } catch (error) {
+        console.error('Form submission error:', error);
+
+        const defaultErrorMessage = 'Something went wrong';
+        const errorMsg = error instanceof Error ? error.message : defaultErrorMessage;
+
+        setMessage({ type: 'error', message: errorMsg });
+        if (onError) {
+          onError(errorMsg);
+        }
+        toast.error(errorMsg);
+      } finally {
+        setIsSubmitting(false);
+        if (preventDuplicateSubmission) {
+          isSubmittingRef.current = false;
+        }
+      }
+    },
+    [onSubmit, validateForm, onError, form, preventDuplicateSubmission, setOpen],
+  );
+
+  const handleCancel = useCallback(() => {
+    setIsOpen(false);
+    setOpen?.(false);
+    setCodeError?.('');
+    setMessage(null);
+    form.reset();
+    if (onCancel) {
+      onCancel();
+    }
+  }, [setOpen, setCodeError, form, onCancel]);
+
+  const handleOpenChange = useCallback(
+    (open: boolean) => {
+      setIsOpen(open);
+      setOpen?.(open);
+      setCodeError?.('');
+      setMessage(null);
+      if (!open) {
+        form.reset();
+        if (onCancel) {
+          onCancel();
+        }
+      }
+    },
+    [setOpen, setCodeError, form, onCancel],
+  );
+
+  return (
+    <Dialog open={isOpen} onOpenChange={handleOpenChange}>
+      {childAddButton && <DialogTrigger asChild>{childAddButton}</DialogTrigger>}
+      <DialogContent data-testid={dataTestId} className={cn({ 'gba:!z-[1002]': isDrawerActive })}>
+        <DialogTitle>{title}</DialogTitle>
+        <div className={cn('gba:flex gba:flex-col gba:gap-4', contentClassName)}>
+          <div className="gba:space-y-2">
+            {description && <p className="gba:text-sm gba:text-muted-foreground">{description}</p>}
+          </div>
+
+          {/* Error message display */}
+          {showErrorMessage && message && message.type === 'error' && (
+            <Alert variant="destructive" className="gba:mb-4" data-testid={`${dataTestId}-message`}>
+              {message.message}
+            </Alert>
+          )}
+
+          <Form {...(form as UseFormReturn<FieldValues>)}>
+            <form
+              onSubmit={form.handleSubmit((vals) => handleSubmit(vals))}
+              className={cn(
+                'gba:flex gba:flex-col gba:w-full gba:max-w-md gba:h-full',
+                formClassName,
+              )}
+              data-testid={`${dataTestId}-form`}
+            >
+              <div
+                className="gba:flex gba:flex-col gba:gap-4 gba:py-6"
+                data-testid={`${dataTestId}-form-content`}
+              >
+                {children}
+              </div>
+
+              {/* Form actions */}
+              <div className="gba:flex gba:justify-end gba:gap-2 gba:pt-4">
+                {showCancelButton && (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={handleCancel}
+                    disabled={loading || isSubmitting}
+                    data-testid={cancelButtonTestId || `${dataTestId}-cancel-button`}
+                  >
+                    {cancelButtonText || 'Cancel'}
+                  </Button>
+                )}
+                <Button
+                  type="submit"
+                  disabled={loading || isSubmitting || isSubmitDisabled || !isValid || !isFormValid}
+                  variant={submitButtonVariant}
+                  data-testid={submitButtonTestId || `${dataTestId}-submit-button`}
+                >
+                  {isSubmitting ? 'Saving...' : submitButtonText || isEditingForm}
+                </Button>
+              </div>
+            </form>
+          </Form>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+};
+
+export default FormWrapperModal;

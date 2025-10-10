@@ -1,7 +1,7 @@
 import React, { useState } from 'react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { useTranslation } from 'react-i18next'
-import FormWrapperModal from '../../apps/generic-components/form-wrapper/FormWrapperModal'
+import { FormWrapperModal } from '@/components/form-wrapper'
 import {
   Input,
   FormField,
