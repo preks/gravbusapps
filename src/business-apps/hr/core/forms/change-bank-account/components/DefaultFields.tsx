@@ -1,11 +1,12 @@
 import React from 'react';
 import { FormField, FormItem, FormLabel, FormControl, FormMessage, Select, SelectTrigger, SelectValue, SelectContent, SelectItem, Input, Alert } from '@newwork/nw-design-system';
 import { getTranslationFromI18nKeyAndLabel, getCatalogValue } from '@/common/utils/windowUtils';
+import type { BankAccountForm, CatalogEntry } from '../types';
 
 interface DefaultFieldsProps {
-  form: any;
-  catalogCountries: any[];
-  catalogCurrencies: any[];
+  form: BankAccountForm;
+  catalogCountries: CatalogEntry[];
+  catalogCurrencies: CatalogEntry[];
   isUSAndNoAddress: boolean;
 }
 
@@ -13,8 +14,8 @@ const DefaultFields: React.FC<DefaultFieldsProps> = ({ form, catalogCountries, c
   return (
     <>
       <FormField
-        control={form.control as any}
-        name={"countryId" as any}
+        control={form.control}
+        name={"countryId"}
         rules={{
           required: getTranslationFromI18nKeyAndLabel(
             'lowcoder:employee_profile.details_layout.bank_account_form.country_select_error_message',
@@ -47,7 +48,7 @@ const DefaultFields: React.FC<DefaultFieldsProps> = ({ form, catalogCountries, c
             {isUSAndNoAddress ? (
               <Alert
                 variant="destructive"
-                className="gba:mt-2 gba:w-full gba:break-words gba:whitespace-nowrap"
+                className="gba:mt-2 gba:w-full gba:whitespace-nowrap"
                 data-testid="flw_changeBankAccount_warningMessage"
               >
                 {getTranslationFromI18nKeyAndLabel(
@@ -61,8 +62,8 @@ const DefaultFields: React.FC<DefaultFieldsProps> = ({ form, catalogCountries, c
       />
 
       <FormField
-        control={form.control as any}
-        name={"currencyId" as any}
+        control={form.control}
+        name={"currencyId"}
         rules={{
           required: getTranslationFromI18nKeyAndLabel(
             'lowcoder:employee_profile.details_layout.bank_account_form.currency_select_error_message',
@@ -97,8 +98,8 @@ const DefaultFields: React.FC<DefaultFieldsProps> = ({ form, catalogCountries, c
       />
 
       <FormField
-        control={form.control as any}
-        name={"bankName" as any}
+        control={form.control}
+        name={"bankName"}
         rules={{
           required: getTranslationFromI18nKeyAndLabel(
             'lowcoder:employee_profile.details_layout.bank_account_form.bank_name_select_error_message',
@@ -119,8 +120,8 @@ const DefaultFields: React.FC<DefaultFieldsProps> = ({ form, catalogCountries, c
       />
 
       <FormField
-        control={form.control as any}
-        name={"accountType" as any}
+        control={form.control}
+        name={"accountType"}
         rules={{
           required: getTranslationFromI18nKeyAndLabel(
             'lowcoder:employee_profile.details_layout.bank_account_form.account_type_select_error_message',
@@ -156,8 +157,8 @@ const DefaultFields: React.FC<DefaultFieldsProps> = ({ form, catalogCountries, c
       />
 
       <FormField
-        control={form.control as any}
-        name={"accountHolder" as any}
+        control={form.control}
+        name={"accountHolder"}
         rules={{
           required: getTranslationFromI18nKeyAndLabel(
             'lowcoder:employee_profile.details_layout.bank_account_form.account_holder_select_error_message',

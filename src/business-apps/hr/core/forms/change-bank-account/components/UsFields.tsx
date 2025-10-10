@@ -1,12 +1,13 @@
 import React from 'react';
 import { FormField, FormItem, FormLabel, FormControl, FormMessage, Select, SelectTrigger, SelectValue, SelectContent, SelectItem, Input } from '@newwork/nw-design-system';
 import { getTranslationFromI18nKeyAndLabel, getCatalogValue } from '@/common/utils/windowUtils';
+import type { BankAccountForm, CatalogEntry, EmployeeAddress } from '../types';
 
 interface UsFieldsProps {
-  form: any;
-  catalogRoutingTypes: any[];
-  employeeAddresses: any[];
-  selectedEmployeeAddress: any;
+  form: BankAccountForm;
+  catalogRoutingTypes: CatalogEntry[];
+  employeeAddresses: EmployeeAddress[];
+  selectedEmployeeAddress: EmployeeAddress | null | undefined;
 }
 
 const UsFields: React.FC<UsFieldsProps> = ({ form, catalogRoutingTypes, employeeAddresses, selectedEmployeeAddress }) => {

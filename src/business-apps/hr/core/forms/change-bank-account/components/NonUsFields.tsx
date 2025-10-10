@@ -1,9 +1,10 @@
 import React from 'react';
 import { FormField, FormItem, FormLabel, FormControl, FormMessage, Input } from '@newwork/nw-design-system';
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
+import type { BankAccountForm } from '../types';
 
 interface NonUsFieldsProps {
-  form: any;
+  form: BankAccountForm;
 }
 
 const NonUsFields: React.FC<NonUsFieldsProps> = ({ form }) => {

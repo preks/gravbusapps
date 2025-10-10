@@ -29,7 +29,7 @@ const AddressSelector: React.FC<AddressSelectorProps> = ({ value, onChange, addr
   const shouldShowAdd = !(hasPrimary && hasSecondary);
   const options = shouldShowAdd ? [...addresses, { type: 'Add Address', id: addSentinel }] : [...addresses];
   const resolvedValue = value === addSentinel && addresses.length > 0 && !shouldShowAdd
-    ? String(addresses[0]?.id)
+    ? (addresses[0]?.id !== undefined ? String(addresses[0].id) : addSentinel)
     : value;
   return (
     <FormItem>

@@ -4,9 +4,9 @@ import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
 import FormHeader from '../components/FormHeader';
 import flowIconUrl from '@/assets/icons/flowSmall.svg';
 import { useForm } from 'react-hook-form';
-import { Separator, Button, FormField, FormItem, FormLabel, FormControl, FormMessage, Textarea } from '@newwork/nw-design-system';
+import { FormField, FormItem, FormLabel, FormControl, FormMessage, Textarea } from '@newwork/nw-design-system';
 import { AppActionForm } from '@/components/app-action-form/AppActionForm';
-import { dispatchProcessContinueEvent } from '@/common/utils/processEventUtils';
+import { } from '@/common/utils/processEventUtils';
 import { ChangeBankAccountProvider, useChangeBankAccount } from './ChangeBankAccountContext';
 import DefaultFields from './components/DefaultFields';
 import UsFields from './components/UsFields';
@@ -179,26 +179,17 @@ const ChangeBankAccountContent: React.FC<ChangeBankAccountFormProps> = ({ userIn
           cancelButtonTestId="flw_changeBankAccount_cancelButton"
           isSubmitDisabled={isSubmitDisabledFinal}
           onCancel={() => {
-            dispatchProcessContinueEvent('pse_abort', {
-              event: 'pse_abort',
-              pso_exitStrategy: 'abort',
-              pso_completeNotification: {
-                type: 'error',
-                messageKey: getTranslationFromI18nKeyAndLabel('lowcoder:absence_module.toast_notification_cancel_create_absence', 'The action has been canceled.')
-              }
-            });
             form.reset(normalizedDefaults);
           }}
-          // cancelEventType="pse_abort"
-          customFormLayout
+          cancelEventType="pse_abort"
+          submitButtonText={getTranslationFromI18nKeyAndLabel('lowcoder:hr_absences.create_absence.submit', 'Submit')}
+          cancelButtonText={getTranslationFromI18nKeyAndLabel('lowcoder:create_expense_request.initiate_cancel_button', 'Cancel')}
           onSubmit={async (values: BankAccountFormValues) => {
             const employeeId =
               userInfo?.employeeDetails?.employeeId ||
               ((data?.employee as any)?.Employee?.[0]?.id || '');
-
             const existing = (data?.employee?.EmployeeBankAccount || [])?.[0] || null;
-            const payload = buildBankAccountPayload({ values, existingAccount: existing, employeeId });
-            console.log("payload", payload);
+            const payload = buildBankAccountPayload({ values, existingAccount: existing, employeeId });  
             return payload as any;
           }}
           data-testid="flw_changeBankAccount_bankName_bankAccountContainer"
@@ -246,45 +237,7 @@ const ChangeBankAccountContent: React.FC<ChangeBankAccountFormProps> = ({ userIn
             />
           </div>
 
-          <div className="gba:flex-grow" data-testid="change-bank-account-spacer" />
-
-          <Separator className="gba:mt-4 gba:mb-4" data-testid="change-bank-account-divider" />
-
-          <div className="gba:flex gba:justify-end gba:items-center gba:gap-2 gba:mt-auto gba:pt-4" data-testid="change-bank-account-actions-wrapper">
-            <div className="gba:flex gba:gap-2" data-testid="change-bank-account-actions-left">
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => {
-                  dispatchProcessContinueEvent('pse_abort', {
-                    event: 'pse_abort',
-                    pso_exitStrategy: 'abort',
-                    pso_completeNotification: {
-                      type: 'error',
-                      messageKey: getTranslationFromI18nKeyAndLabel(
-                        'lowcoder:create_expense_request.initiate_cancel_button',
-                        'Cancel'
-                      )
-                    }
-                  });
-                  form.reset(normalizedDefaults);
-                }}
-                data-testid={'flw_changeBankAccount_cancelButton'}
-              >
-                {getTranslationFromI18nKeyAndLabel('lowcoder:create_expense_request.initiate_cancel_button', 'Cancel')}
-              </Button>
-            </div>
-            <div className="gba:flex gba:gap-2" data-testid="change-bank-account-actions-right">
-              <Button
-                type="submit"
-                variant="default"
-                data-testid="flw_changeBankAccount_submitButton"
-                disabled={isSubmitDisabledFinal}
-              >
-                {getTranslationFromI18nKeyAndLabel('lowcoder:hr_absences.create_absence.submit', 'Submit')}
-              </Button>
-            </div>
-          </div>
+          {/* Navigation buttons are provided by AppActionForm; no manual buttons here */}
         </AppActionForm>
       </div>
     </div>

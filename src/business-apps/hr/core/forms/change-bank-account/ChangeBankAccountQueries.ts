@@ -21,7 +21,6 @@ export const EMPLOYEE_DATA_QUERY = `query fetchEmployeeData($idEmployee: uuid!) 
     routingNumberType
     version
     id
-    employeeAddressId
   }
    EmployeeAddress(where: {employeeId: {_eq: $idEmployee}, isDeleted: {_eq: false}}, orderBy: {type: ASC}) {
     id
@@ -46,7 +45,6 @@ export const EMPLOYEE_DATA_QUERY = `query fetchEmployeeData($idEmployee: uuid!) 
       preferredName
       lastName
       userId
-      id
       picture
 }}
 `
@@ -69,6 +67,7 @@ export const CATALOG_DATA_QUERY = `query fetchCatalogData($activeUserLocale: Str
    id
     code
     value
+    objectValue
     translations(where: {localeCode: {_eq: $activeUserLocale}}) {
       localeCode
       value
@@ -80,6 +79,7 @@ export const CATALOG_DATA_QUERY = `query fetchCatalogData($activeUserLocale: Str
   routingNumber: CatalogEntry(where: {catalog: {version: {_eq: "v1"}, identifier: {_eq: "BankRoutingNumberType"}}}, orderBy: {value: ASC}){
     id
     value
+    objectValue
     translations(where: {localeCode: {_eq: $activeUserLocale}}) {
       localeCode
       value

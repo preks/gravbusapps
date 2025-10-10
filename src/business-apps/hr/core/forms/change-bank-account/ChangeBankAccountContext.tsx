@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useEffect, useMemo, useState } from 'react';
+import React, { createContext, useContext, useEffect, useMemo, useState, useCallback } from 'react';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient';
 import { EMPLOYEE_DATA_QUERY, CATALOG_DATA_QUERY } from './ChangeBankAccountQueries';
@@ -48,7 +48,7 @@ export const ChangeBankAccountProvider: React.FC<ProviderProps> = ({ children, a
 
   const activeUserLocale = useMemo(() => getCurrentActiveUserLocale(), []);
 
-  const fetchData = async () => {
+  const fetchData = useCallback(async () => {
     if (!accessToken || !employeeId) {
       setIsLoading(false);
       setError(!employeeId ? 'Missing employeeId' : 'Missing accessToken');
@@ -57,7 +57,6 @@ export const ChangeBankAccountProvider: React.FC<ProviderProps> = ({ children, a
     setIsLoading(true);
     setError(null);
     try {
-      // Fetch employee bank account and addresses first "86a8317d-34ef-4e04-951b-b0bb9754de30" ||
       const empVariables = { idEmployee: employeeId } as any;
       const employeeData = await graphqlClient.request<EmployeeDataResponse>(EMPLOYEE_DATA_QUERY, empVariables);
       setData({ employee: employeeData, catalogs: null });
@@ -75,11 +74,11 @@ export const ChangeBankAccountProvider: React.FC<ProviderProps> = ({ children, a
       setError(e?.message || 'Unknown error');
       setIsLoading(false);
     }
-  };
+  }, [accessToken, employeeId, activeUserLocale, graphqlClient]);
 
   useEffect(() => {
     fetchData();
-  }, [accessToken, employeeId, activeUserLocale]);
+  }, [fetchData]);
 
   const value: ChangeBankAccountContextValue = {
     data,
