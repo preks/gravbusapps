@@ -136,29 +136,29 @@ const AccountRecordContent: React.FC<AccountRecordContentProps> = ({ accountId, 
           </TabsList>
 
           <TabsContent value="overview" data-testid="overview-content">
-            {/* First Row: Company Information + Personal Info */}
+            {/* First Row: Company Information + Contact Info */}
             <div className="gba:grid gba:grid-cols-4 gba:gap-6 gba:mb-6">
               {/* Company Information - 3/4 width */}
               <div className="gba:col-span-3 gba:flex">
                 <CompanyInformation account={account} accountData={accountData} accountId={accountId} context={props} />
               </div>
 
-              {/* Personal Information - 1/4 width */}
+              {/* Contact Information - 1/4 width */}
               <div className="gba:col-span-1 gba:flex">
                 <ContactInformation accountData={accountData} accountId={accountId} context={props} />
               </div>
             </div>
 
-            {/* Second Row: Activity Timeline + Tasks */}
+            {/* Second Row: Tasks (Left) + Activities (Right) */}
             <div className="gba:grid gba:grid-cols-2 gba:gap-6">
-              {/* Activity Timeline - 1/2 width */}
-              <div>
-                <ActivityTimeline accountId={accountId} context={props} />
-              </div>
-
-              {/* Tasks - 1/2 width */}
+              {/* Tasks Section - Left Side (1/2 width) */}
               <div>
                 <TasksSection accountId={accountId} context={props} />
+              </div>
+
+              {/* Activities Section - Right Side (1/2 width) - Standalone */}
+              <div>
+                <ActivityTimeline accountId={accountId} context={props} />
               </div>
             </div>
           </TabsContent>
