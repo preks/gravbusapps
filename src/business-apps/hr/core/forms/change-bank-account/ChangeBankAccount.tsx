@@ -1,13 +1,17 @@
 import React, { useEffect, useMemo, useRef } from 'react';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
-import { getTranslationFromI18nKeyAndLabel, getCatalogValue } from '@/common/utils/windowUtils';
+import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
 import FormHeader from '../components/FormHeader';
 import flowIconUrl from '@/assets/icons/flowSmall.svg';
 import { useForm } from 'react-hook-form';
-import { Separator, Button, FormField, FormItem, FormLabel, FormControl, FormMessage, Select, SelectTrigger, SelectValue, SelectContent, SelectItem, Input, Alert, Textarea } from '@newwork/nw-design-system';
+import { Separator, Button, FormField, FormItem, FormLabel, FormControl, FormMessage, Textarea } from '@newwork/nw-design-system';
 import { AppActionForm } from '@/components/app-action-form/AppActionForm';
 import { dispatchProcessContinueEvent } from '@/common/utils/processEventUtils';
 import { ChangeBankAccountProvider, useChangeBankAccount } from './ChangeBankAccountContext';
+import DefaultFields from './components/DefaultFields';
+import UsFields from './components/UsFields';
+import NonUsFields from './components/NonUsFields';
+import { buildBankAccountPayload, isUnchangedExistingBankAccount } from './utils';
 
 export interface ChangeBankAccountFormProps extends BusinessAppContextProps {}
 
@@ -29,7 +33,7 @@ interface BankAccountFormValues {
   comment?: string;
 }
 
-const ChangeBankAccountContent: React.FC<ChangeBankAccountFormProps> = () => {
+const ChangeBankAccountContent: React.FC<ChangeBankAccountFormProps> = ({ userInfo }) => {
   const { data } = useChangeBankAccount();
 
   const form = useForm<BankAccountFormValues>({
@@ -149,52 +153,13 @@ const ChangeBankAccountContent: React.FC<ChangeBankAccountFormProps> = () => {
     } catch {}
   }, [selectedCountryId, catalogCountries, form]);
 
-  // Compute unchanged state vs existing account with debug logs
+  // Compute unchanged state vs existing account
   const watchedValues = form.watch();
-  const isUnchangedExisting = useMemo(() => {
-    const acc = existingAccount;
-    if (!acc) return false;
-    try {
-      const v = form.getValues() as any;
-      const normalize = (x: any) => ({
-        countryId: x?.countryId || null,
-        currencyId: x?.currencyId || null,
-        bankName: String(x?.bankName || ''),
-        accountType: String(x?.accountType || ''),
-        accountHolder: String(x?.accountHolder || ''),
-        iban: String(x?.iban || ''),
-        swift: String(x?.swift || ''),
-        routingNumberTypeId: x?.routingNumberTypeId || null,
-        accountNumber: String(x?.accountNumber || ''),
-        routingNumber: String(x?.routingNumber || ''),
-        employeeAddressId: x?.employeeAddressId || null,
-        comment: String(x?.comment || ''),
-      });
-      const normalizeAcc = (a: any) => ({
-        countryId: a?.country?.id || null,
-        currencyId: a?.currency?.id || null,
-        bankName: String(a?.bankName || ''),
-        accountType: String(a?.accountType || ''),
-        accountHolder: String(a?.accountHolder || ''),
-        iban: String(a?.iban || ''),
-        swift: String(a?.swift || ''),
-        routingNumberTypeId: a?.routingNumberType || null,
-        accountNumber: String(a?.accountNumber || ''),
-        routingNumber: String(a?.routingNumber || ''),
-        employeeAddressId: a?.employeeAddressId || null,
-        comment: String(a?.notes || ''),
-      });
-      const current = normalize(v);
-      const existing = normalizeAcc(acc);
-      const equal = JSON.stringify(current) === JSON.stringify(existing);
-      return equal;
-    } catch {
-      return false;
-    }
-  }, [existingAccount, watchedValues, form]);
+  const isUnchangedExisting = useMemo(() => isUnchangedExistingBankAccount(form, existingAccount), [existingAccount, watchedValues, form]);
 
   // Combine disabled states for explicit button control
-  const hasValidationErrors = useMemo(() => Boolean(form.formState?.errors && Object.keys(form.formState.errors).length > 0), [form.formState?.errors]);
+  // Recompute on any render so validation changes are immediately reflected
+  const hasValidationErrors = Object.keys((form.formState as any)?.errors ?? {}).length > 0;
   const isSubmitDisabledFinal = useMemo(() => {
     const disabled = isUSAndNoAddress || hasValidationErrors || isUnchangedExisting;
     return disabled;
@@ -210,14 +175,9 @@ const ChangeBankAccountContent: React.FC<ChangeBankAccountFormProps> = () => {
           form={form as any}
           formData={normalizedDefaults}
           submitEventType="pse_submit"
-          isSubmitDisabled={
-            // Disable if US without addresses
-            isUSAndNoAddress ||
-            // Disable if there are validation errors
-            Boolean(form.formState?.errors && Object.keys(form.formState.errors).length > 0) ||
-            // Disable if unchanged compared to existing account (when account exists)
-            isUnchangedExisting
-          }
+          submitButtonTestId="flw_changeBankAccount_submitButton"
+          cancelButtonTestId="flw_changeBankAccount_cancelButton"
+          isSubmitDisabled={isSubmitDisabledFinal}
           onCancel={() => {
             dispatchProcessContinueEvent('pse_abort', {
               event: 'pse_abort',
@@ -229,356 +189,40 @@ const ChangeBankAccountContent: React.FC<ChangeBankAccountFormProps> = () => {
             });
             form.reset(normalizedDefaults);
           }}
+          // cancelEventType="pse_abort"
           customFormLayout
           onSubmit={async (values: BankAccountFormValues) => {
-            return values as any;
+            const employeeId =
+              userInfo?.employeeDetails?.employeeId ||
+              ((data?.employee as any)?.Employee?.[0]?.id || '');
+
+            const existing = (data?.employee?.EmployeeBankAccount || [])?.[0] || null;
+            const payload = buildBankAccountPayload({ values, existingAccount: existing, employeeId });
+            console.log("payload", payload);
+            return payload as any;
           }}
-          data-testid="change-bank-account"
+          data-testid="flw_changeBankAccount_bankName_bankAccountContainer"
         >
           <div className="gba:flex-1 gba:space-y-4">
-            <FormField
-              control={form.control as any}
-              name={"countryId" as any}
-              rules={{
-                required: getTranslationFromI18nKeyAndLabel(
-                  'lowcoder:employee_profile.details_layout.bank_account_form.country_select_error_message',
-                  'The Country field is required.'
-                ),
-              }}
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>
-                    {getTranslationFromI18nKeyAndLabel('lowcoder:employee_profile.details_layout.bank_account_form.country_select_label', 'Country')}<span className="gba:text-destructive"> *</span>
-                  </FormLabel>
-                  <Select
-                    value={field.value === null || field.value === undefined || field.value === '' ? undefined : String(field.value)}
-                    onValueChange={(v) => field.onChange(v || null)}
-                  >
-                    <FormControl>
-                      <SelectTrigger className="gba:block gba:!w-full gba:min-w-0 gba:!max-w-none" data-testid="flw_changeBankAccount_country">
-                        <SelectValue placeholder={getTranslationFromI18nKeyAndLabel('lowcoder:employee_profile.details_layout.bank_account_form.country_select_placeholder', 'Select Country')} />
-                      </SelectTrigger>
-                    </FormControl>
-                    <SelectContent>
-                      {catalogCountries.map((entry: any) => (
-                        <SelectItem key={entry.id} value={String(entry.id)} data-testid={`flw_changeBankAccount_countryOption-${entry.id}`}>
-                          {getCatalogValue(entry)}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  <FormMessage />
-                  {isUSAndNoAddress ? (
-                    <Alert
-                      variant="destructive"
-                      className="gba:mt-2 gba:w-full gba:break-words gba:whitespace-nowrap"
-                      data-testid="flw_changeBankAccount_country_us_alert"
-                    >
-                      {getTranslationFromI18nKeyAndLabel(
-                        'lowcoder:employee_profile.details_layout.bank_account_form.country_select_usa_alert',
-                        'Please add an address to your profile first.'
-                      )}
-                    </Alert>
-                  ) : null}
-                </FormItem>
-              )}
+            <DefaultFields
+              form={form}
+              catalogCountries={catalogCountries}
+              catalogCurrencies={catalogCurrencies}
+              isUSAndNoAddress={isUSAndNoAddress}
             />
 
-            <FormField
-              control={form.control as any}
-              name={"currencyId" as any}
-              rules={{
-                required: getTranslationFromI18nKeyAndLabel(
-                  'lowcoder:employee_profile.details_layout.bank_account_form.currency_select_error_message',
-                  'The Currency field is required.'
-                ),
-              }}
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>
-                    {getTranslationFromI18nKeyAndLabel('lowcoder:employee_profile.details_layout.bank_account_form.currency_select_label', 'Currency')}<span className="gba:text-destructive"> *</span>
-                  </FormLabel>
-                  <Select
-                    value={field.value === null || field.value === undefined || field.value === '' ? undefined : String(field.value)}
-                    onValueChange={(v) => field.onChange(v || null)}
-                  >
-                    <FormControl>
-                      <SelectTrigger className="gba:block gba:!w-full gba:min-w-0 gba:!max-w-none" data-testid="flw_changeBankAccount_currency">
-                        <SelectValue placeholder={getTranslationFromI18nKeyAndLabel('lowcoder:employee_profile.details_layout.bank_account_form.currency_select_placeholder', 'Select Currency')} />
-                      </SelectTrigger>
-                    </FormControl>
-                    <SelectContent>
-                      {catalogCurrencies.map((entry: any) => (
-                        <SelectItem key={entry.id} value={String(entry.id)} data-testid={`flw_changeBankAccount_currencyOption-${entry.id}`}>
-                          {entry.code || getCatalogValue(entry)}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  <FormMessage />
-                </FormItem>
+            <div data-testid="flw_changeBankAccount_ibanSwiftLayout">
+              {isUS ? (
+                <UsFields
+                  form={form}
+                  catalogRoutingTypes={catalogRoutingTypes}
+                  employeeAddresses={employeeAddresses}
+                  selectedEmployeeAddress={selectedEmployeeAddress}
+                />
+              ) : (
+                <NonUsFields form={form} />
               )}
-            />
-
-            <FormField
-              control={form.control as any}
-              name={"bankName" as any}
-              rules={{
-                required: getTranslationFromI18nKeyAndLabel(
-                  'lowcoder:employee_profile.details_layout.bank_account_form.bank_name_select_error_message',
-                  'The Bank Name field is required.'
-                ),
-              }}
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>
-                    {getTranslationFromI18nKeyAndLabel('lowcoder:employee_profile.details_layout.bank_account_form.bank_name_select_label', 'Bank Name')}<span className="gba:text-destructive"> *</span>
-                  </FormLabel>
-                  <FormControl>
-                    <Input {...field} placeholder={getTranslationFromI18nKeyAndLabel('lowcoder:employee_profile.details_layout.bank_account_form.bank_name_select_placeholder', 'Enter Bank Name')} data-testid="flw_changeBankAccount_bankName" />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-
-            <FormField
-              control={form.control as any}
-              name={"accountType" as any}
-              rules={{
-                required: getTranslationFromI18nKeyAndLabel(
-                  'lowcoder:employee_profile.details_layout.bank_account_form.account_type_select_error_message',
-                  'The Account Type field is required.'
-                ),
-              }}
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>
-                    {getTranslationFromI18nKeyAndLabel('lowcoder:employee_profile.details_layout.bank_account_form.account_type_select_label', 'Account Type')}<span className="gba:text-destructive"> *</span>
-                  </FormLabel>
-                  <Select
-                    value={field.value === null || field.value === undefined || field.value === '' ? undefined : String(field.value)}
-                    onValueChange={(v) => field.onChange(v || '')}
-                  >
-                    <FormControl>
-                      <SelectTrigger className="gba:block gba:!w-full gba:min-w-0 gba:!max-w-none" data-testid="flw_changeBankAccount_accountType">
-                        <SelectValue placeholder={getTranslationFromI18nKeyAndLabel('lowcoder:employee_profile.details_layout.bank_account_form.account_type_select_placeholder', 'Select Account Type')} />
-                      </SelectTrigger>
-                    </FormControl>
-                    <SelectContent>
-                      <SelectItem value="CHECKINGS" data-testid="flw_changeBankAccount_accountTypeOption-CHECKINGS">
-                        {getTranslationFromI18nKeyAndLabel('lowcoder:employee_profile.details_layout.bank_account_form.account_type_select_checkings_value', 'Checkings')}
-                      </SelectItem>
-                      <SelectItem value="SAVINGS" data-testid="flw_changeBankAccount_accountTypeOption-SAVINGS">
-                        {getTranslationFromI18nKeyAndLabel('lowcoder:employee_profile.details_layout.bank_account_form.account_type_select_savings_value', 'Savings')}
-                      </SelectItem>
-                    </SelectContent>
-                  </Select>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-
-            <FormField
-              control={form.control as any}
-              name={"accountHolder" as any}
-              rules={{
-                required: getTranslationFromI18nKeyAndLabel(
-                  'lowcoder:employee_profile.details_layout.bank_account_form.account_holder_select_error_message',
-                  'The Account Holder field is required.'
-                ),
-              }}
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>
-                    {getTranslationFromI18nKeyAndLabel('lowcoder:employee_profile.details_layout.bank_account_form.account_holder_select_label', 'Account Holder')}<span className="gba:text-destructive"> *</span>
-                  </FormLabel>
-                  <FormControl>
-                    <Input {...field} placeholder={getTranslationFromI18nKeyAndLabel('lowcoder:employee_profile.details_layout.bank_account_form.account_holder_select_placeholder', 'Enter Account Holder')} data-testid="flw_changeBankAccount_accountHolder" />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-
-            {isUS ? (
-              <>
-                <FormField
-                  control={form.control as any}
-                  name={"routingNumberTypeId" as any}
-                  rules={{
-                    required: getTranslationFromI18nKeyAndLabel(
-                      'lowcoder:employee_profile.details_layout.bank_account_form.routing_number_type_select_error_message',
-                      'The Routing Number Type field is required.'
-                    ),
-                  }}
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>
-                        {getTranslationFromI18nKeyAndLabel('lowcoder:employee_profile.details_layout.bank_account_form.routing_number_type_select_label', 'Routing Number Type')}<span className="gba:text-destructive"> *</span>
-                      </FormLabel>
-                      <Select
-                        value={field.value === null || field.value === undefined || field.value === '' ? undefined : String(field.value)}
-                        onValueChange={(v) => field.onChange(v || null)}
-                      >
-                        <FormControl>
-                          <SelectTrigger className="gba:block gba:!w-full gba:min-w-0 gba:!max-w-none" data-testid="flw_changeBankAccount_routingNumberType">
-                            <SelectValue placeholder={getTranslationFromI18nKeyAndLabel('lowcoder:employee_profile.details_layout.bank_account_form.routing_number_type_select_placeholder', 'Select Routing Number Type')} />
-                          </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                          {catalogRoutingTypes.map((entry: any) => (
-                            <SelectItem key={entry.id} value={String(entry.id)} data-testid={`flw_changeBankAccount_routingNumberTypeOption-${entry.id}`}>
-                              {getCatalogValue(entry)}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-
-                <FormField
-                  control={form.control as any}
-                  name={"accountNumber" as any}
-                  rules={{
-                    required: getTranslationFromI18nKeyAndLabel(
-                      'lowcoder:employee_profile.details_layout.bank_account_form.account_number_select_error_message',
-                      'The Account Number field is required.'
-                    ),
-                  }}
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>
-                        {getTranslationFromI18nKeyAndLabel('lowcoder:employee_profile.details_layout.bank_account_form.account_number_select_label', 'Account Number')}<span className="gba:text-destructive"> *</span>
-                      </FormLabel>
-                      <FormControl>
-                        <Input {...field} placeholder={getTranslationFromI18nKeyAndLabel('lowcoder:employee_profile.details_layout.bank_account_form.account_number_select_placeholder', 'Enter Account Number')} data-testid="flw_changeBankAccount_accountNumber" />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-
-                <FormField
-                  control={form.control as any}
-                  name={"routingNumber" as any}
-                  rules={{
-                    required: getTranslationFromI18nKeyAndLabel(
-                      'lowcoder:employee_profile.details_layout.bank_account_form.routing_number_select_error_message',
-                      'The Routing Number field is required.'
-                    ),
-                  }}
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>
-                        {getTranslationFromI18nKeyAndLabel('lowcoder:employee_profile.details_layout.bank_account_form.routing_number_select_label', 'Routing Number')}<span className="gba:text-destructive"> *</span>
-                      </FormLabel>
-                      <FormControl>
-                        <Input {...field} placeholder={getTranslationFromI18nKeyAndLabel('lowcoder:employee_profile.details_layout.bank_account_form.routing_number_select_placeholder', 'Enter Routing Number')} data-testid="flw_changeBankAccount_routingNumber" />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-
-                <FormField
-                  control={form.control as any}
-                  name={"employeeAddressId" as any}
-                  rules={{
-                    required: getTranslationFromI18nKeyAndLabel(
-                      'lowcoder:employee_profile.details_layout.bank_account_form.address_select_error_message',
-                      'The Address field is required.'
-                    ),
-                  }}
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>
-                        {getTranslationFromI18nKeyAndLabel('lowcoder:employee_profile.details_layout.bank_account_form.address_select_label', 'Address')}<span className="gba:text-destructive"> *</span>
-                      </FormLabel>
-                      <Select
-                        value={field.value === null || field.value === undefined || field.value === '' ? undefined : String(field.value)}
-                        onValueChange={(v) => field.onChange(v || null)}
-                      >
-                        <FormControl>
-                          <SelectTrigger className="gba:block gba:!w-full gba:min-w-0 gba:!max-w-none" data-testid="flw_changeBankAccount_address">
-                            <SelectValue placeholder={getTranslationFromI18nKeyAndLabel('lowcoder:employee_profile.details_layout.bank_account_form.address_select_placeholder', 'Select Address')} />
-                          </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                          {employeeAddresses.map((entry: any) => (
-                            <SelectItem key={entry.id} value={String(entry.id)} data-testid={`flw_changeBankAccount_addressOption-${entry.id}`}>
-                              {entry?.type || ''}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                      <FormMessage />
-                      <div className="gba:mt-2 gba:w-full gba:min-h-10 gba:px-3 gba:py-2 gba:rounded-md gba:bg-muted gba:text-muted-foreground gba:border gba:border-muted gba:whitespace-pre-wrap" data-testid="flw_changeBankAccount_selectedAddressDisplay">
-                        {selectedEmployeeAddress ? (
-                          (() => {
-                            const line1 = `${String(selectedEmployeeAddress?.addressLine?.[0] || '')} ${String(selectedEmployeeAddress?.addressLine?.[1] || '')}`.trim();
-                            const line2 = `${String(selectedEmployeeAddress?.addressLine?.[2] || '')} ${String(selectedEmployeeAddress?.addressLine?.[3] || '')}`.trim();
-                            const line3 = `${String(selectedEmployeeAddress?.region?.alternativeCode || '')} ${String(selectedEmployeeAddress?.locality || '')} ${String(selectedEmployeeAddress?.postalCode || '')}`.trim();
-                            return (
-                              <>
-                                {line1}
-                                {line2 ? (<><br />{line2}</>) : null}
-                                <br />
-                                {line3}
-                              </>
-                            );
-                          })()
-                        ) : (
-                          getTranslationFromI18nKeyAndLabel('lowcoder:employee_profile.details_layout.bank_account_form.no_selected_address_text', 'No selected address')
-                        )}
-                      </div>
-                    </FormItem>
-                  )}
-                />
-              </>
-            ) : (
-              <>
-                <FormField
-                  control={form.control as any}
-                  name={"iban" as any}
-                  rules={{
-                    required: getTranslationFromI18nKeyAndLabel(
-                      'lowcoder:employee_profile.details_layout.bank_account_form.iban_select_error_message',
-                      'The IBAN field is required.'
-                    ),
-                  }}
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>
-                        {getTranslationFromI18nKeyAndLabel('lowcoder:employee_profile.details_layout.bank_account_form.iban_select_label', 'IBAN')}<span className="gba:text-destructive"> *</span>
-                      </FormLabel>
-                      <FormControl>
-                        <Input {...field} placeholder={getTranslationFromI18nKeyAndLabel('lowcoder:employee_profile.details_layout.bank_account_form.iban_select_placeholder', 'Enter IBAN')} data-testid="flw_changeBankAccount_iban" />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-
-                <FormField
-                  control={form.control as any}
-                  name={"swift" as any}
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>
-                        {getTranslationFromI18nKeyAndLabel('lowcoder:employee_profile.details_layout.bank_account_form.swift_select_label', 'Swift')}
-                      </FormLabel>
-                      <FormControl>
-                        <Input {...field} placeholder={getTranslationFromI18nKeyAndLabel('lowcoder:employee_profile.details_layout.bank_account_form.swift_select_placeholder', 'Enter Swift')} data-testid="flw_changeBankAccount_swift" />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-              </>
-            )}
+            </div>
 
             <FormField
               control={form.control as any}
