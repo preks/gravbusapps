@@ -128,7 +128,7 @@ const AddressLines: React.FC<AddressLinesProps> = ({
       {addressLinesError ? (
         <Alert
           variant="default"
-          className="gba:mt-2 gba:w-full gba:whitespace-nowrap gba:break-words gba:border-warning gba:text-warning gba:border gba:border-warning-ring gba:rounded-md"
+          className="gba:mt-2 gba:w-full gba:whitespace-nowrap gba:border-warning gba:text-warning gba:border gba:border-warning-ring gba:rounded-md"
         >
           {addressLinesError}
         </Alert>
