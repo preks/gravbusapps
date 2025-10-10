@@ -296,7 +296,7 @@ const ChangePrivateCommunicationScreen: React.FC<ChangePrivateCommunicationScree
     >
       <div className="gba:bg-white gba:max-w-xl gba:w-full gba:max-h-[90vh] gba:overflow-hidden">
         {/* Header */}
-        <div className="gba:flex gba:items-center gba:justify-between gba:p-6">
+        <div className="gba:flex gba:items-center gba:justify-between gba:px-0 gba:py-6">
           <div className="gba:flex gba:items-center gba:gap-2">
             <img src={flowSmall} alt="Flow Small" className="gba:w-6 gba:h-6" style={{ filter: 'brightness(0)' }} />
             <h2 className="gba:text-xl gba:font-semibold gba:text-gray-900">
@@ -308,7 +308,7 @@ const ChangePrivateCommunicationScreen: React.FC<ChangePrivateCommunicationScree
         <div className="gba:border-t gba:border-gray-200" />
 
         {/* Content */}
-        <div className="gba:p-6 gba:space-y-4 gba:overflow-y-auto gba:max-h-[calc(90vh-160px)]">
+        <div className="gba:px-0 gba:py-6 gba:space-y-4 gba:overflow-y-auto gba:max-h-[calc(90vh-160px)]">
           {/* Channel Type */}
           <div className="gba:space-y-2">
             <div className="gba:text-sm gba:font-medium gba:text-gray-600">
